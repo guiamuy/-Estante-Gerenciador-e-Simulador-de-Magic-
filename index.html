@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14100b">
+<link rel="icon" type="image/svg+xml" href="">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="./icon-512.png">
+<title>Estante · Magic: The Gathering</title>
+<style>/* =====================================================================
+   F4 · TOKENS
+   Única fonte de cor, espaço, raio, elevação, tipografia e movimento.
+   Nenhuma regra de componente pode escrever valor literal.
+
+   Referências: Arena (mesa escura, carta como única cor viva),
+   Scryfall (tipografia de dado, densidade sem ruído),
+   Moxfield (densidade de lista).
+   ===================================================================== */
+:root {
+  /* ---- espaço: escala de 4px ---- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---- raio ---- */
+  --radius-1: 4px;
+  --radius-2: 8px;
+  --radius-3: 14px;
+  --radius-full: 999px;
+  --radius-card: 4.75%;
+
+  /* ---- tipografia ---- */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 11px;   --lh-xs: 1.45;
+  --text-sm: 12.5px; --lh-sm: 1.45;
+  --text-md: 14px;   --lh-md: 1.5;
+  --text-lg: 16px;   --lh-lg: 1.45;
+  --text-xl: 20px;   --lh-xl: 1.3;
+  --text-2xl: 27px;  --lh-2xl: 1.2;
+  --text-3xl: 36px;  --lh-3xl: 1.1;
+  --weight-regular: 400;
+  --weight-medium: 600;
+  --weight-bold: 700;
+
+  /* ---- movimento ---- */
+  --dur-1: 110ms;
+  --dur-2: 180ms;
+  --dur-3: 280ms;
+  --ease-out: cubic-bezier(.22, .61, .36, 1);
+  --ease-in-out: cubic-bezier(.45, .05, .55, .95);
+
+  /* ---- camadas ---- */
+  --z-base: 0;
+  --z-sticky: 20;
+  --z-overlay: 40;
+  --z-modal: 60;
+  --z-toast: 80;
+
+  /* ---- alvo de toque ---- */
+  --tap-min: 44px;
+
+  /* ---- cor das manas: constante entre temas, é identidade de Magic ---- */
+  --mana-w: #f5e6c8;
+  --mana-u: #4a7fb5;
+  --mana-b: #4b4453;
+  --mana-r: #c05a3e;
+  --mana-g: #3f8558;
+  --mana-c: #8a8f99;
+
+  /* ---- tema escuro: nogueira e papel envelhecido ----
+     Madeira é o móvel; a carta é o conteúdo. Nenhum tom de madeira
+     aparece em texto ou em estado — só em fundo, superfície e borda. */
+  --bg: #14100b;
+  --bg-elev-1: #1f1811;
+  --bg-elev-2: #2a2118;
+  --bg-elev-3: #372c20;
+  --border: #443626;
+  --border-strong: #5e4b34;
+  --fg: #f1e8d7;
+  --fg-muted: #bcab90;
+  --fg-subtle: #9c8b71;
+  --accent: #cfa851;
+  --accent-hover: #e8c375;
+  --accent-fg: #18120a;
+  --accent-soft: rgba(207, 168, 81, .16);
+  --positive: #6fae8d;
+  --positive-fg: #0c1a13;
+  --negative: #d4785f;
+  --negative-fg: #1c0e09;
+  --warning: #d9a33f;
+  --overlay: rgba(10, 7, 4, .82);
+  --scrim: rgba(20, 16, 11, .95);
+  --grain-1: rgba(255, 244, 222, .022);
+  --grain-2: rgba(0, 0, 0, .18);
+  --shelf-edge: #4a3a27;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .42);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, .48);
+  --shadow-3: 0 12px 34px rgba(0, 0, 0, .6);
+  --focus-ring: 0 0 0 3px var(--accent-soft);
+  color-scheme: dark;
+}
+
+/* ---- tema claro: papel e tinta, não inversão ---- */
+:root[data-theme="light"] {
+  --bg: #e7dbc4;
+  --bg-elev-1: #f6eeda;
+  --bg-elev-2: #e0d3b6;
+  --bg-elev-3: #d1c09c;
+  --border: #bda98a;
+  --border-strong: #9a8560;
+  --fg: #241b0f;
+  --fg-muted: #57492f;
+  --fg-subtle: #6b5b3c;
+  --accent: #7a5a17;
+  --accent-hover: #674b12;
+  --accent-fg: #fdf8ea;
+  --accent-soft: rgba(122, 90, 23, .15);
+  --positive: #2a6349;
+  --positive-fg: #f1f8f4;
+  --negative: #92381f;
+  --negative-fg: #fdf2ee;
+  --warning: #8a6410;
+  --overlay: rgba(46, 35, 18, .5);
+  --scrim: rgba(246, 238, 218, .95);
+  --grain-1: rgba(90, 62, 22, .035);
+  --grain-2: rgba(120, 88, 40, .05);
+  --shelf-edge: #b59a6c;
+  --shadow-1: 0 1px 2px rgba(74, 56, 26, .14);
+  --shadow-2: 0 4px 12px rgba(74, 56, 26, .18);
+  --shadow-3: 0 12px 34px rgba(74, 56, 26, .24);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    --bg: #e7dbc4;
+    --bg-elev-1: #f6eeda;
+    --bg-elev-2: #e0d3b6;
+    --bg-elev-3: #d1c09c;
+    --border: #bda98a;
+    --border-strong: #9a8560;
+    --fg: #241b0f;
+    --fg-muted: #57492f;
+    --fg-subtle: #6b5b3c;
+    --accent: #7a5a17;
+    --accent-hover: #674b12;
+    --accent-fg: #fdf8ea;
+    --accent-soft: rgba(122, 90, 23, .15);
+    --positive: #2a6349;
+    --positive-fg: #f1f8f4;
+    --negative: #92381f;
+    --negative-fg: #fdf2ee;
+    --warning: #8a6410;
+    --overlay: rgba(46, 35, 18, .5);
+    --scrim: rgba(246, 238, 218, .95);
+    --grain-1: rgba(90, 62, 22, .035);
+    --grain-2: rgba(120, 88, 40, .05);
+    --shelf-edge: #b59a6c;
+    --shadow-1: 0 1px 2px rgba(74, 56, 26, .14);
+    --shadow-2: 0 4px 12px rgba(74, 56, 26, .18);
+    --shadow-3: 0 12px 34px rgba(74, 56, 26, .24);
+    color-scheme: light;
+  }
+}
+
+/* =====================================================================
+   F5 · BASE + COMPONENTES
+   Toda propriedade visual sai de token. Nenhum literal de cor aqui.
+   ===================================================================== */
+
+/* ---------------- reset e base ---------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
+}
+img { max-width: 100%; display: block; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: none; padding: 0; cursor: pointer; }
+a { color: var(--accent); }
+::selection { background: var(--accent-soft); color: var(--fg); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-1); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------------- primitivas ---------------- */
+.ds-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+.ds-row { display: flex; align-items: center; gap: var(--space-2); }
+.ds-row--wrap { flex-wrap: wrap; }
+.ds-grow { flex: 1; min-width: 0; }
+.ds-center { display: grid; place-items: center; }
+.ds-wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 var(--space-4); }
+
+.ds-surface { background: var(--bg-elev-1); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
+.ds-surface--flat { box-shadow: none; border: 1px solid var(--border); }
+.ds-surface--raised { background: var(--bg-elev-2); box-shadow: var(--shadow-2); }
+.ds-surface--pad { padding: var(--space-4); }
+
+.ds-text { margin: 0; }
+.ds-text--display { font-family: var(--font-display); font-weight: var(--weight-regular); }
+.ds-text--xs { font-size: var(--text-xs); line-height: var(--lh-xs); }
+.ds-text--sm { font-size: var(--text-sm); line-height: var(--lh-sm); }
+.ds-text--md { font-size: var(--text-md); line-height: var(--lh-md); }
+.ds-text--lg { font-size: var(--text-lg); line-height: var(--lh-lg); }
+.ds-text--xl { font-size: var(--text-xl); line-height: var(--lh-xl); }
+.ds-text--2xl { font-size: var(--text-2xl); line-height: var(--lh-2xl); }
+.ds-text--3xl { font-size: var(--text-3xl); line-height: var(--lh-3xl); }
+.ds-text--muted { color: var(--fg-muted); }
+.ds-text--subtle { color: var(--fg-subtle); }
+.ds-text--accent { color: var(--accent); }
+.ds-text--mono { font-family: var(--font-mono); }
+.ds-text--caps { text-transform: uppercase; letter-spacing: .09em; font-size: var(--text-xs); color: var(--fg-muted); }
+
+/* ---------------- botão ---------------- */
+.ds-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--tap-min); padding: 0 var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius-1);
+  background: var(--bg-elev-2); color: var(--fg);
+  font-size: var(--text-md); font-weight: var(--weight-medium);
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
+              color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out),
+              box-shadow var(--dur-1) var(--ease-out);
+}
+.ds-btn:hover { border-color: var(--border-strong); background: var(--bg-elev-3); }
+.ds-btn:active { transform: translateY(1px); }
+.ds-btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
+.ds-btn--primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); box-shadow: var(--shadow-1); }
+.ds-btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-fg); }
+.ds-btn--ghost { background: transparent; border-color: transparent; color: var(--fg-muted); }
+.ds-btn--ghost:hover { background: var(--bg-elev-2); color: var(--fg); border-color: transparent; }
+.ds-btn--danger { color: var(--negative); border-color: var(--border); }
+.ds-btn--danger:hover { background: var(--negative); color: var(--negative-fg); border-color: var(--negative); }
+.ds-btn--block { width: 100%; }
+.ds-btn--icon { width: var(--tap-min); padding: 0; }
+
+/* ---------------- campos ---------------- */
+.ds-field { display: block; }
+.ds-field__label { display: block; font-size: var(--text-sm); color: var(--fg-muted); margin-bottom: var(--space-1); }
+.ds-field__hint { display: block; font-size: var(--text-xs); color: var(--fg-subtle); margin-top: var(--space-1); }
+.ds-input, .ds-select, .ds-textarea {
+  width: 100%; min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elev-2); color: var(--fg);
+  border: 1px solid var(--border); border-radius: var(--radius-1);
+  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.ds-textarea { min-height: 160px; resize: vertical; font-family: var(--font-mono); font-size: var(--text-sm); }
+.ds-input:focus, .ds-select:focus, .ds-textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: var(--focus-ring);
+}
+.ds-field--invalid .ds-input, .ds-field--invalid .ds-select, .ds-field--invalid .ds-textarea { border-color: var(--negative); }
+
+/* ---------------- badge, chip ---------------- */
+.ds-badge {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2); border-radius: var(--radius-1);
+  border: 1px solid var(--border); color: var(--fg-muted);
+  font-size: var(--text-xs); line-height: var(--lh-xs); white-space: nowrap;
+}
+.ds-badge--positive { color: var(--positive); border-color: var(--positive); }
+.ds-badge--negative { color: var(--negative); border-color: var(--negative); }
+.ds-badge--accent { color: var(--accent); border-color: var(--accent); }
+.ds-badge--solid { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
+
+.ds-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  min-height: var(--tap-min); padding: 0 var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: transparent; color: var(--fg-muted); font-size: var(--text-sm);
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.ds-chip:hover { border-color: var(--border-strong); color: var(--fg); }
+.ds-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
+
+/* ---------------- pip de mana ---------------- */
+.ds-pip {
+  display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong); vertical-align: -2px; margin-right: 2px;
+}
+.ds-pip--w { background: var(--mana-w); }
+.ds-pip--u { background: var(--mana-u); }
+.ds-pip--b { background: var(--mana-b); }
+.ds-pip--r { background: var(--mana-r); }
+.ds-pip--g { background: var(--mana-g); }
+.ds-pip--c { background: var(--mana-c); }
+
+/* ---------------- tabs ---------------- */
+.ds-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border); }
+.ds-tab {
+  min-height: var(--tap-min); padding: 0 var(--space-4);
+  color: var(--fg-muted); font-size: var(--text-md);
+  border-bottom: 2px solid transparent;
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.ds-tab:hover { color: var(--fg); }
+.ds-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: var(--weight-medium); }
+
+/* ---------------- lista ---------------- */
+.ds-list { border: 1px solid var(--border); border-radius: var(--radius-2); overflow: hidden; background: var(--bg-elev-1); }
+.ds-list__item {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; min-height: 56px; padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border); text-align: left;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.ds-list__item:last-child { border-bottom: none; }
+.ds-list__item:hover { background: var(--accent-soft); }
+.ds-list__group {
+  position: sticky; top: 0; z-index: var(--z-sticky);
+  background: var(--bg-elev-3); color: var(--accent);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .09em;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------------- sheet e dialog ---------------- */
+.ds-overlay {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  background: var(--overlay); backdrop-filter: blur(3px);
+  display: none; align-items: center; justify-content: center; padding: var(--space-4);
+  animation: ds-fade var(--dur-2) var(--ease-out);
+}
+.ds-overlay[data-open="true"] { display: flex; }
+.ds-dialog {
+  width: 100%; max-width: 560px; max-height: 92vh; overflow: auto;
+  background: var(--bg-elev-1); border-radius: var(--radius-3);
+  box-shadow: var(--shadow-3); padding: var(--space-5);
+  animation: ds-rise var(--dur-2) var(--ease-out);
+}
+.ds-dialog__title { font-family: var(--font-display); font-size: var(--text-xl); margin: 0 0 var(--space-3); }
+.ds-dialog__actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; margin-top: var(--space-4); }
+@keyframes ds-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes ds-rise { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: none } }
+
+/* ---------------- toast ---------------- */
+.ds-toast {
+  position: fixed; left: 50%; bottom: var(--space-5); z-index: var(--z-toast);
+  transform: translateX(-50%) translateY(10px);
+  background: var(--fg); color: var(--bg);
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-2);
+  box-shadow: var(--shadow-3); font-size: var(--text-sm); font-weight: var(--weight-medium);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.ds-toast[data-open="true"] { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------------- estados ---------------- */
+.ds-empty {
+  border: 1px dashed var(--border); border-radius: var(--radius-2);
+  padding: var(--space-6) var(--space-4); text-align: center; color: var(--fg-muted);
+}
+.ds-note {
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: var(--radius-1); background: var(--bg-elev-1);
+  padding: var(--space-3) var(--space-4); font-size: var(--text-sm); color: var(--fg-muted);
+}
+.ds-note--warning { border-left-color: var(--warning); }
+.ds-note--negative { border-left-color: var(--negative); }
+.ds-spinner {
+  width: 18px; height: 18px; border-radius: var(--radius-full);
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  animation: ds-spin 700ms linear infinite;
+}
+@keyframes ds-spin { to { transform: rotate(360deg) } }
+
+/* ---------------- carta ---------------- */
+.ds-card {
+  position: relative; display: block; width: 100%;
+  aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden;
+  background: var(--bg-elev-3); border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.ds-card:hover { box-shadow: var(--shadow-2); }
+.ds-card img { width: 100%; height: 100%; object-fit: cover; }
+.ds-card__fallback {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  padding: var(--space-2); text-align: center;
+  font-family: var(--font-display); font-size: var(--text-sm); color: var(--fg);
+}
+.ds-cardgrid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+@media (min-width: 700px) { .ds-cardgrid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+
+/* ---------------- barra de aplicação ---------------- */
+.ds-appbar {
+  position: sticky; top: 0; z-index: var(--z-sticky);
+  background: var(--scrim); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border); box-shadow: var(--shadow-1);
+}
+.ds-appbar__inner { display: flex; align-items: center; gap: var(--space-3); min-height: 56px; }
+.ds-appbar__brand { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.1; }
+.ds-appbar__brand small { display: block; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--fg-muted); }
+
+.ds-hidden { display: none !important; }
+
+/* ===================== marca ===================== */
+.brand { display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--fg); }
+.brand-mark { display: block; flex: none; }
+.brand__name { display: flex; flex-direction: column; line-height: 1.05; }
+.brand__word { font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: .01em; }
+.brand__tag { font-size: var(--text-xs); color: var(--fg-muted); letter-spacing: .06em; }
+
+/* ===================== móvel: veio de madeira e ombro de prateleira =====================
+   Textura de contraste muito baixo, só atrás de superfície, nunca sob texto. */
+body {
+  background-image:
+    repeating-linear-gradient(94deg, var(--grain-1) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(88deg, var(--grain-2) 0 1px, transparent 1px 23px),
+    radial-gradient(1200px 520px at 50% -12%, var(--bg-elev-1) 0%, transparent 62%);
+  background-attachment: fixed;
+}
+.ds-surface { border: 1px solid var(--border); }
+.ds-surface--shelf {
+  background-image: repeating-linear-gradient(91deg, var(--grain-1) 0 2px, transparent 2px 9px);
+  border-bottom: 3px solid var(--shelf-edge);
+}
+.ds-list__group { border-bottom: 2px solid var(--shelf-edge); }
+.ds-list { border-bottom: 3px solid var(--shelf-edge); }
+.ds-appbar { border-bottom: 2px solid var(--shelf-edge); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>/* ==== src/platform/index.js ==== */
+const __m0 = (function () {
+/* =====================================================================
+   F2 · CAMADA DE PLATAFORMA
+   Toda capacidade de dispositivo atrás de uma interface. Implementação
+   web hoje; Capacitor depois, trocando só o adaptador. Nenhum módulo de
+   domínio fala com o navegador diretamente.
+   ===================================================================== */
+
+/** Contrato que todo adaptador precisa cumprir. Verificado nos testes. */
+const PLATFORM_CONTRACT = {
+  store: ['get', 'set', 'remove', 'keys'],
+  camera: ['available', 'start', 'capture', 'stop'],
+  files: ['save', 'readText'],
+  share: ['available', 'text', 'copy']
+};
+
+/* ---------------- Store ---------------- */
+function memoryStore() {
+  const m = new Map();
+  return {
+    kind: 'memory',
+    async get(k) { return m.has(k) ? m.get(k) : null; },
+    async set(k, v) { m.set(k, v); return true; },
+    async remove(k) { m.delete(k); return true; },
+    async keys(prefix) { return [...m.keys()].filter(k => !prefix || String(k).startsWith(prefix)); }
+  };
+}
+
+function idbStore(idb, name = 'mtg', store = 'kv') {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = idb.open(name, 1);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(store)) r.result.createObjectStore(store); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const tx = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction(store, mode);
+      const req = fn(t.objectStore(store));
+      t.oncomplete = () => res(req ? req.result : undefined);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error);
+    });
+  };
+  return {
+    kind: 'indexeddb',
+    async get(k) { const v = await tx('readonly', s => s.get(k)); return v === undefined ? null : v; },
+    async set(k, v) { await tx('readwrite', s => s.put(v, k)); return true; },
+    async remove(k) { await tx('readwrite', s => s.delete(k)); return true; },
+    async keys(prefix) { const ks = await tx('readonly', s => s.getAllKeys()); return (ks || []).filter(k => !prefix || String(k).startsWith(prefix)); }
+  };
+}
+
+/* ---------------- Camera ---------------- */
+function webCamera(nav, doc) {
+  let stream = null, video = null;
+  return {
+    kind: 'web',
+    available() { return !!(nav && nav.mediaDevices && nav.mediaDevices.getUserMedia); },
+    async start(el, opts = {}) {
+      if (!this.available()) throw new Error('camera-unavailable');
+      stream = await nav.mediaDevices.getUserMedia({
+        video: { facingMode: opts.facing || 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      video = el; video.srcObject = stream;
+      if (video.play) await video.play();
+      return { width: video.videoWidth, height: video.videoHeight };
+    },
+    /** Recorta uma região relativa (0..1) do quadro e devolve um canvas. */
+    capture(region) {
+      if (!video) throw new Error('camera-not-started');
+      const r = region || { x: 0, y: 0, w: 1, h: 1 };
+      const sw = video.videoWidth, sh = video.videoHeight;
+      const c = doc.createElement('canvas');
+      c.width = Math.max(1, Math.round(sw * r.w));
+      c.height = Math.max(1, Math.round(sh * r.h));
+      c.getContext('2d').drawImage(video, Math.round(sw * r.x), Math.round(sh * r.y), c.width, c.height, 0, 0, c.width, c.height);
+      return c;
+    },
+    stop() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; video = null; }
+  };
+}
+
+/* ---------------- Files ---------------- */
+function webFiles(doc, URLc, Blobc, FileReaderC) {
+  return {
+    kind: 'web',
+    save(filename, text, mime = 'text/plain') {
+      const blob = new Blobc([text], { type: mime });
+      const a = doc.createElement('a');
+      a.href = URLc.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URLc.revokeObjectURL(a.href);
+      return true;
+    },
+    readText(file) {
+      return new Promise((res, rej) => {
+        const fr = new FileReaderC();
+        fr.onload = () => res(String(fr.result));
+        fr.onerror = () => rej(fr.error);
+        fr.readAsText(file);
+      });
+    }
+  };
+}
+
+/* ---------------- Share ---------------- */
+function webShare(nav) {
+  return {
+    kind: 'web',
+    available() { return !!(nav && (nav.share || (nav.clipboard && nav.clipboard.writeText))); },
+    async text(title, body) {
+      if (nav && nav.share) { await nav.share({ title, text: body }); return true; }
+      return this.copy(body);
+    },
+    async copy(body) {
+      if (nav && nav.clipboard && nav.clipboard.writeText) { await nav.clipboard.writeText(body); return true; }
+      return false;
+    }
+  };
+}
+
+/** Monta a plataforma. Tudo entra por parâmetro para ser testável sem
+    navegador e substituível por adaptador nativo. */
+function createPlatform(env = {}) {
+  const win = env.window || (typeof window !== 'undefined' ? window : {});
+  const doc = env.document || win.document || null;
+  const nav = env.navigator || win.navigator || null;
+  const idb = env.indexedDB !== undefined ? env.indexedDB : (win.indexedDB || null);
+  let store;
+  try { store = idb ? idbStore(idb, env.dbName) : memoryStore(); }
+  catch (e) { store = memoryStore(); }
+  const G = k => win[k] || (typeof globalThis !== 'undefined' ? globalThis[k] : null);
+  return {
+    store,
+    camera: env.camera || webCamera(nav, doc),
+    files: env.files || webFiles(doc, G('URL'), G('Blob'), G('FileReader')),
+    share: env.share || webShare(nav)
+  };
+}
+return { memoryStore, createPlatform, PLATFORM_CONTRACT };
+})();
+
+/* ==== src/ui/theme.js ==== */
+const __m1 = (function () {
+/* F4 · tema: automático, escuro, claro. Persistido pela camada de plataforma. */
+const THEMES = [
+  { id: 'auto', icon: '◐', label: 'Tema automático' },
+  { id: 'dark', icon: '◗', label: 'Tema escuro' },
+  { id: 'light', icon: '◖', label: 'Tema claro' }
+];
+const KEY = 'ui.theme';
+
+function createTheme(store) {
+  let current = 'auto';
+  const apply = id => {
+    current = THEMES.some(t => t.id === id) ? id : 'auto';
+    const root = document.documentElement;
+    if (current === 'auto') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', current);
+    document.querySelectorAll('[data-theme-toggle]').forEach(b => {
+      const t = THEMES.find(x => x.id === current);
+      b.textContent = t.icon;
+      b.setAttribute('aria-label', t.label);
+      b.title = t.label;
+    });
+    return current;
+  };
+  return {
+    get current() { return current; },
+    async init() { let saved = null; try { saved = await store.get(KEY); } catch (e) {} return apply(saved || 'auto'); },
+    async cycle() {
+      const i = THEMES.findIndex(t => t.id === current);
+      const next = THEMES[(i + 1) % THEMES.length].id;
+      apply(next);
+      try { await store.set(KEY, next); } catch (e) {}
+      return next;
+    },
+    apply
+  };
+}
+return { createTheme, THEMES };
+})();
+
+/* ==== src/app/router.js ==== */
+const __m2 = (function () {
+/* Roteador por hash: funciona em file://, em PWA e dentro de WebView nativa. */
+function createRouter(routes, onChange) {
+  const parse = () => {
+    const raw = (location.hash || '#/').replace(/^#/, '');
+    const [path, qs] = raw.split('?');
+    const parts = path.split('/').filter(Boolean);
+    return { path: '/' + parts.join('/'), parts, query: Object.fromEntries(new URLSearchParams(qs || '')) };
+  };
+  const resolve = () => {
+    const r = parse();
+    const route = routes.find(x => x.path === r.path) || routes.find(x => x.path === '*');
+    return { route, ...r };
+  };
+  const go = to => { location.hash = to.startsWith('#') ? to : '#' + to; };
+  const start = () => { window.addEventListener('hashchange', () => onChange(resolve())); onChange(resolve()); };
+  return { start, go, resolve, parse };
+}
+return { createRouter };
+})();
+
+/* ==== src/ui/components.js ==== */
+const __m3 = (function () {
+/* =====================================================================
+   F5 · COMPONENTES
+   Sem framework. Fábricas que devolvem elementos, com API estável e
+   acessibilidade embutida. A UI de produto só monta estes blocos.
+   ===================================================================== */
+
+function h(tag, props = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === 'dataset') Object.assign(el.dataset, v);
+    else if (k === 'html') el.innerHTML = v;
+    else el.setAttribute(k, v === true ? '' : String(v));
+  }
+  for (const c of children.flat(9)) {
+    if (c == null || c === false) continue;
+    el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+  }
+  return el;
+}
+const clear = el => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
+const mount = (el, ...kids) => { clear(el); kids.flat(9).filter(Boolean).forEach(k => el.appendChild(k)); return el; };
+
+/* ---------------- primitivas ---------------- */
+const Stack = (props, ...kids) => h('div', { ...props, class: ['ds-stack', props?.class].filter(Boolean).join(' ') }, ...kids);
+const Row = (props, ...kids) => h('div', { ...props, class: ['ds-row', props?.class].filter(Boolean).join(' ') }, ...kids);
+const Surface = (props, ...kids) => h('div', { ...props, class: ['ds-surface', props?.class].filter(Boolean).join(' ') }, ...kids);
+
+function Text(value, opts = {}) {
+  const cls = ['ds-text', `ds-text--${opts.size || 'md'}`];
+  if (opts.display) cls.push('ds-text--display');
+  if (opts.tone) cls.push(`ds-text--${opts.tone}`);
+  if (opts.mono) cls.push('ds-text--mono');
+  if (opts.caps) cls.push('ds-text--caps');
+  return h(opts.as || 'p', { class: cls.join(' '), ...(opts.attrs || {}) }, value);
+}
+
+/* ---------------- botão ---------------- */
+function Button(label, opts = {}) {
+  const cls = ['ds-btn'];
+  if (opts.variant) cls.push(`ds-btn--${opts.variant}`);
+  if (opts.block) cls.push('ds-btn--block');
+  if (opts.icon) cls.push('ds-btn--icon');
+  return h('button', {
+    class: cls.join(' '), type: 'button',
+    disabled: opts.disabled || false,
+    'aria-label': opts.ariaLabel || (opts.icon ? String(label) : null),
+    onClick: opts.onClick, id: opts.id, dataset: opts.dataset
+  }, label);
+}
+
+/* ---------------- campos ---------------- */
+function Field(label, control, opts = {}) {
+  return h('label', { class: ['ds-field', opts.invalid ? 'ds-field--invalid' : ''].filter(Boolean).join(' ') },
+    h('span', { class: 'ds-field__label' }, label),
+    control,
+    opts.hint ? h('span', { class: 'ds-field__hint' }, opts.hint) : null);
+}
+const Input = (opts = {}) => h('input', { class: 'ds-input', type: opts.type || 'text', id: opts.id, value: opts.value ?? '', placeholder: opts.placeholder || '', onInput: opts.onInput, inputmode: opts.inputmode });
+const Textarea = (opts = {}) => h('textarea', { class: 'ds-textarea', id: opts.id, placeholder: opts.placeholder || '', spellcheck: 'false', onInput: opts.onInput }, opts.value ?? '');
+function Select(options, opts = {}) {
+  return h('select', { class: 'ds-select', id: opts.id, onChange: opts.onChange },
+    ...options.map(o => h('option', { value: o.value, selected: o.value === opts.value }, o.label)));
+}
+
+/* ---------------- indicadores ---------------- */
+const Badge = (label, opts = {}) => h('span', { class: ['ds-badge', opts.tone ? `ds-badge--${opts.tone}` : ''].filter(Boolean).join(' ') }, label);
+function Chip(label, opts = {}) {
+  return h('button', { class: 'ds-chip', type: 'button', 'aria-pressed': String(!!opts.pressed), onClick: opts.onClick, dataset: opts.dataset }, label);
+}
+function ManaPips(identity) {
+  const ci = String(identity || '').toUpperCase();
+  if (!ci) return h('span', { class: 'ds-pip ds-pip--c', title: 'incolor' });
+  return h('span', {}, ...ci.split('').filter(c => 'WUBRG'.includes(c))
+    .map(c => h('span', { class: `ds-pip ds-pip--${c.toLowerCase()}`, title: c })));
+}
+
+/* ---------------- navegação e listas ---------------- */
+function Tabs(items, opts = {}) {
+  const el = h('div', { class: 'ds-tabs', role: 'tablist' },
+    ...items.map(it => h('button', {
+      class: 'ds-tab', role: 'tab', type: 'button',
+      'aria-selected': String(it.id === opts.active),
+      dataset: { tab: it.id },
+      onClick: () => opts.onSelect && opts.onSelect(it.id)
+    }, it.label)));
+  return el;
+}
+const List = (...items) => h('div', { class: 'ds-list' }, ...items.flat(9).filter(Boolean));
+const ListItem = (opts, ...kids) => h(opts.onClick ? 'button' : 'div', {
+  class: 'ds-list__item', type: opts.onClick ? 'button' : null, onClick: opts.onClick, dataset: opts.dataset
+}, ...kids);
+const ListGroup = label => h('div', { class: 'ds-list__group' }, label);
+
+/* ---------------- estados ---------------- */
+const Empty = (message, action) => h('div', { class: 'ds-empty' }, Text(message, { tone: 'muted' }), action || null);
+const Note = (content, tone) => h('div', { class: ['ds-note', tone ? `ds-note--${tone}` : ''].filter(Boolean).join(' '), html: content });
+const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-label': 'carregando' });
+
+/* ---------------- carta ---------------- */
+function CardFace(card, opts = {}) {
+  const img = card && card.image ? h('img', { src: card.image, alt: card.name || '', loading: 'lazy' }) : null;
+  return h(opts.onClick ? 'button' : 'div', {
+    class: 'ds-card', type: opts.onClick ? 'button' : null,
+    'aria-label': card?.name || 'carta', onClick: opts.onClick, dataset: opts.dataset
+  }, img || h('span', { class: 'ds-card__fallback' }, card?.name || '—'));
+}
+const CardGrid = (...kids) => h('div', { class: 'ds-cardgrid' }, ...kids.flat(9).filter(Boolean));
+
+/* ---------------- sobreposições ---------------- */
+let overlayEl = null;
+function Dialog({ title, body, actions }) {
+  if (!overlayEl) {
+    overlayEl = h('div', { class: 'ds-overlay', id: 'ds-overlay', role: 'dialog', 'aria-modal': 'true' });
+    document.body.appendChild(overlayEl);
+    overlayEl.addEventListener('click', e => { if (e.target === overlayEl) closeDialog(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDialog(); });
+  }
+  const dlg = h('div', { class: 'ds-dialog' },
+    h('h2', { class: 'ds-dialog__title', id: 'ds-dialog-title' }, title),
+    body,
+    actions ? h('div', { class: 'ds-dialog__actions' }, ...actions) : null);
+  mount(overlayEl, dlg);
+  overlayEl.dataset.open = 'true';
+  overlayEl.setAttribute('aria-labelledby', 'ds-dialog-title');
+  const first = dlg.querySelector('button, input, select, textarea');
+  if (first && first.focus) first.focus();
+  return dlg;
+}
+function closeDialog() { if (overlayEl) { overlayEl.dataset.open = 'false'; clear(overlayEl); } }
+
+let toastEl = null, toastTimer = null;
+function toast(message, ms = 2400) {
+  if (!toastEl) { toastEl = h('div', { class: 'ds-toast', id: 'ds-toast', role: 'status', 'aria-live': 'polite' }); document.body.appendChild(toastEl); }
+  toastEl.textContent = message;
+  toastEl.dataset.open = 'true';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
+}
+return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid };
+})();
+
+/* ==== src/ui/brand.js ==== */
+const __m4 = (function () {
+/* =====================================================================
+   MARCA · Estante
+   Conceito: prateleira com cartas guardadas, uma puxada para fora —
+   "coleção organizada, acesso imediato".
+
+   Restrições que moldaram o desenho:
+   - 5 formas primárias, sem detalhe fino, para sobreviver a 16px;
+   - herda a cor do tema por currentColor e tokens, sem arquivo binário;
+   - nenhuma forma protegida por marca registrada: silhueta genérica de
+     carta e um ombro de prateleira, nada de verso ou símbolo de mana.
+   ===================================================================== */
+
+/** Símbolo puro. `tone`: 'brand' usa latão no destaque, 'mono' usa uma cor só. */
+function logoSvg(size = 32, tone = 'brand') {
+  const accent = tone === 'mono' ? 'currentColor' : 'var(--accent)';
+  const body = tone === 'mono' ? 'currentColor' : 'currentColor';
+  return `<svg viewBox="0 0 32 32" width="${size}" height="${size}" role="img" aria-label="Estante"
+    fill="none" xmlns="http://www.w3.org/2000/svg" class="brand-mark">
+    <rect x="3" y="4" width="26" height="24" rx="3" stroke="${body}" stroke-width="2" opacity=".55"/>
+    <rect x="7" y="8" width="5" height="12" rx="1.2" fill="${body}" opacity=".85"/>
+    <rect x="13.5" y="8" width="5" height="12" rx="1.2" fill="${body}" opacity=".6"/>
+    <g transform="rotate(11 22.5 14)">
+      <rect x="20" y="6.5" width="5.5" height="13" rx="1.2" fill="${accent}"/>
+    </g>
+    <rect x="3" y="21.5" width="26" height="2.6" rx="1.3" fill="${body}" opacity=".9"/>
+  </svg>`;
+}
+
+/** Símbolo + marca nominativa, para a barra da aplicação. */
+function logoLockup(size = 30) {
+  return `<span class="brand">
+    ${logoSvg(size)}
+    <span class="brand__name">
+      <span class="brand__word">Estante</span>
+      <span class="brand__tag">coleção &amp; mesa</span>
+    </span>
+  </span>`;
+}
+
+/** Favicon: mesmo símbolo, cores fixas porque o navegador não resolve
+    variáveis de CSS dentro de um data URI. */
+function faviconHref() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<rect width="32" height="32" rx="7" fill="#1f1811"/>
+<rect x="5.5" y="6" width="21" height="20" rx="2.5" stroke="#f1e8d7" stroke-width="1.8" fill="none" opacity=".55"/>
+<rect x="9" y="9.5" width="4.2" height="10" rx="1" fill="#f1e8d7" opacity=".85"/>
+<rect x="14.4" y="9.5" width="4.2" height="10" rx="1" fill="#f1e8d7" opacity=".6"/>
+<g transform="rotate(11 22 14.5)"><rect x="19.8" y="8.4" width="4.6" height="11" rx="1" fill="#cfa851"/></g>
+<rect x="5.5" y="20.8" width="21" height="2.2" rx="1.1" fill="#f1e8d7" opacity=".9"/>
+</svg>`;
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+function installFavicon(doc) {
+  let link = doc.querySelector('link[rel="icon"]');
+  if (!link) { link = doc.createElement('link'); link.rel = 'icon'; doc.head.appendChild(link); }
+  link.type = 'image/svg+xml';
+  link.href = faviconHref();
+  return link;
+}
+return { logoSvg, logoLockup, faviconHref, installFavicon };
+})();
+
+/* ==== src/app/ds.js ==== */
+const __m5 = (function () {
+/* F5 · catálogo de componentes. Rota /ds. É documentação viva e alvo de teste. */
+const { logoSvg, logoLockup } = __m4;
+const { h, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, Tabs, List, ListItem, ListGroup, Empty, Note, Spinner, CardFace, CardGrid, Dialog, closeDialog, toast } = __m3;
+const Section = (title, ...kids) => Surface({ class: 'ds-surface--pad' },
+  Text(title, { size: 'sm', caps: true, as: 'h2' }), Stack({}, ...kids));
+
+function renderDS() {
+  let tab = 'um';
+  const tabs = h('div');
+  const paint = () => {
+    tabs.replaceChildren(
+      Tabs([{ id: 'um', label: 'Primeiro' }, { id: 'dois', label: 'Segundo' }, { id: 'tres', label: 'Terceiro' }],
+        { active: tab, onSelect: id => { tab = id; paint(); } }),
+      Text(`Aba ativa: ${tab}`, { size: 'sm', tone: 'muted' }));
+  };
+  paint();
+
+  return Stack({ class: 'ds-wrap', id: 'ds-catalog', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
+    Text('Catálogo de componentes', { size: '2xl', display: true, as: 'h1' }),
+    Text('Documentação viva do design system. Tudo aqui é verificado pelo portão de release.', { tone: 'muted' }),
+
+    Section('Marca',
+      h('div', { class: 'ds-row ds-row--wrap', id: 'ds-brand', style: { gap: 'var(--space-5)' } },
+        h('span', { html: logoSvg(16), title: '16px' }),
+        h('span', { html: logoSvg(32), title: '32px' }),
+        h('span', { html: logoSvg(64), title: '64px' }),
+        h('span', { html: logoSvg(128), title: '128px' })),
+      h('div', { class: 'ds-row ds-row--wrap', style: { gap: 'var(--space-5)' } },
+        h('span', { html: logoLockup(30) }),
+        h('span', { style: { color: 'var(--fg-muted)' }, html: logoSvg(32, 'mono') })),
+      Text('Símbolo, marca nominativa e variante monocromática. Herda a cor do tema; serve de favicon e de ícone da aplicação.', { size: 'sm', tone: 'muted' })),
+
+    Section('Tipografia',
+      Text('Display 2xl', { size: '2xl', display: true }),
+      Text('Título xl', { size: 'xl' }),
+      Text('Corpo md — o texto padrão da aplicação.', { size: 'md' }),
+      Text('Secundário sm', { size: 'sm', tone: 'muted' }),
+      Text('Discreto xs', { size: 'xs', tone: 'subtle' }),
+      Text('{1}{U}{U} · mono', { size: 'sm', mono: true })),
+
+    Section('Botões',
+      Row({ class: 'ds-row--wrap' },
+        Button('Primário', { variant: 'primary', onClick: () => toast('Primário') }),
+        Button('Padrão', { onClick: () => toast('Padrão') }),
+        Button('Fantasma', { variant: 'ghost', onClick: () => toast('Fantasma') }),
+        Button('Destrutivo', { variant: 'danger', onClick: () => toast('Destrutivo') }),
+        Button('Desativado', { disabled: true }),
+        Button('◐', { icon: true, ariaLabel: 'ícone' }))),
+
+    Section('Campos',
+      Field('Texto', Input({ placeholder: 'Buscar carta…', id: 'ds-in' })),
+      Field('Seleção', Select([{ value: 'pauper', label: 'Pauper' }, { value: 'commander', label: 'Commander' }], { value: 'pauper', id: 'ds-sel' })),
+      Field('Área de texto', Textarea({ placeholder: '4 Lightning Bolt\n20 Mountain', id: 'ds-ta' }), { hint: 'Uma carta por linha.' })),
+
+    Section('Indicadores',
+      Row({ class: 'ds-row--wrap' },
+        Badge('neutro'), Badge('positivo', { tone: 'positive' }), Badge('negativo', { tone: 'negative' }),
+        Badge('destaque', { tone: 'accent' }), Badge('sólido', { tone: 'solid' })),
+      Row({ class: 'ds-row--wrap' },
+        Chip('Todas', { pressed: true }), Chip('Tenho'), Chip('Falta')),
+      Row({}, ManaPips('WU'), ManaPips('BRG'), ManaPips(''))),
+
+    Section('Navegação', tabs),
+
+    Section('Listas',
+      List(
+        ListGroup('Grupo'),
+        ListItem({ onClick: () => toast('Item 1') }, ManaPips('U'), Text('Counterspell', { size: 'md' }), h('div', { class: 'ds-grow' }), Badge('4x')),
+        ListItem({ onClick: () => toast('Item 2') }, ManaPips('R'), Text('Lightning Bolt', { size: 'md' }), h('div', { class: 'ds-grow' }), Badge('4x')))),
+
+    Section('Cartas',
+      CardGrid(
+        CardFace({ name: 'Lightning Bolt' }, { onClick: () => toast('Carta') }),
+        CardFace({ name: 'Counterspell' }),
+        CardFace({ name: 'Llanowar Elves' }),
+        CardFace({ name: 'Sol Ring' }))),
+
+    Section('Estados',
+      Empty('Nenhuma lista ainda.', Button('Criar lista', { variant: 'primary' })),
+      Note('Nota informativa com <b>ênfase</b>.'),
+      Note('Atenção: algo exige decisão.', 'warning'),
+      Note('Erro: a operação não pôde ser concluída.', 'negative'),
+      Row({}, Spinner(), Text('Carregando…', { size: 'sm', tone: 'muted' }))),
+
+    Section('Sobreposições',
+      Row({ class: 'ds-row--wrap' },
+        Button('Abrir diálogo', {
+          id: 'ds-open-dialog',
+          onClick: () => Dialog({
+            title: 'Confirmar exclusão',
+            body: Text('Esta ação não pode ser desfeita.', { tone: 'muted' }),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: () => { closeDialog(); toast('Excluído'); } })]
+          })
+        }),
+        Button('Mostrar toast', { id: 'ds-open-toast', onClick: () => toast('Mensagem de sistema') }))));
+}
+return { renderDS };
+})();
+
+/* ==== src/data/scryfall.js ==== */
+const __m6 = (function () {
+/* =====================================================================
+   D1 · CLIENTE SCRYFALL
+   Tudo injetado (fetch, sleep, now) para ser testável sem rede.
+   Regras da casa, respeitadas aqui e em nenhum outro lugar do código:
+   - lotes de 75 no endpoint de coleção;
+   - intervalo mínimo entre requisições;
+   - retentativa com recuo em 429 e 5xx;
+   - 404 é "não encontrado", não erro;
+   - falha de rede degrada quem chamou, nunca derruba a aplicação.
+   ===================================================================== */
+const BASE = 'https://api.scryfall.com';
+/* Obrigatório desde 2024: sem Accept a Scryfall devolve HTTP 400.
+   User-Agent NÃO deve ser tocado em navegador — a própria documentação
+   pede para manter o do browser intacto. */
+const ACCEPT = 'application/json;q=0.9,*/*;q=0.8';
+const BATCH_SIZE = 75;
+const MIN_INTERVAL_MS = 100;
+
+class ScryfallError extends Error {
+  constructor(kind, message, status) { super(message); this.kind = kind; this.status = status; }
+}
+
+/** Normaliza a carta para a forma estável usada em todo o sistema.
+    Nenhum outro módulo deve tocar no formato bruto da Scryfall. */
+function normalizeCard(c) {
+  if (!c) return null;
+  const imgs = src => src ? {
+    small: src.small || null, normal: src.normal || src.large || null,
+    large: src.large || src.normal || null, png: src.png || src.large || null,
+    art: src.art_crop || src.small || null
+  } : null;
+  const faces = Array.isArray(c.card_faces) ? c.card_faces.map(f => ({
+    name: f.name, mana_cost: f.mana_cost || '', type_line: f.type_line || '',
+    oracle_text: f.oracle_text || '', power: f.power ?? null, toughness: f.toughness ?? null,
+    loyalty: f.loyalty ?? null, colors: f.colors || [], images: imgs(f.image_uris)
+  })) : [];
+  const oracle = c.oracle_text || (faces.length ? faces.map(f => f.oracle_text).filter(Boolean).join('\n//\n') : '');
+  return {
+    id: c.id, oracle_id: c.oracle_id || null, name: c.name,
+    mana_cost: c.mana_cost || (faces[0] && faces[0].mana_cost) || '',
+    cmc: typeof c.cmc === 'number' ? c.cmc : 0,
+    type_line: c.type_line || '', oracle_text: oracle,
+    power: c.power ?? (faces[0] ? faces[0].power : null),
+    toughness: c.toughness ?? (faces[0] ? faces[0].toughness : null),
+    loyalty: c.loyalty ?? null,
+    colors: c.colors || (faces[0] ? faces[0].colors : []) || [],
+    color_identity: c.color_identity || [],
+    keywords: c.keywords || [], layout: c.layout || 'normal',
+    rarity: c.rarity || '', set: c.set || '', set_name: c.set_name || '',
+    collector_number: c.collector_number || '',
+    legalities: c.legalities || {}, prices: c.prices || {},
+    images: imgs(c.image_uris) || (faces[0] && faces[0].images) || null,
+    faces, uri: c.scryfall_uri || '', edhrec_rank: c.edhrec_rank ?? null,
+    reserved: !!c.reserved, games: c.games || []
+  };
+}
+
+/** `file://` produz Origin nulo; a Scryfall só devolve cabeçalho CORS
+    quando a origem casa em domínio e protocolo. Serve para explicar a
+    falha ao usuário em vez de mostrar "erro de rede". */
+function originBlocked() {
+  return typeof location !== 'undefined' && location.protocol === 'file:';
+}
+
+function createScryfall(opts = {}) {
+  const doFetch = opts.fetch || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null);
+  const sleep = opts.sleep || (ms => new Promise(r => setTimeout(r, ms)));
+  const now = opts.now || (() => Date.now());
+  const minInterval = opts.minInterval ?? MIN_INTERVAL_MS;
+  const maxRetries = opts.maxRetries ?? 3;
+  let last = 0, chain = Promise.resolve();
+  const stats = { requests: 0, retries: 0, notFound: 0, failures: 0 };
+
+  /** Serializa as chamadas e garante o intervalo mínimo entre elas. */
+  function schedule(fn) {
+    const run = async () => {
+      const wait = minInterval - (now() - last);
+      if (wait > 0) await sleep(wait);
+      last = now();
+      return fn();
+    };
+    chain = chain.then(run, run);
+    return chain;
+  }
+
+  async function request(path, init) {
+    if (!doFetch) throw new ScryfallError('offline', 'sem implementação de fetch');
+    let attempt = 0;
+    for (;;) {
+      stats.requests++;
+      const opts = Object.assign({}, init);
+      opts.headers = Object.assign({ Accept: ACCEPT }, init && init.headers);
+      let res;
+      try {
+        res = await doFetch(BASE + path, opts);
+      } catch (e) {
+        stats.failures++;
+        // fetch só rejeita por rede ausente ou por bloqueio de origem (CORS).
+        throw new ScryfallError(originBlocked() ? 'origin' : 'network',
+          originBlocked()
+            ? 'a página está aberta como arquivo local, e a Scryfall exige uma origem http válida'
+            : 'falha de rede ao falar com a Scryfall');
+      }
+      if (res.status === 404) { stats.notFound++; return { notFound: true }; }
+      if (res.status === 400) {
+        stats.failures++;
+        let detail = '';
+        try { const b = await res.json(); detail = b && b.details ? b.details : ''; } catch (e2) {}
+        throw new ScryfallError('bad_request', detail || 'requisição recusada pela Scryfall', 400);
+      }
+      if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+        attempt++; stats.retries++;
+        await sleep(Math.min(2000, minInterval * Math.pow(2, attempt)));
+        continue;
+      }
+      if (!res.ok) { stats.failures++; throw new ScryfallError('http', `HTTP ${res.status}`, res.status); }
+      return res.json();
+    }
+  }
+
+  return {
+    stats,
+    /** Busca por nomes, em lotes. Devolve {found:[], missing:[]}. */
+    async collection(names, onProgress) {
+      const uniq = [...new Map(names.map(n => [String(n).toLowerCase(), n])).values()];
+      const found = [], missing = [];
+      for (let i = 0; i < uniq.length; i += BATCH_SIZE) {
+        const batch = uniq.slice(i, i + BATCH_SIZE);
+        onProgress && onProgress(Math.min(i + batch.length, uniq.length), uniq.length);
+        const data = await schedule(() => request('/cards/collection', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifiers: batch.map(n => ({ name: n })) })
+        }));
+        if (data.notFound) { batch.forEach(n => missing.push(n)); continue; }
+        (data.data || []).forEach(c => found.push(normalizeCard(c)));
+        (data.not_found || []).forEach(x => missing.push(x.name || ''));
+      }
+      return { found, missing };
+    },
+    /** Consulta de busca. `pages` limita o número de páginas lidas. */
+    async search(query, { order = 'name', unique = 'cards', pages = 1, onProgress } = {}) {
+      const out = []; let more = true;
+      for (let page = 1; page <= pages && more; page++) {
+        onProgress && onProgress(page, pages);
+        const qs = `?q=${encodeURIComponent(query)}&order=${order}&unique=${unique}&page=${page}`;
+        const data = await schedule(() => request('/cards/search' + qs));
+        if (data.notFound) break;
+        (data.data || []).forEach(c => out.push(normalizeCard(c)));
+        more = !!data.has_more;
+      }
+      return out;
+    },
+    /** Uma carta pelo nome exato. null quando não existe. */
+    async named(name) {
+      const data = await schedule(() => request('/cards/named?exact=' + encodeURIComponent(name)));
+      return data.notFound ? null : normalizeCard(data);
+    }
+  };
+}
+return { ScryfallError, normalizeCard, originBlocked, createScryfall, BATCH_SIZE, MIN_INTERVAL_MS };
+})();
+
+/* ==== src/data/cards.js ==== */
+const __m7 = (function () {
+/* =====================================================================
+   D2 · REPOSITÓRIO DE CARTAS
+   Cache primeiro, rede depois. Quem consome nunca fala com a Scryfall
+   diretamente — assim o modo offline é uma propriedade do repositório,
+   não uma checagem espalhada pela interface.
+   ===================================================================== */
+const KEY = k => 'card.' + k;
+const INDEX = 'card.__index';
+const norm = s => String(s || '').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/[’]/g, "'").replace(/\s+/g, ' ').trim();
+
+function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 * 1000, now = () => Date.now() }) {
+  const mem = new Map();
+  const stats = { hits: 0, misses: 0, fetched: 0, degraded: false };
+
+  const readCache = async key => {
+    if (mem.has(key)) return mem.get(key);
+    const rec = await store.get(KEY(key));
+    if (rec) mem.set(key, rec);
+    return rec;
+  };
+  const fresh = rec => rec && (now() - rec.ts) < ttlMs;
+
+  return {
+    stats,
+    /** Resolve nomes. Devolve Map(nomeNormalizado -> carta|null).
+        `null` significa "consultado e não existe". */
+    async byNames(names, onProgress) {
+      const keys = [...new Set(names.map(norm))].filter(Boolean);
+      const out = new Map();
+      const need = [];
+      for (const k of keys) {
+        const rec = await readCache(k);
+        if (fresh(rec)) { stats.hits++; out.set(k, rec.card); }
+        else { stats.misses++; need.push(k); }
+      }
+      if (!need.length) return out;
+      const display = new Map(names.map(n => [norm(n), n]));
+      try {
+        const { found, missing } = await scryfall.collection(need.map(k => display.get(k) || k), onProgress);
+        const writes = [];
+        for (const c of found) {
+          for (const k of nameKeys(c)) {
+            const rec = { ts: now(), card: c };
+            mem.set(k, rec); writes.push(store.set(KEY(k), rec));
+            if (need.includes(k)) out.set(k, c);
+          }
+          stats.fetched++;
+        }
+        for (const m of missing) {
+          const k = norm(m); const rec = { ts: now(), card: null };
+          mem.set(k, rec); writes.push(store.set(KEY(k), rec)); out.set(k, null);
+        }
+        await Promise.all(writes);
+        await bumpIndex(store, out);
+      } catch (e) {
+        stats.degraded = true;
+        // degradação: devolve o que houver em cache, mesmo vencido
+        for (const k of need) { const rec = await readCache(k); if (rec) out.set(k, rec.card); }
+      }
+      return out;
+    },
+
+    async byName(name) { return (await this.byNames([name])).get(norm(name)) || null; },
+
+    /** D4 · busca. Tenta a rede; se ela não existe ou falha, cai para a
+        base local. Devolve {cards, source} para a tela poder dizer de onde
+        veio o resultado, em vez de fingir que foi tudo igual. */
+    async search({ text = '', colors = [], type = '', rarity = '', format = '', pages = 1, offline = false } = {}) {
+      const criteria = { text, colors, type, rarity, format };
+      const hasCriteria = !!(text.trim() || colors.length || type || rarity || format);
+      if (!hasCriteria) return { cards: [], source: 'none' };
+      if (!offline) {
+        try {
+          const cards = await this._remoteSearch({ ...criteria, pages });
+          if (local) await local.upsert(cards);
+          return { cards, source: 'rede' };
+        } catch (e) {
+          if (!local) throw e;
+          const cards = await local.search(criteria);
+          return { cards, source: 'local', degraded: true, cause: e };
+        }
+      }
+      return { cards: local ? await local.search(criteria) : [], source: 'local' };
+    },
+
+    async _remoteSearch({ text = '', colors = [], type = '', rarity = '', format = '', pages = 1 } = {}) {
+      const parts = [];
+      if (text.trim()) parts.push(`name:${JSON.stringify(text.trim())}`);
+      if (colors.length) parts.push(`id<=${colors.join('')}`);
+      if (type) parts.push(`t:${type}`);
+      if (rarity) parts.push(`r:${rarity}`);
+      if (format) parts.push(`f:${format}`);
+      if (!parts.length) return [];
+      const cards = await scryfall.search(parts.join(' '), { pages, order: 'name' });
+      const writes = [];
+      for (const c of cards) for (const k of nameKeys(c)) writes.push(store.set(KEY(k), { ts: now(), card: c }));
+      await Promise.all(writes);
+      return cards;
+    },
+
+    /** Quantas cartas há no cache local. Usado pelo indicador de offline. */
+    async cachedCount() { const i = await store.get(INDEX); return (i && i.n) || 0; }
+  };
+}
+
+/* Uma carta responde por vários nomes: completo, face da frente e cada face. */
+function nameKeys(c) {
+  const ks = new Set([norm(c.name)]);
+  if (c.name.includes('//')) ks.add(norm(c.name.split('//')[0]));
+  (c.faces || []).forEach(f => ks.add(norm(f.name)));
+  return [...ks];
+}
+async function bumpIndex(store, map) {
+  const cur = (await store.get(INDEX)) || { n: 0 };
+  cur.n = cur.n + [...map.values()].filter(Boolean).length;
+  await store.set(INDEX, cur);
+}
+return { createCardRepo, norm };
+})();
+
+/* ==== src/data/images.js ==== */
+const __m8 = (function () {
+/* =====================================================================
+   D3 · CACHE DE IMAGENS
+   Usa Cache Storage quando existe; sem ele, vira repasse transparente.
+   Nenhuma tela precisa saber qual dos dois está valendo.
+   ===================================================================== */
+const CACHE_NAME = 'estante-card-images-v1';
+
+function createImageCache({ caches, fetch: doFetch } = {}) {
+  const available = !!(caches && typeof caches.open === 'function');
+  let cachep = null;
+  const open = () => cachep || (cachep = caches.open(CACHE_NAME));
+
+  return {
+    available,
+    /** Garante que a imagem esteja em cache. Silencioso em caso de falha:
+        imagem é conforto, não correção. */
+    async warm(urls) {
+      if (!available || !doFetch) return 0;
+      const c = await open();
+      let n = 0;
+      for (const url of [...new Set(urls.filter(Boolean))]) {
+        try {
+          if (await c.match(url)) { n++; continue; }
+          const res = await doFetch(url, { mode: 'no-cors' });
+          await c.put(url, res.clone ? res.clone() : res);
+          n++;
+        } catch (e) { /* imagem indisponível não quebra a tela */ }
+      }
+      return n;
+    },
+    async has(url) {
+      if (!available) return false;
+      const c = await open();
+      return !!(await c.match(url));
+    },
+    async purge() { if (available && caches.delete) await caches.delete(CACHE_NAME); }
+  };
+}
+return { createImageCache };
+})();
+
+/* ==== src/data/local.js ==== */
+const __m9 = (function () {
+/* =====================================================================
+   BASE LOCAL DE CARTAS
+   O app não pode depender de rede externa: há ambientes que a bloqueiam
+   por completo (arquivo local, visualizadores em sandbox). A base local
+   é a fonte primária de busca; a rede, quando existe, apenas a alimenta.
+   ===================================================================== */
+const ALL = 'card.__all';
+const norm = s => String(s || '').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+
+/** Registro leve: o suficiente para listar, filtrar e abrir o visualizador. */
+function lightRecord(c) {
+  return {
+    id: c.id, name: c.name, type_line: c.type_line || '', cmc: c.cmc || 0,
+    colors: c.colors || [], ci: (c.color_identity || []).join(''),
+    rarity: c.rarity || '', set: c.set || '',
+    legal: Object.entries(c.legalities || {}).filter(([, v]) => v === 'legal').map(([k]) => k),
+    img: (c.images && (c.images.normal || c.images.small)) || null
+  };
+}
+
+function createLocalIndex({ store, max = 40000 }) {
+  let cache = null;
+  const load = async () => cache || (cache = (await store.get(ALL)) || []);
+
+  return {
+    async count() { return (await load()).length; },
+
+    /** Acrescenta ou atualiza cartas na base local. */
+    async upsert(cards) {
+      const list = await load();
+      const byName = new Map(list.map((r, i) => [norm(r.name), i]));
+      let added = 0;
+      for (const c of cards) {
+        if (!c || !c.name) continue;
+        const rec = lightRecord(c);
+        const k = norm(rec.name);
+        if (byName.has(k)) list[byName.get(k)] = rec;
+        else { byName.set(k, list.length); list.push(rec); added++; }
+      }
+      if (list.length > max) list.splice(0, list.length - max);
+      cache = list;
+      await store.set(ALL, list);
+      return added;
+    },
+
+    /** Mesma assinatura de filtro da busca online, aplicada em memória. */
+    async search({ text = '', colors = [], type = '', rarity = '', format = '' } = {}) {
+      const list = await load();
+      const q = norm(text);
+      return list.filter(r => {
+        if (q && !norm(r.name).includes(q)) return false;
+        if (colors.length && !r.ci.split('').every(c => colors.includes(c))) return false;
+        if (type && !norm(r.type_line).includes(norm(type))) return false;
+        if (rarity && r.rarity !== rarity) return false;
+        if (format && !(r.legal || []).includes(format)) return false;
+        return true;
+      }).slice(0, 300);
+    },
+
+    /** Importa um arquivo: aceita a nossa exportação ou um dump da Scryfall. */
+    async importJson(text, normalizeCard) {
+      let data;
+      try { data = JSON.parse(text); } catch (e) { throw new Error('arquivo-invalido'); }
+      const arr = Array.isArray(data) ? data : (Array.isArray(data.cards) ? data.cards : null);
+      if (!arr) throw new Error('formato-desconhecido');
+      const cards = arr.map(x => (x.images || x.img) ? x : normalizeCard(x)).filter(Boolean);
+      const light = cards.map(c => c.img !== undefined ? c : lightRecord(c));
+      const list = await load();
+      const byName = new Map(list.map((r, i) => [norm(r.name), i]));
+      let added = 0;
+      for (const rec of light) {
+        if (!rec || !rec.name) continue;
+        const k = norm(rec.name);
+        if (byName.has(k)) list[byName.get(k)] = rec;
+        else { byName.set(k, list.length); list.push(rec); added++; }
+      }
+      cache = list;
+      await store.set(ALL, list);
+      return { total: list.length, added };
+    },
+
+    async exportJson() {
+      return JSON.stringify({ kind: 'estante.cards', version: 1, cards: await load() });
+    },
+
+    async clear() { cache = []; await store.set(ALL, []); return true; }
+  };
+}
+return { lightRecord, createLocalIndex };
+})();
+
+/* ==== src/data/env.js ==== */
+const __m10 = (function () {
+/* =====================================================================
+   DIAGNÓSTICO DE AMBIENTE
+   Três ambientes com capacidades diferentes. A tela precisa dizer em
+   qual está, porque a mesma ação funciona num e é impossível no outro.
+   ===================================================================== */
+const ENVIRONMENTS = {
+  file: {
+    id: 'file',
+    label: 'arquivo local',
+    online: false,
+    reason: 'A página está aberta como arquivo. O navegador não envia origem a partir de <code>file://</code>, e a Scryfall exige origem http para liberar CORS.',
+    fix: 'Sirva a pasta por um servidor, ou use a base local de cartas abaixo.'
+  },
+  sandboxed: {
+    id: 'sandboxed',
+    label: 'visualizador restrito',
+    online: false,
+    reason: 'Este visualizador bloqueia requisições a outros sites. A Scryfall está fora de alcance daqui, por política do ambiente e não por falha da aplicação.',
+    fix: 'Hospede o arquivo num endereço próprio, ou use a base local de cartas abaixo.'
+  },
+  online: { id: 'online', label: 'com rede', online: true, reason: '', fix: '' },
+  offline: {
+    id: 'offline',
+    label: 'sem conexão',
+    online: false,
+    reason: 'O aparelho está sem conexão.',
+    fix: 'A base local de cartas continua disponível.'
+  }
+};
+
+/** Sonda uma requisição barata e classifica o ambiente pelo resultado. */
+async function detectEnvironment({ location, navigator: nav, fetch: doFetch, timeoutMs = 6000 } = {}) {
+  const proto = location && location.protocol;
+  if (proto === 'file:') return ENVIRONMENTS.file;
+  if (nav && nav.onLine === false) return ENVIRONMENTS.offline;
+  if (!doFetch) return ENVIRONMENTS.sandboxed;
+  try {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = setTimeout(() => ctrl && ctrl.abort(), timeoutMs);
+    const res = await doFetch('https://api.scryfall.com/cards/random?q=t:land', {
+      headers: { Accept: 'application/json;q=0.9,*/*;q=0.8' },
+      signal: ctrl ? ctrl.signal : undefined
+    });
+    clearTimeout(timer);
+    return res && (res.ok || res.status === 404) ? ENVIRONMENTS.online : ENVIRONMENTS.sandboxed;
+  } catch (e) {
+    return (nav && nav.onLine === false) ? ENVIRONMENTS.offline : ENVIRONMENTS.sandboxed;
+  }
+}
+return { detectEnvironment, ENVIRONMENTS };
+})();
+
+/* ==== src/pwa/install.js ==== */
+const __m11 = (function () {
+/* W1 · instalação e atualização.
+   O botão só aparece quando o navegador realmente oferece instalar. */
+function createInstaller({ window: win = globalThis, navigator: nav }) {
+  let deferred = null;
+  const listeners = new Set();
+  const notify = () => listeners.forEach(fn => fn(state()));
+  const standalone = () => !!(win.matchMedia && win.matchMedia('(display-mode: standalone)').matches)
+    || !!(nav && nav.standalone);
+  const state = () => ({ canInstall: !!deferred, installed: standalone() });
+
+  if (win.addEventListener) {
+    win.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; notify(); });
+    win.addEventListener('appinstalled', () => { deferred = null; notify(); });
+  }
+  return {
+    state,
+    onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    async prompt() {
+      if (!deferred) return 'unavailable';
+      deferred.prompt();
+      const { outcome } = await deferred.userChoice;
+      deferred = null; notify();
+      return outcome;
+    }
+  };
+}
+
+/** Registra o worker. Em file:// nem tenta: não é suportado e polui o console. */
+async function registerServiceWorker({ navigator: nav, location: loc, path = './sw.js' }) {
+  if (!nav || !nav.serviceWorker) return { ok: false, reason: 'sem-suporte' };
+  if (loc && loc.protocol === 'file:') return { ok: false, reason: 'arquivo-local' };
+  const secure = !loc || loc.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(loc.hostname || '');
+  if (!secure) return { ok: false, reason: 'origem-insegura' };
+  try {
+    const reg = await nav.serviceWorker.register(path, { scope: './' });
+    return { ok: true, reg };
+  } catch (e) { return { ok: false, reason: 'falha-no-registro', error: e }; }
+}
+return { createInstaller, registerServiceWorker };
+})();
+
+/* ==== src/app/cards.js ==== */
+const __m12 = (function () {
+/* =====================================================================
+   D4 · BUSCA  ·  D5 · VISUALIZADOR
+   A tela só conversa com o repositório. Rede, cache e degradação são
+   problema dele.
+   ===================================================================== */
+const { normalizeCard } = __m6;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const COLORS = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']];
+const TYPES = [['', 'Qualquer tipo'], ['creature', 'Criatura'], ['instant', 'Instantânea'], ['sorcery', 'Feitiço'],
+  ['artifact', 'Artefato'], ['enchantment', 'Encantamento'], ['land', 'Terreno'], ['planeswalker', 'Planeswalker']];
+const RARITIES = [['', 'Qualquer raridade'], ['common', 'Comum'], ['uncommon', 'Incomum'], ['rare', 'Rara'], ['mythic', 'Mítica']];
+const FORMATS = [['', 'Qualquer formato'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['modern', 'Modern'], ['legacy', 'Legacy']];
+
+const LEGAL_PT = { legal: 'legal', not_legal: 'não existe no formato', banned: 'banida', restricted: 'restrita' };
+
+/** Mensagem que diz o que houve e o que fazer, em vez de "não respondeu". */
+function explainFailure(e, env) {
+  const kind = e && e.kind;
+  if (kind === 'bad_request') return '<b>A Scryfall recusou a requisição.</b> ' + (e.message || '');
+  if (kind === 'http') return '<b>A Scryfall respondeu com erro ' + (e.status || '') + '.</b> Tente de novo em instantes.';
+  if (env && !env.online) return '<b>Sem acesso à Scryfall daqui (' + env.label + ').</b> ' + env.reason + ' ' + env.fix;
+  return '<b>Sem resposta da Scryfall.</b> Verifique a conexão.';
+}
+
+/** A base local guarda registro leve; o visualizador espera a carta completa. */
+function toViewable(c) {
+  if (c.images || c.faces) return c;
+  return {
+    id: c.id, name: c.name, type_line: c.type_line, cmc: c.cmc, mana_cost: '',
+    oracle_text: '', power: null, toughness: null, colors: c.colors || [],
+    color_identity: (c.ci || '').split('').filter(Boolean), rarity: c.rarity, set: c.set,
+    set_name: c.set, legalities: Object.fromEntries((c.legal || []).map(f => [f, 'legal'])),
+    prices: {}, images: c.img ? { normal: c.img, large: c.img } : null, faces: [], uri: ''
+  };
+}
+
+function createCardsScreen({ repo, images, local, env, files }) {
+  const state = { text: '', colors: new Set(), type: '', rarity: '', format: '', busy: false, results: null, error: null, source: null, localCount: 0 };
+
+  const results = h('div', { id: 'cards-results' });
+  const status = h('div', { id: 'cards-status' });
+
+  async function run() {
+    if (state.busy) return;
+    if (!state.text.trim() && !state.colors.size && !state.type && !state.rarity && !state.format) {
+      state.results = null; state.error = 'Informe um termo ou ao menos um filtro.'; return paint();
+    }
+    state.busy = true; state.error = null; paint();
+    try {
+      const r = await repo.search({
+        text: state.text, colors: [...state.colors], type: state.type,
+        rarity: state.rarity, format: state.format, pages: 1,
+        offline: env && !env.online
+      });
+      state.results = r.cards; state.source = r.source;
+      if (r.degraded) state.error = explainFailure(r.cause, env);
+      if (r.source === 'local' && !r.cards.length && !(await local.count()))
+        state.error = 'A base local está vazia. Importe um arquivo de cartas para buscar sem rede.';
+      if (images && images.available && r.source === 'rede')
+        images.warm(r.cards.slice(0, 24).map(c => c.images && c.images.normal));
+    } catch (e) {
+      state.error = explainFailure(e, env); state.results = [];
+    } finally { state.busy = false; refreshLocalCount(); paint(); }
+  }
+
+  async function refreshLocalCount() {
+    if (!local) return;
+    state.localCount = await local.count();
+    const el = document.getElementById('local-count');
+    if (el) el.textContent = String(state.localCount);
+  }
+
+  function paint() {
+    clear(status);
+    if (state.busy) status.appendChild(Row({}, Spinner(), Text('Buscando…', { size: 'sm', tone: 'muted' })));
+    else if (state.error) status.appendChild(Note(state.error, 'warning'));
+
+    clear(results);
+    if (state.results === null) return;
+    if (!state.results.length) { results.appendChild(Empty('Nenhuma carta encontrada com esses critérios.')); return; }
+    results.appendChild(Row({},
+      Text(`${state.results.length} carta(s)`, { size: 'sm', tone: 'muted' }),
+      Badge(state.source === 'rede' ? 'da Scryfall' : 'da base local', { tone: state.source === 'rede' ? 'accent' : undefined })));
+    results.appendChild(CardGrid(...state.results.map(c =>
+      CardFace({ name: c.name, image: (c.images && c.images.normal) || c.img },
+        { onClick: () => openCardViewer(toViewable(c)), dataset: { card: c.id } }))));
+  }
+
+  const colorChips = Row({ class: 'ds-row--wrap', id: 'cards-colors' },
+    ...COLORS.map(([c, label]) => {
+      const chip = Chip(h('span', {}, h('span', { class: `ds-pip ds-pip--${c.toLowerCase()}` }), label),
+        { dataset: { color: c } });
+      chip.addEventListener('click', () => {
+        state.colors.has(c) ? state.colors.delete(c) : state.colors.add(c);
+        chip.setAttribute('aria-pressed', String(state.colors.has(c)));
+      });
+      return chip;
+    }));
+
+  const input = Input({ id: 'cards-q', placeholder: 'Nome contém…', onInput: e => { state.text = e.target.value; } });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+
+  const envWarning = (env && !env.online)
+    ? Note(`<b>Ambiente sem acesso à Scryfall (${env.label}).</b> ${env.reason} ${env.fix}`, 'warning')
+    : null;
+
+  const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden', id: 'local-file' });
+  fileInput.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f || !local || !files) return;
+    try {
+      const txt = await files.readText(f);
+      const r = await local.importJson(txt, normalizeCard);
+      toast(`${r.added} carta(s) nova(s) · base local com ${r.total}`);
+      refreshLocalCount();
+    } catch (err) {
+      toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Formato de arquivo não reconhecido');
+    } finally { e.target.value = ''; }
+  });
+
+  const localPanel = Surface({ class: 'ds-surface--pad', id: 'local-panel' },
+    Stack({},
+      Row({}, Text('Base local de cartas', { size: 'sm', caps: true, as: 'h2' }),
+        h('div', { class: 'ds-grow' }),
+        Badge(h('span', {}, h('span', { id: 'local-count' }, '0'), ' cartas'))),
+      Text('Funciona sem rede. A busca online alimenta esta base automaticamente; você também pode importar um arquivo.', { size: 'sm', tone: 'muted' }),
+      Row({ class: 'ds-row--wrap' },
+        Button('Importar cartas', { id: 'local-import', onClick: () => fileInput.click() }),
+        Button('Exportar base', { id: 'local-export', onClick: async () => {
+          if (!local || !files) return;
+          files.save('estante-cartas.json', await local.exportJson(), 'application/json');
+          toast('Base exportada');
+        } }),
+        Button('Limpar base', { variant: 'danger', id: 'local-clear', onClick: async () => {
+          if (!local) return; await local.clear(); refreshLocalCount(); toast('Base local limpa');
+        } })),
+      fileInput));
+
+  const root = Stack({ class: 'ds-wrap', id: 'cards-screen', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
+    Text('Cartas', { size: '2xl', display: true, as: 'h1' }),
+    Text('Busca por nome com "contém", filtrável por cor, tipo, raridade e formato.', { tone: 'muted' }),
+    envWarning,
+    localPanel,
+    Surface({ class: 'ds-surface--pad ds-surface--shelf' },
+      Stack({},
+        Field('Nome', input, { hint: 'Enter para buscar.' }),
+        colorChips,
+        Row({ class: 'ds-row--wrap' },
+          Field('Tipo', Select(TYPES.map(([value, label]) => ({ value, label })), { id: 'cards-type', onChange: e => { state.type = e.target.value; } })),
+          Field('Raridade', Select(RARITIES.map(([value, label]) => ({ value, label })), { id: 'cards-rarity', onChange: e => { state.rarity = e.target.value; } })),
+          Field('Formato', Select(FORMATS.map(([value, label]) => ({ value, label })), { id: 'cards-format', onChange: e => { state.format = e.target.value; } }))),
+        Row({}, Button('Buscar', { variant: 'primary', id: 'cards-search', onClick: run }),
+          Button('Limpar', { id: 'cards-clear', onClick: () => {
+            state.text = ''; state.colors.clear(); state.type = state.rarity = state.format = '';
+            input.value = ''; state.results = null; state.error = null;
+            colorChips.querySelectorAll('.ds-chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+            ['cards-type', 'cards-rarity', 'cards-format'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            paint();
+          } }))),
+    ),
+    status,
+    results);
+
+  refreshLocalCount();
+  return root;
+}
+
+/* ---------------- D5 · visualizador ---------------- */
+function openCardViewer(card) {
+  let face = 0;
+  const hasFaces = (card.faces || []).length > 1;
+  const body = h('div', { id: 'card-viewer' });
+
+  const paint = () => {
+    const f = hasFaces ? card.faces[face] : null;
+    const img = (f && f.images && f.images.large) || (card.images && (card.images.large || card.images.normal));
+    const name = f ? f.name : card.name;
+    const typeLine = f ? f.type_line : card.type_line;
+    const oracle = f ? f.oracle_text : card.oracle_text;
+    const cost = f ? f.mana_cost : card.mana_cost;
+    const pt = (f ? f.power : card.power) != null ? `${f ? f.power : card.power}/${f ? f.toughness : card.toughness}` : null;
+
+    const legal = Object.entries(card.legalities || {})
+      .filter(([k]) => ['pauper', 'commander', 'modern', 'legacy', 'vintage', 'standard'].includes(k))
+      .map(([k, v]) => h('div', { class: 'ds-row' },
+        Text(k, { size: 'sm', tone: 'muted' }),
+        h('div', { class: 'ds-grow' }),
+        Badge(LEGAL_PT[v] || v, { tone: v === 'legal' ? 'positive' : v === 'banned' ? 'negative' : undefined })));
+
+    const price = card.prices && (card.prices.usd || card.prices.usd_foil);
+
+    mount(body,
+      img ? h('img', { src: img, alt: name, style: { width: '100%', maxWidth: '300px', margin: '0 auto var(--space-4)', borderRadius: 'var(--radius-card)', display: 'block' } })
+          : h('div', { class: 'ds-empty' }, Text(name)),
+      Row({}, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
+        cost ? Text(cost, { size: 'sm', mono: true, tone: 'accent' }) : null),
+      Text(typeLine + (pt ? ` — ${pt}` : ''), { size: 'sm', tone: 'muted' }),
+      oracle ? h('p', { class: 'ds-text ds-text--sm', style: { whiteSpace: 'pre-wrap', marginTop: 'var(--space-3)' } }, oracle)
+             : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' }),
+      h('div', { style: { height: 'var(--space-4)' } }),
+      Text('Legalidade', { size: 'sm', caps: true, as: 'h3' }),
+      Stack({ style: { gap: 'var(--space-1)' } }, ...legal),
+      h('div', { style: { height: 'var(--space-3)' } }),
+      Row({ class: 'ds-row--wrap' },
+        Badge(card.set_name || card.set, { tone: 'accent' }),
+        card.rarity ? Badge(card.rarity) : null,
+        ManaPips((card.color_identity || []).join('')),
+        price ? Badge('US$ ' + price) : Badge('preço indisponível')));
+  };
+  paint();
+
+  const actions = [];
+  if (hasFaces) actions.push(Button('Virar carta', { id: 'card-flip', onClick: () => { face = (face + 1) % card.faces.length; paint(); } }));
+  if (card.uri) actions.push(Button('Abrir na Scryfall', { onClick: () => window.open(card.uri, '_blank', 'noopener') }));
+  actions.push(Button('Fechar', { variant: 'primary', onClick: closeDialog }));
+
+  return Dialog({ title: card.name, body, actions });
+}
+return { createCardsScreen, openCardViewer };
+})();
+
+/* ==== src/app/main.js ==== */
+const __m13 = (function () {
+/* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
+   As rotas de produto entram nos épicos seguintes. */
+const { createPlatform } = __m0;
+const { createTheme } = __m1;
+const { createRouter } = __m2;
+const { h, mount, Button, Text, Empty, toast } = __m3;
+const { renderDS } = __m5;
+const { logoLockup, installFavicon } = __m4;
+const { createScryfall } = __m6;
+const { createCardRepo } = __m7;
+const { createImageCache } = __m8;
+const { createLocalIndex } = __m9;
+const { detectEnvironment, ENVIRONMENTS } = __m10;
+const { createInstaller, registerServiceWorker } = __m11;
+const { createCardsScreen } = __m12;
+const platform = createPlatform();
+const theme = createTheme(platform.store);
+const scryfall = createScryfall({});
+const images = createImageCache({ caches: typeof caches !== 'undefined' ? caches : null, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
+const localIndex = createLocalIndex({ store: platform.store });
+const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
+let environment = ENVIRONMENTS.online;
+const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });
+
+const ROUTES = [
+  { path: '/', title: 'Início', render: renderHome },
+  { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: environment, files: platform.files }) },
+  { path: '/ds', title: 'Design system', render: renderDS },
+  { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
+];
+
+function renderHome() {
+  return h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-6)' } },
+    Text('Plataforma de Magic', { size: '2xl', display: true, as: 'h1' }),
+    Text('Fundação e design system no ar. Motor de regras, coleção, listas e scanner entram nos próximos épicos.', { tone: 'muted' }),
+    h('div', { style: { height: 'var(--space-5)' } }),
+    h('div', { class: 'ds-row ds-row--wrap' },
+      Button('Buscar cartas', { variant: 'primary', id: 'go-cards', onClick: () => { location.hash = '#/cartas'; } }),
+      Button('Catálogo de componentes', { id: 'go-ds', onClick: () => { location.hash = '#/ds'; } })));
+}
+
+function installButton() {
+  const btn = Button('Instalar', { variant: 'ghost', id: 'btn-install', onClick: async () => {
+    const r = await installer.prompt();
+    if (r === 'accepted') toast('Estante instalada');
+  } });
+  const sync = st => btn.classList.toggle('ds-hidden', !st.canInstall);
+  sync(installer.state());
+  installer.onChange(sync);
+  return btn;
+}
+
+function appBar() {
+  return h('header', { class: 'ds-appbar' },
+    h('div', { class: 'ds-appbar__inner ds-wrap' },
+      h('a', { class: 'ds-appbar__brand', href: '#/', html: logoLockup(30) }),
+      h('div', { class: 'ds-grow' }),
+      Button('Cartas', { variant: 'ghost', id: 'nav-cards', onClick: () => { location.hash = '#/cartas'; } }),
+      installButton(),
+      Button('◐', { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: 'Tema', dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() })));
+}
+
+async function boot(root) {
+  installFavicon(document);
+  registerServiceWorker({
+    navigator: typeof navigator !== 'undefined' ? navigator : null,
+    location: typeof location !== 'undefined' ? location : null
+  });
+  await theme.init();
+  detectEnvironment({
+    location: typeof location !== 'undefined' ? location : null,
+    navigator: typeof navigator !== 'undefined' ? navigator : null,
+    fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null
+  }).then(e => {
+    environment = e;
+    // a tela de cartas relê o ambiente ao ser montada de novo
+    if (location.hash.startsWith('#/cartas')) { location.hash = '#/'; location.hash = '#/cartas'; }
+  });
+  const bar = appBar();
+  const outlet = h('main', { id: 'outlet' });
+  mount(root, bar, outlet);
+  const router = createRouter(ROUTES, ({ route }) => {
+    document.title = 'Estante · ' + (route.title || '');
+    mount(outlet, route.render());
+    window.scrollTo(0, 0);
+  });
+  router.start();
+  return { router, theme, platform };
+}
+
+if (typeof window !== 'undefined' && !window.__MTG_NO_AUTOBOOT) {
+  const start = () => boot(document.getElementById('app'));
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+}
+return { boot, platform, theme, scryfall, images, localIndex, cardRepo, environment, installer };
+})();</script>
+</body>
+</html>
