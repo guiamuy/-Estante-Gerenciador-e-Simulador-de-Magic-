@@ -438,6 +438,26 @@ body {
 .ds-list__group { border-bottom: 2px solid var(--shelf-edge); }
 .ds-list { border-bottom: 3px solid var(--shelf-edge); }
 .ds-appbar { border-bottom: 2px solid var(--shelf-edge); }
+
+/* ===================== L3 · galeria da lista ===================== */
+.ds-text--positive { color: var(--positive); }
+.deck-group { margin-top: var(--space-5); }
+.deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
+.deck-slot { position: relative; }
+.deck-slot[data-missing="true"] .ds-card img { opacity: .42; filter: grayscale(.85); }
+.deck-slot__qty, .deck-slot__flag {
+  position: absolute; pointer-events: none; font-size: var(--text-xs); line-height: 1;
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-full); font-weight: var(--weight-bold);
+}
+.deck-slot__qty { top: var(--space-2); left: var(--space-2); background: var(--accent); color: var(--accent-fg); }
+.deck-slot__flag { bottom: var(--space-2); left: 50%; transform: translateX(-50%); background: var(--bg-elev-3); color: var(--fg); border: 1px solid var(--border-strong); white-space: nowrap; }
+.deck-summary { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-5); }
+.deck-summary__own { display: flex; flex-direction: column; gap: var(--space-1); }
+.deck-curve { display: flex; align-items: flex-end; gap: var(--space-2); height: 96px; flex: 1; min-width: 200px; }
+.deck-curve__col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: var(--space-1); }
+.deck-curve__bar { width: 100%; min-height: 2px; background: var(--accent); border-radius: var(--radius-1) var(--radius-1) 0 0; }
+.deck-curve__n, .deck-curve__cmc { font-size: var(--text-xs); color: var(--fg-muted); }
+.ds-list__item .ds-stack { min-width: 0; }
 </style>
 </head>
 <body>
@@ -1657,7 +1677,7 @@ function createCardsScreen({ repo, images, local, env, files }) {
 }
 
 /* ---------------- D5 · visualizador ---------------- */
-function openCardViewer(card) {
+function openCardViewer(card, extra = []) {
   let face = 0;
   const hasFaces = (card.faces || []).length > 1;
   const body = h('div', { id: 'card-viewer' });
@@ -1703,12 +1723,920 @@ function openCardViewer(card) {
   const actions = [];
   if (hasFaces) actions.push(Button('Virar carta', { id: 'card-flip', onClick: () => { face = (face + 1) % card.faces.length; paint(); } }));
   if (card.uri) actions.push(Button('Abrir na Scryfall', { onClick: () => window.open(card.uri, '_blank', 'noopener') }));
+  actions.push(...extra);
   actions.push(Button('Fechar', { variant: 'primary', onClick: closeDialog }));
 
   return Dialog({ title: card.name, body, actions });
 }
 return { createCardsScreen, openCardViewer };
 })();
+
+/* ==== src/data/decks.js ==== */
+const __m14 = (function () {
+/* =====================================================================
+   L1 · MODELO E PERSISTÊNCIA DE LISTAS
+   L2 · LEITURA DE LISTA EM TEXTO
+   L4 · COLEÇÃO (o que eu tenho)
+   L5 · VALIDAÇÃO DE FORMATO
+   L6 · EXPORTAÇÃO
+   Funções puras onde dá; persistência só pela camada de plataforma.
+   ===================================================================== */
+const { norm } = __m7;
+const DECK = id => 'deck.' + id;
+const IDS = 'deck.__ids';
+const OWNED = 'collection.owned';
+const ZONES = ['commander', 'main', 'side'];
+const FORMATS = { commander: 'Commander', pauper: 'Pauper', livre: 'Livre' };
+
+/* ---------------- L2 · leitura de texto ----------------
+   Aceita as exportações mais comuns (Moxfield, Archidekt, Arena, MTGO):
+   "1 Sol Ring", "1x Sol Ring", "Sol Ring (CMM) 400", "SB: 2 Pyroblast",
+   cabeçalhos "Commander", "Deck", "Sideboard", e a marca *CMDR*. */
+const HEADER = [
+  [/^(commander|commanders|comandante|comandantes)\s*:?\s*(\(\d+\))?$/i, 'commander'],
+  [/^(sideboard|side|reserva|maybeboard|considering)\s*:?\s*(\(\d+\))?$/i, 'side'],
+  [/^(deck|main|mainboard|maindeck|principal|companion|about)\s*:?\s*(\(\d+\))?$/i, 'main']
+];
+
+function parseDeckText(text) {
+  const entries = [], skipped = [];
+  let zone = 'main';
+  for (const raw of String(text || '').split(/\r?\n/)) {
+    let line = raw.trim();
+    if (!line || line.startsWith('//') || line.startsWith('#')) continue;
+    const head = HEADER.find(([re]) => re.test(line));
+    if (head) { zone = head[1]; continue; }
+    if (/^name\s/i.test(line)) continue; // cabeçalho "Name X" do Arena
+    let z = zone;
+    if (/^sb:\s*/i.test(line)) { z = 'side'; line = line.replace(/^sb:\s*/i, ''); }
+    if (/\*cmdr\*/i.test(line)) { z = 'commander'; }
+    line = line.replace(/\*[a-z]+\*/gi, '').replace(/\s+\^[^^]*\^/g, '').trim();
+    const m = line.match(/^(\d+)\s*x?\s+(.+)$/i);
+    const qty = m ? parseInt(m[1], 10) : 1;
+    let name = (m ? m[2] : line)
+      .replace(/\s+\([A-Za-z0-9]{2,6}\)\s*[\w★\-]*\s*$/, '') // (SET) 123
+      .replace(/\s+\[[^\]]+\]\s*$/, '')                     // [SET]
+      .trim();
+    if (!name || qty < 1) { skipped.push(raw); continue; }
+    entries.push({ name, qty, zone: z });
+  }
+  return { entries: mergeEntries(entries), skipped };
+}
+
+/** Soma linhas repetidas da mesma carta na mesma zona. */
+function mergeEntries(entries) {
+  const map = new Map();
+  for (const e of entries) {
+    const k = e.zone + '|' + norm(e.name);
+    if (map.has(k)) map.get(k).qty += e.qty; else map.set(k, { ...e });
+  }
+  return [...map.values()];
+}
+
+/* ---------------- L1 · persistência ---------------- */
+function createDeckStore({ store, now = () => Date.now() }) {
+  const newId = () => now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const ids = async () => (await store.get(IDS)) || [];
+  return {
+    async list() {
+      const out = [];
+      for (const id of await ids()) { const d = await store.get(DECK(id)); if (d) out.push(d); }
+      return out.sort((a, b) => b.updated - a.updated);
+    },
+    async get(id) { return id ? store.get(DECK(id)) : null; },
+    async save(deck) {
+      const d = { ...deck, id: deck.id || newId(), created: deck.created || now(), updated: now() };
+      await store.set(DECK(d.id), d);
+      const cur = await ids();
+      if (!cur.includes(d.id)) await store.set(IDS, [...cur, d.id]);
+      return d;
+    },
+    async remove(id) {
+      await store.remove(DECK(id));
+      await store.set(IDS, (await ids()).filter(x => x !== id));
+      return true;
+    },
+    /** Backup completo: listas + coleção. O dado mora no aparelho. */
+    async exportAll(collection) {
+      return JSON.stringify({ kind: 'estante.backup', version: 1, decks: await this.list(), owned: await collection.all() }, null, 1);
+    },
+    async importAll(text, collection) {
+      let data;
+      try { data = JSON.parse(text); } catch (e) { throw new Error('arquivo-invalido'); }
+      if (!data || data.kind !== 'estante.backup') throw new Error('formato-desconhecido');
+      let n = 0;
+      for (const d of data.decks || []) { if (d && d.id && Array.isArray(d.entries)) { await store.set(DECK(d.id), d); n++; } }
+      const cur = new Set(await ids());
+      (data.decks || []).forEach(d => d && d.id && cur.add(d.id));
+      await store.set(IDS, [...cur]);
+      if (data.owned) await collection.merge(data.owned);
+      return { decks: n };
+    }
+  };
+}
+
+/* ---------------- L4 · coleção ----------------
+   Por nome de carta, não por impressão: responde "tenho esta carta?". */
+function createCollection({ store }) {
+  let cache = null;
+  const load = async () => cache || (cache = (await store.get(OWNED)) || {});
+  const persist = () => store.set(OWNED, cache);
+  return {
+    async all() { return { ...(await load()) }; },
+    async qty(name) { return (await load())[norm(name)] || 0; },
+    async set(name, qty) {
+      const m = await load(); const k = norm(name);
+      if (qty > 0) m[k] = qty; else delete m[k];
+      await persist(); return qty;
+    },
+    async merge(obj) {
+      const m = await load();
+      for (const [k, v] of Object.entries(obj || {})) if (v > 0) m[k] = Math.max(m[k] || 0, v);
+      await persist();
+    }
+  };
+}
+
+/* ---------------- categorias e estatística ---------------- */
+const CATEGORIES = [
+  ['commander', 'Comandante'], ['creature', 'Criaturas'], ['planeswalker', 'Planeswalkers'],
+  ['battle', 'Batalhas'], ['instant', 'Instantâneas'], ['sorcery', 'Feitiços'],
+  ['artifact', 'Artefatos'], ['enchantment', 'Encantamentos'], ['land', 'Terrenos'],
+  ['other', 'Outros'], ['side', 'Reserva']
+];
+function categoryOf(entry, card) {
+  if (entry.zone === 'commander') return 'commander';
+  if (entry.zone === 'side') return 'side';
+  const t = String(card && card.type_line || '').toLowerCase().split('//')[0];
+  for (const k of ['land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment']) if (t.includes(k)) return k;
+  return 'other';
+}
+
+const isBasic = card => /\bbasic\b/i.test(card && card.type_line || '');
+const anyNumber = card => /a deck can have any number of cards named/i.test(card && card.oracle_text || '');
+
+function deckStats(deck, cards, owned) {
+  let main = 0, side = 0, have = 0, need = 0;
+  const curve = [0, 0, 0, 0, 0, 0, 0];
+  for (const e of deck.entries) {
+    const c = cards.get(norm(e.name));
+    if (e.zone === 'side') side += e.qty; else main += e.qty;
+    need += e.qty;
+    have += Math.min(e.qty, owned[norm(e.name)] || 0);
+    if (e.zone !== 'side' && c && !/\bland\b/i.test(c.type_line)) curve[Math.min(6, Math.floor(c.cmc || 0))] += e.qty;
+  }
+  return { main, side, have, need, missing: need - have, curve };
+}
+
+/* ---------------- L5 · validação ---------------- */
+function validateDeck(deck, cards) {
+  const issues = [];
+  const add = (level, message) => issues.push({ level, message });
+  const get = e => cards.get(norm(e.name));
+  const unresolved = deck.entries.filter(e => !get(e));
+  if (unresolved.length) add('error', `${unresolved.length} carta(s) não reconhecida(s): ${unresolved.slice(0, 5).map(e => e.name).join(', ')}${unresolved.length > 5 ? '…' : ''}`);
+  const fmt = deck.format;
+  if (fmt === 'livre') return issues;
+
+  const playing = deck.entries.filter(e => e.zone !== 'side');
+  const total = playing.reduce((s, e) => s + e.qty, 0);
+  const illegal = deck.entries.filter(e => { const c = get(e); return c && c.legalities && c.legalities[fmt] && c.legalities[fmt] !== 'legal'; });
+  if (illegal.length) add('error', `Fora do ${FORMATS[fmt]}: ${illegal.slice(0, 5).map(e => e.name).join(', ')}${illegal.length > 5 ? '…' : ''}`);
+
+  if (fmt === 'commander') {
+    const cmd = deck.entries.filter(e => e.zone === 'commander');
+    if (!cmd.length) add('error', 'Nenhum comandante definido. Abra a carta e toque em "Definir como comandante".');
+    if (cmd.length > 2) add('error', 'Mais de dois comandantes.');
+    for (const e of cmd) {
+      const c = get(e); if (!c) continue;
+      const ok = /legendary/i.test(c.type_line) && /creature/i.test(c.type_line) || /can be your commander/i.test(c.oracle_text || '');
+      if (!ok) add('error', `${e.name} não pode ser comandante.`);
+    }
+    if (total !== 100) add(total < 100 ? 'warning' : 'error', `${total} de 100 cartas (comandante incluído).`);
+    const dup = playing.filter(e => e.qty > 1 && get(e) && !isBasic(get(e)) && !anyNumber(get(e)));
+    if (dup.length) add('error', `Mais de uma cópia: ${dup.map(e => e.name).join(', ')}`);
+    const ci = new Set(cmd.flatMap(e => (get(e) && get(e).color_identity) || []));
+    if (cmd.length) {
+      const off = playing.filter(e => e.zone !== 'commander' && get(e) && get(e).color_identity.some(x => !ci.has(x)));
+      if (off.length) add('error', `Fora da identidade de cor do comandante: ${off.slice(0, 5).map(e => e.name).join(', ')}${off.length > 5 ? '…' : ''}`);
+    }
+  }
+  if (fmt === 'pauper') {
+    if (total < 60) add('warning', `${total} de 60 cartas no deck principal.`);
+    const side = deck.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
+    if (side > 15) add('error', `Reserva com ${side} cartas (máximo 15).`);
+    const byName = new Map();
+    deck.entries.forEach(e => byName.set(norm(e.name), (byName.get(norm(e.name)) || 0) + e.qty));
+    const over = [...byName.entries()].filter(([k, n]) => n > 4 && cards.get(k) && !isBasic(cards.get(k)) && !anyNumber(cards.get(k)));
+    if (over.length) add('error', `Mais de 4 cópias: ${over.map(([k]) => (deck.entries.find(e => norm(e.name) === k) || {}).name).join(', ')}`);
+  }
+  return issues;
+}
+
+/* ---------------- L6 · exportação ---------------- */
+function exportText(deck, { onlyMissing = false, owned = {} } = {}) {
+  const block = (zone, title) => {
+    const lines = deck.entries.filter(e => e.zone === zone).map(e => {
+      const q = onlyMissing ? Math.max(0, e.qty - (owned[norm(e.name)] || 0)) : e.qty;
+      return q > 0 ? `${q} ${e.name}` : null;
+    }).filter(Boolean);
+    return lines.length ? [title, ...lines].join('\n') : '';
+  };
+  return [block('commander', 'Commander'), block('main', 'Deck'), block('side', 'Sideboard')].filter(Boolean).join('\n\n');
+}
+
+return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES };
+})();
+
+/* ==== src/app/decks.js ==== */
+const __m15 = (function () {
+/* =====================================================================
+   L1–L6 · TELAS DE LISTAS
+   /listas          minhas listas + backup
+   /listas/editar   criar ou editar colando o texto
+   /lista?id=…      galeria, coleção, validação e exportação
+   ===================================================================== */
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const { norm } = __m7;
+const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS } = __m14;
+const { openCardViewer } = __m12;
+
+const q = () => new URLSearchParams((location.hash.split('?')[1]) || '');
+const go = to => { location.hash = '#' + to; };
+const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
+const FORMAT_OPTS = Object.entries(FORMATS).map(([value, label]) => ({ value, label }));
+
+/* ---------------- /listas ---------------- */
+function createDecksHome({ decks, collection, files, cardRepo }) {
+  const list = h('div', { id: 'decks-list' }, Row({}, Spinner()));
+  const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden' });
+  fileInput.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { const r = await decks.importAll(await files.readText(f), collection); toast(`${r.decks} lista(s) restaurada(s)`); paint(); }
+    catch (err) { toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Não é um backup da Estante'); }
+    finally { e.target.value = ''; }
+  });
+
+  async function paint() {
+    const all = await decks.list();
+    const owned = await collection.all();
+    if (!all.length) return mount(list, Empty('Nenhuma lista ainda. Cole uma lista exportada do Moxfield, Archidekt ou Arena para começar.',
+      Button('Nova lista', { variant: 'primary', onClick: () => go('/listas/editar') })));
+    mount(list, h('div', { class: 'ds-list' }, ...all.map(d => {
+      const need = d.entries.reduce((s, e) => s + e.qty, 0);
+      const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
+      const cmd = d.entries.filter(e => e.zone === 'commander').map(e => e.name).join(' + ');
+      return h('button', { class: 'ds-list__item', type: 'button', onClick: () => go('/lista?id=' + d.id) },
+        Stack({ style: { gap: 'var(--space-1)', textAlign: 'left' } },
+          Text(d.name, { size: 'lg', display: true }),
+          cmd ? Text(cmd, { size: 'sm', tone: 'muted' }) : null),
+        h('div', { class: 'ds-grow' }),
+        Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
+          Badge(FORMATS[d.format] || d.format, { tone: 'accent' }),
+          Text(`tenho ${have} de ${need}`, { size: 'xs', tone: have === need ? 'positive' : 'muted' })));
+    })));
+  }
+  paint();
+
+  return Stack(pad(),
+    Row({}, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
+      Button('Nova lista', { variant: 'primary', id: 'deck-new', onClick: () => go('/listas/editar') })),
+    list,
+    Surface({ class: 'ds-surface--pad' }, Stack({},
+      Text('Backup', { size: 'sm', as: 'h2', display: true }),
+      Text('Listas e coleção ficam guardadas neste aparelho. Exporte um backup para levar para outro aparelho ou não perder nada ao limpar o navegador.', { size: 'sm', tone: 'muted' }),
+      Row({ class: 'ds-row--wrap' },
+        Button('Exportar backup', { onClick: async () => { files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
+        Button('Restaurar backup', { onClick: () => fileInput.click() })),
+      fileInput)));
+}
+
+/* ---------------- /listas/editar ---------------- */
+function createDeckEditor({ decks }) {
+  const id = q().get('id');
+  const state = { name: '', format: 'commander', text: '' };
+  const root = Stack(pad(), Row({}, Spinner()));
+
+  (async () => {
+    const d = id ? await decks.get(id) : null;
+    if (d) { state.name = d.name; state.format = d.format; state.text = exportText(d); }
+    const preview = h('div', { id: 'deck-preview' });
+    const showPreview = () => {
+      const { entries, skipped } = parseDeckText(state.text);
+      const n = entries.reduce((s, e) => s + e.qty, 0);
+      const cmd = entries.filter(e => e.zone === 'commander').map(e => e.name);
+      mount(preview, entries.length ? Text(`${n} carta(s) em ${entries.length} linha(s)` + (cmd.length ? ` · comandante: ${cmd.join(' + ')}` : '') + (skipped.length ? ` · ${skipped.length} linha(s) ignorada(s)` : ''), { size: 'sm', tone: 'muted' }) : null);
+    };
+    const nameIn = Input({ id: 'deck-name', value: state.name, placeholder: 'Ex.: Commander Malcolm v3', onInput: e => { state.name = e.target.value; } });
+    const textIn = Textarea({ id: 'deck-text', value: state.text, placeholder: 'Commander\n1 Malcolm, Alluring Scoundrel\n\nDeck\n1 Sol Ring\n1x Arcane Signet\n…', onInput: e => { state.text = e.target.value; showPreview(); } });
+    textIn.style.minHeight = '320px'; textIn.style.fontFamily = 'var(--font-mono)';
+    showPreview();
+
+    async function save() {
+      const { entries } = parseDeckText(state.text);
+      if (!state.name.trim()) return toast('Dê um nome para a lista');
+      if (!entries.length) return toast('Cole ao menos uma carta');
+      const saved = await decks.save({ ...(d || {}), name: state.name.trim(), format: state.format, entries });
+      toast(d ? 'Lista atualizada' : 'Lista criada');
+      go('/lista?id=' + saved.id);
+    }
+
+    mount(root,
+      Text(d ? 'Editar lista' : 'Nova lista', { size: '2xl', display: true, as: 'h1' }),
+      Text('Cole a lista no formato de exportação do Moxfield, Archidekt, Arena ou MTGO. Uma carta por linha, quantidade na frente. Use o cabeçalho "Commander" ou a marca *CMDR* para o comandante e "Sideboard" para a reserva.', { tone: 'muted', size: 'sm' }),
+      Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
+        Row({ class: 'ds-row--wrap' },
+          Field('Nome', nameIn),
+          Field('Formato', Select(FORMAT_OPTS, { id: 'deck-format', value: state.format, onChange: e => { state.format = e.target.value; } }))),
+        Field('Cartas', textIn),
+        preview,
+        Row({}, Button(d ? 'Salvar alterações' : 'Criar lista', { variant: 'primary', id: 'deck-save', onClick: save }),
+          Button('Cancelar', { onClick: () => history.back() })))));
+  })();
+  return root;
+}
+
+/* ---------------- /lista?id= ---------------- */
+function createDeckScreen({ decks, collection, cardRepo, images, share, files }) {
+  const id = q().get('id');
+  const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo lista…', { size: 'sm', tone: 'muted' })));
+  const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false };
+
+  async function load() {
+    state.deck = await decks.get(id);
+    if (!state.deck) return mount(root, Empty('Lista não encontrada.', Button('Ver listas', { onClick: () => go('/listas') })));
+    state.owned = await collection.all();
+    cardRepo.stats.degraded = false;
+    const progress = Text('Buscando cartas…', { size: 'sm', tone: 'muted' });
+    mount(root, Row({}, Spinner(), progress));
+    state.cards = await cardRepo.byNames(state.deck.entries.map(e => e.name),
+      (done, total) => { progress.textContent = `Buscando cartas… ${done} de ${total}`; });
+    state.degraded = !!cardRepo.stats.degraded;
+    if (images && images.available) images.warm([...state.cards.values()].filter(Boolean).map(c => c.images && c.images.normal));
+    paint();
+  }
+
+  const persist = async () => { state.deck = await decks.save(state.deck); };
+  const entryCard = e => state.cards.get(norm(e.name));
+  const img = c => c && ((c.images && c.images.normal) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.normal));
+
+  async function toggleOwned(e) {
+    const have = state.owned[norm(e.name)] || 0;
+    const next = have >= e.qty ? 0 : e.qty;
+    await collection.set(e.name, next);
+    state.owned = await collection.all();
+    paint();
+  }
+
+  function openEntry(e) {
+    const c = entryCard(e);
+    const have = state.owned[norm(e.name)] || 0;
+    const extra = [
+      Button(have >= e.qty ? 'Não tenho' : 'Tenho', { onClick: async () => { closeDialog(); await toggleOwned(e); } }),
+      state.deck.format === 'commander' && e.zone !== 'commander'
+        ? Button('Definir como comandante', { onClick: async () => { e.zone = 'commander'; e.qty = 1; closeDialog(); await persist(); paint(); } }) : null,
+      e.zone === 'commander' ? Button('Mover para o deck', { onClick: async () => { e.zone = 'main'; closeDialog(); await persist(); paint(); } }) : null,
+      Button('Remover da lista', { variant: 'danger', onClick: async () => {
+        state.deck.entries = state.deck.entries.filter(x => x !== e); closeDialog(); await persist(); paint(); toast(`${e.name} removida`);
+      } })
+    ].filter(Boolean);
+    if (c) openCardViewer(c, extra);
+    else Dialog({ title: e.name, body: Text('Carta não reconhecida pela Scryfall. Confira a grafia na edição da lista.', { tone: 'muted' }),
+      actions: [...extra, Button('Fechar', { variant: 'primary', onClick: closeDialog })] });
+  }
+
+  function curveView(curve) {
+    const max = Math.max(1, ...curve);
+    return h('div', { class: 'deck-curve', 'aria-label': 'curva de mana' },
+      ...curve.map((n, i) => h('div', { class: 'deck-curve__col' },
+        h('span', { class: 'deck-curve__n' }, n ? String(n) : ''),
+        h('div', { class: 'deck-curve__bar', style: { height: `${Math.round((n / max) * 100)}%` } }),
+        h('span', { class: 'deck-curve__cmc' }, i === 6 ? '6+' : String(i)))));
+  }
+
+  function exportDialog() {
+    const full = exportText(state.deck);
+    const missing = exportText(state.deck, { onlyMissing: true, owned: state.owned });
+    const pick = { which: 'full' };
+    const area = Textarea({ value: full }); area.readOnly = true; area.style.minHeight = '220px'; area.style.fontFamily = 'var(--font-mono)';
+    const chips = Row({ class: 'ds-row--wrap' },
+      ...[['full', 'Lista completa'], ['missing', 'Só o que falta']].map(([k, label]) => {
+        const c = Chip(label, { pressed: k === 'full' });
+        c.addEventListener('click', () => { pick.which = k; area.value = k === 'full' ? full : (missing || '(nada faltando)'); chips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); });
+        return c;
+      }));
+    const text = () => area.value;
+    Dialog({ title: 'Exportar', body: Stack({}, chips, area), actions: [
+      Button('Copiar', { onClick: async () => { toast(await share.copy(text()) ? 'Copiado' : 'Não foi possível copiar'); } }),
+      Button('Baixar .txt', { onClick: () => { files.save(`${state.deck.name}${pick.which === 'missing' ? ' - faltantes' : ''}.txt`, text()); toast('Arquivo baixado'); } }),
+      Button('Fechar', { variant: 'primary', onClick: closeDialog })
+    ] });
+  }
+
+  function paint() {
+    const d = state.deck;
+    const stats = deckStats(d, state.cards, state.owned);
+    const issues = validateDeck(d, state.cards);
+    const identity = [...new Set(d.entries.filter(e => e.zone === 'commander').flatMap(e => (entryCard(e) && entryCard(e).color_identity) || []))].join('');
+
+    const groups = CATEGORIES.map(([key, label]) => {
+      const items = d.entries.filter(e => categoryOf(e, entryCard(e)) === key)
+        .sort((a, b) => ((entryCard(a) || {}).cmc || 0) - ((entryCard(b) || {}).cmc || 0) || a.name.localeCompare(b.name));
+      if (!items.length) return null;
+      const n = items.reduce((s, e) => s + e.qty, 0);
+      return Stack({ class: 'deck-group' },
+        Row({ class: 'deck-group__head' }, Text(label, { size: 'lg', display: true, as: 'h2' }), Text(String(n), { size: 'sm', tone: 'muted' })),
+        h('div', { class: 'ds-cardgrid' }, ...items.map(e => {
+          const c = entryCard(e);
+          const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
+          const lacking = have < e.qty;
+          return h('div', { class: 'deck-slot', dataset: { missing: String(lacking) } },
+            CardFace({ name: e.name, image: img(c) }, { onClick: () => state.marking ? toggleOwned(e) : openEntry(e) }),
+            e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
+            lacking ? h('span', { class: 'deck-slot__flag' }, have ? `falta ${e.qty - have}` : 'falta') : null);
+        })));
+    }).filter(Boolean);
+
+    const markChip = Chip('Marcar o que tenho', { pressed: state.marking, onClick: () => { state.marking = !state.marking; paint(); } });
+
+    mount(root,
+      Row({ class: 'ds-row--wrap' },
+        Stack({ style: { gap: 'var(--space-1)' } },
+          Text(d.name, { size: '2xl', display: true, as: 'h1' }),
+          Row({ class: 'ds-row--wrap' }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), identity ? ManaPips(identity) : null,
+            Text(`${stats.main} no deck` + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted' }))),
+        h('div', { class: 'ds-grow' }),
+        Row({ class: 'ds-row--wrap' },
+          Button('Editar', { onClick: () => go('/listas/editar?id=' + d.id) }),
+          Button('Exportar', { onClick: exportDialog }),
+          Button('Excluir', { variant: 'danger', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
+      state.degraded ? Note('<b>Sem acesso à Scryfall agora.</b> Mostrando as cartas que já estavam salvas neste aparelho.', 'warning') : null,
+      Surface({ class: 'ds-surface--pad deck-summary' },
+        h('div', { class: 'deck-summary__own' },
+          Text(`${stats.have}/${stats.need}`, { size: '3xl', display: true }),
+          Text(stats.missing ? `faltam ${stats.missing} carta(s)` : 'coleção completa', { size: 'sm', tone: stats.missing ? 'muted' : 'positive' })),
+        curveView(stats.curve)),
+      issues.length
+        ? Note(issues.map(i => (i.level === 'error' ? '<b>✕</b> ' : '<b>!</b> ') + escapeHtml(i.message)).join('<br>'), issues.some(i => i.level === 'error') ? 'negative' : 'warning')
+        : (d.format !== 'livre' ? Note(`<b>✓</b> Lista válida para ${FORMATS[d.format]}.`) : null),
+      Row({ class: 'ds-row--wrap' }, markChip,
+        state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : Text('Toque numa carta para ver detalhes e ações.', { size: 'sm', tone: 'muted' })),
+      ...groups);
+  }
+
+  load();
+  return root;
+}
+
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+return { createDecksHome, createDeckEditor, createDeckScreen };
+})();
+
+
+/* ==== src/engine/core.js ==== */
+const __m16 = (function () {
+/* =====================================================================
+   M1 · ESTADO, ZONAS E SEMENTE
+   M2 · PREPARAÇÃO POR FORMATO E MULLIGAN
+   M3 · ESTRUTURA DE TURNO
+   M4 · PRIORIDADE E PILHA
+   M5 · AÇÕES BASEADAS EM ESTADO (núcleo)
+   M8 · REGISTRO, REPLAY E DESFAZER
+   Puro: sem DOM, sem rede, sem relógio, sem Math.random. Todo acaso sai
+   da semente guardada no próprio estado, então a mesma semente com as
+   mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
+   ===================================================================== */
+const ENGINE_VERSION = 1;
+const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'combat_begin', 'combat_attackers', 'combat_blockers',
+  'combat_damage', 'combat_end', 'main2', 'end', 'cleanup'];
+const STEP_PT = {
+  untap: 'Desvirar', upkeep: 'Manutenção', draw: 'Compra', main1: 'Principal 1', combat_begin: 'Início do combate',
+  combat_attackers: 'Declarar atacantes', combat_blockers: 'Declarar bloqueadores', combat_damage: 'Dano de combate',
+  combat_end: 'Fim do combate', main2: 'Principal 2', end: 'Final', cleanup: 'Limpeza'
+};
+const NO_PRIORITY = new Set(['untap', 'cleanup']);
+const FORMAT_RULES = {
+  pauper: { life: 20, hand: 7, commander: false },
+  commander: { life: 40, hand: 7, commander: true, commanderDamage: 21 },
+  livre: { life: 20, hand: 7, commander: false }
+};
+const PERMANENT = ['land', 'creature', 'artifact', 'enchantment', 'planeswalker', 'battle'];
+const ZONE_NAMES = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command'];
+
+class RuleError extends Error { constructor(code, message) { super(message || code); this.code = code; } }
+
+/* ---------------- semente ---------------- */
+function nextRand(state) {
+  // mulberry32: 32 bits de estado, guardado em state.rng
+  let t = (state.rng = (state.rng + 0x6D2B79F5) >>> 0);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+function shuffle(state, arr) {
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(nextRand(state) * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+
+/* ---------------- catálogo mínimo ----------------
+   O motor não precisa da carta inteira: só do que as regras do núcleo
+   consultam. A interface mantém a carta completa ao lado. */
+function cardFacts(card) {
+  const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
+  const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => tl.includes(t));
+  const kw = (card && card.keywords || []).map(k => String(k).toLowerCase());
+  const num = v => (v == null || isNaN(parseInt(v, 10))) ? null : parseInt(v, 10);
+  return {
+    types, legendary: tl.includes('legendary'),
+    flash: kw.includes('flash'),
+    power: num(card && card.power), toughness: num(card && card.toughness),
+    cmc: (card && card.cmc) || 0
+  };
+}
+const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
+const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
+
+/* ---------------- criação ---------------- */
+/** setup = { format, seed, mode: 'assisted'|'full', players: [{ name, deck: [{ name, qty, zone }] }], cards: { nome: carta } } */
+function createGame(setup) {
+  const format = FORMAT_RULES[setup.format] ? setup.format : 'livre';
+  const rules = FORMAT_RULES[format];
+  if (!Array.isArray(setup.players) || setup.players.length < 1) throw new RuleError('setup', 'partida sem jogadores');
+  const s = {
+    v: ENGINE_VERSION, format, mode: setup.mode === 'full' ? 'full' : 'assisted',
+    rng: (setup.seed >>> 0) || 1, seed: (setup.seed >>> 0) || 1,
+    facts: {}, objects: {}, nextOid: 1,
+    players: [], zones: [], stack: [],
+    turn: { number: 0, active: 0, step: 'untap', priority: 0, passes: 0, firstTurn: true },
+    status: 'mulligan', winner: null, pending: null
+  };
+  for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
+
+  setup.players.forEach((pl, pi) => {
+    s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, lost: false, lossReason: null,
+      landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {} });
+    const z = Object.fromEntries(ZONE_NAMES.map(n => [n, []]));
+    s.zones.push(z);
+    for (const e of pl.deck || []) {
+      if (!s.facts[e.name]) s.facts[e.name] = cardFacts(null);
+      for (let i = 0; i < (e.qty || 1); i++) {
+        const oid = 'o' + (s.nextOid++);
+        const toCommand = rules.commander && e.zone === 'commander';
+        if (e.zone === 'side') { s.nextOid--; continue; }
+        s.objects[oid] = { oid, name: e.name, owner: pi, controller: pi, zone: toCommand ? 'command' : 'library',
+          tapped: false, sick: false, damage: 0, counters: {}, commander: toCommand };
+        z[toCommand ? 'command' : 'library'].push(oid);
+      }
+    }
+    shuffle(s, z.library);
+  });
+  // quem começa: sorteio pela semente
+  s.turn.active = Math.floor(nextRand(s) * s.players.length);
+  s.turn.priority = s.turn.active;
+  s.players.forEach((_, pi) => draw(s, pi, rules.hand));
+  return s;
+}
+
+/* ---------------- movimento entre zonas ---------------- */
+function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[obj.owner][zone]; }
+function moveObject(s, oid, to, { top = true } = {}) {
+  const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
+  if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
+  const from = zoneList(s, o, o.zone);
+  const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
+  // ao mudar de zona vira objeto novo para as regras (400.7): zera estado de mesa
+  o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
+  o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
+  o.zone = to;
+  const dest = zoneList(s, o, to);
+  if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
+}
+function draw(s, p, n = 1) {
+  for (let k = 0; k < n; k++) {
+    const lib = s.zones[p].library;
+    if (!lib.length) { s.players[p].drewFromEmpty = true; return; }
+    moveObject(s, lib[0], 'hand');
+  }
+}
+
+/* ---------------- consultas ---------------- */
+const alive = s => s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
+function nextAlive(s, from) {
+  const n = s.players.length;
+  for (let k = 1; k <= n; k++) { const i = (from + k) % n; if (!s.players[i].lost) return i; }
+  return from;
+}
+const isMain = s => s.turn.step === 'main1' || s.turn.step === 'main2';
+const commanderTax = (s, p, oid) => 2 * (s.players[p].commanderCasts[oid] || 0);
+
+/* ---------------- M3 · passos e turnos ---------------- */
+function enterStep(s, step) {
+  s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
+  const a = s.turn.active;
+  if (step === 'untap') {
+    for (const oid of s.zones.flatMap(z => z.battlefield)) {
+      const o = s.objects[oid];
+      if (o.controller === a) { o.tapped = false; o.sick = false; }
+    }
+    return enterStep(s, 'upkeep'); // desvirar não dá prioridade
+  }
+  if (step === 'draw') {
+    const skip = s.turn.firstTurn && s.players.length === 2; // 103.8a
+    if (!skip) draw(s, a, 1);
+  }
+  if (step === 'cleanup') {
+    const over = s.zones[a].hand.length - FORMAT_RULES[s.format].hand;
+    if (over > 0) { s.pending = { kind: 'discard', p: a, n: over }; return; }
+    return finishCleanup(s);
+  }
+}
+function finishCleanup(s) {
+  for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') o.damage = 0;
+  s.pending = null;
+  s.turn.firstTurn = false;
+  s.turn.number++;
+  s.turn.active = nextAlive(s, s.turn.active);
+  s.players.forEach(pl => { pl.landsPlayed = 0; });
+  enterStep(s, 'untap');
+}
+function advanceStep(s) {
+  let i = STEPS.indexOf(s.turn.step) + 1;
+  // sem atacantes declarados, bloqueio e dano não acontecem (508.8). Combate entra no M6.
+  if (STEPS[i] === 'combat_blockers') i = STEPS.indexOf('combat_end');
+  enterStep(s, STEPS[i]);
+}
+
+/* ---------------- M4 · prioridade e pilha ---------------- */
+function resolveTop(s) {
+  const item = s.stack[s.stack.length - 1];
+  const o = s.objects[item];
+  const f = s.facts[o.name];
+  const dest = isPermanent(f) ? 'battlefield' : 'graveyard';
+  const controller = o.controller;
+  moveObject(s, item, dest);
+  if (dest === 'battlefield') s.objects[item].controller = controller;
+  return { kind: 'resolved', oid: item, name: o.name, to: dest, adjudicate: s.mode === 'assisted' };
+}
+
+/* ---------------- M5 · ações baseadas em estado ----------------
+   Checadas até estabilizar (704.3). Lenda e marcadores entram depois:
+   exigem escolha do jogador e vivem com a mesa assistida. */
+function stateBased(s, events) {
+  for (let guard = 0; guard < 50; guard++) {
+    let changed = false;
+    s.players.forEach((pl, i) => {
+      if (pl.lost) return;
+      let why = null;
+      if (pl.life <= 0) why = 'vida';
+      else if (pl.drewFromEmpty) why = 'grimório vazio';
+      else if (s.format === 'commander' && Object.values(pl.commanderDamage).some(d => d >= FORMAT_RULES.commander.commanderDamage)) why = 'dano de comandante';
+      if (why) { pl.lost = true; pl.lossReason = why; changed = true; events.push({ kind: 'lost', p: i, reason: why }); removePlayer(s, i); }
+    });
+    for (const oid of s.zones.flatMap(z => z.battlefield)) {
+      const o = s.objects[oid]; const f = s.facts[o.name];
+      if (f.types.includes('creature') && f.toughness != null) {
+        const t = f.toughness + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0);
+        if (t <= 0 || (o.damage > 0 && o.damage >= t)) { moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
+      }
+    }
+    if (!changed) break;
+  }
+  const left = alive(s);
+  if (s.status !== 'over' && s.players.length > 1 && left.length <= 1) {
+    s.status = 'over'; s.winner = left.length ? left[0] : null; events.push({ kind: 'over', winner: s.winner });
+  }
+}
+/** 800.4a: quem sai leva o que possui; o que estava na pilha dele sai do jogo (exílio do dono). */
+function removePlayer(s, p) {
+  s.stack.filter(oid => s.objects[oid].owner === p).forEach(oid => moveObject(s, oid, 'exile'));
+  if (s.turn.priority === p) s.turn.priority = nextAlive(s, p);
+  if (s.turn.active === p && alive(s).length > 1) { s.turn.active = nextAlive(s, p); s.turn.firstTurn = false; enterStep(s, 'untap'); }
+}
+
+/* ---------------- ações ---------------- */
+function holder(s, p) { if (s.turn.priority !== p) throw new RuleError('prioridade', 'jogador sem prioridade'); }
+function owns(s, p, oid, zone) {
+  const o = s.objects[oid];
+  if (!o || o.owner !== p || o.zone !== zone) throw new RuleError('objeto', `objeto fora de ${zone}`);
+  return o;
+}
+
+const HANDLERS = {
+  mulligan(s, a) {
+    const pl = s.players[a.p];
+    if (s.status !== 'mulligan' || pl.kept) throw new RuleError('fase', 'mulligan fora de hora');
+    if (pl.mulligans >= 7) throw new RuleError('mulligan', 'sem cartas para novo mulligan');
+    for (const oid of [...s.zones[a.p].hand]) moveObject(s, oid, 'library');
+    shuffle(s, s.zones[a.p].library);
+    pl.mulligans++;
+    draw(s, a.p, FORMAT_RULES[s.format].hand);
+  },
+  keep(s, a) {
+    const pl = s.players[a.p];
+    if (s.status !== 'mulligan' || pl.kept) throw new RuleError('fase', 'manter fora de hora');
+    const bottom = a.bottom || [];
+    if (bottom.length !== pl.mulligans) throw new RuleError('mulligan', `escolha ${pl.mulligans} carta(s) para o fundo`);
+    if (new Set(bottom).size !== bottom.length) throw new RuleError('mulligan', 'carta repetida');
+    bottom.forEach(oid => owns(s, a.p, oid, 'hand'));
+    bottom.forEach(oid => moveObject(s, oid, 'library', { top: false })); // London: 103.5
+    pl.kept = true;
+    if (s.players.every(x => x.kept)) { s.status = 'playing'; s.turn.number = 1; enterStep(s, 'untap'); }
+  },
+  pass(s, a, ev) {
+    holder(s, a.p);
+    s.turn.passes++;
+    if (s.turn.passes < alive(s).length) { s.turn.priority = nextAlive(s, a.p); return; }
+    s.turn.passes = 0;
+    if (s.stack.length) { ev.push(resolveTop(s)); s.turn.priority = s.turn.active; return; }
+    advanceStep(s);
+  },
+  play_land(s, a) {
+    holder(s, a.p);
+    const o = owns(s, a.p, a.oid, 'hand');
+    if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
+    if (s.turn.active !== a.p || !isMain(s) || s.stack.length) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia');
+    if (s.players[a.p].landsPlayed >= 1) throw new RuleError('limite', 'já jogou terreno neste turno');
+    moveObject(s, a.oid, 'battlefield');
+    s.players[a.p].landsPlayed++;
+    s.turn.passes = 0;
+  },
+  cast(s, a) {
+    holder(s, a.p);
+    const o = s.objects[a.oid];
+    if (!o || o.owner !== a.p || !(o.zone === 'hand' || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
+    const f = s.facts[o.name];
+    if (f.types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
+    if (isSorcerySpeed(f) && (s.turn.active !== a.p || !isMain(s) || s.stack.length)) throw new RuleError('tempo', 'só na sua fase principal, com a pilha vazia');
+    if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
+    moveObject(s, a.oid, 'stack');
+    s.turn.passes = 0; // 117.3c: quem conjura recebe prioridade de novo
+  },
+  discard(s, a) {
+    const o = owns(s, a.p, a.oid, 'hand');
+    moveObject(s, o.oid, 'graveyard');
+    if (s.pending && s.pending.kind === 'discard' && s.pending.p === a.p) {
+      s.pending.n--; if (s.pending.n <= 0) finishCleanup(s);
+    }
+  },
+  concede(s, a) { const pl = s.players[a.p]; if (!pl.lost) { pl.life = Math.min(pl.life, 0); pl.lossReason = 'desistência'; } },
+
+  /* ---- adjudicação (mesa assistida): controles diretos de estado ---- */
+  tap(s, a) { assisted(s); holder(s, a.p); const o = onField(s, a.oid); o.tapped = !o.tapped; },
+  move(s, a) {
+    assisted(s); holder(s, a.p);
+    const o = s.objects[a.oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
+    if (a.to === 'stack') throw new RuleError('zona', 'use conjurar para pôr na pilha');
+    if (o.zone === a.to && a.to !== 'library') return;
+    moveObject(s, a.oid, a.to, { top: a.top !== false });
+  },
+  life(s, a) {
+    assisted(s); holder(s, a.p);
+    if (!s.players[a.target] || !Number.isInteger(a.delta)) throw new RuleError('vida', 'alvo ou valor inválido');
+    s.players[a.target].life += a.delta;
+  },
+  draw(s, a) { assisted(s); holder(s, a.p); draw(s, a.target ?? a.p, a.n || 1); },
+  counter(s, a) {
+    assisted(s); holder(s, a.p); const o = onField(s, a.oid);
+    const k = a.kind || 'p1p1'; const v = (o.counters[k] || 0) + (a.delta || 1);
+    if (v > 0) o.counters[k] = v; else delete o.counters[k];
+  },
+  damage(s, a) { assisted(s); holder(s, a.p); const o = onField(s, a.oid); o.damage = Math.max(0, o.damage + (a.delta || 1)); },
+  commander_damage(s, a) {
+    assisted(s); holder(s, a.p);
+    const pl = s.players[a.target]; if (!pl || !s.objects[a.source] || !s.objects[a.source].commander) throw new RuleError('comandante', 'origem precisa ser um comandante');
+    pl.commanderDamage[a.source] = Math.max(0, (pl.commanderDamage[a.source] || 0) + (a.delta || 1));
+    pl.life -= (a.delta || 1);
+  }
+};
+function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'controle direto só existe na mesa assistida'); }
+function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
+
+const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
+
+/** Aplica uma ação. Nunca muta o estado recebido. Lança RuleError se ilegal. */
+function apply(state, action) {
+  if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
+  if (state.status === 'over') throw new RuleError('fim', 'partida encerrada');
+  if (!state.players[action.p] || state.players[action.p].lost) throw new RuleError('jogador', 'jogador inválido');
+  if (state.status === 'mulligan' && !MULLIGAN_ACTIONS.has(action.t)) throw new RuleError('fase', 'termine os mulligans primeiro');
+  if (state.pending && state.pending.kind === 'discard' && !['discard', 'concede'].includes(action.t))
+    throw new RuleError('pendente', `descarte ${state.pending.n} carta(s) primeiro`);
+  const s = clone(state);
+  const events = [];
+  HANDLERS[action.t](s, action, events);
+  stateBased(s, events);
+  return { state: s, events };
+}
+
+/** Todas as ações legais agora para o jogador p. Base do bot aleatório,
+    do teste de fuzz e dos botões da mesa. */
+function legalActions(s, p, { adjudication = false } = {}) {
+  const out = [];
+  if (s.status === 'over' || !s.players[p] || s.players[p].lost) return out;
+  if (s.status === 'mulligan') {
+    const pl = s.players[p]; if (pl.kept) return out;
+    if (pl.mulligans < 3) out.push({ t: 'mulligan', p });
+    out.push({ t: 'keep', p, bottom: s.zones[p].hand.slice(0, pl.mulligans) });
+    return out;
+  }
+  if (s.pending) {
+    if (s.pending.kind === 'discard' && s.pending.p === p) s.zones[p].hand.forEach(oid => out.push({ t: 'discard', p, oid }));
+    return out;
+  }
+  if (s.turn.priority !== p) return out;
+  out.push({ t: 'pass', p });
+  const canSorcery = s.turn.active === p && isMain(s) && !s.stack.length;
+  for (const oid of s.zones[p].hand) {
+    const f = s.facts[s.objects[oid].name];
+    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); }
+    else if (canSorcery || !isSorcerySpeed(f)) out.push({ t: 'cast', p, oid });
+  }
+  for (const oid of s.zones[p].command) {
+    const f = s.facts[s.objects[oid].name];
+    if (s.objects[oid].commander && (canSorcery || !isSorcerySpeed(f))) out.push({ t: 'cast', p, oid });
+  }
+  if (adjudication && s.mode === 'assisted') {
+    for (const oid of s.zones.flatMap(z => z.battlefield)) {
+      out.push({ t: 'tap', p, oid });
+      out.push({ t: 'move', p, oid, to: 'graveyard' });
+      out.push({ t: 'damage', p, oid, delta: 1 });
+    }
+    s.players.forEach((pl, i) => { if (!pl.lost) out.push({ t: 'life', p, target: i, delta: -1 }); });
+    out.push({ t: 'draw', p });
+  }
+  return out;
+}
+
+/* ---------------- M8 · registro, replay e desfazer ---------------- */
+function clone(x) { return JSON.parse(JSON.stringify(x)); } // estado é JSON por contrato; e é mais rápido que structuredClone aqui
+function hashState(s) {
+  const str = JSON.stringify(s); let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, '0');
+}
+/** Partida com histórico. Desfazer = refazer do início sem a última ação:
+    custa CPU, mas é impossível dessincronizar. */
+function createMatch(setup) {
+  let state = createGame(setup);
+  const log = [];
+  return {
+    get state() { return state; },
+    get log() { return log.slice(); },
+    act(action) { const r = apply(state, action); state = r.state; log.push(action); return r.events; },
+    undo() { if (!log.length) return false; log.pop(); state = replay(setup, log); return true; },
+    toJSON() { return { engine: ENGINE_VERSION, setup, log }; }
+  };
+}
+function replay(setup, log) { return log.reduce((s, a) => apply(s, a).state, createGame(setup)); }
+
+/** Política aleatória com semente própria. É o B1 (bot aleatório legal)
+    e o gerador de partidas do fuzz. */
+function randomPolicy(seed, opts = {}) {
+  const box = { rng: (seed >>> 0) || 7 };
+  return s => {
+    for (let p = 0; p < s.players.length; p++) {
+      const acts = legalActions(s, p, opts);
+      if (!acts.length) continue;
+      // passar demais deixa a partida infinita; pesa as ações de jogo
+      const nonPass = acts.filter(x => x.t !== 'pass');
+      const pool = nonPass.length && nextRand(box) < (opts.eagerness ?? 0.55) ? nonPass : acts;
+      return pool[Math.floor(nextRand(box) * pool.length)];
+    }
+    return null;
+  };
+}
+
+/** Invariantes que valem em qualquer estado alcançável. Lista vazia = ok. */
+function invariants(s, expectedObjects) {
+  const errs = [];
+  const seen = new Map();
+  const note = (oid, where) => { if (seen.has(oid)) errs.push(`${oid} em ${seen.get(oid)} e ${where}`); seen.set(oid, where); };
+  s.zones.forEach((z, p) => ZONE_NAMES.forEach(n => z[n].forEach(oid => {
+    note(oid, `${p}.${n}`);
+    const o = s.objects[oid];
+    if (!o) errs.push(`${oid} sem objeto`); else { if (o.zone !== n) errs.push(`${oid} diz ${o.zone}, está em ${n}`); if (o.owner !== p) errs.push(`${oid} na zona de outro dono`); }
+  })));
+  s.stack.forEach(oid => { note(oid, 'stack'); if (s.objects[oid].zone !== 'stack') errs.push(`${oid} na pilha com zona ${s.objects[oid].zone}`); });
+  const n = Object.keys(s.objects).length;
+  if (seen.size !== n) errs.push(`objetos ${n}, localizados ${seen.size}`);
+  if (expectedObjects != null && n !== expectedObjects) errs.push(`objetos ${n}, esperados ${expectedObjects}`);
+  if (!STEPS.includes(s.turn.step)) errs.push('passo inválido');
+  s.players.forEach((pl, i) => { if (!Number.isInteger(pl.life)) errs.push(`vida não inteira p${i}`); });
+  if (s.status === 'playing') {
+    if (s.players[s.turn.active].lost) errs.push('ativo perdeu e continua ativo');
+    if (!s.pending && s.players[s.turn.priority].lost) errs.push('prioridade com jogador fora');
+    if (NO_PRIORITY.has(s.turn.step) && !s.pending) errs.push('parado em passo sem prioridade');
+  }
+  if (s.status === 'over' && s.players.length > 1 && alive(s).length > 1) errs.push('encerrada com mais de um vivo');
+  return errs;
+}
+
+return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, RuleError, cardFacts, createGame, apply, legalActions,
+  createMatch, replay, hashState, randomPolicy, invariants, commanderTax };
+})();
+
 
 /* ==== src/app/main.js ==== */
 const __m13 = (function () {
@@ -1727,18 +2655,25 @@ const { createLocalIndex } = __m9;
 const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
+const { createDeckStore, createCollection } = __m14;
+const { createDecksHome, createDeckEditor, createDeckScreen } = __m15;
 const platform = createPlatform();
 const theme = createTheme(platform.store);
 const scryfall = createScryfall({});
 const images = createImageCache({ caches: typeof caches !== 'undefined' ? caches : null, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
 const localIndex = createLocalIndex({ store: platform.store });
 const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
+const decks = createDeckStore({ store: platform.store });
+const collection = createCollection({ store: platform.store });
 let environment = ENVIRONMENTS.online;
 const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });
 
 const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: environment, files: platform.files }) },
+  { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo }) },
+  { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks }) },
+  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
@@ -1746,10 +2681,11 @@ const ROUTES = [
 function renderHome() {
   return h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-6)' } },
     Text('Plataforma de Magic', { size: '2xl', display: true, as: 'h1' }),
-    Text('Fundação e design system no ar. Motor de regras, coleção, listas e scanner entram nos próximos épicos.', { tone: 'muted' }),
+    Text('Monte suas listas, veja a galeria de cartas e marque o que já tem na coleção. Motor de regras e scanner entram nos próximos épicos.', { tone: 'muted' }),
     h('div', { style: { height: 'var(--space-5)' } }),
     h('div', { class: 'ds-row ds-row--wrap' },
-      Button('Buscar cartas', { variant: 'primary', id: 'go-cards', onClick: () => { location.hash = '#/cartas'; } }),
+      Button('Minhas listas', { variant: 'primary', id: 'go-decks', onClick: () => { location.hash = '#/listas'; } }),
+      Button('Buscar cartas', { id: 'go-cards', onClick: () => { location.hash = '#/cartas'; } }),
       Button('Catálogo de componentes', { id: 'go-ds', onClick: () => { location.hash = '#/ds'; } })));
 }
 
@@ -1769,6 +2705,7 @@ function appBar() {
     h('div', { class: 'ds-appbar__inner ds-wrap' },
       h('a', { class: 'ds-appbar__brand', href: '#/', html: logoLockup(30) }),
       h('div', { class: 'ds-grow' }),
+      Button('Listas', { variant: 'ghost', id: 'nav-decks', onClick: () => { location.hash = '#/listas'; } }),
       Button('Cartas', { variant: 'ghost', id: 'nav-cards', onClick: () => { location.hash = '#/cartas'; } }),
       installButton(),
       Button('◐', { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: 'Tema', dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() })));
@@ -1806,7 +2743,7 @@ if (typeof window !== 'undefined' && !window.__MTG_NO_AUTOBOOT) {
   const start = () => boot(document.getElementById('app'));
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 }
-return { boot, platform, theme, scryfall, images, localIndex, cardRepo, environment, installer };
+return { boot, platform, theme, scryfall, images, localIndex, cardRepo, decks, collection, environment, installer };
 })();</script>
 </body>
 </html>
