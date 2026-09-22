@@ -21,11 +21,13 @@ function serve() {
   });
   return new Promise(r => srv.listen(0, () => r(srv)));
 }
-const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', collector_number: '1', rarity: 'common' });
+const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : name.startsWith('Lurrus') ? 'Companion — Each permanent card in your starting deck has mana value 2 or less.\nLifelink' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', collector_number: '1', rarity: 'common' });
 const DB = Object.fromEntries([
   card('Malcolm, Alluring Scoundrel', 'Legendary Creature — Siren Pirate', ['U']), card('Sol Ring', 'Artifact', [], 1),
   card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U']),
-  card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), card('Preordain', 'Sorcery', ['U'], 1)
+  card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), card('Preordain', 'Sorcery', ['U'], 1),
+  card('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', ['W', 'B'], 3), card('Mock Commander', 'Legendary Creature — Human', ['W', 'B'], 2),
+  card('Plains', 'Basic Land — Plains', [], 0), card('Mock Ogre', 'Creature — Ogre', ['B'], 4)
 ].map(c => [c.name.toLowerCase(), c]));
 
 async function open(t) {
@@ -373,6 +375,7 @@ test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, c
   await page.waitForSelector('#scan-read:not([disabled])');
   assert.match(await page.innerText('#scan-status'), /Base: \d+ nomes/);
 
+  await page.click('[data-edition]'); // este teste cobre só o nome; a edição tem teste próprio
   await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
   await page.click('#scan-read');
   await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-result').innerText));
@@ -415,5 +418,75 @@ test('e2e · X1 câmera bloqueada: explica e deixa montar o lote digitando', { s
   await page.fill('#scan-manual', 'Countrspell');
   await page.click('[data-manual="Counterspell"]');
   await page.waitForFunction(() => /Lote: 1/.test(document.querySelector('#scan-lot').innerText));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · L11 companheiro fora das 100 e condição do Lurrus', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/listas/editar');
+  await page.fill('#deck-name', 'Lurrus WB');
+  await page.fill('#deck-text', 'Commander\n1 Mock Commander\n\nDeck\n1 Lurrus of the Dream-Den\n99 Plains');
+  await page.click('#deck-save');
+  await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('main'), /101 de 100/, 'antes: Lurrus conta como carta do deck');
+
+  await page.locator('.deck-slot[data-name="Lurrus of the Dream-Den"] .ds-card').click();
+  await page.click('#deck-set-companion');
+  await page.waitForFunction(() => /\+ companheiro/.test(document.querySelector('#deck-counts').innerText));
+  assert.match(await page.innerText('#deck-counts'), /100 no deck/);
+  const body = await page.innerText('main');
+  assert.match(body, /Companheiro/);
+  assert.match(body, /Lista válida para Commander/);
+
+  // condição quebrada: permanente de valor 4 no deck
+  await page.goto(base + '#/listas');
+  await page.locator('#decks-list .ds-list__item').first().click();
+  await page.click('text=Editar');
+  await page.fill('#deck-text', 'Commander\n1 Mock Commander\n\nCompanion\n1 Lurrus of the Dream-Den\n\nDeck\n98 Plains\n1 Mock Ogre');
+  await page.click('#deck-save');
+  await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('main'), /Condição de Lurrus of the Dream-Den .* Mock Ogre/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e para a coleção', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/listas/editar');
+  await page.fill('#deck-name', 'Azul');
+  await page.selectOption('#deck-format', 'livre');
+  await page.fill('#deck-text', '10 Island');
+  await page.click('#deck-save');
+  await page.waitForSelector('.deck-summary');
+
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/scanner');
+  await page.reload();
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.evaluate(() => window.__ocrQueue.push('Counterspell', '267/303 U\nMH2 • EN'));
+  await page.click('#scan-read');
+  await page.waitForSelector('#scan-edition');
+  assert.match(await page.innerText('#scan-edition'), /Edição: MH2 #267 · Modern Horizons 2/);
+
+  await page.evaluate(() => window.__ocrQueue.push('Island', ''));
+  await page.click('#scan-read');
+  await page.waitForFunction(() => /não identificada/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+
+  await page.click('#scan-lot');
+  assert.match(await page.innerText('#scan-lot-list'), /MH2 #267/);
+  const opts = await page.$$eval('#scan-dest option', os => os.map(o => o.textContent));
+  const azul = opts.findIndex(o => /Azul/.test(o));
+  await page.selectOption('#scan-dest', { index: azul });
+  await page.waitForSelector('[data-also]');
+  await page.click('#scan-commit');
+  await page.waitForFunction(() => /Lote: 0/.test(document.querySelector('#scan-lot').innerText));
+
+  await page.goto(base + '#/listas');
+  await page.waitForSelector('#decks-list .ds-list__item');
+  await page.locator('#decks-list .ds-list__item', { hasText: 'Azul' }).click();
+  await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('#deck-counts'), /12 no deck/, '10 Island + 1 Island + 1 Counterspell');
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  assert.match(await page.innerText('.col-row[data-name="Counterspell"]'), /MH2 · #267/);
   assert.deepEqual(errors, []);
 });

@@ -4,7 +4,7 @@
    Isolada do service worker para poder ser testada como função pura.
    O worker só executa o que esta função decide.
    ===================================================================== */
-const CACHES = { shell: 'estante-shell-v1', api: 'estante-api-v1', img: 'estante-img-v1' };
+const CACHES = { shell: 'estante-shell-v1', api: 'estante-api-v1', img: 'estante-img-v1', ocr: 'estante-ocr-v1' };
 
 /** Decide como tratar uma requisição. Nunca lança. */
 function pickStrategy(request) {
@@ -20,6 +20,10 @@ function pickStrategy(request) {
     // POST /cards/collection é consulta disfarçada de escrita: a resposta
     // é cacheável por chave derivada do corpo, feita no worker.
     return { strategy: 'network-first', cache: CACHES.api, ttlMs: 7 * 24 * 3600 * 1000 };
+  }
+  // X6 · motor de OCR: arquivos versionados e imutáveis, guardados para o scanner funcionar offline
+  if ((u.hostname === 'cdn.jsdelivr.net' && /\/npm\/(tesseract|@tesseract)/.test(u.pathname)) || u.hostname === 'tessdata.projectnaptha.com') {
+    return { strategy: 'cache-first', cache: CACHES.ocr, opaque: true };
   }
   if (/(^|\.)scryfall\.io$/.test(u.hostname) || /(^|\.)scryfall\.com$/.test(u.hostname)) {
     return { strategy: 'cache-first', cache: CACHES.img };
@@ -68,7 +72,7 @@ self.addEventListener('fetch', event => {
     if (plan.strategy === 'cache-first') {
       const hit = await cache.match(key);
       if (hit) return hit;
-      try { const res = await fetch(event.request); if (res.ok) cache.put(key, res.clone()); return res; }
+      try { const res = await fetch(event.request); if (res.ok || (plan.opaque && res.type === 'opaque')) cache.put(key, res.clone()); return res; }
       catch (e) { return new Response('', { status: 504 }); }
     }
 

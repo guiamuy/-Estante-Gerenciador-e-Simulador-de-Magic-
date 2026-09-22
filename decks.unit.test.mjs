@@ -245,3 +245,62 @@ test('C5 · backup v2 leva as impressões e registra a data do último backup', 
   await D.createDeckStore({ store: other }).importAll(JSON.stringify(b), col2);
   assert.equal((await col2.items())[0].finish, 'foil');
 });
+
+/* ---------------- L11 · companheiro ---------------- */
+const cc = (name, type_line, cmc, ci, extra = {}) => [name.toLowerCase(), { name, type_line, cmc, color_identity: ci, mana_cost: extra.mana_cost || '', oracle_text: extra.oracle_text || '', legalities: { commander: 'legal', pauper: 'legal' } }];
+const LURRUS_TXT = 'Companion — Each permanent card in your starting deck has mana value 2 or less.\nLifelink';
+const CC = new Map([
+  cc('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', 3, ['W', 'B'], { oracle_text: LURRUS_TXT }),
+  cc('Kaheera, the Orphanguard', 'Legendary Creature — Cat Beast', 3, ['G', 'W'], { oracle_text: 'Companion — Each creature card in your starting deck is a Cat, Elemental, Nightmare, Dinosaur, or Beast card.' }),
+  cc('Jegantha, the Wellspring', 'Legendary Creature — Elemental Elk', 5, ['R', 'G'], { oracle_text: 'Companion — No card in your starting deck has more than one of the same mana symbol in its mana cost.' }),
+  cc('Unknown Pal', 'Legendary Creature — Human', 2, ['W'], { oracle_text: 'Companion — Something new.' }),
+  cc('Thalia, Guardian of Thraben', 'Legendary Creature — Human Soldier', 2, ['W', 'B']), // identidade W/B só para o teste
+  cc('Mentor', 'Creature — Human', 1, ['W']),
+  cc('Big Guy', 'Creature — Giant', 4, ['W']),
+  cc('Wrath', 'Sorcery', 4, ['W']),
+  cc('Plains', 'Basic Land — Plains', 0, []),
+  cc('Swamp', 'Basic Land — Swamp', 0, []),
+  cc('Doublecost', 'Creature — Elemental', 2, ['R'], { mana_cost: '{R}{R}' })
+]);
+const cmdDeck = extra => ({ format: 'commander', entries: [
+  { name: 'Thalia, Guardian of Thraben', qty: 1, zone: 'commander' }, { name: 'Lurrus of the Dream-Den', qty: 1, zone: 'companion' },
+  { name: 'Mentor', qty: 1, zone: 'main' }, { name: 'Wrath', qty: 1, zone: 'main' }, { name: 'Plains', qty: 97, zone: 'main' }, ...(extra || [])] });
+const msgs = d => [...D.validateDeck(d, CC).map(i => `${i.level}: ${i.message}`)].join('\n');
+
+test('L11 · companheiro fica fora das 100 do Commander', () => {
+  const m = msgs(cmdDeck());
+  assert.doesNotMatch(m, /de 100/, 'comandante + 99 = 100, companheiro não conta');
+  assert.doesNotMatch(m, /Lurrus/, 'Lurrus cumprida: permanentes com valor 2 ou menos; mágica de valor 4 não conta');
+  const st = D.deckStats(cmdDeck(), CC, {});
+  assert.equal(st.main, 100); assert.equal(st.companion, 1);
+});
+
+test('L11 · condição do Lurrus quebrada, identidade de cor e só um companheiro', () => {
+  assert.match(msgs(cmdDeck([{ name: 'Big Guy', qty: 1, zone: 'main' }])), /Condição de Lurrus.*Big Guy/);
+  const offColor = cmdDeck(); offColor.entries[0] = { name: 'Mentor', qty: 1, zone: 'commander' };
+  CC.get('mentor').type_line = 'Legendary Creature — Human'; // vira comandante válido mono-W
+  assert.match(msgs(offColor), /fora da identidade de cor do comandante/);
+  CC.get('mentor').type_line = 'Creature — Human';
+  assert.match(msgs(cmdDeck([{ name: 'Kaheera, the Orphanguard', qty: 1, zone: 'companion' }])), /Só pode haver um companheiro/);
+});
+
+test('L11 · Kaheera e Jegantha checam tipo e símbolos; companheiro desconhecido pede conferência; carta sem Companion é recusada', () => {
+  const pauper = (comp, main) => ({ format: 'pauper', entries: [{ name: comp, qty: 1, zone: 'companion' }, ...main] });
+  assert.match(msgs(pauper('Kaheera, the Orphanguard', [{ name: 'Mentor', qty: 4, zone: 'main' }, { name: 'Plains', qty: 56, zone: 'main' }])), /Condição de Kaheera.*Mentor/);
+  assert.match(msgs(pauper('Jegantha, the Wellspring', [{ name: 'Doublecost', qty: 4, zone: 'main' }, { name: 'Plains', qty: 56, zone: 'main' }])), /Condição de Jegantha.*Doublecost/);
+  assert.match(msgs(pauper('Unknown Pal', [{ name: 'Plains', qty: 60, zone: 'main' }])), /warning: Condição do companheiro Unknown Pal não é verificada/);
+  assert.match(msgs(pauper('Mentor', [{ name: 'Plains', qty: 60, zone: 'main' }])), /Mentor não tem a habilidade Companheiro/);
+});
+
+test('L11 · Pauper: companheiro fora das 60, mas ocupa vaga da reserva', () => {
+  const d = { format: 'pauper', entries: [{ name: 'Unknown Pal', qty: 1, zone: 'companion' }, { name: 'Plains', qty: 60, zone: 'main' }, { name: 'Mentor', qty: 15, zone: 'side' }] };
+  const m = msgs(d);
+  assert.doesNotMatch(m, /de 60/);
+  assert.match(m, /Reserva com 16 cartas \(máximo 15, companheiro incluído\)/);
+});
+
+test('L11 · texto: cabeçalho Companion vira zona própria e a exportação preserva', () => {
+  const r = D.parseDeckText('Commander\n1 Thalia, Guardian of Thraben\n\nCompanion\n1 Lurrus of the Dream-Den\n\nDeck\n1 Mentor');
+  assert.equal(r.entries.find(e => e.name === 'Lurrus of the Dream-Den').zone, 'companion');
+  assert.match(D.exportText({ entries: r.entries }), /Commander\n1 Thalia, Guardian of Thraben\n\nCompanion\n1 Lurrus of the Dream-Den\n\nDeck\n1 Mentor/);
+});

@@ -2001,7 +2001,7 @@ const { norm } = __m7;
 const DECK = id => 'deck.' + id;
 const IDS = 'deck.__ids';
 const OWNED = 'collection.owned';
-const ZONES = ['commander', 'main', 'side'];
+const ZONES = ['commander', 'companion', 'main', 'side'];
 const FORMATS = { commander: 'Commander', pauper: 'Pauper', livre: 'Livre' };
 
 /* ---------------- L2 · leitura de texto ----------------
@@ -2011,7 +2011,8 @@ const FORMATS = { commander: 'Commander', pauper: 'Pauper', livre: 'Livre' };
 const HEADER = [
   [/^(commander|commanders|comandante|comandantes)\s*:?\s*(\(\d+\))?$/i, 'commander'],
   [/^(sideboard|side|reserva|maybeboard|considering)\s*:?\s*(\(\d+\))?$/i, 'side'],
-  [/^(deck|main|mainboard|maindeck|principal|companion|about)\s*:?\s*(\(\d+\))?$/i, 'main']
+  [/^(companion|companions|companheiro|companheiros)\s*:?\s*(\(\d+\))?$/i, 'companion'],
+  [/^(deck|main|mainboard|maindeck|principal|about)\s*:?\s*(\(\d+\))?$/i, 'main']
 ];
 
 function parseDeckText(text) {
@@ -2305,13 +2306,14 @@ function exportCollectionCSV(list) {
 
 /* ---------------- categorias e estatística ---------------- */
 const CATEGORIES = [
-  ['commander', 'Comandante'], ['creature', 'Criaturas'], ['planeswalker', 'Planeswalkers'],
+  ['commander', 'Comandante'], ['companion', 'Companheiro'], ['creature', 'Criaturas'], ['planeswalker', 'Planeswalkers'],
   ['battle', 'Batalhas'], ['instant', 'Instantâneas'], ['sorcery', 'Feitiços'],
   ['artifact', 'Artefatos'], ['enchantment', 'Encantamentos'], ['land', 'Terrenos'],
   ['other', 'Outros'], ['side', 'Reserva']
 ];
 function categoryOf(entry, card) {
   if (entry.zone === 'commander') return 'commander';
+  if (entry.zone === 'companion') return 'companion';
   if (entry.zone === 'side') return 'side';
   const t = String(card && card.type_line || '').toLowerCase().split('//')[0];
   for (const k of ['land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery', 'artifact', 'enchantment']) if (t.includes(k)) return k;
@@ -2322,16 +2324,64 @@ const isBasic = card => /\bbasic\b/i.test(card && card.type_line || '');
 const anyNumber = card => /a deck can have any number of cards named/i.test(card && card.oracle_text || '');
 
 function deckStats(deck, cards, owned) {
-  let main = 0, side = 0, have = 0, need = 0;
+  let main = 0, side = 0, companion = 0, have = 0, need = 0;
   const curve = [0, 0, 0, 0, 0, 0, 0];
   for (const e of deck.entries) {
     const c = cards.get(norm(e.name));
-    if (e.zone === 'side') side += e.qty; else main += e.qty;
+    if (e.zone === 'side') side += e.qty; else if (e.zone === 'companion') companion += e.qty; else main += e.qty;
     need += e.qty;
     have += Math.min(e.qty, owned[norm(e.name)] || 0);
-    if (e.zone !== 'side' && c && !/\bland\b/i.test(c.type_line)) curve[Math.min(6, Math.floor(c.cmc || 0))] += e.qty;
+    if ((e.zone === 'main' || e.zone === 'commander') && c && !/\bland\b/i.test(c.type_line)) curve[Math.min(6, Math.floor(c.cmc || 0))] += e.qty;
   }
-  return { main, side, have, need, missing: need - have, curve };
+  return { main, side, companion, have, need, missing: need - have, curve };
+}
+
+/* ---------------- L11 · companheiro ----------------
+   O companheiro começa fora do jogo: não conta nas 100 do Commander nem
+   nas 60 do Pauper. A condição dele vale para o deck inicial inteiro
+   (no Commander, comandante incluído). */
+const isCompanionCard = c => /(^|\n)companion\s+—/i.test(c && c.oracle_text || '');
+const typeOf = c => String(c && c.type_line || '').split('//')[0];
+const isLandCard = c => /\bland\b/i.test(typeOf(c));
+const isPermanentCard = c => /\b(land|creature|artifact|enchantment|planeswalker|battle)\b/i.test(typeOf(c));
+const oracleNoReminder = c => String(c && c.oracle_text || '').replace(/\([^)]*\)/g, '');
+const symbols = cost => (String(cost || '').match(/\{[^}]+\}/g) || []);
+const CARD_TYPES = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'tribal', 'planeswalker', 'sorcery'];
+/** Condições dos companheiros, verificáveis com os dados da Scryfall. */
+const COMPANIONS = {
+  'lurrus of the dream-den': { rule: 'cada permanente do deck tem valor de mana 2 ou menos', card: c => !isPermanentCard(c) || (c.cmc || 0) <= 2 },
+  'gyruda, doom of depths': { rule: 'cada carta que não é terreno tem valor de mana par', card: c => isLandCard(c) || (c.cmc || 0) % 2 === 0 },
+  'obosh, the preypiercer': { rule: 'cada carta que não é terreno tem valor de mana ímpar', card: c => isLandCard(c) || (c.cmc || 0) % 2 === 1 },
+  'keruga, the macrosage': { rule: 'cada carta que não é terreno tem valor de mana 3 ou mais', card: c => isLandCard(c) || (c.cmc || 0) >= 3 },
+  'jegantha, the wellspring': { rule: 'nenhuma carta tem mais de um do mesmo símbolo de mana no custo', card: c => { const s = symbols(c.mana_cost); return new Set(s).size === s.length; } },
+  'kaheera, the orphanguard': { rule: 'cada criatura é Gato, Elemental, Pesadelo, Dinossauro ou Fera', card: c => !/\bcreature\b/i.test(typeOf(c)) || /\b(cat|elemental|nightmare|dinosaur|beast)\b/i.test(typeOf(c)) },
+  'zirda, the dawnwaker': { rule: 'cada permanente tem uma habilidade ativada', card: c => !isPermanentCard(c) || isLandCard(c) || /:/.test(oracleNoReminder(c)) }, // terrenos têm habilidade de mana
+  'umori, the collector': { rule: 'todas as cartas que não são terreno compartilham um tipo', deck: list => {
+    const nonland = list.filter(({ card }) => !isLandCard(card));
+    return CARD_TYPES.some(t => nonland.every(({ card }) => new RegExp('\\b' + t + '\\b', 'i').test(typeOf(card))));
+  } },
+  'lutri, the spellchaser': { rule: 'cada carta que não é terreno tem nome diferente', deck: list => list.filter(({ card }) => !isLandCard(card)).every(({ entry }) => entry.qty === 1) },
+  'yorion, sky nomad': { rule: 'o deck tem pelo menos 20 cartas a mais que o mínimo', deck: (list, fmt) => list.reduce((s, x) => s + x.entry.qty, 0) >= (fmt === 'commander' ? 120 : 80) }
+};
+
+function validateCompanion(deck, cards, playing, add, fmt) {
+  const comp = deck.entries.filter(e => e.zone === 'companion');
+  if (!comp.length) return;
+  if (comp.length > 1 || comp[0].qty > 1) add('error', 'Só pode haver um companheiro.');
+  const e = comp[0], c = cards.get(norm(e.name));
+  if (!c) return;
+  if (!isCompanionCard(c)) return add('error', `${e.name} não tem a habilidade Companheiro.`);
+  if (fmt === 'commander') {
+    const ci = new Set(deck.entries.filter(x => x.zone === 'commander').flatMap(x => (cards.get(norm(x.name)) || {}).color_identity || []));
+    if (ci.size && (c.color_identity || []).some(x => !ci.has(x))) add('error', `O companheiro ${e.name} está fora da identidade de cor do comandante.`);
+  }
+  const cond = COMPANIONS[norm(e.name)];
+  if (!cond) return add('warning', `Condição do companheiro ${e.name} não é verificada automaticamente. Confira o texto da carta.`);
+  const list = playing.map(entry => ({ entry, card: cards.get(norm(entry.name)) })).filter(x => x.card);
+  if (cond.card) {
+    const bad = list.filter(x => !cond.card(x.card)).map(x => x.entry.name);
+    if (bad.length) add('error', `Condição de ${e.name} (${cond.rule}) quebrada por: ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? '…' : ''}`);
+  } else if (!cond.deck(list, fmt)) add('error', `Condição de ${e.name} não cumprida: ${cond.rule}.`);
 }
 
 /* ---------------- L5 · validação ---------------- */
@@ -2344,7 +2394,7 @@ function validateDeck(deck, cards) {
   const fmt = deck.format;
   if (fmt === 'livre') return issues;
 
-  const playing = deck.entries.filter(e => e.zone !== 'side');
+  const playing = deck.entries.filter(e => e.zone === 'main' || e.zone === 'commander'); // L11: companheiro fica fora
   const total = playing.reduce((s, e) => s + e.qty, 0);
   const illegal = deck.entries.filter(e => { const c = get(e); return c && c.legalities && c.legalities[fmt] && c.legalities[fmt] !== 'legal'; });
   if (illegal.length) add('error', `Fora do ${FORMATS[fmt]}: ${illegal.slice(0, 5).map(e => e.name).join(', ')}${illegal.length > 5 ? '…' : ''}`);
@@ -2367,10 +2417,12 @@ function validateDeck(deck, cards) {
       if (off.length) add('error', `Fora da identidade de cor do comandante: ${off.slice(0, 5).map(e => e.name).join(', ')}${off.length > 5 ? '…' : ''}`);
     }
   }
+  validateCompanion(deck, cards, playing, add, fmt);
   if (fmt === 'pauper') {
     if (total < 60) add('warning', `${total} de 60 cartas no deck principal.`);
-    const side = deck.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
-    if (side > 15) add('error', `Reserva com ${side} cartas (máximo 15).`);
+    // L11: no construído, o companheiro ocupa uma vaga da reserva
+    const side = deck.entries.filter(e => e.zone === 'side' || e.zone === 'companion').reduce((s, e) => s + e.qty, 0);
+    if (side > 15) add('error', `Reserva com ${side} cartas (máximo 15, companheiro incluído).`);
     const byName = new Map();
     deck.entries.forEach(e => byName.set(norm(e.name), (byName.get(norm(e.name)) || 0) + e.qty));
     const over = [...byName.entries()].filter(([k, n]) => n > 4 && cards.get(k) && !isBasic(cards.get(k)) && !anyNumber(cards.get(k)));
@@ -2388,10 +2440,10 @@ function exportText(deck, { onlyMissing = false, owned = {} } = {}) {
     }).filter(Boolean);
     return lines.length ? [title, ...lines].join('\n') : '';
   };
-  return [block('commander', 'Commander'), block('main', 'Deck'), block('side', 'Sideboard')].filter(Boolean).join('\n\n');
+  return [block('commander', 'Commander'), block('companion', 'Companion'), block('main', 'Deck'), block('side', 'Sideboard')].filter(Boolean).join('\n\n');
 }
 
-return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES,
+return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard,
   parseCSV, parseCollectionCSV, exportCollectionCSV, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
@@ -2405,7 +2457,7 @@ const __m15 = (function () {
    ===================================================================== */
 const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
 const { norm } = __m7;
-const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS } = __m14;
+const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
 const { openCardViewer } = __m12;
 const { onTaps, pulse } = __m20;
 
@@ -2493,7 +2545,7 @@ function createDeckEditor({ decks, collection }) {
 
     mount(root,
       Text(d ? 'Editar lista' : 'Nova lista', { size: '2xl', display: true, as: 'h1' }),
-      Text('Cole a lista no formato de exportação do Moxfield, Archidekt, Arena ou MTGO. Uma carta por linha, quantidade na frente. Use o cabeçalho "Commander" ou a marca *CMDR* para o comandante e "Sideboard" para a reserva.', { tone: 'muted', size: 'sm' }),
+      Text('Cole a lista no formato de exportação do Moxfield, Archidekt, Arena ou MTGO. Uma carta por linha, quantidade na frente. Use o cabeçalho "Commander" ou a marca *CMDR* para o comandante, "Companion" para o companheiro e "Sideboard" para a reserva.', { tone: 'muted', size: 'sm' }),
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
         Row({ class: 'ds-row--wrap' },
           Field('Nome', nameIn),
@@ -2546,7 +2598,15 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
       Button(have >= e.qty ? 'Não tenho' : 'Tenho', { onClick: async () => { closeDialog(); await toggleOwned(e, true); } }),
       state.deck.format === 'commander' && e.zone !== 'commander'
         ? Button('Definir como comandante', { onClick: async () => { e.zone = 'commander'; e.qty = 1; closeDialog(); await persist(); paint(); } }) : null,
-      e.zone === 'commander' ? Button('Mover para o deck', { onClick: async () => { e.zone = 'main'; closeDialog(); await persist(); paint(); } }) : null,
+      e.zone === 'commander' || e.zone === 'companion' ? Button('Mover para o deck', { onClick: async () => { e.zone = 'main'; closeDialog(); await persist(); paint(); } }) : null,
+      // L11: companheiro fica fora das 100 (Commander) e das 60 (Pauper); só um por lista
+      e.zone !== 'companion' && c && isCompanionCard(c) ? Button('Definir como companheiro', { id: 'deck-set-companion', onClick: async () => {
+        const prev = state.deck.entries.find(x => x.zone === 'companion');
+        if (prev) prev.zone = 'main';
+        if (e.qty > 1) { e.qty -= 1; state.deck.entries.push({ name: e.name, qty: 1, zone: 'companion' }); } else e.zone = 'companion';
+        closeDialog(); await persist(); paint();
+        toast(prev ? `${e.name} é o companheiro; ${prev.name} voltou para o deck` : `${e.name} é o companheiro`);
+      } }) : null,
       Button('Remover da lista', { variant: 'danger', onClick: async () => {
         state.deck.entries = state.deck.entries.filter(x => x !== e); closeDialog(); await persist(); paint(); toast(`${e.name} removida`);
       } })
@@ -2619,7 +2679,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
         Stack({ style: { gap: 'var(--space-1)' } },
           Text(d.name, { size: '2xl', display: true, as: 'h1' }),
           Row({ class: 'ds-row--wrap' }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), identity ? ManaPips(identity) : null,
-            Text(`${stats.main} no deck` + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted' }))),
+            Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } }))),
         h('div', { class: 'ds-grow' }),
         Row({ class: 'ds-row--wrap' },
           Button('Editar', { onClick: () => go('/listas/editar?id=' + d.id) }),
@@ -2969,7 +3029,7 @@ function createGame(setup) {
       for (let i = 0; i < (e.qty || 1); i++) {
         const oid = 'o' + (s.nextOid++);
         const toCommand = rules.commander && e.zone === 'commander';
-        if (e.zone === 'side') { s.nextOid--; continue; }
+        if (e.zone === 'side' || e.zone === 'companion') { s.nextOid--; continue; } // companheiro: fora do jogo até o M14
         s.objects[oid] = { oid, name: e.name, owner: pi, controller: pi, zone: toCommand ? 'command' : 'library',
           tapped: false, sick: false, damage: 0, counters: {}, commander: toCommand };
         z[toCommand ? 'command' : 'library'].push(oid);
@@ -4018,52 +4078,101 @@ function createNameIndex({ store, scryfall, now = () => Date.now() }) {
 
 /* ---------------- X4 · lote ----------------
    Leitura automática só entra no lote quando a carta muda: a mesma carta
-   parada na frente da câmera não soma de novo até sair do quadro. */
+   parada na frente da câmera não soma de novo até sair do quadro.
+   X3: cada item pode trazer a impressão (edição e número); a chave junta
+   nome e impressão, então duas edições da mesma carta ficam separadas. */
+const lotKey = (name, p) => p && p.set ? `${name}|${p.set}|${p.number || ''}` : name;
 function createLot({ store }) {
   let items = null, armed = true, lastSeen = null, history = [];
-  const load = async () => items || (items = (await store.get(LOT_KEY)) || []);
+  const load = async () => {
+    if (!items) { items = (await store.get(LOT_KEY)) || []; items.forEach(x => { if (!x.key) x.key = lotKey(x.name, x); }); }
+    return items;
+  };
   const persist = () => store.set(LOT_KEY, items);
+  const find = key => items.find(x => x.key === key);
   const api = {
     async list() { return (await load()).map(x => ({ ...x })); },
     async total() { return (await load()).reduce((s, x) => s + x.qty, 0); },
-    async add(name, qty = 1) {
+    async add(name, qty = 1, printing = null) {
       await load();
-      const cur = items.find(x => x.name === name);
-      if (cur) cur.qty += qty; else items.push({ name, qty });
-      history.push(name); await persist(); return name;
+      const key = lotKey(name, printing);
+      const cur = find(key);
+      if (cur) cur.qty += qty;
+      else items.push({ key, name, qty, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) });
+      history.push(key); await persist(); return key;
     },
-    /** Resultado de uma leitura automática. Devolve o nome se entrou no lote. */
-    async observe(best) {
+    /** Resultado de uma leitura automática. Devolve a chave se entrou no lote. */
+    async observe(best, printing = null) {
       await load();
       const name = best && best.score >= ACCEPT ? best.name : null;
       if (!name) { armed = true; lastSeen = null; return null; }
       if (name === lastSeen && !armed) return null;
       lastSeen = name; armed = false;
-      return api.add(name);
+      return api.add(name, 1, printing);
     },
-    /** Libera a mesma carta para somar de novo (próxima cópia igual). */
     rearm() { armed = true; lastSeen = null; },
     async undo() {
-      await load(); const name = history.pop(); if (!name) return null;
-      const cur = items.find(x => x.name === name);
+      await load(); const key = history.pop(); if (!key) return null;
+      const cur = find(key);
       if (cur) { cur.qty -= 1; if (!cur.qty) items.splice(items.indexOf(cur), 1); }
-      await persist(); return name;
+      await persist(); return cur ? cur.name : key;
     },
-    async setQty(name, qty) {
-      await load(); const cur = items.find(x => x.name === name); if (!cur) return;
+    async setQty(key, qty) {
+      await load(); const cur = find(key); if (!cur) return;
       if (qty > 0) cur.qty = qty; else items.splice(items.indexOf(cur), 1);
       await persist();
     },
-    async rename(from, to) {
-      await load(); const cur = items.find(x => x.name === from); if (!cur || from === to) return;
-      const dup = items.find(x => x.name === to);
-      if (dup) { dup.qty += cur.qty; items.splice(items.indexOf(cur), 1); } else cur.name = to;
-      history = history.map(n => n === from ? to : n); await persist();
+    /** Corrige o nome (a impressão lida deixa de valer) ou só a impressão. */
+    async rename(fromKey, toName, printing = null) {
+      await load(); const cur = find(fromKey); if (!cur) return;
+      const key = lotKey(toName, printing);
+      if (key === fromKey) return;
+      const dup = find(key);
+      if (dup) { dup.qty += cur.qty; items.splice(items.indexOf(cur), 1); }
+      else {
+        const next = { key, name: toName, qty: cur.qty, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) };
+        items.splice(items.indexOf(cur), 1, next);
+      }
+      history = history.map(k => k === fromKey ? key : k); await persist();
+      return key;
     },
     async clear() { items = []; history = []; api.rearm(); await persist(); }
   };
   return api;
 }
+
+/* ---------------- X3 · linha de coleção ----------------
+   Canto inferior esquerdo da carta: "123/281 R" e "MH2 • EN" (cartas
+   recentes trazem só "0123 R"). O OCR lê; aqui vira edição e número. */
+const LANG_CODES = ['EN', 'PT', 'ES', 'JA', 'JP', 'DE', 'FR', 'IT', 'RU', 'KO', 'ZHS', 'ZHT', 'CS', 'CT'];
+function parseCollectorLine(text) {
+  const t = String(text || '').toUpperCase().replace(/[|]/g, '1').replace(/[•·*]/g, ' • ')
+    .replace(/(\d)O/g, '$10').replace(/O(\d)/g, '0$1'); // O lido no lugar de zero
+  let number = '', set = '', lang = '';
+  const frac = t.match(/\b0*(\d{1,4}[A-Z]?)\s*\/\s*\d{1,4}\b/);
+  const solo = t.match(/(?:^|\s)0*(\d{1,4}[A-Z]?)\s+[CURMSLTP]\b/) || t.match(/(?:^|\s)0*(\d{1,4})(?:\s|$)/);
+  if (frac) number = frac[1]; else if (solo) number = solo[1];
+  const setLang = t.match(/\b([A-Z0-9]{3,5})\s*•?\s*(EN|PT|ES|JA|JP|DE|FR|IT|RU|KO|ZHS|ZHT)\b/);
+  if (setLang && !/^\d+$/.test(setLang[1])) { set = setLang[1].toLowerCase(); lang = setLang[2] === 'JP' ? 'ja' : setLang[2].toLowerCase(); }
+  else { const sm = t.match(/\b([A-Z][A-Z0-9]{2,4})\b/); if (sm && !LANG_CODES.includes(sm[1])) set = sm[1].toLowerCase(); }
+  return { number: number.toLowerCase(), set, lang };
+}
+/** Casa a leitura com as impressões da carta. exact: uma impressão certa;
+    candidates: até 3 prováveis quando a leitura é parcial ou ambígua. */
+function resolvePrinting(prints, parsed) {
+  const P = (prints || []).map(p => ({ set: String(p.set || '').toLowerCase(), number: String(p.collector_number || p.number || '').toLowerCase().replace(/^0+(?=\d)/, ''), set_name: p.set_name || '', id: p.id || '' }));
+  const num = String(parsed.number || '').replace(/^0+(?=\d)/, ''), set = parsed.set || '';
+  const both = P.filter(p => p.set === set && p.number === num);
+  if (both.length === 1) return { exact: { ...both[0], verified: true }, candidates: [] };
+  const byNum = num ? P.filter(p => p.number === num) : [];
+  if (byNum.length === 1) return { exact: { ...byNum[0], verified: true }, candidates: [] };
+  const bySet = set ? P.filter(p => p.set === set) : [];
+  if (bySet.length === 1) return { exact: { ...bySet[0], verified: true }, candidates: [] };
+  const pool = byNum.length ? byNum : bySet.length ? bySet : [];
+  return { exact: null, candidates: pool.slice(0, 3) };
+}
+/** Faixa da linha de coleção dentro da moldura (canto inferior esquerdo). */
+const COLLECTOR_BAND = { x: 0.04, y: 0.905, w: 0.5, h: 0.075 };
 
 /* ---------------- X1 · região da faixa do nome ----------------
    O vídeo aparece com object-fit: cover. Converte um retângulo da tela
@@ -4079,7 +4188,7 @@ function coverRegion(elW, elH, vidW, vidH, rect) {
 /** Faixa do nome dentro da moldura da carta (proporções da carta impressa). */
 const NAME_BAND = { x: 0.07, y: 0.035, w: 0.70, h: 0.075 };
 
-return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, ACCEPT, SUGGEST, lev };
+return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, SUGGEST, lev };
 })();
 
 
@@ -4091,8 +4200,8 @@ const __m22 = (function () {
    Câmera pela camada F2; OCR no aparelho (Tesseract, carregado só quando
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
-const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
-const { createLot, coverRegion, NAME_BAND, ACCEPT } = __m21;
+const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const { createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const AUTO_MS = 1400;
@@ -4109,7 +4218,6 @@ function createOcr(win = window, doc = document) {
         s.onload = ok; s.onerror = () => fail(new Error('ocr-indisponivel')); doc.head.appendChild(s);
       });
       const w = await win.Tesseract.createWorker('eng');
-      await w.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" });
       worker = w; return w;
     })().catch(e => { loading = null; throw e; });
     return loading;
@@ -4126,16 +4234,29 @@ function createOcr(win = window, doc = document) {
     } catch (e) { /* canvas protegido: segue sem tratamento */ }
     return c;
   }
+  // linha do nome: só letras, uma linha; linha de coleção: números, edição e idioma, bloco curto
+  const MODES = {
+    name: { tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
+    collector: { tessedit_pageseg_mode: '6', tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•*. ' }
+  };
+  let mode = null;
   return {
     warm: () => engine(),
-    async read(canvas) { const w = await engine(); const r = await w.recognize(prepare(canvas)); return (r && r.data && r.data.text) || ''; },
-    async stop() { if (worker) { try { await worker.terminate(); } catch (e) { /* ignora */ } worker = null; loading = null; } }
+    async read(canvas, want = 'name') {
+      const w = await engine();
+      if (mode !== want) { await w.setParameters(MODES[want]); mode = want; }
+      const r = await w.recognize(prepare(canvas)); return (r && r.data && r.data.text) || '';
+    },
+    async stop() { if (worker) { try { await worker.terminate(); } catch (e) { /* ignora */ } worker = null; loading = null; mode = null; } }
   };
 }
 
-function createScannerScreen({ camera, store, names, collection, env, ocr }) {
+function createScannerScreen({ camera, store, names, collection, decks, scryfall, env, ocr }) {
   const lot = createLot({ store });
-  const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, timer: null, alive: true };
+  const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, timer: null, alive: true, edition: true, ocrReady: false };
+  const online = () => !env || env.online !== false;
+  const printsCache = new Map();
+  const printLabel = x => x && x.set ? `${x.set.toUpperCase()}${x.number ? ' #' + x.number : ''}` : '';
   const video = h('video', { class: 'scan-video', playsinline: true, muted: true, autoplay: true, id: 'scan-video' });
   video.setAttribute('playsinline', ''); video.muted = true;
   const frame = h('div', { class: 'scan-frame', 'aria-hidden': 'true' }, h('div', { class: 'scan-frame__band' }, h('span', {}, 'nome aqui')));
@@ -4157,7 +4278,8 @@ function createScannerScreen({ camera, store, names, collection, env, ocr }) {
     paintStatus(); paintDock();
     // C6: base de nomes
     state.base = 'loading'; paintStatus();
-    try { const m = await names.ensure({ online: !env || env.online !== false }); state.base = m ? 'ready' : 'missing'; }
+    state.ocrReady = !!(await store.get('ocr.ready'));
+    try { const m = await names.ensure({ online: online() }); state.base = m ? 'ready' : 'missing'; }
     catch (e) { state.base = 'missing'; }
     paintStatus();
     // X1: câmera
@@ -4167,36 +4289,56 @@ function createScannerScreen({ camera, store, names, collection, env, ocr }) {
     catch (e) { state.camera = /denied|notallowed|permission/i.test(String(e && (e.name || e.message))) ? 'denied' : 'unavailable'; }
     paintStatus(); paintDock();
     // X2: motor de OCR em paralelo
-    if (state.camera === 'on') { state.engine = 'loading'; paintStatus(); ocr.warm().then(() => { state.engine = 'ready'; paintStatus(); paintDock(); }).catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); }); }
+    if (state.camera === 'on') { state.engine = 'loading'; paintStatus(); ocr.warm().then(() => { state.engine = 'ready'; state.ocrReady = true; store.set('ocr.ready', Date.now()); paintStatus(); paintDock(); }).catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); }); }
   }
 
   /* ---- leitura ---- */
-  function nameRegion() {
+  function bandRegion(B) {
     const vr = stage.getBoundingClientRect(), fr = frame.getBoundingClientRect();
-    const band = { x: fr.left - vr.left + fr.width * NAME_BAND.x, y: fr.top - vr.top + fr.height * NAME_BAND.y, w: fr.width * NAME_BAND.w, h: fr.height * NAME_BAND.h };
+    const band = { x: fr.left - vr.left + fr.width * B.x, y: fr.top - vr.top + fr.height * B.y, w: fr.width * B.w, h: fr.height * B.h };
     return coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, band);
   }
+  /* X3 · edição pela linha de coleção; confirma contra as impressões quando há rede */
+  async function prints(name) {
+    if (!online()) return [];
+    if (!printsCache.has(name)) { try { printsCache.set(name, await scryfall.search(`!"${name}"`, { unique: 'prints', order: 'released' })); } catch (e) { return []; } }
+    return printsCache.get(name) || [];
+  }
+  async function identify(name) {
+    if (!state.edition) return { exact: null, candidates: [], parsed: null };
+    let parsed = { number: '', set: '', lang: '' };
+    try { parsed = parseCollectorLine(await ocr.read(camera.capture(bandRegion(COLLECTOR_BAND)), 'collector')); } catch (e) { /* segue sem edição */ }
+    const list = await prints(name);
+    if (list.length) return { ...resolvePrinting(list, parsed), parsed };
+    return { exact: parsed.set && parsed.number ? { set: parsed.set, number: parsed.number, verified: false } : null, candidates: [], parsed };
+  }
+
   async function readOnce(manual) {
     if (state.busy || state.camera !== 'on' || state.base !== 'ready') return;
     state.busy = true; paintDock();
     try {
-      const text = await ocr.read(camera.capture(nameRegion()));
+      const text = await ocr.read(camera.capture(bandRegion(NAME_BAND)), 'name');
       const found = names.match(text);
-      state.last = { text, found };
-      if (manual) {
-        if (found[0] && found[0].score >= ACCEPT) { await lot.add(found[0].name); lot.rearm(); announce(found[0].name); }
-      } else {
-        const added = await lot.observe(found[0]);
-        if (added) announce(added);
-      }
+      const best = found[0];
+      let ed = { exact: null, candidates: [] }, key = null;
+      if (best && best.score >= ACCEPT) {
+        if (manual) { ed = await identify(best.name); key = await lot.add(best.name, 1, ed.exact); lot.rearm(); }
+        else if (await wouldAdd(best)) { ed = await identify(best.name); key = await lot.observe(best, ed.exact); }
+        else await lot.observe(best);
+        if (key) announce(best.name + (ed.exact ? ` · ${printLabel(ed.exact)}` : ''));
+      } else if (!manual) { seen.name = null; await lot.observe(best); }
+      state.last = { text, found, key, printing: ed.exact, candidates: ed.candidates || [] };
       state.engine = 'ready';
     } catch (e) { state.engine = 'failed'; toast('Não foi possível ler agora. Tente de novo com mais luz.'); }
     finally { state.busy = false; paintResult(); paintDock(); paintStatus(); }
   }
+  /** Só gasta a segunda leitura (edição) quando a automática vai mesmo somar. */
+  const seen = { name: null };
+  async function wouldAdd(best) { const add = best.name !== seen.name; seen.name = best.name; return add; }
   function announce(name) { pulse(stage); toast(`${name} +1`, 1400); }
   function setAuto(on) {
     state.auto = on; clearInterval(state.timer); state.timer = null;
-    if (on) { lot.rearm(); state.timer = setInterval(() => { if (state.alive) readOnce(false); }, AUTO_MS); }
+    if (on) { lot.rearm(); seen.name = null; state.timer = setInterval(() => { if (state.alive) readOnce(false); }, AUTO_MS); }
     paintDock();
   }
 
@@ -4209,18 +4351,26 @@ function createScannerScreen({ camera, store, names, collection, env, ocr }) {
     if (state.camera === 'unavailable') msg.push(Note('<b>Câmera indisponível neste aparelho ou navegador.</b> Digite o nome abaixo para montar o lote.', 'warning'));
     if (state.camera === 'on' && state.engine === 'loading') msg.push(Row({}, Spinner(), Text('Preparando o leitor de texto…', { size: 'sm', tone: 'muted' })));
     if (state.engine === 'failed') msg.push(Note('<b>O leitor de texto não carregou.</b> Ele precisa de internet na primeira vez. Digite o nome abaixo.', 'warning'));
+    if (!online() && !state.ocrReady) msg.push(Note('<b>Sem internet.</b> O leitor de texto precisa ser baixado uma vez com conexão; depois funciona offline.', 'warning'));
     const info = names.info();
-    if (info && state.base === 'ready') msg.push(Text(`Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB`, { size: 'xs', tone: 'subtle' }));
+    if (info && state.base === 'ready') msg.push(Text(`Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB` + (state.ocrReady ? ' · leitor disponível offline' : ''), { size: 'xs', tone: 'subtle' }));
     mount(status, ...msg);
   }
 
   function paintResult() {
     const L = state.last;
-    if (!L) return mount(result, Text('Enquadre a carta na moldura, com o nome na faixa de cima.', { size: 'sm', tone: 'muted' }));
+    if (!L) return mount(result, Text('Enquadre a carta na moldura: nome na faixa de cima, número de coleção no canto de baixo.', { size: 'sm', tone: 'muted' }));
     if (!L.found.length) return mount(result, Text('Nenhuma carta reconhecida. Aproxime, alinhe o nome e evite reflexo.', { size: 'sm', tone: 'muted' }));
     const [best, ...rest] = L.found;
+    const edition = !state.edition || !L.key ? null
+      : L.printing ? Text(`Edição: ${printLabel(L.printing)}${L.printing.set_name ? ' · ' + L.printing.set_name : ''}${L.printing.verified ? '' : ' (não conferida)'}`, { size: 'sm', attrs: { id: 'scan-edition' } })
+        : Stack({ style: { gap: 'var(--space-1)' } }, Text(L.candidates.length ? 'Edição incerta. É uma destas?' : 'Edição não identificada: a cópia entra sem edição.', { size: 'sm', tone: 'muted', attrs: { id: 'scan-edition' } }),
+          L.candidates.length ? Row({ class: 'ds-row--wrap' }, ...L.candidates.map(c => Chip(`${printLabel(c)} · ${c.set_name}`, { dataset: { printing: c.set + '-' + c.number }, onClick: async () => {
+            L.key = await lot.rename(L.key, best.name, { ...c, verified: true }) || L.key; L.printing = { ...c, verified: true }; L.candidates = []; paintResult(); toast(`Edição: ${printLabel(c)}`);
+          } }))) : null);
     mount(result,
       Row({ class: 'ds-row--wrap' }, Text(best.name, { size: 'lg', display: true }), Badge(`${Math.round(best.score * 100)}%`, { tone: best.score >= ACCEPT ? 'positive' : undefined })),
+      edition,
       Row({ class: 'ds-row--wrap' },
         ...[best, ...rest].map(c => { const b = Chip(`+ ${c.name}`, { dataset: { candidate: c.name } }); b.addEventListener('click', async () => { await lot.add(c.name); lot.rearm(); announce(c.name); paintDock(); }); return b; })));
   }
@@ -4230,46 +4380,73 @@ function createScannerScreen({ camera, store, names, collection, env, ocr }) {
     const canRead = state.camera === 'on' && state.base === 'ready' && state.engine !== 'failed';
     const autoChip = Chip('Automático', { pressed: state.auto, dataset: { auto: '1' } });
     autoChip.addEventListener('click', () => setAuto(!state.auto));
+    const edChip = Chip('Edição', { pressed: state.edition, dataset: { edition: '1' } });
+    edChip.addEventListener('click', () => { state.edition = !state.edition; paintDock(); });
     mount(dock,
       Row({ class: 'scan-dock__row' },
         Button(state.busy ? 'Lendo…' : 'Ler agora', { variant: 'primary', id: 'scan-read', disabled: !canRead || state.busy, onClick: () => readOnce(true) }),
-        canRead ? autoChip : null),
+        canRead ? autoChip : null, canRead ? edChip : null),
       Row({ class: 'scan-dock__row' },
         Button(`Lote: ${n}`, { id: 'scan-lot', onClick: openLot }),
         Button('Desfazer', { id: 'scan-undo', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } })));
   }
 
-  /* ---- lote ---- */
+  /* ---- lote e destino (X4, X5) ---- */
+  const dest = { to: 'collection', alsoCollection: true };
   async function openLot() {
     const list = await lot.list();
     const total = list.reduce((s, x) => s + x.qty, 0);
-    const row = x => h('div', { class: 'col-print', dataset: { name: x.name } },
-      h('div', { class: 'col-print__label' }, Text(x.name, { size: 'md' })),
+    const allDecks = decks ? await decks.list() : [];
+    const reopen = () => { closeDialog(); openLot(); paintDock(); };
+    const row = x => h('div', { class: 'col-print', dataset: { name: x.name, key: x.key } },
+      h('div', { class: 'col-print__label' }, Text(x.name, { size: 'md' }), Text(x.set ? `${printLabel(x)}${x.set_name ? ' · ' + x.set_name : ''}` : 'sem edição', { size: 'xs', tone: 'muted' })),
       h('div', { class: 'col-row__qty' },
-        Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.name, x.qty - 1); closeDialog(); openLot(); paintDock(); } }),
+        Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty - 1); reopen(); } }),
         h('span', { class: 'col-print__n' }, String(x.qty)),
-        Button('+', { icon: true, ariaLabel: `Uma a mais de ${x.name}`, onClick: async () => { await lot.setQty(x.name, x.qty + 1); closeDialog(); openLot(); paintDock(); } }),
+        Button('+', { icon: true, ariaLabel: `Uma a mais de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty + 1); reopen(); } }),
         Button('Corrigir', { variant: 'ghost', onClick: () => fix(x) })));
-    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row)) : Empty('Nada lido ainda.'),
+    const destSelect = Select([{ value: 'collection', label: 'Coleção' }, ...allDecks.map(d => ({ value: d.id, label: `Lista: ${d.name}` }))], { id: 'scan-dest', value: dest.to,
+      onChange: e => { dest.to = e.target.value; reopen(); } });
+    const also = dest.to !== 'collection' ? (() => { const c = Chip('Também somar à coleção', { pressed: dest.alsoCollection, dataset: { also: '1' } });
+      c.addEventListener('click', () => { dest.alsoCollection = !dest.alsoCollection; c.setAttribute('aria-pressed', String(dest.alsoCollection)); }); return c; })() : null;
+    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, Field('Destino', destSelect), also, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
       actions: [
         list.length ? Button('Limpar', { variant: 'danger', onClick: async () => { await lot.clear(); closeDialog(); paintDock(); toast('Lote limpo'); } }) : null,
         Button('Fechar', { onClick: closeDialog }),
-        list.length ? Button(`Adicionar ${total} à coleção`, { variant: 'primary', id: 'scan-commit', onClick: commit }) : null].filter(Boolean) });
+        list.length ? Button(dest.to === 'collection' ? `Adicionar ${total} à coleção` : `Adicionar ${total} à lista`, { variant: 'primary', id: 'scan-commit', onClick: commit }) : null].filter(Boolean) });
   }
   function fix(x) {
     closeDialog();
     const box = h('div', { class: 'col-prints', id: 'scan-fix-list' });
     const input = Input({ id: 'scan-fix-input', value: x.name });
-    const show = () => mount(box, ...names.match(input.value, { limit: 5 }).map(c => Button(c.name, { block: true, onClick: async () => { await lot.rename(x.name, c.name); closeDialog(); openLot(); } })));
+    const show = () => mount(box, ...names.match(input.value, { limit: 5 }).map(c => Button(c.name, { block: true, onClick: async () => { await lot.rename(x.key, c.name); closeDialog(); openLot(); } })));
     input.addEventListener('input', show); show();
     Dialog({ title: 'Corrigir leitura', body: Stack({}, Field('Nome', input), box), actions: [Button('Voltar', { onClick: () => { closeDialog(); openLot(); } })] });
   }
+  async function toCollection(list) {
+    for (const x of list) {
+      if (x.set) await collection.addPrinting({ name: x.name, set: x.set, number: x.number, set_name: x.set_name, id: x.id }, x.qty);
+      else await collection.set(x.name, (await collection.qty(x.name)) + x.qty);
+    }
+  }
   async function commit() {
     const list = await lot.list();
-    for (const x of list) await collection.set(x.name, (await collection.qty(x.name)) + x.qty);
     const total = list.reduce((s, x) => s + x.qty, 0);
-    await lot.clear(); closeDialog(); paintDock();
-    toast(`${total} carta(s) adicionada(s) à coleção`);
+    let msg;
+    if (dest.to === 'collection') { await toCollection(list); msg = `${total} carta(s) adicionada(s) à coleção`; }
+    else {
+      const deck = await decks.get(dest.to);
+      if (!deck) return toast('Lista não encontrada');
+      let fresh = 0;
+      for (const x of list) {
+        const e = deck.entries.find(y => y.zone === 'main' && y.name === x.name);
+        if (e) e.qty += x.qty; else { deck.entries.push({ name: x.name, qty: x.qty, zone: 'main' }); fresh++; }
+      }
+      await decks.save(deck);
+      if (dest.alsoCollection) await toCollection(list);
+      msg = `${total} carta(s) em ${deck.name} (${fresh} nova(s))` + (dest.alsoCollection ? ' e na coleção' : '');
+    }
+    await lot.clear(); closeDialog(); paintDock(); toast(msg, 3000);
   }
 
   /* ---- entrada manual ---- */
@@ -4333,7 +4510,7 @@ const ROUTES = [
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence }) },
-  { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, env: environment, ocr }) },
+  { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: environment, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
   { path: '/ds', title: 'Design system', render: renderDS },

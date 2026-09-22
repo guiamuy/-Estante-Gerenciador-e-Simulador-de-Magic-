@@ -41,7 +41,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | B · Bot | B1 política aleatória legal (base do fuzz) | ✅ |
 | C · Coleção | C2 tela Coleção · C7 marcar com toque duplo · C8 lista nova já possuída · C9 editar quantidade e remover | ✅ |
 | C · Coleção | C1 coleção por impressão · C3 importar e exportar CSV · C5 persistência garantida | ✅ |
-| X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | 🟡 |
+| X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | ✅ |
+| X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | 🟡 |
+| L · Listas | L11 companheiro | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -178,9 +180,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E2 ✅ | A0–A5, A7, A8, A9, Q7 | Primeira partida jogável: mesa assistida, goldfish e hot-seat |
 | E3 ✅ | C2, C7, C8, C9 | Coleção gerenciável: tela própria, dois toques marcam, lista nova já possuída, editar e remover |
 | E4 ✅ | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
-| E5 🟡 | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
-| E6 ▶ | X3, X5, X6 | Scanner identifica a impressão, alimenta coleção ou lista e funciona offline |
-| E7 | M6, A6, M7 | Combate e mana resolvidos pelo motor |
+| E5 ✅ | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
+| E6 🟡 | X3, X5, X6, L11 | Scanner identifica a edição, alimenta coleção ou lista e funciona offline; listas com companheiro |
+| E7 ▶ | M6, A6, M7, M14 | Combate e mana resolvidos pelo motor; companheiro jogável na mesa |
 | E8 | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
 
 ---
@@ -332,7 +334,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M4.
 - **Fora:** regra de lenda e anulação de marcadores (M11).
 
-**M6 · Combate** ○
+**M6 · Combate** ▶
 - **Valor:** atacar e bloquear sem conta manual.
 - **Aceite:**
   - declarar atacantes com legalidade (enjoo, virado, defensor);
@@ -344,7 +346,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M5.
 - **Fora:** banding e efeitos de "não pode bloquear" vindos de script (S4).
 
-**M7 · Mana** ○
+**M7 · Mana** ▶
 - **Valor:** o motor sabe o que dá para pagar.
 - **Aceite:**
   - reserva de mana por cor que esvazia entre passos;
@@ -414,6 +416,19 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M6, M10.
 - **Fora:** multiplayer com mais de 2 jogadores na interface.
 
+**M14 · Companheiro na partida** ▶
+- **Valor:** jogar com Lurrus e cia. como na mesa real.
+- **Aceite (regra 702.139):**
+  - o companheiro começa fora do jogo, revelado para o oponente antes dos mulligans, numa zona própria visível na mesa;
+  - ação especial, uma vez por partida: quando você poderia conjurar um feitiço (seu turno, fase principal, pilha vazia), paga {3} e põe o companheiro na mão; não usa a pilha e não dá resposta;
+  - depois disso ele é uma carta comum na mão, conjurada pelo custo normal;
+  - motor completo: cobra {3} pela reserva de mana (M7); mesa assistida: o pagamento segue a opção de mana da partida;
+  - no Commander, o companheiro não entra na zona de comando e não sofre imposto de comandante;
+  - a lista só entra na partida se a condição do companheiro estiver cumprida (L11), senão a preparação avisa.
+- **Testes:** U (tempo da ação, uma vez por partida, custo, não conta no grimório), P (fuzz com lista com companheiro), G (partida-referência com companheiro), I (botão na mesa e zona visível para o oponente no hot-seat).
+- **Depende de:** M4, M7, L11.
+- **Fora:** —
+
 ### A · Mesa assistida
 
 **A0 · Componentes da mesa no design system** ✅
@@ -475,7 +490,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A4.
 - **Fora:** —
 
-**A6 · Combate na mesa** ○
+**A6 · Combate na mesa** ▶
 - **Valor:** atacar com arrastar ou tocar.
 - **Aceite:** seleção de atacantes e bloqueadores e prévia do dano.
 - **Testes:** I, G.
@@ -729,7 +744,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L1.
 - **Fora:** backup em nuvem.
 
-**C6 · Base offline de nomes** 🟡
+**C6 · Base offline de nomes** ✅
 - **Valor:** reconhecer e sugerir qualquer carta sem depender da rede a cada leitura.
 - **Aceite:**
   - baixa o catálogo de nomes da Scryfall (`/catalog/card-names`, cerca de 30 mil nomes) na primeira abertura do scanner;
@@ -742,7 +757,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### X · Scanner
 
-**X1 · Câmera com moldura guia** 🟡
+**X1 · Câmera com moldura guia** ✅
 - **Valor:** apontar e enquadrar com uma mão.
 - **Aceite:**
   - câmera traseira pela camada F2;
@@ -754,7 +769,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** F2.
 - **Fora:** lanterna e foco manual.
 
-**X2 · Reconhecimento pelo nome** 🟡
+**X2 · Reconhecimento pelo nome** ✅
 - **Valor:** identificar a carta sem digitar.
 - **Aceite:**
   - OCR no aparelho (Tesseract, carregado só quando o scanner abre) da faixa do nome, com tons de cinza, contraste e ampliação;
@@ -766,16 +781,21 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** X1, C6.
 - **Fora:** OCR em servidor.
 
-**X3 · Identificação da impressão** ▶
+**X3 · Identificação da impressão** 🟡
 - **Valor:** registrar a versão certa.
 - **Aceite:**
-  - OCR da linha de coleção (edição e número);
-  - quando ambíguo, oferece as 3 impressões mais prováveis.
-- **Testes:** U com fixture.
+  - depois de reconhecer o nome, uma segunda leitura pega a linha de coleção (canto inferior esquerdo: "267/303 U · MH2 • EN" ou "0045 C · DMR • PT");
+  - com rede, a leitura é conferida contra as impressões da carta: edição e número, só número ou só edição;
+  - quando ambíguo, oferece até 3 edições prováveis para tocar;
+  - sem rede, guarda edição e número lidos como "não conferida";
+  - o lote separa impressões da mesma carta; na coleção, entram como impressão (C1);
+  - chip "Edição" liga e desliga a segunda leitura.
+- **Testes:** U (leitura da linha nos dois formatos, com ruído; casamento com impressões; lote por impressão), I (edição identificada e não identificada).
+- **Pendente:** precisão real depende das fotos de teste (ver X2).
 - **Depende de:** X2, C1.
-- **Fora:** —
+- **Fora:** cartas antigas sem número de coleção impresso (entram sem edição).
 
-**X4 · Fluxo em lote com uma mão** 🟡
+**X4 · Fluxo em lote com uma mão** ✅
 - **Valor:** catalogar uma caixa inteira depressa.
 - **Aceite:**
   - "Ler agora" e modo automático (uma leitura a cada 1,4 s);
@@ -787,18 +807,26 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** X2.
 - **Fora:** processamento em segundo plano (gatilho G3); destino lista (X5).
 
-**X5 · Destino da leitura** ▶
+**X5 · Destino da leitura** 🟡
 - **Valor:** o scanner alimenta coleção ou lista.
-- **Aceite:** escolha do destino antes do lote, com resumo ao final.
+- **Aceite:**
+  - no lote, "Destino": Coleção ou qualquer lista salva;
+  - para lista: soma no deck principal (funde com a mesma carta) e, por padrão, também na coleção;
+  - resumo ao final (quantas cartas, quantas novas na lista).
 - **Testes:** I.
 - **Depende de:** X4, C1, L1.
-- **Fora:** —
+- **Fora:** escolher zona (reserva, comandante) pelo scanner.
 
-**X6 · Scanner offline** ▶
+**X6 · Scanner offline** 🟡
 - **Valor:** funciona na loja sem sinal.
-- **Aceite:** modelo de OCR e índice de nomes em cache.
-- **Testes:** I offline.
-- **Depende de:** X2, C6.
+- **Aceite:**
+  - o service worker guarda os arquivos do motor de OCR (CDN versionado, inclusive resposta opaca de `<script>`); os dados do idioma ficam no próprio cache do Tesseract;
+  - a base de nomes (C6) já funciona sem rede;
+  - o scanner mostra "leitor disponível offline" depois do primeiro uso com rede e avisa quando ainda não foi baixado;
+  - sem rede, a edição lida entra como "não conferida" (X3).
+- **Testes:** U (estratégia de cache do motor), I (fluxo com leitor simulado).
+- **Pendente:** validar no aparelho: abrir o scanner uma vez com rede, ativar o modo avião e ler uma carta.
+- **Depende de:** X2, C6, W1.
 - **Fora:** —
 
 ### V · Visualização
@@ -860,6 +888,18 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 **L10 · Importar por URL** ⛔
 - Moxfield e Archidekt não liberam CORS para o navegador.
 - Reabrir só com o gatilho G4 e um proxy próprio.
+
+**L11 · Companheiro** 🟡
+- **Valor:** montar listas com companheiro (Lurrus e outros) sem burlar a contagem.
+- **Aceite:**
+  - zona própria "Companheiro": cabeçalho `Companion` no texto colado ou "Definir como companheiro" na carta (só para cartas com a habilidade); um por lista, e trocar devolve o anterior ao deck;
+  - não conta nas 100 do Commander nem nas 60 do Pauper; no construído, ocupa uma vaga da reserva (15);
+  - no Commander, precisa estar na identidade de cor do comandante;
+  - a condição de construção é checada no deck inicial (comandante incluído): Lurrus, Gyruda, Obosh, Keruga, Jegantha, Kaheera, Zirda, Umori, Lutri e Yorion; companheiro não mapeado gera aviso para conferir;
+  - fica fora do grimório na mesa até o M14; exportação preserva o bloco `Companion`.
+- **Testes:** U (contagem, condições, identidade, reserva do Pauper, texto e exportação), I (definir companheiro e condição quebrada).
+- **Depende de:** L1, L5.
+- **Fora:** regra de jogo do companheiro (M14).
 
 ### P · Plataforma
 

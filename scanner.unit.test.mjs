@@ -87,7 +87,7 @@ test('X4 · desfazer, corrigir (funde com igual) e o lote sobrevive a fechar o a
   assert.equal(await lot.undo(), 'Island');
   await lot.rename('Sol Rng', 'Sol Ring');
   const again = X.createLot({ store });
-  assert.deepEqual(JSON.parse(JSON.stringify(await again.list())), [{ name: 'Sol Ring', qty: 2 }, { name: 'Island', qty: 1 }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(await again.list())).map(({ name, qty }) => ({ name, qty })), [{ name: 'Sol Ring', qty: 2 }, { name: 'Island', qty: 1 }]);
   await again.setQty('Island', 0);
   assert.equal(await again.total(), 2);
 });
@@ -99,4 +99,47 @@ test('X1 · moldura na tela vira a região certa do quadro da câmera (object-fi
   assert.ok(r.y > 0.05 && r.h < 0.9, 'recorte vertical centralizado');
   const full = X.coverRegion(300, 400, 300, 400, { x: 30, y: 40, w: 150, h: 20 });
   assert.deepEqual([full.x, full.y, full.w, full.h].map(v => Math.round(v * 100)), [10, 10, 50, 5]);
+});
+
+/* ---------------- X3 · impressão ---------------- */
+test('X3 · linha de coleção: formato antigo, formato novo, ruído e sem leitura', () => {
+  const r = t => { const x = X.parseCollectorLine(t); return `${x.number}|${x.set}|${x.lang}`; };
+  assert.equal(r('267/303 U\nMH2 • EN'), '267|mh2|en');
+  assert.equal(r('0045 C\nDMR • PT'), '45|dmr|pt');
+  assert.equal(r('063 R\nLCI * EN'), '63|lci|en');
+  assert.equal(r('12/2O9 C'), '12||', 'só número quando a edição não aparece');
+  assert.equal(r('SLD • JP'), '|sld|ja');
+  assert.equal(r(''), '||');
+});
+
+const PRINTS = [
+  { set: 'mh2', collector_number: '267', set_name: 'Modern Horizons 2', id: 'a' },
+  { set: 'dmr', collector_number: '45', set_name: 'Dominaria Remastered', id: 'b' },
+  { set: 'tmp', collector_number: '57', set_name: 'Tempest', id: 'c' },
+  { set: 'ema', collector_number: '45', set_name: 'Eternal Masters', id: 'd' }
+];
+test('X3 · casa a leitura com as impressões: exata, só número, ambígua e desconhecida', () => {
+  assert.equal(X.resolvePrinting(PRINTS, { set: 'mh2', number: '267' }).exact.id, 'a');
+  assert.equal(X.resolvePrinting(PRINTS, { set: '', number: '0057' }).exact.id, 'c', 'zeros à esquerda não atrapalham');
+  const amb = X.resolvePrinting(PRINTS, { set: '', number: '45' });
+  assert.equal(amb.exact, null);
+  assert.deepEqual([...amb.candidates.map(c => c.set)], ['dmr', 'ema'], 'número repetido em duas edições: oferece as duas');
+  assert.equal(X.resolvePrinting(PRINTS, { set: 'dmr', number: '999' }).exact.id, 'b', 'número ilegível, edição única');
+  const none = X.resolvePrinting(PRINTS, { set: 'xyz', number: '' });
+  assert.equal(none.exact, null); assert.equal(none.candidates.length, 0);
+});
+
+test('X3 · o lote separa impressões da mesma carta e corrigir a impressão funde com igual', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  await lot.add('Counterspell', 1, { set: 'mh2', number: '267', verified: true });
+  await lot.add('Counterspell', 1, { set: 'mh2', number: '267', verified: true });
+  const k = await lot.add('Counterspell');
+  await lot.add('Counterspell', 1, { set: 'dmr', number: '45' });
+  let list = JSON.parse(JSON.stringify(await lot.list()));
+  assert.deepEqual(list.map(x => `${x.set || '-'}:${x.qty}`), ['mh2:2', '-:1', 'dmr:1']);
+  await lot.rename(k, 'Counterspell', { set: 'mh2', number: '267' });
+  list = JSON.parse(JSON.stringify(await lot.list()));
+  assert.deepEqual(list.map(x => `${x.set || '-'}:${x.qty}`), ['mh2:3', 'dmr:1']);
+  assert.equal(await lot.undo(), 'Counterspell');
+  assert.equal(await lot.total(), 3);
 });

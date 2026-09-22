@@ -72,5 +72,11 @@ test('W1 · estratégia de cache do service worker por tipo de requisição', ()
   assert.equal(pick('https://guiamuy.github.io/repo/index.html', { mode: 'navigate' }), 'network-first');
   assert.equal(pick('https://guiamuy.github.io/repo/icon.svg'), 'stale-while-revalidate');
   assert.equal(pick('https://fonts.example.com/x.css'), 'passthrough');
+  // X6: motor de OCR guardado para uso offline, inclusive resposta opaca de <script>
+  const ocr = ctx.__pick({ url: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', method: 'GET' });
+  assert.equal(ocr.strategy, 'cache-first'); assert.equal(ocr.opaque, true);
+  assert.equal(pick('https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.0/tesseract-core-simd-lstm.wasm.js'), 'cache-first');
+  assert.equal(pick('https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz'), 'cache-first');
+  assert.equal(pick('https://cdn.jsdelivr.net/npm/outra-lib@1/x.js'), 'passthrough');
   assert.equal(ctx.__pick({ url: 'https://api.scryfall.com/x', method: 'DELETE' }).strategy, 'passthrough');
 });
