@@ -40,7 +40,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | A · Mesa assistida | A0 componentes · A1 layout · A2 preparar partida · A3 mão e ações legais · A4 prioridade e pilha · A5 adjudicação · A7 registro e desfazer · A8 continuar partida · A9 goldfish e hot-seat | ✅ |
 | B · Bot | B1 política aleatória legal (base do fuzz) | ✅ |
 | C · Coleção | C2 tela Coleção · C7 marcar com toque duplo · C8 lista nova já possuída · C9 editar quantidade e remover | ✅ |
-| C · Coleção | C1 coleção por impressão · C3 importar e exportar CSV · C5 persistência garantida | 🟡 |
+| C · Coleção | C1 coleção por impressão · C3 importar e exportar CSV · C5 persistência garantida | ✅ |
+| X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -176,9 +177,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E1 ✅ | Q1–Q6, M1–M5, M8, B1 | Portão de qualidade e motor testado |
 | E2 ✅ | A0–A5, A7, A8, A9, Q7 | Primeira partida jogável: mesa assistida, goldfish e hot-seat |
 | E3 ✅ | C2, C7, C8, C9 | Coleção gerenciável: tela própria, dois toques marcam, lista nova já possuída, editar e remover |
-| E4 🟡 | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
-| E5 ▶ | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
-| E6 | X3, X5, X6 | Scanner identifica a impressão, alimenta coleção ou lista e funciona offline |
+| E4 ✅ | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
+| E5 🟡 | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
+| E6 ▶ | X3, X5, X6 | Scanner identifica a impressão, alimenta coleção ou lista e funciona offline |
 | E7 | M6, A6, M7 | Combate e mana resolvidos pelo motor |
 | E8 | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
 
@@ -640,7 +641,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### C · Coleção
 
-**C1 · Coleção por impressão** 🟡
+**C1 · Coleção por impressão** ✅
 - **Valor:** saber exatamente qual versão você tem.
 - **Aceite:**
   - item = carta + edição + número + acabamento (normal, foil, etched) + idioma + condição + quantidade;
@@ -696,7 +697,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** C2.
 - **Fora:** desfazer remoção.
 
-**C3 · Importar e exportar CSV** 🟡
+**C3 · Importar e exportar CSV** ✅
 - **Valor:** trazer a coleção de outros apps.
 - **Aceite:**
   - reconhece colunas pelo cabeçalho: ManaBox, Moxfield, Archidekt, Delver Lens e planilhas com cabeçalhos parecidos;
@@ -717,7 +718,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** C1, V1.
 - **Fora:** —
 
-**C5 · Persistência garantida** 🟡
+**C5 · Persistência garantida** ✅
 - **Valor:** não perder a coleção.
 - **Aceite:**
   - a camada de plataforma ganha `persistence` (status e pedido de proteção);
@@ -728,40 +729,44 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L1.
 - **Fora:** backup em nuvem.
 
-**C6 · Base offline de cartas** ▶
-- **Valor:** buscar qualquer carta sem rede.
+**C6 · Base offline de nomes** 🟡
+- **Valor:** reconhecer e sugerir qualquer carta sem depender da rede a cada leitura.
 - **Aceite:**
-  - baixa a base leve (oracle) sob demanda, com progresso e tamanho medido;
-  - alimenta D4;
-  - mede G1.
-- **Testes:** U, I.
-- **Depende de:** D4, P1.
-- **Fora:** imagens de todas as cartas.
+  - baixa o catálogo de nomes da Scryfall (`/catalog/card-names`, cerca de 30 mil nomes) na primeira abertura do scanner;
+  - guarda no aparelho e usa sem rede;
+  - atualiza sozinho quando tem mais de 30 dias, mantendo a antiga se a atualização falhar;
+  - mostra quantidade e tamanho, o insumo do gatilho G1.
+- **Testes:** U.
+- **Depende de:** D1.
+- **Fora:** base completa de cartas (texto, imagens) offline; volta a ser avaliada com o gatilho G1.
 
 ### X · Scanner
 
-**X1 · Câmera com moldura guia** ▶
+**X1 · Câmera com moldura guia** 🟡
 - **Valor:** apontar e enquadrar com uma mão.
 - **Aceite:**
-  - câmera traseira via F2;
-  - moldura na proporção da carta;
-  - lanterna quando o aparelho suporta;
-  - permissão negada gera instrução clara.
-- **Testes:** I (câmera simulada).
+  - câmera traseira pela camada F2;
+  - moldura na proporção da carta, com a faixa do nome destacada;
+  - a região lida é convertida da tela para o quadro da câmera (vídeo em `object-fit: cover`);
+  - câmera bloqueada ou ausente gera instrução clara e libera a digitação do nome;
+  - a câmera desliga ao sair da tela.
+- **Testes:** U (conversão da região), I (câmera simulada e câmera bloqueada).
 - **Depende de:** F2.
-- **Fora:** —
+- **Fora:** lanterna e foco manual.
 
-**X2 · Reconhecimento pelo nome** ▶
+**X2 · Reconhecimento pelo nome** 🟡
 - **Valor:** identificar a carta sem digitar.
 - **Aceite:**
-  - OCR no aparelho da faixa do nome;
-  - correspondência aproximada com o índice de nomes;
-  - ≥ 90% de acerto no conjunto de fotos de teste.
-- **Testes:** U com fixture de fotos, desempenho.
+  - OCR no aparelho (Tesseract, carregado só quando o scanner abre) da faixa do nome, com tons de cinza, contraste e ampliação;
+  - correspondência aproximada contra a base de nomes: tolera trocas típicas do OCR, lixo do custo de mana no fim da linha e responde cartas divididas pela primeira metade;
+  - mostra o melhor palpite com a nota e os candidatos, que entram no lote com um toque;
+  - casar contra 30 mil nomes leva menos de 100 ms.
+- **Testes:** U (textos ruidosos contra um catálogo de 30 mil nomes, desempenho), I (OCR simulado).
+- **Pendente:** a meta de ≥ 90% de acerto precisa de um conjunto de fotos reais de cartas (fixture). Sem ele, a precisão do OCR em si não é medida pelo portão, só a correspondência.
 - **Depende de:** X1, C6.
 - **Fora:** OCR em servidor.
 
-**X3 · Identificação da impressão** ○
+**X3 · Identificação da impressão** ▶
 - **Valor:** registrar a versão certa.
 - **Aceite:**
   - OCR da linha de coleção (edição e número);
@@ -770,24 +775,26 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** X2, C1.
 - **Fora:** —
 
-**X4 · Fluxo em lote com uma mão** ▶
+**X4 · Fluxo em lote com uma mão** 🟡
 - **Valor:** catalogar uma caixa inteira depressa.
 - **Aceite:**
-  - captura contínua com contador;
-  - confirmar, corrigir e desfazer a última;
-  - vibração ao reconhecer.
-- **Testes:** I.
+  - "Ler agora" e modo automático (uma leitura a cada 1,4 s);
+  - no automático, a mesma carta parada não soma de novo até sair do quadro;
+  - contador do lote, desfazer a última, pulso e vibração ao reconhecer;
+  - lote editável (+/−, corrigir com sugestões) e guardado no aparelho;
+  - "Adicionar à coleção" soma cópias genéricas.
+- **Testes:** U (regra de rearme, desfazer, corrigir, persistência), I.
 - **Depende de:** X2.
-- **Fora:** processamento em segundo plano (gatilho G3).
+- **Fora:** processamento em segundo plano (gatilho G3); destino lista (X5).
 
-**X5 · Destino da leitura** ○
+**X5 · Destino da leitura** ▶
 - **Valor:** o scanner alimenta coleção ou lista.
 - **Aceite:** escolha do destino antes do lote, com resumo ao final.
 - **Testes:** I.
 - **Depende de:** X4, C1, L1.
 - **Fora:** —
 
-**X6 · Scanner offline** ○
+**X6 · Scanner offline** ▶
 - **Valor:** funciona na loja sem sinal.
 - **Aceite:** modelo de OCR e índice de nomes em cache.
 - **Testes:** I offline.

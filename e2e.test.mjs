@@ -41,6 +41,7 @@ async function open(t) {
       const ids = JSON.parse(r.request().postData()).identifiers;
       return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean), not_found: ids.filter(i => !DB[i.name.toLowerCase()]) } });
     }
+    if (r.request().url().includes('/catalog/card-names')) return r.fulfill({ json: { object: 'catalog', data: Object.values(DB).map(c => c.name) } });
     if (r.request().url().includes('/cards/search')) {
       const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '').toLowerCase();
       const exact = q.match(/^!"(.+)"$/);
@@ -347,5 +348,72 @@ test('e2e · C5 aviso de backup e de armazenamento desprotegido', { skip }, asyn
   assert.match(await page.innerText('#col-care'), /Sem backup ainda/);
   await Promise.all([page.waitForEvent('download'), page.click('#col-backup')]);
   await page.waitForFunction(() => !/backup/.test(document.querySelector('#col-care').innerText));
+  assert.deepEqual(errors, []);
+});
+
+// Câmera e OCR simulados: o teste controla o texto que o "leitor" devolve.
+const FAKE_DEVICE = deny => `
+  window.__ocrQueue = [];
+  window.Tesseract = { createWorker: async () => ({ setParameters: async () => {}, terminate: async () => {},
+    recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) }) };
+  const gum = async () => {
+    if (${deny}) { const e = new Error('Permission denied'); e.name = 'NotAllowedError'; throw e; }
+    const c = document.createElement('canvas'); c.width = 640; c.height = 480;
+    const g = c.getContext('2d'); setInterval(() => { g.fillStyle = '#777'; g.fillRect(0, 0, 640, 480); }, 100);
+    return c.captureStream(10);
+  };
+  if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = gum;
+  else Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: gum } });
+`;
+
+test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, corrigir e mandar para a coleção', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  assert.match(await page.innerText('#scan-status'), /Base: \d+ nomes/);
+
+  await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
+  await page.click('#scan-read');
+  await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-result').innerText));
+  await page.waitForFunction(() => /Lote: 1/.test(document.querySelector('#scan-lot').innerText));
+
+  // automática: mesma carta parada soma uma vez; sumiu e voltou, soma de novo
+  await page.evaluate(() => window.__ocrQueue.push('Island', 'Island', '', 'Island'));
+  await page.click('[data-auto]');
+  await page.waitForFunction(() => /(\d+)/.exec(document.querySelector('#scan-lot').innerText)[1] === '3', null, { timeout: 12000 });
+  await page.click('[data-auto]');
+
+  await page.click('[data-candidate="Island"]');
+  await page.waitForFunction(() => /Lote: 4/.test(document.querySelector('#scan-lot').innerText));
+  await page.click('#scan-undo');
+  await page.waitForFunction(() => /Lote: 3/.test(document.querySelector('#scan-lot').innerText));
+
+  await page.click('#scan-lot');
+  assert.match(await page.innerText('#scan-lot-list'), /Island[\s\S]*2/);
+  await page.locator('#scan-lot-list .col-print', { hasText: 'Sol Ring' }).locator('text=Corrigir').click();
+  await page.fill('#scan-fix-input', 'Counterspel');
+  await page.locator('#scan-fix-list button', { hasText: 'Counterspell' }).click();
+  await page.waitForSelector('#scan-commit');
+  assert.match(await page.innerText('#scan-lot-list'), /Counterspell/);
+  await page.click('#scan-commit');
+  await page.waitForFunction(() => /Lote: 0/.test(document.querySelector('#scan-lot').innerText));
+
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('.col-row[data-name="Island"]');
+  assert.equal(await page.locator('.col-row[data-name="Island"] .col-row__n').innerText(), '2');
+  assert.equal(await page.locator('.col-row[data-name="Counterspell"] .col-row__n').innerText(), '1');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · X1 câmera bloqueada: explica e deixa montar o lote digitando', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(true));
+  await page.goto(base + '#/scanner');
+  await page.waitForFunction(() => /câmera foi bloqueada/.test(document.querySelector('#scan-status').innerText));
+  assert.equal(await page.locator('#scan-read').isDisabled(), true);
+  await page.fill('#scan-manual', 'Countrspell');
+  await page.click('[data-manual="Counterspell"]');
+  await page.waitForFunction(() => /Lote: 1/.test(document.querySelector('#scan-lot').innerText));
   assert.deepEqual(errors, []);
 });

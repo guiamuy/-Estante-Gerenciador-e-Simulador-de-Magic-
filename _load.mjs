@@ -14,7 +14,7 @@ export function loadModules() {
   const start = HTML.indexOf('<script>') + '<script>'.length;
   const end = HTML.lastIndexOf('</script>');
   const code = HTML.slice(start, end) +
-    '\n;globalThis.__mods = { platform: __m0, components: __m3, scryfall: __m6, cards: __m7, decks: __m14, engine: __m16, table: __m18 };';
+    '\n;globalThis.__mods = { platform: __m0, components: __m3, scryfall: __m6, cards: __m7, decks: __m14, engine: __m16, table: __m18, scanner: __m21 };';
   const ctx = vm.createContext({
     window: { __MTG_NO_AUTOBOOT: true }, document: {}, console, structuredClone,
     setTimeout, clearTimeout, URLSearchParams, URL, TextEncoder, Promise

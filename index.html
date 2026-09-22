@@ -602,6 +602,37 @@ body {
 .col-print:last-child { border-bottom: none; }
 .col-print__label { min-width: 0; display: flex; flex-direction: column; }
 .col-print__n { min-width: 3ch; text-align: center; font-weight: var(--weight-bold); font-size: var(--text-lg); }
+
+/* ===================== X1 · scanner ===================== */
+.scan-stage {
+  position: relative; width: 100%; max-width: 480px; margin: 0 auto; aspect-ratio: 3 / 4; max-height: 62vh;
+  overflow: hidden; border-radius: var(--radius-2); background: var(--bg-elev-3); border: 1px solid var(--border);
+}
+.scan-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-frame {
+  position: absolute; left: 50%; top: 50%; height: 86%; aspect-ratio: 63 / 88; transform: translate(-50%, -50%);
+  border: 2px solid var(--accent); border-radius: var(--radius-card); box-shadow: 0 0 0 100vmax var(--overlay);
+}
+.scan-frame__band {
+  position: absolute; left: 7%; top: 3.5%; width: 70%; height: 7.5%;
+  border: 2px dashed var(--accent); border-radius: var(--radius-1); display: flex; align-items: flex-end; justify-content: flex-end;
+}
+.scan-frame__band span { transform: translateY(120%); font-size: var(--text-xs); color: var(--accent); background: var(--scrim); padding: 0 var(--space-1); border-radius: var(--radius-1); }
+.scan-stage.is-pulse .scan-frame { animation: scan-ok var(--dur-3) var(--ease-out); }
+@keyframes scan-ok { 50% { border-color: var(--positive); transform: translate(-50%, -50%) scale(1.02); } }
+.scan-result { min-height: calc(var(--tap-min) * 1.5); display: flex; flex-direction: column; gap: var(--space-2); }
+.scan-status { display: flex; flex-direction: column; gap: var(--space-2); }
+.scan-status:empty { display: none; }
+.scan-suggest { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.scan-dock-wrap {
+  position: sticky; bottom: 0; z-index: var(--z-sticky); margin: 0 calc(var(--space-4) * -1);
+  padding: var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+  background: var(--scrim); backdrop-filter: blur(10px); border-top: 2px solid var(--shelf-edge);
+}
+.scan-dock { display: flex; flex-direction: column; gap: var(--space-2); }
+.scan-dock__row { display: flex; gap: var(--space-2); }
+.scan-dock__row .ds-btn { flex: 1; }
+@media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame { animation: none; } }
 </style>
 </head>
 <body>
@@ -1319,6 +1350,11 @@ function createScryfall(opts = {}) {
         more = !!data.has_more;
       }
       return out;
+    },
+    /** C6 · catálogo com o nome de todas as cartas (~30 mil). */
+    async catalogNames() {
+      const data = await schedule(() => request('/catalog/card-names'));
+      return (data && data.data) || [];
     },
     /** Uma carta pelo nome exato. null quando não existe. */
     async named(name) {
@@ -2819,7 +2855,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
   load();
   return Stack(pad(),
-    Row({}, Stack({ style: { gap: 'var(--space-1)' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
+    Row({ class: 'ds-row--wrap' }, Stack({ style: { gap: 'var(--space-1)' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
+      Button('Escanear', { variant: 'primary', id: 'col-scan', onClick: () => go('/scanner') }),
       Button('Buscar cartas', { onClick: () => go('/cartas') })),
     care,
     Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
@@ -3872,6 +3909,388 @@ return { createTableSetup, createTableScreen };
 })();
 
 
+/* ==== src/data/scanner.js ==== */
+const __m21 = (function () {
+/* =====================================================================
+   C6 · BASE OFFLINE DE NOMES   X2 · CORRESPONDÊNCIA DO OCR
+   X4 · LOTE DO SCANNER
+   Puro, sem DOM: o OCR entrega texto ruidoso; aqui ele vira nome de carta.
+   ===================================================================== */
+const { norm } = __m7;
+const NAMES_KEY = 'names.catalog';
+const LOT_KEY = 'scanner.lot';
+const MAX_AGE = 30 * 24 * 3600 * 1000;
+const ACCEPT = 0.82;   // leitura automática entra no lote a partir daqui
+const SUGGEST = 0.6;   // abaixo disso não sugere nada
+
+/** Deixa o texto do OCR comparável: minúsculas, sem acento, trocas típicas de OCR. */
+function cleanOcr(text) {
+  return norm(String(text || '').split(/\r?\n/).find(l => /[a-z]{2}/i.test(l)) || '')
+    .replace(/[|!]/g, 'l').replace(/0/g, 'o').replace(/1/g, 'l').replace(/5/g, 's').replace(/8/g, 'b')
+    .replace(/[^a-z ,'\-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+const simple = s => norm(s).replace(/[^a-z ,'\-]/g, ' ').replace(/\s+/g, ' ').trim();
+
+let LEV_ROW = new Int32Array(64), LEV_PREV = new Int32Array(64);
+function lev(a, b, limit) {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  if (LEV_ROW.length <= b.length) { LEV_ROW = new Int32Array(b.length + 1); LEV_PREV = new Int32Array(b.length + 1); }
+  let prev = LEV_PREV, cur = LEV_ROW;
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    cur[0] = i; let best = i; const ca = a.charCodeAt(i - 1);
+    for (let j = 1; j <= b.length; j++) {
+      const v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca === b.charCodeAt(j - 1) ? 0 : 1));
+      cur[j] = v; if (v < best) best = v;
+    }
+    if (best > limit) return limit + 1;
+    const t = prev; prev = cur; cur = t;
+  }
+  return prev[b.length];
+}
+const bigrams = s => { const out = new Set(); for (let i = 0; i < s.length - 1; i++) out.add(s.charCodeAt(i) * 128 + s.charCodeAt(i + 1)); return out; };
+
+/** Índice de busca aproximada. Nomes divididos ("Fire // Ice") também
+    respondem pela primeira metade, que é o que aparece no topo da carta. */
+function buildIndex(names) {
+  const entries = [];
+  for (const full of names) {
+    entries.push({ key: simple(full), name: full });
+    if (full.includes(' // ')) entries.push({ key: simple(full.split(' // ')[0]), name: full });
+  }
+  return entries.filter(e => e.key.length >= 2).map(e => ({ ...e, bg: [...bigrams(e.key)] }));
+}
+
+/** Melhores nomes para um texto de OCR, com nota de 0 a 1. O OCR costuma
+    arrastar lixo do custo de mana no fim da linha: compara também o prefixo. */
+function matchName(index, text, { limit = 3 } = {}) {
+  const q = cleanOcr(text);
+  if (q.length < 3) return [];
+  const best = new Map();
+  const qb = bigrams(q);
+  for (const e of index) {
+    const len = e.key.length;
+    if (len < q.length * 0.4 || len > q.length * 1.6 + 2) continue;
+    // filtro barato antes da distância de edição: bigramas em comum
+    let common = 0; for (const g of e.bg) if (qb.has(g)) common++;
+    if (common < e.bg.length * 0.4) continue;
+    const maxEdits = Math.floor(len * (1 - SUGGEST)) + 1;
+    const full = lev(q, e.key, maxEdits);
+    const pre = q.length > len ? lev(q.slice(0, len), e.key, maxEdits) : maxEdits + 1;
+    const d = Math.min(full, pre + 0.5);
+    const score = 1 - d / Math.max(len, 1);
+    if (score >= SUGGEST && (!best.has(e.name) || best.get(e.name) < score)) best.set(e.name, score);
+  }
+  return [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
+    .sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
+}
+
+/* ---------------- C6 · catálogo de nomes ---------------- */
+function createNameIndex({ store, scryfall, now = () => Date.now() }) {
+  let index = null, meta = null;
+  const api = {
+    async load() {
+      if (index) return index;
+      const saved = await store.get(NAMES_KEY);
+      if (saved && Array.isArray(saved.names)) { meta = { ts: saved.ts, count: saved.names.length, bytes: saved.bytes || 0 }; index = buildIndex(saved.names); }
+      return index;
+    },
+    async refresh() {
+      const names = await scryfall.catalogNames();
+      if (!names.length) throw new Error('catalogo-vazio');
+      const bytes = JSON.stringify(names).length;
+      await store.set(NAMES_KEY, { ts: now(), names, bytes });
+      meta = { ts: now(), count: names.length, bytes }; index = buildIndex(names);
+      return meta;
+    },
+    /** Garante a base: baixa se não existe; atualiza se velha e houver rede. */
+    async ensure({ online = true } = {}) {
+      await api.load();
+      if (!index) { if (!online) return null; await api.refresh(); }
+      else if (online && now() - meta.ts > MAX_AGE) { try { await api.refresh(); } catch (e) { /* segue com a antiga */ } }
+      return meta;
+    },
+    info() { return meta; },
+    match(text, opts) { return index ? matchName(index, text, opts) : []; }
+  };
+  return api;
+}
+
+/* ---------------- X4 · lote ----------------
+   Leitura automática só entra no lote quando a carta muda: a mesma carta
+   parada na frente da câmera não soma de novo até sair do quadro. */
+function createLot({ store }) {
+  let items = null, armed = true, lastSeen = null, history = [];
+  const load = async () => items || (items = (await store.get(LOT_KEY)) || []);
+  const persist = () => store.set(LOT_KEY, items);
+  const api = {
+    async list() { return (await load()).map(x => ({ ...x })); },
+    async total() { return (await load()).reduce((s, x) => s + x.qty, 0); },
+    async add(name, qty = 1) {
+      await load();
+      const cur = items.find(x => x.name === name);
+      if (cur) cur.qty += qty; else items.push({ name, qty });
+      history.push(name); await persist(); return name;
+    },
+    /** Resultado de uma leitura automática. Devolve o nome se entrou no lote. */
+    async observe(best) {
+      await load();
+      const name = best && best.score >= ACCEPT ? best.name : null;
+      if (!name) { armed = true; lastSeen = null; return null; }
+      if (name === lastSeen && !armed) return null;
+      lastSeen = name; armed = false;
+      return api.add(name);
+    },
+    /** Libera a mesma carta para somar de novo (próxima cópia igual). */
+    rearm() { armed = true; lastSeen = null; },
+    async undo() {
+      await load(); const name = history.pop(); if (!name) return null;
+      const cur = items.find(x => x.name === name);
+      if (cur) { cur.qty -= 1; if (!cur.qty) items.splice(items.indexOf(cur), 1); }
+      await persist(); return name;
+    },
+    async setQty(name, qty) {
+      await load(); const cur = items.find(x => x.name === name); if (!cur) return;
+      if (qty > 0) cur.qty = qty; else items.splice(items.indexOf(cur), 1);
+      await persist();
+    },
+    async rename(from, to) {
+      await load(); const cur = items.find(x => x.name === from); if (!cur || from === to) return;
+      const dup = items.find(x => x.name === to);
+      if (dup) { dup.qty += cur.qty; items.splice(items.indexOf(cur), 1); } else cur.name = to;
+      history = history.map(n => n === from ? to : n); await persist();
+    },
+    async clear() { items = []; history = []; api.rearm(); await persist(); }
+  };
+  return api;
+}
+
+/* ---------------- X1 · região da faixa do nome ----------------
+   O vídeo aparece com object-fit: cover. Converte um retângulo da tela
+   (moldura guia) em região relativa do quadro da câmera. */
+function coverRegion(elW, elH, vidW, vidH, rect) {
+  const scale = Math.max(elW / vidW, elH / vidH);
+  const shownW = vidW * scale, shownH = vidH * scale;
+  const offX = (shownW - elW) / 2, offY = (shownH - elH) / 2;
+  const clamp = v => Math.min(1, Math.max(0, v));
+  const x = clamp((rect.x + offX) / shownW), y = clamp((rect.y + offY) / shownH);
+  return { x, y, w: clamp((rect.x + rect.w + offX) / shownW) - x, h: clamp((rect.y + rect.h + offY) / shownH) - y };
+}
+/** Faixa do nome dentro da moldura da carta (proporções da carta impressa). */
+const NAME_BAND = { x: 0.07, y: 0.035, w: 0.70, h: 0.075 };
+
+return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, ACCEPT, SUGGEST, lev };
+})();
+
+
+/* ==== src/app/scanner.js ==== */
+const __m22 = (function () {
+/* =====================================================================
+   X1 · CÂMERA COM MOLDURA GUIA   X2 · RECONHECIMENTO PELO NOME
+   X4 · LOTE COM UMA MÃO
+   Câmera pela camada F2; OCR no aparelho (Tesseract, carregado só quando
+   o scanner abre); correspondência contra a base de nomes (C6).
+   ===================================================================== */
+const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const { createLot, coverRegion, NAME_BAND, ACCEPT } = __m21;
+const { pulse } = __m20;
+const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const AUTO_MS = 1400;
+const go = to => { location.hash = '#' + to; };
+
+/** OCR de uma linha. Motor carregado sob demanda e reaproveitado. */
+function createOcr(win = window, doc = document) {
+  let worker = null, loading = null;
+  async function engine() {
+    if (worker) return worker;
+    if (!loading) loading = (async () => {
+      if (!win.Tesseract) await new Promise((ok, fail) => {
+        const s = doc.createElement('script'); s.src = TESSERACT_URL; s.async = true;
+        s.onload = ok; s.onerror = () => fail(new Error('ocr-indisponivel')); doc.head.appendChild(s);
+      });
+      const w = await win.Tesseract.createWorker('eng');
+      await w.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" });
+      worker = w; return w;
+    })().catch(e => { loading = null; throw e; });
+    return loading;
+  }
+  /** Tons de cinza, contraste e ampliação: o nome é texto pequeno sobre arte. */
+  function prepare(canvas) {
+    const scale = Math.max(1, 96 / Math.max(1, canvas.height));
+    const c = doc.createElement('canvas'); c.width = Math.round(canvas.width * scale); c.height = Math.round(canvas.height * scale);
+    const ctx = c.getContext('2d'); ctx.drawImage(canvas, 0, 0, c.width, c.height);
+    try {
+      const img = ctx.getImageData(0, 0, c.width, c.height); const d = img.data;
+      for (let i = 0; i < d.length; i += 4) { const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; const v = Math.max(0, Math.min(255, (g - 128) * 1.6 + 128)); d[i] = d[i + 1] = d[i + 2] = v; }
+      ctx.putImageData(img, 0, 0);
+    } catch (e) { /* canvas protegido: segue sem tratamento */ }
+    return c;
+  }
+  return {
+    warm: () => engine(),
+    async read(canvas) { const w = await engine(); const r = await w.recognize(prepare(canvas)); return (r && r.data && r.data.text) || ''; },
+    async stop() { if (worker) { try { await worker.terminate(); } catch (e) { /* ignora */ } worker = null; loading = null; } }
+  };
+}
+
+function createScannerScreen({ camera, store, names, collection, env, ocr }) {
+  const lot = createLot({ store });
+  const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, timer: null, alive: true };
+  const video = h('video', { class: 'scan-video', playsinline: true, muted: true, autoplay: true, id: 'scan-video' });
+  video.setAttribute('playsinline', ''); video.muted = true;
+  const frame = h('div', { class: 'scan-frame', 'aria-hidden': 'true' }, h('div', { class: 'scan-frame__band' }, h('span', {}, 'nome aqui')));
+  const stage = h('div', { class: 'scan-stage', id: 'scan-stage' }, video, frame);
+  const status = h('div', { class: 'scan-status', id: 'scan-status' });
+  const result = h('div', { class: 'scan-result', id: 'scan-result', 'aria-live': 'polite' });
+  const dock = h('div', { class: 'scan-dock' });
+  const manualIn = Input({ id: 'scan-manual', placeholder: 'Ou digite o nome da carta' });
+
+  /* ---- ciclo de vida ---- */
+  function stopAll() {
+    state.alive = false; clearInterval(state.timer); state.timer = null;
+    try { camera.stop(); } catch (e) { /* ignora */ }
+  }
+  const onHash = () => { if (!location.hash.startsWith('#/scanner')) { stopAll(); window.removeEventListener('hashchange', onHash); } };
+  window.addEventListener('hashchange', onHash);
+
+  async function boot() {
+    paintStatus(); paintDock();
+    // C6: base de nomes
+    state.base = 'loading'; paintStatus();
+    try { const m = await names.ensure({ online: !env || env.online !== false }); state.base = m ? 'ready' : 'missing'; }
+    catch (e) { state.base = 'missing'; }
+    paintStatus();
+    // X1: câmera
+    if (!camera.available()) { state.camera = 'unavailable'; paintStatus(); return; }
+    state.camera = 'starting'; paintStatus();
+    try { await camera.start(video, { facing: 'environment' }); if (!state.alive) return camera.stop(); state.camera = 'on'; }
+    catch (e) { state.camera = /denied|notallowed|permission/i.test(String(e && (e.name || e.message))) ? 'denied' : 'unavailable'; }
+    paintStatus(); paintDock();
+    // X2: motor de OCR em paralelo
+    if (state.camera === 'on') { state.engine = 'loading'; paintStatus(); ocr.warm().then(() => { state.engine = 'ready'; paintStatus(); paintDock(); }).catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); }); }
+  }
+
+  /* ---- leitura ---- */
+  function nameRegion() {
+    const vr = stage.getBoundingClientRect(), fr = frame.getBoundingClientRect();
+    const band = { x: fr.left - vr.left + fr.width * NAME_BAND.x, y: fr.top - vr.top + fr.height * NAME_BAND.y, w: fr.width * NAME_BAND.w, h: fr.height * NAME_BAND.h };
+    return coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, band);
+  }
+  async function readOnce(manual) {
+    if (state.busy || state.camera !== 'on' || state.base !== 'ready') return;
+    state.busy = true; paintDock();
+    try {
+      const text = await ocr.read(camera.capture(nameRegion()));
+      const found = names.match(text);
+      state.last = { text, found };
+      if (manual) {
+        if (found[0] && found[0].score >= ACCEPT) { await lot.add(found[0].name); lot.rearm(); announce(found[0].name); }
+      } else {
+        const added = await lot.observe(found[0]);
+        if (added) announce(added);
+      }
+      state.engine = 'ready';
+    } catch (e) { state.engine = 'failed'; toast('Não foi possível ler agora. Tente de novo com mais luz.'); }
+    finally { state.busy = false; paintResult(); paintDock(); paintStatus(); }
+  }
+  function announce(name) { pulse(stage); toast(`${name} +1`, 1400); }
+  function setAuto(on) {
+    state.auto = on; clearInterval(state.timer); state.timer = null;
+    if (on) { lot.rearm(); state.timer = setInterval(() => { if (state.alive) readOnce(false); }, AUTO_MS); }
+    paintDock();
+  }
+
+  /* ---- pintura ---- */
+  function paintStatus() {
+    const msg = [];
+    if (state.base === 'loading') msg.push(Row({}, Spinner(), Text('Baixando a base de nomes de cartas (uma vez só)…', { size: 'sm', tone: 'muted' })));
+    if (state.base === 'missing') msg.push(Note('<b>Sem a base de nomes.</b> Ela é baixada da Scryfall na primeira vez; conecte-se e abra o scanner de novo.', 'warning'));
+    if (state.camera === 'denied') msg.push(Note('<b>A câmera foi bloqueada.</b> Libere o acesso nas permissões do site (cadeado na barra de endereço) e recarregue. Enquanto isso, digite o nome abaixo.', 'warning'));
+    if (state.camera === 'unavailable') msg.push(Note('<b>Câmera indisponível neste aparelho ou navegador.</b> Digite o nome abaixo para montar o lote.', 'warning'));
+    if (state.camera === 'on' && state.engine === 'loading') msg.push(Row({}, Spinner(), Text('Preparando o leitor de texto…', { size: 'sm', tone: 'muted' })));
+    if (state.engine === 'failed') msg.push(Note('<b>O leitor de texto não carregou.</b> Ele precisa de internet na primeira vez. Digite o nome abaixo.', 'warning'));
+    const info = names.info();
+    if (info && state.base === 'ready') msg.push(Text(`Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB`, { size: 'xs', tone: 'subtle' }));
+    mount(status, ...msg);
+  }
+
+  function paintResult() {
+    const L = state.last;
+    if (!L) return mount(result, Text('Enquadre a carta na moldura, com o nome na faixa de cima.', { size: 'sm', tone: 'muted' }));
+    if (!L.found.length) return mount(result, Text('Nenhuma carta reconhecida. Aproxime, alinhe o nome e evite reflexo.', { size: 'sm', tone: 'muted' }));
+    const [best, ...rest] = L.found;
+    mount(result,
+      Row({ class: 'ds-row--wrap' }, Text(best.name, { size: 'lg', display: true }), Badge(`${Math.round(best.score * 100)}%`, { tone: best.score >= ACCEPT ? 'positive' : undefined })),
+      Row({ class: 'ds-row--wrap' },
+        ...[best, ...rest].map(c => { const b = Chip(`+ ${c.name}`, { dataset: { candidate: c.name } }); b.addEventListener('click', async () => { await lot.add(c.name); lot.rearm(); announce(c.name); paintDock(); }); return b; })));
+  }
+
+  async function paintDock() {
+    const n = await lot.total();
+    const canRead = state.camera === 'on' && state.base === 'ready' && state.engine !== 'failed';
+    const autoChip = Chip('Automático', { pressed: state.auto, dataset: { auto: '1' } });
+    autoChip.addEventListener('click', () => setAuto(!state.auto));
+    mount(dock,
+      Row({ class: 'scan-dock__row' },
+        Button(state.busy ? 'Lendo…' : 'Ler agora', { variant: 'primary', id: 'scan-read', disabled: !canRead || state.busy, onClick: () => readOnce(true) }),
+        canRead ? autoChip : null),
+      Row({ class: 'scan-dock__row' },
+        Button(`Lote: ${n}`, { id: 'scan-lot', onClick: openLot }),
+        Button('Desfazer', { id: 'scan-undo', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } })));
+  }
+
+  /* ---- lote ---- */
+  async function openLot() {
+    const list = await lot.list();
+    const total = list.reduce((s, x) => s + x.qty, 0);
+    const row = x => h('div', { class: 'col-print', dataset: { name: x.name } },
+      h('div', { class: 'col-print__label' }, Text(x.name, { size: 'md' })),
+      h('div', { class: 'col-row__qty' },
+        Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.name, x.qty - 1); closeDialog(); openLot(); paintDock(); } }),
+        h('span', { class: 'col-print__n' }, String(x.qty)),
+        Button('+', { icon: true, ariaLabel: `Uma a mais de ${x.name}`, onClick: async () => { await lot.setQty(x.name, x.qty + 1); closeDialog(); openLot(); paintDock(); } }),
+        Button('Corrigir', { variant: 'ghost', onClick: () => fix(x) })));
+    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row)) : Empty('Nada lido ainda.'),
+      actions: [
+        list.length ? Button('Limpar', { variant: 'danger', onClick: async () => { await lot.clear(); closeDialog(); paintDock(); toast('Lote limpo'); } }) : null,
+        Button('Fechar', { onClick: closeDialog }),
+        list.length ? Button(`Adicionar ${total} à coleção`, { variant: 'primary', id: 'scan-commit', onClick: commit }) : null].filter(Boolean) });
+  }
+  function fix(x) {
+    closeDialog();
+    const box = h('div', { class: 'col-prints', id: 'scan-fix-list' });
+    const input = Input({ id: 'scan-fix-input', value: x.name });
+    const show = () => mount(box, ...names.match(input.value, { limit: 5 }).map(c => Button(c.name, { block: true, onClick: async () => { await lot.rename(x.name, c.name); closeDialog(); openLot(); } })));
+    input.addEventListener('input', show); show();
+    Dialog({ title: 'Corrigir leitura', body: Stack({}, Field('Nome', input), box), actions: [Button('Voltar', { onClick: () => { closeDialog(); openLot(); } })] });
+  }
+  async function commit() {
+    const list = await lot.list();
+    for (const x of list) await collection.set(x.name, (await collection.qty(x.name)) + x.qty);
+    const total = list.reduce((s, x) => s + x.qty, 0);
+    await lot.clear(); closeDialog(); paintDock();
+    toast(`${total} carta(s) adicionada(s) à coleção`);
+  }
+
+  /* ---- entrada manual ---- */
+  const suggest = h('div', { class: 'scan-suggest', id: 'scan-suggest' });
+  manualIn.addEventListener('input', () => {
+    const found = manualIn.value.trim().length >= 3 ? names.match(manualIn.value, { limit: 4 }) : [];
+    mount(suggest, ...found.map(c => Chip(`+ ${c.name}`, { dataset: { manual: c.name }, onClick: async () => { await lot.add(c.name); announce(c.name); manualIn.value = ''; mount(suggest); paintDock(); } })));
+  });
+
+  paintResult(); boot();
+  return Stack({ class: 'ds-wrap scan', style: { paddingTop: 'var(--space-4)', paddingBottom: 'var(--space-4)' } },
+    Row({}, Text('Scanner', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }), Button('Coleção', { onClick: () => go('/colecao') })),
+    status, stage, result,
+    Field('Sem câmera ou leitura difícil?', manualIn), suggest,
+    h('div', { class: 'scan-dock-wrap' }, dock));
+}
+
+return { createOcr, createScannerScreen, TESSERACT_URL };
+})();
+
+
 /* ==== src/app/main.js ==== */
 const __m13 = (function () {
 /* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
@@ -3892,6 +4311,8 @@ const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
 const { createDecksHome, createDeckEditor, createDeckScreen, createCollectionScreen } = __m15;
 const { createTableSetup, createTableScreen } = __m19;
+const { createNameIndex } = __m21;
+const { createOcr, createScannerScreen } = __m22;
 const platform = createPlatform();
 const theme = createTheme(platform.store);
 const scryfall = createScryfall({});
@@ -3900,6 +4321,8 @@ const localIndex = createLocalIndex({ store: platform.store });
 const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
 const decks = createDeckStore({ store: platform.store });
 const collection = createCollection({ store: platform.store });
+const names = createNameIndex({ store: platform.store, scryfall });
+const ocr = createOcr();
 let environment = ENVIRONMENTS.online;
 const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });
 
@@ -3910,6 +4333,7 @@ const ROUTES = [
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence }) },
+  { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, env: environment, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
   { path: '/ds', title: 'Design system', render: renderDS },
@@ -3925,6 +4349,7 @@ function renderHome() {
       Button('Jogar', { variant: 'primary', id: 'go-play', onClick: () => { location.hash = '#/mesa'; } }),
       Button('Minhas listas', { id: 'go-decks', onClick: () => { location.hash = '#/listas'; } }),
       Button('Minha coleção', { id: 'go-collection', onClick: () => { location.hash = '#/colecao'; } }),
+      Button('Escanear cartas', { id: 'go-scanner', onClick: () => { location.hash = '#/scanner'; } }),
       Button('Buscar cartas', { id: 'go-cards', onClick: () => { location.hash = '#/cartas'; } }),
       Button('Catálogo de componentes', { id: 'go-ds', onClick: () => { location.hash = '#/ds'; } })));
 }
@@ -3984,7 +4409,7 @@ if (typeof window !== 'undefined' && !window.__MTG_NO_AUTOBOOT) {
   const start = () => boot(document.getElementById('app'));
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 }
-return { boot, platform, theme, scryfall, images, localIndex, cardRepo, decks, collection, environment, installer };
+return { boot, platform, theme, scryfall, images, localIndex, cardRepo, decks, collection, names, environment, installer };
 })();</script>
 </body>
 </html>
