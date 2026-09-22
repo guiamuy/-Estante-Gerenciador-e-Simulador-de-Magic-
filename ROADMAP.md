@@ -35,11 +35,12 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | W · PWA | W1 instalação, service worker e estratégia de cache | ✅ |
 | L · Listas e coleção | L1 persistência e backup · L2 leitura de texto · L3 galeria · L4 coleção por nome · L5 validação de formato · L6 exportação | ✅ |
 | Q · Qualidade | Q1 harness · Q2 fuzz · Q3 golden · Q4 integração headless · Q5 contrato visual · Q6 portão e CI | ✅ |
-| Q · Qualidade | Q7 dívida de testes de F2, D1, D2 e W1 | 🟡 |
+| Q · Qualidade | Q7 dívida de testes de F2, D1, D2 e W1 | ✅ |
 | M · Motor núcleo | M1 estado e semente · M2 formato e mulligan · M3 turno · M4 prioridade e pilha · M5 ações baseadas em estado · M8 replay e desfazer | ✅ |
-| A · Mesa assistida | A0 componentes · A1 layout · A2 preparar partida · A3 mão e ações legais · A4 prioridade e pilha · A5 adjudicação · A7 registro e desfazer · A8 continuar partida · A9 goldfish e hot-seat | 🟡 |
+| A · Mesa assistida | A0 componentes · A1 layout · A2 preparar partida · A3 mão e ações legais · A4 prioridade e pilha · A5 adjudicação · A7 registro e desfazer · A8 continuar partida · A9 goldfish e hot-seat | ✅ |
 | B · Bot | B1 política aleatória legal (base do fuzz) | ✅ |
-| C · Coleção | C2 tela Coleção · C7 marcar com toque duplo · C8 lista nova já possuída · C9 editar quantidade e remover | 🟡 |
+| C · Coleção | C2 tela Coleção · C7 marcar com toque duplo · C8 lista nova já possuída · C9 editar quantidade e remover | ✅ |
+| C · Coleção | C1 coleção por impressão · C3 importar e exportar CSV · C5 persistência garantida | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -173,10 +174,10 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | Entrega | Conteúdo | Resultado para o usuário |
 |---|---|---|
 | E1 ✅ | Q1–Q6, M1–M5, M8, B1 | Portão de qualidade e motor testado |
-| E2 🟡 | A0–A5, A7, A8, A9, Q7 | Primeira partida jogável: mesa assistida, goldfish e hot-seat |
-| E3 🟡 | C2, C7, C8, C9 | Coleção gerenciável: tela própria, dois toques marcam, lista nova já possuída, editar e remover |
-| E4 ▶ | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
-| E5 | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
+| E2 ✅ | A0–A5, A7, A8, A9, Q7 | Primeira partida jogável: mesa assistida, goldfish e hot-seat |
+| E3 ✅ | C2, C7, C8, C9 | Coleção gerenciável: tela própria, dois toques marcam, lista nova já possuída, editar e remover |
+| E4 🟡 | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
+| E5 ▶ | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
 | E6 | X3, X5, X6 | Scanner identifica a impressão, alimenta coleção ou lista e funciona offline |
 | E7 | M6, A6, M7 | Combate e mana resolvidos pelo motor |
 | E8 | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
@@ -248,7 +249,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** Q1–Q5.
 - **Fora:** deploy automático condicionado (ver seção 8).
 
-**Q7 · Dívida de testes das histórias F, D e W** 🟡
+**Q7 · Dívida de testes das histórias F, D e W** ✅
 - **Valor:** o que já funciona continua funcionando.
 - **Aceite:**
   - D1: lotes de 75, intervalo mínimo, retentativa em 429 e 5xx, 404 como "não encontrado", erro de origem em `file://`;
@@ -414,7 +415,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### A · Mesa assistida
 
-**A0 · Componentes da mesa no design system** 🟡
+**A0 · Componentes da mesa no design system** ✅
 - **Valor:** a mesa nasce coerente com o resto do app.
 - **Aceite:**
   - zona, carta na mesa (virada, com enjoo, com marcadores), pilha, contador de vida, banner de prioridade, cartão de adjudicação e barra de passo;
@@ -423,7 +424,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** F5.
 - **Fora:** animações de carta.
 
-**A1 · Layout da mesa** 🟡
+**A1 · Layout da mesa** ✅
 - **Valor:** ver o estado inteiro da partida numa tela de celular.
 - **Aceite:**
   - retrato: oponente em cima, você embaixo, pilha e passo ao centro, mão em faixa rolável;
@@ -433,7 +434,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A0, M5.
 - **Fora:** paisagem e tablet.
 
-**A2 · Preparar partida** 🟡
+**A2 · Preparar partida** ✅
 - **Valor:** do deck salvo à mão inicial em três toques.
 - **Aceite:**
   - escolher lista(s), formato, modo (só mesa assistida até S9) e oponente (goldfish ou hot-seat);
@@ -443,7 +444,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L1, M2.
 - **Fora:** motor completo (S9).
 
-**A3 · Mão e ações legais** 🟡
+**A3 · Mão e ações legais** ✅
 - **Valor:** só aparece o que se pode fazer agora.
 - **Aceite:**
   - botões derivados de `legalActions`;
@@ -453,7 +454,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A1, M4.
 - **Fora:** —
 
-**A4 · Pilha e momento de prioridade** 🟡
+**A4 · Pilha e momento de prioridade** ✅
 - **Valor:** saber quando é a sua vez de responder.
 - **Aceite:**
   - banner "Você tem prioridade" com Passar como ação primária;
@@ -463,7 +464,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A1.
 - **Fora:** —
 
-**A5 · Adjudicação** 🟡
+**A5 · Adjudicação** ✅
 - **Valor:** qualquer carta joga, mesmo sem script.
 - **Aceite:**
   - ao resolver, abre um cartão com o oracle e os controles diretos (mover para zona, virar, marcadores, dano, vida, comprar, dano de comandante);
@@ -480,7 +481,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M6, A1.
 - **Fora:** —
 
-**A7 · Registro legível e desfazer** 🟡
+**A7 · Registro legível e desfazer** ✅
 - **Valor:** entender o que aconteceu e corrigir engano.
 - **Aceite:**
   - log em pt-BR ("Bot conjurou Counterspell");
@@ -490,7 +491,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M8.
 - **Fora:** —
 
-**A8 · Salvar e retomar partida** 🟡
+**A8 · Salvar e retomar partida** ✅
 - **Valor:** a partida sobrevive a fechar o app.
 - **Aceite:**
   - salva automaticamente a cada ação (semente + log);
@@ -500,7 +501,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A1, M8.
 - **Fora:** sincronizar entre aparelhos.
 
-**A9 · Oponentes da mesa assistida** 🟡
+**A9 · Oponentes da mesa assistida** ✅
 - **Valor:** treinar sozinho ou jogar com alguém ao lado.
 - **Aceite:**
   - goldfish (oponente passivo que só passa);
@@ -639,16 +640,19 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### C · Coleção
 
-**C1 · Coleção por impressão** ▶
+**C1 · Coleção por impressão** 🟡
 - **Valor:** saber exatamente qual versão você tem.
 - **Aceite:**
-  - item = carta + edição + número + foil + idioma + condição + quantidade;
-  - migração automática da coleção por nome (L4) sem perda.
-- **Testes:** U, I.
+  - item = carta + edição + número + acabamento (normal, foil, etched) + idioma + condição + quantidade;
+  - a coleção por nome antiga migra sem perda: cada carta vira "cópia genérica", sem edição definida;
+  - listas continuam consultando por nome: o total é a soma de todas as impressões;
+  - reduzir pelo nome tira primeiro as cópias genéricas e depois as impressões mais recentes;
+  - na Coleção, tocar no nome abre as impressões: adicionar (edições vindas da Scryfall, ou código e número à mão sem rede), editar acabamento, idioma e condição (funde com uma igual já existente) e ajustar cada uma.
+- **Testes:** U (migração, soma, redução, fusão), I (adicionar, editar e ajustar impressão).
 - **Depende de:** L4.
-- **Fora:** preço histórico.
+- **Fora:** preço por impressão e valor da coleção (história própria, depois do scanner).
 
-**C2 · Tela Coleção** 🟡
+**C2 · Tela Coleção** ✅
 - **Valor:** consultar e manter o acervo com a densidade do Moxfield.
 - **Aceite:**
   - uma linha por carta, com miniatura, tipo e as listas que usam a carta;
@@ -660,7 +664,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L4.
 - **Fora:** filtros por cor, tipo e edição, e valor em US$ (entram com C1).
 
-**C7 · Marcar com toque duplo** 🟡
+**C7 · Marcar com toque duplo** ✅
 - **Valor:** marcar que tem uma carta sem abrir nada.
 - **Aceite:**
   - dois toques numa carta da galeria da lista ou da busca marcam ou desmarcam "tenho";
@@ -672,7 +676,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L4.
 - **Fora:** toque duplo na mesa.
 
-**C8 · Lista nova já possuída** 🟡
+**C8 · Lista nova já possuída** ✅
 - **Valor:** cadastrar um deck montado sem marcar carta por carta.
 - **Aceite:**
   - opção "Já tenho todas as cartas desta lista" ao criar ou editar;
@@ -682,7 +686,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L1, L4.
 - **Fora:** —
 
-**C9 · Editar quantidade e remover** 🟡
+**C9 · Editar quantidade e remover** ✅
 - **Valor:** a coleção reflete a realidade.
 - **Aceite:**
   - +/− na linha;
@@ -692,13 +696,17 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** C2.
 - **Fora:** desfazer remoção.
 
-**C3 · Importar e exportar CSV** ▶
+**C3 · Importar e exportar CSV** 🟡
 - **Valor:** trazer a coleção de outros apps.
 - **Aceite:**
-  - reconhece os cabeçalhos de ManaBox, Moxfield, Delver Lens e Archidekt;
-  - relatório de linhas não reconhecidas;
-  - exporta CSV.
-- **Testes:** U com arquivos de exemplo de cada app.
+  - reconhece colunas pelo cabeçalho: ManaBox, Moxfield, Archidekt, Delver Lens e planilhas com cabeçalhos parecidos;
+  - aceita vírgula, ponto e vírgula ou tabulação, aspas e BOM;
+  - normaliza acabamento, condição (NM, LP, MP, HP, DMG) e idioma;
+  - prévia antes de importar, com formato reconhecido, total e linhas ignoradas com motivo;
+  - somar à coleção ou substituir (com confirmação);
+  - exporta no cabeçalho de coleção do Moxfield, que a própria Estante relê sem perda.
+- **Testes:** U com arquivo de exemplo de cada app e ida e volta; I (importar, prévia, exportar).
+- **Nota:** os arquivos de exemplo foram montados a partir dos cabeçalhos públicos de exportação. Validar com uma exportação real de cada app e, se algum divergir, virar fixture.
 - **Depende de:** C1.
 - **Fora:** sincronização por API de terceiros.
 
@@ -709,17 +717,18 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** C1, V1.
 - **Fora:** —
 
-**C5 · Persistência garantida** ▶
+**C5 · Persistência garantida** 🟡
 - **Valor:** não perder a coleção.
 - **Aceite:**
-  - pede `storage.persist()`;
-  - lembra de fazer backup se o último tiver mais de 30 dias;
-  - mostra o estado da persistência.
-- **Testes:** I.
+  - a camada de plataforma ganha `persistence` (status e pedido de proteção);
+  - na Coleção, aviso quando o navegador pode apagar os dados, com o botão "Proteger armazenamento";
+  - lembrete quando nunca houve backup ou o último tem mais de 30 dias, com o botão "Exportar backup";
+  - backup v2 leva as impressões; backups v1 continuam restaurando.
+- **Testes:** U (backup v2 e data do último), I (aviso some depois do backup).
 - **Depende de:** L1.
 - **Fora:** backup em nuvem.
 
-**C6 · Base offline de cartas** ○
+**C6 · Base offline de cartas** ▶
 - **Valor:** buscar qualquer carta sem rede.
 - **Aceite:**
   - baixa a base leve (oracle) sob demanda, com progresso e tamanho medido;
@@ -731,7 +740,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### X · Scanner
 
-**X1 · Câmera com moldura guia** ○
+**X1 · Câmera com moldura guia** ▶
 - **Valor:** apontar e enquadrar com uma mão.
 - **Aceite:**
   - câmera traseira via F2;
@@ -742,7 +751,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** F2.
 - **Fora:** —
 
-**X2 · Reconhecimento pelo nome** ○
+**X2 · Reconhecimento pelo nome** ▶
 - **Valor:** identificar a carta sem digitar.
 - **Aceite:**
   - OCR no aparelho da faixa do nome;
@@ -761,7 +770,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** X2, C1.
 - **Fora:** —
 
-**X4 · Fluxo em lote com uma mão** ○
+**X4 · Fluxo em lote com uma mão** ▶
 - **Valor:** catalogar uma caixa inteira depressa.
 - **Aceite:**
   - captura contínua com contador;

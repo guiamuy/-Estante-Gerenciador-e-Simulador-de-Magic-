@@ -594,6 +594,14 @@ body {
 @keyframes own-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.06); box-shadow: var(--focus-ring); } 100% { transform: scale(1); } }
 .own-badge { background: var(--positive); color: var(--positive-fg); }
 @media (prefers-reduced-motion: reduce) { .deck-slot.is-pulse .ds-card { animation: none; } }
+
+/* ===================== C1 · impressões ===================== */
+.col-row__info { background: none; border: none; padding: 0; text-align: left; color: inherit; min-height: var(--tap-min); display: flex; flex-direction: column; justify-content: center; }
+.col-prints { display: flex; flex-direction: column; }
+.col-print { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.col-print:last-child { border-bottom: none; }
+.col-print__label { min-width: 0; display: flex; flex-direction: column; }
+.col-print__n { min-width: 3ch; text-align: center; font-weight: var(--weight-bold); font-size: var(--text-lg); }
 </style>
 </head>
 <body>
@@ -612,8 +620,26 @@ const PLATFORM_CONTRACT = {
   store: ['get', 'set', 'remove', 'keys'],
   camera: ['available', 'start', 'capture', 'stop'],
   files: ['save', 'readText'],
-  share: ['available', 'text', 'copy']
+  share: ['available', 'text', 'copy'],
+  persistence: ['status', 'request']
 };
+
+/* ---------------- C5 · Persistência ----------------
+   Pede ao navegador para não apagar os dados do app sob pressão de espaço. */
+function webPersistence(nav) {
+  const st = nav && nav.storage;
+  return {
+    /** 'protegido' | 'vulneravel' | 'indisponivel' */
+    async status() {
+      if (!st || !st.persisted) return 'indisponivel';
+      try { return (await st.persisted()) ? 'protegido' : 'vulneravel'; } catch (e) { return 'indisponivel'; }
+    },
+    async request() {
+      if (!st || !st.persist) return 'indisponivel';
+      try { return (await st.persist()) ? 'protegido' : 'vulneravel'; } catch (e) { return 'vulneravel'; }
+    }
+  };
+}
 
 /* ---------------- Store ---------------- */
 function memoryStore() {
@@ -740,7 +766,8 @@ function createPlatform(env = {}) {
     store,
     camera: env.camera || webCamera(nav, doc),
     files: env.files || webFiles(doc, G('URL'), G('Blob'), G('FileReader')),
-    share: env.share || webShare(nav)
+    share: env.share || webShare(nav),
+    persistence: env.persistence || webPersistence(nav)
   };
 }
 return { memoryStore, createPlatform, PLATFORM_CONTRACT };
@@ -2011,8 +2038,10 @@ function createDeckStore({ store, now = () => Date.now() }) {
     },
     /** Backup completo: listas + coleção. O dado mora no aparelho. */
     async exportAll(collection) {
-      return JSON.stringify({ kind: 'estante.backup', version: 1, decks: await this.list(), owned: await collection.all(), ownedNames: await collection.names() }, null, 1);
+      await store.set('backup.last', now());
+      return JSON.stringify({ kind: 'estante.backup', version: 2, decks: await this.list(), owned: await collection.all(), ownedNames: await collection.names(), items: await collection.items() }, null, 1);
     },
+    async lastBackup() { return (await store.get('backup.last')) || 0; },
     async importAll(text, collection) {
       let data;
       try { data = JSON.parse(text); } catch (e) { throw new Error('arquivo-invalido'); }
@@ -2022,42 +2051,108 @@ function createDeckStore({ store, now = () => Date.now() }) {
       const cur = new Set(await ids());
       (data.decks || []).forEach(d => d && d.id && cur.add(d.id));
       await store.set(IDS, [...cur]);
-      if (data.owned) await collection.merge(data.owned, data.ownedNames || {});
+      if (Array.isArray(data.items)) await collection.mergeItems(data.items); else if (data.owned) await collection.merge(data.owned, data.ownedNames || {});
       return { decks: n };
     }
   };
 }
 
-/* ---------------- L4 · coleção ----------------
-   Por nome de carta, não por impressão: responde "tenho esta carta?".
-   C2/C9: guarda o nome de exibição ao lado da quantidade, para a tela de
-   coleção listar sem depender da rede. Valores antigos (só número) seguem válidos. */
+/* ---------------- L4 · C1 · coleção ----------------
+   A fonte da verdade são itens por impressão:
+     { key, name, set, set_name, number, finish, lang, cond, id, qty }
+   Item sem impressão (set vazio) é a "cópia genérica": o que veio das listas,
+   do toque duplo e da coleção por nome antiga. Listas continuam perguntando
+   por nome; a resposta é a soma de todas as impressões daquela carta. */
 const NAMES = 'collection.names';
+const ITEMS = 'collection.items';
+const CONDITIONS = [['NM', 'Near Mint'], ['LP', 'Levemente jogada'], ['MP', 'Moderadamente jogada'], ['HP', 'Muito jogada'], ['DMG', 'Danificada']];
+const LANGS = [['en', 'Inglês'], ['pt', 'Português'], ['es', 'Espanhol'], ['ja', 'Japonês'], ['de', 'Alemão'], ['fr', 'Francês'], ['it', 'Italiano'], ['ru', 'Russo'], ['ko', 'Coreano'], ['zhs', 'Chinês simplificado'], ['zht', 'Chinês tradicional']];
+const FINISHES = [['', 'Normal'], ['foil', 'Foil'], ['etched', 'Etched']];
+
+function itemKey(p) {
+  return [norm(p.name), String(p.set || '').toLowerCase(), String(p.number || ''), p.finish || '', p.set ? (p.lang || 'en') : '', p.set ? (p.cond || 'NM') : ''].join('|');
+}
+function makeItem(p, qty) {
+  const printed = !!p.set;
+  const it = { name: String(p.name).trim(), set: String(p.set || '').toLowerCase(), set_name: p.set_name || '', number: String(p.number || ''),
+    finish: p.finish || '', lang: printed ? (p.lang || 'en') : '', cond: printed ? (p.cond || 'NM') : '', id: p.id || '', qty };
+  it.key = itemKey(it);
+  return it;
+}
+
 function createCollection({ store }) {
-  let cache = null, names = null;
-  const load = async () => {
-    if (!cache) { cache = (await store.get(OWNED)) || {}; names = (await store.get(NAMES)) || {}; }
-    return cache;
-  };
-  const persist = () => Promise.all([store.set(OWNED, cache), store.set(NAMES, names)]);
+  let items = null; // Map key -> item, em ordem de inserção
+  async function load() {
+    if (items) return items;
+    items = new Map();
+    const saved = await store.get(ITEMS);
+    if (Array.isArray(saved)) { for (const it of saved) if (it && it.qty > 0) items.set(it.key || itemKey(it), { ...it, key: it.key || itemKey(it) }); }
+    else {
+      // migração da coleção por nome (L4/C2): cada nome vira uma cópia genérica, sem perda
+      const owned = (await store.get(OWNED)) || {}; const names = (await store.get(NAMES)) || {};
+      for (const [k, q] of Object.entries(owned)) if (q > 0) { const it = makeItem({ name: names[k] || k }, q); items.set(it.key, it); }
+      if (items.size) await persist();
+    }
+    return items;
+  }
+  const persist = () => store.set(ITEMS, [...items.values()]);
+  const ofName = k => [...items.values()].filter(it => norm(it.name) === k);
+  const displayName = k => { const printed = ofName(k).find(it => it.set); return (printed || ofName(k)[0] || {}).name; };
+
   const api = {
-    async all() { return { ...(await load()) }; },
-    async qty(name) { return (await load())[norm(name)] || 0; },
+    /** nome normalizado → total de cópias (o que listas e validação consultam) */
+    async all() { const out = {}; for (const it of (await load()).values()) { const k = norm(it.name); out[k] = (out[k] || 0) + it.qty; } return out; },
+    async qty(name) { await load(); return ofName(norm(name)).reduce((s, it) => s + it.qty, 0); },
+    async items() { return [...(await load()).values()].map(it => ({ ...it })); },
+    /** Define o total por nome. Sobe pela cópia genérica; desce pela genérica
+        primeiro e depois pelas impressões mais recentes. Zero remove tudo. */
     async set(name, qty) {
-      const m = await load(); const k = norm(name);
-      const q = Math.max(0, Math.floor(Number(qty) || 0));
-      if (q > 0) { m[k] = q; if (!names[k] || names[k] === k) names[k] = String(name).trim(); }
-      else { delete m[k]; delete names[k]; }
-      await persist(); return q;
+      await load(); const k = norm(name);
+      let target = Math.max(0, Math.floor(Number(qty) || 0));
+      const mine = ofName(k);
+      if (!target) { mine.forEach(it => items.delete(it.key)); await persist(); return 0; }
+      let total = mine.reduce((s, it) => s + it.qty, 0);
+      if (target > total) {
+        const g = mine.find(it => !it.set);
+        if (g) g.qty += target - total; else { const it = makeItem({ name: String(name).trim() }, target - total); items.set(it.key, it); }
+      } else {
+        const order = [...mine.filter(it => !it.set), ...mine.filter(it => it.set).reverse()];
+        for (const it of order) { if (total <= target) break; const cut = Math.min(it.qty, total - target); it.qty -= cut; total -= cut; if (!it.qty) items.delete(it.key); }
+      }
+      await persist(); return target;
     },
     async remove(name) { return api.set(name, 0); },
-    /** C2 · itens da coleção com nome de exibição. */
+    /** C2 · uma entrada por nome, com as impressões dentro. */
     async entries() {
-      const m = await load();
-      return Object.entries(m).map(([key, qty]) => ({ key, name: names[key] || key, qty }));
+      const groups = new Map();
+      for (const it of (await load()).values()) {
+        const k = norm(it.name); const g = groups.get(k) || { key: k, name: '', qty: 0, items: [] };
+        g.qty += it.qty; g.items.push({ ...it }); groups.set(k, g);
+      }
+      for (const g of groups.values()) g.name = displayName(g.key);
+      return [...groups.values()];
     },
-    /** C7 · alterna "tenho" sem nunca apagar cópias além do alvo.
-        0 → alvo; exatamente o alvo → 0; acima do alvo → não mexe (ajuste na Coleção). */
+    /** C1 · soma cópias de uma impressão específica. */
+    async addPrinting(p, qty = 1) {
+      await load(); const it = makeItem(p, qty);
+      const cur = items.get(it.key); if (cur) cur.qty += qty; else items.set(it.key, it);
+      await persist(); return items.get(it.key).qty;
+    },
+    /** C1 · define a quantidade de um item (0 remove). */
+    async setItem(key, qty) {
+      await load(); const it = items.get(key); if (!it) return 0;
+      const q = Math.max(0, Math.floor(Number(qty) || 0));
+      if (q) it.qty = q; else items.delete(key);
+      await persist(); return q;
+    },
+    /** C1 · muda acabamento, idioma, condição ou impressão; funde se já existir igual. */
+    async updateItem(key, patch) {
+      await load(); const it = items.get(key); if (!it) return null;
+      const next = makeItem({ ...it, ...patch }, it.qty);
+      items.delete(key);
+      const dup = items.get(next.key); if (dup) dup.qty += next.qty; else items.set(next.key, next);
+      await persist(); return next.key;
+    },
     async toggle(name, target = 1) {
       const before = await api.qty(name);
       if (before > target) return { before, after: before, changed: false, reason: 'acima' };
@@ -2065,22 +2160,111 @@ function createCollection({ store }) {
       await api.set(name, after);
       return { before, after, changed: true };
     },
-    /** C8 · lista nova já possuída: garante ao menos a quantidade da lista. */
     async markOwned(entries) {
-      const m = await load(); const need = new Map();
+      const need = new Map();
       for (const e of entries) { const k = norm(e.name); const cur = need.get(k) || { name: e.name, qty: 0 }; cur.qty += e.qty; need.set(k, cur); }
       let changed = 0;
-      for (const [k, { name, qty }] of need) if ((m[k] || 0) < qty) { m[k] = qty; if (!names[k]) names[k] = name; changed++; }
-      await persist(); return changed;
+      for (const { name, qty } of need.values()) if ((await api.qty(name)) < qty) { await api.set(name, qty); changed++; }
+      return changed;
     },
+    /** C3 · importa itens já normalizados. mode: 'add' soma, 'replace' substitui tudo. */
+    async importItems(list, mode = 'add') {
+      await load();
+      if (mode === 'replace') items.clear();
+      for (const p of list) { const it = makeItem(p, p.qty); const cur = items.get(it.key); if (cur) cur.qty += it.qty; else items.set(it.key, it); }
+      await persist(); return list.length;
+    },
+    /** Backup antigo (v1, por nome) e novo (v2, por impressão). */
     async merge(obj, nameMap = {}) {
-      const m = await load();
-      for (const [k, v] of Object.entries(obj || {})) if (v > 0) { m[k] = Math.max(m[k] || 0, v); if (nameMap[k] && !names[k]) names[k] = nameMap[k]; }
+      for (const [k, v] of Object.entries(obj || {})) if (v > 0 && (await api.qty(nameMap[k] || k)) < v) await api.set(nameMap[k] || k, v);
+    },
+    async mergeItems(list) {
+      await load();
+      for (const p of list || []) { if (!p || !p.name || !(p.qty > 0)) continue; const it = makeItem(p, p.qty); const cur = items.get(it.key); if (!cur || cur.qty < it.qty) items.set(it.key, it); }
       await persist();
     },
-    async names() { await load(); return { ...names }; }
+    async names() { const out = {}; for (const it of (await load()).values()) out[norm(it.name)] = it.name; return out; }
   };
   return api;
+}
+
+/* ---------------- C3 · CSV de coleção ----------------
+   Reconhece colunas pelo cabeçalho, não pela posição: ManaBox, Moxfield,
+   Archidekt, Delver Lens e planilhas próprias com cabeçalhos parecidos. */
+function parseCSV(text) {
+  const src = String(text || '').replace(/^\uFEFF/, '');
+  const first = src.split(/\r?\n/, 1)[0] || '';
+  const delim = [',', ';', '\t'].sort((a, b) => first.split(b).length - first.split(a).length)[0];
+  const rows = []; let row = [], field = '', quoted = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quoted) {
+      if (ch === '"') { if (src[i + 1] === '"') { field += '"'; i++; } else quoted = false; }
+      else field += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === delim) { row.push(field); field = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && src[i + 1] === '\n') i++; row.push(field); rows.push(row); row = []; field = ''; }
+    else field += ch;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => String(c).trim()));
+}
+
+const COLS = {
+  name: ['name', 'card name', 'card'],
+  qty: ['quantity', 'count', 'qty', 'amount', 'quantidade'],
+  set: ['set code', 'edition code', 'set', 'edition', 'set_code'],
+  set_name: ['set name', 'edition name'],
+  number: ['collector number', "collector's number", 'card number', 'number', 'cn'],
+  finish: ['foil', 'finish', 'printing'],
+  cond: ['condition'],
+  lang: ['language', 'lang'],
+  id: ['scryfall id', 'scryfall_id']
+};
+const SIGNATURES = [
+  ['ManaBox', ['manabox id']], ['Moxfield', ['tradelist count']], ['Archidekt', ['edition code', 'finish']],
+  ['Delver Lens', ["collector's number"]]
+];
+const COND_MAP = [[/^(nm|near[\s_]?mint|mint|m)$/, 'NM'], [/^(lp|lightly[\s_]?played|excellent|ex|slightly[\s_]?played|sp)$/, 'LP'],
+  [/^(mp|moderately[\s_]?played|played|good|gd|pl)$/, 'MP'], [/^(hp|heavily[\s_]?played|light[\s_]?played)$/, 'HP'], [/^(dmg|damaged|poor|po)$/, 'DMG']];
+const LANG_MAP = { english: 'en', en: 'en', portuguese: 'pt', 'português': 'pt', pt: 'pt', spanish: 'es', es: 'es', japanese: 'ja', ja: 'ja', jp: 'ja',
+  german: 'de', de: 'de', french: 'fr', fr: 'fr', italian: 'it', it: 'it', russian: 'ru', ru: 'ru', korean: 'ko', ko: 'ko',
+  'chinese simplified': 'zhs', zhs: 'zhs', 'simplified chinese': 'zhs', 'chinese traditional': 'zht', zht: 'zht', 'traditional chinese': 'zht' };
+
+function normCond(v) { const s = String(v || '').trim().toLowerCase(); if (!s) return 'NM'; const m = COND_MAP.find(([re]) => re.test(s)); return m ? m[1] : 'NM'; }
+function normLang(v) { const s = String(v || '').trim().toLowerCase(); return LANG_MAP[s] || (s.length <= 3 && s ? s : 'en'); }
+function normFinish(v) { const s = String(v || '').trim().toLowerCase(); if (s === 'etched') return 'etched'; return ['foil', 'yes', 'true', '1', 'sim', 'y'].includes(s) ? 'foil' : ''; }
+
+/** Lê um CSV de coleção. Devolve itens normalizados, linhas ignoradas com motivo e o formato reconhecido. */
+function parseCollectionCSV(text) {
+  const rows = parseCSV(text);
+  if (!rows.length) return { items: [], skipped: [], format: null, error: 'arquivo vazio' };
+  const head = rows[0].map(h => String(h).trim().toLowerCase());
+  const idx = {};
+  for (const [field, aliases] of Object.entries(COLS)) { for (const a of aliases) { const i = head.indexOf(a); if (i >= 0 && !Object.values(idx).includes(i)) { idx[field] = i; break; } } }
+  if (idx.name == null) return { items: [], skipped: [], format: null, error: 'sem coluna de nome da carta' };
+  const format = (SIGNATURES.find(([, cols]) => cols.every(c => head.includes(c))) || ['Planilha'])[0];
+  const items = [], skipped = [];
+  rows.slice(1).forEach((r, n) => {
+    const get = f => idx[f] != null ? String(r[idx[f]] ?? '').trim() : '';
+    const name = get('name');
+    const qty = idx.qty != null ? parseInt(get('qty'), 10) : 1;
+    if (!name) return skipped.push({ line: n + 2, reason: 'sem nome' });
+    if (!Number.isFinite(qty) || qty < 1) return skipped.push({ line: n + 2, reason: `quantidade inválida em ${name}` });
+    items.push({ name, qty, set: get('set').toLowerCase(), set_name: get('set_name'), number: get('number'),
+      finish: normFinish(get('finish')), cond: normCond(get('cond')), lang: normLang(get('lang')), id: get('id') });
+  });
+  return { items, skipped, format, error: null };
+}
+
+const COND_EXPORT = { NM: 'Near Mint', LP: 'Lightly Played', MP: 'Moderately Played', HP: 'Heavily Played', DMG: 'Damaged' };
+const LANG_EXPORT = { en: 'English', pt: 'Portuguese', es: 'Spanish', ja: 'Japanese', de: 'German', fr: 'French', it: 'Italian', ru: 'Russian', ko: 'Korean', zhs: 'Chinese Simplified', zht: 'Chinese Traditional' };
+/** Exporta no cabeçalho de coleção do Moxfield, que outros apps e a própria Estante leem. */
+function exportCollectionCSV(list) {
+  const q = v => { const s = String(v ?? ''); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const lines = ['Count,Name,Edition,Condition,Language,Foil,Collector Number'];
+  for (const it of list) lines.push([it.qty, it.name, it.set, it.set ? COND_EXPORT[it.cond] || 'Near Mint' : '', it.set ? LANG_EXPORT[it.lang] || 'English' : '', it.finish, it.number].map(q).join(','));
+  return lines.join('\n') + '\n';
 }
 
 /* ---------------- categorias e estatística ---------------- */
@@ -2171,7 +2355,8 @@ function exportText(deck, { onlyMissing = false, owned = {} } = {}) {
   return [block('commander', 'Commander'), block('main', 'Deck'), block('side', 'Sideboard')].filter(Boolean).join('\n\n');
 }
 
-return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES };
+return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES,
+  parseCSV, parseCollectionCSV, exportCollectionCSV, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -2423,13 +2608,23 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
   return root;
 }
 
-/* ---------------- /colecao · C2 e C9 ----------------
-   Densidade do Moxfield: uma linha por carta, quantidade editável no
-   lugar, remoção com confirmação e as listas que usam a carta. */
-function createCollectionScreen({ collection, decks, cardRepo }) {
+/* ---------------- /colecao · C1, C2, C3, C5, C9 ----------------
+   Densidade do Moxfield: uma linha por carta com as impressões resumidas;
+   tocar no nome abre as impressões para editar uma a uma. */
+function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence }) {
+  const { parseCollectionCSV, exportCollectionCSV, CONDITIONS, LANGS, FINISHES } = __m14;
   const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true };
   const listEl = h('div', { id: 'col-list' }, Row({}, Spinner(), Text('Abrindo coleção…', { size: 'sm', tone: 'muted' })));
   const summary = h('div', { id: 'col-summary' });
+  const care = h('div', { id: 'col-care' });
+  const LANG_PT = Object.fromEntries(LANGS), FIN_PT = Object.fromEntries(FINISHES);
+
+  const printLabel = it => it.set
+    ? [it.set.toUpperCase(), it.number ? `#${it.number}` : null, it.finish ? FIN_PT[it.finish].toLowerCase() : null, it.lang !== 'en' ? it.lang.toUpperCase() : null, it.cond !== 'NM' ? it.cond : null].filter(Boolean).join(' · ')
+    : 'sem edição definida';
+  const printsSummary = g => g.items.map(it => `${it.set ? printLabel(it) : 'genérica'} ×${it.qty}`).join('  ·  ');
+
+  async function refresh() { state.items = await collection.entries(); paint(); }
 
   async function load() {
     state.items = await collection.entries();
@@ -2439,58 +2634,162 @@ function createCollectionScreen({ collection, decks, cardRepo }) {
       const k = norm(e.name); const arr = state.usedIn.get(k) || [];
       if (!arr.includes(d.name)) arr.push(d.name); state.usedIn.set(k, arr);
     }
-    state.loading = false; paint();
+    state.loading = false; paint(); paintCare();
     if (state.items.length) {
       try { state.cards = await cardRepo.byNames(state.items.map(i => i.name)); } catch (e) { /* sem rede: segue só com nomes */ }
       paint();
     }
   }
 
-  async function setQty(item, qty) {
-    await collection.set(item.name, qty);
-    state.items = await collection.entries();
-    paint();
+  /* ---- C5 · proteção dos dados ---- */
+  async function paintCare() {
+    const st = persistence ? await persistence.status() : 'indisponivel';
+    const last = await decks.lastBackup();
+    const days = last ? Math.floor((Date.now() - last) / 86400000) : null;
+    const hasData = state.items.length > 0;
+    const backupDue = hasData && (days == null || days > 30);
+    const doBackup = async () => { files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); paintCare(); };
+    const protect = async () => { const r = await persistence.request(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Mantenha backups em dia.'); paintCare(); };
+    const risk = st === 'vulneravel' && hasData;
+    if (!risk && !backupDue) return mount(care);
+    const lines = [
+      risk ? '<b>O navegador pode apagar sua coleção</b> se faltar espaço. Proteger o armazenamento ou instalar o app evita isso.' : null,
+      backupDue ? (days == null ? '<b>Sem backup ainda.</b> Listas e coleção ficam só neste aparelho.' : `<b>Último backup há ${days} dias.</b>`) : null
+    ].filter(Boolean);
+    mount(care, Stack({ class: 'col-care' }, Note(lines.join('<br>'), 'warning'),
+      Row({ class: 'ds-row--wrap' },
+        risk ? Button('Proteger armazenamento', { id: 'col-protect', onClick: protect }) : null,
+        backupDue ? Button('Exportar backup', { id: 'col-backup', onClick: doBackup }) : null)));
   }
 
-  function editQty(item) {
-    const input = Input({ id: 'col-qty-input', type: 'number', inputmode: 'numeric', value: String(item.qty) });
+  /* ---- C9 · quantidade por nome ---- */
+  async function setQty(g, qty) { await collection.set(g.name, qty); await refresh(); }
+  function editQty(g) {
+    const input = Input({ id: 'col-qty-input', type: 'number', inputmode: 'numeric', value: String(g.qty) });
     input.min = '0'; input.max = '999';
-    const save = async () => { const n = Math.max(0, Math.min(999, parseInt(input.value, 10) || 0)); closeDialog(); await setQty(item, n); toast(n ? `${item.name}: ${n} cópia(s)` : `${item.name} removida da coleção`); };
+    const printed = g.items.filter(i => i.set).reduce((s, i) => s + i.qty, 0);
+    const save = async () => { const n = Math.max(0, Math.min(999, parseInt(input.value, 10) || 0)); closeDialog(); await setQty(g, n); toast(n ? `${g.name}: ${n} cópia(s)` : `${g.name} removida da coleção`); };
     input.addEventListener('keydown', ev => { if (ev.key === 'Enter') save(); });
-    Dialog({ title: item.name, body: Field('Quantas cópias você tem?', input, { hint: 'Zero remove a carta da coleção.' }),
+    Dialog({ title: g.name, body: Field('Quantas cópias você tem?', input,
+      { hint: printed ? `Zero remove a carta. Ao reduzir, saem primeiro as cópias sem edição e depois as impressões mais recentes.` : 'Zero remove a carta da coleção.' }),
       actions: [Button('Cancelar', { onClick: closeDialog }), Button('Salvar', { variant: 'primary', id: 'col-qty-save', onClick: save })] });
     setTimeout(() => { input.focus(); input.select(); }, 50);
   }
-
-  function confirmRemove(item) {
-    const used = state.usedIn.get(item.key) || [];
-    Dialog({ title: `Remover ${item.name}?`, body: Text(used.length ? `As listas ${used.join(', ')} passam a mostrar esta carta como faltante.` : 'A carta sai da sua coleção.', { tone: 'muted' }),
-      actions: [Button('Cancelar', { onClick: closeDialog }), Button('Remover', { variant: 'danger', id: 'col-remove-confirm', onClick: async () => { closeDialog(); await setQty(item, 0); toast(`${item.name} removida da coleção`); } })] });
+  function confirmRemove(g) {
+    const used = state.usedIn.get(g.key) || [];
+    Dialog({ title: `Remover ${g.name}?`, body: Text((g.items.length > 1 ? `Saem todas as ${g.qty} cópias, de todas as impressões. ` : '') + (used.length ? `As listas ${used.join(', ')} passam a mostrar esta carta como faltante.` : 'A carta sai da sua coleção.'), { tone: 'muted' }),
+      actions: [Button('Cancelar', { onClick: closeDialog }), Button('Remover', { variant: 'danger', id: 'col-remove-confirm', onClick: async () => { closeDialog(); await setQty(g, 0); toast(`${g.name} removida da coleção`); } })] });
   }
 
-  function row(item) {
-    const c = state.cards.get(item.key) || state.cards.get(norm(item.name));
-    const img = c && ((c.images && c.images.small) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.small));
-    const used = state.usedIn.get(item.key) || [];
-    return h('div', { class: 'col-row', dataset: { name: item.name } },
-      h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${item.name}`, onClick: () => c && openCardViewer(c) },
-        img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', {}, item.name.slice(0, 1))),
-      h('div', { class: 'col-row__info' },
-        Text(item.name, { size: 'md' }),
-        Text([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || ' ', { size: 'xs', tone: 'muted' })),
+  /* ---- C1 · impressões ---- */
+  function itemControls(it, reopen) {
+    return h('div', { class: 'col-print', dataset: { key: it.key } },
+      h('div', { class: 'col-print__label' }, Text(printLabel(it), { size: 'sm' }), it.set_name ? Text(it.set_name, { size: 'xs', tone: 'muted' }) : null),
       h('div', { class: 'col-row__qty' },
-        Button('−', { icon: true, ariaLabel: `Uma cópia a menos de ${item.name}`, onClick: () => item.qty > 1 ? setQty(item, item.qty - 1) : confirmRemove(item) }),
-        h('button', { class: 'col-row__n', type: 'button', 'aria-label': `${item.qty} cópias de ${item.name}. Editar`, onClick: () => editQty(item) }, String(item.qty)),
-        Button('+', { icon: true, ariaLabel: `Uma cópia a mais de ${item.name}`, onClick: () => setQty(item, item.qty + 1) }),
-        Button('Remover', { variant: 'ghost', ariaLabel: `Remover ${item.name}`, onClick: () => confirmRemove(item) })));
+        Button('−', { icon: true, ariaLabel: 'Uma cópia a menos desta impressão', onClick: async () => { await collection.setItem(it.key, it.qty - 1); await refresh(); reopen(); } }),
+        h('span', { class: 'col-print__n' }, String(it.qty)),
+        Button('+', { icon: true, ariaLabel: 'Uma cópia a mais desta impressão', onClick: async () => { await collection.setItem(it.key, it.qty + 1); await refresh(); reopen(); } }),
+        it.set ? Button('Editar', { variant: 'ghost', onClick: () => editPrinting(it, reopen) }) : null));
+  }
+  function openPrintings(g0) {
+    const reopen = () => { const g = state.items.find(x => x.key === g0.key); closeDialog(); if (g) openPrintings(g); };
+    const g = state.items.find(x => x.key === g0.key) || g0;
+    Dialog({ title: g.name, body: Stack({},
+      Text(`${g.qty} cópia(s) em ${g.items.length} ${g.items.length > 1 ? 'versões' : 'versão'}`, { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'col-prints', id: 'col-prints' }, ...g.items.map(it => itemControls(it, reopen)))),
+      actions: [Button('Adicionar impressão', { id: 'col-add-print', onClick: () => addPrinting(g) }), Button('Fechar', { variant: 'primary', onClick: closeDialog })] });
+  }
+  const selectOf = (opts, value, id) => Select(opts.map(([v, l]) => ({ value: v, label: l })), { id, value });
+  async function addPrinting(g) {
+    closeDialog();
+    Dialog({ title: `Nova impressão de ${g.name}`, body: Row({}, Spinner(), Text('Buscando edições…', { size: 'sm', tone: 'muted' })), actions: [Button('Cancelar', { onClick: closeDialog })] });
+    let prints = [];
+    try { prints = await scryfall.search(`!"${g.name}"`, { unique: 'prints', order: 'released' }); } catch (e) { prints = []; }
+    closeDialog();
+    const f = { idx: 0, set: '', number: '', finish: '', lang: 'en', cond: 'NM', qty: 1 };
+    const qtyIn = Input({ id: 'col-print-qty', type: 'number', inputmode: 'numeric', value: '1', onInput: e => { f.qty = parseInt(e.target.value, 10) || 1; } });
+    const which = prints.length
+      ? Field('Edição', Select(prints.map((p, i) => ({ value: String(i), label: `${p.set_name} (${p.set.toUpperCase()}) #${p.collector_number}` })), { id: 'col-print-set', value: '0', onChange: e => { f.idx = parseInt(e.target.value, 10); } }))
+      : Stack({}, Note('Sem acesso à Scryfall agora. Informe a edição à mão.', 'warning'),
+        Row({ class: 'ds-row--wrap' },
+          Field('Código da edição', Input({ id: 'col-print-code', placeholder: 'MH2', onInput: e => { f.set = e.target.value.trim(); } })),
+          Field('Número', Input({ id: 'col-print-num', placeholder: '267', onInput: e => { f.number = e.target.value.trim(); } }))));
+    const save = async () => {
+      const p = prints[f.idx];
+      const base = p ? { name: p.name, set: p.set, set_name: p.set_name, number: p.collector_number, id: p.id } : { name: g.name, set: f.set, number: f.number };
+      if (!base.set) return toast('Informe o código da edição');
+      closeDialog();
+      await collection.addPrinting({ ...base, finish: f.finish, lang: f.lang, cond: f.cond }, Math.max(1, f.qty));
+      await refresh(); toast(`${g.name}: impressão adicionada`);
+      const ng = state.items.find(x => x.key === g.key); if (ng) openPrintings(ng);
+    };
+    Dialog({ title: `Nova impressão de ${g.name}`, body: Stack({}, which,
+      Row({ class: 'ds-row--wrap' },
+        Field('Acabamento', (() => { const el = selectOf(FINISHES, '', 'col-print-finish'); el.addEventListener('change', e => { f.finish = e.target.value; }); return el; })()),
+        Field('Idioma', (() => { const el = selectOf(LANGS, 'en', 'col-print-lang'); el.addEventListener('change', e => { f.lang = e.target.value; }); return el; })())),
+      Row({ class: 'ds-row--wrap' },
+        Field('Condição', (() => { const el = selectOf(CONDITIONS, 'NM', 'col-print-cond'); el.addEventListener('change', e => { f.cond = e.target.value; }); return el; })()),
+        Field('Cópias', qtyIn))),
+      actions: [Button('Cancelar', { onClick: closeDialog }), Button('Adicionar', { variant: 'primary', id: 'col-print-save', onClick: save })] });
+  }
+  function editPrinting(it, reopen) {
+    closeDialog();
+    const f = { finish: it.finish, lang: it.lang, cond: it.cond };
+    const sel = (opts, v, id, k) => { const el = selectOf(opts, v, id); el.addEventListener('change', e => { f[k] = e.target.value; }); return el; };
+    Dialog({ title: `${it.name} · ${it.set.toUpperCase()} #${it.number}`, body: Stack({},
+      Field('Acabamento', sel(FINISHES, f.finish, 'col-edit-finish', 'finish')),
+      Field('Idioma', sel(LANGS, f.lang, 'col-edit-lang', 'lang')),
+      Field('Condição', sel(CONDITIONS, f.cond, 'col-edit-cond', 'cond'))),
+      actions: [Button('Cancelar', { onClick: () => { closeDialog(); reopen(); } }),
+        Button('Salvar', { variant: 'primary', id: 'col-edit-save', onClick: async () => { await collection.updateItem(it.key, f); await refresh(); reopen(); } })] });
+  }
+
+  /* ---- C3 · CSV ---- */
+  const csvInput = h('input', { type: 'file', accept: '.csv,text/csv,text/plain', class: 'ds-hidden', id: 'col-csv-file' });
+  csvInput.addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    const r = parseCollectionCSV(await files.readText(file));
+    e.target.value = '';
+    if (r.error) return Dialog({ title: 'Não foi possível ler o arquivo', body: Text(r.error === 'sem coluna de nome da carta' ? 'O arquivo não tem uma coluna com o nome da carta (Name).' : 'O arquivo está vazio.', { tone: 'muted' }), actions: [Button('Fechar', { onClick: closeDialog })] });
+    const copies = r.items.reduce((sum, it) => sum + it.qty, 0);
+    const run = async mode => { closeDialog(); await collection.importItems(r.items, mode); await load(); toast(`${copies} cópia(s) importada(s)`); };
+    Dialog({ title: 'Importar coleção', body: Stack({},
+      Text(`Formato: ${r.format}`, { size: 'sm', tone: 'muted' }),
+      Text(`${r.items.length} linha(s) · ${copies} cópia(s)`, { size: 'lg', display: true }),
+      r.skipped.length ? Note(`<b>${r.skipped.length} linha(s) ignorada(s):</b> ` + r.skipped.slice(0, 5).map(x => `linha ${x.line} (${x.reason})`).join(', ') + (r.skipped.length > 5 ? '…' : ''), 'warning') : null,
+      Text('Somar acrescenta às cópias que você já tem. Substituir apaga a coleção atual antes de importar.', { size: 'sm', tone: 'muted' })),
+      actions: [Button('Cancelar', { onClick: closeDialog }),
+        Button('Substituir coleção', { variant: 'danger', onClick: () => { closeDialog(); Dialog({ title: 'Substituir a coleção inteira?', body: Text('As cartas atuais saem e ficam só as do arquivo. Faça um backup antes, se quiser guardar.', { tone: 'muted' }),
+          actions: [Button('Cancelar', { onClick: closeDialog }), Button('Substituir', { variant: 'danger', id: 'col-csv-replace', onClick: () => run('replace') })] }); } }),
+        Button('Somar à coleção', { variant: 'primary', id: 'col-csv-add', onClick: () => run('add') })] });
+  });
+  const exportCsv = async () => { const list = await collection.items(); if (!list.length) return toast('A coleção está vazia'); files.save('estante-colecao.csv', exportCollectionCSV(list), 'text/csv'); toast('CSV exportado'); };
+
+  /* ---- linhas ---- */
+  function row(g) {
+    const c = state.cards.get(g.key) || state.cards.get(norm(g.name));
+    const img = c && ((c.images && c.images.small) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.small));
+    const used = state.usedIn.get(g.key) || [];
+    const printed = g.items.some(i => i.set);
+    return h('div', { class: 'col-row', dataset: { name: g.name } },
+      h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${g.name}`, onClick: () => c && openCardViewer(c) },
+        img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', {}, g.name.slice(0, 1))),
+      h('button', { class: 'col-row__info', type: 'button', 'aria-label': `Impressões de ${g.name}`, onClick: () => openPrintings(g) },
+        Text(g.name, { size: 'md' }),
+        Text(printed ? printsSummary(g) : ([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'), { size: 'xs', tone: 'muted' })),
+      h('div', { class: 'col-row__qty' },
+        Button('−', { icon: true, ariaLabel: `Uma cópia a menos de ${g.name}`, onClick: () => g.qty > 1 ? setQty(g, g.qty - 1) : confirmRemove(g) }),
+        h('button', { class: 'col-row__n', type: 'button', 'aria-label': `${g.qty} cópias de ${g.name}. Editar`, onClick: () => editQty(g) }, String(g.qty)),
+        Button('+', { icon: true, ariaLabel: `Uma cópia a mais de ${g.name}`, onClick: () => setQty(g, g.qty + 1) }),
+        Button('Remover', { variant: 'ghost', ariaLabel: `Remover ${g.name}`, onClick: () => confirmRemove(g) })));
   }
 
   function paint() {
     const total = state.items.reduce((sum, i) => sum + i.qty, 0);
     mount(summary, Text(`${state.items.length} carta(s) · ${total} cópia(s)`, { size: 'sm', tone: 'muted' }));
     if (state.loading) return;
-    if (!state.items.length) return mount(listEl, Empty('Sua coleção está vazia. Marque cartas com dois toques nas listas ou na busca, ou adicione pelo nome acima.',
-      Button('Buscar cartas', { onClick: () => go('/cartas') })));
+    if (!state.items.length) return mount(listEl, Empty('Sua coleção está vazia. Importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
+      Button('Importar CSV', { onClick: () => csvInput.click() })));
     const f = norm(state.filter);
     const rows = state.items.filter(i => !f || norm(i.name).includes(f))
       .sort((a, b) => state.sort === 'qty' ? b.qty - a.qty || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
@@ -2508,9 +2807,8 @@ function createCollectionScreen({ collection, decks, cardRepo }) {
       const cur = await collection.qty(c.name);
       await collection.set(c.name, cur + 1);
       state.cards.set(norm(c.name), c);
-      state.items = await collection.entries();
       addIn.value = ''; addState.name = '';
-      toast(`${c.name}: ${cur + 1} cópia(s)`); paint();
+      toast(`${c.name}: ${cur + 1} cópia(s)`); await refresh(); paintCare();
     } catch (e) { toast('Sem conexão com a Scryfall para conferir o nome'); }
     finally { addBtn.disabled = false; }
   }
@@ -2523,8 +2821,13 @@ function createCollectionScreen({ collection, decks, cardRepo }) {
   return Stack(pad(),
     Row({}, Stack({ style: { gap: 'var(--space-1)' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
       Button('Buscar cartas', { onClick: () => go('/cartas') })),
+    care,
     Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
-      Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Na busca e nas listas, dois toques numa carta também marcam.' }))),
+      Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
+      Row({ class: 'ds-row--wrap' },
+        Button('Importar CSV', { id: 'col-csv-import', onClick: () => csvInput.click() }),
+        Button('Exportar CSV', { id: 'col-csv-export', onClick: exportCsv })),
+      csvInput)),
     Row({ class: 'ds-row--wrap' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       Select([{ value: 'name', label: 'Ordem alfabética' }, { value: 'qty', label: 'Mais cópias primeiro' }], { id: 'col-sort', value: state.sort, onChange: e => { state.sort = e.target.value; paint(); } })),
@@ -3606,7 +3909,7 @@ const ROUTES = [
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
-  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo }) },
+  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
   { path: '/ds', title: 'Design system', render: renderDS },

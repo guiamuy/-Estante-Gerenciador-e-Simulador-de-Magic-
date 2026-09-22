@@ -21,7 +21,7 @@ function serve() {
   });
   return new Promise(r => srv.listen(0, () => r(srv)));
 }
-const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', rarity: 'common' });
+const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', collector_number: '1', rarity: 'common' });
 const DB = Object.fromEntries([
   card('Malcolm, Alluring Scoundrel', 'Legendary Creature — Siren Pirate', ['U']), card('Sol Ring', 'Artifact', [], 1),
   card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U']),
@@ -43,8 +43,11 @@ async function open(t) {
     }
     if (r.request().url().includes('/cards/search')) {
       const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '').toLowerCase();
+      const exact = q.match(/^!"(.+)"$/);
       const words = q.split(/[\s:()"=<>]+/).filter(w => w.length > 2);
-      const data = Object.values(DB).filter(c => words.some(w => c.name.toLowerCase().includes(w)));
+      const data = exact
+        ? [DB[exact[1]], DB[exact[1]] && { ...DB[exact[1]], id: exact[1] + '-2', set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267' }].filter(Boolean)
+        : Object.values(DB).filter(c => words.some(w => c.name.toLowerCase().includes(w)));
       return r.fulfill({ json: { object: 'list', data, has_more: false } });
     }
     return r.fulfill({ json: { object: 'card' } });
@@ -274,5 +277,75 @@ test('e2e · C7 toque duplo na busca marca a carta na coleção', { skip }, asyn
   assert.match(await page.innerText('#cards-results .own-badge'), /tenho 1/);
   await page.goto(base + '#/colecao');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  assert.deepEqual(errors, []);
+});
+
+const MANABOX = 'Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,ManaBox ID,Scryfall ID,Purchase price,Misprint,Altered,Condition,Language,Purchase price currency\n' +
+  'Sol Ring,CMM,Commander Masters,400,foil,uncommon,2,1,abc,1.5,false,false,near_mint,en,USD\n' +
+  'Counterspell,MH2,Modern Horizons 2,267,normal,uncommon,1,2,def,1,false,false,lightly_played,pt,USD\n' +
+  ',,,,,,1,,,,,,,,\n';
+
+test('e2e · C3 importar CSV do ManaBox, ver impressões e exportar CSV', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-csv-import');
+  await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
+  await page.waitForSelector('#col-csv-add');
+  const preview = await page.innerText('.ds-dialog');
+  assert.match(preview, /Formato: ManaBox/);
+  assert.match(preview, /2 linha\(s\) · 3 cópia\(s\)/);
+  assert.match(preview, /1 linha\(s\) ignorada\(s\)/);
+  await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  assert.match(await page.innerText('.col-row[data-name="Sol Ring"]'), /CMM · #400 · foil ×2/);
+  assert.match(await page.innerText('.col-row[data-name="Counterspell"]'), /MH2 · #267 · PT · LP ×1/);
+
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#col-csv-export')]);
+  const csv = await (await download.createReadStream()).toArray().then(parts => Buffer.concat(parts).toString('utf8'));
+  assert.match(csv, /^Count,Name,Edition,Condition,Language,Foil,Collector Number/);
+  assert.match(csv, /2,Sol Ring,cmm,Near Mint,English,foil,400/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · C1 adicionar impressão, editar acabamento e ajustar por impressão', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/colecao');
+  await page.fill('#col-add', 'Counterspell');
+  await page.click('#col-add-btn');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  await page.click('.col-row[data-name="Counterspell"] .col-row__info');
+  await page.click('#col-add-print');
+  await page.waitForSelector('#col-print-set');
+  await page.selectOption('#col-print-set', '1'); // Modern Horizons 2 #267
+  await page.selectOption('#col-print-finish', 'foil');
+  await page.selectOption('#col-print-lang', 'ja');
+  await page.fill('#col-print-qty', '2');
+  await page.click('#col-print-save');
+  await page.waitForSelector('#col-prints');
+  const prints = await page.innerText('#col-prints');
+  assert.match(prints, /sem edição definida/);
+  assert.match(prints, /MH2 · #267 · foil · JA/);
+
+  await page.locator('.col-print', { hasText: 'MH2' }).locator('text=Editar').click();
+  await page.selectOption('#col-edit-finish', '');
+  await page.click('#col-edit-save');
+  await page.waitForFunction(() => { const el = document.querySelector('#col-prints'); return el && /MH2 · #267 · JA/.test(el.innerText) && !/foil/.test(el.innerText); });
+
+  await page.locator('.col-print', { hasText: 'sem edição' }).locator('button[aria-label^="Uma cópia a menos"]').click();
+  await page.waitForFunction(() => { const el = document.querySelector('#col-prints'); return el && !/sem edição/.test(el.innerText); });
+  await page.keyboard.press('Escape');
+  assert.match(await page.innerText('#col-summary'), /1 carta\(s\) · 2 cópia\(s\)/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · C5 aviso de backup e de armazenamento desprotegido', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/colecao');
+  await page.fill('#col-add', 'Sol Ring');
+  await page.click('#col-add-btn');
+  await page.waitForSelector('#col-backup');
+  assert.match(await page.innerText('#col-care'), /Sem backup ainda/);
+  await Promise.all([page.waitForEvent('download'), page.click('#col-backup')]);
+  await page.waitForFunction(() => !/backup/.test(document.querySelector('#col-care').innerText));
   assert.deepEqual(errors, []);
 });
