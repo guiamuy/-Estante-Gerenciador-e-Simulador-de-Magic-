@@ -27,7 +27,9 @@ const DB = Object.fromEntries([
   card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U']),
   card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), card('Preordain', 'Sorcery', ['U'], 1),
   card('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', ['W', 'B'], 3), card('Mock Commander', 'Legendary Creature — Human', ['W', 'B'], 2),
-  card('Plains', 'Basic Land — Plains', [], 0), card('Mock Ogre', 'Creature — Ogre', ['B'], 4)
+  card('Plains', 'Basic Land — Plains', [], 0), card('Mock Ogre', 'Creature — Ogre', ['B'], 4),
+  { ...card('Sky Pike', 'Creature — Fish', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Flying'], power: '2', toughness: '1' },
+  { ...card('Wall Guard', 'Creature — Wall', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Defender', 'Reach'], power: '0', toughness: '4' }
 ].map(c => [c.name.toLowerCase(), c]));
 
 async function open(t) {
@@ -488,5 +490,110 @@ test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e
   await page.goto(base + '#/colecao');
   await page.waitForSelector('.col-row[data-name="Counterspell"]');
   assert.match(await page.innerText('.col-row[data-name="Counterspell"]'), /MH2 · #267/);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- E7 · combate e mana na mesa ---------------- */
+const reveal = async page => { if (await page.locator('#tb-reveal').count()) await page.click('#tb-reveal'); };
+async function drawUntil(page, name, max = 25) {
+  for (let i = 0; i < max && !(await page.locator(`.tb-hand .tb-card[aria-label^="${name}"]`).count()); i++) {
+    await page.click('#tb-lib-me'); await page.click('.ds-dialog >> text=Comprar 1');
+  }
+  assert.ok(await page.locator(`.tb-hand .tb-card[aria-label^="${name}"]`).count(), `sem ${name} na mão`);
+}
+const handCard = (page, name) => page.locator(`.tb-hand .tb-card[aria-label^="${name}"]`).first();
+async function toMyMain(page) {
+  for (let i = 0; i < 12; i++) {
+    await reveal(page);
+    const b = await page.innerText('.tb-banner');
+    if (/Principal 1/.test(b) && /Seu turno/.test(b)) return;
+    if (await page.locator('#tb-no-attack').count()) { await page.click('#tb-no-attack'); continue; }
+    if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn'); else await page.click('#tb-pass');
+  }
+  throw new Error('não chegou à principal 1');
+}
+
+test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Peixes', '30 Island\n20 Sky Pike', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('.tb-banner');
+  await toMyMain(page);
+  await drawUntil(page, 'Island'); await handCard(page, 'Island').click(); await page.click('text=Jogar terreno');
+  await drawUntil(page, 'Sky Pike');
+  await handCard(page, 'Sky Pike').click();
+  assert.match(await page.innerText('.ds-dialog'), /mana insuficiente/, 'com um terreno só, não paga {1}{U}');
+  assert.match(await page.innerText('.ds-dialog'), /Conjurar sem pagar/);
+  await page.keyboard.press('Escape');
+
+  await page.click('#tb-pass-turn');
+  await toMyMain(page);
+  await drawUntil(page, 'Island'); await handCard(page, 'Island').click(); await page.click('text=Jogar terreno');
+  await handCard(page, 'Sky Pike').click();
+  await page.click('.ds-dialog >> text=/Conjurar · \\{1\\}\\{U\\}/');
+  await page.waitForSelector('.tb-side--me [data-zone="permanents"] .tb-card[aria-label*="Sky Pike"]');
+  assert.equal(await page.locator('.tb-side--me [data-zone="lands"] .tb-card[data-tapped="true"]').count(), 2, 'os dois terrenos viraram para pagar');
+  if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
+
+  // próximo turno: declarar ataque com a criatura sem enjoo
+  await page.click('#tb-pass-turn');
+  for (let i = 0; i < 8 && !(await page.locator('#tb-attack').count()); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
+  assert.match(await page.innerText('.tb-banner'), /Declarar atacantes/);
+  await page.locator('.tb-side--me .tb-card[data-eligible="true"]').first().click();
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/atk.png' });
+  await page.click('#tb-attack');
+  await page.waitForFunction(() => /18/.test(document.querySelector('#tb-life-opp').innerText));
+  await page.click('#tb-log');
+  const log = await page.innerText('.ds-dialog');
+  assert.match(log, /Você atacou com Sky Pike/);
+  assert.match(log, /Goldfish: vida 20 → 18/);
+  assert.match(log, /Você gerou|conjurou Sky Pike/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Mar', '30 Island\n10 Sky Pike\n10 Wall Guard', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('[data-mana]'); // mana livre: o foco aqui é o combate
+  await page.fill('#mesa-seed', '2');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  const put = async name => { await drawUntil(page, name); await handCard(page, name).click(); await page.click('.ds-dialog >> text=Conjurar'); for (let i = 0; i < 4 && await page.locator('.tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); } if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done'); };
+  await reveal(page); await toMyMain(page);
+  const first = (await page.innerText('#tb-life-me')).includes('Ana') ? 'Ana' : 'Bia';
+  await put(first === 'Ana' ? 'Sky Pike' : 'Wall Guard');
+  await page.click('#tb-pass-turn'); await reveal(page); await toMyMain(page);
+  await put(first === 'Ana' ? 'Wall Guard' : 'Sky Pike');
+  // volta ao dono do Sky Pike, que ataca
+  for (let i = 0; i < 16 && !(await page.locator('#tb-attack').count()); i++) {
+    await reveal(page);
+    if (await page.locator('#tb-no-attack').count() && !(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').count())) { await page.click('#tb-no-attack'); continue; }
+    if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn'); else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
+  }
+  await page.locator('.tb-side--me .tb-card[data-eligible="true"][aria-label*="Sky Pike"]').click();
+  await page.click('#tb-attack');
+  await page.waitForSelector('#tb-handoff');
+  assert.match(await page.innerText('#tb-handoff'), /declarar bloqueadores/);
+  await page.click('#tb-reveal');
+  const defLife = await page.innerText('#tb-life-me');
+  assert.match(await page.innerText('.tb-banner'), /Prévia: você perde 2 de vida/);
+  await page.locator('.tb-side--me .tb-card[data-eligible="true"][aria-label*="Wall Guard"]').click();
+  await page.click('.ds-dialog >> text=Bloquear Sky Pike');
+  assert.match(await page.innerText('.tb-banner'), /Prévia: você não perde de vida/);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/blk.png' });
+  await page.click('#tb-block');
+  await page.waitForSelector('#tb-reveal'); // o combate se resolve sozinho e a vez volta para o atacante
+  await page.click('#tb-reveal');
+  await page.click('#tb-log');
+  const log = await page.innerText('.ds-dialog');
+  assert.match(log, /bloqueou: Wall Guard → Sky Pike/);
+  assert.doesNotMatch(log, /vida 20 → 18/);
   assert.deepEqual(errors, []);
 });

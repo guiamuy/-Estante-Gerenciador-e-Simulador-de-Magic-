@@ -42,8 +42,10 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | C · Coleção | C2 tela Coleção · C7 marcar com toque duplo · C8 lista nova já possuída · C9 editar quantidade e remover | ✅ |
 | C · Coleção | C1 coleção por impressão · C3 importar e exportar CSV · C5 persistência garantida | ✅ |
 | X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | ✅ |
-| X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | 🟡 |
-| L · Listas | L11 companheiro | 🟡 |
+| X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
+| L · Listas | L11 companheiro | ✅ |
+| M · Motor | M6 combate · M7 mana · M14 companheiro na partida | 🟡 |
+| A · Mesa | A6 combate na mesa | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -150,6 +152,8 @@ Valem para todas as histórias.
 | 4 · Integração headless | `e2e.test.mjs` | Fluxo do usuário no Chromium, com a Scryfall simulada, sem rolagem lateral e com alvos de 44 px |
 | 5 · Contrato visual | `contract.visual.test.mjs` | Contraste AA nos dois temas, zero cor fora de token, alvo de 44 px, tema claro sem divergência |
 
+**Versão do motor.** A E7 levou o motor à versão 2 (combate, mana e companheiro mudam o estado). Partidas salvas pela versão 1 não são retomadas: a mesa avisa e oferece nova partida. O golden foi regravado nessa mudança, com esta justificativa.
+
 **Portão.** `npm test` roda tudo. No GitHub, o workflow **Portão de release** roda:
 - 250 partidas de fuzz a cada push;
 - 3.000 partidas toda noite.
@@ -181,9 +185,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E3 ✅ | C2, C7, C8, C9 | Coleção gerenciável: tela própria, dois toques marcam, lista nova já possuída, editar e remover |
 | E4 ✅ | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
 | E5 ✅ | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
-| E6 🟡 | X3, X5, X6, L11 | Scanner identifica a edição, alimenta coleção ou lista e funciona offline; listas com companheiro |
-| E7 ▶ | M6, A6, M7, M14 | Combate e mana resolvidos pelo motor; companheiro jogável na mesa |
-| E8 | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
+| E6 ✅ | X3, X5, X6, L11 | Scanner identifica a edição, alimenta coleção ou lista e funciona offline; listas com companheiro |
+| E7 🟡 | M6, A6, M7, M14 | Combate e mana resolvidos pelo motor; companheiro jogável na mesa |
+| E8 ▶ | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
 
 ---
 
@@ -334,29 +338,31 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M4.
 - **Fora:** regra de lenda e anulação de marcadores (M11).
 
-**M6 · Combate** ▶
+**M6 · Combate** 🟡
 - **Valor:** atacar e bloquear sem conta manual.
 - **Aceite:**
-  - declarar atacantes com legalidade (enjoo, virado, defensor);
-  - declarar bloqueadores, com menace e reach;
-  - ordem de dano; first strike e double strike;
-  - dano ao jogador e dano de comandante automático;
-  - vigilance.
-- **Testes:** U por keyword, P, G novo.
+  - declarar atacantes é decisão pendente do jogador ativo: só criaturas desviradas, sem enjoo (ímpeto libera) e sem defensor; vigilância não vira;
+  - sem atacantes, bloqueio e dano são pulados (508.8);
+  - declarar bloqueadores é decisão pendente do defensor: voar só é bloqueado por voar ou alcance; ameaça exige dois ou mais bloqueadores;
+  - dano em duas passadas quando há iniciativa ou golpe duplo; toque mortífero conta 1 como letal e destrói; atropelar passa o excesso; vínculo com a vida ganha o dano; indestrutível sobrevive;
+  - dano de comandante contado automaticamente; o fim do combate limpa tudo.
+- **Simplificações registradas:** a ordem de dano entre vários bloqueadores é a ordem da declaração; não há prioridade entre as duas passadas de dano; ataque só a jogadores (planeswalker e batalha depois).
+- **Testes:** U por regra e palavra-chave, P (fuzz de combate com e sem mana, propriedade de ações legais), G (partida-referência de combate).
 - **Depende de:** M5.
-- **Fora:** banding e efeitos de "não pode bloquear" vindos de script (S4).
+- **Fora:** efeitos de "não pode bloquear" e afins vindos de script (S4).
 
-**M7 · Mana** ▶
+**M7 · Mana** 🟡
 - **Valor:** o motor sabe o que dá para pagar.
 - **Aceite:**
-  - reserva de mana por cor que esvazia entre passos;
-  - custo parseado de `mana_cost`, incluindo híbrido, fóbico e X;
-  - pagamento automático sugerido e ajuste manual;
-  - imposto do comandante cobrado;
-  - na mesa assistida o pagamento é opcional (liga ou desliga na partida).
-- **Testes:** U, P.
+  - custo lido de `mana_cost`: genérico, colorido, híbrido (inclusive {2/W}), phyrexiano (2 de vida) e X;
+  - fontes lidas do texto ("{T}: Add …", "ou", "qualquer cor") e dos tipos básicos;
+  - conjurar toca as fontes sozinho, por busca determinística; só oferece o que dá para pagar;
+  - reserva de mana por cor, esvaziada a cada passo; imposto do comandante cobrado;
+  - motor completo sempre cobra; mesa assistida tem a opção "Cobrar mana" (ligada por padrão) e "Conjurar sem pagar" para o que o motor não entende.
+- **Simplificações registradas:** X entra como 0 pela mesa (escolha de X virá com os scripts); fontes com custo além de {T} (terrenos de dor, pedras com custo) não são usadas no pagamento automático.
+- **Testes:** U (custo, produção, pagamento, reserva, imposto, modos), P (propriedade com mana cobrada), G.
 - **Depende de:** M4.
-- **Fora:** custos alternativos exóticos.
+- **Fora:** custos alternativos e redução de custo.
 
 **M8 · Registro, replay e desfazer** ✅
 - **Valor:** errou o toque, desfaz; quer rever, reproduz.
@@ -416,7 +422,8 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M6, M10.
 - **Fora:** multiplayer com mais de 2 jogadores na interface.
 
-**M14 · Companheiro na partida** ▶
+**M14 · Companheiro na partida** 🟡
+- **Entregue:** zona própria revelada desde o início; ação especial de {3} no tempo de feitiço, uma vez por partida, sem pilha; na mesa, o botão aparece na zona Companheiro dos dois jogadores.
 - **Valor:** jogar com Lurrus e cia. como na mesa real.
 - **Aceite (regra 702.139):**
   - o companheiro começa fora do jogo, revelado para o oponente antes dos mulligans, numa zona própria visível na mesa;
@@ -490,12 +497,17 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A4.
 - **Fora:** —
 
-**A6 · Combate na mesa** ▶
-- **Valor:** atacar com arrastar ou tocar.
-- **Aceite:** seleção de atacantes e bloqueadores e prévia do dano.
-- **Testes:** I, G.
+**A6 · Combate na mesa** 🟡
+- **Valor:** atacar e bloquear tocando nas cartas.
+- **Aceite:**
+  - na declaração, criaturas elegíveis ficam destacadas; tocar escolhe (não abre a folha);
+  - bloqueio: tocar na sua criatura lista os atacantes que ela pode bloquear;
+  - prévia de dano ao montar o bloqueio (vida perdida e quem morre);
+  - selos "ataca", "bloqueia" e "→ alvo" nas cartas; reserva de mana visível; registro com ataque, bloqueio, mana gerada e dano;
+  - depois de declarar o ataque, a mesa só para se houver resposta possível.
+- **Testes:** I (goldfish: pagar, faltar mana, atacar e dano; hot-seat: bloqueio com prévia e alcance contra voar), U (prévia sem mudar o estado).
 - **Depende de:** M6, A1.
-- **Fora:** —
+- **Fora:** arrastar para atacar.
 
 **A7 · Registro legível e desfazer** ✅
 - **Valor:** entender o que aconteceu e corrigir engano.
@@ -527,7 +539,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A3.
 - **Fora:** bot (ADR-05).
 
-**A10 · Cobertura antes da partida** ○
+**A10 · Cobertura antes da partida** ▶
 - **Valor:** saber antes o que o motor resolve sozinho.
 - **Aceite:**
   - cada carta mostra o selo completo, parcial ou manual na galeria e na preparação;
@@ -538,7 +550,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### S · Scripts de carta (motor completo)
 
-**S1 · Formato de script e validador** ○
+**S1 · Formato de script e validador** ▶
 - **Valor:** adicionar carta ao motor vira dado, não código espalhado.
 - **Aceite:**
   - script declarativo por `oracle_id`, com efeitos, alvos, gatilhos e custo;
@@ -548,7 +560,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M9, M10.
 - **Fora:** editor visual de script.
 
-**S2 · Nível de cobertura** ○
+**S2 · Nível de cobertura** ▶
 - **Valor:** transparência sobre o que o motor entende.
 - **Aceite:**
   - completo: script validado com teste;
@@ -559,21 +571,21 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** S1, S3.
 - **Fora:** —
 
-**S3 · Palavras-chave permanentes** ○
+**S3 · Palavras-chave permanentes** ▶
 - **Valor:** a maioria das criaturas funciona sem script próprio.
 - **Aceite:** flying, reach, trample, deathtouch, lifelink, vigilance, haste, first strike, double strike, menace, defender, hexproof, indestructible e flash.
 - **Testes:** U por keyword, G.
 - **Depende de:** M6.
 - **Fora:** keywords de edição específica.
 
-**S4 · Efeitos base** ○
+**S4 · Efeitos base** ▶
 - **Valor:** mágicas simples resolvidas sem pausa.
 - **Aceite:** comprar, dano, destruir, exilar, anular, devolver à mão, ±X/±X até o fim do turno, criar ficha, ganhar e perder vida.
 - **Testes:** U, P.
 - **Depende de:** S1, M12.
 - **Fora:** —
 
-**S5 · Alvos** ○
+**S5 · Alvos** ▶
 - **Valor:** mágica com alvo ilegal é tratada como a regra manda.
 - **Aceite:**
   - restrições de alvo;
@@ -781,7 +793,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** X1, C6.
 - **Fora:** OCR em servidor.
 
-**X3 · Identificação da impressão** 🟡
+**X3 · Identificação da impressão** ✅
 - **Valor:** registrar a versão certa.
 - **Aceite:**
   - depois de reconhecer o nome, uma segunda leitura pega a linha de coleção (canto inferior esquerdo: "267/303 U · MH2 • EN" ou "0045 C · DMR • PT");
@@ -807,7 +819,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** X2.
 - **Fora:** processamento em segundo plano (gatilho G3); destino lista (X5).
 
-**X5 · Destino da leitura** 🟡
+**X5 · Destino da leitura** ✅
 - **Valor:** o scanner alimenta coleção ou lista.
 - **Aceite:**
   - no lote, "Destino": Coleção ou qualquer lista salva;
@@ -817,7 +829,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** X4, C1, L1.
 - **Fora:** escolher zona (reserva, comandante) pelo scanner.
 
-**X6 · Scanner offline** 🟡
+**X6 · Scanner offline** ✅
 - **Valor:** funciona na loja sem sinal.
 - **Aceite:**
   - o service worker guarda os arquivos do motor de OCR (CDN versionado, inclusive resposta opaca de `<script>`); os dados do idioma ficam no próprio cache do Tesseract;
@@ -889,7 +901,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - Moxfield e Archidekt não liberam CORS para o navegador.
 - Reabrir só com o gatilho G4 e um proxy próprio.
 
-**L11 · Companheiro** 🟡
+**L11 · Companheiro** ✅
 - **Valor:** montar listas com companheiro (Lurrus e outros) sem burlar a contagem.
 - **Aceite:**
   - zona própria "Companheiro": cabeçalho `Companion` no texto colado ou "Definir como companheiro" na carta (só para cartas com a habilidade); um por lista, e trocar devolve o anterior ao deck;

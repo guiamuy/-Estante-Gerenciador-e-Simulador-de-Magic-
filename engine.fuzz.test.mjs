@@ -3,14 +3,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
-import { setup } from './fixtures.mjs';
+import { setup, combatSetup } from './fixtures.mjs';
 const { engine: E } = loadModules();
 
 const GAMES = Number(process.env.FUZZ_GAMES || 250); // portão local: 250; CI noturno: 3000
 const MAX_ACTIONS = 400;
 
-function playOut(format, seed, adjudication) {
-  let s = E.createGame(setup(format, seed));
+function playOut(format, seed, adjudication, st) {
+  let s = E.createGame(st || setup(format, seed));
   const total = Object.keys(s.objects).length;
   const policy = E.randomPolicy(seed ^ 0x9e3779b9, { adjudication });
   let n = 0;
@@ -58,6 +58,33 @@ test('propriedade · só o dono da prioridade tem ações fora do mulligan', () 
       if (s.status === 'playing' && !s.pending) {
         const other = 1 - s.turn.priority;
         assert.equal(E.legalActions(s, other).length, 0);
+      }
+      s = E.apply(s, pol(s)).state;
+    }
+  }
+});
+
+// M6/M7/M14: combate com palavras-chave, mana cobrada e companheiro
+for (const manaCheck of [true, false]) {
+  test(`fuzz · ${Math.round(GAMES / 2)} partidas com combate, ${manaCheck ? 'mana cobrada' : 'mana livre'} e companheiro`, () => {
+    let combats = 0, companions = 0;
+    for (let seed = 1; seed <= GAMES / 2; seed++) {
+      const { s } = playOut('pauper', 90000 + seed, false, combatSetup(90000 + seed, { manaCheck }));
+      if (Object.values(s.objects).some(o => o.zone === 'graveyard' && s.facts[o.name].types.includes('creature'))) combats++;
+      if (s.players.some(p => p.companionUsed)) companions++;
+    }
+    assert.ok(combats > 0, 'criaturas precisam morrer em combate em alguma partida');
+    assert.ok(companions > 0, 'o companheiro precisa ir para a mão em alguma partida');
+  });
+}
+
+test('propriedade · com mana cobrada e combate, toda ação de legalActions é aceita por apply', () => {
+  for (let seed = 1; seed <= 80; seed++) {
+    let s = E.createGame(combatSetup(70000 + seed, { manaCheck: true }));
+    const pol = E.randomPolicy(seed, { adjudication: true });
+    for (let i = 0; i < 150 && s.status !== 'over'; i++) {
+      for (let p = 0; p < s.players.length; p++) for (const a of E.legalActions(s, p, { adjudication: true })) {
+        assert.doesNotThrow(() => E.apply(s, a), `semente ${seed}: ${JSON.stringify(a)}`);
       }
       s = E.apply(s, pol(s)).state;
     }

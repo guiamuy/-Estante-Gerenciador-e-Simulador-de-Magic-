@@ -505,7 +505,7 @@ body {
 .tb-zone__label { font-size: var(--text-xs); color: var(--fg-muted); }
 .tb-zone__empty { font-size: var(--text-xs); color: var(--fg-subtle); }
 .tb-zone--empty { flex-direction: row; gap: var(--space-2); align-items: baseline; }
-.tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-1) 0 var(--space-2); scroll-snap-type: x proximity; }
+.tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2); scroll-snap-type: x proximity; }
 
 .tb-card {
   position: relative; flex: none; width: 64px; aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
@@ -633,6 +633,13 @@ body {
 .scan-dock__row { display: flex; gap: var(--space-2); }
 .scan-dock__row .ds-btn { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame { animation: none; } }
+
+/* ===================== A6 · combate e mana na mesa ===================== */
+.tb-pill--tag { background: var(--bg-elev-3); color: var(--fg); border: 1px solid var(--accent); }
+.tb-card[data-eligible="true"] .tb-card__face { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.tb-pool { display: flex; gap: 2px; align-items: center; font-size: var(--text-xs); color: var(--fg-muted); }
+.tb-pool .ds-pip { width: 14px; height: 14px; }
+.tb-cost { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-muted); }
 </style>
 </head>
 <body>
@@ -2940,17 +2947,16 @@ return { createDecksHome, createDeckEditor, createDeckScreen, createCollectionSc
 /* ==== src/engine/core.js ==== */
 const __m16 = (function () {
 /* =====================================================================
-   M1 · ESTADO, ZONAS E SEMENTE
-   M2 · PREPARAÇÃO POR FORMATO E MULLIGAN
-   M3 · ESTRUTURA DE TURNO
-   M4 · PRIORIDADE E PILHA
-   M5 · AÇÕES BASEADAS EM ESTADO (núcleo)
-   M8 · REGISTRO, REPLAY E DESFAZER
+   M1 · ESTADO, ZONAS E SEMENTE      M2 · PREPARAÇÃO E MULLIGAN
+   M3 · ESTRUTURA DE TURNO           M4 · PRIORIDADE E PILHA
+   M5 · AÇÕES BASEADAS EM ESTADO     M6 · COMBATE
+   M7 · MANA                         M8 · REGISTRO, REPLAY E DESFAZER
+   M14 · COMPANHEIRO
    Puro: sem DOM, sem rede, sem relógio, sem Math.random. Todo acaso sai
    da semente guardada no próprio estado, então a mesma semente com as
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
-const ENGINE_VERSION = 1;
+const ENGINE_VERSION = 2;
 const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'combat_begin', 'combat_attackers', 'combat_blockers',
   'combat_damage', 'combat_end', 'main2', 'end', 'cleanup'];
 const STEP_PT = {
@@ -2965,13 +2971,14 @@ const FORMAT_RULES = {
   livre: { life: 20, hand: 7, commander: false }
 };
 const PERMANENT = ['land', 'creature', 'artifact', 'enchantment', 'planeswalker', 'battle'];
-const ZONE_NAMES = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command'];
+const ZONE_NAMES = ['library', 'hand', 'battlefield', 'graveyard', 'exile', 'command', 'companion'];
+const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'];
+const COMPANION_COST = 3;
 
 class RuleError extends Error { constructor(code, message) { super(message || code); this.code = code; } }
 
 /* ---------------- semente ---------------- */
 function nextRand(state) {
-  // mulberry32: 32 bits de estado, guardado em state.rng
   let t = (state.rng = (state.rng + 0x6D2B79F5) >>> 0);
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -2982,35 +2989,75 @@ function shuffle(state, arr) {
   return arr;
 }
 
-/* ---------------- catálogo mínimo ----------------
-   O motor não precisa da carta inteira: só do que as regras do núcleo
-   consultam. A interface mantém a carta completa ao lado. */
+/* ---------------- M7 · custo e produção de mana ---------------- */
+/** "{2}{U}{U}" → { generic: 2, colored: { U: 2 }, hybrid: [], x: 0 }. Híbrido e
+    phyrexiano viram escolhas; {S} conta como genérico. */
+function parseCost(str) {
+  const cost = { generic: 0, colored: {}, hybrid: [], x: 0 };
+  for (const m of String(str || '').matchAll(/\{([^}]+)\}/g)) {
+    const sym = m[1].toUpperCase();
+    if (/^\d+$/.test(sym)) cost.generic += parseInt(sym, 10);
+    else if (sym === 'X') cost.x++;
+    else if (COLORS.includes(sym)) cost.colored[sym] = (cost.colored[sym] || 0) + 1;
+    else if (sym === 'S') cost.generic++;
+    else if (sym.includes('/')) {
+      const parts = sym.split('/');
+      cost.hybrid.push(parts.map(x => x === 'P' ? 'P' : /^\d+$/.test(x) ? parseInt(x, 10) : x));
+    }
+  }
+  return cost;
+}
+const BASIC = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
+/** Opções de mana de uma fonte ({T}: Add …). Cada opção é uma lista de símbolos. */
+function parseProduction(card) {
+  const opts = [];
+  const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
+  for (const [t, c] of Object.entries(BASIC)) if (new RegExp('\\b' + t + '\\b').test(tl)) opts.push([c]);
+  const text = String(card && card.oracle_text || '').replace(/\([^)]*\)/g, '');
+  for (const line of text.split('\n')) {
+    const m = line.match(/^\{T\}: Add (.+?)\./i); if (!m) continue;
+    const body = m[1];
+    if (/one mana of any color/i.test(body)) { ['W', 'U', 'B', 'R', 'G'].forEach(c => opts.push([c])); continue; }
+    const syms = [...body.matchAll(/\{([WUBRGC])\}/g)].map(x => x[1]);
+    if (!syms.length) continue;
+    if (/\bor\b/i.test(body)) syms.forEach(c => opts.push([c])); else opts.push(syms);
+  }
+  const seen = new Set();
+  return opts.filter(o => { const k = o.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
+/* ---------------- catálogo mínimo ---------------- */
 function cardFacts(card) {
   const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
   const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => tl.includes(t));
   const kw = (card && card.keywords || []).map(k => String(k).toLowerCase());
   const num = v => (v == null || isNaN(parseInt(v, 10))) ? null : parseInt(v, 10);
   return {
-    types, legendary: tl.includes('legendary'),
-    flash: kw.includes('flash'),
+    types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw,
     power: num(card && card.power), toughness: num(card && card.toughness),
-    cmc: (card && card.cmc) || 0
+    cmc: (card && card.cmc) || 0,
+    cost: parseCost(card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))),
+    produces: parseProduction(card)
   };
 }
 const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
 const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
+const has = (s, o, k) => s.facts[o.name].kw.includes(k);
 
 /* ---------------- criação ---------------- */
-/** setup = { format, seed, mode: 'assisted'|'full', players: [{ name, deck: [{ name, qty, zone }] }], cards: { nome: carta } } */
+/** setup = { format, seed, mode: 'assisted'|'full', manaCheck?, players: [{ name, deck: [{ name, qty, zone }], dummy? }], cards } */
 function createGame(setup) {
   const format = FORMAT_RULES[setup.format] ? setup.format : 'livre';
   const rules = FORMAT_RULES[format];
   if (!Array.isArray(setup.players) || setup.players.length < 1) throw new RuleError('setup', 'partida sem jogadores');
+  const mode = setup.mode === 'full' ? 'full' : 'assisted';
   const s = {
-    v: ENGINE_VERSION, format, mode: setup.mode === 'full' ? 'full' : 'assisted',
+    v: ENGINE_VERSION, format, mode,
+    // M7: motor completo sempre cobra mana; na mesa assistida é opção da partida
+    manaCheck: mode === 'full' || !!setup.manaCheck,
     rng: (setup.seed >>> 0) || 1, seed: (setup.seed >>> 0) || 1,
     facts: {}, objects: {}, nextOid: 1,
-    players: [], zones: [], stack: [],
+    players: [], zones: [], stack: [], combat: null,
     turn: { number: 0, active: 0, step: 'untap', priority: 0, passes: 0, firstTurn: true },
     status: 'mulligan', winner: null, pending: null
   };
@@ -3018,26 +3065,24 @@ function createGame(setup) {
 
   setup.players.forEach((pl, pi) => {
     s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, lost: false, lossReason: null,
-      landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {} });
-    // A9 · goldfish: oponente sem grimório que não compra e não perde por grimório vazio.
-    // O campo só existe quando verdadeiro, para não mudar o hash das partidas comuns.
+      landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {},
+      pool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, companionUsed: false });
     if (pl.dummy) s.players[pi].dummy = true;
     const z = Object.fromEntries(ZONE_NAMES.map(n => [n, []]));
     s.zones.push(z);
     for (const e of pl.deck || []) {
+      if (e.zone === 'side') continue;
       if (!s.facts[e.name]) s.facts[e.name] = cardFacts(null);
       for (let i = 0; i < (e.qty || 1); i++) {
         const oid = 'o' + (s.nextOid++);
-        const toCommand = rules.commander && e.zone === 'commander';
-        if (e.zone === 'side' || e.zone === 'companion') { s.nextOid--; continue; } // companheiro: fora do jogo até o M14
-        s.objects[oid] = { oid, name: e.name, owner: pi, controller: pi, zone: toCommand ? 'command' : 'library',
-          tapped: false, sick: false, damage: 0, counters: {}, commander: toCommand };
-        z[toCommand ? 'command' : 'library'].push(oid);
+        // M14: companheiro começa fora do jogo, revelado; comandante na zona de comando
+        const zone = e.zone === 'companion' ? 'companion' : rules.commander && e.zone === 'commander' ? 'command' : 'library';
+        s.objects[oid] = { oid, name: e.name, owner: pi, controller: pi, zone, tapped: false, sick: false, damage: 0, counters: {}, commander: zone === 'command' };
+        z[zone].push(oid);
       }
     }
     shuffle(s, z.library);
   });
-  // quem começa: sorteio pela semente
   s.turn.active = Math.floor(nextRand(s) * s.players.length);
   s.turn.priority = s.turn.active;
   s.players.forEach((_, pi) => draw(s, pi, rules.hand));
@@ -3051,8 +3096,9 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
-  // ao mudar de zona vira objeto novo para as regras (400.7): zera estado de mesa
+  // 400.7: objeto novo ao mudar de zona; sai do combate
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck;
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   o.zone = to;
   const dest = zoneList(s, o, to);
@@ -3076,21 +3122,102 @@ function nextAlive(s, from) {
 }
 const isMain = s => s.turn.step === 'main1' || s.turn.step === 'main2';
 const commanderTax = (s, p, oid) => 2 * (s.players[p].commanderCasts[oid] || 0);
+const power = (s, o) => (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0);
+const toughness = (s, o) => (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0);
+const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
+const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
+
+/* ---------------- M7 · pagamento ---------------- */
+function emptyPools(s) { s.players.forEach(pl => { for (const c of COLORS) pl.pool[c] = 0; }); }
+/** Tenta pagar o custo com a reserva. Devolve a reserva restante e a vida gasta, ou null. */
+function payFrom(pool, cost, extraGeneric = 0) {
+  const P = { ...pool };
+  for (const [c, n] of Object.entries(cost.colored)) { if ((P[c] || 0) < n) return null; P[c] -= n; }
+  let life = 0;
+  const hyb = cost.hybrid.slice();
+  function tryHybrid(i, P0, life0, extra) {
+    if (i === hyb.length) {
+      const need = cost.generic + extra;
+      const total = COLORS.reduce((t, c) => t + P0[c], 0);
+      if (total < need) return null;
+      let rest = need; const P1 = { ...P0 };
+      for (const c of ['C', 'W', 'U', 'B', 'R', 'G']) { const take = Math.min(P1[c], rest); P1[c] -= take; rest -= take; }
+      return { pool: P1, life: life0 };
+    }
+    for (const opt of hyb[i]) {
+      if (opt === 'P') { const r = tryHybrid(i + 1, P0, life0 + 2, extra); if (r) return r; }
+      else if (typeof opt === 'number') { const r = tryHybrid(i + 1, P0, life0, extra + opt); if (r) return r; }
+      else if (P0[opt] > 0) { const P1 = { ...P0, [opt]: P0[opt] - 1 }; const r = tryHybrid(i + 1, P1, life0, extra); if (r) return r; }
+    }
+    return null;
+  }
+  return tryHybrid(0, P, life, extraGeneric);
+}
+function sources(s, p) {
+  return battlefield(s).filter(o => o.controller === p && !o.tapped && s.facts[o.name].produces.length &&
+    !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste')));
+}
+/** Escolhe fontes desviradas para completar o pagamento. Busca limitada e determinística. */
+function planTaps(s, p, cost, extra) {
+  const pl = s.players[p];
+  if (payFrom(pl.pool, cost, extra)) return [];
+  const src = sources(s, p).sort((a, b) => s.facts[a.name].produces.length - s.facts[b.name].produces.length || (a.oid < b.oid ? -1 : 1));
+  let budget = 4000, found = null;
+  (function dfs(i, pool, taps) {
+    if (found || budget-- <= 0) return;
+    if (payFrom(pool, cost, extra)) { found = taps; return; }
+    if (i === src.length) return;
+    const o = src[i];
+    s.facts[o.name].produces.forEach((opt, k) => {
+      if (found) return;
+      const P = { ...pool }; opt.forEach(c => { P[c]++; });
+      dfs(i + 1, P, taps.concat([[o.oid, k]]));
+    });
+    dfs(i + 1, pool, taps);
+  })(0, { ...pl.pool }, []);
+  return found;
+}
+function tapForMana(s, oid, option) {
+  const o = s.objects[oid]; const opt = s.facts[o.name].produces[option];
+  if (!opt) throw new RuleError('mana', 'essa fonte não produz essa mana');
+  o.tapped = true; opt.forEach(c => { s.players[o.controller].pool[c]++; });
+}
+/** Paga o custo (tocando fontes se preciso) ou lança RuleError. */
+function payCost(s, p, cost, extra = 0) {
+  const taps = planTaps(s, p, cost, extra);
+  if (!taps) throw new RuleError('mana', 'mana insuficiente');
+  taps.forEach(([oid, k]) => tapForMana(s, oid, k));
+  const r = payFrom(s.players[p].pool, cost, extra);
+  s.players[p].pool = r.pool; s.players[p].life -= r.life;
+}
+const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
+const castExtra = (s, p, o, x = 0) => (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0);
 
 /* ---------------- M3 · passos e turnos ---------------- */
 function enterStep(s, step) {
+  emptyPools(s); // 500.4: reserva esvazia entre passos
   s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
   const a = s.turn.active;
   if (step === 'untap') {
-    for (const oid of s.zones.flatMap(z => z.battlefield)) {
-      const o = s.objects[oid];
-      if (o.controller === a) { o.tapped = false; o.sick = false; }
-    }
-    return enterStep(s, 'upkeep'); // desvirar não dá prioridade
+    for (const o of battlefield(s)) if (o.controller === a) { o.tapped = false; o.sick = false; }
+    return enterStep(s, 'upkeep');
   }
   if (step === 'draw') {
     const skip = s.turn.firstTurn && s.players.length === 2; // 103.8a
     if (!skip) draw(s, a, 1);
+  }
+  if (step === 'combat_attackers') {
+    s.combat = { attackers: [], defender: nextAlive(s, a) };
+    if (eligibleAttackers(s, a).length) s.pending = { kind: 'attackers', p: a };
+  }
+  if (step === 'combat_blockers') {
+    const d = s.combat.defender;
+    if (eligibleBlockers(s, d).length) s.pending = { kind: 'blockers', p: d };
+  }
+  if (step === 'combat_damage') { dealCombatDamage(s); }
+  if (step === 'combat_end') {
+    for (const o of battlefield(s)) { delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; }
+    s.combat = null;
   }
   if (step === 'cleanup') {
     const over = s.zones[a].hand.length - FORMAT_RULES[s.format].hand;
@@ -3099,7 +3226,7 @@ function enterStep(s, step) {
   }
 }
 function finishCleanup(s) {
-  for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') o.damage = 0;
+  for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; }
   s.pending = null;
   s.turn.firstTurn = false;
   s.turn.number++;
@@ -3109,9 +3236,66 @@ function finishCleanup(s) {
 }
 function advanceStep(s) {
   let i = STEPS.indexOf(s.turn.step) + 1;
-  // sem atacantes declarados, bloqueio e dano não acontecem (508.8). Combate entra no M6.
-  if (STEPS[i] === 'combat_blockers') i = STEPS.indexOf('combat_end');
+  // 508.8: sem atacantes declarados, bloqueio e dano não acontecem
+  if (STEPS[i] === 'combat_blockers' && !(s.combat && s.combat.attackers.length)) i = STEPS.indexOf('combat_end');
   enterStep(s, STEPS[i]);
+}
+
+/* ---------------- M6 · combate ---------------- */
+function eligibleAttackers(s, p) {
+  return battlefield(s).filter(o => o.controller === p && s.facts[o.name].types.includes('creature') && !o.tapped &&
+    (!o.sick || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
+}
+function eligibleBlockers(s, p) {
+  return battlefield(s).filter(o => o.controller === p && s.facts[o.name].types.includes('creature') && !o.tapped).map(o => o.oid);
+}
+function canBlock(s, blocker, attacker) {
+  const b = s.objects[blocker], a = s.objects[attacker];
+  if (has(s, a, 'flying') && !has(s, b, 'flying') && !has(s, b, 'reach')) return false;
+  return true;
+}
+/** Dano de combate em duas passadas: iniciativa (first/double strike) e normal. */
+function dealCombatDamage(s) {
+  const c = s.combat; if (!c) return;
+  const inCombat = () => battlefield(s).filter(o => o.attacking != null || o.blocking);
+  const anyFirst = inCombat().some(o => has(s, o, 'first strike') || has(s, o, 'double strike'));
+  for (const pass of anyFirst ? ['first', 'regular'] : ['regular']) {
+    const deals = o => pass === 'first' ? (has(s, o, 'first strike') || has(s, o, 'double strike'))
+      : (has(s, o, 'double strike') || !o.struck);
+    const hits = []; // [fonte, alvoObjeto | null, alvoJogador | null, quantidade]
+    for (const oid of c.attackers) {
+      const a = s.objects[oid];
+      if (!a || a.zone !== 'battlefield' || a.attacking == null || !deals(a)) continue;
+      let amt = power(s, a); if (amt <= 0) continue;
+      const blockers = (a.blockedBy || []).map(b => s.objects[b]).filter(b => b && b.zone === 'battlefield' && b.blocking === oid);
+      if (!a.blocked) { hits.push([a, null, a.attacking, amt]); continue; }
+      if (!blockers.length) { if (has(s, a, 'trample')) hits.push([a, null, a.attacking, amt]); continue; }
+      const dt = has(s, a, 'deathtouch');
+      blockers.forEach((b, i) => {
+        const lethal = dt ? 1 : Math.max(0, toughness(s, b) - b.damage);
+        const last = i === blockers.length - 1;
+        const give = last && !has(s, a, 'trample') ? amt : Math.min(amt, lethal);
+        if (give > 0) { hits.push([a, b, null, give]); amt -= give; }
+      });
+      if (amt > 0 && has(s, a, 'trample')) hits.push([a, null, a.attacking, amt]);
+    }
+    for (const b of battlefield(s)) {
+      if (!b.blocking || !deals(b)) continue;
+      const a = s.objects[b.blocking]; const amt = power(s, b);
+      if (a && a.zone === 'battlefield' && amt > 0) hits.push([b, a, null, amt]);
+    }
+    // simultâneo: aplica tudo depois de calcular
+    for (const [src, obj, player, amt] of hits) {
+      if (obj) { obj.damage += amt; if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+      else {
+        s.players[player].life -= amt;
+        if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
+      }
+      if (has(s, src, 'lifelink')) s.players[src.controller].life += amt;
+    }
+    for (const [src] of hits) src.struck = true;
+    stateBased(s, []);
+  }
 }
 
 /* ---------------- M4 · prioridade e pilha ---------------- */
@@ -3126,9 +3310,7 @@ function resolveTop(s) {
   return { kind: 'resolved', oid: item, name: o.name, to: dest, adjudicate: s.mode === 'assisted' };
 }
 
-/* ---------------- M5 · ações baseadas em estado ----------------
-   Checadas até estabilizar (704.3). Lenda e marcadores entram depois:
-   exigem escolha do jogador e vivem com a mesa assistida. */
+/* ---------------- M5 · ações baseadas em estado ---------------- */
 function stateBased(s, events) {
   for (let guard = 0; guard < 50; guard++) {
     let changed = false;
@@ -3140,25 +3322,25 @@ function stateBased(s, events) {
       else if (s.format === 'commander' && Object.values(pl.commanderDamage).some(d => d >= FORMAT_RULES.commander.commanderDamage)) why = 'dano de comandante';
       if (why) { pl.lost = true; pl.lossReason = why; changed = true; events.push({ kind: 'lost', p: i, reason: why }); removePlayer(s, i); }
     });
-    for (const oid of s.zones.flatMap(z => z.battlefield)) {
-      const o = s.objects[oid]; const f = s.facts[o.name];
-      if (f.types.includes('creature') && f.toughness != null) {
-        const t = f.toughness + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0);
-        if (t <= 0 || (o.damage > 0 && o.damage >= t)) { moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
-      }
+    for (const o of battlefield(s)) {
+      const f = s.facts[o.name];
+      if (!f.types.includes('creature') || f.toughness == null) continue;
+      const t = toughness(s, o);
+      const lethal = (o.damage > 0 && o.damage >= t) || (o.deathtouched && o.damage > 0);
+      if (t <= 0 || (lethal && !has(s, o, 'indestructible'))) { moveObject(s, o.oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid: o.oid, name: o.name }); }
     }
     if (!changed) break;
   }
   const left = alive(s);
   if (s.status !== 'over' && s.players.length > 1 && left.length <= 1) {
-    s.status = 'over'; s.winner = left.length ? left[0] : null; events.push({ kind: 'over', winner: s.winner });
+    s.status = 'over'; s.winner = left.length ? left[0] : null; s.pending = null; events.push({ kind: 'over', winner: s.winner });
   }
 }
-/** 800.4a: quem sai leva o que possui; o que estava na pilha dele sai do jogo (exílio do dono). */
 function removePlayer(s, p) {
   s.stack.filter(oid => s.objects[oid].owner === p).forEach(oid => moveObject(s, oid, 'exile'));
+  if (s.pending && s.pending.p === p) s.pending = null;
   if (s.turn.priority === p) s.turn.priority = nextAlive(s, p);
-  if (s.turn.active === p && alive(s).length > 1) { s.turn.active = nextAlive(s, p); s.turn.firstTurn = false; enterStep(s, 'untap'); }
+  if (s.turn.active === p && alive(s).length > 1) { s.turn.active = nextAlive(s, p); s.turn.firstTurn = false; s.combat = null; enterStep(s, 'untap'); }
 }
 
 /* ---------------- ações ---------------- */
@@ -3168,6 +3350,7 @@ function owns(s, p, oid, zone) {
   if (!o || o.owner !== p || o.zone !== zone) throw new RuleError('objeto', `objeto fora de ${zone}`);
   return o;
 }
+function noPending(s) { if (s.pending) throw new RuleError('pendente', 'há uma decisão pendente'); }
 
 const HANDLERS = {
   mulligan(s, a) {
@@ -3186,12 +3369,12 @@ const HANDLERS = {
     if (bottom.length !== pl.mulligans) throw new RuleError('mulligan', `escolha ${pl.mulligans} carta(s) para o fundo`);
     if (new Set(bottom).size !== bottom.length) throw new RuleError('mulligan', 'carta repetida');
     bottom.forEach(oid => owns(s, a.p, oid, 'hand'));
-    bottom.forEach(oid => moveObject(s, oid, 'library', { top: false })); // London: 103.5
+    bottom.forEach(oid => moveObject(s, oid, 'library', { top: false }));
     pl.kept = true;
     if (s.players.every(x => x.kept)) { s.status = 'playing'; s.turn.number = 1; enterStep(s, 'untap'); }
   },
   pass(s, a, ev) {
-    holder(s, a.p);
+    noPending(s); holder(s, a.p);
     s.turn.passes++;
     if (s.turn.passes < alive(s).length) { s.turn.priority = nextAlive(s, a.p); return; }
     s.turn.passes = 0;
@@ -3199,7 +3382,7 @@ const HANDLERS = {
     advanceStep(s);
   },
   play_land(s, a) {
-    holder(s, a.p);
+    noPending(s); holder(s, a.p);
     const o = owns(s, a.p, a.oid, 'hand');
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
     if (s.turn.active !== a.p || !isMain(s) || s.stack.length) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia');
@@ -3209,15 +3392,66 @@ const HANDLERS = {
     s.turn.passes = 0;
   },
   cast(s, a) {
-    holder(s, a.p);
+    noPending(s); holder(s, a.p);
     const o = s.objects[a.oid];
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     const f = s.facts[o.name];
     if (f.types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
     if (isSorcerySpeed(f) && (s.turn.active !== a.p || !isMain(s) || s.stack.length)) throw new RuleError('tempo', 'só na sua fase principal, com a pilha vazia');
+    if (a.free && s.mode !== 'assisted') throw new RuleError('modo', 'conjurar sem pagar só na mesa assistida');
+    if (s.manaCheck && !a.free) payCost(s, a.p, f.cost, castExtra(s, a.p, o, a.x || 0));
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     moveObject(s, a.oid, 'stack');
-    s.turn.passes = 0; // 117.3c: quem conjura recebe prioridade de novo
+    s.turn.passes = 0;
+  },
+  /** M7 · habilidade de mana: não usa a pilha. */
+  tap_mana(s, a) {
+    holder(s, a.p);
+    const o = s.objects[a.oid];
+    if (!o || o.zone !== 'battlefield' || o.controller !== a.p || o.tapped) throw new RuleError('objeto', 'fonte indisponível');
+    if (!sources(s, a.p).includes(o)) throw new RuleError('mana', 'essa permanente não gera mana agora');
+    tapForMana(s, a.oid, a.option || 0);
+  },
+  /** M6 · declaração de atacantes (ação de turno, não usa a pilha). */
+  attack(s, a) {
+    if (!s.pending || s.pending.kind !== 'attackers' || s.pending.p !== a.p) throw new RuleError('tempo', 'não é hora de declarar atacantes');
+    const ok = new Set(eligibleAttackers(s, a.p));
+    const list = a.attackers || [];
+    if (new Set(list).size !== list.length || list.some(x => !ok.has(x))) throw new RuleError('ataque', 'atacante inválido');
+    for (const oid of list) { const o = s.objects[oid]; o.attacking = s.combat.defender; if (!has(s, o, 'vigilance')) o.tapped = true; }
+    s.combat.attackers = list.slice();
+    s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
+  },
+  /** M6 · declaração de bloqueadores. blocks = [[bloqueador, atacante], …] */
+  block(s, a) {
+    if (!s.pending || s.pending.kind !== 'blockers' || s.pending.p !== a.p) throw new RuleError('tempo', 'não é hora de declarar bloqueadores');
+    const ok = new Set(eligibleBlockers(s, a.p));
+    const blocks = a.blocks || [];
+    const used = new Set();
+    for (const [b, atk] of blocks) {
+      if (!ok.has(b) || used.has(b)) throw new RuleError('bloqueio', 'bloqueador inválido');
+      if (!s.combat.attackers.includes(atk)) throw new RuleError('bloqueio', 'não está atacando');
+      if (!canBlock(s, b, atk)) throw new RuleError('bloqueio', 'não pode bloquear essa criatura (voar)');
+      used.add(b);
+    }
+    const per = {}; blocks.forEach(([, atk]) => { per[atk] = (per[atk] || 0) + 1; });
+    for (const [atk, n] of Object.entries(per)) if (n === 1 && has(s, s.objects[atk], 'menace')) throw new RuleError('bloqueio', 'ameaça: precisa de dois ou mais bloqueadores');
+    for (const [b, atk] of blocks) {
+      s.objects[b].blocking = atk;
+      const A = s.objects[atk]; A.blocked = true; (A.blockedBy = A.blockedBy || []).push(b);
+    }
+    s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
+  },
+  /** M14 · ação especial: {3} para pôr o companheiro na mão, uma vez por partida. */
+  companion(s, a) {
+    noPending(s);
+    const o = owns(s, a.p, a.oid, 'companion');
+    if (!canSorceryNow(s, a.p)) throw new RuleError('tempo', 'companheiro só quando você poderia conjurar um feitiço');
+    if (s.players[a.p].companionUsed) throw new RuleError('limite', 'o companheiro já foi para a mão nesta partida');
+    if (s.manaCheck && !a.free) payCost(s, a.p, { generic: COMPANION_COST, colored: {}, hybrid: [], x: 0 });
+    moveObject(s, o.oid, 'hand');
+    s.players[a.p].companionUsed = true;
+    s.turn.passes = 0;
   },
   discard(s, a) {
     const o = owns(s, a.p, a.oid, 'hand');
@@ -3228,12 +3462,13 @@ const HANDLERS = {
   },
   concede(s, a) { const pl = s.players[a.p]; if (!pl.lost) { pl.life = Math.min(pl.life, 0); pl.lossReason = 'desistência'; } },
 
-  /* ---- adjudicação (mesa assistida): controles diretos de estado ---- */
+  /* ---- adjudicação (mesa assistida) ---- */
   tap(s, a) { assisted(s); holder(s, a.p); const o = onField(s, a.oid); o.tapped = !o.tapped; },
   move(s, a) {
     assisted(s); holder(s, a.p);
     const o = s.objects[a.oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
     if (a.to === 'stack') throw new RuleError('zona', 'use conjurar para pôr na pilha');
+    if (a.to === 'companion') throw new RuleError('zona', 'nada volta para fora do jogo');
     if (o.zone === a.to && a.to !== 'library') return;
     moveObject(s, a.oid, a.to, { top: a.top !== false });
   },
@@ -3254,21 +3489,28 @@ const HANDLERS = {
     const pl = s.players[a.target]; if (!pl || !s.objects[a.source] || !s.objects[a.source].commander) throw new RuleError('comandante', 'origem precisa ser um comandante');
     pl.commanderDamage[a.source] = Math.max(0, (pl.commanderDamage[a.source] || 0) + (a.delta || 1));
     pl.life -= (a.delta || 1);
+  },
+  add_mana(s, a) {
+    assisted(s); holder(s, a.p);
+    if (!COLORS.includes(a.color)) throw new RuleError('mana', 'cor inválida');
+    s.players[a.p].pool[a.color] = Math.max(0, s.players[a.p].pool[a.color] + (a.delta || 1));
   }
 };
 function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'controle direto só existe na mesa assistida'); }
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
+const PENDING_ACTIONS = { discard: ['discard', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'] };
 
-/** Aplica uma ação. Nunca muta o estado recebido. Lança RuleError se ilegal. */
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
   if (state.status === 'over') throw new RuleError('fim', 'partida encerrada');
   if (!state.players[action.p] || state.players[action.p].lost) throw new RuleError('jogador', 'jogador inválido');
   if (state.status === 'mulligan' && !MULLIGAN_ACTIONS.has(action.t)) throw new RuleError('fase', 'termine os mulligans primeiro');
-  if (state.pending && state.pending.kind === 'discard' && !['discard', 'concede'].includes(action.t))
-    throw new RuleError('pendente', `descarte ${state.pending.n} carta(s) primeiro`);
+  if (state.pending && !PENDING_ACTIONS[state.pending.kind].includes(action.t)) {
+    const k = state.pending.kind;
+    throw new RuleError('pendente', k === 'discard' ? `descarte ${state.pending.n} carta(s) primeiro` : k === 'attackers' ? 'declare os atacantes primeiro' : 'declare os bloqueadores primeiro');
+  }
   const s = clone(state);
   const events = [];
   HANDLERS[action.t](s, action, events);
@@ -3276,8 +3518,7 @@ function apply(state, action) {
   return { state: s, events };
 }
 
-/** Todas as ações legais agora para o jogador p. Base do bot aleatório,
-    do teste de fuzz e dos botões da mesa. */
+/** Todas as ações legais agora para o jogador p. */
 function legalActions(s, p, { adjudication = false } = {}) {
   const out = [];
   if (s.status === 'over' || !s.players[p] || s.players[p].lost) return out;
@@ -3288,21 +3529,42 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return out;
   }
   if (s.pending) {
-    if (s.pending.kind === 'discard' && s.pending.p === p) s.zones[p].hand.forEach(oid => out.push({ t: 'discard', p, oid }));
+    const k = s.pending.kind;
+    if (s.pending.p !== p) return out;
+    if (k === 'discard') s.zones[p].hand.forEach(oid => out.push({ t: 'discard', p, oid }));
+    if (k === 'attackers') {
+      const el = eligibleAttackers(s, p);
+      out.push({ t: 'attack', p, attackers: [] });
+      if (el.length > 1) out.push({ t: 'attack', p, attackers: el.slice() });
+      el.forEach(oid => out.push({ t: 'attack', p, attackers: [oid] }));
+    }
+    if (k === 'blockers') {
+      out.push({ t: 'block', p, blocks: [] });
+      const el = eligibleBlockers(s, p), atk = s.combat.attackers.filter(x => s.objects[x].zone === 'battlefield');
+      for (const b of el) for (const a of atk) if (canBlock(s, b, a) && !has(s, s.objects[a], 'menace')) out.push({ t: 'block', p, blocks: [[b, a]] });
+      for (const a of atk) {
+        const can = el.filter(b => canBlock(s, b, a));
+        if (can.length >= 2) out.push({ t: 'block', p, blocks: can.slice(0, 2).map(b => [b, a]) });
+      }
+    }
     return out;
   }
   if (s.turn.priority !== p) return out;
   out.push({ t: 'pass', p });
-  const canSorcery = s.turn.active === p && isMain(s) && !s.stack.length;
+  const canSorcery = canSorceryNow(s, p);
+  const payable = (o, extra) => !s.manaCheck || canPay(s, p, s.facts[o.name].cost, extra);
   for (const oid of s.zones[p].hand) {
-    const f = s.facts[s.objects[oid].name];
+    const o = s.objects[oid], f = s.facts[o.name];
     if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); }
-    else if (canSorcery || !isSorcerySpeed(f)) out.push({ t: 'cast', p, oid });
+    else if ((canSorcery || !isSorcerySpeed(f)) && payable(o, 0)) out.push({ t: 'cast', p, oid });
   }
   for (const oid of s.zones[p].command) {
-    const f = s.facts[s.objects[oid].name];
-    if (s.objects[oid].commander && (canSorcery || !isSorcerySpeed(f))) out.push({ t: 'cast', p, oid });
+    const o = s.objects[oid], f = s.facts[o.name];
+    if (o.commander && (canSorcery || !isSorcerySpeed(f)) && payable(o, commanderTax(s, p, oid))) out.push({ t: 'cast', p, oid });
   }
+  if (canSorcery && !s.players[p].companionUsed)
+    for (const oid of s.zones[p].companion) if (!s.manaCheck || canPay(s, p, { generic: COMPANION_COST, colored: {}, hybrid: [], x: 0 })) out.push({ t: 'companion', p, oid });
+  for (const o of sources(s, p)) out.push({ t: 'tap_mana', p, oid: o.oid, option: 0 });
   if (adjudication && s.mode === 'assisted') {
     for (const oid of s.zones.flatMap(z => z.battlefield)) {
       out.push({ t: 'tap', p, oid });
@@ -3315,15 +3577,26 @@ function legalActions(s, p, { adjudication = false } = {}) {
   return out;
 }
 
+/** A6 · prévia do dano de combate para uma proposta de bloqueio (sem mudar nada). */
+function previewCombat(state, blocks) {
+  try {
+    let s = clone(state);
+    if (s.pending && s.pending.kind === 'blockers') s = apply(s, { t: 'block', p: s.pending.p, blocks }).state;
+    const before = s.players.map(pl => pl.life);
+    const alive0 = new Set(battlefield(s).map(o => o.oid));
+    dealCombatDamage(s);
+    const died = [...alive0].filter(oid => s.objects[oid].zone !== 'battlefield').map(oid => s.objects[oid].name);
+    return { life: s.players.map((pl, i) => pl.life - before[i]), died };
+  } catch (e) { return null; }
+}
+
 /* ---------------- M8 · registro, replay e desfazer ---------------- */
-function clone(x) { return JSON.parse(JSON.stringify(x)); } // estado é JSON por contrato; e é mais rápido que structuredClone aqui
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
 function hashState(s) {
   const str = JSON.stringify(s); let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(16).padStart(8, '0');
 }
-/** Partida com histórico. Desfazer = refazer do início sem a última ação:
-    custa CPU, mas é impossível dessincronizar. */
 function createMatch(setup) {
   let state = createGame(setup);
   const log = [];
@@ -3337,16 +3610,13 @@ function createMatch(setup) {
 }
 function replay(setup, log) { return log.reduce((s, a) => apply(s, a).state, createGame(setup)); }
 
-/** Política aleatória com semente própria. É o B1 (bot aleatório legal)
-    e o gerador de partidas do fuzz. */
 function randomPolicy(seed, opts = {}) {
   const box = { rng: (seed >>> 0) || 7 };
   return s => {
     for (let p = 0; p < s.players.length; p++) {
       const acts = legalActions(s, p, opts);
       if (!acts.length) continue;
-      // passar demais deixa a partida infinita; pesa as ações de jogo
-      const nonPass = acts.filter(x => x.t !== 'pass');
+      const nonPass = acts.filter(x => x.t !== 'pass' && x.t !== 'tap_mana');
       const pool = nonPass.length && nextRand(box) < (opts.eagerness ?? 0.55) ? nonPass : acts;
       return pool[Math.floor(nextRand(box) * pool.length)];
     }
@@ -3354,7 +3624,6 @@ function randomPolicy(seed, opts = {}) {
   };
 }
 
-/** Invariantes que valem em qualquer estado alcançável. Lista vazia = ok. */
 function invariants(s, expectedObjects) {
   const errs = [];
   const seen = new Map();
@@ -3369,7 +3638,14 @@ function invariants(s, expectedObjects) {
   if (seen.size !== n) errs.push(`objetos ${n}, localizados ${seen.size}`);
   if (expectedObjects != null && n !== expectedObjects) errs.push(`objetos ${n}, esperados ${expectedObjects}`);
   if (!STEPS.includes(s.turn.step)) errs.push('passo inválido');
-  s.players.forEach((pl, i) => { if (!Number.isInteger(pl.life)) errs.push(`vida não inteira p${i}`); });
+  s.players.forEach((pl, i) => {
+    if (!Number.isInteger(pl.life)) errs.push(`vida não inteira p${i}`);
+    for (const c of COLORS) if (!Number.isInteger(pl.pool[c]) || pl.pool[c] < 0) errs.push(`reserva inválida p${i}`);
+  });
+  for (const o of Object.values(s.objects)) {
+    if ((o.attacking != null || o.blocking) && o.zone !== 'battlefield') errs.push(`${o.oid} em combate fora do campo`);
+    if ((o.attacking != null || o.blocking) && !['combat_attackers', 'combat_blockers', 'combat_damage'].includes(s.turn.step)) errs.push(`${o.oid} em combate no passo ${s.turn.step}`);
+  }
   if (s.status === 'playing') {
     if (s.players[s.turn.active].lost) errs.push('ativo perdeu e continua ativo');
     if (!s.pending && s.players[s.turn.priority].lost) errs.push('prioridade com jogador fora');
@@ -3379,10 +3655,10 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, RuleError, cardFacts, createGame, apply, legalActions,
-  createMatch, replay, hashState, randomPolicy, invariants, commanderTax };
+return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction,
+  createGame, apply, legalActions, previewCombat, eligibleAttackers, eligibleBlockers, canBlock, canPay, commanderTax,
+  createMatch, replay, hashState, randomPolicy, invariants };
 })();
-
 
 /* ==== src/ui/table-components.js ==== */
 const __m17 = (function () {
@@ -3398,10 +3674,11 @@ function TableCard(card, opts = {}) {
   const pills = [];
   for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' }, k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : `${k} ${v}`));
   if (card.damage) pills.push(h('span', { class: 'tb-pill tb-pill--neg' }, `${card.damage} dano`));
+  for (const t of opts.tags || []) pills.push(h('span', { class: 'tb-pill tb-pill--tag' }, t));
   return h('button', {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : ''].filter(Boolean).join(' '), type: 'button',
     'aria-label': card.name + (card.tapped ? ', virada' : '') + (card.sick ? ', com enjoo' : ''),
-    dataset: { tapped: String(!!card.tapped), sick: String(!!card.sick), selected: String(!!opts.selected), oid: card.oid || '' },
+    dataset: { tapped: String(!!card.tapped), sick: String(!!card.sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '' },
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' },
@@ -3477,14 +3754,14 @@ const __m18 = (function () {
    ===================================================================== */
 const E = __m16;
 const SAVE_KEY = 'match.current';
-const ZONE_PT = { library: 'grimório', hand: 'mão', battlefield: 'campo', graveyard: 'cemitério', exile: 'exílio', command: 'zona de comando', stack: 'pilha' };
+const ZONE_PT = { library: 'grimório', hand: 'mão', battlefield: 'campo', graveyard: 'cemitério', exile: 'exílio', command: 'zona de comando', stack: 'pilha', companion: 'companheiro' };
 const REASON_PT = { 'vida': 'vida zerada', 'grimório vazio': 'comprou com o grimório vazio', 'dano de comandante': '21 de dano de comandante', 'desistência': 'desistiu' };
 
 /** Monta o setup do motor a partir de listas salvas.
     seats = [{ name, deck?, dummy? }]; cards = { nome: carta completa }. */
-function buildSetup({ format, seed, seats, cards }) {
+function buildSetup({ format, seed, seats, cards, manaCheck = false }) {
   return {
-    format, seed: seed >>> 0, mode: 'assisted', cards,
+    format, seed: seed >>> 0, mode: 'assisted', cards, manaCheck,
     players: seats.map(st => st.dummy ? { name: st.name || 'Goldfish', deck: [], dummy: true } : { name: st.name, deck: st.deck.entries })
   };
 }
@@ -3514,7 +3791,18 @@ function describe(before, a, events, after) {
     case 'commander_damage': L.push(`${who(before, a.target)} recebeu ${a.delta || 1} de dano de comandante de ${nameOf(before, a.source)}`); break;
     case 'discard': L.push(`${P} descartou ${nameOf(before, a.oid)}`); break;
     case 'concede': L.push(`${P} desistiu`); break;
+    case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o)).join(', ')}` : `${P} não atacou`); break;
+    case 'block': L.push(a.blocks.length ? `${P} bloqueou: ${a.blocks.map(([b, x]) => `${nameOf(before, b)} → ${nameOf(before, x)}`).join(', ')}` : `${P} não bloqueou`); break;
+    case 'tap_mana': { const o = before.objects[a.oid]; const opt = (before.facts[o.name].produces[a.option || 0] || []).map(c => `{${c}}`).join(''); L.push(`${P} gerou ${opt} com ${o.name}`); break; }
+    case 'companion': L.push(`${P} pôs o companheiro ${nameOf(before, a.oid)} na mão${a.free ? ' (sem pagar)' : ` ({${E.COMPANION_COST}})`}`); break;
+    case 'add_mana': L.push(`${P} ${(a.delta || 1) > 0 ? 'adicionou' : 'tirou'} {${a.color}} da reserva`); break;
     default: break;
+  }
+  if (a.t === 'cast' && a.free) L[L.length - 1] += ' (sem pagar)';
+  // dano de combate e mortes que acontecem ao passar
+  if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
+    after.players.forEach((pl, i) => { const d = pl.life - before.players[i].life; if (d) L.push(`${pl.name}: vida ${before.players[i].life} → ${pl.life}`); });
+    for (const o of Object.values(after.objects)) if (before.objects[o.oid] && before.objects[o.oid].zone === 'battlefield' && o.zone === 'graveyard' && !events.some(e => e.oid === o.oid)) L.push(`${o.name} morreu`);
   }
   for (const ev of events) {
     if (ev.kind === 'resolved') L.push(`${ev.name} resolveu → ${ZONE_PT[ev.to]}`);
@@ -3538,9 +3826,9 @@ const RESPONSE_STOPS = new Set(['combat_attackers', 'end']);
 /** Onde um humano para: pilha com resposta possível, suas fases de ação
     e, no turno alheio, ataque e passo final quando tem o que conjurar. */
 function shouldStop(s, i) {
-  const respond = E.legalActions(s, i).some(a => a.t !== 'pass');
+  const respond = E.legalActions(s, i).some(a => a.t !== 'pass' && a.t !== 'tap_mana'); // gerar mana sozinho não é resposta
   if (s.stack.length) return respond;
-  if (s.turn.active === i) return ACTIVE_STOPS.has(s.turn.step);
+  if (s.turn.active === i) return s.turn.step === 'combat_attackers' ? respond : ACTIVE_STOPS.has(s.turn.step); // a declaração em si já é uma parada (pendência)
   if (s.players[s.turn.active].dummy && s.turn.step === 'combat_attackers') return false; // goldfish não ataca
   return respond && RESPONSE_STOPS.has(s.turn.step);
 }
@@ -3570,6 +3858,11 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       const dummy = s.players.findIndex((pl, i) => pl.dummy && !pl.lost && (
         (s.status === 'mulligan' && !pl.kept) || (s.status === 'playing' && !s.pending && s.turn.priority === i)));
       if (dummy >= 0) { events.push(...record(s.status === 'mulligan' ? { t: 'keep', p: dummy, bottom: [] } : { t: 'pass', p: dummy })); continue; }
+      // goldfish não bloqueia nem ataca
+      if (s.pending && s.players[s.pending.p] && s.players[s.pending.p].dummy) {
+        events.push(...record(s.pending.kind === 'blockers' ? { t: 'block', p: s.pending.p, blocks: [] } : s.pending.kind === 'attackers' ? { t: 'attack', p: s.pending.p, attackers: [] } : { t: 'concede', p: s.pending.p }));
+        continue;
+      }
       if (options.autoPass && s.status === 'playing' && !s.pending && !shouldStop(s, s.turn.priority)) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }
       break;
     }
@@ -3675,7 +3968,7 @@ const randomSeed = () => {
 /* ---------------- A2 · preparar partida ---------------- */
 function createTableSetup({ decks, cardRepo, store }) {
   const root = Stack(pad(), Row({}, Spinner()));
-  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, busy: false };
+  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, busy: false };
 
   (async () => {
     const all = await decks.list();
@@ -3714,7 +4007,7 @@ function createTableSetup({ decks, cardRepo, store }) {
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
           theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
-        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards }), { options: { autoPass: !state.stopAll } });
+        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana }), { options: { autoPass: !state.stopAll } });
         await store.set(T.SAVE_KEY, table.serialize());
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
         go('/partida');
@@ -3738,6 +4031,9 @@ function createTableSetup({ decks, cardRepo, store }) {
         theirsField,
         Field('Modo', Row({ class: 'ds-row--wrap' }, Chip('Mesa assistida', { pressed: true }),
           h('span', { class: 'ds-text ds-text--sm ds-text--muted' }, 'Motor completo libera quando a lista tiver cobertura total de scripts.'))),
+        Field('Mana', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
+          c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })(),
+          { hint: 'Ligado, conjurar toca seus terrenos sozinho e só oferece o que dá para pagar. Cartas que o motor não entende podem ser conjuradas sem pagar.' }),
         Field('Paradas', (() => { const c = Chip('Parar em todos os passos', { pressed: false, dataset: { stopall: '1' } });
           c.addEventListener('click', () => { state.stopAll = !state.stopAll; c.setAttribute('aria-pressed', String(state.stopAll)); }); return c; })(),
           { hint: 'Desligado, a mesa passa sozinha onde não há decisão, como no Arena.' }),
@@ -3783,6 +4079,41 @@ function createTableScreen({ store }) {
     paint();
   })();
 
+  /* ---- M7 · mana na tela ---- */
+  const costLabel = (c, extra = 0) => {
+    const parts = []; const g = (c.generic || 0) + extra; if (g) parts.push(`{${g}}`);
+    for (let i = 0; i < (c.x || 0); i++) parts.push('{X}');
+    for (const [k, n] of Object.entries(c.colored || {})) for (let i = 0; i < n; i++) parts.push(`{${k}}`);
+    for (const hy of c.hybrid || []) parts.push(`{${hy.join('/')}}`);
+    return parts.join('');
+  };
+  const poolView = pl => {
+    const syms = E.COLORS.flatMap(c => Array(pl.pool[c]).fill(c));
+    return syms.length ? h('span', { class: 'tb-pool', 'aria-label': 'reserva de mana' }, 'reserva ', ...syms.map(c => h('span', { class: `ds-pip ds-pip--${c.toLowerCase()}` }))) : null;
+  };
+
+  /* ---- A6 · declaração de ataque e bloqueio ---- */
+  const plan = { attack: new Set(), blocks: new Map(), eligible: new Set() };
+  function resetPlan() { plan.attack = new Set(); plan.blocks = new Map(); plan.eligible = new Set(); }
+  function syncPlan(s, v) {
+    const k = s.pending && s.pending.p === v ? s.pending.kind : null;
+    if (k === 'attackers') plan.eligible = new Set(E.eligibleAttackers(s, v));
+    else if (k === 'blockers') plan.eligible = new Set(E.eligibleBlockers(s, v));
+    else resetPlan();
+  }
+  /** Durante a declaração, tocar numa criatura escolhe em vez de abrir a folha. */
+  function onBoardTap(oid) {
+    const s = table.state, v = table.viewer();
+    if (!plan.eligible.has(oid)) return false;
+    if (s.pending.kind === 'attackers') { plan.attack.has(oid) ? plan.attack.delete(oid) : plan.attack.add(oid); paint(); return true; }
+    const attackers = s.combat.attackers.filter(a => s.objects[a].zone === 'battlefield' && E.canBlock(s, oid, a));
+    Dialog({ title: `Bloquear com ${s.objects[oid].name}`, body: attackers.length ? h('div', { class: 'tb-sheet__actions' },
+      ...attackers.map(a => Button(`Bloquear ${s.objects[a].name}`, { block: true, onClick: () => { plan.blocks.set(oid, a); closeDialog(); paint(); } })),
+      plan.blocks.has(oid) ? Button('Não bloquear', { block: true, variant: 'ghost', onClick: () => { plan.blocks.delete(oid); closeDialog(); paint(); } }) : null)
+      : Text('Não pode bloquear nenhum atacante (voar).', { tone: 'muted' }), actions: [Button('Fechar', { onClick: closeDialog })] });
+    return true;
+  }
+
   /* ---- folhas de ação ---- */
   function sheet(name, buttons, extra) {
     const img = imgOf(name, 'normal');
@@ -3802,6 +4133,7 @@ function createTableScreen({ store }) {
     dest.push(doBtn('Pôr no topo do grimório', { t: 'move', p: v, oid, to: 'library', top: true }));
     dest.push(doBtn('Pôr no fundo do grimório', { t: 'move', p: v, oid, to: 'library', top: false }));
     if (o.commander && o.zone !== 'command') dest.push(doBtn('Voltar para a zona de comando', { t: 'move', p: v, oid, to: 'command' }));
+    if (o.zone === 'companion') return [];
     return dest;
   }
   const hasPriority = v => { const s = table.state; return s.status === 'playing' && !s.pending && s.turn.priority === v; };
@@ -3810,10 +4142,25 @@ function createTableScreen({ store }) {
     const s = table.state, v = table.viewer(), o = s.objects[oid];
     if (!o) return;
     // A3: primeiro as ações de regra que o motor oferece para este objeto
+    const f = s.facts[o.name];
+    const costTxt = f.cost ? costLabel(f.cost, o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) : '';
     const legal = E.legalActions(s, v).filter(a => a.oid === oid).map(a =>
       a.t === 'play_land' ? doBtn('Jogar terreno', a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar', a, { variant: 'primary' })
-          : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' }) : null).filter(Boolean);
+        : a.t === 'cast' ? doBtn((o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar') + (s.manaCheck && costTxt ? ` · ${costTxt}` : ''), a, { variant: 'primary' })
+          : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
+            : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
+    // M7: mana da fonte, uma opção por cor que ela gera
+    if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
+      f.produces.forEach((opt, k) => legal.push(doBtn(`Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k })));
+    // mesa assistida: conjurar sem pagar quando o tempo é legal mas falta mana
+    if (s.manaCheck && hasPriority(v) && (o.zone === 'hand' || o.zone === 'command') && !legal.some(b => /Conjurar/.test(b.textContent)) && !f.types.includes('land')) {
+      let timingOk = false; try { E.apply(s, { t: 'cast', p: v, oid, free: true }); timingOk = true; } catch (e) { /* fora de hora */ }
+      if (timingOk) { legal.push(Button(`Conjurar · ${costTxt || 'sem custo'} — mana insuficiente`, { block: true, disabled: true })); legal.push(doBtn('Conjurar sem pagar (ajuste manual)', { t: 'cast', p: v, oid, free: true })); }
+    }
+    if (o.zone === 'companion' && hasPriority(v) && !legal.length && !s.players[v].companionUsed) {
+      let ok = false; try { E.apply(s, { t: 'companion', p: v, oid, free: true }); ok = true; } catch (e) { /* fora de hora */ }
+      if (ok) legal.push(doBtn('Pôr na mão sem pagar (ajuste manual)', { t: 'companion', p: v, oid, free: true }));
+    }
     const direct = [];
     if (hasPriority(v)) {
       if (o.zone === 'battlefield') {
@@ -3825,7 +4172,7 @@ function createTableScreen({ store }) {
       }
       if (o.zone !== 'stack' || true) direct.push(...moveButtons(v, oid));
     }
-    const where = h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `${s.players[o.owner].name} · ${T.ZONE_PT[o.zone]}${o.tapped ? ' · virada' : ''}`);
+    const where = h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `${s.players[o.owner].name} · ${T.ZONE_PT[o.zone] || 'companheiro (fora do jogo)'}${o.tapped ? ' · virada' : ''}${costTxt ? ' · ' + costTxt : ''}`);
     sheet(o.name, [...legal, ...direct], where);
   }
 
@@ -3856,7 +4203,9 @@ function createTableScreen({ store }) {
   }
 
   /* ---- pintura ---- */
-  const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => onClick(oid) }));
+  const tagsOf = (s, o) => [o.attacking != null ? 'ataca' : null, o.blocking ? 'bloqueia' : null, plan.blocks.has(o.oid) ? `→ ${s.objects[plan.blocks.get(o.oid)].name.split(',')[0]}` : null].filter(Boolean);
+  const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) },
+    { onClick: () => onBoardTap(oid) || onClick(oid), tags: tagsOf(s, s.objects[oid]), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid) }));
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
 
   function side(s, p, mine) {
@@ -3873,7 +4222,9 @@ function createTableScreen({ store }) {
       }, mine ? 'tb-lib-me' : 'tb-lib-opp'),
       ZoneChip('Cemitério', z.graveyard.length, () => openZone(p, 'graveyard', 'Cemitério')),
       ZoneChip('Exílio', z.exile.length, () => openZone(p, 'exile', 'Exílio')),
-      s.format === 'commander' ? ZoneChip('Comando', z.command.length, () => openZone(p, 'command', 'Zona de comando')) : null);
+      s.format === 'commander' ? ZoneChip('Comando', z.command.length, () => openZone(p, 'command', 'Zona de comando')) : null,
+      z.companion.length ? ZoneChip('Companheiro', z.companion.length, () => openZone(p, 'companion', 'Companheiro'), mine ? 'tb-comp-me' : 'tb-comp-opp') : null,
+      poolView(pl));
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
       sub: null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     const field = [ZoneRow('Permanentes', cardsOf(s, others, openObject), { zone: 'permanents', empty: 'nenhuma' }), ZoneRow('Terrenos', cardsOf(s, lands, openObject), { zone: 'lands', empty: 'nenhum' })];
@@ -3895,6 +4246,17 @@ function createTableScreen({ store }) {
           Button('Mulligan de novo', { onClick: () => { bottomPick = new Set(); act({ t: 'mulligan', p: v }); } })] })
         : PriorityBanner({ title: `${pl.name}: mão inicial`, hint: pl.mulligans ? `${pl.mulligans} mulligan(s) feito(s)` : 'Manter ou embaralhar e comprar 7 de novo.',
           actions: [Button('Manter', { variant: 'primary', id: 'tb-keep', onClick: () => act({ t: 'keep', p: v, bottom: [] }) }), Button('Mulligan', { id: 'tb-mull', onClick: () => act({ t: 'mulligan', p: v }) })] });
+    } else if (s.pending && s.pending.kind === 'attackers' && s.pending.p === v) {
+      banner = PriorityBanner({ title: 'Declarar atacantes', hint: `Toque nas criaturas que vão atacar. ${plan.eligible.size} podem atacar.`,
+        actions: [Button(plan.attack.size ? `Atacar com ${plan.attack.size}` : 'Atacar', { variant: 'primary', id: 'tb-attack', disabled: !plan.attack.size, onClick: () => { const list = [...plan.attack]; resetPlan(); act({ t: 'attack', p: v, attackers: list }); } }),
+          Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })] });
+    } else if (s.pending && s.pending.kind === 'blockers' && s.pending.p === v) {
+      const blocks = [...plan.blocks.entries()];
+      const pv = E.previewCombat(s, blocks);
+      const hint = pv ? `Prévia: você ${pv.life[v] < 0 ? 'perde ' + (-pv.life[v]) : 'não perde'} de vida` + (pv.died.length ? ` · morrem: ${pv.died.join(', ')}` : '') : 'Bloqueio inválido (ameaça pede dois bloqueadores).';
+      banner = PriorityBanner({ title: 'Declarar bloqueadores', hint: 'Toque nas suas criaturas para escolher quem bloqueiam. ' + hint, tone: 'warning',
+        actions: [Button(blocks.length ? `Bloquear (${blocks.length})` : 'Confirmar', { variant: 'primary', id: 'tb-block', disabled: !blocks.length || !pv, onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks }); } }),
+          Button('Sem bloqueio', { id: 'tb-no-block', onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks: [] }); } })] });
     } else if (s.pending && s.pending.kind === 'discard') {
       banner = PriorityBanner({ title: `Descarte ${s.pending.n} carta(s)`, hint: 'Mão acima de 7 na limpeza. Toque nas cartas da mão.', tone: 'warning', actions: [] });
     } else if (s.turn.priority === v) {
@@ -3936,9 +4298,10 @@ function createTableScreen({ store }) {
       return mount(root, h('div', { class: 'tb-handoff', id: 'tb-handoff' },
         Text('Passe o aparelho', { size: 'sm', tone: 'muted' }),
         Text(s.players[v].name, { size: '3xl', display: true }),
-        Text(s.status === 'mulligan' ? 'para decidir a mão inicial.' : `para responder · ${E.STEP_PT[s.turn.step]}`, { tone: 'muted' }),
+        Text(s.status === 'mulligan' ? 'para decidir a mão inicial.' : s.pending && s.pending.kind === 'blockers' ? 'para declarar bloqueadores.' : s.pending && s.pending.kind === 'attackers' ? 'para declarar atacantes.' : `para responder · ${E.STEP_PT[s.turn.step]}`, { tone: 'muted' }),
         Button(`Sou ${s.players[v].name}, mostrar a mesa`, { variant: 'primary', id: 'tb-reveal', onClick: () => { handoff = false; paint(); } })));
     }
+    syncPlan(s, v);
     const opp = s.players.map((_, i) => i).find(i => i !== v);
     const stackItems = s.stack.map(oid => ({ ...s.objects[oid], image: imgOf(s.objects[oid].name), who: s.players[s.objects[oid].controller].name, onClick: () => openObject(oid) }));
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
