@@ -458,6 +458,142 @@ body {
 .deck-curve__bar { width: 100%; min-height: 2px; background: var(--accent); border-radius: var(--radius-1) var(--radius-1) 0 0; }
 .deck-curve__n, .deck-curve__cmc { font-size: var(--text-xs); color: var(--fg-muted); }
 .ds-list__item .ds-stack { min-width: 0; }
+
+/* ===================== A0 · mesa =====================
+   A mesa é o interior da estante: madeira escura ao fundo, a carta como
+   única cor viva. O banner de prioridade é o único elemento em destaque. */
+.tb { padding-bottom: var(--space-4); }
+.tb-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); }
+.tb-top__actions { display: flex; gap: var(--space-2); margin-left: auto; }
+.tb-steps { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-steps__head { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-muted); }
+.tb-steps__head strong { color: var(--fg); font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-md); }
+.tb-steps__list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; margin: 0; padding: 0; list-style: none; }
+.tb-steps__list li {
+  font-size: var(--text-xs); text-align: center; padding: 2px 0; color: var(--fg-muted);
+  border-bottom: 3px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tb-steps__list li[data-current="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: var(--weight-medium); }
+
+.tb-board { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-3); }
+.tb-side {
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+  background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2);
+  border-bottom: 3px solid var(--shelf-edge);
+}
+.tb-side--opp { background: var(--bg); }
+.tb-side__head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.tb-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; }
+.tb-chip {
+  display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); padding: 0 var(--space-2);
+  border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--bg-elev-2);
+  color: var(--fg-muted); font-size: var(--text-xs);
+}
+.tb-chip b { color: var(--fg); font-size: var(--text-sm); }
+
+.tb-life {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2); border-radius: var(--radius-2);
+  border: 1px solid var(--border-strong); background: var(--bg-elev-2); color: var(--fg); text-align: left;
+}
+.tb-life[data-active="true"] { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.tb-life__n { font-family: var(--font-display); font-size: var(--text-3xl); line-height: 1; min-width: 2ch; text-align: center; }
+.tb-life__who { display: flex; flex-direction: column; font-size: var(--text-sm); }
+.tb-life__who small { color: var(--fg-muted); font-size: var(--text-xs); }
+
+.tb-zone { display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-zone__label { font-size: var(--text-xs); color: var(--fg-muted); }
+.tb-zone__empty { font-size: var(--text-xs); color: var(--fg-subtle); }
+.tb-zone--empty { flex-direction: row; gap: var(--space-2); align-items: baseline; }
+.tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-1) 0 var(--space-2); scroll-snap-type: x proximity; }
+
+.tb-card {
+  position: relative; flex: none; width: 64px; aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
+  scroll-snap-align: start; transition: transform var(--dur-2) var(--ease-out);
+}
+.tb-card--sm { width: 52px; }
+.tb-card--hand { width: 92px; }
+.tb-card__face {
+  position: absolute; inset: 0; overflow: hidden; border-radius: var(--radius-card);
+  background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--shadow-1);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
+.tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
+.tb-card[data-tapped="true"] { margin: 0 calc(64px * .2); }
+.tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
+.tb-card[data-selected="true"] .tb-card__face { outline: 3px solid var(--accent); transform: translateY(calc(var(--space-2) * -1)); }
+.tb-card__pills { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.tb-pill { font-size: var(--text-xs); line-height: 1.2; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); white-space: nowrap; font-weight: var(--weight-bold); }
+.tb-pill--neg { background: var(--negative); color: var(--negative-fg); }
+.tb-card__sick { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: var(--text-xs); line-height: 1.2; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--bg-elev-3); color: var(--fg-muted); border: 1px solid var(--border); }
+
+.tb-center { display: flex; flex-direction: column; gap: var(--space-2); }
+.tb-center:empty { display: none; }
+.tb-stack { padding: var(--space-2) var(--space-3); border: 1px dashed var(--accent); border-radius: var(--radius-2); }
+.tb-stack__item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tb-stack__item[data-top="true"] .tb-card__face { outline: 2px solid var(--accent); }
+.tb-stack__who { font-size: var(--text-xs); color: var(--fg-muted); }
+
+.tb-adj { padding: var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--accent); display: flex; flex-direction: column; gap: var(--space-2); }
+.tb-adj__head { display: flex; gap: var(--space-3); align-items: flex-start; }
+.tb-adj__img { width: 72px; border-radius: var(--radius-card); flex: none; }
+.tb-adj__oracle { margin: 0; white-space: pre-wrap; font-size: var(--text-sm); line-height: var(--lh-md); color: var(--fg); }
+.tb-adj__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+
+.tb-dock {
+  position: sticky; bottom: 0; z-index: var(--z-sticky); margin-top: var(--space-3);
+  background: var(--scrim); backdrop-filter: blur(10px); border-top: 2px solid var(--shelf-edge);
+  padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+}
+.tb-banner { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding-bottom: var(--space-2); }
+.tb-banner__text { flex: 1 1 180px; display: flex; flex-direction: column; min-width: 0; }
+.tb-banner__text strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); color: var(--accent); }
+.tb-banner[data-tone="warning"] .tb-banner__text strong { color: var(--warning); }
+.tb-banner__text span { font-size: var(--text-sm); color: var(--fg-muted); }
+.tb-banner__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.tb-hand .tb-row { padding-top: var(--space-2); }
+
+.tb-handoff { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); text-align: center; padding: var(--space-5); }
+.tb-zonegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: var(--space-2); }
+.tb-sheet__img { width: 100%; max-width: 240px; margin: 0 auto; display: block; border-radius: var(--radius-card); }
+.tb-sheet__actions { display: flex; flex-direction: column; gap: var(--space-2); }
+.tb-lifepad { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.tb-log { margin: 0; padding-left: var(--space-5); max-height: 55vh; overflow-y: auto; font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-log li[data-turn="true"] { color: var(--accent); list-style: none; margin-left: calc(var(--space-5) * -1); padding-top: var(--space-2); }
+@media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
+
+/* barra no celular: quatro destinos cabem sem rolagem lateral */
+@media (max-width: 480px) {
+  .ds-appbar__inner { gap: var(--space-1); }
+  .ds-appbar .brand__name { display: none; }
+  .ds-appbar .ds-btn--ghost:not(.ds-btn--icon) { padding: 0 var(--space-2); }
+}
+
+/* ===================== C2 · coleção ===================== */
+.col-add { display: flex; gap: var(--space-2); }
+.col-add .ds-input { flex: 1; min-width: 0; }
+.col-list { overflow: hidden; }
+.col-row {
+  display: grid; grid-template-columns: 48px 1fr; grid-template-areas: "thumb info" "thumb qty";
+  gap: var(--space-1) var(--space-3); align-items: center; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border);
+}
+.col-row:last-child { border-bottom: none; }
+@media (min-width: 640px) { .col-row { grid-template-columns: 48px 1fr auto; grid-template-areas: "thumb info qty"; } }
+.col-row__thumb { grid-area: thumb; width: 48px; aspect-ratio: 488 / 680; border-radius: var(--radius-1); overflow: hidden; background: var(--bg-elev-3); border: 1px solid var(--border); padding: 0; color: var(--fg-muted); font-family: var(--font-display); }
+.col-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.col-row__info { grid-area: info; min-width: 0; }
+.col-row__info .ds-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.col-row__qty { grid-area: qty; display: flex; align-items: center; gap: var(--space-1); }
+.col-row__n {
+  min-width: var(--tap-min); min-height: var(--tap-min); border-radius: var(--radius-2); border: 1px solid var(--border-strong);
+  background: var(--bg-elev-2); color: var(--fg); font-size: var(--text-lg); font-weight: var(--weight-bold);
+}
+/* ===================== C7 · toque duplo ===================== */
+.deck-slot.is-pulse .ds-card { animation: own-pulse var(--dur-3) var(--ease-out); }
+@keyframes own-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.06); box-shadow: var(--focus-ring); } 100% { transform: scale(1); } }
+.own-badge { background: var(--positive); color: var(--positive-fg); }
+@media (prefers-reduced-motion: reduce) { .deck-slot.is-pulse .ds-card { animation: none; } }
 </style>
 </head>
 <body>
@@ -963,6 +1099,23 @@ function renderDS() {
         CardFace({ name: 'Counterspell' }),
         CardFace({ name: 'Llanowar Elves' }),
         CardFace({ name: 'Sol Ring' }))),
+
+    Section('Mesa', ...(() => {
+      const M = __m17;
+      const demo = (name, extra = {}) => ({ name, oid: 'ds-' + name, ...extra });
+      return [
+        M.StepBar({ turn: 3, step: 'combat_attackers', active: 'Você', label: 'Declarar atacantes' }),
+        h('div', { class: 'ds-row ds-row--wrap', id: 'ds-table' },
+          M.LifeCounter({ name: 'Você', life: 17, active: true, onClick: () => toast('Vida') }),
+          M.LifeCounter({ name: 'Goldfish', life: 20, sub: 'goldfish' }),
+          M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
+        M.ZoneRow('Permanentes', [M.TableCard(demo('Delver of Secrets', { sick: true })), M.TableCard(demo('Spellstutter Sprite', { tapped: true, counters: { p1p1: 1 } })), M.TableCard(demo('Guardian', { damage: 2 }))]),
+        M.StackStrip([demo('Lightning Bolt', { who: 'Bot' }), demo('Counterspell', { who: 'Você' })]),
+        M.PriorityBanner({ title: 'Pilha: Counterspell', hint: 'Responda ou passe. Se todos passarem, o topo resolve.', actions: [Button('Passar', { variant: 'primary' })] }),
+        M.AdjudicationPanel({ name: 'Preordain', oracle: 'Scry 2. Then draw a card.', controls: [Button('Comprar 1')], onDone: () => toast('Efeito aplicado') }),
+        Text('Carta com enjoo, carta virada com marcador, dano, pilha, momento de prioridade e adjudicação.', { size: 'sm', tone: 'muted' })
+      ];
+    })()),
 
     Section('Estados',
       Empty('Nenhuma lista ainda.', Button('Criar lista', { variant: 'primary' })),
@@ -1507,6 +1660,30 @@ async function registerServiceWorker({ navigator: nav, location: loc, path = './
 return { createInstaller, registerServiceWorker };
 })();
 
+/* ==== src/ui/gestures.js ==== */
+const __m20 = (function () {
+/* C7 · TOQUE DUPLO
+   Um toque abre (com atraso curto para distinguir); dois toques seguidos
+   executam a ação rápida. Funciona com dedo e com mouse (dois cliques). */
+const DOUBLE_MS = 280;
+function onTaps(el, { single, double, delay = DOUBLE_MS }) {
+  let timer = null;
+  el.style.touchAction = 'manipulation'; // sem zoom do navegador no toque duplo
+  el.addEventListener('click', e => {
+    if (timer) { clearTimeout(timer); timer = null; if (double) double(e); return; }
+    timer = setTimeout(() => { timer = null; if (single) single(e); }, delay);
+  });
+  return el;
+}
+/** Confirmação visual do toque duplo: pulso curto na carta. */
+function pulse(el) {
+  if (!el) return;
+  el.classList.remove('is-pulse'); void el.offsetWidth; el.classList.add('is-pulse');
+  try { navigator.vibrate && navigator.vibrate(12); } catch (e) { /* sem vibração */ }
+}
+return { onTaps, pulse, DOUBLE_MS };
+})();
+
 /* ==== src/app/cards.js ==== */
 const __m12 = (function () {
 /* =====================================================================
@@ -1545,7 +1722,19 @@ function toViewable(c) {
   };
 }
 
-function createCardsScreen({ repo, images, local, env, files }) {
+function createCardsScreen({ repo, images, local, env, files, collection }) {
+  const { onTaps, pulse } = __m20;
+  let owned = {};
+  if (collection) collection.all().then(o => { owned = o; if (state.results) paint(); });
+  const ownedBadge = name => { const q = owned[__m7.norm(name)] || 0;
+    return q ? h('span', { class: 'deck-slot__qty own-badge' }, `tenho ${q}`) : null; };
+  async function quickOwn(c, slot) {
+    const r = await collection.toggle(c.name, 1);
+    owned = await collection.all();
+    pulse(slot);
+    toast(!r.changed ? `Você tem ${r.before} — ajuste a quantidade em Coleção` : r.after ? `Na coleção: ${c.name}` : `Fora da coleção: ${c.name}`);
+    paint();
+  }
   const state = { text: '', colors: new Set(), type: '', rarity: '', format: '', busy: false, results: null, error: null, source: null, localCount: 0 };
 
   const results = h('div', { id: 'cards-results' });
@@ -1592,9 +1781,13 @@ function createCardsScreen({ repo, images, local, env, files }) {
     results.appendChild(Row({},
       Text(`${state.results.length} carta(s)`, { size: 'sm', tone: 'muted' }),
       Badge(state.source === 'rede' ? 'da Scryfall' : 'da base local', { tone: state.source === 'rede' ? 'accent' : undefined })));
-    results.appendChild(CardGrid(...state.results.map(c =>
-      CardFace({ name: c.name, image: (c.images && c.images.normal) || c.img },
-        { onClick: () => openCardViewer(toViewable(c)), dataset: { card: c.id } }))));
+    if (collection) results.appendChild(Text('Toque duas vezes numa carta para marcar que você a tem.', { size: 'sm', tone: 'muted' }));
+    results.appendChild(CardGrid(...state.results.map(c => {
+      const face = CardFace({ name: c.name, image: (c.images && c.images.normal) || c.img }, { dataset: { card: c.id } });
+      const slot = h('div', { class: 'deck-slot', dataset: { card: c.id } }, face, collection ? ownedBadge(c.name) : null);
+      onTaps(face, { single: () => openCardViewer(toViewable(c)), double: collection ? () => quickOwn(c, slot) : null });
+      return slot;
+    })));
   }
 
   const colorChips = Row({ class: 'ds-row--wrap', id: 'cards-colors' },
@@ -1818,7 +2011,7 @@ function createDeckStore({ store, now = () => Date.now() }) {
     },
     /** Backup completo: listas + coleção. O dado mora no aparelho. */
     async exportAll(collection) {
-      return JSON.stringify({ kind: 'estante.backup', version: 1, decks: await this.list(), owned: await collection.all() }, null, 1);
+      return JSON.stringify({ kind: 'estante.backup', version: 1, decks: await this.list(), owned: await collection.all(), ownedNames: await collection.names() }, null, 1);
     },
     async importAll(text, collection) {
       let data;
@@ -1829,32 +2022,65 @@ function createDeckStore({ store, now = () => Date.now() }) {
       const cur = new Set(await ids());
       (data.decks || []).forEach(d => d && d.id && cur.add(d.id));
       await store.set(IDS, [...cur]);
-      if (data.owned) await collection.merge(data.owned);
+      if (data.owned) await collection.merge(data.owned, data.ownedNames || {});
       return { decks: n };
     }
   };
 }
 
 /* ---------------- L4 · coleção ----------------
-   Por nome de carta, não por impressão: responde "tenho esta carta?". */
+   Por nome de carta, não por impressão: responde "tenho esta carta?".
+   C2/C9: guarda o nome de exibição ao lado da quantidade, para a tela de
+   coleção listar sem depender da rede. Valores antigos (só número) seguem válidos. */
+const NAMES = 'collection.names';
 function createCollection({ store }) {
-  let cache = null;
-  const load = async () => cache || (cache = (await store.get(OWNED)) || {});
-  const persist = () => store.set(OWNED, cache);
-  return {
+  let cache = null, names = null;
+  const load = async () => {
+    if (!cache) { cache = (await store.get(OWNED)) || {}; names = (await store.get(NAMES)) || {}; }
+    return cache;
+  };
+  const persist = () => Promise.all([store.set(OWNED, cache), store.set(NAMES, names)]);
+  const api = {
     async all() { return { ...(await load()) }; },
     async qty(name) { return (await load())[norm(name)] || 0; },
     async set(name, qty) {
       const m = await load(); const k = norm(name);
-      if (qty > 0) m[k] = qty; else delete m[k];
-      await persist(); return qty;
+      const q = Math.max(0, Math.floor(Number(qty) || 0));
+      if (q > 0) { m[k] = q; if (!names[k] || names[k] === k) names[k] = String(name).trim(); }
+      else { delete m[k]; delete names[k]; }
+      await persist(); return q;
     },
-    async merge(obj) {
+    async remove(name) { return api.set(name, 0); },
+    /** C2 · itens da coleção com nome de exibição. */
+    async entries() {
       const m = await load();
-      for (const [k, v] of Object.entries(obj || {})) if (v > 0) m[k] = Math.max(m[k] || 0, v);
+      return Object.entries(m).map(([key, qty]) => ({ key, name: names[key] || key, qty }));
+    },
+    /** C7 · alterna "tenho" sem nunca apagar cópias além do alvo.
+        0 → alvo; exatamente o alvo → 0; acima do alvo → não mexe (ajuste na Coleção). */
+    async toggle(name, target = 1) {
+      const before = await api.qty(name);
+      if (before > target) return { before, after: before, changed: false, reason: 'acima' };
+      const after = before >= target ? 0 : target;
+      await api.set(name, after);
+      return { before, after, changed: true };
+    },
+    /** C8 · lista nova já possuída: garante ao menos a quantidade da lista. */
+    async markOwned(entries) {
+      const m = await load(); const need = new Map();
+      for (const e of entries) { const k = norm(e.name); const cur = need.get(k) || { name: e.name, qty: 0 }; cur.qty += e.qty; need.set(k, cur); }
+      let changed = 0;
+      for (const [k, { name, qty }] of need) if ((m[k] || 0) < qty) { m[k] = qty; if (!names[k]) names[k] = name; changed++; }
+      await persist(); return changed;
+    },
+    async merge(obj, nameMap = {}) {
+      const m = await load();
+      for (const [k, v] of Object.entries(obj || {})) if (v > 0) { m[k] = Math.max(m[k] || 0, v); if (nameMap[k] && !names[k]) names[k] = nameMap[k]; }
       await persist();
-    }
+    },
+    async names() { await load(); return { ...names }; }
   };
+  return api;
 }
 
 /* ---------------- categorias e estatística ---------------- */
@@ -1960,6 +2186,7 @@ const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textar
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS } = __m14;
 const { openCardViewer } = __m12;
+const { onTaps, pulse } = __m20;
 
 const q = () => new URLSearchParams((location.hash.split('?')[1]) || '');
 const go = to => { location.hash = '#' + to; };
@@ -2012,9 +2239,9 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
 }
 
 /* ---------------- /listas/editar ---------------- */
-function createDeckEditor({ decks }) {
+function createDeckEditor({ decks, collection }) {
   const id = q().get('id');
-  const state = { name: '', format: 'commander', text: '' };
+  const state = { name: '', format: 'commander', text: '', ownAll: false };
   const root = Stack(pad(), Row({}, Spinner()));
 
   (async () => {
@@ -2037,7 +2264,9 @@ function createDeckEditor({ decks }) {
       if (!state.name.trim()) return toast('Dê um nome para a lista');
       if (!entries.length) return toast('Cole ao menos uma carta');
       const saved = await decks.save({ ...(d || {}), name: state.name.trim(), format: state.format, entries });
-      toast(d ? 'Lista atualizada' : 'Lista criada');
+      // C8: a lista chega já marcada como possuída
+      const marked = state.ownAll && collection ? await collection.markOwned(entries) : 0;
+      toast((d ? 'Lista atualizada' : 'Lista criada') + (state.ownAll ? ` · ${marked} carta(s) adicionadas à coleção` : ''));
       go('/lista?id=' + saved.id);
     }
 
@@ -2050,6 +2279,8 @@ function createDeckEditor({ decks }) {
           Field('Formato', Select(FORMAT_OPTS, { id: 'deck-format', value: state.format, onChange: e => { state.format = e.target.value; } }))),
         Field('Cartas', textIn),
         preview,
+        (() => { const c = Chip('Já tenho todas as cartas desta lista', { pressed: false, dataset: { ownall: '1' } });
+          c.addEventListener('click', () => { state.ownAll = !state.ownAll; c.setAttribute('aria-pressed', String(state.ownAll)); }); return c; })(),
         Row({}, Button(d ? 'Salvar alterações' : 'Criar lista', { variant: 'primary', id: 'deck-save', onClick: save }),
           Button('Cancelar', { onClick: () => history.back() })))));
   })();
@@ -2080,11 +2311,10 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
   const entryCard = e => state.cards.get(norm(e.name));
   const img = c => c && ((c.images && c.images.normal) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.normal));
 
-  async function toggleOwned(e) {
-    const have = state.owned[norm(e.name)] || 0;
-    const next = have >= e.qty ? 0 : e.qty;
-    await collection.set(e.name, next);
+  async function toggleOwned(e, announce = false) {
+    const r = await collection.toggle(e.name, e.qty);
     state.owned = await collection.all();
+    if (announce || !r.changed) toast(!r.changed ? `Você tem ${r.before} — ajuste a quantidade em Coleção` : r.after ? `Tenho: ${e.name}` : `Não tenho: ${e.name}`);
     paint();
   }
 
@@ -2092,7 +2322,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
     const c = entryCard(e);
     const have = state.owned[norm(e.name)] || 0;
     const extra = [
-      Button(have >= e.qty ? 'Não tenho' : 'Tenho', { onClick: async () => { closeDialog(); await toggleOwned(e); } }),
+      Button(have >= e.qty ? 'Não tenho' : 'Tenho', { onClick: async () => { closeDialog(); await toggleOwned(e, true); } }),
       state.deck.format === 'commander' && e.zone !== 'commander'
         ? Button('Definir como comandante', { onClick: async () => { e.zone = 'commander'; e.qty = 1; closeDialog(); await persist(); paint(); } }) : null,
       e.zone === 'commander' ? Button('Mover para o deck', { onClick: async () => { e.zone = 'main'; closeDialog(); await persist(); paint(); } }) : null,
@@ -2150,10 +2380,14 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           const c = entryCard(e);
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
           const lacking = have < e.qty;
-          return h('div', { class: 'deck-slot', dataset: { missing: String(lacking) } },
-            CardFace({ name: e.name, image: img(c) }, { onClick: () => state.marking ? toggleOwned(e) : openEntry(e) }),
+          const face = CardFace({ name: e.name, image: img(c) });
+          const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name } }, face,
             e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
             lacking ? h('span', { class: 'deck-slot__flag' }, have ? `falta ${e.qty - have}` : 'falta') : null);
+          // C7: um toque abre a carta (ou marca, no modo marcação); dois toques marcam "tenho"
+          if (state.marking) face.addEventListener('click', () => toggleOwned(e));
+          else onTaps(face, { single: () => openEntry(e), double: () => { pulse(slot); toggleOwned(e, true); } });
+          return slot;
         })));
     }).filter(Boolean);
 
@@ -2181,7 +2415,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
         ? Note(issues.map(i => (i.level === 'error' ? '<b>✕</b> ' : '<b>!</b> ') + escapeHtml(i.message)).join('<br>'), issues.some(i => i.level === 'error') ? 'negative' : 'warning')
         : (d.format !== 'livre' ? Note(`<b>✓</b> Lista válida para ${FORMATS[d.format]}.`) : null),
       Row({ class: 'ds-row--wrap' }, markChip,
-        state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : Text('Toque numa carta para ver detalhes e ações.', { size: 'sm', tone: 'muted' })),
+        state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : Text('Um toque abre a carta. Dois toques marcam que você a tem.', { size: 'sm', tone: 'muted' })),
       ...groups);
   }
 
@@ -2189,9 +2423,117 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
   return root;
 }
 
+/* ---------------- /colecao · C2 e C9 ----------------
+   Densidade do Moxfield: uma linha por carta, quantidade editável no
+   lugar, remoção com confirmação e as listas que usam a carta. */
+function createCollectionScreen({ collection, decks, cardRepo }) {
+  const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true };
+  const listEl = h('div', { id: 'col-list' }, Row({}, Spinner(), Text('Abrindo coleção…', { size: 'sm', tone: 'muted' })));
+  const summary = h('div', { id: 'col-summary' });
+
+  async function load() {
+    state.items = await collection.entries();
+    const all = await decks.list();
+    state.usedIn = new Map();
+    for (const d of all) for (const e of d.entries) {
+      const k = norm(e.name); const arr = state.usedIn.get(k) || [];
+      if (!arr.includes(d.name)) arr.push(d.name); state.usedIn.set(k, arr);
+    }
+    state.loading = false; paint();
+    if (state.items.length) {
+      try { state.cards = await cardRepo.byNames(state.items.map(i => i.name)); } catch (e) { /* sem rede: segue só com nomes */ }
+      paint();
+    }
+  }
+
+  async function setQty(item, qty) {
+    await collection.set(item.name, qty);
+    state.items = await collection.entries();
+    paint();
+  }
+
+  function editQty(item) {
+    const input = Input({ id: 'col-qty-input', type: 'number', inputmode: 'numeric', value: String(item.qty) });
+    input.min = '0'; input.max = '999';
+    const save = async () => { const n = Math.max(0, Math.min(999, parseInt(input.value, 10) || 0)); closeDialog(); await setQty(item, n); toast(n ? `${item.name}: ${n} cópia(s)` : `${item.name} removida da coleção`); };
+    input.addEventListener('keydown', ev => { if (ev.key === 'Enter') save(); });
+    Dialog({ title: item.name, body: Field('Quantas cópias você tem?', input, { hint: 'Zero remove a carta da coleção.' }),
+      actions: [Button('Cancelar', { onClick: closeDialog }), Button('Salvar', { variant: 'primary', id: 'col-qty-save', onClick: save })] });
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  }
+
+  function confirmRemove(item) {
+    const used = state.usedIn.get(item.key) || [];
+    Dialog({ title: `Remover ${item.name}?`, body: Text(used.length ? `As listas ${used.join(', ')} passam a mostrar esta carta como faltante.` : 'A carta sai da sua coleção.', { tone: 'muted' }),
+      actions: [Button('Cancelar', { onClick: closeDialog }), Button('Remover', { variant: 'danger', id: 'col-remove-confirm', onClick: async () => { closeDialog(); await setQty(item, 0); toast(`${item.name} removida da coleção`); } })] });
+  }
+
+  function row(item) {
+    const c = state.cards.get(item.key) || state.cards.get(norm(item.name));
+    const img = c && ((c.images && c.images.small) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.small));
+    const used = state.usedIn.get(item.key) || [];
+    return h('div', { class: 'col-row', dataset: { name: item.name } },
+      h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${item.name}`, onClick: () => c && openCardViewer(c) },
+        img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', {}, item.name.slice(0, 1))),
+      h('div', { class: 'col-row__info' },
+        Text(item.name, { size: 'md' }),
+        Text([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || ' ', { size: 'xs', tone: 'muted' })),
+      h('div', { class: 'col-row__qty' },
+        Button('−', { icon: true, ariaLabel: `Uma cópia a menos de ${item.name}`, onClick: () => item.qty > 1 ? setQty(item, item.qty - 1) : confirmRemove(item) }),
+        h('button', { class: 'col-row__n', type: 'button', 'aria-label': `${item.qty} cópias de ${item.name}. Editar`, onClick: () => editQty(item) }, String(item.qty)),
+        Button('+', { icon: true, ariaLabel: `Uma cópia a mais de ${item.name}`, onClick: () => setQty(item, item.qty + 1) }),
+        Button('Remover', { variant: 'ghost', ariaLabel: `Remover ${item.name}`, onClick: () => confirmRemove(item) })));
+  }
+
+  function paint() {
+    const total = state.items.reduce((sum, i) => sum + i.qty, 0);
+    mount(summary, Text(`${state.items.length} carta(s) · ${total} cópia(s)`, { size: 'sm', tone: 'muted' }));
+    if (state.loading) return;
+    if (!state.items.length) return mount(listEl, Empty('Sua coleção está vazia. Marque cartas com dois toques nas listas ou na busca, ou adicione pelo nome acima.',
+      Button('Buscar cartas', { onClick: () => go('/cartas') })));
+    const f = norm(state.filter);
+    const rows = state.items.filter(i => !f || norm(i.name).includes(f))
+      .sort((a, b) => state.sort === 'qty' ? b.qty - a.qty || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
+    mount(listEl, rows.length ? h('div', { class: 'col-list ds-surface' }, ...rows.map(row)) : Empty('Nenhuma carta com esse nome na coleção.'));
+  }
+
+  const addState = { name: '' };
+  async function add() {
+    const name = addState.name.trim(); if (!name) return;
+    addBtn.disabled = true;
+    try {
+      const found = await cardRepo.byNames([name]);
+      const c = found.get(norm(name));
+      if (!c) return toast(`Não achei "${name}" na Scryfall. Confira a grafia.`);
+      const cur = await collection.qty(c.name);
+      await collection.set(c.name, cur + 1);
+      state.cards.set(norm(c.name), c);
+      state.items = await collection.entries();
+      addIn.value = ''; addState.name = '';
+      toast(`${c.name}: ${cur + 1} cópia(s)`); paint();
+    } catch (e) { toast('Sem conexão com a Scryfall para conferir o nome'); }
+    finally { addBtn.disabled = false; }
+  }
+  const addIn = Input({ id: 'col-add', placeholder: 'Nome da carta, em inglês', onInput: e => { addState.name = e.target.value; } });
+  addIn.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+  const addBtn = Button('Adicionar', { variant: 'primary', id: 'col-add-btn', onClick: add });
+  const filterIn = Input({ id: 'col-filter', placeholder: 'Filtrar pelo nome', onInput: e => { state.filter = e.target.value; paint(); } });
+
+  load();
+  return Stack(pad(),
+    Row({}, Stack({ style: { gap: 'var(--space-1)' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
+      Button('Buscar cartas', { onClick: () => go('/cartas') })),
+    Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
+      Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Na busca e nas listas, dois toques numa carta também marcam.' }))),
+    Row({ class: 'ds-row--wrap' },
+      h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
+      Select([{ value: 'name', label: 'Ordem alfabética' }, { value: 'qty', label: 'Mais cópias primeiro' }], { id: 'col-sort', value: state.sort, onChange: e => { state.sort = e.target.value; paint(); } })),
+    listEl);
+}
+
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createDeckEditor, createDeckScreen };
+return { createDecksHome, createDeckEditor, createDeckScreen, createCollectionScreen };
 })();
 
 
@@ -2277,6 +2619,9 @@ function createGame(setup) {
   setup.players.forEach((pl, pi) => {
     s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, lost: false, lossReason: null,
       landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {} });
+    // A9 · goldfish: oponente sem grimório que não compra e não perde por grimório vazio.
+    // O campo só existe quando verdadeiro, para não mudar o hash das partidas comuns.
+    if (pl.dummy) s.players[pi].dummy = true;
     const z = Object.fromEntries(ZONE_NAMES.map(n => [n, []]));
     s.zones.push(z);
     for (const e of pl.deck || []) {
@@ -2314,6 +2659,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
 }
 function draw(s, p, n = 1) {
+  if (s.players[p].dummy) return;
   for (let k = 0; k < n; k++) {
     const lib = s.zones[p].library;
     if (!lib.length) { s.players[p].drewFromEmpty = true; return; }
@@ -2638,6 +2984,591 @@ return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, RuleError, cardFacts, cre
 })();
 
 
+/* ==== src/ui/table-components.js ==== */
+const __m17 = (function () {
+/* =====================================================================
+   A0 · COMPONENTES DA MESA
+   Mesmas regras do F5: fábricas sem framework, só tokens, alvo de toque
+   de 44px. Documentados no catálogo /ds.
+   ===================================================================== */
+const { h, Text, Button } = __m3;
+
+/** Carta na mesa. Virada gira 90°; enjoo aparece como selo; marcadores e dano como pílulas. */
+function TableCard(card, opts = {}) {
+  const pills = [];
+  for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' }, k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : `${k} ${v}`));
+  if (card.damage) pills.push(h('span', { class: 'tb-pill tb-pill--neg' }, `${card.damage} dano`));
+  return h('button', {
+    class: ['tb-card', opts.size ? `tb-card--${opts.size}` : ''].filter(Boolean).join(' '), type: 'button',
+    'aria-label': card.name + (card.tapped ? ', virada' : '') + (card.sick ? ', com enjoo' : ''),
+    dataset: { tapped: String(!!card.tapped), sick: String(!!card.sick), selected: String(!!opts.selected), oid: card.oid || '' },
+    onClick: opts.onClick
+  },
+  h('span', { class: 'tb-card__face' },
+    card.image ? h('img', { src: card.image, alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, card.name)),
+  pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
+  card.sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
+}
+
+/** Faixa rolável de cartas com rótulo. Vazia, ocupa pouco e diz o que é. */
+function ZoneRow(label, cards, opts = {}) {
+  if (!cards.length) return h('div', { class: 'tb-zone tb-zone--empty', dataset: { zone: opts.zone || '' } },
+    h('span', { class: 'tb-zone__label' }, label), h('span', { class: 'tb-zone__empty' }, opts.empty || '—'));
+  return h('div', { class: 'tb-zone', dataset: { zone: opts.zone || '' } },
+    h('span', { class: 'tb-zone__label' }, label), h('div', { class: 'tb-row' }, ...cards));
+}
+
+/** Contador de vida: o número é o botão. */
+function LifeCounter({ name, life, active, sub, onClick, id }) {
+  return h('button', { class: 'tb-life', type: 'button', id, dataset: { active: String(!!active) }, onClick, 'aria-label': `${name}: ${life} de vida` },
+    h('span', { class: 'tb-life__n' }, String(life)),
+    h('span', { class: 'tb-life__who' }, name, sub ? h('small', {}, sub) : null));
+}
+
+/** Contagem de zona (grimório, cemitério…) que abre a zona. */
+const ZoneChip = (label, n, onClick, id) => h('button', { class: 'tb-chip', type: 'button', onClick, id }, label, h('b', {}, String(n)));
+
+const PHASES = [['início', ['untap', 'upkeep', 'draw']], ['principal 1', ['main1']],
+  ['combate', ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']], ['principal 2', ['main2']], ['final', ['end', 'cleanup']]];
+/** Cinco fases como trilho, com o passo exato escrito ao lado. */
+function StepBar({ turn, step, active, label }) {
+  return h('div', { class: 'tb-steps', 'aria-label': `Turno ${turn}, ${label}, vez de ${active}` },
+    h('div', { class: 'tb-steps__head' }, h('span', {}, `Turno ${turn} · ${active}`), h('strong', {}, label)),
+    h('ol', { class: 'tb-steps__list' }, ...PHASES.map(([name, steps]) => h('li', { dataset: { current: String(steps.includes(step)) } }, name))));
+}
+
+function StackStrip(items) {
+  if (!items.length) return null;
+  return h('div', { class: 'tb-stack', 'aria-label': 'pilha' },
+    h('span', { class: 'tb-zone__label' }, `Pilha · ${items.length}`),
+    h('div', { class: 'tb-row' }, ...items.map((it, i) => h('div', { class: 'tb-stack__item', dataset: { top: String(i === items.length - 1) } },
+      TableCard(it, { size: 'sm', onClick: it.onClick }), h('span', { class: 'tb-stack__who' }, it.who)))));
+}
+
+/** O momento de prioridade: frase curta e ação primária sempre no mesmo lugar. */
+function PriorityBanner({ title, hint, actions, tone }) {
+  return h('div', { class: 'tb-banner', dataset: { tone: tone || 'default' }, role: 'status', 'aria-live': 'polite' },
+    h('div', { class: 'tb-banner__text' }, h('strong', {}, title), hint ? h('span', {}, hint) : null),
+    h('div', { class: 'tb-banner__actions' }, ...(actions || [])));
+}
+
+/** Cartão de adjudicação: o motor não sabe o efeito, o jogador aplica. */
+function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
+  return h('section', { class: 'tb-adj', id: 'tb-adj', 'aria-label': `Aplicar efeito de ${name}` },
+    h('div', { class: 'tb-adj__head' },
+      image ? h('img', { src: image, alt: '', class: 'tb-adj__img' }) : null,
+      h('div', {}, Text(name, { size: 'lg', display: true }), Text('Aplique o efeito na mesa: toque nas cartas e nos contadores de vida.', { size: 'sm', tone: 'muted' }))),
+    oracle ? h('p', { class: 'tb-adj__oracle' }, oracle) : Text('Sem texto de regras disponível.', { size: 'sm', tone: 'subtle' }),
+    h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
+}
+
+return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, PriorityBanner, AdjudicationPanel };
+})();
+
+
+/* ==== src/app/table-model.js ==== */
+const __m18 = (function () {
+/* =====================================================================
+   A2 · PREPARAÇÃO   A7 · REGISTRO E DESFAZER   A8 · SALVAR E RETOMAR
+   A9 · OPONENTES (goldfish e hot-seat)
+   Modelo da mesa assistida, sem DOM: embrulha o motor, pilota o
+   oponente goldfish, decide quem está com o aparelho, traduz o log e
+   impede que desfazer atravesse informação revelada.
+   ===================================================================== */
+const E = __m16;
+const SAVE_KEY = 'match.current';
+const ZONE_PT = { library: 'grimório', hand: 'mão', battlefield: 'campo', graveyard: 'cemitério', exile: 'exílio', command: 'zona de comando', stack: 'pilha' };
+const REASON_PT = { 'vida': 'vida zerada', 'grimório vazio': 'comprou com o grimório vazio', 'dano de comandante': '21 de dano de comandante', 'desistência': 'desistiu' };
+
+/** Monta o setup do motor a partir de listas salvas.
+    seats = [{ name, deck?, dummy? }]; cards = { nome: carta completa }. */
+function buildSetup({ format, seed, seats, cards }) {
+  return {
+    format, seed: seed >>> 0, mode: 'assisted', cards,
+    players: seats.map(st => st.dummy ? { name: st.name || 'Goldfish', deck: [], dummy: true } : { name: st.name, deck: st.deck.entries })
+  };
+}
+
+function nameOf(s, oid) { const o = s.objects[oid]; return o ? o.name : '?'; }
+function who(s, p) { return s.players[p] ? s.players[p].name : '?'; }
+
+/** Traduz uma ação e seus eventos em linhas de registro em pt-BR. */
+function describe(before, a, events, after) {
+  const L = [];
+  const P = who(before, a.p);
+  switch (a.t) {
+    case 'mulligan': L.push(`${P} fez mulligan`); break;
+    case 'keep': L.push(`${P} manteve ${before.zones[a.p].hand.length - (a.bottom || []).length} carta(s)`); break;
+    case 'play_land': L.push(`${P} jogou ${nameOf(before, a.oid)}`); break;
+    case 'cast': {
+      const o = before.objects[a.oid];
+      L.push(o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}`);
+      break;
+    }
+    case 'move': L.push(`${P} moveu ${nameOf(before, a.oid)}: ${ZONE_PT[before.objects[a.oid].zone]} → ${ZONE_PT[a.to]}`); break;
+    case 'tap': L.push(`${P} ${after.objects[a.oid].tapped ? 'virou' : 'desvirou'} ${nameOf(before, a.oid)}`); break;
+    case 'life': L.push(`${who(before, a.target)}: vida ${before.players[a.target].life} → ${after.players[a.target].life}`); break;
+    case 'draw': L.push(`${who(before, a.target ?? a.p)} comprou ${a.n || 1}`); break;
+    case 'counter': L.push(`${P} ${(a.delta || 1) > 0 ? 'pôs' : 'tirou'} marcador em ${nameOf(before, a.oid)}`); break;
+    case 'damage': L.push(`${nameOf(before, a.oid)} recebeu ${a.delta || 1} de dano`); break;
+    case 'commander_damage': L.push(`${who(before, a.target)} recebeu ${a.delta || 1} de dano de comandante de ${nameOf(before, a.source)}`); break;
+    case 'discard': L.push(`${P} descartou ${nameOf(before, a.oid)}`); break;
+    case 'concede': L.push(`${P} desistiu`); break;
+    default: break;
+  }
+  for (const ev of events) {
+    if (ev.kind === 'resolved') L.push(`${ev.name} resolveu → ${ZONE_PT[ev.to]}`);
+    if (ev.kind === 'died') L.push(`${ev.name} morreu`);
+    if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu: ${REASON_PT[ev.reason] || ev.reason}`);
+    if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim de partida: empate' : `Fim de partida: ${who(after, ev.winner)} venceu`);
+  }
+  if (after.status === 'playing' && (before.status !== 'playing' || after.turn.number !== before.turn.number))
+    L.push(`— Turno ${after.turn.number} · ${who(after, after.turn.active)} —`);
+  return L;
+}
+
+/** Revela informação oculta? Compra, mulligan e embaralhamento revelam. */
+function revealed(before, after) {
+  if (before.status === 'mulligan') return true;
+  return before.zones.some((z, p) => after.zones[p].library.length < z.library.length);
+}
+
+const ACTIVE_STOPS = new Set(['main1', 'combat_attackers', 'main2']);
+const RESPONSE_STOPS = new Set(['combat_attackers', 'end']);
+/** Onde um humano para: pilha com resposta possível, suas fases de ação
+    e, no turno alheio, ataque e passo final quando tem o que conjurar. */
+function shouldStop(s, i) {
+  const respond = E.legalActions(s, i).some(a => a.t !== 'pass');
+  if (s.stack.length) return respond;
+  if (s.turn.active === i) return ACTIVE_STOPS.has(s.turn.step);
+  if (s.players[s.turn.active].dummy && s.turn.step === 'combat_attackers') return false; // goldfish não ataca
+  return respond && RESPONSE_STOPS.has(s.turn.step);
+}
+
+function createTable(setup, { log = [], marks = null, options: opts = {} } = {}) {
+  const options = { autoPass: opts.autoPass !== false };
+  let match, lines, barrier, humanMarks;
+
+  function reset() { match = E.createMatch(setup); lines = []; barrier = 0; humanMarks = []; }
+
+  function record(action) {
+    const before = match.state;
+    const events = match.act(action);
+    const after = match.state;
+    if (revealed(before, after)) barrier = match.log.length;
+    lines.push(...describe(before, action, events, after));
+    return events;
+  }
+
+  /** Goldfish mantém a mão e passa sempre. Humanos passam sozinhos onde
+      não há decisão a tomar (política de paradas estilo Arena). */
+  function autopilot() {
+    const events = [];
+    for (let guard = 0; guard < 2000; guard++) {
+      const s = match.state;
+      if (s.status === 'over') break;
+      const dummy = s.players.findIndex((pl, i) => pl.dummy && !pl.lost && (
+        (s.status === 'mulligan' && !pl.kept) || (s.status === 'playing' && !s.pending && s.turn.priority === i)));
+      if (dummy >= 0) { events.push(...record(s.status === 'mulligan' ? { t: 'keep', p: dummy, bottom: [] } : { t: 'pass', p: dummy })); continue; }
+      if (options.autoPass && s.status === 'playing' && !s.pending && !shouldStop(s, s.turn.priority)) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }
+      break;
+    }
+    return events;
+  }
+
+  function act(action) {
+    humanMarks.push(match.log.length);
+    const events = record(action);
+    return events.concat(autopilot());
+  }
+
+  function rebuild(prefix) {
+    reset();
+    const keep = new Set(marks || []);
+    for (let i = 0; i < prefix.length; i++) { if (keep.has(i)) humanMarks.push(i); record(prefix[i]); }
+  }
+
+  reset();
+  if (log.length) { rebuild(log); marks = null; }
+  autopilot();
+
+  const api = {
+    get state() { return match.state; },
+    get log() { return match.log; },
+    get lines() { return lines.slice(); },
+    setup,
+    act,
+    /** Quem está com o aparelho agora (perspectiva da tela). */
+    viewer() {
+      const s = match.state;
+      const humans = s.players.map((pl, i) => pl.dummy ? -1 : i).filter(i => i >= 0);
+      if (s.status === 'mulligan') { const n = humans.find(i => !s.players[i].kept); return n ?? humans[0]; }
+      if (s.pending && s.pending.p != null) return s.pending.p;
+      if (s.status === 'playing' && !s.players[s.turn.priority].dummy) return s.turn.priority;
+      return humans[0];
+    },
+    humans() { return match.state.players.map((pl, i) => pl.dummy ? -1 : i).filter(i => i >= 0); },
+    canUndo() { return humanMarks.length > 0 && humanMarks[humanMarks.length - 1] >= barrier; },
+    undo() {
+      if (!api.canUndo()) return false;
+      const target = humanMarks[humanMarks.length - 1];
+      const prefix = match.log.slice(0, target);
+      marks = humanMarks.slice(0, -1);
+      rebuild(prefix); // o replay recalcula a barreira de informação revelada
+      marks = null;
+      return true;
+    },
+    /** Passa em sequência pelo jogador p até: pilha ganhar objeto, decisão
+        pendente, fim de partida, outro humano receber a prioridade ou a
+        condição de parada. */
+    passUntil(p, stop) {
+      const events = [];
+      for (let guard = 0; guard < 400; guard++) {
+        const s = match.state;
+        if (s.status !== 'playing' || s.pending || s.turn.priority !== p) break;
+        const stackBefore = s.stack.length;
+        events.push(...act({ t: 'pass', p }));
+        const n = match.state;
+        if (n.stack.length > stackBefore || n.pending || n.status !== 'playing' || n.stack.length) break;
+        if (stop && stop(n)) break;
+      }
+      return events;
+    },
+    options,
+    serialize() { return { kind: 'estante.match', engine: E.ENGINE_VERSION, setup, options, log: match.log, marks: humanMarks.slice(), savedAt: Date.now() }; }
+  };
+  return api;
+}
+
+/** Reabre uma partida salva. Lança se o motor mudou de versão. */
+function restoreTable(data) {
+  if (!data || data.kind !== 'estante.match') throw new Error('formato-desconhecido');
+  if (data.engine !== E.ENGINE_VERSION) throw new Error('versao-do-motor');
+  return createTable(data.setup, { log: data.log, marks: data.marks, options: data.options || {} });
+}
+
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable };
+})();
+
+
+/* ==== src/app/table.js ==== */
+const __m19 = (function () {
+/* =====================================================================
+   A1 · MESA   A2 · PREPARAR PARTIDA   A3 · MÃO E AÇÕES LEGAIS
+   A4 · PRIORIDADE E PILHA   A5 · ADJUDICAÇÃO   A7 · REGISTRO E DESFAZER
+   A8 · CONTINUAR PARTIDA   A9 · GOLDFISH E HOT-SEAT
+   A tela não decide regra: tudo que oferece vem de legalActions, e todo
+   toque vira ação do motor.
+   ===================================================================== */
+const E = __m16;
+const T = __m18;
+const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, PriorityBanner, AdjudicationPanel } = __m17;
+const { norm } = __m7;
+const { FORMATS } = __m14;
+const go = to => { location.hash = '#' + to; };
+const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
+const randomSeed = () => {
+  try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % 1000000; } catch (e) { return Date.now() % 1000000; }
+};
+
+/* ---------------- A2 · preparar partida ---------------- */
+function createTableSetup({ decks, cardRepo, store }) {
+  const root = Stack(pad(), Row({}, Spinner()));
+  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, busy: false };
+
+  (async () => {
+    const all = await decks.list();
+    const saved = await store.get(T.SAVE_KEY);
+    if (!all.length) {
+      return mount(root, Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
+        Empty('Para jogar você precisa de uma lista salva.', Button('Criar lista', { variant: 'primary', onClick: () => go('/listas/editar') })));
+    }
+    state.mine = all[0].id; state.theirs = all[0].id;
+    const opts = all.map(d => ({ value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format}` }));
+    const byId = id => all.find(d => d.id === id);
+
+    const theirsField = h('div', {});
+    const paintOpponent = () => mount(theirsField, state.opponent === 'hotseat' ? Stack({},
+      Row({ class: 'ds-row--wrap' },
+        Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
+        Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
+      Field('Lista do oponente', Select(opts, { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
+    const oppChips = Row({ class: 'ds-row--wrap' },
+      ...[['goldfish', 'Goldfish (sem oponente)'], ['hotseat', 'Outra pessoa neste aparelho']].map(([k, label]) => {
+        const c = Chip(label, { pressed: state.opponent === k, dataset: { opponent: k } });
+        c.addEventListener('click', () => { state.opponent = k; oppChips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); paintOpponent(); });
+        return c;
+      }));
+    paintOpponent();
+
+    async function start() {
+      if (state.busy) return;
+      const mine = byId(state.mine), theirs = state.opponent === 'hotseat' ? byId(state.theirs) : null;
+      state.busy = true; startBtn.disabled = true; startBtn.textContent = 'Buscando cartas…';
+      try {
+        const names = [...new Set([...mine.entries, ...(theirs ? theirs.entries : [])].map(e => e.name))];
+        const found = await cardRepo.byNames(names);
+        const cards = {}; let unknown = 0;
+        for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; else unknown++; }
+        const format = mine.format === 'livre' ? 'livre' : mine.format;
+        const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
+          theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
+        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards }), { options: { autoPass: !state.stopAll } });
+        await store.set(T.SAVE_KEY, table.serialize());
+        if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
+        go('/partida');
+      } catch (e) {
+        toast('Não foi possível preparar a partida: ' + (e.message || e));
+      } finally { state.busy = false; startBtn.disabled = false; startBtn.textContent = 'Começar partida'; }
+    }
+    const startBtn = Button('Começar partida', { variant: 'primary', id: 'mesa-start', onClick: start });
+
+    mount(root,
+      Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
+      saved ? Surface({ class: 'ds-surface--pad', id: 'mesa-saved' }, Stack({},
+        Text('Partida em andamento', { size: 'lg', display: true, as: 'h2' }),
+        Text(`${saved.setup.players.map(p => p.name).join(' × ')} · ${FORMATS[saved.setup.format] || saved.setup.format} · ${saved.log.length} ações`, { size: 'sm', tone: 'muted' }),
+        Row({ class: 'ds-row--wrap' },
+          Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', onClick: () => go('/partida') }),
+          Button('Descartar', { variant: 'danger', onClick: async () => { await store.remove(T.SAVE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
+      Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
+        Field('Sua lista', Select(opts, { id: 'mesa-mine', value: state.mine, onChange: e => { state.mine = e.target.value; } })),
+        Field('Oponente', oppChips),
+        theirsField,
+        Field('Modo', Row({ class: 'ds-row--wrap' }, Chip('Mesa assistida', { pressed: true }),
+          h('span', { class: 'ds-text ds-text--sm ds-text--muted' }, 'Motor completo libera quando a lista tiver cobertura total de scripts.'))),
+        Field('Paradas', (() => { const c = Chip('Parar em todos os passos', { pressed: false, dataset: { stopall: '1' } });
+          c.addEventListener('click', () => { state.stopAll = !state.stopAll; c.setAttribute('aria-pressed', String(state.stopAll)); }); return c; })(),
+          { hint: 'Desligado, a mesa passa sozinha onde não há decisão, como no Arena.' }),
+        Field('Semente', Input({ id: 'mesa-seed', value: String(state.seed), inputmode: 'numeric', onInput: e => { state.seed = parseInt(e.target.value, 10) || 0; } }),
+          { hint: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
+        Row({}, startBtn))));
+  })();
+  return root;
+}
+
+/* ---------------- A1–A9 · a mesa ---------------- */
+function createTableScreen({ store }) {
+  const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
+  let table = null, adjudicating = null, bottomPick = new Set(), shownViewer = null, handoff = false;
+
+  const save = () => store.set(T.SAVE_KEY, table.serialize()).catch(() => {});
+  const card = name => (table.setup.cards || {})[name] || null;
+  const imgOf = (name, size = 'small') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
+  const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
+
+  function act(action) {
+    try {
+      const events = table.act(action);
+      const res = events.filter(e => e.kind === 'resolved' && e.adjudicate).pop();
+      if (res) adjudicating = { name: res.name, oid: res.oid };
+      save(); paint();
+      return true;
+    } catch (e) { toast(e.message || String(e)); return false; }
+  }
+
+  (async () => {
+    const data = await store.get(T.SAVE_KEY);
+    if (!data) return mount(root, Stack(pad(), Text('Mesa', { size: '2xl', display: true, as: 'h1' }),
+      Empty('Nenhuma partida em andamento.', Button('Preparar partida', { variant: 'primary', onClick: () => go('/mesa') }))));
+    try { table = T.restoreTable(data); }
+    catch (e) {
+      return mount(root, Stack(pad(), Note(e.message === 'versao-do-motor'
+        ? '<b>Esta partida foi salva por outra versão do motor.</b> Ela não pode ser retomada com segurança. Comece uma nova.'
+        : '<b>A partida salva está corrompida.</b> Comece uma nova.', 'warning'),
+        Button('Preparar partida', { variant: 'primary', onClick: async () => { await store.remove(T.SAVE_KEY); go('/mesa'); } })));
+    }
+    shownViewer = table.viewer();
+    paint();
+  })();
+
+  /* ---- folhas de ação ---- */
+  function sheet(name, buttons, extra) {
+    const img = imgOf(name, 'normal');
+    Dialog({ title: name, body: Stack({},
+      img ? h('img', { src: img, alt: name, class: 'tb-sheet__img' }) : null,
+      extra || null,
+      oracleOf(name) ? h('p', { class: 'tb-adj__oracle' }, oracleOf(name)) : null,
+      buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null),
+      actions: [Button('Fechar', { onClick: closeDialog })] });
+  }
+  const doBtn = (label, action, opts = {}) => Button(label, { block: true, variant: opts.variant, onClick: () => { closeDialog(); act(action); } });
+
+  function moveButtons(v, oid) {
+    const s = table.state, o = s.objects[oid];
+    const dest = [['hand', 'Mão'], ['battlefield', 'Campo'], ['graveyard', 'Cemitério'], ['exile', 'Exílio']]
+      .filter(([z]) => z !== o.zone).map(([z, label]) => doBtn(`Mover para ${label.toLowerCase()}`, { t: 'move', p: v, oid, to: z }));
+    dest.push(doBtn('Pôr no topo do grimório', { t: 'move', p: v, oid, to: 'library', top: true }));
+    dest.push(doBtn('Pôr no fundo do grimório', { t: 'move', p: v, oid, to: 'library', top: false }));
+    if (o.commander && o.zone !== 'command') dest.push(doBtn('Voltar para a zona de comando', { t: 'move', p: v, oid, to: 'command' }));
+    return dest;
+  }
+  const hasPriority = v => { const s = table.state; return s.status === 'playing' && !s.pending && s.turn.priority === v; };
+
+  function openObject(oid) {
+    const s = table.state, v = table.viewer(), o = s.objects[oid];
+    if (!o) return;
+    // A3: primeiro as ações de regra que o motor oferece para este objeto
+    const legal = E.legalActions(s, v).filter(a => a.oid === oid).map(a =>
+      a.t === 'play_land' ? doBtn('Jogar terreno', a, { variant: 'primary' })
+        : a.t === 'cast' ? doBtn(o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar', a, { variant: 'primary' })
+          : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' }) : null).filter(Boolean);
+    const direct = [];
+    if (hasPriority(v)) {
+      if (o.zone === 'battlefield') {
+        direct.push(doBtn(o.tapped ? 'Desvirar' : 'Virar', { t: 'tap', p: v, oid }));
+        direct.push(doBtn('Marcador +1/+1', { t: 'counter', p: v, oid, kind: 'p1p1', delta: 1 }));
+        direct.push(doBtn('Marcador −1/−1', { t: 'counter', p: v, oid, kind: 'm1m1', delta: 1 }));
+        if (Object.keys(o.counters).length) direct.push(doBtn('Remover um marcador', { t: 'counter', p: v, oid, kind: Object.keys(o.counters)[0], delta: -1 }));
+        direct.push(doBtn('1 de dano', { t: 'damage', p: v, oid, delta: 1 }));
+      }
+      if (o.zone !== 'stack' || true) direct.push(...moveButtons(v, oid));
+    }
+    const where = h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `${s.players[o.owner].name} · ${T.ZONE_PT[o.zone]}${o.tapped ? ' · virada' : ''}`);
+    sheet(o.name, [...legal, ...direct], where);
+  }
+
+  function openZone(p, zone, label) {
+    const s = table.state;
+    const ids = s.zones[p][zone];
+    Dialog({ title: `${label} de ${s.players[p].name}`, body: ids.length
+      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); } })))
+      : Empty('Vazio.'), actions: [Button('Fechar', { onClick: closeDialog })] });
+  }
+
+  function openLife(target) {
+    const s = table.state, v = table.viewer();
+    if (!hasPriority(v)) return toast('Espere sua prioridade para ajustar a vida');
+    const btns = [[-1, '−1'], [-5, '−5'], [1, '+1'], [5, '+5']].map(([d, l]) => Button(l, { onClick: () => { closeDialog(); act({ t: 'life', p: v, target, delta: d }); } }));
+    const cmd = s.format === 'commander' ? Object.values(s.objects).filter(o => o.commander && o.owner !== target).map(o =>
+      doBtn(`+1 de dano de comandante (${o.name})`, { t: 'commander_damage', p: v, target, source: o.oid, delta: 1 })) : [];
+    const dmg = Object.entries(s.players[target].commanderDamage).map(([oid, d]) => `${s.objects[oid].name}: ${d}`).join(' · ');
+    Dialog({ title: `Vida de ${s.players[target].name}: ${s.players[target].life}`, body: Stack({},
+      h('div', { class: 'tb-lifepad' }, ...btns), ...cmd, dmg ? Text('Dano de comandante: ' + dmg, { size: 'sm', tone: 'muted' }) : null),
+      actions: [Button('Fechar', { onClick: closeDialog })] });
+  }
+
+  function openLog() {
+    const lines = table.lines.slice().reverse();
+    Dialog({ title: 'Registro', body: lines.length ? h('ol', { class: 'tb-log', reversed: true }, ...lines.map(l => h('li', { dataset: { turn: String(l.startsWith('—')) } }, l))) : Empty('Nada aconteceu ainda.'),
+      actions: [Button('Fechar', { onClick: closeDialog })] });
+  }
+
+  /* ---- pintura ---- */
+  const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => onClick(oid) }));
+  const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
+
+  function side(s, p, mine) {
+    const z = s.zones[p];
+    const lands = z.battlefield.filter(o => isLand(s, o)), others = z.battlefield.filter(o => !isLand(s, o));
+    const pl = s.players[p];
+    const chips = h('div', { class: 'tb-chips' },
+      mine || pl.dummy ? null : ZoneChip('Mão', z.hand.length, null),
+      pl.dummy ? null : ZoneChip('Grimório', z.library.length, () => {
+        const v = table.viewer();
+        if (!hasPriority(v)) return;
+        Dialog({ title: `Grimório de ${pl.name}`, body: Text(`${z.library.length} carta(s).`, { tone: 'muted' }),
+          actions: [Button('Comprar 1', { onClick: () => { closeDialog(); act({ t: 'draw', p: v, target: p, n: 1 }); } }), Button('Fechar', { onClick: closeDialog })] });
+      }, mine ? 'tb-lib-me' : 'tb-lib-opp'),
+      ZoneChip('Cemitério', z.graveyard.length, () => openZone(p, 'graveyard', 'Cemitério')),
+      ZoneChip('Exílio', z.exile.length, () => openZone(p, 'exile', 'Exílio')),
+      s.format === 'commander' ? ZoneChip('Comando', z.command.length, () => openZone(p, 'command', 'Zona de comando')) : null);
+    const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
+      sub: null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+    const field = [ZoneRow('Permanentes', cardsOf(s, others, openObject), { zone: 'permanents', empty: 'nenhuma' }), ZoneRow('Terrenos', cardsOf(s, lands, openObject), { zone: 'lands', empty: 'nenhum' })];
+    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), 'aria-label': mine ? 'seu lado' : 'lado do oponente' },
+      h('div', { class: 'tb-side__head' }, life, chips),
+      ...(mine ? field : field.reverse()));
+  }
+
+  function dock(s, v) {
+    const pl = s.players[v];
+    let banner;
+    if (s.status === 'over') {
+      banner = PriorityBanner({ title: s.winner == null ? 'Empate' : `${s.players[s.winner].name} venceu`, hint: s.players.filter(x => x.lost).map(x => `${x.name}: ${x.lossReason}`).join(' · '), tone: 'accent',
+        actions: [Button('Nova partida', { variant: 'primary', id: 'tb-new', onClick: async () => { await store.remove(T.SAVE_KEY); go('/mesa'); } }), Button('Registro', { onClick: openLog })] });
+    } else if (s.status === 'mulligan') {
+      const need = pl.mulligans;
+      banner = need && bottomPick.size <= need ? PriorityBanner({ title: `Escolha ${need} carta(s) para o fundo`, hint: `${bottomPick.size} de ${need} escolhida(s). Toque nas cartas da mão.`,
+        actions: [Button('Confirmar', { variant: 'primary', id: 'tb-keep', disabled: bottomPick.size !== need, onClick: () => { const b = [...bottomPick]; bottomPick = new Set(); act({ t: 'keep', p: v, bottom: b }); } }),
+          Button('Mulligan de novo', { onClick: () => { bottomPick = new Set(); act({ t: 'mulligan', p: v }); } })] })
+        : PriorityBanner({ title: `${pl.name}: mão inicial`, hint: pl.mulligans ? `${pl.mulligans} mulligan(s) feito(s)` : 'Manter ou embaralhar e comprar 7 de novo.',
+          actions: [Button('Manter', { variant: 'primary', id: 'tb-keep', onClick: () => act({ t: 'keep', p: v, bottom: [] }) }), Button('Mulligan', { id: 'tb-mull', onClick: () => act({ t: 'mulligan', p: v }) })] });
+    } else if (s.pending && s.pending.kind === 'discard') {
+      banner = PriorityBanner({ title: `Descarte ${s.pending.n} carta(s)`, hint: 'Mão acima de 7 na limpeza. Toque nas cartas da mão.', tone: 'warning', actions: [] });
+    } else if (s.turn.priority === v) {
+      const top = s.stack.length ? s.objects[s.stack[s.stack.length - 1]].name : null;
+      banner = PriorityBanner({
+        title: top ? `Pilha: ${top}` : `Sua prioridade · ${E.STEP_PT[s.turn.step]}`,
+        hint: top ? 'Responda ou passe. Se todos passarem, o topo resolve.' : (s.turn.active === v ? 'Seu turno.' : `Turno de ${s.players[s.turn.active].name}.`),
+        actions: [Button('Passar', { variant: 'primary', id: 'tb-pass', onClick: () => act({ t: 'pass', p: v }) }),
+          top ? null : Button('Passar o turno', { id: 'tb-pass-turn', onClick: () => {
+            const start = s.turn.number;
+            try { const ev = table.passUntil(v, n => n.turn.number !== start && n.turn.active === v && n.turn.step === 'main1');
+              const res = ev.filter(e => e.kind === 'resolved' && e.adjudicate).pop(); if (res) adjudicating = { name: res.name, oid: res.oid };
+            } catch (e) { toast(e.message); }
+            save(); paint();
+          } })].filter(Boolean)
+      });
+    } else {
+      banner = PriorityBanner({ title: `Aguardando ${s.players[s.turn.priority].name}`, actions: [] });
+    }
+
+    const hand = s.zones[v].hand.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal') }, {
+      size: 'hand', selected: bottomPick.has(oid),
+      onClick: () => {
+        if (s.status === 'mulligan' && pl.mulligans) { bottomPick.has(oid) ? bottomPick.delete(oid) : bottomPick.size < pl.mulligans && bottomPick.add(oid); return paint(); }
+        if (s.pending && s.pending.kind === 'discard' && s.pending.p === v) return act({ t: 'discard', p: v, oid });
+        openObject(oid);
+      }
+    }));
+    return h('div', { class: 'tb-dock' }, banner,
+      h('div', { class: 'tb-hand', 'aria-label': 'sua mão' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia')));
+  }
+
+  function paint() {
+    const s = table.state;
+    const v = table.viewer();
+    // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
+    if (table.humans().length > 1 && v !== shownViewer && s.status !== 'over') { handoff = true; shownViewer = v; }
+    if (handoff) {
+      return mount(root, h('div', { class: 'tb-handoff', id: 'tb-handoff' },
+        Text('Passe o aparelho', { size: 'sm', tone: 'muted' }),
+        Text(s.players[v].name, { size: '3xl', display: true }),
+        Text(s.status === 'mulligan' ? 'para decidir a mão inicial.' : `para responder · ${E.STEP_PT[s.turn.step]}`, { tone: 'muted' }),
+        Button(`Sou ${s.players[v].name}, mostrar a mesa`, { variant: 'primary', id: 'tb-reveal', onClick: () => { handoff = false; paint(); } })));
+    }
+    const opp = s.players.map((_, i) => i).find(i => i !== v);
+    const stackItems = s.stack.map(oid => ({ ...s.objects[oid], image: imgOf(s.objects[oid].name), who: s.players[s.objects[oid].controller].name, onClick: () => openObject(oid) }));
+    const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
+      name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
+      controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],
+      onDone: () => { adjudicating = null; paint(); }
+    }) : null;
+
+    mount(root,
+      h('header', { class: 'tb-top ds-wrap' },
+        StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
+        h('div', { class: 'tb-top__actions' },
+          Button('Desfazer', { id: 'tb-undo', disabled: !table.canUndo(), onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
+          Button('Registro', { id: 'tb-log', onClick: openLog }),
+          Button('Desistir', { variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); } })] }) }))),
+      h('div', { class: 'tb-board ds-wrap' },
+        opp != null ? side(s, opp, false) : null,
+        h('div', { class: 'tb-center' }, StackStrip(stackItems), adj),
+        side(s, v, true)),
+      dock(s, v));
+  }
+
+  return root;
+}
+
+return { createTableSetup, createTableScreen };
+})();
+
+
 /* ==== src/app/main.js ==== */
 const __m13 = (function () {
 /* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
@@ -2656,7 +3587,8 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createDeckEditor, createDeckScreen } = __m15;
+const { createDecksHome, createDeckEditor, createDeckScreen, createCollectionScreen } = __m15;
+const { createTableSetup, createTableScreen } = __m19;
 const platform = createPlatform();
 const theme = createTheme(platform.store);
 const scryfall = createScryfall({});
@@ -2670,10 +3602,13 @@ const installer = createInstaller({ window: typeof window !== 'undefined' ? wind
 
 const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
-  { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: environment, files: platform.files }) },
+  { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: environment, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo }) },
-  { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks }) },
+  { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
+  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo }) },
+  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
+  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
@@ -2681,10 +3616,12 @@ const ROUTES = [
 function renderHome() {
   return h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-6)' } },
     Text('Plataforma de Magic', { size: '2xl', display: true, as: 'h1' }),
-    Text('Monte suas listas, veja a galeria de cartas e marque o que já tem na coleção. Motor de regras e scanner entram nos próximos épicos.', { tone: 'muted' }),
+    Text('Monte suas listas, marque o que já tem na coleção e jogue na mesa assistida: o motor cuida de turno, pilha e vida; você aplica o que ele ainda não sabe.', { tone: 'muted' }),
     h('div', { style: { height: 'var(--space-5)' } }),
     h('div', { class: 'ds-row ds-row--wrap' },
-      Button('Minhas listas', { variant: 'primary', id: 'go-decks', onClick: () => { location.hash = '#/listas'; } }),
+      Button('Jogar', { variant: 'primary', id: 'go-play', onClick: () => { location.hash = '#/mesa'; } }),
+      Button('Minhas listas', { id: 'go-decks', onClick: () => { location.hash = '#/listas'; } }),
+      Button('Minha coleção', { id: 'go-collection', onClick: () => { location.hash = '#/colecao'; } }),
       Button('Buscar cartas', { id: 'go-cards', onClick: () => { location.hash = '#/cartas'; } }),
       Button('Catálogo de componentes', { id: 'go-ds', onClick: () => { location.hash = '#/ds'; } })));
 }
@@ -2705,8 +3642,9 @@ function appBar() {
     h('div', { class: 'ds-appbar__inner ds-wrap' },
       h('a', { class: 'ds-appbar__brand', href: '#/', html: logoLockup(30) }),
       h('div', { class: 'ds-grow' }),
+      Button('Jogar', { variant: 'ghost', id: 'nav-play', onClick: () => { location.hash = '#/mesa'; } }),
       Button('Listas', { variant: 'ghost', id: 'nav-decks', onClick: () => { location.hash = '#/listas'; } }),
-      Button('Cartas', { variant: 'ghost', id: 'nav-cards', onClick: () => { location.hash = '#/cartas'; } }),
+      Button('Coleção', { variant: 'ghost', id: 'nav-collection', onClick: () => { location.hash = '#/colecao'; } }),
       installButton(),
       Button('◐', { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: 'Tema', dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() })));
 }

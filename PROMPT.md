@@ -17,7 +17,7 @@ Evoluir a Estante, um PWA já publicado, entregando a próxima história do ROAD
 <contexto>
 - Repositório: https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-
 - ROADMAP.md é a fonte da verdade: escopo, escopo negativo, ADRs, DoR/DoD, épicos, histórias e status.
-- index.html é o código-fonte, sem build (ADR-02). Os testes em tests/ carregam esse arquivo.
+- index.html é o código-fonte, sem build (ADR-02). Os testes ficam na raiz, ao lado dele (ADR-07), e carregam esse arquivo.
 - Portão: `npm test` (unidade, fuzz, golden, integração headless, contrato visual). O CI roda o mesmo no GitHub Actions.
 - O usuário publica pelo GitHub web: ele sobe arquivos, não roda comandos.
 {{PEDIDO_DA_SESSAO}}

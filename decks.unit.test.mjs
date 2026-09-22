@@ -70,3 +70,53 @@ test('L1 · backup exporta e restaura listas e coleção em outro aparelho', asy
   assert.equal(await cb.qty('sol ring'), 1);
   await assert.rejects(db.importAll('{"kind":"outra-coisa"}', cb), /formato-desconhecido/);
 });
+
+/* ---------------- C2, C7, C8, C9 · coleção ---------------- */
+test('C7 · toque duplo alterna entre 0 e o alvo e nunca apaga cópias acima do alvo', async () => {
+  const col = D.createCollection({ store: P.memoryStore() });
+  let r = await col.toggle('Sol Ring', 1);
+  assert.equal(r.after, 1); assert.equal(await col.qty('sol ring'), 1);
+  r = await col.toggle('Sol Ring', 1);
+  assert.equal(r.after, 0); assert.equal(await col.qty('Sol Ring'), 0);
+  await col.set('Island', 30);
+  r = await col.toggle('Island', 20);
+  assert.equal(r.changed, false, '30 cópias com lista pedindo 20: não mexe');
+  assert.equal(await col.qty('Island'), 30);
+  r = await col.toggle('Counterspell', 4);
+  assert.equal(r.after, 4, 'na lista, marca a quantidade que a lista pede');
+});
+
+test('C8 · marcar lista inteira garante a quantidade da lista, somando zonas, sem reduzir o que já existe', async () => {
+  const col = D.createCollection({ store: P.memoryStore() });
+  await col.set('Island', 40);
+  const changed = await col.markOwned([{ name: 'Island', qty: 30, zone: 'main' }, { name: 'Pyroblast', qty: 2, zone: 'main' }, { name: 'Pyroblast', qty: 2, zone: 'side' }]);
+  assert.equal(changed, 1);
+  assert.equal(await col.qty('Island'), 40);
+  assert.equal(await col.qty('Pyroblast'), 4);
+});
+
+test('C9 · editar quantidade, remover e listar com nome de exibição', async () => {
+  const col = D.createCollection({ store: P.memoryStore() });
+  await col.set('Malcolm, Alluring Scoundrel', 1);
+  await col.set('Sol Ring', 3);
+  await col.set('Sol Ring', 2);
+  await col.remove('Malcolm, Alluring Scoundrel');
+  const e = JSON.parse(JSON.stringify(await col.entries()));
+  assert.deepEqual(e, [{ key: 'sol ring', name: 'Sol Ring', qty: 2 }]);
+  await col.set('Counterspell', -3);
+  assert.equal(await col.qty('Counterspell'), 0, 'quantidade negativa vira zero');
+});
+
+test('C2 · coleção antiga (só números) continua legível e o backup leva os nomes', async () => {
+  const store = P.memoryStore();
+  await store.set('collection.owned', { 'sol ring': 2 });
+  const col = D.createCollection({ store });
+  assert.equal((await col.entries())[0].name, 'sol ring', 'sem nome salvo, usa a chave');
+  await col.set('Counterspell', 1);
+  const decks = D.createDeckStore({ store });
+  const b = JSON.parse(await decks.exportAll(col));
+  assert.equal(b.ownedNames.counterspell, 'Counterspell');
+  const other = P.memoryStore(); const col2 = D.createCollection({ store: other });
+  await D.createDeckStore({ store: other }).importAll(JSON.stringify(b), col2);
+  assert.equal((await col2.entries()).find(x => x.key === 'counterspell').name, 'Counterspell');
+});

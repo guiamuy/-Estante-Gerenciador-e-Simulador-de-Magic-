@@ -33,12 +33,15 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | F · Fundação | F2 camada de plataforma · F4 tokens e tema · F5 componentes e catálogo `/ds` | ✅ |
 | D · Dados de carta | D1 cliente Scryfall · D2 repositório com cache · D3 cache de imagens · D4 busca · D5 visualizador | ✅ |
 | W · PWA | W1 instalação, service worker e estratégia de cache | ✅ |
-| L · Listas e coleção | L1 persistência e backup · L2 leitura de texto · L3 galeria · L4 coleção por nome · L5 validação de formato · L6 exportação | 🟡 |
-| Q · Qualidade | Q1 harness · Q2 fuzz · Q3 golden · Q4 integração headless · Q5 contrato visual · Q6 portão e CI | 🟡 |
-| M · Motor núcleo | M1 estado e semente · M2 formato e mulligan · M3 turno · M4 prioridade e pilha · M5 ações baseadas em estado · M8 replay e desfazer | 🟡 |
-| B · Bot | B1 política aleatória legal (base do fuzz) | 🟡 |
+| L · Listas e coleção | L1 persistência e backup · L2 leitura de texto · L3 galeria · L4 coleção por nome · L5 validação de formato · L6 exportação | ✅ |
+| Q · Qualidade | Q1 harness · Q2 fuzz · Q3 golden · Q4 integração headless · Q5 contrato visual · Q6 portão e CI | ✅ |
+| Q · Qualidade | Q7 dívida de testes de F2, D1, D2 e W1 | 🟡 |
+| M · Motor núcleo | M1 estado e semente · M2 formato e mulligan · M3 turno · M4 prioridade e pilha · M5 ações baseadas em estado · M8 replay e desfazer | ✅ |
+| A · Mesa assistida | A0 componentes · A1 layout · A2 preparar partida · A3 mão e ações legais · A4 prioridade e pilha · A5 adjudicação · A7 registro e desfazer · A8 continuar partida · A9 goldfish e hot-seat | 🟡 |
+| B · Bot | B1 política aleatória legal (base do fuzz) | ✅ |
+| C · Coleção | C2 tela Coleção · C7 marcar com toque duplo · C8 lista nova já possuída · C9 editar quantidade e remover | 🟡 |
 
-**Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estão no repositório. A história **Q7** paga essa dívida.
+**Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
 ---
 
@@ -68,7 +71,7 @@ A história P1 exibe G1, G2 e G5 medidos no próprio aparelho.
 
 ### ADR-02 · `index.html` é a fonte da verdade, sem etapa de build
 
-O código original era organizado em `src/…` com um empacotador, e essa árvore se perdeu. Decisão: o `index.html` publicado é a fonte, e os testes carregam exatamente esse arquivo (`tests/_load.mjs`).
+O código original era organizado em `src/…` com um empacotador, e essa árvore se perdeu. Decisão: o `index.html` publicado é a fonte, e os testes carregam exatamente esse arquivo (`_load.mjs`).
 
 - **Ganho:** o que é testado é o que vai ao ar.
 - **Custo:** um arquivo grande.
@@ -101,6 +104,12 @@ Um bot não consegue adjudicar texto que o motor não entende. Na mesa assistida
 
 A coleção por nome (L4) responde "tenho esta carta?". A coleção por impressão (C1) adiciona edição, número, foil e idioma, com migração automática.
 
+### ADR-07 · Layout plano no repositório
+
+A publicação é feita pelo GitHub web, muitas vezes pelo celular, onde não dá para enviar pastas. Por isso os testes, as fixtures e os golden ficam na raiz, ao lado do `index.html`. `_load.mjs` também aceita `tests/`, caso a estrutura mude.
+
+A única pasta obrigatória é `.github/workflows/`, criada uma vez por **Add file → Create new file**.
+
 ---
 
 ## 4. Definition of Ready e Definition of Done
@@ -131,11 +140,11 @@ Valem para todas as histórias.
 
 | Camada | Arquivo | O que garante |
 |---|---|---|
-| 1 · Unidade | `tests/engine.unit.test.mjs`, `tests/decks.unit.test.mjs` | Regras puras, sem DOM |
-| 2 · Propriedade e fuzz | `tests/engine.fuzz.test.mjs` | Partidas aleatórias: sem exceção fora de `RuleError`, sem travar, invariantes válidas a cada ação |
-| 3 · Golden replay | `tests/engine.golden.test.mjs` + `tests/golden/*.json` | Mesma semente e mesmas ações produzem o mesmo estado, ponto a ponto |
-| 4 · Integração headless | `tests/e2e.test.mjs` | Fluxo do usuário no Chromium, com a Scryfall simulada |
-| 5 · Contrato visual | `tests/contract.visual.test.mjs` | Contraste AA nos dois temas, zero cor fora de token, alvo de 44 px, tema claro sem divergência |
+| 1 · Unidade | `engine.unit.test.mjs`, `decks.unit.test.mjs`, `table.unit.test.mjs`, `legacy.unit.test.mjs` | Regras puras, sem DOM |
+| 2 · Propriedade e fuzz | `engine.fuzz.test.mjs`, fuzz da mesa em `table.unit.test.mjs` | Partidas aleatórias: sem exceção fora de `RuleError`, sem travar, invariantes válidas a cada ação |
+| 3 · Golden replay | `engine.golden.test.mjs` + `*-NN.json` | Mesma semente e mesmas ações produzem o mesmo estado, ponto a ponto |
+| 4 · Integração headless | `e2e.test.mjs` | Fluxo do usuário no Chromium, com a Scryfall simulada, sem rolagem lateral e com alvos de 44 px |
+| 5 · Contrato visual | `contract.visual.test.mjs` | Contraste AA nos dois temas, zero cor fora de token, alvo de 44 px, tema claro sem divergência |
 
 **Portão.** `npm test` roda tudo. No GitHub, o workflow **Portão de release** roda:
 - 250 partidas de fuzz a cada push;
@@ -157,15 +166,20 @@ D dados  ─► V visualização                  (trilha Acervo)
 F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho)
 ```
 
+**Prioridade de produto (decidida em 21/09/2026).** Coleção e scanner vêm antes do combate e dos scripts. A trilha Acervo não depende do motor, então a troca de ordem não quebra dependência técnica.
+
 **Próximas entregas:**
 
 | Entrega | Conteúdo | Resultado para o usuário |
 |---|---|---|
-| E1 (esta) | Q1–Q6, M1–M5, M8, B1 | Portão de qualidade e motor testado; ainda sem tela de jogo |
-| E2 | A0–A5, A7, A9, Q7 | **Primeira partida jogável:** mesa assistida no celular, goldfish e hot-seat |
-| E3 | M6, A6, M7 | Combate e mana resolvidos pelo motor |
-| E4 | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
-| E5 | C1–C3, C5 | Coleção de verdade, com importação do ManaBox e outros |
+| E1 ✅ | Q1–Q6, M1–M5, M8, B1 | Portão de qualidade e motor testado |
+| E2 🟡 | A0–A5, A7, A8, A9, Q7 | Primeira partida jogável: mesa assistida, goldfish e hot-seat |
+| E3 🟡 | C2, C7, C8, C9 | Coleção gerenciável: tela própria, dois toques marcam, lista nova já possuída, editar e remover |
+| E4 ▶ | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
+| E5 | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
+| E6 | X3, X5, X6 | Scanner identifica a impressão, alimenta coleção ou lista e funciona offline |
+| E7 | M6, A6, M7 | Combate e mana resolvidos pelo motor |
+| E8 | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
 
 ---
 
@@ -175,14 +189,14 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### Q · Qualidade
 
-**Q1 · Harness sobre o arquivo publicado** 🟡
+**Q1 · Harness sobre o arquivo publicado** ✅
 - **Valor:** o que é testado é exatamente o que vai ao ar.
-- **Aceite:** `tests/_load.mjs` extrai o script do `index.html` e expõe os módulos sem DOM e sem rede.
+- **Aceite:** `_load.mjs` extrai o script do `index.html` e expõe os módulos sem DOM e sem rede.
 - **Testes:** U — todos os demais arquivos dependem dele.
 - **Depende de:** —
 - **Fora:** empacotador.
 
-**Q2 · Fuzz e propriedade** 🟡
+**Q2 · Fuzz e propriedade** ✅
 - **Valor:** bugs de regra aparecem antes do usuário.
 - **Aceite:**
   - N partidas por formato, com e sem adjudicação;
@@ -193,7 +207,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** Q1, M1.
 - **Fora:** —
 
-**Q3 · Golden replay** 🟡
+**Q3 · Golden replay** ✅
 - **Valor:** mudança de regra nunca passa despercebida.
 - **Aceite:**
   - 3 partidas gravadas, com hash a cada 25 ações;
@@ -202,7 +216,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M8.
 - **Fora:** —
 
-**Q4 · Integração headless** 🟡
+**Q4 · Integração headless** ✅
 - **Valor:** o fluxo real do usuário é verificado sem abrir o celular.
 - **Aceite:**
   - Playwright com a Scryfall simulada;
@@ -212,7 +226,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** Q1.
 - **Fora:** testes contra a Scryfall real.
 
-**Q5 · Contrato visual** 🟡
+**Q5 · Contrato visual** ✅
 - **Valor:** o design system não se degrada por acréscimo.
 - **Aceite:**
   - contraste ≥ 4,5 nos pares texto/fundo usados, nos dois temas;
@@ -224,7 +238,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** F4, F5.
 - **Fora:** regressão por screenshot.
 
-**Q6 · Portão por comando único e CI** 🟡
+**Q6 · Portão por comando único e CI** ✅
 - **Valor:** "está pronto?" vira um ✓ ou ✗ no GitHub.
 - **Aceite:**
   - `npm test` roda as 5 camadas;
@@ -234,7 +248,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** Q1–Q5.
 - **Fora:** deploy automático condicionado (ver seção 8).
 
-**Q7 · Dívida de testes das histórias F, D e W** ▶
+**Q7 · Dívida de testes das histórias F, D e W** 🟡
 - **Valor:** o que já funciona continua funcionando.
 - **Aceite:**
   - D1: lotes de 75, intervalo mínimo, retentativa em 429 e 5xx, 404 como "não encontrado", erro de origem em `file://`;
@@ -257,7 +271,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### M · Motor de regras
 
-**M1 · Estado, zonas e semente** 🟡
+**M1 · Estado, zonas e semente** ✅
 - **Valor:** qualquer partida pode ser reproduzida e auditada.
 - **Aceite:**
   - estado JSON;
@@ -269,7 +283,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** —
 - **Fora:** tokens (M12).
 
-**M2 · Preparação por formato e mulligan** 🟡
+**M2 · Preparação por formato e mulligan** ✅
 - **Valor:** a partida começa como na mesa real.
 - **Aceite:**
   - Pauper com 20 de vida;
@@ -280,7 +294,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M1.
 - **Fora:** mulligan gratuito do multiplayer.
 
-**M3 · Estrutura de turno** 🟡
+**M3 · Estrutura de turno** ✅
 - **Valor:** o jogo avança sozinho pelos passos certos.
 - **Aceite:**
   - 12 passos;
@@ -292,7 +306,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M1.
 - **Fora:** passos extras e turnos extras.
 
-**M4 · Prioridade e pilha** 🟡
+**M4 · Prioridade e pilha** ✅
 - **Valor:** as respostas acontecem na ordem certa.
 - **Aceite:**
   - quem conjura mantém a prioridade (117.3c);
@@ -305,7 +319,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M3.
 - **Fora:** habilidades ativadas (M9).
 
-**M5 · Ações baseadas em estado, núcleo** 🟡
+**M5 · Ações baseadas em estado, núcleo** ✅
 - **Valor:** derrota e morte de criatura acontecem sem ninguém lembrar.
 - **Aceite:**
   - vida ≤ 0, compra com grimório vazio e 21 de dano de comandante levam à derrota;
@@ -316,7 +330,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M4.
 - **Fora:** regra de lenda e anulação de marcadores (M11).
 
-**M6 · Combate** ▶
+**M6 · Combate** ○
 - **Valor:** atacar e bloquear sem conta manual.
 - **Aceite:**
   - declarar atacantes com legalidade (enjoo, virado, defensor);
@@ -340,7 +354,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M4.
 - **Fora:** custos alternativos exóticos.
 
-**M8 · Registro, replay e desfazer** 🟡
+**M8 · Registro, replay e desfazer** ✅
 - **Valor:** errou o toque, desfaz; quer rever, reproduz.
 - **Aceite:**
   - `createMatch` guarda o log;
@@ -400,7 +414,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### A · Mesa assistida
 
-**A0 · Componentes da mesa no design system** ▶
+**A0 · Componentes da mesa no design system** 🟡
 - **Valor:** a mesa nasce coerente com o resto do app.
 - **Aceite:**
   - zona, carta na mesa (virada, com enjoo, com marcadores), pilha, contador de vida, banner de prioridade, cartão de adjudicação e barra de passo;
@@ -409,7 +423,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** F5.
 - **Fora:** animações de carta.
 
-**A1 · Layout da mesa** ▶
+**A1 · Layout da mesa** 🟡
 - **Valor:** ver o estado inteiro da partida numa tela de celular.
 - **Aceite:**
   - retrato: oponente em cima, você embaixo, pilha e passo ao centro, mão em faixa rolável;
@@ -419,7 +433,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A0, M5.
 - **Fora:** paisagem e tablet.
 
-**A2 · Preparar partida** ▶
+**A2 · Preparar partida** 🟡
 - **Valor:** do deck salvo à mão inicial em três toques.
 - **Aceite:**
   - escolher lista(s), formato, modo (só mesa assistida até S9) e oponente (goldfish ou hot-seat);
@@ -429,7 +443,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L1, M2.
 - **Fora:** motor completo (S9).
 
-**A3 · Mão e ações legais** ▶
+**A3 · Mão e ações legais** 🟡
 - **Valor:** só aparece o que se pode fazer agora.
 - **Aceite:**
   - botões derivados de `legalActions`;
@@ -439,7 +453,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A1, M4.
 - **Fora:** —
 
-**A4 · Pilha e momento de prioridade** ▶
+**A4 · Pilha e momento de prioridade** 🟡
 - **Valor:** saber quando é a sua vez de responder.
 - **Aceite:**
   - banner "Você tem prioridade" com Passar como ação primária;
@@ -449,7 +463,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A1.
 - **Fora:** —
 
-**A5 · Adjudicação** ▶
+**A5 · Adjudicação** 🟡
 - **Valor:** qualquer carta joga, mesmo sem script.
 - **Aceite:**
   - ao resolver, abre um cartão com o oracle e os controles diretos (mover para zona, virar, marcadores, dano, vida, comprar, dano de comandante);
@@ -466,7 +480,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M6, A1.
 - **Fora:** —
 
-**A7 · Registro legível e desfazer** ▶
+**A7 · Registro legível e desfazer** 🟡
 - **Valor:** entender o que aconteceu e corrigir engano.
 - **Aceite:**
   - log em pt-BR ("Bot conjurou Counterspell");
@@ -476,7 +490,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M8.
 - **Fora:** —
 
-**A8 · Salvar e retomar partida** ○
+**A8 · Salvar e retomar partida** 🟡
 - **Valor:** a partida sobrevive a fechar o app.
 - **Aceite:**
   - salva automaticamente a cada ação (semente + log);
@@ -486,11 +500,12 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A1, M8.
 - **Fora:** sincronizar entre aparelhos.
 
-**A9 · Oponentes da mesa assistida** ▶
+**A9 · Oponentes da mesa assistida** 🟡
 - **Valor:** treinar sozinho ou jogar com alguém ao lado.
 - **Aceite:**
   - goldfish (oponente passivo que só passa);
-  - hot-seat com tela de passagem que esconde a mão.
+  - hot-seat com tela de passagem que esconde a mão;
+  - paradas automáticas no estilo Arena: você para nas suas principais, no ataque e na pilha em que pode responder; no turno alheio, no ataque e no passo final quando tem o que conjurar; a opção "Parar em todos os passos" desliga.
 - **Testes:** I.
 - **Depende de:** A3.
 - **Fora:** bot (ADR-05).
@@ -583,7 +598,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### B · Bot adversário
 
-**B1 · Política aleatória legal** 🟡
+**B1 · Política aleatória legal** ✅
 - **Valor:** base do fuzz e do nível mais fácil.
 - **Aceite:**
   - escolhe entre `legalActions` com semente própria;
@@ -624,7 +639,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### C · Coleção
 
-**C1 · Coleção por impressão** ○
+**C1 · Coleção por impressão** ▶
 - **Valor:** saber exatamente qual versão você tem.
 - **Aceite:**
   - item = carta + edição + número + foil + idioma + condição + quantidade;
@@ -633,16 +648,51 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** L4.
 - **Fora:** preço histórico.
 
-**C2 · Tela Coleção** ○
-- **Valor:** consultar o acervo com a densidade do Moxfield.
+**C2 · Tela Coleção** 🟡
+- **Valor:** consultar e manter o acervo com a densidade do Moxfield.
 - **Aceite:**
-  - busca, filtros (cor, tipo, edição, foil) e totais;
-  - valor estimado em US$ pela Scryfall, com data.
-- **Testes:** I, V.
-- **Depende de:** C1.
+  - uma linha por carta, com miniatura, tipo e as listas que usam a carta;
+  - totais de cartas e de cópias;
+  - adicionar pelo nome (soma uma cópia, nome conferido na Scryfall);
+  - filtrar pelo nome e ordenar por nome ou por quantidade;
+  - funciona sem rede com os nomes já salvos.
+- **Testes:** U, I, V (alvos de 44 px e sem rolagem lateral).
+- **Depende de:** L4.
+- **Fora:** filtros por cor, tipo e edição, e valor em US$ (entram com C1).
+
+**C7 · Marcar com toque duplo** 🟡
+- **Valor:** marcar que tem uma carta sem abrir nada.
+- **Aceite:**
+  - dois toques numa carta da galeria da lista ou da busca marcam ou desmarcam "tenho";
+  - um toque continua abrindo a carta;
+  - na lista, marca a quantidade que a lista pede; na busca, uma cópia;
+  - nunca apaga cópias acima do alvo: nesse caso avisa e manda ajustar na Coleção;
+  - pulso visual e vibração curta confirmam.
+- **Testes:** U (regra de alternância), I (toque duplo e toque simples).
+- **Depende de:** L4.
+- **Fora:** toque duplo na mesa.
+
+**C8 · Lista nova já possuída** 🟡
+- **Valor:** cadastrar um deck montado sem marcar carta por carta.
+- **Aceite:**
+  - opção "Já tenho todas as cartas desta lista" ao criar ou editar;
+  - garante na coleção ao menos a quantidade da lista, somando principal e reserva;
+  - nunca reduz o que já existe.
+- **Testes:** U, I.
+- **Depende de:** L1, L4.
 - **Fora:** —
 
-**C3 · Importar e exportar CSV** ○
+**C9 · Editar quantidade e remover** 🟡
+- **Valor:** a coleção reflete a realidade.
+- **Aceite:**
+  - +/− na linha;
+  - tocar no número abre a edição exata (zero remove);
+  - remover pede confirmação e avisa quais listas passam a mostrar a carta como faltante.
+- **Testes:** U, I.
+- **Depende de:** C2.
+- **Fora:** desfazer remoção.
+
+**C3 · Importar e exportar CSV** ▶
 - **Valor:** trazer a coleção de outros apps.
 - **Aceite:**
   - reconhece os cabeçalhos de ManaBox, Moxfield, Delver Lens e Archidekt;
@@ -659,7 +709,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** C1, V1.
 - **Fora:** —
 
-**C5 · Persistência garantida** ○
+**C5 · Persistência garantida** ▶
 - **Valor:** não perder a coleção.
 - **Aceite:**
   - pede `storage.persist()`;
@@ -818,4 +868,5 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 1. Suba os arquivos alterados em **Add file → Upload files**.
 2. A aba **Actions** roda o Portão de release. ✓ verde significa publicável.
 3. Com ✗, abra o job, leia o primeiro teste que falhou e não siga com o deploy até corrigir.
+   - Com o fuzz noturno, a falha traz a semente: ela reproduz o bug localmente.
 4. O GitHub Pages publica o `main` sozinho. Na primeira abertura depois de um deploy, recarregue uma vez: o service worker usa rede primeiro para o HTML.

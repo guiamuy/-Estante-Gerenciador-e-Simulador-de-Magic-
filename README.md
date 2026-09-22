@@ -2,16 +2,16 @@
 
 PWA sem build e sem servidor de aplicação. O `index.html` é o código-fonte.
 Planejamento, decisões e status das histórias: **[ROADMAP.md](ROADMAP.md)**.
-Prompt para retomar o trabalho numa conversa nova: **[docs/PROMPT.md](docs/PROMPT.md)**.
+Prompt para retomar o trabalho numa conversa nova: **[PROMPT.md](PROMPT.md)**.
 
 ## Arquivos
 
 | Arquivo | Papel |
 |---|---|
-| `index.html` | A aplicação inteira: design system, dados, listas e motor de regras |
+| `index.html` | A aplicação inteira: design system, dados, listas, motor de regras e mesa |
 | `sw.js` | Service worker: funcionamento offline e cache da Scryfall |
 | `manifest.webmanifest`, `icon-512.png`, `icon.svg` | Instalação como app |
-| `tests/` | Portão de release: unidade, fuzz, golden, integração headless e contrato visual |
+| `*.test.mjs`, `_load.mjs`, `fixtures.mjs`, `generate.mjs`, `*.json` | Portão de release: unidade, fuzz, golden, integração headless e contrato visual |
 | `.github/workflows/gate.yml` | Roda o portão a cada push e toda noite |
 
 ## Por que precisa ser publicado

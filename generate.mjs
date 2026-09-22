@@ -3,8 +3,8 @@
 //   npm run golden:update
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadModules, ROOT } from '../_load.mjs';
-import { setup } from '../fixtures.mjs';
+import { loadModules, HERE } from './_load.mjs';
+import { setup } from './fixtures.mjs';
 const { engine: E } = loadModules();
 
 export const CASES = [
@@ -27,7 +27,7 @@ export function record(c) {
 if (process.argv[1] && process.argv[1].endsWith('generate.mjs')) {
   for (const c of CASES) {
     const g = record(c);
-    writeFileSync(join(ROOT, 'tests', 'golden', c.id + '.json'), JSON.stringify(g) + '\n');
+    writeFileSync(join(HERE, c.id + '.json'), JSON.stringify(g) + '\n');
     console.log(c.id, g.final, `turno ${g.turn}`, g.status);
   }
 }

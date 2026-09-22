@@ -21,10 +21,11 @@ function serve() {
   });
   return new Promise(r => srv.listen(0, () => r(srv)));
 }
-const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: '', legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', rarity: 'common' });
+const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', rarity: 'common' });
 const DB = Object.fromEntries([
   card('Malcolm, Alluring Scoundrel', 'Legendary Creature — Siren Pirate', ['U']), card('Sol Ring', 'Artifact', [], 1),
-  card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U'])
+  card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U']),
+  card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), card('Preordain', 'Sorcery', ['U'], 1)
 ].map(c => [c.name.toLowerCase(), c]));
 
 async function open(t) {
@@ -39,6 +40,12 @@ async function open(t) {
     if (r.request().url().includes('/cards/collection')) {
       const ids = JSON.parse(r.request().postData()).identifiers;
       return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean), not_found: ids.filter(i => !DB[i.name.toLowerCase()]) } });
+    }
+    if (r.request().url().includes('/cards/search')) {
+      const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '').toLowerCase();
+      const words = q.split(/[\s:()"=<>]+/).filter(w => w.length > 2);
+      const data = Object.values(DB).filter(c => words.some(w => c.name.toLowerCase().includes(w)));
+      return r.fulfill({ json: { object: 'list', data, has_more: false } });
     }
     return r.fulfill({ json: { object: 'card' } });
   });
@@ -92,5 +99,180 @@ test('e2e · todo botão visível tem ao menos 44px de altura no celular', { ski
     const small = await page.$$eval('button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44)
       .map(b => `${b.id || b.textContent.trim().slice(0, 20)}: ${Math.round(b.getBoundingClientRect().height)}px`));
     assert.deepEqual(small, [], route);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert.ok(overflow <= 0, `${route}: página rola ${overflow}px para o lado`);
   }
+});
+
+async function createDeck(page, base, name, text, format = 'pauper') {
+  await page.goto(base + '#/listas/editar');
+  await page.fill('#deck-name', name);
+  await page.selectOption('#deck-format', format);
+  await page.fill('#deck-text', text);
+  await page.click('#deck-save');
+  await page.waitForSelector('.deck-summary');
+}
+const PAUPER = '20 Island\n4 Delver of Secrets\n4 Preordain\n4 Counterspell';
+const tapHand = async (page, name) => { await page.locator('.tb-hand .tb-card', { hasText: name }).first().click(); };
+const handCardByImgless = name => `.tb-hand .tb-card[aria-label^="${name}"]`;
+
+test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar e vitória', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  // chega à própria principal 1 (se o goldfish começou, a mesa já passou o turno dele sozinha)
+  for (let i = 0; i < 6 && !(await page.innerText('.tb-banner')).includes('Principal 1'); i++) await page.click('#tb-pass');
+  assert.match(await page.innerText('.tb-banner'), /Principal 1/);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'mesa sem rolagem lateral');
+  const tiny = await page.$$eval('.tb button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44).map(b => b.id || b.getAttribute('aria-label') || b.textContent.trim()));
+  assert.deepEqual(tiny, [], 'alvos de toque da mesa');
+
+  // A3: jogar terreno pela folha de ações, que só oferece o que é legal
+  const island = page.locator(handCardByImgless('Island')).first();
+  assert.ok(await island.count(), 'semente 4 precisa dar Island na mão inicial');
+  await island.click();
+  await page.click('text=Jogar terreno');
+  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
+
+  // A7: desfazer tira o terreno de volta para a mão
+  await page.click('#tb-undo');
+  await page.waitForFunction(() => !document.querySelector('.tb-side--me [data-zone="lands"] .tb-card'));
+  await island.click(); await page.click('text=Jogar terreno');
+
+  // A5: mágica sem script resolve e abre a adjudicação com o oracle
+  const pre = page.locator(handCardByImgless('Preordain')).first();
+  for (let i = 0; i < 15 && !(await pre.count()); i++) { await page.click('#tb-lib-me'); await page.click('.ds-dialog >> text=Comprar 1'); }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mesa-1.png', fullPage: true });
+  await pre.click(); await page.click('text=Conjurar');
+  await page.waitForSelector('#tb-adj');
+  assert.match(await page.innerText('#tb-adj'), /Scry 2/);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mesa-2.png' });
+  await page.click('#tb-adj-done');
+  await page.waitForFunction(() => !document.querySelector('#tb-adj'));
+
+  // A8: recarregar mantém a partida
+  const lands = await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count();
+  await page.reload();
+  await page.waitForSelector('#tb-pass');
+  assert.equal(await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count(), lands);
+
+  // registro legível
+  await page.click('#tb-log');
+  assert.match(await page.innerText('.ds-dialog'), /Você jogou Island/);
+  await page.keyboard.press('Escape');
+
+  // vitória: 20 de dano no goldfish pelo contador de vida
+  for (let i = 0; i < 4; i++) { await page.click('#tb-life-opp'); await page.click('.tb-lifepad button:has-text("−5")'); }
+  await page.waitForSelector('#tb-new');
+  assert.match(await page.innerText('.tb-banner'), /Você venceu/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · hot-seat esconde a mão até o próximo jogador confirmar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep');
+  await page.waitForSelector('#tb-handoff');
+  assert.match(await page.innerText('#tb-handoff'), /Bia/);
+  assert.equal(await page.locator('.tb-hand').count(), 0, 'mão escondida durante a passagem');
+  await page.click('#tb-reveal');
+  await page.waitForSelector('.tb-hand');
+  assert.deepEqual(errors, []);
+});
+
+const MALCOLM = 'Commander\n1 Malcolm, Alluring Scoundrel\n\nDeck\n1 Sol Ring\n30 Island\n1 Counterspell';
+
+test('e2e · C8 lista já possuída e C7 toque duplo na galeria', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/listas/editar');
+  await page.fill('#deck-name', 'Malcolm v3');
+  await page.fill('#deck-text', MALCOLM);
+  await page.click('[data-ownall]');
+  await page.click('#deck-save');
+  await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('.deck-summary'), /33\/33/);
+
+  const sol = page.locator('.deck-slot[data-name="Sol Ring"] .ds-card');
+  await sol.dblclick();
+  await page.waitForFunction(() => document.querySelector('.deck-summary').innerText.includes('32/33'));
+  assert.equal(await page.locator('.ds-dialog').count(), 0, 'toque duplo não abre a carta');
+  await sol.dblclick();
+  await page.waitForFunction(() => document.querySelector('.deck-summary').innerText.includes('33/33'));
+
+  await sol.click();
+  await page.waitForSelector('.ds-dialog');
+  assert.match(await page.innerText('.ds-dialog'), /Sol Ring/, 'um toque abre a carta');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · C2/C9 coleção: somar, editar quantidade, remover, adicionar e filtrar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/listas/editar');
+  await page.fill('#deck-name', 'Malcolm v3');
+  await page.fill('#deck-text', MALCOLM);
+  await page.click('[data-ownall]');
+  await page.click('#deck-save');
+  await page.waitForSelector('.deck-summary');
+
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('.col-row');
+  assert.equal(await page.locator('.col-row').count(), 4);
+  assert.match(await page.innerText('#col-summary'), /4 carta\(s\) · 33 cópia\(s\)/);
+  assert.match(await page.innerText('.col-row[data-name="Island"]'), /em Malcolm v3/);
+
+  const cs = page.locator('.col-row[data-name="Counterspell"]');
+  await cs.locator('button[aria-label^="Uma cópia a mais"]').click();
+  await page.waitForFunction(() => document.querySelector('.col-row[data-name="Counterspell"] .col-row__n').textContent === '2');
+
+  await cs.locator('.col-row__n').click();
+  await page.fill('#col-qty-input', '5');
+  await page.click('#col-qty-save');
+  await page.waitForFunction(() => document.querySelector('.col-row[data-name="Counterspell"] .col-row__n').textContent === '5');
+
+  const tiny = await page.$$eval('#col-list button', bs => bs.filter(b => b.getBoundingClientRect().height < 44).length);
+  assert.equal(tiny, 0, 'controles da coleção com 44px');
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'coleção sem rolagem lateral');
+
+  await page.locator('.col-row[data-name="Sol Ring"] button[aria-label="Remover Sol Ring"]').click();
+  assert.match(await page.innerText('.ds-dialog'), /Malcolm v3/, 'avisa quais listas usam a carta');
+  await page.click('#col-remove-confirm');
+  await page.waitForFunction(() => !document.querySelector('.col-row[data-name="Sol Ring"]'));
+
+  await page.fill('#col-add', 'sol ring');
+  await page.click('#col-add-btn');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  assert.equal(await page.locator('.col-row[data-name="Sol Ring"] .col-row__n').innerText(), '1');
+
+  await page.fill('#col-filter', 'isl');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+
+  // a lista reflete a coleção: Sol Ring voltou, Counterspell sobra
+  await page.goto(base + '#/listas');
+  await page.waitForSelector('#decks-list .ds-list__item');
+  assert.match(await page.innerText('#decks-list'), /tenho 33 de 33/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · C7 toque duplo na busca marca a carta na coleção', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/cartas');
+  await page.fill('#cards-q', 'sol');
+  await page.press('#cards-q', 'Enter');
+  await page.waitForSelector('#cards-results .deck-slot');
+  await page.locator('#cards-results .deck-slot .ds-card').first().dblclick();
+  await page.waitForSelector('#cards-results .own-badge');
+  assert.match(await page.innerText('#cards-results .own-badge'), /tenho 1/);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  assert.deepEqual(errors, []);
 });
