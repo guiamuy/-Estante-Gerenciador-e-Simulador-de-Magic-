@@ -15,14 +15,16 @@ const CARDS = {
   'Steel Wall': card('Steel Wall', 'Artifact Creature — Wall', { pt: [0, 4], keywords: ['Defender', 'Indestructible'], oracle_text: 'Defender, indestructible' }),
   'Mind Stone': card('Mind Stone', 'Artifact', { oracle_text: '{T}: Add {C}.\n{1}, {T}, Sacrifice Mind Stone: Draw a card.' }),
   'Preordain': card('Preordain', 'Sorcery', { oracle_text: 'Scry 2, then draw a card.' }),
-  'Mystery Enchantment': card('Mystery Enchantment', 'Enchantment', { oracle_text: 'At the beginning of your upkeep, do something strange.' })
+  'Mystery Enchantment': card('Mystery Enchantment', 'Enchantment', { oracle_text: 'At the beginning of your upkeep, do something strange.' }),
+  'Test Signet': card('Test Signet', 'Artifact', { oracle_text: '{T}: Add {C}.' })
 };
-for (const sc of S.RAW_SCRIPTS) CARDS[sc.name] = card(sc.name, /counter|Unsummon|Vapor|Giant|Twiddle|Salve/i.test(sc.name) ? 'Instant' : 'Sorcery');
-CARDS['Lightning Bolt'].type_line = 'Instant'; CARDS['Shock'].type_line = 'Instant'; CARDS['Counterspell'].type_line = 'Instant';
-CARDS['Essence Scatter'].type_line = 'Instant'; CARDS['Negate'].type_line = 'Instant'; CARDS['Disenchant'].type_line = 'Instant';
-CARDS['Doom Blade'].type_line = 'Instant'; CARDS['Murder'].type_line = 'Instant'; CARDS['Disfigure'].type_line = 'Instant';
+// tipo de cada mágica da biblioteca: instantânea quando o efeito pede resposta
+const instantish = sc => sc.effects.some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do)) || /spell/.test(sc.example.target || '');
+for (const sc of S.RAW_SCRIPTS) CARDS[sc.name] = card(sc.name, instantish(sc) ? 'Instant' : 'Sorcery');
+CARDS['Lightning Bolt'].type_line = 'Instant'; CARDS['Shock'].type_line = 'Instant'; CARDS['Lightning Helix'].type_line = 'Instant';
+CARDS['Murder'].type_line = 'Instant'; CARDS['Doom Blade'].type_line = 'Instant'; CARDS['Disenchant'].type_line = 'Instant';
 
-const DECK = [{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Grizzly Bear', qty: 4, zone: 'main' },
+const DECK = [{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Grizzly Bear', qty: 6, zone: 'main' }, { name: 'Test Signet', qty: 2, zone: 'main' },
   { name: 'Hexproof Bear', qty: 2, zone: 'main' }, { name: 'Shroud Ox', qty: 2, zone: 'main' }, { name: 'Steel Wall', qty: 2, zone: 'main' },
   ...S.RAW_SCRIPTS.map(sc => ({ name: sc.name, qty: 2, zone: 'main' }))];
 const setup = (seed = 1) => ({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: CARDS, players: [{ name: 'A', deck: DECK }, { name: 'B', deck: DECK }] });
@@ -45,13 +47,17 @@ const act = (s, a) => E.apply(s, a).state;
 const resolve = s => { const a = s.turn.priority; s = act(s, { t: 'pass', p: a }); return act(s, { t: 'pass', p: s.turn.priority }); };
 
 /* ---------------- S1 · formato e validador ---------------- */
-test('S1 · validador recusa script sem efeito, com efeito desconhecido, sem campo e com alvo errado', () => {
-  assert.deepEqual([...S.validateScript({ name: 'X', effects: [{ do: 'damage', amount: 3, target: 'any' }] })], []);
+const OK_EXAMPLE = { target: 'opponent', expect: { opponentLife: -3 } };
+test('S1 · validador recusa script sem efeito, com efeito desconhecido, sem campo, com alvo errado e sem cenário', () => {
+  assert.deepEqual([...S.validateScript({ name: 'X', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: OK_EXAMPLE })], []);
+  assert.match(S.validateScript({ name: 'X', effects: [{ do: 'draw', amount: 1 }] }).join(), /sem cenário/);
+  assert.match(S.validateScript({ name: 'X', effects: [{ do: 'draw', amount: 1 }], example: { target: 'marte', expect: { handDelta: 1 } } }).join(), /alvo "marte" desconhecido/);
+  assert.match(S.validateScript({ name: 'X', effects: [{ do: 'draw', amount: 1 }], example: { expect: { sorte: 1 } } }).join(), /verificação "sorte" desconhecida/);
   assert.match(S.validateScript({ name: 'X', effects: [] }).join(), /sem efeitos/);
   assert.match(S.validateScript({ name: 'X', effects: [{ do: 'teletransportar' }] }).join(), /desconhecido/);
   assert.match(S.validateScript({ name: 'X', effects: [{ do: 'damage', target: 'any' }] }).join(), /falta amount/);
   assert.match(S.validateScript({ name: 'X', effects: [{ do: 'counter', target: 'creature' }] }).join(), /alvo "creature" não vale/);
-  assert.match(S.validateScript({ effects: [{ do: 'draw', amount: 1 }] }).join(), /sem nome/);
+  assert.match(S.validateScript({ effects: [{ do: 'draw', amount: 1 }], example: { expect: { handDelta: 1 } } }).join(), /sem nome/);
 });
 
 test('S1 · a biblioteca inteira é válida e só vale para mágicas', () => {
@@ -179,20 +185,51 @@ test('S5 · alvo que some antes da resolução anula a mágica (608.2b)', () => 
   assert.equal(r2.state.objects[bolt].zone, 'graveyard');
 });
 
-/* ---------------- S8-lite · cenário de cada script ---------------- */
-test('cada script da biblioteca resolve numa mesa real sem quebrar invariante', () => {
-  for (const sc of S.RAW_SCRIPTS) {
-    let s = game(8); const a = s.turn.active, d = 1 - a;
-    [s] = put(s, d, 'Grizzly Bear'); [s] = put(s, a, 'Grizzly Bear');
-    let oid; [s, oid] = put(s, a, sc.name, 'hand');
-    const total = Object.keys(s.objects).length;
-    const opts = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === oid);
-    if (!opts.length) { // só mágicas que exigem alvo na pilha ficam sem opção aqui
-      assert.ok(sc.effects.some(e => /spell/.test(e.target || '')), `${sc.name} deveria ter alvo legal`);
-      continue;
-    }
-    s = resolve(act(s, opts[0]));
-    assert.equal(E.invariants(s, total).join('; '), '', sc.name);
-    assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} foi para o cemitério`);
+/* ---------------- S8 · cenário declarado em cada script ---------------- */
+/** Monta a mesa que o cenário pede, conjura e confere o que ele promete. */
+function runExample(sc) {
+  let s = game(8); const a = s.turn.active, d = 1 - a;
+  let mine, theirs, art, spellOid = null, oid;
+  [s, theirs] = put(s, d, 'Grizzly Bear');
+  [s, mine] = put(s, a, 'Grizzly Bear');
+  [s, art] = put(s, d, 'Test Signet');
+  const ex = sc.example, want = ex.expect;
+  if (ex.target === 'enemy-spell' || ex.target === 'enemy-instant') {
+    // põe uma mágica do oponente na pilha (o cenário só precisa dela lá)
+    [s, spellOid] = put(s, d, ex.target === 'enemy-instant' ? 'Lightning Bolt' : 'Grizzly Bear', 'hand');
+    s = J(s);
+    s.zones[d].hand = s.zones[d].hand.filter(x => x !== spellOid);
+    s.stack.push(spellOid);
+    Object.assign(s.objects[spellOid], { zone: 'stack', controller: d });
+    if (ex.target === 'enemy-instant') s.objects[spellOid].targets = [{ player: a }];
   }
+  [s, oid] = put(s, a, sc.name, 'hand');
+  const watch = ex.target === 'own-creature' ? mine : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
+  const target = { 'opponent': { player: d }, 'self-player': { player: a }, 'enemy-creature': { oid: theirs },
+    'own-creature': { oid: mine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'enemy-permanent': { oid: art } }[ex.target || 'none'];
+  const before = { life: s.players.map(p => p.life), hand: s.zones[a].hand.length, total: Object.keys(s.objects).length };
+  const action = { t: 'cast', p: a, oid, ...(target ? { targets: [target] } : {}) };
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === oid && JSON.stringify(x.targets || null) === JSON.stringify(action.targets || null)),
+    `${sc.name}: a mesa não ofereceu a conjuração do cenário`);
+  s = resolve(act(s, action));
+  assert.equal(E.invariants(s, before.total).join('; '), '', sc.name);
+  assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
+  const o = s.objects[watch];
+  for (const [check, value] of Object.entries(want)) {
+    const msg = `${sc.name} · ${check}`;
+    if (check === 'opponentLife') assert.equal(s.players[d].life - before.life[d], value, msg);
+    if (check === 'selfLife') assert.equal(s.players[a].life - before.life[a], value, msg);
+    if (check === 'gone') assert.equal(o.zone !== 'battlefield' && o.zone !== 'stack', value, msg);
+    if (check === 'bounced') assert.equal(o.zone === 'hand', value, msg);
+    if (check === 'countered') assert.equal(o.zone === 'graveyard' && !s.stack.includes(watch), value, msg);
+    if (check === 'tapped') assert.equal(o.tapped, value, msg);
+    if (check === 'pump') assert.deepEqual([o.pump.p, o.pump.t], [...value], msg);
+    if (check === 'handDelta') assert.equal(s.zones[a].hand.length - (before.hand - 1), value, msg);
+    if (check === 'damaged') assert.ok(o.damage > 0 || (o.pump && o.pump.t < 0), msg);
+  }
+}
+
+test('S8 · cada script da biblioteca passa no cenário que ele mesmo declara', () => {
+  assert.ok(S.RAW_SCRIPTS.length >= 35, 'a biblioteca precisa cobrir as mágicas comuns');
+  for (const sc of S.RAW_SCRIPTS) runExample(sc);
 });

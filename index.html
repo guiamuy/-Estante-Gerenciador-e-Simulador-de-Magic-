@@ -2018,19 +2018,23 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
-  damage: { fields: ['amount'], targets: ['any', 'creature', 'player', 'opponent'] },
-  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment'] },
+  damage: { fields: ['amount'], targets: ['any', 'creature', 'player', 'opponent', 'each-creature', 'each-opponent-creature'] },
+  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment'] },
   exile: { fields: [], targets: ['creature', 'permanent'] },
   bounce: { fields: [], targets: ['creature', 'permanent'] },
-  counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell'] },
+  counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell', 'instant-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self'] },
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller'] },
-  pump: { fields: ['power', 'toughness'], targets: ['creature'] },
+  pump: { fields: ['power', 'toughness'], targets: ['creature', 'each-creature', 'each-opponent-creature'] },
   tap: { fields: [], targets: ['creature', 'permanent'] },
   untap: { fields: [], targets: ['creature', 'permanent'] }
 };
-const TARGETED = new Set(['any', 'creature', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'spell', 'creature-spell', 'noncreature-spell']);
+const TARGETED = new Set(['any', 'creature', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
+  'spell', 'creature-spell', 'noncreature-spell', 'instant-spell']);
+/** S8 · cenários: o que o teste automático monta e o que espera. */
+const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'none'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged'];
 
 /** Valida um script. Devolve [] quando está correto. */
 function validateScript(sc) {
@@ -2044,6 +2048,14 @@ function validateScript(sc) {
     const t = e.target || 'self';
     if (t !== 'self' && !spec.targets.includes(t)) errs.push(`efeito ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
   });
+  // S8: nenhum script entra na biblioteca sem cenário de teste
+  const ex = sc.example;
+  if (!ex) errs.push('script sem cenário (example)');
+  else {
+    if (!EXAMPLE_TARGETS.includes(ex.target || 'none')) errs.push(`cenário: alvo "${ex.target}" desconhecido`);
+    for (const k of Object.keys(ex.expect || {})) if (!EXAMPLE_CHECKS.includes(k)) errs.push(`cenário: verificação "${k}" desconhecida`);
+    if (!Object.keys(ex.expect || {}).length) errs.push('cenário sem nada a verificar');
+  }
   return errs;
 }
 const isTargeted = e => TARGETED.has(e.target);
@@ -2051,28 +2063,51 @@ const isTargeted = e => TARGETED.has(e.target);
 /** Biblioteca inicial: mágicas comuns de efeito direto, sem gatilho nem escolha
     além do alvo. Cada uma é exercitada pelos testes de cenário. */
 const RAW_SCRIPTS = [
-  { name: 'Lightning Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }] },
-  { name: 'Shock', effects: [{ do: 'damage', amount: 2, target: 'any' }] },
-  { name: 'Chain Lightning', effects: [{ do: 'damage', amount: 3, target: 'any' }] },
-  { name: 'Lightning Strike', effects: [{ do: 'damage', amount: 3, target: 'any' }] },
-  { name: 'Flame Slash', effects: [{ do: 'damage', amount: 4, target: 'creature' }] },
-  { name: 'Lava Spike', effects: [{ do: 'damage', amount: 3, target: 'player' }] },
-  { name: 'Counterspell', effects: [{ do: 'counter', target: 'spell' }] },
-  { name: 'Essence Scatter', effects: [{ do: 'counter', target: 'creature-spell' }] },
-  { name: 'Negate', effects: [{ do: 'counter', target: 'noncreature-spell' }] },
-  { name: 'Unsummon', effects: [{ do: 'bounce', target: 'creature' }] },
-  { name: 'Vapor Snag', effects: [{ do: 'bounce', target: 'creature' }, { do: 'lose', amount: 1, target: 'target-controller' }] },
-  { name: 'Murder', effects: [{ do: 'destroy', target: 'creature' }] },
-  { name: 'Doom Blade', effects: [{ do: 'destroy', target: 'creature' }] },
-  { name: 'Disenchant', effects: [{ do: 'destroy', target: 'permanent' }] },
-  { name: 'Divination', effects: [{ do: 'draw', amount: 2 }] },
-  { name: 'Night\'s Whisper', effects: [{ do: 'draw', amount: 2 }, { do: 'lose', amount: 2 }] },
-  { name: 'Sign in Blood', effects: [{ do: 'draw', amount: 2, target: 'player' }, { do: 'lose', amount: 2, target: 'target-controller' }] },
-  { name: 'Giant Growth', effects: [{ do: 'pump', power: 3, toughness: 3, target: 'creature' }] },
-  { name: 'Disfigure', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'creature' }] },
-  { name: 'Shock the Mind', effects: [{ do: 'damage', amount: 1, target: 'any' }, { do: 'draw', amount: 1 }] },
-  { name: 'Healing Salve', effects: [{ do: 'gain', amount: 3, target: 'player' }] },
-  { name: 'Twiddle', effects: [{ do: 'tap', target: 'permanent' }] }
+  // dano direto
+  { name: 'Lightning Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  { name: 'Shock', effects: [{ do: 'damage', amount: 2, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -2 } } },
+  { name: 'Chain Lightning', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  { name: 'Lightning Strike', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  { name: 'Gut Shot', effects: [{ do: 'damage', amount: 1, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -1 } } },
+  { name: 'Flame Slash', effects: [{ do: 'damage', amount: 4, target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Lava Spike', effects: [{ do: 'damage', amount: 3, target: 'player' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  { name: 'Lightning Helix', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'gain', amount: 3 }], example: { target: 'opponent', expect: { opponentLife: -3, selfLife: 3 } } },
+  // varredura
+  { name: 'Pyroclasm', effects: [{ do: 'damage', amount: 2, target: 'each-creature' }], example: { target: 'none', expect: { gone: true } } },
+  { name: 'Electrickery', effects: [{ do: 'damage', amount: 1, target: 'each-opponent-creature' }], example: { target: 'none', expect: { damaged: true } } },
+  { name: 'Infest', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'each-creature' }], example: { target: 'none', expect: { gone: true } } },
+  { name: 'Nausea', effects: [{ do: 'pump', power: -1, toughness: -1, target: 'each-creature' }], example: { target: 'none', expect: { damaged: true } } },
+  // anular
+  { name: 'Counterspell', effects: [{ do: 'counter', target: 'spell' }], example: { target: 'enemy-spell', expect: { countered: true } } },
+  { name: 'Cancel', effects: [{ do: 'counter', target: 'spell' }], example: { target: 'enemy-spell', expect: { countered: true } } },
+  { name: 'Essence Scatter', effects: [{ do: 'counter', target: 'creature-spell' }], example: { target: 'enemy-spell', expect: { countered: true } } },
+  { name: 'Negate', effects: [{ do: 'counter', target: 'noncreature-spell' }], example: { target: 'enemy-instant', expect: { countered: true } } },
+  { name: 'Dispel', effects: [{ do: 'counter', target: 'instant-spell' }], example: { target: 'enemy-instant', expect: { countered: true } } },
+  // remoção e devolução
+  { name: 'Murder', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Doom Blade', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Disenchant', effects: [{ do: 'destroy', target: 'artifact-enchantment' }], example: { target: 'enemy-permanent', expect: { gone: true } } },
+  { name: 'Naturalize', effects: [{ do: 'destroy', target: 'artifact-enchantment' }], example: { target: 'enemy-permanent', expect: { gone: true } } },
+  { name: 'Krosan Grip', effects: [{ do: 'destroy', target: 'artifact-enchantment' }], example: { target: 'enemy-permanent', expect: { gone: true } } },
+  { name: 'Journey to Nowhere', effects: [{ do: 'exile', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Unsummon', effects: [{ do: 'bounce', target: 'creature' }], example: { target: 'enemy-creature', expect: { bounced: true } } },
+  { name: 'Vapor Snag', effects: [{ do: 'bounce', target: 'creature' }, { do: 'lose', amount: 1, target: 'target-controller' }], example: { target: 'enemy-creature', expect: { bounced: true, opponentLife: -1 } } },
+  { name: 'Boomerang', effects: [{ do: 'bounce', target: 'permanent' }], example: { target: 'enemy-creature', expect: { bounced: true } } },
+  // cartas e vida
+  { name: 'Divination', effects: [{ do: 'draw', amount: 2 }], example: { target: 'none', expect: { handDelta: 2 } } },
+  { name: 'Think Twice', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } },
+  { name: 'Night\'s Whisper', effects: [{ do: 'draw', amount: 2 }, { do: 'lose', amount: 2 }], example: { target: 'none', expect: { handDelta: 2, selfLife: -2 } } },
+  { name: 'Sign in Blood', effects: [{ do: 'draw', amount: 2, target: 'player' }, { do: 'lose', amount: 2, target: 'target-controller' }], example: { target: 'opponent', expect: { opponentLife: -2 } } },
+  { name: 'Revitalize', effects: [{ do: 'gain', amount: 3 }, { do: 'draw', amount: 1 }], example: { target: 'none', expect: { selfLife: 3, handDelta: 1 } } },
+  { name: 'Healing Salve', effects: [{ do: 'gain', amount: 3, target: 'player' }], example: { target: 'self-player', expect: { selfLife: 3 } } },
+  // pump e utilidades
+  { name: 'Giant Growth', effects: [{ do: 'pump', power: 3, toughness: 3, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [3, 3] } } },
+  { name: 'Brute Force', effects: [{ do: 'pump', power: 3, toughness: 3, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [3, 3] } } },
+  { name: 'Titanic Growth', effects: [{ do: 'pump', power: 4, toughness: 4, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [4, 4] } } },
+  { name: 'Mutagenic Growth', effects: [{ do: 'pump', power: 2, toughness: 2, target: 'creature' }], example: { target: 'own-creature', expect: { pump: [2, 2] } } },
+  { name: 'Disfigure', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Twiddle', effects: [{ do: 'tap', target: 'permanent' }], example: { target: 'enemy-creature', expect: { tapped: true } } },
+  { name: 'Sleep Spell', effects: [{ do: 'tap', target: 'creature' }], example: { target: 'enemy-creature', expect: { tapped: true } } }
 ];
 const SCRIPTS = {};
 const SCRIPT_ERRORS = {};
@@ -2828,8 +2863,12 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
       (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
           Badge(`✓ ${cv.completo}`, { tone: 'positive' }), cv.parcial ? Badge(`◐ ${cv.parcial}`) : null, cv.manual ? Badge(`✎ ${cv.manual}`) : null),
-        Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista.' : `Na mesa assistida, você aplica o efeito de ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
-          { size: 'sm', tone: 'muted' }))); })(),
+        Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela pode jogar no modo motor completo.' : `Na mesa assistida, você aplica o efeito de ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
+          { size: 'sm', tone: 'muted' }),
+        cv.worst.length ? Button('Copiar cartas sem script', { id: 'deck-copy-missing', onClick: async () => {
+          const txt = cv.worst.map(n => `1 ${n}`).join('\n');
+          toast(await share.copy(txt) ? `${cv.worst.length} carta(s) copiadas` : 'Não foi possível copiar');
+        } }) : null)); })(),
       Surface({ class: 'ds-surface--pad deck-summary' },
         h('div', { class: 'deck-summary__own' },
           Text(`${stats.have}/${stats.need}`, { size: '3xl', display: true }),
@@ -3202,7 +3241,8 @@ function createGame(setup) {
   const scripts = { ...SC.SCRIPTS };
   for (const [name, sc] of Object.entries(setup.scripts || {})) if (!SC.validateScript(sc).length) scripts[name] = sc;
   for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
-  for (const [name, f] of Object.entries(s.facts)) if (scripts[name] && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script = scripts[name];
+  // o estado guarda só o que o motor executa; o cenário de teste (S8) fica fora
+  for (const [name, f] of Object.entries(s.facts)) if (scripts[name] && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script = { name: scripts[name].name, effects: scripts[name].effects };
 
   setup.players.forEach((pl, pi) => {
     s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, lost: false, lossReason: null,
@@ -3455,25 +3495,26 @@ function legalTargets(s, p, kind, selfOid) {
   const out = [];
   const perms = battlefield(s).filter(o => targetable(s, p, o));
   const players = s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
-  if (kind === 'any' || kind === 'creature' || kind === 'permanent' || kind === 'artifact' || kind === 'enchantment') {
+  if (['any', 'creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment'].includes(kind)) {
     for (const o of perms) {
       const f = s.facts[o.name];
-      if (kind === 'creature' && !f.types.includes('creature')) continue;
-      if (kind === 'any' && !f.types.includes('creature')) continue;
+      if ((kind === 'creature' || kind === 'any') && !f.types.includes('creature')) continue;
       if (kind === 'artifact' && !f.types.includes('artifact')) continue;
       if (kind === 'enchantment' && !f.types.includes('enchantment')) continue;
+      if (kind === 'artifact-enchantment' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
       out.push({ oid: o.oid });
     }
   }
   if (kind === 'any' || kind === 'player') players.forEach(i => out.push({ player: i }));
   if (kind === 'opponent') players.filter(i => i !== p).forEach(i => out.push({ player: i }));
-  if (kind === 'spell' || kind === 'creature-spell' || kind === 'noncreature-spell') {
+  if (['spell', 'creature-spell', 'noncreature-spell', 'instant-spell'].includes(kind)) {
     for (const oid of s.stack) {
       if (oid === selfOid) continue;
       const f = s.facts[s.objects[oid].name];
       const creature = f.types.includes('creature');
       if (kind === 'creature-spell' && !creature) continue;
       if (kind === 'noncreature-spell' && creature) continue;
+      if (kind === 'instant-spell' && !f.types.includes('instant')) continue;
       out.push({ oid });
     }
   }
@@ -3528,6 +3569,10 @@ function resolveScript(s, o, events) {
       const t = firstTarget;
       const who = t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
       applyEffect(s, o, eff, { player: who }, events);
+    } else if (eff.target === 'each-creature' || eff.target === 'each-opponent-creature') {
+      // S4 · varredura: atinge todas as criaturas (ou só as do oponente), sem escolher alvo
+      const list = battlefield(s).filter(x => isCreature(s, x) && (eff.target === 'each-creature' || x.controller !== o.controller));
+      for (const x of list) applyEffect(s, o, eff, { oid: x.oid }, events);
     } else applyEffect(s, o, eff, null, events);
     stateBased(s, events);
   }
@@ -4014,9 +4059,9 @@ const REASON_PT = { 'vida': 'vida zerada', 'grimório vazio': 'comprou com o gri
 
 /** Monta o setup do motor a partir de listas salvas.
     seats = [{ name, deck?, dummy? }]; cards = { nome: carta completa }. */
-function buildSetup({ format, seed, seats, cards, manaCheck = false }) {
+function buildSetup({ format, seed, seats, cards, manaCheck = false, mode = 'assisted' }) {
   return {
-    format, seed: seed >>> 0, mode: 'assisted', cards, manaCheck,
+    format, seed: seed >>> 0, mode, cards, manaCheck: mode === 'full' ? true : manaCheck,
     players: seats.map(st => st.dummy ? { name: st.name || 'Goldfish', deck: [], dummy: true } : { name: st.name, deck: st.deck.entries })
   };
 }
@@ -4239,6 +4284,11 @@ const { FORMATS } = __m14;
 const { deckCoverage } = __m23;
 const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
+/** Campo com botões: não usa <label>, que reenvia o clique para o primeiro
+    controle e faria o segundo chip marcar o primeiro. */
+const ChipField = (label, control, hint) => h('div', { class: 'ds-field' },
+  h('span', { class: 'ds-field__label' }, label), control,
+  hint ? h('span', { class: 'ds-field__hint' }, hint) : null);
 const randomSeed = () => {
   try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % 1000000; } catch (e) { return Date.now() % 1000000; }
 };
@@ -4246,7 +4296,7 @@ const randomSeed = () => {
 /* ---------------- A2 · preparar partida ---------------- */
 function createTableSetup({ decks, cardRepo, store }) {
   const root = Stack(pad(), Row({}, Spinner()));
-  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, busy: false };
+  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, mode: 'assisted', coverage: 0, busy: false };
 
   (async () => {
     const all = await decks.list();
@@ -4259,14 +4309,35 @@ function createTableSetup({ decks, cardRepo, store }) {
     const opts = all.map(d => ({ value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format}` }));
     const byId = id => all.find(d => d.id === id);
     const covBox = h('div', { id: 'mesa-coverage' });
+    const modeBox = h('div', { id: 'mesa-mode' });
     // A10 · quanto o motor resolve sozinho desta lista
+    let covRun = 0;
     async function paintCoverage() {
+      const run = ++covRun; // troca de lista: só a última resposta vale
       const d = byId(state.mine); if (!d) return mount(covBox);
       mount(covBox, Row({}, Spinner(), Text('Conferindo a cobertura do motor…', { size: 'sm', tone: 'muted' })));
       let cards = new Map();
       try { cards = await cardRepo.byNames(d.entries.map(e => e.name)); } catch (e) { /* sem rede: sem cobertura */ }
+      if (run !== covRun) return;
       const cv = deckCoverage(d.entries.map(e => ({ ...e, key: norm(e.name) })), cards);
+      state.coverage = cv.pct;
       mount(covBox, Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · você aplica o efeito de ${cv.parcial + cv.manual} carta(s) na mesa` : ' · nada a adjudicar'), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }));
+      paintMode();
+    }
+    // S9 · motor completo só entra com a lista 100% coberta
+    function paintMode() {
+      const full = state.coverage === 100;
+      if (!full) state.mode = 'assisted';
+      mount(modeBox, Row({ class: 'ds-row--wrap' },
+        ...[['assisted', 'Mesa assistida'], ['full', 'Motor completo']].map(([k, label]) => {
+          const c = Chip(label, { pressed: state.mode === k, dataset: { mode: k } });
+          if (k === 'full' && !full) { c.disabled = true; c.title = 'Precisa de 100% de cobertura'; }
+          else c.addEventListener('click', () => { state.mode = k; paintMode(); });
+          return c;
+        }),
+        h('span', { class: 'ds-text ds-text--sm ds-text--muted' }, full
+          ? 'No motor completo o jogo não para para adjudicação: mana e efeitos são do motor.'
+          : 'Motor completo libera quando a lista estiver 100% coberta.')));
     }
 
     const theirsField = h('div', {});
@@ -4295,7 +4366,7 @@ function createTableSetup({ decks, cardRepo, store }) {
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
           theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
-        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana }), { options: { autoPass: !state.stopAll } });
+        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }), { options: { autoPass: !state.stopAll } });
         await store.set(T.SAVE_KEY, table.serialize());
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
         go('/partida');
@@ -4317,16 +4388,15 @@ function createTableSetup({ decks, cardRepo, store }) {
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
         Field('Sua lista', Select(opts, { id: 'mesa-mine', value: state.mine, onChange: e => { state.mine = e.target.value; paintCoverage(); } })),
         covBox,
-        Field('Oponente', oppChips),
+        ChipField('Oponente', oppChips),
         theirsField,
-        Field('Modo', Row({ class: 'ds-row--wrap' }, Chip('Mesa assistida', { pressed: true }),
-          h('span', { class: 'ds-text ds-text--sm ds-text--muted' }, 'O motor resolve as cartas com script; o resto você aplica na mesa. O modo sem pausa nenhuma chega com a história S9.'))),
-        Field('Mana', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
+        ChipField('Modo', modeBox),
+        ChipField('Mana', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
           c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })(),
-          { hint: 'Ligado, conjurar toca seus terrenos sozinho e só oferece o que dá para pagar. Cartas que o motor não entende podem ser conjuradas sem pagar.' }),
-        Field('Paradas', (() => { const c = Chip('Parar em todos os passos', { pressed: false, dataset: { stopall: '1' } });
+          'Ligado, conjurar toca seus terrenos sozinho e só oferece o que dá para pagar. Cartas que o motor não entende podem ser conjuradas sem pagar.'),
+        ChipField('Paradas', (() => { const c = Chip('Parar em todos os passos', { pressed: false, dataset: { stopall: '1' } });
           c.addEventListener('click', () => { state.stopAll = !state.stopAll; c.setAttribute('aria-pressed', String(state.stopAll)); }); return c; })(),
-          { hint: 'Desligado, a mesa passa sozinha onde não há decisão, como no Arena.' }),
+          'Desligado, a mesa passa sozinha onde não há decisão, como no Arena.'),
         Field('Semente', Input({ id: 'mesa-seed', value: String(state.seed), inputmode: 'numeric', onInput: e => { state.seed = parseInt(e.target.value, 10) || 0; } }),
           { hint: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
         Row({}, startBtn))));
@@ -4428,6 +4498,7 @@ function createTableScreen({ store }) {
     return dest;
   }
   const hasPriority = v => { const s = table.state; return s.status === 'playing' && !s.pending && s.turn.priority === v; };
+  const canAdjudicate = v => table.state.mode === 'assisted' && hasPriority(v); // S9: no motor completo o jogo não aceita controle manual
 
   function openObject(oid) {
     const s = table.state, v = table.viewer(), o = s.objects[oid];
@@ -4444,16 +4515,16 @@ function createTableScreen({ store }) {
     if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
       f.produces.forEach((opt, k) => legal.push(doBtn(`Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k })));
     // mesa assistida: conjurar sem pagar quando o tempo é legal mas falta mana
-    if (s.manaCheck && hasPriority(v) && (o.zone === 'hand' || o.zone === 'command') && !legal.some(b => /Conjurar/.test(b.textContent)) && !f.types.includes('land')) {
+    if (s.manaCheck && canAdjudicate(v) && (o.zone === 'hand' || o.zone === 'command') && !legal.some(b => /Conjurar/.test(b.textContent)) && !f.types.includes('land')) {
       let timingOk = false; try { E.apply(s, { t: 'cast', p: v, oid, free: true }); timingOk = true; } catch (e) { /* fora de hora */ }
       if (timingOk) { legal.push(Button(`Conjurar · ${costTxt || 'sem custo'} — mana insuficiente`, { block: true, disabled: true })); legal.push(doBtn('Conjurar sem pagar (ajuste manual)', { t: 'cast', p: v, oid, free: true })); }
     }
-    if (o.zone === 'companion' && hasPriority(v) && !legal.length && !s.players[v].companionUsed) {
+    if (o.zone === 'companion' && canAdjudicate(v) && !legal.length && !s.players[v].companionUsed) {
       let ok = false; try { E.apply(s, { t: 'companion', p: v, oid, free: true }); ok = true; } catch (e) { /* fora de hora */ }
       if (ok) legal.push(doBtn('Pôr na mão sem pagar (ajuste manual)', { t: 'companion', p: v, oid, free: true }));
     }
     const direct = [];
-    if (hasPriority(v)) {
+    if (canAdjudicate(v)) {
       if (o.zone === 'battlefield') {
         direct.push(doBtn(o.tapped ? 'Desvirar' : 'Virar', { t: 'tap', p: v, oid }));
         direct.push(doBtn('Marcador +1/+1', { t: 'counter', p: v, oid, kind: 'p1p1', delta: 1 }));
@@ -4477,6 +4548,7 @@ function createTableScreen({ store }) {
 
   function openLife(target) {
     const s = table.state, v = table.viewer();
+    if (s.mode === 'full') return toast(`${s.players[target].name}: ${s.players[target].life} de vida — no motor completo quem ajusta é o motor`);
     if (!hasPriority(v)) return toast('Espere sua prioridade para ajustar a vida');
     const btns = [[-1, '−1'], [-5, '−5'], [1, '+1'], [5, '+5']].map(([d, l]) => Button(l, { onClick: () => { closeDialog(); act({ t: 'life', p: v, target, delta: d }); } }));
     const cmd = s.format === 'commander' ? Object.values(s.objects).filter(o => o.commander && o.owner !== target).map(o =>

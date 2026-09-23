@@ -46,7 +46,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | L · Listas | L11 companheiro | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
-| S · Scripts | S1 formato e validador · S2 cobertura · S3 palavras-chave · S4 efeitos · S5 alvos · A10 cobertura visível | 🟡 |
+| S · Scripts | S1 formato e validador · S2 cobertura · S3 palavras-chave · S4 efeitos · S5 alvos · A10 cobertura visível | ✅ |
+| S · Scripts | S8 cenário em cada script · S9 modo motor completo | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -188,9 +189,10 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E5 ✅ | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
 | E6 ✅ | X3, X5, X6, L11 | Scanner identifica a edição, alimenta coleção ou lista e funciona offline; listas com companheiro |
 | E7 ✅ | M6, A6, M7, M14 | Combate e mana resolvidos pelo motor; companheiro jogável na mesa |
-| E8 🟡 | S1–S5, A10 | Primeiros scripts de carta, alvos e cobertura visível |
-| E9 ▶ | S6, S7, S8, S9 | Suas listas cobertas e o modo sem pausa nenhuma |
-| E10 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
+| E8 ✅ | S1–S5, A10 | Primeiros scripts de carta, alvos e cobertura visível |
+| E9 🟡 | S8, S9, biblioteca ampliada | Cenário obrigatório por script, varreduras e o modo sem pausa nenhuma |
+| E10 ▶ | S6, S7 | Cobrir as cartas das suas listas, medidas pela cobertura |
+| E11 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 
 ---
 
@@ -542,7 +544,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A3.
 - **Fora:** bot (ADR-05).
 
-**A10 · Cobertura antes da partida** 🟡
+**A10 · Cobertura antes da partida** ✅
 - **Valor:** saber antes o que o motor resolve sozinho.
 - **Aceite:**
   - selo por carta na galeria da lista (✓ completo, ◐ parcial, ✎ manual) com o motivo;
@@ -554,7 +556,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 ### S · Scripts de carta (motor completo)
 
-**S1 · Formato de script e validador** 🟡
+**S1 · Formato de script e validador** ✅
 - **Valor:** ensinar uma carta ao motor vira dado, não código espalhado.
 - **Aceite:**
   - script declarativo por nome da carta: lista de efeitos, cada um com tipo, valores e alvo;
@@ -566,7 +568,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M4.
 - **Fora:** editor visual de script; efeitos com escolha além do alvo.
 
-**S2 · Nível de cobertura** 🟡
+**S2 · Nível de cobertura** ✅
 - **Valor:** transparência sobre o que o motor entende.
 - **Aceite:**
   - completo (script validado, carta sem texto, só palavras-chave conhecidas ou só mana), parcial (parte do texto) e manual;
@@ -583,7 +585,8 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M6.
 - **Fora:** palavras-chave de edição específica.
 
-**S4 · Efeitos base** 🟡
+**S4 · Efeitos base** ✅
+- **Biblioteca:** 39 mágicas comuns, incluindo varreduras (dano ou −X/−X em todas as criaturas, ou só nas do oponente).
 - **Valor:** mágicas simples resolvidas sem pausa.
 - **Aceite:**
   - dano, destruir, exilar, devolver à mão, anular, comprar, ganhar e perder vida, ±X/±X até o fim do turno, virar e desvirar;
@@ -594,7 +597,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** S1, M12 para fichas.
 - **Fora:** criar ficha (depende de M12), vasculhar, escolher modo, custo alternativo.
 
-**S5 · Alvos** 🟡
+**S5 · Alvos** ✅
 - **Valor:** mágica com alvo ilegal é tratada como a regra manda.
 - **Aceite:**
   - alvo escolhido na conjuração; a mesa oferece uma opção por alvo legal;
@@ -607,33 +610,38 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 
 **S6 · Cobertura das listas do usuário: Pauper** ▶
 - **Valor:** as listas Pauper salvas ficam jogáveis no motor completo.
-- **Aceite:** meta de cobertura completa por lista, medida por S2 e definida na abertura da história.
-- **Testes:** U (um teste de cenário por script).
-- **Depende de:** S3–S5.
+- **Aceite:** meta de cobertura completa por lista, medida por S2.
+- **Como fazer:** abra a lista, toque em **Copiar cartas sem script** e mande a lista de nomes; cada carta vira script com cenário (S1 e S8).
+- **Testes:** U (o cenário declarado em cada script novo).
+- **Depende de:** S3–S5, S8.
 - **Fora:** cartas fora das listas salvas.
 
 **S7 · Cobertura das listas do usuário: Commander (Malcolm v3 primeiro)** ▶
 - **Valor:** a lista principal fica jogável no motor completo.
 - **Aceite:** como em S6.
-- **Testes:** U.
-- **Depende de:** S6, M13.
+- **Depende de:** S6, M13; cartas com gatilho dependem de M9.
 - **Fora:** —
 
-**S8 · Teste de carta gerado** ▶
+**S8 · Cenário declarado em cada script** 🟡
 - **Valor:** todo script nasce testado.
-- **Aceite:** cada script declara um cenário mínimo (estado inicial, ação, estado esperado) que vira teste automaticamente.
-- **Testes:** U.
+- **Aceite:**
+  - o script traz um `example` com o alvo a usar e o que esperar (vida, carta que sai do campo, devolvida, anulada, virada, pump, cartas compradas);
+  - o validador recusa script sem cenário, com alvo de cenário desconhecido ou sem nada a verificar;
+  - o teste monta a mesa, confere que a mesa ofereceu aquela conjuração, resolve e checa o resultado, script por script;
+  - o cenário não entra no estado da partida.
+- **Testes:** U (a biblioteca inteira).
 - **Depende de:** S1.
-- **Fora:** —
+- **Fora:** cenários com mais de um alvo.
 
-**S9 · Modo motor completo jogável** ▶
+**S9 · Modo motor completo jogável** 🟡
 - **Valor:** partida sem pausa nenhuma.
 - **Aceite:**
-  - A2 libera o modo quando a lista está 100% coberta;
-  - senão, mostra o que falta.
-- **Testes:** I, G.
+  - a preparação mostra os dois modos; motor completo só libera com a lista 100% coberta, e diz isso quando não libera;
+  - no motor completo a mana é sempre cobrada e o controle manual (mover, virar, marcadores, vida, comprar, conjurar sem pagar) não aparece;
+  - a mesa assistida segue igual.
+- **Testes:** I (liberação pela cobertura e ausência dos controles manuais), U (o motor recusa adjudicação no modo completo).
 - **Depende de:** S2, A2.
-- **Fora:** —
+- **Fora:** bot adversário (B2).
 
 ### B · Bot adversário
 

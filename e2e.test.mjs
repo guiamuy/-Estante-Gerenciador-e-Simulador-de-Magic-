@@ -635,3 +635,33 @@ test('e2e · S4/S5 mágica com script resolve sozinha e o registro conta o efeit
   assert.match(log, /Lightning Bolt causou 3 de dano a Goldfish/);
   assert.deepEqual(errors, []);
 });
+
+test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita ajuste manual', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Com Preordain', '30 Island\n10 Preordain\n10 Lightning Bolt', 'livre');
+  await createDeck(page, base, 'Coberta', '30 Island\n20 Lightning Bolt', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.waitForSelector('#mesa-mode [data-mode="full"]');
+  const opts = await page.$$eval('#mesa-mine option', os => os.map(o => o.textContent));
+  await page.selectOption('#mesa-mine', { index: opts.findIndex(o => /Com Preordain/.test(o)) });
+  await page.waitForFunction(() => /75% completo|% completo/.test(document.querySelector('#mesa-coverage').innerText));
+  assert.equal(await page.locator('#mesa-mode [data-mode="full"]').isDisabled(), true, 'lista com carta manual não libera o motor completo');
+
+  await page.selectOption('#mesa-mine', { index: opts.findIndex(o => /Coberta/.test(o)) });
+  await page.waitForFunction(() => /100% completo/.test(document.querySelector('#mesa-coverage').innerText));
+  await page.click('#mesa-mode [data-mode="full"]');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  // no motor completo a carta só oferece as ações de regra
+  await drawUntil(page, 'Island');
+  await handCard(page, 'Island').click();
+  const sheet = await page.innerText('.ds-dialog');
+  assert.match(sheet, /Jogar terreno/);
+  assert.doesNotMatch(sheet, /Mover para|sem pagar/, 'sem controles de adjudicação');
+  await page.keyboard.press('Escape');
+  await page.click('#tb-life-opp');
+  assert.match(await page.innerText('.ds-toast, .ds-dialog').catch(() => ''), /motor completo|de vida/);
+  assert.deepEqual(errors, []);
+});
