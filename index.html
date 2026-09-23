@@ -640,6 +640,14 @@ body {
 .tb-pool { display: flex; gap: 2px; align-items: center; font-size: var(--text-xs); color: var(--fg-muted); }
 .tb-pool .ds-pip { width: 14px; height: 14px; }
 .tb-cost { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg-muted); }
+
+/* ===================== A10 · cobertura do motor ===================== */
+.deck-slot__cov {
+  position: absolute; top: var(--space-2); right: var(--space-2); font-size: var(--text-xs); line-height: 1;
+  padding: var(--space-1); border-radius: var(--radius-full); border: 1px solid var(--border-strong); background: var(--bg-elev-3); color: var(--fg-muted);
+}
+.deck-slot[data-coverage="completo"] .deck-slot__cov { color: var(--positive); border-color: var(--positive); }
+.deck-slot[data-coverage="manual"] .deck-slot__cov { color: var(--warning); border-color: var(--warning); }
 </style>
 </head>
 <body>
@@ -1994,6 +2002,126 @@ function openCardViewer(card, extra = []) {
 return { createCardsScreen, openCardViewer };
 })();
 
+/* ==== src/engine/scripts.js ==== */
+const __m23 = (function () {
+/* =====================================================================
+   S1 · FORMATO DE SCRIPT E VALIDADOR
+   S2 · NÍVEL DE COBERTURA
+   S3 · PALAVRAS-CHAVE PERMANENTES
+   O motor não interpreta texto de carta: lê script declarativo. Carta sem
+   script cai na mesa assistida, que pede adjudicação.
+   ===================================================================== */
+
+/** Palavras-chave que o motor resolve sozinho (M6 e regras de alvo). */
+const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigilance', 'haste', 'first strike',
+  'double strike', 'menace', 'defender', 'indestructible', 'flash', 'hexproof', 'shroud'];
+
+/** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
+const EFFECTS = {
+  damage: { fields: ['amount'], targets: ['any', 'creature', 'player', 'opponent'] },
+  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment'] },
+  exile: { fields: [], targets: ['creature', 'permanent'] },
+  bounce: { fields: [], targets: ['creature', 'permanent'] },
+  counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell'] },
+  draw: { fields: ['amount'], targets: ['player', 'self'] },
+  gain: { fields: ['amount'], targets: ['player', 'self'] },
+  lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller'] },
+  pump: { fields: ['power', 'toughness'], targets: ['creature'] },
+  tap: { fields: [], targets: ['creature', 'permanent'] },
+  untap: { fields: [], targets: ['creature', 'permanent'] }
+};
+const TARGETED = new Set(['any', 'creature', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'spell', 'creature-spell', 'noncreature-spell']);
+
+/** Valida um script. Devolve [] quando está correto. */
+function validateScript(sc) {
+  const errs = [];
+  if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
+  if (!Array.isArray(sc && sc.effects) || !sc.effects.length) return errs.concat('script sem efeitos');
+  sc.effects.forEach((e, i) => {
+    const spec = EFFECTS[e.do];
+    if (!spec) return errs.push(`efeito ${i + 1}: "${e.do}" desconhecido`);
+    for (const f of spec.fields) if (!Number.isInteger(e[f])) errs.push(`efeito ${i + 1} (${e.do}): falta ${f} inteiro`);
+    const t = e.target || 'self';
+    if (t !== 'self' && !spec.targets.includes(t)) errs.push(`efeito ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
+  });
+  return errs;
+}
+const isTargeted = e => TARGETED.has(e.target);
+
+/** Biblioteca inicial: mágicas comuns de efeito direto, sem gatilho nem escolha
+    além do alvo. Cada uma é exercitada pelos testes de cenário. */
+const RAW_SCRIPTS = [
+  { name: 'Lightning Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }] },
+  { name: 'Shock', effects: [{ do: 'damage', amount: 2, target: 'any' }] },
+  { name: 'Chain Lightning', effects: [{ do: 'damage', amount: 3, target: 'any' }] },
+  { name: 'Lightning Strike', effects: [{ do: 'damage', amount: 3, target: 'any' }] },
+  { name: 'Flame Slash', effects: [{ do: 'damage', amount: 4, target: 'creature' }] },
+  { name: 'Lava Spike', effects: [{ do: 'damage', amount: 3, target: 'player' }] },
+  { name: 'Counterspell', effects: [{ do: 'counter', target: 'spell' }] },
+  { name: 'Essence Scatter', effects: [{ do: 'counter', target: 'creature-spell' }] },
+  { name: 'Negate', effects: [{ do: 'counter', target: 'noncreature-spell' }] },
+  { name: 'Unsummon', effects: [{ do: 'bounce', target: 'creature' }] },
+  { name: 'Vapor Snag', effects: [{ do: 'bounce', target: 'creature' }, { do: 'lose', amount: 1, target: 'target-controller' }] },
+  { name: 'Murder', effects: [{ do: 'destroy', target: 'creature' }] },
+  { name: 'Doom Blade', effects: [{ do: 'destroy', target: 'creature' }] },
+  { name: 'Disenchant', effects: [{ do: 'destroy', target: 'permanent' }] },
+  { name: 'Divination', effects: [{ do: 'draw', amount: 2 }] },
+  { name: 'Night\'s Whisper', effects: [{ do: 'draw', amount: 2 }, { do: 'lose', amount: 2 }] },
+  { name: 'Sign in Blood', effects: [{ do: 'draw', amount: 2, target: 'player' }, { do: 'lose', amount: 2, target: 'target-controller' }] },
+  { name: 'Giant Growth', effects: [{ do: 'pump', power: 3, toughness: 3, target: 'creature' }] },
+  { name: 'Disfigure', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'creature' }] },
+  { name: 'Shock the Mind', effects: [{ do: 'damage', amount: 1, target: 'any' }, { do: 'draw', amount: 1 }] },
+  { name: 'Healing Salve', effects: [{ do: 'gain', amount: 3, target: 'player' }] },
+  { name: 'Twiddle', effects: [{ do: 'tap', target: 'permanent' }] }
+];
+const SCRIPTS = {};
+const SCRIPT_ERRORS = {};
+for (const sc of RAW_SCRIPTS) {
+  const errs = validateScript(sc);
+  if (errs.length) SCRIPT_ERRORS[sc.name] = errs; else SCRIPTS[sc.name] = sc;
+}
+
+/* ---------------- S2 · cobertura ---------------- */
+const KW_LINE = new RegExp(`^(${KEYWORDS.join('|')})(,\\s*(${KEYWORDS.join('|')}))*$`, 'i');
+const MANA_LINE = /^\{T\}: Add /i;
+const clean = t => String(t || '').replace(/\([^)]*\)/g, '').split('\n').map(l => l.trim()).filter(Boolean);
+
+/** completo: o motor resolve tudo · parcial: parte vira adjudicação · manual: tudo na mão. */
+function coverage(card, scripts = SCRIPTS) {
+  const name = card && card.name;
+  if (name && scripts[name]) return { level: 'completo', reason: 'script validado' };
+  const tl = String(card && card.type_line || '').toLowerCase();
+  const lines = clean(card && card.oracle_text);
+  if (!tl) return { level: 'manual', reason: 'carta desconhecida' };
+  if (/\b(instant|sorcery)\b/.test(tl)) return lines.length ? { level: 'manual', reason: 'mágica sem script' } : { level: 'completo', reason: 'sem texto' };
+  if (!lines.length) return { level: 'completo', reason: 'sem texto' };
+  const known = lines.filter(l => KW_LINE.test(l) || MANA_LINE.test(l));
+  if (known.length === lines.length) return { level: 'completo', reason: 'só palavras-chave e mana' };
+  if (known.length) return { level: 'parcial', reason: 'parte do texto o motor não resolve' };
+  return { level: 'manual', reason: 'texto que o motor não resolve' };
+}
+const COVERAGE_PT = { completo: 'Completo', parcial: 'Parcial', manual: 'Manual' };
+const COVERAGE_MARK = { completo: '✓', parcial: '◐', manual: '✎' };
+
+/** Cobertura de uma lista: contagem por nível e percentual completo. */
+function deckCoverage(entries, cards, scripts = SCRIPTS) {
+  const count = { completo: 0, parcial: 0, manual: 0 };
+  let total = 0;
+  const worst = [];
+  const find = name => cards.get ? (cards.get(name) || cards.get(__m7.norm(name))) : cards[name];
+  for (const e of entries) {
+    if (e.zone === 'side') continue;
+    const c = find(e.key || e.name) || find(e.name);
+    const lv = coverage(c || { name: e.name }, scripts).level;
+    count[lv] += e.qty; total += e.qty;
+    if (lv !== 'completo') worst.push(e.name);
+  }
+  return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst };
+}
+
+return { KEYWORDS, EFFECTS, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK };
+})();
+
 /* ==== src/data/decks.js ==== */
 const __m14 = (function () {
 /* =====================================================================
@@ -2465,6 +2593,7 @@ const __m15 = (function () {
 const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
+const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK } = __m23;
 const { openCardViewer } = __m12;
 const { onTaps, pulse } = __m20;
 
@@ -2668,8 +2797,10 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           const c = entryCard(e);
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
           const lacking = have < e.qty;
+          const cov = coverage(c || { name: e.name });
           const face = CardFace({ name: e.name, image: img(c) });
-          const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name } }, face,
+          const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level } }, face,
+            h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}` }, COVERAGE_MARK[cov.level]),
             e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
             lacking ? h('span', { class: 'deck-slot__flag' }, have ? `falta ${e.qty - have}` : 'falta') : null);
           // C7: um toque abre a carta (ou marca, no modo marcação); dois toques marcam "tenho"
@@ -2694,6 +2825,11 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           Button('Excluir', { variant: 'danger', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
       state.degraded ? Note('<b>Sem acesso à Scryfall agora.</b> Mostrando as cartas que já estavam salvas neste aparelho.', 'warning') : null,
+      (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
+        Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
+          Badge(`✓ ${cv.completo}`, { tone: 'positive' }), cv.parcial ? Badge(`◐ ${cv.parcial}`) : null, cv.manual ? Badge(`✎ ${cv.manual}`) : null),
+        Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista.' : `Na mesa assistida, você aplica o efeito de ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
+          { size: 'sm', tone: 'muted' }))); })(),
       Surface({ class: 'ds-surface--pad deck-summary' },
         h('div', { class: 'deck-summary__own' },
           Text(`${stats.have}/${stats.need}`, { size: '3xl', display: true }),
@@ -2956,7 +3092,8 @@ const __m16 = (function () {
    da semente guardada no próprio estado, então a mesma semente com as
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
-const ENGINE_VERSION = 2;
+const SC = __m23;
+const ENGINE_VERSION = 3;
 const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'combat_begin', 'combat_attackers', 'combat_blockers',
   'combat_damage', 'combat_end', 'main2', 'end', 'cleanup'];
 const STEP_PT = {
@@ -3037,7 +3174,8 @@ function cardFacts(card) {
     power: num(card && card.power), toughness: num(card && card.toughness),
     cmc: (card && card.cmc) || 0,
     cost: parseCost(card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))),
-    produces: parseProduction(card)
+    produces: parseProduction(card),
+    script: null // preenchido na criação da partida (S1)
   };
 }
 const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
@@ -3061,7 +3199,10 @@ function createGame(setup) {
     turn: { number: 0, active: 0, step: 'untap', priority: 0, passes: 0, firstTurn: true },
     status: 'mulligan', winner: null, pending: null
   };
+  const scripts = { ...SC.SCRIPTS };
+  for (const [name, sc] of Object.entries(setup.scripts || {})) if (!SC.validateScript(sc).length) scripts[name] = sc;
   for (const [name, card] of Object.entries(setup.cards || {})) s.facts[name] = cardFacts(card);
+  for (const [name, f] of Object.entries(s.facts)) if (scripts[name] && (f.types.includes('instant') || f.types.includes('sorcery'))) f.script = scripts[name];
 
   setup.players.forEach((pl, pi) => {
     s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, lost: false, lossReason: null,
@@ -3098,7 +3239,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
   // 400.7: objeto novo ao mudar de zona; sai do combate
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck;
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.targets;
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   o.zone = to;
   const dest = zoneList(s, o, to);
@@ -3122,8 +3263,8 @@ function nextAlive(s, from) {
 }
 const isMain = s => s.turn.step === 'main1' || s.turn.step === 'main2';
 const commanderTax = (s, p, oid) => 2 * (s.players[p].commanderCasts[oid] || 0);
-const power = (s, o) => (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0);
-const toughness = (s, o) => (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0);
+const power = (s, o) => (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.p) || 0);
+const toughness = (s, o) => (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.t) || 0);
 const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
@@ -3226,7 +3367,7 @@ function enterStep(s, step) {
   }
 }
 function finishCleanup(s) {
-  for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; }
+  for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
   s.pending = null;
   s.turn.firstTurn = false;
   s.turn.number++;
@@ -3298,16 +3439,112 @@ function dealCombatDamage(s) {
   }
 }
 
+/* ---------------- S5 · alvos ---------------- */
+const scriptOf = (s, o) => s.facts[o.name].script;
+const targetedEffects = (s, o) => { const sc = scriptOf(s, o); return sc ? sc.effects.filter(SC.isTargeted) : []; };
+/** Uma permanente pode ser alvo? Protegida e maldição de véu respondem aqui. */
+function targetable(s, p, o) {
+  if (!o || o.zone !== 'battlefield') return false;
+  if (has(s, o, 'shroud')) return false;
+  if (has(s, o, 'hexproof') && o.controller !== p) return false;
+  return true;
+}
+const isCreature = (s, o) => s.facts[o.name].types.includes('creature');
+/** Alvos legais para um tipo de alvo. Descritor: { oid } ou { player }. */
+function legalTargets(s, p, kind, selfOid) {
+  const out = [];
+  const perms = battlefield(s).filter(o => targetable(s, p, o));
+  const players = s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
+  if (kind === 'any' || kind === 'creature' || kind === 'permanent' || kind === 'artifact' || kind === 'enchantment') {
+    for (const o of perms) {
+      const f = s.facts[o.name];
+      if (kind === 'creature' && !f.types.includes('creature')) continue;
+      if (kind === 'any' && !f.types.includes('creature')) continue;
+      if (kind === 'artifact' && !f.types.includes('artifact')) continue;
+      if (kind === 'enchantment' && !f.types.includes('enchantment')) continue;
+      out.push({ oid: o.oid });
+    }
+  }
+  if (kind === 'any' || kind === 'player') players.forEach(i => out.push({ player: i }));
+  if (kind === 'opponent') players.filter(i => i !== p).forEach(i => out.push({ player: i }));
+  if (kind === 'spell' || kind === 'creature-spell' || kind === 'noncreature-spell') {
+    for (const oid of s.stack) {
+      if (oid === selfOid) continue;
+      const f = s.facts[s.objects[oid].name];
+      const creature = f.types.includes('creature');
+      if (kind === 'creature-spell' && !creature) continue;
+      if (kind === 'noncreature-spell' && creature) continue;
+      out.push({ oid });
+    }
+  }
+  return out;
+}
+const sameTarget = (a, b) => a && b && a.oid === b.oid && a.player === b.player;
+const targetStillLegal = (s, p, kind, tgt, selfOid) => legalTargets(s, p, kind, selfOid).some(x => sameTarget(x, tgt));
+
+/* ---------------- S4 · efeitos ---------------- */
+function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? s.objects[t.oid].name : s.players[t.player].name; }
+function applyEffect(s, src, eff, tgt, events) {
+  const ctrl = src.controller;
+  const note = extra => events.push({ kind: 'effect', do: eff.do, name: src.name, target: tgt ? effectTargetName(s, tgt) : s.players[ctrl].name, ...extra });
+  const obj = tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
+  const playerOf = () => tgt && tgt.player != null ? tgt.player : obj ? obj.controller : ctrl;
+  switch (eff.do) {
+    case 'damage':
+      if (obj) { obj.damage += eff.amount; if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+      else s.players[playerOf()].life -= eff.amount;
+      note({ amount: eff.amount }); break;
+    case 'destroy':
+      if (has(s, obj, 'indestructible')) note({ failed: true });
+      else { moveObject(s, obj.oid, 'graveyard'); note({}); }
+      break;
+    case 'exile': moveObject(s, obj.oid, 'exile'); note({}); break;
+    case 'bounce': moveObject(s, obj.oid, 'hand'); note({}); break;
+    case 'counter': moveObject(s, obj.oid, 'graveyard'); note({}); break;
+    case 'draw': draw(s, playerOf(), eff.amount); note({ amount: eff.amount }); break;
+    case 'gain': s.players[playerOf()].life += eff.amount; note({ amount: eff.amount }); break;
+    case 'lose': s.players[playerOf()].life -= eff.amount; note({ amount: eff.amount }); break;
+    case 'pump': obj.pump = { p: ((obj.pump && obj.pump.p) || 0) + eff.power, t: ((obj.pump && obj.pump.t) || 0) + eff.toughness }; note({ power: eff.power, toughness: eff.toughness }); break;
+    case 'tap': obj.tapped = true; note({}); break;
+    case 'untap': obj.tapped = false; note({}); break;
+    default: break;
+  }
+}
+/** Resolve uma mágica com script. Alvo ilegal na resolução anula a mágica (608.2b). */
+function resolveScript(s, o, events) {
+  const sc = scriptOf(s, o);
+  const targeted = sc.effects.filter(SC.isTargeted);
+  const chosen = o.targets || [];
+  const stillLegal = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid));
+  if (targeted.length && stillLegal.every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
+  let ti = 0, firstTarget = null;
+  for (const eff of sc.effects) {
+    if (SC.isTargeted(eff)) {
+      const tgt = chosen[ti]; const ok = stillLegal[ti]; ti++;
+      if (!ok) { events.push({ kind: 'effect', do: eff.do, name: o.name, target: effectTargetName(s, tgt), failed: true }); continue; }
+      if (!firstTarget) firstTarget = tgt;
+      applyEffect(s, o, eff, tgt, events);
+    } else if (eff.target === 'target-controller') {
+      const t = firstTarget;
+      const who = t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
+      applyEffect(s, o, eff, { player: who }, events);
+    } else applyEffect(s, o, eff, null, events);
+    stateBased(s, events);
+  }
+}
+
 /* ---------------- M4 · prioridade e pilha ---------------- */
-function resolveTop(s) {
+function resolveTop(s, events = []) {
   const item = s.stack[s.stack.length - 1];
   const o = s.objects[item];
   const f = s.facts[o.name];
   const dest = isPermanent(f) ? 'battlefield' : 'graveyard';
   const controller = o.controller;
-  moveObject(s, item, dest);
-  if (dest === 'battlefield') s.objects[item].controller = controller;
-  return { kind: 'resolved', oid: item, name: o.name, to: dest, adjudicate: s.mode === 'assisted' };
+  const scripted = !!f.script;
+  if (scripted) resolveScript(s, o, events);
+  if (s.objects[item].zone === 'stack') { moveObject(s, item, dest); if (dest === 'battlefield') s.objects[item].controller = controller; }
+  // S4: com script, o motor já aplicou tudo; sem script, a mesa assistida pede adjudicação
+  return { kind: 'resolved', oid: item, name: o.name, to: dest, scripted, adjudicate: s.mode === 'assisted' && !scripted };
 }
 
 /* ---------------- M5 · ações baseadas em estado ---------------- */
@@ -3378,7 +3615,7 @@ const HANDLERS = {
     s.turn.passes++;
     if (s.turn.passes < alive(s).length) { s.turn.priority = nextAlive(s, a.p); return; }
     s.turn.passes = 0;
-    if (s.stack.length) { ev.push(resolveTop(s)); s.turn.priority = s.turn.active; return; }
+    if (s.stack.length) { ev.push(resolveTop(s, ev)); s.turn.priority = s.turn.active; return; }
     advanceStep(s);
   },
   play_land(s, a) {
@@ -3399,9 +3636,15 @@ const HANDLERS = {
     if (f.types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
     if (isSorcerySpeed(f) && (s.turn.active !== a.p || !isMain(s) || s.stack.length)) throw new RuleError('tempo', 'só na sua fase principal, com a pilha vazia');
     if (a.free && s.mode !== 'assisted') throw new RuleError('modo', 'conjurar sem pagar só na mesa assistida');
+    // S5: alvos escolhidos na conjuração e conferidos de novo na resolução
+    const need = f.script ? f.script.effects.filter(SC.isTargeted) : [];
+    const chosen = a.targets || [];
+    if (chosen.length !== need.length) throw new RuleError('alvo', `escolha ${need.length} alvo(s)`);
+    need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid)) throw new RuleError('alvo', 'alvo ilegal'); });
     if (s.manaCheck && !a.free) payCost(s, a.p, f.cost, castExtra(s, a.p, o, a.x || 0));
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     moveObject(s, a.oid, 'stack');
+    if (need.length) s.objects[a.oid].targets = chosen;
     s.turn.passes = 0;
   },
   /** M7 · habilidade de mana: não usa a pilha. */
@@ -3553,14 +3796,26 @@ function legalActions(s, p, { adjudication = false } = {}) {
   out.push({ t: 'pass', p });
   const canSorcery = canSorceryNow(s, p);
   const payable = (o, extra) => !s.manaCheck || canPay(s, p, s.facts[o.name].cost, extra);
+  const casts = (o, extra) => {
+    const f = s.facts[o.name];
+    const need = f.script ? f.script.effects.filter(SC.isTargeted) : [];
+    if (!need.length) return [{ t: 'cast', p, oid: o.oid }];
+    let combos = [[]];
+    for (const eff of need) {
+      const opts = legalTargets(s, p, eff.target, o.oid).slice(0, 6);
+      if (!opts.length) return [];
+      combos = combos.flatMap(c => opts.map(t => c.concat([t]))).slice(0, 12);
+    }
+    return combos.map(targets => ({ t: 'cast', p, oid: o.oid, targets }));
+  };
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid], f = s.facts[o.name];
     if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); }
-    else if ((canSorcery || !isSorcerySpeed(f)) && payable(o, 0)) out.push({ t: 'cast', p, oid });
+    else if ((canSorcery || !isSorcerySpeed(f)) && payable(o, 0)) out.push(...casts(o, 0));
   }
   for (const oid of s.zones[p].command) {
     const o = s.objects[oid], f = s.facts[o.name];
-    if (o.commander && (canSorcery || !isSorcerySpeed(f)) && payable(o, commanderTax(s, p, oid))) out.push({ t: 'cast', p, oid });
+    if (o.commander && (canSorcery || !isSorcerySpeed(f)) && payable(o, commanderTax(s, p, oid))) out.push(...casts(o, commanderTax(s, p, oid)));
   }
   if (canSorcery && !s.players[p].companionUsed)
     for (const oid of s.zones[p].companion) if (!s.manaCheck || canPay(s, p, { generic: COMPANION_COST, colored: {}, hybrid: [], x: 0 })) out.push({ t: 'companion', p, oid });
@@ -3655,7 +3910,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction,
+return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
   createGame, apply, legalActions, previewCombat, eligibleAttackers, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
@@ -3769,6 +4024,25 @@ function buildSetup({ format, seed, seats, cards, manaCheck = false }) {
 function nameOf(s, oid) { const o = s.objects[oid]; return o ? o.name : '?'; }
 function who(s, p) { return s.players[p] ? s.players[p].name : '?'; }
 
+/** S4 · uma linha por efeito aplicado pelo script. */
+function effectLine(ev) {
+  const n = ev.amount, t = ev.target;
+  switch (ev.do) {
+    case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
+    case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t} (indestrutível)` : `${ev.name} destruiu ${t}`;
+    case 'exile': return `${ev.name} exilou ${t}`;
+    case 'bounce': return `${ev.name} devolveu ${t} para a mão`;
+    case 'counter': return `${ev.name} anulou ${t}`;
+    case 'draw': return `${t} comprou ${n} com ${ev.name}`;
+    case 'gain': return `${t} ganhou ${n} de vida com ${ev.name}`;
+    case 'lose': return `${t} perdeu ${n} de vida com ${ev.name}`;
+    case 'pump': return `${t} recebeu ${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness} até o fim do turno`;
+    case 'tap': return `${ev.name} virou ${t}`;
+    case 'untap': return `${ev.name} desvirou ${t}`;
+    default: return `${ev.name}: efeito aplicado`;
+  }
+}
+
 /** Traduz uma ação e seus eventos em linhas de registro em pt-BR. */
 function describe(before, a, events, after) {
   const L = [];
@@ -3779,7 +4053,8 @@ function describe(before, a, events, after) {
     case 'play_land': L.push(`${P} jogou ${nameOf(before, a.oid)}`); break;
     case 'cast': {
       const o = before.objects[a.oid];
-      L.push(o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}`);
+      const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
+      L.push((o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}`) + (alvo ? ` → ${alvo}` : ''));
       break;
     }
     case 'move': L.push(`${P} moveu ${nameOf(before, a.oid)}: ${ZONE_PT[before.objects[a.oid].zone]} → ${ZONE_PT[a.to]}`); break;
@@ -3805,7 +4080,9 @@ function describe(before, a, events, after) {
     for (const o of Object.values(after.objects)) if (before.objects[o.oid] && before.objects[o.oid].zone === 'battlefield' && o.zone === 'graveyard' && !events.some(e => e.oid === o.oid)) L.push(`${o.name} morreu`);
   }
   for (const ev of events) {
-    if (ev.kind === 'resolved') L.push(`${ev.name} resolveu → ${ZONE_PT[ev.to]}`);
+    if (ev.kind === 'effect') L.push(effectLine(ev));
+    if (ev.kind === 'fizzled') L.push(`${ev.name} foi anulada: o alvo não estava mais lá`);
+    if (ev.kind === 'resolved' && !ev.scripted) L.push(`${ev.name} resolveu → ${ZONE_PT[ev.to]}`);
     if (ev.kind === 'died') L.push(`${ev.name} morreu`);
     if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu: ${REASON_PT[ev.reason] || ev.reason}`);
     if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim de partida: empate' : `Fim de partida: ${who(after, ev.winner)} venceu`);
@@ -3959,6 +4236,7 @@ const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge
 const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, PriorityBanner, AdjudicationPanel } = __m17;
 const { norm } = __m7;
 const { FORMATS } = __m14;
+const { deckCoverage } = __m23;
 const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
 const randomSeed = () => {
@@ -3980,6 +4258,16 @@ function createTableSetup({ decks, cardRepo, store }) {
     state.mine = all[0].id; state.theirs = all[0].id;
     const opts = all.map(d => ({ value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format}` }));
     const byId = id => all.find(d => d.id === id);
+    const covBox = h('div', { id: 'mesa-coverage' });
+    // A10 · quanto o motor resolve sozinho desta lista
+    async function paintCoverage() {
+      const d = byId(state.mine); if (!d) return mount(covBox);
+      mount(covBox, Row({}, Spinner(), Text('Conferindo a cobertura do motor…', { size: 'sm', tone: 'muted' })));
+      let cards = new Map();
+      try { cards = await cardRepo.byNames(d.entries.map(e => e.name)); } catch (e) { /* sem rede: sem cobertura */ }
+      const cv = deckCoverage(d.entries.map(e => ({ ...e, key: norm(e.name) })), cards);
+      mount(covBox, Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · você aplica o efeito de ${cv.parcial + cv.manual} carta(s) na mesa` : ' · nada a adjudicar'), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }));
+    }
 
     const theirsField = h('div', {});
     const paintOpponent = () => mount(theirsField, state.opponent === 'hotseat' ? Stack({},
@@ -4017,6 +4305,7 @@ function createTableSetup({ decks, cardRepo, store }) {
     }
     const startBtn = Button('Começar partida', { variant: 'primary', id: 'mesa-start', onClick: start });
 
+    paintCoverage();
     mount(root,
       Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
       saved ? Surface({ class: 'ds-surface--pad', id: 'mesa-saved' }, Stack({},
@@ -4026,11 +4315,12 @@ function createTableSetup({ decks, cardRepo, store }) {
           Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', onClick: () => go('/partida') }),
           Button('Descartar', { variant: 'danger', onClick: async () => { await store.remove(T.SAVE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
-        Field('Sua lista', Select(opts, { id: 'mesa-mine', value: state.mine, onChange: e => { state.mine = e.target.value; } })),
+        Field('Sua lista', Select(opts, { id: 'mesa-mine', value: state.mine, onChange: e => { state.mine = e.target.value; paintCoverage(); } })),
+        covBox,
         Field('Oponente', oppChips),
         theirsField,
         Field('Modo', Row({ class: 'ds-row--wrap' }, Chip('Mesa assistida', { pressed: true }),
-          h('span', { class: 'ds-text ds-text--sm ds-text--muted' }, 'Motor completo libera quando a lista tiver cobertura total de scripts.'))),
+          h('span', { class: 'ds-text ds-text--sm ds-text--muted' }, 'O motor resolve as cartas com script; o resto você aplica na mesa. O modo sem pausa nenhuma chega com a história S9.'))),
         Field('Mana', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
           c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })(),
           { hint: 'Ligado, conjurar toca seus terrenos sozinho e só oferece o que dá para pagar. Cartas que o motor não entende podem ser conjuradas sem pagar.' }),
@@ -4080,6 +4370,7 @@ function createTableScreen({ store }) {
   })();
 
   /* ---- M7 · mana na tela ---- */
+  const targetName = (s, x) => x.player != null ? s.players[x.player].name : s.objects[x.oid].name;
   const costLabel = (c, extra = 0) => {
     const parts = []; const g = (c.generic || 0) + extra; if (g) parts.push(`{${g}}`);
     for (let i = 0; i < (c.x || 0); i++) parts.push('{X}');
@@ -4146,7 +4437,7 @@ function createTableScreen({ store }) {
     const costTxt = f.cost ? costLabel(f.cost, o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) : '';
     const legal = E.legalActions(s, v).filter(a => a.oid === oid).map(a =>
       a.t === 'play_land' ? doBtn('Jogar terreno', a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn((o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar') + (s.manaCheck && costTxt ? ` · ${costTxt}` : ''), a, { variant: 'primary' })
+        : a.t === 'cast' ? doBtn((o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar') + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '') + (s.manaCheck && costTxt ? ` · ${costTxt}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
     // M7: mana da fonte, uma opção por cor que ela gera

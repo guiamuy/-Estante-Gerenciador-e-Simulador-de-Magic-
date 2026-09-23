@@ -44,8 +44,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | ✅ |
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
-| M · Motor | M6 combate · M7 mana · M14 companheiro na partida | 🟡 |
-| A · Mesa | A6 combate na mesa | 🟡 |
+| M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
+| A · Mesa | A6 combate na mesa | ✅ |
+| S · Scripts | S1 formato e validador · S2 cobertura · S3 palavras-chave · S4 efeitos · S5 alvos · A10 cobertura visível | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -152,7 +153,7 @@ Valem para todas as histórias.
 | 4 · Integração headless | `e2e.test.mjs` | Fluxo do usuário no Chromium, com a Scryfall simulada, sem rolagem lateral e com alvos de 44 px |
 | 5 · Contrato visual | `contract.visual.test.mjs` | Contraste AA nos dois temas, zero cor fora de token, alvo de 44 px, tema claro sem divergência |
 
-**Versão do motor.** A E7 levou o motor à versão 2 (combate, mana e companheiro mudam o estado). Partidas salvas pela versão 1 não são retomadas: a mesa avisa e oferece nova partida. O golden foi regravado nessa mudança, com esta justificativa.
+**Versão do motor.** A E8 levou o motor à versão 3 (alvos e efeitos de script entram no estado) e a E7 tinha levado à versão 2 (combate, mana e companheiro mudam o estado). Partidas salvas por uma versão anterior do motor não são retomadas: a mesa avisa e oferece nova partida. O golden foi regravado nessa mudança, com esta justificativa.
 
 **Portão.** `npm test` roda tudo. No GitHub, o workflow **Portão de release** roda:
 - 250 partidas de fuzz a cada push;
@@ -186,8 +187,10 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E4 ✅ | C1, C3, C5 | Coleção por impressão, importação do ManaBox e outros, persistência garantida |
 | E5 ✅ | X1, X2, X4, C6 | Scanner: câmera, reconhecimento pelo nome e lote com uma mão |
 | E6 ✅ | X3, X5, X6, L11 | Scanner identifica a edição, alimenta coleção ou lista e funciona offline; listas com companheiro |
-| E7 🟡 | M6, A6, M7, M14 | Combate e mana resolvidos pelo motor; companheiro jogável na mesa |
-| E8 ▶ | S1–S5, S2 + A10 | Primeiros scripts de carta e cobertura visível |
+| E7 ✅ | M6, A6, M7, M14 | Combate e mana resolvidos pelo motor; companheiro jogável na mesa |
+| E8 🟡 | S1–S5, A10 | Primeiros scripts de carta, alvos e cobertura visível |
+| E9 ▶ | S6, S7, S8, S9 | Suas listas cobertas e o modo sem pausa nenhuma |
+| E10 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 
 ---
 
@@ -338,7 +341,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M4.
 - **Fora:** regra de lenda e anulação de marcadores (M11).
 
-**M6 · Combate** 🟡
+**M6 · Combate** ✅
 - **Valor:** atacar e bloquear sem conta manual.
 - **Aceite:**
   - declarar atacantes é decisão pendente do jogador ativo: só criaturas desviradas, sem enjoo (ímpeto libera) e sem defensor; vigilância não vira;
@@ -351,7 +354,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M5.
 - **Fora:** efeitos de "não pode bloquear" e afins vindos de script (S4).
 
-**M7 · Mana** 🟡
+**M7 · Mana** ✅
 - **Valor:** o motor sabe o que dá para pagar.
 - **Aceite:**
   - custo lido de `mana_cost`: genérico, colorido, híbrido (inclusive {2/W}), phyrexiano (2 de vida) e X;
@@ -422,7 +425,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M6, M10.
 - **Fora:** multiplayer com mais de 2 jogadores na interface.
 
-**M14 · Companheiro na partida** 🟡
+**M14 · Companheiro na partida** ✅
 - **Entregue:** zona própria revelada desde o início; ação especial de {3} no tempo de feitiço, uma vez por partida, sem pilha; na mesa, o botão aparece na zona Companheiro dos dois jogadores.
 - **Valor:** jogar com Lurrus e cia. como na mesa real.
 - **Aceite (regra 702.139):**
@@ -497,7 +500,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A4.
 - **Fora:** —
 
-**A6 · Combate na mesa** 🟡
+**A6 · Combate na mesa** ✅
 - **Valor:** atacar e bloquear tocando nas cartas.
 - **Aceite:**
   - na declaração, criaturas elegíveis ficam destacadas; tocar escolhe (não abre a folha);
@@ -539,84 +542,91 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A3.
 - **Fora:** bot (ADR-05).
 
-**A10 · Cobertura antes da partida** ▶
+**A10 · Cobertura antes da partida** 🟡
 - **Valor:** saber antes o que o motor resolve sozinho.
 - **Aceite:**
-  - cada carta mostra o selo completo, parcial ou manual na galeria e na preparação;
-  - percentual por lista.
+  - selo por carta na galeria da lista (✓ completo, ◐ parcial, ✎ manual) com o motivo;
+  - resumo na lista: percentual completo, contagem por nível e as cartas que você vai precisar adjudicar;
+  - na preparação da partida, a mesma cobertura da lista escolhida.
 - **Testes:** I, U.
 - **Depende de:** S2.
 - **Fora:** —
 
 ### S · Scripts de carta (motor completo)
 
-**S1 · Formato de script e validador** ▶
-- **Valor:** adicionar carta ao motor vira dado, não código espalhado.
+**S1 · Formato de script e validador** 🟡
+- **Valor:** ensinar uma carta ao motor vira dado, não código espalhado.
 - **Aceite:**
-  - script declarativo por `oracle_id`, com efeitos, alvos, gatilhos e custo;
-  - schema validado;
-  - carta com script inválido é rejeitada no carregamento.
-- **Testes:** U.
-- **Depende de:** M9, M10.
-- **Fora:** editor visual de script.
+  - script declarativo por nome da carta: lista de efeitos, cada um com tipo, valores e alvo;
+  - validador rejeita efeito desconhecido, campo faltando, alvo que não cabe no efeito e script sem nome;
+  - script inválido é descartado no carregamento, com o erro registrado;
+  - script só vale para mágicas instantâneas e feitiços (permanentes precisam de gatilhos, M9).
+- **Testes:** U (validador e biblioteca inteira).
+- **Nota:** a chave é o nome em inglês da carta; o `oracle_id` entra quando houver cartas com nome repetido entre edições.
+- **Depende de:** M4.
+- **Fora:** editor visual de script; efeitos com escolha além do alvo.
 
-**S2 · Nível de cobertura** ▶
+**S2 · Nível de cobertura** 🟡
 - **Valor:** transparência sobre o que o motor entende.
 - **Aceite:**
-  - completo: script validado com teste;
-  - parcial: palavras-chave conhecidas, texto restante manual;
-  - manual: sem script;
-  - cálculo por carta e por lista.
+  - completo (script validado, carta sem texto, só palavras-chave conhecidas ou só mana), parcial (parte do texto) e manual;
+  - cobertura por carta e por lista, com percentual, contagem e o que falta;
+  - reserva não conta.
 - **Testes:** U.
 - **Depende de:** S1, S3.
 - **Fora:** —
 
-**S3 · Palavras-chave permanentes** ▶
+**S3 · Palavras-chave permanentes** ✅
 - **Valor:** a maioria das criaturas funciona sem script próprio.
-- **Aceite:** flying, reach, trample, deathtouch, lifelink, vigilance, haste, first strike, double strike, menace, defender, hexproof, indestructible e flash.
-- **Testes:** U por keyword, G.
+- **Entregue:** voar, alcance, atropelar, toque mortífero, vínculo com a vida, vigilância, ímpeto, iniciativa, golpe duplo, ameaça, defensor, indestrutível, lampejo, proteção e maldição de véu.
+- **Testes:** U por palavra-chave (M6 e S5), G.
 - **Depende de:** M6.
-- **Fora:** keywords de edição específica.
+- **Fora:** palavras-chave de edição específica.
 
-**S4 · Efeitos base** ▶
+**S4 · Efeitos base** 🟡
 - **Valor:** mágicas simples resolvidas sem pausa.
-- **Aceite:** comprar, dano, destruir, exilar, anular, devolver à mão, ±X/±X até o fim do turno, criar ficha, ganhar e perder vida.
-- **Testes:** U, P.
-- **Depende de:** S1, M12.
-- **Fora:** —
+- **Aceite:**
+  - dano, destruir, exilar, devolver à mão, anular, comprar, ganhar e perder vida, ±X/±X até o fim do turno, virar e desvirar;
+  - indestrutível resiste a destruir, e o registro diz isso;
+  - efeito até o fim do turno acaba na limpeza;
+  - com script, a mesa assistida não pede adjudicação; o registro conta cada efeito.
+- **Testes:** U por efeito, cenário de cada script da biblioteca, P (fuzz), G.
+- **Depende de:** S1, M12 para fichas.
+- **Fora:** criar ficha (depende de M12), vasculhar, escolher modo, custo alternativo.
 
-**S5 · Alvos** ▶
+**S5 · Alvos** 🟡
 - **Valor:** mágica com alvo ilegal é tratada como a regra manda.
 - **Aceite:**
-  - restrições de alvo;
-  - rechecagem na resolução (608.2b);
-  - hexproof e shroud.
+  - alvo escolhido na conjuração; a mesa oferece uma opção por alvo legal;
+  - tipos: qualquer alvo, criatura, jogador, oponente, permanente, artefato, encantamento e mágica (inclusive só de criatura e só de não-criatura);
+  - proteção (hexproof) bloqueia o oponente, maldição de véu (shroud) bloqueia todos;
+  - rechecagem na resolução: sem alvo legal, a mágica é anulada (608.2b).
 - **Testes:** U, P.
 - **Depende de:** S1.
-- **Fora:** —
+- **Fora:** múltiplos alvos do mesmo efeito e alvos ilegais parciais com divisão de dano.
 
-**S6 · Cobertura das listas do usuário: Pauper** ○
+**S6 · Cobertura das listas do usuário: Pauper** ▶
 - **Valor:** as listas Pauper salvas ficam jogáveis no motor completo.
 - **Aceite:** meta de cobertura completa por lista, medida por S2 e definida na abertura da história.
 - **Testes:** U (um teste de cenário por script).
 - **Depende de:** S3–S5.
 - **Fora:** cartas fora das listas salvas.
 
-**S7 · Cobertura das listas do usuário: Commander (Malcolm v3 primeiro)** ○
+**S7 · Cobertura das listas do usuário: Commander (Malcolm v3 primeiro)** ▶
 - **Valor:** a lista principal fica jogável no motor completo.
 - **Aceite:** como em S6.
 - **Testes:** U.
 - **Depende de:** S6, M13.
 - **Fora:** —
 
-**S8 · Teste de carta gerado** ○
+**S8 · Teste de carta gerado** ▶
 - **Valor:** todo script nasce testado.
 - **Aceite:** cada script declara um cenário mínimo (estado inicial, ação, estado esperado) que vira teste automaticamente.
 - **Testes:** U.
 - **Depende de:** S1.
 - **Fora:** —
 
-**S9 · Modo motor completo jogável** ○
+**S9 · Modo motor completo jogável** ▶
 - **Valor:** partida sem pausa nenhuma.
 - **Aceite:**
   - A2 libera o modo quando a lista está 100% coberta;

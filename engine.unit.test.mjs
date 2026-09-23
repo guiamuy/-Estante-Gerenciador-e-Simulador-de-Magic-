@@ -105,7 +105,7 @@ test('M4 · feitiço só na sua principal; instantânea a qualquer momento com p
   s = withInHand(withInHand(s, a, 'Preordain'), o, 'Lightning Bolt');
   assert.throws(() => E.apply(s, { t: 'cast', p: a, oid: handOf(s, a, 'Preordain') }), /principal/);
   s = E.apply(s, { t: 'pass', p: a }).state; // upkeep, prioridade no oponente
-  s = E.apply(s, { t: 'cast', p: o, oid: handOf(s, o, 'Lightning Bolt') }).state;
+  s = E.apply(s, { t: 'cast', p: o, oid: handOf(s, o, 'Lightning Bolt'), targets: [{ player: a }] }).state;
   assert.equal(s.stack.length, 1);
   assert.equal(s.turn.priority, o, 'quem conjura mantém a prioridade (117.3c)');
 });
@@ -118,17 +118,15 @@ test('M4 · pilha resolve do topo e só quando todos passam em sequência', () =
   const delver = handOf(s, a, 'Delver of Secrets'), cs = handOf(s, o, 'Counterspell');
   s = E.apply(s, { t: 'cast', p: a, oid: delver }).state;
   s = E.apply(s, { t: 'pass', p: a }).state;
-  s = E.apply(s, { t: 'cast', p: o, oid: cs }).state;
+  s = E.apply(s, { t: 'cast', p: o, oid: cs, targets: [{ oid: delver }] }).state;
   s = E.apply(s, { t: 'pass', p: o }).state;
   const r = E.apply(s, { t: 'pass', p: a });
   s = r.state;
-  assert.equal(r.events[0].name, 'Counterspell', 'último a entrar é o primeiro a resolver');
+  assert.equal(r.events.at(-1).name, 'Counterspell', 'último a entrar é o primeiro a resolver');
   assert.equal(s.objects[cs].zone, 'graveyard');
-  assert.equal(s.objects[delver].zone, 'stack');
+  assert.equal(s.objects[delver].zone, 'graveyard', 'S4: o script do Counterspell anula sozinho');
   assert.equal(s.turn.step, 'main1', 'resolver não avança o passo');
-  assert.ok(r.events[0].adjudicate, 'mesa assistida pede adjudicação do efeito');
-  // mesa assistida: o jogador aplica o efeito do Counterspell movendo a mágica
-  s = E.apply(s, { t: 'move', p: s.turn.priority, oid: delver, to: 'graveyard' }).state;
+  assert.ok(!r.events.at(-1).adjudicate, 'com script, nada a adjudicar');
   assert.equal(s.stack.length, 0);
 });
 

@@ -29,7 +29,9 @@ const DB = Object.fromEntries([
   card('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', ['W', 'B'], 3), card('Mock Commander', 'Legendary Creature — Human', ['W', 'B'], 2),
   card('Plains', 'Basic Land — Plains', [], 0), card('Mock Ogre', 'Creature — Ogre', ['B'], 4),
   { ...card('Sky Pike', 'Creature — Fish', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Flying'], power: '2', toughness: '1' },
-  { ...card('Wall Guard', 'Creature — Wall', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Defender', 'Reach'], power: '0', toughness: '4' }
+  { ...card('Wall Guard', 'Creature — Wall', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Defender', 'Reach'], power: '0', toughness: '4' },
+  { ...card('Lightning Bolt', 'Instant', ['R'], 1), mana_cost: '{R}' },
+  { ...card('Grizzly Bear', 'Creature — Bear', ['G'], 2), mana_cost: '{1}{G}', power: '2', toughness: '2' }
 ].map(c => [c.name.toLowerCase(), c]));
 
 async function open(t) {
@@ -595,5 +597,41 @@ test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', {
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /bloqueou: Wall Guard → Sky Pike/);
   assert.doesNotMatch(log, /vida 20 → 18/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · S2/A10 cobertura do motor na lista e na preparação', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Cobertura', '2 Lightning Bolt\n1 Preordain\n1 Island', 'livre');
+  await page.waitForSelector('#deck-coverage');
+  assert.match(await page.innerText('#deck-coverage'), /Motor: 75% completo/);
+  assert.match(await page.innerText('#deck-coverage'), /Preordain/);
+  assert.equal(await page.locator('.deck-slot[data-name="Lightning Bolt"][data-coverage="completo"]').count(), 1);
+  assert.equal(await page.locator('.deck-slot[data-name="Preordain"][data-coverage="manual"]').count(), 1);
+  await page.goto(base + '#/mesa');
+  await page.waitForSelector('#mesa-coverage .ds-text');
+  assert.match(await page.innerText('#mesa-coverage'), /Motor: 75% completo/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · S4/S5 mágica com script resolve sozinha e o registro conta o efeito', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Bolts', '30 Island\n20 Lightning Bolt', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-mana]'); // sem cobrar mana: o foco é o script
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  await drawUntil(page, 'Lightning Bolt');
+  await handCard(page, 'Lightning Bolt').click();
+  await page.click('.ds-dialog >> text=/Conjurar → Goldfish/');
+  if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); // a mágica resolve quando todos passam
+  await page.waitForFunction(() => /17/.test(document.querySelector('#tb-life-opp').innerText));
+  assert.equal(await page.locator('#tb-adj').count(), 0, 'com script não há adjudicação');
+  await page.click('#tb-log');
+  const log = await page.innerText('.ds-dialog');
+  assert.match(log, /conjurou Lightning Bolt → Goldfish/);
+  assert.match(log, /Lightning Bolt causou 3 de dano a Goldfish/);
   assert.deepEqual(errors, []);
 });
