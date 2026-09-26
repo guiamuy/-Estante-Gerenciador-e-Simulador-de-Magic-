@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
-const { decks: D, platform: P } = loadModules();
+const { decks: D, platform: P, starter: S } = loadModules();
 
 const card = (name, type_line, ci, extra = {}) => ({ name, type_line, color_identity: ci, cmc: 2, oracle_text: '', legalities: { commander: 'legal', pauper: 'legal' }, ...extra });
 const CARDS = new Map([
@@ -303,4 +303,49 @@ test('L11 · texto: cabeçalho Companion vira zona própria e a exportação pre
   const r = D.parseDeckText('Commander\n1 Thalia, Guardian of Thraben\n\nCompanion\n1 Lurrus of the Dream-Den\n\nDeck\n1 Mentor');
   assert.equal(r.entries.find(e => e.name === 'Lurrus of the Dream-Den').zone, 'companion');
   assert.match(D.exportText({ entries: r.entries }), /Commander\n1 Thalia, Guardian of Thraben\n\nCompanion\n1 Lurrus of the Dream-Den\n\nDeck\n1 Mentor/);
+});
+
+/* ---------------- A12 · listas prontas ---------------- */
+test('A12 · as nove listas prontas leem sem sobra, com formato e contagem certos', () => {
+  const todas = S.STARTER_DECKS;
+  assert.equal(todas.length, 9, 'sete do Pauper e duas de Commander');
+  assert.equal(todas.filter(x => x.format === 'pauper').length, 7);
+  assert.equal(todas.filter(x => x.format === 'commander').length, 2);
+  const nomes = new Set();
+  for (const d of todas) {
+    assert.ok(d.name && d.name.trim(), 'lista sem nome');
+    assert.equal(nomes.has(d.name), false, `nome repetido: ${d.name}`);
+    nomes.add(d.name);
+    const { entries, skipped } = D.parseDeckText(d.text);
+    assert.deepEqual(JSON.parse(JSON.stringify(skipped)), [], `${d.name}: linha ignorada na leitura`);
+    const total = entries.reduce((n, e) => n + e.qty, 0);
+    // no Commander o companheiro fica fora das 100, como manda a regra
+    const jogando = entries.filter(e => e.zone === 'main' || e.zone === 'commander').reduce((n, e) => n + e.qty, 0);
+    if (d.format === 'pauper') assert.equal(total, 75, `${d.name}: ${total} cartas`);
+    else assert.equal(jogando, 100, `${d.name}: ${jogando} cartas (comandante incluído)`);
+    assert.ok(entries.every(e => D.ZONES.includes(e.zone)), `${d.name}: zona desconhecida`);
+  }
+});
+
+test('A12 · as duas de Commander trazem comandante, e uma delas companheiro', () => {
+  const cmds = S.STARTER_DECKS.filter(x => x.format === 'commander').map(d => D.parseDeckText(d.text).entries);
+  for (const entries of cmds) {
+    const cmd = entries.filter(e => e.zone === 'commander');
+    assert.ok(cmd.length >= 1 && cmd.length <= 2, 'um ou dois comandantes');
+    assert.ok(cmd.every(e => e.qty === 1), 'uma cópia de cada comandante');
+  }
+  const comCompanheiro = cmds.filter(entries => entries.some(e => e.zone === 'companion'));
+  assert.equal(comCompanheiro.length, 1, 'só a lista do Killian tem companheiro');
+});
+
+test('A12 · nenhuma lista pronta do Pauper passa de 4 cópias de uma carta que não é básico', () => {
+  const BASICOS = new Set(['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes']);
+  for (const d of S.STARTER_DECKS.filter(x => x.format === 'pauper')) {
+    const soma = new Map();
+    for (const e of D.parseDeckText(d.text).entries) {
+      const k = e.name.toLowerCase();
+      soma.set(k, (soma.get(k) || 0) + e.qty);
+    }
+    for (const [k, n] of soma) if (!BASICOS.has(k)) assert.ok(n <= 4, `${d.name}: ${k} com ${n} cópias`);
+  }
 });

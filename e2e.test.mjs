@@ -715,3 +715,32 @@ test('e2e · M9 gatilho de entrada e habilidade ativada na mesa', { skip }, asyn
   await page.waitForFunction(() => /19/.test(document.querySelector('#tb-life-opp').innerText));
   assert.deepEqual(errors, []);
 });
+
+test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de jogar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/listas');
+  await page.click('#decks-starter-empty'); // o estado vazio leva às listas prontas
+  await page.waitForSelector('#starter-list');
+  await page.click('[data-starter-format="commander"]');
+  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 2, 'duas listas de Commander');
+  await page.click('[data-starter-format="pauper"]');
+  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7, 'sete listas de Pauper');
+
+  await page.click('[data-starter-add="Pauper Elves"]');
+  await page.waitForSelector('text=já na sua estante');
+  assert.equal(await page.locator('[data-starter-add="Pauper Elves"]').count(), 0, 'não oferece adicionar de novo');
+
+  await page.click('#starter-back');
+  await page.waitForSelector('#decks-list');
+  const listas = await page.innerText('#decks-list');
+  assert.match(listas, /Pauper Elves/);
+  assert.match(listas, /Pauper/);
+
+  await page.goto(base + '#/mesa');
+  await page.waitForSelector('#mesa-format');
+  assert.match(await page.innerText('#mesa-format'), /Pauper/, 'o modo Pauper aparece na tela de jogar');
+  await page.click('[data-table-format="pauper"]');
+  await page.waitForSelector('#mesa-mine');
+  assert.match(await page.innerText('#mesa-mine'), /Pauper Elves/, 'a lista do modo escolhido é selecionável');
+  assert.deepEqual(errors, []);
+});

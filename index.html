@@ -3429,6 +3429,368 @@ return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIE
   parseCSV, parseCollectionCSV, exportCollectionCSV, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
+/* ==== src/data/starter-decks.js ==== */
+const __m24 = (function () {
+/* =====================================================================
+   A12 · LISTAS PRONTAS
+   As listas que já vêm com o app, no mesmo formato de texto que a leitura
+   de lista entende. Não há um segundo caminho de dados: a lista pronta é
+   lida pelo mesmo parseDeckText de uma lista colada à mão.
+   As sete do Pauper têm o deck principal com 75 cartas porque a origem não
+   separava a reserva; dá para editar a lista e mover 15 para a reserva.
+   ===================================================================== */
+const STARTER_DECKS = [
+  { name: "Pauper Mono Blue Faeries", format: 'pauper', text: `4 Brinebarrow Intruder
+4 Faerie Miscreant
+4 Faerie Seer
+4 Moon-Circuit Hacker
+4 Ninja of the Deep Hours
+4 Spellstutter Sprite
+2 Harrier Strix
+4 Counterspell
+2 Dispel
+4 Of One Mind
+4 Cryoshatter
+3 Sewer-veillance Cam
+19 Island
+4 Hydroblast
+3 Steel Sabotage
+2 Annul
+2 Blue Elemental Blast
+2 Relic of Progenitus` },
+  { name: "Pauper Rakdos Madness", format: 'pauper', text: `4 Voldaren Epicure
+4 Sneaky Snacker
+4 Kitchen Imp
+4 Lightning Bolt
+4 Fiery Temper
+4 Faithless Looting
+4 Grab the Prize
+4 Highway Robbery
+4 Vampire's Kiss
+4 Alms of the Vein
+3 End the Festivities
+8 Mountain
+4 Jagged Barrens
+2 Bojuka Bog
+2 Razortrap Gorge
+2 Swamp
+1 Rakdos Carnarium
+4 Red Elemental Blast
+2 Duress
+2 Nihil Spellbomb
+2 Cast into the Fire
+2 Smash to Smithereens
+1 Dark Withering` },
+  { name: "Pauper GW Bogles", format: 'pauper', text: `4 Gladecover Scout
+4 Slippery Bogle
+3 Silhana Ledgewalker
+1 Aura Gnarlid
+4 Malevolent Rumble
+4 Abundant Growth
+4 Ancestral Mask
+4 Armadillo Cloak
+4 Ethereal Armor
+4 Utopia Sprawl
+3 Rancor
+2 Sentinel's Eyes
+1 Benevolent Blessing
+1 Setessan Training
+12 Forest
+3 Plains
+2 Sheltering Landscape
+3 Mask of Law and Grace
+2 Flaring Pain
+2 Journey to Nowhere
+2 Scattershot Archer
+2 Standard Bearer
+2 Tormod's Crypt
+1 Lifelink
+1 Spirit Link` },
+  { name: "Pauper Boros Bully", format: 'pauper', text: `4 Lunarch Veteran
+4 Squadron Hawk
+3 Novice Inspector
+3 Thraben Inspector
+2 Kor Skyfisher
+2 Raffine's Informant
+2 Leonardo, Big Brother
+4 Prismatic Strands
+3 Lightning Bolt
+3 Rally the Peasants
+3 Thraben Charm
+4 Battle Screech
+4 Faithless Looting
+8 Plains
+4 Perilous Landscape
+3 Mountain
+3 Boros Garrison
+1 Wind-Scarred Crag
+3 Red Elemental Blast
+3 Dust to Dust
+2 Electrickery
+2 Hallow
+2 Martyr of Sands
+2 Standard Bearer
+1 Flaring Pain` },
+  { name: "Pauper Walls Combo", format: 'pauper', text: `4 Axebane Guardian
+4 Drift of Phantasms
+4 Overgrown Battlement
+4 Quirion Ranger
+4 Sagu Wildling
+4 Saruli Caretaker
+4 Shield-Wall Sentinel
+3 Tinder Wall
+1 Bloodrite Invoker
+1 Galvanic Alchemist
+2 Orochi Leafcaller
+1 Secret Door
+1 Tuktuk Rubblefort
+1 Valakut Invoker
+3 Pulse of Murasa
+2 Reaping the Graves
+1 Freed from the Real
+4 Lead the Stampede
+4 Winding Way
+12 Forest
+3 Masked Vandal
+2 Faerie Macabre
+2 Moment's Peace
+2 Nylea's Disciple
+2 Scattershot Archer` },
+  { name: "Pauper Jund Wildfire", format: 'pauper', text: `4 Refurbished Familiar
+4 Writhing Chrysalis
+3 Gixian Infiltrator
+4 Krark-Clan Shaman
+1 Evolution Witness
+4 Fanatical Offering
+3 Cast Down
+2 Eviscerator's Insight
+2 Terminate
+4 Cleansing Wildfire
+4 Ichor Wellspring
+3 Lembas
+4 Nihil Spellbomb
+1 Makeshift Munitions
+4 Drossforge Bridge
+4 Slagwoods Bridge
+4 Twisted Landscape
+3 Swamp
+2 Forest
+2 Vault of Whispers
+1 Mountain
+3 Weather the Storm
+3 Red Elemental Blast
+3 Troublemaker Ouphe
+2 Breath Weapon
+1 Ancient Grudge` },
+  { name: "Pauper Elves", format: 'pauper', text: `4 Birchlore Rangers
+4 Elvish Vanguard
+4 Jaspera Sentinel
+4 Llanowar Elves
+4 Priest of Titania
+4 Quirion Ranger
+4 Timberwatch Elf
+3 Salt Road Packbeast
+2 Elvish Mystic
+2 Nyxborn Hydra
+1 Lys Alana Huntmaster
+4 Lead the Stampede
+4 Winding Way
+2 Distant Melody
+14 Forest
+3 Hydroblast
+2 Masked Vandal
+2 Nylea's Disciple
+2 Scattershot Archer
+2 Vitu-Ghazi Inspector
+1 Mirrorshell Crab
+1 Negate
+1 Spell Pierce
+1 Valakut Invoker` },
+  { name: "Commander Orzhov Killian", format: 'commander', text: `Commander
+1 Killian, Ink Duelist
+
+Companion
+1 Lurrus of the Dream-Den
+
+Deck
+1 Rite of Oblivion
+1 Sorin of House Markov
+1 Exotic Orchard
+1 Kami of False Hope
+1 Bojuka Bog
+1 Command Tower
+1 Skrelv's Hive
+1 Windbrisk Heights
+1 Utter End
+1 Fetid Heath
+1 Speaker of the Heavens
+1 Angelic Renewal
+1 Knight of the White Orchid
+1 Secluded Steppe
+1 Phyrexian Tower
+1 Idolized
+1 Kaya's Ghostform
+1 Zulaport Cutthroat
+1 Priest of Fell Rites
+1 Vault of the Archangel
+1 Caves of Koilos
+1 High Priest of Penance
+1 Path of Ancestry
+1 Elas il-Kor, Sadistic Pilgrim
+1 Animate Dead
+1 Leonin Relic-Warder
+1 Children of Korlis
+1 Patch Up
+1 Mother of Runes
+1 Mishra's Bauble
+1 Silverquill Command
+1 Profane Command
+1 Alseid of Life's Bounty
+1 Austere Command
+1 Talisman of Hierarchy
+1 Isolated Chapel
+1 Call of the Death-Dweller
+1 Authority of the Consuls
+1 Benevolent Bodyguard
+1 Bounty Agent
+1 Smuggler's Copter
+1 Orzhov Signet
+1 Anguished Unmaking
+1 Orzhov Basilica
+1 Sevinne's Reclamation
+1 Kytheon, Hero of Akros
+1 Skullclamp
+1 Benalish Sleeper
+1 Rune of Sustenance
+1 Flickering Ward
+1 Phyresis
+1 Ascend from Avernus
+1 Sol Ring
+1 Dark Confidant
+1 The Dross Pits
+1 Unearth
+1 Temple of Silence
+1 Selfless Spirit
+1 Norn's Wellspring
+1 Accursed Marauder
+1 Mind Stone
+1 Arcane Signet
+1 Idyllic Tutor
+1 Darksteel Mutation
+1 Wretched Confluence
+1 Skrelv, Defector Mite
+1 Tainted Field
+1 Corpse Knight
+1 Legions to Ashes
+1 Jirina, Dauntless General
+1 Cruel Celebrant
+1 Reprieve
+1 Angelic Gift
+1 Ayli, Eternal Pilgrim
+1 Rune of Mortality
+1 The Fair Basilica
+1 Soul-Guide Lantern
+1 Chromatic Sphere
+1 Scorn-Blade Berserker
+1 Open the Armory
+1 Priest of Forgotten Gods
+1 Reprobation
+1 Selfless Savior
+1 Chromatic Star
+1 Lotus Petal
+1 Shineshadow Snarl
+7 Swamp
+6 Plains` },
+  { name: "Commander Malcolm & Kediss", format: 'commander', text: `Commander
+1 Malcolm, Keen-Eyed Navigator
+1 Kediss, Emberclaw Familiar
+
+Deck
+1 Glint-Horn Buccaneer
+1 Polymorph
+1 Transmogrify
+1 Reality Scramble
+1 Reweave
+1 Lukka, Coppercoat Outcast
+1 Solve the Equation
+1 Mystical Tutor
+1 Combat Research
+1 Sol Ring
+1 Arcane Signet
+1 Fellwar Stone
+1 Izzet Signet
+1 Talisman of Creativity
+1 Springleaf Drum
+1 Moonsnare Prototype
+1 Mind Stone
+1 Everflowing Chalice
+1 Krenko's Command
+1 Dragon Fodder
+1 High Tide
+1 Mystic Remora
+1 Curiosity
+1 Chart a Course
+1 Brainstorm
+1 Gitaxian Probe
+1 You See a Guard Approach
+1 Preordain
+1 Consider
+1 Opt
+1 Sleight of Hand
+1 Faithless Looting
+1 Frantic Search
+1 Impulse
+1 Expressive Iteration
+1 Lazotep Plating
+1 Treasure Cruise
+1 Dig Through Time
+1 An Offer You Can't Refuse
+1 Flusterstorm
+1 Swan Song
+1 Spell Pierce
+1 Spell Snare
+1 Dispel
+1 Miscast
+1 Counterspell
+1 Delay
+1 Arcane Denial
+1 Negate
+1 Wash Away
+1 Daze
+1 Foil
+1 Snapback
+1 Lose Focus
+1 Abrade
+1 Resculpt
+1 Into the Roil
+1 Unsubstantiate
+1 Slip Out the Back
+1 March of Swirling Mist
+1 Shore Up
+1 Mogg Salvage
+1 Hard Evidence
+1 Forbidden Friendship
+1 Saheeli, Sublime Artificer
+1 Narset, Parter of Veils
+1 Stream of Thought
+1 Command Tower
+1 Exotic Orchard
+1 Shivan Reef
+1 Sulfur Falls
+1 Spire of Industry
+1 Cephalid Coliseum
+1 Saprazzan Skerry
+1 Dwarven Ruins
+1 Svyelunite Temple
+1 Mishra's Factory
+1 Blinkmoth Nexus
+1 Kher Keep
+12 Island
+7 Mountain` }
+];
+return { STARTER_DECKS };
+})();
+
 /* ==== src/app/decks.js ==== */
 const __m15 = (function () {
 /* =====================================================================
@@ -3441,6 +3803,7 @@ const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textar
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK } = __m23;
+const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
 const { onTaps, pulse } = __m20;
 
@@ -3463,8 +3826,10 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
   async function paint() {
     const all = await decks.list();
     const owned = await collection.all();
-    if (!all.length) return mount(list, Empty('Nenhuma lista ainda. Cole uma lista exportada do Moxfield, Archidekt ou Arena para começar.',
-      Button('Nova lista', { variant: 'primary', onClick: () => go('/listas/editar') })));
+    if (!all.length) return mount(list, Empty('Nenhuma lista ainda. Comece por uma lista pronta ou cole uma lista exportada do Moxfield, Archidekt ou Arena.',
+      Row({ class: 'ds-row--wrap' },
+        Button('Ver listas prontas', { variant: 'primary', id: 'decks-starter-empty', onClick: () => go('/listas/prontas') }),
+        Button('Nova lista', { onClick: () => go('/listas/editar') }))));
     mount(list, h('div', { class: 'ds-list' }, ...all.map(d => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
@@ -3482,7 +3847,8 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
   paint();
 
   return Stack(pad(),
-    Row({}, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
+    Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
+      Button('Listas prontas', { id: 'deck-starter', onClick: () => go('/listas/prontas') }),
       Button('Nova lista', { variant: 'primary', id: 'deck-new', onClick: () => go('/listas/editar') })),
     list,
     Surface({ class: 'ds-surface--pad' }, Stack({},
@@ -3492,6 +3858,83 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
         Button('Exportar backup', { onClick: async () => { files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
         Button('Restaurar backup', { onClick: () => fileInput.click() })),
       fileInput)));
+}
+
+/* ---------------- A12 · /listas/prontas ---------------- */
+/** Listas que vêm com o app. Um toque põe a lista na estante; o texto passa
+    pela mesma leitura de uma lista colada à mão. */
+function createStarterDecks({ decks }) {
+  const root = Stack(pad(), Row({}, Spinner()));
+  const state = { format: 'all', minhas: [], busy: false, erro: null };
+  const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander']];
+
+  const contagem = texto => parseDeckText(texto).entries.reduce((n, e) => n + e.qty, 0);
+  const jaTenho = nome => state.minhas.some(d => norm(d.name) === norm(nome));
+
+  async function adicionar(item) {
+    if (state.busy || jaTenho(item.name)) return;
+    state.busy = true;
+    try {
+      const { entries } = parseDeckText(item.text);
+      await decks.save({ name: item.name, format: item.format, entries });
+      state.minhas = await decks.list();
+      toast(`${item.name} está na sua estante`);
+      paint();
+    } catch (e) { toast('Não foi possível adicionar: ' + (e.message || e)); }
+    finally { state.busy = false; }
+  }
+  async function adicionarTodas(lista) {
+    if (state.busy) return;
+    const faltando = lista.filter(x => !jaTenho(x.name));
+    if (!faltando.length) return toast('Essas listas já estão na sua estante');
+    state.busy = true;
+    try {
+      for (const item of faltando) {
+        const { entries } = parseDeckText(item.text);
+        await decks.save({ name: item.name, format: item.format, entries });
+      }
+      state.minhas = await decks.list();
+      toast(`${faltando.length} lista(s) adicionada(s)`);
+      paint();
+    } catch (e) { toast('Não foi possível adicionar: ' + (e.message || e)); }
+    finally { state.busy = false; }
+  }
+
+  function paint() {
+    const visiveis = STARTER_DECKS.filter(x => state.format === 'all' || x.format === state.format);
+    const chips = Row({ class: 'ds-row--wrap' }, ...FILTROS.map(([k, label]) => {
+      const c = Chip(label, { pressed: state.format === k, dataset: { starterFormat: k } });
+      c.addEventListener('click', () => { state.format = k; paint(); });
+      return c;
+    }));
+    mount(root,
+      Row({}, Text('Listas prontas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
+        Button('Minhas listas', { id: 'starter-back', onClick: () => go('/listas') })),
+      Text('Decks reais para você jogar agora. Um toque põe a lista na sua estante, e de lá você joga, edita ou exporta como qualquer outra.', { tone: 'muted' }),
+      chips,
+      state.erro ? Note(state.erro, { tone: 'danger' }) : null,
+      visiveis.length ? h('div', { class: 'ds-list', id: 'starter-list' }, ...visiveis.map(item => {
+        const tenho = jaTenho(item.name);
+        return h('div', { class: 'ds-list__item' },
+          Stack({ style: { gap: 'var(--space-1)', textAlign: 'left' } },
+            Text(item.name, { size: 'lg', display: true }),
+            Text(`${contagem(item.text)} cartas`, { size: 'sm', tone: 'muted' })),
+          h('div', { class: 'ds-grow' }),
+          Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
+            Badge(FORMATS[item.format] || item.format, { tone: 'accent' }),
+            tenho ? Text('já na sua estante', { size: 'xs', tone: 'positive' })
+              : Button('Adicionar', { variant: 'primary', dataset: { starterAdd: item.name }, onClick: () => adicionar(item) })));
+      })) : Empty('Nenhuma lista pronta neste formato.'),
+      visiveis.length ? Row({ class: 'ds-row--wrap' },
+        Button(state.format === 'all' ? 'Adicionar todas' : `Adicionar as ${visiveis.length} de ${FORMATS[state.format] || state.format}`,
+          { id: 'starter-add-all', onClick: () => adicionarTodas(visiveis) })) : null);
+  }
+
+  (async () => {
+    try { state.minhas = await decks.list(); } catch (e) { state.erro = 'Não foi possível ler as suas listas neste aparelho.'; }
+    paint();
+  })();
+  return root;
 }
 
 /* ---------------- /listas/editar ---------------- */
@@ -3927,7 +4370,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createDeckEditor, createDeckScreen, createCollectionScreen };
+return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen };
 })();
 
 
@@ -6508,11 +6951,42 @@ function createTableSetup({ decks, cardRepo, store }) {
     const saved = await store.get(T.SAVE_KEY);
     if (!all.length) {
       return mount(root, Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
-        Empty('Para jogar você precisa de uma lista salva.', Button('Criar lista', { variant: 'primary', onClick: () => go('/listas/editar') })));
+        Empty('Para jogar você precisa de uma lista na estante. As listas prontas já vêm com o app.',
+          Row({ class: 'ds-row--wrap' },
+            Button('Ver listas prontas', { variant: 'primary', id: 'mesa-starter', onClick: () => go('/listas/prontas') }),
+            Button('Criar lista', { onClick: () => go('/listas/editar') }))));
     }
     state.mine = all[0].id; state.theirs = all[0].id;
-    const opts = all.map(d => ({ value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format}` }));
     const byId = id => all.find(d => d.id === id);
+    // A12 · modo de jogo: filtra as listas pelo formato, e o formato da partida vem da sua lista
+    const FORMAT_KEYS = ['pauper', 'commander', 'livre'].filter(k => all.some(d => d.format === k));
+    state.format = 'all';
+    const visiveis = () => all.filter(d => state.format === 'all' || d.format === state.format);
+    const optsDe = lista => lista.map(d => ({ value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format}` }));
+    const opts = optsDe(all);
+    const mineField = h('div', {});
+    const formatBox = h('div', { id: 'mesa-format' });
+    function paintFormat() {
+      mount(formatBox, Row({ class: 'ds-row--wrap' },
+        ...[['all', 'Todos os modos'], ...FORMAT_KEYS.map(k => [k, FORMATS[k] || k])].map(([k, label]) => {
+          const c = Chip(label, { pressed: state.format === k, dataset: { tableFormat: k } });
+          c.addEventListener('click', () => {
+            if (state.format === k) return;
+            state.format = k;
+            const lista = visiveis();
+            if (!lista.some(d => d.id === state.mine)) state.mine = (lista[0] || all[0]).id;
+            if (!lista.some(d => d.id === state.theirs)) state.theirs = (lista[0] || all[0]).id;
+            paintFormat(); paintMine(); paintOpponent(); paintCoverage();
+          });
+          return c;
+        })));
+    }
+    function paintMine() {
+      const lista = visiveis();
+      mount(mineField, lista.length
+        ? Field('Sua lista', Select(optsDe(lista), { id: 'mesa-mine', value: state.mine, onChange: e => { state.mine = e.target.value; paintCoverage(); } }))
+        : Note('Você não tem lista neste modo de jogo. Toque em "Listas prontas" para adicionar uma.', { tone: 'warning' }));
+    }
     const covBox = h('div', { id: 'mesa-coverage' });
     const modeBox = h('div', { id: 'mesa-mode' });
     // A10 · quanto o motor resolve sozinho desta lista
@@ -6550,7 +7024,7 @@ function createTableSetup({ decks, cardRepo, store }) {
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
-      Field('Lista do oponente', Select(opts, { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
+      Field('Lista do oponente', Select(optsDe(visiveis()), { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
     const oppChips = Row({ class: 'ds-row--wrap' },
       ...[['goldfish', 'Goldfish (sem oponente)'], ['hotseat', 'Outra pessoa neste aparelho']].map(([k, label]) => {
         const c = Chip(label, { pressed: state.opponent === k, dataset: { opponent: k } });
@@ -6581,7 +7055,7 @@ function createTableSetup({ decks, cardRepo, store }) {
     }
     const startBtn = Button('Começar partida', { variant: 'primary', id: 'mesa-start', onClick: start });
 
-    paintCoverage();
+    paintFormat(); paintMine(); paintCoverage();
     mount(root,
       Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
       saved ? Surface({ class: 'ds-surface--pad', id: 'mesa-saved' }, Stack({},
@@ -6591,7 +7065,8 @@ function createTableSetup({ decks, cardRepo, store }) {
           Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', onClick: () => go('/partida') }),
           Button('Descartar', { variant: 'danger', onClick: async () => { await store.remove(T.SAVE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
-        Field('Sua lista', Select(opts, { id: 'mesa-mine', value: state.mine, onChange: e => { state.mine = e.target.value; paintCoverage(); } })),
+        ChipField('Modo de jogo', formatBox),
+        mineField,
         covBox,
         ChipField('Oponente', oppChips),
         theirsField,
@@ -7493,7 +7968,7 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createDeckEditor, createDeckScreen, createCollectionScreen } = __m15;
+const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen } = __m15;
 const { createTableSetup, createTableScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
@@ -7514,6 +7989,7 @@ const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: environment, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo }) },
+  { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence }) },
