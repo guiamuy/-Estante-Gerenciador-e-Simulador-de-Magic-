@@ -48,7 +48,8 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   'Faerie Seer': 'Creature — Faerie Wizard', 'Faerie Miscreant': 'Creature — Faerie Rogue', 'Spellstutter Sprite': 'Creature — Faerie Wizard',
   'Brinebarrow Intruder': 'Creature — Human Rogue', 'Harrier Strix': 'Creature — Bird',
   'Quirion Ranger': 'Creature — Elf Ranger', 'Shield-Wall Sentinel': 'Creature — Wall', 'Drift of Phantasms': 'Creature — Spirit',
-  'Orochi Leafcaller': 'Creature — Snake Shaman', 'Saruli Caretaker': 'Creature — Dryad', 'Scattershot Archer': 'Creature — Elf Archer' };
+  'Orochi Leafcaller': 'Creature — Snake Shaman', 'Saruli Caretaker': 'Creature — Dryad', 'Scattershot Archer': 'Creature — Elf Archer',
+  'Standard Bearer': 'Creature — Human Flagbearer', 'Martyr of Sands': 'Creature — Human Cleric' };
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
 const instantish = sc => (sc.modes || []).length > 0 || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do)) || /spell/.test(sc.example.target || '');
 for (const sc of S.RAW_SCRIPTS) {
@@ -362,6 +363,7 @@ function runExample(sc) {
     if (check === 'tappedOnEntry') assert.equal(s.objects[oid].tapped, value, msg);
     if (check === 'untapped') assert.equal(s.objects[mine].tapped, !value, msg);
     if (check === 'fogged') assert.equal(!!s.fogged, value, msg);
+    if (check === 'preventedColor') assert.equal((s.preventedColors || []).length > 0, value, msg);
     if (check === 'transformed') assert.equal(s.objects[oid].name !== sc.name, value, msg);
   }
 }

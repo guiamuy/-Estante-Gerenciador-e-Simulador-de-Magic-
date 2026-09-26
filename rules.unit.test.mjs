@@ -1403,3 +1403,93 @@ test('S29 · Fog previne todo o dano de combate do turno', () => {
   s = settle(passTo(s, 'combat_end'));
   assert.equal(s.players[d].life, 20, 'nenhum dano de combate passou');
 });
+
+/* ---------------- S30 · prevenção por cor, Flagbearer e custo de revelar ---------------- */
+const BB_CARDS = {
+  'Plains': DFC_CARDS['Plains'],
+  'Strands': { name: 'Strands', type_line: 'Instant', mana_cost: '{2}{W}', colors: ['W'], keywords: [], oracle_text: 'Prevent all damage that sources of the color of your choice would deal this turn.' },
+  'Bearer': { name: 'Bearer', type_line: 'Creature — Human Flagbearer', mana_cost: '{1}{W}', colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: 'Flagbearer' },
+  'Martyr': { name: 'Martyr', type_line: 'Creature — Human Cleric', mana_cost: '{W}', colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: '{1}, Reveal X white cards, Sacrifice: gain three times X life.' },
+  'RedBolt': { name: 'RedBolt', type_line: 'Instant', mana_cost: '{R}', colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' },
+  'RedGoblin': { name: 'RedGoblin', type_line: 'Creature — Goblin', mana_cost: '{R}', colors: ['R'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'WhiteBear': { name: 'WhiteBear', type_line: 'Creature — Bear', mana_cost: '{1}{W}', colors: ['W'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const BB_SCRIPTS = {
+  Strands: { name: 'Strands', choose: 'color', effects: [{ do: 'prevent_color' }], example: { target: 'none', expect: { preventedColor: true } } },
+  Bearer: { name: 'Bearer', staticRule: 'flagbearer', example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Martyr: { name: 'Martyr', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true, revealColor: 'W' }, effects: [{ do: 'gain_per_revealed', times: 3 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } },
+  RedBolt: { name: 'RedBolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }
+};
+const BBDECK = [{ name: 'Plains', qty: 20, zone: 'main' }, { name: 'Strands', qty: 6, zone: 'main' }, { name: 'Bearer', qty: 6, zone: 'main' },
+  { name: 'Martyr', qty: 6, zone: 'main' }, { name: 'RedBolt', qty: 8, zone: 'main' }, { name: 'RedGoblin', qty: 8, zone: 'main' }, { name: 'WhiteBear', qty: 6, zone: 'main' }];
+function bbGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: BB_CARDS, scripts: BB_SCRIPTS,
+    players: [{ name: 'A', deck: BBDECK }, { name: 'B', deck: BBDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S30 · prevenção por cor barra mágica e combate daquela cor, e só naquele turno', () => {
+  let s = bbGame(3); const a = s.turn.active, d = 1 - a;
+  let strands; [s, strands] = put(s, a, 'Strands', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: strands }));
+  assert.deepEqual({ kind: s.pending.kind, p: s.pending.p }, { kind: 'choose_color', p: a }, 'a mágica pede a cor ao resolver');
+  s = act(s, { t: 'choose_color', p: a, color: 'R' });
+  assert.deepEqual(JSON.parse(JSON.stringify(s.preventedColors)), ['R']);
+
+  // dano de mágica vermelha não passa (o oponente conjura com a prioridade dele)
+  let bolt; [s, bolt] = put(s, d, 'RedBolt', { zone: 'hand' });
+  s = act(s, { t: 'pass', p: a });
+  s = resolveSpell(act(s, { t: 'cast', p: d, oid: bolt, targets: [{ player: a }] }));
+  assert.equal(s.players[a].life, 20, 'o dano vermelho foi prevenido');
+
+  // dano de combate de criatura vermelha também não
+  let goblin; [s, goblin] = put(s, d, 'RedGoblin');
+  let t2 = JSON.parse(JSON.stringify(s)); t2.turn.active = d; t2.turn.priority = d;
+  t2 = passTo(t2, 'combat_attackers');
+  t2 = act(t2, { t: 'attack', p: d, attackers: [goblin] });
+  t2 = settle(passTo(t2, 'combat_end'));
+  assert.equal(t2.players[a].life, 20, 'o goblin vermelho não causou dano');
+
+  // e a prevenção some na limpeza
+  let t3 = s; for (let i = 0; i < 40 && t3.turn.number === s.turn.number; i++) {
+    t3 = t3.pending && t3.pending.kind === 'discard' ? act(t3, { t: 'discard', p: t3.pending.p, oid: t3.zones[t3.pending.p].hand[0] })
+      : t3.pending && t3.pending.kind === 'attackers' ? act(t3, { t: 'attack', p: t3.pending.p, attackers: [] })
+        : t3.pending && t3.pending.kind === 'blockers' ? act(t3, { t: 'block', p: t3.pending.p, blocks: [] })
+          : act(t3, { t: 'pass', p: t3.turn.priority });
+  }
+  assert.equal(t3.preventedColors, undefined, 'a prevenção não atravessa o turno');
+});
+
+test('S30 · Flagbearer obriga o oponente a mirar nele quando há alvo legal', () => {
+  let s = bbGame(4); const a = s.turn.active, d = 1 - a;
+  let bearer, outra, bolt;
+  [s, bearer] = put(s, d, 'Bearer'); [s, outra] = put(s, d, 'WhiteBear');
+  [s, bolt] = put(s, a, 'RedBolt', { zone: 'hand' });
+  const alvos = JSON.parse(JSON.stringify(E.legalTargets(s, a, 'any', bolt))).map(x => x.oid).filter(Boolean);
+  assert.deepEqual(alvos, [bearer], 'só o Flagbearer é oferecido');
+  assert.throws(() => act(s, { t: 'cast', p: a, oid: bolt, targets: [{ oid: outra }] }), /alvo ilegal/);
+
+  // o dono do Flagbearer não é obrigado
+  let meuBolt; [s, meuBolt] = put(s, d, 'RedBolt', { zone: 'hand' });
+  const seus = JSON.parse(JSON.stringify(E.legalTargets(s, d, 'any', meuBolt))).map(x => x.oid).filter(Boolean);
+  assert.ok(seus.includes(outra), 'quem controla o Flagbearer mira livremente');
+});
+
+test('S30 · custo de revelar cartas brancas define a vida ganha', () => {
+  let s = bbGame(5); const a = s.turn.active;
+  let martyr; [s, martyr] = put(s, a, 'Martyr');
+  s = JSON.parse(JSON.stringify(s));
+  s.zones[a].hand = []; // mão controlada: duas brancas e uma vermelha
+  for (const nome of ['WhiteBear', 'Strands', 'RedGoblin']) {
+    const oid = s.zones[a].library.find(x => s.objects[x].name === nome);
+    s.zones[a].library = s.zones[a].library.filter(x => x !== oid);
+    s.zones[a].hand.push(oid); s.objects[oid].zone = 'hand';
+  }
+  const vida = s.players[a].life;
+  s = resolveSpell(act(s, { t: 'activate', p: a, oid: martyr, index: 0 }));
+  assert.equal(s.players[a].life, vida + 6, 'duas cartas brancas viram 6 de vida');
+  assert.equal(s.objects[martyr].zone, 'graveyard', 'sacrificada no custo');
+  assert.equal(s.zones[a].hand.length, 3, 'revelar não descarta');
+});

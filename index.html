@@ -2036,6 +2036,9 @@ const EFFECTS = {
   transform: { fields: [], targets: ['self-source'] },
   to_library_shuffled: { fields: [], targets: ['self-source'] },
   fog: { fields: [], targets: ['self'] },
+  // S30 · prevenir todo dano de fontes de uma cor escolhida, até o fim do turno
+  prevent_color: { fields: [], targets: ['self'] },
+  gain_per_revealed: { fields: ['times'], targets: ['self'] },
   keyword: { fields: [], targets: ['self-source', 'creature'] },
   // S20 · cemitério
   to_hand: { fields: [], targets: ['card-in-your-graveyard', 'creature-in-your-graveyard'] },
@@ -2058,13 +2061,13 @@ const CHOICE_EFFECTS = ['discard', 'search', 'look', 'scry', 'surveil', 'put_bac
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S20 · custos adicionais de ativação e de conjuração. */
-const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand'];
+const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
   'spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'none'];
-const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute'];
 
@@ -2081,6 +2084,7 @@ const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less'];
 const CHOICES = ['color'];
+const STATIC_RULES = ['flagbearer'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
@@ -2091,7 +2095,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2099,7 +2103,8 @@ function validateScript(sc) {
     if (ab.kind === 'activated') {
       const cost = ab.cost || {};
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
-      if (!cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (!cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.revealColor && !'WUBRG'.includes(cost.revealColor)) errs.push(`${tag}: revelar precisa de uma cor WUBRG`);
       if (cost.life != null && !Number.isInteger(cost.life)) errs.push(`${tag}: custo de vida precisa ser inteiro`);
       for (const k of ['sacrificeOther', 'tapOther']) if (cost[k] && !Array.isArray((cost[k] || {}).types)) errs.push(`${tag}: ${k} precisa de uma lista de tipos`);
     } else if (ab.kind === 'triggered') {
@@ -2186,6 +2191,7 @@ function validateScript(sc) {
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
   }
   if (sc && sc.choose && !CHOICES.includes(sc.choose)) errs.push(`escolha "${sc.choose}" desconhecida`);
+  if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
   return errs.concat(exampleErrors(sc));
 }
 function effectErrors(effects, label) {
@@ -2340,6 +2346,15 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S30 · Boros Bully (textos conferidos em 26/09)
+  { name: 'Prismatic Strands', choose: 'color', effects: [{ do: 'prevent_color' }],
+    flashback: { tapOther: { types: ['creature'], color: 'W', amount: 1 } },
+    example: { target: 'none', expect: { preventedColor: true } } },
+  { name: 'Standard Bearer', staticRule: 'flagbearer',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Martyr of Sands', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true, revealColor: 'W' },
+    effects: [{ do: 'gain_per_revealed', times: 3 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { selfLife: 0 } } },
   // S29 · Walls Combo (textos conferidos na Scryfall em 26/09)
   { name: 'Quirion Ranger', abilities: [{ kind: 'activated', cost: { returnLand: 'Forest' }, oncePerTurn: true,
     effects: [{ do: 'untap', target: 'creature' }] }],
@@ -3724,7 +3739,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 22;
+const ENGINE_VERSION = 23;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -3895,6 +3910,7 @@ function createGame(setup) {
     if (sc.grants) f.script.grants = sc.grants;
     if (sc.self) f.script.self = sc.self;
     if (sc.choose) f.script.choose = sc.choose;
+    if (sc.staticRule) f.script.staticRule = sc.staticRule;
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
     if (sc.flashback) f.script.flashback = sc.flashback;
@@ -4048,11 +4064,10 @@ const protections = (s, o) => attachedTo(s, o).flatMap(x => {
   return g.protection === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [g.protection];
 });
 const prevented = (s, o) => attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent);
-const protectedFrom = (s, o, src) => {
-  if (!src) return false;
-  const cols = src.ability ? (s.facts[src.name] || {}).colors || [] : (s.facts[src.name] || {}).colors || [];
-  return protections(s, o).some(c => cols.includes(c));
-};
+const colorsOf = (s, src) => (src && s.facts[src.name] ? s.facts[src.name].colors || [] : []);
+const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
+/** S30 · escudo do turno: nenhum dano de fonte das cores escolhidas passa. */
+const colorPrevented = (s, src) => (s.preventedColors || []).some(c => colorsOf(s, src).includes(c));
 const evasionOf = (s, o) => ((s.facts[o.name].script || {}).self || {}).evasion;
 
 function sources(s, p) {
@@ -4208,7 +4223,7 @@ function enterStep(s, step) {
 }
 function finishCleanup(s) {
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.usedThisTurn; }
-  delete s.fogged;
+  delete s.fogged; delete s.preventedColors;
   s.players.forEach(pl => { pl.lifeGained = 0; });
   for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
   s.pending = null;
@@ -4275,6 +4290,7 @@ function dealCombatDamage(s) {
     // simultâneo: aplica tudo depois de calcular
     if (s.fogged) { s.combat.damageDone = true; return; } // S29 · Fog
     for (const [src, obj, player, amt] of hits) {
+      if (colorPrevented(s, src)) continue; // S30 · dano da cor prevenida não acontece
       if (obj && (prevented(s, obj) || protectedFrom(s, obj, src))) continue; // S11b · prevenção e proteção
       if (obj) { obj.damage += amt; if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
@@ -4320,7 +4336,7 @@ function targetable(s, p, o, src) {
 const isCreature = (s, o) => s.facts[o.name].types.includes('creature');
 /** Alvos legais para um tipo de alvo. Descritor: { oid } ou { player }. */
 function legalTargets(s, p, kind, selfOid, color) {
-  const out = [];
+  let out = [];
   const srcObj = selfOid ? s.objects[selfOid] : null;
   const perms = battlefield(s).filter(o => targetable(s, p, o, srcObj));
   const players = s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
@@ -4380,6 +4396,12 @@ function legalTargets(s, p, kind, selfOid, color) {
       out.push({ oid });
     }
   }
+  // S30 · Flagbearer: se o oponente controla um, o alvo tem de ser ele quando possível
+  const flags = battlefield(s).filter(o => o.controller !== p && ((s.facts[o.name].script || {}).staticRule) === 'flagbearer' && targetable(s, p, o, srcObj));
+  if (flags.length) {
+    const forced = out.filter(x => x.oid != null && flags.some(f => f.oid === x.oid));
+    if (forced.length) out = forced;
+  }
   return color ? out.filter(x => {
     const o = x.oid != null ? s.objects[x.oid] : null;
     return o && ((s.facts[o.name] || {}).colors || []).includes(color);
@@ -4418,8 +4440,8 @@ function applyEffect(s, src, eff, tgt, events) {
   const playerOf = () => tgt && tgt.player != null ? tgt.player : obj ? obj.controller : ctrl;
   switch (eff.do) {
     case 'damage':
-      if (obj && (prevented(s, obj) || protectedFrom(s, obj, src))) { note({ amount: eff.amount, prevented: true }); break; }
       { const n = amountOf(s, src, eff.amount);
+        if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protectedFrom(s, obj, src)))) { note({ amount: n, prevented: true }); break; }
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); note({ amount: n }); break; }
         if (obj) { obj.damage += n; if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
         else s.players[playerOf()].life -= n;
@@ -4506,6 +4528,18 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: syms.length }); break;
     }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
+    case 'prevent_color': { // S30 · escolhe uma cor e previne o dano dela no turno
+      const fonte = src.ability ? (s.objects[src.source] || src) : src;
+      const cor = fonte.chosenColor || src.chosenColor;
+      if (cor) { s.preventedColors = [...(s.preventedColors || []), cor]; note({ target: cor }); }
+      break;
+    }
+    case 'gain_per_revealed': { // S30 · ganha vida pelo que foi revelado como custo
+      const fonte2 = src.ability ? (s.objects[src.source] || src) : src;
+      const n = (fonte2.revealed || 0) * (eff.times || 1);
+      s.players[ctrl].life += n; s.players[ctrl].lifeGained = (s.players[ctrl].lifeGained || 0) + n;
+      note({ amount: n }); break;
+    }
     case 'to_library_shuffled': { // S26 · a carta volta embaralhada para o grimório
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && alvo.zone !== 'library') { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); note({ name: alvo.name }); }
@@ -4598,6 +4632,12 @@ function createToken(s, def, controller, events) {
 /** Resolve uma mágica com script. Alvo ilegal na resolução anula a mágica (608.2b). */
 function resolveScript(s, o, events) {
   const sc = scriptOf(s, o);
+  // S30 · mágica que pede uma cor decide na resolução, antes de aplicar o efeito
+  if (sc.choose === 'color' && !o.chosenColor) {
+    s.pending = { kind: 'choose_color', p: o.controller, oid: o.oid };
+    s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: spellEffects(s, o) };
+    return;
+  }
   const effects = spellEffects(s, o);
   const targeted = effects.filter(SC.isTargeted);
   const chosen = o.targets || [];
@@ -4716,6 +4756,11 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!needUntapped || (!o.tapped && !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste'))))).map(o => o.oid);
 }
 function payExtraCosts(s, p, cost, pay, selfOid) {
+  if (cost.revealColor) {
+    // revelar é custo sem perda de carta: conta o que há na mão e guarda no objeto
+    const n = s.zones[p].hand.filter(x => x !== selfOid && (s.facts[s.objects[x].name].colors || []).includes(cost.revealColor)).length;
+    if (s.objects[selfOid]) s.objects[selfOid].revealed = n;
+  }
   if (cost.returnLand) {
     const oid = (pay && pay.land) || (defaultPayment(s, p, cost, selfOid).land);
     const land = oid && s.objects[oid];
@@ -5078,13 +5123,14 @@ const HANDLERS = {
     finishPick(s, ev);
   },
   /** M10/S11b · escolhe a cor que a permanente pediu ao entrar. */
-  choose_color(s, a) {
+  choose_color(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'choose_color' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma cor a escolher');
     if (!COLORS.includes(a.color) || a.color === 'C') throw new RuleError('cor', 'escolha uma cor');
     const o = s.objects[s.pending.oid];
     if (o) o.chosenColor = a.color;
     s.queuedChoices = (s.queuedChoices || []).filter(c => c.oid !== s.pending.oid);
     s.pending = null;
+    resumeEffects(s, ev || []);
   },
   /** M10 · escolhe qual gatilho vai para a pilha primeiro (resolve por último). */
   order_trigger(s, a) {
@@ -5677,10 +5723,12 @@ function effectLine(ev) {
     case 'counter': return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : `${ev.name} anulou ${t}`;
     case 'counters': return `${ev.name} recebeu ${n} marcador(es) +1/+1`;
     case 'draw': return `${t} comprou ${n} com ${ev.name}`;
+    case 'gain_per_revealed': return `${t} revelou cartas e ganhou ${n} de vida com ${ev.name}`;
     case 'discard': return `${ev.name}: ${t} descarta ${n}`;
     case 'token': return `${ev.name} criou ${n} ficha ${ev.name === t ? '' : ''}`.trim();
     case 'attach': return `${ev.name} foi anexada a ${t}`;
     case 'fog': return `${ev.name}: nenhum dano de combate neste turno`;
+    case 'prevent_color': return `${ev.name}: nenhum dano de fonte ${{ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' }[ev.target] || ev.target} neste turno`;
     case 'gain': return `${t} ganhou ${n} de vida com ${ev.name}`;
     case 'lose': return `${t} perdeu ${n} de vida com ${ev.name}`;
     case 'pump': return `${t} recebeu ${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness} até o fim do turno`;

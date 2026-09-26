@@ -67,7 +67,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S26 delve, lampejo com custo de virar criaturas e últimas cartas | ✅ |
 | S · Scripts | S27 fechamento das listas e medição por lista | ✅ |
 | S · Scripts | S28 Faeries: condição de nome, subtipo e alvo do oponente | ✅ |
-| S · Scripts | S29 Walls: devolver terreno, transmutar e Fog | 🟡 |
+| S · Scripts | S29 Walls: devolver terreno, transmutar e Fog | ✅ |
+| S · Scripts | S30 Boros: prevenção por cor, Flagbearer e custo de revelar | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -231,8 +232,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E27 ✅ | S26 (leva 17) | Delve, lampejo com custo de virar criaturas e as últimas cartas |
 | E28 ✅ | S27 (leva 18) | Pedras de mana, fechamento de parciais e medição por lista |
 | E29 ✅ | S28 (leva 19) | Mono Blue Faeries: de 56% para 77% |
-| E30 🟡 | S29 (leva 20) | Walls Combo: custo de devolver terreno, transmutar e Fog |
-| E31 ▶ | S30 | Boros Bully: prevenção por cor e proteção |
+| E30 ✅ | S29 (leva 20) | Walls Combo: custo de devolver terreno, transmutar e Fog |
+| E31 🟡 | S30 (leva 21) | Boros Bully: prevenção por cor, Flagbearer e revelar |
 | E32 | S31 | Elves e Jund: devoção, gatilho de sacrifício e afinidade |
 | E33 | S32 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E34 | deploy | Subir o acumulado e testar no celular |
@@ -738,6 +739,22 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S30 · Prevenção por cor, Flagbearer e custo de revelar** 🟡
+- **Fonte:** textos conferidos em 26/09/2026 (mtg.wtf, base oficial de oracle).
+- **Aceite:**
+  - a mágica pode pedir uma cor ao **resolver**, e o resto do efeito espera essa escolha;
+  - prevenção por cor: nenhum dano de fonte daquela cor acontece no turno, valendo para mágica,
+    habilidade e combate; o escudo some na limpeza;
+  - regra estática de Flagbearer: quando o oponente escolhe alvos, a mesa só oferece o Flagbearer
+    enquanto ele for alvo legal, e recusa outro alvo;
+  - custo de revelar cartas de uma cor, sem perder a carta, com o valor revelado alimentando o efeito.
+- **Entregue:** Prismatic Strands (com lampejo pago virando uma criatura branca), Standard Bearer e Martyr of Sands.
+- **Testes:** U (prevenção em mágica e combate, expiração no turno, Flagbearer obrigando e liberando o dono,
+  vida por cartas reveladas), S8.
+- **Depende de:** S11b, S16, S29.
+- **Não lidas nesta rodada:** Flaring Pain, Hallow, Dust to Dust, Thraben Charm e Raffine's Informant —
+  a fonte limitou o acesso por excesso de consultas. Ficam para a próxima leva, sem palpite.
 
 **S29 · Walls: custo de devolver terreno, transmutar e Fog** 🟡
 - **Fonte:** textos conferidos na Scryfall em 26/09/2026.
