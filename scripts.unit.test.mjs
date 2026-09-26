@@ -57,7 +57,8 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   'Makeshift Munitions': 'Enchantment', 'Refurbished Familiar': 'Artifact Creature — Rat',
   'Cryoshatter': 'Enchantment — Aura', 'Mask of Law and Grace': 'Enchantment — Aura',
   'Journey to Nowhere': 'Enchantment', 'Troublemaker Ouphe': 'Creature — Ouphe',
-  'Faerie Macabre': 'Creature — Faerie Rogue', 'Relic of Progenitus': 'Artifact' };
+  'Faerie Macabre': 'Creature — Faerie Rogue', 'Relic of Progenitus': 'Artifact',
+  'Freed from the Real': 'Enchantment — Aura', 'Galvanic Alchemist': 'Creature — Human Wizard' };
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0
@@ -287,6 +288,14 @@ function runExample(sc) {
     for (let g = 0; g < 10 && s.turn.step !== 'combat_blockers'; g++) s = act(s, { t: 'pass', p: s.turn.priority });
     if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: s.pending.p, blocks: [] });
   }
+  // S39 · vínculo de alma só emparelha em mudança de zona real: reentra pelo motor
+  if (sc.soulbond) {
+    s = J(s); s.zones[a].battlefield = s.zones[a].battlefield.filter(x => x !== oid);
+    s.zones[a].hand.push(oid); s.objects[oid].zone = 'hand';
+    s = act(s, { t: 'move', p: a, oid, to: 'battlefield' });
+  }
+  // S39 · "desvirar a própria carta" precisa dela virada antes
+  if ('selfUntapped' in (want || {})) { s = J(s); s.objects[oid].tapped = true; }
   if (how === 'madness') s = act(s, { t: 'discard', p: a, oid });
   if (how === 'disturb') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
   if (how === 'flashback') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
@@ -383,6 +392,7 @@ function runExample(sc) {
     if (check === 'loyalty') assert.equal(s.objects[oid].counters.loyalty, value, msg);
     if (check === 'tappedOnEntry') assert.equal(s.objects[oid].tapped, value, msg);
     if (check === 'untapped') assert.equal(s.objects[mine].tapped, !value, msg);
+    if (check === 'selfUntapped') assert.equal(s.objects[oid].tapped, !value, msg);
     if (check === 'fogged') assert.equal(!!s.fogged, value, msg);
     if (check === 'preventedColor') assert.equal((s.preventedColors || []).length > 0, value, msg);
     if (check === 'counters') assert.equal((s.objects[oid].counters || {}).p1p1, value, msg);

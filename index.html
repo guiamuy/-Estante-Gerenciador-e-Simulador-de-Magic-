@@ -2028,8 +2028,8 @@ const EFFECTS = {
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
   counters: { fields: ['amount'], targets: ['self-source', 'creature'] },
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
-  tap: { fields: [], targets: ['creature', 'permanent', 'permanent-opponent-controls'] },
-  untap: { fields: [], targets: ['creature', 'permanent'] },
+  tap: { fields: [], targets: ['self-source', 'creature', 'permanent', 'permanent-opponent-controls'] },
+  untap: { fields: [], targets: ['self-source', 'creature', 'permanent'] },
   exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all'] },
   // S37 · o oponente revela a mão e você escolhe o que ele descarta
   discard_chosen: { fields: ['amount'], targets: ['opponent', 'player'] },
@@ -2074,7 +2074,7 @@ const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
-const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
@@ -2105,7 +2105,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2213,6 +2213,17 @@ function validateScript(sc) {
     if ((self.perPower != null || self.perToughness != null) && !PER_COUNTS.includes(self.per)) errs.push(`bônus próprio: contagem "${self.per}" desconhecida`);
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
+  }
+  // S39 · habilidades ativadas concedidas por aura ou por vínculo de alma
+  for (const [origem, lista] of [['bônus', ((sc && sc.grants) || {}).activated], ['vínculo de alma', ((sc && sc.soulbond) || {}).activated]]) {
+    if (lista == null) continue;
+    if (!Array.isArray(lista) || !lista.length) { errs.push(`${origem}: habilidade concedida precisa ser uma lista`); continue; }
+    if (origem === 'vínculo de alma' && !(sc.self || (sc.abilities || []).length || lista.length)) errs.push('vínculo de alma sem nada a conceder');
+    lista.forEach((ab, i) => {
+      const cost = ab.cost || {};
+      if (!cost.mana && !cost.tap && !cost.sacrifice && !cost.life) errs.push(`${origem} ${i + 1}: habilidade concedida sem custo`);
+      errs.push(...effectErrors(ab.effects, `${origem} ${i + 1}`));
+    });
   }
   if (sc && sc.choose && !CHOICES.includes(sc.choose)) errs.push(`escolha "${sc.choose}" desconhecida`);
   if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
@@ -2397,6 +2408,15 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
       effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S39 · o combo das Walls: habilidade ativada concedida por aura e por vínculo de alma (textos conferidos em 26/09)
+  { name: 'Freed from the Real', aura: { enchant: 'creature' },
+    grants: { activated: [
+      { cost: { mana: '{U}' }, effects: [{ do: 'tap', target: 'self-source' }] },
+      { cost: { mana: '{U}' }, effects: [{ do: 'untap', target: 'self-source' }] }] },
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  { name: 'Galvanic Alchemist', soulbond: { activated: [{ cost: { mana: '{2}{U}' }, effects: [{ do: 'untap', target: 'self-source' }] }] },
+    covers: 'partial', note: 'o motor emparelha com a primeira criatura sua sem par; escolher o par ainda não entra',
+    example: { action: 'activate:0', target: 'none', expect: { selfUntapped: true } } },
   // S38 · manuais de Rakdos e Jund (textos conferidos em 26/09)
   { name: 'Ancient Grudge', effects: [{ do: 'destroy', target: 'artifact' }], flashback: { mana: '{G}' },
     example: { action: 'flashback', target: 'enemy-permanent', expect: { gone: true, exiled: true } } },
@@ -3862,7 +3882,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 31;
+const ENGINE_VERSION = 32;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4052,6 +4072,7 @@ function createGame(setup) {
     if (sc.changeling) f.script.changeling = true;
     if (sc.bestow) f.script.bestow = sc.bestow;
     if (sc.bargain) f.script.bargain = true;
+    if (sc.soulbond) f.script.soulbond = sc.soulbond; // S39 · vínculo de alma
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
     if (sc.flashback) f.script.flashback = sc.flashback;
@@ -4110,7 +4131,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
   // 400.7: objeto novo ao mudar de zona; sai do combate
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.targets; delete o.attachedTo; delete o.tempKeywords;
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   o.zone = to;
   const dest = zoneList(s, o, to);
@@ -4124,6 +4145,8 @@ function moveObject(s, oid, to, { top = true } = {}) {
   }
   // S21 · planeswalker entra com sua lealdade inicial
   if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = s.facts[o.name].loyalty;
+  // S39 · vínculo de alma: ao entrar, emparelha com uma criatura sua ainda sozinha
+  if (to === 'battlefield') pairSoulbond(s, o);
   // M9 · gatilhos de mudança de zona
   if (to === 'battlefield') {
     // S11b/M10 · a permanente que pede uma cor abre uma escolha pendente
@@ -4475,15 +4498,47 @@ function spellEffects(s, o, mode) {
   const i = mode != null ? mode : (o.mode || 0);
   return (modes[i] || {}).effects || [];
 }
+/** S39 · vínculo de alma: quem entra procura par, e quem tem o vínculo procura par ao ver alguém entrar.
+    Parcial declarado: o motor escolhe o par (a primeira criatura sua sem par), você ainda não escolhe. */
+function pairSoulbond(s, novo) {
+  if (!isCreature(s, novo) || novo.paired != null) return;
+  const temVinculo = x => !!((s.facts[x.name].script || {}).soulbond);
+  const livres = battlefield(s).filter(x => x.oid !== novo.oid && x.controller === novo.controller &&
+    isCreature(s, x) && soulbondPartner(s, x) == null);
+  const par = livres.find(x => temVinculo(novo) || temVinculo(x));
+  if (!par) return;
+  novo.paired = par.oid; par.paired = novo.oid;
+}
+/** S39 · o vínculo de alma só vale enquanto as duas estão em campo e são suas. */
+function soulbondPartner(s, o) {
+  const p = o && o.paired != null ? s.objects[o.paired] : null;
+  if (!p || p.zone !== 'battlefield' || o.zone !== 'battlefield') return null;
+  if (p.paired !== o.oid || p.controller !== o.controller) return null;
+  return p;
+}
+/** S39 · habilidades ativadas que vêm de fora: aura anexada e vínculo de alma. */
+function grantedAbilities(s, o) {
+  if (!o || o.zone !== 'battlefield') return [];
+  const out = [];
+  for (const aura of battlefield(s)) {
+    if (aura.attachedTo !== o.oid) continue;
+    for (const ab of ((s.facts[aura.name].script || {}).grants || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: aura.name });
+  }
+  const par = soulbondPartner(s, o);
+  if (par) for (const dono of [o, par]) {
+    for (const ab of ((s.facts[dono.name].script || {}).soulbond || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: dono.name });
+  }
+  return out;
+}
 const abilitiesOf = (s, o) => {
   const sc = scriptOf(s, o);
-  if (!sc) return [];
+  if (!sc) return grantedAbilities(s, o);
   const list = (sc.abilities || []).slice();
   // S21 · cada habilidade de lealdade é uma ativada de tempo de feitiço, uma por turno
   for (const ab of sc.loyalty || []) list.push({ kind: 'activated', cost: {}, loyalty: ab.cost, label: ab.label, sorceryOnly: true, effects: ab.effects });
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
-  return list;
+  return list.concat(grantedAbilities(s, o));
 };
 /** Uma permanente pode ser alvo? Protegida e maldição de véu respondem aqui. */
 function targetable(s, p, o, src) {
@@ -4755,8 +4810,11 @@ function applyEffect(s, src, eff, tgt, events) {
       if (alvo) { alvo.tempKeywords = [...(alvo.tempKeywords || []), String(eff.keyword).toLowerCase()]; note({ name: alvo.name }); }
       break;
     }
-    case 'tap': if (!obj.tapped) { obj.tapped = true; noteEnchantedEvent(s, obj); } note({}); break;
-    case 'untap': obj.tapped = false; note({}); break;
+    case 'tap': { // S39 · "vire a criatura encantada" chega aqui como self-source
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (alvo && !alvo.tapped) { alvo.tapped = true; noteEnchantedEvent(s, alvo); } note({}); break;
+    }
+    case 'untap': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
     default: break;
   }
 }

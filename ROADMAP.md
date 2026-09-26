@@ -77,6 +77,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S36 proteção de várias cores e prevenção do dano de uma mágica | 🟡 |
 | S · Scripts | S37 exilar cemitérios, descarte escolhido, habilidade da mão e barganha | 🟡 |
 | S · Scripts | S38 alvo por cor, varredura que poupa subtipo e "até dois alvos" | 🟡 |
+| S · Scripts | S39 habilidade ativada concedida por aura e por vínculo de alma | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -250,7 +251,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33e 🟡 | S36 (leva 27) | Proteção de várias cores e prevenção do dano de uma mágica |
 | E33f 🟡 | S37 (leva 28) | Exilar cemitérios, descarte escolhido, habilidade da mão e barganha |
 | E33g 🟡 | S38 (leva 29) | Alvo por cor, varredura que poupa subtipo e "até dois alvos" |
-| E33h ▶ | S39 | Fechar as manuais das Pauper (6 cartas únicas restantes) |
+| E33h 🟡 | S39 (leva 30) | Habilidade ativada concedida por aura e por vínculo de alma |
+| E33i ▶ | S40 | Fechar as manuais das Pauper (4 cartas únicas restantes) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -755,6 +757,28 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S39 · Habilidade ativada concedida por aura e por vínculo de alma** 🟡
+- **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026 (as duas cartas
+  conferidas nas duas fontes).
+- **Aceite:**
+  - uma aura pode dar habilidade ativada à criatura que ela encanta, e a habilidade some quando a aura sai;
+  - a habilidade age na própria criatura, sem pedir alvo;
+  - o muro encantado desvira e gera mana mais de uma vez no mesmo turno (é o combo das Walls);
+  - vínculo de alma: ao entrar em campo, a criatura emparelha com uma criatura sua sem par, as duas
+    ganham a habilidade, e o par se desfaz quando uma delas sai do campo.
+- **Entregue:** Freed from the Real (completa) e Galvanic Alchemist (parcial).
+- **Parciais e o que falta:**
+  - **Galvanic Alchemist** — o motor escolhe o par (a primeira criatura sua sem par); escolher o par
+    você mesmo, ou recusar o emparelhamento, ainda não entra.
+- **Correções:** o vínculo de alma não funcionava porque a cópia do script guardada na partida não
+  levava o campo novo — a lista de campos copiados precisa crescer junto com o vocabulário.
+- **Testes:** U (aura concede duas habilidades e as leva ao sair, mana duas vezes no mesmo turno,
+  par mútuo com habilidade nas duas criaturas, par não é roubado por quem entra depois), S8 com a
+  verificação nova `selfUntapped` (a carta precisa estar virada antes, senão o teste passaria de graça).
+- **Fora:** escolher o par do vínculo de alma; reemparelhar depois que o par se desfaz.
+- **Resultado:** Walls Combo ficou sem carta manual. Faltam 4 cartas únicas nas Pauper
+  (Boros Bully e Elves).
 
 **S38 · Alvo por cor, varredura que poupa um subtipo e "até dois alvos"** 🟡
 - **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026; Breath Weapon

@@ -2132,3 +2132,98 @@ test('S38 · "até dois alvos": a mesa oferece um ou dois, e o dano cai em cada 
   assert.equal(s2.objects[b1].damage, 1, 'a primeira levou 1');
   assert.equal(s2.objects[b2].damage, 1, 'a segunda levou 1');
 });
+
+/* ---------------- S39 · habilidade ativada concedida por aura e por vínculo de alma ---------------- */
+const VN_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Freed': { name: 'Freed', type_line: 'Enchantment — Aura', mana_cost: '{2}{U}', cmc: 3, colors: ['U'], keywords: [], oracle_text: 'Enchant creature\n{U}: Tap enchanted creature.\n{U}: Untap enchanted creature.' },
+  'Alchemist': { name: 'Alchemist', type_line: 'Creature — Human Wizard', mana_cost: '{2}{U}', cmc: 3, colors: ['U'], power: '1', toughness: '4', keywords: [], oracle_text: 'Soulbond. As long as this creature is paired with another creature, each of those creatures has "{2}{U}: Untap this creature."' },
+  'Battlement': { name: 'Battlement', type_line: 'Creature — Wall', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '0', toughness: '4', keywords: ['Defender'], oracle_text: '{T}: Add {G}{G}.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const VN_SCRIPTS = {
+  Freed: { name: 'Freed', aura: { enchant: 'creature' },
+    grants: { activated: [
+      { cost: { mana: '{U}' }, effects: [{ do: 'tap', target: 'self-source' }] },
+      { cost: { mana: '{U}' }, effects: [{ do: 'untap', target: 'self-source' }] }] },
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  Alchemist: { name: 'Alchemist', soulbond: { activated: [{ cost: { mana: '{2}{U}' }, effects: [{ do: 'untap', target: 'self-source' }] }] },
+    example: { action: 'activate:0', target: 'none', expect: { selfUntapped: true } } }
+};
+const VNDECK = [{ name: 'Forest', qty: 16, zone: 'main' }, { name: 'Freed', qty: 8, zone: 'main' }, { name: 'Alchemist', qty: 8, zone: 'main' },
+  { name: 'Battlement', qty: 8, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }];
+function vnGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: VN_CARDS, scripts: VN_SCRIPTS,
+    players: [{ name: 'A', deck: VNDECK }, { name: 'B', deck: VNDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+// entra em campo de verdade, passando pelo motor: é o que emparelha o vínculo de alma
+const entra = (s, p, oid) => act(s, { t: 'move', p, oid, to: 'battlefield' });
+
+test('S39 · a aura concede virar e desvirar a criatura encantada, e leva as duas embora ao sair', () => {
+  let s = vnGame(3); const a = s.turn.active;
+  let muro, freed;
+  [s, muro] = put(s, a, 'Battlement');
+  [s, freed] = put(s, a, 'Freed', { zone: 'hand' });
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === muro), false, 'sem a aura, o muro não tem habilidade ativada');
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: freed, targets: [{ oid: muro }] })));
+  assert.equal(s.objects[freed].attachedTo, muro, 'a aura ficou anexada');
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === muro);
+  assert.equal(ofertas.length, 2, 'as duas habilidades concedidas aparecem no muro');
+  // virar e depois desvirar, sem alvo: a habilidade age na própria criatura
+  let vira = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: muro, index: 0 })));
+  assert.equal(vira.objects[muro].tapped, true, 'a primeira habilidade virou a criatura');
+  let desvira = settle(resolveSpell(act(vira, { t: 'activate', p: a, oid: muro, index: 1 })));
+  assert.equal(desvira.objects[muro].tapped, false, 'a segunda desvirou');
+  // aura fora de campo, habilidade fora também
+  const semAura = act(desvira, { t: 'move', p: a, oid: freed, to: 'graveyard' });
+  assert.equal(E.legalActions(semAura, a).some(x => x.t === 'activate' && x.oid === muro), false, 'sem a aura, a habilidade desaparece');
+});
+
+test('S39 · o muro encantado desvira e gera mana duas vezes no mesmo turno', () => {
+  let s = vnGame(4); const a = s.turn.active;
+  let muro, freed;
+  [s, muro] = put(s, a, 'Battlement');
+  [s, freed] = put(s, a, 'Freed', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: freed, targets: [{ oid: muro }] })));
+  s = act(s, { t: 'tap_mana', p: a, oid: muro });
+  const depoisDoPrimeiro = s.players[a].pool.G;
+  assert.ok(depoisDoPrimeiro >= 2, 'o muro gerou mana');
+  s = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: muro, index: 1 })));
+  assert.equal(s.objects[muro].tapped, false, 'a aura desvirou o muro');
+  s = act(s, { t: 'tap_mana', p: a, oid: muro });
+  assert.equal(s.players[a].pool.G, depoisDoPrimeiro * 2, 'gerou mana de novo no mesmo turno');
+});
+
+test('S39 · vínculo de alma: as duas criaturas ganham a habilidade, e o par se desfaz junto', () => {
+  let s = vnGame(5); const a = s.turn.active;
+  let urso, alq;
+  [s, urso] = put(s, a, 'Bear');
+  [s, alq] = put(s, a, 'Alchemist', { zone: 'hand' });
+  s = entra(s, a, alq);
+  assert.equal(s.objects[alq].paired, urso, 'emparelhou ao entrar');
+  assert.equal(s.objects[urso].paired, alq, 'o par é mútuo');
+  for (const quem of [alq, urso]) assert.ok(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === quem), 'as duas têm a habilidade');
+  // desvirar de verdade
+  let virado = JSON.parse(JSON.stringify(s)); virado.objects[urso].tapped = true;
+  virado = settle(resolveSpell(act(virado, { t: 'activate', p: a, oid: urso, index: 0 })));
+  assert.equal(virado.objects[urso].tapped, false, 'o urso emparelhado se desvirou');
+  // o par se desfaz quando uma sai de campo
+  const semAlq = act(s, { t: 'move', p: a, oid: alq, to: 'graveyard' });
+  assert.equal(E.legalActions(semAlq, a).some(x => x.t === 'activate' && x.oid === urso), false, 'sem o par, a habilidade desaparece');
+  assert.equal(semAlq.objects[alq].paired, undefined, 'quem saiu de campo perde o vínculo');
+});
+
+test('S39 · quem já tem par não é roubado por uma criatura que entra depois', () => {
+  let s = vnGame(6); const a = s.turn.active;
+  let urso, alq, urso2;
+  [s, urso] = put(s, a, 'Bear');
+  [s, alq] = put(s, a, 'Alchemist', { zone: 'hand' });
+  s = entra(s, a, alq);
+  [s, urso2] = put(s, a, 'Bear', { zone: 'hand' });
+  s = entra(s, a, urso2);
+  assert.equal(s.objects[alq].paired, urso, 'o par original ficou de pé');
+  assert.equal(s.objects[urso2].paired, undefined, 'a criatura nova não tem vínculo para oferecer');
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === urso2), false, 'e não ganha habilidade nenhuma');
+});
