@@ -2049,7 +2049,7 @@ const EFFECTS = {
   // S43 · proteção contra a cor da sua escolha, até o fim do turno
   protection: { fields: [], targets: ['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control'] },
   // S20 · cemitério
-  to_hand: { fields: [], targets: ['card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard'] },
+  to_hand: { fields: [], targets: ['self-source', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard'] },
   reanimate: { fields: [], targets: ['creature-in-your-graveyard', 'permanent-in-your-graveyard'] },
   reanimate_tapped: { fields: [], targets: ['self-source', 'creature-in-your-graveyard'] },
   add_mana: { fields: [], targets: ['self'] },
@@ -2248,6 +2248,8 @@ function effectErrors(effects, label, opcional) {
       if (e.to && !PICK_DESTS.includes(e.to)) errs.push(`${label} ${i + 1}: destino "${e.to}" desconhecido`);
       if (e.rest && !PICK_DESTS.includes(e.rest)) errs.push(`${label} ${i + 1}: resto "${e.rest}" desconhecido`);
       for (const t of (e.filter && e.filter.types) || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: filtro de tipo "${t}" desconhecido`);
+      if (e.filter && e.filter.basic != null && typeof e.filter.basic !== 'boolean') errs.push(`${label} ${i + 1}: filtro "básico" precisa ser verdadeiro ou falso`);
+      for (const t of (e.filter && e.filter.subtypes) || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label} ${i + 1}: filtro de subtipo inválido`);
     }
     if (e.targetMv != null && !Number.isInteger(e.targetMv)) errs.push(`${label} ${i + 1}: valor de mana do alvo precisa ser inteiro`);
     // S38 · filtro de cor no alvo, varredura que poupa um subtipo e "até N alvos"
@@ -2349,8 +2351,8 @@ const RAW_SCRIPTS = [
   { name: 'Utter End', effects: [{ do: 'exile', target: 'permanent' }], example: { target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Anguished Unmaking', effects: [{ do: 'exile', target: 'permanent' }, { do: 'lose', amount: 3 }], example: { target: 'enemy-creature', expect: { gone: true, selfLife: -3 } } },
   { name: 'End the Festivities', effects: [{ do: 'damage', amount: 1, target: 'each-creature' }], example: { target: 'none', expect: { damaged: true } } },
-  { name: 'Rally the Peasants', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'each-own-creature' }], covers: 'partial', note: 'lampejo do passado (flashback) ainda não entra',
-    example: { target: 'none', expect: { pump: [2, 0] } } },
+  { name: 'Rally the Peasants', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'each-own-creature' }], flashback: { mana: '{2}{R}' },
+    example: { action: 'flashback', target: 'none', expect: { pump: [2, 0], exiled: true } } },
   { name: 'Tormod\'s Crypt', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
   { name: 'Ichor Wellspring', abilities: [
@@ -2359,7 +2361,7 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { handDelta: 1 } } },
   // S11 · auras e equipamentos (lista GW Bogles)
   { name: 'Rancor', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 0, keywords: ['trample'] },
-    covers: 'partial', note: 'voltar para a mão ao ir para o cemitério ainda não entra',
+    abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'to_hand', target: 'self-source' }] }],
     example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 2], keyword: 'trample' } } },
   { name: 'Ethereal Armor', aura: { enchant: 'creature' }, grants: { perPower: 1, perToughness: 1, per: 'enchantments-you-control', keywords: ['first strike'] },
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3], keyword: 'first strike' } } },
@@ -2393,7 +2395,6 @@ const RAW_SCRIPTS = [
   { name: 'Benevolent Blessing', aura: { enchant: 'creature' }, choose: 'color', grants: { protection: 'chosen' },
     example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
   { name: 'Silhana Ledgewalker', self: { evasion: 'flying-only' },
-    covers: 'partial', note: 'maldição de véu contra alvo já entra pela palavra-chave; o resto do texto é só evasão',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -2575,7 +2576,6 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Saruli Caretaker', abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
-    covers: 'partial', note: 'na carta real gera {G} ou {W}; aqui oferece qualquer cor',
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Scattershot Archer', abilities: [{ kind: 'activated', cost: { tap: true },
     effects: [{ do: 'damage', amount: 1, target: 'each-flying-creature' }] }],
@@ -2698,7 +2698,6 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Jaspera Sentinel', abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
-    covers: 'partial', note: 'alcance vem do texto da carta',
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Birchlore Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], amount: 2 } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
@@ -2715,8 +2714,7 @@ const RAW_SCRIPTS = [
     example: { target: 'none', expect: { picked: true } } },
   { name: 'Sheltering Landscape', entersTapped: false, cycling: { mana: '{R}{G}{W}' },
     abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true },
-      effects: [{ do: 'search', amount: 1, filter: { types: ['land'] }, to: 'battlefield-tapped' }] }],
-    covers: 'partial', note: 'o {T}: Adicionar {C} vem do texto da carta; a busca pega qualquer terreno, não só básico',
+      effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true, subtypes: ['Mountain', 'Forest', 'Plains'] }, to: 'battlefield-tapped' }] }],
     example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
   { name: 'Setessan Training', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 0, keywords: ['trample'] },
     abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
@@ -4387,7 +4385,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 36;
+const ENGINE_VERSION = 37;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -5312,7 +5310,11 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'attach': attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break;
     case 'token': for (let i = 0; i < eff.amount; i++) createToken(s, eff.token, playerOf(), events); break;
-    case 'to_hand': moveObject(s, obj.oid, 'hand'); note({}); break;
+    case 'to_hand': { // S44 · a própria carta pode voltar para a mão (Rancor)
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (alvo) moveObject(s, alvo.oid, 'hand');
+      note({}); break;
+    }
     case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; note({}); break;
     case 'add_mana': {
       const syms = eff.symbols || (eff.anyColor ? [eff.color || 'C'] : []);
@@ -5391,10 +5393,14 @@ function sweepTargets(s, src, eff) {
    escolhe. O que sobra da mágica espera a escolha terminar (s.resume). */
 function matchesFilter(s, o, filter) {
   if (!filter) return true;
+  const f = s.facts[o.name] || {};
   if (filter.name && o.name !== filter.name) return false;
-  if (filter.keyword && !(s.facts[o.name].kw || []).includes(String(filter.keyword).toLowerCase())) return false;
+  if (filter.keyword && !(f.kw || []).includes(String(filter.keyword).toLowerCase())) return false;
+  // S44 · "básico" e "um destes subtipos" (Sheltering Landscape)
+  if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
+  if ((filter.subtypes || []).length && !filter.subtypes.some(x => new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false;
   const types = filter.types || [];
-  return !types.length || types.some(x => s.facts[o.name].types.includes(x));
+  return !types.length || types.some(x => (f.types || []).includes(x));
 }
 function startPick(s, spec, events) {
   s.pending = { kind: 'pick', p: spec.p, from: spec.from, picked: [], min: spec.min || 0, max: spec.max,

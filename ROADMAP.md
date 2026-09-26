@@ -83,6 +83,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S41 colher provas, vigilância e canalizar | 🟡 |
 | S · Scripts | S42 vários efeitos no mesmo alvo, devolver mágica e fichas Tesouro | 🟡 |
 | S · Scripts | S43 proteção pela cor escolhida e indestrutível por sacrifício | 🟡 |
+| S · Scripts | S44 carta que volta para a mão, busca de básico e rótulos errados | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -262,7 +263,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33k 🟡 | S42 (leva 33) | Listas de Commander restauradas + mesmo alvo, devolver mágica e Tesouro |
 | E33l 🟡 | S43 (leva 34) | Killian: proteção pela cor escolhida e indestrutível por sacrifício |
 | E33m ▶ | S44 | Commander: seguir nas 67 manuais (42 Killian, 25 Malcolm) |
-| E33n | S45+ | Parciais das Pauper (106 cópias) |
+| E33n 🟡 | S44 (leva 36) | Pauper para 100%: primeiras 6 parciais fechadas (106 → 87 cópias) |
+| E33o ▶ | S45+ | Pauper para 100%: 29 cartas parciais restantes |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -792,6 +794,27 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S44 · Carta que volta para a mão, busca de básico e três rótulos errados** 🟡
+- **Por que esta leva existe:** no celular nenhum deck Pauper passava de 84% e o "Motor completo"
+  não liberava. A causa não era carta faltando: são as **cartas parciais**. Enquanto uma carta está
+  parcial, a lista não fecha 100%. Eram 35 cartas únicas, 106 cópias.
+- **Fonte:** textos conferidos em `mtg.cardsrealm.com` e `mtg.wtf` em 26/09/2026.
+- **Correção de rótulo (erro meu):** três cartas estavam marcadas como parciais sem motivo —
+  o script já cobria o texto inteiro.
+  - **Jaspera Sentinel** e **Silhana Ledgewalker** — alcance e maldição de véu são palavras-chave que
+    o motor resolve sozinho; o resto do texto já estava no script.
+  - **Saruli Caretaker** — a nota dizia que a carta gera {G} ou {W}. Está errado: as duas fontes
+    dizem "mana de qualquer cor", que é exatamente o que o script fazia.
+- **Aceite:**
+  - uma aura pode voltar para a mão quando vai para o cemitério (Rancor);
+  - a busca no grimório pode exigir terreno **básico** e um de uma lista de subtipos;
+  - lampejo do passado numa mágica de bônus coletivo (Rally the Peasants).
+- **Entregue (todas completas):** Jaspera Sentinel, Silhana Ledgewalker, Saruli Caretaker,
+  Rancor, Sheltering Landscape e Rally the Peasants.
+- **Testes:** U (aura voltando para a mão depois de a criatura morrer, busca recusando Ilha básica e
+  Portal e aceitando só a Montanha básica, lampejo do passado dando o bônus e exilando), S8.
+- **Resultado:** cópias parciais nas Pauper de 106 para 87; GW Bogles 89%, Elves 87%.
 
 **S43 · Proteção pela cor escolhida e indestrutível por sacrifício** 🟡
 - **Fonte:** textos conferidos em `mtg.cardsrealm.com` em 26/09/2026.

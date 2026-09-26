@@ -2647,3 +2647,78 @@ test('S43 · sacrificar o kami previne o dano de combate do turno; e o alseid pr
   s2 = settle(resolveSpell(act(s2, oferta)));
   assert.deepEqual(JSON.parse(JSON.stringify(E.protections(s2, s2.objects[encanto]))), ['R'], 'o encantamento ficou protegido contra vermelho');
 });
+
+/* ---------------- S44 · carta que volta para a mão, busca de básico e lampejo do passado ---------------- */
+const RC_CARDS = {
+  'Mountain': { name: 'Mountain', type_line: 'Basic Land — Mountain', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {R}.' },
+  'Island': { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {U}.' },
+  'Gate': { name: 'Gate', type_line: 'Land — Gate', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {R}.' },
+  'Scape': { name: 'Scape', type_line: 'Land', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Mountain, Forest, or Plains card, put it onto the battlefield tapped, then shuffle.' },
+  'Rancor': { name: 'Rancor', type_line: 'Enchantment — Aura', mana_cost: '{G}', cmc: 1, colors: ['G'], keywords: [], oracle_text: 'Enchanted creature gets +2/+0 and has trample.\nWhen this Aura is put into a graveyard from the battlefield, return it to its owner’s hand.' },
+  'Rally': { name: 'Rally', type_line: 'Instant', mana_cost: '{2}{W}', cmc: 3, colors: ['W'], keywords: [], oracle_text: 'Creatures you control get +2/+0 until end of turn.\nFlashback {2}{R}' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Doom': { name: 'Doom', type_line: 'Instant', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'Destroy target creature.' }
+};
+const RC_SCRIPTS = {
+  Rancor: { name: 'Rancor', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 0, keywords: ['trample'] },
+    abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'to_hand', target: 'self-source' }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 2], keyword: 'trample' } } },
+  Rally: { name: 'Rally', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'each-own-creature' }], flashback: { mana: '{2}{R}' },
+    example: { action: 'flashback', target: 'none', expect: { pump: [2, 0], exiled: true } } },
+  Scape: { name: 'Scape', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true },
+    effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true, subtypes: ['Mountain', 'Forest', 'Plains'] }, to: 'battlefield-tapped' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
+  Doom: { name: 'Doom', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } }
+};
+const RCDECK = [{ name: 'Mountain', qty: 8, zone: 'main' }, { name: 'Island', qty: 8, zone: 'main' }, { name: 'Gate', qty: 6, zone: 'main' },
+  { name: 'Scape', qty: 6, zone: 'main' }, { name: 'Rancor', qty: 6, zone: 'main' }, { name: 'Rally', qty: 6, zone: 'main' },
+  { name: 'Bear', qty: 10, zone: 'main' }, { name: 'Doom', qty: 6, zone: 'main' }];
+function rcGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: RC_CARDS, scripts: RC_SCRIPTS,
+    players: [{ name: 'A', deck: RCDECK }, { name: 'B', deck: RCDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S44 · a aura volta para a mão quando vai para o cemitério', () => {
+  let s = rcGame(3); const a = s.turn.active;
+  let urso, rancor, doom;
+  [s, urso] = put(s, a, 'Bear');
+  [s, rancor] = put(s, a, 'Rancor', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: rancor, targets: [{ oid: urso }] })));
+  assert.equal(s.objects[rancor].attachedTo, urso, 'a aura encantou a criatura');
+  assert.equal(E.stats(s, s.objects[urso]).power, 4, 'e deu +2/+0');
+  [s, doom] = put(s, a, 'Doom', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: doom, targets: [{ oid: urso }] })));
+  assert.equal(s.objects[urso].zone, 'graveyard', 'a criatura morreu');
+  assert.equal(s.objects[rancor].zone, 'hand', 'a aura voltou para a mão, em vez de ficar no cemitério');
+});
+
+test('S44 · a busca só acha básico dos tipos pedidos', () => {
+  let s = rcGame(4); const a = s.turn.active;
+  let scape;
+  [s, scape] = put(s, a, 'Scape');
+  s = act(s, { t: 'activate', p: a, oid: scape, index: 0 });
+  s = s.stack.length && !s.pending ? resolveSpell(s) : s;
+  assert.ok(s.pending && s.pending.kind === 'pick', 'abriu a escolha de terreno');
+  const nomes = JSON.parse(JSON.stringify(s.pending.from.map(oid => s.objects[oid].name)));
+  assert.ok(nomes.length, 'achou terreno');
+  assert.deepEqual([...new Set(nomes)], ['Mountain'], 'só a Montanha básica serve: Ilha básica e Portal ficam fora');
+  s = act(s, { t: 'pick', p: a, oid: s.pending.from[0] });
+  s = s.pending && s.pending.kind === 'pick' ? act(s, { t: 'pick_done', p: a }) : s;
+  const posto = Object.values(s.objects).find(o => o.name === 'Mountain' && o.zone === 'battlefield');
+  assert.ok(posto && posto.tapped, 'o terreno entrou virado');
+  assert.equal(s.objects[scape].zone, 'graveyard', 'o terreno foi sacrificado como custo');
+});
+
+test('S44 · lampejo do passado: a mágica do cemitério dá o bônus e é exilada', () => {
+  let s = rcGame(5); const a = s.turn.active;
+  let urso, rally;
+  [s, urso] = put(s, a, 'Bear');
+  [s, rally] = put(s, a, 'Rally', { zone: 'graveyard' });
+  const acao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === rally && x.flashback);
+  assert.ok(acao, 'a mesa oferece o lampejo do passado a partir do cemitério');
+  s = settle(resolveSpell(act(s, acao)));
+  assert.equal(E.stats(s, s.objects[urso]).power, 4, 'a criatura ganhou +2/+0');
+  assert.equal(s.objects[rally].zone, 'exile', 'a mágica foi exilada, não voltou para o cemitério');
+});
