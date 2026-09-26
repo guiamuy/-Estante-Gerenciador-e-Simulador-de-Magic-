@@ -84,6 +84,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S42 vários efeitos no mesmo alvo, devolver mágica e fichas Tesouro | 🟡 |
 | S · Scripts | S43 proteção pela cor escolhida e indestrutível por sacrifício | 🟡 |
 | S · Scripts | S44 carta que volta para a mão, busca de básico e rótulos errados | 🟡 |
+| S · Scripts | S45 você escolhe: descarte do oponente e carta do cemitério | 🟡 |
+| A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -264,7 +266,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33l 🟡 | S43 (leva 34) | Killian: proteção pela cor escolhida e indestrutível por sacrifício |
 | E33m ▶ | S44 | Commander: seguir nas 67 manuais (42 Killian, 25 Malcolm) |
 | E33n 🟡 | S44 (leva 36) | Pauper para 100%: primeiras 6 parciais fechadas (106 → 87 cópias) |
-| E33o ▶ | S45+ | Pauper para 100%: 29 cartas parciais restantes |
+| E33o 🟡 | S45 (leva 37) | Você escolhe: descarte do oponente e carta do cemitério (87 → 81 cópias) |
+| E33p ▶ | S46+ | Pauper para 100%: 26 cartas parciais restantes |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -794,6 +797,27 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S45 · Você escolhe: descarte do oponente e carta do cemitério** 🟡
+- **Valor:** o motor parava de escolher no seu lugar. Três cartas passaram a funcionar como a carta
+  real manda, e a máquina de escolha agora serve para qualquer carta que diga "escolha".
+- **Fonte:** textos já conferidos nas levas 28 e 32 (26/09/2026), sem mudança de texto.
+- **Aceite:**
+  - o oponente revela a mão e **você** escolhe o que ele descarta; criatura e terreno ficam fora da escolha;
+  - exilar até duas cartas de **qualquer** cemitério, mirando uma ou duas;
+  - "o jogador alvo exila uma carta do próprio cemitério": quem escolhe é ele, não quem ativou;
+  - uma habilidade ativada também aceita "até N alvos", inclusive ativada da mão.
+- **Entregue (as três viraram completas):** Duress, Faerie Macabre e Relic of Progenitus.
+- **Correção (A13):** quando uma escolha caía no goldfish, a mesa fazia ele **desistir da partida**.
+  Agora o goldfish resolve o que o motor pedir a ele — escolha de carta, descarte, cor, pagar ou não,
+  alvo de gatilho — e só desiste se for realmente o caso.
+- **Expectativa que mudou, com motivo:** o teste da leva 28 afirmava que o motor escolhia a primeira
+  carta que não fosse criatura nem terreno. Essa era a simplificação; agora a escolha é sua, e o teste
+  foi reescrito para checar a regra certa.
+- **Testes:** U (escolha do descarte com criatura e terreno fora dela e a carta escolhida saindo da mão
+  certa, exílio de uma ou duas cartas de qualquer cemitério, escolha feita pelo jogador alvo) e
+  mesa (escolha que cai no goldfish não derruba a partida).
+- **Resultado:** cópias parciais nas Pauper de 87 para 81. Mono Blue Faeries, Walls Combo e Elves em 87%.
 
 **S44 · Carta que volta para a mão, busca de básico e três rótulos errados** 🟡
 - **Por que esta leva existe:** no celular nenhum deck Pauper passava de 84% e o "Motor completo"

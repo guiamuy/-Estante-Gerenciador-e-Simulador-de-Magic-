@@ -2020,7 +2020,9 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature'] },
-  exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls'] },
+  exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard'] },
+  // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
+  exile_chosen: { fields: ['amount'], targets: ['player', 'opponent', 'self'] },
   bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'artifact'] },
   counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
@@ -2068,17 +2070,17 @@ const EFFECTS = {
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker'];
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['discard', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back'];
+const CHOICE_EFFECTS = ['discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
   'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
-  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
+  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
-const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'targetExiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
@@ -2400,16 +2402,13 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // S37 · Pauper, cemitério e descarte (textos conferidos em 26/09)
   { name: 'Duress', effects: [{ do: 'discard_chosen', amount: 1, target: 'opponent' }],
-    covers: 'partial', note: 'o motor escolhe a primeira carta que não é criatura nem terreno; escolher você mesmo ainda não entra',
     example: { target: 'opponent', expect: { opponentLife: 0 } } },
   { name: 'Faerie Macabre', abilities: [{ kind: 'activated', cost: { discardSelf: true, fromHand: true },
-    effects: [{ do: 'exile_graveyard', target: 'opponent' }] }],
-    covers: 'partial', note: 'exila o cemitério inteiro do alvo, não até duas cartas escolhidas',
-    example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
+    effects: [{ do: 'exile', target: 'card-in-any-graveyard' }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true }] }],
+    example: { action: 'activate:0', target: 'own-graveyard-creature', expect: { targetExiled: true } } },
   { name: 'Relic of Progenitus', abilities: [
-    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] },
+    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_chosen', amount: 1, target: 'player' }] },
     { kind: 'activated', cost: { mana: '{1}', exileSelf: true }, effects: [{ do: 'exile_graveyard', target: 'all' }, { do: 'draw', amount: 1 }] }],
-    covers: 'partial', note: 'a primeira habilidade exila o cemitério inteiro, não uma carta',
     example: { action: 'activate:1', target: 'none', expect: { graveyardEmpty: true, handDelta: 1 } } },
   { name: 'Journey to Nowhere', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'creature' }] }],
     covers: 'partial', note: 'devolver a criatura quando o encantamento sai do campo ainda não entra',
@@ -4385,7 +4384,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 37;
+const ENGINE_VERSION = 38;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -5123,6 +5122,10 @@ function legalTargets(s, p, kind, selfOid, color) {
       out.push({ oid: o.oid });
     }
   }
+  // S45 · carta em qualquer cemitério (Faerie Macabre)
+  if (kind === 'card-in-any-graveyard') {
+    for (const z of s.zones) for (const oid of z.graveyard) out.push({ oid });
+  }
   // S20 · cartas no seu cemitério
   if (kind.endsWith('-in-your-graveyard')) {
     for (const oid of s.zones[p].graveyard) {
@@ -5299,14 +5302,24 @@ function applyEffect(s, src, eff, tgt, events) {
       alvos.forEach(who => [...s.zones[who].graveyard].forEach(x => moveObject(s, x, 'exile')));
       note({}); break;
     }
-    case 'discard_chosen': { // S37 · o oponente descarta a carta que você escolheria
+    case 'discard_chosen': { // S45 · o oponente revela a mão e VOCÊ escolhe o que ele descarta
       const who = playerOf();
-      const mao = s.zones[who].hand.filter(x => {
-        const tipos = s.facts[s.objects[x].name].types;
-        return !tipos.includes('creature') && !tipos.includes('land');
-      });
-      mao.slice(0, eff.amount).forEach(x => moveObject(s, x, 'graveyard'));
-      note({ amount: Math.min(eff.amount, mao.length) }); break;
+      const filtro = { notTypes: ['creature', 'land'] };
+      const mao = s.zones[who].hand.filter(x => matchesFilter(s, s.objects[x], filtro));
+      if (!mao.length) { note({ amount: 0 }); break; }
+      const n = Math.min(amountOf(s, src, eff.amount), mao.length);
+      startPick(s, { p: ctrl, from: mao, min: n, max: n, to: 'graveyard', rest: 'stay', filter: filtro,
+        label: 'escolher o descarte', source: src.name }, events);
+      note({ amount: n, pending: true }); break;
+    }
+    case 'exile_chosen': { // S45 · o jogador alvo escolhe o que exilar do próprio cemitério
+      const who = playerOf();
+      const cemiterio = [...s.zones[who].graveyard];
+      if (!cemiterio.length) { note({ amount: 0 }); break; }
+      const n = Math.min(amountOf(s, src, eff.amount), cemiterio.length);
+      startPick(s, { p: who, from: cemiterio, min: n, max: n, to: 'exile', rest: 'stay',
+        label: 'exilar do cemitério', source: src.name }, events);
+      note({ amount: n, pending: true }); break;
     }
     case 'attach': attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break;
     case 'token': for (let i = 0; i < eff.amount; i++) createToken(s, eff.token, playerOf(), events); break;
@@ -5399,6 +5412,7 @@ function matchesFilter(s, o, filter) {
   // S44 · "básico" e "um destes subtipos" (Sheltering Landscape)
   if (filter.basic && !/^\s*basic\b/i.test(f.typeText || '')) return false;
   if ((filter.subtypes || []).length && !filter.subtypes.some(x => new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false;
+  if ((filter.notTypes || []).some(x => (f.types || []).includes(x))) return false; // S45 · "que não seja criatura nem terreno"
   const types = filter.types || [];
   return !types.length || types.some(x => (f.types || []).includes(x));
 }
@@ -5997,10 +6011,11 @@ const HANDLERS = {
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
     const chosen = a.targets || [];
-    if (chosen.length !== need.length) throw new RuleError('alvo', `escolha ${need.length} alvo(s)`);
+    const minAlvosAb = need.filter(x => !x.upTo).length; // S45 · "até N alvos" também nas habilidades
+    if (chosen.length < minAlvosAb || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvosAb === need.length ? need.length : `de ${minAlvosAb} a ${need.length}`} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
-    need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid)) throw new RuleError('alvo', 'alvo ilegal'); });
+    need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid)) throw new RuleError('alvo', 'alvo ilegal'); });
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
     // S33 · adaptar: só põe marcadores se a criatura não tiver nenhum
     if (ab.adapt != null && !(o.counters.p1p1 > 0)) addCounters(s, o, ab.adapt);
@@ -6431,7 +6446,14 @@ function legalActions(s, p, { adjudication = false } = {}) {
     abilitiesOf(s, o).filter(x => x.kind === 'activated' && (x.cost || {}).fromHand).forEach((ab, index) => {
       const need = (ab.effects || []).filter(SC.isTargeted);
       if (!need.length) return out.push({ t: 'activate', p, oid, index, fromHand: true });
-      legalTargets(s, p, need[0].target, oid).slice(0, TARGET_LIMIT).forEach(x => out.push({ t: 'activate', p, oid, index, fromHand: true, targets: [x] }));
+      // S45 · a habilidade da mão pode pedir mais de um alvo, e o último pode ficar de fora
+      let combos = [[]];
+      for (const eff of need) {
+        const opts = legalTargets(s, p, eff.target, oid).slice(0, TARGET_LIMIT);
+        if (!opts.length) { if (eff.upTo) continue; return; }
+        combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
+      }
+      combos.forEach(targets => out.push({ t: 'activate', p, oid, index, fromHand: true, targets }));
     });
   }
   // M9 · habilidades ativadas das suas permanentes
@@ -6455,8 +6477,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
       let combos = [[]];
       for (const eff of need) {
         const opts = legalTargets(s, p, eff.target, o.oid).slice(0, TARGET_LIMIT);
-        if (!opts.length) return;
-        combos = addTarget(combos, opts);
+        if (!opts.length) { if (eff.upTo) continue; return; } // S45 · "até N alvos"
+        combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
       }
       // S43 · proteção pede a cor junto do alvo
       const cores = (ab.effects || []).some(e => e.do === 'protection') ? ['W', 'U', 'B', 'R', 'G'] : [null];
@@ -6836,7 +6858,20 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       if (dummy >= 0) { events.push(...record(s.status === 'mulligan' ? { t: 'keep', p: dummy, bottom: [] } : { t: 'pass', p: dummy })); continue; }
       // goldfish não bloqueia nem ataca
       if (s.pending && s.players[s.pending.p] && s.players[s.pending.p].dummy) {
-        events.push(...record(s.pending.kind === 'blockers' ? { t: 'block', p: s.pending.p, blocks: [] } : s.pending.kind === 'attackers' ? { t: 'attack', p: s.pending.p, attackers: [] } : { t: 'concede', p: s.pending.p }));
+        // A13 · o goldfish resolve o que o motor pedir a ele. Antes ele desistia da partida.
+        const pd = s.pending;
+        const naMao = (s.zones[pd.p] || {}).hand || [];
+        const livre = pd.kind === 'pick' ? (pd.from || []).find(x => !(pd.picked || []).includes(x)) : null;
+        const acao = pd.kind === 'blockers' ? { t: 'block', p: pd.p, blocks: [] }
+          : pd.kind === 'attackers' ? { t: 'attack', p: pd.p, attackers: [] }
+          : pd.kind === 'discard' && naMao.length ? { t: 'discard', p: pd.p, oid: naMao[0] }
+          : pd.kind === 'pick' ? ((pd.picked || []).length >= (pd.min || 0) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
+          : pd.kind === 'may_pay' ? { t: 'decline', p: pd.p }
+          : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: 'W' }
+          : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
+          : pd.kind === 'pick_target' ? { t: 'pick_target', p: pd.p, index: 0 }
+          : { t: 'concede', p: pd.p };
+        events.push(...record(acao));
         continue;
       }
       if (options.autoPass && s.status === 'playing' && !s.pending && !shouldStop(s, s.turn.priority)) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }

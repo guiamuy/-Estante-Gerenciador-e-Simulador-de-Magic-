@@ -9,6 +9,7 @@ export const CARDS = {
   'Delver of Secrets': c('Delver of Secrets', 'Creature — Human Wizard', { cmc: 1, power: '1', toughness: '1' }),
   'Spellstutter Sprite': c('Spellstutter Sprite', 'Creature — Faerie Wizard', { cmc: 2, power: '1', toughness: '1', keywords: ['Flash', 'Flying'] }),
   'Sol Ring': c('Sol Ring', 'Artifact', { cmc: 1 }),
+  'Relic of Progenitus': c('Relic of Progenitus', 'Artifact', { cmc: 1, oracle_text: '{T}: Target player exiles a card from their graveyard.' }),
   'Malcolm, Alluring Scoundrel': c('Malcolm, Alluring Scoundrel', 'Legendary Creature — Siren Pirate', { cmc: 2, power: '2', toughness: '1', keywords: ['Flash', 'Flying'] })
 };
 export const PAUPER_DECK = [

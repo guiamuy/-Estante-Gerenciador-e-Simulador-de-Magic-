@@ -1981,7 +1981,7 @@ test('S37 · exilar todos os cemitérios de uma vez, e comprar uma carta', () =>
   assert.equal(s.zones[a].hand.length, mao + 1, 'comprou uma carta');
 });
 
-test('S37 · o descarte escolhido pula criaturas e terrenos', () => {
+test('S37/S45 · o descarte escolhido abre a escolha, e criatura e terreno ficam fora dela', () => {
   let s = bgGame(4); const a = s.turn.active, d = 1 - a;
   s = esvaziaMao(s, d);
   let bear, forest, alvo, press;
@@ -1990,7 +1990,11 @@ test('S37 · o descarte escolhido pula criaturas e terrenos', () => {
   [s, alvo] = put(s, d, 'Press', { zone: 'hand' });
   [s, press] = put(s, a, 'Press', { zone: 'hand' });
   s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: press, targets: [{ player: d }] })));
-  assert.equal(s.objects[alvo].zone, 'graveyard', 'descartou a carta que não é criatura nem terreno');
+  // S45 mudou a regra: quem escolhe é o conjurador, não o motor
+  assert.ok(s.pending && s.pending.kind === 'pick' && s.pending.p === a, 'a escolha é de quem conjurou');
+  assert.deepEqual(JSON.parse(JSON.stringify(s.pending.from)), [alvo], 'só a carta que não é criatura nem terreno entra na escolha');
+  s = act(s, { t: 'pick', p: a, oid: alvo });
+  assert.equal(s.objects[alvo].zone, 'graveyard', 'descartou a carta escolhida');
   assert.equal(s.objects[bear].zone, 'hand', 'a criatura ficou na mão');
   assert.equal(s.objects[forest].zone, 'hand', 'o terreno ficou na mão');
 });
@@ -2722,3 +2726,87 @@ test('S44 · lampejo do passado: a mágica do cemitério dá o bônus e é exila
   assert.equal(E.stats(s, s.objects[urso]).power, 4, 'a criatura ganhou +2/+0');
   assert.equal(s.objects[rally].zone, 'exile', 'a mágica foi exilada, não voltou para o cemitério');
 });
+
+/* ---------------- S45 · você escolhe: descarte do oponente, carta do cemitério e o goldfish decidindo ---------------- */
+const ES_CARDS = {
+  'Swamp': { name: 'Swamp', type_line: 'Basic Land — Swamp', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {B}.' },
+  'Duress': { name: 'Duress', type_line: 'Sorcery', mana_cost: '{B}', cmc: 1, colors: ['B'], keywords: [], oracle_text: 'Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.' },
+  'Macabre': { name: 'Macabre', type_line: 'Creature — Faerie Rogue', mana_cost: '{1}{B}{B}', cmc: 3, colors: ['B'], power: '2', toughness: '2', keywords: ['Flying'], oracle_text: 'Flying\nDiscard this card: Exile up to two target cards from graveyards.' },
+  'Relic': { name: 'Relic', type_line: 'Artifact', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '{T}: Target player exiles a card from their graveyard.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Bolt': { name: 'Bolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' },
+  'Charm': { name: 'Charm', type_line: 'Enchantment', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '' }
+};
+const ES_SCRIPTS = {
+  Duress: { name: 'Duress', effects: [{ do: 'discard_chosen', amount: 1, target: 'opponent' }],
+    example: { target: 'opponent', expect: { opponentLife: 0 } } },
+  Macabre: { name: 'Macabre', abilities: [{ kind: 'activated', cost: { discardSelf: true, fromHand: true },
+    effects: [{ do: 'exile', target: 'card-in-any-graveyard' }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true }] }],
+    example: { action: 'activate:0', target: 'own-graveyard-creature', expect: { targetExiled: true } } },
+  Relic: { name: 'Relic', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_chosen', amount: 1, target: 'player' }] }],
+    example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: false } } },
+  Bolt: { name: 'Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }
+};
+const ESDECK = [{ name: 'Swamp', qty: 16, zone: 'main' }, { name: 'Duress', qty: 8, zone: 'main' }, { name: 'Macabre', qty: 8, zone: 'main' },
+  { name: 'Relic', qty: 8, zone: 'main' }, { name: 'Bear', qty: 10, zone: 'main' }, { name: 'Bolt', qty: 8, zone: 'main' },
+  { name: 'Charm', qty: 6, zone: 'main' }];
+function esGame(seed = 1, opts = {}) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: ES_CARDS, scripts: ES_SCRIPTS,
+    players: [{ name: 'A', deck: ESDECK }, { name: 'B', deck: ESDECK, ...(opts.goldfish ? { dummy: true } : {}) }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S45 · você escolhe o descarte do oponente, e criatura e terreno não entram na escolha', () => {
+  let s = esGame(3); const a = s.turn.active, d = 1 - a;
+  s = esvaziaMao(s, d);
+  let urso, pantano, raio, encanto, duress;
+  [s, urso] = put(s, d, 'Bear', { zone: 'hand' });
+  [s, pantano] = put(s, d, 'Swamp', { zone: 'hand' });
+  [s, raio] = put(s, d, 'Bolt', { zone: 'hand' });
+  [s, encanto] = put(s, d, 'Charm', { zone: 'hand' });
+  [s, duress] = put(s, a, 'Duress', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: duress, targets: [{ player: d }] })));
+  assert.ok(s.pending && s.pending.kind === 'pick', 'abriu a escolha');
+  assert.equal(s.pending.p, a, 'quem escolhe é quem conjurou, não o oponente');
+  const oferecidas = JSON.parse(JSON.stringify(s.pending.from.map(x => s.objects[x].name))).sort();
+  assert.deepEqual(oferecidas, ['Bolt', 'Charm'], 'criatura e terreno ficam fora da escolha');
+  // escolho o encantamento, não a primeira carta da lista
+  s = act(s, { t: 'pick', p: a, oid: encanto });
+  assert.equal(s.objects[encanto].zone, 'graveyard', 'o oponente descartou o que eu escolhi');
+  assert.equal(s.objects[raio].zone, 'hand', 'e a outra ficou na mão dele');
+  assert.equal(s.objects[urso].zone, 'hand');
+  assert.equal(s.objects[pantano].zone, 'hand');
+});
+
+test('S45 · exilar até duas cartas de qualquer cemitério, escolhendo uma só se quiser', () => {
+  let s = esGame(4); const a = s.turn.active, d = 1 - a;
+  let minha, dele, mac;
+  [s, minha] = put(s, a, 'Bear', { zone: 'graveyard' });
+  [s, dele] = put(s, d, 'Bolt', { zone: 'graveyard' });
+  [s, mac] = put(s, a, 'Macabre', { zone: 'hand' });
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === mac && x.fromHand);
+  assert.ok(ofertas.some(x => x.targets.length === 2), 'a mesa oferece duas cartas');
+  assert.ok(ofertas.some(x => x.targets.length === 1), 'e oferece uma só');
+  const duas = ofertas.find(x => x.targets.length === 2);
+  const feito = settle(resolveSpell(act(s, { ...duas, targets: [{ oid: minha }, { oid: dele }] })));
+  assert.equal(feito.objects[minha].zone, 'exile', 'exilou a do meu cemitério');
+  assert.equal(feito.objects[dele].zone, 'exile', 'e a do cemitério dele');
+  assert.equal(feito.objects[mac].zone, 'graveyard', 'a carta foi descartada como custo');
+});
+
+test('S45 · o jogador alvo escolhe o que exilar do próprio cemitério', () => {
+  let s = esGame(5); const a = s.turn.active, d = 1 - a;
+  s = limpaCemiterio(s, d);
+  let relic, uma, outra;
+  [s, relic] = put(s, a, 'Relic');
+  [s, uma] = put(s, d, 'Bear', { zone: 'graveyard' });
+  [s, outra] = put(s, d, 'Bolt', { zone: 'graveyard' });
+  s = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: relic, index: 0, targets: [{ player: d }] })));
+  assert.ok(s.pending && s.pending.kind === 'pick', 'abriu a escolha');
+  assert.equal(s.pending.p, d, 'quem escolhe é o jogador alvo, não quem ativou');
+  s = act(s, { t: 'pick', p: d, oid: outra });
+  assert.equal(s.objects[outra].zone, 'exile', 'exilou a carta que ele escolheu');
+  assert.equal(s.objects[uma].zone, 'graveyard', 'a outra ficou no cemitério');
+});
+

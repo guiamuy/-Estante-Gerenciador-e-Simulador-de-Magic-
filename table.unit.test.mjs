@@ -134,3 +134,22 @@ test('fuzz · 150 partidas goldfish com ações humanas aleatórias e paradas au
     }
   }
 });
+
+test('A13 · escolha que cai no goldfish: ele escolhe, em vez de desistir da partida', () => {
+  // goldfish com grimório, para ter cemitério: é o único jeito de a escolha cair nele
+  const comRelic = [...PAUPER_DECK.filter(e => e.zone === 'main'), { name: 'Relic of Progenitus', qty: 2, zone: 'main' }];
+  const t = T.createTable({ format: 'pauper', seed: 7, mode: 'assisted', cards: CARDS,
+    players: [{ name: 'Você', deck: comRelic }, { name: 'Goldfish', deck: comRelic, dummy: true }] });
+  t.act({ t: 'keep', p: 0, bottom: [] });
+  toMain(t);
+  // uma carta no cemitério do goldfish e o artefato no meu campo
+  const dele = t.state.zones[1].library[0];
+  t.act({ t: 'move', p: 0, oid: dele, to: 'graveyard' });
+  const relic = t.state.zones[0].library.find(o => t.state.objects[o].name === 'Relic of Progenitus');
+  t.act({ t: 'move', p: 0, oid: relic, to: 'battlefield' });
+  t.act({ t: 'activate', p: 0, oid: relic, index: 0, targets: [{ player: 1 }] });
+  while (t.state.stack.length && !t.state.pending) t.act({ t: 'pass', p: t.state.turn.priority });
+  assert.equal(t.state.players[1].lost, false, 'o goldfish não desistiu por causa da escolha');
+  assert.equal(t.state.objects[dele].zone, 'exile', 'ele escolheu uma carta e ela foi exilada');
+  assert.equal(t.state.pending, null, 'e a escolha não ficou pendurada');
+});

@@ -391,6 +391,7 @@ function runExample(sc) {
     if (check === 'picked') assert.ok(pickOpened, msg + ': o cenário precisa abrir uma escolha de cartas');
     if (check === 'milled') assert.equal(s.zones[d].graveyard.length - 1, value, msg);
     if (check === 'exiled') assert.equal(s.objects[oid].zone === 'exile', value, msg);
+    if (check === 'targetExiled') assert.equal(!!(target && target.oid && s.objects[target.oid].zone === 'exile'), value, msg);
     if (check === 'attacked') assert.equal(s.objects[oid].attacking != null, value, msg);
     if (check === 'returned') assert.equal(s.objects[buriedMine].zone === 'hand', value, msg);
     if (check === 'reanimated') assert.equal(s.objects[buriedMine].zone === 'battlefield', value, msg);
