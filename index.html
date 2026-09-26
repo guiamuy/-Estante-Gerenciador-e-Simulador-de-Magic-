@@ -2019,10 +2019,10 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
-  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land'] },
+  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls'] },
-  bounce: { fields: [], targets: ['creature', 'permanent', 'permanent-you-control'] },
-  counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell'] },
+  bounce: { fields: [], targets: ['creature', 'permanent', 'permanent-you-control', 'artifact'] },
+  counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self'] },
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
@@ -2066,15 +2066,15 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
-  'spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
-  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls']);
+  'spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
+  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
 const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
-const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw'];
+const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
@@ -2092,7 +2092,8 @@ const STATIC_RULES = ['flagbearer'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'other-sacrificed': 'quando você sacrifica outra permanente',
-  'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
+  'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
+  'enchanted-tapped-or-damaged': 'quando a criatura encantada vira ou recebe dano', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
   main2: 'na sua fase principal pós-combate', 'end-of-combat': 'no fim do combate' };
 
 /** Valida um script. Devolve [] quando está correto. */
@@ -2363,6 +2364,14 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S35 · varredura das Pauper (textos conferidos em 26/09)
+  { name: 'Cryoshatter', aura: { enchant: 'creature' }, grants: { power: -5, toughness: 0 },
+    abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'destroy', target: 'enchanted-creature' }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [-3, 2] } } },
+  { name: 'Steel Sabotage', modes: [
+    { label: 'Anular uma mágica de artefato', effects: [{ do: 'counter', target: 'artifact-spell' }] },
+    { label: 'Devolver um artefato para a mão', effects: [{ do: 'bounce', target: 'artifact' }] }],
+    example: { action: 'mode:1', target: 'enemy-permanent', expect: { bounced: true } } },
   // S34 · tempestade, conceder e metamorfo (textos conferidos em 26/09)
   { name: 'Weather the Storm', storm: true, effects: [{ do: 'gain', amount: 3 }],
     example: { target: 'none', expect: { selfLife: 3 } } },
@@ -3800,7 +3809,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 27;
+const ENGINE_VERSION = 28;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4182,6 +4191,7 @@ function planTaps(s, p, cost, extra) {
 }
 function tapForMana(s, oid, option) {
   const o = s.objects[oid]; const opt = productions(s, o)[option];
+  if (!o.tapped) noteEnchantedEvent(s, o);
   if (!opt) throw new RuleError('mana', 'essa fonte não produz essa mana');
   o.tapped = true; opt.forEach(c => { s.players[o.controller].pool[c]++; });
 }
@@ -4387,7 +4397,7 @@ function dealCombatDamage(s) {
     for (const [src, obj, player, amt] of hits) {
       if (colorPrevented(s, src)) continue; // S30 · dano da cor prevenida não acontece
       if (obj && (prevented(s, obj) || protectedFrom(s, obj, src))) continue; // S11b · prevenção e proteção
-      if (obj) { obj.damage += amt; if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+      if (obj) { obj.damage += amt; noteEnchantedEvent(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
         s.players[player].life -= amt;
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
@@ -4479,9 +4489,13 @@ function legalTargets(s, p, kind, selfOid, color) {
       out.push({ oid });
     }
   }
+  if (kind === 'enchanted-creature' && srcObj) { // S35 · a criatura que esta aura encanta
+    const host = srcObj.ability ? s.objects[s.objects[srcObj.source] ? s.objects[srcObj.source].attachedTo : null] : s.objects[srcObj.attachedTo];
+    if (host && host.zone === 'battlefield') out.push({ oid: host.oid });
+  }
   if (kind === 'any' || kind === 'player') players.forEach(i => out.push({ player: i }));
   if (kind === 'opponent') players.filter(i => i !== p).forEach(i => out.push({ player: i }));
-  if (['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell'].includes(kind)) {
+  if (['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'].includes(kind)) {
     for (const oid of s.stack) {
       if (oid === selfOid || isAbility(s.objects[oid])) continue; // habilidade na pilha não é mágica
       const f = s.facts[s.objects[oid].name];
@@ -4490,6 +4504,7 @@ function legalTargets(s, p, kind, selfOid, color) {
       if (kind === 'noncreature-spell' && creature) continue;
       if (kind === 'instant-spell' && !f.types.includes('instant')) continue;
       if (kind === 'artifact-enchantment-spell' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
+      if (kind === 'artifact-spell' && !f.types.includes('artifact')) continue;
       out.push({ oid });
     }
   }
@@ -4542,7 +4557,7 @@ function applyEffect(s, src, eff, tgt, events) {
       { const n = amountOf(s, src, eff.amount);
         if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protectedFrom(s, obj, src)))) { note({ amount: n, prevented: true }); break; }
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); note({ amount: n }); break; }
-        if (obj) { obj.damage += n; if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+        if (obj) { obj.damage += n; noteEnchantedEvent(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
         else s.players[playerOf()].life -= n;
         note({ amount: n }); } break;
     case 'destroy':
@@ -4665,7 +4680,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (alvo) { alvo.tempKeywords = [...(alvo.tempKeywords || []), String(eff.keyword).toLowerCase()]; note({ name: alvo.name }); }
       break;
     }
-    case 'tap': obj.tapped = true; note({}); break;
+    case 'tap': if (!obj.tapped) { obj.tapped = true; noteEnchantedEvent(s, obj); } note({}); break;
     case 'untap': obj.tapped = false; note({}); break;
     default: break;
   }
@@ -4715,6 +4730,16 @@ function resumeEffects(s, events) {
     applyEffect(s, src, eff, null, events);
     stateBased(s, events);
     if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1) }; return; }
+  }
+}
+
+/** S35 · avisa as auras que observam a criatura encantada virar ou levar dano. */
+function noteEnchantedEvent(s, host) {
+  for (const x of attachedTo(s, host)) {
+    for (const ab of abilitiesOf(s, x)) {
+      if (ab.kind !== 'triggered' || ab.when !== 'enchanted-tapped-or-damaged') continue;
+      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when });
+    }
   }
 }
 
@@ -5422,7 +5447,7 @@ const HANDLERS = {
   concede(s, a) { const pl = s.players[a.p]; if (!pl.lost) { pl.life = Math.min(pl.life, 0); pl.lossReason = 'desistência'; } },
 
   /* ---- adjudicação (mesa assistida) ---- */
-  tap(s, a) { assisted(s); holder(s, a.p); const o = onField(s, a.oid); o.tapped = !o.tapped; },
+  tap(s, a) { assisted(s); holder(s, a.p); const o = onField(s, a.oid); o.tapped = !o.tapped; if (o.tapped) noteEnchantedEvent(s, o); },
   move(s, a) {
     assisted(s); holder(s, a.p);
     const o = s.objects[a.oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');

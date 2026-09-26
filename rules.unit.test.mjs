@@ -1796,3 +1796,75 @@ test('S34 · metamorfo conta como qualquer subtipo de criatura', () => {
   s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: shifter })));
   assert.equal(s.players[a].life, vida + 1, 'o metamorfo entrou como Elfo e disparou o gatilho');
 });
+
+/* ---------------- S35 · gatilho da criatura encantada e alvos de artefato ---------------- */
+const CS_CARDS = {
+  'Island': COMBAT_CARDS['Island'],
+  'Frost': { name: 'Frost', type_line: 'Enchantment — Aura', mana_cost: '{U}', cmc: 1, keywords: [], oracle_text: 'Enchanted creature gets -5/-0. When it becomes tapped or is dealt damage, destroy it.' },
+  'Ogre': { name: 'Ogre', type_line: 'Creature — Ogre', mana_cost: '{3}{R}', cmc: 4, power: '4', toughness: '4', keywords: [], oracle_text: '' },
+  'Rock': { name: 'Rock', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '' },
+  'Sabotage': { name: 'Sabotage', type_line: 'Instant', mana_cost: '{U}', cmc: 1, keywords: [], oracle_text: 'Counter target artifact spell, or return target artifact to its owner hand.' },
+  'Bolt': { name: 'Bolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage.' }
+};
+const CS_SCRIPTS = {
+  Frost: { name: 'Frost', aura: { enchant: 'creature' }, grants: { power: -5, toughness: 0 },
+    abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'destroy', target: 'enchanted-creature' }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [-3, 2] } } },
+  Sabotage: { name: 'Sabotage', modes: [
+    { label: 'Anular mágica de artefato', effects: [{ do: 'counter', target: 'artifact-spell' }] },
+    { label: 'Devolver artefato', effects: [{ do: 'bounce', target: 'artifact' }] }],
+    example: { action: 'mode:1', target: 'enemy-permanent', expect: { bounced: true } } },
+  Bolt: { name: 'Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }
+};
+const CSDECK = [{ name: 'Island', qty: 24, zone: 'main' }, { name: 'Frost', qty: 6, zone: 'main' }, { name: 'Ogre', qty: 8, zone: 'main' },
+  { name: 'Rock', qty: 8, zone: 'main' }, { name: 'Sabotage', qty: 6, zone: 'main' }, { name: 'Bolt', qty: 8, zone: 'main' }];
+function csGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: CS_CARDS, scripts: CS_SCRIPTS,
+    players: [{ name: 'A', deck: CSDECK }, { name: 'B', deck: CSDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S35 · a aura destrói a criatura quando ela vira', () => {
+  let s = csGame(3); const a = s.turn.active, d = 1 - a;
+  let ogre, frost;
+  [s, ogre] = put(s, d, 'Ogre');
+  [s, frost] = put(s, a, 'Frost', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: frost, targets: [{ oid: ogre }] }));
+  assert.equal(s.objects[frost].attachedTo, ogre);
+  const st = E.stats(s, s.objects[ogre]);
+  assert.deepEqual([st.power, st.toughness], [-1, 4], 'o Ogro 4/4 virou -1/4');
+  s = JSON.parse(JSON.stringify(s)); s.turn.priority = a;
+  s = settle(act(s, { t: 'tap', p: a, oid: ogre }));
+  assert.equal(s.objects[ogre].zone, 'graveyard', 'virou, então foi destruída');
+});
+
+test('S35 · a aura destrói a criatura quando ela recebe dano', () => {
+  let s = csGame(4); const a = s.turn.active, d = 1 - a;
+  let ogre, frost, bolt;
+  [s, ogre] = put(s, d, 'Ogre');
+  [s, frost] = put(s, a, 'Frost', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: frost, targets: [{ oid: ogre }] }));
+  [s, bolt] = put(s, a, 'Bolt', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: bolt, targets: [{ oid: ogre }] })));
+  assert.equal(s.objects[ogre].zone, 'graveyard');
+});
+
+test('S35 · alvos de artefato: anular a mágica e devolver a permanente', () => {
+  let s = csGame(5); const a = s.turn.active, d = 1 - a;
+  let rock, sab;
+  [s, rock] = put(s, d, 'Rock');
+  [s, sab] = put(s, a, 'Sabotage', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: sab, mode: 1, targets: [{ oid: rock }] }));
+  assert.equal(s.objects[rock].zone, 'hand', 'o artefato voltou para a mão');
+
+  let s2 = csGame(6); const a2 = s2.turn.active, d2 = 1 - a2;
+  let rock2, sab2;
+  [s2, rock2] = put(s2, d2, 'Rock', { zone: 'hand' });
+  s2 = JSON.parse(JSON.stringify(s2));
+  s2.zones[d2].hand = s2.zones[d2].hand.filter(x => x !== rock2); s2.stack.push(rock2);
+  Object.assign(s2.objects[rock2], { zone: 'stack', controller: d2 });
+  [s2, sab2] = put(s2, a2, 'Sabotage', { zone: 'hand' });
+  s2 = resolveSpell(act(s2, { t: 'cast', p: a2, oid: sab2, mode: 0, targets: [{ oid: rock2 }] }));
+  assert.equal(s2.objects[rock2].zone, 'graveyard', 'a mágica de artefato foi anulada');
+});

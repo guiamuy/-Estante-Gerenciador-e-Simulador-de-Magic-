@@ -72,7 +72,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S31 cancelar prevenção, alvos distintos e contagem multiplicada | ✅ |
 | S · Scripts | S32 devoção, sacrifício e exílio do cemitério como custo | ✅ |
 | S · Scripts | S33 afinidade, adaptar, marcadores e terceira compra | ✅ |
-| S · Scripts | S34 tempestade, conceder e metamorfo | 🟡 |
+| S · Scripts | S34 tempestade, conceder e metamorfo | ✅ |
+| S · Scripts | S35 varredura das Pauper: gatilho da encantada e alvos de artefato | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -241,8 +242,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E32 ✅ | S31 (leva 22) | Boros Bully fechado: cancelar prevenção, dois alvos, modais |
 | E33 ✅ | S32 (leva 23) | Elves e Jund: devoção, sacrifício e exílio como custo |
 | E33b ✅ | S33 (leva 24) | Afinidade, adaptar, gatilho de marcadores e terceira compra |
-| E33c 🟡 | S34 (leva 25) | Tempestade, conceder e metamorfo |
-| E33d ▶ | S35 | Varredura das listas Pauper e o que sobrar delas |
+| E33c ✅ | S34 (leva 25) | Tempestade, conceder e metamorfo |
+| E33d 🟡 | S35 (leva 26) | Varredura das Pauper: medição e gatilho da criatura encantada |
+| E33e ▶ | S36 | Fechar as manuais restantes das Pauper |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -747,6 +749,20 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S35 · Varredura das Pauper: gatilho da criatura encantada e alvos de artefato** 🟡
+- **Ferramenta nova:** `.listas/medir.mjs` mede a cobertura de cada lista salva, com as cartas manuais
+  e parciais nomeadas. É o que guia a escolha da próxima leva.
+- **Fonte:** textos conferidos em 26/09/2026.
+- **Aceite:**
+  - gatilho "quando a criatura encantada vira ou recebe dano", disparando por virar de qualquer origem
+    (efeito, mana, adjudicação) e por dano de mágica ou de combate;
+  - alvo "a criatura que esta aura encanta";
+  - anular mágica de artefato e devolver artefato ao dono.
+- **Entregue:** Cryoshatter e Steel Sabotage.
+- **Medição em 26/09:** Faeries 84%, Elves 80%, Rakdos 77%, Walls 77%, Bogles 75%, Boros 73%, Jund 71%.
+- **Testes:** U (destruir ao virar, destruir ao receber dano, anular e devolver artefato), S8.
+- **Não lida:** Mask of Law and Grace — a fonte recusou por excesso de consultas.
 
 **S34 · Tempestade, conceder e metamorfo** 🟡
 - **Fonte:** textos conferidos em 26/09/2026.
