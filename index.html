@@ -2038,6 +2038,8 @@ const EFFECTS = {
   fog: { fields: [], targets: ['self'] },
   // S30 · prevenir todo dano de fontes de uma cor escolhida, até o fim do turno
   prevent_color: { fields: [], targets: ['self'] },
+  // S36 · previne todo o dano que uma mágica da pilha causaria, e ganha essa vida
+  prevent_spell: { fields: [], targets: ['spell'] },
   // S31 · cancela toda prevenção de dano no turno (Flaring Pain)
   no_prevention: { fields: [], targets: ['self'] },
   gain_per_revealed: { fields: ['times'], targets: ['self'] },
@@ -2191,7 +2193,8 @@ function validateScript(sc) {
     for (const opt of g.produces || []) if (!Array.isArray(opt) && !(opt && (opt.symbol || opt.anyColor) && PER_COUNTS.includes(opt.per))) errs.push('bônus: opção de mana inválida');
     if ((g.perPower != null || g.perToughness != null) && !PER_COUNTS.includes(g.per)) errs.push(`bônus: contagem "${g.per}" desconhecida`);
     for (const k of g.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`bônus: palavra-chave "${k}" não é resolvida pelo motor`);
-    if (g.protection && g.protection !== 'chosen' && !'WUBRG'.includes(g.protection)) errs.push('bônus: proteção precisa ser "chosen" ou uma cor WUBRG');
+    for (const cor of [].concat(g.protection || []))
+      if (cor !== 'chosen' && !'WUBRG'.includes(cor)) errs.push('bônus: proteção precisa ser "chosen" ou cores WUBRG');
     if (g.produces && !Array.isArray(g.produces)) errs.push('bônus: produces precisa ser lista de opções de mana');
     if (g.extraMana && !(g.extraMana === 'chosen' || Array.isArray(g.extraMana))) errs.push('bônus: extraMana precisa ser "chosen" ou lista de cores');
   }
@@ -2364,6 +2367,12 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S36 · Pauper, continuação (textos conferidos em 26/09)
+  { name: 'Mask of Law and Grace', aura: { enchant: 'creature' }, grants: { protection: ['B', 'R'] },
+    example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
+  { name: 'Hallow', effects: [{ do: 'prevent_spell', target: 'spell' }],
+    covers: 'partial', note: 'a vida ganha é o dano previsto da mágica, não o dano efetivamente prevenido',
+    example: { target: 'enemy-instant', expect: { preventedColor: false } } },
   // S35 · varredura das Pauper (textos conferidos em 26/09)
   { name: 'Cryoshatter', aura: { enchant: 'creature' }, grants: { power: -5, toughness: 0 },
     abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'destroy', target: 'enchanted-creature' }] }],
@@ -3809,7 +3818,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 28;
+const ENGINE_VERSION = 29;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4156,13 +4165,14 @@ function productions(s, o) {
 /** Proteção concedida por auras: lista de cores. */
 const protections = (s, o) => attachedTo(s, o).flatMap(x => {
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
-  return g.protection === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [g.protection];
+  return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
 });
 const prevented = (s, o) => !s.noPrevention && attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent);
 const colorsOf = (s, src) => (src && s.facts[src.name] ? s.facts[src.name].colors || [] : []);
 const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
 /** S30 · escudo do turno: nenhum dano de fonte das cores escolhidas passa. */
-const colorPrevented = (s, src) => !s.noPrevention && (s.preventedColors || []).some(c => colorsOf(s, src).includes(c));
+const colorPrevented = (s, src) => !s.noPrevention && (
+  (src && src.damagePrevented) || (s.preventedColors || []).some(c => colorsOf(s, src).includes(c)));
 const evasionOf = (s, o) => ((s.facts[o.name].script || {}).self || {}).evasion;
 
 function sources(s, p) {
@@ -4648,6 +4658,16 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
     case 'no_prevention': s.noPrevention = true; note({}); break; // S31 · 615.7: prevenção não se aplica no turno
+    case 'prevent_spell': { // S36 · a mágica alvo não causa dano neste turno, e você ganha essa vida
+      if (obj) {
+        obj.damagePrevented = true;
+        const dano = ((s.facts[obj.name].script || {}).effects || []).filter(e => e.do === 'damage')
+          .reduce((n, e) => n + amountOf(s, obj, e.amount), 0);
+        if (dano > 0) { s.players[ctrl].life += dano; s.players[ctrl].lifeGained = (s.players[ctrl].lifeGained || 0) + dano; }
+        note({ amount: dano });
+      }
+      break;
+    }
     case 'prevent_color': { // S30 · escolhe uma cor e previne o dano dela no turno
       const fonte = src.ability ? (s.objects[src.source] || src) : src;
       const cor = fonte.chosenColor || src.chosenColor;

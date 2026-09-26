@@ -56,7 +56,10 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   "Nylea's Disciple": 'Creature — Centaur Archer', 'Gixian Infiltrator': 'Creature — Phyrexian Human',
   'Makeshift Munitions': 'Enchantment', 'Refurbished Familiar': 'Artifact Creature — Rat' };
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
-const instantish = sc => (sc.modes || []).length > 0 || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do)) || /spell/.test(sc.example.target || '');
+// quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
+const instantish = sc => (sc.modes || []).length > 0
+  || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do) || /spell/.test(e.target || ''))
+  || /spell|instant/.test(sc.example.target || '');
 for (const sc of S.RAW_SCRIPTS) {
   CARDS[sc.name] = card(sc.name, PERM_TYPES[sc.name] || (instantish(sc) ? 'Instant' : 'Sorcery'),
     PERM_TYPES[sc.name] && /Creature/.test(PERM_TYPES[sc.name]) ? { pt: [1, 1] } : {});

@@ -1868,3 +1868,62 @@ test('S35 · alvos de artefato: anular a mágica e devolver a permanente', () =>
   s2 = resolveSpell(act(s2, { t: 'cast', p: a2, oid: sab2, mode: 0, targets: [{ oid: rock2 }] }));
   assert.equal(s2.objects[rock2].zone, 'graveyard', 'a mágica de artefato foi anulada');
 });
+
+/* ---------------- S36 · proteção de várias cores e prevenir o dano de uma mágica ---------------- */
+const MK_CARDS = {
+  'Plains': DFC_CARDS['Plains'],
+  'Mask': { name: 'Mask', type_line: 'Enchantment — Aura', mana_cost: '{W}', cmc: 1, colors: ['W'], keywords: [], oracle_text: 'Enchanted creature has protection from black and from red.' },
+  'Hallow': { name: 'Hallow', type_line: 'Instant', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], keywords: [], oracle_text: 'Prevent all damage target spell would deal this turn.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'RedBolt': BB_CARDS['RedBolt'],
+  'BlackBolt': { name: 'BlackBolt', type_line: 'Instant', mana_cost: '{B}', cmc: 1, colors: ['B'], keywords: [], oracle_text: 'Deals 3 damage to any target.' },
+  'BlueBolt': { name: 'BlueBolt', type_line: 'Instant', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: [], oracle_text: 'Deals 3 damage to any target.' }
+};
+const MK_SCRIPTS = {
+  Mask: { name: 'Mask', aura: { enchant: 'creature' }, grants: { protection: ['B', 'R'] }, example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
+  Hallow: { name: 'Hallow', effects: [{ do: 'prevent_spell', target: 'spell' }], example: { target: 'enemy-instant', expect: { preventedColor: false } } },
+  RedBolt: BB_SCRIPTS['RedBolt'],
+  BlackBolt: { name: 'BlackBolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  BlueBolt: { name: 'BlueBolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }
+};
+const MKDECK = [{ name: 'Plains', qty: 18, zone: 'main' }, { name: 'Mask', qty: 6, zone: 'main' }, { name: 'Hallow', qty: 6, zone: 'main' },
+  { name: 'Bear', qty: 8, zone: 'main' }, { name: 'RedBolt', qty: 8, zone: 'main' }, { name: 'BlackBolt', qty: 8, zone: 'main' }, { name: 'BlueBolt', qty: 8, zone: 'main' }];
+function mkGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: MK_CARDS, scripts: MK_SCRIPTS,
+    players: [{ name: 'A', deck: MKDECK }, { name: 'B', deck: MKDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S36 · proteção de duas cores barra as duas, e deixa a terceira passar', () => {
+  let s = mkGame(3); const a = s.turn.active, d = 1 - a;
+  let bear, mask;
+  [s, bear] = put(s, a, 'Bear');
+  [s, mask] = put(s, a, 'Mask', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: mask, targets: [{ oid: bear }] }));
+  assert.deepEqual(JSON.parse(JSON.stringify(E.protections(s, s.objects[bear]))).sort(), ['B', 'R']);
+  // preta e vermelha não podem nem mirar
+  for (const nome of ['RedBolt', 'BlackBolt']) {
+    let bolt; [s, bolt] = put(s, a, nome, { zone: 'hand' });
+    assert.equal(E.legalTargets(s, a, 'any', bolt).some(x => x.oid === bear), false, `${nome} não pode mirar`);
+  }
+  // azul passa e mata
+  let azul; [s, azul] = put(s, a, 'BlueBolt', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: azul, targets: [{ oid: bear }] })));
+  assert.equal(s.objects[bear].zone, 'graveyard');
+});
+
+test('S36 · prevenir o dano de uma mágica da pilha, ganhando essa vida', () => {
+  let s = mkGame(4); const a = s.turn.active, d = 1 - a;
+  let bolt, hallow;
+  [s, bolt] = put(s, d, 'RedBolt', { zone: 'hand' });
+  s = JSON.parse(JSON.stringify(s));
+  s.zones[d].hand = s.zones[d].hand.filter(x => x !== bolt); s.stack.push(bolt);
+  Object.assign(s.objects[bolt], { zone: 'stack', controller: d, targets: [{ player: a }] });
+  [s, hallow] = put(s, a, 'Hallow', { zone: 'hand' });
+  const vida = s.players[a].life;
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: hallow, targets: [{ oid: bolt }] }));
+  assert.equal(s.players[a].life, vida + 3, 'ganhou vida igual ao dano previsto');
+  s = resolveSpell(s); // agora o raio resolve
+  assert.equal(s.players[a].life, vida + 3, 'o dano do raio não passou');
+});

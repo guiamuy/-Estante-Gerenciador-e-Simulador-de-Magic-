@@ -73,7 +73,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S32 devoção, sacrifício e exílio do cemitério como custo | ✅ |
 | S · Scripts | S33 afinidade, adaptar, marcadores e terceira compra | ✅ |
 | S · Scripts | S34 tempestade, conceder e metamorfo | ✅ |
-| S · Scripts | S35 varredura das Pauper: gatilho da encantada e alvos de artefato | 🟡 |
+| S · Scripts | S35 varredura das Pauper: gatilho da encantada e alvos de artefato | ✅ |
+| S · Scripts | S36 proteção de várias cores e prevenção do dano de uma mágica | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -243,8 +244,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33 ✅ | S32 (leva 23) | Elves e Jund: devoção, sacrifício e exílio como custo |
 | E33b ✅ | S33 (leva 24) | Afinidade, adaptar, gatilho de marcadores e terceira compra |
 | E33c ✅ | S34 (leva 25) | Tempestade, conceder e metamorfo |
-| E33d 🟡 | S35 (leva 26) | Varredura das Pauper: medição e gatilho da criatura encantada |
-| E33e ▶ | S36 | Fechar as manuais restantes das Pauper |
+| E33d ✅ | S35 (leva 26) | Varredura das Pauper: medição e gatilho da criatura encantada |
+| E33e 🟡 | S36 (leva 27) | Proteção de várias cores e prevenção do dano de uma mágica |
+| E33f ▶ | S37 | Seguir nas manuais das Pauper |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -749,6 +751,17 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S36 · Proteção de várias cores e prevenção do dano de uma mágica** 🟡
+- **Fonte:** textos conferidos em 26/09/2026.
+- **Aceite:**
+  - uma aura pode conceder proteção contra mais de uma cor de uma vez, e cada cor barra alvo,
+    dano e bloqueio daquela cor;
+  - prevenir todo o dano que uma mágica da pilha causaria no turno, ganhando essa vida.
+- **Entregue:** Mask of Law and Grace e Hallow (parcial: a vida ganha é o dano previsto da mágica,
+  não o dano efetivamente prevenido).
+- **Testes:** U (duas cores barrando e a terceira passando, prevenção da mágica com ganho de vida), S8.
+- **Não lida:** Troublemaker Ouphe — a fonte recusou por excesso de consultas.
 
 **S35 · Varredura das Pauper: gatilho da criatura encantada e alvos de artefato** 🟡
 - **Ferramenta nova:** `.listas/medir.mjs` mede a cobertura de cada lista salva, com as cartas manuais
