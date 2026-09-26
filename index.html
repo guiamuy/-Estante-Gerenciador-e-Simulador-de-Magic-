@@ -2053,6 +2053,8 @@ const EFFECTS = {
   add_mana: { fields: [], targets: ['self'] },
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
   discard: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller'] },
+  // S40 · conluio: compra, descarta e ganha marcador se o descarte não foi terreno
+  connive: { fields: ['amount'], targets: ['self'] },
   // S13/S14 · zonas ocultas: vasculhar, olhar o topo, scry, surveil, moer e devolver ao topo
   search: { fields: ['amount'], targets: ['self'] },
   look: { fields: ['amount', 'count'], targets: ['self'] },
@@ -2064,7 +2066,7 @@ const EFFECTS = {
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker'];
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['discard', 'search', 'look', 'scry', 'surveil', 'put_back'];
+const CHOICE_EFFECTS = ['discard', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S20 · custos adicionais de ativação e de conjuração. */
@@ -2074,7 +2076,7 @@ const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
-const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
@@ -2083,7 +2085,7 @@ const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies',
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
-  'creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
+  'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
@@ -2408,6 +2410,12 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
       effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S40 · manuais de Boros Bully (textos conferidos em 26/09)
+  { name: "Raffine's Informant", abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'connive', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { handDelta: 1, discarded: 1 } } },
+  { name: 'Leonardo, Big Brother', self: { perPower: 1, per: 'other-creatures-you-control' },
+    covers: 'partial', note: 'esgueirar-se (conjurar por {W} devolvendo um atacante sem bloqueio, entrando virada e atacando) não entra; o +1/+0 por outra criatura sua funciona',
+    example: { target: 'none', expect: { selfStats: [3, 1] } } },
   // S39 · o combo das Walls: habilidade ativada concedida por aura e por vínculo de alma (textos conferidos em 26/09)
   { name: 'Freed from the Real', aura: { enchant: 'creature' },
     grants: { activated: [
@@ -3882,7 +3890,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 32;
+const ENGINE_VERSION = 33;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4014,6 +4022,7 @@ function countFor(s, src, per) {
   const perms = battlefield(s);
   const isElf = o => /\bElf\b/i.test(s.facts[o.name].typeText || '');
   if (per === 'creatures-you-control') return perms.filter(o => o.controller === src.controller && isCreature(s, o)).length;
+  if (per === 'other-creatures-you-control') return perms.filter(o => o.controller === src.controller && o.oid !== src.oid && isCreature(s, o)).length;
   if (per === 'permanents-you-control') return perms.filter(o => o.controller === src.controller).length;
   if (per === 'elves-you-control') return perms.filter(o => o.controller === src.controller && isElf(o)).length;
   if (per === 'elves-on-battlefield') return perms.filter(isElf).length;
@@ -4707,6 +4716,15 @@ function applyEffect(s, src, eff, tgt, events) {
       const who = playerOf();
       const n = Math.min(eff.amount, s.zones[who].hand.length);
       if (n > 0) s.pending = { kind: 'discard', p: who, n, reason: 'effect' };
+      note({ amount: n }); break;
+    }
+    case 'connive': { // S40 · conluio: compra uma, descarta uma, e marcador se não foi terreno
+      const who = ctrl;
+      const fonte = src.ability ? src.source : src.oid;
+      const n = amountOf(s, src, eff.amount);
+      draw(s, who, n);
+      const podeDescartar = Math.min(n, s.zones[who].hand.length);
+      if (podeDescartar > 0) s.pending = { kind: 'discard', p: who, n: podeDescartar, reason: 'effect', connive: fonte };
       note({ amount: n }); break;
     }
     case 'search': {
@@ -5578,6 +5596,12 @@ const HANDLERS = {
   discard(s, a) {
     const o = owns(s, a.p, a.oid, 'hand');
     const madness = madnessOf(s, o);
+    // S40 · conluio: descartar carta que não é terreno põe um marcador na fonte
+    const conluio = s.pending && s.pending.kind === 'discard' && s.pending.p === a.p ? s.pending.connive : null;
+    if (conluio && !s.facts[o.name].types.includes('land')) {
+      const fonte = s.objects[conluio];
+      if (fonte && fonte.zone === 'battlefield') fonte.counters.p1p1 = (fonte.counters.p1p1 || 0) + 1;
+    }
     let after = null; // o que fazer depois: terminar a limpeza ou continuar descartando
     if (s.pending && s.pending.kind === 'discard' && s.pending.p === a.p) {
       s.pending.n--;

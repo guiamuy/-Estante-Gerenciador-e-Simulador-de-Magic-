@@ -58,7 +58,8 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   'Cryoshatter': 'Enchantment — Aura', 'Mask of Law and Grace': 'Enchantment — Aura',
   'Journey to Nowhere': 'Enchantment', 'Troublemaker Ouphe': 'Creature — Ouphe',
   'Faerie Macabre': 'Creature — Faerie Rogue', 'Relic of Progenitus': 'Artifact',
-  'Freed from the Real': 'Enchantment — Aura', 'Galvanic Alchemist': 'Creature — Human Wizard' };
+  'Freed from the Real': 'Enchantment — Aura', 'Galvanic Alchemist': 'Creature — Human Wizard',
+  "Raffine's Informant": 'Creature — Human Wizard', 'Leonardo, Big Brother': 'Legendary Creature — Mutant Ninja Turtle' };
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0
@@ -375,6 +376,7 @@ function runExample(sc) {
     if (check === 'damaged') assert.ok(o.damage > 0 || (o.pump && o.pump.t < 0), msg);
     if (check === 'graveyardEmpty') assert.equal(s.zones[d].graveyard.length === 0, value, msg);
     if (check === 'stats') { const st = E.stats(s, s.objects[mine]); assert.deepEqual([st.power, st.toughness], [...value], msg); }
+    if (check === 'selfStats') { const st = E.stats(s, s.objects[oid]); assert.deepEqual([st.power, st.toughness], [...value], msg); }
     if (check === 'keyword') assert.equal(E.hasKeyword(s, s.objects[mine], value) || E.hasKeyword(s, s.objects[oid], value), true, msg);
     if (check === 'attached') assert.equal(!!s.objects[oid].attachedTo, value, msg);
     if (check === 'mana') assert.notEqual(manaPower(), baseMana, msg + ': o terreno precisa produzir mais ou outra coisa');

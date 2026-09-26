@@ -78,6 +78,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S37 exilar cemitérios, descarte escolhido, habilidade da mão e barganha | 🟡 |
 | S · Scripts | S38 alvo por cor, varredura que poupa subtipo e "até dois alvos" | 🟡 |
 | S · Scripts | S39 habilidade ativada concedida por aura e por vínculo de alma | 🟡 |
+| S · Scripts | S40 conluio e força por outras criaturas suas | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -252,7 +253,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33f 🟡 | S37 (leva 28) | Exilar cemitérios, descarte escolhido, habilidade da mão e barganha |
 | E33g 🟡 | S38 (leva 29) | Alvo por cor, varredura que poupa subtipo e "até dois alvos" |
 | E33h 🟡 | S39 (leva 30) | Habilidade ativada concedida por aura e por vínculo de alma |
-| E33i ▶ | S40 | Fechar as manuais das Pauper (4 cartas únicas restantes) |
+| E33i 🟡 | S40 (leva 31) | Conluio e força por outras criaturas suas |
+| E33j ▶ | S41 | Fechar as manuais das Pauper (2 cartas únicas restantes, ambas nas Elves) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -757,6 +759,26 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S40 · Conluio e força por outras criaturas suas** 🟡
+- **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026 (as duas cartas
+  conferidas nas duas fontes; a primeira fonte trazia só o custo de esgueirar-se do Leonardo,
+  a segunda deu o custo de mana real).
+- **Aceite:**
+  - conluio: a criatura entra, você compra uma carta e escolhe uma para descartar; se a descartada
+    não for terreno, ela ganha um marcador +1/+1;
+  - uma criatura pode ganhar força por cada **outra** criatura sua, sem se contar e sem contar as do oponente.
+- **Entregue:** Raffine's Informant (completa) e Leonardo, Big Brother (parcial).
+- **Parciais e o que falta:**
+  - **Leonardo, Big Brother** — esgueirar-se (conjurar por {W} devolvendo um atacante sem bloqueio
+    no passo de declarar bloqueadores, entrando virada e atacando) não entra. Conjurado normalmente,
+    o +1/+0 por outra criatura sua funciona.
+- **Testes:** U (conluio dando marcador com carta que não é terreno, conluio sem marcador com terreno,
+  força contando só as outras criaturas suas e reagindo a perdas), S8 com a verificação nova
+  `selfStats` (olha a própria carta, não a criatura vizinha).
+- **Fora:** esgueirar-se; conjurar uma permanente diretamente para o combate.
+- **Resultado:** Boros Bully ficou sem carta manual. **Seis das sete listas Pauper não têm mais
+  nenhuma carta manual.** Faltam 2 cartas únicas, as duas nas Elves.
 
 **S39 · Habilidade ativada concedida por aura e por vínculo de alma** 🟡
 - **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026 (as duas cartas

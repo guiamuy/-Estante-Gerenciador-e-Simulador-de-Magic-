@@ -2227,3 +2227,73 @@ test('S39 · quem já tem par não é roubado por uma criatura que entra depois'
   assert.equal(s.objects[urso2].paired, undefined, 'a criatura nova não tem vínculo para oferecer');
   assert.equal(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === urso2), false, 'e não ganha habilidade nenhuma');
 });
+
+/* ---------------- S40 · conluio e força por outras criaturas suas ---------------- */
+const CN_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Informant': { name: 'Informant', type_line: 'Creature — Human Wizard', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '2', toughness: '1', keywords: [], oracle_text: 'When this creature enters, it connives.' },
+  'Turtle': { name: 'Turtle', type_line: 'Legendary Creature — Mutant Ninja Turtle', mana_cost: '{2}{W}', cmc: 3, colors: ['W'], power: '1', toughness: '3', keywords: [], oracle_text: 'Turtle gets +1/+0 for each other creature you control.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Bolt': { name: 'Bolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' }
+};
+const CN_SCRIPTS = {
+  Informant: { name: 'Informant', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'connive', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { handDelta: 1, discarded: 1 } } },
+  Turtle: { name: 'Turtle', self: { perPower: 1, per: 'other-creatures-you-control' },
+    example: { target: 'none', expect: { selfStats: [1, 3] } } },
+  Bolt: { name: 'Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }
+};
+const CNDECK = [{ name: 'Forest', qty: 18, zone: 'main' }, { name: 'Informant', qty: 8, zone: 'main' }, { name: 'Turtle', qty: 8, zone: 'main' },
+  { name: 'Bear', qty: 8, zone: 'main' }, { name: 'Bolt', qty: 8, zone: 'main' }];
+function cnGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: CN_CARDS, scripts: CN_SCRIPTS,
+    players: [{ name: 'A', deck: CNDECK }, { name: 'B', deck: CNDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+test('S40 · conluio: compra uma, descarta uma, e a carta que não é terreno dá marcador', () => {
+  let s = cnGame(3); const a = s.turn.active;
+  let inf, mao;
+  [s, inf] = put(s, a, 'Informant', { zone: 'hand' });
+  // a mão fica só com o Informant e um Urso: o conluio vai comprar e a escolha será entre poucas cartas
+  s = esvaziaMao(s, a);
+  s = JSON.parse(JSON.stringify(s)); s.zones[a].hand.push(inf); s.objects[inf].zone = 'hand';
+  let urso; [s, urso] = put(s, a, 'Bear', { zone: 'hand' });
+  const antes = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: inf })));
+  assert.ok(s.pending && s.pending.kind === 'discard' && s.pending.p === a, 'o conluio abriu a escolha de descarte');
+  assert.equal(s.zones[a].hand.length, antes, 'já comprou: um saiu da mão (a própria carta) e um entrou');
+  s = act(s, { t: 'discard', p: a, oid: urso });
+  assert.equal(s.objects[urso].zone, 'graveyard', 'descartou o Urso');
+  assert.equal(s.objects[inf].counters.p1p1, 1, 'descartar carta que não é terreno deu o marcador');
+});
+
+test('S40 · conluio: descartar terreno não dá marcador', () => {
+  let s = cnGame(4); const a = s.turn.active;
+  let inf, mata;
+  [s, inf] = put(s, a, 'Informant', { zone: 'hand' });
+  s = esvaziaMao(s, a);
+  s = JSON.parse(JSON.stringify(s)); s.zones[a].hand.push(inf); s.objects[inf].zone = 'hand';
+  [s, mata] = put(s, a, 'Forest', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: inf })));
+  s = act(s, { t: 'discard', p: a, oid: mata });
+  assert.equal(s.objects[mata].zone, 'graveyard');
+  assert.equal((s.objects[inf].counters || {}).p1p1, undefined, 'terreno não dá marcador');
+});
+
+test('S40 · força por outras criaturas suas: conta só as suas, e não conta ela mesma', () => {
+  let s = cnGame(5); const a = s.turn.active, d = 1 - a;
+  let tartaruga, meu1, meu2, dele;
+  [s, tartaruga] = put(s, a, 'Turtle');
+  assert.deepEqual([E.stats(s, s.objects[tartaruga]).power, E.stats(s, s.objects[tartaruga]).toughness], [1, 3], 'sozinha, é 1/3');
+  [s, meu1] = put(s, a, 'Bear');
+  [s, meu2] = put(s, a, 'Bear');
+  [s, dele] = put(s, d, 'Bear');
+  assert.equal(E.stats(s, s.objects[tartaruga]).power, 3, 'duas outras criaturas suas: 3 de força');
+  assert.equal(E.stats(s, s.objects[tartaruga]).toughness, 3, 'a resistência não muda');
+  // a criatura do oponente não conta
+  const semDele = act(s, { t: 'move', p: a, oid: dele, to: 'graveyard' });
+  assert.equal(E.stats(semDele, semDele.objects[tartaruga]).power, 3, 'tirar a criatura do oponente não muda nada');
+  const semUm = act(s, { t: 'move', p: a, oid: meu1, to: 'graveyard' });
+  assert.equal(E.stats(semUm, semUm.objects[tartaruga]).power, 2, 'perdeu uma das suas: volta a 2');
+});
