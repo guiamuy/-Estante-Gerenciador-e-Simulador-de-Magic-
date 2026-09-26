@@ -1645,3 +1645,65 @@ test('S32 · gatilho com custo de exilar do cemitério: sem carta, ele não acon
   assert.equal(s2.objects[morta].zone, 'exile', 'a criatura do cemitério foi exilada como custo');
   assert.equal(s2.objects[rock2].zone, 'exile', 'o artefato do oponente foi exilado');
 });
+
+/* ---------------- S33 · afinidade, adaptar, marcadores e terceira compra ---------------- */
+const AF_CARDS = {
+  'Island': COMBAT_CARDS['Island'],
+  'Familiar': { name: 'Familiar', type_line: 'Artifact Creature — Rat', mana_cost: '{4}', cmc: 4, power: '2', toughness: '1', keywords: ['Flying'], oracle_text: 'Affinity for artifacts' },
+  'Rock': { name: 'Rock', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '' },
+  'Witness': { name: 'Witness', type_line: 'Creature — Elf Shaman Mutant', mana_cost: '{1}{G}', cmc: 2, power: '2', toughness: '1', keywords: [], oracle_text: 'Adapt 2.' },
+  'Snacker': { name: 'Snacker', type_line: 'Creature — Faerie Rogue', mana_cost: '{1}{B}', cmc: 2, power: '2', toughness: '1', keywords: ['Flying'], oracle_text: 'When you draw your third card in a turn, return from graveyard tapped.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const AF_SCRIPTS = {
+  Familiar: { name: 'Familiar', affinity: 'artifact', example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Witness: { name: 'Witness', abilities: [
+    { kind: 'activated', cost: { mana: '{1}{G}' }, adapt: 2, effects: [] },
+    { kind: 'triggered', when: 'counters-added', effects: [{ do: 'to_hand', target: 'permanent-in-your-graveyard' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { counters: 2 } } },
+  Snacker: { name: 'Snacker', abilities: [{ kind: 'triggered', when: 'third-draw', fromGraveyard: true, effects: [{ do: 'reanimate_tapped', target: 'self-source' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }
+};
+const AFDECK = [{ name: 'Island', qty: 24, zone: 'main' }, { name: 'Familiar', qty: 6, zone: 'main' }, { name: 'Rock', qty: 10, zone: 'main' },
+  { name: 'Witness', qty: 6, zone: 'main' }, { name: 'Snacker', qty: 6, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }];
+function afGame(seed = 1, manaCheck = true) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: AF_CARDS, scripts: AF_SCRIPTS,
+    players: [{ name: 'A', deck: AFDECK }, { name: 'B', deck: AFDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S33 · afinidade desconta um genérico por artefato seu', () => {
+  let s = afGame(3); const a = s.turn.active;
+  let fam; [s, fam] = put(s, a, 'Familiar', { zone: 'hand' });
+  for (let i = 0; i < 2; i++) { let l; [s, l] = put(s, a, 'Island'); }
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === fam), false, 'dois terrenos não pagam {4}');
+  let r1, r2; [s, r1] = put(s, a, 'Rock'); [s, r2] = put(s, a, 'Rock');
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === fam), 'dois artefatos descontam dois genéricos');
+});
+
+test('S33 · adaptar só age sem marcadores, e pôr marcadores dispara o gatilho', () => {
+  let s = afGame(4, false); const a = s.turn.active;
+  let witness, morta;
+  [s, witness] = put(s, a, 'Witness');
+  [s, morta] = put(s, a, 'Rock', { zone: 'graveyard' });
+  s = act(s, { t: 'activate', p: a, oid: witness, index: 0 });
+  assert.equal(s.objects[witness].counters.p1p1, 2, 'adaptou 2');
+  s = settle(s);
+  assert.equal(s.objects[morta].zone, 'hand', 'o gatilho de marcadores devolveu a permanente do cemitério');
+
+  const antes = s.objects[witness].counters.p1p1;
+  s = settle(act(s, { t: 'activate', p: a, oid: witness, index: 0 }));
+  assert.equal(s.objects[witness].counters.p1p1, antes, 'com marcadores, adaptar não faz nada');
+});
+
+test('S33 · terceira compra do turno traz a criatura do cemitério, virada', () => {
+  let s = afGame(5, false); const a = s.turn.active;
+  let snacker; [s, snacker] = put(s, a, 'Snacker', { zone: 'graveyard' });
+  s = JSON.parse(JSON.stringify(s)); s.players[a].drawnThisTurn = 0;
+  s = act(s, { t: 'draw', p: a, n: 2 });
+  assert.equal(s.objects[snacker].zone, 'graveyard', 'duas compras não bastam');
+  s = settle(act(s, { t: 'draw', p: a, n: 1 }));
+  assert.equal(s.objects[snacker].zone, 'battlefield', 'na terceira, ela volta');
+  assert.equal(s.objects[snacker].tapped, true, 'volta virada');
+});

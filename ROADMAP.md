@@ -70,7 +70,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S29 Walls: devolver terreno, transmutar e Fog | ✅ |
 | S · Scripts | S30 Boros: prevenção por cor, Flagbearer e custo de revelar | ✅ |
 | S · Scripts | S31 cancelar prevenção, alvos distintos e contagem multiplicada | ✅ |
-| S · Scripts | S32 devoção, sacrifício e exílio do cemitério como custo | 🟡 |
+| S · Scripts | S32 devoção, sacrifício e exílio do cemitério como custo | ✅ |
+| S · Scripts | S33 afinidade, adaptar, marcadores e terceira compra | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -237,8 +238,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E30 ✅ | S29 (leva 20) | Walls Combo: custo de devolver terreno, transmutar e Fog |
 | E31 ✅ | S30 (leva 21) | Boros Bully: prevenção por cor, Flagbearer e revelar |
 | E32 ✅ | S31 (leva 22) | Boros Bully fechado: cancelar prevenção, dois alvos, modais |
-| E33 🟡 | S32 (leva 23) | Elves e Jund: devoção, sacrifício e exílio como custo |
-| E33b ▶ | S32b | Fechar Elves e Jund: tempestade, afinidade, adaptar, metamorfo |
+| E33 ✅ | S32 (leva 23) | Elves e Jund: devoção, sacrifício e exílio como custo |
+| E33b 🟡 | S33 (leva 24) | Afinidade, adaptar, gatilho de marcadores e terceira compra |
+| E33c ▶ | S34 | Tempestade, conceder (bestow) e metamorfo |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -743,6 +745,21 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S33 · Afinidade, adaptar, marcadores e terceira compra** 🟡
+- **Fonte:** textos conferidos em 26/09/2026.
+- **Aceite:**
+  - afinidade por artefatos: cada artefato seu reduz um genérico do custo, e a redução vale tanto
+    na oferta da mesa quanto no pagamento;
+  - adaptar: a habilidade só põe marcadores se a criatura não tiver nenhum;
+  - pôr marcadores +1/+1 dispara gatilhos que observam marcadores;
+  - contagem de compras por turno, com gatilho na terceira, e gatilho que funciona **do cemitério**;
+  - efeito de voltar do cemitério direto ao campo, virada.
+- **Entregue:** Evolution Witness, Sneaky Snacker, e o Refurbished Familiar deixou de ser parcial pela afinidade.
+- **Testes:** U (desconto por artefato, adaptar com e sem marcadores, terceira compra), S8.
+- **Depende de:** S20, S32.
+- **Correções:** a oferta da mesa não aplicava o desconto de custo que o pagamento já aplicava; e um
+  script que só declara uma regra estática (sem efeitos) era recusado pela validação.
 
 **S32 · Devoção, sacrifício e exílio do cemitério como custo** 🟡
 - **Fonte:** textos conferidos em 26/09/2026.
