@@ -18,7 +18,8 @@ const CARDS = {
   'Sem Script': card('Sem Script', 'Sorcery', { oracle_text: 'Faz algo que o motor não entende.' }),
   'Mystery Enchantment': card('Mystery Enchantment', 'Enchantment', { oracle_text: 'At the beginning of your upkeep, do something strange.' }),
   'Test Signet': card('Test Signet', 'Artifact', { oracle_text: '{T}: Add {C}.' }),
-  'Test Forest': card('Test Forest', 'Basic Land — Forest', { oracle_text: '' })
+  'Test Forest': card('Test Forest', 'Basic Land — Forest', { oracle_text: '' }),
+  'Test Ward': card('Test Ward', 'Enchantment', { oracle_text: '' })
 };
 // tipo de cada carta da biblioteca: mágica instantânea quando o efeito pede resposta; permanentes pelo mapa abaixo
 const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal Sorcerer': 'Creature — Human Wizard', 'Cunning Sparkmage': 'Creature — Human Shaman',
@@ -63,7 +64,7 @@ CARDS['Murder'].type_line = 'Instant'; CARDS['Doom Blade'].type_line = 'Instant'
 CARDS['Grizzly Bear'].colors = ['R', 'U']; CARDS['Test Signet'].colors = ['R', 'U'];
 CARDS['Grizzly Bear'].cmc = 2; // Spell Snare precisa de um alvo de valor 2
 
-const DECK = [{ name: 'Island', qty: 30, zone: 'main' }, { name: 'Grizzly Bear', qty: 6, zone: 'main' }, { name: 'Test Signet', qty: 2, zone: 'main' }, { name: 'Test Forest', qty: 4, zone: 'main' },
+const DECK = [{ name: 'Island', qty: 30, zone: 'main' }, { name: 'Grizzly Bear', qty: 6, zone: 'main' }, { name: 'Test Signet', qty: 2, zone: 'main' }, { name: 'Test Forest', qty: 4, zone: 'main' }, { name: 'Test Ward', qty: 2, zone: 'main' },
   { name: 'Hexproof Bear', qty: 2, zone: 'main' }, { name: 'Shroud Ox', qty: 2, zone: 'main' }, { name: 'Steel Wall', qty: 2, zone: 'main' },
   ...S.RAW_SCRIPTS.map(sc => ({ name: sc.name, qty: 2, zone: 'main' }))];
 const setup = (seed = 1) => ({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: CARDS, players: [{ name: 'A', deck: DECK }, { name: 'B', deck: DECK }] });
@@ -238,6 +239,7 @@ function runExample(sc) {
   let buriedMine; [s, buriedMine] = put(s, a, 'Grizzly Bear', 'graveyard'); // carta no seu cemitério, para efeitos de recursão
   let myArt; [s, myArt] = put(s, a, 'Test Signet'); // artefato seu, para custos de sacrifício
   let myForest; [s, myForest] = put(s, a, 'Test Forest'); // Floresta sua, para custos de devolver terreno
+  let enemyWard; [s, enemyWard] = put(s, d, 'Test Ward'); // encantamento do oponente, como alvo
   let mine2; [s, mine2] = put(s, a, 'Grizzly Bear'); // segunda criatura sua, para custos de virar outras
   const ex = sc.example, want = ex.expect;
   if (ex.target === 'enemy-spell' || ex.target === 'enemy-instant') {
@@ -258,9 +260,9 @@ function runExample(sc) {
   [s, oid] = put(s, a, sc.name, how.startsWith('activate') || how.startsWith('loyalty') || how === 'equip' ? 'battlefield' : 'hand');
   if (how.startsWith('loyalty')) { s = JSON.parse(JSON.stringify(s)); s.objects[oid].counters.loyalty = LOYALTY[sc.name] || 3; }
   const ownSweep = [...(sc.effects || []), ...(sc.abilities || []).flatMap(x => x.effects || [])].some(e => e.target === 'each-own-creature');
-  const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
+  const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'enemy-enchantment' ? enemyWard : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
   const target = { 'opponent': { player: d }, 'self-player': { player: a }, 'enemy-creature': { oid: theirs },
-    'own-creature': { oid: mine }, 'own-land': { oid: land }, 'own-graveyard-creature': { oid: buriedMine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'enemy-permanent': { oid: art } }[ex.target || 'none'];
+    'own-creature': { oid: mine }, 'own-land': { oid: land }, 'own-graveyard-creature': { oid: buriedMine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'enemy-permanent': { oid: art }, 'enemy-enchantment': { oid: enemyWard } }[ex.target || 'none'];
   const tokensOf = st2 => Object.values(st2.objects).filter(o => o.token && o.controller === a).length;
   const before = { life: s.players.map(p => p.life), hand: s.zones[a].hand.length, total: Object.values(s.objects).filter(o => !o.ability && !o.token).length, tokens: tokensOf(s) };
   // equipar é a última habilidade ativada do script
@@ -295,6 +297,12 @@ function runExample(sc) {
       : { t: 'cast', p: a, oid, ...(target ? { targets: [target] } : {}) };
   const oferta = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.index || 0) === (action.index || 0) && x.color);
   if (oferta) action.color = oferta.color;
+  // efeito com mais de um alvo: usa a combinação que a própria mesa oferece
+  const precisa = [...(sc.effects || []), ...((sc.modes || [])[action.mode || 0] || {}).effects || []].filter(e => S.isTargeted(e)).length;
+  if (precisa > 1) {
+    const multi = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.mode || 0) === (action.mode || 0) && (x.targets || []).length === precisa);
+    if (multi) action.targets = JSON.parse(JSON.stringify(multi.targets));
+  }
   assert.ok(E.legalActions(s, a).some(x => x.t === action.t && (x.oid === oid || action.t === 'cast_madness') && !!x.disturb === !!action.disturb && !!x.omen === !!action.omen && (x.index || 0) === (action.index || 0) && (x.mode || 0) === (action.mode || 0)
     && (x.alt == null ? -1 : x.alt) === (action.alt == null ? -1 : action.alt) && !!x.flashback === !!action.flashback
     && JSON.stringify(x.targets || null) === JSON.stringify(action.targets || null)),

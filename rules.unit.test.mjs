@@ -1493,3 +1493,75 @@ test('S30 · custo de revelar cartas brancas define a vida ganha', () => {
   assert.equal(s.objects[martyr].zone, 'graveyard', 'sacrificada no custo');
   assert.equal(s.zones[a].hand.length, 3, 'revelar não descarta');
 });
+
+/* ---------------- S31 · cancelar prevenção, alvos distintos e contagem multiplicada ---------------- */
+const FP_CARDS = {
+  'Plains': DFC_CARDS['Plains'],
+  'Pain': { name: 'Pain', type_line: 'Instant', mana_cost: '{1}{R}', colors: ['R'], keywords: [], oracle_text: "Damage can't be prevented this turn." },
+  'Shield': { name: 'Shield', type_line: 'Instant', mana_cost: '{2}{W}', colors: ['W'], keywords: [], oracle_text: 'Prevent damage from a chosen color.' },
+  'RedBolt': BB_CARDS['RedBolt'],
+  'Charm': { name: 'Charm', type_line: 'Instant', mana_cost: '{1}{W}', colors: ['W'], keywords: [], oracle_text: 'Damage equal to twice your creatures.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Rock': { name: 'Rock', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '' },
+  'Twin': { name: 'Twin', type_line: 'Sorcery', mana_cost: '{1}{W}{W}', colors: ['W'], keywords: [], oracle_text: 'Exile two target artifacts.' }
+};
+const FP_SCRIPTS = {
+  Pain: { name: 'Pain', effects: [{ do: 'no_prevention' }], example: { target: 'none', expect: { noPrevention: true } } },
+  Shield: { name: 'Shield', choose: 'color', effects: [{ do: 'prevent_color' }], example: { target: 'none', expect: { preventedColor: true } } },
+  RedBolt: BB_SCRIPTS['RedBolt'],
+  Charm: { name: 'Charm', effects: [{ do: 'damage', amount: { per: 'creatures-you-control', times: 2 }, target: 'creature' }],
+    example: { target: 'enemy-creature', expect: { damaged: true } } },
+  Twin: { name: 'Twin', effects: [{ do: 'exile', target: 'artifact' }, { do: 'exile', target: 'artifact' }],
+    example: { target: 'enemy-permanent', expect: { gone: true } } }
+};
+const FPDECK = [{ name: 'Plains', qty: 18, zone: 'main' }, { name: 'Pain', qty: 6, zone: 'main' }, { name: 'Shield', qty: 6, zone: 'main' },
+  { name: 'RedBolt', qty: 8, zone: 'main' }, { name: 'Charm', qty: 6, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' },
+  { name: 'Rock', qty: 8, zone: 'main' }, { name: 'Twin', qty: 6, zone: 'main' }];
+function fpGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: FP_CARDS, scripts: FP_SCRIPTS,
+    players: [{ name: 'A', deck: FPDECK }, { name: 'B', deck: FPDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S31 · cancelar a prevenção faz o dano da cor escudada voltar a passar', () => {
+  let s = fpGame(3); const a = s.turn.active, d = 1 - a;
+  let shield; [s, shield] = put(s, d, 'Shield', { zone: 'hand' });
+  s = act(s, { t: 'pass', p: a });
+  s = resolveSpell(act(s, { t: 'cast', p: d, oid: shield }));
+  s = act(s, { t: 'choose_color', p: d, color: 'R' });
+  assert.deepEqual(JSON.parse(JSON.stringify(s.preventedColors)), ['R']);
+
+  let bolt1; [s, bolt1] = put(s, a, 'RedBolt', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: bolt1, targets: [{ player: d }] }));
+  assert.equal(s.players[d].life, 20, 'com o escudo, o dano vermelho não passa');
+
+  let pain; [s, pain] = put(s, a, 'Pain', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: pain }));
+  assert.equal(s.noPrevention, true);
+  let bolt2; [s, bolt2] = put(s, a, 'RedBolt', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: bolt2, targets: [{ player: d }] }));
+  assert.equal(s.players[d].life, 17, 'com a prevenção cancelada, o dano passa');
+});
+
+test('S31 · mágica de dois alvos exige alvos diferentes', () => {
+  let s = fpGame(4); const a = s.turn.active, d = 1 - a;
+  let r1, r2, twin;
+  [s, r1] = put(s, d, 'Rock'); [s, r2] = put(s, d, 'Rock');
+  [s, twin] = put(s, a, 'Twin', { zone: 'hand' });
+  const opcoes = JSON.parse(JSON.stringify(E.legalActions(s, a))).filter(x => x.t === 'cast' && x.oid === twin);
+  assert.ok(opcoes.length > 0, 'a mesa oferece a conjuração');
+  assert.ok(opcoes.every(x => x.targets[0].oid !== x.targets[1].oid), 'nenhuma opção repete o mesmo alvo');
+  assert.throws(() => act(s, { t: 'cast', p: a, oid: twin, targets: [{ oid: r1 }, { oid: r1 }] }), /alvo/);
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: twin, targets: [{ oid: r1 }, { oid: r2 }] }));
+  assert.deepEqual([s.objects[r1].zone, s.objects[r2].zone], ['exile', 'exile']);
+});
+
+test('S31 · contagem multiplicada: dano igual ao dobro das suas criaturas', () => {
+  let s = fpGame(5); const a = s.turn.active, d = 1 - a;
+  let b1, b2, alvo, charm;
+  [s, b1] = put(s, a, 'Bear'); [s, b2] = put(s, a, 'Bear'); [s, alvo] = put(s, d, 'Bear');
+  [s, charm] = put(s, a, 'Charm', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: charm, targets: [{ oid: alvo }] }));
+  assert.equal(s.objects[alvo].zone, 'graveyard', 'duas criaturas suas viram 4 de dano num 2/2');
+});

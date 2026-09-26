@@ -2020,7 +2020,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment'] },
-  exile: { fields: [], targets: ['creature', 'permanent'] },
+  exile: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
   bounce: { fields: [], targets: ['creature', 'permanent', 'permanent-you-control'] },
   counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
@@ -2038,6 +2038,8 @@ const EFFECTS = {
   fog: { fields: [], targets: ['self'] },
   // S30 · prevenir todo dano de fontes de uma cor escolhida, até o fim do turno
   prevent_color: { fields: [], targets: ['self'] },
+  // S31 · cancela toda prevenção de dano no turno (Flaring Pain)
+  no_prevention: { fields: [], targets: ['self'] },
   gain_per_revealed: { fields: ['times'], targets: ['self'] },
   keyword: { fields: [], targets: ['self-source', 'creature'] },
   // S20 · cemitério
@@ -2066,8 +2068,8 @@ const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent
   'spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
-const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'none'];
-const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor'];
+const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor', 'noPrevention'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute'];
 
@@ -2313,7 +2315,7 @@ const RAW_SCRIPTS = [
   { name: 'Ethereal Armor', aura: { enchant: 'creature' }, grants: { perPower: 1, perToughness: 1, per: 'enchantments-you-control', keywords: ['first strike'] },
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3], keyword: 'first strike' } } },
   { name: 'Ancestral Mask', aura: { enchant: 'creature' }, grants: { perPower: 2, perToughness: 2, per: 'other-enchantments' },
-    example: { action: 'aura', target: 'own-creature', expect: { stats: [2, 2] } } },
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4] } } },
   { name: 'Sentinel\'s Eyes', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['vigilance'] },
     covers: 'partial', note: 'fuga (escape) ainda não entra',
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3], keyword: 'vigilance' } } },
@@ -2346,6 +2348,17 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S31 · Boros Bully, segunda leva (textos conferidos em 26/09)
+  { name: 'Flaring Pain', effects: [{ do: 'no_prevention' }], flashback: { mana: '{R}' },
+    example: { target: 'none', expect: { noPrevention: true } } },
+  { name: 'Dust to Dust', effects: [{ do: 'exile', target: 'artifact' }, { do: 'exile', target: 'artifact' }],
+    example: { target: 'enemy-permanent', expect: { gone: true } } },
+  { name: 'Thraben Charm', modes: [
+    { label: 'Dano igual ao dobro das suas criaturas', effects: [{ do: 'damage', amount: { per: 'creatures-you-control', times: 2 }, target: 'creature' }] },
+    { label: 'Destruir um encantamento', effects: [{ do: 'destroy', target: 'enchantment' }] },
+    { label: 'Exilar o cemitério de um jogador', effects: [{ do: 'exile_graveyard', target: 'player' }] }],
+    covers: 'partial', note: 'o terceiro modo atinge um jogador por vez, não vários',
+    example: { action: 'mode:1', target: 'enemy-enchantment', expect: { gone: true } } },
   // S30 · Boros Bully (textos conferidos em 26/09)
   { name: 'Prismatic Strands', choose: 'color', effects: [{ do: 'prevent_color' }],
     flashback: { tapOther: { types: ['creature'], color: 'W', amount: 1 } },
@@ -3739,10 +3752,15 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 23;
+const ENGINE_VERSION = 24;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
+/** 601.2c · dois alvos da mesma mágica não podem ser o mesmo objeto ou jogador. */
+const sameChoice = (a, b) => a.oid != null ? a.oid === b.oid : a.player === b.player;
+const addTarget = (combos, opts) => combos
+  .flatMap(c => opts.filter(x => !c.some(y => sameChoice(x, y))).map(x => c.concat([x])))
+  .slice(0, COMBO_LIMIT);
 
 const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'combat_begin', 'combat_attackers', 'combat_blockers',
   'combat_damage', 'combat_end', 'main2', 'end', 'cleanup'];
@@ -4063,11 +4081,11 @@ const protections = (s, o) => attachedTo(s, o).flatMap(x => {
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
   return g.protection === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [g.protection];
 });
-const prevented = (s, o) => attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent);
+const prevented = (s, o) => !s.noPrevention && attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent);
 const colorsOf = (s, src) => (src && s.facts[src.name] ? s.facts[src.name].colors || [] : []);
 const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
 /** S30 · escudo do turno: nenhum dano de fonte das cores escolhidas passa. */
-const colorPrevented = (s, src) => (s.preventedColors || []).some(c => colorsOf(s, src).includes(c));
+const colorPrevented = (s, src) => !s.noPrevention && (s.preventedColors || []).some(c => colorsOf(s, src).includes(c));
 const evasionOf = (s, o) => ((s.facts[o.name].script || {}).self || {}).evasion;
 
 function sources(s, p) {
@@ -4223,7 +4241,7 @@ function enterStep(s, step) {
 }
 function finishCleanup(s) {
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.usedThisTurn; }
-  delete s.fogged; delete s.preventedColors;
+  delete s.fogged; delete s.preventedColors; delete s.noPrevention;
   s.players.forEach(pl => { pl.lifeGained = 0; });
   for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
   s.pending = null;
@@ -4288,7 +4306,7 @@ function dealCombatDamage(s) {
       if (a && a.zone === 'battlefield' && amt > 0) hits.push([b, a, null, amt]);
     }
     // simultâneo: aplica tudo depois de calcular
-    if (s.fogged) { s.combat.damageDone = true; return; } // S29 · Fog
+    if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
     for (const [src, obj, player, amt] of hits) {
       if (colorPrevented(s, src)) continue; // S30 · dano da cor prevenida não acontece
       if (obj && (prevented(s, obj) || protectedFrom(s, obj, src))) continue; // S11b · prevenção e proteção
@@ -4426,8 +4444,10 @@ const targetStillLegal = (s, p, kind, tgt, selfOid, color, eff) => legalTargets(
 /* ---------------- S19 · valores dinâmicos ---------------- */
 /** Um valor de efeito pode ser um número ou uma contagem do campo. */
 function amountOf(s, src, v) {
-  if (v && typeof v === 'object' && v.subtype) return countFor(s, src.ability ? (s.objects[src.source] || src) : src, v);
-  if (v && typeof v === 'object' && v.per) return countFor(s, src.ability ? (s.objects[src.source] || src) : src, v.per);
+  if (v && typeof v === 'object' && (v.subtype || v.per)) {
+    const base = src.ability ? (s.objects[src.source] || src) : src;
+    return countFor(s, base, v.subtype ? v : v.per) * (v.times || 1);
+  }
   return v || 0;
 }
 
@@ -4528,6 +4548,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: syms.length }); break;
     }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
+    case 'no_prevention': s.noPrevention = true; note({}); break; // S31 · 615.7: prevenção não se aplica no turno
     case 'prevent_color': { // S30 · escolhe uma cor e previne o dano dela no turno
       const fonte = src.ability ? (s.objects[src.source] || src) : src;
       const cor = fonte.chosenColor || src.chosenColor;
@@ -4998,6 +5019,8 @@ const HANDLERS = {
     const need = auraTarget(f) ? [{ target: auraTarget(f) }] : spellEffects(s, { name: o.name, mode: a.mode }, a.mode).filter(SC.isTargeted);
     const chosen = a.targets || [];
     if (chosen.length !== need.length) throw new RuleError('alvo', `escolha ${need.length} alvo(s)`);
+    // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
+    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
@@ -5073,6 +5096,8 @@ const HANDLERS = {
     const need = (ab.effects || []).filter(SC.isTargeted);
     const chosen = a.targets || [];
     if (chosen.length !== need.length) throw new RuleError('alvo', `escolha ${need.length} alvo(s)`);
+    // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
+    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid)) throw new RuleError('alvo', 'alvo ilegal'); });
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
@@ -5197,6 +5222,8 @@ const HANDLERS = {
     const need = (s.facts[o.name].script.effects || []).filter(SC.isTargeted);
     const chosen = a.targets || [];
     if (chosen.length !== need.length) throw new RuleError('alvo', `escolha ${need.length} alvo(s)`);
+    // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
+    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
     s.pending = null;
     moveObject(s, oid, 'stack');
@@ -5335,7 +5362,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           for (const eff of need) {
             const opts = legalTargets(s, p, eff.target, s.pending.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)).slice(0, TARGET_LIMIT);
             if (!opts.length) { combos = []; break; }
-            combos = combos.flatMap(c => opts.map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+            combos = addTarget(combos, opts);
           }
           combos.forEach(targets => out.push({ t: 'cast_madness', p, targets }));
         }
@@ -5371,7 +5398,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     for (const eff of need) {
       const opts = legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)).slice(0, TARGET_LIMIT);
       if (!opts.length) return [];
-      combos = combos.flatMap(c => opts.map(t => c.concat([t]))).slice(0, COMBO_LIMIT);
+      combos = addTarget(combos, opts);
     }
     return combos.map(targets => ({ ...base, targets }));
   };
@@ -5479,7 +5506,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       for (const eff of need) {
         const opts = legalTargets(s, p, eff.target, o.oid).slice(0, TARGET_LIMIT);
         if (!opts.length) return;
-        combos = combos.flatMap(c => opts.map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+        combos = addTarget(combos, opts);
       }
       combos.forEach(targets => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(pay ? { pay } : {}) }));
     });
@@ -5728,6 +5755,7 @@ function effectLine(ev) {
     case 'token': return `${ev.name} criou ${n} ficha ${ev.name === t ? '' : ''}`.trim();
     case 'attach': return `${ev.name} foi anexada a ${t}`;
     case 'fog': return `${ev.name}: nenhum dano de combate neste turno`;
+    case 'no_prevention': return `${ev.name}: nenhum dano pode ser prevenido neste turno`;
     case 'prevent_color': return `${ev.name}: nenhum dano de fonte ${{ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' }[ev.target] || ev.target} neste turno`;
     case 'gain': return `${t} ganhou ${n} de vida com ${ev.name}`;
     case 'lose': return `${t} perdeu ${n} de vida com ${ev.name}`;

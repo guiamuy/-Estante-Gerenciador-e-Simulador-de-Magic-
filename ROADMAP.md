@@ -68,7 +68,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S27 fechamento das listas e medição por lista | ✅ |
 | S · Scripts | S28 Faeries: condição de nome, subtipo e alvo do oponente | ✅ |
 | S · Scripts | S29 Walls: devolver terreno, transmutar e Fog | ✅ |
-| S · Scripts | S30 Boros: prevenção por cor, Flagbearer e custo de revelar | 🟡 |
+| S · Scripts | S30 Boros: prevenção por cor, Flagbearer e custo de revelar | ✅ |
+| S · Scripts | S31 cancelar prevenção, alvos distintos e contagem multiplicada | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -233,10 +234,11 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E28 ✅ | S27 (leva 18) | Pedras de mana, fechamento de parciais e medição por lista |
 | E29 ✅ | S28 (leva 19) | Mono Blue Faeries: de 56% para 77% |
 | E30 ✅ | S29 (leva 20) | Walls Combo: custo de devolver terreno, transmutar e Fog |
-| E31 🟡 | S30 (leva 21) | Boros Bully: prevenção por cor, Flagbearer e revelar |
-| E32 | S31 | Elves e Jund: devoção, gatilho de sacrifício e afinidade |
-| E33 | S32 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
-| E34 | deploy | Subir o acumulado e testar no celular |
+| E31 ✅ | S30 (leva 21) | Boros Bully: prevenção por cor, Flagbearer e revelar |
+| E32 🟡 | S31 (leva 22) | Boros Bully fechado: cancelar prevenção, dois alvos, modais |
+| E33 ▶ | S32 | Elves e Jund: devoção, gatilho de sacrifício e afinidade |
+| E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
+| E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 
 ---
@@ -739,6 +741,21 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S31 · Cancelar prevenção, alvos distintos e contagem multiplicada** 🟡
+- **Fonte:** textos conferidos em 26/09/2026.
+- **Aceite:**
+  - efeito que cancela toda prevenção de dano no turno, valendo para Fog, prevenção por cor e
+    prevenção de aura (615.7);
+  - 601.2c: dois alvos da mesma mágica ou habilidade precisam ser diferentes — a mesa não oferece
+    a repetição e o motor recusa se ela for enviada;
+  - contagem com multiplicador ("o dobro do número de criaturas que você controla");
+  - exilar mira artefato.
+- **Entregue:** Flaring Pain, Dust to Dust e Thraben Charm (parcial: o terceiro modo atinge um jogador por vez).
+- **Correção de regra:** a mesa oferecia o mesmo alvo duas vezes numa mágica de dois alvos, e o motor aceitava.
+- **Testes:** U (prevenção cancelada, alvos distintos na oferta e na validação, dano multiplicado), S8.
+- **Depende de:** S30.
+- **Não lida:** Raffine's Informant — a fonte recusou por excesso de consultas. Fica para a próxima leva.
 
 **S30 · Prevenção por cor, Flagbearer e custo de revelar** 🟡
 - **Fonte:** textos conferidos em 26/09/2026 (mtg.wtf, base oficial de oracle).
