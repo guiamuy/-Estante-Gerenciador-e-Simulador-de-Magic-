@@ -1707,3 +1707,92 @@ test('S33 · terceira compra do turno traz a criatura do cemitério, virada', ()
   assert.equal(s.objects[snacker].zone, 'battlefield', 'na terceira, ela volta');
   assert.equal(s.objects[snacker].tapped, true, 'volta virada');
 });
+
+/* ---------------- S34 · tempestade, conceder e metamorfo ---------------- */
+const ST_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Storm': { name: 'Storm', type_line: 'Instant', mana_cost: '{1}{G}', cmc: 2, keywords: [], oracle_text: 'You gain 3 life. Storm.' },
+  'Cantrip': { name: 'Cantrip', type_line: 'Instant', mana_cost: '{U}', cmc: 1, keywords: [], oracle_text: 'Draw a card.' },
+  'Hydra': { name: 'Hydra', type_line: 'Creature Enchantment — Hydra', mana_cost: '{X}{G}', cmc: 1, power: '0', toughness: '0', keywords: [], oracle_text: 'Bestow. Reach, trample.' },
+  'Elf': { name: 'Elf', type_line: 'Creature — Elf Warrior', mana_cost: '{G}', cmc: 1, power: '1', toughness: '1', keywords: [], oracle_text: '' },
+  'Shifter': { name: 'Shifter', type_line: 'Creature — Shapeshifter', mana_cost: '{1}{G}', cmc: 2, power: '1', toughness: '3', keywords: [], oracle_text: 'Changeling' },
+  'Chief': { name: 'Chief', type_line: 'Creature — Elf Warrior', mana_cost: '{3}{G}', cmc: 4, power: '2', toughness: '2', keywords: [], oracle_text: 'Whenever another Elf enters, gain 1 life.' }
+};
+const ST_SCRIPTS = {
+  Storm: { name: 'Storm', storm: true, effects: [{ do: 'gain', amount: 3 }], example: { target: 'none', expect: { selfLife: 3 } } },
+  Cantrip: { name: 'Cantrip', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } },
+  Hydra: { name: 'Hydra', bestow: { mana: '{2}{G}' }, grants: { power: 1, toughness: 1, keywords: ['reach', 'trample'] }, self: { entersWithCounters: 1 },
+    example: { action: 'bestow', target: 'own-creature', expect: { attached: true } } },
+  Shifter: { name: 'Shifter', changeling: true, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Chief: { name: 'Chief', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'], subtype: 'Elf' }, effects: [{ do: 'gain', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }
+};
+const STDECK = [{ name: 'Forest', qty: 18, zone: 'main' }, { name: 'Storm', qty: 6, zone: 'main' }, { name: 'Cantrip', qty: 8, zone: 'main' },
+  { name: 'Hydra', qty: 6, zone: 'main' }, { name: 'Elf', qty: 8, zone: 'main' }, { name: 'Shifter', qty: 6, zone: 'main' }, { name: 'Chief', qty: 6, zone: 'main' }];
+function stGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: ST_CARDS, scripts: ST_SCRIPTS,
+    players: [{ name: 'A', deck: STDECK }, { name: 'B', deck: STDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S34 · tempestade copia a mágica uma vez por mágica conjurada antes no turno', () => {
+  let s = stGame(3); const a = s.turn.active;
+  let c1, c2, storm;
+  [s, c1] = put(s, a, 'Cantrip', { zone: 'hand' }); [s, c2] = put(s, a, 'Cantrip', { zone: 'hand' });
+  [s, storm] = put(s, a, 'Storm', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: c1 }));
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: c2 }));
+  const vida = s.players[a].life;
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: storm }));
+  assert.equal(s.players[a].life, vida + 9, 'duas cópias mais a original: 3 vezes 3 de vida');
+});
+
+test('S34 · a contagem de tempestade zera a cada turno', () => {
+  let s = stGame(4); const a = s.turn.active;
+  let c1; [s, c1] = put(s, a, 'Cantrip', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: c1 }));
+  assert.equal(s.spellsThisTurn, 1);
+  let t = s; for (let i = 0; i < 40 && t.turn.number === s.turn.number; i++) {
+    t = t.pending && t.pending.kind === 'discard' ? act(t, { t: 'discard', p: t.pending.p, oid: t.zones[t.pending.p].hand[0] })
+      : t.pending && t.pending.kind === 'attackers' ? act(t, { t: 'attack', p: t.pending.p, attackers: [] })
+        : t.pending && t.pending.kind === 'blockers' ? act(t, { t: 'block', p: t.pending.p, blocks: [] })
+          : act(t, { t: 'pass', p: t.turn.priority });
+  }
+  assert.equal(t.spellsThisTurn, 0, 'novo turno, contagem zerada');
+});
+
+test('S34 · conceder: entra como aura e dá bônus, em vez de entrar como criatura', () => {
+  let s = stGame(5); const a = s.turn.active;
+  let elf, hydra;
+  [s, elf] = put(s, a, 'Elf');
+  [s, hydra] = put(s, a, 'Hydra', { zone: 'hand' });
+  const opcao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === hydra && x.bestow);
+  assert.ok(opcao, 'a mesa oferece conceder');
+  s = resolveSpell(act(s, { ...opcao, targets: [{ oid: elf }] }));
+  assert.equal(s.objects[hydra].attachedTo, elf, 'entrou anexada');
+  const st = E.stats(s, s.objects[elf]);
+  assert.deepEqual([st.power, st.toughness], [2, 2], 'o Elfo 1/1 virou 2/2');
+  assert.equal(E.hasKeyword(s, s.objects[elf], 'trample'), true);
+
+  // conjurada normalmente, entra como criatura e não dá bônus a ninguém
+  let s2 = stGame(6); const a2 = s2.turn.active;
+  let elf2, hydra2;
+  [s2, elf2] = put(s2, a2, 'Elf'); [s2, hydra2] = put(s2, a2, 'Hydra', { zone: 'hand' });
+  s2 = resolveSpell(act(s2, { t: 'cast', p: a2, oid: hydra2 }));
+  assert.equal(s2.objects[hydra2].zone, 'battlefield');
+  assert.equal(s2.objects[hydra2].counters.p1p1, 1, 'entra com um marcador, então sobrevive');
+  assert.equal(s2.objects[hydra2].attachedTo, undefined, 'não está anexada');
+  const st2 = E.stats(s2, s2.objects[elf2]);
+  assert.deepEqual([st2.power, st2.toughness], [1, 1], 'o Elfo continua 1/1');
+});
+
+test('S34 · metamorfo conta como qualquer subtipo de criatura', () => {
+  let s = stGame(7); const a = s.turn.active;
+  let chief, shifter;
+  [s, chief] = put(s, a, 'Chief');
+  const vida = s.players[a].life;
+  [s, shifter] = put(s, a, 'Shifter', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: shifter })));
+  assert.equal(s.players[a].life, vida + 1, 'o metamorfo entrou como Elfo e disparou o gatilho');
+});

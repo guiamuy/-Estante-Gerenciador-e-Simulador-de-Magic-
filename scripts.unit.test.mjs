@@ -50,7 +50,11 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   'Brinebarrow Intruder': 'Creature — Human Rogue', 'Harrier Strix': 'Creature — Bird',
   'Quirion Ranger': 'Creature — Elf Ranger', 'Shield-Wall Sentinel': 'Creature — Wall', 'Drift of Phantasms': 'Creature — Spirit',
   'Orochi Leafcaller': 'Creature — Snake Shaman', 'Saruli Caretaker': 'Creature — Dryad', 'Scattershot Archer': 'Creature — Elf Archer',
-  'Standard Bearer': 'Creature — Human Flagbearer', 'Martyr of Sands': 'Creature — Human Cleric' };
+  'Standard Bearer': 'Creature — Human Flagbearer', 'Martyr of Sands': 'Creature — Human Cleric',
+  'Nyxborn Hydra': 'Creature Enchantment — Hydra', 'Evolution Witness': 'Creature — Elf Shaman Mutant',
+  'Sneaky Snacker': 'Creature — Faerie Rogue', 'Masked Vandal': 'Creature — Shapeshifter',
+  "Nylea's Disciple": 'Creature — Centaur Archer', 'Gixian Infiltrator': 'Creature — Phyrexian Human',
+  'Makeshift Munitions': 'Enchantment', 'Refurbished Familiar': 'Artifact Creature — Rat' };
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
 const instantish = sc => (sc.modes || []).length > 0 || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do)) || /spell/.test(sc.example.target || '');
 for (const sc of S.RAW_SCRIPTS) {
@@ -279,7 +283,8 @@ function runExample(sc) {
   if (how === 'disturb') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
   if (how === 'flashback') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
   const loyaltyIndex = ((sc.abilities || []).filter(x => x.kind === 'activated').length) + (sc.equip ? 1 : 0);
-  const action = how === 'transmute' ? { t: 'transmute', p: a, oid }
+  const action = how === 'bestow' ? { t: 'cast', p: a, oid, bestow: true, ...(target ? { targets: [target] } : {}) }
+    : how === 'transmute' ? { t: 'transmute', p: a, oid }
     : how === 'disturb' ? { t: 'cast', p: a, oid, disturb: true }
     : how === 'omen' ? (E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === oid && x.omen) || { t: 'cast', p: a, oid, omen: true })
     : how.startsWith('loyalty') ? { t: 'activate', p: a, oid, index: loyaltyIndex + Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) }
@@ -303,7 +308,7 @@ function runExample(sc) {
     const multi = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.mode || 0) === (action.mode || 0) && (x.targets || []).length === precisa);
     if (multi) action.targets = JSON.parse(JSON.stringify(multi.targets));
   }
-  assert.ok(E.legalActions(s, a).some(x => x.t === action.t && (x.oid === oid || action.t === 'cast_madness') && !!x.disturb === !!action.disturb && !!x.omen === !!action.omen && (x.index || 0) === (action.index || 0) && (x.mode || 0) === (action.mode || 0)
+  assert.ok(E.legalActions(s, a).some(x => x.t === action.t && (x.oid === oid || action.t === 'cast_madness') && !!x.disturb === !!action.disturb && !!x.omen === !!action.omen && !!x.bestow === !!action.bestow && (x.index || 0) === (action.index || 0) && (x.mode || 0) === (action.mode || 0)
     && (x.alt == null ? -1 : x.alt) === (action.alt == null ? -1 : action.alt) && !!x.flashback === !!action.flashback
     && JSON.stringify(x.targets || null) === JSON.stringify(action.targets || null)),
     `${sc.name}: a mesa não ofereceu a ação do cenário`);
@@ -336,9 +341,9 @@ function runExample(sc) {
     if (s.stack.length) { s = resolve(s); continue; }
     break;
   }
-  const isPermanentCard = !!PERM_TYPES[sc.name] || how === 'disturb' || how === 'omen' || how === 'transmute';
+  const isPermanentCard = !!PERM_TYPES[sc.name] || how === 'disturb' || how === 'omen' || how === 'transmute' || how === 'bestow';
   if (!isPermanentCard && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
-  if (how === 'aura' || how === 'equip') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : mine, `${sc.name} deveria estar anexada`);
+  if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : mine, `${sc.name} deveria estar anexada`);
   const o = s.objects[watchOverride || watch];
   for (const [check, value] of Object.entries(want)) {
     const msg = `${sc.name} · ${check}`;
@@ -372,6 +377,7 @@ function runExample(sc) {
     if (check === 'untapped') assert.equal(s.objects[mine].tapped, !value, msg);
     if (check === 'fogged') assert.equal(!!s.fogged, value, msg);
     if (check === 'preventedColor') assert.equal((s.preventedColors || []).length > 0, value, msg);
+    if (check === 'counters') assert.equal((s.objects[oid].counters || {}).p1p1, value, msg);
     if (check === 'transformed') assert.equal(s.objects[oid].name !== sc.name, value, msg);
   }
 }

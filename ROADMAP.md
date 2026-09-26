@@ -71,7 +71,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S30 Boros: prevenção por cor, Flagbearer e custo de revelar | ✅ |
 | S · Scripts | S31 cancelar prevenção, alvos distintos e contagem multiplicada | ✅ |
 | S · Scripts | S32 devoção, sacrifício e exílio do cemitério como custo | ✅ |
-| S · Scripts | S33 afinidade, adaptar, marcadores e terceira compra | 🟡 |
+| S · Scripts | S33 afinidade, adaptar, marcadores e terceira compra | ✅ |
+| S · Scripts | S34 tempestade, conceder e metamorfo | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -239,8 +240,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E31 ✅ | S30 (leva 21) | Boros Bully: prevenção por cor, Flagbearer e revelar |
 | E32 ✅ | S31 (leva 22) | Boros Bully fechado: cancelar prevenção, dois alvos, modais |
 | E33 ✅ | S32 (leva 23) | Elves e Jund: devoção, sacrifício e exílio como custo |
-| E33b 🟡 | S33 (leva 24) | Afinidade, adaptar, gatilho de marcadores e terceira compra |
-| E33c ▶ | S34 | Tempestade, conceder (bestow) e metamorfo |
+| E33b ✅ | S33 (leva 24) | Afinidade, adaptar, gatilho de marcadores e terceira compra |
+| E33c 🟡 | S34 (leva 25) | Tempestade, conceder e metamorfo |
+| E33d ▶ | S35 | Varredura das listas Pauper e o que sobrar delas |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -745,6 +747,23 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S34 · Tempestade, conceder e metamorfo** 🟡
+- **Fonte:** textos conferidos em 26/09/2026.
+- **Aceite:**
+  - tempestade: a mágica é copiada uma vez para cada mágica conjurada antes dela no turno, e as
+    cópias resolvem com os mesmos alvos; a contagem zera a cada turno;
+  - conceder (bestow): a carta pode ser conjurada como aura, pelo custo de conceder. Enquanto anexada
+    ela **não é criatura**, então não morre por resistência zero, não ataca e não pode ser alvo de
+    efeito de criatura; se a criatura encantada sai, ela volta a ser criatura em vez de ir ao cemitério;
+  - metamorfo (changeling): a carta conta como qualquer subtipo de criatura, tanto em gatilho quanto
+    em contagem;
+  - permanente que entra com marcadores +1/+1.
+- **Entregue:** Weather the Storm, Reaping the Graves, Nyxborn Hydra (parcial: entra sempre com um
+  marcador, escolher o X ainda não entra), e o Masked Vandal deixou de ser parcial pelo metamorfo.
+- **Testes:** U (cópias por tempestade, contagem zerando no turno, conceder como aura e como criatura,
+  metamorfo disparando gatilho de Elfo), S8.
+- **Depende de:** S11, S33.
 
 **S33 · Afinidade, adaptar, marcadores e terceira compra** 🟡
 - **Fonte:** textos conferidos em 26/09/2026.

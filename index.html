@@ -2070,9 +2070,9 @@ const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
-const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
-const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute'];
+const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
 const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
@@ -2080,7 +2080,7 @@ const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies',
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`])
@@ -2100,7 +2100,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2127,7 +2127,7 @@ function validateScript(sc) {
   });
   if (modes.length && (sc.effects || []).length) errs.push('use modos ou efeitos, não os dois');
   // S11 · aura, equipamento e bônus concedidos
-  const att = sc && (sc.aura || sc.equip);
+  const att = sc && (sc.aura || sc.equip || sc.bestow);
   if (att) {
     if (!ATTACH_KINDS.includes(att.enchant || 'creature')) errs.push(`anexar: tipo "${att.enchant}" desconhecido`);
     if (sc.equip && !(sc.equip.cost && (sc.equip.cost.mana || sc.equip.cost.tap))) errs.push('equipar: falta o custo');
@@ -2169,6 +2169,13 @@ function validateScript(sc) {
   if (sc && sc.omen && !sc.omen.mana) errs.push('presságio sem custo');
   if (sc && sc.cycling && !sc.cycling.mana) errs.push('ciclar sem custo');
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
+  // S34 · tempestade, conceder e metamorfo
+  if (sc && sc.storm != null && sc.storm !== true) errs.push('tempestade é uma marca, sem valor');
+  if (sc && sc.changeling != null && sc.changeling !== true) errs.push('metamorfo é uma marca, sem valor');
+  if (sc && sc.bestow) {
+    if (!sc.bestow.mana) errs.push('conceder sem custo');
+    if (!sc.grants) errs.push('conceder sem o que a aura dá');
+  }
   // S33 · afinidade e adaptar
   if (sc && sc.affinity && !FILTER_TYPES.includes(sc.affinity)) errs.push(`afinidade por "${sc.affinity}" desconhecida`);
   for (const ab of (sc && sc.abilities) || []) if (ab.adapt != null && !Number.isInteger(ab.adapt)) errs.push('adaptar precisa de um número inteiro');
@@ -2198,6 +2205,7 @@ function validateScript(sc) {
     for (const f of ['perPower', 'perToughness']) if (self[f] != null && !Number.isInteger(self[f])) errs.push(`bônus próprio: ${f} precisa ser inteiro`);
     if ((self.perPower != null || self.perToughness != null) && !PER_COUNTS.includes(self.per)) errs.push(`bônus próprio: contagem "${self.per}" desconhecida`);
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
+    if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
   }
   if (sc && sc.choose && !CHOICES.includes(sc.choose)) errs.push(`escolha "${sc.choose}" desconhecida`);
   if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
@@ -2355,6 +2363,14 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S34 · tempestade, conceder e metamorfo (textos conferidos em 26/09)
+  { name: 'Weather the Storm', storm: true, effects: [{ do: 'gain', amount: 3 }],
+    example: { target: 'none', expect: { selfLife: 3 } } },
+  { name: 'Reaping the Graves', storm: true, effects: [{ do: 'to_hand', target: 'creature-in-your-graveyard' }],
+    example: { target: 'own-graveyard-creature', expect: { returned: true } } },
+  { name: 'Nyxborn Hydra', bestow: { mana: '{X}{X}{G}' }, grants: { perPower: 1, perToughness: 1, per: 'counters-on-source', keywords: ['reach', 'trample'] },
+    self: { entersWithCounters: 1 }, covers: 'partial', note: 'entra sempre com 1 marcador; escolher o X ainda não entra',
+    example: { action: 'bestow', target: 'own-creature', expect: { attached: true } } },
   // S33 · fecha Elves e Jund (textos conferidos em 26/09)
   { name: 'Evolution Witness', abilities: [
     { kind: 'activated', cost: { mana: '{1}{G}' }, adapt: 2, effects: [] },
@@ -2369,9 +2385,9 @@ const RAW_SCRIPTS = [
   { name: 'Gixian Infiltrator', abilities: [{ kind: 'triggered', when: 'other-sacrificed',
     effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
-  { name: 'Masked Vandal', abilities: [{ kind: 'triggered', when: 'etb', cost: { exileFromGraveyard: { types: ['creature'] } },
+  { name: 'Masked Vandal', changeling: true,
+    abilities: [{ kind: 'triggered', when: 'etb', cost: { exileFromGraveyard: { types: ['creature'] } },
     effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
-    covers: 'partial', note: 'metamorfo (changeling) ainda não entra',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Cleansing Wildfire', effects: [{ do: 'destroy', target: 'land' }, { do: 'draw', amount: 1 }],
     covers: 'partial', note: 'a busca de terreno básico pelo controlador do terreno destruído ainda não entra',
@@ -3784,7 +3800,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 26;
+const ENGINE_VERSION = 27;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -3885,7 +3901,7 @@ const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
 /** S11 · palavras-chave próprias mais as concedidas por auras e equipamentos. */
 const has = (s, o, k) => s.facts[o.name].kw.includes(k) || (o.tempKeywords || []).includes(k) ||
   attachedTo(s, o).some(x => ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
-const grantsOf = (s, o) => (s.facts[o.name].script || {}).grants;
+const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
 const attachSpec = (s, o) => { const sc = s.facts[o.name].script || {}; return sc.aura || sc.equip || null; };
 /** Auras e equipamentos anexados a esta permanente. */
 const attachedTo = (s, o) => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(x => x.attachedTo === o.oid);
@@ -3906,8 +3922,9 @@ function bonus(s, host) {
 function countFor(s, src, per) {
   if (per && typeof per === 'object' && per.subtype) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
-    return battlefield(s).filter(o => o.controller === src.controller && rx.test(s.facts[o.name].typeText || '')).length;
+    return battlefield(s).filter(o => o.controller === src.controller && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length;
   }
+  if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
   const ench = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => s.facts[o.name].types.includes('enchantment'));
   if (per === 'enchantments-you-control') return ench.filter(o => o.controller === src.controller).length;
   if (per === 'other-enchantments') return ench.filter(o => o.oid !== src.oid).length;
@@ -3969,6 +3986,9 @@ function createGame(setup) {
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
     if (sc.affinity) f.script.affinity = sc.affinity;
+    if (sc.storm) f.script.storm = true;
+    if (sc.changeling) f.script.changeling = true;
+    if (sc.bestow) f.script.bestow = sc.bestow;
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
     if (sc.flashback) f.script.flashback = sc.flashback;
@@ -4034,6 +4054,11 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // S22 · permanente que entra virada
   if (to === 'battlefield' && (s.facts[o.name].script || {}).entersTapped) o.tapped = true;
+  // S34 · permanente que entra com marcadores +1/+1
+  if (to === 'battlefield') {
+    const n = (((s.facts[o.name].script || {}).self) || {}).entersWithCounters;
+    if (n) o.counters.p1p1 = (o.counters.p1p1 || 0) + n;
+  }
   // S21 · planeswalker entra com sua lealdade inicial
   if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = s.facts[o.name].loyalty;
   // M9 · gatilhos de mudança de zona
@@ -4294,6 +4319,7 @@ function finishCleanup(s) {
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.usedThisTurn; }
   delete s.fogged; delete s.preventedColors; delete s.noPrevention;
   s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; });
+  s.spellsThisTurn = 0;
   for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
   s.pending = null;
   s.turn.firstTurn = false;
@@ -4402,7 +4428,7 @@ function targetable(s, p, o, src) {
   if (src && protectedFrom(s, o, src)) return false; // S11b · proteção de cor
   return true;
 }
-const isCreature = (s, o) => s.facts[o.name].types.includes('creature');
+const isCreature = (s, o) => s.facts[o.name].types.includes('creature') && !o.bestowed;
 /** Alvos legais para um tipo de alvo. Descritor: { oid } ou { player }. */
 function legalTargets(s, p, kind, selfOid, color) {
   let out = [];
@@ -4412,9 +4438,9 @@ function legalTargets(s, p, kind, selfOid, color) {
   if (['any', 'creature', 'planeswalker', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment'].includes(kind)) {
     for (const o of perms) {
       const f = s.facts[o.name];
-      if (kind === 'creature' && !f.types.includes('creature')) continue;
+      if (kind === 'creature' && !isCreature(s, o)) continue;
       if (kind === 'planeswalker' && !f.types.includes('planeswalker')) continue;
-      if (kind === 'any' && !f.types.includes('creature') && !f.types.includes('planeswalker')) continue;
+      if (kind === 'any' && !isCreature(s, o) && !f.types.includes('planeswalker')) continue;
       if (kind === 'artifact' && !f.types.includes('artifact')) continue;
       if (kind === 'enchantment' && !f.types.includes('enchantment')) continue;
       if (kind === 'artifact-enchantment' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
@@ -4802,12 +4828,14 @@ function triggerConditionMet(s, o, cond) {
   }
   return true;
 }
+/** S34 · metamorfo: a carta conta como qualquer subtipo de criatura. */
+const isChangeling = (s, o) => !!((s.facts[o.name].script || {}).changeling);
 function matchesTriggerFilter(s, o, filter) {
   if (!filter) return true;
   const f = s.facts[o.name];
   if ((filter.types || []).some(x => !f.types.includes(x))) return false;
   if (filter.noncreature && f.types.includes('creature')) return false;
-  if (filter.subtype && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(f.typeText || '')) return false;
+  if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(f.typeText || '')) return false;
   return true;
 }
 function queueTriggers(s, when, objects, controller) {
@@ -4956,10 +4984,12 @@ const canPayAbility = (s, p, source, ab) => {
 
 /* ---------------- M4 · prioridade e pilha ---------------- */
 /** S11 · o que a aura encanta, como tipo de alvo. */
-function auraTarget(f) {
+function auraTarget(f, bestowed) {
+  if (bestowed) return 'creature';
   const a = f.script && f.script.aura;
   return a ? (a.enchant === 'land' ? 'land-you-control' : a.enchant || 'creature') : null;
 }
+const bestowOf = (s, o) => (s.facts[o.name].script || {}).bestow;
 function attachTo(s, o, hostOid, events) {
   const host = s.objects[hostOid];
   if (!host || host.zone !== 'battlefield') return false;
@@ -4978,8 +5008,15 @@ function resolveTop(s, events = []) {
   const f = s.facts[o.name];
   const dest = isPermanent(f) ? 'battlefield' : 'graveyard';
   const controller = o.controller;
+  // S34 · tempestade: cada cópia resolve os mesmos efeitos, com os mesmos alvos
+  if (o.stormCopies > 0) {
+    const copias = o.stormCopies;
+    for (let i = 0; i < copias; i++) { resolveScript(s, o, events); stateBased(s, events); if (s.pending) break; }
+    events.push({ kind: 'storm', name: o.name, amount: copias });
+    delete s.objects[item].stormCopies;
+  }
   const scripted = !!f.script;
-  const aura = auraTarget(f);
+  const aura = auraTarget(f, o.bestowed);
   if (aura) { // S11 · aura: confere o alvo de novo e entra anexada
     const tgt = (o.targets || [])[0];
     if (!tgt || !targetStillLegal(s, controller, aura, tgt, item)) { events.push({ kind: 'fizzled', oid: item, name: o.name }); moveObject(s, item, 'graveyard'); return { kind: 'resolved', oid: item, name: o.name, to: 'graveyard', scripted: true, adjudicate: false }; }
@@ -5027,7 +5064,8 @@ function stateBased(s, events) {
       if (!o.attachedTo) continue;
       const host = s.objects[o.attachedTo];
       if (host && host.zone === 'battlefield') continue;
-      if (s.facts[o.name].script && s.facts[o.name].script.aura) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); }
+      if (o.bestowed) { delete o.bestowed; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); } // volta a ser criatura
+      else if (s.facts[o.name].script && s.facts[o.name].script.aura) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); }
       else { delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); }
       changed = true;
     }
@@ -5037,7 +5075,7 @@ function stateBased(s, events) {
     }
     for (const o of battlefield(s)) {
       const f = s.facts[o.name];
-      if (!f.types.includes('creature') || f.toughness == null) continue;
+      if (!isCreature(s, o) || f.toughness == null) continue;
       const t = toughness(s, o);
       const lethal = (o.damage > 0 && o.damage >= t) || (o.deathtouched && o.damage > 0);
       if (t <= 0 || (lethal && !has(s, o, 'indestructible'))) { moveObject(s, o.oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid: o.oid, name: o.name }); }
@@ -5121,7 +5159,9 @@ const HANDLERS = {
     // S11: a aura escolhe o que vai encantar já na conjuração
     const modes = (f.script && f.script.modes) || [];
     if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
-    const need = auraTarget(f) ? [{ target: auraTarget(f) }] : spellEffects(s, { name: o.name, mode: a.mode }, a.mode).filter(SC.isTargeted);
+    const alvoAura = auraTarget(f, a.bestow);
+    if (a.bestow && !bestowOf(s, o)) throw new RuleError('conceder', 'esta carta não tem conceder');
+    const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode }, a.mode).filter(SC.isTargeted);
     const chosen = a.targets || [];
     if (chosen.length !== need.length) throw new RuleError('alvo', `escolha ${need.length} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
@@ -5138,15 +5178,20 @@ const HANDLERS = {
     }
     else if (a.disturb) { const db = disturbOf(s, s.objects[a.oid]) || disturbOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
     else if (a.omen) { const om = omenOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
+    else if (a.bestow) { const bs = bestowOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(bs.mana)); }
     else if (s.manaCheck && !a.free) payCost(s, a.p, f.cost, castExtra(s, a.p, o, a.x || 0));
     if (f.script && f.script.additional) payExtraCosts(s, a.p, f.script.additional, a.pay, a.oid); // S20 · custo adicional
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     moveObject(s, a.oid, 'stack');
     if (need.length) s.objects[a.oid].targets = chosen;
     if (modes.length) s.objects[a.oid].mode = a.mode;
+    // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
+    if ((f.script || {}).storm) s.objects[a.oid].stormCopies = s.spellsThisTurn || 0;
+    s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
     queueTriggers(s, 'cast-self', [s.objects[a.oid]]); // S23 · gatilhos de conjuração
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
+    if (a.bestow) s.objects[a.oid].bestowed = true; // entra como aura, não como criatura
     s.turn.passes = 0;
   },
   /** M7 · habilidade de mana: não usa a pilha. */
@@ -5556,6 +5601,13 @@ function legalActions(s, p, { adjudication = false } = {}) {
       castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...(Object.keys(pay).length ? { pay } : {}) }));
     });
   }
+  // S34 · conceder: conjura como aura, pelo custo de conceder
+  for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid]; const bs = bestowOf(s, o);
+    if (!bs || !(canSorcery || !isSorcerySpeed(s.facts[o.name]))) continue;
+    if (s.manaCheck && !canPay(s, p, parseCost(bs.mana))) continue;
+    legalTargets(s, p, 'creature', oid).slice(0, TARGET_LIMIT).forEach(t => out.push({ t: 'cast', p, oid, bestow: true, targets: [t] }));
+  }
   // S24 · presságio: conjura a face de trás, da mão
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid]; const om = omenOf(s, o); const back = backOf(s, o);
@@ -5885,7 +5937,7 @@ function describe(before, a, events, after) {
     case 'cast': {
       const o = before.objects[a.oid];
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
-      const extra = a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : '';
+      const extra = a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       L.push(extra ? `${P} conjurou ${o.name}${extra}${alvo ? ` → ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}`) + (alvo ? ` → ${alvo}` : ''));
       break;
     }
@@ -5930,6 +5982,7 @@ function describe(before, a, events, after) {
   for (const ev of events) {
     if (ev.kind === 'effect') L.push(effectLine(ev));
     if (ev.kind === 'fizzled') L.push(`${ev.name} foi anulada: o alvo não estava mais lá`);
+    if (ev.kind === 'storm') L.push(`Tempestade: ${ev.name} copiou ${ev.amount} vez(es)`);
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${ev.amount} carta(s))`);
     if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} não teve alvo legal`);
     if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${TRIGGER_PT[ev.when] || ev.when})`);
@@ -6325,6 +6378,9 @@ function createTableScreen({ store }) {
     // S24: faces duplas
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
       legal.push(doBtn(x.disturb ? `Disturb · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
+    // S34: conceder
+    for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
+      legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));
     // S29: transmutar
     for (const tm of E.legalActions(s, v).filter(x => x.t === 'transmute' && x.oid === oid))
       legal.push(doBtn(`Transmutar · ${(f.script.transmute || {}).mana || ''}`, tm));
