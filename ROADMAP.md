@@ -79,6 +79,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S38 alvo por cor, varredura que poupa subtipo e "até dois alvos" | 🟡 |
 | S · Scripts | S39 habilidade ativada concedida por aura e por vínculo de alma | 🟡 |
 | S · Scripts | S40 conluio e força por outras criaturas suas | 🟡 |
+| S · Scripts | S41 colher provas, vigilância e canalizar | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -254,7 +255,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33g 🟡 | S38 (leva 29) | Alvo por cor, varredura que poupa subtipo e "até dois alvos" |
 | E33h 🟡 | S39 (leva 30) | Habilidade ativada concedida por aura e por vínculo de alma |
 | E33i 🟡 | S40 (leva 31) | Conluio e força por outras criaturas suas |
-| E33j ▶ | S41 | Fechar as manuais das Pauper (2 cartas únicas restantes, ambas nas Elves) |
+| E33j ✅ | S41 (leva 32) | Colher provas, vigilância e canalizar — **Pauper sem cartas manuais** |
+| E33k ▶ | S42 | Atacar as parciais das Pauper (106 cópias) |
+| E33l ⛔ | S43 | Commander: as duas listas precisam ser refornecidas (`.listas/decks.json` só tem as Pauper) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -759,6 +762,31 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S41 · Colher provas, vigilância e canalizar** 🟡
+- **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026, os dois idênticos
+  nas duas cartas.
+- **Aceite:**
+  - colher provas: custo adicional opcional pago exilando cartas do seu cemitério até somar o valor
+    de mana pedido, e o gatilho da carta só acontece se ele foi pago;
+  - vigilância: quando uma mágica ou habilidade do oponente mira a criatura, ele paga ou a mágica é anulada;
+    mirar a sua própria criatura com vigilância não cobra nada;
+  - canalizar: descartar a carta da mão anula uma mágica **ou uma habilidade** na pilha.
+- **Entregue:** Mirrorshell Crab (completa) e Vitu-Ghazi Inspector (parcial).
+- **Parciais e o que falta:**
+  - **Vitu-Ghazi Inspector** — o motor escolhe quais cartas do cemitério exilar (as de maior valor
+    primeiro, para gastar o menor número de cartas); escolher você mesmo não entra.
+- **Simplificação declarada:** a vigilância é cobrada no momento da conjuração ou da ativação, não como
+  gatilho separado na pilha. Ninguém responde entre a vigilância e a mágica, e com mais de um alvo com
+  vigilância só o primeiro é cobrado.
+- **Correções:** anular uma habilidade na pilha derrubava a partida — o registro lia o nome do alvo
+  depois de a habilidade deixar de existir. Agora o nome é guardado antes de o efeito ser aplicado.
+- **Testes:** U (colher provas recusada sem cemitério suficiente, aceita com ele e gastando o mínimo,
+  gatilho só com provas; vigilância paga, recusada e não cobrada do próprio dono; canalizar contra
+  mágica e contra habilidade), S8.
+- **Fora:** escolher as cartas de colher provas; vigilância como gatilho na pilha.
+- **Resultado:** **as sete listas Pauper não têm mais nenhuma carta manual.** O que falta nelas são
+  106 cópias parciais.
 
 **S40 · Conluio e força por outras criaturas suas** 🟡
 - **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026 (as duas cartas

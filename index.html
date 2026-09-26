@@ -2022,7 +2022,7 @@ const EFFECTS = {
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls'] },
   bounce: { fields: [], targets: ['creature', 'permanent', 'permanent-you-control', 'artifact'] },
-  counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
+  counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self'] },
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
@@ -2072,7 +2072,7 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
-  'spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
+  'spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
@@ -2107,7 +2107,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2149,8 +2149,9 @@ function validateScript(sc) {
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther)) errs.push('lampejo do passado sem custo');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
+  if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const [i, ab] of ((sc && sc.loyalty) || []).entries()) {
     if (!Number.isInteger(ab.cost)) errs.push(`lealdade ${i + 1}: custo precisa ser inteiro (pode ser negativo)`);
     if (!ab.label) errs.push(`lealdade ${i + 1}: falta o rótulo`);
@@ -2213,6 +2214,7 @@ function validateScript(sc) {
   if (self) {
     for (const f of ['perPower', 'perToughness']) if (self[f] != null && !Number.isInteger(self[f])) errs.push(`bônus próprio: ${f} precisa ser inteiro`);
     if ((self.perPower != null || self.perToughness != null) && !PER_COUNTS.includes(self.per)) errs.push(`bônus próprio: contagem "${self.per}" desconhecida`);
+    if (self.ward != null && (typeof self.ward !== 'string' || !self.ward.trim())) errs.push('bônus próprio: vigilância precisa de um custo de mana');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
   }
@@ -2410,6 +2412,16 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
       effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S41 · manuais das Elves (textos conferidos em 26/09)
+  { name: 'Vitu-Ghazi Inspector', evidence: 6,
+    abilities: [{ kind: 'triggered', when: 'etb', condition: { evidenced: true },
+      effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'gain', amount: 2 }] }],
+    covers: 'partial', note: 'o motor escolhe quais cartas do cemitério exilar (as de maior valor primeiro); escolher você mesmo não entra',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Mirrorshell Crab', self: { ward: '{3}' },
+    abilities: [{ kind: 'activated', cost: { mana: '{2}{U}', discardSelf: true, fromHand: true },
+      effects: [{ do: 'counter', target: 'spell-or-ability', unless: { mana: '{3}' } }] }],
+    example: { action: 'activate:0', target: 'enemy-spell', expect: { countered: true } } },
   // S40 · manuais de Boros Bully (textos conferidos em 26/09)
   { name: "Raffine's Informant", abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'connive', amount: 1 }] }],
     example: { action: 'etb', target: 'none', expect: { handDelta: 1, discarded: 1 } } },
@@ -3890,7 +3902,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 33;
+const ENGINE_VERSION = 34;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4082,6 +4094,7 @@ function createGame(setup) {
     if (sc.bestow) f.script.bestow = sc.bestow;
     if (sc.bargain) f.script.bargain = true;
     if (sc.soulbond) f.script.soulbond = sc.soulbond; // S39 · vínculo de alma
+    if (sc.evidence) f.script.evidence = sc.evidence; // S41 · colher provas
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
     if (sc.flashback) f.script.flashback = sc.flashback;
@@ -4507,6 +4520,30 @@ function spellEffects(s, o, mode) {
   const i = mode != null ? mode : (o.mode || 0);
   return (modes[i] || {}).effects || [];
 }
+/** S41 · colher provas: exila cartas do seu cemitério cujo valor de mana somado alcança o número.
+    O motor escolhe as de maior valor primeiro, para gastar o menor número de cartas. */
+function evidenceCards(s, p, n) {
+  const ordenadas = s.zones[p].graveyard.map(oid => ({ oid, mv: (s.facts[s.objects[oid].name] || {}).cmc || 0 }))
+    .sort((a, b) => b.mv - a.mv);
+  const escolhidas = []; let soma = 0;
+  for (const c of ordenadas) { if (soma >= n) break; escolhidas.push(c.oid); soma += c.mv; }
+  return soma >= n ? escolhidas : null;
+}
+/** S41 · vigilância: custo que o oponente paga para não ter a mágica ou habilidade anulada.
+    Simplificação declarada: a cobrança acontece na conjuração/ativação, não como gatilho
+    separado na pilha, então ninguém responde entre a vigilância e a mágica. */
+const wardOf = (s, o) => o && o.zone === 'battlefield' ? (((s.facts[o.name] || {}).script || {}).self || {}).ward : null;
+function chargeWard(s, p, stackOid, chosen) {
+  for (const t of chosen || []) {
+    if (!t || t.oid == null) continue;
+    const alvo = s.objects[t.oid];
+    if (!alvo || alvo.controller === p) continue;
+    const custo = wardOf(s, alvo);
+    if (!custo) continue;
+    s.pending = { kind: 'may_pay', p, cost: custo, target: stackOid, name: `vigilância de ${alvo.name}` };
+    return;
+  }
+}
 /** S39 · vínculo de alma: quem entra procura par, e quem tem o vínculo procura par ao ver alguém entrar.
     Parcial declarado: o motor escolhe o par (a primeira criatura sua sem par), você ainda não escolhe. */
 function pairSoulbond(s, novo) {
@@ -4614,6 +4651,9 @@ function legalTargets(s, p, kind, selfOid, color) {
   }
   if (kind === 'any' || kind === 'player') players.forEach(i => out.push({ player: i }));
   if (kind === 'opponent') players.filter(i => i !== p).forEach(i => out.push({ player: i }));
+  if (kind === 'spell-or-ability') { // S41 · canalizar da Mirrorshell Crab: mágica ou habilidade
+    for (const oid of s.stack) { if (oid !== selfOid) out.push({ oid }); }
+  }
   if (['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'].includes(kind)) {
     for (const oid of s.stack) {
       if (oid === selfOid || isAbility(s.objects[oid])) continue; // habilidade na pilha não é mágica
@@ -4666,10 +4706,12 @@ function amountOf(s, src, v) {
 }
 
 /* ---------------- S4 · efeitos ---------------- */
-function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? s.objects[t.oid].name : s.players[t.player].name; }
+function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
 function applyEffect(s, src, eff, tgt, events) {
   const ctrl = src.controller;
-  const note = extra => events.push({ kind: 'effect', do: eff.do, name: src.name, target: tgt ? effectTargetName(s, tgt) : s.players[ctrl].name, ...extra });
+  // S41 · guarda o nome do alvo antes de aplicar: anular uma habilidade a apaga do jogo
+  const alvoNome = tgt ? effectTargetName(s, tgt) : s.players[ctrl].name;
+  const note = extra => events.push({ kind: 'effect', do: eff.do, name: src.name, target: alvoNome, ...extra });
   const obj = tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
   const playerOf = () => tgt && tgt.player != null ? tgt.player : obj ? obj.controller : ctrl;
   switch (eff.do) {
@@ -5001,6 +5043,7 @@ function triggerConditionMet(s, o, cond) {
   if (!cond) return true;
   if (cond.lifeGained != null && (s.players[o.controller].lifeGained || 0) < cond.lifeGained) return false;
   if (cond.bargained && !o.bargained) return false;
+  if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
   if (cond.controlsOtherNamed && !battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && x.name === o.name)) return false;
   if (cond.attackersAtLeast != null) {
     const list = (s.combat && s.combat.attackers) || [];
@@ -5384,6 +5427,15 @@ const HANDLERS = {
       sacrifice(s, alvo);
       s.objects[a.oid].bargained = true;
     }
+    if (a.evidence) { // S41 · colher provas: custo adicional opcional, pago exilando o cemitério
+      const n = (f.script || {}).evidence;
+      if (!n) throw new RuleError('provas', 'esta carta não colhe provas');
+      const cartas = evidenceCards(s, a.p, n);
+      if (!cartas) throw new RuleError('provas', `seu cemitério não soma ${n} de valor de mana`);
+      cartas.forEach(x => moveObject(s, x, 'exile'));
+      s.objects[a.oid].evidenced = true;
+    }
+    chargeWard(s, a.p, a.oid, chosen); // S41 · vigilância do alvo
     s.turn.passes = 0;
   },
   /** M7 · habilidade de mana: não usa a pilha. */
@@ -5448,7 +5500,7 @@ const HANDLERS = {
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
     if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
       (ab.effects || []).forEach(e => applyEffect(s, o, e, null, ev || []));
-    } else makeAbility(s, o, ab, chosen);
+    } else { const abOid = makeAbility(s, o, ab, chosen); chargeWard(s, a.p, abOid, chosen); } // S41 · vigilância do alvo
     s.turn.passes = 0;
   },
   /** S16 · pagar (ou não) para a mágica não ser anulada. */
@@ -5809,6 +5861,14 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const candidatos = battlefield(s).filter(x => x.controller === p && x.oid !== oid &&
       (x.token || ['artifact', 'enchantment'].some(y => s.facts[x.name].types.includes(y))));
     if (candidatos.length) out.push({ t: 'cast', p, oid, bargain: true, pay: { bargain: candidatos[0].oid } });
+  }
+  // S41 · colher provas: a mesma conjuração, exilando cartas do seu cemitério
+  for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid]; const n = (s.facts[o.name].script || {}).evidence;
+    if (!n) continue;
+    if (!(canSorcery || !isSorcerySpeed(s.facts[o.name]))) continue;
+    if (s.manaCheck && !canPay(s, p, s.facts[o.name].cost, castExtra(s, p, o, 0))) continue;
+    if (evidenceCards(s, p, n)) out.push({ t: 'cast', p, oid, evidence: true });
   }
   // S34 · conceder: conjura como aura, pelo custo de conceder
   for (const oid of s.zones[p].hand) {

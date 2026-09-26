@@ -59,7 +59,8 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   'Journey to Nowhere': 'Enchantment', 'Troublemaker Ouphe': 'Creature — Ouphe',
   'Faerie Macabre': 'Creature — Faerie Rogue', 'Relic of Progenitus': 'Artifact',
   'Freed from the Real': 'Enchantment — Aura', 'Galvanic Alchemist': 'Creature — Human Wizard',
-  "Raffine's Informant": 'Creature — Human Wizard', 'Leonardo, Big Brother': 'Legendary Creature — Mutant Ninja Turtle' };
+  "Raffine's Informant": 'Creature — Human Wizard', 'Leonardo, Big Brother': 'Legendary Creature — Mutant Ninja Turtle',
+  'Vitu-Ghazi Inspector': 'Creature — Elf Detective', 'Mirrorshell Crab': 'Artifact Creature — Crab' };
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0

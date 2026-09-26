@@ -2297,3 +2297,139 @@ test('S40 · força por outras criaturas suas: conta só as suas, e não conta e
   const semUm = act(s, { t: 'move', p: a, oid: meu1, to: 'graveyard' });
   assert.equal(E.stats(semUm, semUm.objects[tartaruga]).power, 2, 'perdeu uma das suas: volta a 2');
 });
+
+/* ---------------- S41 · colher provas, vigilância e canalizar ---------------- */
+const VG_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Inspector': { name: 'Inspector', type_line: 'Creature — Elf Detective', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '1', toughness: '3', keywords: ['Reach'], oracle_text: 'As an additional cost to cast this spell, you may collect evidence 6. Reach. When this creature enters, if evidence was collected, put a +1/+1 counter on target creature and you gain 2 life.' },
+  'Crab': { name: 'Crab', type_line: 'Artifact Creature — Crab', mana_cost: '{5}{U}{U}', cmc: 7, colors: ['U'], power: '5', toughness: '7', keywords: [], oracle_text: 'Ward {3}\nChannel — {2}{U}, Discard this card: Counter target spell or ability unless its controller pays {3}.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Giant': { name: 'Giant', type_line: 'Creature — Giant', mana_cost: '{5}{G}', cmc: 6, colors: ['G'], power: '6', toughness: '6', keywords: [], oracle_text: '' },
+  'Bolt': { name: 'Bolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' },
+  'Pinger': { name: 'Pinger', type_line: 'Creature — Human Wizard', mana_cost: '{2}{R}', cmc: 3, colors: ['R'], power: '1', toughness: '1', keywords: [], oracle_text: '{T}: 1 damage to any target.' }
+};
+const VG_SCRIPTS = {
+  Inspector: { name: 'Inspector', evidence: 6,
+    abilities: [{ kind: 'triggered', when: 'etb', condition: { evidenced: true },
+      effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'gain', amount: 2 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Crab: { name: 'Crab', self: { ward: '{3}' },
+    abilities: [{ kind: 'activated', cost: { mana: '{2}{U}', discardSelf: true, fromHand: true },
+      effects: [{ do: 'counter', target: 'spell-or-ability', unless: { mana: '{3}' } }] }],
+    example: { action: 'activate:0', target: 'enemy-spell', expect: { countered: true } } },
+  Bolt: { name: 'Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  Pinger: { name: 'Pinger', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }],
+    example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -1 } } }
+};
+const VGDECK = [{ name: 'Forest', qty: 14, zone: 'main' }, { name: 'Inspector', qty: 8, zone: 'main' }, { name: 'Crab', qty: 8, zone: 'main' },
+  { name: 'Bear', qty: 8, zone: 'main' }, { name: 'Giant', qty: 8, zone: 'main' }, { name: 'Bolt', qty: 8, zone: 'main' }, { name: 'Pinger', qty: 6, zone: 'main' }];
+function vgGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: VG_CARDS, scripts: VG_SCRIPTS,
+    players: [{ name: 'A', deck: VGDECK }, { name: 'B', deck: VGDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+// limpa o cemitério para a soma de valor de mana ser exatamente a do cenário
+function limpaCemiterio(s, p) {
+  s = JSON.parse(JSON.stringify(s));
+  for (const oid of [...s.zones[p].graveyard]) { s.zones[p].graveyard.pop(); s.zones[p].library.push(oid); s.objects[oid].zone = 'library'; }
+  return s;
+}
+
+test('S41 · colher provas: sem cemitério suficiente a mesa não oferece; com ele, exila e o gatilho acontece', () => {
+  let s = vgGame(3); const a = s.turn.active;
+  s = limpaCemiterio(s, a);
+  let insp, urso, alvo;
+  [s, urso] = put(s, a, 'Bear', { zone: 'graveyard' }); // valor 2, não chega a 6
+  [s, alvo] = put(s, a, 'Bear');
+  [s, insp] = put(s, a, 'Inspector', { zone: 'hand' });
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === insp && x.evidence), false, 'com 2 de valor no cemitério, não dá para colher provas');
+  assert.throws(() => act(s, { t: 'cast', p: a, oid: insp, evidence: true }), /valor de mana/);
+  // conjurada sem provas, o gatilho não acontece
+  const semProvas = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: insp })));
+  assert.equal((semProvas.objects[alvo].counters || {}).p1p1, undefined, 'sem provas, nada de marcador');
+
+  let s2 = vgGame(3); const a2 = s2.turn.active;
+  s2 = limpaCemiterio(s2, a2);
+  let gigante, urso2, insp2, alvo2;
+  [s2, gigante] = put(s2, a2, 'Giant', { zone: 'graveyard' }); // valor 6, já resolve sozinho
+  [s2, urso2] = put(s2, a2, 'Bear', { zone: 'graveyard' }); // valor 2, não deve ser gasto
+  [s2, alvo2] = put(s2, a2, 'Bear');
+  [s2, insp2] = put(s2, a2, 'Inspector', { zone: 'hand' });
+  const oferta = E.legalActions(s2, a2).find(x => x.t === 'cast' && x.oid === insp2 && x.evidence);
+  assert.ok(oferta, 'com 8 de valor no cemitério, a mesa oferece colher provas');
+  const vida = s2.players[a2].life;
+  s2 = settle(resolveSpell(act(s2, oferta)));
+  if (s2.pending && s2.pending.kind === 'pick_target') { // o gatilho pede o alvo do marcador
+    const i = s2.pending.options.findIndex(x => x.oid === alvo2);
+    s2 = settle(act(s2, { t: 'pick_target', p: s2.pending.p, index: i < 0 ? 0 : i }));
+  }
+  assert.equal(s2.objects[gigante].zone, 'exile', 'exilou a carta de maior valor');
+  assert.equal(s2.objects[urso2].zone, 'graveyard', 'e gastou só o necessário');
+  assert.equal(s2.objects[alvo2].counters.p1p1, 1, 'o gatilho pôs o marcador');
+  assert.equal(s2.players[a2].life, vida + 2, 'e deu 2 de vida');
+});
+
+test('S41 · vigilância: o oponente paga ou a mágica dele é anulada; a sua não é cobrada', () => {
+  let s = vgGame(4); const a = s.turn.active, d = 1 - a;
+  let caranguejo, bolt;
+  [s, caranguejo] = put(s, d, 'Crab');
+  [s, bolt] = put(s, a, 'Bolt', { zone: 'hand' });
+  s = act(s, { t: 'cast', p: a, oid: bolt, targets: [{ oid: caranguejo }] });
+  assert.ok(s.pending && s.pending.kind === 'may_pay' && s.pending.p === a, 'mirar a criatura com vigilância cobra de quem conjurou');
+  // recusar anula a mágica
+  const recusou = settle(act(s, { t: 'decline', p: a }));
+  assert.equal(recusou.objects[bolt].zone, 'graveyard', 'a mágica foi anulada');
+  assert.equal(recusou.objects[caranguejo].zone, 'battlefield', 'o caranguejo não levou dano');
+  assert.equal(recusou.objects[caranguejo].damage, 0);
+  // pagar deixa a mágica passar
+  let s2 = vgGame(4); const a2 = s2.turn.active, d2 = 1 - a2;
+  let car2, bolt2;
+  [s2, car2] = put(s2, d2, 'Crab');
+  for (let i = 0; i < 3; i++) { let t; [s2, t] = put(s2, a2, 'Forest'); }
+  [s2, bolt2] = put(s2, a2, 'Bolt', { zone: 'hand' });
+  s2 = act(s2, { t: 'cast', p: a2, oid: bolt2, targets: [{ oid: car2 }] });
+  assert.ok(E.legalActions(s2, a2).some(x => x.t === 'pay'), 'com mana disponível, pagar é oferecido');
+  s2 = settle(act(s2, { t: 'pay', p: a2 }));
+  assert.equal(s2.objects[car2].damage, 3, 'pagou e o dano passou');
+  // a mágica do próprio controlador do caranguejo não é cobrada
+  let s3 = vgGame(4); const a3 = s3.turn.active;
+  let car3, bolt3;
+  [s3, car3] = put(s3, a3, 'Crab');
+  [s3, bolt3] = put(s3, a3, 'Bolt', { zone: 'hand' });
+  s3 = act(s3, { t: 'cast', p: a3, oid: bolt3, targets: [{ oid: car3 }] });
+  assert.equal(s3.pending, null, 'mirar a sua própria criatura com vigilância não cobra nada');
+});
+
+test('S41 · canalizar: descartar o caranguejo da mão anula uma mágica ou uma habilidade', () => {
+  let s = vgGame(5); const a = s.turn.active, d = 1 - a;
+  let car, raio;
+  [s, car] = put(s, a, 'Crab', { zone: 'hand' });
+  [s, raio] = put(s, d, 'Bolt', { zone: 'hand' });
+  s = act(s, { t: 'pass', p: a }); // prioridade para o oponente
+  s = act(s, { t: 'cast', p: d, oid: raio, targets: [{ player: a }] }); // mágica do oponente na pilha
+  s = act(s, { t: 'pass', p: d }); // e volta para quem vai responder
+  const acao = E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === car && x.fromHand && (x.targets || []).some(t => t.oid === raio));
+  assert.ok(acao, 'a mesa oferece canalizar mirando a mágica do oponente');
+  const vidaA = s.players[a].life;
+  const anulada = settle(resolveSpell(act(s, acao)));
+  assert.equal(anulada.objects[raio].zone, 'graveyard', 'a mágica foi anulada');
+  assert.equal(anulada.players[a].life, vidaA, 'e o dano não passou');
+  assert.equal(anulada.objects[car].zone, 'graveyard', 'o caranguejo foi descartado como custo');
+
+  // agora contra uma habilidade na pilha
+  let s2 = vgGame(5); const a2 = s2.turn.active, d2 = 1 - a2;
+  let car2, pinger;
+  [s2, car2] = put(s2, a2, 'Crab', { zone: 'hand' });
+  [s2, pinger] = put(s2, d2, 'Pinger');
+  s2 = act(s2, { t: 'pass', p: a2 });
+  s2 = act(s2, { t: 'activate', p: d2, oid: pinger, index: 0, targets: [{ player: a2 }] });
+  s2 = act(s2, { t: 'pass', p: d2 });
+  const habilidade = s2.stack[s2.stack.length - 1];
+  const contra = E.legalActions(s2, a2).find(x => x.t === 'activate' && x.oid === car2 && x.fromHand && (x.targets || []).some(t => t.oid === habilidade));
+  assert.ok(contra, 'a habilidade na pilha também é alvo');
+  const vida = s2.players[a2].life;
+  s2 = settle(resolveSpell(act(s2, contra)));
+  assert.equal(s2.stack.length, 0, 'a pilha ficou vazia');
+  assert.equal(s2.players[a2].life, vida, 'a habilidade anulada não causou dano');
+});
