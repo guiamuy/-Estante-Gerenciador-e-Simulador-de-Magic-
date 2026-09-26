@@ -81,6 +81,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S40 conluio e força por outras criaturas suas | 🟡 |
 | S · Scripts | S41 colher provas, vigilância e canalizar | 🟡 |
 | S · Scripts | S42 vários efeitos no mesmo alvo, devolver mágica e fichas Tesouro | 🟡 |
+| S · Scripts | S43 proteção pela cor escolhida e indestrutível por sacrifício | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -258,10 +259,12 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33i 🟡 | S40 (leva 31) | Conluio e força por outras criaturas suas |
 | E33j ✅ | S41 (leva 32) | Colher provas, vigilância e canalizar — **Pauper sem cartas manuais** |
 | E33k 🟡 | S42 (leva 33) | Listas de Commander restauradas + mesmo alvo, devolver mágica e Tesouro |
-| E33l ▶ | S43 | Commander: seguir nas 73 manuais (48 Killian, 25 Malcolm) |
-| E33m | S44+ | Parciais das Pauper (106 cópias) |
+| E33l 🟡 | S43 (leva 34) | Killian: proteção pela cor escolhida e indestrutível por sacrifício |
+| E33m ▶ | S44 | Commander: seguir nas 67 manuais (42 Killian, 25 Malcolm) |
+| E33n | S45+ | Parciais das Pauper (106 cópias) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
-| E35 | deploy | Merge na main e teste no celular |
+| E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
+| E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 
 ---
@@ -764,6 +767,24 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S43 · Proteção pela cor escolhida e indestrutível por sacrifício** 🟡
+- **Fonte:** textos conferidos em `mtg.cardsrealm.com` em 26/09/2026.
+- **Aceite:**
+  - uma habilidade pode dar proteção contra a cor que **você escolhe na hora**, até o fim do turno,
+    e a mesa oferece uma opção por cor;
+  - a proteção barra a mágica daquela cor no oferecimento de alvo e desaparece no fim do turno;
+  - "outra criatura que você controla" não aceita a própria fonte nem a criatura do oponente;
+  - sacrificar-se pode dar indestrutível a uma criatura ou a todas as suas;
+  - um encantamento também pode receber proteção.
+- **Entregue (todas completas):** Mother of Runes, Benevolent Bodyguard, Alseid of Life's Bounty,
+  Selfless Savior, Selfless Spirit e Kami of False Hope.
+- **Testes:** U (uma opção por cor, cor certa barrando e a outra passando, proteção acabando no turno
+  seguinte; fonte fora da lista de alvos; indestrutível só nas suas criaturas; prevenção de combate
+  e proteção de encantamento), S8.
+- **Depende de:** proteção por aura (S36) e prevenção de combate (S29), já no motor.
+- **Fora:** escolher a cor depois de ver a resposta do oponente (a cor é escolhida ao ativar).
+- **Resultado:** Killian de 44% para 50%; manuais do Commander de 73 para 67.
 
 **S42 · Vários efeitos no mesmo alvo, devolver mágica e fichas Tesouro** 🟡
 - **Dados recuperados:** as duas listas de Commander voltaram para `.listas/decks.json` (elas tinham
