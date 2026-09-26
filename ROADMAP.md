@@ -46,6 +46,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | L · Listas | L11 companheiro | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
+| A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
 | S · Scripts | S1 formato e validador · S2 cobertura · S3 palavras-chave · S4 efeitos · S5 alvos · A10 cobertura visível | ✅ |
 | S · Scripts | S8 cenário em cada script · S9 modo motor completo | ✅ |
 | M · Motor | M9 habilidades ativadas e disparadas · M10 ordem dos gatilhos | ✅ |
@@ -619,6 +620,30 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** I.
 - **Depende de:** A3.
 - **Fora:** bot (ADR-05).
+
+**A12 · Listas prontas e escolha do modo de jogo** ✅
+- **Problema que resolveu:** o motor sabia jogar as sete listas Pauper, mas não havia caminho no
+  aplicativo para chegar nelas: a tela Jogar só oferece listas salvas, e não havia nenhuma. Falha
+  minha de sequência — o motor andou 30 levas sem que os decks entrassem no app.
+- **Valor:** em dois toques o usuário tem um deck real na estante e começa uma partida no modo dele.
+- **Aceite:**
+  - `/listas/prontas` mostra as nove listas que vêm com o app, com formato e número de cartas;
+  - filtro por modo de jogo (Todas · Pauper · Commander), com estado vazio próprio;
+  - "Adicionar" põe a lista na estante e vira "já na sua estante"; não dá para adicionar duas vezes;
+  - "Adicionar todas" respeita o filtro e avisa quando já estão todas lá;
+  - a tela Jogar ganhou o seletor de modo de jogo, que filtra as listas suas e do oponente, e avisa
+    quando você não tem lista naquele modo;
+  - o estado vazio da tela Jogar e o da tela Listas levam para as listas prontas.
+- **Como o dado entra:** a lista pronta é texto no mesmo formato de uma exportação de Moxfield e passa
+  pelo mesmo `parseDeckText`. Não existe um segundo caminho de dados.
+- **Declarado:** as sete listas do Pauper têm 75 cartas no deck principal porque a origem não separava
+  a reserva; a validação trata isso como aviso, não erro, e o usuário pode editar a lista e mover 15
+  cartas para a reserva. As duas de Commander têm 100 cartas com o comandante, e o companheiro do
+  Killian fica fora das 100, como manda a regra.
+- **Testes:** U (as nove leem sem sobra, formato e contagem certos, comandante e companheiro nas de
+  Commander, nenhuma passa de 4 cópias no Pauper) e integração headless (filtrar, adicionar, não
+  adicionar duas vezes, ver o selo do formato na estante e escolher o modo na tela Jogar).
+- **Fora:** editar a lista pronta sem antes adicioná-la; separar a reserva automaticamente.
 
 **A10 · Cobertura antes da partida** ✅
 - **Valor:** saber antes o que o motor resolve sozinho.
