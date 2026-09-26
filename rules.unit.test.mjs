@@ -2033,3 +2033,102 @@ test('S37 · barganha: o gatilho só acontece se algo foi sacrificado ao conjura
   assert.equal(s2.objects[meuRock].zone, 'graveyard', 'o artefato foi sacrificado pela barganha');
   assert.equal(s2.objects[rockDele2].zone, 'exile', 'o artefato do oponente foi exilado');
 });
+
+/* ---------------- S38 · alvo por cor, varredura que poupa um subtipo e "até dois alvos" ---------------- */
+const CF_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Smash': { name: 'Smash', type_line: 'Instant', mana_cost: '{1}{R}', cmc: 2, colors: ['R'], keywords: [], oracle_text: "Destroy target artifact. Smash deals 3 damage to that artifact's controller." },
+  'Withering': { name: 'Withering', type_line: 'Instant', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'Destroy target nonblack creature. Madness {B}' },
+  'Breath': { name: 'Breath', type_line: 'Instant', mana_cost: '{2}{R}', cmc: 3, colors: ['R'], keywords: [], oracle_text: 'Breath deals 2 damage to each non-Dragon creature.' },
+  'Fire': { name: 'Fire', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Choose one — 1 damage to each of up to two target creatures; or exile target artifact.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Zombie': { name: 'Zombie', type_line: 'Creature — Zombie', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Dragon': { name: 'Dragon', type_line: 'Creature — Dragon', mana_cost: '{4}{R}', cmc: 5, colors: ['R'], power: '4', toughness: '4', keywords: [], oracle_text: '' },
+  'Shifter': { name: 'Shifter', type_line: 'Creature — Shapeshifter', mana_cost: '{2}', cmc: 2, colors: [], power: '2', toughness: '2', keywords: [], oracle_text: 'Changeling' },
+  'Rock': { name: 'Rock', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '' }
+};
+const CF_SCRIPTS = {
+  Smash: { name: 'Smash', effects: [{ do: 'destroy', target: 'artifact' }, { do: 'damage', amount: 3, target: 'target-controller' }],
+    example: { target: 'enemy-permanent', expect: { gone: true, opponentLife: -3 } } },
+  Withering: { name: 'Withering', effects: [{ do: 'destroy', target: 'creature', targetNotColor: 'B' }], madness: { mana: '{B}' },
+    example: { action: 'madness', target: 'enemy-creature', expect: { gone: true } } },
+  Breath: { name: 'Breath', effects: [{ do: 'damage', amount: 2, target: 'each-creature', exceptSubtype: 'Dragon' }],
+    example: { target: 'none', expect: { gone: true } } },
+  Fire: { name: 'Fire', modes: [
+    { label: 'Dano a até duas criaturas', effects: [{ do: 'damage', amount: 1, target: 'creature' }, { do: 'damage', amount: 1, target: 'creature', upTo: true }] },
+    { label: 'Exilar um artefato', effects: [{ do: 'exile', target: 'artifact' }] }],
+    example: { action: 'mode:1', target: 'enemy-permanent', expect: { gone: true } } },
+  Shifter: { name: 'Shifter', changeling: true, self: {}, example: { target: 'none', expect: { attached: false } } }
+};
+const CFDECK = [{ name: 'Forest', qty: 14, zone: 'main' }, { name: 'Smash', qty: 6, zone: 'main' }, { name: 'Withering', qty: 6, zone: 'main' },
+  { name: 'Breath', qty: 6, zone: 'main' }, { name: 'Fire', qty: 6, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' },
+  { name: 'Zombie', qty: 6, zone: 'main' }, { name: 'Dragon', qty: 6, zone: 'main' }, { name: 'Shifter', qty: 6, zone: 'main' }, { name: 'Rock', qty: 6, zone: 'main' }];
+function cfGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: CF_CARDS, scripts: CF_SCRIPTS,
+    players: [{ name: 'A', deck: CFDECK }, { name: 'B', deck: CFDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S38 · destruir o artefato e o dano vai para quem o controlava', () => {
+  let s = cfGame(3); const a = s.turn.active, d = 1 - a;
+  let rock, smash;
+  [s, rock] = put(s, d, 'Rock');
+  [s, smash] = put(s, a, 'Smash', { zone: 'hand' });
+  const vidaMinha = s.players[a].life, vidaDele = s.players[d].life;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: smash, targets: [{ oid: rock }] })));
+  assert.equal(s.objects[rock].zone, 'graveyard', 'o artefato foi destruído');
+  assert.equal(s.players[d].life, vidaDele - 3, 'o dano foi para o controlador do artefato');
+  assert.equal(s.players[a].life, vidaMinha, 'nada aconteceu comigo');
+});
+
+test('S38 · "criatura não-preta" não pode nem ser mirada', () => {
+  let s = cfGame(4); const a = s.turn.active, d = 1 - a;
+  let bear, zumbi, wither;
+  [s, bear] = put(s, d, 'Bear');
+  [s, zumbi] = put(s, d, 'Zombie');
+  [s, wither] = put(s, a, 'Withering', { zone: 'hand' });
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === wither);
+  assert.ok(ofertas.some(x => x.targets[0].oid === bear), 'a criatura verde é alvo');
+  assert.equal(ofertas.some(x => x.targets[0].oid === zumbi), false, 'a criatura preta não é alvo');
+  assert.throws(() => act(s, { t: 'cast', p: a, oid: wither, targets: [{ oid: zumbi }] }), /alvo/);
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: wither, targets: [{ oid: bear }] })));
+  assert.equal(s.objects[bear].zone, 'graveyard');
+  assert.equal(s.objects[zumbi].zone, 'battlefield');
+});
+
+test('S38 · a varredura poupa o subtipo declarado, e o metamorfo conta como ele', () => {
+  let s = cfGame(5); const a = s.turn.active, d = 1 - a;
+  let bear, dragao, shifter, breath;
+  [s, bear] = put(s, d, 'Bear');
+  [s, dragao] = put(s, d, 'Dragon');
+  [s, shifter] = put(s, d, 'Shifter');
+  [s, breath] = put(s, a, 'Breath', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: breath })));
+  assert.equal(s.objects[bear].zone, 'graveyard', 'a criatura comum levou 2 e morreu');
+  assert.equal(s.objects[dragao].zone, 'battlefield', 'o Dragão foi poupado');
+  assert.equal(s.objects[dragao].damage, 0, 'o Dragão não levou dano');
+  assert.equal(s.objects[shifter].zone, 'battlefield', 'o metamorfo conta como Dragão e foi poupado');
+});
+
+test('S38 · "até dois alvos": a mesa oferece um ou dois, e o dano cai em cada um', () => {
+  let s = cfGame(6); const a = s.turn.active, d = 1 - a;
+  let so, fire;
+  [s, so] = put(s, d, 'Bear');
+  [s, fire] = put(s, a, 'Fire', { zone: 'hand' });
+  const comUm = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === fire && x.mode === 0);
+  assert.ok(comUm.length && comUm.every(x => x.targets.length === 1), 'com uma criatura em campo, o modo mira uma só');
+  const um = settle(resolveSpell(act(s, comUm[0])));
+  assert.equal(um.objects[so].damage, 1, 'a única criatura levou 1');
+
+  let s2 = cfGame(6); const a2 = s2.turn.active, d2 = 1 - a2;
+  let b1, b2, fire2;
+  [s2, b1] = put(s2, d2, 'Bear'); [s2, b2] = put(s2, d2, 'Zombie');
+  [s2, fire2] = put(s2, a2, 'Fire', { zone: 'hand' });
+  const dois = E.legalActions(s2, a2).find(x => x.t === 'cast' && x.oid === fire2 && x.mode === 0 && (x.targets || []).length === 2);
+  assert.ok(dois, 'com duas criaturas, a mesa oferece a combinação de dois alvos');
+  assert.throws(() => act(s2, { t: 'cast', p: a2, oid: fire2, mode: 0, targets: [{ oid: b1 }, { oid: b1 }] }), /diferentes/, 'o mesmo alvo duas vezes é recusado');
+  s2 = settle(resolveSpell(act(s2, { ...dois, targets: [{ oid: b1 }, { oid: b2 }] })));
+  assert.equal(s2.objects[b1].damage, 1, 'a primeira levou 1');
+  assert.equal(s2.objects[b2].damage, 1, 'a segunda levou 1');
+});

@@ -2018,7 +2018,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
-  damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
+  damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls'] },
   bounce: { fields: [], targets: ['creature', 'permanent', 'permanent-you-control', 'artifact'] },
@@ -2233,6 +2233,13 @@ function effectErrors(effects, label, opcional) {
       for (const t of (e.filter && e.filter.types) || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: filtro de tipo "${t}" desconhecido`);
     }
     if (e.targetMv != null && !Number.isInteger(e.targetMv)) errs.push(`${label} ${i + 1}: valor de mana do alvo precisa ser inteiro`);
+    // S38 · filtro de cor no alvo, varredura que poupa um subtipo e "até N alvos"
+    if (e.targetNotColor != null && !'WUBRG'.includes(e.targetNotColor)) errs.push(`${label} ${i + 1}: cor excluída do alvo precisa ser WUBRG`);
+    if (e.exceptSubtype != null) {
+      if (typeof e.exceptSubtype !== 'string' || !e.exceptSubtype.trim()) errs.push(`${label} ${i + 1}: subtipo poupado precisa ser um nome`);
+      if (!String(e.target || '').startsWith('each-')) errs.push(`${label} ${i + 1}: subtipo poupado só vale em varredura`);
+    }
+    if (e.upTo && (!isTargeted(e) || effects.slice(i + 1).some(isTargeted))) errs.push(`${label} ${i + 1}: "até N alvos" só vale no último alvo`);
     if (e.do === 'add_mana' && !Array.isArray(e.symbols) && !e.anyColor) errs.push(`${label} ${i + 1}: add_mana precisa da lista de símbolos ou de anyColor`);
     if (e.targetMvMax != null) errs.push(...valueErrors(e.targetMvMax, `${label} ${i + 1}: valor de mana máximo`));
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
@@ -2390,6 +2397,20 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
       effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S38 · manuais de Rakdos e Jund (textos conferidos em 26/09)
+  { name: 'Ancient Grudge', effects: [{ do: 'destroy', target: 'artifact' }], flashback: { mana: '{G}' },
+    example: { action: 'flashback', target: 'enemy-permanent', expect: { gone: true, exiled: true } } },
+  { name: 'Smash to Smithereens', effects: [{ do: 'destroy', target: 'artifact' }, { do: 'damage', amount: 3, target: 'target-controller' }],
+    example: { target: 'enemy-permanent', expect: { gone: true, opponentLife: -3 } } },
+  { name: 'Dark Withering', effects: [{ do: 'destroy', target: 'creature', targetNotColor: 'B' }], madness: { mana: '{B}' },
+    example: { action: 'madness', target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Breath Weapon', effects: [{ do: 'damage', amount: 2, target: 'each-creature', exceptSubtype: 'Dragon' }],
+    example: { target: 'none', expect: { gone: true } } },
+  { name: 'Cast into the Fire', modes: [
+    { label: 'Causar 1 de dano a até duas criaturas', effects: [{ do: 'damage', amount: 1, target: 'creature' }, { do: 'damage', amount: 1, target: 'creature', upTo: true }] },
+    { label: 'Exilar um artefato', effects: [{ do: 'exile', target: 'artifact' }] }],
+    covers: 'partial', note: 'mirar uma ou duas criaturas funciona; conjurar sem mirar nenhuma não entra',
+    example: { action: 'mode:1', target: 'enemy-permanent', expect: { gone: true } } },
   // S36 · Pauper, continuação (textos conferidos em 26/09)
   { name: 'Mask of Law and Grace', aura: { enchant: 'creature' }, grants: { protection: ['B', 'R'] },
     example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
@@ -3841,7 +3862,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 30;
+const ENGINE_VERSION = 31;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4559,6 +4580,7 @@ function targetAllowed(s, eff, tgt, src) {
   if (!o) return true;
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && f.legendary) return false;
+  if (eff.targetNotColor && (f.colors || []).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta"
   if (eff.targetMv != null && (f.cmc || 0) !== eff.targetMv) return false;
   if (eff.targetMvMax != null) {
     const limite = amountOf(s, src || { controller: o.controller }, eff.targetMvMax);
@@ -4739,9 +4761,12 @@ function applyEffect(s, src, eff, tgt, events) {
   }
 }
 /** Criaturas atingidas por uma varredura. */
-function sweepTargets(s, src, kind) {
-  if (kind === 'each-flying-creature') return battlefield(s).filter(x => isCreature(s, x) && has(s, x, 'flying'));
-  return battlefield(s).filter(x => isCreature(s, x) &&
+function sweepTargets(s, src, eff) {
+  const kind = typeof eff === 'string' ? eff : eff.target;
+  const except = typeof eff === 'string' ? null : eff.exceptSubtype; // S38 · varredura que poupa um subtipo
+  const fora = x => except && (isChangeling(s, x) || new RegExp('\\b' + except + '\\b', 'i').test(s.facts[x.name].typeText || ''));
+  if (kind === 'each-flying-creature') return battlefield(s).filter(x => isCreature(s, x) && has(s, x, 'flying') && !fora(x));
+  return battlefield(s).filter(x => isCreature(s, x) && !fora(x) &&
     (kind === 'each-creature' || (kind === 'each-opponent-creature' ? x.controller !== src.controller : x.controller === src.controller)));
 }
 /* ---------------- S13/S14 · escolhas em zonas ocultas ----------------
@@ -4876,7 +4901,7 @@ function resolveScript(s, o, events) {
       applyEffect(s, o, eff, { player: who }, events);
     } else if (String(eff.target || '').startsWith('each-')) {
       // S4 · varredura: todas as criaturas, só as do oponente ou só as suas
-      for (const x of sweepTargets(s, o, eff.target)) applyEffect(s, o, eff, { oid: x.oid }, events);
+      for (const x of sweepTargets(s, o, eff)) applyEffect(s, o, eff, { oid: x.oid }, events);
     } else applyEffect(s, o, eff, null, events);
     stateBased(s, events);
   }
@@ -5244,10 +5269,11 @@ const HANDLERS = {
     if (a.bestow && !bestowOf(s, o)) throw new RuleError('conceder', 'esta carta não tem conceder');
     const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode }, a.mode).filter(SC.isTargeted);
     const chosen = a.targets || [];
-    if (chosen.length !== need.length) throw new RuleError('alvo', `escolha ${need.length} alvo(s)`);
+    const minAlvos = need.filter(x => !x.upTo).length; // S38 · "até N alvos" aceita menos
+    if (chosen.length < minAlvos || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvos === need.length ? need.length : `de ${minAlvos} a ${need.length}`} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
-    need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
+    need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
@@ -5640,8 +5666,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
     let combos = [[]];
     for (const eff of need) {
       const opts = legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)).slice(0, TARGET_LIMIT);
-      if (!opts.length) return [];
-      combos = addTarget(combos, opts);
+      // S38 · "até N alvos": o último alvo pode ficar de fora
+      if (!opts.length) { if (eff.upTo) continue; return []; }
+      combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
     }
     return combos.map(targets => ({ ...base, targets }));
   };
@@ -5816,7 +5843,7 @@ function resolveAbility(s, o, events) {
   for (const eff of o.effects || []) {
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (legal) applyEffect(s, o, eff, t, events); }
     else if (String(eff.target || '').startsWith('each-')) {
-      sweepTargets(s, o, eff.target).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
+      sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
     } else applyEffect(s, o, eff, null, events);
     stateBased(s, events);
     if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1) }; return; }

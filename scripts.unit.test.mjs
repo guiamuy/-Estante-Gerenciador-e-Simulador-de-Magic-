@@ -70,6 +70,7 @@ for (const sc of S.RAW_SCRIPTS) {
 }
 CARDS['Lightning Bolt'].type_line = 'Instant'; CARDS['Shock'].type_line = 'Instant'; CARDS['Lightning Helix'].type_line = 'Instant';
 CARDS['Murder'].type_line = 'Instant'; CARDS['Doom Blade'].type_line = 'Instant'; CARDS['Disenchant'].type_line = 'Instant';
+for (const n of ['Ancient Grudge', 'Smash to Smithereens', 'Dark Withering', 'Breath Weapon']) CARDS[n].type_line = 'Instant'; // S38
 // as criaturas e artefatos do cenário precisam de cor para os modos condicionais (Hydroblast e cia.)
 CARDS['Grizzly Bear'].colors = ['R', 'U']; CARDS['Test Signet'].colors = ['R', 'U'];
 CARDS['Grizzly Bear'].cmc = 2; // Spell Snare precisa de um alvo de valor 2

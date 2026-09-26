@@ -76,6 +76,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S35 varredura das Pauper: gatilho da encantada e alvos de artefato | ✅ |
 | S · Scripts | S36 proteção de várias cores e prevenção do dano de uma mágica | 🟡 |
 | S · Scripts | S37 exilar cemitérios, descarte escolhido, habilidade da mão e barganha | 🟡 |
+| S · Scripts | S38 alvo por cor, varredura que poupa subtipo e "até dois alvos" | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -248,7 +249,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33d ✅ | S35 (leva 26) | Varredura das Pauper: medição e gatilho da criatura encantada |
 | E33e 🟡 | S36 (leva 27) | Proteção de várias cores e prevenção do dano de uma mágica |
 | E33f 🟡 | S37 (leva 28) | Exilar cemitérios, descarte escolhido, habilidade da mão e barganha |
-| E33g ▶ | S38 | Seguir nas manuais das Pauper (11 cartas únicas restantes) |
+| E33g 🟡 | S38 (leva 29) | Alvo por cor, varredura que poupa subtipo e "até dois alvos" |
+| E33h ▶ | S39 | Fechar as manuais das Pauper (6 cartas únicas restantes) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -753,6 +755,25 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S38 · Alvo por cor, varredura que poupa um subtipo e "até dois alvos"** 🟡
+- **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026; Breath Weapon
+  conferido nas duas fontes porque a primeira não trouxe o custo.
+- **Aceite:**
+  - o dano de uma mágica pode ir para quem controlava o alvo dela;
+  - um alvo pode excluir uma cor ("criatura não-preta"), e a mesa nem oferece o alvo errado;
+  - uma varredura pode poupar um subtipo, e metamorfo conta como esse subtipo;
+  - "até dois alvos": a mesa oferece uma ou duas criaturas conforme o campo permitir.
+- **Entregue:** Ancient Grudge, Smash to Smithereens, Dark Withering e Breath Weapon (completas);
+  Cast into the Fire (parcial).
+- **Parciais e o que falta:**
+  - **Cast into the Fire** — mirar uma ou duas criaturas funciona; conjurar sem mirar nenhuma não entra.
+- **Testes:** U (dano ao controlador do artefato, alvo não-preto recusado no oferecimento e na validação,
+  varredura poupando Dragão e metamorfo, um e dois alvos com recusa de alvo repetido), S8.
+- **Depende de:** lampejo do passado (S16) e insanidade (S18), já no motor.
+- **Fora:** conjurar uma mágica de "até N alvos" sem alvo nenhum.
+- **Resultado:** cartas manuais das Pauper de 17 cópias para 9 (6 cartas únicas). Mono Blue Faeries,
+  Rakdos Madness, GW Bogles e Jund Wildfire ficaram sem nenhuma carta manual.
 
 **S37 · Exilar cemitérios, descarte escolhido, habilidade da mão e barganha** 🟡
 - **Fonte:** textos conferidos em `grimoria.app` em 26/09/2026 (a fonte anterior, `mtg.wtf`, seguiu
