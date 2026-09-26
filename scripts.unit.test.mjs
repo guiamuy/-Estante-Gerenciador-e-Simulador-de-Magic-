@@ -260,7 +260,7 @@ function runExample(sc) {
   [s, oid] = put(s, a, sc.name, how.startsWith('activate') || how.startsWith('loyalty') || how === 'equip' ? 'battlefield' : 'hand');
   if (how.startsWith('loyalty')) { s = JSON.parse(JSON.stringify(s)); s.objects[oid].counters.loyalty = LOYALTY[sc.name] || 3; }
   const ownSweep = [...(sc.effects || []), ...(sc.abilities || []).flatMap(x => x.effects || [])].some(e => e.target === 'each-own-creature');
-  const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'enemy-enchantment' ? enemyWard : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
+  const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'own-land' ? land : ex.target === 'enemy-enchantment' ? enemyWard : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
   const target = { 'opponent': { player: d }, 'self-player': { player: a }, 'enemy-creature': { oid: theirs },
     'own-creature': { oid: mine }, 'own-land': { oid: land }, 'own-graveyard-creature': { oid: buriedMine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'enemy-permanent': { oid: art }, 'enemy-enchantment': { oid: enemyWard } }[ex.target || 'none'];
   const tokensOf = st2 => Object.values(st2.objects).filter(o => o.token && o.controller === a).length;

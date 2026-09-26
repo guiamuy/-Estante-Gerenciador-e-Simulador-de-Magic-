@@ -1565,3 +1565,83 @@ test('S31 · contagem multiplicada: dano igual ao dobro das suas criaturas', () 
   s = resolveSpell(act(s, { t: 'cast', p: a, oid: charm, targets: [{ oid: alvo }] }));
   assert.equal(s.objects[alvo].zone, 'graveyard', 'duas criaturas suas viram 4 de dano num 2/2');
 });
+
+/* ---------------- S32 · devoção, sacrifício e exílio do cemitério como custo ---------------- */
+const EJ_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Disciple': { name: 'Disciple', type_line: 'Creature — Centaur Archer', mana_cost: '{2}{G}{G}', cmc: 4, power: '3', toughness: '3', keywords: [], oracle_text: 'You gain life equal to your devotion to green.' },
+  'Elf': { name: 'Elf', type_line: 'Creature — Elf Warrior', mana_cost: '{G}', cmc: 1, power: '1', toughness: '1', keywords: [], oracle_text: '' },
+  'Spy': { name: 'Spy', type_line: 'Creature — Phyrexian Human', mana_cost: '{1}{B}', cmc: 2, power: '2', toughness: '1', keywords: [], oracle_text: 'Whenever you sacrifice another permanent, put a +1/+1 counter on this creature.' },
+  'Munitions': { name: 'Munitions', type_line: 'Enchantment', mana_cost: '{1}{R}', cmc: 2, keywords: [], oracle_text: '{1}, Sacrifice an artifact or creature: 1 damage.' },
+  'Vandal': { name: 'Vandal', type_line: 'Creature — Shapeshifter', mana_cost: '{1}{G}', cmc: 2, power: '1', toughness: '3', keywords: [], oracle_text: 'Exile a creature card from your graveyard: exile target artifact or enchantment an opponent controls.' },
+  'Rock': { name: 'Rock', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '' }
+};
+const EJ_SCRIPTS = {
+  Disciple: { name: 'Disciple', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: { per: 'devotion-G' } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Spy: { name: 'Spy', abilities: [{ kind: 'triggered', when: 'other-sacrificed', effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Munitions: { name: 'Munitions', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['artifact', 'creature'] } }, effects: [{ do: 'damage', amount: 1, target: 'any' }] }],
+    example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -1 } } },
+  Vandal: { name: 'Vandal', abilities: [{ kind: 'triggered', when: 'etb', cost: { exileFromGraveyard: { types: ['creature'] } },
+    effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }
+};
+const EJDECK = [{ name: 'Forest', qty: 18, zone: 'main' }, { name: 'Disciple', qty: 6, zone: 'main' }, { name: 'Elf', qty: 10, zone: 'main' },
+  { name: 'Spy', qty: 6, zone: 'main' }, { name: 'Munitions', qty: 6, zone: 'main' }, { name: 'Vandal', qty: 6, zone: 'main' }, { name: 'Rock', qty: 8, zone: 'main' }];
+function ejGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: EJ_CARDS, scripts: EJ_SCRIPTS,
+    players: [{ name: 'A', deck: EJDECK }, { name: 'B', deck: EJDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S32 · devoção conta os símbolos verdes das suas permanentes', () => {
+  let s = ejGame(3); const a = s.turn.active;
+  let e1, e2, disc;
+  [s, e1] = put(s, a, 'Elf'); [s, e2] = put(s, a, 'Elf');
+  const vida = s.players[a].life;
+  [s, disc] = put(s, a, 'Disciple', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: disc })));
+  // dois Elfos ({G} cada) mais o próprio Disciple ({G}{G}) = devoção 4
+  assert.equal(s.players[a].life, vida + 4);
+});
+
+test('S32 · sacrificar outra permanente dispara o gatilho e paga o custo', () => {
+  let s = ejGame(4); const a = s.turn.active, d = 1 - a;
+  let spy, mun, rock;
+  [s, spy] = put(s, a, 'Spy'); [s, mun] = put(s, a, 'Munitions'); [s, rock] = put(s, a, 'Rock');
+  const acao = E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === mun && x.targets && x.targets[0].player === d);
+  assert.ok(acao && acao.pay && acao.pay.sacrifice, 'a mesa oferece a habilidade com o sacrifício sugerido');
+  // sacrifica o artefato, não a própria criatura que observa sacrifícios
+  s = settle(resolveSpell(act(s, { ...acao, pay: { sacrifice: rock } })));
+  assert.equal(s.players[d].life, 19, 'causou 1 de dano');
+  assert.equal(s.objects[rock].zone, 'graveyard', 'o artefato foi sacrificado');
+  assert.equal(s.objects[spy].counters.p1p1, 1, 'o gatilho de sacrifício deu um marcador');
+
+  // sacrificar a própria criatura que observa não dispara o gatilho dela
+  let s2 = ejGame(4); const a2 = s2.turn.active, d2 = 1 - a2;
+  let spy2, mun2;
+  [s2, spy2] = put(s2, a2, 'Spy'); [s2, mun2] = put(s2, a2, 'Munitions');
+  s2 = settle(resolveSpell(act(s2, { t: 'activate', p: a2, oid: mun2, index: 0, targets: [{ player: d2 }], pay: { sacrifice: spy2 } })));
+  assert.equal(s2.objects[spy2].zone, 'graveyard');
+  assert.equal(s2.stack.length, 0, 'nenhum gatilho ficou pendente');
+});
+
+test('S32 · gatilho com custo de exilar do cemitério: sem carta, ele não acontece', () => {
+  let s = ejGame(5); const a = s.turn.active, d = 1 - a;
+  let vandal, rock;
+  [s, rock] = put(s, d, 'Rock');
+  [s, vandal] = put(s, a, 'Vandal', { zone: 'hand' });
+  const semCemiterio = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: vandal })));
+  assert.equal(semCemiterio.objects[rock].zone, 'battlefield', 'sem criatura no cemitério, nada é exilado');
+
+  let s2 = ejGame(5); const a2 = s2.turn.active, d2 = 1 - a2;
+  let rock2, vandal2, morta;
+  [s2, rock2] = put(s2, d2, 'Rock');
+  [s2, morta] = put(s2, a2, 'Elf', { zone: 'graveyard' });
+  [s2, vandal2] = put(s2, a2, 'Vandal', { zone: 'hand' });
+  s2 = settle(resolveSpell(act(s2, { t: 'cast', p: a2, oid: vandal2 })));
+  assert.equal(s2.objects[morta].zone, 'exile', 'a criatura do cemitério foi exilada como custo');
+  assert.equal(s2.objects[rock2].zone, 'exile', 'o artefato do oponente foi exilado');
+});

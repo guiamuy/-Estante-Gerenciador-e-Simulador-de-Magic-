@@ -69,7 +69,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S28 Faeries: condição de nome, subtipo e alvo do oponente | ✅ |
 | S · Scripts | S29 Walls: devolver terreno, transmutar e Fog | ✅ |
 | S · Scripts | S30 Boros: prevenção por cor, Flagbearer e custo de revelar | ✅ |
-| S · Scripts | S31 cancelar prevenção, alvos distintos e contagem multiplicada | 🟡 |
+| S · Scripts | S31 cancelar prevenção, alvos distintos e contagem multiplicada | ✅ |
+| S · Scripts | S32 devoção, sacrifício e exílio do cemitério como custo | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -235,8 +236,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E29 ✅ | S28 (leva 19) | Mono Blue Faeries: de 56% para 77% |
 | E30 ✅ | S29 (leva 20) | Walls Combo: custo de devolver terreno, transmutar e Fog |
 | E31 ✅ | S30 (leva 21) | Boros Bully: prevenção por cor, Flagbearer e revelar |
-| E32 🟡 | S31 (leva 22) | Boros Bully fechado: cancelar prevenção, dois alvos, modais |
-| E33 ▶ | S32 | Elves e Jund: devoção, gatilho de sacrifício e afinidade |
+| E32 ✅ | S31 (leva 22) | Boros Bully fechado: cancelar prevenção, dois alvos, modais |
+| E33 🟡 | S32 (leva 23) | Elves e Jund: devoção, sacrifício e exílio como custo |
+| E33b ▶ | S32b | Fechar Elves e Jund: tempestade, afinidade, adaptar, metamorfo |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -741,6 +743,25 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S32 · Devoção, sacrifício e exílio do cemitério como custo** 🟡
+- **Fonte:** textos conferidos em 26/09/2026.
+- **Aceite:**
+  - devoção: conta os símbolos de mana de uma cor no custo das permanentes que você controla,
+    incluindo os híbridos;
+  - sacrificar é diferente de ir para o cemitério: um gatilho pode observar "quando você sacrifica
+    outra permanente", e sacrificar a própria fonte não dispara o gatilho dela;
+  - custo de exilar uma carta do seu cemitério, inclusive em gatilho: sem carta que sirva, o gatilho
+    não acontece;
+  - alvos novos: terreno e artefato ou encantamento que o oponente controla.
+- **Entregue:** Nylea's Disciple, Gixian Infiltrator, Masked Vandal, Cleansing Wildfire e Makeshift Munitions.
+- **Parciais:** Masked Vandal (metamorfo), Cleansing Wildfire (a busca de terreno básico pelo controlador).
+- **Testes:** U (devoção somando Elfos e a própria carta, sacrifício disparando e não disparando, gatilho
+  com e sem carta no cemitério), S8.
+- **Depende de:** S19, S20.
+- **Não lida:** Ancient Grudge — a fonte recusou por excesso de consultas.
+- **Fica para a próxima:** tempestade (Weather the Storm), afinidade (Refurbished Familiar),
+  adaptar (Evolution Witness), metamorfo (Masked Vandal).
 
 **S31 · Cancelar prevenção, alvos distintos e contagem multiplicada** 🟡
 - **Fonte:** textos conferidos em 26/09/2026.

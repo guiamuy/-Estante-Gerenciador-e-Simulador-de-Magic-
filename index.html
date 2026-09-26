@@ -2019,8 +2019,8 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
-  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment'] },
-  exile: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
+  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land'] },
+  exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls'] },
   bounce: { fields: [], targets: ['creature', 'permanent', 'permanent-you-control'] },
   counter: { fields: [], targets: ['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
@@ -2063,22 +2063,23 @@ const CHOICE_EFFECTS = ['discard', 'search', 'look', 'scry', 'surveil', 'put_bac
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S20 · custos adicionais de ativação e de conjuração. */
-const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor'];
+const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
   'spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
-  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls']);
+  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
 const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'preventedColor', 'noPrevention'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute'];
 
-const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat'];
+const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
-  'creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn'];
+  'creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`])
@@ -2089,7 +2090,7 @@ const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
-  'combat-damage': 'quando causa dano de combate a um jogador', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
+  'combat-damage': 'quando causa dano de combate a um jogador', 'other-sacrificed': 'quando você sacrifica outra permanente', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
   main2: 'na sua fase principal pós-combate', 'end-of-combat': 'no fim do combate' };
 
 /** Valida um script. Devolve [] quando está correto. */
@@ -2348,6 +2349,22 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S32 · Elves e Jund (textos conferidos em 26/09)
+  { name: "Nylea's Disciple", abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: { per: 'devotion-G' } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Gixian Infiltrator', abilities: [{ kind: 'triggered', when: 'other-sacrificed',
+    effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Masked Vandal', abilities: [{ kind: 'triggered', when: 'etb', cost: { exileFromGraveyard: { types: ['creature'] } },
+    effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
+    covers: 'partial', note: 'metamorfo (changeling) ainda não entra',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Cleansing Wildfire', effects: [{ do: 'destroy', target: 'land' }, { do: 'draw', amount: 1 }],
+    covers: 'partial', note: 'a busca de terreno básico pelo controlador do terreno destruído ainda não entra',
+    example: { target: 'own-land', expect: { gone: true, handDelta: 1 } } },
+  { name: 'Makeshift Munitions', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['artifact', 'creature'] } },
+    effects: [{ do: 'damage', amount: 1, target: 'any' }] }],
+    example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -1 } } },
   // S31 · Boros Bully, segunda leva (textos conferidos em 26/09)
   { name: 'Flaring Pain', effects: [{ do: 'no_prevention' }], flashback: { mana: '{R}' },
     example: { target: 'none', expect: { noPrevention: true } } },
@@ -3752,7 +3769,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 24;
+const ENGINE_VERSION = 25;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -3888,6 +3905,13 @@ function countFor(s, src, per) {
   if (per === 'elves-on-battlefield') return perms.filter(isElf).length;
   if (per === 'defenders-you-control') return perms.filter(o => o.controller === src.controller && has(s, o, 'defender')).length;
   if (per === 'life-gained-this-turn') return s.players[src.controller].lifeGained || 0;
+  if (String(per).startsWith('devotion-')) { // S32 · devoção: símbolos daquela cor no custo das suas permanentes
+    const cor = String(per).slice(-1);
+    return perms.filter(o => o.controller === src.controller).reduce((n, o) => {
+      const c = s.facts[o.name].cost || {};
+      return n + (c.colored ? (c.colored[cor] || 0) : 0) + (c.hybrid || []).filter(h => h.includes(cor)).length;
+    }, 0);
+  }
   return 0;
 }
 
@@ -4377,10 +4401,12 @@ function legalTargets(s, p, kind, selfOid, color) {
       out.push({ oid: o.oid });
     }
   }
-  if (kind === 'creature-opponent-controls' || kind === 'permanent-opponent-controls') {
+  if (['creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls'].includes(kind)) {
     for (const o of perms) {
       if (o.controller === p) continue;
-      if (kind === 'creature-opponent-controls' && !s.facts[o.name].types.includes('creature')) continue;
+      const f = s.facts[o.name];
+      if (kind === 'creature-opponent-controls' && !f.types.includes('creature')) continue;
+      if (kind === 'artifact-enchantment-opponent-controls' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
       out.push({ oid: o.oid });
     }
   }
@@ -4634,6 +4660,20 @@ function resumeEffects(s, events) {
   }
 }
 
+/** S32 · sacrificar: vai para o cemitério e avisa quem observa sacrifícios. */
+function sacrifice(s, oid, events = []) {
+  const o = s.objects[oid]; if (!o) return;
+  const dono = o.controller;
+  moveObject(s, oid, 'graveyard');
+  for (const w of battlefield(s)) {
+    if (w.oid === oid || w.controller !== dono) continue;
+    for (const ab of abilitiesOf(s, w)) {
+      if (ab.kind !== 'triggered' || ab.when !== 'other-sacrificed') continue;
+      s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: 'other-sacrificed' });
+    }
+  }
+}
+
 /** M12 · cria uma ficha: objeto sem carta, que deixa de existir fora do campo. */
 function createToken(s, def, controller, events) {
   const name = def.name;
@@ -4723,7 +4763,7 @@ function queueTriggers(s, when, objects, controller) {
     for (const ab of abilitiesOf(s, o)) {
       if (ab.kind !== 'triggered' || ab.when !== when) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
-      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when });
+      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}) });
     }
     // S15 · gatilhos de outras permanentes que você controla
     if (!['etb', 'dies', 'cast-self'].includes(when)) continue;
@@ -4755,6 +4795,10 @@ function flushTriggers(s, events) {
 /** S15 · põe um gatilho na pilha, escolhendo o alvo quando ele exige um. */
 function putTriggerOnStack(s, q, events) {
   s.queued = s.queued.filter(x => x !== q);
+  if (q.cost) { // S32 · gatilho com custo opcional: sem como pagar, ele não acontece
+    if (!canPayExtra(s, q.controller, q.cost, q.source)) { events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; }
+    payExtraCosts(s, q.controller, q.cost, null, q.source);
+  }
   const targeted = (q.effects || []).filter(SC.isTargeted);
   let targets = [];
   if (targeted.length) {
@@ -4796,7 +4840,13 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.sacrificeOther) {
     const oid = (pay && pay.sacrifice) || extraCostCandidates(s, p, cost.sacrificeOther, selfOid)[0];
     if (!oid || !extraCostCandidates(s, p, cost.sacrificeOther, selfOid).includes(oid)) throw new RuleError('custo', 'sacrifique uma permanente que sirva de custo');
-    moveObject(s, oid, 'graveyard');
+    sacrifice(s, oid);
+  }
+  if (cost.exileFromGraveyard) {
+    // S32 · exilar do próprio cemitério como custo; sem carta que sirva, a habilidade não acontece
+    const oid = (pay && pay.exile) || s.zones[p].graveyard.find(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard));
+    if (!oid) throw new RuleError('custo', 'exile uma carta do seu cemitério como custo');
+    moveObject(s, oid, 'exile');
   }
   if (cost.tapOther) {
     const n = cost.tapOther.amount || 1;
@@ -4807,6 +4857,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
   }
 }
 const canPayExtra = (s, p, cost, selfOid) =>
+  (!cost.exileFromGraveyard || s.zones[p].graveyard.some(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))) &&
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
   (!cost.discard || s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard) &&
   (!cost.sacrificeOther || extraCostCandidates(s, p, cost.sacrificeOther, selfOid).length > 0) &&
@@ -4834,7 +4885,7 @@ function payAbilityCost(s, p, source, ab) {
   }
   payExtraCosts(s, p, cost, ab.pay, source.oid);
   if (cost.tap) source.tapped = true;
-  if (cost.sacrifice) moveObject(s, source.oid, 'graveyard');
+  if (cost.sacrifice) sacrifice(s, source.oid);
 }
 const canPayAbility = (s, p, source, ab) => {
   const cost = ab.cost || {};
