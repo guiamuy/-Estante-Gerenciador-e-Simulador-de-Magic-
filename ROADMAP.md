@@ -80,6 +80,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S39 habilidade ativada concedida por aura e por vínculo de alma | 🟡 |
 | S · Scripts | S40 conluio e força por outras criaturas suas | 🟡 |
 | S · Scripts | S41 colher provas, vigilância e canalizar | 🟡 |
+| S · Scripts | S42 vários efeitos no mesmo alvo, devolver mágica e fichas Tesouro | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -256,8 +257,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33h 🟡 | S39 (leva 30) | Habilidade ativada concedida por aura e por vínculo de alma |
 | E33i 🟡 | S40 (leva 31) | Conluio e força por outras criaturas suas |
 | E33j ✅ | S41 (leva 32) | Colher provas, vigilância e canalizar — **Pauper sem cartas manuais** |
-| E33k ▶ | S42 | Atacar as parciais das Pauper (106 cópias) |
-| E33l ⛔ | S43 | Commander: as duas listas precisam ser refornecidas (`.listas/decks.json` só tem as Pauper) |
+| E33k 🟡 | S42 (leva 33) | Listas de Commander restauradas + mesmo alvo, devolver mágica e Tesouro |
+| E33l ▶ | S43 | Commander: seguir nas 73 manuais (48 Killian, 25 Malcolm) |
+| E33m | S44+ | Parciais das Pauper (106 cópias) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -762,6 +764,29 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S42 · Vários efeitos no mesmo alvo, devolver mágica e fichas Tesouro** 🟡
+- **Dados recuperados:** as duas listas de Commander voltaram para `.listas/decks.json` (elas tinham
+  sido perdidas quando o arquivo foi zerado por um comando meu na leva 26). A medição agora cobre as
+  nove listas.
+- **Tamanho real do que falta:** 73 cartas manuais no Commander (48 Killian, 25 Malcolm) e 106 cópias
+  parciais nas Pauper. No ritmo de 4 a 6 cartas por leva, são de 13 a 18 levas até 100%.
+- **Fonte:** textos conferidos em `mtg.cardsrealm.com` em 26/09/2026; Shore Up conferida também em
+  `mtg.wtf` porque a primeira fonte errou o custo.
+- **Aceite:**
+  - uma mágica pode aplicar vários efeitos na **mesma** criatura, e a mesa pede um alvo só;
+  - devolver para a mão pode mirar uma mágica na pilha ou uma criatura no campo;
+  - anular uma mágica pode dar fichas ao dono dela, e uma ficha Tesouro gera mana de qualquer cor
+    sacrificando-se.
+- **Entregue:** Shore Up, Unsubstantiate e An Offer You Can't Refuse (completas); Arcane Denial e
+  Delay (parciais).
+- **Parciais e o que falta:**
+  - **Arcane Denial** — as compras no início do próximo turno (duas para o dono da mágica, uma para você) não entram.
+  - **Delay** — a mágica vai para o cemitério; exilar com três marcadores de tempo e ganhar suspender não entra.
+- **Testes:** U (um alvo só para três efeitos, com maldição de véu barrando o oponente depois;
+  devolver mágica da pilha e criatura do campo; duas fichas Tesouro para o oponente, gerando mana
+  e deixando de existir ao serem sacrificadas), S8.
+- **Fora:** suspender; compras adiadas para o próximo turno.
 
 **S41 · Colher provas, vigilância e canalizar** 🟡
 - **Fonte:** textos conferidos em `mtg.wtf` e `mtg.cardsrealm.com` em 26/09/2026, os dois idênticos

@@ -2433,3 +2433,99 @@ test('S41 · canalizar: descartar o caranguejo da mão anula uma mágica ou uma 
   assert.equal(s2.stack.length, 0, 'a pilha ficou vazia');
   assert.equal(s2.players[a2].life, vida, 'a habilidade anulada não causou dano');
 });
+
+/* ---------------- S42 · vários efeitos no mesmo alvo, devolver mágica e fichas para o oponente ---------------- */
+const MA_CARDS = {
+  'Island': { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {U}.' },
+  'Shore': { name: 'Shore', type_line: 'Instant', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: [], oracle_text: 'Target creature you control gets +1/+1 and gains hexproof until end of turn. Untap it.' },
+  'Unsub': { name: 'Unsub', type_line: 'Instant', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: [], oracle_text: 'Return target spell or creature to its owner’s hand.' },
+  'Offer': { name: 'Offer', type_line: 'Instant', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: [], oracle_text: 'Counter target noncreature spell. Its controller creates two Treasure tokens.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Bolt': { name: 'Bolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' }
+};
+const TESOURO = { name: 'Treasure', types: ['artifact'], abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] };
+const MA_SCRIPTS = {
+  Shore: { name: 'Shore', effects: [
+    { do: 'pump', power: 1, toughness: 1, target: 'creature-you-control' },
+    { do: 'keyword', keyword: 'hexproof', target: 'first-target' },
+    { do: 'untap', target: 'first-target' }],
+    example: { target: 'own-creature', expect: { pump: [1, 1], keyword: 'hexproof' } } },
+  Unsub: { name: 'Unsub', effects: [{ do: 'bounce', target: 'spell-or-creature' }],
+    example: { target: 'enemy-spell', expect: { bounced: true } } },
+  Offer: { name: 'Offer', effects: [{ do: 'counter', target: 'noncreature-spell' }, { do: 'token', amount: 2, target: 'target-controller', token: TESOURO }],
+    example: { target: 'enemy-instant', expect: { countered: true } } },
+  Bolt: { name: 'Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }
+};
+const MADECK = [{ name: 'Island', qty: 16, zone: 'main' }, { name: 'Shore', qty: 8, zone: 'main' }, { name: 'Unsub', qty: 8, zone: 'main' },
+  { name: 'Offer', qty: 8, zone: 'main' }, { name: 'Bear', qty: 10, zone: 'main' }, { name: 'Bolt', qty: 10, zone: 'main' }];
+function maGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: MA_CARDS, scripts: MA_SCRIPTS,
+    players: [{ name: 'A', deck: MADECK }, { name: 'B', deck: MADECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S42 · três efeitos na mesma criatura: a mesa pede um alvo só, e os três valem', () => {
+  let s = maGame(3); const a = s.turn.active, d = 1 - a;
+  let meu, shore;
+  [s, meu] = put(s, a, 'Bear', { tapped: true });
+  [s, shore] = put(s, a, 'Shore', { zone: 'hand' });
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === shore);
+  assert.ok(ofertas.length && ofertas.every(x => x.targets.length === 1), 'um alvo só, não três');
+  assert.equal(ofertas.some(x => x.targets[0].oid === meu), true, 'a sua criatura é alvo');
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: shore, targets: [{ oid: meu }] })));
+  const st = E.stats(s, s.objects[meu]);
+  assert.deepEqual([st.power, st.toughness], [3, 3], 'ganhou +1/+1');
+  assert.equal(E.hasKeyword(s, s.objects[meu], 'hexproof'), true, 'ganhou maldição de véu');
+  assert.equal(s.objects[meu].tapped, false, 'e desvirou');
+  // com maldição de véu, a mágica do oponente não pode mirar
+  let raio; [s, raio] = put(s, d, 'Bolt', { zone: 'hand' });
+  assert.equal(E.legalTargets(s, d, 'any', raio).some(x => x.oid === meu), false, 'o oponente não consegue mirar');
+});
+
+test('S42 · devolver a mágica da pilha para a mão, ou a criatura do campo', () => {
+  let s = maGame(4); const a = s.turn.active, d = 1 - a;
+  let unsub, raio;
+  [s, unsub] = put(s, a, 'Unsub', { zone: 'hand' });
+  [s, raio] = put(s, d, 'Bolt', { zone: 'hand' });
+  s = act(s, { t: 'pass', p: a });
+  s = act(s, { t: 'cast', p: d, oid: raio, targets: [{ player: a }] });
+  s = act(s, { t: 'pass', p: d });
+  const acao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === unsub && x.targets[0].oid === raio);
+  assert.ok(acao, 'a mágica na pilha é alvo');
+  const vida = s.players[a].life;
+  s = settle(resolveSpell(act(s, acao)));
+  assert.equal(s.objects[raio].zone, 'hand', 'a mágica voltou para a mão do dono');
+  assert.equal(s.players[a].life, vida, 'e o dano não aconteceu');
+
+  // a criatura do campo também é alvo
+  let s2 = maGame(4); const a2 = s2.turn.active, d2 = 1 - a2;
+  let unsub2, urso;
+  [s2, urso] = put(s2, d2, 'Bear');
+  [s2, unsub2] = put(s2, a2, 'Unsub', { zone: 'hand' });
+  s2 = settle(resolveSpell(act(s2, { t: 'cast', p: a2, oid: unsub2, targets: [{ oid: urso }] })));
+  assert.equal(s2.objects[urso].zone, 'hand', 'a criatura voltou para a mão');
+});
+
+test('S42 · anular e dar duas fichas Tesouro ao dono da mágica, que geram mana de qualquer cor', () => {
+  let s = maGame(5); const a = s.turn.active, d = 1 - a;
+  let offer, raio;
+  [s, offer] = put(s, a, 'Offer', { zone: 'hand' });
+  [s, raio] = put(s, d, 'Bolt', { zone: 'hand' });
+  s = act(s, { t: 'pass', p: a });
+  s = act(s, { t: 'cast', p: d, oid: raio, targets: [{ player: a }] });
+  s = act(s, { t: 'pass', p: d });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: offer, targets: [{ oid: raio }] })));
+  assert.equal(s.objects[raio].zone, 'graveyard', 'a mágica foi anulada');
+  const tesouros = Object.values(s.objects).filter(o => o.token && o.name === 'Treasure');
+  assert.equal(tesouros.length, 2, 'duas fichas');
+  assert.ok(tesouros.every(t => t.controller === d), 'e elas são do dono da mágica anulada');
+  // a ficha gera mana de qualquer cor, sacrificando-se (a prioridade tem de estar com ele)
+  s = act(s, { t: 'pass', p: a });
+  const gerar = E.legalActions(s, d).find(x => x.t === 'activate' && x.oid === tesouros[0].oid && x.color === 'G');
+  assert.ok(gerar, 'a mesa oferece gerar mana verde com a ficha');
+  const depois = act(s, gerar);
+  assert.equal(depois.players[d].pool.G, 1, 'gerou o mana');
+  const sobrando = Object.values(depois.objects).filter(o => o.token && o.name === 'Treasure' && o.zone === 'battlefield');
+  assert.equal(sobrando.length, 1, 'a ficha usada foi sacrificada e deixou de existir');
+});

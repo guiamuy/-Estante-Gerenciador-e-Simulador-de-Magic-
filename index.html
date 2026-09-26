@@ -2021,13 +2021,13 @@ const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls'] },
-  bounce: { fields: [], targets: ['creature', 'permanent', 'permanent-you-control', 'artifact'] },
+  bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'artifact'] },
   counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self'] },
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
   counters: { fields: ['amount'], targets: ['self-source', 'creature'] },
-  pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
+  pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['self-source', 'creature', 'permanent'] },
   exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all'] },
@@ -2072,7 +2072,7 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
-  'spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
+  'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
@@ -2262,7 +2262,10 @@ function effectErrors(effects, label, opcional) {
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
     const t = e.target || 'self';
-    if (t !== 'self' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
+    // S42 · "no mesmo alvo": reaproveita o alvo já escolhido por um efeito anterior
+    if (t === 'first-target') {
+      if (!effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): "no mesmo alvo" precisa de um alvo escolhido antes`);
+    } else if (t !== 'self' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
   });
   return errs;
 }
@@ -2412,6 +2415,24 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
       effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S42 · Commander Malcolm/Kediss: vários efeitos no mesmo alvo e a família de anulações (textos conferidos em 26/09)
+  { name: 'Shore Up', effects: [
+    { do: 'pump', power: 1, toughness: 1, target: 'creature-you-control' },
+    { do: 'keyword', keyword: 'hexproof', target: 'first-target' },
+    { do: 'untap', target: 'first-target' }],
+    example: { target: 'own-creature', expect: { pump: [1, 1], keyword: 'hexproof' } } },
+  { name: 'Unsubstantiate', effects: [{ do: 'bounce', target: 'spell-or-creature' }],
+    example: { target: 'enemy-spell', expect: { bounced: true } } },
+  { name: "An Offer You Can't Refuse", effects: [{ do: 'counter', target: 'noncreature-spell' },
+    { do: 'token', amount: 2, target: 'target-controller', token: { name: 'Treasure', types: ['artifact'],
+      abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] } }],
+    example: { target: 'enemy-instant', expect: { countered: true } } },
+  { name: 'Arcane Denial', effects: [{ do: 'counter', target: 'spell' }],
+    covers: 'partial', note: 'as compras no início do próximo turno (duas para o dono da mágica, uma para você) não entram',
+    example: { target: 'enemy-spell', expect: { countered: true } } },
+  { name: 'Delay', effects: [{ do: 'counter', target: 'spell' }],
+    covers: 'partial', note: 'a mágica vai para o cemitério; exilar com três marcadores de tempo e ganhar suspender não entra',
+    example: { target: 'enemy-spell', expect: { countered: true } } },
   // S41 · manuais das Elves (textos conferidos em 26/09)
   { name: 'Vitu-Ghazi Inspector', evidence: 6,
     abilities: [{ kind: 'triggered', when: 'etb', condition: { evidenced: true },
@@ -3902,7 +3923,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 34;
+const ENGINE_VERSION = 35;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4654,6 +4675,10 @@ function legalTargets(s, p, kind, selfOid, color) {
   if (kind === 'spell-or-ability') { // S41 · canalizar da Mirrorshell Crab: mágica ou habilidade
     for (const oid of s.stack) { if (oid !== selfOid) out.push({ oid }); }
   }
+  if (kind === 'spell-or-creature') { // S42 · devolver a mágica da pilha ou a criatura do campo
+    for (const oid of s.stack) { if (oid !== selfOid && !isAbility(s.objects[oid])) out.push({ oid }); }
+    for (const o of battlefield(s)) if (isCreature(s, o) && targetable(s, p, o, srcObj)) out.push({ oid: o.oid });
+  }
   if (['spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'].includes(kind)) {
     for (const oid of s.stack) {
       if (oid === selfOid || isAbility(s.objects[oid])) continue; // habilidade na pilha não é mágica
@@ -5013,6 +5038,8 @@ function resolveScript(s, o, events) {
       if (!ok) { events.push({ kind: 'effect', do: eff.do, name: o.name, target: effectTargetName(s, tgt), failed: true }); continue; }
       if (!firstTarget) firstTarget = tgt;
       applyEffect(s, o, eff, tgt, events);
+    } else if (eff.target === 'first-target') { // S42 · o mesmo alvo do efeito anterior
+      if (firstTarget) applyEffect(s, o, eff, firstTarget, events);
     } else if (eff.target === 'target-controller') {
       const t = firstTarget;
       const who = t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
@@ -5981,9 +6008,10 @@ function resolveAbility(s, o, events) {
   const chosen = o.targets || [];
   const ok = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid));
   if (targeted.length && ok.every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
-  let ti = 0;
+  let ti = 0, primeiro = null;
   for (const eff of o.effects || []) {
-    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (legal) applyEffect(s, o, eff, t, events); }
+    if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) primeiro = t; if (legal) applyEffect(s, o, eff, t, events); }
+    else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
     else if (String(eff.target || '').startsWith('each-')) {
       sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
     } else applyEffect(s, o, eff, null, events);
