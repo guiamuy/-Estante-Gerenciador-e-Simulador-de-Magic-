@@ -54,7 +54,10 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   'Nyxborn Hydra': 'Creature Enchantment — Hydra', 'Evolution Witness': 'Creature — Elf Shaman Mutant',
   'Sneaky Snacker': 'Creature — Faerie Rogue', 'Masked Vandal': 'Creature — Shapeshifter',
   "Nylea's Disciple": 'Creature — Centaur Archer', 'Gixian Infiltrator': 'Creature — Phyrexian Human',
-  'Makeshift Munitions': 'Enchantment', 'Refurbished Familiar': 'Artifact Creature — Rat' };
+  'Makeshift Munitions': 'Enchantment', 'Refurbished Familiar': 'Artifact Creature — Rat',
+  'Cryoshatter': 'Enchantment — Aura', 'Mask of Law and Grace': 'Enchantment — Aura',
+  'Journey to Nowhere': 'Enchantment', 'Troublemaker Ouphe': 'Creature — Ouphe',
+  'Faerie Macabre': 'Creature — Faerie Rogue', 'Relic of Progenitus': 'Artifact' };
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0
@@ -264,7 +267,8 @@ function runExample(sc) {
   // um cemitério com carta, para os efeitos que mexem nele
   s = J(s); const buried = s.zones[d].library.pop(); s.zones[d].graveyard.push(buried); s.objects[buried].zone = 'graveyard';
   const how = ex.action || 'cast';
-  [s, oid] = put(s, a, sc.name, how.startsWith('activate') || how.startsWith('loyalty') || how === 'equip' ? 'battlefield' : 'hand');
+  const soDaMao = (sc.abilities || []).some(x => ((x.cost || {}).fromHand));
+  [s, oid] = put(s, a, sc.name, !soDaMao && (how.startsWith('activate') || how.startsWith('loyalty') || how === 'equip') ? 'battlefield' : 'hand');
   if (how.startsWith('loyalty')) { s = JSON.parse(JSON.stringify(s)); s.objects[oid].counters.loyalty = LOYALTY[sc.name] || 3; }
   const ownSweep = [...(sc.effects || []), ...(sc.abilities || []).flatMap(x => x.effects || [])].some(e => e.target === 'each-own-creature');
   const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'own-land' ? land : ex.target === 'enemy-enchantment' ? enemyWard : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
@@ -301,7 +305,7 @@ function runExample(sc) {
     })()
     : how.startsWith('mode') ? { t: 'cast', p: a, oid, mode: Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) }
     : how === 'equip' ? { t: 'activate', p: a, oid, index: equipIndex, targets: [{ oid: mine }] }
-    : how.startsWith('activate') ? { t: 'activate', p: a, oid, index: Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) }
+    : how.startsWith('activate') ? { t: 'activate', p: a, oid, index: Number(how.split(':')[1]), ...(soDaMao ? { fromHand: true } : {}), ...(target ? { targets: [target] } : {}) }
       : { t: 'cast', p: a, oid, ...(target ? { targets: [target] } : {}) };
   const oferta = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.index || 0) === (action.index || 0) && x.color);
   if (oferta) action.color = oferta.color;

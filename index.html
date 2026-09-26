@@ -2030,7 +2030,9 @@ const EFFECTS = {
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['creature', 'permanent'] },
-  exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self'] },
+  exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all'] },
+  // S37 · o oponente revela a mão e você escolhe o que ele descarta
+  discard_chosen: { fields: ['amount'], targets: ['opponent', 'player'] },
   attach: { fields: [], targets: ['creature-you-control', 'permanent-you-control'] },
   // S25 · transformar no campo e conceder palavra-chave até o fim do turno
   transform: { fields: [], targets: ['self-source'] },
@@ -2066,7 +2068,7 @@ const CHOICE_EFFECTS = ['discard', 'search', 'look', 'scry', 'surveil', 'put_bac
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S20 · custos adicionais de ativação e de conjuração. */
-const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard'];
+const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
   'spell', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
@@ -2103,7 +2105,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2111,7 +2113,7 @@ function validateScript(sc) {
     if (ab.kind === 'activated') {
       const cost = ab.cost || {};
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
-      if (!cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (!cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf) errs.push(`${tag}: habilidade ativada sem custo`);
       if (cost.revealColor && !'WUBRG'.includes(cost.revealColor)) errs.push(`${tag}: revelar precisa de uma cor WUBRG`);
       if (cost.life != null && !Number.isInteger(cost.life)) errs.push(`${tag}: custo de vida precisa ser inteiro`);
       for (const k of ['sacrificeOther', 'tapOther']) if (cost[k] && !Array.isArray((cost[k] || {}).types)) errs.push(`${tag}: ${k} precisa de uma lista de tipos`);
@@ -2145,7 +2147,8 @@ function validateScript(sc) {
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther)) errs.push('lampejo do passado sem custo');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   for (const [i, ab] of ((sc && sc.loyalty) || []).entries()) {
     if (!Number.isInteger(ab.cost)) errs.push(`lealdade ${i + 1}: custo precisa ser inteiro (pode ser negativo)`);
     if (!ab.label) errs.push(`lealdade ${i + 1}: falta o rótulo`);
@@ -2366,6 +2369,26 @@ const RAW_SCRIPTS = [
     covers: 'partial', note: 'maldição de véu contra alvo já entra pela palavra-chave; o resto do texto é só evasão',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S37 · Pauper, cemitério e descarte (textos conferidos em 26/09)
+  { name: 'Duress', effects: [{ do: 'discard_chosen', amount: 1, target: 'opponent' }],
+    covers: 'partial', note: 'o motor escolhe a primeira carta que não é criatura nem terreno; escolher você mesmo ainda não entra',
+    example: { target: 'opponent', expect: { opponentLife: 0 } } },
+  { name: 'Faerie Macabre', abilities: [{ kind: 'activated', cost: { discardSelf: true, fromHand: true },
+    effects: [{ do: 'exile_graveyard', target: 'opponent' }] }],
+    covers: 'partial', note: 'exila o cemitério inteiro do alvo, não até duas cartas escolhidas',
+    example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
+  { name: 'Relic of Progenitus', abilities: [
+    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] },
+    { kind: 'activated', cost: { mana: '{1}', exileSelf: true }, effects: [{ do: 'exile_graveyard', target: 'all' }, { do: 'draw', amount: 1 }] }],
+    covers: 'partial', note: 'a primeira habilidade exila o cemitério inteiro, não uma carta',
+    example: { action: 'activate:1', target: 'none', expect: { graveyardEmpty: true, handDelta: 1 } } },
+  { name: 'Journey to Nowhere', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'creature' }] }],
+    covers: 'partial', note: 'devolver a criatura quando o encantamento sai do campo ainda não entra',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Troublemaker Ouphe', bargain: true,
+    abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
+      effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // S36 · Pauper, continuação (textos conferidos em 26/09)
   { name: 'Mask of Law and Grace', aura: { enchant: 'creature' }, grants: { protection: ['B', 'R'] },
@@ -3818,7 +3841,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 29;
+const ENGINE_VERSION = 30;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4007,6 +4030,7 @@ function createGame(setup) {
     if (sc.storm) f.script.storm = true;
     if (sc.changeling) f.script.changeling = true;
     if (sc.bestow) f.script.bestow = sc.bestow;
+    if (sc.bargain) f.script.bargain = true;
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
     if (sc.flashback) f.script.flashback = sc.flashback;
@@ -4643,9 +4667,18 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: eff.amount }); break;
     }
     case 'exile_graveyard': {
-      const who = playerOf();
-      [...s.zones[who].graveyard].forEach(x => moveObject(s, x, 'exile'));
+      const alvos = eff.target === 'all' ? s.players.map((_, i) => i) : [playerOf()];
+      alvos.forEach(who => [...s.zones[who].graveyard].forEach(x => moveObject(s, x, 'exile')));
       note({}); break;
+    }
+    case 'discard_chosen': { // S37 · o oponente descarta a carta que você escolheria
+      const who = playerOf();
+      const mao = s.zones[who].hand.filter(x => {
+        const tipos = s.facts[s.objects[x].name].types;
+        return !tipos.includes('creature') && !tipos.includes('land');
+      });
+      mao.slice(0, eff.amount).forEach(x => moveObject(s, x, 'graveyard'));
+      note({ amount: Math.min(eff.amount, mao.length) }); break;
     }
     case 'attach': attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break;
     case 'token': for (let i = 0; i < eff.amount; i++) createToken(s, eff.token, playerOf(), events); break;
@@ -4866,6 +4899,7 @@ function makeAbility(s, source, ab, targets) {
 function triggerConditionMet(s, o, cond) {
   if (!cond) return true;
   if (cond.lifeGained != null && (s.players[o.controller].lifeGained || 0) < cond.lifeGained) return false;
+  if (cond.bargained && !o.bargained) return false;
   if (cond.controlsOtherNamed && !battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && x.name === o.name)) return false;
   if (cond.attackersAtLeast != null) {
     const list = (s.combat && s.combat.attackers) || [];
@@ -4948,6 +4982,8 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!needUntapped || (!o.tapped && !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste'))))).map(o => o.oid);
 }
 function payExtraCosts(s, p, cost, pay, selfOid) {
+  if (cost.discardSelf) moveObject(s, selfOid, 'graveyard');
+  if (cost.exileSelf) moveObject(s, selfOid, 'exile');
   if (cost.revealColor) {
     // revelar é custo sem perda de carta: conta o que há na mão e guarda no objeto
     const n = s.zones[p].hand.filter(x => x !== selfOid && (s.facts[s.objects[x].name].colors || []).includes(cost.revealColor)).length;
@@ -5237,6 +5273,15 @@ const HANDLERS = {
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
     if (a.bestow) s.objects[a.oid].bestowed = true; // entra como aura, não como criatura
+    if (a.bargain) { // S37 · barganha: sacrifica algo ao conjurar e a mágica lembra disso
+      if (!(f.script || {}).bargain) throw new RuleError('barganha', 'esta carta não tem barganha');
+      const alvo = a.pay && a.pay.bargain;
+      const candidatos = battlefield(s).filter(x => x.controller === a.p && x.oid !== a.oid &&
+        (x.token || ['artifact', 'enchantment'].some(y => s.facts[x.name].types.includes(y)))).map(x => x.oid);
+      if (!alvo || !candidatos.includes(alvo)) throw new RuleError('barganha', 'sacrifique um artefato, encantamento ou ficha');
+      sacrifice(s, alvo);
+      s.objects[a.oid].bargained = true;
+    }
     s.turn.passes = 0;
   },
   /** M7 · habilidade de mana: não usa a pilha. */
@@ -5281,11 +5326,12 @@ const HANDLERS = {
   /** M9 · ativa uma habilidade da permanente; vai para a pilha como objeto próprio. */
   activate(s, a, ev) {
     noPending(s); holder(s, a.p);
-    const o = onField(s, a.oid);
-    if (o.controller !== a.p) throw new RuleError('objeto', 'a permanente não é sua');
+    const o = a.fromHand ? owns(s, a.p, a.oid, 'hand') : onField(s, a.oid);
+    if (!a.fromHand && o.controller !== a.p) throw new RuleError('objeto', 'a permanente não é sua');
     const base = abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0];
     if (!base) throw new RuleError('habilidade', 'essa permanente não tem essa habilidade');
     // S23 · mana de qualquer cor: a cor escolhida vem na ação
+    if ((base.cost || {}).fromHand && !a.fromHand) throw new RuleError('habilidade', 'esta habilidade só funciona com a carta na mão');
     const ab = { ...base, effects: (base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: a.color || 'C' } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
@@ -5646,6 +5692,15 @@ function legalActions(s, p, { adjudication = false } = {}) {
       castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...(Object.keys(pay).length ? { pay } : {}) }));
     });
   }
+  // S37 · barganha: a mesma conjuração, sacrificando um artefato, encantamento ou ficha
+  for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid]; if (!(s.facts[o.name].script || {}).bargain) continue;
+    if (!(canSorcery || !isSorcerySpeed(s.facts[o.name]))) continue;
+    if (s.manaCheck && !canPay(s, p, s.facts[o.name].cost, castExtra(s, p, o, 0))) continue;
+    const candidatos = battlefield(s).filter(x => x.controller === p && x.oid !== oid &&
+      (x.token || ['artifact', 'enchantment'].some(y => s.facts[x.name].types.includes(y))));
+    if (candidatos.length) out.push({ t: 'cast', p, oid, bargain: true, pay: { bargain: candidatos[0].oid } });
+  }
   // S34 · conceder: conjura como aura, pelo custo de conceder
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid]; const bs = bestowOf(s, o);
@@ -5690,10 +5745,20 @@ function legalActions(s, p, { adjudication = false } = {}) {
   if (canSorcery && !s.players[p].companionUsed)
     for (const oid of s.zones[p].companion) if (!s.manaCheck || canPay(s, p, { generic: COMPANION_COST, colored: {}, hybrid: [], x: 0 })) out.push({ t: 'companion', p, oid });
   for (const o of sources(s, p)) out.push({ t: 'tap_mana', p, oid: o.oid, option: 0 });
+  // S37 · habilidades ativadas a partir da mão (descartar esta carta: ...)
+  for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid];
+    abilitiesOf(s, o).filter(x => x.kind === 'activated' && (x.cost || {}).fromHand).forEach((ab, index) => {
+      const need = (ab.effects || []).filter(SC.isTargeted);
+      if (!need.length) return out.push({ t: 'activate', p, oid, index, fromHand: true });
+      legalTargets(s, p, need[0].target, oid).slice(0, TARGET_LIMIT).forEach(x => out.push({ t: 'activate', p, oid, index, fromHand: true, targets: [x] }));
+    });
+  }
   // M9 · habilidades ativadas das suas permanentes
   for (const o of battlefield(s)) {
     if (o.controller !== p) continue;
     abilitiesOf(s, o).filter(x => x.kind === 'activated').forEach((ab, index) => {
+      if ((ab.cost || {}).fromHand) return; // S37 · só vale com a carta na mão
       if (ab.sorceryOnly && !canSorcery) return;
       if (!canPayAbility(s, p, o, ab)) return;
       const cost = ab.cost || {};

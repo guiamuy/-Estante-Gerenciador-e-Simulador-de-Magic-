@@ -1927,3 +1927,109 @@ test('S36 · prevenir o dano de uma mágica da pilha, ganhando essa vida', () =>
   s = resolveSpell(s); // agora o raio resolve
   assert.equal(s.players[a].life, vida + 3, 'o dano do raio não passou');
 });
+
+/* ---------------- S37 · exilar cemitérios, descarte escolhido, habilidade da mão e barganha ---------------- */
+const BG_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Relic': { name: 'Relic', type_line: 'Artifact', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '{T}: Target player exiles a card from their graveyard. {1}, Exile this artifact: Exile all graveyards. Draw a card.' },
+  'Macabre': { name: 'Macabre', type_line: 'Creature — Faerie Rogue', mana_cost: '{1}{B}{B}', cmc: 3, colors: ['B'], power: '2', toughness: '2', keywords: ['Flying'], oracle_text: 'Discard this card: Exile up to two target cards from graveyards.' },
+  'Press': { name: 'Press', type_line: 'Sorcery', mana_cost: '{B}', cmc: 1, colors: ['B'], keywords: [], oracle_text: 'Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.' },
+  'Ouphe': { name: 'Ouphe', type_line: 'Creature — Ouphe', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: 'Bargain. When this creature enters, if it was bargained, exile target artifact or enchantment an opponent controls.' },
+  'Rock': { name: 'Rock', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const BG_SCRIPTS = {
+  Relic: { name: 'Relic', abilities: [
+    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] },
+    { kind: 'activated', cost: { mana: '{1}', exileSelf: true }, effects: [{ do: 'exile_graveyard', target: 'all' }, { do: 'draw', amount: 1 }] }],
+    example: { action: 'activate:1', target: 'none', expect: { graveyardEmpty: true, handDelta: 1 } } },
+  Macabre: { name: 'Macabre', abilities: [{ kind: 'activated', cost: { discardSelf: true, fromHand: true }, effects: [{ do: 'exile_graveyard', target: 'opponent' }] }],
+    example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
+  Press: { name: 'Press', effects: [{ do: 'discard_chosen', amount: 1, target: 'opponent' }],
+    example: { target: 'opponent', expect: { opponentLife: 0 } } },
+  Ouphe: { name: 'Ouphe', bargain: true,
+    abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true }, effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }
+};
+const BGDECK = [{ name: 'Forest', qty: 16, zone: 'main' }, { name: 'Relic', qty: 8, zone: 'main' }, { name: 'Macabre', qty: 8, zone: 'main' },
+  { name: 'Press', qty: 8, zone: 'main' }, { name: 'Ouphe', qty: 8, zone: 'main' }, { name: 'Rock', qty: 8, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }];
+function bgGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: BG_CARDS, scripts: BG_SCRIPTS,
+    players: [{ name: 'A', deck: BGDECK }, { name: 'B', deck: BGDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+function esvaziaMao(s, p) { // devolve a mão para a biblioteca, para o cenário ficar previsível
+  s = J(s);
+  for (const oid of [...s.zones[p].hand]) { s.zones[p].hand.splice(s.zones[p].hand.indexOf(oid), 1); s.zones[p].library.push(oid); s.objects[oid].zone = 'library'; }
+  return s;
+}
+
+test('S37 · exilar todos os cemitérios de uma vez, e comprar uma carta', () => {
+  let s = bgGame(3); const a = s.turn.active, d = 1 - a;
+  let relic, meu, dele;
+  [s, relic] = put(s, a, 'Relic');
+  [s, meu] = put(s, a, 'Bear', { zone: 'graveyard' });
+  [s, dele] = put(s, d, 'Bear', { zone: 'graveyard' });
+  const acao = E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === relic && x.index === 1);
+  assert.ok(acao, 'a mesa oferece exilar todos os cemitérios');
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, acao)));
+  assert.equal(s.objects[meu].zone, 'exile', 'exilou o seu cemitério');
+  assert.equal(s.objects[dele].zone, 'exile', 'exilou o cemitério do oponente');
+  assert.equal(s.objects[relic].zone, 'exile', 'o próprio artefato foi exilado como custo');
+  assert.equal(s.zones[a].hand.length, mao + 1, 'comprou uma carta');
+});
+
+test('S37 · o descarte escolhido pula criaturas e terrenos', () => {
+  let s = bgGame(4); const a = s.turn.active, d = 1 - a;
+  s = esvaziaMao(s, d);
+  let bear, forest, alvo, press;
+  [s, bear] = put(s, d, 'Bear', { zone: 'hand' });
+  [s, forest] = put(s, d, 'Forest', { zone: 'hand' });
+  [s, alvo] = put(s, d, 'Press', { zone: 'hand' });
+  [s, press] = put(s, a, 'Press', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: press, targets: [{ player: d }] })));
+  assert.equal(s.objects[alvo].zone, 'graveyard', 'descartou a carta que não é criatura nem terreno');
+  assert.equal(s.objects[bear].zone, 'hand', 'a criatura ficou na mão');
+  assert.equal(s.objects[forest].zone, 'hand', 'o terreno ficou na mão');
+});
+
+test('S37 · descartar esta carta é habilidade da mão, e não funciona do campo', () => {
+  let s = bgGame(5); const a = s.turn.active, d = 1 - a;
+  let mac, morta;
+  [s, morta] = put(s, d, 'Bear', { zone: 'graveyard' });
+  [s, mac] = put(s, a, 'Macabre', { zone: 'hand' });
+  const acao = E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === mac && x.fromHand && x.targets && x.targets[0].player === d);
+  assert.ok(acao, 'a mesa oferece a habilidade com a carta na mão');
+  const feito = settle(resolveSpell(act(s, acao)));
+  assert.equal(feito.objects[mac].zone, 'graveyard', 'a carta foi descartada como custo');
+  assert.equal(feito.objects[morta].zone, 'exile', 'o cemitério do oponente foi exilado');
+
+  // a mesma habilidade não existe com a carta no campo de batalha
+  let s2 = bgGame(5); const a2 = s2.turn.active, d2 = 1 - a2;
+  let mac2; [s2, mac2] = put(s2, a2, 'Macabre');
+  assert.equal(E.legalActions(s2, a2).some(x => x.t === 'activate' && x.oid === mac2), false, 'no campo ela não é oferecida');
+  assert.throws(() => act(s2, { t: 'activate', p: a2, oid: mac2, index: 0, targets: [{ player: d2 }] }), /mão/);
+});
+
+test('S37 · barganha: o gatilho só acontece se algo foi sacrificado ao conjurar', () => {
+  let s = bgGame(6); const a = s.turn.active, d = 1 - a;
+  let ouphe, rockDele;
+  [s, rockDele] = put(s, d, 'Rock');
+  [s, ouphe] = put(s, a, 'Ouphe', { zone: 'hand' });
+  const simples = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: ouphe })));
+  assert.equal(simples.objects[rockDele].zone, 'battlefield', 'sem barganha, nada é exilado');
+  assert.throws(() => act(s, { t: 'cast', p: a, oid: ouphe, bargain: true }), /sacrifique/);
+
+  let s2 = bgGame(6); const a2 = s2.turn.active, d2 = 1 - a2;
+  let ouphe2, meuRock, rockDele2;
+  [s2, meuRock] = put(s2, a2, 'Rock');
+  [s2, rockDele2] = put(s2, d2, 'Rock');
+  [s2, ouphe2] = put(s2, a2, 'Ouphe', { zone: 'hand' });
+  const acao = E.legalActions(s2, a2).find(x => x.t === 'cast' && x.oid === ouphe2 && x.bargain);
+  assert.ok(acao && acao.pay.bargain === meuRock, 'a mesa oferece a barganha já com o que sacrificar');
+  s2 = settle(resolveSpell(act(s2, acao)));
+  assert.equal(s2.objects[meuRock].zone, 'graveyard', 'o artefato foi sacrificado pela barganha');
+  assert.equal(s2.objects[rockDele2].zone, 'exile', 'o artefato do oponente foi exilado');
+});

@@ -75,6 +75,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S34 tempestade, conceder e metamorfo | ✅ |
 | S · Scripts | S35 varredura das Pauper: gatilho da encantada e alvos de artefato | ✅ |
 | S · Scripts | S36 proteção de várias cores e prevenção do dano de uma mágica | 🟡 |
+| S · Scripts | S37 exilar cemitérios, descarte escolhido, habilidade da mão e barganha | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -246,7 +247,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33c ✅ | S34 (leva 25) | Tempestade, conceder e metamorfo |
 | E33d ✅ | S35 (leva 26) | Varredura das Pauper: medição e gatilho da criatura encantada |
 | E33e 🟡 | S36 (leva 27) | Proteção de várias cores e prevenção do dano de uma mágica |
-| E33f ▶ | S37 | Seguir nas manuais das Pauper |
+| E33f 🟡 | S37 (leva 28) | Exilar cemitérios, descarte escolhido, habilidade da mão e barganha |
+| E33g ▶ | S38 | Seguir nas manuais das Pauper (11 cartas únicas restantes) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 | deploy | Merge na main e teste no celular |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
@@ -751,6 +753,31 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S37 · Exilar cemitérios, descarte escolhido, habilidade da mão e barganha** 🟡
+- **Fonte:** textos conferidos em `grimoria.app` em 26/09/2026 (a fonte anterior, `mtg.wtf`, seguiu
+  recusando por excesso de consultas).
+- **Aceite:**
+  - uma habilidade pode exilar o cemitério de um jogador ou de todos de uma vez;
+  - uma mágica pode fazer o oponente descartar uma carta que não é criatura nem terreno;
+  - uma carta pode ter habilidade que só funciona com ela na mão, pagando o descarte dela mesma;
+  - barganha: sacrificar um artefato, encantamento ou ficha ao conjurar, e o gatilho da carta
+    só acontece se isso foi feito.
+- **Entregue:** Troublemaker Ouphe (completa), Duress, Faerie Macabre, Relic of Progenitus e
+  Journey to Nowhere (parciais, cada uma com o que falta declarado abaixo).
+- **Parciais e o que falta:**
+  - **Duress** — o motor escolhe a primeira carta que não é criatura nem terreno; escolher você mesmo não entra.
+  - **Faerie Macabre** — exila o cemitério inteiro do alvo, não até duas cartas escolhidas.
+  - **Relic of Progenitus** — a primeira habilidade exila o cemitério inteiro, não uma carta.
+  - **Journey to Nowhere** — devolver a criatura quando o encantamento sai do campo não entra.
+- **Correções:** Journey to Nowhere estava modelada como aura e morria sozinha (o próprio exílio
+  tirava a criatura hospedeira, e a regra 704.5m matava a aura); e habilidade de mão estava sendo
+  oferecida com a carta já no campo de batalha.
+- **Testes:** U (exilar todos os cemitérios com compra, descarte que pula criatura e terreno,
+  habilidade da mão aceita na mão e recusada no campo, barganha abrindo e fechando o gatilho), S8.
+- **Fora:** escolher qual carta o oponente descarta e escolher quais cartas do cemitério exilar —
+  as duas dependem de escolha em zona escondida pelo jogador, não pelo motor.
+- **Resultado:** cartas manuais das Pauper de 28 cópias para 17 (11 cartas únicas).
 
 **S36 · Proteção de várias cores e prevenção do dano de uma mágica** 🟡
 - **Fonte:** textos conferidos em 26/09/2026.
