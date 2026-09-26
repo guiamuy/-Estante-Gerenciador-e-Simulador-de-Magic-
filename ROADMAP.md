@@ -47,7 +47,27 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | S · Scripts | S1 formato e validador · S2 cobertura · S3 palavras-chave · S4 efeitos · S5 alvos · A10 cobertura visível | ✅ |
-| S · Scripts | S8 cenário em cada script · S9 modo motor completo | 🟡 |
+| S · Scripts | S8 cenário em cada script · S9 modo motor completo | ✅ |
+| M · Motor | M9 habilidades ativadas e disparadas · M10 ordem dos gatilhos | ✅ |
+| S · Scripts | S6/S7 levas das listas do Guilherme | 🟡 |
+| S · Scripts | S11 auras e equipamentos · S11b mana de aura, prevenção, proteção e evasão | ✅ |
+| M · Motor | M12 fichas · S10 cartas que criam fichas | ✅ |
+| S · Scripts | S12 escolhas do jogador: descartar, modos e condição de cor | ✅ |
+| S · Scripts | S13 vasculhar e moer · S14 scry, vigiar e olhar o topo | ✅ |
+| S · Scripts | S15 gatilhos com alvo e de outras permanentes · S17 filtros de alvo | ✅ |
+| S · Scripts | S16 custos alternativos, lampejo do passado e "a menos que pague" | ✅ |
+| S · Scripts | S18 ninjutsu, insanidade e dano de combate ao jogador | ✅ |
+| S · Scripts | S19 valores dinâmicos | ✅ |
+| S · Scripts | S20 cemitério, mana direta e custos adicionais | ✅ |
+| S · Scripts | S21 planeswalkers | ✅ |
+| S · Scripts | S22 entra virado, ciclar, custo de descarte e cartas conferidas na Scryfall | ✅ |
+| S · Scripts | S23 gatilhos de conjuração e mana de qualquer cor | ✅ |
+| S · Scripts | S24 faces duplas: disturb e presságio | ✅ |
+| S · Scripts | S25 transformar no campo, condições de gatilho e palavra-chave temporária | ✅ |
+| S · Scripts | S26 delve, lampejo com custo de virar criaturas e últimas cartas | ✅ |
+| S · Scripts | S27 fechamento das listas e medição por lista | ✅ |
+| S · Scripts | S28 Faeries: condição de nome, subtipo e alvo do oponente | ✅ |
+| S · Scripts | S29 Walls: devolver terreno, transmutar e Fog | 🟡 |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -190,9 +210,33 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E6 ✅ | X3, X5, X6, L11 | Scanner identifica a edição, alimenta coleção ou lista e funciona offline; listas com companheiro |
 | E7 ✅ | M6, A6, M7, M14 | Combate e mana resolvidos pelo motor; companheiro jogável na mesa |
 | E8 ✅ | S1–S5, A10 | Primeiros scripts de carta, alvos e cobertura visível |
-| E9 🟡 | S8, S9, biblioteca ampliada | Cenário obrigatório por script, varreduras e o modo sem pausa nenhuma |
-| E10 ▶ | S6, S7 | Cobrir as cartas das suas listas, medidas pela cobertura |
-| E11 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
+| E9 ✅ | S8, S9, biblioteca ampliada | Cenário obrigatório por script, varreduras e o modo sem pausa nenhuma |
+| E10 ✅ | M9, M10 | Cartas com gatilho e habilidade ativada entram no motor |
+| E11 🟡 | S6, S7 (leva 1) | Primeiras cartas das listas reais, e o mapa do que falta |
+| E12 🟡 | S11 (leva 2) | Auras e equipamentos: anexar, bônus, cair quando o alvo some |
+| E13 ✅ | S11b (leva 3) | Auras que dão mana, prevenção, proteção de cor, evasão e P/T dinâmico |
+| E14 ✅ | M12, S10 (leva 4) | Fichas: Battle Screech, Dragon Fodder, Swan Song, pistas |
+| E15 ✅ | S12 (leva 5) | Escolhas do jogador: descartar, modos, Hydroblast e cia. |
+| E16 ✅ | S13, S14 (leva 6) | Vasculhar o grimório, moer, scry e olhar o topo |
+| E17 ✅ | S15, S17 (leva 7) | Gatilhos com alvo e de outras permanentes, filtros de alvo |
+| E18 ✅ | S16 (leva 8) | Custos alternativos, lampejo do passado e "a menos que pague" |
+| E19 ✅ | S18 (leva 9) | Ninjutsu, insanidade e gatilho de dano de combate |
+| E20 ✅ | S19 (leva 10) | Valores dinâmicos: mana, pump e compra que contam o campo |
+| E21 ✅ | S20 (leva 11) | Cemitério, mana direta e custos adicionais |
+| E22 ✅ | S21 (leva 12) | Planeswalkers: lealdade, uma por turno, dano e morte |
+| E23 ✅ | S22 (leva 13) | Entra virado, ciclar, custo de descarte e as cartas que faltavam texto |
+| E24 ✅ | S23 (leva 14) | Gatilhos de conjuração e mana de qualquer cor com escolha |
+| E25 ✅ | S24 (leva 15) | Faces duplas: disturb e presságio |
+| E26 ✅ | S25 (leva 16) | Sorin e Kytheon: transformar no campo |
+| E27 ✅ | S26 (leva 17) | Delve, lampejo com custo de virar criaturas e as últimas cartas |
+| E28 ✅ | S27 (leva 18) | Pedras de mana, fechamento de parciais e medição por lista |
+| E29 ✅ | S28 (leva 19) | Mono Blue Faeries: de 56% para 77% |
+| E30 🟡 | S29 (leva 20) | Walls Combo: custo de devolver terreno, transmutar e Fog |
+| E31 ▶ | S30 | Boros Bully: prevenção por cor e proteção |
+| E32 | S31 | Elves e Jund: devoção, gatilho de sacrifício e afinidade |
+| E33 | S32 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
+| E34 | deploy | Subir o acumulado e testar no celular |
+| E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 
 ---
 
@@ -380,25 +424,27 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M1.
 - **Fora:** desfazer informação oculta revelada.
 
-**M9 · Habilidades ativadas e disparadas** ○
-- **Valor:** a base para quase todo script de carta.
+**M9 · Habilidades ativadas e disparadas** ✅
+- **Valor:** a base de quase toda carta de permanente.
 - **Aceite:**
-  - objeto de habilidade na pilha;
-  - gatilhos em fila, ordenados pelo controlador;
-  - habilidades de mana sem pilha.
-- **Testes:** U, P.
+  - o script de uma permanente declara habilidades: ativadas (custo de mana, virar, sacrificar, e a opção "só no tempo de feitiço") e disparadas (entra no campo, morre, manutenção, ataca);
+  - a habilidade vira um objeto próprio na pilha, que pode ser respondido e some ao resolver;
+  - alvos seguem as mesmas regras das mágicas, inclusive a anulação quando o alvo some;
+  - gatilhos entram na pilha antes de qualquer prioridade;
+  - biblioteca ganhou 7 permanentes com habilidade.
+- **Testes:** U (cada gatilho, cada custo, anulação), S8 (cenário por script), P (fuzz).
 - **Depende de:** M4, M10.
-- **Fora:** —
+- **Fora:** gatilho com alvo, habilidades de mana escritas em script (a leitura do texto já cobre), habilidades em outras zonas.
 
-**M10 · Decisões pendentes genéricas** ○
-- **Valor:** o motor pede escolhas (alvo, modo, ordem) de forma uniforme para humano e bot.
+**M10 · Decisões pendentes genéricas** ✅
+- **Valor:** o motor pede escolhas de forma uniforme para humano e bot.
 - **Aceite:**
-  - `state.pending` tipado;
-  - `legalActions` lista as escolhas;
-  - mesmo contrato para a interface e para o bot.
+  - `state.pending` cobre descarte, atacantes, bloqueadores e agora a ordem dos gatilhos;
+  - com dois ou mais gatilhos do mesmo controlador, ele escolhe qual entra primeiro na pilha;
+  - `legalActions` lista as escolhas, e a mesa mostra um botão por gatilho.
 - **Testes:** U, P.
 - **Depende de:** M4.
-- **Fora:** —
+- **Fora:** escolha de modo e de divisão de dano.
 
 **M11 · Ações baseadas em estado com escolha** ○
 - **Valor:** a regra de lenda e os marcadores se resolvem sozinhos.
@@ -407,15 +453,19 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M10.
 - **Fora:** —
 
-**M12 · Fichas e cópias** ○
-- **Valor:** criaturas-ficha jogáveis.
+**M12 · Fichas** ✅
+- **Valor:** as listas que ganham a partida com fichas ficam jogáveis.
 - **Aceite:**
-  - objeto sem carta;
-  - deixa de existir fora do campo;
-  - invariante de contagem ajustada.
-- **Testes:** U, P.
-- **Depende de:** M5.
-- **Fora:** camadas de cópia completas.
+  - o efeito `token` declara nome, tipos, poder, resistência, palavras-chave e até habilidades da ficha;
+  - a ficha é objeto sem carta: entra no campo, entra com enjoo se for criatura e não conta como carta nas invariantes;
+  - 704.5d: ao sair do campo, a ficha deixa de existir em vez de ir para o cemitério;
+  - fichas com habilidade funcionam (a pista compra ao ser sacrificada);
+  - a ficha pode ir para o controlador do alvo (Swan Song, Resculpt);
+  - na mesa, a carta aparece marcada como "ficha".
+- **Entregue na biblioteca:** Dragon Fodder, Krenko's Command, Battle Screech, Forbidden Friendship, Hard Evidence, Thraben Inspector, Novice Inspector, Swan Song e Resculpt.
+- **Testes:** U (criação, sumiço, ficha com habilidade), S8 (cenário por script), P (invariantes).
+- **Depende de:** M5, S1.
+- **Fora:** cópias de permanentes e fichas que copiam outra carta.
 
 **M13 · Regras específicas de Commander** ○
 - **Valor:** o Commander completo sem lembrar exceções.
@@ -608,21 +658,58 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** S1.
 - **Fora:** múltiplos alvos do mesmo efeito e alvos ilegais parciais com divisão de dano.
 
-**S6 · Cobertura das listas do usuário: Pauper** ▶
-- **Valor:** as listas Pauper salvas ficam jogáveis no motor completo.
-- **Aceite:** meta de cobertura completa por lista, medida por S2.
-- **Como fazer:** abra a lista, toque em **Copiar cartas sem script** e mande a lista de nomes; cada carta vira script com cenário (S1 e S8).
-- **Testes:** U (o cenário declarado em cada script novo).
-- **Depende de:** S3–S5, S8.
-- **Fora:** cartas fora das listas salvas.
+**S6 · Cobertura das listas do usuário: Pauper** 🟡
+**S7 · Cobertura das listas do usuário: Commander** 🟡
+- **Valor:** as listas reais ficam jogáveis, e o percentual mede o avanço.
+- **Listas recebidas (22/09):** Commander Malcolm/Kediss (100), Commander Orzhov Killian, e as Pauper Mono Blue Faeries, Rakdos Madness, GW Bogles, Boros Bully, Walls Combo, Jund Wildfire e Elves.
+- **Leva 1 entregue:** Terminate, Utter End, Anguished Unmaking, End the Festivities, Fiery Temper, Alms of the Vein, Rally the Peasants, Tormod's Crypt e Ichor Wellspring, além do que já havia (Lightning Bolt, Counterspell, Dispel, Negate, Doom Blade, Disenchant, Electrickery, Pyroclasm e as demais).
+- **Correção:** Journey to Nowhere saiu da biblioteca. Estava escrita como mágica de exílio, e na verdade é um encantamento que exila ao entrar e devolve ao sair; entra de novo com S11 e S15.
+- **O que trava o resto** (estimativa por leitura das listas, a ser confirmada pelo percentual do app):
 
-**S7 · Cobertura das listas do usuário: Commander (Malcolm v3 primeiro)** ▶
-- **Valor:** a lista principal fica jogável no motor completo.
-- **Aceite:** como em S6.
-- **Depende de:** S6, M13; cartas com gatilho dependem de M9.
-- **Fora:** —
+| Falta | Histórias | Cartas suas, aprox. | Exemplos |
+|---|---|---|---|
+| Fichas | M12, S10 | 12 | Battle Screech, Dragon Fodder, Krenko's Command, Swan Song, Thraben Inspector |
+| Auras e equipamentos | S11 | 25 | Ancestral Mask, Ethereal Armor, Rancor, Utopia Sprawl, Curiosity, Animate Dead, Skullclamp |
+| Escolhas do jogador (descartar, modos) | M10+, S12 | 25 | Faithless Looting, Chart a Course, Abrade, Silverquill Command, Hydroblast |
+| Vasculhar o grimório | S13 | 12 | Mystical Tutor, Squadron Hawk, Lead the Stampede, Idyllic Tutor |
+| Scry, surveil e olhar o topo | S14 | 10 | Preordain, Opt, Consider, Impulse, Brainstorm, Faerie Seer |
+| Gatilhos com alvo e de outras permanentes | S15 | 15 | Zulaport Cutthroat, Cruel Celebrant, Kor Skyfisher, Ninja of the Deep Hours |
+| Custos alternativos e adicionais | S16 | 20 | Daze, Foil, Gitaxian Probe, madness, flashback, sobrecarga, ninjutsu |
+| Condições e contadores | S17 | 15 | Spell Pierce, Spell Snare, Cast Down, Prismatic Strands, Elvish Vanguard |
 
-**S8 · Cenário declarado em cada script** 🟡
+- **Ordem escolhida:** fichas primeiro (destrava as listas brancas e vermelhas e é pré-requisito de M12), depois auras (destrava o Bogles inteiro), depois escolhas.
+- **Testes:** o cenário declarado de cada script novo (S8).
+- **Depende de:** S3–S5, S8, e as histórias da tabela.
+
+**S11 · Auras e equipamentos** ✅
+- **Valor:** destravar as listas que dependem de anexar, começando pelo GW Bogles.
+- **Aceite:**
+  - o script declara `aura` (o que encanta) ou `equip` (com custo), e `grants` com poder, resistência e palavras-chave;
+  - a aura escolhe o alvo na conjuração, entra no campo já anexada e é anulada se o alvo sumir antes;
+  - bônus dinâmicos por contagem: "por encantamento que você controla" (Ethereal Armor) e "por outro encantamento" (Ancestral Mask);
+  - palavras-chave concedidas valem no combate (atropelar, iniciativa, vínculo com a vida, voar, vigilância);
+  - equipar é habilidade ativada com custo, no tempo de feitiço, e só em criatura sua;
+  - 704.5m: se a criatura sai, a aura vai para o cemitério e o equipamento apenas desanexa;
+  - a mesa mostra o que está anexado e o poder/resistência já com os bônus.
+- **Entregue na biblioteca:** Rancor, Ethereal Armor, Ancestral Mask, Sentinel's Eyes, Spirit Link, Lifelink, Angelic Gift, Flickering Ward e Skullclamp.
+- **Testes:** U (anexar, somar bônus, contagem dinâmica, queda da aura, Skullclamp matando um 1/1), S8 (cenário por script).
+- **Depende de:** M9, S5.
+- **Fora:** auras que dão mana, prevenção de dano, proteção e P/T dinâmico da própria criatura — ficam na S11b.
+
+**S11b · Mana de aura, prevenção, proteção e evasão** ✅
+- **Valor:** fechar o GW Bogles e abrir caminho para as outras listas com aura.
+- **Aceite:**
+  - aura pode conceder mana à permanente encantada: cor extra escolhida ao entrar (Utopia Sprawl) ou uma opção nova de qualquer cor (Abundant Growth);
+  - escolha de cor ao entrar é decisão pendente (M10), com uma opção por cor;
+  - prevenção: a criatura encantada não recebe dano nenhum (Armadillo Cloak), nem de mágica nem de combate;
+  - proteção de cor: não pode ser alvo, não recebe dano e não é bloqueada por criaturas daquela cor (Benevolent Blessing);
+  - evasão estática: "só é bloqueada por criaturas com voar" (Silhana Ledgewalker) e "criaturas com poder menor não podem bloquear" (Aura Gnarlid);
+  - bônus próprio dinâmico: +1/+1 por aura no campo (Aura Gnarlid).
+- **Testes:** U, S8 (cenário por script).
+- **Depende de:** S11.
+- **Fora:** ganhar vida junto com a prevenção (Armadillo Cloak completo), fuga, vasculhar o grimório.
+
+**S8 · Cenário declarado em cada script** ✅
 - **Valor:** todo script nasce testado.
 - **Aceite:**
   - o script traz um `example` com o alvo a usar e o que esperar (vida, carta que sai do campo, devolvida, anulada, virada, pump, cartas compradas);
@@ -633,7 +720,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** S1.
 - **Fora:** cenários com mais de um alvo.
 
-**S9 · Modo motor completo jogável** 🟡
+**S9 · Modo motor completo jogável** ✅
 - **Valor:** partida sem pausa nenhuma.
 - **Aceite:**
   - a preparação mostra os dois modos; motor completo só libera com a lista 100% coberta, e diz isso quando não libera;
@@ -642,6 +729,216 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** I (liberação pela cobertura e ausência dos controles manuais), U (o motor recusa adjudicação no modo completo).
 - **Depende de:** S2, A2.
 - **Fora:** bot adversário (B2).
+
+**S28 · Faeries: condição de nome, contagem por subtipo e alvo do oponente** ✅
+- **Fonte:** textos conferidos na Scryfall em 22/09/2026.
+- **Aceite:** condição "se você controla outra permanente com este nome"; valores e limites contados
+  por subtipo (Spellstutter Sprite conta as Faeries); alvos restritos a permanentes do oponente.
+- **Entregue:** Faerie Seer, Faerie Miscreant, Spellstutter Sprite, Brinebarrow Intruder, Harrier Strix, Of One Mind.
+- **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
+  da pilha ela deixa de existir em vez de virar carta no cemitério.
+- **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S29 · Walls: custo de devolver terreno, transmutar e Fog** 🟡
+- **Fonte:** textos conferidos na Scryfall em 26/09/2026.
+- **Aceite:**
+  - custo de habilidade que devolve um terreno de um tipo à mão, e habilidade limitada a uma vez por turno;
+  - busca filtrada por palavra-chave (criatura com defensor);
+  - transmutar: descarta a carta no tempo de feitiço e busca outra de mesmo valor de mana;
+  - efeito Fog: previne todo o dano de combate do turno, e o efeito zera na limpeza;
+  - varredura que atinge só criaturas com voar (Scattershot Archer).
+- **Entregue:** Quirion Ranger, Shield-Wall Sentinel, Drift of Phantasms, Moment's Peace,
+  Orochi Leafcaller, Saruli Caretaker e Scattershot Archer.
+- **Correção de usabilidade:** a mesa cortava a lista de alvos em 6, escondendo alvos legais em campos
+  grandes. O limite subiu para 10 alvos e 16 combinações.
+- **Testes:** U (custo de terreno, uma vez por turno, filtro por palavra-chave, transmutar, Fog), S8.
+- **Depende de:** S13, S20.
+- **Fora:** converter mana de uma cor em outra (Orochi real), escolher entre {G} e {W} no Saruli.
+
+**S27 · Fechamento das listas e medição** 🟡
+- **Entregue:** pedras de mana e utilidades das listas de Commander (Izzet Signet, Orzhov Signet, Arcane Signet, os dois Talismãs, Fellwar Stone, Lotus Petal, Chromatic Sphere, Chromatic Star, Soul-Guide Lantern, Nihil Spellbomb), custo de vida em habilidade, e o fechamento de Unearth e das fichas de Blood.
+- **Medição em 22/09/2026**, contando como resolvido o que o motor lê do texto da carta (baunilha, só palavras-chave, terrenos simples e mana):
+
+| Lista | Cartas | Resolvido | Parcial | Manual |
+|---|---|---|---|---|
+| Commander Malcolm/Kediss | 100 | 57% | 13 | 30 |
+| Commander Orzhov Killian | 102 | 43% | 9 | 49 |
+| Pauper Mono Blue Faeries | 75 | 56% | 4 | 29 |
+| Pauper Rakdos Madness | 75 | 72% | 10 | 11 |
+| Pauper GW Bogles | 75 | 67% | 14 | 11 |
+| Pauper Boros Bully | 75 | 57% | 11 | 21 |
+| Pauper Walls Combo | 75 | 47% | 7 | 33 |
+| Pauper Jund Wildfire | 75 | 60% | 12 | 18 |
+| Pauper Elves | 75 | 67% | 10 | 15 |
+
+- **O número exato sai no app**, que lê o texto de cada carta pela Scryfall; esta tabela é a estimativa feita aqui.
+- **O que ainda impede o motor completo:** gatilhos de condição de estado (Spellstutter Sprite, Faerie Miscreant), prevenção por cor (Prismatic Strands, Hallow), devoção (Nylea's Disciple), desvirar terreno (Quirion Ranger), transmutar (Drift of Phantasms), afinidade, tempestade e plot.
+- **Depende de:** S1 a S26.
+
+**S26 · Delve, lampejo com custo de virar criaturas e as últimas cartas** 🟡
+- **Fonte:** textos conferidos na Scryfall em 22/09/2026.
+- **Aceite:**
+  - custo alternativo pode exilar cartas do cemitério (delve), virar outras criaturas ou sacrificar permanentes;
+  - lampejo do passado aceita custo que não seja mana, como virar três criaturas (Battle Screech);
+  - efeito de voltar embaralhado para o grimório (Lembas).
+- **Entregue na biblioteca:** Treasure Cruise, Dig Through Time, Battle Screech, Eviscerator's Insight, Lembas e Refurbished Familiar.
+- **Ficam manuais, por dependerem de mecânicas fora do plano atual:** Gixian Infiltrator (gatilho de sacrifício), Evolution Witness (adaptar e gatilho de marcadores), Sneaky Snacker (gatilho de terceira compra) e Leonardo, Big Brother (texto não localizado com segurança).
+- **Testes:** U (delve exilando o cemitério, lampejo virando três criaturas), S8 (cenário por script).
+- **Depende de:** S16, S20.
+- **Fora:** delve parcial (escolher quantas exilar), afinidade, tempestade e plot.
+
+**S25 · Transformar no campo** 🟡
+- **Valor:** Sorin e Kytheon, as duas cartas que viram planeswalker no meio da partida.
+- **Fonte:** textos e lealdades conferidos na Scryfall em 22/09/2026 (ambos entram com 3).
+- **Aceite:**
+  - gatilhos de fase pós-combate e de fim de combate;
+  - condições de gatilho: "se você ganhou 3 ou mais vidas neste turno" e "se três criaturas atacaram, incluindo esta";
+  - efeito de transformar: a permanente troca de face no campo e, virando planeswalker, entra com a lealdade da face de trás;
+  - a vida ganha no turno é contada (inclusive por vínculo com a vida) e zera na limpeza;
+  - palavra-chave concedida até o fim do turno, como o indestrutível do Kytheon.
+- **Entregue na biblioteca:** Sorin of House Markov // Sorin, Ravenous Neonate e Kytheon, Hero of Akros // Gideon, Battle-Forged, ambos parciais (falta o −6 do Sorin, e o +2 e o 0 do Gideon).
+- **Testes:** U (condição de vida, condição de atacantes, lealdade ao transformar, dano pela vida ganha), S8 (cenário por script).
+- **Depende de:** S21, S24.
+- **Fora:** extorsão, virar planeswalker em criatura 4/4, roubo de criatura.
+
+**S24 · Faces duplas** 🟡
+- **Valor:** as cartas de duas faces das listas entram na mesa.
+- **Fonte:** textos conferidos na Scryfall em 22/09/2026.
+- **Aceite:**
+  - a face de trás vira um conjunto de dados próprio, com tipos, poder, resistência, palavras-chave e efeitos;
+  - disturb: conjura do cemitério já transformada, e a permanente entra pela face de trás;
+  - presságio (omen): conjura a face de trás da mão como feitiço, e a carta volta embaralhada para o grimório ao resolver;
+  - fora do campo e da pilha, a carta sempre volta para a face da frente;
+  - conjurada normalmente, usa a face da frente, com os gatilhos dela.
+- **Entregue na biblioteca:** Lunarch Veteran // Luminous Phantom e Sagu Wildling // Roost Seek.
+- **Testes:** U (disturb, presságio, volta à frente, conjuração normal), S8 (cenário por script).
+- **Depende de:** S1, S13.
+- **Fora:** transformar no campo por gatilho ou custo (Sorin e Kytheon), e as cartas modais de duas faces com terreno atrás.
+
+**S23 · Gatilhos de conjuração e mana de qualquer cor** 🟡
+- **Valor:** Elves, Walls e Saheeli passam a funcionar como na carta.
+- **Aceite:**
+  - gatilho "quando você conjura esta mágica" e "sempre que você conjura uma mágica", com filtro por tipo, subtipo e "que não é criatura";
+  - mana de qualquer cor com escolha: a mesa oferece uma opção por cor;
+  - custo de virar mais de uma outra criatura.
+- **Entregue na biblioteca:** Kitchen Imp, Writhing Chrysalis, Springleaf Drum, Jaspera Sentinel, Birchlore Rangers, Lys Alana Huntmaster, e a Saheeli deixou de ser parcial.
+- **Testes:** U (filtro do gatilho, uma opção por cor, custo de virar outra), S8 (cenário por script).
+- **Depende de:** M9, M7.
+- **Fora:** gatilhos de compra de carta e de sacrifício de outra permanente.
+
+**S22 · Entra virado, ciclar, custo de descarte e as cartas que faltavam** 🟡
+- **Valor:** fechar as cartas que estavam paradas por falta do texto oficial.
+- **Fonte:** textos conferidos na Scryfall em 22/09/2026.
+- **Aceite:**
+  - permanente que entra virada;
+  - ciclar: paga o custo, descarta a carta e compra outra (e respeita insanidade);
+  - custo adicional de descarte na conjuração;
+  - busca que põe a carta no campo virada.
+- **Entregue na biblioteca:** Malevolent Rumble, Sheltering Landscape, Setessan Training, Vampire's Kiss, Voldaren Epicure, Grab the Prize, Highway Robbery e Bojuka Bog (que deixou de ser parcial).
+- **Parciais registradas:** o dano condicional do Grab the Prize, a opção de sacrificar terreno e o plot do Highway Robbery, e o custo de descarte das fichas de Blood.
+- **Testes:** U (entra virado, busca para o campo virado, ciclar cobrando o custo), S8 (cenário por script).
+- **Depende de:** S12, S13.
+- **Fora:** plot, gift e as fichas de Blood completas.
+
+**S21 · Planeswalkers** 🟡
+- **Valor:** as planeswalkers das listas de Commander entram na mesa.
+- **Aceite:**
+  - a planeswalker entra com a lealdade impressa como marcadores;
+  - habilidades de lealdade são ativadas de tempo de feitiço, uma por planeswalker por turno, e só quando a lealdade cobre o custo;
+  - +N sobe e −N desce os marcadores;
+  - dano numa planeswalker tira lealdade, e com lealdade zero ela vai para o cemitério;
+  - "qualquer alvo" passa a incluir planeswalkers;
+  - na mesa, a carta mostra a lealdade e cada habilidade vira um botão com o rótulo da carta.
+- **Entregue na biblioteca:** Saheeli, Sublime Artificer (parcial: a habilidade estática ainda não entra).
+- **Testes:** U (lealdade inicial, uma por turno, custo insuficiente, tempo de feitiço, morte por dano), S8 (cenário por script).
+- **Depende de:** M9, S4.
+- **Fora:** atacar planeswalker, habilidades estáticas de planeswalker, emblemas e ultimates que mudam a partida inteira.
+
+**S20 · Cemitério, mana direta e custos adicionais** 🟡
+- **Valor:** recursão do Killian e do Jund, e os aceleradores do Walls.
+- **Aceite:**
+  - alvos no seu cemitério, com limite de valor de mana;
+  - efeitos de devolver para a mão e de reanimar (volta ao campo com enjoo);
+  - efeito de pôr mana direto na reserva, e habilidade de mana resolve sem usar a pilha (605.1a);
+  - custos adicionais de sacrificar outra permanente ou virar outra criatura, tanto em habilidade quanto na conjuração;
+  - a mesa só oferece a ação quando há o que sacrificar ou virar, e sugere qual.
+- **Entregue na biblioteca:** Unearth, Sevinne's Reclamation, Pulse of Murasa, Tinder Wall, Fanatical Offering e Krark-Clan Shaman.
+- **Testes:** U (limite de valor de mana, reanimar com enjoo, custo sugerido e cobrado, mana sem pilha), S8 (cenário por script).
+- **Depende de:** S4, M9.
+- **Fora:** reanimar com aura (Animate Dead), devolver do cemitério do oponente, ciclar.
+
+**S19 · Valores dinâmicos** 🟡
+- **Valor:** Elves e Walls Combo dependem quase todos de contar o campo.
+- **Aceite:**
+  - qualquer valor de efeito (dano, compra, vida, pump) pode ser uma contagem: criaturas suas, Elfos, criaturas com defensor, permanentes suas, encantamentos;
+  - produção de mana declarada no script, com contagem e opção de qualquer cor (Priest of Titania, Overgrown Battlement, Axebane Guardian);
+  - quando o script declara a produção, ela substitui o que foi lido do texto da carta;
+  - o cálculo é feito na hora de usar, então o campo mudando muda o resultado.
+- **Entregue na biblioteca:** Priest of Titania, Overgrown Battlement, Axebane Guardian, Timberwatch Elf, Distant Melody, Valakut Invoker e Bloodrite Invoker.
+- **Testes:** U (mana que cresce, pump por Elfos, compra por criaturas), S8 (cenário por script).
+- **Depende de:** M7, S4.
+- **Fora:** devoção, contar cartas no cemitério e contagens do oponente.
+
+**S18 · Ninjutsu, insanidade e dano de combate** 🟡
+- **Valor:** o coração do Mono Blue Faeries e do Rakdos Madness.
+- **Aceite:**
+  - ninjutsu: depois dos bloqueadores, devolve um atacante seu sem bloqueio para a mão e o ninja entra virado e atacando, pagando o custo de ninjutsu;
+  - só vale no passo de bloqueio e só com atacante não bloqueado;
+  - gatilho de dano de combate ao jogador (o ninja compra quando conecta);
+  - insanidade: a carta descartada vai para o exílio e o dono escolhe conjurar pelo custo de insanidade ou deixar no cemitério;
+  - a insanidade devolve a pendência que interrompeu, inclusive o descarte da limpeza.
+- **Entregue na biblioteca:** Ninja of the Deep Hours, Moon-Circuit Hacker, Fiery Temper e Alms of the Vein (estas duas deixaram de ser parciais).
+- **Testes:** U (troca do atacante, bloqueio impede, gatilho de dano, insanidade aceitando e recusando, insanidade dentro da limpeza), S8 (cenário por script).
+- **Depende de:** M6, S12, S16.
+- **Fora:** ninjutsu de cartas que entram de outras zonas, insanidade com descarte causado pelo oponente.
+
+**S16 · Custos alternativos, lampejo do passado e "a menos que pague"** 🟡
+- **Valor:** os counters livres do Faeries e do Malcolm, e o reaproveitamento do cemitério.
+- **Aceite:**
+  - custo alternativo declarado no script, com mana, vida, descarte ou devolver um terreno; a mesa sugere o pagamento e mostra o rótulo no botão;
+  - lampejo do passado: a carta pode ser conjurada do cemitério pelo custo do lampejo e é exilada ao resolver;
+  - "anular a menos que pague": quem controla a mágica decide, com botão de pagar ou deixar anular, e o resto da mágica espera essa decisão.
+- **Entregue na biblioteca:** Daze, Spell Pierce, Miscast, Lose Focus, Flusterstorm, Foil, e o lampejo do passado em Faithless Looting e Rally the Peasants.
+- **Testes:** U (custo devolvendo Ilha, pagar e não pagar, lampejo exilando), S8 (cenário por script).
+- **Depende de:** M7, S12.
+- **Fora:** insanidade (madness), ninjutsu, tempestade, replicar e delve.
+
+**S15/S17 · Gatilhos com alvo, gatilhos de outras permanentes e filtros de alvo** 🟡
+- **Valor:** destravar os drenos, os "quando entra devolva", os tutores condicionais e os counters de condição.
+- **Aceite:**
+  - gatilho pode ter alvo: sem alvo legal ele nem vai para a pilha, com um alvo vai direto, com vários a mesa pergunta;
+  - gatilhos de outras permanentes suas, ao entrar e ao morrer, com filtro por tipo e subtipo;
+  - alvo "cada oponente" para perder vida, e efeito de marcadores +1/+1;
+  - filtros de alvo: não lendária (Cast Down), valor de mana exato (Spell Snare) e mágica de artefato ou encantamento (Annul).
+- **Entregue na biblioteca:** Zulaport Cutthroat, Cruel Celebrant, Corpse Knight, Elvish Vanguard, Kor Skyfisher, Bojuka Bog, Cast Down, Spell Snare e Annul.
+- **Testes:** U (dreno só com criatura sua, escolha de alvo do gatilho, filtros), S8 (cenário por script).
+- **Depende de:** M9, M10, S5.
+- **Fora:** "anular a menos que pague", gatilho de dano em combate, gatilhos de zona que não seja o campo.
+
+**S13/S14 · Zonas ocultas: vasculhar, moer, scry e olhar o topo** 🟡
+- **Valor:** o maior bloco que faltava nas listas: tutores, cavadores e manipulação de topo.
+- **Aceite:**
+  - decisão pendente genérica de escolha de cartas: a lista revelada aparece só para quem escolhe, com mínimo, máximo, filtro por tipo ou nome, destino do escolhido e destino do resto;
+  - `search` (com embaralhar), `look`, `scry`, `surveil`, `mill` e `put_back`;
+  - o que vem depois da escolha na mesma mágica só acontece quando a escolha termina (Preordain faz o scry antes de comprar);
+  - desfazer não atravessa uma escolha, porque ela revela informação oculta;
+  - na mesa, a faixa de baixo passa a mostrar as cartas reveladas, e o hot-seat esconde do outro jogador.
+- **Entregue na biblioteca:** Preordain, Opt, Consider, Sleight of Hand, Impulse, Brainstorm, Lead the Stampede, Winding Way, Mystical Tutor, Solve the Equation, Idyllic Tutor, Squadron Hawk e Stream of Thought.
+- **Testes:** U (scry com compra depois, filtro do tutor, olhar o topo com resto no cemitério, moer), S8 (cenário por script), I (scry na mesa).
+- **Depende de:** M10, S1.
+- **Fora:** revelar a mão do oponente, escolher carta do grimório alheio, embaralhar cemitério.
+
+**S12 · Escolhas do jogador** ✅
+- **Valor:** destravar descarte, mágicas modais e as blasts dos sideboards.
+- **Aceite:**
+  - efeito `discard`: o motor abre decisão pendente e o jogador escolhe as cartas; descarte de efeito não mexe na limpeza do turno;
+  - mágica modal: o script declara modos com rótulo, a mesa oferece um botão por modo e o modo escolhido fica guardado na pilha;
+  - alvo condicionado por cor: Hydroblast, Pyroblast, Red e Blue Elemental Blast só miram o que for da cor certa;
+  - o registro conta o descarte e o modo escolhido.
+- **Entregue na biblioteca:** Faithless Looting, Frantic Search, Chart a Course, Abrade, Hydroblast, Pyroblast, Red Elemental Blast e Blue Elemental Blast.
+- **Testes:** U (modo, cor do alvo, descarte pendente), S8 (cenário por script).
+- **Depende de:** S1, M10.
+- **Fora:** "escolha dois", descartar carta do oponente com escolha (Duress) e "você pode pagar".
 
 ### B · Bot adversário
 

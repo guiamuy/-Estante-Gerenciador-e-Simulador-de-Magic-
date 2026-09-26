@@ -31,7 +31,10 @@ const DB = Object.fromEntries([
   { ...card('Sky Pike', 'Creature — Fish', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Flying'], power: '2', toughness: '1' },
   { ...card('Wall Guard', 'Creature — Wall', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Defender', 'Reach'], power: '0', toughness: '4' },
   { ...card('Lightning Bolt', 'Instant', ['R'], 1), mana_cost: '{R}' },
-  { ...card('Grizzly Bear', 'Creature — Bear', ['G'], 2), mana_cost: '{1}{G}', power: '2', toughness: '2' }
+  { ...card('Grizzly Bear', 'Creature — Bear', ['G'], 2), mana_cost: '{1}{G}', power: '2', toughness: '2' },
+  { ...card('Mystery Ritual', 'Sorcery', ['U'], 2), oracle_text: 'Faz algo que o motor ainda não entende.' },
+  { ...card('Prodigal Sorcerer', 'Creature — Human Wizard', ['U'], 3), mana_cost: '{2}{U}', power: '1', toughness: '1', oracle_text: '{T}: Prodigal Sorcerer deals 1 damage to any target.' },
+  { ...card('Elvish Visionary', 'Creature — Elf Shaman', ['G'], 2), mana_cost: '{1}{G}', power: '1', toughness: '1', oracle_text: 'When Elvish Visionary enters, draw a card.' }
 ].map(c => [c.name.toLowerCase(), c]));
 
 async function open(t) {
@@ -159,11 +162,14 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
   for (let i = 0; i < 15 && !(await pre.count()); i++) { await page.click('#tb-lib-me'); await page.click('.ds-dialog >> text=Comprar 1'); }
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mesa-1.png', fullPage: true });
   await pre.click(); await page.click('text=Conjurar');
-  await page.waitForSelector('#tb-adj');
-  assert.match(await page.innerText('#tb-adj'), /Scry 2/);
+  if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
+  // S14: o Preordain tem script e abre a escolha do scry
+  await page.waitForSelector('#tb-pick-cards');
+  assert.match(await page.innerText('.tb-banner'), /Scry/);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mesa-2.png' });
-  await page.click('#tb-adj-done');
-  await page.waitForFunction(() => !document.querySelector('#tb-adj'));
+  await page.locator('#tb-pick-cards .tb-card').first().click();
+  await page.click('#tb-pick-done');
+  await page.waitForFunction(() => !document.querySelector('#tb-pick-cards'));
 
   // A8: recarregar mantém a partida
   const lands = await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count();
@@ -279,7 +285,11 @@ test('e2e · C7 toque duplo na busca marca a carta na coleção', { skip }, asyn
   await page.fill('#cards-q', 'sol');
   await page.press('#cards-q', 'Enter');
   await page.waitForSelector('#cards-results .deck-slot');
-  await page.locator('#cards-results .deck-slot .ds-card').first().dblclick();
+  // o toque duplo depende de tempo entre cliques; sob carga, tenta de novo
+  for (let i = 0; i < 3 && !(await page.locator('#cards-results .own-badge').count()); i++) {
+    await page.locator('#cards-results .deck-slot .ds-card').first().dblclick();
+    await page.waitForTimeout(600);
+  }
   await page.waitForSelector('#cards-results .own-badge');
   assert.match(await page.innerText('#cards-results .own-badge'), /tenho 1/);
   await page.goto(base + '#/colecao');
@@ -383,7 +393,7 @@ test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, c
   await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
   await page.click('#scan-read');
   await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-result').innerText));
-  await page.waitForFunction(() => /Lote: 1/.test(document.querySelector('#scan-lot').innerText));
+  await page.waitForFunction(() => { const el = document.querySelector('#scan-lot'); return el && /Lote: 1/.test(el.innerText); });
 
   // automática: mesma carta parada soma uma vez; sumiu e voltou, soma de novo
   await page.evaluate(() => window.__ocrQueue.push('Island', 'Island', '', 'Island'));
@@ -417,11 +427,11 @@ test('e2e · X1 câmera bloqueada: explica e deixa montar o lote digitando', { s
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));
   await page.goto(base + '#/scanner');
-  await page.waitForFunction(() => /câmera foi bloqueada/.test(document.querySelector('#scan-status').innerText));
+  await page.waitForFunction(() => { const el = document.querySelector('#scan-status'); return el && /câmera foi bloqueada/.test(el.innerText); });
   assert.equal(await page.locator('#scan-read').isDisabled(), true);
   await page.fill('#scan-manual', 'Countrspell');
   await page.click('[data-manual="Counterspell"]');
-  await page.waitForFunction(() => /Lote: 1/.test(document.querySelector('#scan-lot').innerText));
+  await page.waitForFunction(() => { const el = document.querySelector('#scan-lot'); return el && /Lote: 1/.test(el.innerText); });
   assert.deepEqual(errors, []);
 });
 
@@ -602,12 +612,12 @@ test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', {
 
 test('e2e · S2/A10 cobertura do motor na lista e na preparação', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await createDeck(page, base, 'Cobertura', '2 Lightning Bolt\n1 Preordain\n1 Island', 'livre');
+  await createDeck(page, base, 'Cobertura', '2 Lightning Bolt\n1 Mystery Ritual\n1 Island', 'livre');
   await page.waitForSelector('#deck-coverage');
   assert.match(await page.innerText('#deck-coverage'), /Motor: 75% completo/);
-  assert.match(await page.innerText('#deck-coverage'), /Preordain/);
+  assert.match(await page.innerText('#deck-coverage'), /Mystery Ritual/);
   assert.equal(await page.locator('.deck-slot[data-name="Lightning Bolt"][data-coverage="completo"]').count(), 1);
-  assert.equal(await page.locator('.deck-slot[data-name="Preordain"][data-coverage="manual"]').count(), 1);
+  assert.equal(await page.locator('.deck-slot[data-name="Mystery Ritual"][data-coverage="manual"]').count(), 1);
   await page.goto(base + '#/mesa');
   await page.waitForSelector('#mesa-coverage .ds-text');
   assert.match(await page.innerText('#mesa-coverage'), /Motor: 75% completo/);
@@ -638,12 +648,12 @@ test('e2e · S4/S5 mágica com script resolve sozinha e o registro conta o efeit
 
 test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita ajuste manual', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await createDeck(page, base, 'Com Preordain', '30 Island\n10 Preordain\n10 Lightning Bolt', 'livre');
+  await createDeck(page, base, 'Com carta manual', '30 Island\n10 Mystery Ritual\n10 Lightning Bolt', 'livre');
   await createDeck(page, base, 'Coberta', '30 Island\n20 Lightning Bolt', 'livre');
   await page.goto(base + '#/mesa');
   await page.waitForSelector('#mesa-mode [data-mode="full"]');
   const opts = await page.$$eval('#mesa-mine option', os => os.map(o => o.textContent));
-  await page.selectOption('#mesa-mine', { index: opts.findIndex(o => /Com Preordain/.test(o)) });
+  await page.selectOption('#mesa-mine', { index: opts.findIndex(o => /Com carta manual/.test(o)) });
   await page.waitForFunction(() => /75% completo|% completo/.test(document.querySelector('#mesa-coverage').innerText));
   assert.equal(await page.locator('#mesa-mode [data-mode="full"]').isDisabled(), true, 'lista com carta manual não libera o motor completo');
 
@@ -663,5 +673,45 @@ test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita a
   await page.keyboard.press('Escape');
   await page.click('#tb-life-opp');
   assert.match(await page.innerText('.ds-toast, .ds-dialog').catch(() => ''), /motor completo|de vida/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · M9 gatilho de entrada e habilidade ativada na mesa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Magos', '20 Island\n10 Prodigal Sorcerer\n10 Elvish Visionary', 'livre');
+  await page.waitForSelector('#deck-coverage');
+  assert.match(await page.innerText('#deck-coverage'), /100% completo/, 'cartas com habilidade agora contam como cobertas');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-mana]'); // mana livre: o foco é a habilidade
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+
+  // gatilho de entrada: a criatura entra e o gatilho compra
+  await drawUntil(page, 'Elvish Visionary');
+  const hand = await page.locator('.tb-hand .tb-card').count();
+  await handCard(page, 'Elvish Visionary').click();
+  await page.click('.ds-dialog >> text=Conjurar');
+  for (let i = 0; i < 4 && await page.locator('#tb-pass').count(); i++) {
+    if (await page.locator('.tb-side--me [data-zone="permanents"] .tb-card').count() && !(await page.locator('.tb-stack').count())) break;
+    await page.click('#tb-pass');
+  }
+  await page.waitForFunction(n => document.querySelectorAll('.tb-hand .tb-card').length === n, hand, { timeout: 8000 });
+  await page.click('#tb-log');
+  assert.match(await page.innerText('.ds-dialog'), /Gatilho de Elvish Visionary/);
+  await page.keyboard.press('Escape');
+
+  // habilidade ativada: sem enjoo só no turno seguinte
+  await drawUntil(page, 'Prodigal Sorcerer');
+  await handCard(page, 'Prodigal Sorcerer').click();
+  await page.click('.ds-dialog >> text=Conjurar');
+  for (let i = 0; i < 4 && await page.locator('.tb-stack').count(); i++) await page.click('#tb-pass');
+  await page.click('#tb-pass-turn');
+  await toMyMain(page);
+  await page.locator('.tb-side--me .tb-card[aria-label^="Prodigal Sorcerer"]').click();
+  await page.click('.ds-dialog >> text=/Ativar \\({T}\\) → Goldfish/');
+  if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
+  await page.waitForFunction(() => /19/.test(document.querySelector('#tb-life-opp').innerText));
   assert.deepEqual(errors, []);
 });
