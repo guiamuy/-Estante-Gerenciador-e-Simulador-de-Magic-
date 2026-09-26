@@ -2529,3 +2529,196 @@ test('S42 · anular e dar duas fichas Tesouro ao dono da mágica, que geram mana
   const sobrando = Object.values(depois.objects).filter(o => o.token && o.name === 'Treasure' && o.zone === 'battlefield');
   assert.equal(sobrando.length, 1, 'a ficha usada foi sacrificada e deixou de existir');
 });
+
+/* ---------------- S43 · proteção pela cor escolhida e indestrutível por sacrifício ---------------- */
+const PR_CARDS = {
+  'Plains': { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {W}.' },
+  'Mom': { name: 'Mom', type_line: 'Creature — Human Cleric', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: '{T}: Target creature you control gains protection from the color of your choice until end of turn.' },
+  'Savior': { name: 'Savior', type_line: 'Creature — Dog', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: 'Sacrifice this creature: Another target creature you control gains indestructible until end of turn.' },
+  'Spirit': { name: 'Spirit', type_line: 'Creature — Spirit Cleric', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '2', toughness: '2', keywords: ['Flying'], oracle_text: 'Flying\nSacrifice this creature: Creatures you control gain indestructible until end of turn.' },
+  'Kami': { name: 'Kami', type_line: 'Creature — Spirit', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: 'Sacrifice this creature: Prevent all combat damage that would be dealt this turn.' },
+  'Alseid': { name: 'Alseid', type_line: 'Enchantment Creature — Nymph', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], power: '1', toughness: '1', keywords: ['Lifelink'], oracle_text: '{1}, Sacrifice this creature: Target creature or enchantment you control gains protection from the color of your choice until end of turn.' },
+  'Charm': { name: 'Charm', type_line: 'Enchantment', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'WhiteBolt': { name: 'WhiteBolt', type_line: 'Instant', mana_cost: '{W}', cmc: 1, colors: ['W'], keywords: [], oracle_text: 'Deals 3 damage to any target.' },
+  'RedBolt': { name: 'RedBolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' },
+  'Doom': { name: 'Doom', type_line: 'Instant', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'Destroy target creature.' }
+};
+const PR_SCRIPTS = {
+  Mom: { name: 'Mom', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'protection', target: 'creature-you-control' }] }],
+    example: { action: 'activate:0', target: 'own-creature', expect: { protected: true } } },
+  Savior: { name: 'Savior', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'keyword', keyword: 'indestructible', target: 'other-creature-you-control' }] }],
+    example: { action: 'activate:0', target: 'own-creature', expect: { keyword: 'indestructible' } } },
+  Spirit: { name: 'Spirit', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'keyword', keyword: 'indestructible', target: 'each-own-creature' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { keyword: 'indestructible' } } },
+  Kami: { name: 'Kami', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'fog' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { fogged: true } } },
+  Alseid: { name: 'Alseid', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true }, effects: [{ do: 'protection', target: 'creature-enchantment-you-control' }] }],
+    example: { action: 'activate:0', target: 'own-creature', expect: { protected: true } } },
+  WhiteBolt: { name: 'WhiteBolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  RedBolt: { name: 'RedBolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  Doom: { name: 'Doom', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } }
+};
+const PRDECK = [{ name: 'Plains', qty: 14, zone: 'main' }, { name: 'Mom', qty: 6, zone: 'main' }, { name: 'Savior', qty: 6, zone: 'main' },
+  { name: 'Spirit', qty: 6, zone: 'main' }, { name: 'Kami', qty: 6, zone: 'main' }, { name: 'Alseid', qty: 6, zone: 'main' },
+  { name: 'Charm', qty: 4, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }, { name: 'WhiteBolt', qty: 6, zone: 'main' },
+  { name: 'RedBolt', qty: 6, zone: 'main' }, { name: 'Doom', qty: 6, zone: 'main' }];
+function prGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: PR_CARDS, scripts: PR_SCRIPTS,
+    players: [{ name: 'A', deck: PRDECK }, { name: 'B', deck: PRDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+// avança até o próximo turno, respondendo o que o motor pedir no caminho
+function proximoTurno(s) {
+  for (let i = 0; i < 120; i++) {
+    const pd = s.pending;
+    if (pd && pd.kind === 'attackers') { s = act(s, { t: 'attack', p: pd.p, attackers: [] }); continue; }
+    if (pd && pd.kind === 'blockers') { s = act(s, { t: 'block', p: pd.p, blocks: [] }); continue; }
+    if (pd && pd.kind === 'discard') { s = act(s, { t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] }); continue; }
+    s = act(s, { t: 'pass', p: s.turn.priority });
+    if (s.turn.step === 'upkeep') return s;
+  }
+  throw new Error('não chegou no próximo turno');
+}
+
+test('S43 · proteção pela cor escolhida: barra aquela cor, deixa a outra passar e acaba no fim do turno', () => {
+  let s = prGame(3); const a = s.turn.active, d = 1 - a;
+  let mae, urso;
+  [s, mae] = put(s, a, 'Mom');
+  [s, urso] = put(s, a, 'Bear');
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === mae && x.targets[0].oid === urso);
+  assert.deepEqual(JSON.parse(JSON.stringify(ofertas.map(x => x.color).sort())), ['B', 'G', 'R', 'U', 'W'], 'a mesa oferece uma opção por cor');
+  s = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: mae, index: 0, targets: [{ oid: urso }], color: 'W' })));
+  assert.deepEqual(JSON.parse(JSON.stringify(E.protections(s, s.objects[urso]))), ['W'], 'ficou protegido contra branco');
+  let branco, vermelho;
+  [s, branco] = put(s, d, 'WhiteBolt', { zone: 'hand' });
+  [s, vermelho] = put(s, d, 'RedBolt', { zone: 'hand' });
+  assert.equal(E.legalTargets(s, d, 'any', branco).some(x => x.oid === urso), false, 'mágica branca não pode mirar');
+  assert.equal(E.legalTargets(s, d, 'any', vermelho).some(x => x.oid === urso), true, 'mágica vermelha pode');
+  const outroTurno = proximoTurno(s);
+  assert.deepEqual(JSON.parse(JSON.stringify(E.protections(outroTurno, outroTurno.objects[urso]))), [], 'a proteção acabou com o turno');
+});
+
+test('S43 · "outra criatura que você controla": a própria fonte não é alvo', () => {
+  let s = prGame(4); const a = s.turn.active, d = 1 - a;
+  let cao, urso, deleUrso;
+  [s, cao] = put(s, a, 'Savior');
+  [s, urso] = put(s, a, 'Bear');
+  [s, deleUrso] = put(s, d, 'Bear');
+  const alvos = JSON.parse(JSON.stringify(E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === cao).map(x => x.targets[0].oid)));
+  assert.equal(alvos.includes(cao), false, 'não pode mirar a si mesma');
+  assert.equal(alvos.includes(deleUrso), false, 'nem a criatura do oponente');
+  assert.equal(alvos.includes(urso), true, 'a outra criatura sua é alvo');
+  s = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: cao, index: 0, targets: [{ oid: urso }] })));
+  assert.equal(s.objects[cao].zone, 'graveyard', 'o cão foi sacrificado');
+  assert.equal(E.hasKeyword(s, s.objects[urso], 'indestructible'), true, 'a outra criatura ficou indestrutível');
+  let doom; [s, doom] = put(s, a, 'Doom', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: doom, targets: [{ oid: urso }] })));
+  assert.equal(s.objects[urso].zone, 'battlefield', 'destruir não funciona nela');
+});
+
+test('S43 · sacrificar o espírito deixa só as suas criaturas indestrutíveis', () => {
+  let s = prGame(5); const a = s.turn.active, d = 1 - a;
+  let espirito, meu, dele;
+  [s, espirito] = put(s, a, 'Spirit');
+  [s, meu] = put(s, a, 'Bear');
+  [s, dele] = put(s, d, 'Bear');
+  s = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: espirito, index: 0 })));
+  assert.equal(s.objects[espirito].zone, 'graveyard', 'o espírito foi sacrificado como custo');
+  assert.equal(E.hasKeyword(s, s.objects[meu], 'indestructible'), true, 'a sua criatura ficou indestrutível');
+  assert.equal(E.hasKeyword(s, s.objects[dele], 'indestructible'), false, 'a do oponente não');
+});
+
+test('S43 · sacrificar o kami previne o dano de combate do turno; e o alseid protege um encantamento', () => {
+  let s = prGame(6); const a = s.turn.active;
+  let kami;
+  [s, kami] = put(s, a, 'Kami');
+  s = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: kami, index: 0 })));
+  assert.equal(!!s.fogged, true, 'o dano de combate do turno está prevenido');
+
+  let s2 = prGame(6); const a2 = s2.turn.active;
+  let alseid, encanto;
+  [s2, alseid] = put(s2, a2, 'Alseid');
+  [s2, encanto] = put(s2, a2, 'Charm');
+  const oferta = E.legalActions(s2, a2).find(x => x.t === 'activate' && x.oid === alseid && x.targets[0].oid === encanto && x.color === 'R');
+  assert.ok(oferta, 'o encantamento é alvo válido');
+  s2 = settle(resolveSpell(act(s2, oferta)));
+  assert.deepEqual(JSON.parse(JSON.stringify(E.protections(s2, s2.objects[encanto]))), ['R'], 'o encantamento ficou protegido contra vermelho');
+});
+
+/* ---------------- S44 · carta que volta para a mão, busca de básico e lampejo do passado ---------------- */
+const RC_CARDS = {
+  'Mountain': { name: 'Mountain', type_line: 'Basic Land — Mountain', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {R}.' },
+  'Island': { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {U}.' },
+  'Gate': { name: 'Gate', type_line: 'Land — Gate', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {R}.' },
+  'Scape': { name: 'Scape', type_line: 'Land', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Mountain, Forest, or Plains card, put it onto the battlefield tapped, then shuffle.' },
+  'Rancor': { name: 'Rancor', type_line: 'Enchantment — Aura', mana_cost: '{G}', cmc: 1, colors: ['G'], keywords: [], oracle_text: 'Enchanted creature gets +2/+0 and has trample.\nWhen this Aura is put into a graveyard from the battlefield, return it to its owner’s hand.' },
+  'Rally': { name: 'Rally', type_line: 'Instant', mana_cost: '{2}{W}', cmc: 3, colors: ['W'], keywords: [], oracle_text: 'Creatures you control get +2/+0 until end of turn.\nFlashback {2}{R}' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Doom': { name: 'Doom', type_line: 'Instant', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'Destroy target creature.' }
+};
+const RC_SCRIPTS = {
+  Rancor: { name: 'Rancor', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 0, keywords: ['trample'] },
+    abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'to_hand', target: 'self-source' }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 2], keyword: 'trample' } } },
+  Rally: { name: 'Rally', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'each-own-creature' }], flashback: { mana: '{2}{R}' },
+    example: { action: 'flashback', target: 'none', expect: { pump: [2, 0], exiled: true } } },
+  Scape: { name: 'Scape', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true },
+    effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true, subtypes: ['Mountain', 'Forest', 'Plains'] }, to: 'battlefield-tapped' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
+  Doom: { name: 'Doom', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } }
+};
+const RCDECK = [{ name: 'Mountain', qty: 8, zone: 'main' }, { name: 'Island', qty: 8, zone: 'main' }, { name: 'Gate', qty: 6, zone: 'main' },
+  { name: 'Scape', qty: 6, zone: 'main' }, { name: 'Rancor', qty: 6, zone: 'main' }, { name: 'Rally', qty: 6, zone: 'main' },
+  { name: 'Bear', qty: 10, zone: 'main' }, { name: 'Doom', qty: 6, zone: 'main' }];
+function rcGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: RC_CARDS, scripts: RC_SCRIPTS,
+    players: [{ name: 'A', deck: RCDECK }, { name: 'B', deck: RCDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S44 · a aura volta para a mão quando vai para o cemitério', () => {
+  let s = rcGame(3); const a = s.turn.active;
+  let urso, rancor, doom;
+  [s, urso] = put(s, a, 'Bear');
+  [s, rancor] = put(s, a, 'Rancor', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: rancor, targets: [{ oid: urso }] })));
+  assert.equal(s.objects[rancor].attachedTo, urso, 'a aura encantou a criatura');
+  assert.equal(E.stats(s, s.objects[urso]).power, 4, 'e deu +2/+0');
+  [s, doom] = put(s, a, 'Doom', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: doom, targets: [{ oid: urso }] })));
+  assert.equal(s.objects[urso].zone, 'graveyard', 'a criatura morreu');
+  assert.equal(s.objects[rancor].zone, 'hand', 'a aura voltou para a mão, em vez de ficar no cemitério');
+});
+
+test('S44 · a busca só acha básico dos tipos pedidos', () => {
+  let s = rcGame(4); const a = s.turn.active;
+  let scape;
+  [s, scape] = put(s, a, 'Scape');
+  s = act(s, { t: 'activate', p: a, oid: scape, index: 0 });
+  s = s.stack.length && !s.pending ? resolveSpell(s) : s;
+  assert.ok(s.pending && s.pending.kind === 'pick', 'abriu a escolha de terreno');
+  const nomes = JSON.parse(JSON.stringify(s.pending.from.map(oid => s.objects[oid].name)));
+  assert.ok(nomes.length, 'achou terreno');
+  assert.deepEqual([...new Set(nomes)], ['Mountain'], 'só a Montanha básica serve: Ilha básica e Portal ficam fora');
+  s = act(s, { t: 'pick', p: a, oid: s.pending.from[0] });
+  s = s.pending && s.pending.kind === 'pick' ? act(s, { t: 'pick_done', p: a }) : s;
+  const posto = Object.values(s.objects).find(o => o.name === 'Mountain' && o.zone === 'battlefield');
+  assert.ok(posto && posto.tapped, 'o terreno entrou virado');
+  assert.equal(s.objects[scape].zone, 'graveyard', 'o terreno foi sacrificado como custo');
+});
+
+test('S44 · lampejo do passado: a mágica do cemitério dá o bônus e é exilada', () => {
+  let s = rcGame(5); const a = s.turn.active;
+  let urso, rally;
+  [s, urso] = put(s, a, 'Bear');
+  [s, rally] = put(s, a, 'Rally', { zone: 'graveyard' });
+  const acao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === rally && x.flashback);
+  assert.ok(acao, 'a mesa oferece o lampejo do passado a partir do cemitério');
+  s = settle(resolveSpell(act(s, acao)));
+  assert.equal(E.stats(s, s.objects[urso]).power, 4, 'a criatura ganhou +2/+0');
+  assert.equal(s.objects[rally].zone, 'exile', 'a mágica foi exilada, não voltou para o cemitério');
+});
