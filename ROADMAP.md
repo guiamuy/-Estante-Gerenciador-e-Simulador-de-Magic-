@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
 | S · Scripts | S63 auditoria dos gatilhos + mão inicial não conta como compra do turno | ✅ |
 | S · Scripts | S62 enjoo só prende o {T} da própria carta + auditoria das listas Pauper | ✅ |
@@ -305,7 +306,7 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33af ✅ | S62 (leva 54) | Custo que vira outra criatura + auditoria que abre cada carta das listas |
 | E33ag ✅ | S63 (leva 55) | Auditoria dos gatilhos: cada gatilho das listas disparando numa partida |
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
-| E33ai ▶ | S65 | Auditoria de palavras-chave e combate nas listas Pauper |
+| E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ▶ | S66 | Partida Pauper inteira gravada como golden guiado |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
@@ -837,6 +838,27 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S65 · Matriz de palavras-chave e combate** ✅
+- **Risco que esta leva fecha:** a cobertura conta como **completa** toda carta cujo texto é só
+  palavra-chave. Se uma dessas palavras não mudasse nada no combate, a lista jogaria errado em silêncio —
+  e nenhum teste de carta pegaria isso, porque a carta "não tem script para testar".
+- **Aceite:** um cenário de partida por palavra-chave, com o resultado conferido no estado:
+  voar e alcance no bloqueio, atropelar passando o excesso, toque mortífero matando com 1 de dano,
+  indestrutível sobrevivendo ao toque mortífero e à destruição, vínculo com a vida dando vida,
+  vigilância não virando, pressa atacando no turno em que entra, iniciativa matando antes do troco,
+  golpe duplo somando dois golpes, ameaça exigindo dois bloqueadores, defensor ficando em casa,
+  lampejo conjurando no turno do outro, ilusão barrando só o oponente e véu barrando os dois.
+- **Teste de completude (K12):** a lista de palavras-chave do motor é comparada com as provadas aqui. Uma
+  palavra-chave nova sem cenário **derruba o portão** — não dá mais para declarar que o motor resolve algo
+  sem mostrar onde isso muda a partida.
+- **Combate além das palavras-chave:** dois bloqueadores dividindo o dano e somando o troco no atacante;
+  criatura bloqueada não causando dano ao jogador; atacar virando quem não tem vigilância.
+- **Resultado:** nenhum erro encontrado — as quinze palavras-chave que o motor declara resolver mudam a
+  partida como deveriam. A leva não corrige nada; ela fecha um buraco de verificação.
+- **Fora, declarado:** proteção por cor não é palavra-chave da lista do motor (é efeito, coberto na S43);
+  quais cartas das listas carregam cada palavra-chave depende dos dados buscados na Scryfall, então isso
+  é conferido no aparelho, não aqui.
 
 **S64 · Lista guardada no aparelho para jogar sem internet** ✅
 - **Decisão de rota, declarada:** o plano dizia "embutir os dados das cartas das listas prontas no
