@@ -2094,7 +2094,11 @@ const EFFECTS = {
   goad: { fields: [], targets: ['creature'] },
   // S60 · "cada jogador perde N a menos que ..." e "sacrifique uma permanente do tipo"
   lose_unless: { fields: ['amount'], targets: ['each-player'] },
-  sacrifice_own: { fields: [], targets: ['self'] }
+  sacrifice_own: { fields: [], targets: ['self'] },
+  // S61 · Masmorra do Mago Louco
+  cant_attack: { fields: [], targets: ['creature'] },
+  exile_top_playable: { fields: ['amount'], targets: ['self'] },
+  draw_free_cast: { fields: ['amount'], targets: ['self'] }
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
@@ -2145,6 +2149,20 @@ DUNGEONS.push(
     { id: 'berco', pt: 'Berço do Deus da Morte',
       effects: [{ do: 'token', amount: 1, token: { name: 'The Atropal', types: ['creature'], subtypes: ['God', 'Horror'],
         colors: ['B'], power: 4, toughness: 4, keywords: ['deathtouch'], legendary: true } }] }
+  ] });
+DUNGEONS.push(
+  { name: 'Dungeon of the Mad Mage', pt: 'Masmorra do Mago Louco', rooms: [
+    { id: 'portal', pt: 'Portal Bocejante', effects: [{ do: 'gain', amount: 1 }], next: ['nivel'] },
+    { id: 'nivel', pt: 'Nível da Masmorra', effects: [{ do: 'scry', amount: 1 }], next: ['bazar', 'cavernas'] },
+    { id: 'bazar', pt: 'Bazar dos Goblins', effects: [{ do: 'token', amount: 1, token: TESOURO }], next: ['perdido'] },
+    { id: 'cavernas', pt: 'Cavernas Retorcidas', next: ['perdido'],
+      effects: [{ do: 'cant_attack', target: 'creature', until: 'your-next-turn' }] },
+    { id: 'perdido', pt: 'Nível Perdido', effects: [{ do: 'scry', amount: 2 }], next: ['runas', 'muiral'] },
+    { id: 'runas', pt: 'Cavernas das Runas', effects: [{ do: 'exile_top_playable', amount: 2 }], next: ['minas'] },
+    { id: 'muiral', pt: 'Cemitério de Muiral', next: ['minas'],
+      effects: [{ do: 'token', amount: 2, token: { name: 'Skeleton Muiral', types: ['creature'], subtypes: ['Skeleton'], colors: ['B'], power: 1, toughness: 1 } }] },
+    { id: 'minas', pt: 'Minas Profundas', effects: [{ do: 'scry', amount: 3 }], next: ['covil'] },
+    { id: 'covil', pt: 'Covil do Mago Louco', effects: [{ do: 'draw_free_cast', amount: 3 }] }
   ] });
 const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
 const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
@@ -2564,7 +2582,6 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 2 } } },
   { name: 'Secret Door',
     abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture' }] }],
-    covers: 'partial', note: 'aventurar-se na masmorra entra com três das quatro masmorras; falta a Masmorra do Mago Louco na escolha, que precisa de jogar cartas do exílio e conjurar sem pagar',
     example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
   // S56 · os terrenos das listas Pauper, que a medição antiga escondia (textos conferidos em 26/09)
   { name: 'Jagged Barrens', entersTapped: true,
@@ -4578,7 +4595,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 52;
+const ENGINE_VERSION = 53;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4852,7 +4869,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // 400.7: objeto novo ao mudar de zona; sai do combate
   const xPago = o.xPaid || 0; // S50 · o X pago sobrevive à mudança de zona só para os marcadores de entrada
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   o.zone = to;
   const dest = zoneList(s, o, to);
@@ -5187,6 +5204,7 @@ function finishCleanup(s) {
     // S59 · provocar e palavra-chave "até o seu próximo turno" caem no mesmo momento
     if (o.goaded && o.goaded.by === s.turn.active) delete o.goaded;
     if (o.keywordsNext && o.keywordsNext.by === s.turn.active) delete o.keywordsNext;
+    if (o.cantAttackNext && o.cantAttackNext.by === s.turn.active) delete o.cantAttackNext; // S61
   }
   s.players.forEach(pl => { pl.landsPlayed = 0; });
   enterStep(s, 'untap');
@@ -5208,6 +5226,7 @@ function mustAttack(s, p) {
 }
 function eligibleAttackers(s, p) {
   return battlefield(s).filter(o => o.controller === p && s.facts[o.name].types.includes('creature') && !o.tapped &&
+    !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
     (!o.sick || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
@@ -5660,6 +5679,25 @@ function applyEffect(s, src, eff, tgt, events) {
       const syms = eff.symbols || (eff.anyColor ? [eff.color || 'C'] : []);
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
+    }
+    case 'cant_attack': { // S61 · não pode atacar até o seu próximo turno
+      if (obj && obj.zone === 'battlefield') { obj.cantAttackNext = { by: ctrl }; note({ name: obj.name }); }
+      break;
+    }
+    case 'exile_top_playable': { // S61 · exila do topo e você pode jogar essas cartas
+      const n = amountOf(s, src, eff.amount);
+      const topo = s.zones[ctrl].library.slice(0, n);
+      for (const oid of topo) { moveObject(s, oid, 'exile'); s.objects[oid].playableFromExile = ctrl; }
+      note({ amount: topo.length }); break;
+    }
+    case 'draw_free_cast': { // S61 · compra N e pode conjurar uma delas sem pagar
+      const n = amountOf(s, src, eff.amount);
+      const antes = s.zones[ctrl].hand.slice();
+      draw(s, ctrl, n);
+      const novas = s.zones[ctrl].hand.filter(x => !antes.includes(x));
+      note({ amount: novas.length });
+      if (novas.length) s.pending = { kind: 'free_cast', p: ctrl, options: novas, name: src.name };
+      break;
     }
     case 'lose_unless': { // S60 · cada jogador perde, a menos que pague
       const ordem = [ctrl, ...s.players.map((_, i) => i).filter(i => i !== ctrl)].filter(i => !s.players[i].lost);
@@ -6347,7 +6385,10 @@ const HANDLERS = {
   },
   play_land(s, a) {
     noPending(s); holder(s, a.p);
-    const o = owns(s, a.p, a.oid, 'hand');
+    // S61 · Cavernas das Runas: a carta exilada pode ser jogada de lá
+    const exilada = s.objects[a.oid];
+    const doExilio = exilada && exilada.zone === 'exile' && exilada.playableFromExile === a.p && exilada.owner === a.p;
+    const o = doExilio ? exilada : owns(s, a.p, a.oid, 'hand');
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
     if (s.turn.active !== a.p || !isMain(s) || s.stack.length) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia');
     if (s.players[a.p].landsPlayed >= 1) throw new RuleError('limite', 'já jogou terreno neste turno');
@@ -6362,7 +6403,9 @@ const HANDLERS = {
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
-    if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
+    // S61 · Cavernas das Runas: conjura do exílio pagando o custo normal
+    const fromExile = o && o.zone === 'exile' && o.playableFromExile === a.p;
+    if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
     if (a.escape && !escapeOf(s, o)) throw new RuleError('fuga', 'esta carta não tem fuga');
     if (a.disturb && !disturbOf(s, o)) throw new RuleError('disturb', 'esta carta não tem disturb');
@@ -6371,8 +6414,10 @@ const HANDLERS = {
     const f = s.facts[o.name];
     if (a.faceDown && !(f.script || {}).morph) throw new RuleError('metamorfose', 'esta carta não tem metamorfose');
     if (f.types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
-    if (isSorcerySpeed(f) && (s.turn.active !== a.p || !isMain(s) || s.stack.length)) throw new RuleError('tempo', 'só na sua fase principal, com a pilha vazia');
-    if (a.free && s.mode !== 'assisted') throw new RuleError('modo', 'conjurar sem pagar só na mesa assistida');
+    // S61 · quando um efeito manda conjurar, a conjuração acontece durante a resolução:
+    // não vale a restrição de fase nem a de pagar (608.2f)
+    if (!a.granted && isSorcerySpeed(f) && (s.turn.active !== a.p || !isMain(s) || s.stack.length)) throw new RuleError('tempo', 'só na sua fase principal, com a pilha vazia');
+    if (a.free && !a.granted && s.mode !== 'assisted') throw new RuleError('modo', 'conjurar sem pagar só na mesa assistida');
     // S5: alvos escolhidos na conjuração e conferidos de novo na resolução
     // S11: a aura escolhe o que vai encantar já na conjuração
     const modes = (f.script && f.script.modes) || [];
@@ -6560,6 +6605,20 @@ const HANDLERS = {
     if (!modo) throw new RuleError('escolha', 'modo inválido');
     s.pending = null;
     putTriggerOnStack(s, { ...pk.trigger, effects: modo.effects, modes: null }, ev);
+  },
+  cast_free(s, a, ev) { // S61 · Covil do Mago Louco: conjura uma das compradas sem pagar
+    if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para conjurar sem pagar');
+    const pk = s.pending;
+    if (!(pk.options || []).includes(a.oid)) throw new RuleError('objeto', 'essa carta não veio deste efeito');
+    if (s.facts[s.objects[a.oid].name].types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
+    s.pending = null;
+    HANDLERS.cast(s, { ...a, t: 'cast', free: true, granted: true }, ev);
+    if (!continueUnless(s, ev)) resumeEffects(s, ev);
+  },
+  decline_free(s, a, ev) { // S61 · não conjurar nada
+    if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para recusar');
+    s.pending = null;
+    if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
   take_loss(s, a, ev) { // S60 · aceita perder a vida em vez de pagar
     if (!s.pending || s.pending.kind !== 'unless' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a decidir');
@@ -6840,7 +6899,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
+const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -6854,6 +6913,7 @@ function apply(state, action) {
       : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
       : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
+      : k === 'free_cast' ? 'decida se conjura sem pagar primeiro'
       : k === 'unless' ? 'decida se paga ou perde vida primeiro'
       : k === 'sacrifice' ? 'escolha o que sacrificar primeiro'
       : k === 'choose_dungeon' ? 'escolha a masmorra primeiro'
@@ -6915,6 +6975,28 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
     if (k === 'choose_mode') (s.pending.options || []).forEach((label, index) => out.push({ t: 'choose_mode', p, index, label })); // S56
+    // S61 · conjurar sem pagar: uma opção por carta, com os alvos possíveis
+    if (k === 'free_cast') {
+      out.push({ t: 'decline_free', p });
+      for (const oid of s.pending.options || []) {
+        const fc = s.facts[s.objects[oid].name];
+        if (fc.types.includes('land')) continue;
+        const modos = (fc.script && fc.script.modes) || [];
+        const listas = modos.length ? modos.map((m, i) => ({ need: (m.effects || []).filter(SC.isTargeted), mode: i }))
+          : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
+        for (const { need, mode } of listas) {
+          const base = mode == null ? { t: 'cast_free', p, oid } : { t: 'cast_free', p, oid, mode };
+          if (!need.length) { out.push(base); continue; }
+          let combos = [[]];
+          for (const eff of need) {
+            const opts = legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)).slice(0, TARGET_LIMIT);
+            if (!opts.length) { combos = []; break; }
+            combos = addTarget(combos, opts);
+          }
+          combos.forEach(targets => out.push({ ...base, targets }));
+        }
+      }
+    }
     // S60 · perder ou pagar, e escolher o que sacrificar
     if (k === 'unless') { out.push({ t: 'take_loss', p }); out.push({ t: 'pay_unless', p }); }
     if (k === 'sacrifice') (s.pending.options || []).forEach(oid => out.push({ t: 'sacrifice', p, oid }));
@@ -6985,6 +7067,13 @@ function legalActions(s, p, { adjudication = false } = {}) {
         if (opcional) casts(o).forEach(x => out.push({ ...x, add: null }));
       }
     }
+  }
+  // S61 · Cavernas das Runas: as cartas exiladas que você pode jogar
+  for (const oid of s.zones[p].exile) {
+    const o = s.objects[oid]; if (!o || o.playableFromExile !== p) continue;
+    const f = s.facts[o.name];
+    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); continue; }
+    if ((canSorcery || !isSorcerySpeed(f)) && payable(o, castExtra(s, p, o, 0))) casts(o).forEach(x => out.push(x));
   }
   // S54 · metamorfose: conjura virada para baixo por {3}, como criatura
   if (canSorcery) for (const oid of s.zones[p].hand) {
@@ -7565,6 +7654,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
           : pd.kind === 'choose_mode' ? { t: 'choose_mode', p: pd.p, index: 0 }
+          : pd.kind === 'free_cast' ? { t: 'decline_free', p: pd.p } // S61 · o goldfish não conjura de graça
           : pd.kind === 'unless' ? { t: 'take_loss', p: pd.p } // S60 · o goldfish aceita perder a vida
           : pd.kind === 'sacrifice' ? { t: 'sacrifice', p: pd.p, oid: (pd.options || [])[0] }
           : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
@@ -8117,6 +8207,14 @@ function createTableScreen({ store }) {
       banner = PriorityBanner({ title: 'Escolha um tipo de criatura', hint: 'O efeito conta as suas permanentes desse tipo.', tone: 'warning',
         actions: (s.pending.options || []).slice(0, 8).map((subtype, index) =>
           Button(subtype, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-type', onClick: () => act({ t: 'choose_type', p: v, index, subtype }) })) });
+    } else if (s.pending && s.pending.kind === 'free_cast' && s.pending.p === v) {
+      // S61 · Covil do Mago Louco: uma das cartas compradas pode ser conjurada sem pagar
+      const opts = E.legalActions(s, v).filter(x => x.t === 'cast_free');
+      banner = PriorityBanner({ title: `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
+        hint: opts.length ? 'Vale só para uma das cartas que você acabou de comprar.' : 'Nenhuma das compradas pode ser conjurada agora.',
+        actions: [...opts.slice(0, 4).map((x, i) => Button(`${nameOf(s, x.oid)}${x.targets ? ` → ${x.targets.map(y => targetName(s, y)).join(' + ')}` : ''}`,
+          { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-cast-free', onClick: () => act(x) })),
+          Button('Não conjurar', { id: 'tb-decline-free', onClick: () => act({ t: 'decline_free', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'unless' && s.pending.p === v) {
       // S60 · "perde 2 a menos que descarte/sacrifique"
       const c = s.pending.cost || {};

@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S61 Mago Louco: jogar do exílio, conjurar sem pagar — Pauper em 100% | ✅ |
 | S · Scripts | S60 Tumba da Aniquilação: perder ou pagar, e sacrificar escolhendo | 🟡 |
 | S · Scripts | S59 Cidade Baixa: provocar e o Trono dos Três Mortos | 🟡 |
 | S · Scripts | S58 terreno básico embutido e cobertura pelo nome da lista | ✅ |
@@ -297,7 +298,7 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33ab ✅ | S58 (leva 50) | Básico embutido: as listas param de perder % por falta de rede |
 | E33ac 🟡 | S59 (leva 51) | Cidade Baixa inteira: provocar, Trono dos Três Mortos, escolha de masmorra |
 | E33ad 🟡 | S60 (leva 52) | Tumba da Aniquilação inteira: "a menos que", sacrifício escolhido, O Atropal |
-| E33ae ▶ | S61 | Masmorra do Mago Louco: jogar do exílio e conjurar sem pagar — fecha a Secret Door |
+| E33ae ✅ | S61 (leva 53) | Mago Louco e Secret Door completa: as sete listas Pauper em 100% |
 | E33af ▶ | S62 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
@@ -830,6 +831,31 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
 
+**S61 · Masmorra do Mago Louco: jogar do exílio, conjurar sem pagar — Secret Door completa** ✅
+- **Valor:** a quarta e última masmorra. Com ela a **Secret Door deixa de ser parcial** e o Walls Combo
+  fecha em 100%: as sete listas Pauper agora rodam no modo motor completo.
+- **Texto conferido:** 26/09/2026, em mtg.wtf (lista de cartas de masmorra).
+- **Aceite:**
+  - as nove salas: Portal Bocejante → Nível da Masmorra → Bazar dos Goblins ou Cavernas Retorcidas →
+    Nível Perdido → Cavernas das Runas ou Cemitério de Muiral → Minas Profundas → Covil do Mago Louco;
+  - **não pode atacar até o seu próximo turno** (Cavernas Retorcidas): a criatura sai da lista de
+    atacantes e volta quando o seu turno começa;
+  - **jogar do exílio** (Cavernas das Runas): as duas cartas exiladas do topo ficam jogáveis por você, sem
+    prazo; terreno gasta o terreno do turno e mágica paga o custo normal. Na mesa, elas aparecem tocando
+    na zona de exílio;
+  - **conjurar sem pagar** (Covil do Mago Louco): compra três e você escolhe uma para conjurar de graça, ou
+    recusa. Por ser durante a resolução, não valem a restrição de fase nem a de pagar (608.2f) — e isso
+    funciona também no motor completo, onde conjurar de graça à mão livre continua proibido.
+- **Simplificações declaradas:** "compre três e **revele**" não modela a revelação (nada muda contra o
+  goldfish; num hot-seat, o oponente não vê as cartas). Provocar não exige "ataque outro jogador" porque a
+  mesa tem dois jogadores (S59). A masmorra é marcada como completa ao entrar na última sala, e não quando
+  a habilidade dela sai da pilha (S57).
+- **Testes:** U (criatura impedida de atacar no turno do oponente e liberada no seu; as duas cartas do
+  exílio oferecidas, terreno jogado gastando o terreno do turno e mágica conjurada de lá; Covil com as três
+  compradas, recusa mantendo tudo na mão e conjuração gratuita sem um único terreno em jogo, com cobrança
+  de mana ligada; percurso das nove salas até o Covil e as quatro masmorras na escolha), S8 na Secret Door.
+- **Cobertura real:** as sete listas Pauper em 100%, medidas com a mesma função da tela de jogar.
+
 **S60 · Tumba da Aniquilação: perder ou pagar, e sacrificar escolhendo** 🟡
 - **Valor:** a terceira das quatro masmorras. Falta uma para a Secret Door fechar.
 - **Texto conferido:** 26/09/2026, em mtg.wtf (lista de cartas de masmorra).
@@ -983,7 +1009,23 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   cemitério o que eu não escolhi, e o gatilho acontecendo depois; lista de tipos com a criatura do
   oponente e compra zero ao escolher o tipo dele), S8.
 
-### Marco: Pauper em 100% — **anunciado errado na leva 47, corrigido na leva 48**
+### Marco: Pauper em 100% — alcançado na leva 53, medido em dois cenários
+
+| Lista | Com texto buscado | Sem rede nenhuma |
+|---|---|---|
+| Pauper Mono Blue Faeries | 100% | 100% |
+| Pauper Rakdos Madness | 100% | 100% |
+| Pauper Boros Bully | 100% | 100% |
+| Pauper Walls Combo | 100% | 100% |
+| Pauper GW Bogles | 100% | 89% |
+| Pauper Elves | 100% | 92% |
+| Pauper Jund Wildfire | 100% | 97% |
+
+As três últimas caem sem rede porque cinco cartas delas não têm script — são cobertas pelo texto buscado
+(Gladecover Scout, Slippery Bogle, Llanowar Elves, Elvish Mystic, Vault of Whispers). Embutir os dados das
+cartas das listas prontas (S62) fecha isso e faz a partida funcionar sem internet.
+
+### Histórico do marco: **anunciado errado na leva 47, corrigido na leva 48**
 
 Este marco foi declarado com base numa medição minha que estava errada (ver S56). A contagem real,
 medida pela mesma função que a tela de jogar usa, é a de baixo.
@@ -994,7 +1036,7 @@ medida pela mesma função que a tela de jogar usa, é a de baixo.
 | Pauper Rakdos Madness | 100% |
 | Pauper GW Bogles | 100% |
 | Pauper Boros Bully | 100% |
-| Pauper Walls Combo | 99% (Secret Door: falta escolher entre as quatro masmorras) |
+| Pauper Walls Combo | 99% na leva 48 · 100% desde a leva 53 (Secret Door completa) |
 
 Medida também **sem rede** (leva 50): Mono Blue Faeries, Rakdos Madness e Boros Bully seguem em 100%;
 GW Bogles 89%, Elves 92% e Jund Wildfire 97%, porque cinco cartas dessas listas são cobertas pelo texto

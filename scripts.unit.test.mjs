@@ -393,6 +393,8 @@ function runExample(sc) {
     if (pd && pd.kind === 'may_pay') { s = act(s, { t: 'decline', p: pd.p }); continue; }
     // S56 · gatilho com modos e escolhas de tipo/par: o cenário pega a primeira opção
     if (pd && pd.kind === 'choose_mode') { s = act(s, { t: 'choose_mode', p: pd.p, index: 0 }); continue; }
+    // S61 · conjuração gratuita oferecida por um efeito: o cenário recusa
+    if (pd && pd.kind === 'free_cast') { s = act(s, { t: 'decline_free', p: pd.p }); continue; }
     // S60 · perder ou pagar, e o que sacrificar
     if (pd && pd.kind === 'unless') { s = act(s, { t: 'take_loss', p: pd.p }); continue; }
     if (pd && pd.kind === 'sacrifice') { s = act(s, { t: 'sacrifice', p: pd.p, oid: (pd.options || [])[0] }); continue; }

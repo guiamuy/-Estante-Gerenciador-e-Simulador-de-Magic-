@@ -3800,6 +3800,23 @@ function fechaEscolha(s) {
   }
   return settle(s);
 }
+/** Vai até o próximo turno resolvendo o que aparecer no caminho. O turno pode
+    virar num descarte de limpeza, não só num passe: por isso a conferência vem
+    depois de qualquer ação. */
+function viraTurno(s) {
+  const inicio = s.turn.number;
+  for (let i = 0; i < 300; i++) {
+    const pd = s.pending;
+    if (pd && pd.kind === 'attackers') s = act(s, { t: 'attack', p: pd.p, attackers: E.mustAttack(s, pd.p) });
+    else if (pd && pd.kind === 'blockers') s = act(s, { t: 'block', p: pd.p, blocks: [] });
+    else if (pd && pd.kind === 'discard') s = act(s, { t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] });
+    else if (pd && pd.kind === 'pick') s = fechaEscolha(s);
+    else if (pd && pd.kind === 'free_cast') s = act(s, { t: 'decline_free', p: pd.p });
+    else s = act(s, { t: 'pass', p: s.turn.priority });
+    if (s.turn.number !== inicio) return s;
+  }
+  throw new Error('não virou o turno');
+}
 /** Aventura-se uma vez e resolve a habilidade da sala, escolhendo a Mina Perdida
     quando a mesa pergunta em qual masmorra entrar (S59 trouxe a segunda). */
 function aventura(s, p, porta, masmorra = 0) {
@@ -3815,7 +3832,8 @@ test('S57 · aventurar-se entra na primeira sala, e a sala vai para a pilha', ()
   // S59 · com mais de uma masmorra montada, a mesa pergunta em qual entrar
   let perguntou = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
   assert.ok(perguntou.pending && perguntou.pending.kind === 'choose_dungeon', 'a mesa pergunta a masmorra');
-  assert.deepEqual(JSON.parse(JSON.stringify(perguntou.pending.labels)), ['Mina Perdida de Phandelver', 'Cidade Baixa', 'Tumba da Aniquilação']);
+  assert.deepEqual(JSON.parse(JSON.stringify(perguntou.pending.labels)),
+    ['Mina Perdida de Phandelver', 'Cidade Baixa', 'Tumba da Aniquilação', 'Masmorra do Mago Louco']);
   s = aventura(s, a, porta);
   assert.equal(s.players[a].dungeon.name, 'Lost Mine of Phandelver', 'com uma masmorra montada, ela é escolhida sozinha');
   assert.equal(s.players[a].dungeon.room, 'entrada', 'o marcador ficou na Entrada da Caverna');
@@ -4063,4 +4081,133 @@ test('S60 · correção: descarte pedido por um efeito retoma o resto do efeito'
   assert.ok(s.pending && s.pending.kind === 'discard', 'pede o descarte');
   s = settle(act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] }));
   assert.equal(s.zones[a].hand.length, antes - 1 - 1 + 2, 'conjurei, descartei uma e comprei duas');
+});
+
+/* ---------------- S61 · Masmorra do Mago Louco: não atacar, jogar do exílio e conjurar sem pagar ---------------- */
+const MG_CARDS = {
+  ...MZ_CARDS,
+  'Covil': { name: 'Covil', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, colors: [], keywords: [],
+    oracle_text: '{T}: Draw three cards and reveal them. You may cast one of them without paying its mana cost.' },
+  'Runas': { name: 'Runas', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, colors: [], keywords: [],
+    oracle_text: '{T}: Exile the top two cards of your library. You may play them.' },
+  'Raio': { name: 'Raio', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [],
+    oracle_text: 'Raio deals 3 damage to any target.' }
+};
+const MG_SCRIPTS = {
+  ...MZ_SCRIPTS,
+  Covil: { name: 'Covil', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'draw_free_cast', amount: 3 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { handDelta: 3 } } },
+  Runas: { name: 'Runas', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_top_playable', amount: 2 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { exiled: true } } },
+  Raio: { name: 'Raio', effects: [{ do: 'damage', amount: 3, target: 'any' }],
+    example: { target: 'opponent', expect: { opponentLife: 17 } } }
+};
+function mgGame(seed = 1, manaCheck = false) {
+  const deck = [{ name: 'Island', qty: 16, zone: 'main' }, { name: 'Raio', qty: 16, zone: 'main' },
+    { name: 'Covil', qty: 8, zone: 'main' }, { name: 'Runas', qty: 8, zone: 'main' }, { name: 'Bear', qty: 12, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: MG_CARDS, scripts: MG_SCRIPTS,
+    players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S61 · Cavernas Retorcidas: a criatura não pode atacar até o meu próximo turno', () => {
+  let s = mzGame(51); const a = s.turn.active, d = 1 - a;
+  let porta, dele; [s, porta] = put(s, a, 'Porta'); [s, dele] = put(s, d, 'Bear');
+  s = aventura(s, a, porta, 3);                                      // Portal Bocejante
+  assert.equal(s.players[a].dungeon.name, 'Dungeon of the Mad Mage');
+  assert.equal(s.players[a].life, 21, 'ganhei 1 de vida no portal');
+  s = aventura(s, a, porta);
+  s = fechaEscolha(s);                                               // Nível da Masmorra · scry 1
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 1 }));           // Cavernas Retorcidas
+  if (s.pending && s.pending.kind === 'pick_target') {
+    const i = s.pending.options.findIndex(x => x.oid === dele);
+    s = settle(act(s, { t: 'pick_target', p: a, index: i < 0 ? 0 : i }));
+  }
+  assert.ok(s.objects[dele].cantAttackNext, 'a criatura do oponente ficou impedida');
+  // no turno dele, ela não pode atacar
+  s = viraTurno(s);
+  assert.equal(s.turn.active, d);
+  s = passTo(s, 'combat_attackers');
+  assert.equal(E.eligibleAttackers(s, d).includes(dele), false, 'não pode atacar no turno do oponente');
+  // quando volta o meu turno, o efeito acaba
+  s = viraTurno(s);
+  assert.equal(s.turn.active, a);
+  assert.equal(s.objects[dele].cantAttackNext, undefined, 'o impedimento caiu no meu turno');
+});
+
+test('S61 · Cavernas das Runas: as duas cartas exiladas podem ser jogadas de lá', () => {
+  let s = mgGame(52); const a = s.turn.active;
+  let runas; [s, runas] = put(s, a, 'Runas');
+  const topo = s.zones[a].library.slice(0, 2);
+  s = settle(act(s, { t: 'activate', p: a, oid: runas, index: 0 }));
+  assert.deepEqual(topo.map(o => s.objects[o].zone), ['exile', 'exile'], 'as duas foram para o exílio');
+  assert.equal(s.objects[topo[0]].playableFromExile, a, 'e ficaram jogáveis por mim');
+  // o motor oferece jogar/conjurar do exílio
+  const ops = E.legalActions(s, a).filter(x => topo.includes(x.oid));
+  assert.ok(ops.length, 'a mesa oferece as cartas exiladas: ' + JSON.stringify(ops.map(x => x.t)));
+  const terreno = topo.find(o => s.facts[s.objects[o].name].types.includes('land'));
+  const magica = topo.find(o => !s.facts[s.objects[o].name].types.includes('land'));
+  if (terreno) {
+    s = act(s, { t: 'play_land', p: a, oid: terreno });
+    assert.equal(s.objects[terreno].zone, 'battlefield', 'o terreno do exílio entrou em jogo');
+    assert.equal(s.players[a].landsPlayed, 1, 'e gastou o terreno do turno');
+  }
+  if (magica) {
+    const op = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === magica);
+    assert.ok(op, 'a mágica exilada pode ser conjurada');
+    s = settle(act(s, op));
+    assert.notEqual(s.objects[magica].zone, 'exile', 'ela saiu do exílio ao ser conjurada');
+  }
+});
+
+test('S61 · Covil do Mago Louco: compra três e conjura uma sem pagar, ou recusa', () => {
+  // com cobrança de mana ligada e nenhum terreno: só uma conjuração gratuita passa
+  let s = mgGame(53, true); const a = s.turn.active;
+  let covil; [s, covil] = put(s, a, 'Covil');
+  const antes = s.zones[a].hand.length;
+  s = settle(act(s, { t: 'activate', p: a, oid: covil, index: 0 }));
+  assert.equal(s.zones[a].hand.length, antes + 3, 'comprei três');
+  assert.ok(s.pending && s.pending.kind === 'free_cast' && s.pending.p === a, 'a mesa pergunta se quero conjurar sem pagar');
+  const ops = E.legalActions(s, a).filter(x => x.t === 'cast_free');
+  const compradas = JSON.parse(JSON.stringify(s.pending.options));
+  assert.equal(ops.every(x => compradas.includes(x.oid)), true, 'só oferece as três compradas');
+  // recusar deixa tudo na mão
+  const recusou = act(s, { t: 'decline_free', p: a });
+  assert.equal(recusou.pending, null);
+  assert.equal(recusou.zones[a].hand.length, antes + 3, 'recusando, as três ficam na mão');
+  // conjurando, a carta vai para a pilha sem pagar mana (não tenho nem um terreno)
+  if (ops.length) {
+    assert.throws(() => act(s, { t: 'cast', p: a, oid: ops[0].oid, targets: ops[0].targets }), /pendente|mana|decida/);
+    let feito = act(s, ops[0]);
+    assert.notEqual(feito.objects[ops[0].oid].zone, 'hand', 'a carta escolhida saiu da mão sem pagar mana');
+    assert.deepEqual(JSON.parse(JSON.stringify(feito.players[a].pool)), { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, 'nenhum mana foi gasto nem gerado');
+  }
+});
+
+test('S61 · a Masmorra do Mago Louco vai da primeira sala ao Covil, e a Secret Door fecha', () => {
+  let s = mzGame(54); const a = s.turn.active;
+  let porta; [s, porta] = put(s, a, 'Porta');
+  const caminho = ['portal', 'nivel', 'bazar', 'perdido', 'runas', 'minas', 'covil'];
+  s = aventura(s, a, porta, 3);
+  for (let i = 1; i < caminho.length; i++) {
+    s = fechaEscolha(s);
+    if (s.pending && s.pending.kind === 'pick_target') s = settle(act(s, { t: 'pick_target', p: a, index: 0 }));
+    if (s.pending && s.pending.kind === 'free_cast') s = settle(act(s, { t: 'decline_free', p: a }));
+    s = aventura(s, a, porta);
+    if (s.pending && s.pending.kind === 'choose_room') {
+      const idx = JSON.parse(JSON.stringify(s.pending.options)).indexOf(caminho[i]);
+      s = settle(act(s, { t: 'choose_room', p: a, index: idx < 0 ? 0 : idx }));
+    }
+    s = fechaEscolha(s);
+  }
+  assert.equal(s.players[a].dungeon.room, 'covil', 'cheguei ao Covil do Mago Louco');
+  assert.equal(s.players[a].dungeon.done, true, 'e a masmorra fechou');
+  // o Covil pergunta se quero conjurar uma das três sem pagar
+  assert.ok(s.pending && s.pending.kind === 'free_cast', 'o Covil abriu a conjuração sem pagar');
+  s = settle(act(s, { t: 'decline_free', p: a }));
+  // as quatro masmorras estão na escolha
+  let outra = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
+  assert.equal(JSON.parse(JSON.stringify(outra.pending.options)).length, 4, 'as quatro masmorras aparecem na escolha');
 });
