@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S63 auditoria dos gatilhos + mão inicial não conta como compra do turno | ✅ |
 | S · Scripts | S62 enjoo só prende o {T} da própria carta + auditoria das listas Pauper | ✅ |
 | S · Scripts | S61 Mago Louco: jogar do exílio, conjurar sem pagar — Pauper em 100% | ✅ |
 | S · Scripts | S60 Tumba da Aniquilação: perder ou pagar, e sacrificar escolhendo | 🟡 |
@@ -301,7 +302,7 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33ad 🟡 | S60 (leva 52) | Tumba da Aniquilação inteira: "a menos que", sacrifício escolhido, O Atropal |
 | E33ae ✅ | S61 (leva 53) | Mago Louco e Secret Door completa: as sete listas Pauper em 100% |
 | E33af ✅ | S62 (leva 54) | Custo que vira outra criatura + auditoria que abre cada carta das listas |
-| E33ag ▶ | S63 | Auditoria dos gatilhos: cada gatilho das listas Pauper disparando numa partida |
+| E33ag ✅ | S63 (leva 55) | Auditoria dos gatilhos: cada gatilho das listas disparando numa partida |
 | E33ah ▶ | S64 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
@@ -833,6 +834,29 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S63 · Auditoria dos gatilhos, e a mão inicial que contava como compra do turno** ✅
+- **Valor:** fecha o buraco declarado na S62. Agora o portão prova as três pontas de cada carta das listas
+  Pauper: a mesa **oferece** (A14/A15/A16), o gatilho **dispara** (A17) e o efeito **faz a coisa certa** (S8).
+- **A17 · cada gatilho é provocado de verdade numa partida:** entrar no campo, morrer, sair do campo,
+  atacar, causar dano de combate ao jogador, ser conjurada, outra criatura entrando, morrendo, saindo ou
+  sendo **sacrificada** (sacrifício de verdade, não "mover para o cemitério"), receber marcadores de um
+  efeito, a manutenção, a segunda fase principal, o fim do combate e a terceira compra do turno.
+- **Bug que a auditoria achou:** a **mão inicial contava como compra do turno**. `drawnThisTurn` começava
+  em 7 (ou 14, com mulligan), então "quando você compra a terceira carta do turno" disparava **antes do
+  jogo começar** e nunca disparava no primeiro turno. No Rakdos Madness isso é o Sneaky Snacker, que volta
+  do cemitério. Corrigido: as compras da mão inicial e dos mulligans são zeradas quando a partida começa.
+- **A18 · gatilhos condicionais ficam declarados:** Faerie Miscreant (outra com o mesmo nome),
+  Troublemaker Ouphe (barganha) e Vitu-Ghazi Inspector (colher provas) não são provocados pela A17 porque
+  a condição depende do que foi pago na conjuração. O teste lista os três: se aparecer um quarto, ele cai
+  na revisão em vez de sumir.
+- **O que ainda não tem driver, declarado no próprio arquivo:** gatilhos de aura que observam a criatura
+  encantada (`enchanted-deals-damage`, `enchanted-tapped-or-damaged`) e os gatilhos de sala de masmorra,
+  cobertos pelos testes S57–S61.
+- **Goldens regravados:** a sequência de ações das quatro partidas é idêntica; mudou o hash porque o estado
+  do jogador não carrega mais as compras da mão inicial.
+- **Testes:** U (mão inicial e mulligan não contando, e o gatilho da terceira compra trazendo a carta do
+  cemitério no primeiro turno), auditoria A17/A18 sobre as sete listas.
 
 **S62 · Enjoo de invocação só prende o {T} da própria carta, e auditoria das listas Pauper** ✅
 - **O bug que o usuário achou:** a habilidade da **Jaspera Sentinel** ("{T}, Vire uma criatura desvirada

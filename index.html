@@ -4595,7 +4595,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 54;
+const ENGINE_VERSION = 55;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -6376,7 +6376,13 @@ const HANDLERS = {
     bottom.forEach(oid => owns(s, a.p, oid, 'hand'));
     bottom.forEach(oid => moveObject(s, oid, 'library', { top: false }));
     pl.kept = true;
-    if (s.players.every(x => x.kept)) { s.status = 'playing'; s.turn.number = 1; enterStep(s, 'untap'); }
+    if (s.players.every(x => x.kept)) {
+      // S63 · a mão inicial (e os mulligans) não são compras "deste turno": sem zerar
+      // isto, "quando você compra a terceira carta do turno" já tinha disparado antes
+      // do jogo começar e nunca disparava no primeiro turno
+      s.players.forEach(x => { x.drawnThisTurn = 0; });
+      s.status = 'playing'; s.turn.number = 1; enterStep(s, 'untap');
+    }
   },
   pass(s, a, ev) {
     noPending(s); holder(s, a.p);

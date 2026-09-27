@@ -4244,3 +4244,29 @@ test('S62 · virar outra criatura como custo não se importa com enjoo de invoca
   assert.equal(E.legalActions(s2, a2).some(x => x.t === 'activate' && x.oid === sent2 && x.index === 0), true,
     'a Porta não usa {T}, então o enjoo não a impede');
 });
+
+/* ---------------- S63 · a mão inicial não conta como compra do turno ---------------- */
+test('S63 · mão inicial e mulligan não contam para "a terceira compra do turno"', () => {
+  const cards = { ...MZ_CARDS,
+    'Ladino': { name: 'Ladino', type_line: 'Creature — Goblin Rogue', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], power: '2', toughness: '1',
+      keywords: ['Haste'], oracle_text: 'Whenever you draw your third card each turn, you may return this card from your graveyard to the battlefield tapped.' } };
+  const scripts = { ...MZ_SCRIPTS,
+    Ladino: { name: 'Ladino', abilities: [{ kind: 'triggered', when: 'third-draw', fromGraveyard: true,
+      effects: [{ do: 'reanimate_tapped', target: 'self-source' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } } };
+  const deck = [{ name: 'Island', qty: 30, zone: 'main' }, { name: 'Ladino', qty: 10, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 71, mode: 'assisted', manaCheck: false, cards, scripts,
+    players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  s = act(s, { t: 'mulligan', p: 0 });                       // um mulligan, mais sete compras
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: p === 0 ? [s.zones[0].hand[0]] : [] });
+  assert.equal(s.players[0].drawnThisTurn, 0, 'a mão inicial não conta');
+  assert.equal(s.players[1].drawnThisTurn, 0);
+  s = passTo(s, 'main1');
+  const a = s.turn.active;
+  let ladino; [s, ladino] = put(s, a, 'Ladino', { zone: 'graveyard' });
+  const jaComprou = s.players[a].drawnThisTurn;               // a compra do turno, se houve
+  for (let i = 0; i < 3 - jaComprou; i++) s = act(s, { t: 'draw', p: a });
+  assert.equal(s.players[a].drawnThisTurn, 3, 'a terceira compra do turno aconteceu');
+  s = settle(s);
+  assert.equal(s.objects[ladino].zone, 'battlefield', 'o gatilho da terceira compra trouxe a carta de volta');
+  assert.equal(s.objects[ladino].tapped, true, 'e ela volta virada');
+});
