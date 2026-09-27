@@ -1913,7 +1913,7 @@ test('S36 · proteção de duas cores barra as duas, e deixa a terceira passar',
   assert.equal(s.objects[bear].zone, 'graveyard');
 });
 
-test('S36 · prevenir o dano de uma mágica da pilha, ganhando essa vida', () => {
+test('S36/S52 · prevenir o dano de uma mágica da pilha: a vida vem quando o dano é prevenido', () => {
   let s = mkGame(4); const a = s.turn.active, d = 1 - a;
   let bolt, hallow;
   [s, bolt] = put(s, d, 'RedBolt', { zone: 'hand' });
@@ -1923,9 +1923,10 @@ test('S36 · prevenir o dano de uma mágica da pilha, ganhando essa vida', () =>
   [s, hallow] = put(s, a, 'Hallow', { zone: 'hand' });
   const vida = s.players[a].life;
   s = resolveSpell(act(s, { t: 'cast', p: a, oid: hallow, targets: [{ oid: bolt }] }));
-  assert.equal(s.players[a].life, vida + 3, 'ganhou vida igual ao dano previsto');
+  // S52 mudou a regra: a vida vem do dano prevenido de fato, não do dano previsto
+  assert.equal(s.players[a].life, vida, 'nada de vida antes de o raio resolver');
   s = resolveSpell(s); // agora o raio resolve
-  assert.equal(s.players[a].life, vida + 3, 'o dano do raio não passou');
+  assert.equal(s.players[a].life, vida + 3, 'ganhou vida igual ao dano prevenido');
 });
 
 /* ---------------- S37 · exilar cemitérios, descarte escolhido, habilidade da mão e barganha ---------------- */
@@ -3391,4 +3392,71 @@ test('S51 · com mais de um par possível, você escolhe o par do vínculo de al
   assert.equal(s.objects[muro].paired, alq, 'o par é mútuo');
   assert.equal(s.objects[urso].paired, undefined, 'o urso ficou de fora');
   assert.ok(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === muro), 'o muro ganhou a habilidade concedida');
+});
+
+/* ---------------- S52 · vida pelo dano prevenido de fato, e a face de trás que exila ---------------- */
+const BB2_CARDS = {
+  'Plains': { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {W}.' },
+  'Hallow': { name: 'Hallow', type_line: 'Instant', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], keywords: [], oracle_text: 'Prevent all damage target spell would deal this turn. You gain life equal to the damage prevented this way.' },
+  'Veteran': { name: 'Veteran', type_line: 'Creature — Human Cleric', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: 'Whenever another creature you control enters, you gain 1 life.\nDisturb {1}{W}' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Bolt': { name: 'Bolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' },
+  'Doom': { name: 'Doom', type_line: 'Instant', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'Destroy target creature.' }
+};
+const BB2_SCRIPTS = {
+  Hallow: { name: 'Hallow', effects: [{ do: 'prevent_spell', target: 'spell' }],
+    example: { target: 'enemy-instant', expect: { preventedColor: false } } },
+  Veteran: { name: 'Veteran', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }],
+    disturb: { mana: '{1}{W}' },
+    back: { name: 'Phantom', types: ['creature'], power: 1, toughness: 1, keywords: ['flying'],
+      staticRule: 'exile-instead-of-graveyard',
+      abilities: [{ kind: 'triggered', when: 'other-leaves-battlefield', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }] },
+    example: { action: 'disturb', target: 'none', expect: { transformed: true } } },
+  Bolt: { name: 'Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } },
+  Doom: { name: 'Doom', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } }
+};
+const BB2DECK = [{ name: 'Plains', qty: 18, zone: 'main' }, { name: 'Hallow', qty: 8, zone: 'main' }, { name: 'Veteran', qty: 8, zone: 'main' },
+  { name: 'Bear', qty: 10, zone: 'main' }, { name: 'Bolt', qty: 8, zone: 'main' }, { name: 'Doom', qty: 8, zone: 'main' }];
+function bb2Game(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: BB2_CARDS, scripts: BB2_SCRIPTS,
+    players: [{ name: 'A', deck: BB2DECK }, { name: 'B', deck: BB2DECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S52 · a vida vem do dano que foi prevenido de fato, não do dano previsto', () => {
+  let s = bb2Game(3); const a = s.turn.active, d = 1 - a;
+  let raio, hallow;
+  [s, raio] = put(s, d, 'Bolt', { zone: 'hand' });
+  s = act(s, { t: 'pass', p: a });
+  s = act(s, { t: 'cast', p: d, oid: raio, targets: [{ player: a }] });
+  s = act(s, { t: 'pass', p: d });
+  [s, hallow] = put(s, a, 'Hallow', { zone: 'hand' });
+  const vida = s.players[a].life;
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: hallow, targets: [{ oid: raio }] }));
+  assert.equal(s.players[a].life, vida, 'ainda não ganhei vida: o dano não aconteceu');
+  s = settle(s); // agora o raio resolve e é prevenido
+  assert.equal(s.players[a].life, vida + 3, 'ganhei a vida quando o dano foi prevenido');
+  assert.equal(s.objects[raio].zone, 'graveyard', 'o raio resolveu e foi para o cemitério');
+});
+
+test('S52 · a face de trás ganha vida quando outra criatura sua sai do campo, e ela exila em vez de morrer', () => {
+  let s = bb2Game(4); const a = s.turn.active;
+  let vet, urso, doom;
+  [s, vet] = put(s, a, 'Veteran', { zone: 'graveyard' });
+  const acao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === vet && x.disturb);
+  assert.ok(acao, 'a mesa oferece o disturb a partir do cemitério');
+  s = settle(resolveSpell(act(s, acao)));
+  assert.equal(s.objects[vet].name, 'Phantom', 'entrou pela face de trás');
+  // outra criatura sua sai do campo: ganha 1 de vida
+  [s, urso] = put(s, a, 'Bear');
+  [s, doom] = put(s, a, 'Doom', { zone: 'hand' });
+  const vida = s.players[a].life;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: doom, targets: [{ oid: urso }] })));
+  assert.equal(s.objects[urso].zone, 'graveyard', 'o urso morreu');
+  assert.equal(s.players[a].life, vida + 1, 'a face de trás deu 1 de vida');
+  // e quando ela mesma morre, vai para o exílio
+  let doom2; [s, doom2] = put(s, a, 'Doom', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: doom2, targets: [{ oid: vet }] })));
+  assert.equal(s.objects[vet].zone, 'exile', 'ela foi exilada em vez de ir para o cemitério');
 });

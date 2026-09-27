@@ -2091,7 +2091,7 @@ const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countere
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
-const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged'];
+const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
@@ -2105,11 +2105,11 @@ const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
 const EVASIONS = ['flying-only', 'power-less'];
 const CHOICES = ['color'];
-const STATIC_RULES = ['flagbearer'];
+const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'other-sacrificed': 'quando você sacrifica outra permanente',
-  'leaves-battlefield': 'quando sai do campo de batalha', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
+  'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
   'enchanted-tapped-or-damaged': 'quando a criatura encantada vira ou recebe dano', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
   main2: 'na sua fase principal pós-combate', 'end-of-combat': 'no fim do combate' };
@@ -2183,6 +2183,7 @@ function validateScript(sc) {
     for (const k of b.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`face de trás: palavra-chave "${k}" não é resolvida pelo motor`);
     if ((b.effects || []).length) errs.push(...effectErrors(b.effects, 'face de trás'));
     for (const ab of b.abilities || []) if (!['activated', 'triggered'].includes(ab.kind)) errs.push('face de trás: habilidade inválida');
+    if (b.staticRule && !STATIC_RULES.includes(b.staticRule)) errs.push(`face de trás: regra estática "${b.staticRule}" desconhecida`);
     if (b.types && b.types.includes('planeswalker') && !Number.isInteger(b.loyalty)) errs.push('face de trás: planeswalker sem lealdade');
     for (const [i, ab] of (b.loyaltyAbilities || []).entries()) {
       if (!Number.isInteger(ab.cost)) errs.push(`face de trás, lealdade ${i + 1}: custo precisa ser inteiro`);
@@ -2512,7 +2513,6 @@ const RAW_SCRIPTS = [
   { name: 'Mask of Law and Grace', aura: { enchant: 'creature' }, grants: { protection: ['B', 'R'] },
     example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
   { name: 'Hallow', effects: [{ do: 'prevent_spell', target: 'spell' }],
-    covers: 'partial', note: 'a vida ganha é o dano previsto da mágica, não o dano efetivamente prevenido',
     example: { target: 'enemy-instant', expect: { preventedColor: false } } },
   // S35 · varredura das Pauper (textos conferidos em 26/09)
   { name: 'Cryoshatter', aura: { enchant: 'creature' }, grants: { power: -5, toughness: 0 },
@@ -2692,8 +2692,9 @@ const RAW_SCRIPTS = [
   // S24 · cartas de face dupla (textos conferidos na Scryfall)
   { name: 'Lunarch Veteran', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }],
     disturb: { mana: '{1}{W}' },
-    back: { name: 'Luminous Phantom', types: ['creature'], power: 1, toughness: 1, keywords: ['flying'] },
-    covers: 'partial', note: 'o gatilho do Phantom quando outra criatura sua sai do campo, e o exílio em vez do cemitério, ainda não entram',
+    back: { name: 'Luminous Phantom', types: ['creature'], power: 1, toughness: 1, keywords: ['flying'],
+      staticRule: 'exile-instead-of-graveyard',
+      abilities: [{ kind: 'triggered', when: 'other-leaves-battlefield', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }] },
     example: { action: 'disturb', target: 'none', expect: { transformed: true } } },
   { name: 'Sagu Wildling', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 3 }] }],
     omen: { mana: '{G}' },
@@ -4398,7 +4399,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 44;
+const ENGINE_VERSION = 45;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4581,6 +4582,7 @@ function createGame(setup) {
     const b = sc.back; if (!b || s.facts[b.name]) continue;
     s.facts[b.name] = cardFacts({ name: b.name, type_line: (b.types || []).join(' '), power: b.power, toughness: b.toughness, keywords: b.keywords || [], oracle_text: '' });
     s.facts[b.name].script = { name: b.name, effects: b.effects || [], abilities: b.abilities || [], loyalty: b.loyaltyAbilities || [] };
+    if (b.staticRule) s.facts[b.name].script.staticRule = b.staticRule; // S52 · regra estática na face de trás
     if (b.loyalty != null) s.facts[b.name].loyalty = b.loyalty;
     s.facts[b.name].backOf = sc.name;
   }
@@ -4655,6 +4657,8 @@ function moveObject(s, oid, to, { top = true } = {}) {
     return;
   }
   // S24 · fora do campo e da pilha, a carta volta para a face da frente
+  // S52 · "se fosse para o cemitério, exile em vez disso" (Luminous Phantom)
+  if (to === 'graveyard' && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard') to = 'exile';
   if (to !== 'battlefield' && to !== 'stack') flipToFront(s, o);
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
@@ -5280,9 +5284,17 @@ function applyEffect(s, src, eff, tgt, events) {
   switch (eff.do) {
     case 'damage':
       { const n = amountOf(s, src, eff.amount);
+        // S52 · dano prevenido por uma mágica que dá vida: quem preveniu ganha o que foi prevenido
+        const ganhaVida = (quanto) => {
+          if (src && src.preventGainTo != null && quanto > 0) {
+            const quem = src.preventGainTo;
+            s.players[quem].life += quanto;
+            s.players[quem].lifeGained = (s.players[quem].lifeGained || 0) + quanto;
+          }
+        };
         // S47 · "a cada oponente" é dano em jogador. Antes caía na varredura de criaturas.
         if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) pl.life -= n; }); note({ amount: n }); break; }
-        if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protectedFrom(s, obj, src)))) { note({ amount: n, prevented: true }); break; }
+        if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protectedFrom(s, obj, src)))) { ganhaVida(n); note({ amount: n, prevented: true }); break; }
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); note({ amount: n }); break; }
         if (obj) { obj.damage += n; noteEnchantedEvent(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
         else s.players[playerOf()].life -= n;
@@ -5428,14 +5440,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
     case 'no_prevention': s.noPrevention = true; note({}); break; // S31 · 615.7: prevenção não se aplica no turno
-    case 'prevent_spell': { // S36 · a mágica alvo não causa dano neste turno, e você ganha essa vida
-      if (obj) {
-        obj.damagePrevented = true;
-        const dano = ((s.facts[obj.name].script || {}).effects || []).filter(e => e.do === 'damage')
-          .reduce((n, e) => n + amountOf(s, obj, e.amount), 0);
-        if (dano > 0) { s.players[ctrl].life += dano; s.players[ctrl].lifeGained = (s.players[ctrl].lifeGained || 0) + dano; }
-        note({ amount: dano });
-      }
+    case 'prevent_spell': { // S52 · a mágica alvo não causa dano neste turno; a vida vem do dano prevenido de fato
+      if (obj) { obj.damagePrevented = true; obj.preventGainTo = ctrl; note({}); }
       break;
     }
     case 'protection': { // S43 · proteção contra a cor escolhida, até o fim do turno
@@ -5700,8 +5706,9 @@ function queueTriggers(s, when, objects, controller) {
       s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}) });
     }
     // S15 · gatilhos de outras permanentes que você controla
-    if (!['etb', 'dies', 'cast-self'].includes(when)) continue;
-    const other = when === 'etb' ? 'other-etb' : when === 'dies' ? 'other-dies' : 'other-cast';
+    if (!['etb', 'dies', 'cast-self', 'leaves-battlefield'].includes(when)) continue;
+    const other = when === 'etb' ? 'other-etb' : when === 'dies' ? 'other-dies'
+      : when === 'leaves-battlefield' ? 'other-leaves-battlefield' : 'other-cast'; // S52 · Luminous Phantom
     for (const w of battlefield(s)) {
       if (w.oid === o.oid || w.controller !== ctrl) continue;
       for (const ab of abilitiesOf(s, w)) {

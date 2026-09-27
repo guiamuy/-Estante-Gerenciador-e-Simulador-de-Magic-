@@ -91,6 +91,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S49 gatilho opcional, "a menos que tenha entrado agora" e desconto por condição | 🟡 |
 | S · Scripts | S50 escolher o tipo de criatura, custo X e custo por subtipo | 🟡 |
 | S · Scripts | S51 cemitério de qualquer um, mana convertido e par escolhido | 🟡 |
+| S · Scripts | S52 vida pelo dano prevenido de fato e a face de trás que exila | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -279,7 +280,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33s 🟡 | S49 (leva 41) | **Mono Blue Faeries em 100%** (42 → 34 cópias parciais) |
 | E33t 🟡 | S50 (leva 42) | Custo X, escolha de tipo e custo por subtipo (34 → 30 cópias parciais) |
 | E33u 🟡 | S51 (leva 43) | **Walls Combo em 100%** (30 → 25 cópias parciais) |
-| E33v ▶ | S52+ | Pauper para 100%: 7 cartas parciais restantes (Boros, Elves e Rakdos) |
+| E33v 🟡 | S52 (leva 44) | Boros Bully em 97% (25 → 14 cópias parciais) |
+| E33w ▶ | S53 | As três mecânicas próprias que faltam: plot, metamorfose e esgueirar-se |
+| E33x | S54 | Elves: escolha no pagamento do custo (Vitu-Ghazi) e tipo fora do campo (Distant Melody) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -809,6 +812,20 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S52 · Vida pelo dano prevenido de fato e a face de trás que exila** 🟡
+- **Aceite:**
+  - "previna todo o dano que a mágica causaria; você ganha vida igual ao dano prevenido": a vida vem
+    quando o dano é realmente prevenido, não na hora de conjurar;
+  - a face de trás pode ter gatilho próprio ("quando outra criatura sua sai do campo") e regra estática
+    ("se fosse para o cemitério, exile em vez disso").
+- **Entregue (todas completas):** Hallow e Lunarch Veteran // Luminous Phantom.
+- **Regra que mudou, com motivo:** o Hallow dava vida na hora de conjurar, calculada pelo dano que a
+  mágica *diria* causar. Se a mágica fosse anulada, ou o alvo dela mudasse, a vida vinha do mesmo jeito.
+  Agora a vida acompanha o dano que foi prevenido de verdade, e o teste da leva 27 foi reescrito.
+- **Testes:** U (vida só depois de o raio resolver e ser prevenido; face de trás dando vida quando outra
+  criatura sua morre e sendo exilada quando ela mesma morre), S8.
+- **Resultado:** Boros Bully em 97%. Cópias parciais nas Pauper de 25 para 14, em 5 cartas únicas.
 
 **S51 · Cemitério de qualquer um, mana convertido e par escolhido** 🟡
 - **Aceite:**
