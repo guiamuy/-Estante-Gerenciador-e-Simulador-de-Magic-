@@ -3815,7 +3815,7 @@ test('S57 · aventurar-se entra na primeira sala, e a sala vai para a pilha', ()
   // S59 · com mais de uma masmorra montada, a mesa pergunta em qual entrar
   let perguntou = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
   assert.ok(perguntou.pending && perguntou.pending.kind === 'choose_dungeon', 'a mesa pergunta a masmorra');
-  assert.deepEqual(JSON.parse(JSON.stringify(perguntou.pending.labels)), ['Mina Perdida de Phandelver', 'Cidade Baixa']);
+  assert.deepEqual(JSON.parse(JSON.stringify(perguntou.pending.labels)), ['Mina Perdida de Phandelver', 'Cidade Baixa', 'Tumba da Aniquilação']);
   s = aventura(s, a, porta);
   assert.equal(s.players[a].dungeon.name, 'Lost Mine of Phandelver', 'com uma masmorra montada, ela é escolhida sozinha');
   assert.equal(s.players[a].dungeon.room, 'entrada', 'o marcador ficou na Entrada da Caverna');
@@ -3953,4 +3953,114 @@ test('S59 · Trono dos Três Mortos: criatura do topo entra com três marcadores
   s = proximoTurno(passTo(s, 'main1'));
   assert.equal(s.turn.active, a);
   assert.equal(E.hasKeyword(s, s.objects[criatura], 'hexproof'), false, 'no meu turno, acabou');
+});
+
+/* ---------------- S60 · Tumba da Aniquilação: perder ou pagar, e sacrificar escolhendo ---------------- */
+test('S60 · Véus do Medo: cada jogador decide descartar ou perder 2, um por vez', () => {
+  let s = mzGame(31); const a = s.turn.active, d = 1 - a;
+  let porta; [s, porta] = put(s, a, 'Porta');
+  s = aventura(s, a, porta, 2);                                      // Entrada Armadilhada
+  assert.equal(s.players[a].dungeon.name, 'Tomb of Annihilation');
+  assert.equal(s.players[a].life, 19, 'cada jogador perdeu 1');
+  assert.equal(s.players[d].life, 19);
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 0 }));           // Véus do Medo
+  // quem controla decide primeiro
+  assert.ok(s.pending && s.pending.kind === 'unless' && s.pending.p === a, 'a mesa pergunta para quem controla');
+  const maoAntes = s.zones[a].hand.length;
+  s = act(s, { t: 'pay_unless', p: a });
+  assert.ok(s.pending && s.pending.kind === 'discard' && s.pending.p === a, 'pagar abre o descarte');
+  s = act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] });
+  assert.equal(s.zones[a].hand.length, maoAntes - 1, 'descartei uma');
+  assert.equal(s.players[a].life, 19, 'e não perdi vida');
+  // agora é a vez do oponente
+  assert.ok(s.pending && s.pending.kind === 'unless' && s.pending.p === d, 'depois decide o oponente');
+  s = settle(act(s, { t: 'take_loss', p: d }));
+  assert.equal(s.players[d].life, 17, 'ele escolheu perder 2');
+  assert.equal(s.pending, null, 'a fila acabou');
+});
+
+test('S60 · Oubliette: descarta e sacrifica criatura, artefato e terreno, escolhidos por você', () => {
+  let s = mzGame(32); const a = s.turn.active;
+  let porta, urso, floresta;
+  [s, porta] = put(s, a, 'Porta');                                   // Porta é artefato-criatura
+  [s, urso] = put(s, a, 'Bear');
+  [s, floresta] = put(s, a, 'Island');
+  let ilha2; [s, ilha2] = put(s, a, 'Island'); // dois terrenos: o sacrifício do terreno também é escolha
+  s = aventura(s, a, porta, 2);                                      // Entrada Armadilhada
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 1 }));           // Oubliette
+  // 1 · descarte
+  assert.ok(s.pending && s.pending.kind === 'discard', 'primeiro o descarte');
+  s = act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] });
+  // 2 · sacrifica criatura (Porta e Bear servem; eu escolho o Bear)
+  assert.ok(s.pending && s.pending.kind === 'sacrifice', 'depois o sacrifício, com escolha');
+  assert.equal(JSON.parse(JSON.stringify(s.pending.types))[0], 'creature');
+  assert.throws(() => act(s, { t: 'sacrifice', p: a, oid: floresta }), /não serve/);
+  s = act(s, { t: 'sacrifice', p: a, oid: urso });
+  assert.equal(s.objects[urso].zone, 'graveyard', 'o urso que eu escolhi foi para o cemitério');
+  // 3 · artefato: só a Porta serve, então vai sozinha
+  assert.equal(s.objects[porta].zone, 'graveyard', 'a Porta era o único artefato');
+  // 4 · terreno
+  assert.ok(s.pending && s.pending.kind === 'sacrifice', 'e por último o terreno');
+  const terra = JSON.parse(JSON.stringify(s.pending.options))[0];
+  s = settle(act(s, { t: 'sacrifice', p: a, oid: terra }));
+  assert.equal(s.objects[terra].zone, 'graveyard');
+  assert.equal(s.pending, null, 'a sala terminou');
+});
+
+test('S60 · sem como pagar, o jogador perde a vida sem ser perguntado', () => {
+  let s = mzGame(33); const a = s.turn.active, d = 1 - a;
+  let porta; [s, porta] = put(s, a, 'Porta');
+  // esvazia as duas mãos: ninguém tem como descartar
+  s = JSON.parse(JSON.stringify(s));
+  for (const p of [0, 1]) { for (const oid of s.zones[p].hand.slice()) { s.zones[p].hand.splice(s.zones[p].hand.indexOf(oid), 1); s.zones[p].library.push(oid); s.objects[oid].zone = 'library'; } }
+  s = aventura(s, a, porta, 2);
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 0 }));           // Véus do Medo
+  assert.equal(s.pending, null, 'ninguém tem carta: nada a perguntar');
+  assert.equal(s.players[a].life, 17, 'os dois perderam 1 da entrada e 2 do véu');
+  assert.equal(s.players[d].life, 17);
+});
+
+test('S60 · Berço do Deus da Morte cria O Atropal, lendário 4/4 com toque mortífero', () => {
+  let s = mzGame(34); const a = s.turn.active;
+  let porta; [s, porta] = put(s, a, 'Porta');
+  s = aventura(s, a, porta, 2);                                      // Entrada Armadilhada
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 0 }));           // Véus do Medo
+  if (s.pending && s.pending.kind === 'unless') s = settle(act(s, { t: 'take_loss', p: s.pending.p }));
+  if (s.pending && s.pending.kind === 'unless') s = settle(act(s, { t: 'take_loss', p: s.pending.p }));
+  s = aventura(s, a, porta);                                         // Cela de Areia (única saída)
+  for (let i = 0; i < 4 && s.pending; i++) {
+    if (s.pending.kind === 'unless') s = settle(act(s, { t: 'take_loss', p: s.pending.p }));
+    else if (s.pending.kind === 'sacrifice') s = settle(act(s, { t: 'sacrifice', p: s.pending.p, oid: s.pending.options[0] }));
+    else break;
+  }
+  assert.equal(s.players[a].dungeon.room, 'cela');
+  s = aventura(s, a, porta);                                         // Berço do Deus da Morte
+  const atropal = s.zones[a].battlefield.map(o => s.objects[o]).find(o => o.name === 'The Atropal');
+  assert.ok(atropal, 'O Atropal entrou no campo');
+  assert.deepEqual(JSON.parse(JSON.stringify(E.stats(s, atropal))), { power: 4, toughness: 4 });
+  assert.equal(E.hasKeyword(s, atropal, 'deathtouch'), true, 'com toque mortífero');
+  assert.match(s.facts['The Atropal'].typeText || '', /Legendary/, 'e é lendário');
+  assert.equal(s.players[a].dungeon.done, true, 'a Tumba fechou');
+});
+
+test('S60 · correção: descarte pedido por um efeito retoma o resto do efeito', () => {
+  // "descarte uma carta, compre duas" perdia a compra: o descarte não retomava o efeito
+  const cards = { ...MZ_CARDS, Rito: { name: 'Rito', type_line: 'Sorcery', mana_cost: '{U}', cmc: 1, colors: ['U'], keywords: [], oracle_text: 'Discard a card. Draw two cards.' } };
+  const scripts = { ...MZ_SCRIPTS, Rito: { name: 'Rito', effects: [{ do: 'discard', amount: 1 }, { do: 'draw', amount: 2 }], example: { target: 'none', expect: { handDelta: 1 } } } };
+  const deck = [{ name: 'Island', qty: 24, zone: 'main' }, { name: 'Rito', qty: 12, zone: 'main' }, { name: 'Bear', qty: 12, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 41, mode: 'assisted', manaCheck: false, cards, scripts,
+    players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passTo(s, 'main1');
+  const a = s.turn.active;
+  let rito; [s, rito] = put(s, a, 'Rito', { zone: 'hand' });
+  const antes = s.zones[a].hand.length;
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: rito }));
+  assert.ok(s.pending && s.pending.kind === 'discard', 'pede o descarte');
+  s = settle(act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] }));
+  assert.equal(s.zones[a].hand.length, antes - 1 - 1 + 2, 'conjurei, descartei uma e comprei duas');
 });

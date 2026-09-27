@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S60 Tumba da Aniquilação: perder ou pagar, e sacrificar escolhendo | 🟡 |
 | S · Scripts | S59 Cidade Baixa: provocar e o Trono dos Três Mortos | 🟡 |
 | S · Scripts | S58 terreno básico embutido e cobertura pelo nome da lista | ✅ |
 | S · Scripts | S57 masmorra: aventurar-se, escolher a sala e completar | 🟡 |
@@ -295,7 +296,7 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33aa 🟡 | S57 (leva 49) | Masmorra: máquina pronta e a Mina Perdida de Phandelver inteira |
 | E33ab ✅ | S58 (leva 50) | Básico embutido: as listas param de perder % por falta de rede |
 | E33ac 🟡 | S59 (leva 51) | Cidade Baixa inteira: provocar, Trono dos Três Mortos, escolha de masmorra |
-| E33ad ▶ | S60 | Tumba da Aniquilação: perder vida a menos que descartar ou sacrificar |
+| E33ad 🟡 | S60 (leva 52) | Tumba da Aniquilação inteira: "a menos que", sacrifício escolhido, O Atropal |
 | E33ae ▶ | S61 | Masmorra do Mago Louco: jogar do exílio e conjurar sem pagar — fecha a Secret Door |
 | E33af ▶ | S62 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -828,6 +829,28 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S60 · Tumba da Aniquilação: perder ou pagar, e sacrificar escolhendo** 🟡
+- **Valor:** a terceira das quatro masmorras. Falta uma para a Secret Door fechar.
+- **Texto conferido:** 26/09/2026, em mtg.wtf (lista de cartas de masmorra).
+- **Aceite:**
+  - as cinco salas: Entrada Armadilhada → Véus do Medo ou Oubliette → Cela de Areia → Berço do Deus da Morte;
+  - **"cada jogador perde 2 a menos que …"**: cada um decide na sua vez, começando por quem controla o
+    efeito; quem não tem como pagar perde sem ser perguntado;
+  - **sacrifício escolhido por você**, dentro do tipo pedido (criatura, artefato, terreno): na mesa, toque
+    na permanente ou use os botões; com um único candidato, vai sozinho;
+  - **Oubliette** encadeia quatro decisões suas: descarte, criatura, artefato e terreno;
+  - **O Atropal**: ficha lendária 4/4 preta de Deus Horror com toque mortífero.
+- **Correção de motor (bug antigo, achado aqui):** o descarte pedido por um efeito **não retomava o resto
+  do efeito**. "Descarte uma carta, compre duas" perdia a compra. Nenhum script da biblioteca tinha
+  descarte no meio de uma sequência, então nunca apareceu em partida — o Oubliette foi o primeiro a exigir.
+  Tem teste próprio agora.
+- **Parcial declarada:** **Secret Door** segue parcial: falta a Masmorra do Mago Louco, que precisa de
+  jogar cartas do exílio e conjurar sem pagar o custo. Uma leva.
+- **Testes:** U (Véus do Medo com quem controla pagando o descarte e o oponente escolhendo perder;
+  Oubliette com as quatro decisões e a recusa de sacrificar a permanente do tipo errado; ninguém com carta
+  na mão perdendo sem pergunta; O Atropal 4/4 lendário com toque mortífero fechando a Tumba; descarte por
+  efeito retomando a compra), S8 na Secret Door.
 
 **S59 · Cidade Baixa: provocar e o Trono dos Três Mortos** 🟡
 - **Valor:** a segunda das quatro masmorras, e a primeira vez que a mesa pergunta **em qual** masmorra

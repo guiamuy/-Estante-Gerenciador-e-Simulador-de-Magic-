@@ -2091,7 +2091,10 @@ const EFFECTS = {
   // S57 · aventurar-se na masmorra: entra na primeira sala, ou avança para a próxima
   venture: { fields: [], targets: ['self'] },
   // S59 · provocar: até o seu próximo turno, ela ataca se puder
-  goad: { fields: [], targets: ['creature'] }
+  goad: { fields: [], targets: ['creature'] },
+  // S60 · "cada jogador perde N a menos que ..." e "sacrifique uma permanente do tipo"
+  lose_unless: { fields: ['amount'], targets: ['each-player'] },
+  sacrifice_own: { fields: [], targets: ['self'] }
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
@@ -2127,6 +2130,21 @@ DUNGEONS.push(
     { id: 'trono', pt: 'Trono dos Três Mortos',
       effects: [{ do: 'look', count: 10, amount: 1, min: 1, filter: { types: ['creature'] }, to: 'battlefield', rest: 'stay', shuffle: true,
         onPicked: { counters: 3, keyword: 'hexproof', until: 'your-next-turn' } }] }
+  ] });
+DUNGEONS.push(
+  { name: 'Tomb of Annihilation', pt: 'Tumba da Aniquilação', rooms: [
+    { id: 'entrada-armadilhada', pt: 'Entrada Armadilhada', next: ['veus', 'oubliette'],
+      effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'lose', amount: 1, target: 'self' }] },
+    { id: 'veus', pt: 'Véus do Medo', next: ['cela'],
+      effects: [{ do: 'lose_unless', amount: 2, target: 'each-player', cost: { discard: 1 } }] },
+    { id: 'cela', pt: 'Cela de Areia', next: ['berco'],
+      effects: [{ do: 'lose_unless', amount: 2, target: 'each-player', cost: { sacrifice: ['creature', 'artifact', 'land'] } }] },
+    { id: 'oubliette', pt: 'Oubliette', next: ['berco'],
+      effects: [{ do: 'discard', amount: 1 }, { do: 'sacrifice_own', types: ['creature'] },
+        { do: 'sacrifice_own', types: ['artifact'] }, { do: 'sacrifice_own', types: ['land'] }] },
+    { id: 'berco', pt: 'Berço do Deus da Morte',
+      effects: [{ do: 'token', amount: 1, token: { name: 'The Atropal', types: ['creature'], subtypes: ['God', 'Horror'],
+        colors: ['B'], power: 4, toughness: 4, keywords: ['deathtouch'], legendary: true } }] }
   ] });
 const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
 const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
@@ -2354,6 +2372,18 @@ function effectErrors(effects, label, opcional) {
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
     // S57 · duração do bônus: sem isso vale até o fim do turno
     if (e.until != null && e.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.until}" desconhecida`);
+    // S60 · o custo que evita a perda de vida, e o tipo do que se sacrifica
+    if (e.do === 'lose_unless') {
+      const c = e.cost || {};
+      const partes = Object.keys(c);
+      if (partes.length !== 1 || !['discard', 'sacrifice'].includes(partes[0])) errs.push(`${label} ${i + 1}: "a menos que" aceita descartar ou sacrificar, um de cada vez`);
+      if (c.discard != null && !Number.isInteger(c.discard)) errs.push(`${label} ${i + 1}: descartar precisa de um número`);
+      for (const t of c.sacrifice || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido no sacrifício`);
+    }
+    if (e.do === 'sacrifice_own') {
+      if (!(e.types || []).length) errs.push(`${label} ${i + 1}: sacrificar precisa dos tipos aceitos`);
+      for (const t of e.types || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido no sacrifício`);
+    }
     // S59 · o que a carta escolhida recebe ao entrar no campo
     if (e.onPicked) {
       if (e.do !== 'look' && e.do !== 'search') errs.push(`${label} ${i + 1}: "onPicked" só vale em olhar ou vasculhar`);
@@ -2381,6 +2411,7 @@ function tokenErrors(tk, label) {
   for (const k of tk.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`${label}: palavra-chave "${k}" não é resolvida pelo motor`);
   for (const t of tk.subtypes || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label}: subtipo de ficha inválido`);
   for (const c of tk.colors || []) if (!'WUBRG'.includes(c)) errs.push(`${label}: cor de ficha "${c}" inválida`);
+  if (tk.legendary != null && typeof tk.legendary !== 'boolean') errs.push(`${label}: "lendária" precisa ser verdadeiro ou falso`);
   for (const ab of tk.abilities || []) if (ab.kind !== 'activated' && ab.kind !== 'triggered') errs.push(`${label}: habilidade de ficha inválida`);
   return errs;
 }
@@ -2533,7 +2564,7 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 2 } } },
   { name: 'Secret Door',
     abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture' }] }],
-    covers: 'partial', note: 'aventurar-se na masmorra entra com a Mina Perdida de Phandelver e a Cidade Baixa; faltam a Tumba da Aniquilação e a Masmorra do Mago Louco na escolha',
+    covers: 'partial', note: 'aventurar-se na masmorra entra com três das quatro masmorras; falta a Masmorra do Mago Louco na escolha, que precisa de jogar cartas do exílio e conjurar sem pagar',
     example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
   // S56 · os terrenos das listas Pauper, que a medição antiga escondia (textos conferidos em 26/09)
   { name: 'Jagged Barrens', entersTapped: true,
@@ -4547,7 +4578,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 51;
+const ENGINE_VERSION = 52;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -5630,6 +5661,19 @@ function applyEffect(s, src, eff, tgt, events) {
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
+    case 'lose_unless': { // S60 · cada jogador perde, a menos que pague
+      const ordem = [ctrl, ...s.players.map((_, i) => i).filter(i => i !== ctrl)].filter(i => !s.players[i].lost);
+      s.unlessChain = { rest: ordem, amount: amountOf(s, src, eff.amount), cost: eff.cost || {}, name: src.name };
+      continueUnless(s, events);
+      break;
+    }
+    case 'sacrifice_own': { // S60 · você escolhe o que sacrificar, dentro do tipo pedido
+      const cands = sacrificeOptions(s, ctrl, eff.types);
+      if (!cands.length) { note({ amount: 0 }); break; }
+      if (cands.length === 1) { const nome = s.objects[cands[0]].name; sacrifice(s, cands[0], events); note({ name: nome }); break; }
+      s.pending = { kind: 'sacrifice', p: ctrl, options: cands, types: eff.types, name: src.name };
+      break;
+    }
     case 'goad': { // S59 · provocar: até o seu próximo turno, ela ataca se puder
       if (obj && obj.zone === 'battlefield') { obj.goaded = { by: ctrl }; note({ name: obj.name }); }
       break;
@@ -5764,6 +5808,8 @@ function finishPick(s, events) {
 }
 /** Efeitos que ficaram esperando a escolha terminar. */
 function resumeEffects(s, events) {
+  // S60 · se ainda há jogador decidindo "perder ou pagar", ele vem antes
+  if (s.unlessChain && continueUnless(s, events)) return;
   const r = s.resume; if (!r) return;
   s.resume = null;
   const src = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller };
@@ -5815,6 +5861,33 @@ function queueZoneTriggers(s, p, when) {
   }
 }
 
+/** S60 · permanentes suas que servem para um sacrifício de tipo pedido. */
+function sacrificeOptions(s, p, types) {
+  return battlefield(s).filter(o => o.controller === p && (types || []).some(t => s.facts[o.name].types.includes(t))).map(o => o.oid);
+}
+/** S60 · "cada jogador perde N a menos que …": cada um decide na sua vez, começando
+    por quem controla o efeito. Quem não tem como pagar simplesmente perde. */
+function continueUnless(s, events) {
+  const ch = s.unlessChain; if (!ch) return false;
+  while (ch.rest.length) {
+    const p = ch.rest.shift();
+    if (s.players[p].lost) continue;
+    if (!canPayUnless(s, p, ch.cost)) { takeUnlessLoss(s, p, ch, events); continue; }
+    s.pending = { kind: 'unless', p, amount: ch.amount, cost: ch.cost, name: ch.name };
+    return true;
+  }
+  s.unlessChain = null;
+  return false;
+}
+function canPayUnless(s, p, cost) {
+  if (cost.discard) return s.zones[p].hand.length >= cost.discard;
+  if (cost.sacrifice) return sacrificeOptions(s, p, cost.sacrifice).length > 0;
+  return false;
+}
+function takeUnlessLoss(s, p, ch, events) {
+  s.players[p].life -= ch.amount;
+  events.push({ kind: 'effect', do: 'lose', name: ch.name, target: s.players[p].name, amount: ch.amount });
+}
 /** S32 · sacrificar: vai para o cemitério e avisa quem observa sacrifícios. */
 function sacrifice(s, oid, events = []) {
   const o = s.objects[oid]; if (!o) return;
@@ -5835,7 +5908,8 @@ function createToken(s, def, controller, events) {
   const name = def.name;
   if (!s.facts[name]) {
     // S46 · a ficha carrega subtipo, senão gatilho por subtipo nunca a reconhece
-    const linha = (def.types || []).join(' ') + ((def.subtypes || []).length ? ' — ' + def.subtypes.join(' ') : '');
+    // S60 · ficha lendária (The Atropal)
+    const linha = (def.legendary ? 'Legendary ' : '') + (def.types || []).join(' ') + ((def.subtypes || []).length ? ' — ' + def.subtypes.join(' ') : '');
     s.facts[name] = cardFacts({ name, type_line: linha, power: def.power, toughness: def.toughness, keywords: def.keywords || [], colors: def.colors || [], oracle_text: '' });
     if (def.abilities) s.facts[name].script = { name, effects: [], abilities: def.abilities };
   }
@@ -6487,6 +6561,29 @@ const HANDLERS = {
     s.pending = null;
     putTriggerOnStack(s, { ...pk.trigger, effects: modo.effects, modes: null }, ev);
   },
+  take_loss(s, a, ev) { // S60 · aceita perder a vida em vez de pagar
+    if (!s.pending || s.pending.kind !== 'unless' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a decidir');
+    const pk = s.pending; s.pending = null;
+    takeUnlessLoss(s, a.p, pk, ev);
+    stateBased(s, ev);
+    if (!continueUnless(s, ev)) resumeEffects(s, ev);
+  },
+  pay_unless(s, a, ev) { // S60 · paga o custo para não perder a vida
+    if (!s.pending || s.pending.kind !== 'unless' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a decidir');
+    const pk = s.pending; s.pending = null;
+    if (pk.cost.discard) { s.pending = { kind: 'discard', p: a.p, n: pk.cost.discard, reason: 'effect' }; return; }
+    if (pk.cost.sacrifice) { s.pending = { kind: 'sacrifice', p: a.p, options: sacrificeOptions(s, a.p, pk.cost.sacrifice), types: pk.cost.sacrifice, name: pk.name }; return; }
+    if (!continueUnless(s, ev)) resumeEffects(s, ev);
+  },
+  sacrifice(s, a, ev) { // S60 · escolhe a permanente que vai para o cemitério
+    if (!s.pending || s.pending.kind !== 'sacrifice' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a sacrificar');
+    const pk = s.pending;
+    if (!(pk.options || []).includes(a.oid)) throw new RuleError('sacrificio', 'essa permanente não serve para este sacrifício');
+    s.pending = null;
+    sacrifice(s, a.oid, ev);
+    stateBased(s, ev);
+    if (!continueUnless(s, ev)) resumeEffects(s, ev);
+  },
   choose_dungeon(s, a, ev) { // S57 · escolhe em qual masmorra se aventurar
     if (!s.pending || s.pending.kind !== 'choose_dungeon' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma masmorra a escolher');
     const pk = s.pending;
@@ -6676,7 +6773,7 @@ const HANDLERS = {
     s.players[a.p].companionUsed = true;
     s.turn.passes = 0;
   },
-  discard(s, a) {
+  discard(s, a, ev = []) {
     const o = owns(s, a.p, a.oid, 'hand');
     const madness = madnessOf(s, o);
     // S40 · conluio: descartar carta que não é terreno põe um marcador na fonte
@@ -6699,7 +6796,9 @@ const HANDLERS = {
       return;
     }
     moveObject(s, o.oid, 'graveyard');
-    if (after === 'cleanup') finishCleanup(s);
+    if (after === 'cleanup') { finishCleanup(s); return; }
+    // S60 · correção: o descarte pedido por um efeito não retomava o resto do efeito
+    if (!s.pending) { stateBased(s, ev); if (!continueUnless(s, ev)) resumeEffects(s, ev); }
   },
   concede(s, a) { const pl = s.players[a.p]; if (!pl.lost) { pl.life = Math.min(pl.life, 0); pl.lossReason = 'desistência'; } },
 
@@ -6741,7 +6840,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
+const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -6755,6 +6854,8 @@ function apply(state, action) {
       : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
       : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
+      : k === 'unless' ? 'decida se paga ou perde vida primeiro'
+      : k === 'sacrifice' ? 'escolha o que sacrificar primeiro'
       : k === 'choose_dungeon' ? 'escolha a masmorra primeiro'
       : k === 'choose_room' ? 'escolha a próxima sala primeiro'
         : k === 'pick' ? 'termine a escolha de cartas primeiro' : k === 'pick_target' ? 'escolha o alvo do gatilho primeiro'
@@ -6814,6 +6915,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
     if (k === 'choose_mode') (s.pending.options || []).forEach((label, index) => out.push({ t: 'choose_mode', p, index, label })); // S56
+    // S60 · perder ou pagar, e escolher o que sacrificar
+    if (k === 'unless') { out.push({ t: 'take_loss', p }); out.push({ t: 'pay_unless', p }); }
+    if (k === 'sacrifice') (s.pending.options || []).forEach(oid => out.push({ t: 'sacrifice', p, oid }));
     // S57 · masmorra: escolher em qual entrar e para qual sala avançar
     if (k === 'choose_dungeon') (s.pending.options || []).forEach((name, index) => out.push({ t: 'choose_dungeon', p, index, label: (s.pending.labels || [])[index] || name }));
     if (k === 'choose_room') (s.pending.options || []).forEach((id, index) => out.push({ t: 'choose_room', p, index, label: (s.pending.labels || [])[index] || id }));
@@ -7461,6 +7565,8 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
           : pd.kind === 'choose_mode' ? { t: 'choose_mode', p: pd.p, index: 0 }
+          : pd.kind === 'unless' ? { t: 'take_loss', p: pd.p } // S60 · o goldfish aceita perder a vida
+          : pd.kind === 'sacrifice' ? { t: 'sacrifice', p: pd.p, oid: (pd.options || [])[0] }
           : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
@@ -7790,6 +7896,10 @@ function createTableScreen({ store }) {
   /** Durante a declaração, tocar numa criatura escolhe em vez de abrir a folha. */
   function onBoardTap(oid) {
     const s = table.state, v = table.viewer();
+    // S60 · escolhendo o que sacrificar, tocar na permanente já resolve
+    if (s.pending && s.pending.kind === 'sacrifice' && s.pending.p === v && (s.pending.options || []).includes(oid)) {
+      act({ t: 'sacrifice', p: v, oid }); return true;
+    }
     if (!plan.eligible.has(oid)) return false;
     if (s.pending.kind === 'attackers') { plan.attack.has(oid) ? plan.attack.delete(oid) : plan.attack.add(oid); paint(); return true; }
     const attackers = s.combat.attackers.filter(a => s.objects[a].zone === 'battlefield' && E.canBlock(s, oid, a));
@@ -8007,6 +8117,20 @@ function createTableScreen({ store }) {
       banner = PriorityBanner({ title: 'Escolha um tipo de criatura', hint: 'O efeito conta as suas permanentes desse tipo.', tone: 'warning',
         actions: (s.pending.options || []).slice(0, 8).map((subtype, index) =>
           Button(subtype, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-type', onClick: () => act({ t: 'choose_type', p: v, index, subtype }) })) });
+    } else if (s.pending && s.pending.kind === 'unless' && s.pending.p === v) {
+      // S60 · "perde 2 a menos que descarte/sacrifique"
+      const c = s.pending.cost || {};
+      const custo = c.discard ? `Descartar ${c.discard}` : 'Sacrificar';
+      banner = PriorityBanner({ title: `${s.pending.name}: ${c.discard ? 'descartar' : 'sacrificar'} ou perder ${s.pending.amount} de vida?`,
+        hint: c.discard ? 'Você escolhe a carta em seguida.' : 'Você escolhe a permanente em seguida.', tone: 'warning',
+        actions: [Button(custo, { variant: 'primary', id: 'tb-pay-unless', onClick: () => act({ t: 'pay_unless', p: v }) }),
+          Button(`Perder ${s.pending.amount}`, { id: 'tb-take-loss', onClick: () => act({ t: 'take_loss', p: v }) })] });
+    } else if (s.pending && s.pending.kind === 'sacrifice' && s.pending.p === v) {
+      const PT = { creature: 'criatura', artifact: 'artefato', land: 'terreno', enchantment: 'encantamento', planeswalker: 'planeswalker' };
+      const tipos = (s.pending.types || []).map(t => PT[t] || t).join(', ');
+      banner = PriorityBanner({ title: `Sacrificar: escolha ${tipos}`, hint: 'Toque na permanente no campo, ou use os botões.', tone: 'warning',
+        actions: (s.pending.options || []).slice(0, 6).map((oid, index) =>
+          Button(nameOf(s, oid), { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-sacrifice', onClick: () => act({ t: 'sacrifice', p: v, oid }) })) });
     } else if (s.pending && s.pending.kind === 'choose_dungeon' && s.pending.p === v) {
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
