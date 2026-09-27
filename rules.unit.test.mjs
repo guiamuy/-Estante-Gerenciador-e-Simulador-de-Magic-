@@ -3532,3 +3532,77 @@ test('S53 · plot: paga, exila da mão, e conjura de graça num turno depois', (
   assert.equal(s.objects[roubo].zone, 'graveyard', 'resolveu e foi para o cemitério');
   assert.equal(s.zones[a].hand.length, mao, 'sem pagar o custo opcional, não comprei nada — e a carta não saiu da mão porque estava exilada');
 });
+
+/* ---------------- S54 · metamorfose e esgueirar-se ---------------- */
+const MS_CARDS = {
+  'Plains': { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {W}.' },
+  'Forest': DYN_CARDS['Forest'],
+  'Rangers': { name: 'Rangers', type_line: 'Creature — Elf Druid Ranger', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: ['Flying'], oracle_text: 'Tap two untapped Elves you control: Add one mana of any color.\nMorph {G}' },
+  'Leonardo': { name: 'Leonardo', type_line: 'Legendary Creature — Mutant Ninja Turtle', mana_cost: '{2}{W}', cmc: 3, colors: ['W'], power: '1', toughness: '3', keywords: [], oracle_text: 'Sneak {W}\nLeonardo gets +1/+0 for each other creature you control.' },
+  'Elf': { name: 'Elf', type_line: 'Creature — Elf Warrior', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '' },
+  'Runner': { name: 'Runner', type_line: 'Creature — Human Soldier', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const MS_SCRIPTS = {
+  Rangers: { name: 'Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], subtype: 'Elf', amount: 2 } },
+    effects: [{ do: 'add_mana', anyColor: true }] }],
+    morph: { mana: '{G}' },
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
+  Leonardo: { name: 'Leonardo', self: { perPower: 1, per: 'other-creatures-you-control' }, sneak: { mana: '{W}' },
+    example: { target: 'none', expect: { selfStats: [1, 3] } } }
+};
+const MSDECK = [{ name: 'Plains', qty: 10, zone: 'main' }, { name: 'Forest', qty: 10, zone: 'main' }, { name: 'Rangers', qty: 8, zone: 'main' },
+  { name: 'Leonardo', qty: 8, zone: 'main' }, { name: 'Elf', qty: 8, zone: 'main' }, { name: 'Runner', qty: 8, zone: 'main' }];
+function msGame(seed = 1, manaCheck = false) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: MS_CARDS, scripts: MS_SCRIPTS,
+    players: [{ name: 'A', deck: MSDECK }, { name: 'B', deck: MSDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S54 · metamorfose: entra virada para baixo como 2/2 sem nada, e vira para cima pelo custo', () => {
+  let s = msGame(3, true); const a = s.turn.active;
+  let ranger, e1, e2;
+  [s, ranger] = put(s, a, 'Rangers', { zone: 'hand' });
+  for (let i = 0; i < 4; i++) { let t; [s, t] = put(s, a, 'Forest'); }
+  const acao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === ranger && x.faceDown);
+  assert.ok(acao, 'a mesa oferece conjurar virada para baixo');
+  s = settle(resolveSpell(act(s, acao)));
+  assert.equal(s.objects[ranger].faceDown, true, 'está virada para baixo');
+  const st = E.stats(s, s.objects[ranger]);
+  assert.deepEqual([st.power, st.toughness], [2, 2], 'virada para baixo é 2/2');
+  assert.equal(E.hasKeyword(s, s.objects[ranger], 'flying'), false, 'virada para baixo não tem a palavra-chave da carta');
+  // nem a habilidade da carta existe enquanto está virada
+  [s, e1] = put(s, a, 'Elf'); [s, e2] = put(s, a, 'Elf');
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === ranger), false, 'virada para baixo não tem habilidade');
+  // vira para cima pagando a metamorfose
+  const virar = E.legalActions(s, a).find(x => x.t === 'unmorph' && x.oid === ranger);
+  assert.ok(virar, 'a mesa oferece virar para cima');
+  s = act(s, virar);
+  assert.equal(s.objects[ranger].faceDown, undefined, 'está virada para cima');
+  const st2 = E.stats(s, s.objects[ranger]);
+  assert.deepEqual([st2.power, st2.toughness], [1, 1], 'voltou a ser 1/1');
+  assert.equal(E.hasKeyword(s, s.objects[ranger], 'flying'), true, 'e recuperou a palavra-chave');
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === ranger), 'e a habilidade voltou');
+});
+
+test('S54 · esgueirar-se: entra virada e atacando, devolvendo um atacante sem bloqueio', () => {
+  let s = msGame(4, true); const a = s.turn.active, d = 1 - a;
+  let leo, corredor;
+  [s, leo] = put(s, a, 'Leonardo', { zone: 'hand' });
+  [s, corredor] = put(s, a, 'Runner');
+  let terra; [s, terra] = put(s, a, 'Plains');
+  s = passTo(s, 'combat_attackers');
+  s = act(s, { t: 'attack', p: a, attackers: [corredor] });
+  // avança até o passo de declarar bloqueadores, que é quando esgueirar-se existe
+  for (let i = 0; i < 10 && s.turn.step !== 'combat_blockers'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: s.pending.p, blocks: [] });
+  assert.equal(s.turn.step, 'combat_blockers', 'estamos no passo dos bloqueadores');
+  const acao = E.legalActions(s, a).find(x => x.t === 'ninjutsu' && x.oid === leo && x.sneak && x.attacker === corredor);
+  assert.ok(acao, 'a mesa oferece esgueirar-se depois dos bloqueadores');
+  s = act(s, acao);
+  assert.equal(s.objects[corredor].zone, 'hand', 'o atacante sem bloqueio voltou para a mão');
+  assert.equal(s.objects[leo].zone, 'battlefield', 'o Leonardo entrou em campo');
+  assert.equal(s.objects[leo].tapped, true, 'entrou virado');
+  assert.ok(s.objects[leo].attacking != null, 'e entrou atacando');
+  assert.equal(s.combat.attackers.includes(leo), true, 'o motor conta ele como atacante');
+});

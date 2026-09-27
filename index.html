@@ -2119,7 +2119,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2163,6 +2163,8 @@ function validateScript(sc) {
   if (sc && Array.isArray(sc.additional) && !sc.additional.length) errs.push('custo adicional com lista vazia');
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
+  if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
+  if (sc && sc.sneak && !sc.sneak.mana) errs.push('esgueirar-se sem custo de mana');
   if (sc && sc.self && sc.self.entersWithCountersX != null && typeof sc.self.entersWithCountersX !== 'boolean') errs.push('entra com X marcadores precisa ser verdadeiro ou falso');
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   // S18 · ninjutsu e insanidade
@@ -2490,7 +2492,7 @@ const RAW_SCRIPTS = [
   { name: "Raffine's Informant", abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'connive', amount: 1 }] }],
     example: { action: 'etb', target: 'none', expect: { handDelta: 1, discarded: 1 } } },
   { name: 'Leonardo, Big Brother', self: { perPower: 1, per: 'other-creatures-you-control' },
-    covers: 'partial', note: 'esgueirar-se (conjurar por {W} devolvendo um atacante sem bloqueio, entrando virada e atacando) não entra; o +1/+0 por outra criatura sua funciona',
+    sneak: { mana: '{W}' },
     example: { target: 'none', expect: { selfStats: [3, 1] } } },
   // S39 · o combo das Walls: habilidade ativada concedida por aura e por vínculo de alma (textos conferidos em 26/09)
   { name: 'Freed from the Real', aura: { enchant: 'creature' },
@@ -2720,7 +2722,7 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Birchlore Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], subtype: 'Elf', amount: 2 } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
-    covers: 'partial', note: 'metamorfose (morph {G}) ainda não entra; virar dois Elfos para gerar mana funciona',
+    morph: { mana: '{G}' },
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Lys Alana Huntmaster', abilities: [{ kind: 'triggered', when: 'other-cast', filter: { subtype: 'Elf' },
     effects: [{ do: 'token', amount: 1, token: { name: 'Elf Warrior', types: ['creature'], power: 1, toughness: 1 } }] }],
@@ -4404,7 +4406,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 46;
+const ENGINE_VERSION = 47;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4503,7 +4505,7 @@ function cardFacts(card) {
 const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
 const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
 /** S11 · palavras-chave próprias mais as concedidas por auras e equipamentos. */
-const has = (s, o, k) => s.facts[o.name].kw.includes(k) || (o.tempKeywords || []).includes(k) ||
+const has = (s, o, k) => (o && o.faceDown ? false : s.facts[o.name].kw.includes(k)) || (o.tempKeywords || []).includes(k) ||
   attachedTo(s, o).some(x => ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
 const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
 const attachSpec = (s, o) => { const sc = s.facts[o.name].script || {}; return sc.aura || sc.equip || null; };
@@ -4618,6 +4620,8 @@ function createGame(setup) {
     if (sc.additional) f.script.additional = sc.additional;
     if (sc.additionalOptional) f.script.additionalOptional = true; // S53
     if (sc.plot) f.script.plot = sc.plot; // S53 · plot
+    if (sc.morph) f.script.morph = sc.morph; // S54 · metamorfose
+    if (sc.sneak) f.script.sneak = sc.sneak; // S54 · esgueirar-se
     if (sc.loyalty) f.script.loyalty = sc.loyalty;
     if (sc.cycling) f.script.cycling = sc.cycling;
     if (sc.transmute) f.script.transmute = sc.transmute;
@@ -4722,8 +4726,10 @@ function nextAlive(s, from) {
 }
 const isMain = s => s.turn.step === 'main1' || s.turn.step === 'main2';
 const commanderTax = (s, p, oid) => 2 * (s.players[p].commanderCasts[oid] || 0);
-const power = (s, o) => (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.p) || 0) + bonus(s, o).p;
-const toughness = (s, o) => (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.t) || 0) + bonus(s, o).t;
+/** S54 · metamorfose: virada para baixo, a carta é uma criatura 2/2 sem nada mais. */
+const faceDown = o => !!(o && o.faceDown);
+const power = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.p) || 0) : (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.p) || 0) + bonus(s, o).p;
+const toughness = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.t) || 0) : (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.t) || 0) + bonus(s, o).t;
 const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
@@ -5123,6 +5129,7 @@ function grantedAbilities(s, o) {
   return out;
 }
 const abilitiesOf = (s, o) => {
+  if (o && o.faceDown) return []; // S54 · virada para baixo não tem habilidade
   const sc = scriptOf(s, o);
   if (!sc) return grantedAbilities(s, o);
   const list = (sc.abilities || []).slice();
@@ -5140,7 +5147,7 @@ function targetable(s, p, o, src) {
   if (src && protectedFrom(s, o, src)) return false; // S11b · proteção de cor
   return true;
 }
-const isCreature = (s, o) => s.facts[o.name].types.includes('creature') && !o.bestowed;
+const isCreature = (s, o) => (o.faceDown || s.facts[o.name].types.includes('creature')) && !o.bestowed;
 /** Alvos legais para um tipo de alvo. Descritor: { oid } ou { player }. */
 function legalTargets(s, p, kind, selfOid, color) {
   let out = [];
@@ -5701,6 +5708,7 @@ function matchesTriggerFilter(s, o, filter) {
   const f = s.facts[o.name];
   if ((filter.types || []).some(x => !f.types.includes(x))) return false;
   if (filter.noncreature && f.types.includes('creature')) return false;
+  if (o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
   if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(f.typeText || '')) return false;
   return true;
 }
@@ -6036,6 +6044,7 @@ const HANDLERS = {
     if (a.omen && !omenOf(s, o)) throw new RuleError('presságio', 'esta carta não tem presságio');
     if (a.disturb || a.omen) flipTo(s, o, backOf(s, o)); // conjura com a face de trás
     const f = s.facts[o.name];
+    if (a.faceDown && !(f.script || {}).morph) throw new RuleError('metamorfose', 'esta carta não tem metamorfose');
     if (f.types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
     if (isSorcerySpeed(f) && (s.turn.active !== a.p || !isMain(s) || s.stack.length)) throw new RuleError('tempo', 'só na sua fase principal, com a pilha vazia');
     if (a.free && s.mode !== 'assisted') throw new RuleError('modo', 'conjurar sem pagar só na mesa assistida');
@@ -6067,6 +6076,7 @@ const HANDLERS = {
     else if (a.disturb) { const db = disturbOf(s, s.objects[a.oid]) || disturbOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
     else if (a.omen) { const om = omenOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
     else if (a.bestow) { const bs = bestowOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(bs.mana)); }
+    else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) payCost(s, a.p, f.cost, castExtra(s, a.p, o, a.x || 0));
     // S20/S53 · custo adicional: uma opção, várias opções, ou nenhuma quando é opcional
@@ -6093,6 +6103,7 @@ const HANDLERS = {
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
     if (a.bestow) s.objects[a.oid].bestowed = true; // entra como aura, não como criatura
+    if (a.faceDown) s.objects[a.oid].faceDown = true; // S54 · fica virada para baixo até você pagar a metamorfose
     if (a.bargain) { // S37 · barganha: sacrifica algo ao conjurar e a mágica lembra disso
       if (!(f.script || {}).bargain) throw new RuleError('barganha', 'esta carta não tem barganha');
       const alvo = a.pay && a.pay.bargain;
@@ -6274,6 +6285,16 @@ const HANDLERS = {
   },
   /* nota: afterMadness devolve a pendência que a insanidade interrompeu */
   /** S29 · transmutar: descarta a carta e busca outra de mesmo valor de mana. */
+  unmorph(s, a) { // S54 · vira a carta para cima pagando o custo de metamorfose
+    holder(s, a.p);
+    const o = onField(s, a.oid);
+    if (o.controller !== a.p || !o.faceDown) throw new RuleError('metamorfose', 'esta permanente não está virada para baixo');
+    const mp = (s.facts[o.name].script || {}).morph;
+    if (!mp) throw new RuleError('metamorfose', 'esta carta não tem metamorfose');
+    if (s.manaCheck) payCost(s, a.p, parseCost(mp.mana));
+    delete o.faceDown;
+    s.turn.passes = 0;
+  },
   plot(s, a) { // S53 · paga o custo de plot e exila a carta da mão, para conjurar de graça depois
     noPending(s); holder(s, a.p);
     if (!canSorceryNow(s, a.p)) throw new RuleError('tempo', 'plot só no tempo de feitiço');
@@ -6316,7 +6337,9 @@ const HANDLERS = {
   ninjutsu(s, a) {
     noPending(s); holder(s, a.p);
     const ninja = owns(s, a.p, a.oid, 'hand');
-    const nj = ninjutsuOf(s, ninja); if (!nj) throw new RuleError('ninjutsu', 'esta carta não tem ninjutsu');
+    // S54 · esgueirar-se entra pelo mesmo caminho: devolve um atacante sem bloqueio e entra virada e atacando
+    const nj = a.sneak ? (s.facts[ninja.name].script || {}).sneak : ninjutsuOf(s, ninja);
+    if (!nj) throw new RuleError(a.sneak ? 'esgueirar-se' : 'ninjutsu', a.sneak ? 'esta carta não tem esgueirar-se' : 'esta carta não tem ninjutsu');
     if (!unblockedAttackers(s, a.p).includes(a.attacker)) throw new RuleError('ninjutsu', 'escolha um atacante seu que não foi bloqueado');
     if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(nj.mana));
     const alvo = s.objects[a.attacker];
@@ -6561,6 +6584,17 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
     }
   }
+  // S54 · metamorfose: conjura virada para baixo por {3}, como criatura
+  if (canSorcery) for (const oid of s.zones[p].hand) {
+    const mp = (s.facts[s.objects[oid].name].script || {}).morph;
+    if (mp && (!s.manaCheck || canPay(s, p, parseCost('{3}')))) out.push({ t: 'cast', p, oid, faceDown: true });
+  }
+  // S54 · virar para cima, a qualquer momento com prioridade
+  for (const o of battlefield(s)) {
+    if (o.controller !== p || !o.faceDown) continue;
+    const mp = (s.facts[o.name].script || {}).morph;
+    if (mp && (!s.manaCheck || canPay(s, p, parseCost(mp.mana)))) out.push({ t: 'unmorph', p, oid: o.oid });
+  }
   // S53 · plot: paga e exila da mão, no tempo de feitiço
   if (canSorcery) for (const oid of s.zones[p].hand) {
     const pl = (s.facts[s.objects[oid].name].script || {}).plot;
@@ -6583,11 +6617,14 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const cy = (s.facts[s.objects[oid].name].script || {}).cycling;
     if (cy && (!s.manaCheck || canPay(s, p, parseCost(cy.mana)))) out.push({ t: 'cycle', p, oid });
   }
-  // S18 · ninjutsu, depois dos bloqueadores
+  // S18 · ninjutsu, depois dos bloqueadores · S54 · esgueirar-se pelo mesmo caminho
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid]; const nj = ninjutsuOf(s, o);
-    if (!nj || (s.manaCheck && !canPay(s, p, parseCost(nj.mana)))) continue;
-    unblockedAttackers(s, p).forEach(attacker => out.push({ t: 'ninjutsu', p, oid, attacker }));
+    if (nj && (!s.manaCheck || canPay(s, p, parseCost(nj.mana))))
+      unblockedAttackers(s, p).forEach(attacker => out.push({ t: 'ninjutsu', p, oid, attacker }));
+    const sn = (s.facts[o.name].script || {}).sneak;
+    if (sn && (!s.manaCheck || canPay(s, p, parseCost(sn.mana))))
+      unblockedAttackers(s, p).forEach(attacker => out.push({ t: 'ninjutsu', p, oid, attacker, sneak: true }));
   }
   // S16 · custos alternativos da mão
   for (const oid of s.zones[p].hand) {

@@ -93,6 +93,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S51 cemitério de qualquer um, mana convertido e par escolhido | 🟡 |
 | S · Scripts | S52 vida pelo dano prevenido de fato e a face de trás que exila | 🟡 |
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
+| S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -283,8 +284,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33u 🟡 | S51 (leva 43) | **Walls Combo em 100%** (30 → 25 cópias parciais) |
 | E33v 🟡 | S52 (leva 44) | Boros Bully em 97% (25 → 14 cópias parciais) |
 | E33w 🟡 | S53 (leva 45) | **Rakdos Madness em 100%**: plot e custo adicional com opções |
-| E33x ▶ | S54 | Metamorfose (Birchlore) e esgueirar-se (Leonardo → Boros 100%) |
-| E33y | S55 | Elves: escolha no pagamento do custo (Vitu-Ghazi) e tipo fora do campo (Distant Melody) |
+| E33x 🟡 | S54 (leva 46) | **Boros Bully em 100%**: metamorfose e esgueirar-se |
+| E33y ▶ | S55 | Elves: Vitu-Ghazi Inspector e Distant Melody — **última leva do Pauper** |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -814,6 +815,22 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S54 · Metamorfose e esgueirar-se** 🟡
+- **Aceite:**
+  - **metamorfose**: conjurar a carta virada para baixo por {3}; virada para baixo ela é uma criatura 2/2
+    **sem nome, sem palavra-chave, sem habilidade e sem subtipo**, e nenhum gatilho por subtipo a
+    reconhece; virar para cima a qualquer momento pagando o custo de metamorfose devolve tudo;
+  - **esgueirar-se**: no passo de declarar bloqueadores, pagar {W}, devolver para a mão um atacante seu
+    sem bloqueio, e a criatura entra **virada e atacando**.
+- **Entregue (todas completas):** Birchlore Rangers e Leonardo, Big Brother.
+- **Como foi feito:** esgueirar-se entrou pelo mesmo caminho do ninjutsu, que já fazia a troca do atacante
+  — a diferença é que aqui existe custo de mana. Metamorfose exigiu que força, resistência, palavras-chave,
+  habilidades e filtro de subtipo passassem a olhar se a carta está virada para baixo.
+- **Testes:** U (2/2 sem palavra-chave e sem habilidade enquanto virada, virar para cima devolvendo
+  1/1 com voo e com a habilidade; esgueirar-se devolvendo o atacante e entrando virada e atacando), S8.
+- **Resultado:** **Boros Bully em 100%** — sexta lista fechada. **Seis das sete Pauper em 100%.**
+  Falta só Elves, com 2 cartas.
 
 **S53 · Plot e custo adicional com opções** 🟡
 - **Aceite:**
