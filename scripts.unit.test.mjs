@@ -413,12 +413,15 @@ test('S8 · cada script da biblioteca passa no cenário que ele mesmo declara', 
   for (const sc of S.RAW_SCRIPTS) { try { runExample(sc); } catch (e) { throw new Error(`${sc.name}: ${e.message}`); } }
 });
 
-test('S2 · script que cobre só parte da carta conta como parcial', () => {
+test('S2 · script que cobre só parte da carta conta como parcial, e toda parcial diz o que falta', () => {
   const partial = S.RAW_SCRIPTS.find(sc => sc.covers === 'partial');
   assert.ok(partial && partial.note, 'scripts parciais precisam dizer o que falta');
   const cov = S.coverage({ name: partial.name, type_line: 'Instant', oracle_text: 'x' });
   assert.equal(cov.level, 'parcial');
-  assert.match(cov.reason, /ainda não entra/);
+  // a nota é texto livre: o que o teste garante é que ela existe e chega na cobertura
+  assert.ok(String(cov.reason || '').includes(partial.note), 'a cobertura mostra a nota da carta');
+  const semNota = S.RAW_SCRIPTS.filter(sc => sc.covers === 'partial' && !String(sc.note || '').trim()).map(sc => sc.name);
+  assert.deepEqual(JSON.parse(JSON.stringify(semNota)), [], 'nenhuma parcial sem nota');
 });
 
 test('S4 · exilar o cemitério do alvo e varredura só nas suas criaturas', () => {

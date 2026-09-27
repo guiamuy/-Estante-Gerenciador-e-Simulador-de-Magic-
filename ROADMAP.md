@@ -87,6 +87,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S45 você escolhe: descarte do oponente e carta do cemitério | 🟡 |
 | S · Scripts | S46 busca do oponente, sacrifício por subtipo e lampejo com cor | 🟡 |
 | S · Scripts | S47 custo opcional no gatilho, condição do custo pago e mágica sem alvo | 🟡 |
+| S · Scripts | S48 vida pelo dano causado, fuga e devolver o que foi exilado | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -271,7 +272,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33o 🟡 | S45 (leva 37) | Você escolhe: descarte do oponente e carta do cemitério (87 → 81 cópias) |
 | E33p 🟡 | S46 (leva 38) | Jund Wildfire 95% e Boros Bully 89% (81 → 62 cópias parciais) |
 | E33q 🟡 | S47 (leva 39) | **Jund Wildfire em 100%** e Rakdos em 95% (62 → 50 cópias parciais) |
-| E33r ▶ | S48+ | Pauper para 100%: 18 cartas parciais restantes |
+| E33r 🟡 | S48 (leva 40) | **GW Bogles em 100%** (50 → 42 cópias parciais) |
+| E33s ▶ | S49+ | Pauper para 100%: 15 cartas parciais restantes |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -801,6 +803,29 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S48 · Vida pelo dano causado, fuga e devolver o que foi exilado** 🟡
+- **Aceite:**
+  - "sempre que a criatura encantada causar dano, você ganha aquela quantidade de vida": a aura recebe
+    o valor do dano e converte em vida;
+  - **fuga**: conjurar a carta do cemitério pagando mana e exilando duas outras cartas dele — e a carta
+    fica em jogo, ao contrário do lampejo do passado, que exila depois;
+  - "quando isto sai do campo de batalha, devolva a carta exilada": a permanente lembra o que exilou e
+    devolve para o controle do dono.
+- **Entregue (todas completas):** Armadillo Cloak, Sentinel's Eyes e Journey to Nowhere.
+- **Correções — dois erros meus de fidelidade:**
+  1. **Armadillo Cloak estava com a regra errada.** O script dava **prevenção de dano** à criatura
+     encantada, e a nota dizia "ganhar vida igual ao dano que a criatura receberia". As duas fontes
+     dizem outra coisa: a carta dá +2/+2 e atropelar, e a vida vem do dano que a criatura **causa**.
+     A prevenção era invenção minha e mudava o resultado da partida.
+  2. o valor trazido por um gatilho era procurado na permanente que o gerou, e não na habilidade na
+     pilha, então qualquer efeito baseado nesse valor saía zero.
+- **Testes:** U (ataque de 4 dando 4 de vida, fuga recusada sem duas cartas no cemitério e aceita com
+  elas exilando as duas, criatura exilada voltando ao dono quando o encantamento é destruído), S8.
+- **Teste ajustado:** o teste de cobertura parcial exigia que a nota contivesse a frase "ainda não
+  entra". Isso checava estilo de texto, não regra. Agora ele garante o que importa: nenhuma carta
+  parcial fica sem nota, e a nota chega na cobertura.
+- **Resultado:** **GW Bogles em 100%** — segunda lista fechada. Cópias parciais nas Pauper de 50 para 42.
 
 **S47 · Custo opcional no gatilho, condição do custo pago e mágica sem alvo** 🟡
 - **Aceite:**

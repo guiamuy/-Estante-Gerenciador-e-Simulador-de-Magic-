@@ -3038,3 +3038,89 @@ test('S47 · mágica de "até dois alvos" pode ser conjurada sem mirar nada, e r
   s2 = settle(resolveSpell(act(s2, uma)));
   assert.equal(s2.objects[urso].damage, 1, 'e o dano caiu nela');
 });
+
+/* ---------------- S48 · vida pelo dano causado, fuga e devolver o que foi exilado ---------------- */
+const GW_CARDS = {
+  'Plains': { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {W}.' },
+  'Cloak': { name: 'Cloak', type_line: 'Enchantment — Aura', mana_cost: '{1}{G}{W}', cmc: 3, colors: ['G', 'W'], keywords: [], oracle_text: 'Enchant creature\nEnchanted creature gets +2/+2 and has trample.\nWhenever enchanted creature deals damage, you gain that much life.' },
+  'Eyes': { name: 'Eyes', type_line: 'Enchantment — Aura', mana_cost: '{W}', cmc: 1, colors: ['W'], keywords: [], oracle_text: 'Enchant creature\nEnchanted creature gets +1/+1 and has vigilance.\nEscape — {W}, Exile two other cards from your graveyard.' },
+  'Journey': { name: 'Journey', type_line: 'Enchantment', mana_cost: '{1}{W}', cmc: 2, colors: ['W'], keywords: [], oracle_text: 'When this enchantment enters, exile target creature.\nWhen this enchantment leaves the battlefield, return the exiled card to the battlefield under its owner’s control.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Doom': { name: 'Doom', type_line: 'Instant', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'Destroy target enchantment.' }
+};
+const GW_SCRIPTS = {
+  Cloak: { name: 'Cloak', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 2, keywords: ['trample'] },
+    abilities: [{ kind: 'triggered', when: 'enchanted-deals-damage', effects: [{ do: 'gain', amount: { per: 'trigger-value' } }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4], keyword: 'trample' } } },
+  Eyes: { name: 'Eyes', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['vigilance'] },
+    escape: { mana: '{W}', exileGraveyard: 2 },
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3], keyword: 'vigilance' } } },
+  Journey: { name: 'Journey', abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'creature', remember: true }] },
+    { kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'return_held' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Doom: { name: 'Doom', effects: [{ do: 'destroy', target: 'enchantment' }], example: { target: 'enemy-enchantment', expect: { gone: true } } }
+};
+const GWDECK = [{ name: 'Plains', qty: 16, zone: 'main' }, { name: 'Cloak', qty: 8, zone: 'main' }, { name: 'Eyes', qty: 8, zone: 'main' },
+  { name: 'Journey', qty: 8, zone: 'main' }, { name: 'Bear', qty: 10, zone: 'main' }, { name: 'Doom', qty: 8, zone: 'main' }];
+function gwGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: GW_CARDS, scripts: GW_SCRIPTS,
+    players: [{ name: 'A', deck: GWDECK }, { name: 'B', deck: GWDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S48 · a aura dá vida igual ao dano que a criatura encantada causa', () => {
+  let s = gwGame(3); const a = s.turn.active, d = 1 - a;
+  let urso, capa;
+  [s, urso] = put(s, a, 'Bear');
+  [s, capa] = put(s, a, 'Cloak', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: capa, targets: [{ oid: urso }] })));
+  assert.equal(E.stats(s, s.objects[urso]).power, 4, 'ficou 4/4');
+  assert.equal(E.hasKeyword(s, s.objects[urso], 'trample'), true, 'e ganhou atropelar');
+  const vida = s.players[a].life, vidaDele = s.players[d].life;
+  // ataca: 4 de dano no oponente, 4 de vida para mim
+  s = passTo(s, 'combat_attackers');
+  s = act(s, { t: 'attack', p: a, attackers: [urso] });
+  for (let i = 0; i < 12 && s.turn.step !== 'combat_damage' && !s.combat?.damageDone; i++) {
+    if (s.pending && s.pending.kind === 'blockers') { s = act(s, { t: 'block', p: s.pending.p, blocks: [] }); continue; }
+    s = act(s, { t: 'pass', p: s.turn.priority });
+  }
+  s = settle(s);
+  assert.equal(s.players[d].life, vidaDele - 4, 'causou 4 de dano');
+  assert.equal(s.players[a].life, vida + 4, 'e eu ganhei 4 de vida');
+});
+
+test('S48 · fuga: a aura volta do cemitério pagando e exilando duas outras cartas', () => {
+  let s = gwGame(4); const a = s.turn.active;
+  let urso, olhos, lixo1, lixo2;
+  [s, urso] = put(s, a, 'Bear');
+  [s, olhos] = put(s, a, 'Eyes', { zone: 'graveyard' });
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === olhos && x.escape), false, 'sem duas cartas no cemitério, a fuga não é oferecida');
+  [s, lixo1] = put(s, a, 'Bear', { zone: 'graveyard' });
+  [s, lixo2] = put(s, a, 'Bear', { zone: 'graveyard' });
+  const acao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === olhos && x.escape && x.targets[0].oid === urso);
+  assert.ok(acao, 'com duas cartas, a fuga aparece');
+  s = settle(resolveSpell(act(s, acao)));
+  assert.equal(s.objects[olhos].zone, 'battlefield', 'a aura entrou em campo, não voltou para o cemitério');
+  assert.equal(s.objects[olhos].attachedTo, urso, 'e encantou a criatura');
+  assert.equal(E.stats(s, s.objects[urso]).power, 3, 'a criatura ficou 3/3');
+  const exiladas = [lixo1, lixo2].filter(x => s.objects[x].zone === 'exile');
+  assert.equal(exiladas.length, 2, 'as duas outras cartas do cemitério foram exiladas');
+});
+
+test('S48 · o encantamento exila a criatura e devolve quando sai do campo', () => {
+  let s = gwGame(5); const a = s.turn.active, d = 1 - a;
+  let alvo, jornada, doom;
+  [s, alvo] = put(s, d, 'Bear');
+  [s, jornada] = put(s, a, 'Journey', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: jornada })));
+  assert.equal(s.objects[alvo].zone, 'exile', 'a criatura foi exilada');
+  assert.equal(s.objects[jornada].holding, alvo, 'o encantamento lembra qual carta exilou');
+  // destruindo o encantamento, a criatura volta para o dono dela
+  [s, doom] = put(s, a, 'Doom', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: doom, targets: [{ oid: jornada }] })));
+  assert.equal(s.objects[jornada].zone, 'graveyard', 'o encantamento foi destruído');
+  assert.equal(s.objects[alvo].zone, 'battlefield', 'a criatura voltou para o campo');
+  assert.equal(s.objects[alvo].controller, d, 'e voltou para o controle do dono dela');
+});

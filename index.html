@@ -2040,6 +2040,8 @@ const EFFECTS = {
   transform: { fields: [], targets: ['self-source'] },
   to_library_shuffled: { fields: [], targets: ['self-source'] },
   fog: { fields: [], targets: ['self'] },
+  // S48 · devolve ao campo a carta que esta permanente exilou (Journey to Nowhere)
+  return_held: { fields: [], targets: ['self'] },
   // S30 · prevenir todo dano de fontes de uma cor escolhida, até o fim do turno
   prevent_color: { fields: [], targets: ['self'] },
   // S36 · previne todo o dano que uma mágica da pilha causaria, e ganha essa vida
@@ -2075,6 +2077,7 @@ const CHOICE_EFFECTS = ['discard', 'discard_chosen', 'exile_chosen', 'connive', 
 const ONLY_IF = ['discarded-nonland'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
+/** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
@@ -2086,13 +2089,13 @@ const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countere
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
-const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged'];
+const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`])
@@ -2104,6 +2107,7 @@ const STATIC_RULES = ['flagbearer'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'other-sacrificed': 'quando você sacrifica outra permanente',
+  'leaves-battlefield': 'quando sai do campo de batalha', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
   'enchanted-tapped-or-damaged': 'quando a criatura encantada vira ou recebe dano', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
   main2: 'na sua fase principal pós-combate', 'end-of-combat': 'no fim do combate' };
@@ -2113,7 +2117,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2153,6 +2157,7 @@ function validateScript(sc) {
     for (const k of parts) if (!ALT_COST_PARTS.includes(k)) errs.push(`custo alternativo ${i + 1}: parte "${k}" desconhecida`);
   }
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther)) errs.push('lampejo do passado sem custo');
+  if (sc && sc.escape && !sc.escape.mana) errs.push('fuga sem custo de mana');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
@@ -2377,7 +2382,7 @@ const RAW_SCRIPTS = [
   { name: 'Ancestral Mask', aura: { enchant: 'creature' }, grants: { perPower: 2, perToughness: 2, per: 'other-enchantments' },
     example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4] } } },
   { name: 'Sentinel\'s Eyes', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['vigilance'] },
-    covers: 'partial', note: 'fuga (escape) ainda não entra',
+    escape: { mana: '{W}', exileGraveyard: 2 },
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3], keyword: 'vigilance' } } },
   { name: 'Spirit Link', aura: { enchant: 'creature' }, grants: { keywords: ['lifelink'] },
     example: { action: 'aura', target: 'own-creature', expect: { keyword: 'lifelink' } } },
@@ -2398,9 +2403,9 @@ const RAW_SCRIPTS = [
   { name: 'Abundant Growth', aura: { enchant: 'land' }, grants: { produces: [['W'], ['U'], ['B'], ['R'], ['G']] },
     abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'aura', target: 'own-land', expect: { mana: true, handDelta: 1 } } },
-  { name: 'Armadillo Cloak', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 2, keywords: ['trample'], prevent: true },
-    covers: 'partial', note: 'ganhar vida igual ao dano que a criatura receberia ainda não entra',
-    example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4], prevented: true } } },
+  { name: 'Armadillo Cloak', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 2, keywords: ['trample'] },
+    abilities: [{ kind: 'triggered', when: 'enchanted-deals-damage', effects: [{ do: 'gain', amount: { per: 'trigger-value' } }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4], keyword: 'trample' } } },
   { name: 'Benevolent Blessing', aura: { enchant: 'creature' }, choose: 'color', grants: { protection: 'chosen' },
     example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
   { name: 'Silhana Ledgewalker', self: { evasion: 'flying-only' },
@@ -2417,8 +2422,9 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_chosen', amount: 1, target: 'player' }] },
     { kind: 'activated', cost: { mana: '{1}', exileSelf: true }, effects: [{ do: 'exile_graveyard', target: 'all' }, { do: 'draw', amount: 1 }] }],
     example: { action: 'activate:1', target: 'none', expect: { graveyardEmpty: true, handDelta: 1 } } },
-  { name: 'Journey to Nowhere', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'creature' }] }],
-    covers: 'partial', note: 'devolver a criatura quando o encantamento sai do campo ainda não entra',
+  { name: 'Journey to Nowhere', abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'creature', remember: true }] },
+    { kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'return_held' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Troublemaker Ouphe', bargain: true,
     abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
@@ -4391,7 +4397,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 40;
+const ENGINE_VERSION = 41;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4515,6 +4521,7 @@ function countFor(s, src, per) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
     return battlefield(s).filter(o => o.controller === src.controller && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length;
   }
+  if (per === 'trigger-value') return src.triggerValue || 0; // S48 · quanto o gatilho trouxe (dano causado)
   if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
   const ench = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => s.facts[o.name].types.includes('enchantment'));
   if (per === 'enchantments-you-control') return ench.filter(o => o.controller === src.controller).length;
@@ -4589,6 +4596,7 @@ function createGame(setup) {
     if (sc.modes) f.script.modes = sc.modes;
     if (sc.alt) f.script.alt = sc.alt;
     if (sc.flashback) f.script.flashback = sc.flashback;
+    if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
     if (sc.ninjutsu) f.script.ninjutsu = sc.ninjutsu;
     if (sc.madness) f.script.madness = sc.madness;
     if (sc.produces) f.script.produces = sc.produces;
@@ -4667,6 +4675,8 @@ function moveObject(s, oid, to, { top = true } = {}) {
     queueTriggers(s, 'etb', [o]);
   }
   if (fromZone === 'battlefield' && to === 'graveyard') queueTriggers(s, 'dies', [o], fromController);
+  // S48 · sair do campo para qualquer zona (Journey to Nowhere devolve a criatura)
+  if (fromZone === 'battlefield' && to !== 'battlefield') queueTriggers(s, 'leaves-battlefield', [o], fromController);
 }
 function draw(s, p, n = 1) {
   if (s.players[p].dummy) return;
@@ -4819,6 +4829,7 @@ function flipToFront(s, o) { if (o.frontName) { o.name = o.frontName; delete o.f
 /* ---------------- S16 · custos alternativos e lampejo do passado ---------------- */
 const altCosts = (s, o) => ((s.facts[o.name].script || {}).alt) || [];
 const flashbackOf = (s, o) => (s.facts[o.name].script || {}).flashback;
+const escapeOf = (s, o) => (s.facts[o.name].script || {}).escape; // S48 · fuga
 /** Uma sugestão de pagamento para o custo alternativo (a mesa pode trocar depois). */
 function defaultPayment(s, p, cost, selfOid) {
   const pay = {};
@@ -4994,6 +5005,7 @@ function dealCombatDamage(s) {
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
       if (has(s, src, 'lifelink')) { s.players[src.controller].life += amt; s.players[src.controller].lifeGained = (s.players[src.controller].lifeGained || 0) + amt; }
+      noteEnchantedDealt(s, src, amt); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
       if (player != null && !obj) queueTriggers(s, 'combat-damage', [src]); // S18 · dano de combate ao jogador
     }
     for (const [src] of hits) src.struck = true;
@@ -5202,6 +5214,8 @@ const targetStillLegal = (s, p, kind, tgt, selfOid, color, eff) => legalTargets(
 /** Um valor de efeito pode ser um número ou uma contagem do campo. */
 function amountOf(s, src, v) {
   if (v && typeof v === 'object' && (v.subtype || v.per)) {
+    // S48 · o valor que o gatilho trouxe mora na habilidade, não na permanente que a gerou
+    if (v.per === 'trigger-value') return (src.triggerValue || 0) * (v.times || 1);
     const base = src.ability ? (s.objects[src.source] || src) : src;
     return countFor(s, base, v.subtype ? v : v.per) * (v.times || 1);
   }
@@ -5231,7 +5245,18 @@ function applyEffect(s, src, eff, tgt, events) {
       if (has(s, obj, 'indestructible')) note({ failed: true });
       else { moveObject(s, obj.oid, 'graveyard'); note({}); }
       break;
-    case 'exile': moveObject(s, obj.oid, 'exile'); note({}); break;
+    case 'exile': { // S48 · a permanente pode lembrar o que exilou, para devolver depois
+      if (eff.remember) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte) fonte.holding = obj.oid; }
+      moveObject(s, obj.oid, 'exile'); note({}); break;
+    }
+    case 'return_held': { // S48 · devolve ao campo a carta que esta permanente exilou
+      const fonte = src.ability ? s.objects[src.source] : src;
+      const guardada = fonte && fonte.holding ? s.objects[fonte.holding] : null;
+      if (guardada && guardada.zone === 'exile') { moveObject(s, guardada.oid, 'battlefield'); guardada.controller = guardada.owner; note({ target: guardada.name }); }
+      else note({ failed: true });
+      if (fonte) delete fonte.holding;
+      break;
+    }
     case 'bounce': moveObject(s, obj.oid, 'hand'); note({}); break;
     case 'counter':
       if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(eff.unless.mana))) {
@@ -5461,6 +5486,15 @@ function resumeEffects(s, events) {
 }
 
 /** S35 · avisa as auras que observam a criatura encantada virar ou levar dano. */
+/** S48 · a criatura encantada causou dano: as auras que observam isso recebem o valor. */
+function noteEnchantedDealt(s, host, amount) {
+  for (const x of attachedTo(s, host)) {
+    for (const ab of abilitiesOf(s, x)) {
+      if (ab.kind !== 'triggered' || ab.when !== 'enchanted-deals-damage') continue;
+      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when, value: amount });
+    }
+  }
+}
 function noteEnchantedEvent(s, host) {
   for (const x of attachedTo(s, host)) {
     for (const ab of abilitiesOf(s, x)) {
@@ -5658,6 +5692,7 @@ function putTriggerOnStack(s, q, events) {
   }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
   if (q.mayPay) s.objects[oid].mayPay = q.mayPay; // S47 · o custo opcional viaja com a habilidade
+  if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
   return true;
 }
@@ -5917,9 +5952,10 @@ const HANDLERS = {
   cast(s, a) {
     noPending(s); holder(s, a.p);
     const o = s.objects[a.oid];
-    const fromGraveyard = (a.flashback || a.disturb) && o && o.zone === 'graveyard';
+    const fromGraveyard = (a.flashback || a.disturb || a.escape) && o && o.zone === 'graveyard';
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
+    if (a.escape && !escapeOf(s, o)) throw new RuleError('fuga', 'esta carta não tem fuga');
     if (a.disturb && !disturbOf(s, o)) throw new RuleError('disturb', 'esta carta não tem disturb');
     if (a.omen && !omenOf(s, o)) throw new RuleError('presságio', 'esta carta não tem presságio');
     if (a.disturb || a.omen) flipTo(s, o, backOf(s, o)); // conjura com a face de trás
@@ -5948,6 +5984,9 @@ const HANDLERS = {
       const fb = flashbackOf(s, o);
       if (fb.mana && s.manaCheck && !a.free) payCost(s, a.p, parseCost(fb.mana));
       payExtraCosts(s, a.p, fb, a.pay, a.oid);
+    }
+    else if (a.escape) { // S48 · fuga: paga o mana e exila as outras cartas do cemitério
+      payAlt(s, a.p, escapeOf(s, o), a.pay, a.oid);
     }
     else if (a.disturb) { const db = disturbOf(s, s.objects[a.oid]) || disturbOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
     else if (a.omen) { const om = omenOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
@@ -6466,6 +6505,17 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const pay = { ...(fb.tapOther ? { tapOther: extraCostCandidates(s, p, fb.tapOther, oid, true).slice(0, fb.tapOther.amount || 1) } : {}),
       ...(add && add.sacrificeOther ? { sacrifice: extraCostCandidates(s, p, add.sacrificeOther, oid)[0] } : {}) };
     castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, flashback: true, ...(Object.keys(pay).length ? { pay } : {}) }));
+  }
+  // S48 · fuga: conjura do cemitério e a carta fica em jogo (Sentinel's Eyes)
+  for (const oid of s.zones[p].graveyard) {
+    const o = s.objects[oid], f = s.facts[o.name];
+    const esc = escapeOf(s, o); if (!esc) continue;
+    if (!(canSorcery || !isSorcerySpeed(f))) continue;
+    if (esc.mana && s.manaCheck && !canPay(s, p, parseCost(esc.mana))) continue;
+    if (!canPayAlt(s, p, esc, oid)) continue;
+    const alvo = auraTarget(f);
+    const need = alvo ? [{ target: alvo }] : (f.script && f.script.effects || []).filter(SC.isTargeted);
+    castWith(o, need).forEach(x => out.push({ ...x, escape: true }));
   }
   for (const oid of s.zones[p].command) {
     const o = s.objects[oid], f = s.facts[o.name];
