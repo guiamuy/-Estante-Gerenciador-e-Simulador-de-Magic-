@@ -86,6 +86,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S44 carta que volta para a mão, busca de básico e rótulos errados | 🟡 |
 | S · Scripts | S45 você escolhe: descarte do oponente e carta do cemitério | 🟡 |
 | S · Scripts | S46 busca do oponente, sacrifício por subtipo e lampejo com cor | 🟡 |
+| S · Scripts | S47 custo opcional no gatilho, condição do custo pago e mágica sem alvo | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -269,7 +270,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33n 🟡 | S44 (leva 36) | Pauper para 100%: primeiras 6 parciais fechadas (106 → 87 cópias) |
 | E33o 🟡 | S45 (leva 37) | Você escolhe: descarte do oponente e carta do cemitério (87 → 81 cópias) |
 | E33p 🟡 | S46 (leva 38) | Jund Wildfire 95% e Boros Bully 89% (81 → 62 cópias parciais) |
-| E33q ▶ | S47+ | Pauper para 100%: 21 cartas parciais restantes |
+| E33q 🟡 | S47 (leva 39) | **Jund Wildfire em 100%** e Rakdos em 95% (62 → 50 cópias parciais) |
+| E33r ▶ | S48+ | Pauper para 100%: 18 cartas parciais restantes |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -799,6 +801,26 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S47 · Custo opcional no gatilho, condição do custo pago e mágica sem alvo** 🟡
+- **Aceite:**
+  - "quando isto vai para o cemitério, você **pode** pagar {B}. Se fizer, compre uma carta": a mesa
+    pergunta, pagar compra, recusar não faz nada;
+  - um efeito pode depender do que foi pago como custo ("se a carta descartada não era terreno");
+  - mágica de "até dois alvos" pode ser conjurada **sem mirar nada** e resolve sem ser anulada (608.2b).
+- **Entregue (todas completas):** Nihil Spellbomb, Grab the Prize e Cast into the Fire.
+- **Correções — três erros reais:**
+  1. **Nihil Spellbomb estava com o custo errado no script**: o custo de ativação era `{B}` + sacrifício,
+     quando a carta pede `{T}` + sacrifício, e o `{B}` é o custo **opcional do gatilho**. A nota antiga
+     também dizia `{1}` em vez de `{B}`. Os dois erros vinham de eu ter escrito o custo sem conferir.
+  2. **dano "a cada oponente" caía na varredura de criaturas** e acabava mirando as criaturas do próprio
+     conjurador. Nenhuma carta usava esse alvo até agora, então o furo estava latente.
+  3. mágica de "até N alvos" conjurada sem alvo era **anulada** em vez de resolver sem efeito.
+- **Testes:** U (pagar compra e recusar não compra, dano só com descarte que não é terreno, conjuração
+  sem alvo resolvendo e com um alvo causando dano), S8.
+- **Fora:** plot (Highway Robbery), que é mecânica própria e vai ter leva só dela.
+- **Resultado:** **Jund Wildfire em 100%** — a primeira lista fechada. Rakdos Madness em 95%, a uma
+  carta do 100%. Cópias parciais nas Pauper de 62 para 50.
 
 **S46 · Busca feita pelo oponente, sacrifício por subtipo e lampejo com cor** 🟡
 - **Foco:** só Pauper, a pedido do usuário. Atacadas as duas listas mais atrasadas.

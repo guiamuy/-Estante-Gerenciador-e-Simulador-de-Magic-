@@ -348,7 +348,8 @@ function runExample(sc) {
       if (opt && opt.oid) watchOverride = opt.oid;
       s = act(s, { t: 'pick_target', p: a, index: 0 }); continue;
     }
-    if (pd && pd.kind === 'may_pay' && pd.p === d) { s = act(s, { t: 'decline', p: d }); continue; }
+    // S47 · a decisão de pagar pode ser de qualquer um dos dois; o cenário recusa e segue
+    if (pd && pd.kind === 'may_pay') { s = act(s, { t: 'decline', p: pd.p }); continue; }
     if (pd && pd.p === a && pd.kind === 'discard') { s = act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] }); discarded++; continue; }
     if (pd && pd.p === a && pd.kind === 'pick') {
       pickOpened = true;

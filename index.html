@@ -2071,6 +2071,8 @@ const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'l
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker'];
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back'];
+/** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
+const ONLY_IF = ['discarded-nonland'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S20 · custos adicionais de ativação e de conjuração. */
@@ -2156,6 +2158,7 @@ function validateScript(sc) {
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
+  for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana) errs.push('custo opcional do gatilho sem custo de mana');
   for (const [i, ab] of ((sc && sc.loyalty) || []).entries()) {
     if (!Number.isInteger(ab.cost)) errs.push(`lealdade ${i + 1}: custo precisa ser inteiro (pode ser negativo)`);
     if (!ab.label) errs.push(`lealdade ${i + 1}: falta o rótulo`);
@@ -2261,7 +2264,9 @@ function effectErrors(effects, label, opcional) {
       if (typeof e.exceptSubtype !== 'string' || !e.exceptSubtype.trim()) errs.push(`${label} ${i + 1}: subtipo poupado precisa ser um nome`);
       if (!String(e.target || '').startsWith('each-')) errs.push(`${label} ${i + 1}: subtipo poupado só vale em varredura`);
     }
-    if (e.upTo && (!isTargeted(e) || effects.slice(i + 1).some(isTargeted))) errs.push(`${label} ${i + 1}: "até N alvos" só vale no último alvo`);
+    if (e.onlyIf != null && !ONLY_IF.includes(e.onlyIf)) errs.push(`${label} ${i + 1}: condição "${e.onlyIf}" desconhecida`);
+    // S47 · "até N alvos" vale do fim para trás: nenhum alvo obrigatório depois de um opcional
+    if (e.upTo && (!isTargeted(e) || effects.slice(i + 1).some(x => isTargeted(x) && !x.upTo))) errs.push(`${label} ${i + 1}: "até N alvos" não pode vir antes de um alvo obrigatório`);
     if (e.do === 'add_mana' && !Array.isArray(e.symbols) && !e.anyColor) errs.push(`${label} ${i + 1}: add_mana precisa da lista de símbolos ou de anyColor`);
     if (e.targetMvMax != null) errs.push(...valueErrors(e.targetMvMax, `${label} ${i + 1}: valor de mana máximo`));
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
@@ -2491,9 +2496,8 @@ const RAW_SCRIPTS = [
   { name: 'Breath Weapon', effects: [{ do: 'damage', amount: 2, target: 'each-creature', exceptSubtype: 'Dragon' }],
     example: { target: 'none', expect: { gone: true } } },
   { name: 'Cast into the Fire', modes: [
-    { label: 'Causar 1 de dano a até duas criaturas', effects: [{ do: 'damage', amount: 1, target: 'creature' }, { do: 'damage', amount: 1, target: 'creature', upTo: true }] },
+    { label: 'Causar 1 de dano a até duas criaturas', effects: [{ do: 'damage', amount: 1, target: 'creature', upTo: true }, { do: 'damage', amount: 1, target: 'creature', upTo: true }] },
     { label: 'Exilar um artefato', effects: [{ do: 'exile', target: 'artifact' }] }],
-    covers: 'partial', note: 'mirar uma ou duas criaturas funciona; conjurar sem mirar nenhuma não entra',
     example: { action: 'mode:1', target: 'enemy-permanent', expect: { gone: true } } },
   // S36 · Pauper, continuação (textos conferidos em 26/09)
   { name: 'Mask of Law and Grace', aura: { enchant: 'creature' }, grants: { protection: ['B', 'R'] },
@@ -2631,8 +2635,9 @@ const RAW_SCRIPTS = [
   { name: 'Soul-Guide Lantern', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] }],
     covers: 'partial', note: 'o exílio ao entrar e a habilidade de {1} ainda não entram',
     example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
-  { name: 'Nihil Spellbomb', abilities: [{ kind: 'activated', cost: { mana: '{B}', sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] }],
-    covers: 'partial', note: 'comprar pagando {1} quando vai para o cemitério ainda não entra',
+  { name: 'Nihil Spellbomb', abilities: [
+    { kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] },
+    { kind: 'triggered', when: 'dies', mayPay: { mana: '{B}' }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
   // S26 · delve, lampejo com custo de virar criaturas e as últimas cartas (Scryfall)
   { name: 'Treasure Cruise', effects: [{ do: 'draw', amount: 3 }],
@@ -2726,8 +2731,8 @@ const RAW_SCRIPTS = [
   { name: 'Voldaren Epicure', abilities: [{ kind: 'triggered', when: 'etb', effects: [
     { do: 'damage', amount: 1, target: 'each-opponent' }, { do: 'token', amount: 1, token: { name: 'Blood', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true, discard: 1 }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
-  { name: 'Grab the Prize', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }],
-    covers: 'partial', note: 'os 2 de dano quando a carta descartada não é terreno ainda não entram',
+  { name: 'Grab the Prize', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 },
+    { do: 'damage', amount: 2, target: 'each-opponent', onlyIf: 'discarded-nonland' }],
     example: { target: 'none', expect: { handDelta: 1 } } },
   { name: 'Highway Robbery', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 }],
     covers: 'partial', note: 'sacrificar um terreno no lugar do descarte e o plot ainda não entram',
@@ -4386,7 +4391,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 39;
+const ENGINE_VERSION = 40;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -5215,6 +5220,8 @@ function applyEffect(s, src, eff, tgt, events) {
   switch (eff.do) {
     case 'damage':
       { const n = amountOf(s, src, eff.amount);
+        // S47 · "a cada oponente" é dano em jogador. Antes caía na varredura de criaturas.
+        if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) pl.life -= n; }); note({ amount: n }); break; }
         if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protectedFrom(s, obj, src)))) { note({ amount: n, prevented: true }); break; }
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); note({ amount: n }); break; }
         if (obj) { obj.damage += n; noteEnchantedEvent(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
@@ -5531,10 +5538,14 @@ function resolveScript(s, o, events) {
   const targeted = effects.filter(SC.isTargeted);
   const chosen = o.targets || [];
   const stillLegal = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid, eff.targetColor, eff));
-  if (targeted.length && stillLegal.every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
+  // 608.2b · só anula se a mágica escolheu alvo e nenhum vale mais. Mágica de "até N alvos"
+  // conjurada sem nenhum alvo resolve normalmente, sem fazer nada.
+  if (chosen.length && stillLegal.slice(0, chosen.length).every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
   let ti = 0, firstTarget = null;
   for (const [idx, eff] of effects.entries()) {
     if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx) }; return; }
+    // S47 · efeito que só acontece se o custo pago disser que sim
+    if (eff.onlyIf === 'discarded-nonland' && !o.discardedNonland) continue;
     if (SC.isTargeted(eff)) {
       const tgt = chosen[ti]; const ok = stillLegal[ti]; ti++;
       if (!ok) { events.push({ kind: 'effect', do: eff.do, name: o.name, target: effectTargetName(s, tgt), failed: true }); continue; }
@@ -5546,6 +5557,7 @@ function resolveScript(s, o, events) {
       const t = firstTarget;
       const who = t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
       applyEffect(s, o, eff, { player: who }, events);
+    } else if (eff.target === 'each-opponent') { applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
     } else if (String(eff.target || '').startsWith('each-')) {
       // S4 · varredura: todas as criaturas, só as do oponente ou só as suas
       for (const x of sweepTargets(s, o, eff)) applyEffect(s, o, eff, { oid: x.oid }, events);
@@ -5597,7 +5609,7 @@ function queueTriggers(s, when, objects, controller) {
     for (const ab of abilitiesOf(s, o)) {
       if (ab.kind !== 'triggered' || ab.when !== when) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
-      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}) });
+      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}) });
     }
     // S15 · gatilhos de outras permanentes que você controla
     if (!['etb', 'dies', 'cast-self'].includes(when)) continue;
@@ -5645,6 +5657,7 @@ function putTriggerOnStack(s, q, events) {
     targets = [opts[0]];
   }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
+  if (q.mayPay) s.objects[oid].mayPay = q.mayPay; // S47 · o custo opcional viaja com a habilidade
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
   return true;
 }
@@ -5673,6 +5686,9 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.discard) {
     const list = (pay && pay.discard) || s.zones[p].hand.filter(x => x !== selfOid).slice(0, cost.discard);
     if (list.length !== cost.discard || list.some(x => !s.zones[p].hand.includes(x) || x === selfOid)) throw new RuleError('custo', `descarte ${cost.discard} carta(s) como custo`);
+    // S47 · a mágica pode perguntar depois se o descarte foi terreno (Grab the Prize)
+    const semTerreno = list.every(x => !s.facts[s.objects[x].name].types.includes('land'));
+    if (s.objects[selfOid]) s.objects[selfOid].discardedNonland = semTerreno;
     list.forEach(x => moveObject(s, x, 'graveyard'));
   }
   if (cost.sacrificeOther) {
@@ -6045,12 +6061,18 @@ const HANDLERS = {
     const pk = s.pending;
     payCost(s, a.p, parseCost(pk.cost));
     s.pending = null;
+    if (pk.then) { // S47 · pagou: agora os efeitos do gatilho acontecem
+      const src = s.objects[pk.then.source] || { oid: pk.then.source, name: pk.then.name, controller: pk.then.controller };
+      for (const eff of pk.then.effects) { applyEffect(s, src, eff, null, ev); stateBased(s, ev); }
+      return resumeEffects(s, ev);
+    }
     ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: s.objects[pk.target] ? s.objects[pk.target].name : '?', failed: true, paid: true });
     resumeEffects(s, ev);
   },
   decline(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'may_pay' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a recusar');
     const pk = s.pending; s.pending = null;
+    if (pk.then) return resumeEffects(s, ev); // S47 · não pagou: o gatilho não faz nada
     const obj = s.objects[pk.target];
     if (obj && obj.zone === 'stack') { moveObject(s, obj.oid, 'graveyard'); ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: obj.name }); }
     resumeEffects(s, ev);
@@ -6340,7 +6362,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (!opts.length) { if (eff.upTo) continue; return []; }
       combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
     }
-    return combos.map(targets => ({ ...base, targets }));
+    const vistos = new Set(); // S47 · dois alvos opcionais repetiam a mesma combinação
+    return combos.filter(c => { const k = JSON.stringify(c); if (vistos.has(k)) return false; vistos.add(k); return true; })
+      .map(targets => ({ ...base, targets }));
   };
   const casts = o => {
     const f = s.facts[o.name];
@@ -6522,6 +6546,17 @@ function previewCombat(state, blocks) {
 
 /** Resolve uma habilidade na pilha, com a mesma rechecagem de alvo das mágicas. */
 function resolveAbility(s, o, events) {
+  // S47 · "você pode pagar {X}. Se fizer, ...": a decisão vem antes dos efeitos
+  if (o.mayPay && !o.mayPayAsked) {
+    o.mayPayAsked = true;
+    if (!s.manaCheck || canPay(s, o.controller, parseCost(o.mayPay.mana))) {
+      s.pending = { kind: 'may_pay', p: o.controller, cost: o.mayPay.mana, name: o.name,
+        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller } };
+      events.push({ kind: 'choice', what: 'pagar para o efeito acontecer', name: o.name, amount: 1 });
+      return;
+    }
+    return; // sem como pagar, o gatilho não faz nada
+  }
   const targeted = (o.effects || []).filter(SC.isTargeted);
   const chosen = o.targets || [];
   const ok = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid));
@@ -6530,6 +6565,7 @@ function resolveAbility(s, o, events) {
   for (const eff of o.effects || []) {
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) primeiro = t; if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
+    else if (eff.target === 'each-opponent') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
     else if (String(eff.target || '').startsWith('each-')) {
       sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
     } else applyEffect(s, o, eff, null, events);

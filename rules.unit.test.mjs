@@ -2946,3 +2946,95 @@ test('S46 · lampejo do passado só com criaturas brancas, e exilar até dois ce
   assert.equal(s2.objects[meu].zone, 'exile');
   assert.equal(s2.objects[dele].zone, 'exile');
 });
+
+/* ---------------- S47 · custo opcional no gatilho, condição do custo pago e mágica sem alvo ---------------- */
+const NS_CARDS = {
+  'Swamp': { name: 'Swamp', type_line: 'Basic Land — Swamp', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {B}.' },
+  'Bomb': { name: 'Bomb', type_line: 'Artifact', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '{T}, Sacrifice this artifact: Exile target player’s graveyard.\nWhen this artifact is put into a graveyard from the battlefield, you may pay {B}. If you do, draw a card.' },
+  'Grab': { name: 'Grab', type_line: 'Sorcery', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], keywords: [], oracle_text: 'As an additional cost to cast this spell, discard a card. Draw two cards. If the discarded card wasn’t a land card, this deals 2 damage to each opponent.' },
+  'Fire': { name: 'Fire', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Choose one — deals 1 damage to each of up to two target creatures; or exile target artifact.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Rock': { name: 'Rock', type_line: 'Artifact', mana_cost: '{2}', cmc: 2, keywords: [], oracle_text: '' }
+};
+const NS_SCRIPTS = {
+  Bomb: { name: 'Bomb', abilities: [
+    { kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] },
+    { kind: 'triggered', when: 'dies', mayPay: { mana: '{B}' }, effects: [{ do: 'draw', amount: 1 }] }],
+    example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
+  Grab: { name: 'Grab', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 },
+    { do: 'damage', amount: 2, target: 'each-opponent', onlyIf: 'discarded-nonland' }],
+    example: { target: 'none', expect: { handDelta: 1 } } },
+  Fire: { name: 'Fire', modes: [
+    { label: 'Dano a até duas criaturas', effects: [{ do: 'damage', amount: 1, target: 'creature', upTo: true }, { do: 'damage', amount: 1, target: 'creature', upTo: true }] },
+    { label: 'Exilar um artefato', effects: [{ do: 'exile', target: 'artifact' }] }],
+    example: { action: 'mode:1', target: 'enemy-permanent', expect: { gone: true } } }
+};
+const NSDECK = [{ name: 'Swamp', qty: 18, zone: 'main' }, { name: 'Bomb', qty: 8, zone: 'main' }, { name: 'Grab', qty: 8, zone: 'main' },
+  { name: 'Fire', qty: 8, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }, { name: 'Rock', qty: 8, zone: 'main' }];
+function nsGame(seed = 1, manaCheck = false) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: NS_CARDS, scripts: NS_SCRIPTS,
+    players: [{ name: 'A', deck: NSDECK }, { name: 'B', deck: NSDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S47 · "você pode pagar": pagando compra, recusando não compra', () => {
+  let s = nsGame(3); const a = s.turn.active, d = 1 - a;
+  let bomba;
+  [s, bomba] = put(s, a, 'Bomb');
+  for (let i = 0; i < 2; i++) { let t; [s, t] = put(s, a, 'Swamp'); } // mana para poder pagar o {B}
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, { t: 'activate', p: a, oid: bomba, index: 0, targets: [{ player: d }] })));
+  assert.equal(s.objects[bomba].zone, 'graveyard', 'o artefato foi sacrificado');
+  assert.ok(s.pending && s.pending.kind === 'may_pay' && s.pending.p === a, 'o gatilho perguntou se eu quero pagar');
+  const recusou = settle(act(s, { t: 'decline', p: a }));
+  assert.equal(recusou.zones[a].hand.length, mao, 'recusando, não compro nada');
+
+  // pagando, compro uma carta
+  const pagou = settle(act(s, { t: 'pay', p: a }));
+  assert.equal(pagou.zones[a].hand.length, mao + 1, 'pagando, compro uma carta');
+  assert.equal(pagou.pending, null, 'e nada fica pendurado');
+});
+
+test('S47 · o dano só vem se a carta descartada como custo não for terreno', () => {
+  let s = nsGame(4); const a = s.turn.active, d = 1 - a;
+  s = esvaziaMao(s, a);
+  let grab, pantano;
+  [s, grab] = put(s, a, 'Grab', { zone: 'hand' });
+  [s, pantano] = put(s, a, 'Swamp', { zone: 'hand' });
+  const vidaDele = s.players[d].life;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [pantano] } })));
+  assert.equal(s.objects[pantano].zone, 'graveyard', 'descartei o terreno como custo');
+  assert.equal(s.players[d].life, vidaDele, 'descarte de terreno não causa dano');
+
+  let s2 = nsGame(4); const a2 = s2.turn.active, d2 = 1 - a2;
+  s2 = esvaziaMao(s2, a2);
+  let grab2, urso;
+  [s2, grab2] = put(s2, a2, 'Grab', { zone: 'hand' });
+  [s2, urso] = put(s2, a2, 'Bear', { zone: 'hand' });
+  const vida2 = s2.players[d2].life;
+  s2 = settle(resolveSpell(act(s2, { t: 'cast', p: a2, oid: grab2, pay: { discard: [urso] } })));
+  assert.equal(s2.players[d2].life, vida2 - 2, 'descarte que não é terreno causa 2 de dano');
+});
+
+test('S47 · mágica de "até dois alvos" pode ser conjurada sem mirar nada, e resolve sem anular', () => {
+  let s = nsGame(5); const a = s.turn.active;
+  let fogo;
+  [s, fogo] = put(s, a, 'Fire', { zone: 'hand' });
+  // campo sem criatura nenhuma
+  assert.equal(E.legalTargets(s, a, 'creature', fogo).length, 0, 'não há criatura em campo');
+  const semAlvo = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === fogo && x.mode === 0 && !(x.targets || []).length);
+  assert.ok(semAlvo, 'a mesa oferece o modo mesmo sem criatura para mirar');
+  s = settle(resolveSpell(act(s, semAlvo)));
+  assert.equal(s.objects[fogo].zone, 'graveyard', 'a mágica resolveu e foi para o cemitério');
+
+  // com uma criatura só, mira ela e causa o dano
+  let s2 = nsGame(5); const a2 = s2.turn.active, d2 = 1 - a2;
+  let urso, fogo2;
+  [s2, urso] = put(s2, d2, 'Bear');
+  [s2, fogo2] = put(s2, a2, 'Fire', { zone: 'hand' });
+  const uma = E.legalActions(s2, a2).find(x => x.t === 'cast' && x.oid === fogo2 && x.mode === 0 && (x.targets || []).length === 1);
+  assert.ok(uma, 'com uma criatura, oferece mirar ela');
+  s2 = settle(resolveSpell(act(s2, uma)));
+  assert.equal(s2.objects[urso].damage, 1, 'e o dano caiu nela');
+});
