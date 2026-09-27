@@ -2023,7 +2023,7 @@ const EFFECTS = {
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard'] },
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
   exile_chosen: { fields: ['amount'], targets: ['player', 'opponent', 'self'] },
-  bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'artifact'] },
+  bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact'] },
   counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self'] },
@@ -2119,7 +2119,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2134,7 +2134,8 @@ function validateScript(sc) {
     } else if (ab.kind === 'triggered') {
       if (!TRIGGERS.includes(ab.when)) errs.push(`${tag}: gatilho "${ab.when}" desconhecido`);
     } else errs.push(`${tag}: tipo "${ab.kind}" desconhecido`);
-    errs.push(...effectErrors(ab.effects, tag, ab.adapt != null));
+    // S56 · gatilho com modos tem os efeitos dentro de cada modo
+    errs.push(...effectErrors(ab.effects, tag, ab.adapt != null || (ab.modes || []).length > 0));
   });
   errs.push(...effectErrors(sc && sc.effects, 'efeito'));
   // S12 · mágica modal: uma lista de efeitos por modo
@@ -2164,6 +2165,10 @@ function validateScript(sc) {
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
+  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null) errs.push('entra virado a menos que: condição desconhecida');
+  for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
+  for (const ab of (sc && sc.abilities) || []) for (const [i, m] of (ab.modes || []).entries()) errs.push(...effectErrors(m.effects, `modo do gatilho ${i + 1}`));
+  for (const ab of (sc && sc.abilities) || []) for (const m of ab.modes || []) if (!m.label) errs.push('modo do gatilho sem rótulo');
   if (sc && sc.sneak && !sc.sneak.mana) errs.push('esgueirar-se sem custo de mana');
   if (sc && sc.self && sc.self.entersWithCountersX != null && typeof sc.self.entersWithCountersX !== 'boolean') errs.push('entra com X marcadores precisa ser verdadeiro ou falso');
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
@@ -2441,6 +2446,52 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', condition: { bargained: true },
       effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // S56 · as quatro últimas cartas das Pauper (textos conferidos em 26/09)
+  { name: 'Salt Road Packbeast', affinity: 'creature',
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { handDelta: 1 } } },
+  { name: 'Tuktuk Rubblefort', grantsAll: { keywords: ['haste'] },
+    example: { target: 'none', expect: { tappedOnEntry: false } } },
+  { name: 'Sewer-veillance Cam', abilities: [
+    { kind: 'triggered', when: 'etb', optional: true, modes: [
+      { label: 'Virar uma criatura', effects: [{ do: 'tap', target: 'creature' }] },
+      { label: 'Desvirar uma criatura', effects: [{ do: 'untap', target: 'creature' }] }] },
+    { kind: 'triggered', when: 'leaves-battlefield', optional: true, modes: [
+      { label: 'Virar uma criatura', effects: [{ do: 'tap', target: 'creature' }] },
+      { label: 'Desvirar uma criatura', effects: [{ do: 'untap', target: 'creature' }] }] },
+    { kind: 'activated', cost: { mana: '{3}{U}', sacrifice: true }, effects: [{ do: 'draw', amount: 2 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { handDelta: 2 } } },
+  { name: 'Secret Door',
+    abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'look', amount: 1, count: 1, to: 'stay', rest: 'stay' }] }],
+    covers: 'partial', note: 'aventurar-se na masmorra não entra: o motor ainda não tem masmorra, então a habilidade só mostra o topo do grimório',
+    example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
+  // S56 · os terrenos das listas Pauper, que a medição antiga escondia (textos conferidos em 26/09)
+  { name: 'Jagged Barrens', entersTapped: true,
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'damage', amount: 1, target: 'opponent' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Razortrap Gorge', entersTappedUnless: { anyPlayerLifeAtMost: 13 },
+    example: { target: 'none', expect: { tappedOnEntry: true } } },
+  { name: 'Rakdos Carnarium', entersTapped: true,
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'bounce', target: 'land-you-control' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Boros Garrison', entersTapped: true,
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'bounce', target: 'land-you-control' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Wind-Scarred Crag', entersTapped: true,
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'gain', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { selfLife: 1 } } },
+  { name: 'Drossforge Bridge', entersTapped: true,
+    example: { target: 'none', expect: { tappedOnEntry: true } } },
+  { name: 'Slagwoods Bridge', entersTapped: true,
+    example: { target: 'none', expect: { tappedOnEntry: true } } },
+  { name: 'Perilous Landscape', cycling: { mana: '{U}{R}{W}' },
+    abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true },
+      effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true, subtypes: ['Island', 'Mountain', 'Plains'] }, to: 'battlefield-tapped' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
+  { name: 'Twisted Landscape', cycling: { mana: '{B}{R}{G}' },
+    abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true },
+      effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true, subtypes: ['Swamp', 'Mountain', 'Forest'] }, to: 'battlefield-tapped' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
   // S43 · Commander Killian: sacrifique-se para proteger (textos conferidos em 26/09)
   { name: 'Mother of Runes', abilities: [{ kind: 'activated', cost: { tap: true },
     effects: [{ do: 'protection', target: 'creature-you-control' }] }],
@@ -2786,7 +2837,7 @@ const RAW_SCRIPTS = [
     effects: [{ do: 'pump', power: { per: 'elves-you-control' }, toughness: { per: 'elves-you-control' }, target: 'creature' }] }],
     example: { action: 'activate:0', target: 'own-creature', expect: { pump: [1, 1] } } },
   { name: 'Distant Melody', effects: [{ do: 'choose_type' }, { do: 'draw', amount: { per: 'chosen-type-permanents' } }],
-    example: { target: 'none', expect: { handDelta: 0 } } },
+    example: { target: 'none', expect: { handDelta: 2 } } },
   { name: 'Valakut Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'damage', amount: 3, target: 'any' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -3 } } },
   { name: 'Bloodrite Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'lose', amount: 2, target: 'player' }, { do: 'gain', amount: 2 }] }],
@@ -4404,7 +4455,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 48;
+const ENGINE_VERSION = 49;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4503,7 +4554,7 @@ function cardFacts(card) {
 const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
 const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
 /** S11 · palavras-chave próprias mais as concedidas por auras e equipamentos. */
-const has = (s, o, k) => (o && o.faceDown ? false : s.facts[o.name].kw.includes(k)) || (o.tempKeywords || []).includes(k) ||
+const has = (s, o, k) => (o && o.faceDown ? false : s.facts[o.name].kw.includes(k)) || grantedToAll(s, o, k) || (o.tempKeywords || []).includes(k) ||
   attachedTo(s, o).some(x => ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
 const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
 const attachSpec = (s, o) => { const sc = s.facts[o.name].script || {}; return sc.aura || sc.equip || null; };
@@ -4624,6 +4675,8 @@ function createGame(setup) {
     if (sc.cycling) f.script.cycling = sc.cycling;
     if (sc.transmute) f.script.transmute = sc.transmute;
     if (sc.entersTapped) f.script.entersTapped = true;
+    if (sc.entersTappedUnless) f.script.entersTappedUnless = sc.entersTappedUnless; // S56
+    if (sc.grantsAll) f.script.grantsAll = sc.grantsAll; // S56
     if (sc.back) { f.script.back = sc.back.name; f.script.disturb = sc.disturb; f.script.omen = sc.omen; }
   }
 
@@ -4681,6 +4734,12 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // S22 · permanente que entra virada
   if (to === 'battlefield' && (s.facts[o.name].script || {}).entersTapped) o.tapped = true;
+  // S56 · "entra virado a menos que um jogador tenha 13 ou menos de vida"
+  const semVirar = (s.facts[o.name].script || {}).entersTappedUnless;
+  if (to === 'battlefield' && semVirar) {
+    const livre = semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost);
+    o.tapped = !livre;
+  }
   // S34 · permanente que entra com marcadores +1/+1
   if (to === 'battlefield') {
     const self = ((s.facts[o.name].script || {}).self) || {};
@@ -4791,6 +4850,16 @@ const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src
 /** S30 · escudo do turno: nenhum dano de fonte das cores escolhidas passa. */
 const colorPrevented = (s, src) => !s.noPrevention && (
   (src && src.damagePrevented) || (s.preventedColors || []).some(c => colorsOf(s, src).includes(c)));
+/** S56 · permanente que dá palavra-chave a todas as suas criaturas (Tuktuk Rubblefort). */
+function grantedToAll(s, o, k) {
+  if (!o || o.zone !== 'battlefield' || !s.facts[o.name].types.includes('creature')) return false;
+  for (const x of s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid])) {
+    if (x.controller !== o.controller) continue;
+    const g = (s.facts[x.name].script || {}).grantsAll;
+    if (g && (g.keywords || []).map(y => String(y).toLowerCase()).includes(k)) return true;
+  }
+  return false;
+}
 const evasionOf = (s, o) => ((s.facts[o.name].script || {}).self || {}).evasion;
 
 function sources(s, p) {
@@ -5721,7 +5790,7 @@ function queueTriggers(s, when, objects, controller) {
     for (const ab of abilitiesOf(s, o)) {
       if (ab.kind !== 'triggered' || ab.when !== when) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
-      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}) });
+      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
     }
     // S15 · gatilhos de outras permanentes que você controla
     if (!['etb', 'dies', 'cast-self', 'leaves-battlefield'].includes(when)) continue;
@@ -5755,6 +5824,11 @@ function flushTriggers(s, events) {
 /** S15 · põe um gatilho na pilha, escolhendo o alvo quando ele exige um. */
 function putTriggerOnStack(s, q, events) {
   s.queued = s.queued.filter(x => x !== q);
+  // S56 · gatilho com modos ("vire OU desvire"): quem controla escolhe antes de ir para a pilha
+  if ((q.modes || []).length && !q.effects) {
+    s.pending = { kind: 'choose_mode', p: q.controller, trigger: q, options: q.modes.map(m => m.label || 'opção'), name: q.name };
+    return false;
+  }
   if (q.cost) { // S32 · gatilho com custo opcional: sem como pagar, ele não acontece
     if (!canPayExtra(s, q.controller, q.cost, q.source)) { events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; }
     payExtraCosts(s, q.controller, q.cost, null, q.source);
@@ -6205,7 +6279,14 @@ const HANDLERS = {
     s.pending = null;
     if (pk.then) { // S47 · pagou: agora os efeitos do gatilho acontecem
       const src = s.objects[pk.then.source] || { oid: pk.then.source, name: pk.then.name, controller: pk.then.controller };
-      for (const eff of pk.then.effects) { if (!effectAllowed(s, s.objects[pk.then.source], eff)) continue; applyEffect(s, src, eff, null, ev); stateBased(s, ev); }
+      // S56 · o gatilho pode ter alvo escolhido antes: aplica cada efeito com o alvo dele
+      let ti = 0;
+      for (const eff of pk.then.effects) {
+        const alvo = SC.isTargeted(eff) ? (pk.then.targets || [])[ti++] : null;
+        if (!effectAllowed(s, s.objects[pk.then.source], eff)) continue;
+        if (SC.isTargeted(eff) && !alvo) continue;
+        applyEffect(s, src, eff, alvo, ev); stateBased(s, ev);
+      }
       return resumeEffects(s, ev);
     }
     ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: s.objects[pk.target] ? s.objects[pk.target].name : '?', failed: true, paid: true });
@@ -6220,6 +6301,14 @@ const HANDLERS = {
     resumeEffects(s, ev);
   },
   /** S15 · escolhe o alvo de um gatilho. */
+  choose_mode(s, a, ev) { // S56 · escolhe o modo do gatilho e segue
+    if (!s.pending || s.pending.kind !== 'choose_mode' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando escolha');
+    const pk = s.pending;
+    const modo = (pk.trigger.modes || [])[a.index || 0];
+    if (!modo) throw new RuleError('escolha', 'modo inválido');
+    s.pending = null;
+    putTriggerOnStack(s, { ...pk.trigger, effects: modo.effects, modes: null }, ev);
+  },
   pick_target(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'pick_target' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando alvo');
     const pk = s.pending;
@@ -6458,7 +6547,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
+const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], choose_mode: ['choose_mode', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -6471,6 +6560,7 @@ function apply(state, action) {
       : k === 'triggers' ? 'escolha a ordem dos gatilhos primeiro' : k === 'choose_color' ? 'escolha a cor primeiro'
       : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
+      : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
         : k === 'pick' ? 'termine a escolha de cartas primeiro' : k === 'pick_target' ? 'escolha o alvo do gatilho primeiro'
           : k === 'may_pay' ? 'decida se paga primeiro' : k === 'madness' ? 'decida a insanidade primeiro' : 'declare os bloqueadores primeiro');
   }
@@ -6525,6 +6615,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'may_pay') { if (!s.manaCheck || canPay(s, p, parseCost(s.pending.cost))) out.push({ t: 'pay', p }); out.push({ t: 'decline', p }); }
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
+    if (k === 'choose_mode') (s.pending.options || []).forEach((label, index) => out.push({ t: 'choose_mode', p, index, label })); // S56
     if (k === 'pick') {
       const pk = s.pending;
       if (pk.picked.length < pk.max) pk.from.filter(oid => !pk.picked.includes(oid) && matchesFilter(s, s.objects[oid], pk.filter)).forEach(oid => out.push({ t: 'pick', p, oid }));
@@ -6792,13 +6883,13 @@ function resolveAbility(s, o, events) {
     o.mayPayAsked = true;
     if (o.optionalTrigger && !o.mayPay) { // S49 · "você pode comprar": decisão sem custo
       s.pending = { kind: 'may_pay', p: o.controller, cost: null, name: o.name,
-        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller } };
+        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller, targets: o.targets || [] } };
       events.push({ kind: 'choice', what: 'fazer ou não o efeito', name: o.name, amount: 1 });
       return;
     }
     if (!s.manaCheck || canPay(s, o.controller, parseCost(o.mayPay.mana))) {
       s.pending = { kind: 'may_pay', p: o.controller, cost: o.mayPay.mana, name: o.name,
-        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller } };
+        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller, targets: o.targets || [] } };
       events.push({ kind: 'choice', what: 'pagar para o efeito acontecer', name: o.name, amount: 1 });
       return;
     }
@@ -7167,6 +7258,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: 'W' }
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
+          : pd.kind === 'choose_mode' ? { t: 'choose_mode', p: pd.p, index: 0 }
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
           : pd.kind === 'pick_target' ? { t: 'pick_target', p: pd.p, index: 0 }
           : { t: 'concede', p: pd.p };

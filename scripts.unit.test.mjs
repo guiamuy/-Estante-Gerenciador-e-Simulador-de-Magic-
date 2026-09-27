@@ -61,6 +61,11 @@ const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal So
   'Freed from the Real': 'Enchantment — Aura', 'Galvanic Alchemist': 'Creature — Human Wizard',
   "Raffine's Informant": 'Creature — Human Wizard', 'Leonardo, Big Brother': 'Legendary Creature — Mutant Ninja Turtle',
   'Vitu-Ghazi Inspector': 'Creature — Elf Detective', 'Mirrorshell Crab': 'Artifact Creature — Crab',
+  'Salt Road Packbeast': 'Creature — Beast', 'Tuktuk Rubblefort': 'Creature — Wall',
+  'Sewer-veillance Cam': 'Artifact', 'Secret Door': 'Artifact Creature — Wall',
+  'Jagged Barrens': 'Land — Desert', 'Razortrap Gorge': 'Land', 'Rakdos Carnarium': 'Land',
+  'Boros Garrison': 'Land', 'Wind-Scarred Crag': 'Land', 'Drossforge Bridge': 'Artifact Land',
+  'Slagwoods Bridge': 'Artifact Land', 'Perilous Landscape': 'Land', 'Twisted Landscape': 'Land',
   'Mother of Runes': 'Creature — Human Cleric', 'Benevolent Bodyguard': 'Creature — Human Cleric',
   "Alseid of Life's Bounty": 'Enchantment Creature — Nymph', 'Selfless Savior': 'Creature — Dog',
   'Selfless Spirit': 'Creature — Spirit Cleric', 'Kami of False Hope': 'Creature — Spirit' };
@@ -365,6 +370,10 @@ function runExample(sc) {
     }
     // S47 · a decisão de pagar pode ser de qualquer um dos dois; o cenário recusa e segue
     if (pd && pd.kind === 'may_pay') { s = act(s, { t: 'decline', p: pd.p }); continue; }
+    // S56 · gatilho com modos e escolhas de tipo/par: o cenário pega a primeira opção
+    if (pd && pd.kind === 'choose_mode') { s = act(s, { t: 'choose_mode', p: pd.p, index: 0 }); continue; }
+    if (pd && pd.kind === 'choose_type') { s = act(s, { t: 'choose_type', p: pd.p, index: 0 }); continue; }
+    if (pd && pd.kind === 'choose_pair') { s = act(s, { t: 'choose_pair', p: pd.p, decline: true }); continue; }
     if (pd && pd.p === a && pd.kind === 'discard') { s = act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] }); discarded++; continue; }
     if (pd && pd.p === a && pd.kind === 'pick') {
       pickOpened = true;

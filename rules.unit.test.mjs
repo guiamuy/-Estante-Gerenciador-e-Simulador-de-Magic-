@@ -3662,3 +3662,105 @@ test('S55 · a escolha de tipo lista as criaturas dos dois lados do campo', () =
   s = settle(act(s, { t: 'choose_type', p: a, subtype: 'Bear' }));
   assert.equal(s.zones[a].hand.length, mao - 1, 'saiu a mágica e não entrou carta nenhuma');
 });
+
+/* ---------------- S56 · terrenos das listas, pressa para todas e gatilho com modos ---------------- */
+const LD_CARDS = {
+  'Swamp': { name: 'Swamp', type_line: 'Basic Land — Swamp', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {B}.' },
+  'Gorge': { name: 'Gorge', type_line: 'Land', mana_cost: '', cmc: 0, keywords: [], oracle_text: 'This land enters tapped unless a player has 13 or less life.\n{T}: Add {B} or {R}.' },
+  'Carnarium': { name: 'Carnarium', type_line: 'Land', mana_cost: '', cmc: 0, keywords: [], oracle_text: 'This land enters tapped.\nWhen this land enters, return a land you control to its owner’s hand.\n{T}: Add {B}{R}.' },
+  'Fort': { name: 'Fort', type_line: 'Creature — Wall', mana_cost: '{2}{R}', cmc: 3, colors: ['R'], power: '0', toughness: '4', keywords: ['Defender', 'Reach'], oracle_text: 'Defender, reach\nCreatures you control have haste.' },
+  'Cam': { name: 'Cam', type_line: 'Artifact', mana_cost: '{3}{U}', cmc: 4, colors: ['U'], keywords: ['Flash'], oracle_text: 'Flash\nWhen this artifact enters or leaves the battlefield, you may tap or untap target creature.\n{3}{U}, Sacrifice this artifact: Draw two cards.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const LD_SCRIPTS = {
+  Gorge: { name: 'Gorge', entersTappedUnless: { anyPlayerLifeAtMost: 13 }, example: { target: 'none', expect: { tappedOnEntry: true } } },
+  Carnarium: { name: 'Carnarium', entersTapped: true,
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'bounce', target: 'land-you-control' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Fort: { name: 'Fort', grantsAll: { keywords: ['haste'] }, example: { target: 'none', expect: { tappedOnEntry: false } } },
+  Cam: { name: 'Cam', abilities: [
+    { kind: 'triggered', when: 'etb', optional: true, modes: [
+      { label: 'Virar uma criatura', effects: [{ do: 'tap', target: 'creature' }] },
+      { label: 'Desvirar uma criatura', effects: [{ do: 'untap', target: 'creature' }] }] },
+    { kind: 'activated', cost: { mana: '{3}{U}', sacrifice: true }, effects: [{ do: 'draw', amount: 2 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { handDelta: 2 } } }
+};
+const LDDECK = [{ name: 'Swamp', qty: 16, zone: 'main' }, { name: 'Gorge', qty: 8, zone: 'main' }, { name: 'Carnarium', qty: 8, zone: 'main' },
+  { name: 'Fort', qty: 8, zone: 'main' }, { name: 'Cam', qty: 8, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }];
+function ldGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: LD_CARDS, scripts: LD_SCRIPTS,
+    players: [{ name: 'A', deck: LDDECK }, { name: 'B', deck: LDDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S56 · terreno entra virado, e desvirado quando alguém está com 13 ou menos de vida', () => {
+  let s = ldGame(3); const a = s.turn.active, d = 1 - a;
+  let g1;
+  [s, g1] = put(s, a, 'Gorge', { zone: 'hand' });
+  let feito = act(s, { t: 'play_land', p: a, oid: g1 });
+  assert.equal(feito.objects[g1].tapped, true, 'com todos em 20 de vida, entra virado');
+  // com o oponente em 13, entra desvirado
+  let s2 = JSON.parse(JSON.stringify(s)); s2.players[d].life = 13;
+  let feito2 = act(s2, { t: 'play_land', p: a, oid: g1 });
+  assert.equal(feito2.objects[g1].tapped, false, 'com alguém em 13, entra desvirado');
+});
+
+test('S56 · o terreno que entra virado devolve um terreno seu para a mão', () => {
+  let s = ldGame(4); const a = s.turn.active;
+  let pantano, carn;
+  [s, pantano] = put(s, a, 'Swamp');
+  [s, carn] = put(s, a, 'Carnarium', { zone: 'hand' });
+  s = act(s, { t: 'play_land', p: a, oid: carn });
+  assert.equal(s.objects[carn].tapped, true, 'entrou virado');
+  // o gatilho tem alvo e a mesa pergunta qual terreno devolver
+  if (s.pending && s.pending.kind === 'pick_target') {
+    const i = s.pending.options.findIndex(x => x.oid === pantano);
+    s = act(s, { t: 'pick_target', p: s.pending.p, index: i < 0 ? 0 : i });
+  }
+  s = settle(s);
+  assert.equal(s.objects[pantano].zone, 'hand', 'o terreno que eu escolhi voltou para a mão');
+});
+
+test('S56 · a permanente dá pressa a todas as suas criaturas, e não às do oponente', () => {
+  let s = ldGame(5); const a = s.turn.active, d = 1 - a;
+  let meu, dele;
+  [s, meu] = put(s, a, 'Bear', { sick: true });
+  [s, dele] = put(s, d, 'Bear', { sick: true });
+  assert.equal(E.hasKeyword(s, s.objects[meu], 'haste'), false, 'sem a permanente, não tem pressa');
+  let forte; [s, forte] = put(s, a, 'Fort');
+  assert.equal(E.hasKeyword(s, s.objects[meu], 'haste'), true, 'a minha criatura ganhou pressa');
+  assert.equal(E.hasKeyword(s, s.objects[dele], 'haste'), false, 'a do oponente não');
+  // com pressa, a criatura que entrou agora pode atacar
+  s = passTo(s, 'combat_attackers');
+  assert.equal(E.eligibleAttackers(s, a).includes(meu), true, 'e pode atacar no turno em que entrou');
+});
+
+test('S56 · gatilho com modos: a mesa pergunta se é para virar ou desvirar', () => {
+  let s = ldGame(6); const a = s.turn.active, d = 1 - a;
+  let urso, cam;
+  [s, urso] = put(s, d, 'Bear', { tapped: true });
+  [s, cam] = put(s, a, 'Cam', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: cam }));
+  // o modo é escolhido quando o gatilho vai para a pilha, junto com o alvo
+  assert.ok(s.pending && s.pending.kind === 'choose_mode' && s.pending.p === a, 'a mesa pergunta o que o gatilho faz');
+  const opcoes = JSON.parse(JSON.stringify(s.pending.options));
+  assert.equal(opcoes.length, 2, 'duas opções: virar ou desvirar');
+  const iDesvirar = opcoes.findIndex(x => /Desvirar/.test(x));
+  s = act(s, { t: 'choose_mode', p: a, index: iDesvirar });
+  // e a decisão de usar ou não vem na resolução, porque a carta diz "você pode"
+  s = settle(s);
+  if (s.pending && s.pending.kind === 'may_pay') s = settle(act(s, { t: 'pay', p: a }));
+  assert.equal(s.objects[urso].tapped, false, 'a criatura foi desvirada');
+
+  // recusando, nada acontece
+  let s2 = ldGame(6); const a2 = s2.turn.active, d2 = 1 - a2;
+  let urso2, cam2;
+  [s2, urso2] = put(s2, d2, 'Bear', { tapped: true });
+  [s2, cam2] = put(s2, a2, 'Cam', { zone: 'hand' });
+  s2 = resolveSpell(act(s2, { t: 'cast', p: a2, oid: cam2 }));
+  if (s2.pending && s2.pending.kind === 'choose_mode') s2 = act(s2, { t: 'choose_mode', p: a2, index: 0 });
+  s2 = settle(s2);
+  if (s2.pending && s2.pending.kind === 'may_pay') s2 = settle(act(s2, { t: 'decline', p: a2 }));
+  assert.equal(s2.objects[urso2].tapped, true, 'recusando, a criatura fica como estava');
+});

@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S56 terrenos das listas, medição honesta e gatilho com modos | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -287,7 +288,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33w 🟡 | S53 (leva 45) | **Rakdos Madness em 100%**: plot e custo adicional com opções |
 | E33x 🟡 | S54 (leva 46) | **Boros Bully em 100%**: metamorfose e esgueirar-se |
 | E33y ✅ | S55 (leva 47) | **PAUPER 100%: as sete listas rodam no Motor completo** |
-| E36 ▶ | S56+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
+| E33z 🟡 | S56 (leva 48) | Medição corrigida + 15 cartas: seis Pauper em 100% de verdade |
+| E33aa ▶ | S57 | Masmorra (Secret Door), a última carta do Pauper |
+| E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -818,6 +821,34 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
 
+**S56 · Terrenos das listas, medição honesta e gatilho com modos** 🟡
+- **O erro que esta leva corrige:** eu anunciei "Pauper 100%" na leva 47 e no aplicativo os decks
+  apareciam entre 84% e 97%. A culpa era da minha ferramenta de medição: o `.listas/medir.mjs` tinha uma
+  **lista branca escrita à mão** de cartas que eu *supunha* que o motor resolvia lendo o texto — incluindo
+  terrenos que entram virados, ciclam ou devolvem terreno. O aplicativo lê o texto real e contava essas
+  cartas como manuais. A ferramenta me dava a resposta que eu queria ouvir.
+- **Correção estrutural:** `medir.mjs` agora chama o **mesmo `deckCoverage`** da tela de jogar, com os
+  textos reais guardados em `.listas/cartas.json` (conferidos na fonte, um por um). Nada de lista branca.
+  A ferramenta também avisa quais cartas ainda não têm texto conferido, em vez de chutar que estão cobertas.
+- **Aceite:**
+  - terreno que entra virado, e o que entra virado **a menos que** alguém esteja com 13 ou menos de vida;
+  - terreno que ao entrar devolve um terreno seu para a mão, ou causa 1 de dano, ou dá 1 de vida;
+  - terreno que se sacrifica para buscar um básico de três tipos, com ciclagem;
+  - permanente que dá **pressa a todas as suas criaturas**, e não às do oponente;
+  - gatilho com **modos** ("vire **ou** desvire"): a mesa pergunta o que fazer, junto do alvo.
+- **Entregue (13 completas):** Jagged Barrens, Razortrap Gorge, Rakdos Carnarium, Boros Garrison,
+  Wind-Scarred Crag, Perilous Landscape, Twisted Landscape, Drossforge Bridge, Slagwoods Bridge,
+  Salt Road Packbeast, Tuktuk Rubblefort, Sewer-veillance Cam, e os textos de Gladecover Scout,
+  Slippery Bogle, Llanowar Elves, Elvish Mystic e Vault of Whispers conferidos como cobertos pelo texto.
+- **Parcial:** **Secret Door** — aventurar-se na masmorra não entra, porque o motor ainda não tem masmorra.
+  A habilidade só mostra o topo do grimório. É a única carta que separa o Walls Combo dos 100%.
+- **Correção de motor:** no caminho do custo opcional de gatilho, os efeitos eram aplicados **sem o alvo**
+  que o gatilho já tinha escolhido, então "desvire a criatura alvo" não fazia nada.
+- **Testes:** U (terreno virado e desvirado pela vida do oponente, devolução do terreno escolhido, pressa
+  só nas suas criaturas com ataque no turno em que entrou, gatilho com modos escolhendo desvirar e
+  recusando), S8 com os nove terrenos tipados no cenário.
+- **Cobertura real:** seis das sete listas em 100%; Walls Combo em 99%.
+
 **S55 · Colher provas escolhida por você e tipo de criatura do campo** ✅
 - **Aceite:**
   - **colher provas**: você escolhe quais cartas do cemitério exilar, e a escolha só fecha quando a soma
@@ -831,10 +862,10 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   cemitério o que eu não escolhi, e o gatilho acontecendo depois; lista de tipos com a criatura do
   oponente e compra zero ao escolher o tipo dele), S8.
 
-### Marco: Pauper em 100%
+### Marco: Pauper em 100% — **anunciado errado na leva 47, corrigido na leva 48**
 
-As sete listas Pauper rodam no **Motor completo**, sem nenhuma carta manual e sem nenhuma carta parcial.
-Foram 24 levas desde a leva 24, com 279 testes no portão e o motor na versão 48.
+Este marco foi declarado com base numa medição minha que estava errada (ver S56). A contagem real,
+medida pela mesma função que a tela de jogar usa, é a de baixo.
 
 | Lista | Cobertura |
 |---|---|
@@ -842,11 +873,12 @@ Foram 24 levas desde a leva 24, com 279 testes no portão e o motor na versão 4
 | Pauper Rakdos Madness | 100% |
 | Pauper GW Bogles | 100% |
 | Pauper Boros Bully | 100% |
-| Pauper Walls Combo | 100% |
+| Pauper Walls Combo | 99% (falta Secret Door: masmorra) |
 | Pauper Jund Wildfire | 100% |
 | Pauper Elves | 100% |
 
-O que falta no projeto é o Commander: 67 cartas manuais (42 no Killian, 25 no Malcolm) e 24 parciais.
+Falta a masmorra para o Walls Combo fechar, e depois o Commander: 67 cartas manuais (42 no Killian,
+25 no Malcolm) e 24 parciais.
 
 **S54 · Metamorfose e esgueirar-se** 🟡
 - **Aceite:**
