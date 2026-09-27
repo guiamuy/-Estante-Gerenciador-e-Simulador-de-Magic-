@@ -3231,3 +3231,78 @@ test('S49 · o desconto de {2} só vale com Humano e não Humano ao mesmo tempo'
   [s2, faerie] = put(s2, a2, 'Faerie');
   assert.equal(E.legalActions(s2, a2).some(x => x.t === 'cast' && x.oid === mente2), true, 'com Humano e não Humano, o desconto entra e dá para conjurar');
 });
+
+/* ---------------- S50 · escolher o tipo de criatura, custo X e custo por subtipo ---------------- */
+const EL_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Melody': { name: 'Melody', type_line: 'Sorcery', mana_cost: '{3}{U}', cmc: 4, colors: ['U'], keywords: [], oracle_text: 'Choose a creature type. Draw a card for each permanent you control of that type.' },
+  'Hydra': { name: 'Hydra', type_line: 'Enchantment Creature — Hydra', mana_cost: '{X}{G}{G}', cmc: 2, colors: ['G'], power: '0', toughness: '0', keywords: ['Reach', 'Trample'], oracle_text: 'Bestow {X}{G}{G}\nReach, trample\nThis creature enters with X +1/+1 counters on it.\nEnchanted creature gets +1/+1 for each +1/+1 counter on this and has reach and trample.' },
+  'Rangers': { name: 'Rangers', type_line: 'Creature — Elf Druid Ranger', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: 'Tap two untapped Elves you control: Add one mana of any color.' },
+  'Elf': { name: 'Elf', type_line: 'Creature — Elf Warrior', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const EL_SCRIPTS = {
+  Melody: { name: 'Melody', effects: [{ do: 'choose_type' }, { do: 'draw', amount: { per: 'chosen-type-permanents' } }],
+    example: { target: 'none', expect: { handDelta: 0 } } },
+  Hydra: { name: 'Hydra', bestow: { mana: '{X}{G}{G}' }, grants: { perPower: 1, perToughness: 1, per: 'counters-on-source', keywords: ['reach', 'trample'] },
+    self: { entersWithCountersX: true },
+    example: { action: 'bestow', target: 'own-creature', expect: { attached: true } } },
+  Rangers: { name: 'Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], subtype: 'Elf', amount: 2 } },
+    effects: [{ do: 'add_mana', anyColor: true }] }],
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } }
+};
+const ELDECK = [{ name: 'Forest', qty: 20, zone: 'main' }, { name: 'Melody', qty: 8, zone: 'main' }, { name: 'Hydra', qty: 8, zone: 'main' },
+  { name: 'Rangers', qty: 6, zone: 'main' }, { name: 'Elf', qty: 10, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }];
+function elGame(seed = 1, manaCheck = false) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: EL_CARDS, scripts: EL_SCRIPTS,
+    players: [{ name: 'A', deck: ELDECK }, { name: 'B', deck: ELDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S50 · escolher o tipo de criatura e comprar por permanente daquele tipo', () => {
+  let s = elGame(3); const a = s.turn.active;
+  let e1, e2, urso, melodia;
+  [s, e1] = put(s, a, 'Elf'); [s, e2] = put(s, a, 'Elf'); [s, urso] = put(s, a, 'Bear');
+  [s, melodia] = put(s, a, 'Melody', { zone: 'hand' });
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: melodia })));
+  assert.ok(s.pending && s.pending.kind === 'choose_type' && s.pending.p === a, 'abriu a escolha do tipo');
+  const tipos = JSON.parse(JSON.stringify(s.pending.options)).sort();
+  assert.ok(tipos.includes('Elf') && tipos.includes('Bear'), 'os tipos que eu controlo entram na lista');
+  const acoes = E.legalActions(s, a).filter(x => x.t === 'choose_type');
+  assert.equal(acoes.length, tipos.length, 'a mesa oferece uma opção por tipo');
+  // escolho Elfo: duas permanentes minhas são Elfos
+  s = settle(act(s, { t: 'choose_type', p: a, subtype: 'Elf' }));
+  assert.equal(s.zones[a].hand.length, mao - 1 + 2, 'saiu a mágica e entraram duas cartas');
+});
+
+test('S50 · custo X: a mesa oferece valores de X e a criatura entra com X marcadores', () => {
+  let s = elGame(4, true); const a = s.turn.active;
+  let hidra;
+  [s, hidra] = put(s, a, 'Hydra', { zone: 'hand' });
+  for (let i = 0; i < 4; i++) { let t; [s, t] = put(s, a, 'Forest'); } // quatro manas: X até 2
+  const xs = JSON.parse(JSON.stringify(E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === hidra && !x.bestow).map(x => x.x || 0))).sort();
+  assert.deepEqual(xs, [0, 1, 2], 'com quatro terrenos, X pode ser 0, 1 ou 2');
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: hidra, x: 2 })));
+  assert.equal(s.objects[hidra].zone, 'battlefield', 'a criatura entrou');
+  assert.equal(s.objects[hidra].counters.p1p1, 2, 'entrou com 2 marcadores, o X que eu paguei');
+  assert.equal(E.stats(s, s.objects[hidra]).power, 2, 'e é 2/2');
+});
+
+test('S50 · o custo pode exigir dois Elfos, e criatura de outro tipo não serve', () => {
+  let s = elGame(5); const a = s.turn.active;
+  let rangers, urso1, urso2;
+  [s, rangers] = put(s, a, 'Rangers');
+  [s, urso1] = put(s, a, 'Bear'); [s, urso2] = put(s, a, 'Bear');
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === rangers), false, 'com dois Ursos, a habilidade não é oferecida');
+  let e1, e2;
+  [s, e1] = put(s, a, 'Elf'); [s, e2] = put(s, a, 'Elf');
+  const acao = E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === rangers && x.color === 'G');
+  assert.ok(acao, 'com dois Elfos, a habilidade aparece');
+  s = act(s, acao);
+  assert.equal(s.players[a].pool.G, 1, 'gerou o mana da cor escolhida');
+  const virados = [e1, e2].filter(x => s.objects[x].tapped);
+  assert.equal(virados.length, 2, 'os dois Elfos foram virados como custo');
+  assert.equal(s.objects[urso1].tapped, false, 'e os Ursos ficaram de pé');
+});

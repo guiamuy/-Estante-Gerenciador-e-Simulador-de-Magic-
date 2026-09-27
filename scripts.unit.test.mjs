@@ -259,6 +259,19 @@ function runExample(sc) {
   let enemyWard; [s, enemyWard] = put(s, d, 'Test Ward'); // encantamento do oponente, como alvo
   let mine2; [s, mine2] = put(s, a, 'Grizzly Bear'); // segunda criatura sua, para custos de virar outras
   const ex = sc.example, want = ex.expect;
+  // S50 · custo que pede subtipo (dois Elfos): põe duas criaturas desse subtipo em campo,
+  // sem mexer no grimório, para não mudar o embaralhamento dos outros cenários
+  const subCusto = (sc.abilities || []).map(x => ((x.cost || {}).tapOther || {}).subtype).find(Boolean);
+  if (subCusto) {
+    s = J(s);
+    const nome = 'Test ' + subCusto;
+    s.facts[nome] = s.facts[nome] || E.cardFacts({ name: nome, type_line: 'Creature — ' + subCusto, power: '1', toughness: '1', keywords: [], oracle_text: '' });
+    for (let i = 0; i < 2; i++) {
+      const eoid = 'sub' + i;
+      s.objects[eoid] = { oid: eoid, name: nome, owner: a, controller: a, zone: 'battlefield', tapped: false, sick: false, damage: 0, counters: {} };
+      s.zones[a].battlefield.push(eoid);
+    }
+  }
   if (ex.target === 'enemy-spell' || ex.target === 'enemy-instant') {
     // põe uma mágica do oponente na pilha (o cenário só precisa dela lá)
     // a mágica na pilha precisa combinar com o que o script mira

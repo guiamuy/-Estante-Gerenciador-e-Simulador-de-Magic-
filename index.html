@@ -2040,6 +2040,8 @@ const EFFECTS = {
   transform: { fields: [], targets: ['self-source'] },
   to_library_shuffled: { fields: [], targets: ['self-source'] },
   fog: { fields: [], targets: ['self'] },
+  // S50 · escolha um tipo de criatura; o que vem depois conta por esse tipo
+  choose_type: { fields: [], targets: ['self'] },
   // S48 · devolve ao campo a carta que esta permanente exilou (Journey to Nowhere)
   return_held: { fields: [], targets: ['self'] },
   // S30 · prevenir todo dano de fontes de uma cor escolhida, até o fim do turno
@@ -2072,7 +2074,7 @@ const EFFECTS = {
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker'];
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back'];
+const CHOICE_EFFECTS = ['discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 const ONLY_IF = ['discarded-nonland', 'source-entered-earlier'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
@@ -2095,7 +2097,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'enchanted-deals-damage',
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`])
@@ -2158,6 +2160,7 @@ function validateScript(sc) {
   }
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther)) errs.push('lampejo do passado sem custo');
   if (sc && sc.escape && !sc.escape.mana) errs.push('fuga sem custo de mana');
+  if (sc && sc.self && sc.self.entersWithCountersX != null && typeof sc.self.entersWithCountersX !== 'boolean') errs.push('entra com X marcadores precisa ser verdadeiro ou falso');
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
@@ -2525,8 +2528,8 @@ const RAW_SCRIPTS = [
     example: { target: 'none', expect: { selfLife: 3 } } },
   { name: 'Reaping the Graves', storm: true, effects: [{ do: 'to_hand', target: 'creature-in-your-graveyard' }],
     example: { target: 'own-graveyard-creature', expect: { returned: true } } },
-  { name: 'Nyxborn Hydra', bestow: { mana: '{X}{X}{G}' }, grants: { perPower: 1, perToughness: 1, per: 'counters-on-source', keywords: ['reach', 'trample'] },
-    self: { entersWithCounters: 1 }, covers: 'partial', note: 'entra sempre com 1 marcador; escolher o X ainda não entra',
+  { name: 'Nyxborn Hydra', bestow: { mana: '{X}{G}{G}' }, grants: { perPower: 1, perToughness: 1, per: 'counters-on-source', keywords: ['reach', 'trample'] },
+    self: { entersWithCountersX: true },
     example: { action: 'bestow', target: 'own-creature', expect: { attached: true } } },
   // S33 · fecha Elves e Jund (textos conferidos em 26/09)
   { name: 'Evolution Witness', abilities: [
@@ -2713,9 +2716,9 @@ const RAW_SCRIPTS = [
   { name: 'Jaspera Sentinel', abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
-  { name: 'Birchlore Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], amount: 2 } },
+  { name: 'Birchlore Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], subtype: 'Elf', amount: 2 } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
-    covers: 'partial', note: 'na carta real precisam ser dois Elfos, e ela também pode virar Elfo',
+    covers: 'partial', note: 'metamorfose (morph {G}) ainda não entra; virar dois Elfos para gerar mana funciona',
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Lys Alana Huntmaster', abilities: [{ kind: 'triggered', when: 'other-cast', filter: { subtype: 'Elf' },
     effects: [{ do: 'token', amount: 1, token: { name: 'Elf Warrior', types: ['creature'], power: 1, toughness: 1 } }] }],
@@ -2779,9 +2782,9 @@ const RAW_SCRIPTS = [
   { name: 'Timberwatch Elf', abilities: [{ kind: 'activated', cost: { tap: true },
     effects: [{ do: 'pump', power: { per: 'elves-you-control' }, toughness: { per: 'elves-you-control' }, target: 'creature' }] }],
     example: { action: 'activate:0', target: 'own-creature', expect: { pump: [1, 1] } } },
-  { name: 'Distant Melody', effects: [{ do: 'draw', amount: { per: 'creatures-you-control' } }],
-    covers: 'partial', note: 'na carta real você escolhe o tipo de criatura; aqui conta todas as suas',
-    example: { target: 'none', expect: { handDelta: 2 } } },
+  { name: 'Distant Melody', effects: [{ do: 'choose_type' }, { do: 'draw', amount: { per: 'chosen-type-permanents' } }],
+    covers: 'partial', note: 'a escolha é entre os tipos que você controla; escolher um tipo que você não controla (e comprar zero) não entra',
+    example: { target: 'none', expect: { handDelta: 0 } } },
   { name: 'Valakut Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'damage', amount: 3, target: 'any' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -3 } } },
   { name: 'Bloodrite Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'lose', amount: 2, target: 'player' }, { do: 'gain', amount: 2 }] }],
@@ -4399,7 +4402,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 42;
+const ENGINE_VERSION = 43;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4524,6 +4527,12 @@ function countFor(s, src, per) {
     return battlefield(s).filter(o => o.controller === src.controller && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length;
   }
   if (per === 'trigger-value') return src.triggerValue || 0; // S48 · quanto o gatilho trouxe (dano causado)
+  if (per === 'chosen-type-permanents') { // S50 · permanentes suas do tipo escolhido
+    const tipo = src.chosenType;
+    if (!tipo) return 0;
+    const rx = new RegExp('\\b' + tipo + '\\b', 'i');
+    return battlefield(s).filter(o => o.controller === src.controller && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length;
+  }
   if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
   const ench = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => s.facts[o.name].types.includes('enchantment'));
   if (per === 'enchantments-you-control') return ench.filter(o => o.controller === src.controller).length;
@@ -4654,6 +4663,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
   // 400.7: objeto novo ao mudar de zona; sai do combate
+  const xPago = o.xPaid || 0; // S50 · o X pago sobrevive à mudança de zona só para os marcadores de entrada
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
   delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -4664,8 +4674,11 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to === 'battlefield' && (s.facts[o.name].script || {}).entersTapped) o.tapped = true;
   // S34 · permanente que entra com marcadores +1/+1
   if (to === 'battlefield') {
-    const n = (((s.facts[o.name].script || {}).self) || {}).entersWithCounters;
+    const self = ((s.facts[o.name].script || {}).self) || {};
+    const n = self.entersWithCounters;
     if (n) o.counters.p1p1 = (o.counters.p1p1 || 0) + n;
+    // S50 · entra com X marcadores, sendo X o que foi pago na conjuração
+    if (self.entersWithCountersX && xPago) o.counters.p1p1 = (o.counters.p1p1 || 0) + xPago;
   }
   // S21 · planeswalker entra com sua lealdade inicial
   if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = s.facts[o.name].loyalty;
@@ -5401,6 +5414,15 @@ function applyEffect(s, src, eff, tgt, events) {
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
+    case 'choose_type': { // S50 · abre a escolha do tipo, entre os tipos que você controla
+      const fonte = src.ability ? (s.objects[src.source] || src) : src;
+      const tipos = [...new Set(battlefield(s).filter(o => o.controller === ctrl && isCreature(s, o))
+        .flatMap(o => String(s.facts[o.name].typeText || '').split('—')[1] || '')
+        .flatMap(t => t.trim().split(/\s+/)).filter(Boolean))];
+      if (!tipos.length) { note({ amount: 0 }); break; }
+      s.pending = { kind: 'choose_type', p: ctrl, oid: fonte.oid, options: tipos.slice(0, 12) };
+      note({ pending: true }); break;
+    }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
     case 'no_prevention': s.noPrevention = true; note({}); break; // S31 · 615.7: prevenção não se aplica no turno
     case 'prevent_spell': { // S36 · a mágica alvo não causa dano neste turno, e você ganha essa vida
@@ -5730,6 +5752,8 @@ function putTriggerOnStack(s, q, events) {
 function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
   return battlefield(s).filter(o => o.controller === p && o.oid !== selfOid &&
     (spec.types || []).some(x => s.facts[o.name].types.includes(x)) &&
+    // S50 · o custo pode pedir um subtipo ("dois Elfos que você controla")
+    (!spec.subtype || isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')) &&
     // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
     (!spec.color || (s.facts[o.name].colors || []).includes(spec.color)) &&
     (!needUntapped || (!o.tapped && !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste'))))).map(o => o.oid);
@@ -6028,6 +6052,7 @@ const HANDLERS = {
     if (need.length) s.objects[a.oid].targets = chosen;
     if (modes.length) s.objects[a.oid].mode = a.mode;
     // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
+    if (a.x) s.objects[a.oid].xPaid = a.x; // S50 · quanto de X foi pago
     if ((f.script || {}).storm) s.objects[a.oid].stormCopies = s.spellsThisTurn || 0;
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
     queueTriggers(s, 'cast-self', [s.objects[a.oid]]); // S23 · gatilhos de conjuração
@@ -6172,6 +6197,16 @@ const HANDLERS = {
     finishPick(s, ev);
   },
   /** M10/S11b · escolhe a cor que a permanente pediu ao entrar. */
+  choose_type(s, a, ev) { // S50 · escolhe o tipo de criatura e segue a mágica
+    if (!s.pending || s.pending.kind !== 'choose_type' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum tipo a escolher');
+    const pk = s.pending;
+    const tipo = a.subtype != null ? a.subtype : pk.options[a.index || 0];
+    if (!pk.options.includes(tipo)) throw new RuleError('escolha', 'tipo inválido');
+    const o = s.objects[pk.oid]; if (o) o.chosenType = tipo;
+    s.pending = null;
+    ev.push({ kind: 'choice-done', what: 'tipo de criatura', name: o ? o.name : '?', amount: 1 });
+    resumeEffects(s, ev);
+  },
   choose_color(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'choose_color' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma cor a escolher');
     if (!COLORS.includes(a.color) || a.color === 'C') throw new RuleError('cor', 'escolha uma cor');
@@ -6337,7 +6372,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { discard: ['discard', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
+const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -6348,6 +6383,7 @@ function apply(state, action) {
     const k = state.pending.kind;
     throw new RuleError('pendente', k === 'discard' ? `descarte ${state.pending.n} carta(s) primeiro` : k === 'attackers' ? 'declare os atacantes primeiro'
       : k === 'triggers' ? 'escolha a ordem dos gatilhos primeiro' : k === 'choose_color' ? 'escolha a cor primeiro'
+      : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
         : k === 'pick' ? 'termine a escolha de cartas primeiro' : k === 'pick_target' ? 'escolha o alvo do gatilho primeiro'
           : k === 'may_pay' ? 'decida se paga primeiro' : k === 'madness' ? 'decida a insanidade primeiro' : 'declare os bloqueadores primeiro');
   }
@@ -6400,6 +6436,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       out.push({ t: 'decline_madness', p });
     }
     if (k === 'may_pay') { if (!s.manaCheck || canPay(s, p, parseCost(s.pending.cost))) out.push({ t: 'pay', p }); out.push({ t: 'decline', p }); }
+    if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
     if (k === 'pick') {
       const pk = s.pending;
       if (pk.picked.length < pk.max) pk.from.filter(oid => !pk.picked.includes(oid) && matchesFilter(s, s.objects[oid], pk.filter)).forEach(oid => out.push({ t: 'pick', p, oid }));
@@ -6447,6 +6484,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const o = s.objects[oid], f = s.facts[o.name];
     if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); }
     else if ((canSorcery || !isSorcerySpeed(f)) && payable(o, castExtra(s, p, o, 0))) {
+      // S50 · custo com X: a mesa oferece os valores de X que dá para pagar (até 4)
+      if ((f.cost.x || 0) > 0) for (let x = 1; x <= 4; x++) { if (!payable(o, castExtra(s, p, o, x))) break; casts(o).forEach(c => out.push({ ...c, x })); }
       const add = f.script && f.script.additional;
       if (add && !canPayExtra(s, p, add, oid)) continue;
       const pay = add ? { ...(add.discard ? { discard: s.zones[p].hand.filter(x => x !== oid).slice(0, add.discard) } : {}),

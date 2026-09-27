@@ -89,6 +89,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S47 custo opcional no gatilho, condição do custo pago e mágica sem alvo | 🟡 |
 | S · Scripts | S48 vida pelo dano causado, fuga e devolver o que foi exilado | 🟡 |
 | S · Scripts | S49 gatilho opcional, "a menos que tenha entrado agora" e desconto por condição | 🟡 |
+| S · Scripts | S50 escolher o tipo de criatura, custo X e custo por subtipo | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -275,7 +276,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33q 🟡 | S47 (leva 39) | **Jund Wildfire em 100%** e Rakdos em 95% (62 → 50 cópias parciais) |
 | E33r 🟡 | S48 (leva 40) | **GW Bogles em 100%** (50 → 42 cópias parciais) |
 | E33s 🟡 | S49 (leva 41) | **Mono Blue Faeries em 100%** (42 → 34 cópias parciais) |
-| E33t ▶ | S50+ | Pauper para 100%: 12 cartas parciais restantes |
+| E33t 🟡 | S50 (leva 42) | Custo X, escolha de tipo e custo por subtipo (34 → 30 cópias parciais) |
+| E33u ▶ | S51+ | Pauper para 100%: 11 cartas parciais restantes |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -805,6 +807,29 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S50 · Escolher o tipo de criatura, custo X e custo por subtipo** 🟡
+- **Aceite:**
+  - "escolha um tipo de criatura": a mesa abre a escolha entre os tipos que você controla, e o que vem
+    depois conta por aquele tipo;
+  - **custo X**: a mesa oferece os valores de X que dá para pagar, e a criatura entra com X marcadores +1/+1;
+  - um custo pode exigir "dois Elfos que você controla", e criatura de outro tipo não serve.
+- **Entregue:** Nyxborn Hydra (completa); Distant Melody e Birchlore Rangers seguem parciais, com o que
+  falta reescrito depois de conferir o texto.
+- **Parciais e o que falta:**
+  - **Distant Melody** — a escolha é entre os tipos que você controla; escolher um tipo que você não
+    controla (e comprar zero cartas) não entra.
+  - **Birchlore Rangers** — metamorfose (morph {G}) não entra. Virar dois Elfos para gerar mana funciona.
+- **Correções — duas notas minhas estavam erradas sobre o texto da carta:**
+  1. **Birchlore Rangers**: a nota dizia "ela também pode virar Elfo". A carta não tem isso: ela tem
+     **metamorfose {G}**. E o custo estava aceitando qualquer criatura, quando a carta pede dois **Elfos**.
+  2. **Nyxborn Hydra**: o custo de conceder estava escrito `{X}{X}{G}`; as fontes dizem `{X}{G}{G}`.
+     E a carta entra com **X** marcadores, não com 1 fixo.
+- **Testes:** U (lista de tipos e compra por permanente do tipo escolhido, X oferecido de 0 a 2 com
+  quatro terrenos e marcadores iguais ao X pago, custo recusando Ursos e aceitando dois Elfos), S8 com
+  criaturas do subtipo injetadas sem mexer no grimório dos outros cenários.
+- **Fora:** metamorfose (morph); escolher um tipo que você não controla.
+- **Resultado:** cópias parciais nas Pauper de 34 para 30. Elves em 89%.
 
 **S49 · Gatilho opcional, "a menos que tenha entrado agora" e desconto por condição** 🟡
 - **Aceite:**
