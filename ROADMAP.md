@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S62 enjoo só prende o {T} da própria carta + auditoria das listas Pauper | ✅ |
 | S · Scripts | S61 Mago Louco: jogar do exílio, conjurar sem pagar — Pauper em 100% | ✅ |
 | S · Scripts | S60 Tumba da Aniquilação: perder ou pagar, e sacrificar escolhendo | 🟡 |
 | S · Scripts | S59 Cidade Baixa: provocar e o Trono dos Três Mortos | 🟡 |
@@ -299,7 +300,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33ac 🟡 | S59 (leva 51) | Cidade Baixa inteira: provocar, Trono dos Três Mortos, escolha de masmorra |
 | E33ad 🟡 | S60 (leva 52) | Tumba da Aniquilação inteira: "a menos que", sacrifício escolhido, O Atropal |
 | E33ae ✅ | S61 (leva 53) | Mago Louco e Secret Door completa: as sete listas Pauper em 100% |
-| E33af ▶ | S62 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
+| E33af ✅ | S62 (leva 54) | Custo que vira outra criatura + auditoria que abre cada carta das listas |
+| E33ag ▶ | S63 | Auditoria dos gatilhos: cada gatilho das listas Pauper disparando numa partida |
+| E33ah ▶ | S64 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -830,6 +833,32 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S62 · Enjoo de invocação só prende o {T} da própria carta, e auditoria das listas Pauper** ✅
+- **O bug que o usuário achou:** a habilidade da **Jaspera Sentinel** ("{T}, Vire uma criatura desvirada
+  que você controla: adicione um mana de qualquer cor") não aparecia na mesa quando a única outra criatura
+  tinha entrado naquele turno. A regra 302.6 prende o enjoo de invocação apenas ao {T} **da própria
+  permanente**; virar OUTRA criatura como custo aceita criatura recém-chegada. Regra conferida na ruling
+  oficial da carta em 27/09/2026: "You can tap any untapped creature you control, including one you
+  haven't controlled continuously since the beginning of your most recent turn."
+- **Alcance da correção:** valia para todo custo "vire outra criatura", não só a Jaspera —
+  **Saruli Caretaker**, **Birchlore Rangers** e o lampejo do passado do **Battle Screech** (quatro cópias
+  no Boros Bully) sofriam do mesmo.
+- **Camada de teste nova — auditoria das listas (`pauper.audit.test.mjs`):** o cenário S8 prova que o
+  efeito funciona quando é executado; ele não prova que dá para **chegar** nele numa partida. A auditoria
+  monta uma mesa farta (quatro criaturas, dois terrenos, artefato, encantamento, cemitério povoado,
+  permanentes e mágicas do outro lado) e exige que o motor ofereça:
+  - **A14** · toda habilidade ativada das listas Pauper;
+  - **A15** · a conjuração de toda carta das listas Pauper;
+  - **A16** · o custo "vire outra criatura" numa mesa **recém-montada**, com tudo enjoado — o cenário exato
+    do relato. Sem a correção, A16 acusa as três cartas de uma vez.
+- **O que a auditoria ainda não cobre:** que o **resultado** do efeito esteja certo (isso é o S8, um
+  cenário por script) e que os **gatilhos** disparem numa partida de verdade. A auditoria dos gatilhos é a
+  S63.
+- **Correção de dado de teste:** a linha de tipo da Jaspera Sentinel estava como Elf Warrior; a carta é
+  Elf Rogue. Não mudava contagem de Elfos, mas era dado errado no repositório.
+- **Testes:** U (custo virando criatura enjoada e gerando mana, com cobrança de mana ligada), auditoria
+  A14/A15/A16 sobre as sete listas.
 
 **S61 · Masmorra do Mago Louco: jogar do exílio, conjurar sem pagar — Secret Door completa** ✅
 - **Valor:** a quarta e última masmorra. Com ela a **Secret Door deixa de ser parcial** e o Walls Combo

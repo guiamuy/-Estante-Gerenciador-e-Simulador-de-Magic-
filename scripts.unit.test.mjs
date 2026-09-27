@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
+import { PERM_TYPES } from './fixtures.mjs';
 const { engine: E, scripts: S } = loadModules();
 const J = x => JSON.parse(JSON.stringify(x));
 
@@ -22,53 +23,7 @@ const CARDS = {
   'Test Ward': card('Test Ward', 'Enchantment', { oracle_text: '' })
 };
 // tipo de cada carta da biblioteca: mágica instantânea quando o efeito pede resposta; permanentes pelo mapa abaixo
-const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal Sorcerer': 'Creature — Human Wizard', 'Cunning Sparkmage': 'Creature — Human Shaman',
-  'Rod of Ruin': 'Artifact', 'Icy Manipulator': 'Artifact', 'Aether Spellbomb': 'Artifact', 'Mind Stone': 'Artifact',
-  'Ichor Wellspring': 'Artifact', "Tormod's Crypt": 'Artifact',
-  'Rancor': 'Enchantment — Aura', 'Ethereal Armor': 'Enchantment — Aura', 'Ancestral Mask': 'Enchantment — Aura',
-  "Sentinel's Eyes": 'Enchantment — Aura', 'Spirit Link': 'Enchantment — Aura', 'Lifelink': 'Enchantment — Aura',
-  'Angelic Gift': 'Enchantment — Aura', 'Flickering Ward': 'Enchantment — Aura', 'Skullclamp': 'Artifact — Equipment',
-  'Utopia Sprawl': 'Enchantment — Aura', 'Abundant Growth': 'Enchantment — Aura', 'Armadillo Cloak': 'Enchantment — Aura',
-  'Benevolent Blessing': 'Enchantment — Aura', 'Silhana Ledgewalker': 'Creature — Elf Rogue', 'Aura Gnarlid': 'Creature — Beast',
-  'Thraben Inspector': 'Creature — Human Soldier', 'Novice Inspector': 'Creature — Human Detective', 'Squadron Hawk': 'Creature — Bird',
-  'Kor Skyfisher': 'Creature — Kor Soldier', 'Zulaport Cutthroat': 'Creature — Human Rogue', 'Cruel Celebrant': 'Creature — Vampire',
-  'Corpse Knight': 'Creature — Zombie Knight', 'Elvish Vanguard': 'Creature — Elf Warrior', 'Bojuka Bog': 'Land',
-  'Priest of Titania': 'Creature — Elf Druid', 'Overgrown Battlement': 'Creature — Wall', 'Axebane Guardian': 'Creature — Human Druid',
-  'Timberwatch Elf': 'Creature — Elf Warrior', 'Valakut Invoker': 'Creature — Human Shaman', 'Bloodrite Invoker': 'Creature — Vampire Shaman',
-  'Ninja of the Deep Hours': 'Creature — Human Ninja', 'Moon-Circuit Hacker': 'Creature — Human Ninja',
-  'Tinder Wall': 'Creature — Plant Wall', 'Krark-Clan Shaman': 'Creature — Goblin Shaman',
-  'Saheeli, Sublime Artificer': 'Legendary Planeswalker — Saheeli',
-  'Voldaren Epicure': 'Creature — Vampire', 'Sheltering Landscape': 'Land', 'Bojuka Bog': 'Land',
-  'Setessan Training': 'Enchantment — Aura', 'Kitchen Imp': 'Creature — Imp', 'Writhing Chrysalis': 'Creature — Eldrazi Drone',
-  'Springleaf Drum': 'Artifact', 'Jaspera Sentinel': 'Creature — Elf Warrior', 'Birchlore Rangers': 'Creature — Elf Druid',
-  'Lys Alana Huntmaster': 'Creature — Elf Warrior', 'Lunarch Veteran': 'Creature — Human Cleric', 'Sagu Wildling': 'Creature — Dragon',
-  'Sorin of House Markov': 'Legendary Creature — Human Noble', 'Kytheon, Hero of Akros': 'Legendary Creature — Human Soldier',
-  'Izzet Signet': 'Artifact', 'Orzhov Signet': 'Artifact', 'Arcane Signet': 'Artifact', 'Talisman of Creativity': 'Artifact',
-  'Talisman of Hierarchy': 'Artifact', 'Fellwar Stone': 'Artifact', 'Lotus Petal': 'Artifact', 'Chromatic Sphere': 'Artifact',
-  'Chromatic Star': 'Artifact', 'Soul-Guide Lantern': 'Artifact', 'Nihil Spellbomb': 'Artifact', 'Lembas': 'Artifact',
-  'Faerie Seer': 'Creature — Faerie Wizard', 'Faerie Miscreant': 'Creature — Faerie Rogue', 'Spellstutter Sprite': 'Creature — Faerie Wizard',
-  'Brinebarrow Intruder': 'Creature — Human Rogue', 'Harrier Strix': 'Creature — Bird',
-  'Quirion Ranger': 'Creature — Elf Ranger', 'Shield-Wall Sentinel': 'Creature — Wall', 'Drift of Phantasms': 'Creature — Spirit',
-  'Orochi Leafcaller': 'Creature — Snake Shaman', 'Saruli Caretaker': 'Creature — Dryad', 'Scattershot Archer': 'Creature — Elf Archer',
-  'Standard Bearer': 'Creature — Human Flagbearer', 'Martyr of Sands': 'Creature — Human Cleric',
-  'Nyxborn Hydra': 'Creature Enchantment — Hydra', 'Evolution Witness': 'Creature — Elf Shaman Mutant',
-  'Sneaky Snacker': 'Creature — Faerie Rogue', 'Masked Vandal': 'Creature — Shapeshifter',
-  "Nylea's Disciple": 'Creature — Centaur Archer', 'Gixian Infiltrator': 'Creature — Phyrexian Human',
-  'Makeshift Munitions': 'Enchantment', 'Refurbished Familiar': 'Artifact Creature — Rat',
-  'Cryoshatter': 'Enchantment — Aura', 'Mask of Law and Grace': 'Enchantment — Aura',
-  'Journey to Nowhere': 'Enchantment', 'Troublemaker Ouphe': 'Creature — Ouphe',
-  'Faerie Macabre': 'Creature — Faerie Rogue', 'Relic of Progenitus': 'Artifact',
-  'Freed from the Real': 'Enchantment — Aura', 'Galvanic Alchemist': 'Creature — Human Wizard',
-  "Raffine's Informant": 'Creature — Human Wizard', 'Leonardo, Big Brother': 'Legendary Creature — Mutant Ninja Turtle',
-  'Vitu-Ghazi Inspector': 'Creature — Elf Detective', 'Mirrorshell Crab': 'Artifact Creature — Crab',
-  'Salt Road Packbeast': 'Creature — Beast', 'Tuktuk Rubblefort': 'Creature — Wall',
-  'Sewer-veillance Cam': 'Artifact', 'Secret Door': 'Artifact Creature — Wall',
-  'Jagged Barrens': 'Land — Desert', 'Razortrap Gorge': 'Land', 'Rakdos Carnarium': 'Land',
-  'Boros Garrison': 'Land', 'Wind-Scarred Crag': 'Land', 'Drossforge Bridge': 'Artifact Land',
-  'Slagwoods Bridge': 'Artifact Land', 'Perilous Landscape': 'Land', 'Twisted Landscape': 'Land',
-  'Mother of Runes': 'Creature — Human Cleric', 'Benevolent Bodyguard': 'Creature — Human Cleric',
-  "Alseid of Life's Bounty": 'Enchantment Creature — Nymph', 'Selfless Savior': 'Creature — Dog',
-  'Selfless Spirit': 'Creature — Spirit Cleric', 'Kami of False Hope': 'Creature — Spirit' };
+// S62 · PERM_TYPES mora em fixtures.mjs, compartilhado com a auditoria das listas
 const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0

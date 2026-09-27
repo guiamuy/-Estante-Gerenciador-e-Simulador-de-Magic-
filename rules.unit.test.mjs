@@ -4211,3 +4211,36 @@ test('S61 · a Masmorra do Mago Louco vai da primeira sala ao Covil, e a Secret 
   let outra = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
   assert.equal(JSON.parse(JSON.stringify(outra.pending.options)).length, 4, 'as quatro masmorras aparecem na escolha');
 });
+
+/* ---------------- S62 · custo que vira OUTRA criatura aceita criatura enjoada ---------------- */
+test('S62 · virar outra criatura como custo não se importa com enjoo de invocação', () => {
+  // Jaspera Sentinel: "{T}, Vire uma criatura desvirada que você controla: adicione
+  // um mana de qualquer cor." A regra 302.6 só prende o {T} da própria permanente;
+  // a criatura virada como custo pode ter entrado agora (regra conferida em 27/09/2026).
+  const cards = { ...MZ_CARDS,
+    'Sentinela': { name: 'Sentinela', type_line: 'Creature — Elf Rogue', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '2',
+      keywords: ['Reach'], oracle_text: 'Reach\n{T}, Tap an untapped creature you control: Add one mana of any color.' } };
+  const scripts = { ...MZ_SCRIPTS,
+    Sentinela: { name: 'Sentinela', abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } },
+      effects: [{ do: 'add_mana', anyColor: true }] }], example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } } };
+  const deck = [{ name: 'Island', qty: 24, zone: 'main' }, { name: 'Sentinela', qty: 12, zone: 'main' }, { name: 'Bear', qty: 12, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 61, mode: 'assisted', manaCheck: true, cards, scripts,
+    players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  s = passTo(s, 'main1');
+  const a = s.turn.active;
+  let sent, novato;
+  [s, sent] = put(s, a, 'Sentinela');                     // já passou o enjoo
+  [s, novato] = put(s, a, 'Bear', { sick: true });        // entrou agora
+  const oferta = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === sent);
+  assert.equal(oferta.length > 0, true, 'a mesa oferece a habilidade mesmo com a única outra criatura enjoada');
+  s = act(s, { t: 'activate', p: a, oid: sent, index: 0, color: 'G' });
+  assert.equal(s.objects[sent].tapped, true, 'a Sentinela virou');
+  assert.equal(s.objects[novato].tapped, true, 'a criatura enjoada virou como custo');
+  assert.equal(s.players[a].pool.G, 1, 'e gerou o mana');
+  // mas a própria permanente enjoada não pode usar o {T} dela
+  let s2 = mzGame(62); const a2 = s2.turn.active;
+  let sent2; [s2, sent2] = put(s2, a2, 'Porta', { sick: true });
+  assert.equal(E.legalActions(s2, a2).some(x => x.t === 'activate' && x.oid === sent2 && x.index === 0), true,
+    'a Porta não usa {T}, então o enjoo não a impede');
+});

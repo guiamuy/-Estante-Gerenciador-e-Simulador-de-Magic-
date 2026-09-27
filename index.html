@@ -4595,7 +4595,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 53;
+const ENGINE_VERSION = 54;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -6146,7 +6146,10 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!spec.subtype || isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')) &&
     // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
     (!spec.color || (s.facts[o.name].colors || []).includes(spec.color)) &&
-    (!needUntapped || (!o.tapped && !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste'))))).map(o => o.oid);
+    // S62 · enjoo de invocação vale só para o {T} da própria permanente (302.6).
+    // Virar OUTRA criatura como custo aceita criatura que entrou agora — regra
+    // confirmada na carta Jaspera Sentinel (consulta em 27/09/2026).
+    (!needUntapped || !o.tapped)).map(o => o.oid);
 }
 function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.discardSelf) moveObject(s, selfOid, 'graveyard');
