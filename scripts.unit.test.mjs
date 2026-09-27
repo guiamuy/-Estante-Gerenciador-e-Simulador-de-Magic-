@@ -311,6 +311,8 @@ function runExample(sc) {
     s = J(s); s.zones[a].battlefield = s.zones[a].battlefield.filter(x => x !== oid);
     s.zones[a].hand.push(oid); s.objects[oid].zone = 'hand';
     s = act(s, { t: 'move', p: a, oid, to: 'battlefield' });
+    // S51 · com mais de um par possível, o motor pergunta: o cenário escolhe o primeiro
+    if (s.pending && s.pending.kind === 'choose_pair') s = act(s, { t: 'choose_pair', p: s.pending.p, index: 0 });
   }
   // S39 · "desvirar a própria carta" precisa dela virada antes
   if ('selfUntapped' in (want || {})) { s = J(s); s.objects[oid].tapped = true; }

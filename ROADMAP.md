@@ -90,6 +90,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S48 vida pelo dano causado, fuga e devolver o que foi exilado | 🟡 |
 | S · Scripts | S49 gatilho opcional, "a menos que tenha entrado agora" e desconto por condição | 🟡 |
 | S · Scripts | S50 escolher o tipo de criatura, custo X e custo por subtipo | 🟡 |
+| S · Scripts | S51 cemitério de qualquer um, mana convertido e par escolhido | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -277,7 +278,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33r 🟡 | S48 (leva 40) | **GW Bogles em 100%** (50 → 42 cópias parciais) |
 | E33s 🟡 | S49 (leva 41) | **Mono Blue Faeries em 100%** (42 → 34 cópias parciais) |
 | E33t 🟡 | S50 (leva 42) | Custo X, escolha de tipo e custo por subtipo (34 → 30 cópias parciais) |
-| E33u ▶ | S51+ | Pauper para 100%: 11 cartas parciais restantes |
+| E33u 🟡 | S51 (leva 43) | **Walls Combo em 100%** (30 → 25 cópias parciais) |
+| E33v ▶ | S52+ | Pauper para 100%: 7 cartas parciais restantes (Boros, Elves e Rakdos) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -807,6 +809,29 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S51 · Cemitério de qualquer um, mana convertido e par escolhido** 🟡
+- **Aceite:**
+  - "criatura ou terreno alvo de **um** cemitério": mira qualquer cemitério e volta para a mão do **dono**
+    da carta, não para a de quem conjurou;
+  - converter mana: pagar {G} e gerar a cor escolhida, sem virar a criatura;
+  - vínculo de alma passou a sempre perguntar com quem emparelhar, com opção de **não emparelhar**;
+  - a busca do verso da Sagu Wildling pede terreno **básico**.
+- **Entregue (todas completas):** Pulse of Murasa, Orochi Leafcaller, Sagu Wildling e Galvanic Alchemist.
+- **Correções — três notas minhas descreviam a carta errada:**
+  1. **Orochi Leafcaller** gerava mana **virando a criatura**. A carta não vira nada: ela **paga {G}** e
+     devolve a cor escolhida. Virando, a carta dava mana do nada no combo das Walls.
+  2. **Pulse of Murasa** mirava só o seu cemitério e só criatura. A carta mira **qualquer** cemitério,
+     aceita **terreno** e devolve para a mão do dono.
+  3. **Roost Seek** (verso da Sagu Wildling) buscava qualquer terreno; a carta pede **básico**.
+- **Regra que mudou, com motivo:** o vínculo de alma emparelhava sozinho quando havia só um par possível.
+  A carta diz "você **pode** emparelhar", então recusar é legal. Agora a mesa sempre pergunta, e os testes
+  da leva 30 foram reescritos para responder a pergunta.
+- **Mesa:** as escolhas novas (tipo de criatura e par do vínculo de alma) ganharam aviso próprio na mesa,
+  com os botões de cada opção e o de recusar — sem isso a partida travaria no celular.
+- **Testes:** U (alvo aceitando criatura e terreno de qualquer cemitério e recusando instantânea, volta
+  para a mão do dono, mana convertido sem virar, escolha do par com as duas opções e recusa), S8.
+- **Resultado:** **Walls Combo em 100%** — quarta lista fechada. Cópias parciais de 30 para 25.
 
 **S50 · Escolher o tipo de criatura, custo X e custo por subtipo** 🟡
 - **Aceite:**

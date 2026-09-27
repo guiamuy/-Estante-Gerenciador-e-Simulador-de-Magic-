@@ -2163,7 +2163,15 @@ function vnGame(seed = 1) {
   return passTo(s, 'main1');
 }
 // entra em campo de verdade, passando pelo motor: é o que emparelha o vínculo de alma
-const entra = (s, p, oid) => act(s, { t: 'move', p, oid, to: 'battlefield' });
+// S51 · o vínculo de alma passou a sempre perguntar com quem emparelhar (a carta diz "você pode")
+const entra = (s, p, oid, par) => {
+  let st = act(s, { t: 'move', p, oid, to: 'battlefield' });
+  if (st.pending && st.pending.kind === 'choose_pair' && st.pending.p === p) {
+    st = par === 'nenhum' ? act(st, { t: 'choose_pair', p, decline: true })
+      : act(st, { t: 'choose_pair', p, oid: par != null ? par : st.pending.options[0] });
+  }
+  return st;
+};
 
 test('S39 · a aura concede virar e desvirar a criatura encantada, e leva as duas embora ao sair', () => {
   let s = vnGame(3); const a = s.turn.active;
@@ -3305,4 +3313,82 @@ test('S50 · o custo pode exigir dois Elfos, e criatura de outro tipo não serve
   const virados = [e1, e2].filter(x => s.objects[x].tapped);
   assert.equal(virados.length, 2, 'os dois Elfos foram virados como custo');
   assert.equal(s.objects[urso1].tapped, false, 'e os Ursos ficaram de pé');
+});
+
+/* ---------------- S51 · cemitério de qualquer um, mana convertido e par escolhido ---------------- */
+const WC_CARDS = {
+  'Forest': DYN_CARDS['Forest'],
+  'Pulse': { name: 'Pulse', type_line: 'Instant', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], keywords: [], oracle_text: 'Return target creature or land card from a graveyard to its owner’s hand. You gain 6 life.' },
+  'Leafcaller': { name: 'Leafcaller', type_line: 'Creature — Snake Shaman', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '{G}: Add one mana of any color.' },
+  'Alchemist': { name: 'Alchemist', type_line: 'Creature — Human Wizard', mana_cost: '{2}{U}', cmc: 3, colors: ['U'], power: '1', toughness: '4', keywords: [], oracle_text: 'Soulbond\nAs long as this creature is paired with another creature, each of those creatures has "{2}{U}: Untap this creature."' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' },
+  'Wall': { name: 'Wall', type_line: 'Creature — Wall', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '0', toughness: '4', keywords: ['Defender'], oracle_text: '' },
+  'Bolt': { name: 'Bolt', type_line: 'Instant', mana_cost: '{R}', cmc: 1, colors: ['R'], keywords: [], oracle_text: 'Deals 3 damage to any target.' }
+};
+const WC_SCRIPTS = {
+  Pulse: { name: 'Pulse', effects: [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }, { do: 'gain', amount: 6 }],
+    example: { target: 'own-graveyard-creature', expect: { returned: true, selfLife: 6 } } },
+  Leafcaller: { name: 'Leafcaller', abilities: [{ kind: 'activated', cost: { mana: '{G}' }, effects: [{ do: 'add_mana', anyColor: true }] }],
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
+  Alchemist: { name: 'Alchemist', soulbond: { activated: [{ cost: { mana: '{2}{U}' }, effects: [{ do: 'untap', target: 'self-source' }] }] },
+    example: { action: 'activate:0', target: 'none', expect: { selfUntapped: true } } },
+  Bolt: { name: 'Bolt', effects: [{ do: 'damage', amount: 3, target: 'any' }], example: { target: 'opponent', expect: { opponentLife: -3 } } }
+};
+const WCDECK = [{ name: 'Forest', qty: 16, zone: 'main' }, { name: 'Pulse', qty: 8, zone: 'main' }, { name: 'Leafcaller', qty: 8, zone: 'main' },
+  { name: 'Alchemist', qty: 8, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }, { name: 'Wall', qty: 8, zone: 'main' }, { name: 'Bolt', qty: 8, zone: 'main' }];
+function wcGame(seed = 1, manaCheck = false) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: WC_CARDS, scripts: WC_SCRIPTS,
+    players: [{ name: 'A', deck: WCDECK }, { name: 'B', deck: WCDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S51 · devolver criatura ou terreno de qualquer cemitério, para a mão do dono', () => {
+  let s = wcGame(3); const a = s.turn.active, d = 1 - a;
+  let minhaCriatura, terrenoDele, raioDele, pulse;
+  [s, minhaCriatura] = put(s, a, 'Bear', { zone: 'graveyard' });
+  [s, terrenoDele] = put(s, d, 'Forest', { zone: 'graveyard' });
+  [s, raioDele] = put(s, d, 'Bolt', { zone: 'graveyard' });
+  [s, pulse] = put(s, a, 'Pulse', { zone: 'hand' });
+  const alvos = JSON.parse(JSON.stringify(E.legalTargets(s, a, 'creature-land-in-any-graveyard', pulse).map(x => x.oid)));
+  assert.ok(alvos.includes(minhaCriatura), 'a criatura do meu cemitério é alvo');
+  assert.ok(alvos.includes(terrenoDele), 'o terreno do cemitério dele também');
+  assert.equal(alvos.includes(raioDele), false, 'a mágica instantânea não é alvo');
+  const vida = s.players[a].life;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: pulse, targets: [{ oid: terrenoDele }] })));
+  assert.equal(s.objects[terrenoDele].zone, 'hand', 'o terreno voltou para a mão');
+  assert.equal(s.zones[d].hand.includes(terrenoDele), true, 'e foi para a mão do dono dele, não para a minha');
+  assert.equal(s.players[a].life, vida + 6, 'eu ganhei 6 de vida');
+});
+
+test('S51 · converter mana: paga {G} e gera a cor escolhida, sem virar a criatura', () => {
+  let s = wcGame(4, true); const a = s.turn.active;
+  let cobra, mata;
+  [s, cobra] = put(s, a, 'Leafcaller');
+  [s, mata] = put(s, a, 'Forest');
+  const acao = E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === cobra && x.color === 'U');
+  assert.ok(acao, 'a mesa oferece gerar azul');
+  s = act(s, acao);
+  assert.equal(s.players[a].pool.U, 1, 'gerou o mana azul');
+  assert.equal(s.players[a].pool.G, 0, 'e gastou o verde');
+  assert.equal(s.objects[cobra].tapped, false, 'a criatura não vira para isso');
+});
+
+test('S51 · com mais de um par possível, você escolhe o par do vínculo de alma', () => {
+  let s = wcGame(5); const a = s.turn.active;
+  let urso, muro, alq;
+  [s, urso] = put(s, a, 'Bear');
+  [s, muro] = put(s, a, 'Wall');
+  [s, alq] = put(s, a, 'Alchemist', { zone: 'hand' });
+  s = act(s, { t: 'move', p: a, oid: alq, to: 'battlefield' });
+  assert.ok(s.pending && s.pending.kind === 'choose_pair' && s.pending.p === a, 'a mesa perguntou com quem emparelhar');
+  const opcoes = JSON.parse(JSON.stringify(s.pending.options)).sort();
+  assert.deepEqual(opcoes, [urso, muro].sort(), 'as duas criaturas livres entram na escolha');
+  assert.equal(s.objects[alq].paired, undefined, 'nada foi emparelhado antes da escolha');
+  // escolho o muro, não o urso
+  s = act(s, { t: 'choose_pair', p: a, oid: muro });
+  assert.equal(s.objects[alq].paired, muro, 'emparelhou com quem eu escolhi');
+  assert.equal(s.objects[muro].paired, alq, 'o par é mútuo');
+  assert.equal(s.objects[urso].paired, undefined, 'o urso ficou de fora');
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === muro), 'o muro ganhou a habilidade concedida');
 });
