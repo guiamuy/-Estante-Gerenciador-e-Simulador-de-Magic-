@@ -3460,3 +3460,75 @@ test('S52 · a face de trás ganha vida quando outra criatura sua sai do campo, 
   s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: doom2, targets: [{ oid: vet }] })));
   assert.equal(s.objects[vet].zone, 'exile', 'ela foi exilada em vez de ir para o cemitério');
 });
+
+/* ---------------- S53 · plot e custo adicional com opções, opcional ---------------- */
+const HR_CARDS = {
+  'Mountain': { name: 'Mountain', type_line: 'Basic Land — Mountain', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {R}.' },
+  'Robbery': { name: 'Robbery', type_line: 'Sorcery', mana_cost: '{1}{R}', cmc: 2, colors: ['R'], keywords: [], oracle_text: 'You may discard a card or sacrifice a land. If you do, draw two cards.\nPlot {1}{R}' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const HR_SCRIPTS = {
+  Robbery: { name: 'Robbery', additional: [{ discard: 1 }, { sacrificeOther: { types: ['land'] } }], additionalOptional: true,
+    plot: { mana: '{1}{R}' },
+    effects: [{ do: 'draw', amount: 2, onlyIf: 'paid-additional' }],
+    example: { target: 'none', expect: { handDelta: 1 } } }
+};
+const HRDECK = [{ name: 'Mountain', qty: 24, zone: 'main' }, { name: 'Robbery', qty: 10, zone: 'main' }, { name: 'Bear', qty: 10, zone: 'main' }];
+function hrGame(seed = 1, manaCheck = false) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: HR_CARDS, scripts: HR_SCRIPTS,
+    players: [{ name: 'A', deck: HRDECK }, { name: 'B', deck: HRDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S53 · custo adicional com duas opções: descartar, sacrificar terreno, ou não pagar nada', () => {
+  let s = hrGame(3); const a = s.turn.active;
+  let roubo, mata;
+  [s, roubo] = put(s, a, 'Robbery', { zone: 'hand' });
+  [s, mata] = put(s, a, 'Mountain');
+  const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === roubo);
+  const adds = JSON.parse(JSON.stringify(ofertas.map(x => (x.add === null ? 'nada' : x.add)))).sort();
+  assert.deepEqual(adds, [0, 1, 'nada'], 'as duas opções de custo e a de não pagar');
+
+  // descartando, compro duas
+  const mao = s.zones[a].hand.length;
+  const comDescarte = ofertas.find(x => x.add === 0);
+  const s1 = settle(resolveSpell(act(s, comDescarte)));
+  assert.equal(s1.zones[a].hand.length, mao - 2 + 2, 'saiu a mágica, saiu o descarte e entraram duas');
+
+  // sacrificando o terreno, também compro duas
+  const comTerreno = ofertas.find(x => x.add === 1);
+  const s2 = settle(resolveSpell(act(s, comTerreno)));
+  assert.equal(s2.objects[mata].zone, 'graveyard', 'o terreno foi sacrificado');
+  assert.equal(s2.zones[a].hand.length, mao - 1 + 2, 'saiu só a mágica e entraram duas');
+
+  // sem pagar nada, não compro
+  const semNada = ofertas.find(x => x.add === null);
+  const s3 = settle(resolveSpell(act(s, semNada)));
+  assert.equal(s3.zones[a].hand.length, mao - 1, 'sem pagar o custo opcional, não compro');
+  assert.equal(s3.objects[mata].zone, 'battlefield', 'e o terreno fica');
+});
+
+test('S53 · plot: paga, exila da mão, e conjura de graça num turno depois', () => {
+  let s = hrGame(4, true); const a = s.turn.active;
+  let roubo;
+  [s, roubo] = put(s, a, 'Robbery', { zone: 'hand' });
+  for (let i = 0; i < 2; i++) { let t; [s, t] = put(s, a, 'Mountain'); }
+  const acao = E.legalActions(s, a).find(x => x.t === 'plot' && x.oid === roubo);
+  assert.ok(acao, 'a mesa oferece o plot');
+  s = act(s, acao);
+  assert.equal(s.objects[roubo].zone, 'exile', 'a carta foi exilada');
+  assert.equal(s.objects[roubo].plotted, s.turn.number, 'e ficou marcada com o turno');
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === roubo), false, 'no mesmo turno ela não pode ser conjurada');
+
+  // no turno seguinte, conjura de graça
+  s = proximoTurno(s);
+  s = passTo(s, 'main1');
+  if (s.turn.active !== a) { s = proximoTurno(s); s = passTo(s, 'main1'); }
+  const conjura = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === roubo && x.plotted);
+  assert.ok(conjura, 'num turno depois, a mesa oferece conjurar de graça');
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, conjura)));
+  assert.equal(s.objects[roubo].zone, 'graveyard', 'resolveu e foi para o cemitério');
+  assert.equal(s.zones[a].hand.length, mao, 'sem pagar o custo opcional, não comprei nada — e a carta não saiu da mão porque estava exilada');
+});

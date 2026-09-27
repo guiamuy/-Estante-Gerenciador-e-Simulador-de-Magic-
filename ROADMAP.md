@@ -92,6 +92,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S50 escolher o tipo de criatura, custo X e custo por subtipo | 🟡 |
 | S · Scripts | S51 cemitério de qualquer um, mana convertido e par escolhido | 🟡 |
 | S · Scripts | S52 vida pelo dano prevenido de fato e a face de trás que exila | 🟡 |
+| S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -281,8 +282,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33t 🟡 | S50 (leva 42) | Custo X, escolha de tipo e custo por subtipo (34 → 30 cópias parciais) |
 | E33u 🟡 | S51 (leva 43) | **Walls Combo em 100%** (30 → 25 cópias parciais) |
 | E33v 🟡 | S52 (leva 44) | Boros Bully em 97% (25 → 14 cópias parciais) |
-| E33w ▶ | S53 | As três mecânicas próprias que faltam: plot, metamorfose e esgueirar-se |
-| E33x | S54 | Elves: escolha no pagamento do custo (Vitu-Ghazi) e tipo fora do campo (Distant Melody) |
+| E33w 🟡 | S53 (leva 45) | **Rakdos Madness em 100%**: plot e custo adicional com opções |
+| E33x ▶ | S54 | Metamorfose (Birchlore) e esgueirar-se (Leonardo → Boros 100%) |
+| E33y | S55 | Elves: escolha no pagamento do custo (Vitu-Ghazi) e tipo fora do campo (Distant Melody) |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -812,6 +814,21 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S53 · Plot e custo adicional com opções** 🟡
+- **Aceite:**
+  - **plot**: pagar o custo e exilar a carta da mão, e conjurar de graça num turno **seguinte** — no mesmo
+    turno a mesa não oferece;
+  - custo adicional com **duas opções** ("descarte uma carta **ou** sacrifique um terreno") e **opcional**:
+    a mesa oferece as duas opções e a de não pagar nada;
+  - efeito que só acontece se o custo opcional foi pago ("se você fizer, compre duas cartas").
+- **Entregue (completa):** Highway Robbery.
+- **Correção:** a carta estava com o descarte como custo **obrigatório** e sem a opção de sacrificar
+  terreno, então ela sempre cobrava uma carta da mão e sempre comprava duas — mais forte do que a carta
+  real quando você não quer pagar, e mais fraca quando você só tem terreno para dar.
+- **Testes:** U (as três opções de custo com o resultado de cada uma; plot exilando, recusando conjurar
+  no mesmo turno e liberando no turno seguinte de graça), S8.
+- **Resultado:** **Rakdos Madness em 100%** — quinta lista fechada. Faltam 2 cartas únicas nas Pauper.
 
 **S52 · Vida pelo dano prevenido de fato e a face de trás que exila** 🟡
 - **Aceite:**
