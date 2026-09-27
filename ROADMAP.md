@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S59 Cidade Baixa: provocar e o Trono dos Três Mortos | 🟡 |
 | S · Scripts | S58 terreno básico embutido e cobertura pelo nome da lista | ✅ |
 | S · Scripts | S57 masmorra: aventurar-se, escolher a sala e completar | 🟡 |
 | S · Scripts | S56 terrenos das listas, medição honesta e gatilho com modos | 🟡 |
@@ -293,8 +294,10 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33z 🟡 | S56 (leva 48) | Medição corrigida + 15 cartas: seis Pauper em 100% de verdade |
 | E33aa 🟡 | S57 (leva 49) | Masmorra: máquina pronta e a Mina Perdida de Phandelver inteira |
 | E33ab ✅ | S58 (leva 50) | Básico embutido: as listas param de perder % por falta de rede |
-| E33ac ▶ | S59 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
-| E33ad ▶ | S60 | As outras três masmorras, para fechar a Secret Door e o Pauper |
+| E33ac 🟡 | S59 (leva 51) | Cidade Baixa inteira: provocar, Trono dos Três Mortos, escolha de masmorra |
+| E33ad ▶ | S60 | Tumba da Aniquilação: perder vida a menos que descartar ou sacrificar |
+| E33ae ▶ | S61 | Masmorra do Mago Louco: jogar do exílio e conjurar sem pagar — fecha a Secret Door |
+| E33af ▶ | S62 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -825,6 +828,34 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S59 · Cidade Baixa: provocar e o Trono dos Três Mortos** 🟡
+- **Valor:** a segunda das quatro masmorras, e a primeira vez que a mesa pergunta **em qual** masmorra
+  você quer entrar.
+- **Texto conferido:** 26/09/2026, em mtg.wtf (lista de cartas de masmorra).
+- **Aceite:**
+  - as nove salas da Cidade Baixa, com as bifurcações: Entrada Secreta → Forja ou Poço Perdido →
+    Armadilha!, Arena ou Esconderijo → Arquivos ou Catacumbas → Trono dos Três Mortos;
+  - **provocar** (Arena): até o próximo turno de quem provocou, a criatura ataca se puder — a mesa não
+    oferece mais "sem ataque", inclui a provocada em todo conjunto oferecido e recusa a declaração que a
+    deixa em casa;
+  - **Trono dos Três Mortos**: revela as dez do topo, põe uma criatura no campo com três marcadores
+    +1/+1 e ilusão até o seu próximo turno, e embaralha o resto; com criatura no topo, pôr é obrigatório;
+  - palavra-chave concedida **até o seu próximo turno** (antes só existia até o fim do turno).
+- **Simplificação declarada:** provocar também diz "e ataca um jogador que não seja você, se puder".
+  Com dois jogadores na mesa não há como satisfazer isso, então a exigência que sobra é atacar. Numa
+  mesa de três ou mais isso precisa voltar em `mustAttack`.
+- **Correção de bug de tela:** dois avisos da mesa (o par do vínculo de alma e, agora, a provocada)
+  chamavam uma função que mora no módulo do modelo e não existe no módulo da tela. Qualquer partida que
+  abrisse a pergunta do vínculo de alma — Galvanic Alchemist, que está no Walls Combo — quebrava a tela.
+  Nunca apareceu no portão porque nenhum teste headless chegava a essa pergunta.
+- **Parcial declarada:** **Secret Door** segue parcial: faltam a Tumba da Aniquilação e a Masmorra do
+  Mago Louco na escolha. A Tumba precisa de "perde 2 a menos que descarte/sacrifique" (escolha por
+  jogador); o Mago Louco precisa de jogar cartas do exílio e conjurar sem pagar. Duas levas.
+- **Testes:** U (provocada recusando ataque vazio e ataque sem ela, opções da mesa incluindo a provocada,
+  provocação caindo no turno de quem provocou; percurso da Cidade Baixa até o Trono com o Esqueleto 4/1
+  com ameaça, criatura entrando com três marcadores e ilusão, ilusão durando o turno do oponente e
+  caindo no seu; escolha da masmorra aparecendo com as duas opções), S8 na Secret Door.
 
 **S58 · Terreno básico embutido e cobertura pelo nome da lista** ✅
 - **O erro que esta leva corrige:** o usuário viu Boros Bully e Walls Combo abaixo de 100% no celular

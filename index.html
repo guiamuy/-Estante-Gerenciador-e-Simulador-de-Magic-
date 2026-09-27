@@ -2089,7 +2089,9 @@ const EFFECTS = {
   mill: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller'] },
   put_back: { fields: ['amount'], targets: ['self'] },
   // S57 · aventurar-se na masmorra: entra na primeira sala, ou avança para a próxima
-  venture: { fields: [], targets: ['self'] }
+  venture: { fields: [], targets: ['self'] },
+  // S59 · provocar: até o seu próximo turno, ela ataca se puder
+  goad: { fields: [], targets: ['creature'] }
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
@@ -2110,6 +2112,22 @@ const DUNGEONS = [
     { id: 'templo', pt: 'Templo de Dumathoin', effects: [{ do: 'draw', amount: 1 }] }
   ] }
 ];
+DUNGEONS.push(
+  { name: 'Undercity', pt: 'Cidade Baixa', rooms: [
+    { id: 'entrada-secreta', pt: 'Entrada Secreta', next: ['forja', 'poco-perdido'],
+      effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true }, to: 'hand' }] },
+    { id: 'forja', pt: 'Forja', effects: [{ do: 'counters', amount: 2, target: 'creature' }], next: ['armadilha', 'arena'] },
+    { id: 'poco-perdido', pt: 'Poço Perdido', effects: [{ do: 'scry', amount: 2 }], next: ['arena', 'esconderijo'] },
+    { id: 'armadilha', pt: 'Armadilha!', effects: [{ do: 'lose', amount: 5, target: 'player' }], next: ['arquivos'] },
+    { id: 'arena', pt: 'Arena', effects: [{ do: 'goad', target: 'creature' }], next: ['arquivos', 'catacumbas'] },
+    { id: 'esconderijo', pt: 'Esconderijo', effects: [{ do: 'token', amount: 1, token: TESOURO }], next: ['catacumbas'] },
+    { id: 'arquivos', pt: 'Arquivos', effects: [{ do: 'draw', amount: 1 }], next: ['trono'] },
+    { id: 'catacumbas', pt: 'Catacumbas', next: ['trono'],
+      effects: [{ do: 'token', amount: 1, token: { name: 'Skeleton', types: ['creature'], subtypes: ['Skeleton'], colors: ['B'], power: 4, toughness: 1, keywords: ['menace'] } }] },
+    { id: 'trono', pt: 'Trono dos Três Mortos',
+      effects: [{ do: 'look', count: 10, amount: 1, min: 1, filter: { types: ['creature'] }, to: 'battlefield', rest: 'stay', shuffle: true,
+        onPicked: { counters: 3, keyword: 'hexproof', until: 'your-next-turn' } }] }
+  ] });
 const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
 const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
@@ -2336,6 +2354,13 @@ function effectErrors(effects, label, opcional) {
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
     // S57 · duração do bônus: sem isso vale até o fim do turno
     if (e.until != null && e.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.until}" desconhecida`);
+    // S59 · o que a carta escolhida recebe ao entrar no campo
+    if (e.onPicked) {
+      if (e.do !== 'look' && e.do !== 'search') errs.push(`${label} ${i + 1}: "onPicked" só vale em olhar ou vasculhar`);
+      if (e.onPicked.counters != null && !Number.isInteger(e.onPicked.counters)) errs.push(`${label} ${i + 1}: marcadores da carta escolhida precisam ser inteiros`);
+      if (e.onPicked.keyword && !KEYWORDS.includes(String(e.onPicked.keyword).toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.onPicked.keyword}" não é resolvida pelo motor`);
+      if (e.onPicked.until != null && e.onPicked.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.onPicked.until}" desconhecida`);
+    }
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
     const t = e.target || 'self';
@@ -2508,7 +2533,7 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 2 } } },
   { name: 'Secret Door',
     abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture' }] }],
-    covers: 'partial', note: 'aventurar-se na masmorra entra, mas só com a Mina Perdida de Phandelver montada; as outras três masmorras ainda não estão disponíveis para escolha',
+    covers: 'partial', note: 'aventurar-se na masmorra entra com a Mina Perdida de Phandelver e a Cidade Baixa; faltam a Tumba da Aniquilação e a Masmorra do Mago Louco na escolha',
     example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
   // S56 · os terrenos das listas Pauper, que a medição antiga escondia (textos conferidos em 26/09)
   { name: 'Jagged Barrens', entersTapped: true,
@@ -4522,7 +4547,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 50;
+const ENGINE_VERSION = 51;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4622,6 +4647,7 @@ const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
 const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
 /** S11 · palavras-chave próprias mais as concedidas por auras e equipamentos. */
 const has = (s, o, k) => (o && o.faceDown ? false : s.facts[o.name].kw.includes(k)) || grantedToAll(s, o, k) || (o.tempKeywords || []).includes(k) ||
+  (((o.keywordsNext || {}).list) || []).includes(k) || // S59 · até o seu próximo turno
   attachedTo(s, o).some(x => ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
 const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
 const attachSpec = (s, o) => { const sc = s.facts[o.name].script || {}; return sc.aura || sc.equip || null; };
@@ -4795,7 +4821,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // 400.7: objeto novo ao mudar de zona; sai do combate
   const xPago = o.xPaid || 0; // S50 · o X pago sobrevive à mudança de zona só para os marcadores de entrada
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   o.zone = to;
   const dest = zoneList(s, o, to);
@@ -5125,7 +5151,12 @@ function finishCleanup(s) {
   s.turn.number++;
   s.turn.active = nextAlive(s, s.turn.active);
   // S57 · "até o seu próximo turno" termina quando esse turno começa
-  for (const o of battlefield(s)) if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
+  for (const o of battlefield(s)) {
+    if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
+    // S59 · provocar e palavra-chave "até o seu próximo turno" caem no mesmo momento
+    if (o.goaded && o.goaded.by === s.turn.active) delete o.goaded;
+    if (o.keywordsNext && o.keywordsNext.by === s.turn.active) delete o.keywordsNext;
+  }
   s.players.forEach(pl => { pl.landsPlayed = 0; });
   enterStep(s, 'untap');
 }
@@ -5137,6 +5168,13 @@ function advanceStep(s) {
 }
 
 /* ---------------- M6 · combate ---------------- */
+/** S59 · provocadas que podem atacar: elas atacam se puderem. Com dois jogadores,
+    "ataque outro jogador que não eu" não tem como ser satisfeito — a exigência que
+    sobra é atacar. Numa mesa com três ou mais, isso precisa voltar aqui. */
+function mustAttack(s, p) {
+  const podem = new Set(eligibleAttackers(s, p));
+  return battlefield(s).filter(o => o.controller === p && o.goaded && podem.has(o.oid)).map(o => o.oid);
+}
 function eligibleAttackers(s, p) {
   return battlefield(s).filter(o => o.controller === p && s.facts[o.name].types.includes('creature') && !o.tapped &&
     (!o.sick || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
@@ -5528,7 +5566,11 @@ function applyEffect(s, src, eff, tgt, events) {
       const who = ctrl;
       const from = s.zones[who].library.slice(0, eff.count);
       if (!from.length) { note({ amount: 0 }); break; }
-      startPick(s, { p: who, from, max: eff.amount, to: eff.to || 'hand', rest: eff.rest || 'library-bottom', filter: eff.filter, label: 'olhar o topo', source: src.name }, events);
+      // S59 · "ponha uma criatura entre elas no campo" é obrigatório, mas só se houver uma
+      const servem = from.filter(oid => matchesFilter(s, s.objects[oid], eff.filter)).length;
+      startPick(s, { p: who, from, min: Math.min(eff.min || 0, servem), max: eff.amount, to: eff.to || 'hand',
+        rest: eff.rest || 'library-bottom', shuffle: !!eff.shuffle, filter: eff.filter, onPicked: eff.onPicked || null,
+        label: 'olhar o topo', source: src.name }, events);
       break;
     }
     case 'scry': case 'surveil': {
@@ -5588,6 +5630,10 @@ function applyEffect(s, src, eff, tgt, events) {
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
+    case 'goad': { // S59 · provocar: até o seu próximo turno, ela ataca se puder
+      if (obj && obj.zone === 'battlefield') { obj.goaded = { by: ctrl }; note({ name: obj.name }); }
+      break;
+    }
     case 'venture': { // S57 · aventurar-se na masmorra
       const fonte = src.ability ? src.source : src.oid;
       venture(s, ctrl, fonte, events); note({}); break;
@@ -5643,7 +5689,11 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'keyword': { // concede até o fim do turno
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo) { alvo.tempKeywords = [...(alvo.tempKeywords || []), String(eff.keyword).toLowerCase()]; note({ name: alvo.name }); }
+      if (alvo && eff.until === 'your-next-turn') { // S59
+        const k = String(eff.keyword).toLowerCase();
+        alvo.keywordsNext = { list: [...(((alvo.keywordsNext || {}).list) || []), k], by: ctrl };
+        note({ name: alvo.name });
+      } else if (alvo) { alvo.tempKeywords = [...(alvo.tempKeywords || []), String(eff.keyword).toLowerCase()]; note({ name: alvo.name }); }
       break;
     }
     case 'tap': { // S39 · "vire a criatura encantada" chega aqui como self-source
@@ -5681,7 +5731,8 @@ function matchesFilter(s, o, filter) {
 function startPick(s, spec, events) {
   s.pending = { kind: 'pick', p: spec.p, from: spec.from, picked: [], min: spec.min || 0, max: spec.max,
     to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source,
-    ...(spec.needMv ? { needMv: spec.needMv } : {}) }; // S55 · escolher até somar este valor de mana
+    ...(spec.needMv ? { needMv: spec.needMv } : {}),
+    ...(spec.onPicked ? { onPicked: spec.onPicked } : {}) }; // S59 · o que a carta escolhida recebe
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
 }
 /** S55 · soma do valor de mana do que já foi escolhido. */
@@ -5698,6 +5749,16 @@ function finishPick(s, events) {
   [...pk.picked].reverse().forEach(oid => dest(oid, pk.to)); // o primeiro escolhido termina no topo
   pk.from.filter(oid => !pk.picked.includes(oid)).forEach(oid => dest(oid, pk.rest));
   if (pk.shuffle) shuffle(s, s.zones[pk.p].library);
+  // S59 · Trono dos Três Mortos: a criatura escolhida entra com marcadores e ganha a palavra-chave
+  if (pk.onPicked) for (const oid of pk.picked) {
+    const c = s.objects[oid]; if (!c || c.zone !== 'battlefield') continue;
+    if (pk.onPicked.counters) addCounters(s, c, pk.onPicked.counters);
+    if (pk.onPicked.keyword) {
+      const k = String(pk.onPicked.keyword).toLowerCase();
+      if (pk.onPicked.until === 'your-next-turn') c.keywordsNext = { list: [...(((c.keywordsNext || {}).list) || []), k], by: pk.p };
+      else c.tempKeywords = [...(c.tempKeywords || []), k];
+    }
+  }
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
   resumeEffects(s, events);
 }
@@ -6329,6 +6390,9 @@ const HANDLERS = {
     const ok = new Set(eligibleAttackers(s, a.p));
     const list = a.attackers || [];
     if (new Set(list).size !== list.length || list.some(x => !ok.has(x))) throw new RuleError('ataque', 'atacante inválido');
+    // S59 · criatura provocada que pode atacar precisa atacar
+    const faltando = mustAttack(s, a.p).filter(oid => !list.includes(oid));
+    if (faltando.length) throw new RuleError('ataque', `${s.objects[faltando[0]].name} foi provocada e precisa atacar`);
     for (const oid of list) { const o = s.objects[oid]; o.attacking = s.combat.defender; if (!has(s, o, 'vigilance')) o.tapped = true; }
     s.combat.attackers = list.slice();
     queueTriggers(s, 'attacks', list.map(oid => s.objects[oid]));
@@ -6721,9 +6785,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'discard') s.zones[p].hand.forEach(oid => out.push({ t: 'discard', p, oid }));
     if (k === 'attackers') {
       const el = eligibleAttackers(s, p);
-      out.push({ t: 'attack', p, attackers: [] });
+      const obrig = mustAttack(s, p); // S59 · provocadas entram em todo conjunto oferecido
+      if (!obrig.length) out.push({ t: 'attack', p, attackers: [] });
+      else out.push({ t: 'attack', p, attackers: obrig.slice() });
       if (el.length > 1) out.push({ t: 'attack', p, attackers: el.slice() });
-      el.forEach(oid => out.push({ t: 'attack', p, attackers: [oid] }));
+      el.forEach(oid => out.push({ t: 'attack', p, attackers: [...new Set([oid, ...obrig])] }));
     }
     if (k === 'choose_color') ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'choose_color', p, color }));
     if (k === 'pick_target') s.pending.options.forEach((o, index) => out.push({ t: 'pick_target', p, index }));
@@ -7120,7 +7186,7 @@ function invariants(s, expectedObjects) {
 
 return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, productions, protections, prevented, canBlock,
-  createGame, apply, legalActions, previewCombat, eligibleAttackers, eligibleBlockers, canBlock, canPay, commanderTax,
+  createGame, apply, legalActions, previewCombat, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
 
@@ -7387,7 +7453,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
         const naMao = (s.zones[pd.p] || {}).hand || [];
         const livre = pd.kind === 'pick' ? (pd.from || []).find(x => !(pd.picked || []).includes(x)) : null;
         const acao = pd.kind === 'blockers' ? { t: 'block', p: pd.p, blocks: [] }
-          : pd.kind === 'attackers' ? { t: 'attack', p: pd.p, attackers: [] }
+          : pd.kind === 'attackers' ? { t: 'attack', p: pd.p, attackers: E.mustAttack(s, pd.p) } // S59 · provocadas precisam atacar
           : pd.kind === 'discard' && naMao.length ? { t: 'discard', p: pd.p, oid: naMao[0] }
           : pd.kind === 'pick' ? ((pd.needMv ? somaMvDoGoldfish(s, pd) >= pd.needMv : (pd.picked || []).length >= (pd.min || 0)) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
           : pd.kind === 'may_pay' ? { t: 'decline', p: pd.p }
@@ -7697,6 +7763,9 @@ function createTableScreen({ store }) {
 
   /* ---- M7 · mana na tela ---- */
   const targetName = (s, x) => x.player != null ? s.players[x.player].name : s.objects[x.oid].name;
+  // S59 · correção: dois avisos da mesa (vínculo de alma e provocada) chamavam um
+  // nameOf que mora no módulo do modelo e não existe aqui — quebravam a tela ao aparecer
+  const nameOf = (s, oid) => { const ob = s.objects[oid]; return ob ? ob.name : '?'; };
   const costLabel = (c, extra = 0) => {
     const parts = []; const g = (c.generic || 0) + extra; if (g) parts.push(`{${g}}`);
     for (let i = 0; i < (c.x || 0); i++) parts.push('{X}');
@@ -7904,9 +7973,14 @@ function createTableScreen({ store }) {
         : PriorityBanner({ title: `${pl.name}: mão inicial`, hint: pl.mulligans ? `${pl.mulligans} mulligan(s) feito(s)` : 'Manter ou embaralhar e comprar 7 de novo.',
           actions: [Button('Manter', { variant: 'primary', id: 'tb-keep', onClick: () => act({ t: 'keep', p: v, bottom: [] }) }), Button('Mulligan', { id: 'tb-mull', onClick: () => act({ t: 'mulligan', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'attackers' && s.pending.p === v) {
-      banner = PriorityBanner({ title: 'Declarar atacantes', hint: `Toque nas criaturas que vão atacar. ${plan.eligible.size} podem atacar.`,
-        actions: [Button(plan.attack.size ? `Atacar com ${plan.attack.size}` : 'Atacar', { variant: 'primary', id: 'tb-attack', disabled: !plan.attack.size, onClick: () => { const list = [...plan.attack]; resetPlan(); act({ t: 'attack', p: v, attackers: list }); } }),
-          Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })] });
+      // S59 · provocadas: elas atacam se puderem, então entram no conjunto e "sem ataque" sai
+      const obrig = E.mustAttack(s, v);
+      const nomes = obrig.map(oid => nameOf(s, oid)).join(', ');
+      const total = new Set([...plan.attack, ...obrig]).size;
+      banner = PriorityBanner({ title: 'Declarar atacantes',
+        hint: `Toque nas criaturas que vão atacar. ${plan.eligible.size} podem atacar.` + (obrig.length ? ` ${nomes} ${obrig.length > 1 ? 'foram provocadas e precisam' : 'foi provocada e precisa'} atacar.` : ''),
+        actions: [Button(total ? `Atacar com ${total}` : 'Atacar', { variant: 'primary', id: 'tb-attack', disabled: !total, onClick: () => { const list = [...new Set([...plan.attack, ...obrig])]; resetPlan(); act({ t: 'attack', p: v, attackers: list }); } }),
+          obrig.length ? null : Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'blockers' && s.pending.p === v) {
       const blocks = [...plan.blocks.entries()];
       const pv = E.previewCombat(s, blocks);

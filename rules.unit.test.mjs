@@ -2591,7 +2591,7 @@ function prGame(seed = 1) {
 function proximoTurno(s) {
   for (let i = 0; i < 120; i++) {
     const pd = s.pending;
-    if (pd && pd.kind === 'attackers') { s = act(s, { t: 'attack', p: pd.p, attackers: [] }); continue; }
+    if (pd && pd.kind === 'attackers') { s = act(s, { t: 'attack', p: pd.p, attackers: E.mustAttack(s, pd.p) }); continue; } // S59 · provocada precisa atacar
     if (pd && pd.kind === 'blockers') { s = act(s, { t: 'block', p: pd.p, blocks: [] }); continue; }
     if (pd && pd.kind === 'discard') { s = act(s, { t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] }); continue; }
     s = act(s, { t: 'pass', p: s.turn.priority });
@@ -3789,9 +3789,22 @@ function mzGame(seed = 1) {
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   return passTo(s, 'main1');
 }
-/** Aventura-se uma vez e resolve a habilidade da sala. */
-function aventura(s, p, porta) {
+/** Fecha a escolha pendente: escolhe o mínimo exigido e encerra. */
+function fechaEscolha(s) {
+  for (let i = 0; i < 12 && s.pending && s.pending.kind === 'pick'; i++) {
+    const pk = s.pending;
+    if ((pk.picked || []).length < (pk.min || 0)) {
+      const livre = pk.from.find(x => !(pk.picked || []).includes(x));
+      s = act(s, { t: 'pick', p: pk.p, oid: livre });
+    } else s = settle(act(s, { t: 'pick_done', p: pk.p }));
+  }
+  return settle(s);
+}
+/** Aventura-se uma vez e resolve a habilidade da sala, escolhendo a Mina Perdida
+    quando a mesa pergunta em qual masmorra entrar (S59 trouxe a segunda). */
+function aventura(s, p, porta, masmorra = 0) {
   s = settle(act(s, { t: 'activate', p, oid: porta, index: 0 }));
+  if (s.pending && s.pending.kind === 'choose_dungeon') s = settle(act(s, { t: 'choose_dungeon', p, index: masmorra }));
   return s;
 }
 
@@ -3799,6 +3812,10 @@ test('S57 · aventurar-se entra na primeira sala, e a sala vai para a pilha', ()
   let s = mzGame(11); const a = s.turn.active;
   let porta; [s, porta] = put(s, a, 'Porta');
   assert.equal(s.players[a].dungeon, null, 'ninguém começa em masmorra');
+  // S59 · com mais de uma masmorra montada, a mesa pergunta em qual entrar
+  let perguntou = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
+  assert.ok(perguntou.pending && perguntou.pending.kind === 'choose_dungeon', 'a mesa pergunta a masmorra');
+  assert.deepEqual(JSON.parse(JSON.stringify(perguntou.pending.labels)), ['Mina Perdida de Phandelver', 'Cidade Baixa']);
   s = aventura(s, a, porta);
   assert.equal(s.players[a].dungeon.name, 'Lost Mine of Phandelver', 'com uma masmorra montada, ela é escolhida sozinha');
   assert.equal(s.players[a].dungeon.room, 'entrada', 'o marcador ficou na Entrada da Caverna');
@@ -3870,4 +3887,70 @@ test('S57 · "até o seu próximo turno" atravessa o turno do oponente e acaba n
   s = proximoTurno(passTo(s, 'main1')); // sair da manutenção antes de avançar de novo
   assert.equal(s.turn.active, a, 'voltou para o meu turno');
   assert.equal(E.stats(s, s.objects[alvo]).power, 2, 'e aí o efeito acabou');
+});
+
+/* ---------------- S59 · Cidade Baixa: provocar e o Trono dos Três Mortos ---------------- */
+test('S59 · provocada ataca se puder: sem ela o ataque é recusado, e a mesa não oferece ficar em casa', () => {
+  let s = mzGame(21); const a = s.turn.active, d = 1 - a;
+  let urso, outro, alvo;
+  [s, urso] = put(s, a, 'Bear');
+  [s, outro] = put(s, a, 'Bear');
+  [s, alvo] = put(s, d, 'Bear');
+  // o oponente provoca o meu urso
+  s = JSON.parse(JSON.stringify(s));
+  s.objects[urso].goaded = { by: d };
+  s = passTo(s, 'combat_attackers');
+  assert.deepEqual(JSON.parse(JSON.stringify(E.mustAttack(s, a))), [urso], 'a provocada precisa atacar');
+  assert.throws(() => act(s, { t: 'attack', p: a, attackers: [] }), /provocada e precisa atacar/);
+  assert.throws(() => act(s, { t: 'attack', p: a, attackers: [outro] }), /provocada e precisa atacar/);
+  const ops = E.legalActions(s, a).filter(x => x.t === 'attack');
+  assert.equal(ops.some(x => x.attackers.length === 0), false, 'não oferece "sem ataque"');
+  assert.equal(ops.every(x => x.attackers.includes(urso)), true, 'toda opção inclui a provocada');
+  const feito = act(s, { t: 'attack', p: a, attackers: [urso] });
+  assert.equal(feito.objects[urso].attacking, d, 'atacando o oponente');
+});
+
+test('S59 · a provocação acaba quando começa o turno de quem provocou', () => {
+  let s = mzGame(22); const a = s.turn.active, d = 1 - a;
+  let urso; [s, urso] = put(s, a, 'Bear');
+  s = JSON.parse(JSON.stringify(s));
+  s.objects[urso].goaded = { by: d };
+  s = proximoTurno(s);
+  assert.equal(s.turn.active, d, 'turno de quem provocou');
+  assert.equal(s.objects[urso].goaded, undefined, 'a provocação caiu');
+});
+
+test('S59 · Trono dos Três Mortos: criatura do topo entra com três marcadores e ilusão até o meu próximo turno', () => {
+  let s = mzGame(23); const a = s.turn.active;
+  let porta; [s, porta] = put(s, a, 'Porta');
+  // percurso da Cidade Baixa até o Trono: entrada secreta → poço perdido → esconderijo → catacumbas → trono
+  s = aventura(s, a, porta, 1);                                     // Entrada Secreta · busca básico
+  assert.equal(s.players[a].dungeon.name, 'Undercity');
+  s = fechaEscolha(s);
+  s = aventura(s, a, porta);
+  s = fechaEscolha(settle(act(s, { t: 'choose_room', p: a, index: 1 })));  // Poço Perdido · scry 2
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 1 }));          // Esconderijo · Tesouro
+  s = aventura(s, a, porta);                                         // Catacumbas (única saída)
+  assert.equal(s.players[a].dungeon.room, 'catacumbas');
+  const esq = s.zones[a].battlefield.map(o => s.objects[o]).find(o => o.name === 'Skeleton');
+  assert.ok(esq && E.hasKeyword(s, esq, 'menace'), 'o Esqueleto 4/1 tem ameaça');
+  s = aventura(s, a, porta);                                         // Trono dos Três Mortos
+  assert.ok(s.pending && s.pending.kind === 'pick' && s.pending.p === a, 'a mesa pede a criatura entre as dez');
+  const opcoes = JSON.parse(JSON.stringify(s.pending.from));
+  const criatura = opcoes.find(oid => s.facts[s.objects[oid].name].types.includes('creature'));
+  assert.ok(criatura, 'há criatura entre as dez do topo');
+  assert.throws(() => act(s, { t: 'pick_done', p: a }), /./, 'com criatura no topo, pôr no campo é obrigatório');
+  s = settle(act(s, { t: 'pick', p: a, oid: criatura }));
+  const posta = s.objects[criatura];
+  assert.equal(posta.zone, 'battlefield', 'a criatura escolhida entrou no campo');
+  assert.equal(posta.counters.p1p1, 3, 'com três marcadores +1/+1');
+  assert.equal(E.hasKeyword(s, posta, 'hexproof'), true, 'e com ilusão');
+  assert.equal(s.players[a].dungeon.done, true, 'o Trono fecha a Cidade Baixa');
+  // a ilusão dura até o meu próximo turno
+  s = proximoTurno(s);
+  assert.equal(E.hasKeyword(s, s.objects[criatura], 'hexproof'), true, 'no turno do oponente, ainda tem');
+  s = proximoTurno(passTo(s, 'main1'));
+  assert.equal(s.turn.active, a);
+  assert.equal(E.hasKeyword(s, s.objects[criatura], 'hexproof'), false, 'no meu turno, acabou');
 });
