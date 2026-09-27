@@ -2069,8 +2069,31 @@ const EFFECTS = {
   scry: { fields: ['amount'], targets: ['self'] },
   surveil: { fields: ['amount'], targets: ['self'] },
   mill: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller'] },
-  put_back: { fields: ['amount'], targets: ['self'] }
+  put_back: { fields: ['amount'], targets: ['self'] },
+  // S57 · aventurar-se na masmorra: entra na primeira sala, ou avança para a próxima
+  venture: { fields: [], targets: ['self'] }
 };
+/** S57 · masmorras: o caminho, as salas e o que cada sala faz.
+    Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
+    Só a Mina Perdida de Phandelver está montada; as outras três precisam de
+    efeitos que o motor ainda não tem (provocar, jogar do exílio, conjurar de graça). */
+const TESOURO = { name: 'Treasure', types: ['artifact'],
+  abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] };
+const DUNGEONS = [
+  { name: 'Lost Mine of Phandelver', pt: 'Mina Perdida de Phandelver', rooms: [
+    { id: 'entrada', pt: 'Entrada da Caverna', effects: [{ do: 'scry', amount: 1 }], next: ['covil', 'tuneis'] },
+    { id: 'covil', pt: 'Covil dos Goblins', next: ['deposito', 'poco'],
+      effects: [{ do: 'token', amount: 1, token: { name: 'Goblin', types: ['creature'], subtypes: ['Goblin'], colors: ['R'], power: 1, toughness: 1 } }] },
+    { id: 'tuneis', pt: 'Túneis da Mina', effects: [{ do: 'token', amount: 1, token: TESOURO }], next: ['poco', 'fungos'] },
+    { id: 'deposito', pt: 'Depósito', effects: [{ do: 'counters', amount: 1, target: 'creature' }], next: ['templo'] },
+    { id: 'poco', pt: 'Poço Escuro', effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }], next: ['templo'] },
+    { id: 'fungos', pt: 'Caverna dos Fungos', next: ['templo'],
+      effects: [{ do: 'pump', power: -4, toughness: 0, target: 'creature', until: 'your-next-turn' }] },
+    { id: 'templo', pt: 'Templo de Dumathoin', effects: [{ do: 'draw', amount: 1 }] }
+  ] }
+];
+const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
+const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker'];
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
@@ -2112,7 +2135,8 @@ const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep:
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
   'enchanted-tapped-or-damaged': 'quando a criatura encantada vira ou recebe dano', 'cast-self': 'quando você conjura esta mágica', 'other-cast': 'quando você conjura uma mágica',
-  main2: 'na sua fase principal pós-combate', 'end-of-combat': 'no fim do combate' };
+  main2: 'na sua fase principal pós-combate', 'end-of-combat': 'no fim do combate',
+  room: 'ao entrar na sala da masmorra' }; // S57
 
 /** Valida um script. Devolve [] quando está correto. */
 function validateScript(sc) {
@@ -2292,6 +2316,8 @@ function effectErrors(effects, label, opcional) {
     if (e.targetMvMax != null) errs.push(...valueErrors(e.targetMvMax, `${label} ${i + 1}: valor de mana máximo`));
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
+    // S57 · duração do bônus: sem isso vale até o fim do turno
+    if (e.until != null && e.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.until}" desconhecida`);
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
     const t = e.target || 'self';
@@ -2311,6 +2337,7 @@ function tokenErrors(tk, label) {
   if (types.includes('creature')) for (const f of ['power', 'toughness']) if (!Number.isInteger(tk[f])) errs.push(`${label}: ficha de criatura precisa de ${f}`);
   for (const k of tk.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`${label}: palavra-chave "${k}" não é resolvida pelo motor`);
   for (const t of tk.subtypes || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label}: subtipo de ficha inválido`);
+  for (const c of tk.colors || []) if (!'WUBRG'.includes(c)) errs.push(`${label}: cor de ficha "${c}" inválida`);
   for (const ab of tk.abilities || []) if (ab.kind !== 'activated' && ab.kind !== 'triggered') errs.push(`${label}: habilidade de ficha inválida`);
   return errs;
 }
@@ -2462,8 +2489,8 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { mana: '{3}{U}', sacrifice: true }, effects: [{ do: 'draw', amount: 2 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 2 } } },
   { name: 'Secret Door',
-    abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'look', amount: 1, count: 1, to: 'stay', rest: 'stay' }] }],
-    covers: 'partial', note: 'aventurar-se na masmorra não entra: o motor ainda não tem masmorra, então a habilidade só mostra o topo do grimório',
+    abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture' }] }],
+    covers: 'partial', note: 'aventurar-se na masmorra entra, mas só com a Mina Perdida de Phandelver montada; as outras três masmorras ainda não estão disponíveis para escolha',
     example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
   // S56 · os terrenos das listas Pauper, que a medição antiga escondia (textos conferidos em 26/09)
   { name: 'Jagged Barrens', entersTapped: true,
@@ -3034,7 +3061,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst };
 }
 
-return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK };
+return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, DUNGEONS, dungeonByName, roomById };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -4455,7 +4482,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 49;
+const ENGINE_VERSION = 50;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4683,7 +4710,8 @@ function createGame(setup) {
   setup.players.forEach((pl, pi) => {
     s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, lost: false, lossReason: null,
       landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {},
-      pool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, companionUsed: false });
+      pool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, companionUsed: false,
+      dungeon: null, dungeonsDone: 0 }); // S57 · masmorra na zona de comando
     if (pl.dummy) s.players[pi].dummy = true;
     const z = Object.fromEntries(ZONE_NAMES.map(n => [n, []]));
     s.zones.push(z);
@@ -4727,7 +4755,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // 400.7: objeto novo ao mudar de zona; sai do combate
   const xPago = o.xPaid || 0; // S50 · o X pago sobrevive à mudança de zona só para os marcadores de entrada
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   o.zone = to;
   const dest = zoneList(s, o, to);
@@ -4785,8 +4813,11 @@ const isMain = s => s.turn.step === 'main1' || s.turn.step === 'main2';
 const commanderTax = (s, p, oid) => 2 * (s.players[p].commanderCasts[oid] || 0);
 /** S54 · metamorfose: virada para baixo, a carta é uma criatura 2/2 sem nada mais. */
 const faceDown = o => !!(o && o.faceDown);
-const power = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.p) || 0) : (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.p) || 0) + bonus(s, o).p;
-const toughness = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.t) || 0) : (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + ((o.pump && o.pump.t) || 0) + bonus(s, o).t;
+/** S57 · bônus temporários: até o fim do turno e até o seu próximo turno. */
+const pumpP = o => ((o.pump && o.pump.p) || 0) + ((o.pumpNext && o.pumpNext.p) || 0);
+const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) || 0);
+const power = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) : (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonus(s, o).p;
+const toughness = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) : (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonus(s, o).t;
 const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
@@ -5053,6 +5084,8 @@ function finishCleanup(s) {
   s.turn.firstTurn = false;
   s.turn.number++;
   s.turn.active = nextAlive(s, s.turn.active);
+  // S57 · "até o seu próximo turno" termina quando esse turno começa
+  for (const o of battlefield(s)) if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
   s.players.forEach(pl => { pl.landsPlayed = 0; });
   enterStep(s, 'untap');
 }
@@ -5422,6 +5455,10 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     case 'pump': { const pw = amountOf(s, src, eff.power), tg = amountOf(s, src, eff.toughness);
+      if (eff.until === 'your-next-turn') { // S57 · Caverna dos Fungos
+        obj.pumpNext = { p: ((obj.pumpNext && obj.pumpNext.p) || 0) + pw, t: ((obj.pumpNext && obj.pumpNext.t) || 0) + tg, by: ctrl };
+        note({ power: pw, toughness: tg }); break;
+      }
       obj.pump = { p: ((obj.pump && obj.pump.p) || 0) + pw, t: ((obj.pump && obj.pump.t) || 0) + tg }; note({ power: pw, toughness: tg }); } break;
     case 'discard': {
       // S12 · o jogador escolhe o que descartar: vira decisão pendente
@@ -5510,6 +5547,10 @@ function applyEffect(s, src, eff, tgt, events) {
       const syms = eff.symbols || (eff.anyColor ? [eff.color || 'C'] : []);
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
+    }
+    case 'venture': { // S57 · aventurar-se na masmorra
+      const fonte = src.ability ? src.source : src.oid;
+      venture(s, ctrl, fonte, events); note({}); break;
     }
     case 'choose_type': { // S50 · abre a escolha do tipo, entre os tipos que você controla
       const fonte = src.ability ? (s.objects[src.source] || src) : src;
@@ -5694,7 +5735,7 @@ function createToken(s, def, controller, events) {
   if (!s.facts[name]) {
     // S46 · a ficha carrega subtipo, senão gatilho por subtipo nunca a reconhece
     const linha = (def.types || []).join(' ') + ((def.subtypes || []).length ? ' — ' + def.subtypes.join(' ') : '');
-    s.facts[name] = cardFacts({ name, type_line: linha, power: def.power, toughness: def.toughness, keywords: def.keywords || [], oracle_text: '' });
+    s.facts[name] = cardFacts({ name, type_line: linha, power: def.power, toughness: def.toughness, keywords: def.keywords || [], colors: def.colors || [], oracle_text: '' });
     if (def.abilities) s.facts[name].script = { name, effects: [], abilities: def.abilities };
   }
   const oid = 't' + (s.nextToken++);
@@ -5782,6 +5823,39 @@ function matchesTriggerFilter(s, o, filter) {
   if (o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
   if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(f.typeText || '')) return false;
   return true;
+}
+/** S57 · aventurar-se na masmorra (regra 309). Sem masmorra, você escolhe uma e
+    entra na primeira sala; com masmorra, avança para uma das salas seguintes.
+    A sala é uma habilidade disparada que vai para a pilha, como qualquer gatilho. */
+function venture(s, p, srcOid, events) {
+  const pl = s.players[p];
+  const atual = pl.dungeon && !pl.dungeon.done ? SC.dungeonByName(pl.dungeon.name) : null;
+  if (!atual) {
+    const opcoes = SC.DUNGEONS.map(d => d.name);
+    if (!opcoes.length) return;
+    if (opcoes.length > 1) { s.pending = { kind: 'choose_dungeon', p, options: opcoes, labels: SC.DUNGEONS.map(d => d.pt || d.name), source: srcOid }; return; }
+    return enterDungeon(s, p, opcoes[0], srcOid, events);
+  }
+  const sala = SC.roomById(atual, pl.dungeon.room);
+  const proximas = (sala && sala.next) || [];
+  if (!proximas.length) return;
+  if (proximas.length > 1) { s.pending = { kind: 'choose_room', p, options: proximas, labels: proximas.map(id => (SC.roomById(atual, id) || {}).pt || id), source: srcOid }; return; }
+  enterRoom(s, p, proximas[0], srcOid, events);
+}
+function enterDungeon(s, p, name, srcOid, events) {
+  const d = SC.dungeonByName(name); if (!d) return;
+  s.players[p].dungeon = { name, room: null, done: false };
+  enterRoom(s, p, d.rooms[0].id, srcOid, events);
+}
+function enterRoom(s, p, roomId, srcOid, events) {
+  const pl = s.players[p];
+  const d = SC.dungeonByName((pl.dungeon || {}).name); if (!d) return;
+  const sala = SC.roomById(d, roomId); if (!sala) return;
+  pl.dungeon.room = sala.id;
+  events.push({ kind: 'room', name: sala.pt, dungeon: d.pt, target: pl.name });
+  s.queued.push({ source: srcOid, name: `${d.pt}: ${sala.pt}`, controller: p, effects: sala.effects, when: 'room' });
+  // 309.6 · com o marcador na última sala, a masmorra está completa
+  if (!(sala.next || []).length) { pl.dungeon.done = true; pl.dungeonsDone = (pl.dungeonsDone || 0) + 1; }
 }
 function queueTriggers(s, when, objects, controller) {
   for (const o of objects) {
@@ -6309,6 +6383,22 @@ const HANDLERS = {
     s.pending = null;
     putTriggerOnStack(s, { ...pk.trigger, effects: modo.effects, modes: null }, ev);
   },
+  choose_dungeon(s, a, ev) { // S57 · escolhe em qual masmorra se aventurar
+    if (!s.pending || s.pending.kind !== 'choose_dungeon' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma masmorra a escolher');
+    const pk = s.pending;
+    const nome = (pk.options || [])[a.index || 0];
+    if (!nome) throw new RuleError('escolha', 'masmorra inválida');
+    s.pending = null;
+    enterDungeon(s, a.p, nome, pk.source, ev);
+  },
+  choose_room(s, a, ev) { // S57 · escolhe para qual sala avançar
+    if (!s.pending || s.pending.kind !== 'choose_room' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma sala a escolher');
+    const pk = s.pending;
+    const id = (pk.options || [])[a.index || 0];
+    if (!id) throw new RuleError('escolha', 'sala inválida');
+    s.pending = null;
+    enterRoom(s, a.p, id, pk.source, ev);
+  },
   pick_target(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'pick_target' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando alvo');
     const pk = s.pending;
@@ -6547,7 +6637,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], choose_mode: ['choose_mode', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
+const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -6561,6 +6651,8 @@ function apply(state, action) {
       : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
       : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
+      : k === 'choose_dungeon' ? 'escolha a masmorra primeiro'
+      : k === 'choose_room' ? 'escolha a próxima sala primeiro'
         : k === 'pick' ? 'termine a escolha de cartas primeiro' : k === 'pick_target' ? 'escolha o alvo do gatilho primeiro'
           : k === 'may_pay' ? 'decida se paga primeiro' : k === 'madness' ? 'decida a insanidade primeiro' : 'declare os bloqueadores primeiro');
   }
@@ -6616,6 +6708,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
     if (k === 'choose_mode') (s.pending.options || []).forEach((label, index) => out.push({ t: 'choose_mode', p, index, label })); // S56
+    // S57 · masmorra: escolher em qual entrar e para qual sala avançar
+    if (k === 'choose_dungeon') (s.pending.options || []).forEach((name, index) => out.push({ t: 'choose_dungeon', p, index, label: (s.pending.labels || [])[index] || name }));
+    if (k === 'choose_room') (s.pending.options || []).forEach((id, index) => out.push({ t: 'choose_room', p, index, label: (s.pending.labels || [])[index] || id }));
     if (k === 'pick') {
       const pk = s.pending;
       if (pk.picked.length < pk.max) pk.from.filter(oid => !pk.picked.includes(oid) && matchesFilter(s, s.objects[oid], pk.filter)).forEach(oid => out.push({ t: 'pick', p, oid }));
@@ -7186,6 +7281,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'storm') L.push(`Tempestade: ${ev.name} copiou ${ev.amount} vez(es)`);
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${ev.amount} carta(s))`);
     if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} não teve alvo legal`);
+    if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
     if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${TRIGGER_PT[ev.when] || ev.when})`);
     if (ev.kind === 'resolved' && !ev.scripted) L.push(`${ev.name} resolveu → ${ZONE_PT[ev.to]}`);
     if (ev.kind === 'died') L.push(`${ev.name} morreu`);
@@ -7259,6 +7355,8 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
           : pd.kind === 'choose_mode' ? { t: 'choose_mode', p: pd.p, index: 0 }
+          : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
+          : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
           : pd.kind === 'pick_target' ? { t: 'pick_target', p: pd.p, index: 0 }
           : { t: 'concede', p: pd.p };
@@ -7361,7 +7459,7 @@ const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge
 const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, PriorityBanner, AdjudicationPanel } = __m17;
 const { norm } = __m7;
 const { FORMATS } = __m14;
-const { deckCoverage } = __m23;
+const { deckCoverage, dungeonByName, roomById } = __m23; // S57 · masmorra
 const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
 /** Campo com botões: não usa <label>, que reenvia o clique para o primeiro
@@ -7734,8 +7832,12 @@ function createTableScreen({ store }) {
       s.format === 'commander' ? ZoneChip('Comando', z.command.length, () => openZone(p, 'command', 'Zona de comando')) : null,
       z.companion.length ? ZoneChip('Companheiro', z.companion.length, () => openZone(p, 'companion', 'Companheiro'), mine ? 'tb-comp-me' : 'tb-comp-opp') : null,
       poolView(pl));
+    // S57 · masmorra: onde o marcador está agora
+    const masm = pl.dungeon ? (dungeonByName(pl.dungeon.name) || {}) : null;
+    const sala = masm ? (roomById(masm, pl.dungeon.room) || {}) : null;
+    const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+      sub: subMasm, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     const field = [ZoneRow('Permanentes', cardsOf(s, others, openObject), { zone: 'permanents', empty: 'nenhuma' }), ZoneRow('Terrenos', cardsOf(s, lands, openObject), { zone: 'lands', empty: 'nenhum' })];
     return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), 'aria-label': mine ? 'seu lado' : 'lado do oponente' },
       h('div', { class: 'tb-side__head' }, life, chips),
@@ -7785,6 +7887,14 @@ function createTableScreen({ store }) {
       banner = PriorityBanner({ title: 'Escolha um tipo de criatura', hint: 'O efeito conta as suas permanentes desse tipo.', tone: 'warning',
         actions: (s.pending.options || []).slice(0, 8).map((subtype, index) =>
           Button(subtype, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-type', onClick: () => act({ t: 'choose_type', p: v, index, subtype }) })) });
+    } else if (s.pending && s.pending.kind === 'choose_dungeon' && s.pending.p === v) {
+      banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
+        actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
+          Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-dungeon', onClick: () => act({ t: 'choose_dungeon', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'choose_room' && s.pending.p === v) {
+      banner = PriorityBanner({ title: 'Para qual sala avançar?', hint: 'O efeito da sala vai para a pilha.', tone: 'warning',
+        actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
+          Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-room', onClick: () => act({ t: 'choose_room', p: v, index }) })) });
     } else if (s.pending && s.pending.kind === 'choose_pair' && s.pending.p === v) {
       banner = PriorityBanner({ title: 'Com quem emparelhar?', hint: 'Vínculo de alma: as duas criaturas ganham a habilidade. Você pode recusar.', tone: 'warning',
         actions: [...(s.pending.options || []).slice(0, 6).map((oid, index) =>

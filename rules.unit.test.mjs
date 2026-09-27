@@ -3764,3 +3764,110 @@ test('S56 · gatilho com modos: a mesa pergunta se é para virar ou desvirar', (
   if (s2.pending && s2.pending.kind === 'may_pay') s2 = settle(act(s2, { t: 'decline', p: a2 }));
   assert.equal(s2.objects[urso2].tapped, true, 'recusando, a criatura fica como estava');
 });
+
+/* ---------------- S57 · masmorra: aventurar-se, escolher a sala e completar ---------------- */
+const MZ_CARDS = {
+  'Island': { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {U}.' },
+  'Porta': { name: 'Porta', type_line: 'Artifact Creature — Wall', mana_cost: '{U}', cmc: 1, colors: ['U'], power: '0', toughness: '4',
+    keywords: ['Defender'], oracle_text: 'Defender\n{4}{U}: Venture into the dungeon. Activate only as a sorcery.' },
+  'Fungo': { name: 'Fungo', type_line: 'Creature — Fungus', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '1', toughness: '1', keywords: [],
+    oracle_text: 'When this creature enters, target creature gets -4/-0 until your next turn.' },
+  'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
+};
+const MZ_SCRIPTS = {
+  Porta: { name: 'Porta', abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
+  Fungo: { name: 'Fungo', abilities: [{ kind: 'triggered', when: 'etb',
+    effects: [{ do: 'pump', power: -4, toughness: 0, target: 'creature', until: 'your-next-turn' }] }],
+    example: { action: 'etb', target: 'enemy-creature', expect: { pump: [-4, 0] } } }
+};
+const MZDECK = [{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Porta', qty: 12, zone: 'main' },
+  { name: 'Fungo', qty: 8, zone: 'main' }, { name: 'Bear', qty: 8, zone: 'main' }];
+function mzGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: MZ_CARDS, scripts: MZ_SCRIPTS,
+    players: [{ name: 'A', deck: MZDECK }, { name: 'B', deck: MZDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+/** Aventura-se uma vez e resolve a habilidade da sala. */
+function aventura(s, p, porta) {
+  s = settle(act(s, { t: 'activate', p, oid: porta, index: 0 }));
+  return s;
+}
+
+test('S57 · aventurar-se entra na primeira sala, e a sala vai para a pilha', () => {
+  let s = mzGame(11); const a = s.turn.active;
+  let porta; [s, porta] = put(s, a, 'Porta');
+  assert.equal(s.players[a].dungeon, null, 'ninguém começa em masmorra');
+  s = aventura(s, a, porta);
+  assert.equal(s.players[a].dungeon.name, 'Lost Mine of Phandelver', 'com uma masmorra montada, ela é escolhida sozinha');
+  assert.equal(s.players[a].dungeon.room, 'entrada', 'o marcador ficou na Entrada da Caverna');
+  // Entrada da Caverna é "scry 1": a mesa pergunta o que fica no topo
+  assert.ok(s.pending && s.pending.kind === 'pick' && s.pending.p === a, 'o efeito da sala pediu a escolha do scry');
+});
+
+test('S57 · a segunda aventura pergunta a sala, e a escolha muda o efeito', () => {
+  let s = mzGame(12); const a = s.turn.active;
+  let porta; [s, porta] = put(s, a, 'Porta');
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'pick_done', p: a }));       // fecha o scry da entrada
+  s = aventura(s, a, porta);
+  assert.ok(s.pending && s.pending.kind === 'choose_room' && s.pending.p === a, 'a mesa pergunta para qual sala avançar');
+  const rotulos = J(s.pending.labels);
+  assert.deepEqual(rotulos, ['Covil dos Goblins', 'Túneis da Mina'], 'as duas saídas da entrada');
+  // indo para os Túneis da Mina, sai um Tesouro
+  const antes = s.zones[a].battlefield.length;
+  let tuneis = settle(act(s, { t: 'choose_room', p: a, index: 1 }));
+  assert.equal(tuneis.players[a].dungeon.room, 'tuneis');
+  assert.equal(tuneis.zones[a].battlefield.length, antes + 1, 'apareceu uma ficha');
+  assert.ok(tuneis.zones[a].battlefield.some(o => tuneis.objects[o].name === 'Treasure'), 'e a ficha é um Tesouro');
+  // indo para o Covil, sai um Goblin vermelho
+  let covil = settle(act(s, { t: 'choose_room', p: a, index: 0 }));
+  assert.equal(covil.players[a].dungeon.room, 'covil');
+  const gob = covil.zones[a].battlefield.map(o => covil.objects[o]).find(o => o.name === 'Goblin');
+  assert.ok(gob, 'apareceu um Goblin');
+  assert.deepEqual(J(covil.facts['Goblin'].colors), ['R'], 'a ficha de Goblin é vermelha');
+});
+
+test('S57 · a masmorra fecha na última sala, e a próxima aventura começa outra', () => {
+  let s = mzGame(13); const a = s.turn.active;
+  let porta, urso; [s, porta] = put(s, a, 'Porta'); [s, urso] = put(s, a, 'Bear');
+  s = aventura(s, a, porta);                                       // Entrada da Caverna · scry 1
+  s = settle(act(s, { t: 'pick_done', p: a }));
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 0 }));        // Covil dos Goblins
+  s = aventura(s, a, porta);
+  s = settle(act(s, { t: 'choose_room', p: a, index: 0 }));        // Depósito · +1/+1 em criatura alvo
+  if (s.pending && s.pending.kind === 'pick_target') s = settle(act(s, { t: 'pick_target', p: a, index: 0 }));
+  assert.equal(s.players[a].dungeon.room, 'deposito');
+  const maoAntes = s.zones[a].hand.length;
+  s = aventura(s, a, porta);                                        // Templo de Dumathoin · compra
+  assert.equal(s.players[a].dungeon.room, 'templo');
+  assert.equal(s.players[a].dungeon.done, true, 'na última sala, a masmorra está completa');
+  assert.equal(s.players[a].dungeonsDone, 1, 'e conta como uma masmorra completada');
+  assert.equal(s.zones[a].hand.length, maoAntes + 1, 'o Templo compra uma carta');
+  // completa, a próxima aventura recomeça da primeira sala
+  s = aventura(s, a, porta);
+  assert.equal(s.players[a].dungeon.room, 'entrada', 'a nova masmorra começa na entrada');
+  assert.equal(s.players[a].dungeon.done, false);
+});
+
+test('S57 · "até o seu próximo turno" atravessa o turno do oponente e acaba no seu', () => {
+  let s = mzGame(14); const a = s.turn.active, d = 1 - a;
+  let alvo, fungo;
+  [s, alvo] = put(s, d, 'Bear');
+  [s, fungo] = put(s, a, 'Fungo', { zone: 'hand' });
+  s = resolveSpell(act(s, { t: 'cast', p: a, oid: fungo }));
+  if (s.pending && s.pending.kind === 'pick_target') {
+    const i = s.pending.options.findIndex(x => x.oid === alvo);
+    s = act(s, { t: 'pick_target', p: s.pending.p, index: i < 0 ? 0 : i });
+  }
+  s = settle(s);
+  assert.equal(E.stats(s, s.objects[alvo]).power, -2, 'a criatura ficou com -4/-0');
+  s = proximoTurno(s);
+  assert.equal(s.turn.active, d, 'agora é o turno do oponente');
+  assert.equal(E.stats(s, s.objects[alvo]).power, -2, 'o efeito não acabou no fim do meu turno');
+  s = proximoTurno(passTo(s, 'main1')); // sair da manutenção antes de avançar de novo
+  assert.equal(s.turn.active, a, 'voltou para o meu turno');
+  assert.equal(E.stats(s, s.objects[alvo]).power, 2, 'e aí o efeito acabou');
+});

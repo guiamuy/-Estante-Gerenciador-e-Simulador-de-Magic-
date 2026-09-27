@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S57 masmorra: aventurar-se, escolher a sala e completar | 🟡 |
 | S · Scripts | S56 terrenos das listas, medição honesta e gatilho com modos | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
@@ -289,7 +290,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33x 🟡 | S54 (leva 46) | **Boros Bully em 100%**: metamorfose e esgueirar-se |
 | E33y ✅ | S55 (leva 47) | **PAUPER 100%: as sete listas rodam no Motor completo** |
 | E33z 🟡 | S56 (leva 48) | Medição corrigida + 15 cartas: seis Pauper em 100% de verdade |
-| E33aa ▶ | S57 | Masmorra (Secret Door), a última carta do Pauper |
+| E33aa 🟡 | S57 (leva 49) | Masmorra: máquina pronta e a Mina Perdida de Phandelver inteira |
+| E33ab ▶ | S58 | As outras três masmorras, para fechar a Secret Door e o Pauper |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -821,6 +823,40 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
 
+**S57 · Masmorra: aventurar-se, escolher a sala e completar** 🟡
+- **Valor:** "aventure-se na masmorra" existe no motor, e a Secret Door do Walls Combo deixa de ser
+  um botão que não faz nada.
+- **Texto conferido:** 26/09/2026, em mtg.wtf. Secret Door: criatura artefato — Muro 0/4, {U},
+  defensor, `{4}{U}: Aventure-se na masmorra. Ative somente como um feitiço.` As salas da
+  Mina Perdida de Phandelver vêm da lista de cartas de masmorra do mesmo dia.
+- **Aceite:**
+  - sem masmorra, você entra na primeira sala; com masmorra, **você escolhe** para qual das saídas avançar;
+  - o efeito da sala vai para a pilha como habilidade disparada, com alvo escolhido por você quando tem alvo;
+  - na última sala a masmorra fica **completa**, conta no total do jogador, e a próxima aventura começa outra;
+  - a masmorra e a sala atual aparecem embaixo do nome do jogador na mesa;
+  - o goldfish escolhe masmorra e sala sozinho, em vez de desistir.
+- **Mina Perdida de Phandelver, as sete salas:** Entrada da Caverna (scry 1) → Covil dos Goblins (ficha
+  1/1 vermelha de Goblin) ou Túneis da Mina (ficha de Tesouro) → Depósito (+1/+1 numa criatura alvo),
+  Poço Escuro (cada oponente perde 1, você ganha 1) ou Caverna dos Fungos (−4/−0 até o seu próximo
+  turno) → Templo de Dumathoin (compre uma carta).
+- **Regra nova de duração:** "até o seu próximo turno" agora existe; antes todo bônus temporário acabava
+  no fim do turno. Ele atravessa o turno do oponente e cai quando o seu turno começa.
+- **Simplificação declarada:** pela regra 309.6 a masmorra só é removida quando a habilidade da última
+  sala **sai da pilha**; aqui ela é marcada como completa ao entrar na última sala. A diferença aparece
+  só se você se aventurar de novo com essa habilidade ainda na pilha. Gatilhos de "quando você completa
+  uma masmorra" não entram — nenhuma carta das listas tem um.
+- **Parcial declarada:** **Secret Door** continua parcial. Das quatro masmorras de papel, só a Mina
+  Perdida está montada, então você não escolhe a masmorra. Falta: Tumba da Aniquilação (perder vida a
+  menos que descartar ou sacrificar), Cidade Baixa (provocar, revelar dez e pôr criatura em jogo) e
+  Masmorra do Mago Louco (jogar cartas do exílio, conjurar de graça, não poder atacar até o próximo
+  turno). São capacidades que o motor não tem — estimativa honesta: duas a três levas.
+- **Goldens regravados:** a sequência de ações das quatro partidas-referência é **idêntica**; só mudou o
+  hash, porque o estado de cada jogador agora carrega a masmorra e o total de masmorras completadas.
+- **Testes:** U (primeira sala e o scry na pilha; a segunda aventura perguntando a sala, com Tesouro num
+  caminho e Goblin vermelho no outro; percurso inteiro até o Templo, masmorra completa e a próxima
+  começando na entrada; −4/−0 atravessando o turno do oponente e caindo no seu), S8 na Secret Door.
+- **Cobertura real:** seis listas Pauper em 100%, Walls Combo em 99%.
+
 **S56 · Terrenos das listas, medição honesta e gatilho com modos** 🟡
 - **O erro que esta leva corrige:** eu anunciei "Pauper 100%" na leva 47 e no aplicativo os decks
   apareciam entre 84% e 97%. A culpa era da minha ferramenta de medição: o `.listas/medir.mjs` tinha uma
@@ -873,11 +909,11 @@ medida pela mesma função que a tela de jogar usa, é a de baixo.
 | Pauper Rakdos Madness | 100% |
 | Pauper GW Bogles | 100% |
 | Pauper Boros Bully | 100% |
-| Pauper Walls Combo | 99% (falta Secret Door: masmorra) |
+| Pauper Walls Combo | 99% (Secret Door: falta escolher entre as quatro masmorras) |
 | Pauper Jund Wildfire | 100% |
 | Pauper Elves | 100% |
 
-Falta a masmorra para o Walls Combo fechar, e depois o Commander: 67 cartas manuais (42 no Killian,
+Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Commander: 67 cartas manuais (42 no Killian,
 25 no Malcolm) e 24 parciais.
 
 **S54 · Metamorfose e esgueirar-se** 🟡

@@ -372,6 +372,9 @@ function runExample(sc) {
     if (pd && pd.kind === 'may_pay') { s = act(s, { t: 'decline', p: pd.p }); continue; }
     // S56 · gatilho com modos e escolhas de tipo/par: o cenário pega a primeira opção
     if (pd && pd.kind === 'choose_mode') { s = act(s, { t: 'choose_mode', p: pd.p, index: 0 }); continue; }
+    // S57 · masmorra: escolhe a primeira masmorra e a primeira sala oferecida
+    if (pd && pd.kind === 'choose_dungeon') { s = act(s, { t: 'choose_dungeon', p: pd.p, index: 0 }); continue; }
+    if (pd && pd.kind === 'choose_room') { s = act(s, { t: 'choose_room', p: pd.p, index: 0 }); continue; }
     if (pd && pd.kind === 'choose_type') { s = act(s, { t: 'choose_type', p: pd.p, index: 0 }); continue; }
     if (pd && pd.kind === 'choose_pair') { s = act(s, { t: 'choose_pair', p: pd.p, decline: true }); continue; }
     if (pd && pd.p === a && pd.kind === 'discard') { s = act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] }); discarded++; continue; }
