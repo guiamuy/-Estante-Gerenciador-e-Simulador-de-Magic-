@@ -2482,7 +2482,6 @@ const RAW_SCRIPTS = [
   { name: 'Vitu-Ghazi Inspector', evidence: 6,
     abilities: [{ kind: 'triggered', when: 'etb', condition: { evidenced: true },
       effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'gain', amount: 2 }] }],
-    covers: 'partial', note: 'o motor escolhe quais cartas do cemitério exilar (as de maior valor primeiro); escolher você mesmo não entra',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Mirrorshell Crab', self: { ward: '{3}' },
     abilities: [{ kind: 'activated', cost: { mana: '{2}{U}', discardSelf: true, fromHand: true },
@@ -2787,7 +2786,6 @@ const RAW_SCRIPTS = [
     effects: [{ do: 'pump', power: { per: 'elves-you-control' }, toughness: { per: 'elves-you-control' }, target: 'creature' }] }],
     example: { action: 'activate:0', target: 'own-creature', expect: { pump: [1, 1] } } },
   { name: 'Distant Melody', effects: [{ do: 'choose_type' }, { do: 'draw', amount: { per: 'chosen-type-permanents' } }],
-    covers: 'partial', note: 'a escolha é entre os tipos que você controla; escolher um tipo que você não controla (e comprar zero) não entra',
     example: { target: 'none', expect: { handDelta: 0 } } },
   { name: 'Valakut Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'damage', amount: 3, target: 'any' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -3 } } },
@@ -4406,7 +4404,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 47;
+const ENGINE_VERSION = 48;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -5446,7 +5444,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'choose_type': { // S50 · abre a escolha do tipo, entre os tipos que você controla
       const fonte = src.ability ? (s.objects[src.source] || src) : src;
-      const tipos = [...new Set(battlefield(s).filter(o => o.controller === ctrl && isCreature(s, o))
+      // S55 · lista os tipos de criatura presentes no campo, dos dois lados
+      const tipos = [...new Set(battlefield(s).filter(o => isCreature(s, o) && !o.faceDown)
         .flatMap(o => String(s.facts[o.name].typeText || '').split('—')[1] || '')
         .flatMap(t => t.trim().split(/\s+/)).filter(Boolean))];
       if (!tipos.length) { note({ amount: 0 }); break; }
@@ -5531,9 +5530,12 @@ function matchesFilter(s, o, filter) {
 }
 function startPick(s, spec, events) {
   s.pending = { kind: 'pick', p: spec.p, from: spec.from, picked: [], min: spec.min || 0, max: spec.max,
-    to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source };
+    to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source,
+    ...(spec.needMv ? { needMv: spec.needMv } : {}) }; // S55 · escolher até somar este valor de mana
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
 }
+/** S55 · soma do valor de mana do que já foi escolhido. */
+const pickedMv = (s, pk) => (pk.picked || []).reduce((n, oid) => n + ((s.facts[s.objects[oid].name] || {}).cmc || 0), 0);
 function finishPick(s, events) {
   const pk = s.pending; s.pending = null;
   const dest = (oid, where) => {
@@ -6113,13 +6115,14 @@ const HANDLERS = {
       sacrifice(s, alvo);
       s.objects[a.oid].bargained = true;
     }
-    if (a.evidence) { // S41 · colher provas: custo adicional opcional, pago exilando o cemitério
+    if (a.evidence) { // S55 · colher provas: VOCÊ escolhe as cartas do cemitério que somam o valor
       const n = (f.script || {}).evidence;
       if (!n) throw new RuleError('provas', 'esta carta não colhe provas');
-      const cartas = evidenceCards(s, a.p, n);
-      if (!cartas) throw new RuleError('provas', `seu cemitério não soma ${n} de valor de mana`);
-      cartas.forEach(x => moveObject(s, x, 'exile'));
+      if (!evidenceCards(s, a.p, n)) throw new RuleError('provas', `seu cemitério não soma ${n} de valor de mana`);
       s.objects[a.oid].evidenced = true;
+      const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid);
+      startPick(s, { p: a.p, from: cemiterio, min: 1, max: cemiterio.length, needMv: n, to: 'exile', rest: 'stay',
+        label: 'colher provas', source: o.name }, []);
     }
     chargeWard(s, a.p, a.oid, chosen); // S41 · vigilância do alvo
     s.turn.passes = 0;
@@ -6234,10 +6237,13 @@ const HANDLERS = {
     if (!matchesFilter(s, s.objects[a.oid], pk.filter)) throw new RuleError('escolha', 'essa carta não serve para este efeito');
     if (pk.picked.length >= pk.max) throw new RuleError('escolha', 'já escolheu o máximo');
     pk.picked.push(a.oid);
+    // S55 · com exigência de valor de mana, a escolha fecha quando a soma chega lá
+    if (pk.needMv) { if (pickedMv(s, pk) >= pk.needMv) finishPick(s, ev); return; }
     if (pk.picked.length >= pk.max) finishPick(s, ev);
   },
   pick_done(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'pick' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a escolher');
+    if (s.pending.needMv && pickedMv(s, s.pending) < s.pending.needMv) throw new RuleError('escolha', `some ${s.pending.needMv} de valor de mana`);
     if (s.pending.picked.length < s.pending.min) throw new RuleError('escolha', `escolha ${s.pending.min} carta(s)`);
     finishPick(s, ev);
   },
@@ -7147,6 +7153,8 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       if (dummy >= 0) { events.push(...record(s.status === 'mulligan' ? { t: 'keep', p: dummy, bottom: [] } : { t: 'pass', p: dummy })); continue; }
       // goldfish não bloqueia nem ataca
       if (s.pending && s.players[s.pending.p] && s.players[s.pending.p].dummy) {
+        // S55 · soma do valor de mana já escolhido, para a escolha que pede um total
+        const somaMvDoGoldfish = (st, pd2) => (pd2.picked || []).reduce((n, oid) => n + ((st.facts[st.objects[oid].name] || {}).cmc || 0), 0);
         // A13 · o goldfish resolve o que o motor pedir a ele. Antes ele desistia da partida.
         const pd = s.pending;
         const naMao = (s.zones[pd.p] || {}).hand || [];
@@ -7154,7 +7162,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
         const acao = pd.kind === 'blockers' ? { t: 'block', p: pd.p, blocks: [] }
           : pd.kind === 'attackers' ? { t: 'attack', p: pd.p, attackers: [] }
           : pd.kind === 'discard' && naMao.length ? { t: 'discard', p: pd.p, oid: naMao[0] }
-          : pd.kind === 'pick' ? ((pd.picked || []).length >= (pd.min || 0) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
+          : pd.kind === 'pick' ? ((pd.needMv ? somaMvDoGoldfish(s, pd) >= pd.needMv : (pd.picked || []).length >= (pd.min || 0)) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
           : pd.kind === 'may_pay' ? { t: 'decline', p: pd.p }
           : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: 'W' }
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }

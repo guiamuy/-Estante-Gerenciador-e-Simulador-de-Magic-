@@ -2372,13 +2372,17 @@ test('S41 · colher provas: sem cemitério suficiente a mesa não oferece; com e
   const oferta = E.legalActions(s2, a2).find(x => x.t === 'cast' && x.oid === insp2 && x.evidence);
   assert.ok(oferta, 'com 8 de valor no cemitério, a mesa oferece colher provas');
   const vida = s2.players[a2].life;
-  s2 = settle(resolveSpell(act(s2, oferta)));
+  s2 = act(s2, oferta);
+  // S55 mudou a regra: quem escolhe as cartas é você, não o motor
+  assert.ok(s2.pending && s2.pending.kind === 'pick', 'a escolha das cartas é do jogador');
+  s2 = act(s2, { t: 'pick', p: a2, oid: gigante });
+  s2 = settle(resolveSpell(s2));
   if (s2.pending && s2.pending.kind === 'pick_target') { // o gatilho pede o alvo do marcador
     const i = s2.pending.options.findIndex(x => x.oid === alvo2);
     s2 = settle(act(s2, { t: 'pick_target', p: s2.pending.p, index: i < 0 ? 0 : i }));
   }
-  assert.equal(s2.objects[gigante].zone, 'exile', 'exilou a carta de maior valor');
-  assert.equal(s2.objects[urso2].zone, 'graveyard', 'e gastou só o necessário');
+  assert.equal(s2.objects[gigante].zone, 'exile', 'exilou a carta que eu escolhi');
+  assert.equal(s2.objects[urso2].zone, 'graveyard', 'e o resto ficou no cemitério');
   assert.equal(s2.objects[alvo2].counters.p1p1, 1, 'o gatilho pôs o marcador');
   assert.equal(s2.players[a2].life, vida + 2, 'e deu 2 de vida');
 });
@@ -3605,4 +3609,56 @@ test('S54 · esgueirar-se: entra virada e atacando, devolvendo um atacante sem b
   assert.equal(s.objects[leo].tapped, true, 'entrou virado');
   assert.ok(s.objects[leo].attacking != null, 'e entrou atacando');
   assert.equal(s.combat.attackers.includes(leo), true, 'o motor conta ele como atacante');
+});
+
+/* ---------------- S55 · colher provas escolhida por você, e tipo de criatura do campo inteiro ---------------- */
+test('S55 · colher provas: você escolhe as cartas, até somar o valor de mana pedido', () => {
+  let s = vgGame(7); const a = s.turn.active;
+  s = limpaCemiterio(s, a);
+  let insp, alvo, urso1, urso2, urso3, gigante;
+  [s, alvo] = put(s, a, 'Bear');
+  [s, urso1] = put(s, a, 'Bear', { zone: 'graveyard' });   // valor 2
+  [s, urso2] = put(s, a, 'Bear', { zone: 'graveyard' });   // valor 2
+  [s, urso3] = put(s, a, 'Bear', { zone: 'graveyard' });   // valor 2
+  [s, gigante] = put(s, a, 'Giant', { zone: 'graveyard' }); // valor 6
+  [s, insp] = put(s, a, 'Inspector', { zone: 'hand' });
+  const oferta = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === insp && x.evidence);
+  assert.ok(oferta, 'a mesa oferece colher provas');
+  s = act(s, oferta);
+  assert.ok(s.pending && s.pending.kind === 'pick' && s.pending.p === a, 'a escolha das cartas é minha');
+  assert.equal(s.pending.needMv, 6, 'preciso somar 6 de valor de mana');
+  // escolho três ursos (2+2+2) em vez do gigante
+  s = act(s, { t: 'pick', p: a, oid: urso1 });
+  assert.ok(s.pending, 'com 2 de valor, a escolha continua aberta');
+  assert.throws(() => act(s, { t: 'pick_done', p: a }), /valor de mana/, 'não dá para encerrar antes de somar 6');
+  s = act(s, { t: 'pick', p: a, oid: urso2 });
+  s = act(s, { t: 'pick', p: a, oid: urso3 });
+  assert.equal(s.pending, null, 'somou 6 e a escolha fechou');
+  for (const x of [urso1, urso2, urso3]) assert.equal(s.objects[x].zone, 'exile', 'o urso escolhido foi exilado');
+  assert.equal(s.objects[gigante].zone, 'graveyard', 'o gigante ficou no cemitério: eu escolhi o que gastar');
+  // a mágica resolve e o gatilho acontece, porque as provas foram colhidas
+  const vida = s.players[a].life;
+  s = settle(resolveSpell(s));
+  if (s.pending && s.pending.kind === 'pick_target') {
+    const i = s.pending.options.findIndex(x => x.oid === alvo);
+    s = settle(act(s, { t: 'pick_target', p: s.pending.p, index: i < 0 ? 0 : i }));
+  }
+  assert.equal(s.objects[alvo].counters.p1p1, 1, 'o gatilho pôs o marcador');
+  assert.equal(s.players[a].life, vida + 2, 'e deu 2 de vida');
+});
+
+test('S55 · a escolha de tipo lista as criaturas dos dois lados do campo', () => {
+  let s = elGame(7); const a = s.turn.active, d = 1 - a;
+  let meuElfo, ursoDele, melodia;
+  [s, meuElfo] = put(s, a, 'Elf');
+  [s, ursoDele] = put(s, d, 'Bear');
+  [s, melodia] = put(s, a, 'Melody', { zone: 'hand' });
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: melodia })));
+  const tipos = JSON.parse(JSON.stringify(s.pending.options));
+  assert.ok(tipos.includes('Elf'), 'o tipo da minha criatura está na lista');
+  assert.ok(tipos.includes('Bear'), 'o tipo da criatura do oponente também, mesmo comprando zero');
+  // escolhendo o tipo do oponente, eu não compro nada
+  s = settle(act(s, { t: 'choose_type', p: a, subtype: 'Bear' }));
+  assert.equal(s.zones[a].hand.length, mao - 1, 'saiu a mágica e não entrou carta nenhuma');
 });

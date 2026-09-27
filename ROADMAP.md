@@ -94,6 +94,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S52 vida pelo dano prevenido de fato e a face de trás que exila | 🟡 |
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
+| S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -285,7 +286,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33v 🟡 | S52 (leva 44) | Boros Bully em 97% (25 → 14 cópias parciais) |
 | E33w 🟡 | S53 (leva 45) | **Rakdos Madness em 100%**: plot e custo adicional com opções |
 | E33x 🟡 | S54 (leva 46) | **Boros Bully em 100%**: metamorfose e esgueirar-se |
-| E33y ▶ | S55 | Elves: Vitu-Ghazi Inspector e Distant Melody — **última leva do Pauper** |
+| E33y ✅ | S55 (leva 47) | **PAUPER 100%: as sete listas rodam no Motor completo** |
+| E36 ▶ | S56+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -815,6 +817,36 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S55 · Colher provas escolhida por você e tipo de criatura do campo** ✅
+- **Aceite:**
+  - **colher provas**: você escolhe quais cartas do cemitério exilar, e a escolha só fecha quando a soma
+    do valor de mana alcança o número pedido — não dá para encerrar antes;
+  - a escolha de tipo de criatura lista os tipos presentes no campo dos **dois** lados.
+- **Entregue (as duas completas):** Vitu-Ghazi Inspector e Distant Melody.
+- **Regra que mudou, com motivo:** colher provas era paga pelo motor, que exilava as cartas de maior valor.
+  A carta diz que **você** escolhe, e a diferença é real: guardar o gigante no cemitério e gastar três
+  criaturas pequenas muda o que sobra para reanimar depois. O teste da leva 32 foi reescrito.
+- **Testes:** U (escolha recusando encerrar antes de somar 6, fechando sozinha ao somar, deixando no
+  cemitério o que eu não escolhi, e o gatilho acontecendo depois; lista de tipos com a criatura do
+  oponente e compra zero ao escolher o tipo dele), S8.
+
+### Marco: Pauper em 100%
+
+As sete listas Pauper rodam no **Motor completo**, sem nenhuma carta manual e sem nenhuma carta parcial.
+Foram 24 levas desde a leva 24, com 279 testes no portão e o motor na versão 48.
+
+| Lista | Cobertura |
+|---|---|
+| Pauper Mono Blue Faeries | 100% |
+| Pauper Rakdos Madness | 100% |
+| Pauper GW Bogles | 100% |
+| Pauper Boros Bully | 100% |
+| Pauper Walls Combo | 100% |
+| Pauper Jund Wildfire | 100% |
+| Pauper Elves | 100% |
+
+O que falta no projeto é o Commander: 67 cartas manuais (42 no Killian, 25 no Malcolm) e 24 parciais.
 
 **S54 · Metamorfose e esgueirar-se** 🟡
 - **Aceite:**
