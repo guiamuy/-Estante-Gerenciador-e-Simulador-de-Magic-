@@ -2916,8 +2916,11 @@ const RAW_SCRIPTS = [
     effects: [{ do: 'add_mana', anyColor: true }] }],
     morph: { mana: '{G}' },
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
-  { name: 'Lys Alana Huntmaster', abilities: [{ kind: 'triggered', when: 'other-cast', filter: { subtype: 'Elf' },
-    effects: [{ do: 'token', amount: 1, token: { name: 'Elf Warrior', types: ['creature'], power: 1, toughness: 1 } }] }],
+  // S66 · a ficha é um Elfo Guerreiro verde e o gatilho é opcional ("você pode"):
+  // sem o subtipo, a ficha não contava para Priest of Titania nem Timberwatch Elf
+  // (texto conferido em 27/09/2026, mtgsalvation)
+  { name: 'Lys Alana Huntmaster', abilities: [{ kind: 'triggered', when: 'other-cast', filter: { subtype: 'Elf' }, optional: true,
+    effects: [{ do: 'token', amount: 1, token: { name: 'Elf Warrior', types: ['creature'], subtypes: ['Elf', 'Warrior'], colors: ['G'], power: 1, toughness: 1 } }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // S22 · cartas conferidas na Scryfall (22/09)
   { name: 'Malevolent Rumble', effects: [
@@ -4619,7 +4622,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 55;
+const ENGINE_VERSION = 56;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -6112,7 +6115,11 @@ function queueTriggers(s, when, objects, controller) {
       for (const ab of abilitiesOf(s, w)) {
         if (ab.kind !== 'triggered' || ab.when !== other) continue;
         if (!matchesTriggerFilter(s, o, ab.filter)) continue;
-        s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: other });
+        // S66 · o gatilho de "outra permanente" carrega as mesmas marcas do gatilho
+        // próprio: sem isto, "você pode" virava obrigatório e o custo opcional sumia
+        s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: other,
+          ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}),
+          ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
       }
     }
   }

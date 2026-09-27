@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
 | S · Scripts | S63 auditoria dos gatilhos + mão inicial não conta como compra do turno | ✅ |
@@ -307,7 +308,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33ag ✅ | S63 (leva 55) | Auditoria dos gatilhos: cada gatilho das listas disparando numa partida |
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
-| E33aj ▶ | S66 | Partida Pauper inteira gravada como golden guiado |
+| E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
+| E33ak ▶ | S67 | Commander: começar pelas cartas manuais do Killian |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -838,6 +840,33 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S66 · Partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente** ✅
+- **Valor:** os goldens aleatórios provam que o motor é determinístico; esta partida prova que as cartas
+  **conversam entre si**. É uma sequência escolhida por mim, turno a turno, com o resultado conferido em
+  cada passo: gatilho alimenta contagem, contagem alimenta mana, mana paga a próxima carta.
+- **A corrente provada (P1):** Vanguarda entra → outro Elfo entra e ele ganha marcador → a Sacerdotisa
+  gera um mana por Elfo no campo → conjurar um Elfo dispara a Caçadora, que pergunta se você quer a ficha
+  → a ficha é um Elfo e conta na contagem → no turno seguinte o Vigia usa {T} e dá +5/+5 por cinco Elfos →
+  o Vanguarda 5/5 ataca como 10/10 e leva o oponente a 10.
+- **Segunda cena (P2):** o Arqueiro vira e derruba o voador do oponente; a Sacerdotisa gera três manas; o
+  Patrulheiro devolve uma floresta para a mão como custo e desvira a Sacerdotisa, que gera mana de novo no
+  mesmo turno.
+- **Dois erros meus que a partida achou:**
+  1. **A ficha da Lys Alana Huntmaster não era um Elfo** (nem verde), então não contava para a Sacerdotisa,
+     para o Vigia nem para o Vanguarda — e o gatilho era obrigatório, sendo que a carta diz "você **pode**".
+     Texto conferido em 27/09/2026 (mtgsalvation, confirmado pela busca): "Whenever you cast an Elf spell,
+     you may create a 1/1 green Elf Warrior creature token."
+  2. **Gatilho de "outra permanente" perdia as marcas do gatilho**: `optional`, custo, custo opcional e
+     modos eram copiados no gatilho próprio e **descartados** no de outra permanente. Qualquer "você pode"
+     nesse formato virava obrigatório. Hoje só a Caçadora usava isso nas listas, mas o buraco valia para
+     todos.
+- **Declarado:** os custos de mana desta partida são **de teste** ({1} para tudo), porque os custos
+  oficiais dessas cartas não estão disponíveis neste ambiente. A partida prova a corrente de interações e o
+  encanamento do mana, não a curva real do deck Elves.
+- **Goldens regravados:** a sequência de ações das quatro partidas-referência é idêntica; mudou o hash
+  porque a versão do motor entra no estado.
+- **Testes:** partida guiada P1 e P2, com conferência a cada passo.
 
 **S65 · Matriz de palavras-chave e combate** ✅
 - **Risco que esta leva fecha:** a cobertura conta como **completa** toda carta cujo texto é só
