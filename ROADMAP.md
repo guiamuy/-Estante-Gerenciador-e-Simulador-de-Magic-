@@ -95,7 +95,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
-| B · Bot | B2–B7 duas dificuldades, medidas em torneio no portão | ▶ |
+| B · Bot | B2 avaliador de posição e arcabouço de decisão | 🟡 |
+| B · Bot | B3–B7 amador experiente, profissional, escolha na mesa, torneio e didática | ▶ |
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7–X10 captura automática, pilha de leitura, validação e acerto medido | ○ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
@@ -245,13 +246,20 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 gatilhos disparando, palavras-chave provadas e uma partida guiada), o Commander sai da frente da fila e
 entra depois de cinco épicos de profundidade, nesta ordem:
 
-| Ordem | Épico | Por que aqui | Rodadas |
-|---|---|---|---|
-| 1º | **E37 · Bot (B2–B7)** | Sem adversário, a simulação é solitária: é o que transforma o motor pronto em jogo. Depende só do motor completo, que já está verde. | 6 a 7 |
-| 2º | **E38 · Mesa (A13–A16)** | O bot joga rápido demais para uma mesa que não explica o que aconteceu. Entra logo depois para a partida virar experiência. | 4 a 5 |
-| 3º | **E39 · Scanner (X7–X10)** | Trilha Acervo, independente do motor. Fecha também a pendência de precisão declarada em X2/X3. | 4 a 5 |
-| 4º | **E40 · Coleção (C12–C14)** | Filtros e visões dependem da coleção já existente e valem mais depois que o scanner alimenta o acervo mais rápido. | 4 |
-| 5º | **E41 · Listas (C10, C11)** | Importar e exportar por lista usa o motor de filtro da E40 para exportar recortes. | 2 |
+**Ordem de entrega definida pelo usuário em 27/09/2026** (eu havia sugerido Mesa em 2º; a ordem
+abaixo é a que vale):
+
+| Ordem | Épico | Rodadas |
+|---|---|---|
+| 1º | **E37 · Bot (B2–B7)** — o que transforma o motor pronto em jogo | 6 a 7 |
+| 2º | **E39 · Scanner (X7–X10)** — captura automática, pilha de leitura, acerto medido | 4 a 5 |
+| 3º | **E41 · Listas (C10, C11)** — importar e exportar a coleção por lista | 2 |
+| 4º | **E40 · Coleção (C12–C14)** — filtros, visões e painel gráfico | 4 |
+| 5º | **E38 · Mesa (A13–A16)** — leitura do campo, pilha explicada, zoom e prévia | 4 a 5 |
+
+**Ajuste de dependência que essa ordem exige:** a C10 previa exportar "o resultado do filtro atual", mas o
+motor de filtro é a C12, que vem depois. Então a C10 entrega exportar a **coleção inteira ou uma seleção
+manual**, e exportar o recorte do filtro entra junto com a C12. Está anotado na própria história.
 
 Total estimado: **20 a 23 rodadas** até o Commander voltar à fila. Cada história fecha numa rodada, com
 portão verde e algo testável no celular em menos de um minuto — histórias que não couberem numa rodada
@@ -329,7 +337,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
-| E37 ▶ | B2–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
+| E37 🟡 | B2 (leva 59) · B3–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 | X7–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
@@ -1941,7 +1949,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** M4.
 - **Fora:** —
 
-**B2 · Avaliador de posição e arcabouço de decisão** ○
+**B2 · Avaliador de posição e arcabouço de decisão** 🟡
 - **Valor:** a base dos dois bots. Sem um avaliador honesto, "difícil" vira só aleatório com sorte.
 - **Aceite:**
   - função pura `avalia(estado, jogador)` que devolve um número e a lista de parcelas que o formaram:
@@ -1950,8 +1958,17 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - determinística: mesmo estado, mesma nota, sem depender de ordem de objetos;
   - `simula(estado, ação)` usa o próprio motor (ADR-04) e nunca muta o estado recebido;
   - orçamento de tempo configurável, com corte seguro que devolve a melhor jogada até ali.
-- **Testes:** U (cada parcela isolada; estado espelhado dá nota espelhada; duas execuções, mesma nota),
-  desempenho (avaliação de 1 000 estados abaixo de 50 ms).
+- **Entregue (leva 59):** módulo `src/engine/bot.js` (`__m25`) com `avalia`, `simula`, `escolhe` e
+  `chaveAcao`. A nota é **antissimétrica** por construção — toda parcela é uma diferença entre os dois
+  lados —, então o que me favorece desfavorece o outro na mesma medida, e isso virou teste.
+- **Parcelas e pesos:** vida própria (2) e vida que falta no oponente (2), poder (3) e resistência (2) em
+  campo, corpo em campo (2), outra permanente (2), carta na mão (4), fonte de mana desvirada (3),
+  marcador +1/+1 (2), carta no cemitério que sabe voltar (2), partida decidida (10 000).
+- **Aproximação assumida:** mana que vem de aura anexada não entra na contagem de fontes — a avaliação roda
+  milhares de vezes por jogada e lê os fatos da carta direto. É heurística de avaliação, não regra.
+- **Testes:** U (cada parcela isolada; antissimetria; campo em outra ordem dando a mesma nota; simular sem
+  mutação e ação ilegal devolvendo nulo; escolha com desempate estável e corte por orçamento com relógio
+  injetado), desempenho (mil avaliações bem abaixo de 50 ms).
 - **Depende de:** S9, M9.
 - **Fora:** aprendizado de máquina; peso ajustado por deck.
 
@@ -2124,7 +2141,8 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Aceite:**
   - exporta em texto de lista ("4 Lightning Bolt"), com variações: com ou sem edição e número, e no
     formato que Arena e MTGO aceitam;
-  - exporta a coleção inteira, o resultado do filtro atual ou uma seleção manual;
+  - exporta a coleção inteira ou uma seleção manual; exportar o recorte do filtro entra com a C12, que é
+    quem traz o motor de filtro (ajuste registrado na ordem de entrega da seção 6);
   - copiar com um toque e baixar como arquivo; o CSV atual continua existindo;
   - o que não tem edição definida sai como cópia genérica, e o cabeçalho diz isso.
 - **Testes:** U (cada formato, com acentos, apóstrofos e cartas de duas faces), I.

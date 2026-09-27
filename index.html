@@ -7423,6 +7423,144 @@ return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, R
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
 
+/* ==== src/engine/bot.js ==== */
+const __m25 = (function () {
+/* =====================================================================
+   B2 · AVALIADOR DE POSIÇÃO E ARCABOUÇO DE DECISÃO
+   A base dos dois bots (B3 amador, B4 profissional). Tudo aqui é puro:
+   a mesma posição dá sempre a mesma nota, e simular uma jogada nunca
+   muda o estado recebido (ADR-04).
+   O bot enxerga só o que a mesa mostra: campo, cemitérios, exílio, vida
+   e o TAMANHO da mão do oponente — nunca o conteúdo da mão nem grimório.
+   A diferença entre os níveis é profundidade e critério, não informação.
+   ===================================================================== */
+const E = __m16;
+
+/** Pesos da avaliação. Positivo é bom para quem está sendo avaliado. */
+const PESOS = {
+  vida: 2,            // cada ponto de vida meu
+  vidaDele: 2,        // cada ponto de vida que falta nele
+  poder: 3,           // poder das minhas criaturas em campo
+  resistencia: 2,     // resistência das minhas criaturas em campo
+  criatura: 2,        // cada corpo em campo, mesmo pequeno
+  outraPermanente: 2, // artefato, encantamento e planeswalker
+  mao: 4,             // carta na mão é opção
+  mana: 3,            // fonte de mana desvirada
+  marcador: 2,        // marcador +1/+1
+  volta: 2,           // carta no meu cemitério que sabe voltar
+  vitoria: 10000      // partida decidida
+};
+const VIDA_INICIAL = 20;
+
+const ehCriatura = (s, o) => (s.facts[o.name].types || []).includes('creature');
+const ehTerreno = (s, o) => (s.facts[o.name].types || []).includes('land');
+/** Carta no cemitério que sabe voltar sozinha (lampejo do passado, fuga, disturb). */
+function sabeVoltar(s, o) {
+  const sc = s.facts[o.name].script || {};
+  return !!(sc.flashback || sc.escape || sc.disturb || (sc.abilities || []).some(ab => ab.fromGraveyard));
+}
+/** Fontes de mana desviradas e prontas: terreno ou permanente que produz.
+    Leitura barata, direto dos fatos da carta — a avaliação roda milhares de vezes
+    por jogada. Aproximação assumida: mana que vem de aura anexada não é contado
+    aqui; isso é heurística de avaliação, não regra de partida. */
+const produzMana = (s, o) => ehTerreno(s, o)
+  || ((s.facts[o.name].produces || []).length > 0)
+  || ((((s.facts[o.name].script || {}).produces) || []).length > 0);
+function fontesDeMana(s, p) {
+  let n = 0;
+  for (const oid of s.zones[p].battlefield) {
+    const x = s.objects[oid];
+    if (x.tapped) continue;
+    if (ehCriatura(s, x) && x.sick && !E.hasKeyword(s, x, 'haste')) continue;
+    if (produzMana(s, x)) n++;
+  }
+  return n;
+}
+
+/** Soma por jogador, sem depender da ordem dos objetos. */
+function lado(s, p) {
+  const campo = s.zones[p].battlefield.map(oid => s.objects[oid]);
+  const criaturas = campo.filter(x => ehCriatura(s, x));
+  let poder = 0, resistencia = 0, marcadores = 0;
+  for (const c of criaturas) {
+    const st = E.stats(s, c);
+    poder += Math.max(0, st.power);
+    resistencia += Math.max(0, st.toughness);
+    marcadores += (c.counters || {}).p1p1 || 0;
+  }
+  return {
+    vida: s.players[p].life,
+    criaturas: criaturas.length,
+    poder, resistencia, marcadores,
+    outras: campo.filter(x => !ehCriatura(s, x) && !ehTerreno(s, x)).length,
+    mao: s.zones[p].hand.length,
+    mana: fontesDeMana(s, p),
+    volta: s.zones[p].graveyard.map(oid => s.objects[oid]).filter(x => sabeVoltar(s, x)).length
+  };
+}
+
+/** B2 · nota da posição para o jogador `p`, com as parcelas que a formaram.
+    Nota alta é bom para p. Determinística: mesma posição, mesma nota. */
+function avalia(s, p) {
+  const q = s.players.findIndex((pl, i) => i !== p && !pl.lost);
+  const oponente = q >= 0 ? q : (p + 1) % s.players.length;
+  const eu = lado(s, p), ele = lado(s, oponente);
+  const parcelas = {
+    vida: (eu.vida - VIDA_INICIAL) * PESOS.vida,
+    vidaDele: (VIDA_INICIAL - ele.vida) * PESOS.vidaDele,
+    poder: (eu.poder - ele.poder) * PESOS.poder,
+    resistencia: (eu.resistencia - ele.resistencia) * PESOS.resistencia,
+    criaturas: (eu.criaturas - ele.criaturas) * PESOS.criatura,
+    outras: (eu.outras - ele.outras) * PESOS.outraPermanente,
+    mao: (eu.mao - ele.mao) * PESOS.mao,
+    mana: (eu.mana - ele.mana) * PESOS.mana,
+    marcadores: (eu.marcadores - ele.marcadores) * PESOS.marcador,
+    volta: (eu.volta - ele.volta) * PESOS.volta,
+    vitoria: 0
+  };
+  if (s.players[oponente].lost || s.status === 'over' && s.winner === p) parcelas.vitoria = PESOS.vitoria;
+  if (s.players[p].lost) parcelas.vitoria = -PESOS.vitoria;
+  const nota = Object.values(parcelas).reduce((a, b) => a + b, 0);
+  return { nota, parcelas };
+}
+
+/** B2 · simula uma ação sem mexer no estado recebido. Devolve null quando a
+    ação é ilegal — o bot nunca tenta jogar fora das regras. */
+function simula(estado, acao) {
+  try {
+    const r = E.apply(estado, acao);
+    return { estado: r.state, eventos: r.events };
+  } catch (e) {
+    if (e instanceof E.RuleError) return null;
+    throw e;
+  }
+}
+
+/** Assinatura estável de uma ação, para ordenar candidatas sem depender da
+    ordem em que `legalActions` as produziu. */
+const chaveAcao = a => [a.t, a.oid || '', a.index != null ? a.index : '', a.p,
+  (a.targets || []).map(x => x.oid || 'p' + x.player).join('+'),
+  (a.attackers || []).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : ''].join('|');
+
+/** B2 · escolhe a melhor candidata com orçamento de tempo.
+    `nota(acao)` devolve um número; empate fica com a primeira em ordem estável.
+    O relógio entra por parâmetro para o teste não depender da máquina. */
+function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now() } = {}) {
+  const lista = [...candidatas].sort((a, b) => chaveAcao(a) < chaveAcao(b) ? -1 : chaveAcao(a) > chaveAcao(b) ? 1 : 0);
+  const inicio = agora();
+  let melhor = null, melhorNota = -Infinity, vistas = 0, cortou = false;
+  for (const a of lista) {
+    if (vistas > 0 && agora() - inicio >= orcamentoMs) { cortou = true; break; }
+    const n = nota(a);
+    vistas++;
+    if (n > melhorNota) { melhorNota = n; melhor = a; }
+  }
+  return { acao: melhor, nota: melhorNota, vistas, total: lista.length, cortou };
+}
+
+return { PESOS, avalia, simula, escolhe, chaveAcao, fontesDeMana };
+})();
+
 /* ==== src/ui/table-components.js ==== */
 const __m17 = (function () {
 /* =====================================================================
