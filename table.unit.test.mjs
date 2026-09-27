@@ -153,3 +153,32 @@ test('A13 · escolha que cai no goldfish: ele escolhe, em vez de desistir da par
   assert.equal(t.state.objects[dele].zone, 'exile', 'ele escolheu uma carta e ela foi exilada');
   assert.equal(t.state.pending, null, 'e a escolha não ficou pendurada');
 });
+
+/* ---------------- B3 · a mesa com o bot no comando de um assento ---------------- */
+test('A14 · o assento do bot joga sozinho e explica cada jogada no registro', () => {
+  const setup = T.buildSetup({ format: 'pauper', seed: 21, cards: CARDS,
+    seats: [{ name: 'Você', deck: { entries: PAUPER_DECK } }, { name: 'Bot amador', deck: { entries: PAUPER_DECK } }],
+    manaCheck: true, mode: 'full' });
+  const mesa = T.createTable(setup, { options: { autoPass: true, bot: { nivel: 'amador', seat: 1 } } });
+  mesa.act({ t: 'keep', p: 0, bottom: [] });
+  // o bot mantém a mão sozinho e joga a vez dele sem nenhuma ação humana
+  for (let i = 0; i < 60 && mesa.state.status === 'playing'; i++) {
+    const s = mesa.state;
+    const quem = s.pending ? s.pending.p : s.turn.priority;
+    if (quem !== 0) break;                       // parou de vez: é a vez do humano
+    if (s.pending && s.pending.kind === 'attackers') mesa.act({ t: 'attack', p: 0, attackers: [] });
+    else if (s.pending && s.pending.kind === 'blockers') mesa.act({ t: 'block', p: 0, blocks: [] });
+    else if (s.pending && s.pending.kind === 'discard') mesa.act({ t: 'discard', p: 0, oid: s.zones[0].hand[0] });
+    else if (s.pending) break;                   // qualquer outra decisão é do humano mesmo
+    else mesa.act({ t: 'pass', p: 0 });
+  }
+  assert.equal(mesa.state.players[1].kept, true, 'o bot decidiu o mulligan sozinho');
+  assert.equal(mesa.state.turn.number >= 1, true, 'a partida andou');
+  const registro = mesa.lines.join('\n');
+  assert.match(registro, /Bot amador: /, 'o registro traz o motivo da jogada do bot');
+  // e a escolha do bot sobrevive a salvar e continuar
+  const salvo = JSON.parse(JSON.stringify(mesa.serialize()));
+  assert.deepEqual(JSON.parse(JSON.stringify(salvo.options.bot)), { nivel: 'amador', seat: 1 });
+  const voltou = T.restoreTable(salvo);
+  assert.equal(voltou.state.turn.number, mesa.state.turn.number, 'continuou do mesmo ponto');
+});

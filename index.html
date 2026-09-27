@@ -7558,7 +7558,144 @@ function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now()
   return { acao: melhor, nota: melhorNota, vistas, total: lista.length, cortou };
 }
 
-return { PESOS, avalia, simula, escolhe, chaveAcao, fontesDeMana };
+/* ---------------- B3 · bot amador experiente ---------------- */
+/* Joga certo, erra pouco e não calcula o impossível: uma camada de simulação
+   (a jogada e a resolução dela) mais regras próprias de ataque e bloqueio,
+   porque simular um ataque não mostra o dano — ele só acontece dois passos
+   depois. Aproximação assumida: ao resolver a jogada simulada, o oponente é
+   tratado como quem passa a prioridade. */
+// No turno do outro, o amador guarda a resposta: só gasta se o ganho equivaler a
+// tirar uma ameaça de verdade (3/3 para cima). Abaixo disso, ele espera.
+const LIMIAR_RESPOSTA = 12;
+
+/** Passa a prioridade no estado simulado até a pilha esvaziar ou aparecer uma decisão. */
+function resolveSimulado(s, max = 8) {
+  let cur = s;
+  for (let i = 0; i < max && cur.stack.length && !cur.pending && cur.status === 'playing'; i++) {
+    const r = simula(cur, { t: 'pass', p: cur.turn.priority });
+    if (!r) break;
+    cur = r.estado;
+  }
+  return cur;
+}
+/** Nota da posição depois da jogada — conjurar só vale a pena depois de resolver. */
+function notaDepois(s, p, acao) {
+  const r = simula(s, acao);
+  if (!r) return null;
+  const depois = ['cast', 'activate', 'cast_madness', 'cast_free'].includes(acao.t) ? resolveSimulado(r.estado) : r.estado;
+  return avalia(depois, p).nota;
+}
+const criaturasDe = (s, p) => s.zones[p].battlefield.map(oid => s.objects[oid]).filter(x => ehCriatura(s, x));
+const oponenteDe = (s, p) => { const i = s.players.findIndex((pl, k) => k !== p && !pl.lost); return i >= 0 ? i : (p + 1) % s.players.length; };
+
+/** B3 · ataque: vai quem não morre de graça; se dá para fechar a partida, vai todo mundo. */
+function decideAtaque(s, p) {
+  const podem = E.eligibleAttackers(s, p);
+  const obrigadas = E.mustAttack(s, p);
+  const d = oponenteDe(s, p);
+  const defensores = criaturasDe(s, d).filter(x => !x.tapped);
+  const seguro = oid => {
+    const meu = s.objects[oid], st = E.stats(s, meu);
+    return !defensores.some(b => {
+      if (!E.canBlock(s, b.oid, oid)) return false;
+      const sb = E.stats(s, b);
+      const euMorro = sb.power >= st.toughness || E.hasKeyword(s, b, 'deathtouch');
+      const eleMorre = st.power >= sb.toughness || E.hasKeyword(s, meu, 'deathtouch');
+      return euMorro && !eleMorre; // troca ruim: perco a criatura e não levo nada
+    });
+  };
+  const poderTotal = podem.reduce((n, oid) => n + Math.max(0, E.stats(s, s.objects[oid]).power), 0);
+  const letal = !defensores.length && poderTotal >= s.players[d].life;
+  const lista = letal ? podem.slice() : [...new Set([...podem.filter(seguro), ...obrigadas])];
+  const motivo = letal ? `ataquei com tudo: ${poderTotal} de dano fecha a partida`
+    : lista.length ? `ataquei com ${lista.length}: nenhum bloqueio me mata de graça`
+      : 'não ataquei: o bloqueio do oponente me mata de graça';
+  return { acao: { t: 'attack', p, attackers: lista }, motivo };
+}
+
+/** B3 · bloqueio: primeiro as trocas boas, depois o que evita a morte. */
+function decideBloqueio(s, p) {
+  const livres = E.eligibleBlockers(s, p);
+  const atacantes = ((s.combat || {}).attackers || []).filter(oid => s.objects[oid] && s.objects[oid].zone === 'battlefield');
+  const porAmeaca = [...atacantes].sort((a, b) => E.stats(s, s.objects[b]).power - E.stats(s, s.objects[a]).power || (a < b ? -1 : 1));
+  const usados = new Set();
+  const blocos = [];
+  const valido = lista => { const pv = E.previewCombat(s, lista); return pv ? pv : null; };
+  const tenta = par => { blocos.push(par); if (!valido(blocos)) { blocos.pop(); return false; } usados.add(par[0]); return true; };
+  for (const atk of porAmeaca) {
+    const st = E.stats(s, s.objects[atk]);
+    const candidatos = livres.filter(b => !usados.has(b) && E.canBlock(s, b, atk));
+    const mata = b => E.stats(s, s.objects[b]).power >= st.toughness || E.hasKeyword(s, s.objects[b], 'deathtouch');
+    const sobrevive = b => E.stats(s, s.objects[b]).toughness > st.power && !E.hasKeyword(s, s.objects[atk], 'deathtouch');
+    const escolhido = candidatos.find(b => mata(b) && sobrevive(b)) || candidatos.find(b => mata(b));
+    if (escolhido) tenta([escolhido, atk]);
+  }
+  let trocas = blocos.length;
+  // ainda morro? então bloqueia para segurar o dano, mesmo perdendo a criatura
+  for (const atk of porAmeaca) {
+    const pv = valido(blocos);
+    if (!pv || s.players[p].life + pv.life[p] > 0) break;
+    const chump = livres.find(b => !usados.has(b) && E.canBlock(s, b, atk));
+    if (chump) tenta([chump, atk]);
+  }
+  const motivo = !blocos.length ? 'não bloqueei: o dano não me mata e não há troca boa'
+    : trocas === blocos.length ? `bloqueei ${blocos.length}: a troca me favorece`
+      : `bloqueei ${blocos.length}: precisava segurar o dano para não morrer`;
+  return { acao: { t: 'block', p, blocks: blocos }, motivo };
+}
+
+/** Frase curta do porquê, para o registro da partida. */
+function motivoDe(s, p, acao, ganho) {
+  const nome = oid => (s.objects[oid] || {}).name || 'a carta';
+  const alvo = (acao.targets || []).map(x => x.player != null ? s.players[x.player].name : nome(x.oid)).join(' e ');
+  switch (acao.t) {
+    case 'play_land': return `baixei ${nome(acao.oid)}`;
+    case 'cast': return `conjurei ${nome(acao.oid)}${alvo ? ` em ${alvo}` : ''}`;
+    case 'activate': return `usei a habilidade de ${nome(acao.oid)}${alvo ? ` em ${alvo}` : ''}`;
+    case 'discard': return `descartei ${nome(acao.oid)}`;
+    case 'pass': return ganho != null && ganho <= 0 ? 'passei: nada melhorava a posição' : 'passei a prioridade';
+    default: return `escolhi ${acao.t}`;
+  }
+}
+
+/** B3 · devolve a jogada do bot, com o motivo. Sem jogada possível, devolve null. */
+function jogadaAmador(s, p, opts = {}) {
+  if (s.status !== 'playing' || s.players[p].lost) return null;
+  const pend = s.pending;
+  const minhaDecisao = !!(pend && pend.p === p);
+  if (minhaDecisao && pend.kind === 'attackers') return decideAtaque(s, p);
+  if (minhaDecisao && pend.kind === 'blockers') return decideBloqueio(s, p);
+  const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede');
+  if (!acoes.length) return null;
+  // Regra de curva: terreno todo turno, antes de qualquer outra coisa. Uma carta na
+  // mão vale mais que uma fonte de mana na conta da avaliação, então isto precisa ser
+  // regra do jogador, não conclusão da nota.
+  const terrenos = acoes.filter(a => a.t === 'play_land');
+  if (terrenos.length) {
+    const melhorTerreno = escolhe(terrenos, a => { const n = notaDepois(s, p, a); return n == null ? -Infinity : n; }, opts).acao;
+    return { acao: melhorTerreno, motivo: motivoDe(s, p, melhorTerreno, 0) };
+  }
+  const base = avalia(s, p).nota;
+  const limiar = s.turn.active === p ? 0 : LIMIAR_RESPOSTA; // no turno do outro, guarda a resposta
+  const candidatas = minhaDecisao ? acoes : acoes.filter(a => a.t !== 'pass');
+  if (!candidatas.length) return { acao: { t: 'pass', p }, motivo: motivoDe(s, p, { t: 'pass', p }, 0) };
+  const r = escolhe(candidatas, a => { const n = notaDepois(s, p, a); return n == null ? -Infinity : n; }, opts);
+  if (!r.acao) return { acao: { t: 'pass', p }, motivo: 'passei: nenhuma jogada legal serviu' };
+  const ganho = r.nota - base;
+  if (!minhaDecisao && ganho <= limiar) return { acao: { t: 'pass', p }, motivo: motivoDe(s, p, { t: 'pass', p }, ganho) };
+  return { acao: r.acao, motivo: motivoDe(s, p, r.acao, ganho), ganho };
+}
+
+/** Bot pronto para a mesa. Por enquanto um nível; o profissional entra na B4. */
+function criaBot({ nivel = 'amador', orcamentoMs = 400, agora = () => Date.now() } = {}) {
+  return {
+    nivel,
+    jogada(s, p) { return jogadaAmador(s, p, { orcamentoMs, agora }); }
+  };
+}
+
+return { PESOS, LIMIAR_RESPOSTA, avalia, simula, escolhe, chaveAcao, fontesDeMana,
+  jogadaAmador, decideAtaque, decideBloqueio, criaBot };
 })();
 
 /* ==== src/ui/table-components.js ==== */
@@ -7791,7 +7928,9 @@ function shouldStop(s, i) {
 }
 
 function createTable(setup, { log = [], marks = null, options: opts = {} } = {}) {
-  const options = { autoPass: opts.autoPass !== false };
+  // B3 · um assento pode ser dirigido pelo bot: { nivel, seat }
+  const options = { autoPass: opts.autoPass !== false, bot: opts.bot || null };
+  const robo = options.bot ? __m25.criaBot({ nivel: options.bot.nivel }) : null;
   let match, lines, barrier, humanMarks;
 
   function reset() { match = E.createMatch(setup); lines = []; barrier = 0; humanMarks = []; }
@@ -7812,6 +7951,21 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     for (let guard = 0; guard < 2000; guard++) {
       const s = match.state;
       if (s.status === 'over') break;
+      // B3 · o assento do bot decide sozinho, e o motivo entra no registro
+      if (robo && options.bot && !s.players[options.bot.seat].lost) {
+        const b = options.bot.seat;
+        const vez = s.status === 'mulligan' ? !s.players[b].kept
+          : s.pending ? s.pending.p === b : s.turn.priority === b;
+        if (vez) {
+          if (s.status === 'mulligan') { events.push(...record({ t: 'keep', p: b, bottom: [] })); continue; }
+          const j = robo.jogada(s, b);
+          if (j && j.acao) {
+            events.push(...record(j.acao));
+            lines.push(`${s.players[b].name}: ${j.motivo}`);
+            continue;
+          }
+        }
+      }
       const dummy = s.players.findIndex((pl, i) => pl.dummy && !pl.lost && (
         (s.status === 'mulligan' && !pl.kept) || (s.status === 'playing' && !s.pending && s.turn.priority === i)));
       if (dummy >= 0) { events.push(...record(s.status === 'mulligan' ? { t: 'keep', p: dummy, bottom: [] } : { t: 'pass', p: dummy })); continue; }
@@ -8060,13 +8214,16 @@ function createTableSetup({ decks, cardRepo, store }) {
     }
 
     const theirsField = h('div', {});
-    const paintOpponent = () => mount(theirsField, state.opponent === 'hotseat' ? Stack({},
+    const paintOpponent = () => mount(theirsField, state.opponent === 'amador' ? Stack({},
+      Text('O bot joga com a lista escolhida abaixo e diz no registro por que fez cada jogada.', { size: 'sm', tone: 'muted' }),
+      Field('Lista do bot', Select(optsDe(visiveis()), { id: 'mesa-bot-deck', value: state.theirs, onChange: e => { state.theirs = e.target.value; } })))
+      : state.opponent === 'hotseat' ? Stack({},
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
       Field('Lista do oponente', Select(optsDe(visiveis()), { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
     const oppChips = Row({ class: 'ds-row--wrap' },
-      ...[['goldfish', 'Goldfish (sem oponente)'], ['hotseat', 'Outra pessoa neste aparelho']].map(([k, label]) => {
+      ...[['goldfish', 'Goldfish (sem oponente)'], ['amador', 'Bot amador experiente'], ['hotseat', 'Outra pessoa neste aparelho']].map(([k, label]) => {
         const c = Chip(label, { pressed: state.opponent === k, dataset: { opponent: k } });
         c.addEventListener('click', () => { state.opponent = k; oppChips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); paintOpponent(); });
         return c;
@@ -8075,7 +8232,8 @@ function createTableSetup({ decks, cardRepo, store }) {
 
     async function start() {
       if (state.busy) return;
-      const mine = byId(state.mine), theirs = state.opponent === 'hotseat' ? byId(state.theirs) : null;
+      const comBot = state.opponent === 'amador';
+      const mine = byId(state.mine), theirs = state.opponent === 'hotseat' || comBot ? byId(state.theirs) : null;
       state.busy = true; startBtn.disabled = true; startBtn.textContent = 'Buscando cartas…';
       try {
         const names = [...new Set([...mine.entries, ...(theirs ? theirs.entries : [])].map(e => e.name))];
@@ -8084,7 +8242,8 @@ function createTableSetup({ decks, cardRepo, store }) {
         for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; else unknown++; }
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
-          theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
+          comBot ? { name: 'Bot amador', deck: theirs }
+            : theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
         // S64 · sem os dados da carta o motor não tem tipo, custo nem força: no motor
         // completo isso daria partida errada em silêncio, então ele não começa assim
         if (state.mode === 'full' && unknown) {
@@ -8093,7 +8252,8 @@ function createTableSetup({ decks, cardRepo, store }) {
         }
         // as cartas já vieram da rede agora: guarda para a próxima partida, mesmo sem internet
         cardRepo.pin(names).catch(() => {});
-        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }), { options: { autoPass: !state.stopAll } });
+        const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }),
+          { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'amador', seat: 1 } : null } });
         await store.set(T.SAVE_KEY, table.serialize());
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
         go('/partida');

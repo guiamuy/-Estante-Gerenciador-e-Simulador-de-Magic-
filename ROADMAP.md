@@ -96,7 +96,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
 | B · Bot | B2 avaliador de posição e arcabouço de decisão | 🟡 |
-| B · Bot | B3–B7 amador experiente, profissional, escolha na mesa, torneio e didática | ▶ |
+| B · Bot | B3 amador experiente, jogável na mesa | 🟡 |
+| B · Bot | B4–B7 profissional, escolha completa na mesa, torneio e didática | ▶ |
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7–X10 captura automática, pilha de leitura, validação e acerto medido | ○ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
@@ -337,7 +338,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
-| E37 🟡 | B2 (leva 59) · B3–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
+| E37 🟡 | B2 (leva 59) · B3 (leva 60) · B4–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 | X7–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
@@ -1972,7 +1973,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** S9, M9.
 - **Fora:** aprendizado de máquina; peso ajustado por deck.
 
-**B3 · Bot "amador experiente"** ○
+**B3 · Bot "amador experiente"** 🟡
 - **Valor:** o oponente do dia a dia: joga certo, erra pouco, não calcula o impossível.
 - **Aceite:**
   - baixa terreno todo turno, seguindo a cor que a mão precisa;
@@ -1982,8 +1983,23 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - usa remoção na maior ameaça, não na primeira criatura;
   - **não** olha a mão do oponente nem o grimório de ninguém — decide só com o que a mesa mostra;
   - cada jogada entra no registro com uma linha do motivo ("ataquei: você não tem bloqueador").
-- **Testes:** U por heurística (um cenário montado por regra, com a jogada esperada), P (partidas inteiras
-  sem ação ilegal), I (a explicação aparece no registro).
+- **Entregue (leva 60):** `jogadaAmador` no módulo do bot, mais o assento dirigido pelo bot na mesa e a
+  opção **"Bot amador experiente"** na tela de jogar — dá para jogar contra ele hoje.
+- **Como ele decide:** uma camada de simulação (a jogada **e a resolução dela**) avaliada pela B2, com
+  três regras próprias por cima: terreno todo turno antes de tudo; ataque e bloqueio por regra, porque
+  simular o ataque não mostra o dano; e, no turno do oponente, só gasta resposta se o ganho equivaler a
+  tirar uma ameaça de 3/3 para cima.
+- **Aproximação assumida:** ao resolver a jogada simulada, o oponente é tratado como quem passa a
+  prioridade. É o que separa o amador do profissional (B4), que vai simular a melhor resposta.
+- **Testes:** U (terreno primeiro; prefere a criatura maior; remoção na maior ameaça; ataca sem bloqueador,
+  fica em casa na troca ruim e vai com tudo no letal; bloqueia a troca boa e segura o dano quando a vida
+  está no fim; guarda a resposta no turno do outro), P (partida inteira bot contra bot sem nenhuma ação
+  ilegal e com o estado íntegro no fim), I (o assento do bot joga sozinho, o motivo entra no registro e a
+  escolha sobrevive a salvar e continuar).
+- **Justificativa de limite de teste:** o alvo de desempenho da B2 é mil avaliações abaixo de 50 ms, e é o
+  que acontece com a máquina livre (~10 ms). O portão roda os arquivos em paralelo, então o relógio de
+  parede sobe sem o código piorar; o teste cobra 200 ms, que ainda garante mais de 2 500 avaliações dentro
+  do orçamento de 500 ms de uma jogada.
 - **Depende de:** B2.
 - **Fora:** blefe; guardar carta para o turno seguinte por leitura de metagame.
 
