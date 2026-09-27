@@ -62,6 +62,27 @@ test('D2 · cache primeiro, TTL de 7 dias e degradação para cache vencido', as
   assert.equal(repo.stats.degraded, true);
 });
 
+test('S58 · básico sem rede vem da tabela embutida, e "não encontrada" vale um dia', async () => {
+  let t = 0, calls = 0;
+  const scryfall = { collection: async () => { calls++; throw new Error('rede'); } };
+  const repo = D2.createCardRepo({ store: F2.memoryStore(), scryfall, now: () => t });
+  const r = await repo.byNames(['Plains', 'Mountain', 'Carta Que Não Existe']);
+  assert.equal(r.get('plains').type_line, 'Basic Land — Plains', 'o básico volta mesmo com a rede fora');
+  assert.match(r.get('mountain').oracle_text, /Add \{R\}/, 'e com a mana certa, que o motor precisa');
+  assert.equal(r.get('carta que não existe') || null, null, 'o que não é básico segue desconhecido');
+
+  // "não encontrada" guardada no cache não pode valer uma semana
+  const sf2 = { collection: async names => { calls++; return { found: [], missing: names }; } };
+  const repo2 = D2.createCardRepo({ store: F2.memoryStore(), scryfall: sf2, now: () => t });
+  calls = 0;
+  await repo2.byNames(['Fantasma']);
+  await repo2.byNames(['Fantasma']);
+  assert.equal(calls, 1, 'no mesmo dia, não insiste na rede');
+  t = 2 * 24 * 3600 * 1000;
+  await repo2.byNames(['Fantasma']);
+  assert.equal(calls, 2, 'no dia seguinte, tenta de novo em vez de repetir "desconhecida"');
+});
+
 test('W1 · estratégia de cache do service worker por tipo de requisição', () => {
   const code = readFileSync(join(ROOT, 'sw.js'), 'utf8') + '\n;globalThis.__pick = pickStrategy;';
   const ctx = vm.createContext({ self: { location: { origin: 'https://guiamuy.github.io' }, addEventListener() {} }, URL, caches: {}, Request: class {}, Response: class {}, Headers: class {} });

@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| S · Scripts | S58 terreno básico embutido e cobertura pelo nome da lista | ✅ |
 | S · Scripts | S57 masmorra: aventurar-se, escolher a sala e completar | 🟡 |
 | S · Scripts | S56 terrenos das listas, medição honesta e gatilho com modos | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
@@ -291,7 +292,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33y ✅ | S55 (leva 47) | **PAUPER 100%: as sete listas rodam no Motor completo** |
 | E33z 🟡 | S56 (leva 48) | Medição corrigida + 15 cartas: seis Pauper em 100% de verdade |
 | E33aa 🟡 | S57 (leva 49) | Masmorra: máquina pronta e a Mina Perdida de Phandelver inteira |
-| E33ab ▶ | S58 | As outras três masmorras, para fechar a Secret Door e o Pauper |
+| E33ab ✅ | S58 (leva 50) | Básico embutido: as listas param de perder % por falta de rede |
+| E33ac ▶ | S59 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
+| E33ad ▶ | S60 | As outras três masmorras, para fechar a Secret Door e o Pauper |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -823,6 +826,34 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
 
+**S58 · Terreno básico embutido e cobertura pelo nome da lista** ✅
+- **O erro que esta leva corrige:** o usuário viu Boros Bully e Walls Combo abaixo de 100% no celular
+  enquanto a minha medição dizia 100%. Causa real: a tela calcula a cobertura com os dados de carta
+  **buscados na Scryfall**, e o que não vem na resposta conta como "carta desconhecida" — inclusive os
+  **terrenos básicos**. Boros Bully tem 11 básicos em 75 cartas: exatamente os 15% que faltavam (85%).
+  Walls Combo tem 12 Forest: 83%. A minha ferramenta nunca viu isso porque ela **fabricava** os básicos.
+- **Consequência pior que o número:** o modo "motor completo" só libera com 100%, então a lista ficava
+  trancada na mesa assistida. E numa partida sem rede o básico entrava sem tipo e não dava mana.
+- **Aceite:**
+  - os cinco básicos existem dentro do app (tipo e mana), e voltam da tabela embutida quando a busca não
+    traz nada — a cobertura e a partida não dependem de rede para eles;
+  - a cobertura acha o script pelo **nome da lista**, não só pelo nome devolvido pela busca: apóstrofo
+    curvo, acento e nome de carta de duas faces ("A // B") não derrubam mais a carta para "sem script";
+  - "carta não encontrada" guardada no cache vale **um dia**, não uma semana;
+  - a tela de jogar diz **quais** cartas ficam com você e mostra a **versão do motor** — sem isso, "97%"
+    não diz nada e uma versão antiga em cache parece bug de regra.
+- **Cobertura real, medida nos dois cenários** (a ferramenta agora mede os dois):
+  com texto buscado, seis listas Pauper em 100% e Walls Combo em 99%; **sem rede nenhuma**, Mono Blue
+  Faeries, Rakdos Madness e Boros Bully também em 100%.
+- **O que ainda depende da busca:** Gladecover Scout, Slippery Bogle (GW Bogles), Llanowar Elves,
+  Elvish Mystic (Elves) e Vault of Whispers (Jund Wildfire) não têm script — são cobertas pelo texto,
+  então sem o texto buscado caem para manual. Fechar isso é embutir os dados das cartas das listas
+  prontas (S59), que também é o que faz a partida funcionar sem rede.
+- **Testes:** U (cobertura com nome buscado diferente do nome da lista, inclusive "A // B"; lista dizendo
+  qual carta fica na mão e por quê; básico vindo da tabela embutida com a rede fora; "não encontrada"
+  valendo um dia), I headless (lista pronta Boros Bully em 100% e motor completo liberado com a Scryfall
+  não conhecendo nenhuma carta da lista — antes desta leva a mesma tela mostrava 85%).
+
 **S57 · Masmorra: aventurar-se, escolher a sala e completar** 🟡
 - **Valor:** "aventure-se na masmorra" existe no motor, e a Secret Door do Walls Combo deixa de ser
   um botão que não faz nada.
@@ -910,6 +941,10 @@ medida pela mesma função que a tela de jogar usa, é a de baixo.
 | Pauper GW Bogles | 100% |
 | Pauper Boros Bully | 100% |
 | Pauper Walls Combo | 99% (Secret Door: falta escolher entre as quatro masmorras) |
+
+Medida também **sem rede** (leva 50): Mono Blue Faeries, Rakdos Madness e Boros Bully seguem em 100%;
+GW Bogles 89%, Elves 92% e Jund Wildfire 97%, porque cinco cartas dessas listas são cobertas pelo texto
+buscado e não por script. Embutir os dados dessas cartas é a S59.
 | Pauper Jund Wildfire | 100% |
 | Pauper Elves | 100% |
 

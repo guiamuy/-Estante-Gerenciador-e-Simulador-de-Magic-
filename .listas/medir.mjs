@@ -27,8 +27,12 @@ for (const [nome, cartas] of Object.entries(decks)) {
   const mapa = new Map();
   for (const e of entries) { const c = carta(e.name); if (c) { mapa.set(e.name, c); mapa.set(C.norm(e.name), c); } }
   const cv = S.deckCoverage(entries, mapa);
+  // S58 · o celular pode estar sem rede (ou com "não encontrada" no cache): medir
+  // também sem nenhum dado de carta, que é o pior caso real
+  const semRede = S.deckCoverage(entries, new Map());
   const semTexto = entries.filter(e => !S.SCRIPTS[e.name] && !carta(e.name));
-  console.log(`${nome} | ${cv.pct}% | completo ${cv.completo} · parcial ${cv.parcial} · manual ${cv.manual}`);
+  console.log(`${nome} | com texto ${cv.pct}% | sem rede ${semRede.pct}% | completo ${cv.completo} · parcial ${cv.parcial} · manual ${cv.manual}`);
+  if (semRede.pct !== cv.pct) console.log(`   sem rede depende do texto buscado: ${[...new Set(semRede.worst)].join(', ')}`);
   if (cv.worst.length) console.log(`   falta: ${[...new Set(cv.worst)].join(', ')}`);
   if (semTexto.length) console.log(`   sem texto conferido (o app lê da Scryfall): ${semTexto.map(e => e.name).join(', ')}`);
   for (const n of new Set(cv.worst)) pendentes.set(n, (pendentes.get(n) || 0) + 1);

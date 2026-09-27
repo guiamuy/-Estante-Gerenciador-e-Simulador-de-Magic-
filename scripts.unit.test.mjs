@@ -153,6 +153,27 @@ test('S2 · cobertura da lista: percentual, contagem e o que falta; reserva não
   assert.deepEqual([...cov.worst].sort(), ['Odd Stone', 'Sem Script']);
 });
 
+test('S58 · o nome buscado diferente do nome da lista não derruba a cobertura', () => {
+  // a busca devolve o nome com apóstrofo curvo, com acento e com as duas faces;
+  // antes disso a tela dizia "sem script" para cartas que o motor joga inteiras
+  const scripts = { "Moment's Peace": { name: "Moment's Peace", effects: [{ do: 'fog' }] },
+    'Bala Ged Recovery': { name: 'Bala Ged Recovery', effects: [{ do: 'to_hand', target: 'creature-in-your-graveyard' }] } };
+  const cards = new Map([
+    ["moment's peace", { name: 'Moment\u2019s Peace', type_line: 'Instant', oracle_text: 'Prevent all combat damage that would be dealt this turn.', keywords: [] }],
+    ['bala ged recovery', { name: 'Bala Ged Recovery // Bala Ged Sanctuary', type_line: 'Sorcery // Land', oracle_text: 'Return target permanent card from your graveyard to your hand.', keywords: [] }]
+  ]);
+  const cov = S.deckCoverage([{ name: "Moment's Peace", qty: 2, zone: 'main' }, { name: 'Bala Ged Recovery', qty: 2, zone: 'main' }], cards, scripts);
+  assert.equal(cov.pct, 100, 'as duas contam como completas');
+  assert.deepEqual(JSON.parse(JSON.stringify(cov.worst)), []);
+});
+
+test('S58 · a lista diz qual carta fica na mão, e por quê', () => {
+  const scripts = { Porta: { name: 'Porta', covers: 'partial', note: 'falta a masmorra', effects: [{ do: 'draw', amount: 1 }] } };
+  const cards = new Map([['porta', { name: 'Porta', type_line: 'Artifact Creature — Wall', oracle_text: 'Defender', keywords: ['Defender'] }]]);
+  const cov = S.deckCoverage([{ name: 'Porta', qty: 1, zone: 'main' }], cards, scripts);
+  assert.deepEqual(JSON.parse(JSON.stringify(cov.pending)), [{ name: 'Porta', level: 'parcial', reason: 'falta a masmorra' }]);
+});
+
 /* ---------------- S4 · efeitos ---------------- */
 test('S4 · dano, destruir, devolver, anular, comprar, vida e pump', () => {
   let s = game(3); const a = s.turn.active, d = 1 - a;

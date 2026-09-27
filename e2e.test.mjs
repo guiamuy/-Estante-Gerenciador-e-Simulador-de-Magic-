@@ -742,5 +742,25 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   await page.click('[data-table-format="pauper"]');
   await page.waitForSelector('#mesa-mine');
   assert.match(await page.innerText('#mesa-mine'), /Pauper Elves/, 'a lista do modo escolhido é selecionável');
+
+  // S58 · lista pronta com todas as cartas escritas: 100% e motor completo liberado
+  // mesmo sem a Scryfall responder (aqui ela não conhece nenhuma dessas cartas).
+  // Antes desta leva os terrenos básicos entravam como "carta desconhecida" e a
+  // mesma lista aparecia com 85%, trancando o modo motor completo.
+  await page.goto(base + '#/listas/prontas');
+  await page.waitForSelector('#starter-list');
+  await page.click('[data-starter-format="pauper"]');
+  await page.click('[data-starter-add="Pauper Boros Bully"]');
+  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Boros Bully"]'), null, { timeout: 8000 });
+  await page.goto(base + '#/mesa');
+  await page.click('[data-table-format="pauper"]');
+  await page.waitForSelector('#mesa-mine');
+  const opt = await page.locator('#mesa-mine option').evaluateAll(os => os.map(o => ({ v: o.value, t: o.textContent })));
+  const boros = opt.find(o => /Boros Bully/.test(o.t));
+  assert.ok(boros, 'a lista adicionada aparece na tela de jogar: ' + JSON.stringify(opt));
+  await page.selectOption('#mesa-mine', boros.v);
+  await page.waitForFunction(() => /100% completo/.test(document.querySelector('#mesa-coverage')?.innerText || ''), null, { timeout: 8000 });
+  assert.match(await page.innerText('#mesa-engine-version'), /motor v\d+/, 'a tela mostra a versão do motor');
+  assert.equal(await page.locator('[data-mode="full"]').isDisabled(), false, 'motor completo liberado');
   assert.deepEqual(errors, []);
 });

@@ -1394,6 +1394,19 @@ const INDEX = 'card.__index';
 const norm = s => String(s || '').toLowerCase().normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '').replace(/[’]/g, "'").replace(/\s+/g, ' ').trim();
 
+/** S58 · os cinco terrenos básicos são fixos e o app não pode depender da rede
+    para saber o que eles fazem: sem eles no mapa, a tela dizia "carta
+    desconhecida" (contando como manual, o que derrubava a cobertura para 83–89%)
+    e, numa partida sem rede, o terreno entrava sem tipo e não dava mana. */
+const BASIC_MANA = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
+const BASIC_CARDS = Object.fromEntries(Object.entries(BASIC_MANA).map(([k, c]) => {
+  const nome = k[0].toUpperCase() + k.slice(1);
+  return [k, { id: 'basic-' + k, oracle_id: null, name: nome, mana_cost: '', cmc: 0,
+    type_line: `Basic Land — ${nome}`, oracle_text: `{T}: Add {${c}}.`, power: null, toughness: null, loyalty: null,
+    colors: [], color_identity: [c], keywords: [], layout: 'normal', rarity: 'common', set: '', set_name: '',
+    collector_number: '', legalities: { pauper: 'legal', commander: 'legal', vintage: 'legal' }, prices: {},
+    images: null, faces: [], uri: '', edhrec_rank: null, reserved: false, games: [], builtin: true }];
+}));
 function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 * 1000, now = () => Date.now() }) {
   const mem = new Map();
   const stats = { hits: 0, misses: 0, fetched: 0, degraded: false };
@@ -1404,7 +1417,10 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     if (rec) mem.set(key, rec);
     return rec;
   };
-  const fresh = rec => rec && (now() - rec.ts) < ttlMs;
+  // S58 · "não encontrada" vale por um dia, não por uma semana: quase sempre é
+  // falha de rede passageira ou nome que o usuário já corrigiu, e uma semana
+  // dizendo "carta desconhecida" derruba a cobertura da lista inteira
+  const fresh = rec => rec && (now() - rec.ts) < (rec.card ? ttlMs : Math.min(ttlMs, 24 * 3600 * 1000));
 
   return {
     stats,
@@ -1443,6 +1459,8 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
         // degradação: devolve o que houver em cache, mesmo vencido
         for (const k of need) { const rec = await readCache(k); if (rec) out.set(k, rec.card); }
       }
+      // S58 · básico sem resposta da rede volta da tabela embutida, nunca como desconhecido
+      for (const k of keys) if (!out.get(k) && BASIC_CARDS[k]) out.set(k, BASIC_CARDS[k]);
       return out;
     },
 
@@ -1501,7 +1519,7 @@ async function bumpIndex(store, map) {
   cur.n = cur.n + [...map.values()].filter(Boolean).length;
   await store.set(INDEX, cur);
 }
-return { createCardRepo, norm };
+return { createCardRepo, norm, BASIC_CARDS };
 })();
 
 /* ==== src/data/images.js ==== */
@@ -3024,11 +3042,31 @@ const KW_LINE = new RegExp(`^(${KEYWORDS.join('|')})(,\\s*(${KEYWORDS.join('|')}
 const MANA_LINE = /^\{T\}: Add /i;
 const clean = t => String(t || '').replace(/\([^)]*\)/g, '').split('\n').map(l => l.trim()).filter(Boolean);
 
+/** S58 · acha o script pelo nome da lista ou pelo nome da carta buscada, sem
+    tropeçar em apóstrofo, acento ou nome de carta de duas faces ("A // B").
+    Antes a cobertura olhava só o nome que a Scryfall devolveu: um nome diferente
+    do que está na lista fazia a tela dizer "sem script" para uma carta que o
+    motor joga perfeitamente — e isso trancava o modo motor completo. */
+const NORM_INDEX = new WeakMap();
+function normIndex(scripts) {
+  let ix = NORM_INDEX.get(scripts);
+  if (!ix) { ix = new Map(); for (const n of Object.keys(scripts)) ix.set(__m7.norm(n), scripts[n]); NORM_INDEX.set(scripts, ix); }
+  return ix;
+}
+function findScript(scripts, ...names) {
+  for (const n of names) if (n && scripts[n]) return scripts[n];
+  const ix = normIndex(scripts);
+  for (const n of names) {
+    if (!n) continue;
+    const k = __m7.norm(n); if (ix.has(k)) return ix.get(k);
+    const face = __m7.norm(String(n).split('//')[0]); if (face && ix.has(face)) return ix.get(face);
+  }
+  return null;
+}
 /** completo: o motor resolve tudo · parcial: parte vira adjudicação · manual: tudo na mão. */
-function coverage(card, scripts = SCRIPTS) {
-  const name = card && card.name;
-  if (name && scripts[name]) {
-    const sc = scripts[name];
+function coverage(card, scripts = SCRIPTS, key) {
+  const sc = findScript(scripts, key, card && card.name);
+  if (sc) {
     // S2 · o script pode cobrir só parte da carta (custo alternativo, sobrecarga, flashback…)
     return sc.covers === 'partial' ? { level: 'parcial', reason: sc.note || 'o script cobre só o uso normal da carta' } : { level: 'completo', reason: 'script validado' };
   }
@@ -3049,16 +3087,18 @@ const COVERAGE_MARK = { completo: '✓', parcial: '◐', manual: '✎' };
 function deckCoverage(entries, cards, scripts = SCRIPTS) {
   const count = { completo: 0, parcial: 0, manual: 0 };
   let total = 0;
-  const worst = [];
-  const find = name => cards.get ? (cards.get(name) || cards.get(__m7.norm(name))) : cards[name];
+  const worst = [], pending = [];
+  // S58 · básico sempre conhecido, com ou sem rede
+  const find = name => (cards.get ? (cards.get(name) || cards.get(__m7.norm(name))) : cards[name]) || __m7.BASIC_CARDS[__m7.norm(name)] || null;
   for (const e of entries) {
     if (e.zone === 'side') continue;
     const c = find(e.key || e.name) || find(e.name);
-    const lv = coverage(c || { name: e.name }, scripts).level;
-    count[lv] += e.qty; total += e.qty;
-    if (lv !== 'completo') worst.push(e.name);
+    // S58 · o nome da lista também vale para achar o script
+    const cv = coverage(c || { name: e.name }, scripts, e.name);
+    count[cv.level] += e.qty; total += e.qty;
+    if (cv.level !== 'completo') { worst.push(e.name); pending.push({ name: e.name, level: cv.level, reason: cv.reason }); }
   }
-  return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst };
+  return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
 return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, DUNGEONS, dungeonByName, roomById };
@@ -4182,7 +4222,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           const c = entryCard(e);
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
           const lacking = have < e.qty;
-          const cov = coverage(c || { name: e.name });
+          const cov = coverage(c || { name: e.name }, undefined, e.name); // S58 · nome da lista vale para achar o script
           const face = CardFace({ name: e.name, image: img(c) });
           const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level } }, face,
             h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}` }, COVERAGE_MARK[cov.level]),
@@ -7530,7 +7570,13 @@ function createTableSetup({ decks, cardRepo, store }) {
       if (run !== covRun) return;
       const cv = deckCoverage(d.entries.map(e => ({ ...e, key: norm(e.name) })), cards);
       state.coverage = cv.pct;
-      mount(covBox, Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · você aplica o efeito de ${cv.parcial + cv.manual} carta(s) na mesa` : ' · nada a adjudicar'), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }));
+      // S58 · dizer QUAIS cartas ficam na sua mão, e qual versão do motor está rodando:
+      // sem isso, "97%" não diz nada e uma versão antiga em cache parece bug de regra
+      const faltam = [...new Set(cv.pending.map(x => x.name))];
+      mount(covBox, Stack({ style: { gap: 'var(--space-1)' } },
+        Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · você aplica o efeito de ${cv.parcial + cv.manual} carta(s) na mesa` : ' · nada a adjudicar'), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }),
+        faltam.length ? Text(`Fica com você: ${faltam.slice(0, 6).join(', ')}${faltam.length > 6 ? ` e mais ${faltam.length - 6}` : ''}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
+        Text(`motor v${E.ENGINE_VERSION}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-engine-version' } })));
       paintMode();
     }
     // S9 · motor completo só entra com a lista 100% coberta
