@@ -3124,3 +3124,110 @@ test('S48 · o encantamento exila a criatura e devolve quando sai do campo', () 
   assert.equal(s.objects[alvo].zone, 'battlefield', 'a criatura voltou para o campo');
   assert.equal(s.objects[alvo].controller, d, 'e voltou para o controle do dono dela');
 });
+
+/* ---------------- S49 · gatilho opcional, "a menos que tenha entrado agora" e desconto por condição ---------------- */
+const MB_CARDS = {
+  'Island': { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {U}.' },
+  'Hacker': { name: 'Hacker', type_line: 'Enchantment Creature — Human Ninja', mana_cost: '{1}{U}', cmc: 2, colors: ['U'], power: '2', toughness: '1', keywords: [], oracle_text: 'Ninjutsu {U}\nWhenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card unless this creature entered this turn.' },
+  'Strix': { name: 'Strix', type_line: 'Creature — Bird', mana_cost: '{2}{U}', cmc: 3, colors: ['U'], power: '2', toughness: '1', keywords: ['Flying'], oracle_text: 'Flying\nWhen this creature enters, tap target permanent.\n{2}{U}: Draw a card, then discard a card.' },
+  'Mind': { name: 'Mind', type_line: 'Sorcery', mana_cost: '{2}{U}', cmc: 3, colors: ['U'], keywords: [], oracle_text: 'This spell costs {2} less to cast if you control a Human creature and a non-Human creature.\nDraw two cards.' },
+  'Human': { name: 'Human', type_line: 'Creature — Human Soldier', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: '' },
+  'Faerie': { name: 'Faerie', type_line: 'Creature — Faerie Rogue', mana_cost: '{U}', cmc: 1, colors: ['U'], power: '1', toughness: '1', keywords: ['Flying'], oracle_text: '' }
+};
+const MB_SCRIPTS = {
+  Hacker: { name: 'Hacker', ninjutsu: { mana: '{1}{U}' },
+    abilities: [{ kind: 'triggered', when: 'combat-damage', optional: true,
+      effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1, onlyIf: 'source-entered-earlier' }] }],
+    example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } },
+  Strix: { name: 'Strix', abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'permanent' }] },
+    { kind: 'activated', cost: { mana: '{2}{U}' }, effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Mind: { name: 'Mind', effects: [{ do: 'draw', amount: 2 }],
+    discount: { amount: 2, needs: [{ subtype: 'Human' }, { notSubtype: 'Human' }] },
+    example: { target: 'none', expect: { handDelta: 2 } } }
+};
+const MBDECK = [{ name: 'Island', qty: 16, zone: 'main' }, { name: 'Hacker', qty: 8, zone: 'main' }, { name: 'Strix', qty: 8, zone: 'main' },
+  { name: 'Mind', qty: 8, zone: 'main' }, { name: 'Human', qty: 8, zone: 'main' }, { name: 'Faerie', qty: 8, zone: 'main' }];
+function mbGame(seed = 1, manaCheck = false) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck, cards: MB_CARDS, scripts: MB_SCRIPTS,
+    players: [{ name: 'A', deck: MBDECK }, { name: 'B', deck: MBDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S49 · "você pode comprar": a mesa pergunta, e recusar não compra', () => {
+  let s = mbGame(3); const a = s.turn.active, d = 1 - a;
+  let hacker;
+  [s, hacker] = put(s, a, 'Hacker');
+  s = JSON.parse(JSON.stringify(s)); s.objects[hacker].sick = false; // entrou em turno anterior
+  s = passTo(s, 'combat_attackers');
+  s = act(s, { t: 'attack', p: a, attackers: [hacker] });
+  for (let i = 0; i < 12 && !(s.pending && s.pending.kind === 'may_pay'); i++) {
+    if (s.pending && s.pending.kind === 'blockers') { s = act(s, { t: 'block', p: s.pending.p, blocks: [] }); continue; }
+    s = act(s, { t: 'pass', p: s.turn.priority });
+  }
+  assert.ok(s.pending && s.pending.kind === 'may_pay' && s.pending.p === a, 'a mesa perguntou se eu quero comprar');
+  assert.equal(s.pending.cost, null, 'é uma decisão sem custo');
+  const mao = s.zones[a].hand.length;
+  const recusou = settle(act(s, { t: 'decline', p: a }));
+  assert.equal(recusou.zones[a].hand.length, mao, 'recusando, não compro nada');
+  // aceitando, compro e descarto (a criatura não entrou neste turno)
+  const aceitou = act(s, { t: 'pay', p: a });
+  assert.ok(aceitou.pending && aceitou.pending.kind === 'discard' && aceitou.pending.p === a, 'comprei e agora preciso descartar');
+});
+
+test('S49 · a criatura que entrou neste turno compra sem descartar', () => {
+  let s = mbGame(4); const a = s.turn.active;
+  let hacker;
+  [s, hacker] = put(s, a, 'Hacker', { sick: true }); // entrou neste turno
+  assert.equal(s.objects[hacker].sick, true, 'entrou neste turno');
+  // pressa para poder atacar no turno em que entrou, como o ninjutsu faz
+  s = JSON.parse(JSON.stringify(s));
+  s.objects[hacker].tempKeywords = ['haste'];
+  s = passTo(s, 'combat_attackers');
+  s = act(s, { t: 'attack', p: a, attackers: [hacker] });
+  for (let i = 0; i < 12 && !(s.pending && s.pending.kind === 'may_pay'); i++) {
+    if (s.pending && s.pending.kind === 'blockers') { s = act(s, { t: 'block', p: s.pending.p, blocks: [] }); continue; }
+    s = act(s, { t: 'pass', p: s.turn.priority });
+  }
+  assert.ok(s.pending && s.pending.kind === 'may_pay', 'a pergunta apareceu');
+  const mao = s.zones[a].hand.length;
+  s = settle(act(s, { t: 'pay', p: a }));
+  assert.equal(s.zones[a].hand.length, mao + 1, 'comprei e não precisei descartar');
+  assert.equal(s.pending, null, 'nada ficou pendurado');
+});
+
+test('S49 · comprar e descartar por habilidade ativada', () => {
+  let s = mbGame(5); const a = s.turn.active;
+  let strix;
+  [s, strix] = put(s, a, 'Strix');
+  // o índice conta só as habilidades ativadas: a de comprar e descartar é a primeira
+  const acao = E.legalActions(s, a).find(x => x.t === 'activate' && x.oid === strix && x.index === 0);
+  assert.ok(acao, 'a mesa oferece a habilidade de comprar e descartar');
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, acao)));
+  assert.ok(s.pending && s.pending.kind === 'discard', 'comprei e agora descarto');
+  s = act(s, { t: 'discard', p: a, oid: s.zones[a].hand[0] });
+  assert.equal(s.zones[a].hand.length, mao, 'comprei uma e descartei uma');
+});
+
+test('S49 · o desconto de {2} só vale com Humano e não Humano ao mesmo tempo', () => {
+  let s = mbGame(6, true); const a = s.turn.active;
+  let mente;
+  [s, mente] = put(s, a, 'Mind', { zone: 'hand' });
+  for (let i = 0; i < 3; i++) { let t; [s, t] = put(s, a, 'Island'); } // três manas: {2}{U} custa 3
+  const podeCheia = E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === mente);
+  assert.equal(podeCheia, true, 'com três terrenos dá para pagar o custo cheio');
+
+  // com só um terreno, precisa do desconto
+  let s2 = mbGame(6, true); const a2 = s2.turn.active;
+  let mente2, humano, faerie;
+  [s2, mente2] = put(s2, a2, 'Mind', { zone: 'hand' });
+  let t1; [s2, t1] = put(s2, a2, 'Island');
+  assert.equal(E.legalActions(s2, a2).some(x => x.t === 'cast' && x.oid === mente2), false, 'com um terreno só, não dá');
+  [s2, humano] = put(s2, a2, 'Human');
+  assert.equal(E.legalActions(s2, a2).some(x => x.t === 'cast' && x.oid === mente2), false, 'só com Humano, o desconto não vale');
+  [s2, faerie] = put(s2, a2, 'Faerie');
+  assert.equal(E.legalActions(s2, a2).some(x => x.t === 'cast' && x.oid === mente2), true, 'com Humano e não Humano, o desconto entra e dá para conjurar');
+});

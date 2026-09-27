@@ -88,6 +88,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S46 busca do oponente, sacrifício por subtipo e lampejo com cor | 🟡 |
 | S · Scripts | S47 custo opcional no gatilho, condição do custo pago e mágica sem alvo | 🟡 |
 | S · Scripts | S48 vida pelo dano causado, fuga e devolver o que foi exilado | 🟡 |
+| S · Scripts | S49 gatilho opcional, "a menos que tenha entrado agora" e desconto por condição | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -273,7 +274,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33p 🟡 | S46 (leva 38) | Jund Wildfire 95% e Boros Bully 89% (81 → 62 cópias parciais) |
 | E33q 🟡 | S47 (leva 39) | **Jund Wildfire em 100%** e Rakdos em 95% (62 → 50 cópias parciais) |
 | E33r 🟡 | S48 (leva 40) | **GW Bogles em 100%** (50 → 42 cópias parciais) |
-| E33s ▶ | S49+ | Pauper para 100%: 15 cartas parciais restantes |
+| E33s 🟡 | S49 (leva 41) | **Mono Blue Faeries em 100%** (42 → 34 cópias parciais) |
+| E33t ▶ | S50+ | Pauper para 100%: 12 cartas parciais restantes |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -803,6 +805,28 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S49 · Gatilho opcional, "a menos que tenha entrado agora" e desconto por condição** 🟡
+- **Aceite:**
+  - "você **pode** comprar uma carta": a mesa pergunta, sem custo nenhum, e recusar não faz nada;
+  - "descarte uma carta **a menos que** esta criatura tenha entrado neste turno": a criatura que entrou
+    agora compra e não descarta;
+  - habilidade ativada que compra e descarta;
+  - "esta mágica custa {2} menos se você controla um Humano e uma criatura não Humana": cada exigência
+    precisa de uma criatura **diferente** sua.
+- **Entregue (todas completas):** Moon-Circuit Hacker, Harrier Strix e Of One Mind.
+- **Correções:**
+  1. **A tela de "pagar" estava com o texto errado desde a leva 39.** O custo opcional de gatilho
+     reaproveita a mesma decisão usada para "pagar para a mágica não ser anulada", e o aviso dizia
+     justamente isso. Agora o aviso diz o que está em jogo: pagar para o efeito acontecer, ou só
+     "fazer o efeito?" quando não há custo.
+  2. **Harrier Strix mirava só permanente do oponente**; a carta diz "permanente alvo", qualquer uma.
+  3. a condição do efeito era checada em três lugares com três códigos, e o caminho do custo opcional
+     não checava nada — o descarte acontecia mesmo quando a carta dizia para não acontecer. Virou uma
+     função só, usada pelos três caminhos.
+- **Testes:** U (pergunta sem custo com recusa e aceite, criatura que entrou agora comprando sem
+  descartar, habilidade de comprar e descartar, desconto valendo só com Humano **e** não Humano), S8.
+- **Resultado:** **Mono Blue Faeries em 100%** — terceira lista fechada. Cópias parciais de 42 para 34.
 
 **S48 · Vida pelo dano causado, fuga e devolver o que foi exilado** 🟡
 - **Aceite:**

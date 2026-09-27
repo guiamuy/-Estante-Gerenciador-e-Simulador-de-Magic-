@@ -2074,7 +2074,7 @@ const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
-const ONLY_IF = ['discarded-nonland'];
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -2117,7 +2117,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -2158,6 +2158,7 @@ function validateScript(sc) {
   }
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther)) errs.push('lampejo do passado sem custo');
   if (sc && sc.escape && !sc.escape.mana) errs.push('fuga sem custo de mana');
+  if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
   for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
@@ -2602,11 +2603,12 @@ const RAW_SCRIPTS = [
   { name: 'Brinebarrow Intruder', abilities: [{ kind: 'triggered', when: 'etb',
     effects: [{ do: 'pump', power: -2, toughness: 0, target: 'creature-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
-  { name: 'Harrier Strix', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'permanent-opponent-controls' }] }],
-    covers: 'partial', note: 'a habilidade de comprar e descartar ainda não entra',
+  { name: 'Harrier Strix', abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'permanent' }] },
+    { kind: 'activated', cost: { mana: '{2}{U}' }, effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1 }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Of One Mind', effects: [{ do: 'draw', amount: 2 }],
-    covers: 'partial', note: 'o desconto por controlar Humano e não Humano ainda não entra',
+    discount: { amount: 2, needs: [{ subtype: 'Human' }, { notSubtype: 'Human' }] },
     example: { target: 'none', expect: { handDelta: 2 } } },
   // S27 · pedras de mana e utilidades das listas de Commander
   { name: 'Izzet Signet', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true }, effects: [{ do: 'add_mana', symbols: ['U', 'R'] }] }],
@@ -2789,8 +2791,8 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } },
   { name: 'Moon-Circuit Hacker', ninjutsu: { mana: '{1}{U}' },
-    abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'draw', amount: 1 }] }],
-    covers: 'partial', note: 'a segunda parte do gatilho (descartar quando já tem muitas cartas) ainda não entra',
+    abilities: [{ kind: 'triggered', when: 'combat-damage', optional: true,
+      effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1, onlyIf: 'source-entered-earlier' }] }],
     example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } },
   { name: 'Fiery Temper', effects: [{ do: 'damage', amount: 3, target: 'any' }], madness: { mana: '{R}' },
     example: { action: 'madness', target: 'opponent', expect: { opponentLife: -3 } } },
@@ -4397,7 +4399,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 41;
+const ENGINE_VERSION = 42;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4597,6 +4599,7 @@ function createGame(setup) {
     if (sc.alt) f.script.alt = sc.alt;
     if (sc.flashback) f.script.flashback = sc.flashback;
     if (sc.escape) f.script.escape = sc.escape; // S48 · fuga
+    if (sc.discount) f.script.discount = sc.discount; // S49 · desconto por condição de campo
     if (sc.ninjutsu) f.script.ninjutsu = sc.ninjutsu;
     if (sc.madness) f.script.madness = sc.madness;
     if (sc.produces) f.script.produces = sc.produces;
@@ -4809,10 +4812,30 @@ const castExtra = (s, p, o, x = 0) => (o.zone === 'command' ? commanderTax(s, p,
   - affinityDiscount(s, p, o); // S33 · afinidade reduz o custo genérico
 /** Quantas permanentes do tipo pedido você controla (limitado ao custo genérico). */
 function affinityDiscount(s, p, o) {
-  const tipo = (s.facts[o.name].script || {}).affinity;
+  const sc = s.facts[o.name].script || {};
+  const teto = s.facts[o.name].cost.generic || 0;
+  // S49 · desconto por condição de campo: cada exigência precisa de uma criatura sua diferente
+  if (sc.discount) {
+    const usadas = new Set();
+    const ok = (sc.discount.needs || []).every(req => {
+      const achou = battlefield(s).find(x => x.controller === p && !usadas.has(x.oid) && isCreature(s, x) && matchesCreatureReq(s, x, req));
+      if (achou) usadas.add(achou.oid);
+      return !!achou;
+    });
+    if (ok) return Math.min(sc.discount.amount || 0, teto);
+    return 0;
+  }
+  const tipo = sc.affinity;
   if (!tipo) return 0;
   const n = battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes(tipo)).length;
-  return Math.min(n, s.facts[o.name].cost.generic || 0);
+  return Math.min(n, teto);
+}
+/** S49 · exigência de criatura para desconto: subtipo, ou "que não seja daquele subtipo". */
+function matchesCreatureReq(s, o, req) {
+  const tem = x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(s.facts[o.name].typeText || '');
+  if (req.subtype && !tem(req.subtype)) return false;
+  if (req.notSubtype && tem(req.notSubtype)) return false;
+  return true;
 }
 
 /* ---------------- S24 · faces duplas ---------------- */
@@ -5223,6 +5246,13 @@ function amountOf(s, src, v) {
 }
 
 /* ---------------- S4 · efeitos ---------------- */
+/** S49 · condição do próprio efeito, sempre olhando a permanente que é a fonte. */
+function effectAllowed(s, fonte, eff) {
+  if (!eff.onlyIf) return true;
+  if (eff.onlyIf === 'source-entered-earlier') return !!fonte && !fonte.sick;
+  if (eff.onlyIf === 'discarded-nonland') return !!fonte && !!fonte.discardedNonland;
+  return true;
+}
 function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
 function applyEffect(s, src, eff, tgt, events) {
   const ctrl = src.controller;
@@ -5578,8 +5608,7 @@ function resolveScript(s, o, events) {
   let ti = 0, firstTarget = null;
   for (const [idx, eff] of effects.entries()) {
     if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx) }; return; }
-    // S47 · efeito que só acontece se o custo pago disser que sim
-    if (eff.onlyIf === 'discarded-nonland' && !o.discardedNonland) continue;
+    if (!effectAllowed(s, o, eff)) continue; // S47/S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) {
       const tgt = chosen[ti]; const ok = stillLegal[ti]; ti++;
       if (!ok) { events.push({ kind: 'effect', do: eff.do, name: o.name, target: effectTargetName(s, tgt), failed: true }); continue; }
@@ -5643,7 +5672,7 @@ function queueTriggers(s, when, objects, controller) {
     for (const ab of abilitiesOf(s, o)) {
       if (ab.kind !== 'triggered' || ab.when !== when) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
-      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}) });
+      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}) });
     }
     // S15 · gatilhos de outras permanentes que você controla
     if (!['etb', 'dies', 'cast-self'].includes(when)) continue;
@@ -5692,6 +5721,7 @@ function putTriggerOnStack(s, q, events) {
   }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
   if (q.mayPay) s.objects[oid].mayPay = q.mayPay; // S47 · o custo opcional viaja com a habilidade
+  if (q.optional) s.objects[oid].optionalTrigger = true; // S49 · gatilho opcional sem custo
   if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
   events.push({ kind: 'trigger', name: q.name, when: q.when, oid });
   return true;
@@ -6098,11 +6128,11 @@ const HANDLERS = {
   pay(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'may_pay' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a pagar');
     const pk = s.pending;
-    payCost(s, a.p, parseCost(pk.cost));
+    if (pk.cost) payCost(s, a.p, parseCost(pk.cost)); // S49 · decisão sem custo é só um "sim"
     s.pending = null;
     if (pk.then) { // S47 · pagou: agora os efeitos do gatilho acontecem
       const src = s.objects[pk.then.source] || { oid: pk.then.source, name: pk.then.name, controller: pk.then.controller };
-      for (const eff of pk.then.effects) { applyEffect(s, src, eff, null, ev); stateBased(s, ev); }
+      for (const eff of pk.then.effects) { if (!effectAllowed(s, s.objects[pk.then.source], eff)) continue; applyEffect(s, src, eff, null, ev); stateBased(s, ev); }
       return resumeEffects(s, ev);
     }
     ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: s.objects[pk.target] ? s.objects[pk.target].name : '?', failed: true, paid: true });
@@ -6597,8 +6627,14 @@ function previewCombat(state, blocks) {
 /** Resolve uma habilidade na pilha, com a mesma rechecagem de alvo das mágicas. */
 function resolveAbility(s, o, events) {
   // S47 · "você pode pagar {X}. Se fizer, ...": a decisão vem antes dos efeitos
-  if (o.mayPay && !o.mayPayAsked) {
+  if ((o.mayPay || o.optionalTrigger) && !o.mayPayAsked) {
     o.mayPayAsked = true;
+    if (o.optionalTrigger && !o.mayPay) { // S49 · "você pode comprar": decisão sem custo
+      s.pending = { kind: 'may_pay', p: o.controller, cost: null, name: o.name,
+        then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller } };
+      events.push({ kind: 'choice', what: 'fazer ou não o efeito', name: o.name, amount: 1 });
+      return;
+    }
     if (!s.manaCheck || canPay(s, o.controller, parseCost(o.mayPay.mana))) {
       s.pending = { kind: 'may_pay', p: o.controller, cost: o.mayPay.mana, name: o.name,
         then: { effects: o.effects || [], source: o.source || o.oid, name: o.name, controller: o.controller } };
@@ -6612,7 +6648,9 @@ function resolveAbility(s, o, events) {
   const ok = targeted.map((eff, i) => targetStillLegal(s, o.controller, eff.target, chosen[i], o.oid));
   if (targeted.length && ok.every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
   let ti = 0, primeiro = null;
+  const fonte = s.objects[o.source];
   for (const eff of o.effects || []) {
+    if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) primeiro = t; if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
     else if (eff.target === 'each-opponent') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
@@ -7479,9 +7517,13 @@ function createTableScreen({ store }) {
           Button('Deixar no cemitério', { id: 'tb-madness-no', onClick: () => act({ t: 'decline_madness', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'may_pay' && s.pending.p === v) {
       const alvo = s.objects[s.pending.target];
-      banner = PriorityBanner({ title: `Pagar ${s.pending.cost} para ${alvo ? alvo.name : 'sua mágica'} não ser anulada?`, hint: `${s.pending.name} está na pilha.`, tone: 'warning',
-        actions: [Button(`Pagar ${s.pending.cost}`, { variant: 'primary', id: 'tb-pay', onClick: () => act({ t: 'pay', p: v }) }),
-          Button('Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
+      const efeito = !!s.pending.then; // S49 · custo opcional de gatilho, ou decisão sem custo
+      const titulo = !efeito ? `Pagar ${s.pending.cost} para ${alvo ? alvo.name : 'sua mágica'} não ser anulada?`
+        : s.pending.cost ? `Pagar ${s.pending.cost} para o efeito de ${s.pending.name} acontecer?`
+        : `${s.pending.name}: fazer o efeito?`;
+      banner = PriorityBanner({ title: titulo, hint: efeito ? 'Se você recusar, o gatilho não faz nada.' : `${s.pending.name} está na pilha.`, tone: 'warning',
+        actions: [Button(s.pending.cost ? `Pagar ${s.pending.cost}` : 'Fazer', { variant: 'primary', id: 'tb-pay', onClick: () => act({ t: 'pay', p: v }) }),
+          Button(efeito ? 'Não fazer' : 'Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'pick_target' && s.pending.p === v) {
       banner = PriorityBanner({ title: `Alvo do gatilho de ${s.pending.name}`, hint: 'Escolha onde o efeito vai.', tone: 'warning',
         actions: s.pending.options.slice(0, 6).map((o, index) =>
