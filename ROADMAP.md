@@ -95,6 +95,10 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| B · Bot | B2–B7 duas dificuldades, medidas em torneio no portão | ▶ |
+| A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
+| X · Scanner | X7–X10 captura automática, pilha de leitura, validação e acerto medido | ○ |
+| C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
@@ -237,6 +241,22 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 
 **Prioridade de produto (decidida em 21/09/2026).** Coleção e scanner vêm antes do combate e dos scripts. A trilha Acervo não depende do motor, então a troca de ordem não quebra dependência técnica.
 
+**Replanejamento de 27/09/2026.** Com o Pauper em 100% e verificado em quatro camadas (cartas oferecidas,
+gatilhos disparando, palavras-chave provadas e uma partida guiada), o Commander sai da frente da fila e
+entra depois de cinco épicos de profundidade, nesta ordem:
+
+| Ordem | Épico | Por que aqui | Rodadas |
+|---|---|---|---|
+| 1º | **E37 · Bot (B2–B7)** | Sem adversário, a simulação é solitária: é o que transforma o motor pronto em jogo. Depende só do motor completo, que já está verde. | 6 a 7 |
+| 2º | **E38 · Mesa (A13–A16)** | O bot joga rápido demais para uma mesa que não explica o que aconteceu. Entra logo depois para a partida virar experiência. | 4 a 5 |
+| 3º | **E39 · Scanner (X7–X10)** | Trilha Acervo, independente do motor. Fecha também a pendência de precisão declarada em X2/X3. | 4 a 5 |
+| 4º | **E40 · Coleção (C12–C14)** | Filtros e visões dependem da coleção já existente e valem mais depois que o scanner alimenta o acervo mais rápido. | 4 |
+| 5º | **E41 · Listas (C10, C11)** | Importar e exportar por lista usa o motor de filtro da E40 para exportar recortes. | 2 |
+
+Total estimado: **20 a 23 rodadas** até o Commander voltar à fila. Cada história fecha numa rodada, com
+portão verde e algo testável no celular em menos de um minuto — histórias que não couberem numa rodada
+são quebradas na hora, e a quebra é anotada aqui.
+
 **Próximas entregas:**
 
 | Entrega | Conteúdo | Resultado para o usuário |
@@ -309,8 +329,12 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
-| E33ak ▶ | S67 | Commander: começar pelas cartas manuais do Killian |
-| E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
+| E37 ▶ | B2–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
+| E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
+| E39 | X7–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
+| E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
+| E41 | C10, C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
+| E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -705,6 +729,52 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** I, U.
 - **Depende de:** S2.
 - **Fora:** —
+
+**A13 · Mesa de verdade: leitura instantânea do campo** ○
+- **Valor:** olhar a tela e entender a partida em dois segundos, sem decorar convenções.
+- **Aceite:**
+  - zonas com hierarquia visual clara (campo, terrenos, mão, pilha, cemitério e exílio), cada uma com
+    contagem e estado vazio próprio;
+  - estado da carta legível sem tocar: virada, enjoo, atacando, bloqueando, marcadores, alvo de mágica,
+    encantada por aura, ficha;
+  - carta maior no campo, com nome, custo e P/T sempre legíveis em tela de celular;
+  - movimento curto quando a carta muda de zona (até 200 ms), respeitando "reduzir animações" do sistema;
+  - tudo em tokens `ds-*`, sem estilo solto, com alvo de toque de 44px.
+- **Testes:** V (contrato visual das zonas e dos estados), I headless (cada estado com sua marca).
+- **Depende de:** A1, A6.
+- **Fora:** arte animada; mesa em 3D.
+
+**A14 · A pilha explicada** ○
+- **Valor:** entender o que está acontecendo, principalmente no motor completo, onde o motor decide sozinho.
+- **Aceite:**
+  - a pilha aparece como uma coluna de cartões, do topo para baixo, cada um com quem controla, o que faz
+    em português e qual é o alvo;
+  - o que vai resolver a seguir fica destacado, e a mesa diz de quem é a prioridade;
+  - o registro vira uma linha do tempo por turno, agrupada por fase, em linguagem de jogador;
+  - quando uma ação é recusada, a mesa explica o motivo em uma frase, no lugar de um aviso genérico.
+- **Testes:** I headless (pilha com dois itens e alvo; ação recusada mostrando o motivo), V.
+- **Depende de:** A4, A13.
+- **Fora:** modo tutorial guiado.
+
+**A15 · Ler a carta sem sair da partida** ○
+- **Valor:** conferir o texto no meio da jogada, com uma mão.
+- **Aceite:**
+  - toque longo amplia a carta com o texto de oracle e os marcadores dela; soltar fecha;
+  - dentro da ampliação, as ações legais daquela carta continuam disponíveis;
+  - funciona igual na mão, no campo, na pilha e nas zonas abertas.
+- **Testes:** I headless, V.
+- **Depende de:** A13, D5.
+- **Fora:** rulings na mesa (V2).
+
+**A16 · Prévia de combate e resumo do turno** ○
+- **Valor:** decidir ataque e bloqueio sem contar de cabeça.
+- **Aceite:**
+  - ao montar o ataque, a mesa mostra o dano que passa, quem morre dos dois lados e a vida resultante;
+  - ao montar o bloqueio, a mesma prévia, atualizada a cada toque;
+  - no fim do turno, um resumo curto: vida, cartas compradas, o que entrou e o que morreu.
+- **Testes:** U (a prévia bate com o resultado real do combate em cenários montados), I.
+- **Depende de:** M6, A13.
+- **Fora:** sugerir o melhor bloqueio (isso é bot, B4).
 
 ### S · Scripts de carta (motor completo)
 
@@ -1871,35 +1941,82 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** M4.
 - **Fora:** —
 
-**B2 · Bot heurístico** ○
-- **Valor:** oponente que joga como gente.
+**B2 · Avaliador de posição e arcabouço de decisão** ○
+- **Valor:** a base dos dois bots. Sem um avaliador honesto, "difícil" vira só aleatório com sorte.
 - **Aceite:**
-  - baixa terreno, segue a curva, ataca quando a troca favorece e segura resposta;
-  - explicação curta da jogada no log.
-- **Testes:** U por heurística, P.
-- **Depende de:** S9.
-- **Fora:** —
+  - função pura `avalia(estado, jogador)` que devolve um número e a lista de parcelas que o formaram:
+    vida própria e do oponente, poder e resistência em campo, cartas na mão, mana disponível, marcadores,
+    ameaça bloqueada e cartas no cemitério que ainda voltam;
+  - determinística: mesmo estado, mesma nota, sem depender de ordem de objetos;
+  - `simula(estado, ação)` usa o próprio motor (ADR-04) e nunca muta o estado recebido;
+  - orçamento de tempo configurável, com corte seguro que devolve a melhor jogada até ali.
+- **Testes:** U (cada parcela isolada; estado espelhado dá nota espelhada; duas execuções, mesma nota),
+  desempenho (avaliação de 1 000 estados abaixo de 50 ms).
+- **Depende de:** S9, M9.
+- **Fora:** aprendizado de máquina; peso ajustado por deck.
 
-**B3 · Dificuldade configurável** ○
-- **Valor:** desafio na medida.
+**B3 · Bot "amador experiente"** ○
+- **Valor:** o oponente do dia a dia: joga certo, erra pouco, não calcula o impossível.
 - **Aceite:**
-  - fácil = B1 ponderado;
-  - médio = B2;
-  - difícil = busca rasa com avaliação de estado;
-  - resposta < 500 ms no celular.
-- **Testes:** P, desempenho.
+  - baixa terreno todo turno, seguindo a cor que a mão precisa;
+  - conjura seguindo a curva, preferindo usar todo o mana do turno;
+  - ataca quando a troca é favorável ou o oponente não tem bloqueador; bloqueia para não morrer e para
+    trocar bem; segura resposta quando tem mana aberto e a mão pede;
+  - usa remoção na maior ameaça, não na primeira criatura;
+  - **não** olha a mão do oponente nem o grimório de ninguém — decide só com o que a mesa mostra;
+  - cada jogada entra no registro com uma linha do motivo ("ataquei: você não tem bloqueador").
+- **Testes:** U por heurística (um cenário montado por regra, com a jogada esperada), P (partidas inteiras
+  sem ação ilegal), I (a explicação aparece no registro).
 - **Depende de:** B2.
-- **Fora:** aprendizado de máquina.
+- **Fora:** blefe; guardar carta para o turno seguinte por leitura de metagame.
 
-**B4 · Torneio bot contra bot** ○
-- **Valor:** medir se "difícil" é mesmo mais forte.
+**B4 · Bot "profissional"** ○
+- **Valor:** o desafio de verdade.
 - **Aceite:**
-  - N partidas por semente;
-  - relatório de taxa de vitória no CI;
-  - difícil vence médio em ≥ 60%.
-- **Testes:** P.
+  - busca rasa sobre as ações legais (duas camadas: minha jogada e a melhor resposta do oponente),
+    com poda por nota e ordenação das candidatas;
+  - usa o mesmo avaliador da B2, para a diferença entre os níveis ser **profundidade e critério**, não
+    informação privilegiada — o profissional também não vê a mão do oponente;
+  - responde em menos de 500 ms no celular (orçamento da B2), e nunca trava a interface;
+  - sequencia melhor: usa mana de criatura antes de terreno, guarda o terreno para depois do combate
+    quando isso não muda a curva.
+- **Testes:** U (cenários com jogada única correta que o amador erra e o profissional acerta),
+  desempenho (limite de tempo respeitado em 100 jogadas seguidas), P.
 - **Depende de:** B3.
-- **Fora:** —
+- **Fora:** busca profunda; tabela de aberturas.
+
+**B5 · Escolher o oponente na mesa** ○
+- **Valor:** decidir contra quem jogar, sem editar nada.
+- **Aceite:**
+  - na tela de jogar, o oponente é Goldfish, Amador experiente, Profissional ou hot-seat;
+  - o nível escolhido aparece na mesa durante a partida e no resumo do fim;
+  - trocar de nível exige partida nova, e a mesa diz isso em vez de trocar no meio;
+  - bot só joga no motor completo (ADR-05): com lista abaixo de 100%, os dois níveis aparecem
+    desabilitados com o motivo.
+- **Testes:** I headless (escolher cada nível e jogar três turnos), V (contraste e alvo de toque).
+- **Depende de:** B3, A12.
+- **Fora:** dificuldade adaptativa.
+
+**B6 · Torneio de bots no portão** ○
+- **Valor:** provar que "profissional" é mesmo mais forte, e que nenhum dos dois trava.
+- **Aceite:**
+  - N partidas por semente fixa, bot contra bot, no CI;
+  - profissional vence o amador em **≥ 60%**, e o amador vence a política aleatória em **≥ 70%**;
+  - nenhuma partida termina por ação ilegal, laço ou estouro de tempo;
+  - o relatório sai no log do portão: vitórias, turnos médios e tempo médio por jogada.
+- **Testes:** P (torneio), desempenho.
+- **Depende de:** B4.
+- **Fora:** ajuste automático de pesos.
+
+**B7 · Didática do bot** ○
+- **Valor:** aprender jogando contra ele.
+- **Aceite:**
+  - ao fim de cada turno do bot, um resumo em português do que ele fez e por quê (até três linhas);
+  - opção "mostrar o que eu poderia ter feito" no fim do meu turno, com as duas melhores jogadas que
+    deixei passar, segundo o avaliador.
+- **Testes:** U (texto gerado a partir das parcelas do avaliador), I.
+- **Depende de:** B4, A14.
+- **Fora:** análise pós-partida completa.
 
 ### C · Coleção
 
@@ -2002,6 +2119,69 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** D1.
 - **Fora:** base completa de cartas (texto, imagens) offline; volta a ser avaliada com o gatilho G1.
 
+**C10 · Exportar por lista, não só CSV** ○
+- **Valor:** levar a coleção (ou um recorte dela) para qualquer lugar que entenda uma lista de cartas.
+- **Aceite:**
+  - exporta em texto de lista ("4 Lightning Bolt"), com variações: com ou sem edição e número, e no
+    formato que Arena e MTGO aceitam;
+  - exporta a coleção inteira, o resultado do filtro atual ou uma seleção manual;
+  - copiar com um toque e baixar como arquivo; o CSV atual continua existindo;
+  - o que não tem edição definida sai como cópia genérica, e o cabeçalho diz isso.
+- **Testes:** U (cada formato, com acentos, apóstrofos e cartas de duas faces), I.
+- **Depende de:** C1, L6.
+- **Fora:** exportar preço.
+
+**C11 · Importar por lista, com conferência antes** ○
+- **Valor:** colar uma lista e ver a coleção crescer sem medo.
+- **Aceite:**
+  - aceita texto colado e arquivo, nos mesmos formatos da C10, tolerando numeração, comentários e linhas
+    em branco;
+  - antes de gravar, mostra a conferência: quantas cartas novas, quantas somam a uma existente, quais
+    linhas não foram reconhecidas e por quê;
+  - a importação é uma operação só, com desfazer;
+  - nome não reconhecido não some: fica numa lista de pendências para corrigir.
+- **Testes:** U (parser com lixo real), I headless (colar, conferir, importar e desfazer).
+- **Depende de:** C10, L2.
+- **Fora:** casar impressão por número quando a lista não traz edição.
+
+**C12 · Filtros de verdade** ○
+- **Valor:** achar exatamente o que você procura na coleção e nas listas.
+- **Aceite:**
+  - filtra por cor e identidade, tipo e subtipo, raridade, custo convertido, legalidade de formato,
+    edição, idioma, acabamento, quantidade e "tenho / falta";
+  - busca por texto no nome e no texto da carta, combinada com os filtros;
+  - filtros combinam entre si com contagem viva ("312 cartas") e limpam com um toque;
+  - o recorte atual vira link e pode ser salvo como visão ("Meus verdes de Pauper");
+  - o mesmo motor de filtro serve coleção e listas.
+- **Testes:** U (cada filtro e as combinações, sobre uma coleção de teste), I, desempenho (filtrar
+  5 000 cartas em menos de 100 ms).
+- **Depende de:** C1, L3.
+- **Fora:** busca com sintaxe da Scryfall.
+
+**C13 · A coleção como coleção** ○
+- **Valor:** ver o acervo de forma organizada e bonita, não como uma tabela infinita.
+- **Aceite:**
+  - três visões: galeria (arte), densa (uma linha por carta) e pilhas (agrupadas);
+  - agrupar por cor, tipo, edição, raridade ou custo, com cabeçalho e contagem por grupo;
+  - ordenar por nome, custo, raridade, edição, quantidade e entrada mais recente;
+  - a visão, o agrupamento e a ordenação ficam lembrados por aparelho;
+  - rolagem fluida com muitas cartas, sem travar no celular.
+- **Testes:** V (contrato visual das três visões), I, desempenho (rolagem com 5 000 itens).
+- **Depende de:** C12.
+- **Fora:** arrastar para reordenar manualmente.
+
+**C14 · Painel da coleção** ○
+- **Valor:** entender o acervo de relance, em números e gráficos.
+- **Aceite:**
+  - resumo no topo: total de cartas, cartas distintas, edições, distribuição por cor, por tipo, por
+    raridade e curva de custo;
+  - cada pedaço do gráfico é um filtro: tocar em "verde" filtra os verdes;
+  - "o que falta para montar": escolhe uma lista salva e mostra o que você já tem e o que falta;
+  - tudo desenhado com os tokens do design system, legível no claro e no escuro.
+- **Testes:** U (as contagens batem com a coleção de teste), V, I.
+- **Depende de:** C13.
+- **Fora:** valor em dinheiro da coleção.
+
 ### X · Scanner
 
 **X1 · Câmera com moldura guia** ✅
@@ -2075,6 +2255,54 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Pendente:** validar no aparelho: abrir o scanner uma vez com rede, ativar o modo avião e ler uma carta.
 - **Depende de:** X2, C6, W1.
 - **Fora:** —
+
+**X7 · Captura automática sem moldura** ○
+- **Valor:** apontar a câmera e a carta ser lida sozinha, sem encaixar em retângulo.
+- **Aceite:**
+  - o scanner encontra a carta no quadro (bordas e proporção) em qualquer posição e rotação leve, sem
+    exigir a moldura;
+  - captura sozinho quando a imagem está estável e nítida o bastante, com retorno visual imediato
+    (contorno na carta encontrada) e vibração curta;
+  - a moldura vira ajuda opcional, não obrigação, e continua disponível para quem preferir;
+  - luz baixa ou carta cortada geram uma instrução curta do que corrigir, em vez de leitura errada;
+  - a decisão de "está pronto para ler" é uma função pura, testável fora da câmera.
+- **Testes:** U (detecção e nitidez sobre quadros de teste), I (câmera simulada com carta torta, cortada
+  e no escuro), desempenho (decisão em menos de 60 ms por quadro).
+- **Depende de:** X1, X2.
+- **Fora:** reconhecimento pela arte; corrigir perspectiva forte.
+
+**X8 · Pilha de leitura** ○
+- **Valor:** escanear várias cartas seguidas e resolver tudo no fim.
+- **Aceite:**
+  - cada leitura vira um cartão empilhado na tela, com miniatura, nome, edição e nota de confiança;
+  - a pilha cresce enquanto você escaneia, sem interromper a câmera, e mostra o total;
+  - dá para desfazer a última, remover uma do meio e ajustar quantidade sem sair da câmera;
+  - a pilha sobrevive a fechar o app e volta ao reabrir;
+  - "Adicionar em lote" manda tudo de uma vez para a coleção ou para uma lista, com resumo do que entrou.
+- **Testes:** U (pilha: somar, desfazer, remover, persistir), I headless (escanear três e adicionar em lote).
+- **Depende de:** X4, X7.
+- **Fora:** editar condição e idioma no lote (fica na coleção).
+
+**X9 · Validação ágil da leitura** ○
+- **Valor:** confiar no que entrou na coleção, gastando um toque por carta.
+- **Aceite:**
+  - leitura com confiança alta entra confirmada; as demais ficam marcadas como "confira";
+  - conferir é um toque: o palpite principal e até três alternativas ficam visíveis no próprio cartão;
+  - corrigir abre busca por nome com teclado, sem perder o resto da pilha;
+  - nada entra na coleção marcado como conferido sem você ter confirmado.
+- **Testes:** U (regra de confiança e estados do cartão), I.
+- **Depende de:** X8.
+- **Fora:** aprender com as correções.
+
+**X10 · Medir o acerto com fotos reais** ○
+- **Valor:** fechar a pendência declarada em X2 e X3: hoje o portão mede a correspondência, não o OCR.
+- **Aceite:**
+  - conjunto de fotos reais de cartas no repositório (variando luz, ângulo, acabamento e idioma);
+  - o portão roda o reconhecimento sobre elas e exige acerto de nome ≥ 90% e de edição ≥ 70%;
+  - o relatório mostra quais fotos falharam, para virar caso de teste.
+- **Testes:** U (conjunto de fotos), relatório no portão.
+- **Depende de:** X7, X9.
+- **Fora:** conjunto com centenas de fotos; o alvo é um conjunto pequeno e representativo.
 
 ### V · Visualização
 
