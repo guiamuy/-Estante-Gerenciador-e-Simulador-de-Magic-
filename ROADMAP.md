@@ -95,6 +95,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S53 plot e custo adicional com opções | 🟡 |
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
+| A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
 | S · Scripts | S63 auditoria dos gatilhos + mão inicial não conta como compra do turno | ✅ |
 | S · Scripts | S62 enjoo só prende o {T} da própria carta + auditoria das listas Pauper | ✅ |
 | S · Scripts | S61 Mago Louco: jogar do exílio, conjurar sem pagar — Pauper em 100% | ✅ |
@@ -303,7 +304,9 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33ae ✅ | S61 (leva 53) | Mago Louco e Secret Door completa: as sete listas Pauper em 100% |
 | E33af ✅ | S62 (leva 54) | Custo que vira outra criatura + auditoria que abre cada carta das listas |
 | E33ag ✅ | S63 (leva 55) | Auditoria dos gatilhos: cada gatilho das listas disparando numa partida |
-| E33ah ▶ | S64 | Dados das cartas das listas prontas embutidos, para jogar sem rede |
+| E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
+| E33ai ▶ | S65 | Auditoria de palavras-chave e combate nas listas Pauper |
+| E33aj ▶ | S66 | Partida Pauper inteira gravada como golden guiado |
 | E36 | S58+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -834,6 +837,28 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S64 · Lista guardada no aparelho para jogar sem internet** ✅
+- **Decisão de rota, declarada:** o plano dizia "embutir os dados das cartas das listas prontas no
+  aplicativo". Não deu para fazer assim: **este ambiente não alcança a Scryfall** (a saída de rede é
+  restrita), e as sete listas somam ~170 cartas cujos dados oficiais eu não tenho aqui. Escrever custo,
+  tipo e força de memória é exatamente o que o projeto proíbe. Então o app passou a **guardar** o que ele
+  mesmo busca, sem prazo de validade — o resultado para você é o mesmo (a lista joga sem internet), com
+  uma diferença honesta: **é preciso uma preparação com rede, uma vez por lista**.
+- **Aceite:**
+  - a tela de jogar mostra quantas cartas da lista já estão guardadas, e o botão
+    **"Guardar para jogar sem internet"** busca o que falta e guarda;
+  - carta guardada **não vence** — o prazo de sete dias não vale para ela, e sem rede ela responde do
+    aparelho;
+  - ao começar uma partida, as cartas que acabaram de vir da rede são guardadas sozinhas: quem jogou uma
+    vez com internet joga de novo sem;
+  - o botão diz quantas guardou e quantas a rede não trouxe, em vez de fingir sucesso;
+  - **motor completo não começa sem os dados das cartas**: sem tipo, custo e força o motor jogaria errado
+    em silêncio. A mesa explica e oferece a mesa assistida.
+- **Fora:** os dados não viajam no `index.html`. Se você nunca abrir a lista com internet, ela não fica
+  guardada — e a tela diz isso em vez de prometer o contrário.
+- **Testes:** U (carta guardada respondendo um mês depois sem nem tentar a rede, e o relato do que a rede
+  não trouxe), I headless (o botão aparece com "0 de N guardadas" e o número muda depois do toque).
 
 **S63 · Auditoria dos gatilhos, e a mão inicial que contava como compra do turno** ✅
 - **Valor:** fecha o buraco declarado na S62. Agora o portão prova as três pontas de cada carta das listas

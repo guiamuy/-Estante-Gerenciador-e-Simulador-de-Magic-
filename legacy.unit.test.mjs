@@ -83,6 +83,23 @@ test('S58 · básico sem rede vem da tabela embutida, e "não encontrada" vale u
   assert.equal(calls, 2, 'no dia seguinte, tenta de novo em vez de repetir "desconhecida"');
 });
 
+test('S64 · carta guardada para jogar sem internet não vence, mesmo com a rede fora', async () => {
+  let t = 0, chamadas = 0, rede = true;
+  const scryfall = { collection: async names => { chamadas++; if (!rede) throw new Error('sem rede');
+    return { found: names.filter(n => n !== 'Fantasma').map(n => ({ name: n, faces: [] })), missing: names.filter(n => n === 'Fantasma') }; } };
+  const repo = D2.createCardRepo({ store: F2.memoryStore(), scryfall, now: () => t });
+  const r = await repo.pin(['Sol Ring', 'Fantasma']);
+  assert.deepEqual([...r.fixadas], ['sol ring'], 'guardou o que a rede trouxe');
+  assert.deepEqual([...r.faltando], ['fantasma'], 'e diz o que não veio');
+  assert.equal(await repo.pinned(['Sol Ring']), 1);
+
+  // um mês depois, sem rede: a carta guardada continua valendo e não chama a rede
+  t = 30 * 24 * 3600 * 1000; rede = false; chamadas = 0;
+  const m = await repo.byNames(['Sol Ring']);
+  assert.equal(m.get('sol ring').name, 'Sol Ring', 'a carta guardada responde sem internet');
+  assert.equal(chamadas, 0, 'e nem tenta a rede');
+});
+
 test('W1 · estratégia de cache do service worker por tipo de requisição', () => {
   const code = readFileSync(join(ROOT, 'sw.js'), 'utf8') + '\n;globalThis.__pick = pickStrategy;';
   const ctx = vm.createContext({ self: { location: { origin: 'https://guiamuy.github.io' }, addEventListener() {} }, URL, caches: {}, Request: class {}, Response: class {}, Headers: class {} });

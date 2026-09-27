@@ -1420,7 +1420,9 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
   // S58 · "não encontrada" vale por um dia, não por uma semana: quase sempre é
   // falha de rede passageira ou nome que o usuário já corrigiu, e uma semana
   // dizendo "carta desconhecida" derruba a cobertura da lista inteira
-  const fresh = rec => rec && (now() - rec.ts) < (rec.card ? ttlMs : Math.min(ttlMs, 24 * 3600 * 1000));
+  // S64 · carta fixada para jogar sem rede não vence: ela é a garantia de que a
+  // lista pronta funciona na mesa mesmo sem internet
+  const fresh = rec => !!rec && ((rec.pin && rec.card) || (now() - rec.ts) < (rec.card ? ttlMs : Math.min(ttlMs, 24 * 3600 * 1000)));
 
   return {
     stats,
@@ -1465,6 +1467,28 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     },
 
     async byName(name) { return (await this.byNames([name])).get(norm(name)) || null; },
+
+    /** S64 · guarda as cartas destes nomes para sempre, para a lista jogar sem rede.
+        Devolve {fixadas, faltando}: o que ficou guardado e o que a rede não trouxe. */
+    async pin(names, onProgress) {
+      const mapa = await this.byNames(names, onProgress);
+      const fixadas = [], faltando = [];
+      const writes = [];
+      for (const n of new Set(names.map(norm))) {
+        const card = mapa.get(n);
+        if (!card) { faltando.push(n); continue; }
+        const rec = { ts: now(), card, pin: true };
+        mem.set(n, rec); writes.push(store.set(KEY(n), rec)); fixadas.push(n);
+      }
+      await Promise.all(writes);
+      return { fixadas, faltando };
+    },
+    /** Quantos destes nomes já estão guardados para jogar sem rede. */
+    async pinned(names) {
+      let n = 0;
+      for (const k of new Set(names.map(norm))) { const rec = await readCache(k); if (rec && rec.pin && rec.card) n++; }
+      return n;
+    },
 
     /** D4 · busca. Tenta a rede; se ela não existe ou falha, cai para a
         base local. Devolve {cards, source} para a tela poder dizer de onde
@@ -7844,11 +7868,35 @@ function createTableSetup({ decks, cardRepo, store }) {
       // S58 · dizer QUAIS cartas ficam na sua mão, e qual versão do motor está rodando:
       // sem isso, "97%" não diz nada e uma versão antiga em cache parece bug de regra
       const faltam = [...new Set(cv.pending.map(x => x.name))];
+      // S64 · a lista só joga sem internet se as cartas dela estiverem guardadas
+      const nomes = [...new Set(d.entries.map(e => e.name))];
+      let guardadas = 0;
+      try { guardadas = await cardRepo.pinned(nomes); } catch (e) { /* sem armazenamento: some o aviso */ }
+      const prontaOffline = guardadas >= nomes.length;
       mount(covBox, Stack({ style: { gap: 'var(--space-1)' } },
         Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · você aplica o efeito de ${cv.parcial + cv.manual} carta(s) na mesa` : ' · nada a adjudicar'), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }),
         faltam.length ? Text(`Fica com você: ${faltam.slice(0, 6).join(', ')}${faltam.length > 6 ? ` e mais ${faltam.length - 6}` : ''}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
+        prontaOffline
+          ? Text('Guardada para jogar sem internet.', { size: 'sm', tone: 'positive', attrs: { id: 'mesa-offline-ok' } })
+          : Row({ class: 'ds-row--wrap' },
+            Text(`${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-offline-falta' } }),
+            Button('Guardar para jogar sem internet', { id: 'mesa-offline-pin', onClick: () => guardar(nomes) })),
         Text(`motor v${E.ENGINE_VERSION}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-engine-version' } })));
       paintMode();
+    }
+    /** S64 · busca o que falta e guarda tudo, sem prazo de validade. */
+    async function guardar(nomes) {
+      const btn = document.getElementById('mesa-offline-pin');
+      if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+      try {
+        const r = await cardRepo.pin(nomes);
+        toast(r.faltando.length
+          ? `${r.fixadas.length} carta(s) guardadas · ${r.faltando.length} não vieram da rede`
+          : `${r.fixadas.length} cartas guardadas: esta lista joga sem internet`, 3600);
+      } catch (e) {
+        toast('Não deu para guardar agora: ' + (e.message || e), 3600);
+      }
+      paintCoverage();
     }
     // S9 · motor completo só entra com a lista 100% coberta
     function paintMode() {
@@ -7892,6 +7940,14 @@ function createTableSetup({ decks, cardRepo, store }) {
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
           theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
+        // S64 · sem os dados da carta o motor não tem tipo, custo nem força: no motor
+        // completo isso daria partida errada em silêncio, então ele não começa assim
+        if (state.mode === 'full' && unknown) {
+          toast(`Faltam os dados de ${unknown} carta(s). Toque em "Guardar para jogar sem internet" com rede, ou jogue na mesa assistida.`, 5000);
+          return;
+        }
+        // as cartas já vieram da rede agora: guarda para a próxima partida, mesmo sem internet
+        cardRepo.pin(names).catch(() => {});
         const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }), { options: { autoPass: !state.stopAll } });
         await store.set(T.SAVE_KEY, table.serialize());
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);

@@ -762,5 +762,14 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   await page.waitForFunction(() => /100% completo/.test(document.querySelector('#mesa-coverage')?.innerText || ''), null, { timeout: 8000 });
   assert.match(await page.innerText('#mesa-engine-version'), /motor v\d+/, 'a tela mostra a versão do motor');
   assert.equal(await page.locator('[data-mode="full"]').isDisabled(), false, 'motor completo liberado');
+
+  // S64 · guardar as cartas da lista para jogar sem internet
+  await page.waitForSelector('#mesa-offline-pin');
+  assert.match(await page.innerText('#mesa-offline-falta'), /0 de \d+ cartas guardadas/, 'começa sem nada guardado');
+  await page.click('#mesa-offline-pin');
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#mesa-offline-falta') || document.querySelector('#mesa-offline-ok');
+    return el && !/^0 de/.test(el.innerText);
+  }, null, { timeout: 8000 });
   assert.deepEqual(errors, []);
 });
