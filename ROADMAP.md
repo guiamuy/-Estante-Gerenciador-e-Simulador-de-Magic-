@@ -85,6 +85,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S43 proteção pela cor escolhida e indestrutível por sacrifício | 🟡 |
 | S · Scripts | S44 carta que volta para a mão, busca de básico e rótulos errados | 🟡 |
 | S · Scripts | S45 você escolhe: descarte do oponente e carta do cemitério | 🟡 |
+| S · Scripts | S46 busca do oponente, sacrifício por subtipo e lampejo com cor | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -267,7 +268,8 @@ F2 plataforma ─► P1 monitor de gatilhos ─► P2 Capacitor (só com gatilho
 | E33m ▶ | S44 | Commander: seguir nas 67 manuais (42 Killian, 25 Malcolm) |
 | E33n 🟡 | S44 (leva 36) | Pauper para 100%: primeiras 6 parciais fechadas (106 → 87 cópias) |
 | E33o 🟡 | S45 (leva 37) | Você escolhe: descarte do oponente e carta do cemitério (87 → 81 cópias) |
-| E33p ▶ | S46+ | Pauper para 100%: 26 cartas parciais restantes |
+| E33p 🟡 | S46 (leva 38) | Jund Wildfire 95% e Boros Bully 89% (81 → 62 cópias parciais) |
+| E33q ▶ | S47+ | Pauper para 100%: 21 cartas parciais restantes |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -797,6 +799,32 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Correções de regra achadas pelo fuzz:** habilidade na pilha não pode ser alvo de anulação, e ao sair
   da pilha ela deixa de existir em vez de virar carta no cemitério.
 - **Resultado:** Mono Blue Faeries de 56% para 77%.
+
+**S46 · Busca feita pelo oponente, sacrifício por subtipo e lampejo com cor** 🟡
+- **Foco:** só Pauper, a pedido do usuário. Atacadas as duas listas mais atrasadas.
+- **Fonte:** textos conferidos em `mtg.cardsrealm.com` em 26/09/2026.
+- **Aceite:**
+  - "destrua o terreno; o controlador **dele** pode vasculhar": quem vasculha é o dono do terreno,
+    a busca é opcional e só aceita terreno básico;
+  - "sempre que você sacrificar outro Eldrazi": o gatilho de sacrifício passou a respeitar o subtipo;
+  - "para cada oponente que não puder descartar, compre uma carta";
+  - lampejo do passado que pede três criaturas **brancas** não é oferecido com criaturas de outra cor;
+  - um modo pode exilar o cemitério de até dois jogadores.
+- **Entregue (todas completas):** Cleansing Wildfire, Writhing Chrysalis, Refurbished Familiar,
+  Battle Screech e Thraben Charm.
+- **Correções — três bugs reais que os testes pegaram:**
+  1. o custo de "vire três criaturas brancas" **ignorava a cor** na hora de decidir se dava para pagar:
+     o lampejo do passado aparecia com criaturas de qualquer cor;
+  2. **fichas não tinham subtipo**. A ficha Eldrazi Spawn não contava como Eldrazi e a ficha Bird não
+     contava como Bird, então nenhum gatilho por subtipo as reconhecia. Agora a ficha declara subtipo;
+  3. a busca feita por outro jogador caía em quem conjurou, porque o efeito sem alvo não recebia o
+     alvo da mágica. Passou a usar o caminho de "controlador do alvo" que já existia.
+- **Declarado:** "exilar o cemitério de qualquer número de jogadores" entra como até dois, que é o
+  máximo possível na mesa de dois jogadores do app.
+- **Testes:** U (busca opcional na mão do dono do terreno com só básicos na lista, marcador vindo do
+  Eldrazi e não vindo da cabra, compra por mão vazia e descarte quando há carta, lampejo recusado com
+  criaturas verdes e aceito com brancas, dois cemitérios exilados), S8.
+- **Resultado:** cópias parciais nas Pauper de 81 para 62. **Jund Wildfire 95%**, Boros Bully 89%.
 
 **S45 · Você escolhe: descarte do oponente e carta do cemitério** 🟡
 - **Valor:** o motor parava de escolher no seu lugar. Três cartas passaram a funcionar como a carta

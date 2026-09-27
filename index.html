@@ -2060,7 +2060,7 @@ const EFFECTS = {
   // S40 · conluio: compra, descarta e ganha marcador se o descarte não foi terreno
   connive: { fields: ['amount'], targets: ['self'] },
   // S13/S14 · zonas ocultas: vasculhar, olhar o topo, scry, surveil, moer e devolver ao topo
-  search: { fields: ['amount'], targets: ['self'] },
+  search: { fields: ['amount'], targets: ['self', 'target-controller'] },
   look: { fields: ['amount', 'count'], targets: ['self'] },
   scry: { fields: ['amount'], targets: ['self'] },
   surveil: { fields: ['amount'], targets: ['self'] },
@@ -2090,7 +2090,7 @@ const TRIGGERS = ['etb', 'dies', 'upkeep', 'attacks', 'other-etb', 'other-dies',
 const ATTACH_KINDS = ['creature', 'permanent', 'land'];
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`])
@@ -2251,6 +2251,7 @@ function effectErrors(effects, label, opcional) {
       if (e.rest && !PICK_DESTS.includes(e.rest)) errs.push(`${label} ${i + 1}: resto "${e.rest}" desconhecido`);
       for (const t of (e.filter && e.filter.types) || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: filtro de tipo "${t}" desconhecido`);
       if (e.filter && e.filter.basic != null && typeof e.filter.basic !== 'boolean') errs.push(`${label} ${i + 1}: filtro "básico" precisa ser verdadeiro ou falso`);
+      if (e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`);
       for (const t of (e.filter && e.filter.subtypes) || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label} ${i + 1}: filtro de subtipo inválido`);
     }
     if (e.targetMv != null && !Number.isInteger(e.targetMv)) errs.push(`${label} ${i + 1}: valor de mana do alvo precisa ser inteiro`);
@@ -2283,6 +2284,7 @@ function tokenErrors(tk, label) {
   if (!Array.isArray(types) || !types.length) errs.push(`${label}: ficha sem tipo`);
   if (types.includes('creature')) for (const f of ['power', 'toughness']) if (!Number.isInteger(tk[f])) errs.push(`${label}: ficha de criatura precisa de ${f}`);
   for (const k of tk.keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`${label}: palavra-chave "${k}" não é resolvida pelo motor`);
+  for (const t of tk.subtypes || []) if (typeof t !== 'string' || !t.trim()) errs.push(`${label}: subtipo de ficha inválido`);
   for (const ab of tk.abilities || []) if (ab.kind !== 'activated' && ab.kind !== 'triggered') errs.push(`${label}: habilidade de ficha inválida`);
   return errs;
 }
@@ -2533,9 +2535,10 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', cost: { exileFromGraveyard: { types: ['creature'] } },
     effects: [{ do: 'exile', target: 'artifact-enchantment-opponent-controls' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
-  { name: 'Cleansing Wildfire', effects: [{ do: 'destroy', target: 'land' }, { do: 'draw', amount: 1 }],
-    covers: 'partial', note: 'a busca de terreno básico pelo controlador do terreno destruído ainda não entra',
-    example: { target: 'own-land', expect: { gone: true, handDelta: 1 } } },
+  { name: 'Cleansing Wildfire', effects: [{ do: 'destroy', target: 'land' },
+    { do: 'search', amount: 1, target: 'target-controller', optional: true, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' },
+    { do: 'draw', amount: 1 }],
+    example: { target: 'own-land', expect: { gone: true, picked: true } } },
   { name: 'Makeshift Munitions', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['artifact', 'creature'] } },
     effects: [{ do: 'damage', amount: 1, target: 'any' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -1 } } },
@@ -2547,8 +2550,7 @@ const RAW_SCRIPTS = [
   { name: 'Thraben Charm', modes: [
     { label: 'Dano igual ao dobro das suas criaturas', effects: [{ do: 'damage', amount: { per: 'creatures-you-control', times: 2 }, target: 'creature' }] },
     { label: 'Destruir um encantamento', effects: [{ do: 'destroy', target: 'enchantment' }] },
-    { label: 'Exilar o cemitério de um jogador', effects: [{ do: 'exile_graveyard', target: 'player' }] }],
-    covers: 'partial', note: 'o terceiro modo atinge um jogador por vez, não vários',
+    { label: 'Exilar o cemitério de até dois jogadores', effects: [{ do: 'exile_graveyard', target: 'player' }, { do: 'exile_graveyard', target: 'player', upTo: true }] }],
     example: { action: 'mode:1', target: 'enemy-enchantment', expect: { gone: true } } },
   // S30 · Boros Bully (textos conferidos em 26/09)
   { name: 'Prismatic Strands', choose: 'color', effects: [{ do: 'prevent_color' }],
@@ -2641,9 +2643,8 @@ const RAW_SCRIPTS = [
     alt: [{ label: 'Delve: exilar 6 cartas do cemitério', cost: { mana: '{1}{U}{U}', exileGraveyard: 6 } }],
     covers: 'partial', note: 'no delve real você exila quantas quiser',
     example: { target: 'none', expect: { picked: true } } },
-  { name: 'Battle Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], power: 1, toughness: 1, keywords: ['flying'] } }],
-    flashback: { tapOther: { types: ['creature'], amount: 3 } },
-    covers: 'partial', note: 'no lampejo real as três criaturas precisam ser brancas',
+  { name: 'Battle Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], power: 1, toughness: 1, keywords: ['flying'] } }],
+    flashback: { tapOther: { types: ['creature'], color: 'W', amount: 3 } },
     example: { target: 'none', expect: { tokens: 2 } } },
   { name: "Eviscerator's Insight", additional: { sacrificeOther: { types: ['artifact', 'creature'] } }, effects: [{ do: 'draw', amount: 2 }],
     flashback: { mana: '{4}{B}' },
@@ -2654,8 +2655,9 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }],
     example: { action: 'activate:0', target: 'none', expect: { selfLife: 3 } } },
   { name: 'Refurbished Familiar', affinity: 'artifact',
-    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'discard', amount: 1, target: 'opponent' }] }],
-    covers: 'partial', note: 'a compra quando o oponente não tem carta para descartar ainda não entra',
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [
+      { do: 'draw', amount: { per: 'opponents-empty-hand' } },
+      { do: 'discard', amount: 1, target: 'opponent' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // S25 · transformar no campo (textos conferidos na Scryfall)
   { name: 'Sorin of House Markov',
@@ -2688,9 +2690,9 @@ const RAW_SCRIPTS = [
   { name: 'Kitchen Imp', madness: { mana: '{B}' }, self: {},
     example: { action: 'madness', target: 'none', expect: { attached: false } } },
   { name: 'Writhing Chrysalis', abilities: [{ kind: 'triggered', when: 'cast-self', effects: [
-    { do: 'token', amount: 2, token: { name: 'Eldrazi Spawn', types: ['creature'], power: 0, toughness: 1,
-      abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] }],
-    covers: 'partial', note: 'o marcador ao sacrificar outro Eldrazi ainda não entra',
+    { do: 'token', amount: 2, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], power: 0, toughness: 1,
+      abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] },
+    { kind: 'triggered', when: 'other-sacrificed', filter: { subtype: 'Eldrazi' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
     example: { target: 'none', expect: { tokens: 2 } } },
   { name: 'Springleaf Drum', abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
@@ -2708,7 +2710,7 @@ const RAW_SCRIPTS = [
   // S22 · cartas conferidas na Scryfall (22/09)
   { name: 'Malevolent Rumble', effects: [
     { do: 'look', count: 4, amount: 1, filter: { types: ['creature', 'land', 'artifact', 'enchantment', 'planeswalker'] }, to: 'hand', rest: 'graveyard' },
-    { do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], power: 0, toughness: 1,
+    { do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], power: 0, toughness: 1,
       abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }],
     example: { target: 'none', expect: { picked: true } } },
   { name: 'Sheltering Landscape', entersTapped: false, cycling: { mana: '{R}{G}{W}' },
@@ -4384,7 +4386,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 38;
+const ENGINE_VERSION = 39;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -4522,6 +4524,8 @@ function countFor(s, src, per) {
   if (per === 'elves-on-battlefield') return perms.filter(isElf).length;
   if (per === 'defenders-you-control') return perms.filter(o => o.controller === src.controller && has(s, o, 'defender')).length;
   if (per === 'life-gained-this-turn') return s.players[src.controller].lifeGained || 0;
+  // S46 · "para cada oponente que não puder descartar, compre uma carta"
+  if (per === 'opponents-empty-hand') return s.players.filter((pl, i) => i !== src.controller && !pl.lost && !s.zones[i].hand.length).length;
   if (String(per).startsWith('devotion-')) { // S32 · devoção: símbolos daquela cor no custo das suas permanentes
     const cor = String(per).slice(-1);
     return perms.filter(o => o.controller === src.controller).reduce((n, o) => {
@@ -5264,10 +5268,11 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: n }); break;
     }
     case 'search': {
-      const who = ctrl;
+      // S46 · a busca pode ser do controlador do alvo, e pode ser opcional ("pode vasculhar")
+      const who = eff.target === 'target-controller' ? playerOf() : ctrl;
       const from = s.zones[who].library.filter(oid => matchesFilter(s, s.objects[oid], eff.filter));
       if (!from.length) { note({ amount: 0 }); break; }
-      startPick(s, { p: who, from, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name }, events);
+      startPick(s, { p: who, from, min: eff.optional ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name }, events);
       break;
     }
     case 'look': {
@@ -5489,6 +5494,7 @@ function sacrifice(s, oid, events = []) {
     if (w.oid === oid || w.controller !== dono) continue;
     for (const ab of abilitiesOf(s, w)) {
       if (ab.kind !== 'triggered' || ab.when !== 'other-sacrificed') continue;
+      if (!matchesTriggerFilter(s, o, ab.filter)) continue; // S46 · "outro Eldrazi", não qualquer permanente
       s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: 'other-sacrificed' });
     }
   }
@@ -5498,7 +5504,9 @@ function sacrifice(s, oid, events = []) {
 function createToken(s, def, controller, events) {
   const name = def.name;
   if (!s.facts[name]) {
-    s.facts[name] = cardFacts({ name, type_line: (def.types || []).join(' '), power: def.power, toughness: def.toughness, keywords: def.keywords || [], oracle_text: '' });
+    // S46 · a ficha carrega subtipo, senão gatilho por subtipo nunca a reconhece
+    const linha = (def.types || []).join(' ') + ((def.subtypes || []).length ? ' — ' + def.subtypes.join(' ') : '');
+    s.facts[name] = cardFacts({ name, type_line: linha, power: def.power, toughness: def.toughness, keywords: def.keywords || [], oracle_text: '' });
     if (def.abilities) s.facts[name].script = { name, effects: [], abilities: def.abilities };
   }
   const oid = 't' + (s.nextToken++);
@@ -5644,6 +5652,8 @@ function putTriggerOnStack(s, q, events) {
 function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
   return battlefield(s).filter(o => o.controller === p && o.oid !== selfOid &&
     (spec.types || []).some(x => s.facts[o.name].types.includes(x)) &&
+    // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
+    (!spec.color || (s.facts[o.name].colors || []).includes(spec.color)) &&
     (!needUntapped || (!o.tapped && !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste'))))).map(o => o.oid);
 }
 function payExtraCosts(s, p, cost, pay, selfOid) {

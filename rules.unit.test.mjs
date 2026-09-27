@@ -1227,7 +1227,7 @@ const DV_CARDS = {
 const DV_SCRIPTS = {
   Cruise: { name: 'Cruise', effects: [{ do: 'draw', amount: 3 }], alt: [{ label: 'Delve: exilar 7', cost: { mana: '{U}', exileGraveyard: 7 } }],
     example: { action: 'alt:0', target: 'none', expect: { handDelta: 3 } } },
-  Screech: { name: 'Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], power: 1, toughness: 1, keywords: ['flying'] } }],
+  Screech: { name: 'Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], power: 1, toughness: 1, keywords: ['flying'] } }],
     flashback: { tapOther: { types: ['creature'], amount: 3 } }, example: { target: 'none', expect: { tokens: 2 } } }
 };
 const DVDECK = [{ name: 'Island', qty: 24, zone: 'main' }, { name: 'Cruise', qty: 8, zone: 'main' },
@@ -2810,3 +2810,139 @@ test('S45 · o jogador alvo escolhe o que exilar do próprio cemitério', () => 
   assert.equal(s.objects[uma].zone, 'graveyard', 'a outra ficou no cemitério');
 });
 
+
+/* ---------------- S46 · busca do oponente, sacrifício por subtipo, compra por mão vazia e lampejo com cor ---------------- */
+const JW_CARDS = {
+  'Plains': { name: 'Plains', type_line: 'Basic Land — Plains', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {W}.' },
+  'Mountain': { name: 'Mountain', type_line: 'Basic Land — Mountain', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {R}.' },
+  'Gate': { name: 'Gate', type_line: 'Land — Gate', mana_cost: '', cmc: 0, keywords: [], oracle_text: '{T}: Add {R}.' },
+  'Wildfire': { name: 'Wildfire', type_line: 'Sorcery', mana_cost: '{1}{R}{W}', cmc: 3, colors: ['R', 'W'], keywords: [], oracle_text: 'Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. Draw a card.' },
+  'Chrysalis': { name: 'Chrysalis', type_line: 'Creature — Eldrazi Drone', mana_cost: '{3}{G}', cmc: 4, colors: [], power: '3', toughness: '3', keywords: ['Reach'], oracle_text: 'Devoid\nWhen you cast this spell, create two 0/1 colorless Eldrazi Spawn creature tokens with "Sacrifice this token: Add {C}."\nReach\nWhenever you sacrifice another Eldrazi, put a +1/+1 counter on this creature.' },
+  'Goat': { name: 'Goat', type_line: 'Creature — Goat', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: 'Sacrifice this creature: Add {G}.' },
+  'Familiar': { name: 'Familiar', type_line: 'Artifact Creature — Zombie Rat', mana_cost: '{3}{B}', cmc: 4, colors: ['B'], power: '2', toughness: '1', keywords: ['Flying'], oracle_text: 'Affinity for artifacts\nFlying\nWhen this creature enters, each opponent discards a card. For each opponent who can’t, you draw a card.' },
+  'Screech': { name: 'Screech', type_line: 'Sorcery', mana_cost: '{W}', cmc: 1, colors: ['W'], keywords: [], oracle_text: 'Create two 1/1 white Bird creature tokens with flying.\nFlashback—Tap three untapped white creatures you control.' },
+  'Charm': { name: 'Charm', type_line: 'Instant', mana_cost: '{W}', cmc: 1, colors: ['W'], keywords: [], oracle_text: 'Choose one — deals damage equal to twice the number of creatures you control to target creature; or destroy target enchantment; or exile any number of target players’ graveyards.' },
+  'WhiteGuy': { name: 'WhiteGuy', type_line: 'Creature — Human Soldier', mana_cost: '{W}', cmc: 1, colors: ['W'], power: '1', toughness: '1', keywords: [], oracle_text: '' },
+  'GreenGuy': { name: 'GreenGuy', type_line: 'Creature — Elf', mana_cost: '{G}', cmc: 1, colors: ['G'], power: '1', toughness: '1', keywords: [], oracle_text: '' },
+  'Ward': { name: 'Ward', type_line: 'Enchantment', mana_cost: '{1}', cmc: 1, keywords: [], oracle_text: '' }
+};
+const JW_SCRIPTS = {
+  Wildfire: { name: 'Wildfire', effects: [{ do: 'destroy', target: 'land' },
+    { do: 'search', amount: 1, target: 'target-controller', optional: true, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' },
+    { do: 'draw', amount: 1 }],
+    example: { target: 'own-land', expect: { gone: true, picked: true } } },
+  Chrysalis: { name: 'Chrysalis', abilities: [
+    { kind: 'triggered', when: 'cast-self', effects: [{ do: 'token', amount: 2, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], power: 0, toughness: 1,
+      abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] },
+    { kind: 'triggered', when: 'other-sacrificed', filter: { subtype: 'Eldrazi' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
+    example: { target: 'none', expect: { tokens: 2 } } },
+  Goat: { name: 'Goat', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['G'] }] }],
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
+  Familiar: { name: 'Familiar', affinity: 'artifact',
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: { per: 'opponents-empty-hand' } }, { do: 'discard', amount: 1, target: 'opponent' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Screech: { name: 'Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], power: 1, toughness: 1, keywords: ['flying'] } }],
+    flashback: { tapOther: { types: ['creature'], color: 'W', amount: 3 } },
+    example: { target: 'none', expect: { tokens: 2 } } },
+  Charm: { name: 'Charm', modes: [
+    { label: 'Dano', effects: [{ do: 'damage', amount: { per: 'creatures-you-control', times: 2 }, target: 'creature' }] },
+    { label: 'Destruir encantamento', effects: [{ do: 'destroy', target: 'enchantment' }] },
+    { label: 'Exilar cemitérios', effects: [{ do: 'exile_graveyard', target: 'player' }, { do: 'exile_graveyard', target: 'player', upTo: true }] }],
+    example: { action: 'mode:1', target: 'enemy-enchantment', expect: { gone: true } } }
+};
+const JWDECK = [{ name: 'Plains', qty: 8, zone: 'main' }, { name: 'Mountain', qty: 8, zone: 'main' }, { name: 'Gate', qty: 6, zone: 'main' },
+  { name: 'Wildfire', qty: 6, zone: 'main' }, { name: 'Chrysalis', qty: 6, zone: 'main' }, { name: 'Goat', qty: 6, zone: 'main' },
+  { name: 'Familiar', qty: 6, zone: 'main' }, { name: 'Screech', qty: 6, zone: 'main' }, { name: 'Charm', qty: 6, zone: 'main' },
+  { name: 'WhiteGuy', qty: 8, zone: 'main' }, { name: 'GreenGuy', qty: 8, zone: 'main' }, { name: 'Ward', qty: 4, zone: 'main' }];
+function jwGame(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: JW_CARDS, scripts: JW_SCRIPTS,
+    players: [{ name: 'A', deck: JWDECK }, { name: 'B', deck: JWDECK }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  return passTo(s, 'main1');
+}
+
+test('S46 · destruir o terreno: quem busca o básico é o dono dele, e pode recusar', () => {
+  let s = jwGame(3); const a = s.turn.active, d = 1 - a;
+  let terrenoDele, wild;
+  [s, terrenoDele] = put(s, d, 'Gate');
+  [s, wild] = put(s, a, 'Wildfire', { zone: 'hand' });
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: wild, targets: [{ oid: terrenoDele }] })));
+  assert.equal(s.objects[terrenoDele].zone, 'graveyard', 'o terreno foi destruído');
+  assert.ok(s.pending && s.pending.kind === 'pick', 'abriu a busca');
+  assert.equal(s.pending.p, d, 'quem vasculha é o dono do terreno destruído, não quem conjurou');
+  assert.equal(s.pending.min, 0, 'a busca é opcional: ele pode não pegar nada');
+  const tipos = JSON.parse(JSON.stringify([...new Set(s.pending.from.map(x => s.objects[x].name))])).sort();
+  assert.deepEqual(tipos, ['Mountain', 'Plains'], 'só terreno básico entra na busca, o Portal fica fora');
+  // ele recusa
+  s = act(s, { t: 'pick_done', p: d });
+  assert.equal(s.zones[a].hand.length, mao, 'eu conjurei uma carta e comprei uma: a mão empata');
+});
+
+test('S46 · o marcador só vem quando o sacrificado é do subtipo pedido', () => {
+  let s = jwGame(4); const a = s.turn.active;
+  let cris;
+  [s, cris] = put(s, a, 'Chrysalis', { zone: 'hand' });
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: cris })));
+  const spawns = Object.values(s.objects).filter(o => o.token && o.name === 'Eldrazi Spawn' && o.zone === 'battlefield');
+  assert.equal(spawns.length, 2, 'entrou com duas fichas Eldrazi');
+  assert.equal((s.objects[cris].counters || {}).p1p1, undefined, 'ainda sem marcador');
+  s = settle(act(s, { t: 'activate', p: a, oid: spawns[0].oid, index: 0 }));
+  assert.equal(s.objects[cris].counters.p1p1, 1, 'sacrificar um Eldrazi deu o marcador');
+  // sacrificar uma criatura que não é Eldrazi não dá marcador
+  let cabra; [s, cabra] = put(s, a, 'Goat');
+  s = settle(act(s, { t: 'activate', p: a, oid: cabra, index: 0 }));
+  assert.equal(s.objects[cabra].zone, 'graveyard', 'a cabra foi sacrificada');
+  assert.equal(s.objects[cris].counters.p1p1, 1, 'e não houve marcador novo');
+});
+
+test('S46 · compra uma carta por oponente que não tem o que descartar', () => {
+  let s = jwGame(5); const a = s.turn.active, d = 1 - a;
+  s = esvaziaMao(s, d); // o oponente não tem carta para descartar
+  let fam;
+  [s, fam] = put(s, a, 'Familiar', { zone: 'hand' });
+  const mao = s.zones[a].hand.length;
+  s = settle(resolveSpell(act(s, { t: 'cast', p: a, oid: fam })));
+  assert.equal(s.zones[a].hand.length, mao, 'conjurei uma e comprei uma: a mão empata');
+  assert.equal(s.pending, null, 'e ninguém ficou esperando descarte');
+
+  // com carta na mão dele, ele descarta e eu não compro
+  let s2 = jwGame(5); const a2 = s2.turn.active, d2 = 1 - a2;
+  s2 = esvaziaMao(s2, d2);
+  let dele, fam2;
+  [s2, dele] = put(s2, d2, 'Goat', { zone: 'hand' });
+  [s2, fam2] = put(s2, a2, 'Familiar', { zone: 'hand' });
+  const mao2 = s2.zones[a2].hand.length;
+  s2 = settle(resolveSpell(act(s2, { t: 'cast', p: a2, oid: fam2 })));
+  assert.ok(s2.pending && s2.pending.kind === 'discard' && s2.pending.p === d2, 'ele precisa descartar');
+  s2 = act(s2, { t: 'discard', p: d2, oid: dele });
+  assert.equal(s2.objects[dele].zone, 'graveyard');
+  assert.equal(s2.zones[a2].hand.length, mao2 - 1, 'eu não comprei: só saiu a carta que conjurei');
+});
+
+test('S46 · lampejo do passado só com criaturas brancas, e exilar até dois cemitérios', () => {
+  let s = jwGame(6); const a = s.turn.active, d = 1 - a;
+  let screech;
+  [s, screech] = put(s, a, 'Screech', { zone: 'graveyard' });
+  for (let i = 0; i < 3; i++) { let g; [s, g] = put(s, a, 'GreenGuy'); }
+  assert.equal(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === screech && x.flashback), false, 'com três criaturas verdes, o lampejo não é oferecido');
+  for (let i = 0; i < 3; i++) { let w; [s, w] = put(s, a, 'WhiteGuy'); }
+  const acao = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === screech && x.flashback);
+  assert.ok(acao, 'com três criaturas brancas, o lampejo aparece');
+  const depois = settle(resolveSpell(act(s, acao)));
+  assert.equal(Object.values(depois.objects).filter(o => o.token && o.name === 'Bird').length, 2, 'criou os dois pássaros');
+
+  // terceiro modo do Charm: até dois cemitérios
+  let s2 = jwGame(6); const a2 = s2.turn.active, d2 = 1 - a2;
+  let meu, dele, charm;
+  [s2, meu] = put(s2, a2, 'Goat', { zone: 'graveyard' });
+  [s2, dele] = put(s2, d2, 'Goat', { zone: 'graveyard' });
+  [s2, charm] = put(s2, a2, 'Charm', { zone: 'hand' });
+  const ofertas = E.legalActions(s2, a2).filter(x => x.t === 'cast' && x.oid === charm && x.mode === 2);
+  assert.ok(ofertas.some(x => x.targets.length === 2), 'oferece dois cemitérios');
+  assert.ok(ofertas.some(x => x.targets.length === 1), 'e um só');
+  const dois = ofertas.find(x => x.targets.length === 2);
+  s2 = settle(resolveSpell(act(s2, dois)));
+  assert.equal(s2.objects[meu].zone, 'exile');
+  assert.equal(s2.objects[dele].zone, 'exile');
+});
