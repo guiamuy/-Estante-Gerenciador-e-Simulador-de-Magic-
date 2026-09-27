@@ -129,6 +129,28 @@ const PAUPER = '20 Island\n4 Delver of Secrets\n4 Preordain\n4 Counterspell';
 const tapHand = async (page, name) => { await page.locator('.tb-hand .tb-card', { hasText: name }).first().click(); };
 const handCardByImgless = name => `.tb-hand .tb-card[aria-label^="${name}"]`;
 
+test('e2e · B4 jogar contra o bot: escolher o nível e ver a jogada dele no registro', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '9');
+  await page.click('[data-opponent="profissional"]');
+  await page.waitForSelector('#mesa-bot-deck');            // a lista do bot aparece
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep');                            // o bot decide a mão dele sozinho
+  await page.waitForSelector('#tb-pass');
+  for (let i = 0; i < 12; i++) {                           // alguns turnos correndo
+    const passar = await page.$('#tb-pass');
+    if (!passar) break;
+    await passar.click();
+    await page.waitForTimeout(60);
+  }
+  const registro = await page.innerText('.tb');
+  assert.match(registro, /Bot profissional/, 'o nome do bot aparece na mesa');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar e vitória', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await createDeck(page, base, 'Delver', PAUPER);

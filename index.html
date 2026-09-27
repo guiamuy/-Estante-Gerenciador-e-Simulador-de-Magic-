@@ -7686,16 +7686,113 @@ function jogadaAmador(s, p, opts = {}) {
   return { acao: r.acao, motivo: motivoDe(s, p, r.acao, ganho), ganho };
 }
 
-/** Bot pronto para a mesa. Por enquanto um nível; o profissional entra na B4. */
+/* ---------------- B4 · bot profissional ---------------- */
+/* Mesmo avaliador e as mesmas regras de jogo do amador. O que muda é a
+   profundidade: antes de decidir, ele simula a melhor resposta do oponente, e no
+   combate ele resolve o ataque inteiro (bloqueio provável + dano) em vez de
+   decidir por regra de bolso. Continua sem ver a mão nem o grimório de ninguém. */
+const RESPOSTAS_CONSIDERADAS = 10; // quantas respostas do oponente cabem no orçamento
+
+/** Nota depois da melhor resposta do oponente. Quanto menor, pior para mim. */
+function notaComResposta(s, p, opts) {
+  const d = oponenteDe(s, p);
+  if (s.status !== 'playing' || s.players[d].lost) return avalia(s, p).nota;
+  const delas = E.legalActions(s, d).filter(a => a.t !== 'concede');
+  if (!delas.length) return avalia(s, p).nota;
+  const ordenadas = [...delas].sort((a, b) => chaveAcao(a) < chaveAcao(b) ? -1 : 1).slice(0, RESPOSTAS_CONSIDERADAS);
+  let pior = avalia(s, p).nota;
+  for (const a of ordenadas) {
+    const r = simula(s, a);
+    if (!r) continue;
+    const depois = ['cast', 'activate', 'cast_madness', 'cast_free'].includes(a.t) ? resolveSimulado(r.estado) : r.estado;
+    const n = avalia(depois, p).nota;
+    if (n < pior) pior = n; // o oponente escolhe o que é pior para mim
+  }
+  return pior;
+}
+
+/** Resolve o combate simulado até o dano, com o oponente bloqueando como o amador. */
+function notaDoAtaque(s, p, atacantes) {
+  const r = simula(s, { t: 'attack', p, attackers: atacantes });
+  if (!r) return null;
+  let cur = r.estado;
+  for (let i = 0; i < 30 && cur.status === 'playing'; i++) {
+    if (cur.pending && cur.pending.kind === 'blockers') {
+      const b = decideBloqueio(cur, cur.pending.p);
+      const rb = simula(cur, b.acao); if (!rb) break; cur = rb.estado; continue;
+    }
+    if (cur.pending) break;
+    if (cur.turn.step === 'main2' || cur.turn.step === 'end' || cur.turn.step === 'cleanup') break;
+    const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) break; cur = rp.estado;
+  }
+  return avalia(cur, p).nota;
+}
+
+/** B4 · ataque escolhido pelo resultado do combate, não por regra de bolso. */
+function decideAtaqueProfissional(s, p, opts = {}) {
+  const podem = E.eligibleAttackers(s, p);
+  const obrigadas = E.mustAttack(s, p);
+  if (!podem.length) return { acao: { t: 'attack', p, attackers: [] }, motivo: 'não tenho com quem atacar' };
+  const doAmador = decideAtaque(s, p).acao.attackers;
+  const conjuntos = [];
+  const junta = lista => { const l = [...new Set([...lista, ...obrigadas])].filter(x => podem.includes(x));
+    if (!conjuntos.some(c => c.join('|') === l.join('|'))) conjuntos.push(l); };
+  junta(obrigadas);            // só o obrigatório
+  junta(doAmador);             // o que o amador faria
+  junta(podem);                // ataque total
+  for (const oid of podem) junta([oid]); // uma criatura de cada vez
+  const r = escolhe(conjuntos.map(c => ({ t: 'attack', p, attackers: c })),
+    a => { const n = notaDoAtaque(s, p, a.attackers); return n == null ? -Infinity : n; }, opts);
+  const lista = (r.acao || { attackers: obrigadas }).attackers;
+  const motivo = !lista.length ? 'não ataquei: depois do bloqueio provável, atacar me deixa pior'
+    : `ataquei com ${lista.length}: contei o bloqueio provável e o dano compensa`;
+  return { acao: { t: 'attack', p, attackers: lista }, motivo };
+}
+
+/** B4 · jogada do profissional. */
+function jogadaProfissional(s, p, opts = {}) {
+  if (s.status !== 'playing' || s.players[p].lost) return null;
+  const pend = s.pending;
+  const minhaDecisao = !!(pend && pend.p === p);
+  if (minhaDecisao && pend.kind === 'attackers') return decideAtaqueProfissional(s, p, opts);
+  if (minhaDecisao && pend.kind === 'blockers') return decideBloqueio(s, p);
+  const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede');
+  if (!acoes.length) return null;
+  const terrenos = acoes.filter(a => a.t === 'play_land');
+  if (terrenos.length) {
+    const melhor = escolhe(terrenos, a => { const n = notaDepois(s, p, a); return n == null ? -Infinity : n; }, opts).acao;
+    return { acao: melhor, motivo: motivoDe(s, p, melhor, 0) };
+  }
+  const base = notaComResposta(s, p, opts); // passar também sofre a resposta do outro
+  const candidatas = minhaDecisao ? acoes : acoes.filter(a => a.t !== 'pass');
+  if (!candidatas.length) return { acao: { t: 'pass', p }, motivo: motivoDe(s, p, { t: 'pass', p }, 0) };
+  const r = escolhe(candidatas, a => {
+    const sim = simula(s, a);
+    if (!sim) return -Infinity;
+    const depois = ['cast', 'activate', 'cast_madness', 'cast_free'].includes(a.t) ? resolveSimulado(sim.estado) : sim.estado;
+    return notaComResposta(depois, p, opts);
+  }, opts);
+  if (!r.acao) return { acao: { t: 'pass', p }, motivo: 'passei: nenhuma jogada legal serviu' };
+  const ganho = r.nota - base;
+  if (!minhaDecisao && ganho <= 0) return { acao: { t: 'pass', p }, motivo: 'passei: contando a resposta do oponente, nada melhorava' };
+  return { acao: r.acao, motivo: motivoDe(s, p, r.acao, ganho), ganho };
+}
+
+/** Bot pronto para a mesa, nos dois níveis. */
 function criaBot({ nivel = 'amador', orcamentoMs = 400, agora = () => Date.now() } = {}) {
+  const profissional = nivel === 'profissional';
   return {
     nivel,
-    jogada(s, p) { return jogadaAmador(s, p, { orcamentoMs, agora }); }
+    jogada(s, p) {
+      return profissional ? jogadaProfissional(s, p, { orcamentoMs, agora })
+        : jogadaAmador(s, p, { orcamentoMs, agora });
+    }
   };
 }
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, simula, escolhe, chaveAcao, fontesDeMana,
-  jogadaAmador, decideAtaque, decideBloqueio, criaBot };
+  jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio,
+  notaComResposta, notaDoAtaque, criaBot };
 })();
 
 /* ==== src/ui/table-components.js ==== */
@@ -8214,7 +8311,8 @@ function createTableSetup({ decks, cardRepo, store }) {
     }
 
     const theirsField = h('div', {});
-    const paintOpponent = () => mount(theirsField, state.opponent === 'amador' ? Stack({},
+    const ehBot = () => state.opponent === 'amador' || state.opponent === 'profissional';
+    const paintOpponent = () => mount(theirsField, ehBot() ? Stack({},
       Text('O bot joga com a lista escolhida abaixo e diz no registro por que fez cada jogada.', { size: 'sm', tone: 'muted' }),
       Field('Lista do bot', Select(optsDe(visiveis()), { id: 'mesa-bot-deck', value: state.theirs, onChange: e => { state.theirs = e.target.value; } })))
       : state.opponent === 'hotseat' ? Stack({},
@@ -8223,7 +8321,8 @@ function createTableSetup({ decks, cardRepo, store }) {
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
       Field('Lista do oponente', Select(optsDe(visiveis()), { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
     const oppChips = Row({ class: 'ds-row--wrap' },
-      ...[['goldfish', 'Goldfish (sem oponente)'], ['amador', 'Bot amador experiente'], ['hotseat', 'Outra pessoa neste aparelho']].map(([k, label]) => {
+      ...[['goldfish', 'Goldfish (sem oponente)'], ['amador', 'Bot amador experiente'],
+        ['profissional', 'Bot profissional'], ['hotseat', 'Outra pessoa neste aparelho']].map(([k, label]) => {
         const c = Chip(label, { pressed: state.opponent === k, dataset: { opponent: k } });
         c.addEventListener('click', () => { state.opponent = k; oppChips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); paintOpponent(); });
         return c;
@@ -8232,7 +8331,7 @@ function createTableSetup({ decks, cardRepo, store }) {
 
     async function start() {
       if (state.busy) return;
-      const comBot = state.opponent === 'amador';
+      const comBot = ehBot();
       const mine = byId(state.mine), theirs = state.opponent === 'hotseat' || comBot ? byId(state.theirs) : null;
       state.busy = true; startBtn.disabled = true; startBtn.textContent = 'Buscando cartas…';
       try {
@@ -8242,7 +8341,7 @@ function createTableSetup({ decks, cardRepo, store }) {
         for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; else unknown++; }
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
-          comBot ? { name: 'Bot amador', deck: theirs }
+          comBot ? { name: state.opponent === 'profissional' ? 'Bot profissional' : 'Bot amador', deck: theirs }
             : theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
         // S64 · sem os dados da carta o motor não tem tipo, custo nem força: no motor
         // completo isso daria partida errada em silêncio, então ele não começa assim
@@ -8253,7 +8352,7 @@ function createTableSetup({ decks, cardRepo, store }) {
         // as cartas já vieram da rede agora: guarda para a próxima partida, mesmo sem internet
         cardRepo.pin(names).catch(() => {});
         const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }),
-          { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'amador', seat: 1 } : null } });
+          { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: state.opponent, seat: 1 } : null } });
         await store.set(T.SAVE_KEY, table.serialize());
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
         go('/partida');

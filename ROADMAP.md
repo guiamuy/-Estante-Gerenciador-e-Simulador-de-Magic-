@@ -96,8 +96,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S54 metamorfose e esgueirar-se | 🟡 |
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
 | B · Bot | B2 avaliador de posição e arcabouço de decisão | 🟡 |
-| B · Bot | B3 amador experiente, jogável na mesa | 🟡 |
-| B · Bot | B4–B7 profissional, escolha completa na mesa, torneio e didática | ▶ |
+| B · Bot | B3 amador experiente e B4 profissional, jogáveis na mesa | 🟡 |
+| B · Bot | B5–B7 escolha completa na mesa, torneio no portão e didática | ▶ |
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7–X10 captura automática, pilha de leitura, validação e acerto medido | ○ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
@@ -195,6 +195,12 @@ Valem para todas as histórias.
 - tem todas as dependências entregues;
 - não tem pergunta de produto em aberto;
 - tem fixtures definidas (cartas, listas, fotos) quando precisa de dados.
+
+**Conduta padrão de entrega (definida pelo usuário em 27/09/2026).** Toda leva sai com uma camada de
+testes rigorosa e completa, para minimizar a chance e a quantidade de bugs — sem depender de o usuário
+pedir. Na prática, em cada leva: cada regra nova nasce com teste que falharia sem ela; cada bug vira teste
+antes da correção; o caminho que o usuário vai tocar no aparelho tem teste headless; e o que ficou sem
+cobertura é declarado na entrega, não omitido.
 
 **Done.** Uma história só está pronta quando:
 - todos os critérios de aceite foram demonstrados;
@@ -338,7 +344,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
-| E37 🟡 | B2 (leva 59) · B3 (leva 60) · B4–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
+| E37 🟡 | B2 (leva 59) · B3 (leva 60) · B4 (leva 61) · B5–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 | X7–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
@@ -2003,7 +2009,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** B2.
 - **Fora:** blefe; guardar carta para o turno seguinte por leitura de metagame.
 
-**B4 · Bot "profissional"** ○
+**B4 · Bot "profissional"** 🟡
 - **Valor:** o desafio de verdade.
 - **Aceite:**
   - busca rasa sobre as ações legais (duas camadas: minha jogada e a melhor resposta do oponente),
@@ -2013,10 +2019,24 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - responde em menos de 500 ms no celular (orçamento da B2), e nunca trava a interface;
   - sequencia melhor: usa mana de criatura antes de terreno, guarda o terreno para depois do combate
     quando isso não muda a curva.
-- **Testes:** U (cenários com jogada única correta que o amador erra e o profissional acerta),
-  desempenho (limite de tempo respeitado em 100 jogadas seguidas), P.
+- **Entregue (leva 61):** `jogadaProfissional` e `decideAtaqueProfissional`, mais a opção
+  **"Bot profissional"** na tela de jogar. Mesmo avaliador e as mesmas regras de jogo do amador; o que
+  muda é a profundidade.
+- **As duas camadas, na prática:**
+  1. fora do combate, cada jogada minha é medida **depois da melhor resposta do oponente** (até dez
+     respostas por posição, em ordem estável, dentro do orçamento);
+  2. no combate, o ataque é escolhido resolvendo o combate inteiro — bloqueio provável (o oponente bloqueia
+     como o amador) mais o dano —, em vez de regra de bolso.
+- **Diferença medida:** com três 2/2 contra um 5/5 e o oponente em 3 de vida, o amador fica em casa e o
+  profissional ataca com todos: um morre no bloqueio, quatro de dano passam e a partida fecha. Isso é
+  teste, não anedota.
+- **Testes:** U (o ataque letal por cima do bloqueio que o amador não vê; recusa de ataque que piora a
+  posição depois do bloqueio; a resposta do oponente nunca melhorando a minha nota; mesma posição dando a
+  mesma jogada; orçamento estourado ainda devolvendo jogada), P (partida inteira profissional contra
+  amador sem ação ilegal e com estado íntegro), I headless (escolher o nível na tela e ver o bot na mesa).
 - **Depende de:** B3.
-- **Fora:** busca profunda; tabela de aberturas.
+- **Fora:** busca profunda; tabela de aberturas; sequenciamento de mana (usar criatura antes de terreno) —
+  o motor paga sozinho, então isso fica para quando o pagamento tiver escolha.
 
 **B5 · Escolher o oponente na mesa** ○
 - **Valor:** decidir contra quem jogar, sem editar nada.

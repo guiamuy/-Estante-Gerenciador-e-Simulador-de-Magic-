@@ -311,3 +311,91 @@ test('B3 · joga uma partida inteira sem nunca escolher ação ilegal', () => {
   assert.equal(jogadas > 50, true, `o bot jogou ${jogadas} vezes sem ação ilegal`);
   assert.deepEqual(J(E.invariants(s)), [], 'o estado continua íntegro no fim');
 });
+
+/* ---------------- B4 · bot profissional ---------------- */
+const pro = B.criaBot({ nivel: 'profissional' });
+
+test('B4 · enxerga o ataque que fecha a partida por cima do bloqueio, onde o amador fica em casa', () => {
+  // três 2/2 meus contra um 5/5 do oponente, que está com 3 de vida:
+  // o amador vê "o 5/5 mata cada um de graça" e fica em casa;
+  // o profissional conta o bloqueio provável — um morre, quatro de dano passam e fecha.
+  let s = mesa3(31); const a = s.turn.active, d = 1 - a;
+  let u1, u2, u3;
+  [s, u1] = poe(s, a, 'Urso'); [s, u2] = poe(s, a, 'Urso'); [s, u3] = poe(s, a, 'Urso');
+  [s] = poe(s, d, 'Gigante');
+  s = J(s); s.players[d].life = 3;
+  s = passaAte(s, 'combat_attackers');
+  const amador = bot.jogada(s, a);
+  assert.deepEqual(J(amador.acao.attackers), [], 'o amador fica em casa');
+  const prof = pro.jogada(s, a);
+  assert.equal(prof.acao.attackers.length, 3, 'o profissional ataca com todos');
+  assert.match(prof.motivo, /bloqueio provável/);
+  // e o ataque dele realmente ganha a partida
+  let depois = act(s, prof.acao);
+  for (let i = 0; i < 30 && depois.status === 'playing'; i++) {
+    if (depois.pending && depois.pending.kind === 'blockers') {
+      const b = B.decideBloqueio(depois, depois.pending.p);
+      depois = act(depois, b.acao); continue;
+    }
+    if (depois.pending) break;
+    if (depois.turn.step === 'main2') break;
+    depois = act(depois, { t: 'pass', p: depois.turn.priority });
+  }
+  assert.equal(depois.players[d].life <= 0, true, 'o oponente foi a zero');
+});
+
+test('B4 · não ataca quando, depois do bloqueio provável, o ataque piora a posição', () => {
+  let s = mesa3(32); const a = s.turn.active, d = 1 - a;
+  let urso; [s, urso] = poe(s, a, 'Urso');      // 2/2 sozinho
+  [s] = poe(s, d, 'Gigante');                   // 5/5 bloqueia e mata de graça
+  s = passaAte(s, 'combat_attackers');
+  const prof = pro.jogada(s, a);
+  assert.deepEqual(J(prof.acao.attackers), [], 'ficou em casa');
+  assert.match(prof.motivo, /me deixa pior/);
+});
+
+test('B4 · conta a resposta do oponente antes de decidir', () => {
+  let s = mesa3(33, true); const a = s.turn.active, d = 1 - a;
+  s = esvaziaMao(s, a); s = esvaziaMao(s, d);
+  // eu tenho uma criatura para conjurar; o oponente tem a remoção e o mana para usar
+  [s] = poe(s, a, 'Floresta'); [s] = poe(s, a, 'Floresta');
+  [s] = poe(s, d, 'Floresta'); [s] = poe(s, d, 'Floresta');
+  let gigante; [s, gigante] = poe(s, a, 'Gigante', 'hand');
+  [s] = poe(s, d, 'Matar', 'hand');
+  const nota = B.notaComResposta(s, a, {});
+  const base = B.avalia(s, a).nota;
+  assert.equal(nota <= base, true, 'a melhor resposta do oponente nunca melhora a minha posição');
+  // a jogada segue sendo conjurar (é o que eu tenho), mas a nota já desconta a remoção
+  const j = pro.jogada(s, a);
+  assert.equal(j.acao.t, 'cast');
+  assert.equal(j.acao.oid, gigante);
+});
+
+test('B4 · mesma posição, mesma jogada: a decisão é determinística', () => {
+  let s = mesa3(34, true); const a = s.turn.active;
+  const j1 = pro.jogada(s, a), j2 = pro.jogada(J(s), a);
+  assert.equal(B.chaveAcao(j1.acao), B.chaveAcao(j2.acao), 'duas consultas, mesma jogada');
+});
+
+test('B4 · respeita o orçamento de tempo e ainda devolve jogada', () => {
+  let s = mesa3(35, true); const a = s.turn.active;
+  let t = 0;
+  const apressado = B.criaBot({ nivel: 'profissional', orcamentoMs: 1, agora: () => (t += 5) });
+  const j = apressado.jogada(s, a);
+  assert.ok(j && j.acao, 'com o tempo estourado, devolve a melhor até ali');
+});
+
+test('B4 · joga uma partida inteira contra o amador sem ação ilegal', () => {
+  let s = mesa3(36, true);
+  const botA = B.criaBot({ nivel: 'profissional' }), botB = B.criaBot({ nivel: 'amador' });
+  let jogadas = 0;
+  for (let i = 0; i < 600 && s.status === 'playing'; i++) {
+    const quem = s.pending ? s.pending.p : s.turn.priority;
+    const j = (quem === 0 ? botA : botB).jogada(s, quem);
+    if (!j) break;
+    s = act(s, j.acao);
+    jogadas++;
+  }
+  assert.equal(jogadas > 50, true, `foram ${jogadas} jogadas sem nenhuma ilegal`);
+  assert.deepEqual(J(E.invariants(s)), [], 'estado íntegro no fim');
+});
