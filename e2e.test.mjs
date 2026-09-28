@@ -151,6 +151,19 @@ test('e2e · B4 jogar contra o bot: escolher o nível e ver a jogada dele no reg
   assert.deepEqual(errors, []);
 });
 
+test('e2e · B5 sem lista 100% coberta, os bots ficam bloqueados com o motivo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  // lista com uma carta que o motor não resolve: a cobertura não fecha em 100%
+  await createDeck(page, base, 'Meia-boca', '20 Island\n4 Mystery Enchantment\n4 Preordain');
+  await page.goto(base + '#/mesa');
+  await page.waitForSelector('#mesa-opponent-note');
+  await page.waitForFunction(() => /100% coberta/.test(document.querySelector('#mesa-opponent-note')?.innerText || ''), null, { timeout: 8000 });
+  assert.equal(await page.locator('[data-opponent="amador"]').isDisabled(), true, 'amador bloqueado');
+  assert.equal(await page.locator('[data-opponent="profissional"]').isDisabled(), true, 'profissional bloqueado');
+  assert.equal(await page.locator('[data-opponent="goldfish"]').isDisabled(), false, 'goldfish continua livre');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar e vitória', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await createDeck(page, base, 'Delver', PAUPER);

@@ -97,7 +97,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S55 colher provas escolhida por você e tipo de criatura do campo | ✅ |
 | B · Bot | B2 avaliador de posição e arcabouço de decisão | 🟡 |
 | B · Bot | B3 amador experiente e B4 profissional, jogáveis na mesa | 🟡 |
-| B · Bot | B5–B7 escolha completa na mesa, torneio no portão e didática | ▶ |
+| B · Bot | B5 escolha na mesa e B6 torneio medido no portão | 🟡 |
+| B · Bot | B7 didática do bot | ▶ |
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7–X10 captura automática, pilha de leitura, validação e acerto medido | ○ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
@@ -344,7 +345,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
-| E37 🟡 | B2 (leva 59) · B3 (leva 60) · B4 (leva 61) · B5–B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
+| E37 🟡 | B2 (leva 59) · B3 (leva 60) · B4 (leva 61) · B5–B6 (leva 62) · B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 | X7–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
@@ -2038,7 +2039,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Fora:** busca profunda; tabela de aberturas; sequenciamento de mana (usar criatura antes de terreno) —
   o motor paga sozinho, então isso fica para quando o pagamento tiver escolha.
 
-**B5 · Escolher o oponente na mesa** ○
+**B5 · Escolher o oponente na mesa** 🟡
 - **Valor:** decidir contra quem jogar, sem editar nada.
 - **Aceite:**
   - na tela de jogar, o oponente é Goldfish, Amador experiente, Profissional ou hot-seat;
@@ -2046,18 +2047,41 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - trocar de nível exige partida nova, e a mesa diz isso em vez de trocar no meio;
   - bot só joga no motor completo (ADR-05): com lista abaixo de 100%, os dois níveis aparecem
     desabilitados com o motivo.
-- **Testes:** I headless (escolher cada nível e jogar três turnos), V (contraste e alvo de toque).
+- **Entregue (leva 62):** quatro oponentes na tela de jogar (Goldfish, amador, profissional, hot-seat),
+  com a lista do bot escolhida ao lado. Sem a lista **100% coberta**, os dois níveis ficam desabilitados
+  com o motivo escrito na tela, e a escolha volta para o Goldfish sozinha. Com partida em andamento, a
+  tela avisa que trocar de oponente exige descartar a partida. O nome do bot aparece na mesa e no fim.
+- **Testes:** I headless (escolher o nível, ver o bot jogando e o nome dele na mesa; lista incompleta
+  deixando os dois níveis bloqueados com o aviso e o Goldfish livre), U (o assento do bot joga sozinho, o
+  motivo entra no registro e a escolha sobrevive a salvar e continuar).
 - **Depende de:** B3, A12.
 - **Fora:** dificuldade adaptativa.
 
-**B6 · Torneio de bots no portão** ○
+**B6 · Torneio de bots no portão** 🟡
 - **Valor:** provar que "profissional" é mesmo mais forte, e que nenhum dos dois trava.
 - **Aceite:**
   - N partidas por semente fixa, bot contra bot, no CI;
   - profissional vence o amador em **≥ 60%**, e o amador vence a política aleatória em **≥ 70%**;
   - nenhuma partida termina por ação ilegal, laço ou estouro de tempo;
   - o relatório sai no log do portão: vitórias, turnos médios e tempo médio por jogada.
-- **Testes:** P (torneio), desempenho.
+- **Entregue (leva 62):** `bot.torneio.test.mjs`. Semente fixa por partida, **assentos trocados a cada
+  rodada** (senão a medida vira vantagem de começar jogando) e relatório no log do portão.
+- **Medido:** amador **100%** contra a política aleatória (16 partidas) e profissional **63%** contra o
+  amador (24 partidas), sem nenhuma ação ilegal e sem partida indecisa. Tempo médio por jogada: 0,7 ms no
+  amador e 1,3 ms no profissional.
+- **O que a medição obrigou a corrigir:** na primeira rodada o profissional ficou em **50%** — ou seja,
+  não era mais forte. Duas causas, as duas corrigidas:
+  1. a amostra de respostas do oponente era cortada **em ordem alfabética da chave da ação**, o que dava
+     uma amostra sem sentido; agora todas as respostas são lidas de forma barata e só as dez piores para
+     mim são lidas por inteiro;
+  2. faltava **disciplina de instantânea**: o profissional gastava mágica rápida na própria fase principal
+     como o amador. Agora ele só gasta fora do combate se o ganho for grande.
+- **Tentativa que piorou e foi revertida:** encaixar a melhor continuação do próprio turno antes de medir
+  a posição (uma camada a mais de mim mesmo) derrubou o profissional para **20%**. Está registrado aqui
+  para não ser tentado de novo sem medir.
+- **Tamanho da amostra:** 12 partidas davam ±15 pontos de variação — número que não significa nada. O
+  portão roda 16 e 24 partidas, que é o que cabe no tempo do portão com medida estável.
+- **Testes:** P (as duas séries e a reprodutibilidade por semente).
 - **Depende de:** B4.
 - **Fora:** ajuste automático de pesos.
 

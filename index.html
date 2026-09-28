@@ -7693,22 +7693,64 @@ function jogadaAmador(s, p, opts = {}) {
    decidir por regra de bolso. Continua sem ver a mão nem o grimório de ninguém. */
 const RESPOSTAS_CONSIDERADAS = 10; // quantas respostas do oponente cabem no orçamento
 
-/** Nota depois da melhor resposta do oponente. Quanto menor, pior para mim. */
+const RESOLVE = ['cast', 'activate', 'cast_madness', 'cast_free'];
+/** Nota depois da melhor resposta do oponente. Quanto menor, pior para mim.
+    As respostas entram em duas passadas: uma leitura barata de todas para achar as
+    que mais me atrapalham, e a leitura completa (com resolução) só nas melhores
+    delas. Antes eu cortava as respostas em ordem alfabética da chave, o que dava
+    uma amostra sem sentido e fazia o profissional decidir no escuro. */
 function notaComResposta(s, p, opts) {
   const d = oponenteDe(s, p);
   if (s.status !== 'playing' || s.players[d].lost) return avalia(s, p).nota;
   const delas = E.legalActions(s, d).filter(a => a.t !== 'concede');
   if (!delas.length) return avalia(s, p).nota;
-  const ordenadas = [...delas].sort((a, b) => chaveAcao(a) < chaveAcao(b) ? -1 : 1).slice(0, RESPOSTAS_CONSIDERADAS);
-  let pior = avalia(s, p).nota;
-  for (const a of ordenadas) {
+  const barato = [];
+  for (const a of delas) {
     const r = simula(s, a);
     if (!r) continue;
-    const depois = ['cast', 'activate', 'cast_madness', 'cast_free'].includes(a.t) ? resolveSimulado(r.estado) : r.estado;
+    barato.push({ a, n: avalia(r.estado, p).nota, r });
+  }
+  if (!barato.length) return avalia(s, p).nota;
+  barato.sort((x, y) => x.n - y.n || (chaveAcao(x.a) < chaveAcao(y.a) ? -1 : 1)); // pior para mim primeiro
+  let pior = avalia(s, p).nota;
+  for (const { a, r } of barato.slice(0, RESPOSTAS_CONSIDERADAS)) {
+    const depois = RESOLVE.includes(a.t) ? resolveSimulado(r.estado) : r.estado;
     const n = avalia(depois, p).nota;
     if (n < pior) pior = n; // o oponente escolhe o que é pior para mim
   }
   return pior;
+}
+
+/** B4 · bloqueio escolhido pelo resultado do dano, não por regra de bolso. */
+function decideBloqueioProfissional(s, p, opts = {}) {
+  const livres = E.eligibleBlockers(s, p);
+  const atacantes = ((s.combat || {}).attackers || []).filter(oid => s.objects[oid] && s.objects[oid].zone === 'battlefield');
+  if (!livres.length || !atacantes.length) return decideBloqueio(s, p);
+  const conjuntos = [[]];
+  const junta = lista => { if (lista && !conjuntos.some(c => JSON.stringify(c) === JSON.stringify(lista))) conjuntos.push(lista); };
+  junta(decideBloqueio(s, p).acao.blocks);
+  // um bloqueador por atacante, na ordem de ameaça, e cada bloqueio isolado
+  const porAmeaca = [...atacantes].sort((a, b) => E.stats(s, s.objects[b]).power - E.stats(s, s.objects[a]).power || (a < b ? -1 : 1));
+  const todos = [];
+  const usados = new Set();
+  for (const atk of porAmeaca) {
+    const livre = livres.find(b => !usados.has(b) && E.canBlock(s, b, atk));
+    if (livre) { usados.add(livre); todos.push([livre, atk]); junta([[livre, atk]]); }
+  }
+  junta(todos);
+  const r = escolhe(conjuntos.map(c => ({ t: 'block', p, blocks: c })), a => {
+    const sim = simula(s, a);
+    if (!sim) return -Infinity;
+    let cur = sim.estado;
+    for (let i = 0; i < 20 && cur.status === 'playing' && !cur.pending && cur.turn.step !== 'main2' && cur.turn.step !== 'end'; i++) {
+      const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) break; cur = rp.estado;
+    }
+    return avalia(cur, p).nota;
+  }, opts);
+  const blocos = (r.acao || { blocks: [] }).blocks;
+  const motivo = blocos.length ? `bloqueei ${blocos.length}: contei o dano e o resultado me favorece`
+    : 'não bloqueei: depois do dano, bloquear me deixa pior';
+  return { acao: { t: 'block', p, blocks: blocos }, motivo };
 }
 
 /** Resolve o combate simulado até o dano, com o oponente bloqueando como o amador. */
@@ -7755,7 +7797,7 @@ function jogadaProfissional(s, p, opts = {}) {
   const pend = s.pending;
   const minhaDecisao = !!(pend && pend.p === p);
   if (minhaDecisao && pend.kind === 'attackers') return decideAtaqueProfissional(s, p, opts);
-  if (minhaDecisao && pend.kind === 'blockers') return decideBloqueio(s, p);
+  if (minhaDecisao && pend.kind === 'blockers') return decideBloqueioProfissional(s, p, opts);
   const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede');
   if (!acoes.length) return null;
   const terrenos = acoes.filter(a => a.t === 'play_land');
@@ -7764,13 +7806,19 @@ function jogadaProfissional(s, p, opts = {}) {
     return { acao: melhor, motivo: motivoDe(s, p, melhor, 0) };
   }
   const base = notaComResposta(s, p, opts); // passar também sofre a resposta do outro
+  // Disciplina de instantânea: no meu turno, fora do combate, guardar a mágica
+  // rápida costuma valer mais do que usá-la agora. O profissional só gasta se o
+  // ganho for grande; o amador gasta assim que melhora um pouco.
+  const ehInstantanea = a => a.t === 'cast' && (s.facts[(s.objects[a.oid] || {}).name] || { types: [] }).types.includes('instant');
+  const foraDoCombate = !String(s.turn.step).startsWith('combat');
+  const pedagio = a => (s.turn.active === p && foraDoCombate && ehInstantanea(a) ? LIMIAR_RESPOSTA : 0);
   const candidatas = minhaDecisao ? acoes : acoes.filter(a => a.t !== 'pass');
   if (!candidatas.length) return { acao: { t: 'pass', p }, motivo: motivoDe(s, p, { t: 'pass', p }, 0) };
   const r = escolhe(candidatas, a => {
     const sim = simula(s, a);
     if (!sim) return -Infinity;
-    const depois = ['cast', 'activate', 'cast_madness', 'cast_free'].includes(a.t) ? resolveSimulado(sim.estado) : sim.estado;
-    return notaComResposta(depois, p, opts);
+    const depois = RESOLVE.includes(a.t) ? resolveSimulado(sim.estado) : sim.estado;
+    return notaComResposta(depois, p, opts) - pedagio(a);
   }, opts);
   if (!r.acao) return { acao: { t: 'pass', p }, motivo: 'passei: nenhuma jogada legal serviu' };
   const ganho = r.nota - base;
@@ -7791,7 +7839,7 @@ function criaBot({ nivel = 'amador', orcamentoMs = 400, agora = () => Date.now()
 }
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, simula, escolhe, chaveAcao, fontesDeMana,
-  jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio,
+  jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
   notaComResposta, notaDoAtaque, criaBot };
 })();
 
@@ -8279,6 +8327,7 @@ function createTableSetup({ decks, cardRepo, store }) {
             Button('Guardar para jogar sem internet', { id: 'mesa-offline-pin', onClick: () => guardar(nomes) })),
         Text(`motor v${E.ENGINE_VERSION}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-engine-version' } })));
       paintMode();
+      paintChips();
     }
     /** S64 · busca o que falta e guarda tudo, sem prazo de validade. */
     async function guardar(nomes) {
@@ -8320,14 +8369,28 @@ function createTableSetup({ decks, cardRepo, store }) {
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
       Field('Lista do oponente', Select(optsDe(visiveis()), { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
-    const oppChips = Row({ class: 'ds-row--wrap' },
-      ...[['goldfish', 'Goldfish (sem oponente)'], ['amador', 'Bot amador experiente'],
-        ['profissional', 'Bot profissional'], ['hotseat', 'Outra pessoa neste aparelho']].map(([k, label]) => {
+    // B5 · os dois níveis do bot só existem no motor completo (ADR-05): sem a lista
+    // 100% coberta o motor não resolve tudo sozinho, e o bot decidiria no escuro.
+    const OPONENTES = [['goldfish', 'Goldfish (sem oponente)'], ['amador', 'Bot amador experiente'],
+      ['profissional', 'Bot profissional'], ['hotseat', 'Outra pessoa neste aparelho']];
+    const oppChips = Row({ class: 'ds-row--wrap' });
+    const oppNota = h('div', { id: 'mesa-opponent-note' });
+    function paintChips() {
+      const travado = state.coverage !== 100;
+      if (travado && ehBot()) { state.opponent = 'goldfish'; paintOpponent(); }
+      mount(oppChips, ...OPONENTES.map(([k, label]) => {
+        const bloqueado = travado && (k === 'amador' || k === 'profissional');
         const c = Chip(label, { pressed: state.opponent === k, dataset: { opponent: k } });
-        c.addEventListener('click', () => { state.opponent = k; oppChips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); paintOpponent(); });
+        if (bloqueado) { c.disabled = true; c.title = 'O bot precisa da lista 100% coberta pelo motor'; }
+        else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); });
         return c;
       }));
-    paintOpponent();
+      mount(oppNota, travado
+        ? Text('Os bots jogam só com lista 100% coberta pelo motor: sem isso a partida pararia para você adjudicar as cartas deles.', { size: 'sm', tone: 'muted' })
+        : saved ? Text('A partida em andamento continua com o oponente dela. Para trocar de oponente, descarte a partida acima.', { size: 'sm', tone: 'muted' })
+          : null);
+    }
+    paintChips(); paintOpponent();
 
     async function start() {
       if (state.busy) return;
@@ -8375,7 +8438,7 @@ function createTableSetup({ decks, cardRepo, store }) {
         ChipField('Modo de jogo', formatBox),
         mineField,
         covBox,
-        ChipField('Oponente', oppChips),
+        ChipField('Oponente', oppChips), oppNota,
         theirsField,
         ChipField('Modo', modeBox),
         ChipField('Mana', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
