@@ -102,7 +102,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7 captura automática sem moldura | 🟡 |
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
-| X · Scanner | X10 acerto medido com fotos reais | ▶ |
+| X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
+| X · Scanner | X10 acerto medido no portão (fotos sintéticas; reais pendentes) | 🟡 |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
@@ -349,7 +350,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
-| E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
+| E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 | C10, C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -2379,7 +2380,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   carta de verdade: o contorno aparece, a leitura dispara sozinha sem ninguém tocar em "Ler agora", e a
   moldura volta quando o usuário quer).
 - **Depende de:** X1, X2.
-- **Fora:** reconhecimento pela arte; corrigir perspectiva forte; leitura com a carta muito torta.
+- **Fora:** reconhecimento pela arte; corrigir perspectiva forte; leitura com a carta muito torta (X10 mediu: até ~3,5° lê; acima disso fica fora).
 
 **X8 · Pilha de leitura** 🟡
 - **Valor:** escanear várias cartas seguidas e resolver tudo no fim.
@@ -2426,15 +2427,50 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** X8.
 - **Fora:** aprender com as correções (subir a nota de um nome que o usuário confirmou várias vezes).
 
-**X10 · Medir o acerto com fotos reais** ○
+**X10 · Medir o acerto com fotos reais** 🟡 (parcial: conjunto sintético; fotos reais pendentes)
 - **Valor:** fechar a pendência declarada em X2 e X3: hoje o portão mede a correspondência, não o OCR.
 - **Aceite:**
   - conjunto de fotos reais de cartas no repositório (variando luz, ângulo, acabamento e idioma);
   - o portão roda o reconhecimento sobre elas e exige acerto de nome ≥ 90% e de edição ≥ 70%;
   - o relatório mostra quais fotos falharam, para virar caso de teste.
-- **Testes:** U (conjunto de fotos), relatório no portão.
+- **Entregue (leva 67):** o portão agora roda o **caminho inteiro do scanner fora do navegador**, com OCR
+  de verdade (`scanner.fotos.test.mjs`): achar a carta → recortar nome e linha de coleção → tratar a
+  imagem exatamente como o app → Tesseract com os mesmos parâmetros → casar com a base de nomes →
+  resolver a edição contra as impressões conhecidas, como `identify` faz. Conjunto em `fotos/`
+  (`manifest.json` diz o que cada foto deveria dar; `gerar.mjs` produz as sintéticas): 12 fotos
+  variando fundo, luz (escura, estourada), inclinação (até 3,5°), foco, reflexo, tamanho e posição
+  da carta, retrato e nome longo. **Medida atual: carta achada 12/12, nome 12/12, edição 11/12.**
+- **O que a medição encontrou e mudou no app** (nada disso era visível pelos testes de unidade):
+  1. o detector prende ora na borda preta, ora na moldura interna da carta (borda preta sobre mesa
+     escura) — as faixas do nome e da linha de coleção agora passam da borda de propósito
+     (`NAME_BAND` 0–12%, `COLLECTOR_BAND` 90–110%) e a linha de coleção é recortada pelo trecho escuro
+     de baixo, invertida (branco sobre preto → preto sobre branco) e aplanada (tira reflexo em degradê);
+  2. linha da moldura colada na margem do recorte fazia o OCR devolver **vazio** com o nome perfeitamente
+     legível — `limpaBordas` apaga o que é escuro e encosta na margem (o texto não encosta);
+  3. contraste fixo estourava foto escura — níveis automáticos por faixa (percentis);
+  4. o OCR recebia texto de 10 px — a ampliação agora sai da altura da carta (`escalaOcr`, alvo 2000 px);
+  5. carta pequena (48% do quadro) não era achada em 80 px e carta inclinada não era achada em 120 px —
+     o detector olha o quadro nas duas escalas (`ESCALAS_DETECTOR`), a primeira que acha manda.
+- **Parcial, e o que falta:** as 12 fotos são **sintéticas** (carta desenhada em HTML e "fotografada" com
+  variações); elas provam o caminho e pegaram cinco defeitos reais, mas não substituem foto de celular
+  (grão, perspectiva, foil, texto impresso). Para fechar: 10 a 20 fotos reais em `fotos/` com uma linha
+  cada no `manifest.json` (`origem: "real"`, nome, set, número, impressões). O runner já aceita `.jpg`
+  e `.png` e falha se uma foto do manifest não existir.
+- **Limites medidos:** número de coleção lido em texto de ~7 px (carta pequena no quadro) e com desfoque
+  forte falha — a edição desses casos se resolve só quando o código da edição sozinho é único entre as
+  impressões. A faixa do nome **não** é aplanada: o halo da janela larga ao redor da arte atrapalha mais
+  do que o reflexo ajuda (medido).
+- **Decisões:** `fotos/` é uma subpasta (ADR-07 fala de testes na raiz; 12 imagens binárias na raiz
+  poluiriam o layout — o teste continua na raiz). `tesseract.js`, `@tesseract.js-data/eng` (dados do OCR
+  empacotados, sem download), `jpeg-js` e `pngjs` entram como devDependencies; sem eles o teste de fotos
+  se declara pulado com instrução, e o resto do portão segue.
+- **Testes:** U (escala do OCR e faixas que passam da borda; níveis automáticos em foto escura, estourada
+  e invertida; aplanar degradê; trecho escuro com e sem reflexo; limpar bordas preserva o texto solto;
+  tratamento da linha de coleção; detector em duas escalas e `quadro()` com lista), fotos (12 fotos, nome
+  ≥ 90%, edição ≥ 70%, relatório por foto; manifest íntegro), I headless inalterada (scanner com câmera
+  falsa continua achando a carta e lendo).
 - **Depende de:** X7, X9.
-- **Fora:** conjunto com centenas de fotos; o alvo é um conjunto pequeno e representativo.
+- **Fora:** conjunto com centenas de fotos; corrigir perspectiva; aprender com correções.
 
 ### V · Visualização
 

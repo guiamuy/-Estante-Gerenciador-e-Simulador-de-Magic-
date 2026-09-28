@@ -9214,8 +9214,10 @@ function resolvePrinting(prints, parsed) {
   const pool = byNum.length ? byNum : bySet.length ? bySet : [];
   return { exact: null, candidates: pool.slice(0, 3) };
 }
-/** Faixa da linha de coleção dentro da moldura (canto inferior esquerdo). */
-const COLLECTOR_BAND = { x: 0.04, y: 0.905, w: 0.5, h: 0.075 };
+/** Faixa da linha de coleção (canto inferior esquerdo). X10 · a faixa passa da
+    borda de baixo de propósito: quando o detector prende na moldura interna da carta
+    (borda preta sobre mesa escura), a linha de coleção fica abaixo do retângulo achado. */
+const COLLECTOR_BAND = { x: -0.02, y: 0.90, w: 0.56, h: 0.2 };
 
 /* ---------------- X1 · região da faixa do nome ----------------
    O vídeo aparece com object-fit: cover. Converte um retângulo da tela
@@ -9236,8 +9238,10 @@ function screenRect(elW, elH, vidW, vidH, region) {
   const offX = (shownW - elW) / 2, offY = (shownH - elH) / 2;
   return { x: region.x * shownW - offX, y: region.y * shownH - offY, w: region.w * shownW, h: region.h * shownH };
 }
-/** Faixa do nome dentro da moldura da carta (proporções da carta impressa). */
-const NAME_BAND = { x: 0.07, y: 0.035, w: 0.70, h: 0.075 };
+/** Faixa do nome (proporções da carta impressa). X10 · começa na borda de cima:
+    o título fica entre 4,5% e 10,5% da carta inteira, mas entre 1% e 8% quando o
+    retângulo achado é a moldura interna; a faixa cobre os dois casos e tolera inclinação leve. */
+const NAME_BAND = { x: 0.02, y: 0.0, w: 0.75, h: 0.12 };
 
 /* ---------------- X7 · achar a carta no quadro, sem moldura ---------------- */
 /* Tudo aqui é função pura sobre um quadro em tons de cinza já reduzido (uns
@@ -9269,6 +9273,14 @@ function picos(arr, minSep, quantos) {
   }
   return out.sort((a, b) => a - b);
 }
+/** X10 · tenta o detector em cada escala, na ordem, e devolve a primeira carta achada
+    junto com o quadro em que foi achada (para brilho e nitidez). Sem carta, devolve o primeiro quadro. */
+function detectaEmEscalas(escalas) {
+  for (const q of escalas) { const carta = detectaCarta(q.cinza, q.w, q.h); if (carta) return { carta, quadro: q }; }
+  return { carta: null, quadro: escalas[0] };
+}
+/** Escalas em que o app olha o quadro: 80 px de largura primeiro, 120 depois. */
+const ESCALAS_DETECTOR = [80, 120];
 /** X7 · retângulo da carta no quadro, em coordenadas relativas (0 a 1).
     Devolve null quando não dá para afirmar que a carta está inteira ali. */
 /* A carta é alta: o tamanho mínimo é cobrado na ALTURA do quadro, não na largura.
@@ -9369,9 +9381,13 @@ function criaDetector({ quadros = 3, limiares = LIMIARES } = {}) {
   let hist = [], ultimaLeitura = null;
   return {
     get historico() { return hist.slice(); },
-    /** Recebe o quadro em tons de cinza e devolve o que fazer com ele. */
+    /** Recebe o quadro em tons de cinza (ou uma lista de escalas dele) e devolve o que fazer com ele. */
     quadro(cinza, w, h) {
-      const carta = detectaCarta(cinza, w, h);
+      // X10 · o mesmo quadro em duas escalas: a menor tolera inclinação, a maior acha
+      // carta pequena. Quem passa uma lista [{cinza,w,h}, ...] ganha a primeira que achar.
+      const escalas = Array.isArray(cinza) ? cinza : [{ cinza, w, h }];
+      const achado = detectaEmEscalas(escalas);
+      const carta = achado.carta; ({ cinza, w, h } = achado.quadro);
       hist = [...hist.slice(-(quadros - 1)), carta];
       const cheio = hist.length >= quadros && hist.every(Boolean);
       const parada = cheio && hist.every(r => paradaEm(r, hist[hist.length - 1]));
@@ -9388,8 +9404,118 @@ function criaDetector({ quadros = 3, limiares = LIMIARES } = {}) {
   };
 }
 
+/* ---- X10 · o que o OCR recebe é decidido aqui, para o portão medir o mesmo caminho do app ---- */
+/** Tons de cinza e contraste, no lugar (RGBA): o nome é texto pequeno sobre arte.
+    `inverter` troca claro por escuro (o OCR lê texto escuro sobre claro muito melhor). */
+function realcaTexto(d, { inverter = false, w = 0, h = 0 } = {}) {
+  // X10 · níveis automáticos: foto escura ou estourada vira sempre "texto preto sobre
+  // fundo branco" (5º percentil → 0, 95º → 255), em vez de um contraste fixo
+  const hist = new Uint32Array(256); const n = d.length / 4;
+  for (let i = 0; i < d.length; i += 4) { let g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; if (inverter) g = 255 - g; d[i] = g | 0; }
+  const aplanado = !!(w && h);
+  if (aplanado) aplanaFundo(d, w, h);
+  for (let i = 0; i < d.length; i += 4) hist[d[i]]++;
+  // o texto é pouca coisa da faixa (um nome curto numa faixa larga fica abaixo de 2% dos
+  // pixels): o escuro é o 0,5º percentil; o claro é o 90º (o fundo domina). Com o fundo
+  // aplanado o claro já é 255.
+  let acc = 0, lo = 0, hi = 255;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * 0.005) { lo = v; break; } }
+  if (!aplanado) { acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= n * 0.10) { hi = v; break; } } }
+  const faixa = Math.max(40, hi - lo);
+  for (let i = 0; i < d.length; i += 4) { const v = Math.max(0, Math.min(255, (d[i] - lo) * 255 / faixa)); d[i] = d[i + 1] = d[i + 2] = v; }
+  return d;
+}
+/** X10 · tira reflexo e sombra: subtrai o fundo local (média numa janela larga) e
+    devolve "texto escuro sobre branco" onde quer que o fundo fosse claro, escuro ou em
+    degradê. Trabalha no canal já em cinza (d[i]), no lugar. */
+function aplanaFundo(d, w, h) {
+  const r = Math.max(6, Math.round(h * 0.35));
+  const S = new Float64Array((w + 1) * (h + 1));   // imagem integral
+  for (let y = 1; y <= h; y++) { let linha = 0; for (let x = 1; x <= w; x++) { linha += d[((y - 1) * w + x - 1) * 4]; S[y * (w + 1) + x] = S[(y - 1) * (w + 1) + x] + linha; } }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const x0 = Math.max(0, x - r), y0 = Math.max(0, y - r), x1 = Math.min(w, x + r + 1), y1 = Math.min(h, y + r + 1);
+    const fundo = (S[y1 * (w + 1) + x1] - S[y0 * (w + 1) + x1] - S[y1 * (w + 1) + x0] + S[y0 * (w + 1) + x0]) / ((x1 - x0) * (y1 - y0));
+    const i = (y * w + x) * 4;
+    d[i] = Math.max(0, Math.min(255, 255 + (d[i] - fundo) * 1.5)) | 0;
+  }
+  return d;
+}
+/** X10 · a linha de coleção é branca sobre a borda preta, e a faixa que chega aqui
+    costuma trazer um pedaço da moldura clara em cima (o detector prende ora na borda,
+    ora na moldura interna). Devolve as linhas do trecho escuro de baixo, com folga,
+    ou null quando não há trecho escuro (carta de borda branca: fica como está). */
+function trechoEscuroEmbaixo(d, w, h, { limiar = 100 } = {}) {
+  const media = y => { let s = 0; for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; s += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; } return s / Math.max(1, w); };
+  // reflexo clareia a borda preta: o limiar sobe até o meio entre o rodapé e o topo da
+  // faixa quando o rodapé é claramente mais escuro que o topo (mas nunca passa de 160)
+  const faixaMedia = (a, b) => { let s = 0, n = 0; for (let y = a; y < b; y++) { s += media(y); n++; } return n ? s / n : 0; };
+  const topo = faixaMedia(0, Math.floor(h * 0.3)), rodape = faixaMedia(Math.floor(h * 0.7), h);
+  if (rodape < topo - 30) limiar = Math.max(limiar, Math.min(160, (topo + rodape) / 2));
+  let y1 = h - 1; while (y1 > 0 && media(y1) >= limiar) y1--;   // pula linhas claras no rodapé
+  if (y1 <= 0) return null;
+  let y0 = y1; while (y0 > 0 && media(y0 - 1) < limiar) y0--;
+  if (y1 - y0 < h * 0.15) return null;                             // escuro demais curto: não é borda
+  // a transição moldura→borda vira uma barra preta depois de inverter; fica de fora
+  return { y0: Math.min(y1, y0 + Math.round(h * 0.008)), y1 };
+}
+/** Trecho de linhas [y0, y1] com margem branca em cima e embaixo (o OCR precisa de respiro). */
+function recortaLinhas(d, w, y0, y1, margem, cor = 0) {
+  const hh = y1 - y0 + 1 + 2 * margem, out = new Uint8ClampedArray(w * hh * 4).fill(cor);
+  out.set(d.subarray(y0 * w * 4, (y1 + 1) * w * 4), margem * w * 4);
+  return { data: out, w, h: hh };
+}
+/** X10 · apaga o que é escuro e encosta na borda do recorte: linhas da moldura e da
+    borda da carta (retas ou inclinadas) que, coladas na margem, fazem o OCR devolver
+    vazio mesmo com o texto perfeitamente legível. As letras não encostam na margem,
+    então ficam. Preenchimento a partir das bordas, sobre a imagem já em cinza. */
+function limpaBordas(d, w, h, limiar = 180) {
+  const escuro = new Uint8Array(w * h);
+  for (let p = 0; p < w * h; p++) escuro[p] = d[p * 4] < limiar ? 1 : 0;
+  const fila = new Int32Array(w * h); let ini = 0, fim = 0;
+  const visita = p => { if (escuro[p] === 1) { escuro[p] = 2; fila[fim++] = p; } };
+  for (let x = 0; x < w; x++) { visita(x); visita((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { visita(y * w); visita(y * w + w - 1); }
+  while (ini < fim) {
+    const p = fila[ini++], x = p % w, y = (p - x) / w;
+    if (x > 0) visita(p - 1); if (x < w - 1) visita(p + 1); if (y > 0) visita(p - w); if (y < h - 1) visita(p + w);
+  }
+  for (let p = 0; p < w * h; p++) if (escuro[p] === 2) { d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 255; }
+  return d;
+}
+/** Tratamento completo da faixa para o OCR: recorte (linha de coleção), inversão, contraste
+    e limpeza das bordas. Devolve { data, w, h } prontos para virar imagem. */
+function trataFaixa(d, w, h, modo) {
+  if (modo === 'collector') {
+    const t = trechoEscuroEmbaixo(d, w, h);
+    if (t) {
+      const r = recortaLinhas(d, w, t.y0, t.y1, Math.round(h * 0.08));
+      realcaTexto(r.data, { inverter: true, w: r.w, h: r.h });
+      // depois de aplanar, o que sobrou de cinza é halo: vira branco; o texto fica preto
+      const b = r.data; for (let i = 0; i < b.length; i += 4) { const v = b[i] < 110 ? 0 : b[i] > 170 ? 255 : (b[i] - 110) * 255 / 60; b[i] = b[i + 1] = b[i + 2] = v; }
+      return { ...r, data: limpaBordas(r.data, r.w, r.h) };
+    }
+  }
+  // a faixa do nome não é aplanada: o halo que a janela larga deixa ao redor da arte
+  // e da moldura atrapalha mais do que o reflexo ajuda (medido em X10)
+  return { data: limpaBordas(realcaTexto(d), w, h), w, h };
+}
+/** Altura mínima da faixa que vai para o OCR (o Tesseract lê mal texto menor que isso). */
+const OCR_ALTURA_MIN = 96;
+/** X10 · o texto da carta é ~2% da altura dela: ampliar até a carta ter ~1400 px
+    deixa o nome e a linha de coleção com 25–30 px, onde o OCR acerta. Teto 4× para
+    não estourar a tela de canvas em aparelho fraco. */
+const OCR_ALTURA_CARTA = 2000;
+function escalaOcr(alturaCartaPx) { return alturaCartaPx > 0 ? Math.max(1, Math.min(4, OCR_ALTURA_CARTA / alturaCartaPx)) : 1; }
+// linha do nome: só letras, uma linha; linha de coleção: números, edição e idioma, bloco curto
+const OCR_MODES = {
+  name: { tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
+  collector: { tessedit_pageseg_mode: '6', tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•*. ' }
+};
+/** Recorte de uma faixa da carta (frações) em coordenadas do quadro. */
+function faixaDaCarta(carta, B) { return { x: carta.x + carta.w * B.x, y: carta.y + carta.h * B.y, w: carta.w * B.w, h: carta.h * B.h }; }
+
 return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
-  detectaCarta, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA };
+  detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr };
 })();
 
 
@@ -9402,7 +9528,7 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
-const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT } = __m21;
+const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr, ESCALAS_DETECTOR } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const AUTO_MS = 1400;     // ritmo antigo, mantido como rede de segurança
@@ -9425,29 +9551,26 @@ function createOcr(win = window, doc = document) {
     return loading;
   }
   /** Tons de cinza, contraste e ampliação: o nome é texto pequeno sobre arte. */
-  function prepare(canvas) {
-    const scale = Math.max(1, 96 / Math.max(1, canvas.height));
+  function prepare(canvas, escala = 1, modo = 'name') {
+    const scale = Math.max(escala || 1, OCR_ALTURA_MIN / Math.max(1, canvas.height));
     const c = doc.createElement('canvas'); c.width = Math.round(canvas.width * scale); c.height = Math.round(canvas.height * scale);
     const ctx = c.getContext('2d'); ctx.drawImage(canvas, 0, 0, c.width, c.height);
     try {
-      const img = ctx.getImageData(0, 0, c.width, c.height); const d = img.data;
-      for (let i = 0; i < d.length; i += 4) { const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; const v = Math.max(0, Math.min(255, (g - 128) * 1.6 + 128)); d[i] = d[i + 1] = d[i + 2] = v; }
-      ctx.putImageData(img, 0, 0);
+      const img = ctx.getImageData(0, 0, c.width, c.height);
+      const t = trataFaixa(img.data, c.width, c.height, modo);
+      if (t.h !== c.height) { c.height = t.h; }
+      const out = ctx.createImageData(t.w, t.h); out.data.set(t.data); ctx.putImageData(out, 0, 0);
     } catch (e) { /* canvas protegido: segue sem tratamento */ }
     return c;
   }
-  // linha do nome: só letras, uma linha; linha de coleção: números, edição e idioma, bloco curto
-  const MODES = {
-    name: { tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
-    collector: { tessedit_pageseg_mode: '6', tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•*. ' }
-  };
+  const MODES = OCR_MODES;
   let mode = null;
   return {
     warm: () => engine(),
-    async read(canvas, want = 'name') {
+    async read(canvas, want = 'name', escala = 1) {
       const w = await engine();
       if (mode !== want) { await w.setParameters(MODES[want]); mode = want; }
-      const r = await w.recognize(prepare(canvas)); return (r && r.data && r.data.text) || '';
+      const r = await w.recognize(prepare(canvas, escala, want)); return (r && r.data && r.data.text) || '';
     },
     async stop() { if (worker) { try { await worker.terminate(); } catch (e) { /* ignora */ } worker = null; loading = null; mode = null; } }
   };
@@ -9507,10 +9630,16 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function bandRegion(B) {
     // X7 · com a carta encontrada, a faixa sai dela: sem moldura, em qualquer posição
     const c = state.carta;
-    if (c) return { x: c.x + c.w * B.x, y: c.y + c.h * B.y, w: c.w * B.w, h: c.h * B.h };
+    if (c) return faixaDaCarta(c, B);
     const vr = stage.getBoundingClientRect(), fr = frame.getBoundingClientRect();
     const band = { x: fr.left - vr.left + fr.width * B.x, y: fr.top - vr.top + fr.height * B.y, w: fr.width * B.w, h: fr.height * B.h };
     return coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, band);
+  }
+  /** X10 · altura da carta no quadro (px do vídeo): decide a ampliação que o OCR recebe. */
+  function alturaCartaPx() {
+    const c = state.carta;
+    if (c) return c.h * (video.videoHeight || stage.getBoundingClientRect().height);
+    return bandRegion({ x: 0, y: 0, w: 1, h: 1 }).h;
   }
   /** X7 · quadro inteiro reduzido em tons de cinza, para achar a carta. */
   function quadroCinza(alvo = 80) {
@@ -9539,8 +9668,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   /** X7 · uma olhada por ciclo: acha a carta, avisa o que falta e dispara sozinho. */
   function olhar() {
     if (!state.alive || state.camera !== 'on' || state.busy) return;
-    let q; try { q = quadroCinza(); } catch (e) { return; }
-    const r = detector.quadro(q.cinza, q.w, q.h);
+    let q; try { q = ESCALAS_DETECTOR.map(alvo => quadroCinza(alvo)); } catch (e) { return; }
+    const r = detector.quadro(q);
     state.carta = r.carta || null;
     pintaOlho(r);
     if (r.pronto && state.auto && state.base === 'ready') readOnce(false);
@@ -9564,7 +9693,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   async function identify(name) {
     if (!state.edition) return { exact: null, candidates: [], parsed: null };
     let parsed = { number: '', set: '', lang: '' };
-    try { parsed = parseCollectorLine(await ocr.read(camera.capture(bandRegion(COLLECTOR_BAND)), 'collector')); } catch (e) { /* segue sem edição */ }
+    try { parsed = parseCollectorLine(await ocr.read(camera.capture(bandRegion(COLLECTOR_BAND)), 'collector', escalaOcr(alturaCartaPx()))); } catch (e) { /* segue sem edição */ }
     const list = await prints(name);
     if (list.length) return { ...resolvePrinting(list, parsed), parsed };
     return { exact: parsed.set && parsed.number ? { set: parsed.set, number: parsed.number, verified: false } : null, candidates: [], parsed };
@@ -9574,7 +9703,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (state.busy || state.camera !== 'on' || state.base !== 'ready') return;
     state.busy = true; paintDock();
     try {
-      const text = await ocr.read(camera.capture(bandRegion(NAME_BAND)), 'name');
+      const text = await ocr.read(camera.capture(bandRegion(NAME_BAND)), 'name', escalaOcr(alturaCartaPx()));
       const found = names.match(text);
       const best = found[0];
       let ed = { exact: null, candidates: [] }, key = null;

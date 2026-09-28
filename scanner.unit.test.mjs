@@ -348,3 +348,108 @@ test('X9 · confirmar e corrigir tiram a marca; a leitura só sai conferida pela
   assert.equal(island.conferir, undefined, 'a marca sai');
   assert.equal(island.qty, 2, 'sem duplicar nem perder cópias');
 });
+
+/* ---------------- X10 · o que o OCR recebe (medido em fotos, provado aqui) ---------------- */
+/** Faixa RGBA sintética: fundo uniforme com um "texto" (bloco) de outra cor. */
+function faixa(w, h, { fundo = 240, texto = 10, bloco = { x: 4, y: 4, w: 6, h: 4 }, linhaTopo = 0, degrade = 0 } = {}) {
+  const d = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = typeof fundo === 'function' ? fundo(x, y) : fundo;
+    if (degrade) v = Math.max(0, Math.min(255, v + (x / w) * degrade));
+    if (x >= bloco.x && x < bloco.x + bloco.w && y >= bloco.y && y < bloco.y + bloco.h) v = texto;
+    if (y < linhaTopo) v = 0;
+    const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
+  }
+  return d;
+}
+const cinzaEm = (d, w, x, y) => d[(y * w + x) * 4];
+
+test('X10 · escala do OCR sai da altura da carta: amplia carta pequena, não encolhe carta grande', () => {
+  assert.equal(X.escalaOcr(3000), 1, 'carta já grande: sem ampliar');
+  assert.ok(Math.abs(X.escalaOcr(700) - 2000 / 700) < 1e-9, 'carta de 700 px vai para 2000');
+  assert.equal(X.escalaOcr(100), 4, 'teto de 4× para não estourar o canvas');
+  assert.equal(X.escalaOcr(0), 1, 'sem carta: escala neutra');
+  const r = X.faixaDaCarta({ x: 100, y: 50, w: 200, h: 300 }, { x: 0.1, y: 0.5, w: 0.5, h: 0.2 });
+  assert.deepEqual(JSON.parse(JSON.stringify(r)), { x: 120, y: 200, w: 100, h: 60 });
+  // as faixas passam da borda de propósito (o detector prende ora na borda, ora na moldura interna)
+  assert.ok(X.NAME_BAND.y <= 0 && X.NAME_BAND.h >= 0.1, 'faixa do nome começa na borda de cima');
+  assert.ok(X.COLLECTOR_BAND.y + X.COLLECTOR_BAND.h > 1, 'faixa da linha de coleção passa da borda de baixo');
+});
+
+test('X10 · níveis automáticos: foto escura e foto estourada viram texto preto sobre branco', () => {
+  const w = 20, h = 10;
+  const escura = X.realcaTexto(faixa(w, h, { fundo: 70, texto: 25 }));
+  assert.equal(cinzaEm(escura, w, 0, 0), 255, 'fundo escuro vira branco');
+  assert.equal(cinzaEm(escura, w, 5, 5), 0, 'texto vira preto');
+  const clara = X.realcaTexto(faixa(w, h, { fundo: 250, texto: 200 }));
+  assert.equal(cinzaEm(clara, w, 0, 0), 255); assert.equal(cinzaEm(clara, w, 5, 5), 0, 'mesmo com pouco contraste');
+  const inv = X.realcaTexto(faixa(w, h, { fundo: 10, texto: 240 }), { inverter: true });
+  assert.equal(cinzaEm(inv, w, 0, 0), 255, 'invertido: fundo preto vira branco');
+  assert.equal(cinzaEm(inv, w, 5, 5), 0, 'e o texto branco vira preto');
+  const lisa = X.realcaTexto(faixa(w, h, { fundo: 128, texto: 128 }));
+  assert.ok(cinzaEm(lisa, w, 0, 0) >= 0 && cinzaEm(lisa, w, 0, 0) <= 255, 'faixa lisa não quebra (faixa mínima de 40 níveis)');
+});
+
+test('X10 · aplanar o fundo tira reflexo em degradê e deixa só o texto', () => {
+  const w = 60, h = 20;
+  const d = faixa(w, h, { fundo: 120, texto: 250, bloco: { x: 6, y: 8, w: 8, h: 5 }, degrade: 120 });
+  X.realcaTexto(d, { inverter: true, w, h });
+  assert.ok(cinzaEm(d, w, 2, 2) >= 200 && cinzaEm(d, w, 55, 15) >= 200, 'fundo em degradê vira claro nos dois lados');
+  assert.ok(cinzaEm(d, w, 9, 10) <= 60, 'texto fica escuro');
+});
+
+test('X10 · trecho escuro de baixo: acha a borda preta, tolera reflexo e ignora faixa sem borda', () => {
+  const w = 40, h = 50;
+  const claroEmCima = (x, y) => (y < 25 ? 220 : 20);
+  const t = X.trechoEscuroEmbaixo(faixa(w, h, { fundo: claroEmCima, texto: 20, bloco: { x: 0, y: 0, w: 0, h: 0 } }), w, h);
+  assert.ok(t, 'achou o trecho');
+  assert.ok(t.y0 >= 25 && t.y0 <= 27 && t.y1 === h - 1, `começa logo abaixo da transição (${t.y0}) e vai até o fim`);
+  const comReflexo = (x, y) => (y < 25 ? 230 : 130);   // borda clareada pelo reflexo
+  const r = X.trechoEscuroEmbaixo(faixa(w, h, { fundo: comReflexo, bloco: { x: 0, y: 0, w: 0, h: 0 } }), w, h);
+  assert.ok(r && r.y0 >= 25, 'limiar sobe quando o rodapé é claramente mais escuro que o topo');
+  assert.equal(X.trechoEscuroEmbaixo(faixa(w, h, { fundo: 230, bloco: { x: 0, y: 0, w: 0, h: 0 } }), w, h), null, 'faixa toda clara: nada a recortar');
+  const curto = (x, y) => (y < 46 ? 220 : 20);
+  assert.equal(X.trechoEscuroEmbaixo(faixa(w, h, { fundo: curto, bloco: { x: 0, y: 0, w: 0, h: 0 } }), w, h), null, 'escuro curto demais não é borda');
+});
+
+test('X10 · limpar bordas apaga linha da moldura colada na margem e preserva o texto solto', () => {
+  const w = 40, h = 20;
+  const d = X.limpaBordas(faixa(w, h, { fundo: 255, texto: 0, bloco: { x: 10, y: 8, w: 8, h: 5 }, linhaTopo: 3 }), w, h);
+  assert.equal(cinzaEm(d, w, 20, 1), 255, 'a linha preta do topo sumiu');
+  assert.equal(cinzaEm(d, w, 12, 10), 0, 'o texto (que não encosta na margem) continua');
+  // fundo cinza escuro conectado à margem também vira branco (é fundo, não texto)
+  const g = X.limpaBordas(faixa(w, h, { fundo: 150, texto: 0 }), w, h);
+  assert.equal(cinzaEm(g, w, 0, 0), 255);
+  assert.equal(cinzaEm(g, w, 5, 5), 255, 'texto cercado por fundo escuro conectado à margem vai junto: por isso a faixa é aplanada antes');
+});
+
+test('X10 · tratar a faixa da linha de coleção recorta a borda, inverte e devolve texto preto sobre branco', () => {
+  const w = 60, h = 40;
+  const fundo = (x, y) => (y < 20 ? 225 : 15);                       // moldura clara em cima, borda preta embaixo
+  const d = faixa(w, h, { fundo, texto: 245, bloco: { x: 8, y: 26, w: 10, h: 6 } });
+  const t = X.trataFaixa(d, w, h, 'collector');
+  assert.equal(t.w, w);
+  assert.ok(t.h < h && t.h >= 20, `só a borda, com margem (${t.h})`);
+  let pretos = 0, brancos = 0;
+  for (let i = 0; i < t.data.length; i += 4) { if (t.data[i] < 40) pretos++; else if (t.data[i] > 215) brancos++; }
+  assert.ok(pretos >= 40 && pretos <= 90, `o texto virou preto (${pretos} px)`);
+  assert.ok(brancos > t.w * t.h * 0.85, 'o resto é branco');
+  // faixa do nome: sem recorte nem inversão
+  const n = X.trataFaixa(faixa(w, h, { fundo: 240, texto: 10 }), w, h, 'name');
+  assert.equal(n.h, h); assert.equal(cinzaEm(n.data, w, 5, 5), 0); assert.equal(cinzaEm(n.data, w, 30, 30), 255);
+});
+
+test('X10 · detector em duas escalas: a primeira que acha manda; sem carta, devolve o primeiro quadro', () => {
+  const vazio = { cinza: new Uint8ClampedArray(QW * QH).fill(30), w: QW, h: QH };
+  const comCarta = { cinza: quadro(), w: QW, h: QH };
+  const r = X.detectaEmEscalas([vazio, comCarta]);
+  assert.ok(r.carta, 'achou na segunda escala');
+  assert.equal(r.quadro, comCarta, 'e devolve o quadro em que achou');
+  const nada = X.detectaEmEscalas([vazio, vazio]);
+  assert.equal(nada.carta, null); assert.equal(nada.quadro, vazio);
+  assert.deepEqual(JSON.parse(JSON.stringify(X.ESCALAS_DETECTOR)), [80, 120]);
+  // o detector de estabilidade aceita a lista de escalas
+  const det = X.criaDetector({ quadros: 1 });
+  assert.ok(det.quadro([vazio, comCarta]).carta, 'quadro() com lista');
+  assert.ok(det.quadro(comCarta.cinza, QW, QH).carta, 'e ainda com (cinza, w, h)');
+});
