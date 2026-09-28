@@ -424,6 +424,54 @@ const FAKE_DEVICE = deny => `
   else Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: gum } });
 `;
 
+// X7 · câmera falsa que mostra uma carta de verdade no quadro: fundo escuro e um
+// retângulo claro com textura, na proporção da carta.
+const FAKE_CARD_CAM = `
+  window.__ocrQueue = [];
+  window.Tesseract = { createWorker: async () => ({ setParameters: async () => {}, terminate: async () => {},
+    recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) }) };
+  const gum = async () => {
+    const c = document.createElement('canvas'); c.width = 640; c.height = 480;
+    const g = c.getContext('2d');
+    const pinta = () => {
+      g.fillStyle = '#101010'; g.fillRect(0, 0, 640, 480);
+      const x = 220, y = 90, w = 200, h = 280;
+      g.fillStyle = '#d8d8d8'; g.fillRect(x, y, w, h);
+      g.fillStyle = '#707070';
+      for (let i = 0; i < 40; i++) g.fillRect(x + 8 + (i * 13) % (w - 20), y + 10 + (i * 29) % (h - 24), 8, 6);
+    };
+    pinta(); setInterval(pinta, 100);
+    return c.captureStream(10);
+  };
+  if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = gum;
+  else Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: gum } });
+`;
+
+test('e2e · X7 scanner acha a carta sozinho, sem moldura, e dispara a leitura', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_CARD_CAM);
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  // a moldura começa escondida: ela virou ajuda opcional
+  assert.equal(await page.locator('.scan-frame').isVisible(), false, 'sem moldura obrigatória');
+  await page.click('[data-edition]');                     // este teste é só do nome
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring', 'Sol Ring'));
+  await page.click('[data-auto]');
+  // o contorno aparece em cima da carta encontrada
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#scan-outline');
+    return el && el.style.display === 'block' && parseFloat(el.style.width) > 20;
+  }, null, { timeout: 12000 });
+  // e a leitura acontece sozinha, sem ninguém tocar em "Ler agora"
+  await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-result').innerText), null, { timeout: 12000 });
+  await page.waitForFunction(() => /Lote: [1-9]/.test((document.querySelector('#scan-lot') || {}).innerText || ''), null, { timeout: 12000 });
+  await page.click('[data-auto]');
+  // a moldura volta quando o usuário quer
+  await page.click('[data-moldura]');
+  assert.equal(await page.locator('.scan-frame').isVisible(), true, 'a moldura é opcional, não proibida');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, corrigir e mandar para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(false));

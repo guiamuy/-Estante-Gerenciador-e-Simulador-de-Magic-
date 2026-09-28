@@ -618,6 +618,18 @@ body {
   border: 2px dashed var(--accent); border-radius: var(--radius-1); display: flex; align-items: flex-end; justify-content: flex-end;
 }
 .scan-frame__band span { transform: translateY(120%); font-size: var(--text-xs); color: var(--accent); background: var(--scrim); padding: 0 var(--space-1); border-radius: var(--radius-1); }
+/* X7 · contorno da carta encontrada e a dica do que corrigir */
+.scan-outline {
+  position: absolute; border: 2px solid var(--accent); border-radius: var(--radius-card);
+  box-shadow: 0 0 0 100vmax var(--overlay); transition: all var(--dur-1) var(--ease-out); pointer-events: none;
+}
+.scan-outline[data-pronto="true"] { border-color: var(--positive); }
+.scan-hint {
+  position: absolute; left: 50%; bottom: var(--space-3); transform: translateX(-50%);
+  max-width: 90%; text-align: center; padding: var(--space-1) var(--space-3);
+  background: var(--surface); border-radius: var(--radius-2); box-shadow: var(--shadow-1);
+}
+.scan-hint:empty { display: none; }
 .scan-stage.is-pulse .scan-frame { animation: scan-ok var(--dur-3) var(--ease-out); }
 @keyframes scan-ok { 50% { border-color: var(--positive); transform: translate(-50%, -50%) scale(1.02); } }
 .scan-result { min-height: calc(var(--tap-min) * 1.5); display: flex; flex-direction: column; gap: var(--space-2); }
@@ -9167,10 +9179,168 @@ function coverRegion(elW, elH, vidW, vidH, rect) {
   const x = clamp((rect.x + offX) / shownW), y = clamp((rect.y + offY) / shownH);
   return { x, y, w: clamp((rect.x + rect.w + offX) / shownW) - x, h: clamp((rect.y + rect.h + offY) / shownH) - y };
 }
+/** X7 · caminho inverso do coverRegion: região do quadro (0..1) para pixels da
+    tela, para desenhar o contorno em cima exatamente da carta encontrada. */
+function screenRect(elW, elH, vidW, vidH, region) {
+  const scale = Math.max(elW / vidW, elH / vidH);
+  const shownW = vidW * scale, shownH = vidH * scale;
+  const offX = (shownW - elW) / 2, offY = (shownH - elH) / 2;
+  return { x: region.x * shownW - offX, y: region.y * shownH - offY, w: region.w * shownW, h: region.h * shownH };
+}
 /** Faixa do nome dentro da moldura da carta (proporções da carta impressa). */
 const NAME_BAND = { x: 0.07, y: 0.035, w: 0.70, h: 0.075 };
 
-return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, SUGGEST, lev };
+/* ---------------- X7 · achar a carta no quadro, sem moldura ---------------- */
+/* Tudo aqui é função pura sobre um quadro em tons de cinza já reduzido (uns
+   80×110 pixels). A câmera não entra: por isso dá para provar no portão que o
+   scanner só dispara quando a carta está inteira, parada, iluminada e nítida. */
+const PROPORCAO_CARTA = 63 / 88;   // 63 mm × 88 mm
+const LIMIARES = { brilhoMin: 40, brilhoMax: 235, nitidezMin: 6, area: 0.10, movimento: 0.03 };
+
+/** Força de borda por coluna e por linha (projeção do gradiente). */
+function perfisDeBorda(cinza, w, h) {
+  const col = new Float64Array(w), row = new Float64Array(h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      col[x] += Math.abs(cinza[i + 1] - cinza[i - 1]);
+      row[y] += Math.abs(cinza[i + w] - cinza[i - w]);
+    }
+  }
+  return { col, row };
+}
+/** Picos separados entre si, do mais forte para o mais fraco. */
+function picos(arr, minSep, quantos) {
+  const ordem = [...arr.keys()].sort((a, b) => arr[b] - arr[a]);
+  const out = [];
+  for (const i of ordem) {
+    if (arr[i] <= 0) break;
+    if (out.every(j => Math.abs(j - i) >= minSep)) out.push(i);
+    if (out.length >= quantos) break;
+  }
+  return out.sort((a, b) => a - b);
+}
+/** X7 · retângulo da carta no quadro, em coordenadas relativas (0 a 1).
+    Devolve null quando não dá para afirmar que a carta está inteira ali. */
+/* A carta é alta: o tamanho mínimo é cobrado na ALTURA do quadro, não na largura.
+   Com o celular deitado (ou o vídeo em paisagem) a carta ocupa pouca largura e
+   ainda assim está inteira ali — cobrar largura mínima fazia o detector desistir. */
+function detectaCarta(cinza, w, h, { proporcao = PROPORCAO_CARTA, tol = 0.3, minAltura = 0.35, minLargura = 0.12 } = {}) {
+  if (!cinza || w < 8 || h < 8) return null;
+  const { col, row } = perfisDeBorda(cinza, w, h);
+  const xs = picos(col, Math.max(2, Math.round(w * minLargura * 0.8)), 4);
+  const ys = picos(row, Math.max(2, Math.round(h * minAltura * 0.6)), 4);
+  let melhor = null;
+  for (let a = 0; a < xs.length; a++) for (let b = a + 1; b < xs.length; b++) {
+    const larg = xs[b] - xs[a];
+    if (larg < w * minLargura) continue;
+    for (let c = 0; c < ys.length; c++) for (let d = c + 1; d < ys.length; d++) {
+      const alt = ys[d] - ys[c];
+      if (alt < h * minAltura) continue;
+      const prop = larg / alt; // o quadro chega com pixel quadrado, então a razão é direta
+      const erro = Math.abs(prop - proporcao) / proporcao;
+      if (erro > tol) continue;
+      const forca = col[xs[a]] + col[xs[b]] + row[ys[c]] + row[ys[d]];
+      const nota = forca * (1 - erro) * (larg * alt) / (w * h);
+      if (!melhor || nota > melhor.nota) melhor = { x: xs[a] / w, y: ys[c] / h, w: larg / w, h: alt / h, nota, erro };
+    }
+  }
+  if (!melhor || melhor.w * melhor.h < LIMIARES.area) return null;
+  // carta encostada na borda quase sempre é carta cortada — e carta cortada tem
+  // a faixa do nome faltando, que é justamente o que o scanner vai ler
+  const margem = 0.015;
+  if (melhor.x < margem || melhor.y < margem || melhor.x + melhor.w > 1 - margem || melhor.y + melhor.h > 1 - margem) return null;
+  // e as quatro bordas precisam ser degrau de verdade: textura da arte também vira
+  // pico no perfil, e sem esta checagem um pedaço da carta vira "carta inteira"
+  if (!degrauNasQuatroBordas(cinza, w, h, melhor)) return null;
+  return melhor;
+}
+/** Média de uma faixa retangular do quadro, em pixels. */
+function mediaFaixa(cinza, w, h, x0, y0, x1, y1) {
+  let soma = 0, n = 0;
+  for (let y = Math.max(0, y0); y < Math.min(h, y1); y++) {
+    for (let x = Math.max(0, x0); x < Math.min(w, x1); x++) { soma += cinza[y * w + x]; n++; }
+  }
+  return n ? soma / n : null;
+}
+/** Borda de carta é degrau: claro de um lado, escuro do outro, nos quatro lados. */
+function degrauNasQuatroBordas(cinza, w, h, r, minimo = 10) {
+  const x0 = Math.round(r.x * w), y0 = Math.round(r.y * h);
+  const x1 = Math.round((r.x + r.w) * w), y1 = Math.round((r.y + r.h) * h);
+  const faixa = 2;
+  const lados = [
+    [mediaFaixa(cinza, w, h, x0, y0, x0 + faixa, y1), mediaFaixa(cinza, w, h, x0 - faixa, y0, x0, y1)],
+    [mediaFaixa(cinza, w, h, x1 - faixa, y0, x1, y1), mediaFaixa(cinza, w, h, x1, y0, x1 + faixa, y1)],
+    [mediaFaixa(cinza, w, h, x0, y0, x1, y0 + faixa), mediaFaixa(cinza, w, h, x0, y0 - faixa, x1, y0)],
+    [mediaFaixa(cinza, w, h, x0, y1 - faixa, x1, y1), mediaFaixa(cinza, w, h, x0, y1, x1, y1 + faixa)]
+  ];
+  return lados.every(([dentroM, foraM]) => dentroM != null && foraM != null && Math.abs(dentroM - foraM) >= minimo);
+}
+const dentro = (w, h, reg) => ({
+  x0: Math.max(0, Math.round((reg ? reg.x : 0) * w)), y0: Math.max(0, Math.round((reg ? reg.y : 0) * h)),
+  x1: Math.min(w, Math.round(((reg ? reg.x + reg.w : 1)) * w)), y1: Math.min(h, Math.round(((reg ? reg.y + reg.h : 1)) * h))
+});
+/** Brilho médio da região (0 a 255). */
+function brilho(cinza, w, h, reg) {
+  const { x0, y0, x1, y1 } = dentro(w, h, reg);
+  let soma = 0, n = 0;
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { soma += cinza[y * w + x]; n++; }
+  return n ? soma / n : 0;
+}
+/** Nitidez: energia média do gradiente. Imagem tremida ou fora de foco dá valor baixo. */
+function nitidez(cinza, w, h, reg) {
+  const { x0, y0, x1, y1 } = dentro(w, h, reg);
+  let soma = 0, n = 0;
+  for (let y = Math.max(1, y0); y < Math.min(h - 1, y1); y++) {
+    for (let x = Math.max(1, x0); x < Math.min(w - 1, x1); x++) {
+      const i = y * w + x;
+      soma += Math.abs(cinza[i + 1] - cinza[i - 1]) + Math.abs(cinza[i + w] - cinza[i - w]);
+      n++;
+    }
+  }
+  return n ? soma / n : 0;
+}
+/** Dois retângulos praticamente no mesmo lugar. */
+const paradaEm = (a, b, tol = LIMIARES.movimento) => !!a && !!b &&
+  Math.abs(a.x - b.x) < tol && Math.abs(a.y - b.y) < tol && Math.abs(a.w - b.w) < tol && Math.abs(a.h - b.h) < tol;
+
+/** X7 · a decisão de disparar, e a instrução curta quando não dá. */
+function prontoParaLer({ carta, brilho: luz, nitidez: foco, parada }, limiares = LIMIARES) {
+  if (!carta) return { pronto: false, motivo: 'Mostre a carta inteira no quadro.' };
+  if (luz < limiares.brilhoMin) return { pronto: false, motivo: 'Está escuro: procure mais luz.' };
+  if (luz > limiares.brilhoMax) return { pronto: false, motivo: 'Muito claro: tire o reflexo da carta.' };
+  if (foco < limiares.nitidezMin) return { pronto: false, motivo: 'Imagem tremida: segure firme.' };
+  if (!parada) return { pronto: false, motivo: 'Quase lá: segure firme mais um instante.' };
+  return { pronto: true, motivo: 'Lendo a carta…' };
+}
+
+/** X7 · detector com memória: junta os quadros e diz quando disparar.
+    `quadros` é quantas leituras seguidas precisam concordar para valer "parada". */
+function criaDetector({ quadros = 3, limiares = LIMIARES } = {}) {
+  let hist = [], ultimaLeitura = null;
+  return {
+    get historico() { return hist.slice(); },
+    /** Recebe o quadro em tons de cinza e devolve o que fazer com ele. */
+    quadro(cinza, w, h) {
+      const carta = detectaCarta(cinza, w, h);
+      hist = [...hist.slice(-(quadros - 1)), carta];
+      const cheio = hist.length >= quadros && hist.every(Boolean);
+      const parada = cheio && hist.every(r => paradaEm(r, hist[hist.length - 1]));
+      const luz = carta ? brilho(cinza, w, h, carta) : brilho(cinza, w, h, null);
+      const foco = carta ? nitidez(cinza, w, h, carta) : 0;
+      const d = prontoParaLer({ carta, brilho: luz, nitidez: foco, parada }, limiares);
+      // a mesma carta parada não dispara duas vezes seguidas
+      if (d.pronto && paradaEm(ultimaLeitura, carta)) return { ...d, pronto: false, motivo: 'Carta já lida: mostre a próxima.', carta, luz, foco };
+      if (d.pronto) ultimaLeitura = carta;
+      return { ...d, carta, luz, foco };
+    },
+    /** Depois de tirar a carta do quadro, o detector volta a aceitar leitura. */
+    rearmar() { ultimaLeitura = null; hist = []; }
+  };
+}
+
+return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, SUGGEST, lev,
+  detectaCarta, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA };
 })();
 
 
@@ -9183,10 +9353,11 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
-const { createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT } = __m21;
+const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-const AUTO_MS = 1400;
+const AUTO_MS = 1400;     // ritmo antigo, mantido como rede de segurança
+const OLHO_MS = 180;      // X7 · cada olhada no quadro para achar a carta sozinho
 const go = to => { location.hash = '#' + to; };
 
 /** OCR de uma linha. Motor carregado sob demanda e reaproveitado. */
@@ -9235,14 +9406,20 @@ function createOcr(win = window, doc = document) {
 
 function createScannerScreen({ camera, store, names, collection, decks, scryfall, env, ocr }) {
   const lot = createLot({ store });
-  const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, timer: null, alive: true, edition: true, ocrReady: false };
+  const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, timer: null, alive: true, edition: true, ocrReady: false,
+    // X7 · captura automática: a moldura vira ajuda opcional
+    moldura: false, carta: null, dica: '', olho: null };
+  const detector = criaDetector();
   const online = () => !env || env.online !== false;
   const printsCache = new Map();
   const printLabel = x => x && x.set ? `${x.set.toUpperCase()}${x.number ? ' #' + x.number : ''}` : '';
   const video = h('video', { class: 'scan-video', playsinline: true, muted: true, autoplay: true, id: 'scan-video' });
   video.setAttribute('playsinline', ''); video.muted = true;
-  const frame = h('div', { class: 'scan-frame', 'aria-hidden': 'true' }, h('div', { class: 'scan-frame__band' }, h('span', {}, 'nome aqui')));
-  const stage = h('div', { class: 'scan-stage', id: 'scan-stage' }, video, frame);
+  const frame = h('div', { class: 'scan-frame', 'aria-hidden': 'true', style: { display: 'none' } }, h('div', { class: 'scan-frame__band' }, h('span', {}, 'nome aqui')));
+  // X7 · contorno desenhado em cima da carta encontrada, e a dica do que corrigir
+  const contorno = h('div', { class: 'scan-outline', id: 'scan-outline', 'aria-hidden': 'true', style: { display: 'none' } });
+  const dica = h('div', { class: 'scan-hint', id: 'scan-hint', 'aria-live': 'polite' });
+  const stage = h('div', { class: 'scan-stage', id: 'scan-stage' }, video, frame, contorno, dica);
   const status = h('div', { class: 'scan-status', id: 'scan-status' });
   const result = h('div', { class: 'scan-result', id: 'scan-result', 'aria-live': 'polite' });
   const dock = h('div', { class: 'scan-dock' });
@@ -9251,6 +9428,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   /* ---- ciclo de vida ---- */
   function stopAll() {
     state.alive = false; clearInterval(state.timer); state.timer = null;
+    clearInterval(state.olho); state.olho = null;
     try { camera.stop(); } catch (e) { /* ignora */ }
   }
   const onHash = () => { if (!location.hash.startsWith('#/scanner')) { stopAll(); window.removeEventListener('hashchange', onHash); } };
@@ -9276,9 +9454,45 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   /* ---- leitura ---- */
   function bandRegion(B) {
+    // X7 · com a carta encontrada, a faixa sai dela: sem moldura, em qualquer posição
+    const c = state.carta;
+    if (c) return { x: c.x + c.w * B.x, y: c.y + c.h * B.y, w: c.w * B.w, h: c.h * B.h };
     const vr = stage.getBoundingClientRect(), fr = frame.getBoundingClientRect();
     const band = { x: fr.left - vr.left + fr.width * B.x, y: fr.top - vr.top + fr.height * B.y, w: fr.width * B.w, h: fr.height * B.h };
     return coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, band);
+  }
+  /** X7 · quadro inteiro reduzido em tons de cinza, para achar a carta. */
+  function quadroCinza(alvo = 80) {
+    const c = camera.capture();
+    const w = alvo, hh = Math.max(8, Math.round(alvo * (c.height / Math.max(1, c.width))));
+    const small = document.createElement('canvas'); small.width = w; small.height = hh;
+    const ctx = small.getContext('2d');
+    ctx.drawImage(c, 0, 0, w, hh);
+    const d = ctx.getImageData(0, 0, w, hh).data;
+    const g = new Uint8ClampedArray(w * hh);
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    return { cinza: g, w, h: hh };
+  }
+  /** Desenha o contorno da carta encontrada e diz o que corrigir. */
+  function pintaOlho(r) {
+    if (!r || !r.carta) { contorno.style.display = 'none'; }
+    else {
+      const vr = stage.getBoundingClientRect();
+      const px = screenRect(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, r.carta);
+      Object.assign(contorno.style, { display: 'block', left: px.x + 'px', top: px.y + 'px', width: px.w + 'px', height: px.h + 'px' });
+      contorno.dataset.pronto = String(!!r.pronto);
+    }
+    state.dica = (r && r.motivo) || '';
+    mount(dica, state.dica ? Text(state.dica, { size: 'sm' }) : null);
+  }
+  /** X7 · uma olhada por ciclo: acha a carta, avisa o que falta e dispara sozinho. */
+  function olhar() {
+    if (!state.alive || state.camera !== 'on' || state.busy) return;
+    let q; try { q = quadroCinza(); } catch (e) { return; }
+    const r = detector.quadro(q.cinza, q.w, q.h);
+    state.carta = r.carta || null;
+    pintaOlho(r);
+    if (r.pronto && state.auto && state.base === 'ready') readOnce(false);
   }
   /* X3 · edição pela linha de coleção; confirma contra as impressões quando há rede */
   async function prints(name) {
@@ -9320,7 +9534,14 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function announce(name) { pulse(stage); toast(`${name} +1`, 1400); }
   function setAuto(on) {
     state.auto = on; clearInterval(state.timer); state.timer = null;
-    if (on) { lot.rearm(); seen.name = null; state.timer = setInterval(() => { if (state.alive) readOnce(false); }, AUTO_MS); }
+    clearInterval(state.olho); state.olho = null;
+    if (on) {
+      lot.rearm(); seen.name = null; detector.rearmar();
+      // X7 · quem decide a hora de ler é o detector; o relógio antigo fica só como
+      // rede de segurança para quadro que nunca estabiliza
+      state.olho = setInterval(olhar, OLHO_MS);
+      state.timer = setInterval(() => { if (state.alive && !state.carta) readOnce(false); }, AUTO_MS);
+    } else { contorno.style.display = 'none'; mount(dica, null); state.carta = null; }
     paintDock();
   }
 
@@ -9364,10 +9585,13 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     autoChip.addEventListener('click', () => setAuto(!state.auto));
     const edChip = Chip('Edição', { pressed: state.edition, dataset: { edition: '1' } });
     edChip.addEventListener('click', () => { state.edition = !state.edition; paintDock(); });
+    // X7 · a moldura deixou de ser obrigação: fica como ajuda para quem quiser
+    const molduraChip = Chip('Moldura', { pressed: state.moldura, dataset: { moldura: '1' } });
+    molduraChip.addEventListener('click', () => { state.moldura = !state.moldura; frame.style.display = state.moldura ? '' : 'none'; paintDock(); });
     mount(dock,
       Row({ class: 'scan-dock__row' },
         Button(state.busy ? 'Lendo…' : 'Ler agora', { variant: 'primary', id: 'scan-read', disabled: !canRead || state.busy, onClick: () => readOnce(true) }),
-        canRead ? autoChip : null, canRead ? edChip : null),
+        canRead ? autoChip : null, canRead ? edChip : null, canRead ? molduraChip : null),
       Row({ class: 'scan-dock__row' },
         Button(`Lote: ${n}`, { id: 'scan-lot', onClick: openLot }),
         Button('Desfazer', { id: 'scan-undo', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } })));

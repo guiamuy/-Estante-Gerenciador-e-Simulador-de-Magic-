@@ -100,7 +100,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | B · Bot | B5 escolha na mesa e B6 torneio medido no portão | 🟡 |
 | B · Bot | B7 didática do bot: resumo do turno e "o que eu poderia fazer" | 🟡 |
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
-| X · Scanner | X7–X10 captura automática, pilha de leitura, validação e acerto medido | ○ |
+| X · Scanner | X7 captura automática sem moldura | 🟡 |
+| X · Scanner | X8–X10 pilha de leitura, validação ágil e acerto medido | ▶ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
@@ -347,7 +348,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
-| E39 | X7–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
+| E39 🟡 | X7 (leva 64) · X8–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 | C10, C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -2346,7 +2347,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** X2, C6, W1.
 - **Fora:** —
 
-**X7 · Captura automática sem moldura** ○
+**X7 · Captura automática sem moldura** 🟡
 - **Valor:** apontar a câmera e a carta ser lida sozinha, sem encaixar em retângulo.
 - **Aceite:**
   - o scanner encontra a carta no quadro (bordas e proporção) em qualquer posição e rotação leve, sem
@@ -2356,10 +2357,28 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - a moldura vira ajuda opcional, não obrigação, e continua disponível para quem preferir;
   - luz baixa ou carta cortada geram uma instrução curta do que corrigir, em vez de leitura errada;
   - a decisão de "está pronto para ler" é uma função pura, testável fora da câmera.
-- **Testes:** U (detecção e nitidez sobre quadros de teste), I (câmera simulada com carta torta, cortada
-  e no escuro), desempenho (decisão em menos de 60 ms por quadro).
+- **Entregue (leva 64):** o scanner olha o quadro cinco vezes por segundo, acha a carta sozinho, desenha o
+  contorno em cima dela, diz o que corrigir e dispara a leitura quando está tudo certo. A moldura virou
+  chip opcional e **começa desligada**. A faixa do nome passou a sair da carta encontrada, então funciona
+  com a carta em qualquer posição do quadro.
+- **Como ele decide (tudo função pura, sem câmera):** perfis de borda por linha e coluna acham o
+  retângulo; a proporção 63×88 valida; **as quatro bordas precisam ser degrau de verdade** (senão a textura
+  da arte vira "carta"); brilho e nitidez medem luz e tremor; três quadros no mesmo lugar contam como
+  parada. A mesma carta parada não entra duas vezes.
+- **O que a medição obrigou a corrigir:** o tamanho mínimo era cobrado na **largura** do quadro, e com o
+  vídeo em paisagem a carta ocupa pouca largura — o detector desistia de uma carta que estava inteira ali.
+  Agora o mínimo é cobrado na altura, que é onde a carta é grande.
+- **Instruções que a tela dá:** "Mostre a carta inteira no quadro", "Está escuro: procure mais luz",
+  "Muito claro: tire o reflexo da carta", "Imagem tremida: segure firme", "Quase lá: segure firme mais um
+  instante", "Carta já lida: mostre a próxima".
+- **Testes:** U (acha a carta no meio, no canto e afastada; recusa quadro liso, carta cortada e objeto
+  quadrado; brilho e nitidez medindo o que prometem; uma instrução por problema; o detector exigindo três
+  quadros parados, não repetindo a mesma carta e voltando a aceitar depois de rearmar; ida e volta entre
+  coordenadas do quadro e da tela; menos de 60 ms por quadro), I headless (câmera falsa mostrando uma
+  carta de verdade: o contorno aparece, a leitura dispara sozinha sem ninguém tocar em "Ler agora", e a
+  moldura volta quando o usuário quer).
 - **Depende de:** X1, X2.
-- **Fora:** reconhecimento pela arte; corrigir perspectiva forte.
+- **Fora:** reconhecimento pela arte; corrigir perspectiva forte; leitura com a carta muito torta.
 
 **X8 · Pilha de leitura** ○
 - **Valor:** escanear várias cartas seguidas e resolver tudo no fim.

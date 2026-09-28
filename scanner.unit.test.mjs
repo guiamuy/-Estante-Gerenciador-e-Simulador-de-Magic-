@@ -143,3 +143,116 @@ test('X3 · o lote separa impressões da mesma carta e corrigir a impressão fun
   assert.equal(await lot.undo(), 'Counterspell');
   assert.equal(await lot.total(), 3);
 });
+
+/* ---------------- X7 · achar a carta no quadro, sem moldura ---------------- */
+const QW = 80, QH = 110;
+/** Quadro de teste: fundo liso e uma carta com textura dentro dele. */
+function quadro({ x0 = 12, y0 = 10, larg = 56, alt = 78, fundo = 30, carta = 150, textura = 40, ruido = 0 } = {}) {
+  const g = new Uint8ClampedArray(QW * QH).fill(fundo);
+  for (let y = y0; y < Math.min(QH, y0 + alt); y++) {
+    for (let x = x0; x < Math.min(QW, x0 + larg); x++) {
+      g[y * QW + x] = carta + (textura ? (x * 7 + y * 13) % textura : 0);
+    }
+  }
+  if (ruido) for (let i = 0; i < g.length; i++) g[i] = Math.max(0, Math.min(255, g[i] + ((i * 37) % ruido) - ruido / 2));
+  return g;
+}
+const perto = (a, b, tol = 0.06) => Math.abs(a - b) <= tol;
+
+test('X7 · acha a carta no meio do quadro e também deslocada, sem moldura', () => {
+  const meio = X.detectaCarta(quadro(), QW, QH);
+  assert.ok(meio, 'achou a carta');
+  assert.equal(perto(meio.x, 12 / QW) && perto(meio.y, 10 / QH), true, 'no lugar certo');
+  assert.equal(perto(meio.w, 56 / QW) && perto(meio.h, 78 / QH), true, 'do tamanho certo');
+
+  const canto = X.detectaCarta(quadro({ x0: 4, y0: 4 }), QW, QH);
+  assert.ok(canto, 'achou a carta deslocada para o canto');
+  assert.equal(perto(canto.x, 4 / QW), true);
+
+  const menor = X.detectaCarta(quadro({ x0: 20, y0: 20, larg: 40, alt: 56 }), QW, QH);
+  assert.ok(menor, 'achou a carta mais afastada');
+  assert.equal(perto(menor.w, 40 / QW), true);
+});
+
+test('X7 · não inventa carta: quadro liso, carta cortada e objeto quadrado dão nulo', () => {
+  const liso = new Uint8ClampedArray(QW * QH).fill(120);
+  assert.equal(X.detectaCarta(liso, QW, QH), null, 'quadro liso não tem carta');
+
+  const cortada = quadro({ x0: 40, y0: 10, larg: 56, alt: 78 }); // metade fora do quadro
+  const r = X.detectaCarta(cortada, QW, QH);
+  assert.equal(r, null, 'carta cortada não conta como carta inteira');
+
+  const quadrado = quadro({ x0: 15, y0: 20, larg: 50, alt: 50 });
+  assert.equal(X.detectaCarta(quadrado, QW, QH), null, 'proporção errada não é carta');
+});
+
+test('X7 · brilho e nitidez medem o que prometem', () => {
+  const claro = quadro(), escuro = quadro({ carta: 25, fundo: 10, textura: 8 });
+  const rClaro = X.detectaCarta(claro, QW, QH);
+  assert.equal(X.brilho(claro, QW, QH, rClaro) > 120, true, 'carta iluminada tem brilho alto');
+  assert.equal(X.brilho(escuro, QW, QH, null) < 40, true, 'quadro escuro tem brilho baixo');
+
+  const nitido = quadro({ textura: 60 }), borrado = quadro({ textura: 0 });
+  const rn = X.detectaCarta(nitido, QW, QH);
+  assert.equal(X.nitidez(nitido, QW, QH, rn) > X.nitidez(borrado, QW, QH, rn), true, 'textura nítida bate a lisa');
+});
+
+test('X7 · a instrução diz o que corrigir, uma coisa de cada vez', () => {
+  const base = { carta: { x: 0.1, y: 0.1, w: 0.7, h: 0.7 }, brilho: 140, nitidez: 30, parada: true };
+  assert.equal(X.prontoParaLer({ ...base, carta: null }).motivo, 'Mostre a carta inteira no quadro.');
+  assert.match(X.prontoParaLer({ ...base, brilho: 20 }).motivo, /escuro/);
+  assert.match(X.prontoParaLer({ ...base, brilho: 250 }).motivo, /reflexo/);
+  assert.match(X.prontoParaLer({ ...base, nitidez: 2 }).motivo, /tremida/);
+  assert.match(X.prontoParaLer({ ...base, parada: false }).motivo, /segure firme/i);
+  const ok = X.prontoParaLer(base);
+  assert.equal(ok.pronto, true);
+  assert.match(ok.motivo, /Lendo/);
+  for (const caso of [{ carta: null }, { brilho: 20 }, { nitidez: 2 }, { parada: false }])
+    assert.equal(X.prontoParaLer({ ...base, ...caso }).pronto, false, 'qualquer problema impede a leitura');
+});
+
+test('X7 · o detector só dispara com a carta parada, e não lê a mesma carta duas vezes', () => {
+  const det = X.criaDetector();
+  const q = quadro();
+  assert.equal(det.quadro(q, QW, QH).pronto, false, 'no primeiro quadro ainda não');
+  assert.equal(det.quadro(q, QW, QH).pronto, false, 'no segundo também não');
+  const terceiro = det.quadro(q, QW, QH);
+  assert.equal(terceiro.pronto, true, 'com três quadros iguais, dispara');
+  assert.ok(terceiro.carta, 'e devolve o contorno para desenhar na tela');
+
+  // parada de novo no mesmo lugar: não conta de novo
+  assert.equal(det.quadro(q, QW, QH).pronto, false, 'a mesma carta parada não entra duas vezes');
+  assert.match(det.quadro(q, QW, QH).motivo, /próxima/);
+
+  // carta se movendo não dispara
+  const movel = X.criaDetector();
+  movel.quadro(quadro({ x0: 8 }), QW, QH);
+  movel.quadro(quadro({ x0: 12 }), QW, QH);
+  const mexendo = movel.quadro(quadro({ x0: 16 }), QW, QH);
+  assert.equal(mexendo.pronto, false, 'carta em movimento não dispara');
+  assert.match(mexendo.motivo, /segure firme/i);
+
+  // depois de rearmar, a próxima carta parada vale
+  det.rearmar();
+  det.quadro(q, QW, QH); det.quadro(q, QW, QH);
+  assert.equal(det.quadro(q, QW, QH).pronto, true, 'rearmado, lê de novo');
+});
+
+test('X7 · decidir um quadro custa menos de 60 ms', () => {
+  const det = X.criaDetector();
+  const q = quadro({ ruido: 30 });
+  det.quadro(q, QW, QH); // aquecimento
+  const t0 = Date.now();
+  for (let i = 0; i < 30; i++) det.quadro(q, QW, QH);
+  const porQuadro = (Date.now() - t0) / 30;
+  assert.equal(porQuadro < 60, true, `cada quadro levou ${porQuadro.toFixed(1)} ms`);
+});
+
+test('X7 · o contorno cai em cima da carta: ida e volta entre quadro e tela', () => {
+  // vídeo 1280×720 mostrado em object-fit: cover num palco 390×520
+  const elW = 390, elH = 520, vidW = 1280, vidH = 720;
+  const naTela = { x: 40, y: 60, w: 200, h: 280 };
+  const noQuadro = X.coverRegion(elW, elH, vidW, vidH, naTela);
+  const volta = X.screenRect(elW, elH, vidW, vidH, noQuadro);
+  for (const k of ['x', 'y', 'w', 'h']) assert.equal(Math.abs(volta[k] - naTela[k]) < 1, true, `${k} voltou ao mesmo lugar`);
+});
