@@ -477,3 +477,18 @@ test('O2 · validação: sem rede a carta sem dados guardados é aviso de "não 
   assert.equal(semRede[0].level, 'warning'); assert.match(semRede[0].message, /1 carta\(s\) ainda não conferida\(s\) \(sem internet; os dados não estão guardados\): Xyzzy/);
   assert.equal(semRede.some(i => i.level === 'error' && /reconhecida/.test(i.message)), false, 'sem erro de reconhecimento');
 });
+
+/* ---------------- C12b · visões salvas ---------------- */
+test('C12b · visões salvas: nome + filtro, por aparelho, com apagar', async () => {
+  const c = D.createCollection({ store: P.memoryStore() });
+  assert.equal((await c.views()).length, 0);
+  const v = await c.saveView({ nome: '  Meus verdes  ', filtro: { cores: ['G'], formato: 'pauper' } });
+  assert.equal(v.nome, 'Meus verdes'); assert.ok(v.id);
+  await c.saveView({ nome: 'Foils', filtro: { acabamentos: ['foil'] } });
+  let views = await c.views();
+  assert.deepEqual(JSON.parse(JSON.stringify(views.map(x => [x.nome, x.filtro]))), [['Meus verdes', { cores: ['G'], formato: 'pauper' }], ['Foils', { acabamentos: ['foil'] }]]);
+  await c.removeView(v.id);
+  views = await c.views(); assert.equal(views.length, 1); assert.equal(views[0].nome, 'Foils');
+  const c2 = D.createCollection({ store: P.memoryStore() });
+  assert.equal((await c2.views()).length, 0, 'outro aparelho não vê');
+});

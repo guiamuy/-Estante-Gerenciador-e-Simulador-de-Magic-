@@ -109,8 +109,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | O · Offline | O1 o que é seu fica no aparelho: guardião, painel e portão offline | 🟡 |
 | O · Offline | O2 telas sem rede: ambiente vivo, chip, fallbacks, base local alimentada por tudo | 🟡 |
 | O · Offline | O3 conduta offline para o que vem, espaço e proteção no painel | 🟡 |
-| C · Coleção | C12 filtros de verdade na coleção (motor + painel + recorte exportável) | 🟡 |
-| C · Coleção | C12b visões salvas e filtro nas listas · C13–C14 visões e painel | ○ |
+| C · Coleção | C12 filtros de verdade: motor, painel, recorte exportável, link, visões salvas, listas | 🟡 |
+| C · Coleção | C13–C14 visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
@@ -371,7 +371,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
-| E40 🟡 | C12 (leva 73) · C12b · C13 · C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
+| E40 🟡 | C12 (levas 73 e 74) · C13 · C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -2289,7 +2289,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Fora:** casar impressão por número quando a lista não traz edição; importar direto para uma lista
   (isso é o editor de listas).
 
-**C12 · Filtros de verdade** 🟡 (parcial: visões salvas e listas ficam para a C12b)
+**C12 · Filtros de verdade** 🟡
 - **Valor:** achar exatamente o que você procura na coleção e nas listas.
 - **Aceite:**
   - filtra por cor e identidade, tipo e subtipo, raridade, custo convertido, legalidade de formato,
@@ -2310,13 +2310,22 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   edição, idioma, acabamento, cópias e lista; para cor, tipo, custo, raridade e formato a tela diz quantas
   ficaram sem julgar. Funciona sem internet com o que está guardado (passo no portão offline).
 - **Sem rede:** filtra pelos dados já guardados; o que não tem dados é contado à parte, não escondido.
-- **Parcial, e o que falta (C12b):** o recorte virar link e visão salva com nome; o mesmo motor nas
-  listas (filtrar a galeria de uma lista).
+- **Entregue (leva 74, C12b):** o recorte **vira link** (`#/colecao?f=…`, curto, só o que está ligado;
+  abrir o link reaplica tudo, inclusive o texto) e **visão salva** com nome ("Meus verdes de Pauper"):
+  chips acima da lista, um toque aplica, outro desliga, × apaga com confirmação; a visão fica ligada
+  quando o filtro atual é igual ao dela. O painel de filtros virou um componente único
+  (`abrirPainelFiltros`) e passou a existir também na **lista**: campo de nome/texto e botão Filtros
+  sobre a galeria, contagem do recorte, sem as seções que só fazem sentido com impressões (edição, idioma,
+  acabamento, listas). Escrever no campo redesenha a galeria sem perder o foco.
+- **Decisão:** visões são por aparelho (ficam no armazenamento local, não no backup ainda); "sem edição"
+  dentro de uma lista de edições vai no link como `~`.
 - **Testes:** U (texto no nome e no texto; cor qualquer/incolor/identidade; tipo por palavra inteira e
   subtipo; raridade, custo, formato; edição/idioma/acabamento recontando cópias; quantidade, lista, sem
   edição e combinações; contagem de ativos, opções que existem e descrição; 5 000 cartas com filtro
-  combinado em menos de 100 ms), I headless (coleção real: cor → tipo → acabamento com contagem viva,
-  vazio honesto, botão com o número de filtros, limpar, texto de regras, edição, exportar o recorte;
+  combinado em menos de 100 ms; link ida e volta sem perda e lixo virando padrão; visões salvas,
+  apagadas e por aparelho), I headless (coleção real: cor → tipo → acabamento com contagem viva, vazio
+  honesto, botão com o número de filtros, limpar, texto de regras, edição, exportar o recorte, link do
+  recorte, salvar/aplicar/desligar/apagar visão, abrir o link direto, filtro de texto e painel na lista;
   passo no portão offline).
 - **Depende de:** C1, L3.
 - **Fora:** busca com sintaxe da Scryfall.

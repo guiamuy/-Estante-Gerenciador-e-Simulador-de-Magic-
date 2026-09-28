@@ -113,3 +113,19 @@ test('C12 · desempenho: 5 000 cartas com filtro combinado em menos de 100 ms', 
   assert.ok(r.total > 0 && r.total < 5000);
   assert.ok(dt < 100, `levou ${dt.toFixed(1)} ms`);
 });
+
+/* ---------------- C12b · o recorte vira link ---------------- */
+test('C12b · codificar e decodificar o filtro: só o que está ligado, ida e volta sem perda, lixo vira padrão', () => {
+  assert.equal(F.codificaFiltro(F.novoFiltro()), '', 'vazio vira string vazia');
+  const f = F.novoFiltro({ texto: 'sol ring', cores: ['G', 'C'], modoCor: 'identidade', tipos: ['Creature', 'Elf'], raridades: ['common'], cmcMin: 1, cmcMax: 3, formato: 'pauper', edicoes: ['cmm', ''], idiomas: ['pt'], acabamentos: ['foil'], qtdMin: 2, qtdMax: null, emLista: 'nao', semEdicao: true });
+  const cod = F.codificaFiltro(f);
+  assert.ok(cod.length < 120, `link curto (${cod.length})`);
+  assert.deepEqual(JSON.parse(JSON.stringify(F.decodificaFiltro(cod))), JSON.parse(JSON.stringify(f)), 'ida e volta');
+  assert.equal(F.mesmoFiltro(f, F.decodificaFiltro(cod)), true);
+  assert.equal(F.mesmoFiltro(f, F.novoFiltro()), false);
+  assert.equal(F.codificaFiltro(F.novoFiltro({ modoCor: 'identidade' })), '', 'modo de cor sem cores não conta');
+  const lixo = F.decodificaFiltro('a=-3&b=abc&m=x&d=talvez&g=1&c=');
+  assert.equal(lixo.cmcMin, null); assert.equal(lixo.cmcMax, null); assert.equal(lixo.modoCor, 'qualquer'); assert.equal(lixo.emLista, ''); assert.equal(lixo.semEdicao, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(lixo.cores)), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(F.decodificaFiltro(null))), JSON.parse(JSON.stringify(F.novoFiltro())));
+});

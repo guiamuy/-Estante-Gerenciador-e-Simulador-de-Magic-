@@ -552,6 +552,42 @@ test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, con
   const texto = await page.inputValue('#col-export-text');
   assert.match(texto, /recorte: CMM · 1 carta\(s\) · 2 cópia\(s\)/);
   assert.ok(/2 Sol Ring/.test(texto) && !/Island|Grizzly/.test(texto));
+  await page.click('.ds-dialog button:has-text("Fechar")');
+
+  // C12b · o recorte está no link, e uma visão salva o traz de volta com um toque
+  assert.match(await page.evaluate(() => location.hash), /^#\/colecao\?f=e=cmm$/, 'link do recorte');
+  await page.click('#col-view-save'); await page.waitForSelector('#col-view-name');
+  await page.fill('#col-view-name', 'Só CMM'); await page.click('#col-view-save-confirm');
+  await page.waitForSelector('#col-views [data-view]');
+  assert.equal(await page.getAttribute('#col-views .ds-chip', 'aria-pressed'), 'true', 'a visão salva aparece ligada');
+  await page.click('#col-filters-clear');
+  await page.waitForSelector('.col-row[data-name="Island"]');
+  assert.equal(await page.getAttribute('#col-views .ds-chip', 'aria-pressed'), 'false');
+  await page.click('#col-views .ds-chip');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  assert.match(await page.innerText('.col-row'), /Sol Ring/, 'a visão aplicou o filtro');
+  // abrir o link direto reaplica o recorte
+  await page.goto(base + '#/listas'); await page.goto(base + '#/colecao?f=t=scry');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1 && /Preordain/.test(document.querySelector('.col-row').innerText));
+  assert.equal(await page.inputValue('#col-filter'), 'scry');
+  // apagar a visão
+  await page.click('#col-views [data-view-remove]'); await page.click('#col-view-remove-confirm');
+  await page.waitForFunction(() => !document.querySelector('#col-views [data-view]'));
+
+  // C12b · o mesmo motor na lista
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.fill('#deck-filter', 'counter');
+  await page.waitForFunction(() => document.querySelectorAll('.deck-slot').length === 1);
+  assert.match(await page.innerText('#deck-count'), /1 carta\(s\) · 4 cópia\(s\) · "counter"/);
+  await page.click('#deck-filters-clear');
+  await page.waitForFunction(() => document.querySelectorAll('.deck-slot').length === 4);
+  await page.click('#deck-filters'); await page.waitForSelector('#col-filters-body');
+  assert.equal(await page.locator('[data-edicao]').count(), 0, 'lista não tem impressões: sem seção de edição');
+  await page.click('[data-tipo="Instant"]');
+  await page.waitForFunction(() => /1 carta\(s\) · 4 cópia\(s\)/.test(document.querySelector('#col-filters-count').innerText));
+  await page.click('#col-filters-apply');
+  await page.waitForFunction(() => document.querySelectorAll('.deck-slot').length === 1);
+  assert.match(await page.innerText('#deck-filters'), /Filtros \(1\)/);
   assert.deepEqual(errors, []);
 });
 

@@ -581,6 +581,8 @@ body {
 }
 .col-row:last-child { border-bottom: none; }
 @media (min-width: 640px) { .col-row { grid-template-columns: 48px 1fr auto; grid-template-areas: "thumb info qty"; } }
+/* C12b · visão salva: chip + botão de apagar colados */
+.col-view { display: inline-flex; align-items: center; gap: 2px; }
 /* C10 · modo de seleção: uma coluna a mais com a caixa, 44 px de alvo */
 .col-row--select { grid-template-columns: var(--tap-min) 48px 1fr; grid-template-areas: "check thumb info" "check thumb qty"; }
 @media (min-width: 640px) { .col-row--select { grid-template-columns: var(--tap-min) 48px 1fr auto; grid-template-areas: "check thumb info qty"; } }
@@ -3396,6 +3398,7 @@ function createDeckStore({ store, now = () => Date.now() }) {
 const NAMES = 'collection.names';
 const ITEMS = 'collection.items';
 const PENDING = 'collection.pending';
+const VIEWS = 'collection.views';
 const CONDITIONS = [['NM', 'Near Mint'], ['LP', 'Levemente jogada'], ['MP', 'Moderadamente jogada'], ['HP', 'Muito jogada'], ['DMG', 'Danificada']];
 const LANGS = [['en', 'Inglês'], ['pt', 'Português'], ['es', 'Espanhol'], ['ja', 'Japonês'], ['de', 'Alemão'], ['fr', 'Francês'], ['it', 'Italiano'], ['ru', 'Russo'], ['ko', 'Coreano'], ['zhs', 'Chinês simplificado'], ['zht', 'Chinês tradicional']];
 const FINISHES = [['', 'Normal'], ['foil', 'Foil'], ['etched', 'Etched']];
@@ -3508,6 +3511,14 @@ function createCollection({ store }) {
       for (const p of list) { const it = makeItem(p, p.qty); const cur = items.get(it.key); if (cur) cur.qty += it.qty; else items.set(it.key, it); }
       await persist(); return list.length;
     },
+    /** C12b · visões salvas: nome + filtro, por aparelho. */
+    async views() { return ((await store.get(VIEWS)) || []).map(v => ({ ...v })); },
+    async saveView({ nome, filtro }) {
+      const cur = await api.views();
+      const v = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nome: String(nome || '').trim(), filtro };
+      await store.set(VIEWS, [...cur, v]); return v;
+    },
+    async removeView(id) { const cur = await api.views(); await store.set(VIEWS, cur.filter(v => v.id !== id)); },
     /** C11 · linhas de importação que não foram reconhecidas ficam aqui até serem corrigidas ou descartadas. */
     async pending() { return ((await store.get(PENDING)) || []).map(x => ({ ...x })); },
     async addPending(list) { const cur = await api.pending(); const next = [...cur, ...list.map(x => ({ name: x.name, qty: x.qty, set: x.set || '', number: x.number || '', finish: x.finish || '', raw: x.raw || '', reason: x.reason || '' }))]; await store.set(PENDING, next); return next.length; },
@@ -4341,7 +4352,38 @@ function descreveFiltro(f) {
   return partes.join(' · ');
 }
 
-return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+/* ---- C12b · o recorte vira link: só o que está ligado, curto o bastante para a barra de endereço ---- */
+const CHAVES = { texto: 't', cores: 'c', modoCor: 'm', tipos: 'y', raridades: 'r', cmcMin: 'a', cmcMax: 'b', formato: 'f', edicoes: 'e', idiomas: 'l', acabamentos: 'k', qtdMin: 'q', qtdMax: 'w', emLista: 'd', semEdicao: 'g' };
+function codificaFiltro(f) {
+  const p = new URLSearchParams();
+  for (const [k, ch] of Object.entries(CHAVES)) {
+    const v = f[k];
+    if (v == null || v === '' || v === false || (Array.isArray(v) && !v.length)) continue;
+    if (k === 'modoCor' && (v === 'qualquer' || !f.cores.length)) continue;   // modo só importa com cores
+    // '' dentro de uma lista (edição/acabamento "sem") vira '~' para sobreviver ao link
+    p.set(ch, Array.isArray(v) ? v.map(x => x === '' ? '~' : x).join(',') : v === true ? '1' : String(v));
+  }
+  return p.toString();
+}
+function decodificaFiltro(str) {
+  const p = new URLSearchParams(String(str || ''));
+  const f = novoFiltro();
+  const num = v => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 ? n : null; };
+  for (const [k, ch] of Object.entries(CHAVES)) {
+    if (!p.has(ch)) continue;
+    const v = p.get(ch);
+    if (Array.isArray(FILTRO_VAZIO[k])) f[k] = v.split(',').filter(Boolean).map(x => x === '~' ? '' : x);
+    else if (typeof FILTRO_VAZIO[k] === 'boolean') f[k] = v === '1';
+    else if (k === 'cmcMin' || k === 'cmcMax' || k === 'qtdMin' || k === 'qtdMax') f[k] = num(v);
+    else f[k] = v;
+  }
+  if (f.modoCor !== 'identidade') f.modoCor = 'qualquer';
+  if (!['', 'sim', 'nao'].includes(f.emLista)) f.emLista = '';
+  return f;
+}
+const mesmoFiltro = (a, b) => codificaFiltro(a) === codificaFiltro(b);
+
+return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -4543,7 +4585,9 @@ function createDeckEditor({ decks, collection }) {
 function createDeckScreen({ decks, collection, cardRepo, images, share, files }) {
   const id = q().get('id');
   const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo lista…', { size: 'sm', tone: 'muted' })));
-  const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false };
+  const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false,
+    // C12b · o mesmo motor de filtro da coleção, sobre as cartas da lista
+    filtro: __m27.novoFiltro(), texto: '' };
 
   async function load() {
     state.deck = await decks.get(id);
@@ -4629,8 +4673,24 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
     const issues = validateDeck(d, state.cards, { semRede: state.degraded });
     const identity = [...new Set(d.entries.filter(e => e.zone === 'commander').flatMap(e => (entryCard(e) && entryCard(e).color_identity) || []))].join('');
 
+    // C12b · recorte da lista pelo filtro (texto + painel); grupos no formato da coleção
+    const FL = __m27;
+    const filtroAtual = { ...state.filtro, texto: state.texto };
+    const gruposLista = d.entries.map(e => ({ key: norm(e.name), name: e.name, qty: e.qty, items: [{ set: '', number: '', finish: '', lang: '', qty: e.qty }] }));
+    const recorte = FL.filtraColecao(gruposLista, filtroAtual, { cards: state.cards });
+    const passou = new Set(recorte.itens.map(g => g.key));
+    const filtrando = !FL.filtroVazio(filtroAtual);
+    const filtroIn = Input({ id: 'deck-filter', placeholder: 'Nome ou texto da carta', value: state.texto, onInput: e => { state.texto = e.target.value; paintPreservandoFoco(); } });
+    const filtroBtn = Button('Filtros', { id: 'deck-filters', onClick: () => abrirPainelFiltros({ filtro: filtroAtual, grupos: gruposLista, semImpressoes: true, titulo: 'Filtrar a lista',
+      onChange: f => { state.filtro = { ...f }; state.texto = f.texto || state.texto; paint(); return FL.filtraColecao(gruposLista, { ...state.filtro, texto: state.texto }, { cards: state.cards }); },
+      onLimpar: () => { state.filtro = FL.novoFiltro(); state.texto = ''; paint(); } }) });
+    pintaBotaoFiltros(filtroBtn, state.filtro);
+    const linhaFiltro = Row({ class: 'ds-row--wrap' }, h('div', { class: 'ds-grow', style: { minWidth: '160px' } }, filtroIn), filtroBtn,
+      filtrando ? Text(`${recorte.total} carta(s) · ${recorte.copias} cópia(s)${recorte.semDados ? ` · ${recorte.semDados} sem dados` : ''} · ${FL.descreveFiltro(filtroAtual)}`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-count' } }) : null,
+      filtrando ? Button('Limpar', { variant: 'ghost', id: 'deck-filters-clear', onClick: () => { state.filtro = FL.novoFiltro(); state.texto = ''; paint(); } }) : null);
+
     const groups = CATEGORIES.map(([key, label]) => {
-      const items = d.entries.filter(e => categoryOf(e, entryCard(e)) === key)
+      const items = d.entries.filter(e => (!filtrando || passou.has(norm(e.name))) && categoryOf(e, entryCard(e)) === key)
         .sort((a, b) => ((entryCard(a) || {}).cmc || 0) - ((entryCard(b) || {}).cmc || 0) || a.name.localeCompare(b.name));
       if (!items.length) return null;
       const n = items.reduce((s, e) => s + e.qty, 0);
@@ -4687,7 +4747,14 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
         : (d.format !== 'livre' ? Note(`<b>✓</b> Lista válida para ${FORMATS[d.format]}.`) : null),
       Row({ class: 'ds-row--wrap' }, markChip,
         state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : Text('Um toque abre a carta. Dois toques marcam que você a tem.', { size: 'sm', tone: 'muted' })),
-      ...groups);
+      linhaFiltro,
+      ...(groups.length ? groups : [Empty(filtrando ? 'Nenhuma carta da lista passa por esses filtros.' : 'Lista vazia.')]));
+  }
+  /** Redesenhar a tela toda a cada letra perderia o foco do campo: guarda e devolve. */
+  function paintPreservandoFoco() {
+    const pos = root.querySelector('#deck-filter') ? root.querySelector('#deck-filter').selectionStart : null;
+    paint();
+    const el = root.querySelector('#deck-filter'); if (el) { el.focus(); if (pos != null) el.setSelectionRange(pos, pos); }
   }
 
   load();
@@ -4697,6 +4764,60 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
 /* ---------------- /colecao · C1, C2, C3, C5, C9 ----------------
    Densidade do Moxfield: uma linha por carta com as impressões resumidas;
    tocar no nome abre as impressões para editar uma a uma. */
+/* ---- C12 · painel de filtros: o mesmo para coleção e listas ----
+   `filtro` é copiado; cada toque chama onChange(f) e espera de volta { total, copias } para o contador.
+   `semImpressoes` esconde o que só faz sentido com impressões (edição, idioma, acabamento, lista). */
+function pintaBotaoFiltros(btn, filtro) {
+  if (!btn) return;
+  const n = __m27.filtrosAtivos({ ...filtro, texto: '' });
+  btn.textContent = n ? `Filtros (${n})` : 'Filtros';
+  btn.dataset.ativos = String(n);
+}
+function abrirPainelFiltros({ filtro, grupos, onChange, onLimpar, semImpressoes = false, titulo = 'Filtros' }) {
+  const FL = __m27;
+  const LANG_PT = Object.fromEntries(__m14.LANGS), FIN_PT = Object.fromEntries(__m14.FINISHES);
+  const f = { ...filtro };
+  const op = FL.opcoesDeFiltro(grupos);
+  const contador = Text('', { size: 'sm', attrs: { id: 'col-filters-count' } });
+  const aplica = () => { const r = onChange({ ...f }) || { total: 0, copias: 0 }; contador.textContent = `${r.total} carta(s) · ${r.copias} cópia(s)`; };
+  const grupoChips = (lista, get, set, ds) => Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
+    const c = Chip(label, { pressed: get().includes(valor), dataset: { [ds]: String(valor) } });
+    c.addEventListener('click', () => { const cur = get(); set(cur.includes(valor) ? cur.filter(x => x !== valor) : [...cur, valor]); c.setAttribute('aria-pressed', String(get().includes(valor))); aplica(); });
+    return c;
+  }));
+  const unico = (lista, get, set, ds) => { const row = Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
+    const c = Chip(label, { pressed: get() === valor, dataset: { [ds]: String(valor) } });
+    c.addEventListener('click', () => { set(get() === valor ? '' : valor); row.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x.dataset[ds] === String(get())))); aplica(); });
+    return c;
+  })); return row; };
+  const numero = (id, valor, onInput) => { const i = Input({ id, type: 'number', inputmode: 'numeric', value: valor == null ? '' : String(valor), onInput: e => { const v = e.target.value.trim(); onInput(v === '' ? null : Math.max(0, parseInt(v, 10) || 0)); aplica(); } }); i.min = '0'; i.style.width = '5.5em'; return i; };
+  const subtipo = Input({ id: 'col-filter-subtype', placeholder: 'Subtipo ou palavra do tipo (Elf, Aura…)', onInput: e => { const v = e.target.value.trim(); f.tipos = [...f.tipos.filter(t => FL.TIPOS.includes(t)), ...(v ? [v] : [])]; aplica(); } });
+  subtipo.value = f.tipos.find(t => !FL.TIPOS.includes(t)) || '';
+  const edicoes = op.edicoes.slice(0, 16).map(e => [e.valor, `${e.valor.toUpperCase()} · ${e.copias}`]);
+  if (op.semEdicao) edicoes.push(['', `sem edição · ${op.semEdicao}`]);
+  const idiomas = op.idiomas.map(l => [l.valor, `${(LANG_PT[l.valor] || l.valor.toUpperCase())} · ${l.copias}`]);
+  const acabamentos = op.acabamentos.map(a => [a.valor, `${FIN_PT[a.valor] || a.valor} · ${a.copias}`]);
+  const body = Stack({ id: 'col-filters-body' },
+    Field('Cor', Stack({ style: { gap: 'var(--space-1)' } },
+      grupoChips(FL.CORES, () => f.cores, v => { f.cores = v; }, 'cor'),
+      unico([['qualquer', 'Qualquer uma delas'], ['identidade', 'Identidade dentro delas']], () => f.modoCor, v => { f.modoCor = v || 'qualquer'; }, 'modoCor'))),
+    Field('Tipo', Stack({ style: { gap: 'var(--space-1)' } }, grupoChips(FL.TIPOS.map(t => [t, FL.TIPOS_PT[t]]), () => f.tipos, v => { f.tipos = v; }, 'tipo'), subtipo)),
+    Field('Raridade', grupoChips(FL.RARIDADES, () => f.raridades, v => { f.raridades = v; }, 'raridade')),
+    Field('Custo de mana', Row({ class: 'ds-row--wrap' }, Text('de', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-min', f.cmcMin, v => { f.cmcMin = v; }), Text('até', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-max', f.cmcMax, v => { f.cmcMax = v; }))),
+    Field('Legal em', unico(FL.FORMATOS, () => f.formato, v => { f.formato = v; }, 'formato')),
+    !semImpressoes && edicoes.length ? Field('Edição', grupoChips(edicoes, () => f.edicoes, v => { f.edicoes = v; }, 'edicao')) : null,
+    !semImpressoes && idiomas.length > 1 ? Field('Idioma', grupoChips(idiomas, () => f.idiomas, v => { f.idiomas = v; }, 'idioma')) : null,
+    !semImpressoes && acabamentos.length > 1 ? Field('Acabamento', grupoChips(acabamentos, () => f.acabamentos, v => { f.acabamentos = v; }, 'acabamento')) : null,
+    Field('Cópias', Row({ class: 'ds-row--wrap' }, Text('de', { size: 'sm', tone: 'muted' }), numero('col-filter-qty-min', f.qtdMin, v => { f.qtdMin = v; }), Text('até', { size: 'sm', tone: 'muted' }), numero('col-filter-qty-max', f.qtdMax, v => { f.qtdMax = v; }))),
+    !semImpressoes ? Field('Listas', Stack({ style: { gap: 'var(--space-1)' } },
+      unico([['sim', 'Só o que está em alguma lista'], ['nao', 'Só o que não está em lista']], () => f.emLista, v => { f.emLista = v; }, 'emLista'),
+      (() => { const c = Chip('Só sem edição definida', { pressed: f.semEdicao, dataset: { semEdicao: '1' } }); c.addEventListener('click', () => { f.semEdicao = !f.semEdicao; c.setAttribute('aria-pressed', String(f.semEdicao)); aplica(); }); return c; })())) : null);
+  Dialog({ title: titulo, body: Stack({}, contador, body), actions: [
+    Button('Limpar', { id: 'col-filters-reset', onClick: () => { closeDialog(); onLimpar(); } }),
+    Button('Mostrar', { variant: 'primary', id: 'col-filters-apply', onClick: closeDialog })] });
+  aplica();
+}
+
 function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share, names }) {
   const { parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, CONDITIONS, LANGS, FINISHES } = __m14;
   const FL = __m27;
@@ -4714,6 +4835,15 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const care = h('div', { id: 'col-care' });
   const selectionBar = h('div', { id: 'col-selection' });
   const countLine = h('div', { id: 'col-count' });
+  const viewsRow = h('div', { id: 'col-views' });
+  // C12b · o recorte chega pelo link (#/colecao?f=…) e volta para ele a cada mudança
+  const fLink = q().get('f');
+  if (fLink) { state.filtro = FL.decodificaFiltro(fLink); state.filter = state.filtro.texto || ''; }
+  function sincronizaLink() {
+    const cod = FL.codificaFiltro(state.filtro);
+    const alvo = '#/colecao' + (cod ? '?f=' + cod : '');
+    if (location.hash !== alvo) history.replaceState(null, '', alvo);
+  }
   const LANG_PT = Object.fromEntries(LANGS), FIN_PT = Object.fromEntries(FINISHES);
 
   const printLabel = it => it.set
@@ -4726,6 +4856,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   async function load() {
     state.items = await collection.entries();
     state.pending = await collection.pending();
+    state.views = await collection.views();
     const all = await decks.list();
     state.usedIn = new Map();
     for (const d of all) for (const e of d.entries) {
@@ -4990,6 +5121,15 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     closeDialog(); openPending();
   }
 
+  /* ---- C12 · diálogo de filtros (painel compartilhado com as listas) ---- */
+  let filterBtn = null;
+  function paintFilterBtn() { pintaBotaoFiltros(filterBtn, state.filtro); }
+  function openFilters() {
+    abrirPainelFiltros({ filtro: { ...state.filtro, texto: state.filter }, grupos: state.items,
+      onChange: f => { state.filtro = { ...f }; paint(); paintFilterBtn(); return state.recorte; },
+      onLimpar: limparFiltros });
+  }
+
   /* ---- C10 · exportar por lista ---- */
   function toggleSelecting(on) {
     state.selecting = on == null ? !state.selecting : on;
@@ -5071,6 +5211,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     state.filtro = { ...state.filtro, texto: state.filter };
     const r = FL.filtraColecao(state.items, state.filtro, { cards: state.cards, usadoEm: state.usedIn });
     state.recorte = r;
+    sincronizaLink(); paintViews();
     const rows = r.itens.slice()
       .sort((a, b) => state.sort === 'qty' ? b.qty - a.qty || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
     paintCount(r);
@@ -5083,59 +5224,34 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     mount(countLine, Row({ class: 'ds-row--wrap' },
       Text(`${r.total} carta(s) · ${r.copias} cópia(s)` + (r.semDados ? ` · ${r.semDados} sem dados guardados (não dá para filtrar por cor, tipo, custo ou raridade)` : ''), { size: 'sm', attrs: { id: 'col-count-text' } }),
       Text(FL.descreveFiltro(state.filtro), { size: 'xs', tone: 'muted', attrs: { id: 'col-count-desc' } }),
+      Button('Salvar visão', { variant: 'ghost', id: 'col-view-save', onClick: salvarVisao }),
       Button('Limpar filtros', { variant: 'ghost', id: 'col-filters-clear', onClick: limparFiltros })));
   }
   function limparFiltros() { state.filtro = FL.novoFiltro(); state.filter = ''; filterIn.value = ''; paint(); paintFilterBtn(); }
 
-  /* ---- C12 · diálogo de filtros ---- */
-  let filterBtn = null;
-  function paintFilterBtn() {
-    if (!filterBtn) return;
-    const n = FL.filtrosAtivos({ ...state.filtro, texto: '' });
-    filterBtn.textContent = n ? `Filtros (${n})` : 'Filtros';
-    filterBtn.dataset.ativos = String(n);
+  /* ---- C12b · visões salvas ---- */
+  function paintViews() {
+    const views = state.views || [];
+    if (!views.length) return mount(viewsRow, null);
+    mount(viewsRow, Row({ class: 'ds-row--wrap' }, ...views.map(v => {
+      const ativa = FL.mesmoFiltro(v.filtro, state.filtro);
+      const c = Chip(v.nome, { pressed: ativa, dataset: { view: v.id } });
+      c.addEventListener('click', () => { if (ativa) { limparFiltros(); return; } state.filtro = FL.novoFiltro(v.filtro); state.filter = state.filtro.texto || ''; filterIn.value = state.filter; paint(); paintFilterBtn(); });
+      const x = Button('×', { icon: true, ariaLabel: `Apagar a visão ${v.nome}`, dataset: { viewRemove: v.id }, onClick: () => Dialog({ title: `Apagar a visão "${v.nome}"?`, body: Text('Só a visão some; as cartas continuam na coleção.', { tone: 'muted' }),
+        actions: [Button('Cancelar', { onClick: closeDialog }), Button('Apagar', { variant: 'danger', id: 'col-view-remove-confirm', onClick: async () => { closeDialog(); await collection.removeView(v.id); state.views = await collection.views(); paintViews(); toast('Visão apagada'); } })] }) });
+      return h('span', { class: 'col-view' }, c, x);
+    })));
   }
-  function openFilters() {
-    const f = { ...state.filtro, texto: state.filter };
-    const op = FL.opcoesDeFiltro(state.items);
-    const contador = Text('', { size: 'sm', attrs: { id: 'col-filters-count' } });
-    const aplica = () => { state.filtro = { ...f }; paint(); paintFilterBtn(); const r = state.recorte; contador.textContent = `${r.total} carta(s) · ${r.copias} cópia(s)`; };
-    const grupoChips = (lista, get, set, ds) => Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
-      const c = Chip(label, { pressed: get().includes(valor), dataset: { [ds]: String(valor) } });
-      c.addEventListener('click', () => { const cur = get(); set(cur.includes(valor) ? cur.filter(x => x !== valor) : [...cur, valor]); c.setAttribute('aria-pressed', String(get().includes(valor))); aplica(); });
-      return c;
-    }));
-    const unico = (lista, get, set, ds) => { const row = Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
-      const c = Chip(label, { pressed: get() === valor, dataset: { [ds]: String(valor) } });
-      c.addEventListener('click', () => { set(get() === valor ? '' : valor); row.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x.dataset[ds] === String(get())))); aplica(); });
-      return c;
-    })); return row; };
-    const numero = (id, valor, onChange) => { const i = Input({ id, type: 'number', inputmode: 'numeric', value: valor == null ? '' : String(valor), onInput: e => { const v = e.target.value.trim(); onChange(v === '' ? null : Math.max(0, parseInt(v, 10) || 0)); aplica(); } }); i.min = '0'; i.style.width = '5.5em'; return i; };
-    const subtipo = Input({ id: 'col-filter-subtype', placeholder: 'Subtipo ou palavra do tipo (Elf, Aura…)', onInput: e => { const v = e.target.value.trim(); f.tipos = [...f.tipos.filter(t => FL.TIPOS.includes(t)), ...(v ? [v] : [])]; aplica(); } });
-    subtipo.value = f.tipos.find(t => !FL.TIPOS.includes(t)) || '';
-    const edicoes = op.edicoes.slice(0, 16).map(e => [e.valor, `${e.valor.toUpperCase()} · ${e.copias}`]);
-    if (op.semEdicao) edicoes.push(['', `sem edição · ${op.semEdicao}`]);
-    const idiomas = op.idiomas.map(l => [l.valor, `${(LANG_PT[l.valor] || l.valor.toUpperCase())} · ${l.copias}`]);
-    const acabamentos = op.acabamentos.map(a => [a.valor, `${FIN_PT[a.valor] || a.valor} · ${a.copias}`]);
-    const body = Stack({ id: 'col-filters-body' },
-      Field('Cor', Stack({ style: { gap: 'var(--space-1)' } },
-        grupoChips(FL.CORES, () => f.cores, v => { f.cores = v; }, 'cor'),
-        unico([['qualquer', 'Qualquer uma delas'], ['identidade', 'Identidade dentro delas']], () => f.modoCor, v => { f.modoCor = v || 'qualquer'; }, 'modoCor'))),
-      Field('Tipo', Stack({ style: { gap: 'var(--space-1)' } }, grupoChips(FL.TIPOS.map(t => [t, FL.TIPOS_PT[t]]), () => f.tipos, v => { f.tipos = v; }, 'tipo'), subtipo)),
-      Field('Raridade', grupoChips(FL.RARIDADES, () => f.raridades, v => { f.raridades = v; }, 'raridade')),
-      Field('Custo de mana', Row({ class: 'ds-row--wrap' }, Text('de', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-min', f.cmcMin, v => { f.cmcMin = v; }), Text('até', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-max', f.cmcMax, v => { f.cmcMax = v; }))),
-      Field('Legal em', unico(FL.FORMATOS, () => f.formato, v => { f.formato = v; }, 'formato')),
-      edicoes.length ? Field('Edição', grupoChips(edicoes, () => f.edicoes, v => { f.edicoes = v; }, 'edicao')) : null,
-      idiomas.length > 1 ? Field('Idioma', grupoChips(idiomas, () => f.idiomas, v => { f.idiomas = v; }, 'idioma')) : null,
-      acabamentos.length > 1 ? Field('Acabamento', grupoChips(acabamentos, () => f.acabamentos, v => { f.acabamentos = v; }, 'acabamento')) : null,
-      Field('Cópias', Row({ class: 'ds-row--wrap' }, Text('de', { size: 'sm', tone: 'muted' }), numero('col-filter-qty-min', f.qtdMin, v => { f.qtdMin = v; }), Text('até', { size: 'sm', tone: 'muted' }), numero('col-filter-qty-max', f.qtdMax, v => { f.qtdMax = v; }))),
-      Field('Listas', Stack({ style: { gap: 'var(--space-1)' } },
-        unico([['sim', 'Só o que está em alguma lista'], ['nao', 'Só o que não está em lista']], () => f.emLista, v => { f.emLista = v; }, 'emLista'),
-        (() => { const c = Chip('Só sem edição definida', { pressed: f.semEdicao, dataset: { semEdicao: '1' } }); c.addEventListener('click', () => { f.semEdicao = !f.semEdicao; c.setAttribute('aria-pressed', String(f.semEdicao)); aplica(); }); return c; })())));
-    Dialog({ title: 'Filtros', body: Stack({}, contador, body), actions: [
-      Button('Limpar', { id: 'col-filters-reset', onClick: () => { closeDialog(); limparFiltros(); } }),
-      Button('Mostrar', { variant: 'primary', id: 'col-filters-apply', onClick: closeDialog })] });
-    aplica();
+  function salvarVisao() {
+    const input = Input({ id: 'col-view-name', placeholder: 'Meus verdes de Pauper' });
+    const save = async () => {
+      const nome = input.value.trim(); if (!nome) return toast('Dê um nome à visão');
+      closeDialog(); await collection.saveView({ nome, filtro: { ...state.filtro, texto: state.filter } }); state.views = await collection.views(); paintViews(); toast(`Visão "${nome}" salva`);
+    };
+    input.addEventListener('keydown', ev => { if (ev.key === 'Enter') save(); });
+    Dialog({ title: 'Salvar visão', body: Field('Nome', input, { hint: `Guarda o recorte atual (${FL.descreveFiltro({ ...state.filtro, texto: state.filter }) || 'sem filtros'}) neste aparelho. Um toque na visão aplica tudo de novo.` }),
+      actions: [Button('Cancelar', { onClick: closeDialog }), Button('Salvar', { variant: 'primary', id: 'col-view-save-confirm', onClick: save })] });
+    setTimeout(() => input.focus(), 50);
   }
 
   const addState = { name: '' };
@@ -5164,8 +5280,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const addIn = Input({ id: 'col-add', placeholder: 'Nome da carta, em inglês', onInput: e => { addState.name = e.target.value; } });
   addIn.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
   const addBtn = Button('Adicionar', { variant: 'primary', id: 'col-add-btn', onClick: add });
-  const filterIn = Input({ id: 'col-filter', placeholder: 'Nome ou texto da carta', onInput: e => { state.filter = e.target.value; paint(); } });
-  filterBtn = Button('Filtros', { id: 'col-filters', onClick: openFilters });
+  const filterIn = Input({ id: 'col-filter', placeholder: 'Nome ou texto da carta', value: state.filter, onInput: e => { state.filter = e.target.value; paint(); } });
+  filterBtn = Button('Filtros', { id: 'col-filters', onClick: openFilters }); paintFilterBtn();
 
   load();
   return Stack(pad(),
@@ -5186,7 +5302,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn,
       Select([{ value: 'name', label: 'Ordem alfabética' }, { value: 'qty', label: 'Mais cópias primeiro' }], { id: 'col-sort', value: state.sort, onChange: e => { state.sort = e.target.value; paint(); } })),
-    countLine, listEl, selectionBar);
+    viewsRow, countLine, listEl, selectionBar);
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
