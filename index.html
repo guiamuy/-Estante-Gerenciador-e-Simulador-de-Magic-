@@ -441,6 +441,7 @@ body {
 
 /* ===================== L3 · galeria da lista ===================== */
 .ds-text--positive { color: var(--positive); }
+.ds-text--negative { color: var(--negative); }
 .deck-group { margin-top: var(--space-5); }
 .deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
 .deck-slot { position: relative; }
@@ -705,7 +706,7 @@ const PLATFORM_CONTRACT = {
   camera: ['available', 'start', 'capture', 'stop'],
   files: ['save', 'readText'],
   share: ['available', 'text', 'copy'],
-  persistence: ['status', 'request']
+  persistence: ['status', 'request', 'estimate']
 };
 
 /* ---------------- C5 · Persistência ----------------
@@ -721,8 +722,20 @@ function webPersistence(nav) {
     async request() {
       if (!st || !st.persist) return 'indisponivel';
       try { return (await st.persist()) ? 'protegido' : 'vulneravel'; } catch (e) { return 'vulneravel'; }
+    },
+    /** O3 · espaço usado e cota do app, em bytes (gatilho G1). null quando o navegador não diz. */
+    async estimate() {
+      if (!st || !st.estimate) return null;
+      try { const e = await st.estimate(); return e && e.quota ? { usado: e.usage || 0, cota: e.quota } : null; } catch (e) { return null; }
     }
   };
+}
+/** O3 · leitura humana do espaço: "12,4 MB de 1,2 GB", e se está perto do limite (≥ 80%). */
+function descreveEspaco(e) {
+  if (!e || !e.cota) return null;
+  const fmt = b => b >= 1e9 ? `${(b / 1e9).toFixed(1).replace('.', ',')} GB` : b >= 1e6 ? `${(b / 1e6).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`;
+  const pct = e.usado / e.cota;
+  return { texto: `${fmt(e.usado)} de ${fmt(e.cota)}`, pct, apertado: pct >= 0.8 };
 }
 
 /* ---------------- Store ---------------- */
@@ -854,7 +867,7 @@ function createPlatform(env = {}) {
     persistence: env.persistence || webPersistence(nav)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -10259,7 +10272,7 @@ function urlsDeImagem(card, tamanho = 'normal') {
 /** Nomes únicos de uma lista, todas as zonas. */
 function nomesDaLista(deck) { return [...new Set((deck && deck.entries || []).map(e => e.name).filter(Boolean))]; }
 
-function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, online = () => true, agora = () => Date.now() }) {
+function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, persistence = null, online = () => true, agora = () => Date.now() }) {
   let emCurso = null;
   const semFalha = async (fn, padrao) => { try { return await fn(); } catch (e) { return padrao; } };
 
@@ -10309,6 +10322,9 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
         colecao: { cartas: nomesCol.length, guardadas: colGuardadas, pronta: colGuardadas >= nomesCol.length },
         nomes: !!infoNomes, nomesInfo: infoNomes || null,
         leitor,
+        // O3 · espaço e proteção do armazenamento (gatilhos G1 e G2)
+        espaco: persistence && persistence.estimate ? await semFalha(() => persistence.estimate(), null) : null,
+        protecao: persistence ? await semFalha(() => persistence.status(), 'indisponivel') : 'indisponivel',
         ultimaPreparacao: store ? await semFalha(() => store.get('offline.preparado'), null) : null
       };
     },
@@ -10372,7 +10388,7 @@ return { createOfflineKeeper, urlsDeImagem, nomesDaLista };
 const __m13 = (function () {
 /* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
    As rotas de produto entram nos épicos seguintes. */
-const { createPlatform } = __m0;
+const { createPlatform, descreveEspaco } = __m0;
 const { createTheme } = __m1;
 const { createRouter } = __m2;
 const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note } = __m3;
@@ -10405,7 +10421,7 @@ const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== f
 // O2 · as telas recebem um ambiente VIVO: se a internet cair no meio do uso, `env.online` muda junto
 const envVivo = { get id() { return environment.id; }, get online() { return environment.online; }, get label() { return environment.label; }, get reason() { return environment.reason; }, get fix() { return environment.fix; } };
 // O1 · o que é seu fica no aparelho: listas e coleção guardadas sozinhas, com rede
-const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, online: temRede });
+const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, persistence: platform.persistence, online: temRede });
 keeper.vigiar();
 let environment = ENVIRONMENTS.online;
 const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });
@@ -10459,13 +10475,23 @@ function offlinePanel() {
       `${marca(st.nomes)} Base de nomes do scanner${st.nomesInfo ? ` (${st.nomesInfo.count.toLocaleString('pt-BR')} nomes)` : ''}`,
       `${marca(st.leitor)} Leitor de texto do scanner`
     ];
+    const esp = descreveEspaco(st.espaco);
+    const linhaEspaco = esp || st.protecao !== 'indisponivel' ? Text(
+      [esp ? `Espaço usado: ${esp.texto}` : null, st.protecao === 'protegido' ? 'protegido contra limpeza do navegador' : st.protecao === 'vulneravel' ? 'o navegador pode apagar se faltar espaço' : null].filter(Boolean).join(' · '),
+      { size: 'xs', tone: esp && esp.apertado ? 'negative' : 'subtle', attrs: { id: 'home-offline-space' } }) : null;
+    const proteger = st.protecao === 'vulneravel' ? Button('Proteger armazenamento', { id: 'home-offline-protect', onClick: async () => {
+      const r = await platform.persistence.request(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Instale o app e mantenha backups em dia.', 3600); paint(); } }) : null;
     mount(box, Stack({},
       Row({ class: 'ds-row--wrap' }, Text('Sem internet', { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
         Text(st.rede ? (tudoPronto ? 'Tudo pronto' : 'Falta preparar') : 'Você está sem internet agora', { size: 'sm', tone: tudoPronto ? 'positive' : 'muted', attrs: { id: 'home-offline-state' } })),
       h('div', { id: 'home-offline-lines' }, ...linhas.map(l => Text(l, { size: 'sm', tone: 'muted' }))),
+      linhaEspaco,
+      esp && esp.apertado ? Note('<b>O espaço do app está quase no limite.</b> Faça um backup da coleção; se continuar crescendo, o app nativo passa a valer a pena (gatilho G1 do plano).', 'warning') : null,
       extra || null,
       !st.rede ? Note('Listas, coleção, mesa, bots e scanner funcionam com o que já está guardado. O que faltar aparece acima; prepare quando a internet voltar.') : null,
-      st.rede ? Row({ class: 'ds-row--wrap' }, Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', id: 'home-offline-prep', onClick: preparar })) : null));
+      Row({ class: 'ds-row--wrap' },
+        st.rede ? Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', id: 'home-offline-prep', onClick: preparar }) : null,
+        proteger)));
   }
   async function preparar() {
     const prog = Text('Preparando…', { size: 'sm', attrs: { id: 'home-offline-progress' } });

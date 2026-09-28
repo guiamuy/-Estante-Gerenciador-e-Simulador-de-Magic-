@@ -108,7 +108,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | C · Coleção | C11 importar por lista com conferência, pendências e desfazer | 🟡 |
 | O · Offline | O1 o que é seu fica no aparelho: guardião, painel e portão offline | 🟡 |
 | O · Offline | O2 telas sem rede: ambiente vivo, chip, fallbacks, base local alimentada por tudo | 🟡 |
-| O · Offline | O3 conduta offline para o que vem | ○ |
+| O · Offline | O3 conduta offline para o que vem, espaço e proteção no painel | 🟡 |
 | C · Coleção | C12–C14 filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
@@ -211,6 +211,14 @@ pedir. Na prática, em cada leva: cada regra nova nasce com teste que falharia s
 antes da correção; o caminho que o usuário vai tocar no aparelho tem teste headless; e o que ficou sem
 cobertura é declarado na entrega, não omitido.
 
+**Conduta offline (definida pelo usuário em 28/09/2026, épico E42).** Toda funcionalidade — a que existe e
+a que vier (Coleção, Mesa, Commander) — funciona sem internet com o que já está no aparelho. Só depende de
+rede o que é chamada a API externa por natureza (carta nunca vista, edição pela Scryfall, imagem nunca
+vista), e a tela diz isso em vez de falhar. Na prática, em cada leva: a história declara no Aceite **o que
+faz sem rede**; dado novo que a funcionalidade precise entra no guardião offline (`src/app/offline.js`) e
+no painel da tela inicial; e o teste "tudo sem internet" (`e2e · O1`, com as rotas da Scryfall abortando)
+ganha o passo da funcionalidade na mesma leva.
+
 **Done.** Uma história só está pronta quando:
 - todos os critérios de aceite foram demonstrados;
 - os testes das camadas aplicáveis estão escritos e passando;
@@ -218,7 +226,7 @@ cobertura é declarado na entrega, não omitido.
 - não há erro de console nos fluxos e2e tocados;
 - o contrato visual está verde nos dois temas, com alvo de toque ≥ 44 px;
 - o texto de interface está em pt-BR, voz ativa, sem jargão de sistema;
-- o fluxo funciona offline para dado já visitado, quando a história toca dado;
+- o fluxo funciona offline para dado já visitado, e o passo dele está no teste "tudo sem internet";
 - o golden foi regravado apenas com justificativa no commit;
 - o status no ROADMAP foi atualizado no mesmo commit.
 
@@ -270,7 +278,7 @@ abaixo é a que vale):
 | 1º ✅ | **E37 · Bot (B2–B7)** — entregue em 5 levas (59 a 63) | 5 |
 | 2º ✅ | **E39 · Scanner (X7–X10)** — entregue em 4 levas (64 a 67); X10 parcial até fotos reais | 4 a 5 |
 | 3º ✅ | **E41 · Listas (C10, C11)** — entregue em 2 levas (68 e 69) | 2 |
-| 3º-A | **E42 · Offline de verdade (O1–O3)** — pedido em 28/09/2026, entra antes da Coleção | 2 a 3 |
+| 3º-A ✅ | **E42 · Offline de verdade (O1–O3)** — entregue em 3 levas (70 a 72) | 2 a 3 |
 | 4º | **E40 · Coleção (C12–C14)** — filtros, visões e painel gráfico | 4 |
 | 5º | **E38 · Mesa (A13–A16)** — leitura do campo, pilha explicada, zoom e prévia | 4 a 5 |
 
@@ -364,7 +372,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
-| E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
+| E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -2586,14 +2594,21 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Fora:** fila de ações para sincronizar depois (não há servidor: nada a sincronizar); mensagens das
   telas de rede que já existiam (Scryfall recusou, erro HTTP) seguem como estavam.
 
-**O3 · Conduta offline para o que vem** ○
+**O3 · Conduta offline para o que vem** 🟡
 - **Valor:** o que for feito daqui em diante (Coleção, Mesa, Commander) nasce funcionando sem internet.
 - **Aceite:**
   - toda história nova declara no Aceite o que faz sem rede e o teste "tudo sem internet" ganha o passo
     correspondente na mesma leva;
   - o painel da tela inicial continua sendo a única fonte da verdade do que está pronto;
   - medição no aparelho: `navigator.storage.estimate()` exibido no painel (uso e cota), para o gatilho G1.
-- **Testes:** o próprio portão offline, crescendo a cada leva.
+- **Entregue (leva 72):** a conduta está na seção 4 ("Conduta offline"), ao lado da conduta de testes, e
+  o item offline do Done passou a exigir o passo no teste "tudo sem internet". Painel da tela inicial
+  mostra **espaço usado de cota** e se o armazenamento está protegido; botão **Proteger armazenamento**
+  quando o navegador pode apagar; aviso quando o uso passa de 80% da cota (gatilho G1). Novo
+  `persistence.estimate()` no contrato de plataforma.
+- **Testes:** U (adaptador web com e sem `estimate`, falha do navegador, leitura humana em KB/MB/GB e
+  limite de 80%; status do guardião com espaço e proteção, e sem adaptador), I headless (a linha de espaço
+  no portão offline).
 - **Depende de:** O1, O2.
 - **Fora:** —
 

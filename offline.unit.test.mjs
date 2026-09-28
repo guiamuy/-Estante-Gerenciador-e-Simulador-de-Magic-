@@ -106,3 +106,32 @@ test('O1 · preparar em curso não roda em paralelo: a segunda chamada espera a 
   assert.equal(a, b, 'mesmo relato');
   assert.equal(m.st.chamadas, 1, 'uma passagem pela rede');
 });
+
+/* ---------------- O3 · espaço e proteção ---------------- */
+test('O3 · estimativa de espaço: adaptador web, leitura humana e aviso perto do limite', async () => {
+  const nav = { storage: { estimate: async () => ({ usage: 12_400_000, quota: 1_200_000_000 }), persisted: async () => false, persist: async () => true } };
+  const per = P.webPersistence(nav);
+  assert.deepEqual(JSON.parse(JSON.stringify(await per.estimate())), { usado: 12_400_000, cota: 1_200_000_000 });
+  assert.equal(await per.status(), 'vulneravel');
+  assert.equal(await P.webPersistence({}).estimate(), null, 'navegador sem estimate: null, sem quebrar');
+  assert.equal(await P.webPersistence({ storage: { estimate: async () => { throw new Error('x'); } } }).estimate(), null);
+  const d = P.descreveEspaco({ usado: 12_400_000, cota: 1_200_000_000 });
+  assert.equal(d.texto, '12,4 MB de 1,2 GB'); assert.equal(d.apertado, false);
+  assert.equal(P.descreveEspaco({ usado: 900, cota: 1000 }).apertado, true, '90%: apertado');
+  assert.equal(P.descreveEspaco({ usado: 500, cota: 900_000 }).texto, '1 KB de 900 KB');
+  assert.equal(P.descreveEspaco(null), null);
+});
+
+test('O3 · o status do guardião traz espaço e proteção; sem adaptador, diz indisponível', async () => {
+  const m = await mundo();
+  let st = await m.keeper.status();
+  assert.equal(st.espaco, null); assert.equal(st.protecao, 'indisponivel');
+  const persistence = { status: async () => 'protegido', request: async () => 'protegido', estimate: async () => ({ usado: 10, cota: 100 }) };
+  const k = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: m.collection, images: m.images, names: m.names, ocr: {}, store: m.store, persistence, online: () => true });
+  st = await k.status();
+  assert.deepEqual(JSON.parse(JSON.stringify(st.espaco)), { usado: 10, cota: 100 }); assert.equal(st.protecao, 'protegido');
+  const quebrado = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: m.collection, images: m.images, names: m.names, ocr: {}, store: m.store,
+    persistence: { status: async () => { throw new Error('x'); }, estimate: async () => { throw new Error('x'); } }, online: () => true });
+  st = await quebrado.status();
+  assert.equal(st.espaco, null); assert.equal(st.protecao, 'indisponivel', 'falha do navegador não derruba o painel');
+});

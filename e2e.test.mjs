@@ -394,6 +394,8 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   const linhas = await page.innerText('#home-offline-lines');
   assert.match(linhas, /✓ Listas: 1 de 1 prontas/); assert.match(linhas, /✓ Coleção: 2 de 2/);
   assert.match(linhas, /✓ Base de nomes/); assert.match(linhas, /✓ Leitor de texto/);
+  // O3 · o painel mostra o espaço usado pelo app (gatilho G1)
+  assert.match(await page.innerText('#home-offline-space'), /Espaço usado: [\d,]+ (KB|MB|GB) de [\d,]+ (KB|MB|GB)/);
 
   // a partir daqui, sem internet: nenhuma requisição sai do aparelho. `setOffline` derruba
   // navigator.onLine, mas as rotas falsas ainda responderiam — por isso elas passam a abortar.
