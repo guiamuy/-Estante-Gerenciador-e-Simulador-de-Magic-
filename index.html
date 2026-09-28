@@ -1509,17 +1509,25 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     /** S64 · guarda as cartas destes nomes para sempre, para a lista jogar sem rede.
         Devolve {fixadas, faltando}: o que ficou guardado e o que a rede não trouxe. */
     async pin(names, onProgress) {
-      const mapa = await this.byNames(names, onProgress);
+      // nome como foi escrito (a rede recebe a grafia original), uma vez por nome normalizado
+      const originais = new Map();
+      for (const n of names) { const k = norm(n); if (k && !originais.has(k)) originais.set(k, n); }
+      const todos = [...originais.keys()];
+      // O1 · o que já está guardado não volta à rede nem é regravado: guardar de novo é barato
+      const novos = [];
+      for (const n of todos) { const rec = await readCache(n); if (!(rec && rec.pin && rec.card)) novos.push(n); }
+      const mapa = novos.length ? await this.byNames(novos.map(k => originais.get(k)), onProgress) : new Map();
       const fixadas = [], faltando = [];
       const writes = [];
-      for (const n of new Set(names.map(norm))) {
+      for (const n of todos) {
+        if (!novos.includes(n)) { fixadas.push(n); continue; }
         const card = mapa.get(n);
         if (!card) { faltando.push(n); continue; }
         const rec = { ts: now(), card, pin: true };
         mem.set(n, rec); writes.push(store.set(KEY(n), rec)); fixadas.push(n);
       }
       await Promise.all(writes);
-      return { fixadas, faltando };
+      return { fixadas, faltando, novas: novos.length };
     },
     /** Quantos destes nomes já estão guardados para jogar sem rede. */
     async pinned(names) {
@@ -3309,7 +3317,11 @@ function mergeEntries(entries) {
 function createDeckStore({ store, now = () => Date.now() }) {
   const newId = () => now().toString(36) + Math.random().toString(36).slice(2, 6);
   const ids = async () => (await store.get(IDS)) || [];
+  // O1 · quem quiser saber de lista salva (o guardião offline) se inscreve aqui
+  const ouvintes = [];
+  const avisa = d => { for (const cb of ouvintes) { try { cb(d); } catch (e) { /* ouvinte não derruba o salvamento */ } } };
   return {
+    onSave(cb) { ouvintes.push(cb); return () => { const i = ouvintes.indexOf(cb); if (i >= 0) ouvintes.splice(i, 1); }; },
     async list() {
       const out = [];
       for (const id of await ids()) { const d = await store.get(DECK(id)); if (d) out.push(d); }
@@ -3321,6 +3333,7 @@ function createDeckStore({ store, now = () => Date.now() }) {
       await store.set(DECK(d.id), d);
       const cur = await ids();
       if (!cur.includes(d.id)) await store.set(IDS, [...cur, d.id]);
+      avisa(d);
       return d;
     },
     async remove(id) {
@@ -3388,11 +3401,14 @@ function createCollection({ store }) {
     }
     return items;
   }
-  const persist = () => store.set(ITEMS, [...items.values()]);
+  // O1 · toda gravação avisa quem se inscreveu (o guardião offline guarda os dados das cartas)
+  const ouvintes = [];
+  const persist = async () => { await store.set(ITEMS, [...items.values()]); for (const cb of ouvintes) { try { cb(); } catch (e) { /* ouvinte não derruba a gravação */ } } };
   const ofName = k => [...items.values()].filter(it => norm(it.name) === k);
   const displayName = k => { const printed = ofName(k).find(it => it.set); return (printed || ofName(k)[0] || {}).name; };
 
   const api = {
+    onChange(cb) { ouvintes.push(cb); return () => { const i = ouvintes.indexOf(cb); if (i >= 0) ouvintes.splice(i, 1); }; },
     /** nome normalizado → total de cópias (o que listas e validação consultam) */
     async all() { const out = {}; for (const it of (await load()).values()) { const k = norm(it.name); out[k] = (out[k] || 0) + it.qty; } return out; },
     async qty(name) { await load(); return ofName(norm(name)).reduce((s, it) => s + it.qty, 0); },
@@ -10192,6 +10208,142 @@ return { createOcr, createScannerScreen, TESSERACT_URL };
 })();
 
 
+/* ==== src/app/offline.js ==== */
+const __m26 = (function () {
+/* =====================================================================
+   O1 · GUARDIÃO OFFLINE
+   Regra: o que é seu fica no aparelho. Toda lista salva e toda carta da
+   coleção têm os dados guardados para sempre (cardRepo.pin) e as imagens
+   aquecidas, sem você pedir. "Preparar tudo" faz o mesmo de uma vez, e
+   ainda baixa a base de nomes e o leitor do scanner. `status()` diz, em
+   números, o que já funciona sem internet e o que ainda depende da rede.
+   Nada aqui bloqueia a tela: tudo roda em segundo plano e falha em silêncio,
+   deixando o resultado no status.
+   ===================================================================== */
+const { norm } = __m7;
+
+/** URLs de imagem de uma carta (frente e verso) no tamanho pedido. */
+function urlsDeImagem(card, tamanho = 'normal') {
+  if (!card) return [];
+  const out = [];
+  const pega = im => { if (im && im[tamanho]) out.push(im[tamanho]); };
+  pega(card.images);
+  for (const f of card.faces || []) pega(f.images);
+  return out;
+}
+
+/** Nomes únicos de uma lista, todas as zonas. */
+function nomesDaLista(deck) { return [...new Set((deck && deck.entries || []).map(e => e.name).filter(Boolean))]; }
+
+function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, online = () => true, agora = () => Date.now() }) {
+  let emCurso = null;
+  const semFalha = async (fn, padrao) => { try { return await fn(); } catch (e) { return padrao; } };
+
+  async function aquecer(cards, tamanho) {
+    if (!images || !images.available || !online()) return 0;
+    return semFalha(() => images.warm(cards.flatMap(c => urlsDeImagem(c, tamanho))), 0);
+  }
+  /** Guarda os dados das cartas destes nomes e, com rede, as imagens no tamanho pedido. */
+  async function guardar(nomes, tamanho) {
+    // grafia original (a rede recebe o nome como está na lista), uma vez por nome
+    const porChave = new Map();
+    for (const n of nomes) { const k = norm(n); if (k && !porChave.has(k)) porChave.set(k, n); }
+    const unicos = [...porChave.values()];
+    if (!unicos.length) return { fixadas: [], faltando: [], imagens: 0 };
+    const r = await cardRepo.pin(unicos);
+    let imagens = 0;
+    if (tamanho && r.fixadas.length) {
+      const mapa = await cardRepo.byNames(r.fixadas);
+      imagens = await aquecer([...mapa.values()].filter(Boolean), tamanho);
+    }
+    return { ...r, imagens };
+  }
+
+  const api = {
+    /** Lista salva: dados de todas as cartas + imagem grande (a mesa mostra a carta inteira). */
+    guardarLista(deck) { return guardar(nomesDaLista(deck), 'normal'); },
+    /** Coleção: dados de todas as cartas + miniatura (a lista da coleção mostra a miniatura). */
+    async guardarColecao() { const grupos = await collection.entries(); return guardar(grupos.map(g => g.name), 'small'); },
+
+    /** O que já funciona sem internet, em números. */
+    async status() {
+      const todas = await decks.list();
+      const listas = [];
+      for (const d of todas) {
+        const nomes = nomesDaLista(d);
+        const guardadas = nomes.length ? await semFalha(() => cardRepo.pinned(nomes), 0) : 0;
+        listas.push({ id: d.id, name: d.name, total: nomes.length, guardadas, pronta: guardadas >= nomes.length });
+      }
+      const grupos = await collection.entries();
+      const nomesCol = grupos.map(g => g.name);
+      const colGuardadas = nomesCol.length ? await semFalha(() => cardRepo.pinned(nomesCol), 0) : 0;
+      const infoNomes = names && names.info ? (names.info() || (await semFalha(() => names.load().then(() => names.info()), null))) : null;
+      const leitor = !!(store && await semFalha(() => store.get('ocr.ready'), null));
+      return {
+        rede: online(),
+        listas: { total: listas.length, prontas: listas.filter(l => l.pronta).length, detalhe: listas },
+        colecao: { cartas: nomesCol.length, guardadas: colGuardadas, pronta: colGuardadas >= nomesCol.length },
+        nomes: !!infoNomes, nomesInfo: infoNomes || null,
+        leitor,
+        ultimaPreparacao: store ? await semFalha(() => store.get('offline.preparado'), null) : null
+      };
+    },
+
+    /** Prepara tudo de uma vez, com progresso. Só faz sentido com rede. */
+    async prepararTudo(onProgress = () => {}) {
+      if (emCurso) return emCurso;
+      emCurso = (async () => {
+        const rel = { rede: online(), nomes: false, leitor: false, listas: { fixadas: 0, faltando: [], prontas: 0, total: 0 }, colecao: { fixadas: 0, faltando: [] }, imagens: 0 };
+        if (!online()) { return rel; }
+        onProgress({ etapa: 'nomes', texto: 'Baixando a base de nomes…' });
+        rel.nomes = !!(await semFalha(() => names.ensure({ online: true }), null));
+        onProgress({ etapa: 'leitor', texto: 'Baixando o leitor do scanner…' });
+        if (ocr && ocr.warm) { rel.leitor = await semFalha(async () => { await ocr.warm(); if (store) await store.set('ocr.ready', agora()); return true; }, false); }
+        const todas = await decks.list();
+        rel.listas.total = todas.length;
+        let i = 0;
+        for (const d of todas) {
+          i++; onProgress({ etapa: 'listas', texto: `Guardando lista ${i} de ${todas.length}: ${d.name}` });
+          const r = await semFalha(() => api.guardarLista(d), { fixadas: [], faltando: nomesDaLista(d), imagens: 0 });
+          rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `${d.name}: ${n}`)); rel.imagens += r.imagens;
+          if (!r.faltando.length) rel.listas.prontas++;
+        }
+        onProgress({ etapa: 'colecao', texto: 'Guardando as cartas da coleção…' });
+        const c = await semFalha(() => api.guardarColecao(), { fixadas: [], faltando: [], imagens: 0 });
+        rel.colecao.fixadas = c.fixadas.length; rel.colecao.faltando = c.faltando; rel.imagens += c.imagens;
+        if (store) await semFalha(() => store.set('offline.preparado', agora()), null);
+        onProgress({ etapa: 'fim', texto: 'Pronto.' });
+        return rel;
+      })().finally(() => { emCurso = null; });
+      return emCurso;
+    },
+
+    /** Manutenção silenciosa (ao abrir o app com rede): guarda o que ainda não está guardado. */
+    async manter() {
+      if (!online()) return null;
+      const rel = { listas: 0, colecao: 0 };
+      for (const d of await decks.list()) { const r = await semFalha(() => api.guardarLista(d), null); if (r) rel.listas += r.fixadas.length; }
+      const c = await semFalha(() => api.guardarColecao(), null); if (c) rel.colecao = c.fixadas.length;
+      return rel;
+    },
+
+    /** Liga os ganchos: lista salva e coleção alterada são guardadas sozinhas (com rede). */
+    vigiar({ atraso = 1500, timer = setTimeout, cancela = clearTimeout } = {}) {
+      const paraDe = [];
+      if (decks && decks.onSave) paraDe.push(decks.onSave(d => { if (online()) api.guardarLista(d).catch(() => {}); }));
+      if (collection && collection.onChange) {
+        let t = null;
+        paraDe.push(collection.onChange(() => { if (!online()) return; cancela(t); t = timer(() => api.guardarColecao().catch(() => {}), atraso); }));
+      }
+      return () => paraDe.forEach(f => f());
+    }
+  };
+  return api;
+}
+
+return { createOfflineKeeper, urlsDeImagem, nomesDaLista };
+})();
+
 /* ==== src/app/main.js ==== */
 const __m13 = (function () {
 /* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
@@ -10199,7 +10351,7 @@ const __m13 = (function () {
 const { createPlatform } = __m0;
 const { createTheme } = __m1;
 const { createRouter } = __m2;
-const { h, mount, Button, Text, Empty, toast } = __m3;
+const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note } = __m3;
 const { renderDS } = __m5;
 const { logoLockup, installFavicon } = __m4;
 const { createScryfall } = __m6;
@@ -10214,6 +10366,7 @@ const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen,
 const { createTableSetup, createTableScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
+const { createOfflineKeeper } = __m26;
 const platform = createPlatform();
 const theme = createTheme(platform.store);
 const scryfall = createScryfall({});
@@ -10224,6 +10377,10 @@ const decks = createDeckStore({ store: platform.store });
 const collection = createCollection({ store: platform.store });
 const names = createNameIndex({ store: platform.store, scryfall });
 const ocr = createOcr();
+const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+// O1 · o que é seu fica no aparelho: listas e coleção guardadas sozinhas, com rede
+const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, online: temRede });
+keeper.vigiar();
 let environment = ENVIRONMENTS.online;
 const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });
 
@@ -10253,7 +10410,49 @@ function renderHome() {
       Button('Minha coleção', { id: 'go-collection', onClick: () => { location.hash = '#/colecao'; } }),
       Button('Escanear cartas', { id: 'go-scanner', onClick: () => { location.hash = '#/scanner'; } }),
       Button('Buscar cartas', { id: 'go-cards', onClick: () => { location.hash = '#/cartas'; } }),
-      Button('Catálogo de componentes', { id: 'go-ds', onClick: () => { location.hash = '#/ds'; } })));
+      Button('Catálogo de componentes', { id: 'go-ds', onClick: () => { location.hash = '#/ds'; } })),
+    h('div', { style: { height: 'var(--space-5)' } }),
+    offlinePanel());
+}
+
+/* O1 · o que já funciona sem internet, e o botão que prepara o resto */
+function offlinePanel() {
+  const box = Surface({ class: 'ds-surface--pad', id: 'home-offline' }, Row({}, Spinner(), Text('Conferindo o que já está guardado…', { size: 'sm', tone: 'muted' })));
+  const marca = ok => ok ? '✓' : '·';
+  async function paint(extra) {
+    let st; try { st = await keeper.status(); } catch (e) { return mount(box, Text('Não foi possível conferir o que está guardado.', { size: 'sm', tone: 'muted' })); }
+    const faltas = [];
+    if (st.listas.total && st.listas.prontas < st.listas.total) faltas.push(`${st.listas.total - st.listas.prontas} lista(s) ainda dependem da internet`);
+    if (st.colecao.cartas && !st.colecao.pronta) faltas.push(`${st.colecao.cartas - st.colecao.guardadas} carta(s) da coleção sem dados guardados`);
+    if (!st.nomes) faltas.push('base de nomes do scanner não baixada');
+    if (!st.leitor) faltas.push('leitor do scanner não baixado');
+    const tudoPronto = !faltas.length;
+    const linhas = [
+      `${marca(st.listas.total > 0 && st.listas.prontas === st.listas.total)} Listas: ${st.listas.prontas} de ${st.listas.total} prontas para jogar sem internet`,
+      `${marca(st.colecao.pronta && st.colecao.cartas > 0)} Coleção: ${st.colecao.guardadas} de ${st.colecao.cartas} carta(s) com dados guardados`,
+      `${marca(st.nomes)} Base de nomes do scanner${st.nomesInfo ? ` (${st.nomesInfo.count.toLocaleString('pt-BR')} nomes)` : ''}`,
+      `${marca(st.leitor)} Leitor de texto do scanner`
+    ];
+    mount(box, Stack({},
+      Row({ class: 'ds-row--wrap' }, Text('Sem internet', { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
+        Text(st.rede ? (tudoPronto ? 'Tudo pronto' : 'Falta preparar') : 'Você está sem internet agora', { size: 'sm', tone: tudoPronto ? 'positive' : 'muted', attrs: { id: 'home-offline-state' } })),
+      h('div', { id: 'home-offline-lines' }, ...linhas.map(l => Text(l, { size: 'sm', tone: 'muted' }))),
+      extra || null,
+      !st.rede ? Note('Listas, coleção, mesa, bots e scanner funcionam com o que já está guardado. O que faltar aparece acima; prepare quando a internet voltar.') : null,
+      st.rede ? Row({ class: 'ds-row--wrap' }, Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', id: 'home-offline-prep', onClick: preparar })) : null));
+  }
+  async function preparar() {
+    const prog = Text('Preparando…', { size: 'sm', attrs: { id: 'home-offline-progress' } });
+    mount(box, Stack({}, Row({}, Spinner(), prog)));
+    const rel = await keeper.prepararTudo(p => { prog.textContent = p.texto; });
+    const partes = [`${rel.listas.prontas} de ${rel.listas.total} lista(s) prontas`, `${rel.colecao.fixadas} carta(s) da coleção guardadas`];
+    if (rel.listas.faltando.length || rel.colecao.faltando.length) partes.push(`a rede não trouxe ${rel.listas.faltando.length + rel.colecao.faltando.length} carta(s)`);
+    if (!rel.leitor) partes.push('leitor do scanner não baixou');
+    toast(rel.rede ? partes.join(' · ') : 'Sem internet: não dá para preparar agora', 4000);
+    paint(rel.listas.faltando.length ? Note(`<b>A rede não trouxe:</b> ${rel.listas.faltando.slice(0, 6).join(', ')}${rel.listas.faltando.length > 6 ? '…' : ''}`, 'warning') : null);
+  }
+  paint();
+  return box;
 }
 
 function installButton() {
@@ -10304,14 +10503,18 @@ async function boot(root) {
     window.scrollTo(0, 0);
   });
   router.start();
-  return { router, theme, platform };
+  // O1 · manutenção silenciosa: com rede, guarda o que ainda não está guardado
+  const manter = () => { if (temRede()) keeper.manter().catch(() => {}); };
+  setTimeout(manter, 4000);
+  window.addEventListener('online', manter);
+  return { router, theme, platform, keeper };
 }
 
 if (typeof window !== 'undefined' && !window.__MTG_NO_AUTOBOOT) {
   const start = () => boot(document.getElementById('app'));
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 }
-return { boot, platform, theme, scryfall, images, localIndex, cardRepo, decks, collection, names, environment, installer };
+return { boot, platform, theme, scryfall, images, localIndex, cardRepo, decks, collection, names, environment, installer, keeper };
 })();</script>
 </body>
 </html>

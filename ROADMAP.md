@@ -106,6 +106,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X10 acerto medido no portão (fotos sintéticas; reais pendentes) | 🟡 |
 | C · Coleção | C10 exportar por lista (três formatos, seleção manual) | 🟡 |
 | C · Coleção | C11 importar por lista com conferência, pendências e desfazer | 🟡 |
+| O · Offline | O1 o que é seu fica no aparelho: guardião, painel e portão offline | 🟡 |
+| O · Offline | O2–O3 telas sem rede e conduta offline | ○ |
 | C · Coleção | C12–C14 filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
@@ -265,10 +267,16 @@ abaixo é a que vale):
 | Ordem | Épico | Rodadas |
 |---|---|---|
 | 1º ✅ | **E37 · Bot (B2–B7)** — entregue em 5 levas (59 a 63) | 5 |
-| 2º | **E39 · Scanner (X7–X10)** — captura automática, pilha de leitura, acerto medido | 4 a 5 |
-| 3º | **E41 · Listas (C10, C11)** — importar e exportar a coleção por lista | 2 |
+| 2º ✅ | **E39 · Scanner (X7–X10)** — entregue em 4 levas (64 a 67); X10 parcial até fotos reais | 4 a 5 |
+| 3º ✅ | **E41 · Listas (C10, C11)** — entregue em 2 levas (68 e 69) | 2 |
+| 3º-A | **E42 · Offline de verdade (O1–O3)** — pedido em 28/09/2026, entra antes da Coleção | 2 a 3 |
 | 4º | **E40 · Coleção (C12–C14)** — filtros, visões e painel gráfico | 4 |
 | 5º | **E38 · Mesa (A13–A16)** — leitura do campo, pilha explicada, zoom e prévia | 4 a 5 |
+
+**Regra que o E42 fixa, valendo para tudo que vier depois:** toda funcionalidade nova nasce funcionando
+sem internet com o que já está no aparelho, e o portão prova isso no teste "tudo sem internet"
+(`e2e · O1`). Só o que é chamada a API externa por natureza (busca de carta nova na Scryfall, edição pela
+linha de coleção, imagem nunca vista) pode depender de rede — e a tela diz isso em vez de falhar.
 
 **Ajuste de dependência que essa ordem exige:** a C10 previa exportar "o resultado do filtro atual", mas o
 motor de filtro é a C12, que vem depois. Então a C10 entrega exportar a **coleção inteira ou uma seleção
@@ -355,6 +363,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
+| E42 🟡 | O1 (leva 70) · O2 · O3 | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -2504,6 +2513,71 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   falsa continua achando a carta e lendo).
 - **Depende de:** X7, X9.
 - **Fora:** conjunto com centenas de fotos; corrigir perspectiva; aprender com correções.
+
+### O · Offline de verdade (E42)
+
+Pedido do usuário em 28/09/2026: "tornar o funcionamento de tudo da aplicação mesmo offline (tirando os
+acionamentos de APIs externas), tanto o que já foi desenvolvido quanto o que vem adiante". O que já
+existia antes deste épico: casca do app pelo service worker (W1), cache de cartas com degradação (D2),
+imagens (D3), busca pela base local (D4), base de nomes (C6), leitor OCR guardado (X6) e lista guardada
+sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar que diga o que funciona**,
+**fallback nas telas que ainda batem na rede** e **um portão que prove tudo de uma vez**.
+
+**O1 · O que é seu fica no aparelho** 🟡
+- **Valor:** nunca mais "preparar" lista por lista: tudo que você salva já fica pronto para usar sem internet.
+- **Aceite:**
+  - lista salva (nova, editada ou pronta adicionada) tem os dados de todas as cartas guardados sem prazo
+    e a imagem grande aquecida, sozinha, quando há rede;
+  - coleção alterada (adicionar, importar, escanear, editar impressão) tem os dados e a miniatura
+    guardados sozinha, uma vez por rajada de mudanças;
+  - ao abrir o app com rede, o que ainda não está guardado é guardado em silêncio; ao voltar a rede, idem;
+  - a tela inicial mostra o que já funciona sem internet (listas prontas, cartas da coleção guardadas,
+    base de nomes, leitor do scanner) e um botão **Preparar tudo agora** com progresso e relato honesto
+    do que a rede não trouxe;
+  - guardar de novo o que já está guardado é barato: não volta à rede nem regrava.
+- **Entregue (leva 70):** módulo `src/app/offline.js` (guardião): `guardarLista`, `guardarColecao`,
+  `prepararTudo` (base de nomes → leitor → listas → coleção, com progresso), `manter` (silencioso, ao
+  abrir e ao voltar a rede) e `status`. Ganchos `decks.onSave` e `collection.onChange` (novos nos
+  módulos de dados). `cardRepo.pin` passou a pular o que já está guardado e manda a grafia original à
+  rede. Painel **Sem internet** na tela inicial com as quatro linhas de estado, o botão e o aviso quando
+  já se está offline.
+- **Portão offline (o teste "tudo sem internet"):** prepara com rede, corta a rede
+  (`context.setOffline`) e usa listas, mesa com bot amador no motor completo, coleção (exportar e importar
+  por lista com conferência pela base de nomes), busca pela base local e scanner — sem erro na tela.
+- **Testes:** U (nomes da lista e URLs de imagem; lista salva guardada sozinha com imagem grande; coleção
+  guardada uma vez por rajada com miniatura; sem rede nada é tentado e guardar de novo não chama a rede;
+  status e relato do preparar, inclusive o que a rede não trouxe e o caso sem rede; preparar em curso
+  não roda em paralelo), I headless (o portão offline acima; A12 ajustada: a lista pronta adicionada já
+  chega parcialmente guardada — só os básicos, porque a Scryfall falsa do teste não conhece as outras).
+- **Depende de:** S64, C6, X6, D2, D3, D4.
+- **Fora:** guardar imagem grande da coleção inteira (miniatura basta na lista; a grande vem sob
+  demanda); dados que nunca passaram pelo app com rede.
+
+**O2 · Telas sem rede** ○
+- **Valor:** nenhuma tela quebra ou finge quando a internet cai no meio do uso.
+- **Aceite:**
+  - o app percebe rede indo e voltando durante o uso (hoje o ambiente é detectado uma vez ao abrir):
+    chip discreto "Sem internet" na barra, que leva ao painel;
+  - coleção: "Adicionar pelo nome" confere pela base de nomes quando a Scryfall não responde;
+  - editor de listas: carta desconhecida sem rede é "não conferida", não "não encontrada";
+  - busca de cartas: sem rede vai direto à base local, sem tentar a rede e sem mensagem de erro;
+  - scanner: edição pela linha de coleção só com impressões já vistas; a tela diz "edição sem internet";
+  - visualizador de carta sem imagem guardada mostra o texto da carta, não um quadrado vazio;
+  - toda mensagem de rede tem a mesma voz: o que não deu e o que funciona mesmo assim.
+- **Testes:** U (cada fallback), I headless (portão offline estendido com cada tela).
+- **Depende de:** O1.
+- **Fora:** fila de ações para sincronizar depois (não há servidor: nada a sincronizar).
+
+**O3 · Conduta offline para o que vem** ○
+- **Valor:** o que for feito daqui em diante (Coleção, Mesa, Commander) nasce funcionando sem internet.
+- **Aceite:**
+  - toda história nova declara no Aceite o que faz sem rede e o teste "tudo sem internet" ganha o passo
+    correspondente na mesma leva;
+  - o painel da tela inicial continua sendo a única fonte da verdade do que está pronto;
+  - medição no aparelho: `navigator.storage.estimate()` exibido no painel (uso e cota), para o gatilho G1.
+- **Testes:** o próprio portão offline, crescendo a cada leva.
+- **Depende de:** O1, O2.
+- **Fora:** —
 
 ### V · Visualização
 

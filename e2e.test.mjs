@@ -369,6 +369,86 @@ test('e2e · C3 importar CSV do ManaBox, ver impressões e exportar CSV', { skip
   assert.deepEqual(errors, []);
 });
 
+// O1/O3 · portão offline: prepara com rede, corta a rede e prova que o app inteiro
+// continua servindo do aparelho: listas, mesa com bot, coleção (exportar, importar),
+// busca pela base local e scanner. Só o que é API externa (edição pela Scryfall,
+// imagens ainda não vistas) fica de fora — e sem erro na tela.
+test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, coleção, busca e scanner offline', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));          // câmera e OCR falsos: o scanner não precisa do CDN
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-import'); await page.click('#col-import');
+  await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '2 Sol Ring\n1 Grizzly Bear');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+
+  // com rede: o painel diz o que falta e "Preparar tudo" resolve
+  await page.goto(base + '#/');
+  await page.waitForSelector('#home-offline-prep');
+  await page.click('#home-offline-prep');
+  await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 15000 });
+  const linhas = await page.innerText('#home-offline-lines');
+  assert.match(linhas, /✓ Listas: 1 de 1 prontas/); assert.match(linhas, /✓ Coleção: 2 de 2/);
+  assert.match(linhas, /✓ Base de nomes/); assert.match(linhas, /✓ Leitor de texto/);
+
+  // a partir daqui, sem internet: nenhuma requisição sai do aparelho
+  await page.context().setOffline(true);
+  await page.goto(base + '#/listas'); await page.goto(base + '#/');   // sai e volta: o painel é pintado de novo
+  await page.waitForFunction(() => /sem internet agora/.test((document.querySelector('#home-offline-state') || {}).innerText || ''));
+
+  // listas: a lista abre com os dados das cartas
+  await page.goto(base + '#/listas');
+  await page.click('text=Delver');
+  await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('body'), /Delver of Secrets/);
+
+  // mesa: bot liberado (cobertura sai do que está guardado) e a partida roda
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="amador"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="amador"]');
+  await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  for (let i = 0; i < 8; i++) { const p = await page.$('#tb-pass'); if (!p) break; await p.click(); await page.waitForTimeout(60); }
+  assert.match(await page.innerText('.tb'), /Bot amador/, 'o bot joga sem internet');
+
+  // coleção: exportar e importar por lista continuam funcionando (conferência pela base de nomes)
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.click('#col-export'); await page.waitForSelector('#col-export-text');
+  assert.match(await page.inputValue('#col-export-text'), /2 Sol Ring/);
+  await page.click('.ds-dialog button:has-text("Fechar")');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '1 Sol Ring\n1 Counterspell');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run');
+  assert.match(await page.innerText('#col-import-summary'), /1 carta\(s\) nova\(s\) \(1 cópia\(s\)\) · 1 que você já tem/, 'a base de nomes confere sem rede');
+  assert.equal(await page.locator('#col-import-problems').count(), 0, 'nada pendente');
+  await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]');
+
+  // busca: cai para a base local com o que já passou pelo app
+  await page.goto(base + '#/cartas');
+  await page.waitForSelector('#cards-q');
+  await page.fill('#cards-q', 'sol'); await page.press('#cards-q', 'Enter');
+  await page.waitForSelector('#cards-results .deck-slot', { timeout: 8000 });
+  assert.match(await page.innerText('#cards-results'), /Sol Ring/);
+
+  // scanner: base de nomes e leitor já no aparelho
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])', { timeout: 10000 });
+  await page.click('[data-edition]');
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring'));
+  await page.click('#scan-read');
+  await page.waitForFunction(() => /Lote: 1/.test((document.querySelector('#scan-lot') || {}).innerText || ''));
+
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C11 importar por lista: conferir, importar, pendências com sugestão e desfazer', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));            // sem câmera: só a base de nomes interessa
@@ -1021,13 +1101,15 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   assert.match(await page.innerText('#mesa-engine-version'), /motor v\d+/, 'a tela mostra a versão do motor');
   assert.equal(await page.locator('[data-mode="full"]').isDisabled(), false, 'motor completo liberado');
 
-  // S64 · guardar as cartas da lista para jogar sem internet
-  await page.waitForSelector('#mesa-offline-pin');
-  assert.match(await page.innerText('#mesa-offline-falta'), /0 de \d+ cartas guardadas/, 'começa sem nada guardado');
+  // S64 · aqui a Scryfall falsa não conhece as cartas desta lista: só os básicos embutidos
+  // ficam guardados (sozinhos, pelo guardião offline da leva 70 — antes começava em "0 de N"),
+  // a tela diz quantos faltam e o botão continua lá para tentar de novo quando a rede souber
+  await page.waitForSelector('#mesa-offline-falta');
+  const falta = await page.innerText('#mesa-offline-falta');
+  const m = falta.match(/(\d+) de (\d+) cartas guardadas/);
+  assert.ok(m && Number(m[1]) < Number(m[2]), 'lista parcialmente guardada: ' + falta);
   await page.click('#mesa-offline-pin');
-  await page.waitForFunction(() => {
-    const el = document.querySelector('#mesa-offline-falta') || document.querySelector('#mesa-offline-ok');
-    return el && !/^0 de/.test(el.innerText);
-  }, null, { timeout: 8000 });
+  await page.waitForFunction(() => /\d+ de \d+ cartas guardadas/.test((document.querySelector('#mesa-offline-falta') || {}).innerText || ''), null, { timeout: 10000 });
+  assert.equal(await page.locator('#mesa-offline-ok').count(), 0, 'tentar de novo sem a rede saber não inventa carta');
   assert.deepEqual(errors, []);
 });
