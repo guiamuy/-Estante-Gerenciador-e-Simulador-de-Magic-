@@ -256,3 +256,57 @@ test('X7 · o contorno cai em cima da carta: ida e volta entre quadro e tela', (
   const volta = X.screenRect(elW, elH, vidW, vidH, noQuadro);
   for (const k of ['x', 'y', 'w', 'h']) assert.equal(Math.abs(volta[k] - naTela[k]) < 1, true, `${k} voltou ao mesmo lugar`);
 });
+
+/* ---------------- X8 · pilha de leitura ---------------- */
+test('X8 · a pilha guarda confiança e miniatura, e a leitura mais recente manda', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  await lot.add('Sol Ring', 1, null, { score: 0.88, img: 'a.jpg' });
+  let list = await lot.list();
+  assert.equal(list[0].score, 0.88, 'guardou a confiança');
+  assert.equal(list[0].img, 'a.jpg', 'guardou a miniatura');
+  await lot.add('Sol Ring', 1, null, { score: 0.97, img: 'b.jpg' });
+  list = await lot.list();
+  assert.equal(list.length, 1, 'a mesma carta continua sendo uma linha');
+  assert.equal(list[0].qty, 2, 'somou a quantidade');
+  assert.equal(list[0].score, 0.97, 'a leitura mais recente é a que a pilha mostra');
+  assert.equal(list[0].img, 'b.jpg');
+});
+
+test('X8 · dá para tirar uma leitura do meio da pilha sem mexer nas outras', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  const k1 = await lot.add('Sol Ring', 2);
+  const k2 = await lot.add('Island', 1);
+  const k3 = await lot.add('Counterspell', 3);
+  const saiu = await lot.remove(k2);
+  assert.equal(saiu, 'Island', 'devolve o nome de quem saiu');
+  const list = await lot.list();
+  assert.deepEqual(JSON.parse(JSON.stringify(list.map(x => x.name))), ['Sol Ring', 'Counterspell'], 'as outras ficam onde estavam');
+  assert.equal(await lot.total(), 5, 'o total desconta as cópias da carta removida');
+  // e desfazer não ressuscita o que foi removido
+  const desfeito = await lot.undo();
+  assert.equal(desfeito, 'Counterspell', 'o desfazer segue na última leitura viva');
+  assert.equal(await lot.remove('chave-que-nao-existe'), null, 'remover o que não existe não quebra');
+  assert.equal(k1 !== k3, true);
+});
+
+test('X8 · o resumo da pilha conta itens, cópias e quantas têm edição', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  await lot.add('Sol Ring', 2, { set: 'mh2', number: '267' });
+  await lot.add('Island', 3);
+  const r = await lot.resumo();
+  assert.deepEqual(JSON.parse(JSON.stringify(r)), { itens: 2, total: 5, comEdicao: 1, semEdicao: 1 });
+  assert.deepEqual(JSON.parse(JSON.stringify(await X.createLot({ store: P.memoryStore() }).resumo())), { itens: 0, total: 0, comEdicao: 0, semEdicao: 0 });
+});
+
+test('X8 · a pilha sobrevive a fechar o app', async () => {
+  const store = P.memoryStore();
+  const lot = X.createLot({ store });
+  await lot.add('Sol Ring', 2, null, { score: 0.9, img: 'x.jpg' });
+  await lot.add('Island', 1);
+  const volta = X.createLot({ store });
+  const list = await volta.list();
+  assert.equal(list.length, 2, 'as duas leituras voltaram');
+  assert.equal(list[0].score, 0.9, 'com a confiança');
+  assert.equal(list[0].img, 'x.jpg', 'e com a miniatura');
+  assert.equal(await volta.total(), 3);
+});

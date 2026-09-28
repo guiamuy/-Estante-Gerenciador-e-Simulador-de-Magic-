@@ -618,6 +618,20 @@ body {
   border: 2px dashed var(--accent); border-radius: var(--radius-1); display: flex; align-items: flex-end; justify-content: flex-end;
 }
 .scan-frame__band span { transform: translateY(120%); font-size: var(--text-xs); color: var(--accent); background: var(--scrim); padding: 0 var(--space-1); border-radius: var(--radius-1); }
+/* X8 · pilha de leitura: a fila de cartas escaneadas, sem sair da câmera */
+.scan-pile { display: flex; flex-direction: column; gap: var(--space-2); }
+.scan-pile:empty { display: none; }
+.scan-pile__head { align-items: center; gap: var(--space-2); }
+.scan-pile__head > :first-child { flex: 1; }
+.scan-pile__strip { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: var(--space-1); scroll-snap-type: x proximity; }
+.scan-pile__card {
+  flex: 0 0 auto; width: 148px; display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-2); scroll-snap-align: start;
+}
+.scan-pile__img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: var(--radius-1); background: var(--surface-2); }
+.scan-pile__img--vazia { display: flex; align-items: center; justify-content: center; font-size: var(--text-xl); color: var(--muted); }
+.scan-pile__body { display: flex; flex-direction: column; gap: 2px; min-height: 3.2em; }
+.scan-pile__qty { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
 /* X7 · contorno da carta encontrada e a dica do que corrigir */
 .scan-outline {
   position: absolute; border: 2px solid var(--accent); border-radius: var(--radius-card);
@@ -9087,22 +9101,37 @@ function createLot({ store }) {
   const api = {
     async list() { return (await load()).map(x => ({ ...x })); },
     async total() { return (await load()).reduce((s, x) => s + x.qty, 0); },
-    async add(name, qty = 1, printing = null) {
+    async add(name, qty = 1, printing = null, meta = null) {
       await load();
       const key = lotKey(name, printing);
       const cur = find(key);
-      if (cur) cur.qty += qty;
-      else items.push({ key, name, qty, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) });
+      // X8 · a pilha mostra confiança e miniatura: a leitura mais recente manda
+      const extra = meta ? { ...(meta.score != null ? { score: meta.score } : {}), ...(meta.img ? { img: meta.img } : {}) } : {};
+      if (cur) Object.assign(cur, extra, { qty: cur.qty + qty });
+      else items.push({ key, name, qty, ...extra, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) });
       history.push(key); await persist(); return key;
     },
+    /** X8 · tira uma leitura do meio da pilha, com tudo o que ela somou. */
+    async remove(key) {
+      await load(); const cur = find(key); if (!cur) return null;
+      items.splice(items.indexOf(cur), 1);
+      history = history.filter(k => k !== key);
+      await persist(); return cur.name;
+    },
+    /** X8 · o que a pilha tem agora, para a tela e para o resumo do envio. */
+    async resumo() {
+      const list = await load();
+      return { itens: list.length, total: list.reduce((s, x) => s + x.qty, 0),
+        comEdicao: list.filter(x => x.set).length, semEdicao: list.filter(x => !x.set).length };
+    },
     /** Resultado de uma leitura automática. Devolve a chave se entrou no lote. */
-    async observe(best, printing = null) {
+    async observe(best, printing = null, meta = null) {
       await load();
       const name = best && best.score >= ACCEPT ? best.name : null;
       if (!name) { armed = true; lastSeen = null; return null; }
       if (name === lastSeen && !armed) return null;
       lastSeen = name; armed = false;
-      return api.add(name, 1, printing);
+      return api.add(name, 1, printing, { score: best.score, ...(meta || {}) });
     },
     rearm() { armed = true; lastSeen = null; },
     async undo() {
@@ -9421,6 +9450,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   const dica = h('div', { class: 'scan-hint', id: 'scan-hint', 'aria-live': 'polite' });
   const stage = h('div', { class: 'scan-stage', id: 'scan-stage' }, video, frame, contorno, dica);
   const status = h('div', { class: 'scan-status', id: 'scan-status' });
+  // X8 · pilha de leitura: cresce enquanto você escaneia, sem sair da câmera
+  const pilha = h('div', { class: 'scan-pile', id: 'scan-pile' });
   const result = h('div', { class: 'scan-result', id: 'scan-result', 'aria-live': 'polite' });
   const dock = h('div', { class: 'scan-dock' });
   const manualIn = Input({ id: 'scan-manual', placeholder: 'Ou digite o nome da carta' });
@@ -9495,6 +9526,16 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (r.pronto && state.auto && state.base === 'ready') readOnce(false);
   }
   /* X3 · edição pela linha de coleção; confirma contra as impressões quando há rede */
+  /** X8 · miniatura da carta lida, quando a rede já trouxe as impressões. */
+  async function miniatura(name, printing) {
+    try {
+      const list = await prints(name);
+      if (!list.length) return '';
+      const p2 = (printing && printing.id && list.find(x => x.id === printing.id))
+        || (printing && printing.set && list.find(x => (x.set || '').toLowerCase() === String(printing.set).toLowerCase())) || list[0];
+      return (p2 && p2.images && (p2.images.small || p2.images.normal)) || '';
+    } catch (e) { return ''; }
+  }
   async function prints(name) {
     if (!online()) return [];
     if (!printsCache.has(name)) { try { printsCache.set(name, await scryfall.search(`!"${name}"`, { unique: 'prints', order: 'released' })); } catch (e) { return []; } }
@@ -9518,8 +9559,10 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const best = found[0];
       let ed = { exact: null, candidates: [] }, key = null;
       if (best && best.score >= ACCEPT) {
-        if (manual) { ed = await identify(best.name); key = await lot.add(best.name, 1, ed.exact); lot.rearm(); }
-        else if (await wouldAdd(best)) { ed = await identify(best.name); key = await lot.observe(best, ed.exact); }
+        // X8 · a pilha mostra miniatura e confiança: as duas saem desta leitura
+        const meta = async () => ({ score: best.score, img: await miniatura(best.name, ed.exact) });
+        if (manual) { ed = await identify(best.name); key = await lot.add(best.name, 1, ed.exact, await meta()); lot.rearm(); }
+        else if (await wouldAdd(best)) { ed = await identify(best.name); key = await lot.observe(best, ed.exact, await meta()); }
         else await lot.observe(best);
         if (key) announce(best.name + (ed.exact ? ` · ${printLabel(ed.exact)}` : ''));
       } else if (!manual) { seen.name = null; await lot.observe(best); }
@@ -9580,6 +9623,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   async function paintDock() {
     const n = await lot.total();
+    paintPile();
     const canRead = state.camera === 'on' && state.base === 'ready' && state.engine !== 'failed';
     const autoChip = Chip('Automático', { pressed: state.auto, dataset: { auto: '1' } });
     autoChip.addEventListener('click', () => setAuto(!state.auto));
@@ -9595,6 +9639,28 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       Row({ class: 'scan-dock__row' },
         Button(`Lote: ${n}`, { id: 'scan-lot', onClick: openLot }),
         Button('Desfazer', { id: 'scan-undo', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } })));
+  }
+
+  /** X8 · desenha a pilha: miniatura, nome, edição, confiança e quantidade. */
+  async function paintPile() {
+    const list = await lot.list();
+    if (!list.length) return mount(pilha, null);
+    const recentes = list.slice(-12).reverse();
+    const cartao = x => h('div', { class: 'scan-pile__card', dataset: { name: x.name, key: x.key } },
+      x.img ? h('img', { class: 'scan-pile__img', src: x.img, alt: '' }) : h('div', { class: 'scan-pile__img scan-pile__img--vazia' }, h('span', {}, x.name.slice(0, 1))),
+      h('div', { class: 'scan-pile__body' },
+        Text(x.name, { size: 'sm' }),
+        Text(x.set ? printLabel(x) : 'sem edição', { size: 'xs', tone: 'muted' }),
+        x.score != null ? Badge(`${Math.round(x.score * 100)}%`, { tone: x.score >= 0.92 ? 'positive' : 'warning' }) : null),
+      h('div', { class: 'scan-pile__qty' },
+        Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty - 1); paintPile(); paintDock(); } }),
+        h('span', {}, String(x.qty)),
+        Button('+', { icon: true, ariaLabel: `Uma a mais de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty + 1); paintPile(); paintDock(); } }),
+        Button('×', { icon: true, ariaLabel: `Tirar ${x.name} da pilha`, onClick: async () => { const n = await lot.remove(x.key); paintPile(); paintDock(); if (n) toast(`${n} saiu da pilha`); } })));
+    mount(pilha, Row({ class: 'scan-pile__head' },
+      Text(`Na pilha: ${list.reduce((s2, x) => s2 + x.qty, 0)} carta(s)`, { size: 'sm' }),
+      Button('Adicionar em lote', { variant: 'primary', id: 'scan-pile-commit', onClick: openLot })),
+      h('div', { class: 'scan-pile__strip' }, ...recentes.map(cartao)));
   }
 
   /* ---- lote e destino (X4, X5) ---- */
@@ -9665,7 +9731,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   paintResult(); boot();
   return Stack({ class: 'ds-wrap scan', style: { paddingTop: 'var(--space-4)', paddingBottom: 'var(--space-4)' } },
     Row({}, Text('Scanner', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }), Button('Coleção', { onClick: () => go('/colecao') })),
-    status, stage, result,
+    status, stage, pilha, result,
     Field('Sem câmera ou leitura difícil?', manualIn), suggest,
     h('div', { class: 'scan-dock-wrap' }, dock));
 }

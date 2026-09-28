@@ -466,6 +466,17 @@ test('e2e · X7 scanner acha a carta sozinho, sem moldura, e dispara a leitura',
   await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-result').innerText), null, { timeout: 12000 });
   await page.waitForFunction(() => /Lote: [1-9]/.test((document.querySelector('#scan-lot') || {}).innerText || ''), null, { timeout: 12000 });
   await page.click('[data-auto]');
+  // X8 · a pilha aparece na própria tela, com a carta lida e a confiança
+  await page.waitForSelector('#scan-pile .scan-pile__card');
+  const cartao = page.locator('#scan-pile .scan-pile__card').first();
+  assert.match(await cartao.innerText(), /Sol Ring/, 'a carta lida está na pilha');
+  assert.match(await cartao.innerText(), /\d+%/, 'com a confiança da leitura');
+  assert.match(await page.innerText('#scan-pile'), /Na pilha: \d+ carta/, 'e o total');
+  // dá para ajustar a quantidade e tirar da pilha sem sair da câmera
+  await cartao.locator('button', { hasText: '+' }).first().click();
+  await page.waitForFunction(() => /Na pilha: 2 carta/.test(document.querySelector('#scan-pile').innerText));
+  await cartao.locator('button', { hasText: '×' }).first().click();
+  await page.waitForFunction(() => !document.querySelector('#scan-pile .scan-pile__card'), null, { timeout: 4000 });
   // a moldura volta quando o usuário quer
   await page.click('[data-moldura]');
   assert.equal(await page.locator('.scan-frame').isVisible(), true, 'a moldura é opcional, não proibida');

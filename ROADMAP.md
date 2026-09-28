@@ -101,7 +101,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | B · Bot | B7 didática do bot: resumo do turno e "o que eu poderia fazer" | 🟡 |
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7 captura automática sem moldura | 🟡 |
-| X · Scanner | X8–X10 pilha de leitura, validação ágil e acerto medido | ▶ |
+| X · Scanner | X8 pilha de leitura na tela | 🟡 |
+| X · Scanner | X9–X10 validação ágil e acerto medido | ▶ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
@@ -348,7 +349,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
-| E39 🟡 | X7 (leva 64) · X8–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
+| E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 | C10, C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -2380,7 +2381,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** X1, X2.
 - **Fora:** reconhecimento pela arte; corrigir perspectiva forte; leitura com a carta muito torta.
 
-**X8 · Pilha de leitura** ○
+**X8 · Pilha de leitura** 🟡
 - **Valor:** escanear várias cartas seguidas e resolver tudo no fim.
 - **Aceite:**
   - cada leitura vira um cartão empilhado na tela, com miniatura, nome, edição e nota de confiança;
@@ -2388,9 +2389,20 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - dá para desfazer a última, remover uma do meio e ajustar quantidade sem sair da câmera;
   - a pilha sobrevive a fechar o app e volta ao reabrir;
   - "Adicionar em lote" manda tudo de uma vez para a coleção ou para uma lista, com resumo do que entrou.
-- **Testes:** U (pilha: somar, desfazer, remover, persistir), I headless (escanear três e adicionar em lote).
+- **Entregue (leva 65):** a pilha virou uma faixa de cartões **na própria tela do scanner**, embaixo da
+  câmera: miniatura, nome, edição e a confiança da leitura em porcentagem. Ela cresce enquanto você
+  escaneia, mostra o total, e cada cartão tem −, + e × para ajustar ou tirar da pilha **sem sair da
+  câmera**. O botão "Adicionar em lote" abre o destino (coleção ou lista) com o resumo do envio.
+- **O que o lote ganhou por dentro:** `score` e `img` por item (a leitura mais recente é a que a pilha
+  mostra), `remove(key)` para tirar um do meio sem mexer nos outros, e `resumo()` com itens, cópias e
+  quantas têm edição.
+- **Testes:** U (confiança e miniatura guardadas e atualizadas pela leitura mais recente; remover do meio
+  sem afetar as outras nem o desfazer; resumo com e sem edição; a pilha voltando inteira depois de fechar
+  o app), I headless (escanear com a câmera falsa, ver o cartão na pilha com nome e confiança, somar uma
+  cópia e tirar da pilha, tudo sem sair da câmera).
 - **Depende de:** X4, X7.
-- **Fora:** editar condição e idioma no lote (fica na coleção).
+- **Fora:** editar condição e idioma no lote (fica na coleção); miniatura sem rede (a carta aparece com a
+  inicial até a imagem existir no cache).
 
 **X9 · Validação ágil da leitura** ○
 - **Valor:** confiar no que entrou na coleção, gastando um toque por carta.
