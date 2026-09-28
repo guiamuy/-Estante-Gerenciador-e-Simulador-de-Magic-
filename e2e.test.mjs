@@ -439,6 +439,12 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.click('#col-import-run');
   await page.waitForSelector('.col-row[data-name="Counterspell"]');
 
+  // C12 · filtros trabalham com os dados guardados: sem rede, filtrar por tipo funciona
+  await page.click('#col-filters'); await page.waitForSelector('#col-filters-body');
+  await page.click('[data-tipo="Creature"]');
+  await page.waitForFunction(() => /1 carta\(s\) · 1 cópia\(s\)/.test(document.querySelector('#col-filters-count').innerText));
+  await page.click('#col-filters-reset');
+
   // busca: cai para a base local com o que já passou pelo app
   await page.goto(base + '#/cartas');
   await page.waitForSelector('#cards-q');
@@ -496,6 +502,56 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.unroute('https://api.scryfall.com/**'); await page.unroute('https://**.scryfall.io/**');
   await page.context().setOffline(false);
   await page.waitForFunction(() => document.querySelector('#nav-offline').classList.contains('ds-hidden'));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, contagem viva, limpar e exportar o recorte', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-csv-import');
+  await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
+  await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '4 Grizzly Bear\n1 Preordain\n20 Island');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Grizzly Bear"]');
+  await page.waitForFunction(() => /Creature/.test(document.querySelector('.col-row[data-name="Grizzly Bear"]').innerText), null, { timeout: 8000 }); // dados das cartas chegaram
+
+  await page.click('#col-filters');
+  await page.waitForSelector('#col-filters-body');
+  assert.match(await page.innerText('#col-filters-count'), /5 carta\(s\) · 28 cópia\(s\)/, 'contagem viva começa com tudo');
+  await page.click('[data-cor="U"]');
+  await page.waitForFunction(() => /3 carta\(s\)/.test(document.querySelector('#col-filters-count').innerText));
+  await page.click('[data-tipo="Instant"]');
+  await page.waitForFunction(() => /1 carta\(s\) · 1 cópia\(s\)/.test(document.querySelector('#col-filters-count').innerText));
+  await page.click('[data-acabamento="foil"]');
+  await page.waitForFunction(() => /0 carta\(s\)/.test(document.querySelector('#col-filters-count').innerText), null, { timeout: 4000 });
+  await page.click('#col-filters-apply');
+  assert.match(await page.innerText('#col-list'), /Nenhuma carta passa/);
+  assert.match(await page.innerText('#col-filters'), /Filtros \(3\)/);
+  assert.match(await page.innerText('#col-count-desc'), /azul · instantânea · foil/);
+  await page.click('#col-filters-clear');
+  await page.waitForSelector('.col-row[data-name="Island"]');
+  assert.equal((await page.innerText('#col-filters')).trim(), 'Filtros');
+
+  // texto procura no nome e no texto da carta; edição filtra as impressões
+  await page.fill('#col-filter', 'scry');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  assert.match(await page.innerText('.col-row'), /Preordain/, 'achou pelo texto de regras');
+  await page.fill('#col-filter', '');
+  await page.click('#col-filters'); await page.waitForSelector('#col-filters-body');
+  await page.click('[data-edicao="cmm"]');
+  await page.click('#col-filters-apply');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  assert.match(await page.innerText('#col-count-text'), /1 carta\(s\) · 2 cópia\(s\)/);
+
+  // o recorte do filtro exporta só o que passou
+  await page.click('#col-export'); await page.waitForSelector('#col-export-text');
+  await page.click('[data-escopo="filtro"]');
+  const texto = await page.inputValue('#col-export-text');
+  assert.match(texto, /recorte: CMM · 1 carta\(s\) · 2 cópia\(s\)/);
+  assert.ok(/2 Sol Ring/.test(texto) && !/Island|Grizzly/.test(texto));
   assert.deepEqual(errors, []);
 });
 

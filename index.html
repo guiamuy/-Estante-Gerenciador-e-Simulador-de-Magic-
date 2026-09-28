@@ -3760,7 +3760,7 @@ function exportText(deck, { onlyMissing = false, owned = {} } = {}) {
                 cabeçalho. É o que o Moxfield lê com tudo.
    Cópia sem edição definida sai só com o nome; o cabeçalho conta quantas são. */
 const EXPORT_FORMATS = [['simples', 'Só nome e quantidade'], ['arena', 'Com edição (Arena)'], ['completo', 'Com edição e foil (Moxfield)']];
-function exportCollectionText(items, { formato = 'simples', selecao = null, cabecalho = true, agora = null } = {}) {
+function exportCollectionText(items, { formato = 'simples', selecao = null, cabecalho = true, agora = null, rotulo = null } = {}) {
   const pool = (items || []).filter(it => it && it.qty > 0 && (!selecao || selecao.has(norm(it.name))));
   const comEdicao = formato !== 'simples';
   const linhas = [];
@@ -3782,7 +3782,7 @@ function exportCollectionText(items, { formato = 'simples', selecao = null, cabe
   const genericas = pool.filter(it => !it.set).reduce((s2, it) => s2 + it.qty, 0);
   const head = [];
   if (cabecalho && formato !== 'arena') {
-    head.push(`// Estante · ${selecao ? 'seleção da coleção' : 'coleção'} · ${cartas} carta(s) · ${copias} cópia(s)${agora ? ' · ' + agora : ''}`);
+    head.push(`// Estante · ${rotulo || (selecao ? 'seleção da coleção' : 'coleção')} · ${cartas} carta(s) · ${copias} cópia(s)${agora ? ' · ' + agora : ''}`);
     if (genericas && comEdicao) head.push(`// ${genericas} cópia(s) sem edição definida saem só com o nome`);
   }
   return { text: [...head, ...linhas.map(l => l.text)].join('\n') + (linhas.length ? '\n' : ''), cartas, copias, genericas, linhas: linhas.length };
@@ -4200,6 +4200,150 @@ Deck
 return { STARTER_DECKS };
 })();
 
+/* ==== src/data/filter.js ==== */
+const __m27 = (function () {
+/* =====================================================================
+   C12 · MOTOR DE FILTRO DA COLEÇÃO
+   Puro: recebe os grupos da coleção (uma entrada por nome, com as impressões
+   dentro), os dados das cartas que o app já tem e o filtro; devolve o
+   recorte com contagem. Carta sem dados guardados só responde ao que o
+   nome e as impressões sabem (texto, edição, idioma, acabamento, quantidade,
+   lista) — e é contada em `semDados` para a tela dizer isso.
+   O mesmo motor vai servir as listas (C12b).
+   ===================================================================== */
+const { norm } = __m7;
+
+const CORES = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde'], ['C', 'Incolor']];
+const TIPOS = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Battle'];
+const TIPOS_PT = { Creature: 'Criatura', Instant: 'Instantânea', Sorcery: 'Feitiço', Artifact: 'Artefato', Enchantment: 'Encantamento', Planeswalker: 'Planeswalker', Land: 'Terreno', Battle: 'Batalha' };
+const RARIDADES = [['common', 'Comum'], ['uncommon', 'Incomum'], ['rare', 'Rara'], ['mythic', 'Mítica']];
+const FORMATOS = [['pauper', 'Pauper'], ['commander', 'Commander'], ['modern', 'Modern'], ['legacy', 'Legacy'], ['standard', 'Standard']];
+
+const FILTRO_VAZIO = Object.freeze({
+  texto: '', cores: [], modoCor: 'qualquer', tipos: [], raridades: [], cmcMin: null, cmcMax: null, formato: '',
+  edicoes: [], idiomas: [], acabamentos: [], qtdMin: null, qtdMax: null, emLista: '', semEdicao: false
+});
+const novoFiltro = (parcial = {}) => ({ ...FILTRO_VAZIO, ...parcial });
+
+/** Quantos critérios estão ligados (o que a tela mostra no botão "Filtros"). */
+function filtrosAtivos(f) {
+  let n = 0;
+  if (f.texto && f.texto.trim()) n++;
+  if (f.cores.length) n++;
+  if (f.tipos.length) n++;
+  if (f.raridades.length) n++;
+  if (f.cmcMin != null || f.cmcMax != null) n++;
+  if (f.formato) n++;
+  if (f.edicoes.length) n++;
+  if (f.idiomas.length) n++;
+  if (f.acabamentos.length) n++;
+  if (f.qtdMin != null || f.qtdMax != null) n++;
+  if (f.emLista) n++;
+  if (f.semEdicao) n++;
+  return n;
+}
+const filtroVazio = f => filtrosAtivos(f) === 0;
+
+const temPalavra = (linha, palavra) => new RegExp('(^|[^a-z])' + palavra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-z]|$)', 'i').test(linha || '');
+
+/** A carta (dados) responde aos critérios que dependem de dados? null = sem dados para julgar. */
+function cartaPassa(card, f) {
+  const precisa = f.cores.length || f.tipos.length || f.raridades.length || f.cmcMin != null || f.cmcMax != null || f.formato;
+  if (!precisa) return true;
+  if (!card) return null;
+  if (f.cores.length) {
+    const cores = f.modoCor === 'identidade' ? (card.color_identity || []) : (card.colors || []);
+    if (f.modoCor === 'identidade') { if (!cores.every(c => f.cores.includes(c))) return false; if (!cores.length && !f.cores.includes('C')) return false; }
+    else {
+      const incolor = !cores.length;
+      const bate = f.cores.some(c => c === 'C' ? incolor : cores.includes(c));
+      if (!bate) return false;
+    }
+  }
+  if (f.tipos.length && !f.tipos.some(t => temPalavra(card.type_line, t))) return false;
+  if (f.raridades.length && !f.raridades.includes(card.rarity)) return false;
+  const cmc = typeof card.cmc === 'number' ? card.cmc : 0;
+  if (f.cmcMin != null && cmc < f.cmcMin) return false;
+  if (f.cmcMax != null && cmc > f.cmcMax) return false;
+  if (f.formato && !(card.legalities && card.legalities[f.formato] === 'legal')) return false;
+  return true;
+}
+/** Impressão (item) responde a edição, idioma e acabamento. */
+function itemPassa(it, f) {
+  if (f.edicoes.length && !f.edicoes.includes(it.set || '')) return false;
+  if (f.idiomas.length && !f.idiomas.includes(it.set ? (it.lang || 'en') : '')) return false;
+  if (f.acabamentos.length && !f.acabamentos.includes(it.finish || '')) return false;
+  return true;
+}
+
+/** Aplica o filtro. `cards`: Map nome normalizado → carta (pode faltar); `usadoEm`: Map nome → listas. */
+function filtraColecao(grupos, f, { cards = new Map(), usadoEm = new Map() } = {}) {
+  const t = norm(f.texto || '');
+  const itens = [];
+  let copias = 0, semDados = 0;
+  for (const g of grupos) {
+    const card = cards.get(g.key) || cards.get(norm(g.name)) || null;
+    if (t) {
+      const noNome = norm(g.name).includes(t);
+      const noTexto = card && norm(card.oracle_text || '').includes(t);
+      if (!noNome && !noTexto) continue;
+    }
+    if (f.qtdMin != null && g.qty < f.qtdMin) continue;
+    if (f.qtdMax != null && g.qty > f.qtdMax) continue;
+    if (f.emLista === 'sim' && !(usadoEm.get(g.key) || []).length) continue;
+    if (f.emLista === 'nao' && (usadoEm.get(g.key) || []).length) continue;
+    if (f.semEdicao && !g.items.some(it => !it.set)) continue;
+    const passa = cartaPassa(card, f);
+    if (passa === false) continue;
+    if (passa === null) { semDados++; continue; }
+    const itensOk = g.items.filter(it => itemPassa(it, f));
+    if (!itensOk.length) continue;
+    const qty = itensOk.reduce((s2, it) => s2 + it.qty, 0);
+    itens.push({ ...g, items: itensOk, qtyRecorte: qty });
+    copias += qty;
+  }
+  return { itens, total: itens.length, copias, semDados };
+}
+
+/** O que existe na coleção para virar chip: edições, idiomas, acabamentos, com contagem de cópias. */
+function opcoesDeFiltro(grupos) {
+  const conta = (mapa, k, q) => mapa.set(k, (mapa.get(k) || 0) + q);
+  const edicoes = new Map(), idiomas = new Map(), acabamentos = new Map();
+  let semEdicao = 0;
+  for (const g of grupos) for (const it of g.items) {
+    if (it.set) { conta(edicoes, it.set, it.qty); conta(idiomas, it.lang || 'en', it.qty); } else semEdicao += it.qty;
+    conta(acabamentos, it.finish || '', it.qty);
+  }
+  const lista = m => [...m.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))).map(([valor, copias]) => ({ valor, copias }));
+  return { edicoes: lista(edicoes), idiomas: lista(idiomas), acabamentos: lista(acabamentos), semEdicao };
+}
+
+/** Frase curta do que está ligado ("verde · criatura · custo ≤ 3"), para o cabeçalho e as visões. */
+function descreveFiltro(f) {
+  const partes = [];
+  if (f.texto && f.texto.trim()) partes.push(`"${f.texto.trim()}"`);
+  if (f.cores.length) partes.push((f.modoCor === 'identidade' ? 'identidade ' : '') + f.cores.map(c => (CORES.find(x => x[0] === c) || [c, c])[1].toLowerCase()).join('/'));
+  if (f.tipos.length) partes.push(f.tipos.map(t => (TIPOS_PT[t] || t).toLowerCase()).join('/'));
+  if (f.raridades.length) partes.push(f.raridades.map(r => (RARIDADES.find(x => x[0] === r) || [r, r])[1].toLowerCase()).join('/'));
+  if (f.cmcMin != null && f.cmcMax != null) partes.push(f.cmcMin === f.cmcMax ? `custo ${f.cmcMin}` : `custo ${f.cmcMin}–${f.cmcMax}`);
+  else if (f.cmcMin != null) partes.push(`custo ≥ ${f.cmcMin}`);
+  else if (f.cmcMax != null) partes.push(`custo ≤ ${f.cmcMax}`);
+  if (f.formato) partes.push((FORMATOS.find(x => x[0] === f.formato) || [f.formato, f.formato])[1]);
+  if (f.edicoes.length) partes.push(f.edicoes.map(e => e.toUpperCase()).join('/'));
+  if (f.idiomas.length) partes.push(f.idiomas.map(l => l.toUpperCase()).join('/'));
+  if (f.acabamentos.length) partes.push(f.acabamentos.map(a => a || 'normal').join('/'));
+  if (f.qtdMin != null && f.qtdMax != null) partes.push(`${f.qtdMin}–${f.qtdMax} cópias`);
+  else if (f.qtdMin != null) partes.push(`≥ ${f.qtdMin} cópias`);
+  else if (f.qtdMax != null) partes.push(`≤ ${f.qtdMax} cópias`);
+  if (f.emLista === 'sim') partes.push('em lista');
+  if (f.emLista === 'nao') partes.push('fora de lista');
+  if (f.semEdicao) partes.push('sem edição definida');
+  return partes.join(' · ');
+}
+
+return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+})();
+
 /* ==== src/app/decks.js ==== */
 const __m15 = (function () {
 /* =====================================================================
@@ -4555,7 +4699,10 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
    tocar no nome abre as impressões para editar uma a uma. */
 function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share, names }) {
   const { parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, CONDITIONS, LANGS, FINISHES } = __m14;
+  const FL = __m27;
   const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true,
+    // C12 · filtro vivo e o último recorte calculado (para exportar o recorte)
+    filtro: FL.novoFiltro(), recorte: null,
     // C10 · seleção manual por nome, para exportar um recorte
     selecting: false, selected: new Set(), exportFormat: 'simples',
     // C11 · pendências da importação por lista e a última importação (para desfazer)
@@ -4566,6 +4713,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const summary = h('div', { id: 'col-summary' });
   const care = h('div', { id: 'col-care' });
   const selectionBar = h('div', { id: 'col-selection' });
+  const countLine = h('div', { id: 'col-count' });
   const LANG_PT = Object.fromEntries(LANGS), FIN_PT = Object.fromEntries(FINISHES);
 
   const printLabel = it => it.set
@@ -4858,14 +5006,18 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       Button('Exportar seleção', { variant: 'primary', id: 'col-export-selection', disabled: !n, onClick: () => openExport({ selecao: true }) }),
       Button('Sair', { id: 'col-select-off', onClick: () => toggleSelecting(false) }))));
   }
-  async function openExport({ selecao = false } = {}) {
+  async function openExport({ selecao = false, filtro = false } = {}) {
     const all = await collection.items();
     if (!all.length) return toast('A coleção está vazia');
-    const escopo = { selecao: selecao && state.selected.size > 0 };
+    // C12 · o recorte do filtro também exporta: só as impressões que passaram
+    const temFiltro = !FL.filtroVazio(state.filtro) && state.recorte;
+    const doRecorte = temFiltro ? state.recorte.itens.flatMap(g => g.items.map(it => ({ ...it, name: g.name }))) : null;
+    const escopo = { qual: selecao && state.selected.size > 0 ? 'selecao' : filtro && temFiltro ? 'filtro' : 'tudo' };
     const area = Textarea({ id: 'col-export-text' }); area.readOnly = true; area.classList.add('col-export__text');
     const nota = h('div', { id: 'col-export-note' });
     const gera = () => {
-      const r = exportCollectionText(all, { formato: state.exportFormat, selecao: escopo.selecao ? new Set(state.selected) : null, agora: new Date().toISOString().slice(0, 10) });
+      const fonte = escopo.qual === 'filtro' ? doRecorte : all;
+      const r = exportCollectionText(fonte, { formato: state.exportFormat, selecao: escopo.qual === 'selecao' ? new Set(state.selected) : null, rotulo: escopo.qual === 'filtro' ? `recorte: ${FL.descreveFiltro(state.filtro)}` : null, agora: new Date().toISOString().slice(0, 10) });
       area.value = r.text || '(nada para exportar)';
       const partes = [`${r.cartas} carta(s) · ${r.copias} cópia(s)`];
       if (r.genericas && state.exportFormat !== 'simples') partes.push(`${r.genericas} cópia(s) sem edição definida saem só com o nome`);
@@ -4874,15 +5026,16 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       return r;
     };
     const formato = Select(EXPORT_FORMATS.map(([value, label]) => ({ value, label })), { id: 'col-export-format', value: state.exportFormat, onChange: e => { state.exportFormat = e.target.value; gera(); } });
-    const chips = state.selected.size ? Row({ class: 'ds-row--wrap' }, ...[[false, 'Coleção inteira'], [true, `Seleção (${state.selected.size})`]].map(([sel, label]) => {
-      const c = Chip(label, { pressed: escopo.selecao === sel, dataset: { escopo: sel ? 'selecao' : 'tudo' } });
-      c.addEventListener('click', () => { escopo.selecao = sel; chips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); gera(); });
+    const opcoes = [['tudo', 'Coleção inteira'], ...(state.selected.size ? [['selecao', `Seleção (${state.selected.size})`]] : []), ...(temFiltro ? [['filtro', `Recorte do filtro (${state.recorte.total})`]] : [])];
+    const chips = opcoes.length > 1 ? Row({ class: 'ds-row--wrap' }, ...opcoes.map(([qual, label]) => {
+      const c = Chip(label, { pressed: escopo.qual === qual, dataset: { escopo: qual } });
+      c.addEventListener('click', () => { escopo.qual = qual; chips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); gera(); });
       return c;
     })) : null;
     gera();
     Dialog({ title: 'Exportar coleção', body: Stack({}, chips, Field('Formato', formato), area, nota), actions: [
       Button('Copiar', { id: 'col-export-copy', onClick: async () => { toast(share && await share.copy(area.value) ? 'Lista copiada' : 'Não foi possível copiar; use Baixar .txt'); } }),
-      Button('Baixar .txt', { id: 'col-export-download', onClick: () => { files.save(escopo.selecao ? 'estante-selecao.txt' : 'estante-colecao.txt', area.value); toast('Arquivo baixado'); } }),
+      Button('Baixar .txt', { id: 'col-export-download', onClick: () => { files.save(escopo.qual === 'selecao' ? 'estante-selecao.txt' : escopo.qual === 'filtro' ? 'estante-recorte.txt' : 'estante-colecao.txt', area.value); toast('Arquivo baixado'); } }),
       Button('Baixar CSV', { id: 'col-csv-export', onClick: exportCsv }),
       Button('Fechar', { variant: 'primary', onClick: closeDialog })] });
   }
@@ -4914,11 +5067,75 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     if (state.loading) return;
     if (!state.items.length) { paintUndo(); paintPending(); return mount(listEl, Empty('Sua coleção está vazia. Cole uma lista, importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
       Row({ class: 'ds-row--wrap' }, Button('Importar lista', { onClick: () => openImportList() }), Button('Importar CSV', { onClick: () => csvInput.click() })))); }
-    const f = norm(state.filter);
-    const rows = state.items.filter(i => !f || norm(i.name).includes(f))
+    // C12 · o motor de filtro decide o recorte; a ordenação vem depois
+    state.filtro = { ...state.filtro, texto: state.filter };
+    const r = FL.filtraColecao(state.items, state.filtro, { cards: state.cards, usadoEm: state.usedIn });
+    state.recorte = r;
+    const rows = r.itens.slice()
       .sort((a, b) => state.sort === 'qty' ? b.qty - a.qty || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
-    mount(listEl, rows.length ? h('div', { class: 'col-list ds-surface' }, ...rows.map(row)) : Empty('Nenhuma carta com esse nome na coleção.'));
+    paintCount(r);
+    mount(listEl, rows.length ? h('div', { class: 'col-list ds-surface' }, ...rows.map(row)) : Empty(FL.filtroVazio(state.filtro) ? 'Nenhuma carta na coleção.' : 'Nenhuma carta passa por esses filtros.', FL.filtroVazio(state.filtro) ? null : Button('Limpar filtros', { onClick: limparFiltros })));
     paintSelection(); paintUndo(); paintPending();
+  }
+  function paintCount(r) {
+    const ativos = FL.filtrosAtivos(state.filtro);
+    if (!ativos) return mount(countLine, null);
+    mount(countLine, Row({ class: 'ds-row--wrap' },
+      Text(`${r.total} carta(s) · ${r.copias} cópia(s)` + (r.semDados ? ` · ${r.semDados} sem dados guardados (não dá para filtrar por cor, tipo, custo ou raridade)` : ''), { size: 'sm', attrs: { id: 'col-count-text' } }),
+      Text(FL.descreveFiltro(state.filtro), { size: 'xs', tone: 'muted', attrs: { id: 'col-count-desc' } }),
+      Button('Limpar filtros', { variant: 'ghost', id: 'col-filters-clear', onClick: limparFiltros })));
+  }
+  function limparFiltros() { state.filtro = FL.novoFiltro(); state.filter = ''; filterIn.value = ''; paint(); paintFilterBtn(); }
+
+  /* ---- C12 · diálogo de filtros ---- */
+  let filterBtn = null;
+  function paintFilterBtn() {
+    if (!filterBtn) return;
+    const n = FL.filtrosAtivos({ ...state.filtro, texto: '' });
+    filterBtn.textContent = n ? `Filtros (${n})` : 'Filtros';
+    filterBtn.dataset.ativos = String(n);
+  }
+  function openFilters() {
+    const f = { ...state.filtro, texto: state.filter };
+    const op = FL.opcoesDeFiltro(state.items);
+    const contador = Text('', { size: 'sm', attrs: { id: 'col-filters-count' } });
+    const aplica = () => { state.filtro = { ...f }; paint(); paintFilterBtn(); const r = state.recorte; contador.textContent = `${r.total} carta(s) · ${r.copias} cópia(s)`; };
+    const grupoChips = (lista, get, set, ds) => Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
+      const c = Chip(label, { pressed: get().includes(valor), dataset: { [ds]: String(valor) } });
+      c.addEventListener('click', () => { const cur = get(); set(cur.includes(valor) ? cur.filter(x => x !== valor) : [...cur, valor]); c.setAttribute('aria-pressed', String(get().includes(valor))); aplica(); });
+      return c;
+    }));
+    const unico = (lista, get, set, ds) => { const row = Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
+      const c = Chip(label, { pressed: get() === valor, dataset: { [ds]: String(valor) } });
+      c.addEventListener('click', () => { set(get() === valor ? '' : valor); row.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x.dataset[ds] === String(get())))); aplica(); });
+      return c;
+    })); return row; };
+    const numero = (id, valor, onChange) => { const i = Input({ id, type: 'number', inputmode: 'numeric', value: valor == null ? '' : String(valor), onInput: e => { const v = e.target.value.trim(); onChange(v === '' ? null : Math.max(0, parseInt(v, 10) || 0)); aplica(); } }); i.min = '0'; i.style.width = '5.5em'; return i; };
+    const subtipo = Input({ id: 'col-filter-subtype', placeholder: 'Subtipo ou palavra do tipo (Elf, Aura…)', onInput: e => { const v = e.target.value.trim(); f.tipos = [...f.tipos.filter(t => FL.TIPOS.includes(t)), ...(v ? [v] : [])]; aplica(); } });
+    subtipo.value = f.tipos.find(t => !FL.TIPOS.includes(t)) || '';
+    const edicoes = op.edicoes.slice(0, 16).map(e => [e.valor, `${e.valor.toUpperCase()} · ${e.copias}`]);
+    if (op.semEdicao) edicoes.push(['', `sem edição · ${op.semEdicao}`]);
+    const idiomas = op.idiomas.map(l => [l.valor, `${(LANG_PT[l.valor] || l.valor.toUpperCase())} · ${l.copias}`]);
+    const acabamentos = op.acabamentos.map(a => [a.valor, `${FIN_PT[a.valor] || a.valor} · ${a.copias}`]);
+    const body = Stack({ id: 'col-filters-body' },
+      Field('Cor', Stack({ style: { gap: 'var(--space-1)' } },
+        grupoChips(FL.CORES, () => f.cores, v => { f.cores = v; }, 'cor'),
+        unico([['qualquer', 'Qualquer uma delas'], ['identidade', 'Identidade dentro delas']], () => f.modoCor, v => { f.modoCor = v || 'qualquer'; }, 'modoCor'))),
+      Field('Tipo', Stack({ style: { gap: 'var(--space-1)' } }, grupoChips(FL.TIPOS.map(t => [t, FL.TIPOS_PT[t]]), () => f.tipos, v => { f.tipos = v; }, 'tipo'), subtipo)),
+      Field('Raridade', grupoChips(FL.RARIDADES, () => f.raridades, v => { f.raridades = v; }, 'raridade')),
+      Field('Custo de mana', Row({ class: 'ds-row--wrap' }, Text('de', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-min', f.cmcMin, v => { f.cmcMin = v; }), Text('até', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-max', f.cmcMax, v => { f.cmcMax = v; }))),
+      Field('Legal em', unico(FL.FORMATOS, () => f.formato, v => { f.formato = v; }, 'formato')),
+      edicoes.length ? Field('Edição', grupoChips(edicoes, () => f.edicoes, v => { f.edicoes = v; }, 'edicao')) : null,
+      idiomas.length > 1 ? Field('Idioma', grupoChips(idiomas, () => f.idiomas, v => { f.idiomas = v; }, 'idioma')) : null,
+      acabamentos.length > 1 ? Field('Acabamento', grupoChips(acabamentos, () => f.acabamentos, v => { f.acabamentos = v; }, 'acabamento')) : null,
+      Field('Cópias', Row({ class: 'ds-row--wrap' }, Text('de', { size: 'sm', tone: 'muted' }), numero('col-filter-qty-min', f.qtdMin, v => { f.qtdMin = v; }), Text('até', { size: 'sm', tone: 'muted' }), numero('col-filter-qty-max', f.qtdMax, v => { f.qtdMax = v; }))),
+      Field('Listas', Stack({ style: { gap: 'var(--space-1)' } },
+        unico([['sim', 'Só o que está em alguma lista'], ['nao', 'Só o que não está em lista']], () => f.emLista, v => { f.emLista = v; }, 'emLista'),
+        (() => { const c = Chip('Só sem edição definida', { pressed: f.semEdicao, dataset: { semEdicao: '1' } }); c.addEventListener('click', () => { f.semEdicao = !f.semEdicao; c.setAttribute('aria-pressed', String(f.semEdicao)); aplica(); }); return c; })())));
+    Dialog({ title: 'Filtros', body: Stack({}, contador, body), actions: [
+      Button('Limpar', { id: 'col-filters-reset', onClick: () => { closeDialog(); limparFiltros(); } }),
+      Button('Mostrar', { variant: 'primary', id: 'col-filters-apply', onClick: closeDialog })] });
+    aplica();
   }
 
   const addState = { name: '' };
@@ -4947,7 +5164,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const addIn = Input({ id: 'col-add', placeholder: 'Nome da carta, em inglês', onInput: e => { addState.name = e.target.value; } });
   addIn.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
   const addBtn = Button('Adicionar', { variant: 'primary', id: 'col-add-btn', onClick: add });
-  const filterIn = Input({ id: 'col-filter', placeholder: 'Filtrar pelo nome', onInput: e => { state.filter = e.target.value; paint(); } });
+  const filterIn = Input({ id: 'col-filter', placeholder: 'Nome ou texto da carta', onInput: e => { state.filter = e.target.value; paint(); } });
+  filterBtn = Button('Filtros', { id: 'col-filters', onClick: openFilters });
 
   load();
   return Stack(pad(),
@@ -4966,8 +5184,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     undoBar, pendingBox,
     Row({ class: 'ds-row--wrap' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
+      filterBtn,
       Select([{ value: 'name', label: 'Ordem alfabética' }, { value: 'qty', label: 'Mais cópias primeiro' }], { id: 'col-sort', value: state.sort, onChange: e => { state.sort = e.target.value; paint(); } })),
-    listEl, selectionBar);
+    countLine, listEl, selectionBar);
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
