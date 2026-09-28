@@ -483,6 +483,51 @@ test('e2e · X7 scanner acha a carta sozinho, sem moldura, e dispara a leitura',
   assert.deepEqual(errors, []);
 });
 
+test('e2e · X9 leitura de confiança média fica "confira" e se resolve com um toque', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.click('[data-edition]');
+  // 87% de confiança: entra na pilha, mas marcada
+  await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
+  await page.click('#scan-read');
+  await page.waitForSelector('#scan-pile [data-conferir]');
+  const cartao = page.locator('#scan-pile .scan-pile__card').first();
+  assert.match(await cartao.innerText(), /Confira/, 'a pilha avisa que a leitura precisa de conferência');
+  // o lote também avisa e o botão principal não esconde o que falta conferir
+  await page.click('#scan-pile-commit');
+  await page.waitForSelector('#scan-lot-aviso');
+  assert.match(await page.innerText('#scan-lot-aviso'), /1 leitura\(s\) ainda não conferida/);
+  assert.match(await page.innerText('#scan-commit'), /\(1 a conferir\)/);
+  assert.equal(await page.locator('#scan-lot-list [data-conferir]').count(), 1);
+  await page.click('.ds-dialog button:has-text("Fechar")');
+  // "É essa" confirma na hora: marca some da pilha e do lote
+  await page.click('#scan-pile [data-confirm]');
+  await page.waitForFunction(() => !document.querySelector('#scan-pile [data-conferir]'));
+  assert.doesNotMatch(await page.innerText('#scan-pile'), /Confira/);
+  await page.click('#scan-pile-commit');
+  await page.waitForSelector('#scan-commit');
+  assert.equal(await page.locator('#scan-lot-aviso').count(), 0, 'sem aviso quando tudo está conferido');
+  assert.doesNotMatch(await page.innerText('#scan-commit'), /a conferir/);
+  await page.click('.ds-dialog button:has-text("Fechar")');
+  // leitura de confiança alta entra confirmada de cara
+  await page.evaluate(() => window.__ocrQueue.push('Grizzly Bear'));
+  await page.click('#scan-read');
+  await page.waitForFunction(() => /Grizzly Bear/.test(document.querySelector('#scan-pile').innerText));
+  assert.equal(await page.locator('#scan-pile [data-conferir]').count(), 0, '100% não pede conferência');
+  // e a segunda leitura média resolve pelo caminho "Corrigir", voltando para a pilha
+  await page.evaluate(() => window.__ocrQueue.push('Sol Rimg'));
+  await page.click('#scan-read');
+  await page.waitForSelector('#scan-pile [data-conferir]');
+  await page.click('#scan-pile [data-fix]');
+  await page.waitForSelector('#scan-fix-input');
+  await page.fill('#scan-fix-input', 'Sol Ring');
+  await page.click('#scan-fix-list button:has-text("Sol Ring")');
+  await page.waitForFunction(() => !document.querySelector('.ds-dialog') && !document.querySelector('#scan-pile [data-conferir]'));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, corrigir e mandar para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(false));

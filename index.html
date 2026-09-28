@@ -632,6 +632,10 @@ body {
 .scan-pile__img--vazia { display: flex; align-items: center; justify-content: center; font-size: var(--text-xl); color: var(--muted); }
 .scan-pile__body { display: flex; flex-direction: column; gap: 2px; min-height: 3.2em; }
 .scan-pile__qty { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); }
+/* X9 · cartão a conferir: fica mais largo para caber o palpite e as alternativas */
+.scan-pile__card:has(.scan-pile__conferir) { width: 220px; border-color: var(--warning); }
+.scan-pile__conferir { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-1); }
+.scan-pile__conferir .ds-btn { min-height: 44px; }
 /* X7 · contorno da carta encontrada e a dica do que corrigir */
 .scan-outline {
   position: absolute; border: 2px solid var(--accent); border-radius: var(--radius-card);
@@ -8989,6 +8993,7 @@ const NAMES_KEY = 'names.catalog';
 const LOT_KEY = 'scanner.lot';
 const MAX_AGE = 30 * 24 * 3600 * 1000;
 const ACCEPT = 0.82;   // leitura automática entra no lote a partir daqui
+const ALTA = 0.92;     // X9 · acima disto a leitura entra confirmada; entre as duas, fica "confira"
 const SUGGEST = 0.6;   // abaixo disso não sugere nada
 
 /** Deixa o texto do OCR comparável: minúsculas, sem acento, trocas típicas de OCR. */
@@ -9106,10 +9111,22 @@ function createLot({ store }) {
       const key = lotKey(name, printing);
       const cur = find(key);
       // X8 · a pilha mostra confiança e miniatura: a leitura mais recente manda
-      const extra = meta ? { ...(meta.score != null ? { score: meta.score } : {}), ...(meta.img ? { img: meta.img } : {}) } : {};
+      // X9 · confiança alta entra confirmada; o resto fica marcado para conferir,
+      // com as alternativas que a leitura ofereceu guardadas no próprio item
+      const extra = meta ? {
+        ...(meta.score != null ? { score: meta.score, conferir: meta.score < ALTA } : {}),
+        ...(meta.img ? { img: meta.img } : {}),
+        ...(meta.alternativas && meta.alternativas.length ? { alternativas: meta.alternativas.slice(0, 3) } : {})
+      } : {};
       if (cur) Object.assign(cur, extra, { qty: cur.qty + qty });
       else items.push({ key, name, qty, ...extra, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) });
       history.push(key); await persist(); return key;
+    },
+    /** X9 · "é essa mesmo": a leitura deixa de pedir conferência. */
+    async confirmar(key) {
+      await load(); const cur = find(key); if (!cur) return null;
+      delete cur.conferir; delete cur.alternativas;
+      await persist(); return cur.name;
     },
     /** X8 · tira uma leitura do meio da pilha, com tudo o que ela somou. */
     async remove(key) {
@@ -9122,7 +9139,8 @@ function createLot({ store }) {
     async resumo() {
       const list = await load();
       return { itens: list.length, total: list.reduce((s, x) => s + x.qty, 0),
-        comEdicao: list.filter(x => x.set).length, semEdicao: list.filter(x => !x.set).length };
+        comEdicao: list.filter(x => x.set).length, semEdicao: list.filter(x => !x.set).length,
+        conferir: list.filter(x => x.conferir).length };
     },
     /** Resultado de uma leitura automática. Devolve a chave se entrou no lote. */
     async observe(best, printing = null, meta = null) {
@@ -9149,11 +9167,13 @@ function createLot({ store }) {
     async rename(fromKey, toName, printing = null) {
       await load(); const cur = find(fromKey); if (!cur) return;
       const key = lotKey(toName, printing);
-      if (key === fromKey) return;
+      // X9 · escolher o mesmo nome também é conferir: a marca sai
+      if (key === fromKey) { delete cur.conferir; delete cur.alternativas; await persist(); return key; }
       const dup = find(key);
-      if (dup) { dup.qty += cur.qty; items.splice(items.indexOf(cur), 1); }
+      if (dup) { dup.qty += cur.qty; delete dup.conferir; delete dup.alternativas; items.splice(items.indexOf(cur), 1); }
       else {
-        const next = { key, name: toName, qty: cur.qty, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) };
+        // corrigir é conferir: o nome passou pela sua mão
+        const next = { key, name: toName, qty: cur.qty, ...(cur.img ? { img: cur.img } : {}), ...(cur.score != null ? { score: cur.score } : {}), ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) };
         items.splice(items.indexOf(cur), 1, next);
       }
       history = history.map(k => k === fromKey ? key : k); await persist();
@@ -9368,7 +9388,7 @@ function criaDetector({ quadros = 3, limiares = LIMIARES } = {}) {
   };
 }
 
-return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, SUGGEST, lev,
+return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA };
 })();
 
@@ -9560,7 +9580,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       let ed = { exact: null, candidates: [] }, key = null;
       if (best && best.score >= ACCEPT) {
         // X8 · a pilha mostra miniatura e confiança: as duas saem desta leitura
-        const meta = async () => ({ score: best.score, img: await miniatura(best.name, ed.exact) });
+        // X9 · as alternativas seguem junto: conferir vira um toque no próprio cartão
+        const meta = async () => ({ score: best.score, img: await miniatura(best.name, ed.exact), alternativas: found.slice(1, 4).map(x => x.name) });
         if (manual) { ed = await identify(best.name); key = await lot.add(best.name, 1, ed.exact, await meta()); lot.rearm(); }
         else if (await wouldAdd(best)) { ed = await identify(best.name); key = await lot.observe(best, ed.exact, await meta()); }
         else await lot.observe(best);
@@ -9651,7 +9672,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       h('div', { class: 'scan-pile__body' },
         Text(x.name, { size: 'sm' }),
         Text(x.set ? printLabel(x) : 'sem edição', { size: 'xs', tone: 'muted' }),
-        x.score != null ? Badge(`${Math.round(x.score * 100)}%`, { tone: x.score >= 0.92 ? 'positive' : 'warning' }) : null),
+        x.score != null ? Badge(`${Math.round(x.score * 100)}%`, { tone: x.conferir ? 'warning' : 'positive' }) : null,
+        x.conferir ? conferencia(x) : null),
       h('div', { class: 'scan-pile__qty' },
         Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty - 1); paintPile(); paintDock(); } }),
         h('span', {}, String(x.qty)),
@@ -9662,16 +9684,29 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       Button('Adicionar em lote', { variant: 'primary', id: 'scan-pile-commit', onClick: openLot })),
       h('div', { class: 'scan-pile__strip' }, ...recentes.map(cartao)));
   }
+  /** X9 · leitura de confiança média: "É essa" confirma, alternativa troca, "Corrigir" abre a busca. */
+  function conferencia(x) {
+    const depois = () => { paintPile(); paintDock(); };
+    return h('div', { class: 'scan-pile__conferir', dataset: { conferir: x.key } },
+      Badge('Confira', { tone: 'warning' }),
+      Row({ class: 'ds-row--wrap' },
+        Button('É essa', { variant: 'primary', dataset: { confirm: x.key }, onClick: async () => { await lot.confirmar(x.key); depois(); toast(`${x.name} conferida`, 1200); } }),
+        ...(x.alternativas || []).map(nome => Button(nome, { dataset: { alt: nome }, onClick: async () => { await lot.rename(x.key, nome); depois(); toast(`Trocada por ${nome}`, 1400); } })),
+        Button('Corrigir', { variant: 'ghost', dataset: { fix: x.key }, onClick: () => fix(x, depois) })));
+  }
 
   /* ---- lote e destino (X4, X5) ---- */
   const dest = { to: 'collection', alsoCollection: true };
   async function openLot() {
     const list = await lot.list();
     const total = list.reduce((s, x) => s + x.qty, 0);
+    // X9 · nada entra como conferido sem um toque consciente: o botão avisa quantas faltam
+    const aConferir = list.filter(x => x.conferir).length;
     const allDecks = decks ? await decks.list() : [];
     const reopen = () => { closeDialog(); openLot(); paintDock(); };
-    const row = x => h('div', { class: 'col-print', dataset: { name: x.name, key: x.key } },
-      h('div', { class: 'col-print__label' }, Text(x.name, { size: 'md' }), Text(x.set ? `${printLabel(x)}${x.set_name ? ' · ' + x.set_name : ''}` : 'sem edição', { size: 'xs', tone: 'muted' })),
+    const row = x => h('div', { class: 'col-print', dataset: { name: x.name, key: x.key, ...(x.conferir ? { conferir: '1' } : {}) } },
+      h('div', { class: 'col-print__label' }, Row({ class: 'ds-row--wrap' }, Text(x.name, { size: 'md' }), x.conferir ? Badge('Confira', { tone: 'warning' }) : null),
+        Text(x.set ? `${printLabel(x)}${x.set_name ? ' · ' + x.set_name : ''}` : 'sem edição', { size: 'xs', tone: 'muted' })),
       h('div', { class: 'col-row__qty' },
         Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty - 1); reopen(); } }),
         h('span', { class: 'col-print__n' }, String(x.qty)),
@@ -9681,19 +9716,23 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       onChange: e => { dest.to = e.target.value; reopen(); } });
     const also = dest.to !== 'collection' ? (() => { const c = Chip('Também somar à coleção', { pressed: dest.alsoCollection, dataset: { also: '1' } });
       c.addEventListener('click', () => { dest.alsoCollection = !dest.alsoCollection; c.setAttribute('aria-pressed', String(dest.alsoCollection)); }); return c; })() : null;
-    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, Field('Destino', destSelect), also, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
+    const aviso = aConferir ? Note(`<b>${aConferir} leitura(s) ainda não conferida(s).</b> Toque em Corrigir para trocar o nome, ou adicione assim mesmo.`, 'warning') : null;
+    if (aviso) aviso.id = 'scan-lot-aviso';
+    const rotulo = (dest.to === 'collection' ? `Adicionar ${total} à coleção` : `Adicionar ${total} à lista`) + (aConferir ? ` (${aConferir} a conferir)` : '');
+    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, aviso, Field('Destino', destSelect), also, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
       actions: [
         list.length ? Button('Limpar', { variant: 'danger', onClick: async () => { await lot.clear(); closeDialog(); paintDock(); toast('Lote limpo'); } }) : null,
         Button('Fechar', { onClick: closeDialog }),
-        list.length ? Button(dest.to === 'collection' ? `Adicionar ${total} à coleção` : `Adicionar ${total} à lista`, { variant: 'primary', id: 'scan-commit', onClick: commit }) : null].filter(Boolean) });
+        list.length ? Button(rotulo, { variant: 'primary', id: 'scan-commit', onClick: commit }) : null].filter(Boolean) });
   }
-  function fix(x) {
+  /** `voltar` diz para onde ir depois: o lote (padrão) ou a pilha (X9). */
+  function fix(x, voltar = openLot) {
     closeDialog();
     const box = h('div', { class: 'col-prints', id: 'scan-fix-list' });
     const input = Input({ id: 'scan-fix-input', value: x.name });
-    const show = () => mount(box, ...names.match(input.value, { limit: 5 }).map(c => Button(c.name, { block: true, onClick: async () => { await lot.rename(x.key, c.name); closeDialog(); openLot(); } })));
+    const show = () => mount(box, ...names.match(input.value, { limit: 5 }).map(c => Button(c.name, { block: true, onClick: async () => { await lot.rename(x.key, c.name); closeDialog(); voltar(); } })));
     input.addEventListener('input', show); show();
-    Dialog({ title: 'Corrigir leitura', body: Stack({}, Field('Nome', input), box), actions: [Button('Voltar', { onClick: () => { closeDialog(); openLot(); } })] });
+    Dialog({ title: 'Corrigir leitura', body: Stack({}, Field('Nome', input), box), actions: [Button('Voltar', { onClick: () => { closeDialog(); voltar(); } })] });
   }
   async function toCollection(list) {
     for (const x of list) {

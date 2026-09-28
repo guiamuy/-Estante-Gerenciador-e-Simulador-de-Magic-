@@ -102,7 +102,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7 captura automática sem moldura | 🟡 |
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
-| X · Scanner | X9–X10 validação ágil e acerto medido | ▶ |
+| X · Scanner | X10 acerto medido com fotos reais | ▶ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
@@ -349,7 +349,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
-| E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
+| E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 | C10, C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -2404,16 +2404,27 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Fora:** editar condição e idioma no lote (fica na coleção); miniatura sem rede (a carta aparece com a
   inicial até a imagem existir no cache).
 
-**X9 · Validação ágil da leitura** ○
+**X9 · Validação ágil da leitura** 🟡
 - **Valor:** confiar no que entrou na coleção, gastando um toque por carta.
 - **Aceite:**
   - leitura com confiança alta entra confirmada; as demais ficam marcadas como "confira";
   - conferir é um toque: o palpite principal e até três alternativas ficam visíveis no próprio cartão;
   - corrigir abre busca por nome com teclado, sem perder o resto da pilha;
   - nada entra na coleção marcado como conferido sem você ter confirmado.
-- **Testes:** U (regra de confiança e estados do cartão), I.
+- **Entregue (leva 66):** dois patamares de confiança (`ACCEPT` 0,82 entra na pilha; `ALTA` 0,92 entra
+  confirmada). Entre os dois, o cartão da pilha fica com borda e selo **"Confira"** e traz, no próprio
+  cartão, o botão **"É essa"**, até três alternativas que a leitura ofereceu (um toque troca o nome) e
+  **"Corrigir"** (busca por nome com teclado, que volta para a pilha, não para o lote). No lote, os
+  itens a conferir ficam marcados, um aviso diz quantos faltam e o botão principal vira
+  "Adicionar N à coleção (K a conferir)": nada entra como conferido sem um toque consciente.
+- **Correção no caminho:** "Corrigir" escolhendo o mesmo nome deixava a marca "confira" (o `rename` saía
+  cedo quando a chave não mudava). Agora escolher o mesmo nome também confere.
+- **Testes:** U (patamares e alternativas guardadas; confirmar, corrigir para outro nome e corrigir para o
+  mesmo nome tiram a marca sem duplicar cópias; leitura nova de confiança média volta a marcar), I headless
+  (leitura de 87% entra marcada, o lote avisa e o botão principal mostra "a conferir"; "É essa" limpa a
+  marca; leitura de 100% entra confirmada; "Corrigir" resolve e volta para a pilha).
 - **Depende de:** X8.
-- **Fora:** aprender com as correções.
+- **Fora:** aprender com as correções (subir a nota de um nome que o usuário confirmou várias vezes).
 
 **X10 · Medir o acerto com fotos reais** ○
 - **Valor:** fechar a pendência declarada em X2 e X3: hoje o portão mede a correspondência, não o OCR.

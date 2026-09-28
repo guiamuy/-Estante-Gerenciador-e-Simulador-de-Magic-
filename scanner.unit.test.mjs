@@ -294,8 +294,8 @@ test('X8 · o resumo da pilha conta itens, cópias e quantas têm edição', asy
   await lot.add('Sol Ring', 2, { set: 'mh2', number: '267' });
   await lot.add('Island', 3);
   const r = await lot.resumo();
-  assert.deepEqual(JSON.parse(JSON.stringify(r)), { itens: 2, total: 5, comEdicao: 1, semEdicao: 1 });
-  assert.deepEqual(JSON.parse(JSON.stringify(await X.createLot({ store: P.memoryStore() }).resumo())), { itens: 0, total: 0, comEdicao: 0, semEdicao: 0 });
+  assert.deepEqual(JSON.parse(JSON.stringify(r)), { itens: 2, total: 5, comEdicao: 1, semEdicao: 1, conferir: 0 });
+  assert.deepEqual(JSON.parse(JSON.stringify(await X.createLot({ store: P.memoryStore() }).resumo())), { itens: 0, total: 0, comEdicao: 0, semEdicao: 0, conferir: 0 });
 });
 
 test('X8 · a pilha sobrevive a fechar o app', async () => {
@@ -309,4 +309,42 @@ test('X8 · a pilha sobrevive a fechar o app', async () => {
   assert.equal(list[0].score, 0.9, 'com a confiança');
   assert.equal(list[0].img, 'x.jpg', 'e com a miniatura');
   assert.equal(await volta.total(), 3);
+});
+
+/* ---------------- X9 · validação ágil ---------------- */
+test('X9 · confiança alta entra confirmada; a mediana fica marcada para conferir, com alternativas', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  await lot.add('Sol Ring', 1, null, { score: 0.97 });
+  await lot.add('Island', 1, null, { score: 0.85, alternativas: ['Islet', 'Isolate', 'Isamaru', 'Ignorada'] });
+  const [ring, ilha] = await lot.list();
+  assert.equal(ring.conferir, false, 'acima do limiar alto, entra confirmada');
+  assert.equal(ilha.conferir, true, 'entre os dois limiares, pede conferência');
+  assert.deepEqual(JSON.parse(JSON.stringify(ilha.alternativas)), ['Islet', 'Isolate', 'Isamaru'], 'até três alternativas ficam no item');
+  assert.equal((await lot.resumo()).conferir, 1, 'o resumo diz quantas faltam conferir');
+  assert.equal(X.ALTA > X.ACCEPT, true, 'o limiar alto fica acima do de aceite');
+});
+
+test('X9 · confirmar e corrigir tiram a marca; a leitura só sai conferida pela sua mão', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  const k1 = await lot.add('Island', 1, null, { score: 0.85, alternativas: ['Islet'] });
+  const k2 = await lot.add('Forest', 1, null, { score: 0.86, alternativas: ['Fores'] });
+  assert.equal(await lot.confirmar(k1), 'Island');
+  let list = await lot.list();
+  assert.equal(list[0].conferir, undefined, 'confirmada: sem marca');
+  assert.equal(list[0].alternativas, undefined, 'e sem alternativas sobrando');
+  await lot.rename(k2, 'Plains');
+  list = await lot.list();
+  const plains = list.find(x => x.name === 'Plains');
+  assert.ok(plains, 'corrigiu o nome');
+  assert.equal(plains.conferir, undefined, 'corrigir também confirma');
+  assert.equal((await lot.resumo()).conferir, 0);
+  assert.equal(await lot.confirmar('nada'), null, 'confirmar o que não existe não quebra');
+  // leitura nova da mesma carta, com confiança baixa, volta a pedir conferência
+  await lot.add('Island', 1, null, { score: 0.84, alternativas: ['Islet'] });
+  assert.equal((await lot.list()).find(x => x.name === 'Island').conferir, true, 'a leitura mais recente manda na marca');
+  // corrigir escolhendo o mesmo nome também é conferir (o nome passou pela mão do usuário)
+  assert.equal(await lot.rename(k1, 'Island'), k1, 'mesmo nome devolve a mesma chave');
+  const island = (await lot.list()).find(x => x.name === 'Island');
+  assert.equal(island.conferir, undefined, 'a marca sai');
+  assert.equal(island.qty, 2, 'sem duplicar nem perder cópias');
 });
