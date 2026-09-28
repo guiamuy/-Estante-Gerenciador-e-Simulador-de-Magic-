@@ -176,6 +176,8 @@ test('A14 · o assento do bot joga sozinho e explica cada jogada no registro', (
   assert.equal(mesa.state.turn.number >= 1, true, 'a partida andou');
   const registro = mesa.lines.join('\n');
   assert.match(registro, /Bot amador: /, 'o registro traz o motivo da jogada do bot');
+  // B7 · e o resumo do turno dele aparece quando o turno vira
+  assert.match(registro, /Resumo do turno \d+ · Bot amador/, 'o resumo do turno do bot entra no registro');
   // e a escolha do bot sobrevive a salvar e continuar
   const salvo = JSON.parse(JSON.stringify(mesa.serialize()));
   assert.deepEqual(JSON.parse(JSON.stringify(salvo.options.bot)), { nivel: 'amador', seat: 1 });

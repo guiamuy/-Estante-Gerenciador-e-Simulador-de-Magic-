@@ -7826,6 +7826,51 @@ function jogadaProfissional(s, p, opts = {}) {
   return { acao: r.acao, motivo: motivoDe(s, p, r.acao, ganho), ganho };
 }
 
+/* ---------------- B7 · didática ---------------- */
+/** Junta os motivos das jogadas de um turno em até três linhas de português. */
+function resumoDoTurno(motivos = []) {
+  const limpo = motivos.map(m => String(m || '').trim()).filter(Boolean);
+  const pega = re => limpo.filter(m => re.test(m));
+  const nomes = (re, corte) => [...new Set(pega(re).map(m => m.replace(corte, '').split(' em ')[0].trim()))];
+  const linhas = [];
+  const terrenos = pega(/^baixei /).length;
+  const conjuradas = nomes(/^conjurei /, /^conjurei /);
+  const habilidades = nomes(/^usei a habilidade de /, /^usei a habilidade de /);
+  // o motivo é escrito na primeira pessoa (é a voz do bot); o resumo fala dele
+  const terceira = m => m.replace(/^ataquei/, 'atacou').replace(/^não ataquei/, 'não atacou')
+    .replace(/^bloqueei/, 'bloqueou').replace(/^não bloqueei/, 'não bloqueou');
+  const frase = m => { const t = terceira(m); return t.charAt(0).toUpperCase() + t.slice(1) + '.'; };
+  const ataque = pega(/^ataquei /).slice(-1)[0] || pega(/^não ataquei/).slice(-1)[0];
+  const bloqueio = pega(/^bloqueei /).slice(-1)[0] || pega(/^não bloqueei/).slice(-1)[0];
+  if (terrenos) linhas.push(terrenos === 1 ? 'Baixou um terreno.' : `Baixou ${terrenos} terrenos.`);
+  if (conjuradas.length) linhas.push(`Conjurou ${conjuradas.join(', ')}.`);
+  if (habilidades.length) linhas.push(`Usou a habilidade de ${habilidades.join(', ')}.`);
+  if (ataque) linhas.push(frase(ataque));
+  if (bloqueio && linhas.length < 3) linhas.push(frase(bloqueio));
+  if (!linhas.length) return ['Não fez nada neste turno.'];
+  return linhas.slice(0, 3);
+}
+
+/** B7 · as melhores jogadas que ainda estão na mesa para o jogador p, com o
+    ganho que o avaliador enxerga em cada uma. Só entra o que melhora de verdade. */
+function dicas(s, p, { quantas = 2, orcamentoMs = 400, agora = () => Date.now() } = {}) {
+  if (!s || s.status !== 'playing' || s.players[p].lost) return [];
+  const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede' && a.t !== 'pass');
+  if (!acoes.length) return [];
+  const base = avalia(s, p).nota;
+  const inicio = agora();
+  const medidas = [];
+  for (const a of acoes) {
+    if (medidas.length && agora() - inicio >= orcamentoMs) break;
+    const n = notaDepois(s, p, a);
+    if (n == null) continue;
+    const ganho = Math.round(n - base);
+    if (ganho > 0) medidas.push({ acao: a, ganho, motivo: motivoDe(s, p, a, ganho) });
+  }
+  medidas.sort((x, y) => y.ganho - x.ganho || (chaveAcao(x.acao) < chaveAcao(y.acao) ? -1 : 1));
+  return medidas.slice(0, quantas);
+}
+
 /** Bot pronto para a mesa, nos dois níveis. */
 function criaBot({ nivel = 'amador', orcamentoMs = 400, agora = () => Date.now() } = {}) {
   const profissional = nivel === 'profissional';
@@ -7840,7 +7885,7 @@ function criaBot({ nivel = 'amador', orcamentoMs = 400, agora = () => Date.now()
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, criaBot };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, criaBot };
 })();
 
 /* ==== src/ui/table-components.js ==== */
@@ -8076,9 +8121,17 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
   // B3 · um assento pode ser dirigido pelo bot: { nivel, seat }
   const options = { autoPass: opts.autoPass !== false, bot: opts.bot || null };
   const robo = options.bot ? __m25.criaBot({ nivel: options.bot.nivel }) : null;
+  // B7 · os motivos do bot viram um resumo curto no fim do turno dele
+  let motivosDoBot = [], turnoDoBot = null;
   let match, lines, barrier, humanMarks;
 
-  function reset() { match = E.createMatch(setup); lines = []; barrier = 0; humanMarks = []; }
+  function reset() { match = E.createMatch(setup); lines = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; }
+  function fechaResumoDoBot() {
+    if (!options.bot || !motivosDoBot.length) return;
+    const nome = (match.state.players[options.bot.seat] || {}).name || 'Bot';
+    lines.push(`Resumo do turno ${turnoDoBot} · ${nome}`, ...__m25.resumoDoTurno(motivosDoBot).map(l => '  ' + l));
+    motivosDoBot = [];
+  }
 
   function record(action) {
     const before = match.state;
@@ -8095,7 +8148,8 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     const events = [];
     for (let guard = 0; guard < 2000; guard++) {
       const s = match.state;
-      if (s.status === 'over') break;
+      if (s.status === 'over') { fechaResumoDoBot(); break; }
+      if (turnoDoBot != null && s.turn.number !== turnoDoBot) fechaResumoDoBot();
       // B3 · o assento do bot decide sozinho, e o motivo entra no registro
       if (robo && options.bot && !s.players[options.bot.seat].lost) {
         const b = options.bot.seat;
@@ -8107,6 +8161,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           if (j && j.acao) {
             events.push(...record(j.acao));
             lines.push(`${s.players[b].name}: ${j.motivo}`);
+            turnoDoBot = s.turn.number; motivosDoBot.push(j.motivo);
             continue;
           }
         }
@@ -8557,6 +8612,20 @@ function createTableScreen({ store }) {
   const hasPriority = v => { const s = table.state; return s.status === 'playing' && !s.pending && s.turn.priority === v; };
   const canAdjudicate = v => table.state.mode === 'assisted' && hasPriority(v); // S9: no motor completo o jogo não aceita controle manual
 
+  /** B7 · duas melhores jogadas que ainda estão na mesa, com o motivo. */
+  function mostraDicas(v) {
+    const s = table.state;
+    const lista = __m25.dicas(s, v, { quantas: 2 });
+    Dialog({ title: 'O que eu poderia fazer?', body: lista.length
+      ? Stack({ style: { gap: 'var(--space-2)' } },
+        Text('Pelas contas do bot, estas são as jogadas que mais melhoram a sua posição agora.', { size: 'sm', tone: 'muted' }),
+        ...lista.map((d, i) => Surface({ class: 'ds-surface--pad', id: i ? undefined : 'tb-dica-1' }, Stack({ style: { gap: 'var(--space-1)' } },
+          Text(d.motivo.charAt(0).toUpperCase() + d.motivo.slice(1), { size: 'md' }),
+          Text(`Ganho estimado: ${d.ganho}`, { size: 'sm', tone: 'muted' })))))
+      : Empty('Nada que melhore a sua posição agora — passar está de bom tamanho.'),
+      actions: [Button('Fechar', { onClick: closeDialog })] });
+  }
+
   function openObject(oid) {
     const s = table.state, v = table.viewer(), o = s.objects[oid];
     if (!o) return;
@@ -8803,6 +8872,8 @@ function createTableScreen({ store }) {
         title: top ? `Pilha: ${top}` : `Sua prioridade · ${E.STEP_PT[s.turn.step]}`,
         hint: top ? 'Responda ou passe. Se todos passarem, o topo resolve.' : (s.turn.active === v ? 'Seu turno.' : `Turno de ${s.players[s.turn.active].name}.`),
         actions: [Button('Passar', { variant: 'primary', id: 'tb-pass', onClick: () => act({ t: 'pass', p: v }) }),
+          // B7 · o mesmo avaliador do bot, agora a seu favor
+          s.mode === 'full' ? Button('O que eu poderia fazer?', { id: 'tb-dicas', onClick: () => mostraDicas(v) }) : null,
           top ? null : Button('Passar o turno', { id: 'tb-pass-turn', onClick: () => {
             const start = s.turn.number;
             try { const ev = table.passUntil(v, n => n.turn.number !== start && n.turn.active === v && n.turn.step === 'main1');

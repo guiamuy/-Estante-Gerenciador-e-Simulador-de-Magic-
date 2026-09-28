@@ -136,10 +136,17 @@ test('e2e · B4 jogar contra o bot: escolher o nível e ver a jogada dele no reg
   await page.fill('#mesa-seed', '9');
   await page.click('[data-opponent="profissional"]');
   await page.waitForSelector('#mesa-bot-deck');            // a lista do bot aparece
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]');                  // bot só joga no motor completo
   await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep');
   await page.click('#tb-keep');                            // o bot decide a mão dele sozinho
   await page.waitForSelector('#tb-pass');
+  // B7 · com a prioridade na mão e no motor completo, a dica está ali
+  await page.waitForSelector('#tb-dicas', { timeout: 8000 });
+  await page.click('#tb-dicas');
+  await page.waitForFunction(() => /O que eu poderia fazer/.test(document.body.innerText), null, { timeout: 4000 });
+  await page.click('text=Fechar');
   for (let i = 0; i < 12; i++) {                           // alguns turnos correndo
     const passar = await page.$('#tb-pass');
     if (!passar) break;

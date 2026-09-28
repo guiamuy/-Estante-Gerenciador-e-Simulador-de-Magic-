@@ -399,3 +399,42 @@ test('B4 · joga uma partida inteira contra o amador sem ação ilegal', () => {
   assert.equal(jogadas > 50, true, `foram ${jogadas} jogadas sem nenhuma ilegal`);
   assert.deepEqual(J(E.invariants(s)), [], 'estado íntegro no fim');
 });
+
+/* ---------------- B7 · didática ---------------- */
+test('B7 · o resumo do turno do bot cabe em três linhas e fala dele, não comigo', () => {
+  const r = B.resumoDoTurno(['baixei Floresta', 'conjurei Urso', 'conjurei Alce',
+    'ataquei com 2: nenhum bloqueio me mata de graça', 'passei: nada melhorava a posição']);
+  assert.equal(r.length <= 3, true, 'no máximo três linhas');
+  assert.equal(r[0], 'Baixou um terreno.');
+  assert.equal(r[1], 'Conjurou Urso, Alce.');
+  assert.match(r[2], /^Atacou com 2/, 'a voz é de terceira pessoa');
+  assert.equal(r.some(l => /passei/i.test(l)), false, 'passar não vira linha de resumo');
+
+  assert.deepEqual(J(B.resumoDoTurno([])), ['Não fez nada neste turno.']);
+  assert.deepEqual(J(B.resumoDoTurno(['não bloqueei: o dano não me mata e não há troca boa'])),
+    ['Não bloqueou: o dano não me mata e não há troca boa.']);
+  const muitas = B.resumoDoTurno(['baixei Floresta', 'conjurei Urso', 'usei a habilidade de Totem',
+    'ataquei com 1: nenhum bloqueio me mata de graça', 'bloqueei 1: a troca me favorece']);
+  assert.equal(muitas.length, 3, 'com cinco jogadas, corta em três linhas');
+});
+
+test('B7 · as dicas mostram as melhores jogadas que ainda estão na mesa', () => {
+  let s = mesa3(41, true); const a = s.turn.active, d = 1 - a;
+  s = esvaziaMao(s, a);
+  [s] = poe(s, a, 'Floresta'); [s] = poe(s, a, 'Floresta'); [s] = poe(s, a, 'Floresta');
+  [s] = poe(s, d, 'Gigante');
+  let matar, urso;
+  [s, matar] = poe(s, a, 'Matar', 'hand');
+  [s, urso] = poe(s, a, 'Urso', 'hand');
+  const dicas = B.dicas(s, a, { quantas: 2 });
+  assert.equal(dicas.length, 2, 'duas dicas');
+  assert.equal(dicas[0].ganho >= dicas[1].ganho, true, 'a melhor vem primeiro');
+  assert.equal(dicas[0].acao.oid, matar, 'tirar o 5/5 é a melhor jogada da mesa');
+  assert.match(dicas[0].motivo, /conjurei Matar em Gigante/);
+  assert.equal(dicas.every(x => x.ganho > 0), true, 'só entra o que melhora de verdade');
+
+  // sem nada para fazer, não inventa dica
+  let vazio = mesa3(42, true); const b = vazio.turn.active;
+  vazio = esvaziaMao(vazio, b);
+  assert.deepEqual(J(B.dicas(vazio, b)), [], 'mão vazia e sem habilidade: nenhuma dica');
+});

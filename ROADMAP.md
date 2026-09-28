@@ -98,7 +98,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | B · Bot | B2 avaliador de posição e arcabouço de decisão | 🟡 |
 | B · Bot | B3 amador experiente e B4 profissional, jogáveis na mesa | 🟡 |
 | B · Bot | B5 escolha na mesa e B6 torneio medido no portão | 🟡 |
-| B · Bot | B7 didática do bot | ▶ |
+| B · Bot | B7 didática do bot: resumo do turno e "o que eu poderia fazer" | 🟡 |
 | A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7–X10 captura automática, pilha de leitura, validação e acerto medido | ○ |
 | C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
@@ -259,7 +259,7 @@ abaixo é a que vale):
 
 | Ordem | Épico | Rodadas |
 |---|---|---|
-| 1º | **E37 · Bot (B2–B7)** — o que transforma o motor pronto em jogo | 6 a 7 |
+| 1º ✅ | **E37 · Bot (B2–B7)** — entregue em 5 levas (59 a 63) | 5 |
 | 2º | **E39 · Scanner (X7–X10)** — captura automática, pilha de leitura, acerto medido | 4 a 5 |
 | 3º | **E41 · Listas (C10, C11)** — importar e exportar a coleção por lista | 2 |
 | 4º | **E40 · Coleção (C12–C14)** — filtros, visões e painel gráfico | 4 |
@@ -345,7 +345,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ah ✅ | S64 (leva 56) | Lista guardada no aparelho, sem prazo, e motor completo exige os dados |
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
-| E37 🟡 | B2 (leva 59) · B3 (leva 60) · B4 (leva 61) · B5–B6 (leva 62) · B7 | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
+| E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 | X7–X10 | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
@@ -2085,15 +2085,27 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** B4.
 - **Fora:** ajuste automático de pesos.
 
-**B7 · Didática do bot** ○
+**B7 · Didática do bot** 🟡
 - **Valor:** aprender jogando contra ele.
 - **Aceite:**
   - ao fim de cada turno do bot, um resumo em português do que ele fez e por quê (até três linhas);
   - opção "mostrar o que eu poderia ter feito" no fim do meu turno, com as duas melhores jogadas que
     deixei passar, segundo o avaliador.
-- **Testes:** U (texto gerado a partir das parcelas do avaliador), I.
-- **Depende de:** B4, A14.
-- **Fora:** análise pós-partida completa.
+- **Entregue (leva 63):**
+  - **resumo do turno do bot** no registro: até três linhas em português e na terceira pessoa
+    ("Baixou um terreno. Conjurou Urso, Alce. Atacou com 2: nenhum bloqueio me mata de graça."),
+    fechado quando o turno vira;
+  - **"O que eu poderia fazer?"** no painel de prioridade, no motor completo: as duas jogadas que mais
+    melhoram a sua posição agora, com o ganho estimado, pelo mesmo avaliador que o bot usa. Quando não há
+    nada melhor, ele diz isso em vez de inventar dica.
+- **Decisão de escopo:** a dica mostra, não joga por você. E ela lê só o que a mesa mostra, como o bot.
+- **Testes:** U (resumo cortando em três linhas, ignorando "passei", virando terceira pessoa e cobrindo o
+  caso sem jogada; dicas ordenadas por ganho, só com ganho positivo, apontando a remoção no 5/5 e vazias
+  quando não há o que fazer), I headless (resumo do turno no registro da mesa; o botão de dica existindo
+  no motor completo e abrindo o painel).
+- **Depende de:** B4.
+- **Fora:** análise pós-partida completa; a leitura do que passou batido no turno inteiro (a dica é do
+  momento, que é onde ela muda a sua jogada).
 
 ### C · Coleção
 
