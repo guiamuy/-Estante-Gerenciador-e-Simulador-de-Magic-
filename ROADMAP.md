@@ -110,7 +110,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | O · Offline | O2 telas sem rede: ambiente vivo, chip, fallbacks, base local alimentada por tudo | 🟡 |
 | O · Offline | O3 conduta offline para o que vem, espaço e proteção no painel | 🟡 |
 | C · Coleção | C12 filtros de verdade: motor, painel, recorte exportável, link, visões salvas, listas | 🟡 |
-| C · Coleção | C13–C14 visões e painel | ○ |
+| C · Coleção | C13 galeria, densa e pilhas; agrupar, ordenar e lembrar | 🟡 |
+| C · Coleção | C14 painel da coleção | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
@@ -371,7 +372,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
-| E40 🟡 | C12 (levas 73 e 74) · C13 · C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
+| E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -2330,7 +2331,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** C1, L3.
 - **Fora:** busca com sintaxe da Scryfall.
 
-**C13 · A coleção como coleção** ○
+**C13 · A coleção como coleção** 🟡
 - **Valor:** ver o acervo de forma organizada e bonita, não como uma tabela infinita.
 - **Aceite:**
   - três visões: galeria (arte), densa (uma linha por carta) e pilhas (agrupadas);
@@ -2338,9 +2339,26 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - ordenar por nome, custo, raridade, edição, quantidade e entrada mais recente;
   - a visão, o agrupamento e a ordenação ficam lembrados por aparelho;
   - rolagem fluida com muitas cartas, sem travar no celular.
-- **Testes:** V (contrato visual das três visões), I, desempenho (rolagem com 5 000 itens).
+- **Entregue (leva 75):** chips **Lista / Galeria / Densa / Pilhas** (a Lista é a visão de trabalho que já
+  existia, com os controles de quantidade; Galeria mostra a arte com a quantidade e abre as impressões
+  com um toque; Densa é uma linha por carta com tipo, edições e quantidade; Pilhas empilha as primeiras
+  cartas de cada grupo com rótulo e contagem, um toque abre a pilha, "Fechar pilha" volta). **Agrupar**
+  por cor (branco…verde, multicolor, incolor), tipo, edição (carta com duas edições aparece nas duas, só
+  com as cópias de cada), raridade ou custo (0…7+), com cabeçalho e contagem; carta sem dados guardados
+  vai para "Sem dados" no fim. **Ordem** por nome, custo, raridade, edição, mais cópias e mais recentes
+  (cada item passou a guardar quando entrou; item antigo conta como o mais velho). Tudo lembrado por
+  aparelho. A tela desenha em **lotes de 120** com "Mostrar mais (N restantes)" que também dispara
+  sozinho ao rolar até o fim — os grupos fechados nas pilhas não gastam lote.
+- **Sem rede:** tudo trabalha com os dados guardados; arte que não está no aparelho vira o nome.
+- **Testes:** U (ordenar por cada critério com "sem dados" no fim e critério desconhecido caindo no nome;
+  agrupar por cada critério com contagem e rótulos, edição repartindo as impressões; 5 000 cartas
+  ordenadas e agrupadas em menos de 100 ms), V (linha densa e pilha com 44 px, só tokens, proporção da
+  carta), I headless (303 cartas: lotes de 120 e "mostrar mais" até acabar, ordem por cópias, galeria com
+  quantidade e impressões, densa com tipo e edição, agrupar por edição com cabeçalhos e ordem dentro do
+  grupo, pilhas abrindo e fechando, escolhas lembradas ao voltar).
 - **Depende de:** C12.
-- **Fora:** arrastar para reordenar manualmente.
+- **Fora:** arrastar para reordenar manualmente; virtualização real da rolagem (o lote de 120 resolve até
+  alguns milhares; se travar no aparelho com mais, vira história).
 
 **C14 · Painel da coleção** ○
 - **Valor:** entender o acervo de relance, em números e gráficos.

@@ -581,6 +581,25 @@ body {
 }
 .col-row:last-child { border-bottom: none; }
 @media (min-width: 640px) { .col-row { grid-template-columns: 48px 1fr auto; grid-template-areas: "thumb info qty"; } }
+/* C13 · visões da coleção */
+.col-views-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.col-group__head { align-items: baseline; gap: var(--space-2); padding-top: var(--space-2); }
+.col-group__head > :first-child { flex: 1; }
+.col-card .ds-card { width: 100%; }
+.col-dense { display: flex; flex-direction: column; overflow: hidden; }
+.col-dense__row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name qty" "meta qty"; column-gap: var(--space-3); align-items: center;
+  min-height: var(--tap-min); padding: var(--space-1) var(--space-3); border: none; border-bottom: 1px solid var(--border); background: none; color: inherit; text-align: left; font: inherit; }
+.col-dense__row:last-child { border-bottom: none; }
+.col-dense__name { grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-dense__meta { grid-area: meta; font-size: var(--text-xs); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-dense__qty { grid-area: qty; font-family: var(--font-display); font-size: var(--text-lg); color: var(--accent); min-width: 2ch; text-align: right; }
+.col-pile { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-3); align-items: center; width: 100%; min-height: var(--tap-min);
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--surface); color: inherit; text-align: left; font: inherit; }
+.col-pile__stack { position: relative; height: 96px; }
+.col-pile__card { position: absolute; left: calc(var(--i) * 10px); top: calc(var(--i) * 3px); width: 56px; aspect-ratio: 63 / 88; border-radius: var(--radius-1); overflow: hidden; background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: 0 1px 3px var(--overlay); }
+.col-pile__card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.col-pile__card .ds-card__fallback { font-size: 9px; padding: 2px; }
+.col-pile__label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 /* C12b · visão salva: chip + botão de apagar colados */
 .col-view { display: inline-flex; align-items: center; gap: 2px; }
 /* C10 · modo de seleção: uma coluna a mais com a caixa, 44 px de alvo */
@@ -3399,6 +3418,7 @@ const NAMES = 'collection.names';
 const ITEMS = 'collection.items';
 const PENDING = 'collection.pending';
 const VIEWS = 'collection.views';
+const PREFS = 'collection.prefs';
 const CONDITIONS = [['NM', 'Near Mint'], ['LP', 'Levemente jogada'], ['MP', 'Moderadamente jogada'], ['HP', 'Muito jogada'], ['DMG', 'Danificada']];
 const LANGS = [['en', 'Inglês'], ['pt', 'Português'], ['es', 'Espanhol'], ['ja', 'Japonês'], ['de', 'Alemão'], ['fr', 'Francês'], ['it', 'Italiano'], ['ru', 'Russo'], ['ko', 'Coreano'], ['zhs', 'Chinês simplificado'], ['zht', 'Chinês tradicional']];
 const FINISHES = [['', 'Normal'], ['foil', 'Foil'], ['etched', 'Etched']];
@@ -3406,10 +3426,12 @@ const FINISHES = [['', 'Normal'], ['foil', 'Foil'], ['etched', 'Etched']];
 function itemKey(p) {
   return [norm(p.name), String(p.set || '').toLowerCase(), String(p.number || ''), p.finish || '', p.set ? (p.lang || 'en') : '', p.set ? (p.cond || 'NM') : ''].join('|');
 }
-function makeItem(p, qty) {
+function makeItem(p, qty, now = Date.now) {
   const printed = !!p.set;
   const it = { name: String(p.name).trim(), set: String(p.set || '').toLowerCase(), set_name: p.set_name || '', number: String(p.number || ''),
-    finish: p.finish || '', lang: printed ? (p.lang || 'en') : '', cond: printed ? (p.cond || 'NM') : '', id: p.id || '', qty };
+    finish: p.finish || '', lang: printed ? (p.lang || 'en') : '', cond: printed ? (p.cond || 'NM') : '', id: p.id || '', qty,
+    // C13 · quando entrou (para "mais recentes"); item antigo sem a marca conta como o mais velho
+    added: p.added || now() };
   it.key = itemKey(it);
   return it;
 }
@@ -3511,6 +3533,9 @@ function createCollection({ store }) {
       for (const p of list) { const it = makeItem(p, p.qty); const cur = items.get(it.key); if (cur) cur.qty += it.qty; else items.set(it.key, it); }
       await persist(); return list.length;
     },
+    /** C13 · visão, agrupamento e ordenação lembrados por aparelho. */
+    async prefs() { return { visao: 'lista', agrupar: '', ordenar: 'nome', ...((await store.get(PREFS)) || {}) }; },
+    async savePrefs(p) { const cur = await api.prefs(); await store.set(PREFS, { ...cur, ...p }); },
     /** C12b · visões salvas: nome + filtro, por aparelho. */
     async views() { return ((await store.get(VIEWS)) || []).map(v => ({ ...v })); },
     async saveView({ nome, filtro }) {
@@ -4383,7 +4408,67 @@ function decodificaFiltro(str) {
 }
 const mesmoFiltro = (a, b) => codificaFiltro(a) === codificaFiltro(b);
 
-return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+/* ---- C13 · agrupar e ordenar o recorte (puro; a tela só desenha) ---- */
+const AGRUPAMENTOS = [['', 'Sem agrupar'], ['cor', 'Cor'], ['tipo', 'Tipo'], ['edicao', 'Edição'], ['raridade', 'Raridade'], ['custo', 'Custo']];
+const ORDENACOES = [['nome', 'Nome'], ['custo', 'Custo'], ['raridade', 'Raridade'], ['edicao', 'Edição'], ['qtd', 'Mais cópias'], ['recente', 'Mais recentes']];
+const ORDEM_RARIDADE = { common: 0, uncommon: 1, rare: 2, mythic: 3, special: 4, bonus: 5 };
+const cartaDe = (g, cards) => (cards && (cards.get(g.key) || cards.get(norm(g.name)))) || null;
+const cmcDe = c => (c && typeof c.cmc === 'number') ? c.cmc : null;
+const recenteDe = g => Math.max(0, ...(g.items || []).map(it => it.added || 0));
+const edicaoDe = g => { const sets = (g.items || []).map(it => it.set).filter(Boolean).sort(); return sets[0] || ''; };
+const tipoPrincipal = c => {
+  if (!c) return null;
+  const linha = c.type_line || '';
+  for (const t of ['Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land']) if (temPalavra(linha, t)) return t;
+  return 'Outro';
+};
+const corDe = c => {
+  if (!c) return null;
+  const cores = c.colors || [];
+  if (!cores.length) return 'C';
+  return cores.length > 1 ? 'M' : cores[0];
+};
+const ROTULO_COR = { W: 'Branco', U: 'Azul', B: 'Preto', R: 'Vermelho', G: 'Verde', M: 'Multicolor', C: 'Incolor' };
+const ORDEM_COR = ['W', 'U', 'B', 'R', 'G', 'M', 'C'];
+
+/** Ordena o recorte no lugar de uma cópia. `cards` para custo, raridade e tipo. */
+function ordenaColecao(itens, por, cards) {
+  const nome = (a, b) => a.name.localeCompare(b.name);
+  const chave = {
+    nome: () => nome,
+    custo: () => (a, b) => { const x = cmcDe(cartaDe(a, cards)), y = cmcDe(cartaDe(b, cards)); return (x == null) - (y == null) || (x ?? 0) - (y ?? 0) || nome(a, b); },
+    raridade: () => (a, b) => { const x = cartaDe(a, cards), y = cartaDe(b, cards); const rx = x ? (ORDEM_RARIDADE[x.rarity] ?? 9) : 99, ry = y ? (ORDEM_RARIDADE[y.rarity] ?? 9) : 99; return rx - ry || nome(a, b); },
+    edicao: () => (a, b) => { const x = edicaoDe(a), y = edicaoDe(b); return (!x) - (!y) || x.localeCompare(y) || nome(a, b); },
+    qtd: () => (a, b) => b.qty - a.qty || nome(a, b),
+    recente: () => (a, b) => recenteDe(b) - recenteDe(a) || nome(a, b)
+  }[por] || (() => nome);
+  return itens.slice().sort(chave());
+}
+
+/** Agrupa o recorte. Devolve [{ chave, rotulo, itens, copias }] na ordem natural do critério.
+    Por edição, a carta com várias impressões aparece em cada edição só com as cópias dela. */
+function agrupaColecao(itens, por, cards) {
+  if (!por) return [{ chave: '', rotulo: '', itens, copias: itens.reduce((s2, g) => s2 + (g.qtyRecorte ?? g.qty), 0) }];
+  const grupos = new Map();
+  const poe = (chave, rotulo, g, ordem) => { const cur = grupos.get(chave) || { chave, rotulo, itens: [], copias: 0, ordem }; cur.itens.push(g); cur.copias += (g.qtyRecorte ?? g.qty); grupos.set(chave, cur); };
+  for (const g of itens) {
+    const c = cartaDe(g, cards);
+    if (por === 'cor') { const k = corDe(c); if (k == null) poe('?', 'Sem dados', g, 99); else poe(k, ROTULO_COR[k], g, ORDEM_COR.indexOf(k)); }
+    else if (por === 'tipo') { const t = tipoPrincipal(c); if (t == null) poe('?', 'Sem dados', g, 99); else poe(t, TIPOS_PT[t] || t, g, t === 'Outro' ? 50 : TIPOS.indexOf(t)); }
+    else if (por === 'raridade') { if (!c) poe('?', 'Sem dados', g, 99); else { const r = c.rarity || ''; poe(r || '?', (RARIDADES.find(x => x[0] === r) || [r, r || 'Sem raridade'])[1], g, ORDEM_RARIDADE[r] ?? 9); } }
+    else if (por === 'custo') { const v = cmcDe(c); if (v == null) poe('?', 'Sem dados', g, 99); else { const b = Math.min(7, Math.floor(v)); poe(String(b), b >= 7 ? 'Custo 7+' : `Custo ${b}`, g, b); } }
+    else if (por === 'edicao') {
+      const porSet = new Map();
+      for (const it of g.items) { const k = it.set || ''; const arr = porSet.get(k) || []; arr.push(it); porSet.set(k, arr); }
+      for (const [k, its] of porSet) poe(k || '~', k ? k.toUpperCase() : 'Sem edição', { ...g, items: its, qtyRecorte: its.reduce((s2, it) => s2 + it.qty, 0) }, k ? 0 : 1);
+    }
+  }
+  const out = [...grupos.values()];
+  out.sort((a, b) => a.ordem - b.ordem || a.rotulo.localeCompare(b.rotulo));
+  return out.map(({ ordem, ...g }) => g);
+}
+
+return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, ordenaColecao, agrupaColecao, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -4824,6 +4909,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true,
     // C12 · filtro vivo e o último recorte calculado (para exportar o recorte)
     filtro: FL.novoFiltro(), recorte: null,
+    // C13 · visão (lista/galeria/densa/pilhas), agrupamento e ordenação lembrados; pilha aberta; quantas linhas já desenhadas
+    visao: 'lista', agrupar: '', ordenar: 'nome', pilhaAberta: null, limite: 120,
     // C10 · seleção manual por nome, para exportar um recorte
     selecting: false, selected: new Set(), exportFormat: 'simples',
     // C11 · pendências da importação por lista e a última importação (para desfazer)
@@ -4857,6 +4944,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     state.items = await collection.entries();
     state.pending = await collection.pending();
     state.views = await collection.views();
+    const prefs = await collection.prefs();
+    state.visao = prefs.visao; state.agrupar = prefs.agrupar; state.ordenar = prefs.ordenar;
     const all = await decks.list();
     state.usedIn = new Map();
     for (const d of all) for (const e of d.entries) {
@@ -5121,6 +5210,40 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     closeDialog(); openPending();
   }
 
+  /* ---- C13 · visões, agrupar, ordenar ---- */
+  const toolbar = h('div', { id: 'col-toolbar' });
+  async function lembra(p) { Object.assign(state, p); state.limite = 120; state.pilhaAberta = null; paint(); try { await collection.savePrefs({ visao: state.visao, agrupar: state.agrupar, ordenar: state.ordenar }); } catch (e) { /* sem armazenamento: só nesta sessão */ } }
+  function paintToolbar() {
+    const visoes = [['lista', 'Lista'], ['galeria', 'Galeria'], ['densa', 'Densa'], ['pilhas', 'Pilhas']];
+    mount(toolbar, Row({ class: 'ds-row--wrap' },
+      Row({ class: 'ds-row--wrap', role: 'group', 'aria-label': 'Visão' }, ...visoes.map(([k, label]) => { const c = Chip(label, { pressed: state.visao === k, dataset: { visao: k } }); c.addEventListener('click', () => lembra({ visao: k })); return c; })),
+      Select(FL.AGRUPAMENTOS.map(([value, label]) => ({ value, label: value ? `Agrupar: ${label}` : label })), { id: 'col-group', value: state.agrupar, onChange: e => lembra({ agrupar: e.target.value }) }),
+      Select(FL.ORDENACOES.map(([value, label]) => ({ value, label: `Ordem: ${label}` })), { id: 'col-sort', value: state.ordenar, onChange: e => lembra({ ordenar: e.target.value }) })));
+  }
+  const cardOf = g => state.cards.get(g.key) || state.cards.get(norm(g.name));
+  const thumb = g => { const c = cardOf(g); return c && ((c.images && (c.images.normal || c.images.small)) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.normal)) || null; };
+  /** Galeria: a arte, a quantidade e um toque para as impressões. */
+  function cartao(g) {
+    const face = CardFace({ name: g.name, image: thumb(g) }, { onClick: () => openPrintings(g), dataset: { name: g.name } });
+    return h('div', { class: 'deck-slot col-card', dataset: { name: g.name } }, face,
+      h('span', { class: 'deck-slot__qty' }, '×' + (g.qtyRecorte ?? g.qty)));
+  }
+  /** Densa: uma linha por carta. */
+  function denso(g) {
+    const c = cardOf(g);
+    return h('button', { class: 'col-dense__row', type: 'button', dataset: { name: g.name }, onClick: () => openPrintings(g) },
+      h('span', { class: 'col-dense__name' }, g.name),
+      h('span', { class: 'col-dense__meta' }, [c && c.type_line ? c.type_line.split(' — ')[0] : null, g.items.filter(i => i.set).map(i => i.set.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join(' ') || null].filter(Boolean).join(' · ')),
+      h('span', { class: 'col-dense__qty' }, String(g.qtyRecorte ?? g.qty)));
+  }
+  /** Pilha: as primeiras cartas do grupo empilhadas; um toque abre o grupo. */
+  function pilha(g) {
+    const topo = g.itens.slice(0, 5);
+    return h('button', { class: 'col-pile', type: 'button', dataset: { pile: g.chave }, 'aria-label': `Abrir ${g.rotulo}: ${g.itens.length} carta(s)`, onClick: () => { state.pilhaAberta = g.chave; state.limite = 120; paint(); } },
+      h('div', { class: 'col-pile__stack' }, ...topo.map((x, i) => { const src = thumb(x); return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, src ? h('img', { src, alt: '', loading: 'lazy' }) : h('span', { class: 'ds-card__fallback' }, x.name)); })),
+      h('div', { class: 'col-pile__label' }, Text(g.rotulo, { size: 'md' }), Text(`${g.itens.length} carta(s) · ${g.copias} cópia(s)`, { size: 'xs', tone: 'muted' })));
+  }
+
   /* ---- C12 · diálogo de filtros (painel compartilhado com as listas) ---- */
   let filterBtn = null;
   function paintFilterBtn() { pintaBotaoFiltros(filterBtn, state.filtro); }
@@ -5212,10 +5335,32 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const r = FL.filtraColecao(state.items, state.filtro, { cards: state.cards, usadoEm: state.usedIn });
     state.recorte = r;
     sincronizaLink(); paintViews();
-    const rows = r.itens.slice()
-      .sort((a, b) => state.sort === 'qty' ? b.qty - a.qty || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
     paintCount(r);
-    mount(listEl, rows.length ? h('div', { class: 'col-list ds-surface' }, ...rows.map(row)) : Empty(FL.filtroVazio(state.filtro) ? 'Nenhuma carta na coleção.' : 'Nenhuma carta passa por esses filtros.', FL.filtroVazio(state.filtro) ? null : Button('Limpar filtros', { onClick: limparFiltros })));
+    paintToolbar();
+    if (!r.itens.length) { mount(listEl, Empty(FL.filtroVazio(state.filtro) ? 'Nenhuma carta na coleção.' : 'Nenhuma carta passa por esses filtros.', FL.filtroVazio(state.filtro) ? null : Button('Limpar filtros', { onClick: limparFiltros }))); paintSelection(); paintUndo(); paintPending(); return; }
+    // C13 · ordenar, agrupar e desenhar na visão escolhida, em lotes (a rolagem não trava com milhares)
+    const ordenado = FL.ordenaColecao(r.itens, state.ordenar, state.cards);
+    const agrupar = state.visao === 'pilhas' ? (state.agrupar || 'tipo') : state.agrupar;
+    const grupos = FL.agrupaColecao(ordenado, agrupar, state.cards);
+    const partes = []; let restantes = state.limite, sobrou = 0;
+    for (const g of grupos) {
+      if (state.visao === 'pilhas' && state.pilhaAberta !== g.chave) { partes.push(pilha(g)); continue; }
+      const cabe = Math.max(0, Math.min(g.itens.length, restantes)); sobrou += g.itens.length - cabe; restantes -= cabe;
+      if (agrupar) partes.push(Row({ class: 'col-group__head', dataset: { group: g.chave } }, Text(g.rotulo, { size: 'lg', display: true, as: 'h2' }), Text(`${g.itens.length} carta(s) · ${g.copias} cópia(s)`, { size: 'sm', tone: 'muted' }),
+        state.visao === 'pilhas' ? Button('Fechar pilha', { variant: 'ghost', dataset: { pileClose: g.chave }, onClick: () => { state.pilhaAberta = null; paint(); } }) : null));
+      if (!cabe) continue;
+      const fatia = g.itens.slice(0, cabe);
+      if (state.visao === 'lista') partes.push(h('div', { class: 'col-list ds-surface' }, ...fatia.map(row)));
+      else if (state.visao === 'densa') partes.push(h('div', { class: 'col-dense ds-surface' }, ...fatia.map(denso)));
+      else partes.push(h('div', { class: 'ds-cardgrid' }, ...fatia.map(cartao)));
+    }
+    if (sobrou > 0) {
+      const mais = Button(`Mostrar mais (${sobrou} restantes)`, { id: 'col-more', onClick: () => { state.limite += 120; paint(); } });
+      partes.push(Row({ style: { justifyContent: 'center' } }, mais));
+      // rolar até o fim carrega o próximo lote sozinho; o botão fica para quem preferir tocar
+      if (typeof IntersectionObserver !== 'undefined') { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); mais.click(); } }); setTimeout(() => io.observe(mais), 0); }
+    }
+    mount(listEl, h('div', { class: 'col-views-body', dataset: { visao: state.visao } }, ...partes));
     paintSelection(); paintUndo(); paintPending();
   }
   function paintCount(r) {
@@ -5300,9 +5445,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     undoBar, pendingBox,
     Row({ class: 'ds-row--wrap' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
-      filterBtn,
-      Select([{ value: 'name', label: 'Ordem alfabética' }, { value: 'qty', label: 'Mais cópias primeiro' }], { id: 'col-sort', value: state.sort, onChange: e => { state.sort = e.target.value; paint(); } })),
-    viewsRow, countLine, listEl, selectionBar);
+      filterBtn),
+    toolbar, viewsRow, countLine, listEl, selectionBar);
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

@@ -129,3 +129,45 @@ test('C12b · codificar e decodificar o filtro: só o que está ligado, ida e vo
   assert.deepEqual(JSON.parse(JSON.stringify(lixo.cores)), []);
   assert.deepEqual(JSON.parse(JSON.stringify(F.decodificaFiltro(null))), JSON.parse(JSON.stringify(F.novoFiltro())));
 });
+
+/* ---------------- C13 · agrupar e ordenar ---------------- */
+const RECORTE = F.filtraColecao(GRUPOS, F.novoFiltro(), { cards: CARDS }).itens;
+const nomesDe = arr => JSON.parse(JSON.stringify(arr.map(g => g.name)));
+
+test('C13 · ordenar por nome, custo, raridade, edição, cópias e mais recentes (sem dados vai para o fim)', () => {
+  assert.deepEqual(nomesDe(F.ordenaColecao(RECORTE, 'nome', CARDS)), ['Boros Charm', 'Carta Misteriosa', 'Counterspell', 'Gray Merchant of Asphodel', 'Island', 'Llanowar Elves', 'Sol Ring']);
+  assert.deepEqual(nomesDe(F.ordenaColecao(RECORTE, 'custo', CARDS)), ['Island', 'Sol Ring', 'Boros Charm', 'Counterspell', 'Llanowar Elves', 'Gray Merchant of Asphodel', 'Carta Misteriosa']);
+  assert.deepEqual(nomesDe(F.ordenaColecao(RECORTE, 'raridade', CARDS)), ['Counterspell', 'Gray Merchant of Asphodel', 'Island', 'Llanowar Elves', 'Boros Charm', 'Sol Ring', 'Carta Misteriosa']);
+  assert.deepEqual(nomesDe(F.ordenaColecao(RECORTE, 'edicao', CARDS)), ['Counterspell', 'Sol Ring', 'Boros Charm', 'Gray Merchant of Asphodel', 'Carta Misteriosa', 'Island', 'Llanowar Elves'], 'cmm, cmm, gtc, thb, xyz, depois sem edição');
+  assert.deepEqual(nomesDe(F.ordenaColecao(RECORTE, 'qtd', CARDS)), ['Island', 'Gray Merchant of Asphodel', 'Llanowar Elves', 'Boros Charm', 'Counterspell', 'Carta Misteriosa', 'Sol Ring']);
+  const comData = RECORTE.map((g, i) => ({ ...g, items: g.items.map(it => ({ ...it, added: g.name === 'Sol Ring' ? 999 : i })) }));
+  assert.equal(F.ordenaColecao(comData, 'recente', CARDS)[0].name, 'Sol Ring', 'a entrada mais nova primeiro');
+  assert.equal(F.ordenaColecao(comData, 'recente', CARDS).at(-1).name, 'Llanowar Elves', 'a mais velha por último');
+  assert.deepEqual(nomesDe(F.ordenaColecao(RECORTE, 'inexistente', CARDS)), nomesDe(F.ordenaColecao(RECORTE, 'nome', CARDS)), 'critério desconhecido cai no nome');
+  assert.equal(RECORTE.length, 7, 'ordenar não muda o original');
+});
+
+test('C13 · agrupar por cor, tipo, raridade, custo e edição, com contagem e "sem dados" no fim', () => {
+  const rot = gs => JSON.parse(JSON.stringify(gs.map(g => [g.rotulo, g.itens.map(x => x.name), g.copias])));
+  assert.deepEqual(rot(F.agrupaColecao(RECORTE, 'cor', CARDS)), [
+    ['Azul', ['Counterspell'], 3], ['Preto', ['Gray Merchant of Asphodel'], 4], ['Verde', ['Llanowar Elves'], 4], ['Multicolor', ['Boros Charm'], 3], ['Incolor', ['Sol Ring', 'Island'], 22], ['Sem dados', ['Carta Misteriosa'], 2]]);
+  assert.deepEqual(rot(F.agrupaColecao(RECORTE, 'tipo', CARDS)).map(x => [x[0], x[2]]), [['Criatura', 8], ['Instantânea', 6], ['Artefato', 2], ['Terreno', 20], ['Sem dados', 2]]);
+  assert.deepEqual(rot(F.agrupaColecao(RECORTE, 'raridade', CARDS)).map(x => x[0]), ['Comum', 'Incomum', 'Sem dados']);
+  assert.deepEqual(rot(F.agrupaColecao(RECORTE, 'custo', CARDS)).map(x => x[0]), ['Custo 0', 'Custo 1', 'Custo 2', 'Custo 5', 'Sem dados']);
+  const ed = F.agrupaColecao(RECORTE, 'edicao', CARDS);
+  assert.deepEqual(rot(ed), [['CMM', ['Counterspell', 'Sol Ring'], 2], ['GTC', ['Boros Charm'], 3], ['MH2', ['Counterspell'], 2], ['THB', ['Gray Merchant of Asphodel'], 4], ['XYZ', ['Carta Misteriosa'], 2], ['Sem edição', ['Llanowar Elves', 'Sol Ring', 'Island'], 25]],
+    'a carta com duas edições aparece nas duas, só com as cópias de cada');
+  const semAgrupar = F.agrupaColecao(RECORTE, '', CARDS);
+  assert.equal(semAgrupar.length, 1); assert.equal(semAgrupar[0].copias, 38);
+});
+
+test('C13 · desempenho: agrupar e ordenar 5 000 cartas em menos de 100 ms', () => {
+  const grupos = [], cards = new Map();
+  for (let i = 0; i < 5000; i++) { const name = `Carta ${i}`; grupos.push(grupo(name, [it({ set: ['cmm', 'mh2', ''][i % 3], qty: 1 + (i % 4) })])); cards.set(name.toLowerCase(), carta(name, { colors: [['G'], ['U'], []][i % 3], cmc: i % 8, rarity: ['common', 'rare'][i % 2] })); }
+  const t0 = performance.now();
+  const ordenado = F.ordenaColecao(grupos, 'custo', cards);
+  const agrupado = F.agrupaColecao(ordenado, 'edicao', cards);
+  const dt = performance.now() - t0;
+  assert.equal(agrupado.length, 3);
+  assert.ok(dt < 100, `levou ${dt.toFixed(1)} ms`);
+});

@@ -57,3 +57,15 @@ test('alvo de toque mínimo é 44px e os controles o usam', () => {
     assert.match(componentCss.slice(i, componentCss.indexOf('}', i)), /min-height: var\(--tap-min\)/, sel);
   }
 });
+
+/* ---------------- C13 · as visões da coleção seguem o contrato ---------------- */
+test('C13 · linha densa e pilha são alvos de toque de 44px, e as visões usam só tokens', () => {
+  for (const sel of ['.col-dense__row {', '.col-pile {']) {
+    const i = componentCss.indexOf(sel); assert.ok(i >= 0, sel);
+    assert.match(componentCss.slice(i, componentCss.indexOf('}', i)), /min-height: var\(--tap-min\)/, sel);
+  }
+  const bloco = componentCss.slice(componentCss.indexOf('/* C13 · visões da coleção */'), componentCss.indexOf('/* C12b · visão salva'));
+  assert.ok(bloco.length > 200, 'o bloco de CSS das visões existe');
+  assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(bloco), 'sem cor literal: tudo sai dos tokens');
+  assert.match(bloco, /\.col-pile__card \{[^}]*aspect-ratio: 63 \/ 88/, 'a carta da pilha tem a proporção da carta');
+});

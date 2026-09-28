@@ -591,6 +591,72 @@ test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, con
   assert.deepEqual(errors, []);
 });
 
+test('e2e · C13 a coleção como coleção: galeria, densa, pilhas, agrupar, ordenar, lembrar e rolar em lotes', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-csv-import');
+  // 300 cartas inventadas (o CSV não confere nome) + 3 conhecidas, para agrupar e rolar em lotes
+  const linhas = ['Count,Name,Edition,Condition,Language,Foil,Collector Number', '2,Sol Ring,cmm,Near Mint,English,foil,400', '4,Grizzly Bear,,,,,', '1,Counterspell,mh2,Near Mint,Portuguese,,267'];
+  for (let i = 0; i < 300; i++) linhas.push(`1,Carta Inventada ${String(i).padStart(3, '0')},${i % 2 ? 'abc' : ''},Near Mint,English,,${i}`);
+  await page.setInputFiles('#col-csv-file', { name: 'muitas.csv', mimeType: 'text/csv', buffer: Buffer.from(linhas.join('\n') + '\n') });
+  await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Carta Inventada 000"]');
+  await page.waitForFunction(() => /303 carta\(s\)/.test(document.querySelector('#col-summary').innerText));
+
+  // lista em lotes: 120 primeiro, "mostrar mais" traz o resto (as conhecidas vêm depois de "Carta Inventada…")
+  assert.equal(await page.locator('.col-row').count(), 120, 'primeiro lote');
+  assert.match(await page.innerText('#col-more'), /Mostrar mais \(183 restantes\)/);
+  await page.click('#col-more');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 240);
+  await page.click('#col-more');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 303 && !document.querySelector('#col-more'));
+  await page.waitForFunction(() => /Creature/.test(document.querySelector('.col-row[data-name="Grizzly Bear"]').innerText), null, { timeout: 8000 }); // dados chegaram
+
+  // ordenar por mais cópias: as conhecidas sobem para o primeiro lote
+  await page.selectOption('#col-sort', 'qtd');
+  await page.waitForFunction(() => { const r = document.querySelectorAll('.col-row'); return r.length === 120 && r[0].dataset.name === 'Grizzly Bear' && r[1].dataset.name === 'Sol Ring'; });
+
+  // galeria: arte + quantidade; um toque abre as impressões
+  await page.click('[data-visao="galeria"]');
+  await page.waitForSelector('.col-card[data-name="Sol Ring"]');
+  assert.match(await page.innerText('.col-card[data-name="Sol Ring"]'), /×2/);
+  await page.click('.col-card[data-name="Sol Ring"] .ds-card');
+  await page.waitForSelector('.ds-dialog'); assert.match(await page.innerText('.ds-dialog'), /CMM/); await page.keyboard.press('Escape');
+
+  // densa: uma linha por carta, com tipo e edições (o filtro de texto traz a Counterspell para a tela)
+  await page.click('[data-visao="densa"]');
+  await page.fill('#col-filter', 'counter');
+  await page.waitForSelector('.col-dense__row[data-name="Counterspell"]');
+  assert.match(await page.innerText('.col-dense__row[data-name="Counterspell"]'), /Instant · MH2\s+1/);
+  await page.fill('#col-filter', '');
+
+  // agrupar por edição com cabeçalho e contagem (os lotes valem dentro dos grupos)
+  await page.selectOption('#col-group', 'edicao');
+  await page.waitForSelector('[data-group="cmm"]');
+  for (let i = 0; i < 4 && (await page.locator('#col-more').count()); i++) { await page.click('#col-more'); await page.waitForTimeout(150); }
+  assert.match(await page.innerText('[data-group="cmm"]'), /CMM\s+1 carta\(s\) · 2 cópia\(s\)/);
+  assert.match(await page.innerText('[data-group="~"]'), /Sem edição\s+151 carta\(s\)/);
+  assert.equal(await page.evaluate(() => document.querySelector('[data-group="~"] + .col-dense .col-dense__row').dataset.name), 'Grizzly Bear', 'dentro do grupo, mais cópias primeiro');
+
+  // pilhas: uma por grupo; um toque abre a pilha
+  await page.click('[data-visao="pilhas"]');
+  await page.waitForSelector('.col-pile[data-pile="cmm"]');
+  assert.match(await page.getAttribute('.col-pile[data-pile="cmm"]', 'aria-label'), /Abrir CMM: 1 carta/);
+  await page.click('.col-pile[data-pile="cmm"]');
+  await page.waitForSelector('.col-card[data-name="Sol Ring"]');
+  assert.equal(await page.locator('.col-pile').count(), 3, 'as outras pilhas continuam fechadas');
+  await page.click('[data-pile-close="cmm"]');
+  await page.waitForSelector('.col-pile[data-pile="cmm"]');
+
+  // a escolha fica lembrada ao voltar
+  await page.goto(base + '#/listas'); await page.goto(base + '#/colecao');
+  await page.waitForSelector('.col-pile');
+  assert.equal(await page.getAttribute('[data-visao="pilhas"]', 'aria-pressed'), 'true');
+  assert.equal(await page.inputValue('#col-group'), 'edicao');
+  assert.equal(await page.inputValue('#col-sort'), 'qtd');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C11 importar por lista: conferir, importar, pendências com sugestão e desfazer', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));            // sem câmera: só a base de nomes interessa
