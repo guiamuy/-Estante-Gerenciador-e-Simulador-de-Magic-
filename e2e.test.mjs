@@ -359,10 +359,66 @@ test('e2e · C3 importar CSV do ManaBox, ver impressões e exportar CSV', { skip
   assert.match(await page.innerText('.col-row[data-name="Sol Ring"]'), /CMM · #400 · foil ×2/);
   assert.match(await page.innerText('.col-row[data-name="Counterspell"]'), /MH2 · #267 · PT · LP ×1/);
 
+  // C10 · o CSV mora no diálogo de exportação
+  await page.click('#col-export');
+  await page.waitForSelector('#col-csv-export');
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#col-csv-export')]);
   const csv = await (await download.createReadStream()).toArray().then(parts => Buffer.concat(parts).toString('utf8'));
   assert.match(csv, /^Count,Name,Edition,Condition,Language,Foil,Collector Number/);
   assert.match(csv, /2,Sol Ring,cmm,Near Mint,English,foil,400/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · C10 exportar a coleção por lista: formatos, seleção manual, copiar e baixar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-csv-import');
+  await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
+  await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  // mais uma cópia genérica de Sol Ring, para o cabeçalho ter o que declarar
+  await page.click('.col-row[data-name="Sol Ring"] button[aria-label^="Uma cópia a mais"]');
+  await page.waitForFunction(() => /3/.test(document.querySelector('.col-row[data-name="Sol Ring"] .col-row__n').innerText));
+
+  await page.click('#col-export');
+  await page.waitForSelector('#col-export-text');
+  let texto = await page.inputValue('#col-export-text');
+  assert.match(texto, /^\/\/ Estante · coleção · 2 carta\(s\) · 4 cópia\(s\)/, 'cabeçalho do formato simples');
+  assert.match(texto, /\n1 Counterspell\n3 Sol Ring\n$/, 'uma linha por nome, somando as impressões');
+  await page.selectOption('#col-export-format', 'completo');
+  texto = await page.inputValue('#col-export-text');
+  assert.match(texto, /\/\/ 1 cópia\(s\) sem edição definida saem só com o nome/);
+  assert.match(texto, /2 Sol Ring \(CMM\) 400 \*F\*/, 'foil marcado');
+  assert.match(texto, /\n1 Sol Ring\n/, 'a genérica sai só com o nome');
+  await page.selectOption('#col-export-format', 'arena');
+  texto = await page.inputValue('#col-export-text');
+  assert.ok(!texto.includes('//') && /2 Sol Ring \(CMM\) 400\n/.test(texto), 'arena: sem comentários nem marca de foil');
+  await page.click('#col-export-copy');
+  await page.waitForFunction(() => /copiada/i.test(document.body.innerText));
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), texto, 'o que foi copiado é o que está na tela');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#col-export-download')]);
+  assert.equal(download.suggestedFilename(), 'estante-colecao.txt');
+  await page.click('.ds-dialog button:has-text("Fechar")');
+
+  // seleção manual: só Counterspell
+  await page.click('#col-select');
+  await page.waitForSelector('#col-selection-count');
+  await page.click('.col-row[data-name="Counterspell"] .col-row__check');
+  assert.match(await page.innerText('#col-selection-count'), /1 carta\(s\) selecionada/);
+  assert.equal(await page.getAttribute('.col-row[data-name="Counterspell"] .col-row__check', 'aria-checked'), 'true');
+  await page.click('#col-export-selection');
+  await page.waitForSelector('#col-export-text');
+  await page.selectOption('#col-export-format', 'simples');
+  texto = await page.inputValue('#col-export-text');
+  assert.match(texto, /seleção da coleção · 1 carta\(s\) · 1 cópia\(s\)/);
+  assert.ok(texto.includes('1 Counterspell') && !texto.includes('Sol Ring'), 'só a seleção');
+  // e dá para trocar para a coleção inteira sem sair do diálogo
+  await page.click('[data-escopo="tudo"]');
+  assert.match(await page.inputValue('#col-export-text'), /Sol Ring/);
+  await page.click('.ds-dialog button:has-text("Fechar")');
+  await page.click('#col-select-off');
+  assert.equal(await page.locator('.col-row__check').count(), 0, 'sair da seleção esconde as caixas');
   assert.deepEqual(errors, []);
 });
 

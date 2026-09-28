@@ -580,6 +580,14 @@ body {
 }
 .col-row:last-child { border-bottom: none; }
 @media (min-width: 640px) { .col-row { grid-template-columns: 48px 1fr auto; grid-template-areas: "thumb info qty"; } }
+/* C10 · modo de seleção: uma coluna a mais com a caixa, 44 px de alvo */
+.col-row--select { grid-template-columns: var(--tap-min) 48px 1fr; grid-template-areas: "check thumb info" "check thumb qty"; }
+@media (min-width: 640px) { .col-row--select { grid-template-columns: var(--tap-min) 48px 1fr auto; grid-template-areas: "check thumb info qty"; } }
+.col-row__check { grid-area: check; width: var(--tap-min); height: var(--tap-min); border-radius: var(--radius-1); border: 1px solid var(--border); background: var(--bg-elev-2); color: var(--fg); font-size: var(--text-lg); padding: 0; }
+.col-row__check[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.col-row--checked { background: var(--bg-elev-2); }
+.col-selection { position: sticky; bottom: var(--space-2); z-index: 2; }
+.col-export__text { min-height: 200px; font-family: var(--font-mono); font-size: var(--text-sm); }
 .col-row__thumb { grid-area: thumb; width: 48px; aspect-ratio: 488 / 680; border-radius: var(--radius-1); overflow: hidden; background: var(--bg-elev-3); border: 1px solid var(--border); padding: 0; color: var(--fg-muted); font-family: var(--font-display); }
 .col-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
 .col-row__info { grid-area: info; min-width: 0; }
@@ -3690,8 +3698,46 @@ function exportText(deck, { onlyMissing = false, owned = {} } = {}) {
   return [block('commander', 'Commander'), block('companion', 'Companion'), block('main', 'Deck'), block('side', 'Sideboard')].filter(Boolean).join('\n\n');
 }
 
+/* ---------------- C10 · coleção em texto de lista ----------------
+   Três formatos, escolhidos pelo destino:
+     simples  — "4 Lightning Bolt": MTGO, Moxfield, Archidekt e as listas da Estante.
+                Soma todas as impressões da carta numa linha só.
+     arena    — "4 Lightning Bolt (CMM) 400": o que o Arena importa. Sem comentários
+                (o Arena rejeita) e só o nome da frente em carta de duas faces.
+     completo — igual ao arena, mais *F* (foil) / *E* (etched), nome inteiro e
+                cabeçalho. É o que o Moxfield lê com tudo.
+   Cópia sem edição definida sai só com o nome; o cabeçalho conta quantas são. */
+const EXPORT_FORMATS = [['simples', 'Só nome e quantidade'], ['arena', 'Com edição (Arena)'], ['completo', 'Com edição e foil (Moxfield)']];
+function exportCollectionText(items, { formato = 'simples', selecao = null, cabecalho = true, agora = null } = {}) {
+  const pool = (items || []).filter(it => it && it.qty > 0 && (!selecao || selecao.has(norm(it.name))));
+  const comEdicao = formato !== 'simples';
+  const linhas = [];
+  if (!comEdicao) {
+    const porNome = new Map();
+    for (const it of pool) { const k = norm(it.name); const cur = porNome.get(k) || { name: it.name, qty: 0 }; cur.qty += it.qty; if (it.set && !cur.printed) { cur.name = it.name; cur.printed = true; } porNome.set(k, cur); }
+    for (const e of porNome.values()) linhas.push({ name: e.name, text: `${e.qty} ${e.name}` });
+  } else {
+    for (const it of pool) {
+      const nome = formato === 'arena' ? it.name.split(' // ')[0] : it.name;
+      const marca = formato === 'completo' && it.set ? (it.finish === 'foil' ? ' *F*' : it.finish === 'etched' ? ' *E*' : '') : '';
+      linhas.push({ name: it.name, ordem: `${it.set || ''}|${String(it.number || '').padStart(5, '0')}|${it.finish || ''}`, text: it.set ? `${it.qty} ${nome} (${it.set.toUpperCase()})${it.number ? ' ' + it.number : ''}${marca}` : `${it.qty} ${nome}` });
+    }
+  }
+  // por nome; dentro do nome, genérica antes das impressões, depois edição, número e acabamento
+  linhas.sort((a, b) => a.name.localeCompare(b.name) || (a.ordem || '').localeCompare(b.ordem || ''));
+  const cartas = new Set(pool.map(it => norm(it.name))).size;
+  const copias = pool.reduce((s2, it) => s2 + it.qty, 0);
+  const genericas = pool.filter(it => !it.set).reduce((s2, it) => s2 + it.qty, 0);
+  const head = [];
+  if (cabecalho && formato !== 'arena') {
+    head.push(`// Estante · ${selecao ? 'seleção da coleção' : 'coleção'} · ${cartas} carta(s) · ${copias} cópia(s)${agora ? ' · ' + agora : ''}`);
+    if (genericas && comEdicao) head.push(`// ${genericas} cópia(s) sem edição definida saem só com o nome`);
+  }
+  return { text: [...head, ...linhas.map(l => l.text)].join('\n') + (linhas.length ? '\n' : ''), cartas, copias, genericas, linhas: linhas.length };
+}
+
 return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard,
-  parseCSV, parseCollectionCSV, exportCollectionCSV, itemKey, CONDITIONS, LANGS, FINISHES };
+  parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
 /* ==== src/data/starter-decks.js ==== */
@@ -4409,12 +4455,15 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
 /* ---------------- /colecao · C1, C2, C3, C5, C9 ----------------
    Densidade do Moxfield: uma linha por carta com as impressões resumidas;
    tocar no nome abre as impressões para editar uma a uma. */
-function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence }) {
-  const { parseCollectionCSV, exportCollectionCSV, CONDITIONS, LANGS, FINISHES } = __m14;
-  const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true };
+function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share }) {
+  const { parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, CONDITIONS, LANGS, FINISHES } = __m14;
+  const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true,
+    // C10 · seleção manual por nome, para exportar um recorte
+    selecting: false, selected: new Set(), exportFormat: 'simples' };
   const listEl = h('div', { id: 'col-list' }, Row({}, Spinner(), Text('Abrindo coleção…', { size: 'sm', tone: 'muted' })));
   const summary = h('div', { id: 'col-summary' });
   const care = h('div', { id: 'col-care' });
+  const selectionBar = h('div', { id: 'col-selection' });
   const LANG_PT = Object.fromEntries(LANGS), FIN_PT = Object.fromEntries(FINISHES);
 
   const printLabel = it => it.set
@@ -4563,13 +4612,60 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   });
   const exportCsv = async () => { const list = await collection.items(); if (!list.length) return toast('A coleção está vazia'); files.save('estante-colecao.csv', exportCollectionCSV(list), 'text/csv'); toast('CSV exportado'); };
 
+  /* ---- C10 · exportar por lista ---- */
+  function toggleSelecting(on) {
+    state.selecting = on == null ? !state.selecting : on;
+    if (!state.selecting) state.selected.clear();
+    paint();
+  }
+  function toggleSelected(g) { if (state.selected.has(g.key)) state.selected.delete(g.key); else state.selected.add(g.key); paint(); }
+  function paintSelection() {
+    if (!state.selecting) return mount(selectionBar, null);
+    const n = state.selected.size;
+    mount(selectionBar, Surface({ class: 'ds-surface--pad col-selection' }, Row({ class: 'ds-row--wrap' },
+      Text(n ? `${n} carta(s) selecionada(s)` : 'Toque nas cartas para selecionar', { size: 'sm', attrs: { id: 'col-selection-count' } }), h('div', { class: 'ds-grow' }),
+      Button('Todas', { onClick: () => { state.items.forEach(g => state.selected.add(g.key)); paint(); } }),
+      Button('Exportar seleção', { variant: 'primary', id: 'col-export-selection', disabled: !n, onClick: () => openExport({ selecao: true }) }),
+      Button('Sair', { id: 'col-select-off', onClick: () => toggleSelecting(false) }))));
+  }
+  async function openExport({ selecao = false } = {}) {
+    const all = await collection.items();
+    if (!all.length) return toast('A coleção está vazia');
+    const escopo = { selecao: selecao && state.selected.size > 0 };
+    const area = Textarea({ id: 'col-export-text' }); area.readOnly = true; area.classList.add('col-export__text');
+    const nota = h('div', { id: 'col-export-note' });
+    const gera = () => {
+      const r = exportCollectionText(all, { formato: state.exportFormat, selecao: escopo.selecao ? new Set(state.selected) : null, agora: new Date().toISOString().slice(0, 10) });
+      area.value = r.text || '(nada para exportar)';
+      const partes = [`${r.cartas} carta(s) · ${r.copias} cópia(s)`];
+      if (r.genericas && state.exportFormat !== 'simples') partes.push(`${r.genericas} cópia(s) sem edição definida saem só com o nome`);
+      if (state.exportFormat === 'arena') partes.push('sem cabeçalho: o Arena rejeita comentários');
+      mount(nota, Text(partes.join(' · '), { size: 'xs', tone: 'muted' }));
+      return r;
+    };
+    const formato = Select(EXPORT_FORMATS.map(([value, label]) => ({ value, label })), { id: 'col-export-format', value: state.exportFormat, onChange: e => { state.exportFormat = e.target.value; gera(); } });
+    const chips = state.selected.size ? Row({ class: 'ds-row--wrap' }, ...[[false, 'Coleção inteira'], [true, `Seleção (${state.selected.size})`]].map(([sel, label]) => {
+      const c = Chip(label, { pressed: escopo.selecao === sel, dataset: { escopo: sel ? 'selecao' : 'tudo' } });
+      c.addEventListener('click', () => { escopo.selecao = sel; chips.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x === c))); gera(); });
+      return c;
+    })) : null;
+    gera();
+    Dialog({ title: 'Exportar coleção', body: Stack({}, chips, Field('Formato', formato), area, nota), actions: [
+      Button('Copiar', { id: 'col-export-copy', onClick: async () => { toast(share && await share.copy(area.value) ? 'Lista copiada' : 'Não foi possível copiar; use Baixar .txt'); } }),
+      Button('Baixar .txt', { id: 'col-export-download', onClick: () => { files.save(escopo.selecao ? 'estante-selecao.txt' : 'estante-colecao.txt', area.value); toast('Arquivo baixado'); } }),
+      Button('Baixar CSV', { id: 'col-csv-export', onClick: exportCsv }),
+      Button('Fechar', { variant: 'primary', onClick: closeDialog })] });
+  }
+
   /* ---- linhas ---- */
   function row(g) {
     const c = state.cards.get(g.key) || state.cards.get(norm(g.name));
     const img = c && ((c.images && c.images.small) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.small));
     const used = state.usedIn.get(g.key) || [];
     const printed = g.items.some(i => i.set);
-    return h('div', { class: 'col-row', dataset: { name: g.name } },
+    const checked = state.selected.has(g.key);
+    return h('div', { class: ['col-row', state.selecting ? 'col-row--select' : '', checked ? 'col-row--checked' : ''].filter(Boolean).join(' '), dataset: { name: g.name } },
+      state.selecting ? h('button', { class: 'col-row__check', type: 'button', role: 'checkbox', 'aria-checked': String(checked), 'aria-label': `${checked ? 'Tirar' : 'Pôr'} ${g.name} na seleção`, onClick: () => toggleSelected(g) }, checked ? '✓' : '') : null,
       h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${g.name}`, onClick: () => c && openCardViewer(c) },
         img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', {}, g.name.slice(0, 1))),
       h('button', { class: 'col-row__info', type: 'button', 'aria-label': `Impressões de ${g.name}`, onClick: () => openPrintings(g) },
@@ -4592,6 +4688,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const rows = state.items.filter(i => !f || norm(i.name).includes(f))
       .sort((a, b) => state.sort === 'qty' ? b.qty - a.qty || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
     mount(listEl, rows.length ? h('div', { class: 'col-list ds-surface' }, ...rows.map(row)) : Empty('Nenhuma carta com esse nome na coleção.'));
+    paintSelection();
   }
 
   const addState = { name: '' };
@@ -4625,12 +4722,13 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
       Row({ class: 'ds-row--wrap' },
         Button('Importar CSV', { id: 'col-csv-import', onClick: () => csvInput.click() }),
-        Button('Exportar CSV', { id: 'col-csv-export', onClick: exportCsv })),
+        Button('Exportar', { id: 'col-export', onClick: () => openExport() }),
+        Button('Selecionar', { id: 'col-select', onClick: () => toggleSelecting() })),
       csvInput)),
     Row({ class: 'ds-row--wrap' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       Select([{ value: 'name', label: 'Ordem alfabética' }, { value: 'qty', label: 'Mais cópias primeiro' }], { id: 'col-sort', value: state.sort, onChange: e => { state.sort = e.target.value; paint(); } })),
-    listEl);
+    listEl, selectionBar);
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -9950,7 +10048,7 @@ const ROUTES = [
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
-  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence }) },
+  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: environment, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },

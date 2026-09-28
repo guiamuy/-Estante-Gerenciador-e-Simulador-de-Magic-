@@ -104,7 +104,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
 | X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
 | X · Scanner | X10 acerto medido no portão (fotos sintéticas; reais pendentes) | 🟡 |
-| C · Coleção | C10–C14 lista, filtros, visões e painel | ○ |
+| C · Coleção | C10 exportar por lista (três formatos, seleção manual) | 🟡 |
+| C · Coleção | C11–C14 importar por lista, filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
@@ -352,7 +353,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
-| E41 | C10, C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
+| E41 🟡 | C10 (leva 68) · C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -2211,7 +2212,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** D1.
 - **Fora:** base completa de cartas (texto, imagens) offline; volta a ser avaliada com o gatilho G1.
 
-**C10 · Exportar por lista, não só CSV** ○
+**C10 · Exportar por lista, não só CSV** 🟡
 - **Valor:** levar a coleção (ou um recorte dela) para qualquer lugar que entenda uma lista de cartas.
 - **Aceite:**
   - exporta em texto de lista ("4 Lightning Bolt"), com variações: com ou sem edição e número, e no
@@ -2220,9 +2221,21 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
     quem traz o motor de filtro (ajuste registrado na ordem de entrega da seção 6);
   - copiar com um toque e baixar como arquivo; o CSV atual continua existindo;
   - o que não tem edição definida sai como cópia genérica, e o cabeçalho diz isso.
-- **Testes:** U (cada formato, com acentos, apóstrofos e cartas de duas faces), I.
+- **Entregue (leva 68):** botão **Exportar** na coleção abre o diálogo com três formatos — *Só nome e
+  quantidade* (MTGO, Moxfield, Archidekt e as listas da Estante; soma as impressões numa linha por nome),
+  *Com edição (Arena)* ("3 Sol Ring (CMM) 400", sem comentários porque o Arena rejeita, só a frente da
+  carta de duas faces) e *Com edição e foil (Moxfield)* (`*F*`/`*E*`, nome inteiro). Prévia na tela,
+  **Copiar** (área de transferência), **Baixar .txt** e **Baixar CSV** (o CSV mudou de lugar, não de
+  formato). O cabeçalho diz quantas cartas e cópias e quantas cópias sem edição definida saem só com o
+  nome. Botão **Selecionar** liga o modo de seleção: caixa de 44 px em cada carta, barra fixa embaixo com
+  a contagem, *Todas*, *Exportar seleção* e *Sair*; no diálogo dá para alternar entre seleção e coleção
+  inteira. Ordem: alfabética por nome; dentro do nome, genérica antes das impressões, normal antes de foil.
+- **Testes:** U (os três formatos com acentos, apóstrofo e carta de duas faces; o texto exportado volta a
+  entrar pelo leitor de listas sem linha ignorada; seleção; coleção vazia; ordem dentro do nome), I headless
+  (importar CSV, exportar nos três formatos, copiar e conferir a área de transferência, baixar .txt,
+  selecionar uma carta e exportar só ela, trocar para a coleção inteira, sair da seleção).
 - **Depende de:** C1, L6.
-- **Fora:** exportar preço.
+- **Fora:** exportar preço; exportar o recorte do filtro (C12).
 
 **C11 · Importar por lista, com conferência antes** ○
 - **Valor:** colar uma lista e ver a coleção crescer sem medo.

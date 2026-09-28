@@ -349,3 +349,57 @@ test('A12 · nenhuma lista pronta do Pauper passa de 4 cópias de uma carta que 
     for (const [k, n] of soma) if (!BASICOS.has(k)) assert.ok(n <= 4, `${d.name}: ${k} com ${n} cópias`);
   }
 });
+
+/* ---------------- C10 · coleção em texto de lista ---------------- */
+const ITENS = [
+  { name: 'Lightning Bolt', set: 'cmm', number: '141', finish: '', lang: 'en', cond: 'NM', qty: 3 },
+  { name: 'Lightning Bolt', set: 'cmm', number: '141', finish: 'foil', lang: 'en', cond: 'NM', qty: 1 },
+  { name: 'Lightning Bolt', set: '', number: '', finish: '', lang: '', cond: '', qty: 2 },
+  { name: "Ulamog's Crusher", set: '', number: '', finish: '', lang: '', cond: '', qty: 1 },
+  { name: 'Fire // Ice', set: 'mh3', number: '285', finish: 'etched', lang: 'en', cond: 'NM', qty: 1 },
+  { name: 'Jötun Grunt', set: 'csp', number: '10', finish: '', lang: 'pt', cond: 'LP', qty: 2 },
+  { name: 'Sem cópia', set: '', number: '', finish: '', lang: '', cond: '', qty: 0 }
+];
+
+test('C10 · formato simples soma as impressões numa linha por nome, em ordem alfabética, com cabeçalho', () => {
+  const r = D.exportCollectionText(ITENS, { formato: 'simples', agora: '2026-09-28' });
+  assert.equal(r.text, [
+    '// Estante · coleção · 4 carta(s) · 10 cópia(s) · 2026-09-28',
+    '2 Fire // Ice', '2 Jötun Grunt', '6 Lightning Bolt', "1 Ulamog's Crusher", ''].join('\n').replace('2 Fire // Ice', '1 Fire // Ice'));
+  assert.equal(r.cartas, 4); assert.equal(r.copias, 10); assert.equal(r.genericas, 3); assert.equal(r.linhas, 4);
+  // o que sai volta a entrar como lista: acentos, apóstrofo e carta de duas faces intactos
+  const back = D.parseDeckText(r.text);
+  assert.deepEqual(JSON.parse(JSON.stringify(back.entries.map(e => [e.qty, e.name]))), [[1, 'Fire // Ice'], [2, 'Jötun Grunt'], [6, 'Lightning Bolt'], [1, "Ulamog's Crusher"]]);
+  assert.equal(back.skipped.length, 0, 'o cabeçalho é comentário, não linha ignorada');
+});
+
+test('C10 · formato arena: uma linha por impressão, sem comentários, só a frente da carta de duas faces', () => {
+  const r = D.exportCollectionText(ITENS, { formato: 'arena' });
+  assert.equal(r.text, ['1 Fire (MH3) 285', '2 Jötun Grunt (CSP) 10', '2 Lightning Bolt', '3 Lightning Bolt (CMM) 141', '1 Lightning Bolt (CMM) 141', "1 Ulamog's Crusher", ''].join('\n'), 'genérica antes das impressões; normal antes de foil');
+  assert.ok(!/^\/\//m.test(r.text), 'sem cabeçalho: o Arena rejeita');
+  // o que a Estante lê de volta perde a edição (L2) mas não a quantidade
+  const back = D.parseDeckText(r.text);
+  assert.equal(back.entries.find(e => e.name === 'Lightning Bolt').qty, 6);
+});
+
+test('C10 · formato completo: edição, número, *F*/*E* e cabeçalho que declara as cópias sem edição', () => {
+  const r = D.exportCollectionText(ITENS, { formato: 'completo' });
+  const linhas = r.text.split('\n');
+  assert.match(linhas[0], /^\/\/ Estante · coleção · 4 carta\(s\) · 10 cópia\(s\)$/);
+  assert.equal(linhas[1], '// 3 cópia(s) sem edição definida saem só com o nome');
+  assert.ok(linhas.includes('1 Fire // Ice (MH3) 285 *E*'), 'etched marcado e nome inteiro');
+  assert.ok(linhas.includes('1 Lightning Bolt (CMM) 141 *F*'), 'foil marcado');
+  assert.ok(linhas.includes('3 Lightning Bolt (CMM) 141'), 'normal sem marca');
+  assert.ok(linhas.includes('2 Lightning Bolt'), 'genérica só com o nome');
+  const semCab = D.exportCollectionText(ITENS, { formato: 'completo', cabecalho: false });
+  assert.ok(!semCab.text.startsWith('//'));
+});
+
+test('C10 · seleção manual exporta só os nomes escolhidos, e coleção vazia dá texto vazio', () => {
+  const r = D.exportCollectionText(ITENS, { formato: 'simples', selecao: new Set(['lightning bolt', 'fire // ice']), cabecalho: true });
+  assert.equal(r.text, '// Estante · seleção da coleção · 2 carta(s) · 7 cópia(s)\n1 Fire // Ice\n6 Lightning Bolt\n');
+  assert.equal(r.cartas, 2);
+  const vazio = D.exportCollectionText([], { formato: 'simples', cabecalho: false });
+  assert.equal(vazio.text, ''); assert.equal(vazio.linhas, 0);
+  assert.equal(D.exportCollectionText(ITENS, { selecao: new Set(['nada']) }).linhas, 0, 'seleção que não casa nada');
+});
