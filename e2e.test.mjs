@@ -369,6 +369,62 @@ test('e2e · C3 importar CSV do ManaBox, ver impressões e exportar CSV', { skip
   assert.deepEqual(errors, []);
 });
 
+test('e2e · C11 importar por lista: conferir, importar, pendências com sugestão e desfazer', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(true));            // sem câmera: só a base de nomes interessa
+  await page.goto(base + '#/scanner');
+  await page.waitForFunction(() => /Base: \d+ nomes/.test((document.querySelector('#scan-status') || {}).innerText || ''));
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-import');
+  await page.click('#col-import');
+  await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '// minha lista\n2 Sol Ring\n1 Counterspel\n1 Grizzly Bear (M21) 999 *F*\n0 Nada\n1 Xyzzy\n');
+  await page.click('#col-import-check');
+  await page.waitForSelector('#col-import-run');
+  assert.match(await page.innerText('#col-import-total'), /3 cópia\(s\) para importar/);
+  assert.match(await page.innerText('#col-import-summary'), /2 carta\(s\) nova\(s\) \(3 cópia\(s\)\) · 0 que você já tem/);
+  const problemas = await page.innerText('#col-import-problems');
+  assert.match(problemas, /0 Nada[\s\S]*linha 5 · quantidade zero/);
+  assert.match(problemas, /1 Counterspel[\s\S]*nome não encontrado · parecido: Counterspell/);
+  assert.match(problemas, /1 Xyzzy[\s\S]*nome não encontrado/);
+  await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  assert.match(await page.innerText('.col-row[data-name="Sol Ring"] .col-row__n'), /2/);
+  assert.match(await page.innerText('.col-row[data-name="Grizzly Bear"]'), /M21 · #999 · foil ×1/, 'edição e foil da linha entram na coleção');
+  assert.match(await page.innerText('#col-undo'), /3 cópia\(s\) · 2 pendente\(s\)/);
+  assert.match(await page.innerText('#col-pending'), /2 linha\(s\) da importação ficaram pendentes/);
+
+  // pendências: a sugestão resolve com um toque; o resto se descarta
+  await page.click('#col-pending-open');
+  await page.waitForSelector('#col-pending-list');
+  await page.click('[data-pending="0"] [data-sugestao="Counterspell"]');
+  await page.click('[data-resolve="0"]');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  await page.waitForFunction(() => /Pendências · 1/.test((document.querySelector('.ds-dialog') || {}).innerText || ''));
+  await page.click('[data-discard="0"]');
+  await page.waitForFunction(() => !document.querySelector('.ds-dialog'));
+  assert.equal((await page.innerText('#col-pending')).trim(), '', 'sem pendências');
+
+  // desfazer volta a coleção ao que era antes da importação (inclusive o que foi resolvido depois)
+  await page.click('#col-undo-btn');
+  await page.waitForFunction(() => /Sua coleção está vazia/.test(document.querySelector('#col-list').innerText));
+  assert.equal(await page.locator('#col-undo button').count(), 0, 'a barra de desfazer some');
+  // a mesma lista importada de novo soma ao que já existe
+  await page.click('.ds-empty button:has-text("Importar lista"), #col-import');
+  await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '1 Sol Ring');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.click('#col-import');
+  await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '2 Sol Ring');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run');
+  assert.match(await page.innerText('#col-import-summary'), /0 carta\(s\) nova\(s\) \(0 cópia\(s\)\) · 1 que você já tem \(2 cópia\(s\) a somar\)/);
+  await page.click('#col-import-run');
+  await page.waitForFunction(() => /3/.test(document.querySelector('.col-row[data-name="Sol Ring"] .col-row__n').innerText));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C10 exportar a coleção por lista: formatos, seleção manual, copiar e baixar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);

@@ -3357,6 +3357,7 @@ function createDeckStore({ store, now = () => Date.now() }) {
    por nome; a resposta é a soma de todas as impressões daquela carta. */
 const NAMES = 'collection.names';
 const ITEMS = 'collection.items';
+const PENDING = 'collection.pending';
 const CONDITIONS = [['NM', 'Near Mint'], ['LP', 'Levemente jogada'], ['MP', 'Moderadamente jogada'], ['HP', 'Muito jogada'], ['DMG', 'Danificada']];
 const LANGS = [['en', 'Inglês'], ['pt', 'Português'], ['es', 'Espanhol'], ['ja', 'Japonês'], ['de', 'Alemão'], ['fr', 'Francês'], ['it', 'Italiano'], ['ru', 'Russo'], ['ko', 'Coreano'], ['zhs', 'Chinês simplificado'], ['zht', 'Chinês tradicional']];
 const FINISHES = [['', 'Normal'], ['foil', 'Foil'], ['etched', 'Etched']];
@@ -3466,6 +3467,11 @@ function createCollection({ store }) {
       for (const p of list) { const it = makeItem(p, p.qty); const cur = items.get(it.key); if (cur) cur.qty += it.qty; else items.set(it.key, it); }
       await persist(); return list.length;
     },
+    /** C11 · linhas de importação que não foram reconhecidas ficam aqui até serem corrigidas ou descartadas. */
+    async pending() { return ((await store.get(PENDING)) || []).map(x => ({ ...x })); },
+    async addPending(list) { const cur = await api.pending(); const next = [...cur, ...list.map(x => ({ name: x.name, qty: x.qty, set: x.set || '', number: x.number || '', finish: x.finish || '', raw: x.raw || '', reason: x.reason || '' }))]; await store.set(PENDING, next); return next.length; },
+    async removePending(index) { const cur = await api.pending(); cur.splice(index, 1); await store.set(PENDING, cur); return cur.length; },
+    async clearPending() { await store.set(PENDING, []); },
     /** Backup antigo (v1, por nome) e novo (v2, por impressão). */
     async merge(obj, nameMap = {}) {
       for (const [k, v] of Object.entries(obj || {})) if (v > 0 && (await api.qty(nameMap[k] || k)) < v) await api.set(nameMap[k] || k, v);
@@ -3736,8 +3742,54 @@ function exportCollectionText(items, { formato = 'simples', selecao = null, cabe
   return { text: [...head, ...linhas.map(l => l.text)].join('\n') + (linhas.length ? '\n' : ''), cartas, copias, genericas, linhas: linhas.length };
 }
 
+/* ---------------- C11 · lista de texto → itens da coleção ----------------
+   Lê o que a C10 escreve e o que Arena, MTGO, Moxfield e Archidekt exportam,
+   guardando edição, número e foil quando a linha traz. Tolera numeração
+   ("1. Sol Ring", "1) Sol Ring"), cabeçalhos de seção, comentários e linhas
+   em branco. Linha sem nome ou com quantidade inválida vai para `skipped`
+   com o motivo — a conferência mostra antes de gravar. */
+function parseCollectionText(text) {
+  const items = [], skipped = [];
+  String(text || '').split(/\r?\n/).forEach((raw, i) => {
+    const line = i + 1;
+    let t = raw.trim();
+    if (!t || t.startsWith('//') || t.startsWith('#')) return;
+    if (HEADER.some(([re]) => re.test(t)) || /^name\s/i.test(t)) return;
+    t = t.replace(/^sb:\s*/i, '').replace(/^\d+[.)]\s+(?=\D)/, '');   // "SB: " e numeração "1. " / "1) "
+    let finish = '';
+    t = t.replace(/\*([a-z])\*/gi, (m, f) => { const k = f.toUpperCase(); if (k === 'F') finish = 'foil'; else if (k === 'E') finish = 'etched'; return ''; })
+      .replace(/\s+\^[^^]*\^/g, '').trim();
+    const m = t.match(/^(\d+)\s*x?\s+(.+)$/i);
+    if (m && parseInt(m[1], 10) < 1) { skipped.push({ line, raw, reason: 'quantidade zero' }); return; }
+    const qty = m ? parseInt(m[1], 10) : 1;
+    let rest = (m ? m[2] : t).trim();
+    let set = '', number = '';
+    const ed = rest.match(/\s+\(([A-Za-z0-9]{2,6})\)\s*([\w★\-]*)\s*$/) || rest.match(/\s+\[([A-Za-z0-9]{2,6})\]\s*([\w★\-]*)\s*$/);
+    if (ed) { set = ed[1].toLowerCase(); number = ed[2] || ''; rest = rest.slice(0, ed.index).trim(); }
+    if (!rest || /^\d+$/.test(rest)) { skipped.push({ line, raw, reason: 'sem nome' }); return; }
+    if (qty > 999) { skipped.push({ line, raw, reason: 'quantidade acima de 999' }); return; }
+    items.push({ name: rest, qty, set, number, finish, line, raw });
+  });
+  return { items, skipped };
+}
+/** C11 · conferência antes de gravar. `existentes`: nomes normalizados já na coleção;
+    `conhecidos`: nome normalizado → nome canônico (o que a base/Scryfall reconhece), ou
+    null quando não há como conferir. Devolve o que soma, o que é novo e o que fica pendente. */
+function planCollectionImport(items, { existentes = new Set(), conhecidos = null, sugestoes = new Map() } = {}) {
+  const novas = [], somam = [], pendentes = [];
+  for (const it of items) {
+    const k = norm(it.name);
+    const canonico = existentes.has(k) ? it.name : conhecidos ? conhecidos.get(k) : it.name;
+    if (!canonico) { pendentes.push({ ...it, reason: 'nome não encontrado', sugestao: sugestoes.get(k) || null }); continue; }
+    const resolved = { ...it, name: canonico };
+    (existentes.has(k) ? somam : novas).push(resolved);
+  }
+  const copias = arr => arr.reduce((s2, x) => s2 + x.qty, 0);
+  return { novas, somam, pendentes, conferido: !!conhecidos, copias: { novas: copias(novas), somam: copias(somam), pendentes: copias(pendentes) } };
+}
+
 return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard,
-  parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, itemKey, CONDITIONS, LANGS, FINISHES };
+  parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
 /* ==== src/data/starter-decks.js ==== */
@@ -4455,11 +4507,15 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
 /* ---------------- /colecao · C1, C2, C3, C5, C9 ----------------
    Densidade do Moxfield: uma linha por carta com as impressões resumidas;
    tocar no nome abre as impressões para editar uma a uma. */
-function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share }) {
-  const { parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, CONDITIONS, LANGS, FINISHES } = __m14;
+function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share, names }) {
+  const { parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, CONDITIONS, LANGS, FINISHES } = __m14;
   const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true,
     // C10 · seleção manual por nome, para exportar um recorte
-    selecting: false, selected: new Set(), exportFormat: 'simples' };
+    selecting: false, selected: new Set(), exportFormat: 'simples',
+    // C11 · pendências da importação por lista e a última importação (para desfazer)
+    pending: [], undo: null };
+  const undoBar = h('div', { id: 'col-undo' });
+  const pendingBox = h('div', { id: 'col-pending' });
   const listEl = h('div', { id: 'col-list' }, Row({}, Spinner(), Text('Abrindo coleção…', { size: 'sm', tone: 'muted' })));
   const summary = h('div', { id: 'col-summary' });
   const care = h('div', { id: 'col-care' });
@@ -4471,10 +4527,11 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     : 'sem edição definida';
   const printsSummary = g => g.items.map(it => `${it.set ? printLabel(it) : 'genérica'} ×${it.qty}`).join('  ·  ');
 
-  async function refresh() { state.items = await collection.entries(); paint(); }
+  async function refresh() { state.items = await collection.entries(); state.pending = await collection.pending(); paint(); }
 
   async function load() {
     state.items = await collection.entries();
+    state.pending = await collection.pending();
     const all = await decks.list();
     state.usedIn = new Map();
     for (const d of all) for (const e of d.entries) {
@@ -4612,6 +4669,133 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   });
   const exportCsv = async () => { const list = await collection.items(); if (!list.length) return toast('A coleção está vazia'); files.save('estante-colecao.csv', exportCollectionCSV(list), 'text/csv'); toast('CSV exportado'); };
 
+  /* ---- C11 · importar por lista, com conferência antes ---- */
+  /** Reconhece nomes: base de nomes do scanner (offline) primeiro, Scryfall para o resto.
+      Devolve null em `conhecidos` quando não há como conferir nada. */
+  async function reconhecer(items) {
+    const existentes = new Set(state.items.map(g => g.key));
+    const conhecidos = new Map(), sugestoes = new Map();
+    const faltam = new Map();
+    for (const it of items) { const k = norm(it.name); if (!existentes.has(k) && !faltam.has(k)) faltam.set(k, it.name); }
+    let base = null;
+    try { base = names ? await names.load() : null; } catch (e) { base = null; }
+    if (base) {
+      for (const [k, nome] of faltam) {
+        const best = names.match(nome, { limit: 1 })[0];
+        if (best && best.score >= 0.999) { conhecidos.set(k, best.name); faltam.delete(k); }
+        else if (best && best.score >= 0.75) sugestoes.set(k, best.name);
+      }
+    }
+    let rede = false;
+    if (faltam.size) {
+      try {
+        const found = await cardRepo.byNames([...faltam.values()]);
+        rede = true;
+        for (const [k] of faltam) { const c = found.get(k); if (c) { conhecidos.set(k, c.name); faltam.delete(k); } }
+      } catch (e) { /* sem rede: o que a base não conhece fica pendente ou entra sem conferir */ }
+    }
+    if (!base && !rede) return { existentes, conhecidos: null, sugestoes };
+    return { existentes, conhecidos, sugestoes };
+  }
+  const listInput = h('input', { type: 'file', accept: '.txt,.dec,.dek,.md,text/plain', class: 'ds-hidden', id: 'col-import-file' });
+  function openImportList(texto = '') {
+    const area = Textarea({ id: 'col-import-text', placeholder: '4 Lightning Bolt\n1 Sol Ring (CMM) 400\n…', value: texto });
+    area.classList.add('col-export__text');
+    listInput.onchange = async e => { const file = e.target.files && e.target.files[0]; if (!file) return; area.value = await files.readText(file); e.target.value = ''; };
+    Dialog({ title: 'Importar lista', body: Stack({},
+      Text('Cole uma lista de cartas ("4 Lightning Bolt", com ou sem edição) ou abra um arquivo. Nada entra antes de você conferir.', { size: 'sm', tone: 'muted' }),
+      area, Button('Abrir arquivo', { onClick: () => listInput.click() })),
+      actions: [Button('Cancelar', { onClick: closeDialog }), Button('Conferir', { variant: 'primary', id: 'col-import-check', onClick: () => conferir(area.value) })] });
+  }
+  async function conferir(texto) {
+    const parsed = parseCollectionText(texto);
+    if (!parsed.items.length && !parsed.skipped.length) return toast('Nada para importar');
+    closeDialog();
+    const box = h('div', {}, Row({}, Spinner(), Text('Conferindo os nomes…', { size: 'sm', tone: 'muted' })));
+    Dialog({ title: 'Conferência', body: box, actions: [Button('Cancelar', { onClick: closeDialog })] });
+    const rec = await reconhecer(parsed.items);
+    const plano = planCollectionImport(parsed.items, rec);
+    const linha = (x, extra) => h('div', { class: 'col-print', dataset: { line: String(x.line) } },
+      h('div', { class: 'col-print__label' }, Text(x.raw, { size: 'sm' }), Text(`linha ${x.line} · ${x.reason}${extra ? ' · ' + extra : ''}`, { size: 'xs', tone: 'muted' })));
+    const problemas = [...parsed.skipped.map(x => linha(x)), ...plano.pendentes.map(x => linha(x, x.sugestao ? `parecido: ${x.sugestao}` : null))];
+    const total = plano.copias.novas + plano.copias.somam;
+    closeDialog();
+    Dialog({ title: 'Conferência', body: Stack({},
+      Text(`${total} cópia(s) para importar`, { size: 'lg', display: true, attrs: { id: 'col-import-total' } }),
+      Text(`${plano.novas.length} carta(s) nova(s) (${plano.copias.novas} cópia(s)) · ${plano.somam.length} que você já tem (${plano.copias.somam} cópia(s) a somar)`, { size: 'sm', tone: 'muted', attrs: { id: 'col-import-summary' } }),
+      !plano.conferido ? Note('<b>Sem como conferir os nomes agora</b> (sem internet e sem a base de nomes). O que estiver escrito entra como está.', 'warning') : null,
+      problemas.length ? Note(`<b>${problemas.length} linha(s) não reconhecida(s).</b> ${plano.pendentes.length ? 'As de nome não encontrado ficam nas pendências, para corrigir depois.' : ''}`, 'warning') : null,
+      problemas.length ? h('div', { class: 'col-prints', id: 'col-import-problems' }, ...problemas) : null),
+      actions: [Button('Cancelar', { onClick: closeDialog }),
+        Button(total ? `Importar ${total} cópia(s)` : 'Guardar pendências', { variant: 'primary', id: 'col-import-run', disabled: !total && !plano.pendentes.length, onClick: () => importar(plano) })] });
+  }
+  async function importar(plano) {
+    closeDialog();
+    const before = { items: await collection.items(), pending: await collection.pending() };
+    const lista = [...plano.novas, ...plano.somam];
+    if (lista.length) await collection.importItems(lista, 'add');
+    if (plano.pendentes.length) await collection.addPending(plano.pendentes);
+    const copias = plano.copias.novas + plano.copias.somam;
+    state.undo = { before, copias, pendentes: plano.pendentes.length };
+    await refresh(); paintCare();
+    toast(copias ? `${copias} cópia(s) importada(s)` : `${plano.pendentes.length} pendência(s) guardada(s)`);
+    if (state.cards && plano.novas.length) { try { const extra = await cardRepo.byNames(plano.novas.map(x => x.name)); extra.forEach((c, k) => state.cards.set(k, c)); paint(); } catch (e) { /* sem rede */ } }
+  }
+  async function desfazer() {
+    const u = state.undo; if (!u) return;
+    await collection.importItems(u.before.items, 'replace');
+    await collection.clearPending(); if (u.before.pending.length) await collection.addPending(u.before.pending);
+    state.undo = null; await refresh(); toast('Importação desfeita');
+  }
+  function paintUndo() {
+    const u = state.undo;
+    if (!u) return mount(undoBar, null);
+    mount(undoBar, Surface({ class: 'ds-surface--pad' }, Row({ class: 'ds-row--wrap' },
+      Text(`Importação: ${u.copias} cópia(s)${u.pendentes ? ` · ${u.pendentes} pendente(s)` : ''}`, { size: 'sm' }), h('div', { class: 'ds-grow' }),
+      Button('Desfazer', { id: 'col-undo-btn', onClick: desfazer }),
+      Button('OK', { variant: 'ghost', id: 'col-undo-ok', onClick: () => { state.undo = null; paintUndo(); } }))));
+  }
+  function paintPending() {
+    const n = state.pending.length;
+    if (!n) return mount(pendingBox, null);
+    mount(pendingBox, Note(`<b>${n} linha(s) da importação ficaram pendentes</b> porque o nome não foi encontrado. `, 'warning'),
+      Row({}, Button('Resolver pendências', { id: 'col-pending-open', onClick: openPending })));
+  }
+  function openPending() {
+    const list = state.pending;
+    if (!list.length) { closeDialog(); return; }
+    const linhaPendente = (x, i) => {
+      const input = Input({ value: x.name, placeholder: 'Nome da carta' });
+      const sug = h('div', { class: 'ds-row ds-row--wrap' });
+      const sugerir = () => {
+        const cands = names && names.match ? names.match(input.value, { limit: 3 }).filter(c => c.score >= 0.6) : [];
+        mount(sug, ...cands.map(c => Chip(c.name, { dataset: { sugestao: c.name } })));
+        sug.querySelectorAll('.ds-chip').forEach(ch => ch.addEventListener('click', () => { input.value = ch.dataset.sugestao; }));
+      };
+      input.addEventListener('input', sugerir); sugerir();
+      return h('div', { class: 'col-print', dataset: { pending: String(i) } },
+        h('div', { class: 'col-print__label' }, Text(x.raw || `${x.qty} ${x.name}`, { size: 'xs', tone: 'muted' }), Field(`${x.qty} cópia(s)${x.set ? ` · ${x.set.toUpperCase()}${x.number ? ' ' + x.number : ''}` : ''}`, input), sug),
+        h('div', { class: 'col-row__qty' },
+          Button('Adicionar', { variant: 'primary', dataset: { resolve: String(i) }, onClick: () => resolverPendencia(i, input.value) }),
+          Button('Descartar', { variant: 'ghost', dataset: { discard: String(i) }, onClick: async () => { await collection.removePending(i); await refresh(); closeDialog(); openPending(); } })));
+    };
+    Dialog({ title: `Pendências · ${list.length}`, body: h('div', { class: 'col-prints', id: 'col-pending-list' }, ...list.map(linhaPendente)),
+      actions: [Button('Fechar', { variant: 'primary', onClick: closeDialog })] });
+  }
+  async function resolverPendencia(i, nome) {
+    const x = state.pending[i]; if (!x) return;
+    const digitado = String(nome || '').trim(); if (!digitado) return toast('Escreva o nome da carta');
+    let canonico = null;
+    const best = names && names.match ? names.match(digitado, { limit: 1 })[0] : null;
+    if (best && best.score >= 0.999) canonico = best.name;
+    if (!canonico) { try { const found = await cardRepo.byNames([digitado]); const c = found.get(norm(digitado)); if (c) canonico = c.name; } catch (e) { /* sem rede */ } }
+    if (!canonico) return toast(`Não achei "${digitado}". Toque numa sugestão ou confira a grafia.`);
+    await collection.importItems([{ name: canonico, qty: x.qty, set: x.set, number: x.number, finish: x.finish }], 'add');
+    await collection.removePending(i);
+    await refresh(); toast(`${canonico}: ${x.qty} cópia(s) adicionada(s)`);
+    closeDialog(); openPending();
+  }
+
   /* ---- C10 · exportar por lista ---- */
   function toggleSelecting(on) {
     state.selecting = on == null ? !state.selecting : on;
@@ -4682,13 +4866,13 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const total = state.items.reduce((sum, i) => sum + i.qty, 0);
     mount(summary, Text(`${state.items.length} carta(s) · ${total} cópia(s)`, { size: 'sm', tone: 'muted' }));
     if (state.loading) return;
-    if (!state.items.length) return mount(listEl, Empty('Sua coleção está vazia. Importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
-      Button('Importar CSV', { onClick: () => csvInput.click() })));
+    if (!state.items.length) { paintUndo(); paintPending(); return mount(listEl, Empty('Sua coleção está vazia. Cole uma lista, importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
+      Row({ class: 'ds-row--wrap' }, Button('Importar lista', { onClick: () => openImportList() }), Button('Importar CSV', { onClick: () => csvInput.click() })))); }
     const f = norm(state.filter);
     const rows = state.items.filter(i => !f || norm(i.name).includes(f))
       .sort((a, b) => state.sort === 'qty' ? b.qty - a.qty || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
     mount(listEl, rows.length ? h('div', { class: 'col-list ds-surface' }, ...rows.map(row)) : Empty('Nenhuma carta com esse nome na coleção.'));
-    paintSelection();
+    paintSelection(); paintUndo(); paintPending();
   }
 
   const addState = { name: '' };
@@ -4721,10 +4905,12 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
       Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
       Row({ class: 'ds-row--wrap' },
+        Button('Importar lista', { id: 'col-import', onClick: () => openImportList() }),
         Button('Importar CSV', { id: 'col-csv-import', onClick: () => csvInput.click() }),
         Button('Exportar', { id: 'col-export', onClick: () => openExport() }),
         Button('Selecionar', { id: 'col-select', onClick: () => toggleSelecting() })),
-      csvInput)),
+      csvInput, listInput)),
+    undoBar, pendingBox,
     Row({ class: 'ds-row--wrap' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       Select([{ value: 'name', label: 'Ordem alfabética' }, { value: 'qty', label: 'Mais cópias primeiro' }], { id: 'col-sort', value: state.sort, onChange: e => { state.sort = e.target.value; paint(); } })),
@@ -10048,7 +10234,7 @@ const ROUTES = [
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
-  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share }) },
+  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: environment, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },

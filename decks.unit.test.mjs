@@ -403,3 +403,67 @@ test('C10 · seleção manual exporta só os nomes escolhidos, e coleção vazia
   assert.equal(vazio.text, ''); assert.equal(vazio.linhas, 0);
   assert.equal(D.exportCollectionText(ITENS, { selecao: new Set(['nada']) }).linhas, 0, 'seleção que não casa nada');
 });
+
+/* ---------------- C11 · importar por lista ---------------- */
+test('C11 · o leitor de lista guarda edição, número e foil, e tolera numeração, cabeçalhos, comentários e lixo', () => {
+  const texto = [
+    '// Estante · coleção · 3 carta(s)', '', 'Deck', '1. Sol Ring', '2) Counterspell (MH2) 267 *F*', '3x Lightning Bolt [CMM] 141',
+    'Fire // Ice (MH3) 285 *E*', 'SB: 1 Pyroblast', '0 Nada', '4', '4 ', '1000 Island', 'Jötun Grunt', "2 Ulamog's Crusher (ROE) 9"
+  ].join('\n');
+  const r = D.parseCollectionText(texto);
+  const plain = JSON.parse(JSON.stringify(r.items.map(({ name, qty, set, number, finish, line }) => ({ name, qty, set, number, finish, line }))));
+  assert.deepEqual(plain, [
+    { name: 'Sol Ring', qty: 1, set: '', number: '', finish: '', line: 4 },
+    { name: 'Counterspell', qty: 1, set: 'mh2', number: '267', finish: 'foil', line: 5 },   // "2)" é numeração, não quantidade
+    { name: 'Lightning Bolt', qty: 3, set: 'cmm', number: '141', finish: '', line: 6 },
+    { name: 'Fire // Ice', qty: 1, set: 'mh3', number: '285', finish: 'etched', line: 7 },
+    { name: 'Pyroblast', qty: 1, set: '', number: '', finish: '', line: 8 },
+    { name: 'Jötun Grunt', qty: 1, set: '', number: '', finish: '', line: 13 },
+    { name: "Ulamog's Crusher", qty: 2, set: 'roe', number: '9', finish: '', line: 14 }
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(r.skipped.map(x => [x.line, x.reason]))), [[9, 'quantidade zero'], [10, 'sem nome'], [11, 'sem nome'], [12, 'quantidade acima de 999']]);
+  assert.equal(r.skipped[0].raw, '0 Nada', 'a linha original vai junto para a conferência mostrar');
+});
+
+test('C11 · o que a C10 exporta volta inteiro pela C11, nos três formatos', () => {
+  const itens = [
+    { name: 'Lightning Bolt', set: 'cmm', number: '141', finish: 'foil', lang: 'en', cond: 'NM', qty: 1 },
+    { name: 'Lightning Bolt', set: '', number: '', finish: '', lang: '', cond: '', qty: 2 },
+    { name: 'Fire // Ice', set: 'mh3', number: '285', finish: 'etched', lang: 'en', cond: 'NM', qty: 1 }
+  ];
+  const completo = D.parseCollectionText(D.exportCollectionText(itens, { formato: 'completo' }).text);
+  assert.equal(completo.skipped.length, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(completo.items.map(i => [i.qty, i.name, i.set, i.number, i.finish]))),
+    [[1, 'Fire // Ice', 'mh3', '285', 'etched'], [2, 'Lightning Bolt', '', '', ''], [1, 'Lightning Bolt', 'cmm', '141', 'foil']]);
+  const simples = D.parseCollectionText(D.exportCollectionText(itens, { formato: 'simples' }).text);
+  assert.deepEqual(JSON.parse(JSON.stringify(simples.items.map(i => [i.qty, i.name]))), [[1, 'Fire // Ice'], [3, 'Lightning Bolt']]);
+  const arena = D.parseCollectionText(D.exportCollectionText(itens, { formato: 'arena' }).text);
+  assert.equal(arena.items.find(i => i.set === 'cmm').finish, '', 'arena não leva foil');
+});
+
+test('C11 · a conferência separa o que soma, o que é novo e o que fica pendente, com sugestão', () => {
+  const { items } = D.parseCollectionText('2 Sol Ring\n1 Counterspel\n3 island\n1 Xyzzy');
+  const existentes = new Set(['sol ring']);
+  const conhecidos = new Map([['sol ring', 'Sol Ring'], ['island', 'Island']]);
+  const sugestoes = new Map([['counterspel', 'Counterspell']]);
+  const plano = D.planCollectionImport(items, { existentes, conhecidos, sugestoes });
+  assert.deepEqual(JSON.parse(JSON.stringify(plano.somam.map(x => [x.qty, x.name]))), [[2, 'Sol Ring']]);
+  assert.deepEqual(JSON.parse(JSON.stringify(plano.novas.map(x => [x.qty, x.name]))), [[3, 'Island']], 'nome canônico no lugar do digitado');
+  assert.deepEqual(JSON.parse(JSON.stringify(plano.pendentes.map(x => [x.name, x.reason, x.sugestao]))), [['Counterspel', 'nome não encontrado', 'Counterspell'], ['Xyzzy', 'nome não encontrado', null]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(plano.copias)), { novas: 3, somam: 2, pendentes: 2 });
+  assert.equal(plano.conferido, true);
+  // sem como conferir (offline e sem base): nada fica pendente, tudo entra como foi escrito
+  const cego = D.planCollectionImport(items, { existentes });
+  assert.equal(cego.conferido, false); assert.equal(cego.pendentes.length, 0); assert.equal(cego.novas.length, 3);
+});
+
+test('C11 · pendências ficam guardadas na coleção até serem corrigidas ou descartadas', async () => {
+  const c = D.createCollection({ store: P.memoryStore() });
+  assert.equal((await c.pending()).length, 0);
+  await c.addPending([{ name: 'Xyzzy', qty: 1, raw: '1 Xyzzy', reason: 'nome não encontrado' }, { name: 'Counterspel', qty: 2, set: 'mh2', number: '267', reason: 'nome não encontrado' }]);
+  let p = await c.pending();
+  assert.equal(p.length, 2); assert.equal(p[1].set, 'mh2');
+  assert.equal(await c.removePending(0), 1);
+  p = await c.pending(); assert.equal(p[0].name, 'Counterspel');
+  await c.clearPending(); assert.equal((await c.pending()).length, 0);
+});

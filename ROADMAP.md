@@ -105,7 +105,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
 | X · Scanner | X10 acerto medido no portão (fotos sintéticas; reais pendentes) | 🟡 |
 | C · Coleção | C10 exportar por lista (três formatos, seleção manual) | 🟡 |
-| C · Coleção | C11–C14 importar por lista, filtros, visões e painel | ○ |
+| C · Coleção | C11 importar por lista com conferência, pendências e desfazer | 🟡 |
+| C · Coleção | C12–C14 filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
@@ -353,7 +354,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
-| E41 🟡 | C10 (leva 68) · C11 | Importar e exportar a coleção por lista, com conferência e desfazer |
+| E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -2237,7 +2238,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** C1, L6.
 - **Fora:** exportar preço; exportar o recorte do filtro (C12).
 
-**C11 · Importar por lista, com conferência antes** ○
+**C11 · Importar por lista, com conferência antes** 🟡
 - **Valor:** colar uma lista e ver a coleção crescer sem medo.
 - **Aceite:**
   - aceita texto colado e arquivo, nos mesmos formatos da C10, tolerando numeração, comentários e linhas
@@ -2246,9 +2247,28 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
     linhas não foram reconhecidas e por quê;
   - a importação é uma operação só, com desfazer;
   - nome não reconhecido não some: fica numa lista de pendências para corrigir.
-- **Testes:** U (parser com lixo real), I headless (colar, conferir, importar e desfazer).
+- **Entregue (leva 69):** botão **Importar lista** na coleção: cola o texto ou abre um arquivo (.txt, .dec,
+  .dek), **Conferir** mostra o total de cópias, quantas cartas são novas e quantas somam ao que você já
+  tem, e cada linha não reconhecida com o número da linha e o motivo (*quantidade zero*, *sem nome*,
+  *acima de 999*, *nome não encontrado* — este com "parecido: X" quando a base de nomes tem um palpite).
+  **Importar** grava tudo de uma vez; a barra "Importação: N cópia(s)" traz **Desfazer**, que devolve a
+  coleção e as pendências exatamente ao que eram antes. Linha com nome não encontrado vai para as
+  **pendências** (aviso na coleção → **Resolver pendências**: nome editável, até três sugestões da base
+  como chips, *Adicionar* confere o nome antes de somar, *Descartar* tira). A linha guarda edição, número
+  e foil (`(MH2) 267 *F*`), então o que a C10 exporta volta inteiro.
+- **Reconhecimento dos nomes:** primeiro o que já está na coleção; depois a base de nomes do scanner
+  (offline, quando já baixada); o que sobrar vai à Scryfall. Sem base e sem internet a conferência avisa
+  que não pôde conferir e importa como está — nada fica pendente às cegas.
+- **Decisão:** "1. Sol Ring" e "1) Sol Ring" contam como numeração (uma cópia), não como quantidade;
+  "1 Sol Ring" e "1x Sol Ring" são quantidade.
+- **Testes:** U (leitor com numeração, cabeçalhos, comentários, `SB:`, `*F*`/`*E*`, `(SET) N` e `[SET] N`,
+  linhas com lixo e os motivos; ida e volta com os três formatos da C10; plano da conferência com
+  existentes, conhecidos e sugestões, e o caso sem como conferir; pendências guardadas, removidas e
+  limpas), I headless (colar lista com erro e nome parecido, conferir, importar, ver edição e foil na
+  coleção, resolver pendência pela sugestão, descartar a outra, desfazer tudo, reimportar somando).
 - **Depende de:** C10, L2.
-- **Fora:** casar impressão por número quando a lista não traz edição.
+- **Fora:** casar impressão por número quando a lista não traz edição; importar direto para uma lista
+  (isso é o editor de listas).
 
 **C12 · Filtros de verdade** ○
 - **Valor:** achar exatamente o que você procura na coleção e nas listas.
