@@ -25,8 +25,12 @@ function pickStrategy(request) {
   if ((u.hostname === 'cdn.jsdelivr.net' && /\/npm\/(tesseract|@tesseract)/.test(u.pathname)) || u.hostname === 'tessdata.projectnaptha.com') {
     return { strategy: 'cache-first', cache: CACHES.ocr, opaque: true };
   }
+  // O2 · imagens de carta: pede com CORS primeiro (resposta normal, sem o
+  // acolchoamento de cota que o Chrome aplica a resposta opaca) e só cai para a
+  // opaca se o CDN não permitir. Guardada de qualquer jeito: sem imagem a coleção
+  // e a mesa ficam cegas sem internet.
   if (/(^|\.)scryfall\.io$/.test(u.hostname) || /(^|\.)scryfall\.com$/.test(u.hostname)) {
-    return { strategy: 'cache-first', cache: CACHES.img };
+    return { strategy: 'cache-first', cache: CACHES.img, opaque: true, cors: true };
   }
   if (request.mode === 'navigate' || u.pathname === '/' || u.pathname.endsWith('.html')) {
     return { strategy: 'network-first', cache: CACHES.shell };
@@ -37,6 +41,19 @@ function pickStrategy(request) {
 
 function selfOrigin() {
   try { return self.location.origin; } catch (e) { return null; }
+}
+
+/** O2 · a mesma URL pedida em modo CORS: resposta legível e sem acolchoamento de cota. */
+function corsRequest(request) {
+  try { return new Request(request.url, { mode: 'cors', credentials: 'omit', headers: { Accept: 'image/*,*/*;q=0.8' } }); }
+  catch (e) { return request; }
+}
+/** O2 · busca a imagem: CORS primeiro; se falhar (CDN sem CORS), a requisição original (opaca). */
+async function fetchImagem(request, plan) {
+  if (plan.cors) {
+    try { const r = await fetch(corsRequest(request)); if (r.ok) return r; } catch (e) { /* tenta opaca */ }
+  }
+  return fetch(request);
 }
 
 /** Arquivos que precisam existir antes do primeiro uso offline. */
@@ -72,7 +89,7 @@ self.addEventListener('fetch', event => {
     if (plan.strategy === 'cache-first') {
       const hit = await cache.match(key);
       if (hit) return hit;
-      try { const res = await fetch(event.request); if (res.ok || (plan.opaque && res.type === 'opaque')) cache.put(key, res.clone()); return res; }
+      try { const res = await fetchImagem(event.request, plan); if (res.ok || (plan.opaque && res.type === 'opaque')) cache.put(key, res.clone()); return res; }
       catch (e) { return new Response('', { status: 504 }); }
     }
 

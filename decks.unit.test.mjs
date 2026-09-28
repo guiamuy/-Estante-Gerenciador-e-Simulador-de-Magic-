@@ -467,3 +467,13 @@ test('C11 · pendências ficam guardadas na coleção até serem corrigidas ou d
   p = await c.pending(); assert.equal(p[0].name, 'Counterspel');
   await c.clearPending(); assert.equal((await c.pending()).length, 0);
 });
+
+/* ---------------- O2 · sem rede, carta sem dados é "não conferida" ---------------- */
+test('O2 · validação: sem rede a carta sem dados guardados é aviso de "não conferida", não erro', () => {
+  const deck = { format: 'pauper', entries: [{ name: 'Counterspell', qty: 4, zone: 'main' }, { name: 'Xyzzy', qty: 1, zone: 'main' }] };
+  const comRede = D.validateDeck(deck, CARDS);
+  assert.equal(comRede[0].level, 'error'); assert.match(comRede[0].message, /1 carta\(s\) não reconhecida\(s\): Xyzzy/);
+  const semRede = D.validateDeck(deck, CARDS, { semRede: true });
+  assert.equal(semRede[0].level, 'warning'); assert.match(semRede[0].message, /1 carta\(s\) ainda não conferida\(s\) \(sem internet; os dados não estão guardados\): Xyzzy/);
+  assert.equal(semRede.some(i => i.level === 'error' && /reconhecida/.test(i.message)), false, 'sem erro de reconhecimento');
+});

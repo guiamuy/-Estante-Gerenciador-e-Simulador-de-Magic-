@@ -23,7 +23,9 @@ function serve() {
 }
 const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : name.startsWith('Lurrus') ? 'Companion — Each permanent card in your starting deck has mana value 2 or less.\nLifelink' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', collector_number: '1', rarity: 'common' });
 const DB = Object.fromEntries([
-  card('Malcolm, Alluring Scoundrel', 'Legendary Creature — Siren Pirate', ['U']), card('Sol Ring', 'Artifact', [], 1),
+  card('Malcolm, Alluring Scoundrel', 'Legendary Creature — Siren Pirate', ['U']),
+  // O2 · o Sol Ring tem imagem apontando para fora: o visualizador precisa cair no texto quando ela não carrega
+  { ...card('Sol Ring', 'Artifact', [], 1), image_uris: { small: 'https://cards.scryfall.io/small/front/x/sol.jpg', normal: 'https://cards.scryfall.io/normal/front/x/sol.jpg', large: 'https://cards.scryfall.io/large/front/x/sol.jpg' } },
   card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U']),
   card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), card('Preordain', 'Sorcery', ['U'], 1),
   card('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', ['W', 'B'], 3), card('Mock Commander', 'Legendary Creature — Human', ['W', 'B'], 2),
@@ -44,7 +46,8 @@ async function open(t) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  // recurso de rede que não carrega (imagem sem internet, host fora do alcance) é ambiente, não erro do app
+  page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errors.push(m.text()); });
   await page.route('https://api.scryfall.com/**', async r => {
     if (r.request().url().includes('/cards/collection')) {
       const ids = JSON.parse(r.request().postData()).identifiers;
@@ -392,7 +395,10 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   assert.match(linhas, /✓ Listas: 1 de 1 prontas/); assert.match(linhas, /✓ Coleção: 2 de 2/);
   assert.match(linhas, /✓ Base de nomes/); assert.match(linhas, /✓ Leitor de texto/);
 
-  // a partir daqui, sem internet: nenhuma requisição sai do aparelho
+  // a partir daqui, sem internet: nenhuma requisição sai do aparelho. `setOffline` derruba
+  // navigator.onLine, mas as rotas falsas ainda responderiam — por isso elas passam a abortar.
+  await page.route('https://api.scryfall.com/**', r => r.abort('internetdisconnected'));
+  await page.route('https://**.scryfall.io/**', r => r.abort('internetdisconnected'));
   await page.context().setOffline(true);
   await page.goto(base + '#/listas'); await page.goto(base + '#/');   // sai e volta: o painel é pintado de novo
   await page.waitForFunction(() => /sem internet agora/.test((document.querySelector('#home-offline-state') || {}).innerText || ''));
@@ -436,16 +442,58 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('#cards-q');
   await page.fill('#cards-q', 'sol'); await page.press('#cards-q', 'Enter');
   await page.waitForSelector('#cards-results .deck-slot', { timeout: 8000 });
-  assert.match(await page.innerText('#cards-results'), /Sol Ring/);
+  // a imagem do Sol Ring não carrega sem rede: o cartão mostra o nome no lugar (CardFace)
+  await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#cards-results').innerText), null, { timeout: 8000 });
+  assert.equal(await page.locator('#cards-results .ds-card__fallback').count(), 1, 'imagem quebrada vira nome');
 
-  // scanner: base de nomes e leitor já no aparelho
+  // scanner: base de nomes e leitor já no aparelho; a edição avisa que fica para depois
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])', { timeout: 10000 });
-  await page.click('[data-edition]');
-  await page.evaluate(() => window.__ocrQueue.push('Sol Ring'));
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', ''));
   await page.click('#scan-read');
   await page.waitForFunction(() => /Lote: 1/.test((document.querySelector('#scan-lot') || {}).innerText || ''));
+  await page.waitForSelector('#scan-edition');
+  assert.match(await page.innerText('#scan-edition'), /Sem internet: a cópia entra sem edição/);
 
+  // O2 · a barra avisa, e cada tela que batia na rede tem o seu caminho sem ela
+  assert.equal(await page.locator('#nav-offline').isVisible(), true, 'chip "Sem internet" na barra');
+  // coleção: adicionar pelo nome confere pela base de nomes
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-add');
+  await page.fill('#col-add', 'Preordain'); await page.click('#col-add-btn');
+  await page.waitForSelector('.col-row[data-name="Preordain"]');
+  await page.fill('#col-add', 'Xyzzy'); await page.click('#col-add-btn');
+  await page.waitForFunction(() => /Não achei "Xyzzy"/.test(document.body.innerText));
+  await page.fill('#col-add', 'Counterspel'); await page.click('#col-add-btn');
+  await page.waitForFunction(() => /Parecido: Counterspell/.test(document.body.innerText));
+  // visualizador: imagem não guardada vira texto, não ícone quebrado
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
+  await page.waitForSelector('#card-viewer [data-sem-imagem]', { timeout: 8000 });
+  assert.match(await page.innerText('#card-viewer'), /Imagem ainda não guardada/);
+  await page.keyboard.press('Escape');
+  // lista editada sem rede: carta nunca vista fica "não conferida", não "não reconhecida"
+  await page.goto(base + '#/listas');
+  await page.click('text=Delver');
+  await page.waitForSelector('.deck-summary');
+  await page.click('#deck-edit');
+  await page.waitForSelector('#deck-text');
+  await page.fill('#deck-text', PAUPER + '\n1 Lightning Bolt');
+  await page.click('#deck-save');
+  await page.waitForSelector('.deck-summary');
+  const corpo = await page.innerText('body');
+  assert.match(corpo, /1 carta\(s\) ainda não conferida\(s\) \(sem internet/, 'aviso, não erro');
+  assert.doesNotMatch(corpo, /não reconhecida/);
+  // busca: sem rede vai direto à base local, sem mensagem de falha
+  await page.goto(base + '#/cartas');
+  await page.waitForSelector('#cards-q');
+  await page.fill('#cards-q', 'counter'); await page.press('#cards-q', 'Enter');
+  await page.waitForSelector('#cards-results .deck-slot', { timeout: 8000 });
+  assert.doesNotMatch(await page.innerText('#cards-status'), /Sem resposta da Scryfall|Verifique a conexão/);
+
+  // a internet volta: o chip some
+  await page.unroute('https://api.scryfall.com/**'); await page.unroute('https://**.scryfall.io/**');
+  await page.context().setOffline(false);
+  await page.waitForFunction(() => document.querySelector('#nav-offline').classList.contains('ds-hidden'));
   assert.deepEqual(errors, []);
 });
 

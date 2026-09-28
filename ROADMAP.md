@@ -107,7 +107,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | C · Coleção | C10 exportar por lista (três formatos, seleção manual) | 🟡 |
 | C · Coleção | C11 importar por lista com conferência, pendências e desfazer | 🟡 |
 | O · Offline | O1 o que é seu fica no aparelho: guardião, painel e portão offline | 🟡 |
-| O · Offline | O2–O3 telas sem rede e conduta offline | ○ |
+| O · Offline | O2 telas sem rede: ambiente vivo, chip, fallbacks, base local alimentada por tudo | 🟡 |
+| O · Offline | O3 conduta offline para o que vem | ○ |
 | C · Coleção | C12–C14 filtros, visões e painel | ○ |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
@@ -363,7 +364,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 | C12–C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
-| E42 🟡 | O1 (leva 70) · O2 · O3 | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
+| E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
@@ -2553,7 +2554,7 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Fora:** guardar imagem grande da coleção inteira (miniatura basta na lista; a grande vem sob
   demanda); dados que nunca passaram pelo app com rede.
 
-**O2 · Telas sem rede** ○
+**O2 · Telas sem rede** 🟡
 - **Valor:** nenhuma tela quebra ou finge quando a internet cai no meio do uso.
 - **Aceite:**
   - o app percebe rede indo e voltando durante o uso (hoje o ambiente é detectado uma vez ao abrir):
@@ -2564,9 +2565,26 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
   - scanner: edição pela linha de coleção só com impressões já vistas; a tela diz "edição sem internet";
   - visualizador de carta sem imagem guardada mostra o texto da carta, não um quadrado vazio;
   - toda mensagem de rede tem a mesma voz: o que não deu e o que funciona mesmo assim.
-- **Testes:** U (cada fallback), I headless (portão offline estendido com cada tela).
+- **Entregue (leva 71):** ambiente **vivo** (`envVivo`): as telas leem o estado da rede na hora, e os
+  eventos `online`/`offline` do navegador trocam o ambiente, pintam o chip **Sem internet** na barra (leva
+  ao painel) e disparam a manutenção quando a rede volta. Coleção: "Adicionar" confere pela base de nomes
+  quando a Scryfall não responde ("Parecido: X" para grafia próxima; aviso claro quando não há base nem
+  rede). Lista: sem rede, carta sem dados guardados vira aviso "ainda não conferida (sem internet)" em
+  vez de erro "não reconhecida". Busca: sem rede vai direto à base local, sem mensagem de falha — e
+  **tudo que passa pelo app entra na base local** (antes só o resultado de busca entrava; carta de lista
+  ou coleção não era achável sem rede). Scanner: "Sem internet: a cópia entra sem edição (defina depois,
+  na coleção)". Imagem que não carrega vira o nome da carta (cartão) ou "imagem ainda não guardada"
+  (visualizador), nunca um ícone quebrado.
+- **Correção no portão:** o teste "tudo sem internet" da leva 70 cortava a rede com `setOffline`, mas as
+  rotas falsas da Scryfall ainda respondiam — a busca "offline" estava passando pela rede. Agora as rotas
+  abortam (`internetdisconnected`) e o portão é estrito; foi isso que revelou a base local vazia.
+- **Testes:** U (validação sem rede: aviso, não erro), I headless (portão offline estrito com: chip na
+  barra, adicionar pelo nome com acerto, parecido e desconhecido, visualizador sem imagem, lista editada
+  sem rede com carta nunca vista, busca local sem mensagem de falha, scanner sem edição; e o chip sumindo
+  quando a rede volta).
 - **Depende de:** O1.
-- **Fora:** fila de ações para sincronizar depois (não há servidor: nada a sincronizar).
+- **Fora:** fila de ações para sincronizar depois (não há servidor: nada a sincronizar); mensagens das
+  telas de rede que já existiam (Scryfall recusou, erro HTTP) seguem como estavam.
 
 **O3 · Conduta offline para o que vem** ○
 - **Valor:** o que for feito daqui em diante (Coleção, Mesa, Commander) nasce funcionando sem internet.

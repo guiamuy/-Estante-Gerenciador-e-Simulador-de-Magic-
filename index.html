@@ -1026,11 +1026,13 @@ const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-lab
 
 /* ---------------- carta ---------------- */
 function CardFace(card, opts = {}) {
-  const img = card && card.image ? h('img', { src: card.image, alt: card.name || '', loading: 'lazy' }) : null;
+  const fallback = () => h('span', { class: 'ds-card__fallback' }, card?.name || '—');
+  // O2 · imagem que não carrega (sem internet e ainda não guardada) vira o nome, não um ícone quebrado
+  const img = card && card.image ? h('img', { src: card.image, alt: card.name || '', loading: 'lazy', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(fallback(), el); } }) : null;
   return h(opts.onClick ? 'button' : 'div', {
     class: 'ds-card', type: opts.onClick ? 'button' : null,
     'aria-label': card?.name || 'carta', onClick: opts.onClick, dataset: opts.dataset
-  }, img || h('span', { class: 'ds-card__fallback' }, card?.name || '—'));
+  }, img || fallback());
 }
 const CardGrid = (...kids) => h('div', { class: 'ds-cardgrid' }, ...kids.flat(9).filter(Boolean));
 
@@ -1494,6 +1496,8 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
         }
         await Promise.all(writes);
         await bumpIndex(store, out);
+        // O2 · tudo que passa pelo app entra na base local de busca: sem rede, "buscar cartas" acha o que você já viu
+        if (local && found.length) { try { await local.upsert(found); } catch (e) { /* base local cheia ou indisponível: a busca sem rede fica menor, nada mais */ } }
       } catch (e) {
         stats.degraded = true;
         // degradação: devolve o que houver em cache, mesmo vencido
@@ -1599,7 +1603,10 @@ const __m8 = (function () {
    Usa Cache Storage quando existe; sem ele, vira repasse transparente.
    Nenhuma tela precisa saber qual dos dois está valendo.
    ===================================================================== */
-const CACHE_NAME = 'estante-card-images-v1';
+/* O2 · o MESMO cache que o service worker usa para as tags <img> (estante-img-v1):
+   aquecer aqui é o que faz a imagem aparecer sem internet. Antes eram dois caches
+   (este e o do worker) e o <img> nunca lia deste. */
+const CACHE_NAME = 'estante-img-v1';
 
 function createImageCache({ caches, fetch: doFetch } = {}) {
   const available = !!(caches && typeof caches.open === 'function');
@@ -1609,7 +1616,8 @@ function createImageCache({ caches, fetch: doFetch } = {}) {
   return {
     available,
     /** Garante que a imagem esteja em cache. Silencioso em caso de falha:
-        imagem é conforto, não correção. */
+        imagem é conforto, não correção. CORS primeiro (resposta normal, sem o
+        acolchoamento de cota da resposta opaca); opaca só se o CDN não deixar. */
     async warm(urls) {
       if (!available || !doFetch) return 0;
       const c = await open();
@@ -1617,7 +1625,9 @@ function createImageCache({ caches, fetch: doFetch } = {}) {
       for (const url of [...new Set(urls.filter(Boolean))]) {
         try {
           if (await c.match(url)) { n++; continue; }
-          const res = await doFetch(url, { mode: 'no-cors' });
+          let res = null;
+          try { res = await doFetch(url, { mode: 'cors', credentials: 'omit' }); if (!res.ok) res = null; } catch (e) { res = null; }
+          if (!res) res = await doFetch(url, { mode: 'no-cors' });
           await c.put(url, res.clone ? res.clone() : res);
           n++;
         } catch (e) { /* imagem indisponível não quebra a tela */ }
@@ -2059,8 +2069,10 @@ function openCardViewer(card, extra = []) {
 
     const price = card.prices && (card.prices.usd || card.prices.usd_foil);
 
+    const semImagem = () => h('div', { class: 'ds-empty', dataset: { semImagem: '1' } }, Text(name), Text('Imagem ainda não guardada neste aparelho.', { size: 'xs', tone: 'subtle' }));
     mount(body,
-      img ? h('img', { src: img, alt: name, style: { width: '100%', maxWidth: '300px', margin: '0 auto var(--space-4)', borderRadius: 'var(--radius-card)', display: 'block' } })
+      img ? h('img', { src: img, alt: name, style: { width: '100%', maxWidth: '300px', margin: '0 auto var(--space-4)', borderRadius: 'var(--radius-card)', display: 'block' },
+        onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(semImagem(), el); } })
           : h('div', { class: 'ds-empty' }, Text(name)),
       Row({}, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
         cost ? Text(cost, { size: 'sm', mono: true, tone: 'accent' }) : null),
@@ -3662,12 +3674,17 @@ function validateCompanion(deck, cards, playing, add, fmt) {
 }
 
 /* ---------------- L5 · validação ---------------- */
-function validateDeck(deck, cards) {
+function validateDeck(deck, cards, { semRede = false } = {}) {
   const issues = [];
   const add = (level, message) => issues.push({ level, message });
   const get = e => cards.get(norm(e.name));
   const unresolved = deck.entries.filter(e => !get(e));
-  if (unresolved.length) add('error', `${unresolved.length} carta(s) não reconhecida(s): ${unresolved.slice(0, 5).map(e => e.name).join(', ')}${unresolved.length > 5 ? '…' : ''}`);
+  // O2 · sem rede, carta sem dados guardados não é "não reconhecida": é "não conferida"
+  const lista = `${unresolved.slice(0, 5).map(e => e.name).join(', ')}${unresolved.length > 5 ? '…' : ''}`;
+  if (unresolved.length) {
+    if (semRede) add('warning', `${unresolved.length} carta(s) ainda não conferida(s) (sem internet; os dados não estão guardados): ${lista}`);
+    else add('error', `${unresolved.length} carta(s) não reconhecida(s): ${lista}`);
+  }
   const fmt = deck.format;
   if (fmt === 'livre') return issues;
 
@@ -4452,7 +4469,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
   function paint() {
     const d = state.deck;
     const stats = deckStats(d, state.cards, state.owned);
-    const issues = validateDeck(d, state.cards);
+    const issues = validateDeck(d, state.cards, { semRede: state.degraded });
     const identity = [...new Set(d.entries.filter(e => e.zone === 'commander').flatMap(e => (entryCard(e) && entryCard(e).color_identity) || []))].join('');
 
     const groups = CATEGORIES.map(([key, label]) => {
@@ -4489,7 +4506,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
             Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } }))),
         h('div', { class: 'ds-grow' }),
         Row({ class: 'ds-row--wrap' },
-          Button('Editar', { onClick: () => go('/listas/editar?id=' + d.id) }),
+          Button('Editar', { id: 'deck-edit', onClick: () => go('/listas/editar?id=' + d.id) }),
           Button('Exportar', { onClick: exportDialog }),
           Button('Excluir', { variant: 'danger', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
@@ -4896,15 +4913,22 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const name = addState.name.trim(); if (!name) return;
     addBtn.disabled = true;
     try {
-      const found = await cardRepo.byNames([name]);
-      const c = found.get(norm(name));
-      if (!c) return toast(`Não achei "${name}" na Scryfall. Confira a grafia.`);
-      const cur = await collection.qty(c.name);
-      await collection.set(c.name, cur + 1);
-      state.cards.set(norm(c.name), c);
+      let canonico = null, c = null;
+      try { const found = await cardRepo.byNames([name]); c = found.get(norm(name)); if (c) canonico = c.name; }
+      catch (e) { /* sem rede: a base de nomes decide abaixo */ }
+      if (!canonico) {
+        // O2 · sem Scryfall, a base de nomes do scanner confere a grafia (offline)
+        const best = names && names.match ? names.match(name, { limit: 1 })[0] : null;
+        if (best && best.score >= 0.999) canonico = best.name;
+        else if (best && best.score >= 0.75) return toast(`Não achei "${name}". Parecido: ${best.name}`, 3600);
+        else return toast(names && names.info && names.info() ? `Não achei "${name}". Confira a grafia.` : `Sem internet e sem a base de nomes para conferir "${name}".`, 3600);
+      }
+      const cur = await collection.qty(canonico);
+      await collection.set(canonico, cur + 1);
+      if (c) state.cards.set(norm(c.name), c);
       addIn.value = ''; addState.name = '';
-      toast(`${c.name}: ${cur + 1} cópia(s)`); await refresh(); paintCare();
-    } catch (e) { toast('Sem conexão com a Scryfall para conferir o nome'); }
+      toast(`${canonico}: ${cur + 1} cópia(s)`); await refresh(); paintCare();
+    } catch (e) { toast('Não foi possível adicionar agora'); }
     finally { addBtn.disabled = false; }
   }
   const addIn = Input({ id: 'col-add', placeholder: 'Nome da carta, em inglês', onInput: e => { addState.name = e.target.value; } });
@@ -10060,7 +10084,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const [best, ...rest] = L.found;
     const edition = !state.edition || !L.key ? null
       : L.printing ? Text(`Edição: ${printLabel(L.printing)}${L.printing.set_name ? ' · ' + L.printing.set_name : ''}${L.printing.verified ? '' : ' (não conferida)'}`, { size: 'sm', attrs: { id: 'scan-edition' } })
-        : Stack({ style: { gap: 'var(--space-1)' } }, Text(L.candidates.length ? 'Edição incerta. É uma destas?' : 'Edição não identificada: a cópia entra sem edição.', { size: 'sm', tone: 'muted', attrs: { id: 'scan-edition' } }),
+        : Stack({ style: { gap: 'var(--space-1)' } }, Text(L.candidates.length ? 'Edição incerta. É uma destas?' : !online() ? 'Sem internet: a cópia entra sem edição (defina depois, na coleção).' : 'Edição não identificada: a cópia entra sem edição.', { size: 'sm', tone: 'muted', attrs: { id: 'scan-edition' } }),
           L.candidates.length ? Row({ class: 'ds-row--wrap' }, ...L.candidates.map(c => Chip(`${printLabel(c)} · ${c.set_name}`, { dataset: { printing: c.set + '-' + c.number }, onClick: async () => {
             L.key = await lot.rename(L.key, best.name, { ...c, verified: true }) || L.key; L.printing = { ...c, verified: true }; L.candidates = []; paintResult(); toast(`Edição: ${printLabel(c)}`);
           } }))) : null);
@@ -10378,6 +10402,8 @@ const collection = createCollection({ store: platform.store });
 const names = createNameIndex({ store: platform.store, scryfall });
 const ocr = createOcr();
 const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+// O2 · as telas recebem um ambiente VIVO: se a internet cair no meio do uso, `env.online` muda junto
+const envVivo = { get id() { return environment.id; }, get online() { return environment.online; }, get label() { return environment.label; }, get reason() { return environment.reason; }, get fix() { return environment.fix; } };
 // O1 · o que é seu fica no aparelho: listas e coleção guardadas sozinhas, com rede
 const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, online: temRede });
 keeper.vigiar();
@@ -10386,13 +10412,13 @@ const installer = createInstaller({ window: typeof window !== 'undefined' ? wind
 
 const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
-  { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: environment, files: platform.files, collection }) },
+  { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo }) },
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },
-  { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: environment, ocr }) },
+  { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
   { path: '/ds', title: 'Design system', render: renderDS },
@@ -10475,8 +10501,18 @@ function appBar() {
       Button('Listas', { variant: 'ghost', id: 'nav-decks', onClick: () => { location.hash = '#/listas'; } }),
       Button('Coleção', { variant: 'ghost', id: 'nav-collection', onClick: () => { location.hash = '#/colecao'; } }),
       installButton(),
+      offlineChip(),
       Button('◐', { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: 'Tema', dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() })));
 }
+
+/* O2 · chip discreto quando a internet cai; leva ao painel da tela inicial */
+let chipRede = null;
+function offlineChip() {
+  chipRede = Button('Sem internet', { variant: 'ghost', id: 'nav-offline', ariaLabel: 'Sem internet: ver o que funciona', onClick: () => { location.hash = '#/'; } });
+  chipRede.classList.toggle('ds-hidden', temRede());
+  return chipRede;
+}
+function pintaRede() { if (chipRede) chipRede.classList.toggle('ds-hidden', temRede()); }
 
 async function boot(root) {
   installFavicon(document);
@@ -10506,7 +10542,10 @@ async function boot(root) {
   // O1 · manutenção silenciosa: com rede, guarda o que ainda não está guardado
   const manter = () => { if (temRede()) keeper.manter().catch(() => {}); };
   setTimeout(manter, 4000);
-  window.addEventListener('online', manter);
+  // O2 · rede indo e voltando durante o uso: ambiente e chip acompanham
+  const redeDetectar = () => detectEnvironment({ location, navigator, fetch: fetch.bind(globalThis) }).then(e => { environment = e; pintaRede(); }).catch(() => {});
+  window.addEventListener('online', () => { environment = ENVIRONMENTS.online; pintaRede(); redeDetectar(); manter(); });
+  window.addEventListener('offline', () => { environment = ENVIRONMENTS.offline; pintaRede(); });
   return { router, theme, platform, keeper };
 }
 
