@@ -481,6 +481,10 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
     Object.values(s.objects).filter(o => o.owner === p && o.name === 'Plains' && o.zone === 'hand').slice(0, 2).forEach(o => M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }));
   });
   await page.waitForSelector('[data-zone="lands"] .tb-leque[data-leque="2"]');
+  // U6 · recolher a mão também funciona sem rede (preferência local)
+  await page.click('#tb-hand-toggle');
+  assert.equal(await page.getAttribute('#tb-hand', 'data-recolhida'), 'true');
+  await page.click('#tb-hand-toggle');
 
   // coleção: exportar e importar por lista continuam funcionando (conferência pela base de nomes)
   await page.goto(base + '#/colecao');
@@ -1409,6 +1413,63 @@ test('e2e · U5 cópias iguais em leque: terrenos e criaturas, toque na da frent
   assert.deepEqual(errors, []);
 });
 
+test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a escolha fica, mulligan e descarte abrem sozinhos', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Peixes', '30 Island\n20 Sky Pike', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  const toggle = page.locator('#tb-hand-toggle');
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+  assert.match(await toggle.innerText(), /✋ \d+/);
+  const bt = await toggle.boundingBox(); assert.ok(bt.height >= 44, 'puxador com alvo de toque');
+  const docaAntes = (await page.locator('.tb-dock').boundingBox()).height;
+  await toggle.click();
+  assert.equal(await page.getAttribute('#tb-hand', 'data-recolhida'), 'true');
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  await page.waitForTimeout(300);                                   // a animação de 200 ms termina
+  const corpo = await page.locator('#tb-hand-body').boundingBox();
+  assert.ok(corpo.height < 2, `corpo recolhido (${corpo.height})`);
+  const docaDepois = (await page.locator('.tb-dock').boundingBox()).height;
+  assert.ok(docaAntes - docaDepois > 100, `a mesa ganha espaço (${docaAntes} → ${docaDepois})`);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mao-recolhida.png' });
+  assert.equal(await page.locator('.tb-hand .tb-card').first().isVisible(), false, 'cartas da mão escondidas');
+  // a escolha sobrevive à recarga (a partida continua de onde parou)
+  await page.reload();
+  await page.waitForSelector('#tb-hand-toggle');
+  await page.waitForFunction(() => document.querySelector('#tb-hand').dataset.recolhida === 'true');
+  // expandir de novo mostra as cartas
+  await page.click('#tb-hand-toggle');
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('.tb-hand .tb-card').first().isVisible(), true);
+  await page.click('#tb-hand-toggle');                            // deixa recolhida para o resto do teste
+  // descarte na limpeza: 5 cartas a mais e passar o turno obriga a descartar → a mão abre sozinha
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(); M.act({ t: 'draw', p: s.turn.priority, target: s.turn.priority, n: 5 }); });
+  await page.click('#tb-pass-turn');
+  await page.waitForFunction(() => document.querySelector('#tb-hand') && document.querySelector('#tb-hand').dataset.forcada === 'true', null, { timeout: 5000 });
+  assert.equal(await page.getAttribute('#tb-hand', 'data-recolhida'), 'false');
+  assert.match(await page.innerText('#tb-hand-toggle'), /aberta para descarte/);
+  assert.equal(await page.locator('#tb-hand-toggle').isDisabled(), true, 'não dá para recolher no meio do descarte');
+  while (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); })) {
+    await page.locator('.tb-hand .tb-card').first().click();
+  }
+  await page.waitForFunction(() => document.querySelector('#tb-hand').dataset.recolhida === 'true', null, { timeout: 5000 });
+  // partida nova: a mão inicial abre sozinha mesmo com a preferência de recolher
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(); M.act({ t: 'concede', p: s.turn.priority }); });
+  await page.click('#tb-new');
+  await page.fill('#mesa-seed', '5');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  assert.equal(await page.getAttribute('#tb-hand', 'data-forcada'), 'true');
+  assert.match(await page.innerText('#tb-hand-toggle'), /aberta para mão inicial/);
+  await page.click('#tb-keep');
+  await page.waitForFunction(() => document.querySelector('#tb-hand').dataset.recolhida === 'true');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · A15 segurar a carta espia texto, P/T e ações; soltar fecha sem abrir a folha; toque curto abre a folha', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await createDeck(page, base, 'Peixes', '30 Island\n20 Sky Pike', 'livre');
@@ -1586,9 +1647,11 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   await page.goto(base + '#/listas');
   await page.click('#decks-starter-empty'); // o estado vazio leva às listas prontas
   await page.waitForSelector('#starter-list');
-  await page.click('[data-starter-format="commander"]');
+  // a lista repinta depois do toque: espera a contagem assentar antes de conferir (falha intermitente na leva 84)
+  const itens = n => page.waitForFunction(k => document.querySelectorAll('#starter-list .ds-list__item').length === k, n, { timeout: 5000 }).catch(() => {});
+  await page.click('[data-starter-format="commander"]'); await itens(2);
   assert.equal(await page.locator('#starter-list .ds-list__item').count(), 2, 'duas listas de Commander');
-  await page.click('[data-starter-format="pauper"]');
+  await page.click('[data-starter-format="pauper"]'); await itens(7);
   assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7, 'sete listas de Pauper');
 
   await page.click('[data-starter-add="Pauper Elves"]');
@@ -1632,6 +1695,7 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   // ficam guardados (sozinhos, pelo guardião offline da leva 70 — antes começava em "0 de N"),
   // a tela diz quantos faltam e o botão continua lá para tentar de novo quando a rede souber
   await page.waitForSelector('#mesa-offline-falta');
+  await page.waitForFunction(() => /\d+ de \d+ cartas guardadas/.test((document.querySelector('#mesa-offline-falta') || {}).innerText || ''), null, { timeout: 8000 }).catch(() => {});
   const falta = await page.innerText('#mesa-offline-falta');
   const m = falta.match(/(\d+) de (\d+) cartas guardadas/);
   assert.ok(m && Number(m[1]) < Number(m[2]), 'lista parcialmente guardada: ' + falta);

@@ -576,6 +576,18 @@ body {
 .tb-banner__text span { font-size: var(--text-sm); color: var(--fg-muted); }
 .tb-banner__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .tb-hand .tb-row { padding-top: var(--space-2); }
+/* U6 · bandeja da mão recolhível: o puxador fica, o corpo encolhe em 200 ms */
+.tb-hand__toggle { display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%; min-height: var(--tap-min);
+  padding: 0 var(--space-3); border: none; background: none; color: var(--fg-muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.tb-hand__toggle:disabled { cursor: default; color: var(--warning); }
+.tb-hand__grip { width: 36px; height: 4px; border-radius: var(--radius-full); background: var(--border); }
+.tb-hand__chevron { transition: transform var(--dur-2) var(--ease-out); }
+.tb-hand[data-recolhida="true"] .tb-hand__chevron { transform: rotate(180deg); }
+.tb-hand__body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 200ms var(--ease-out); }
+.tb-hand[data-recolhida="true"] .tb-hand__body { grid-template-rows: 0fr; }
+.tb-hand__inner { min-height: 0; overflow: hidden; transition: visibility 0s; }
+.tb-hand[data-recolhida="true"] .tb-hand__inner { visibility: hidden; transition: visibility 0s 200ms; }   /* some do toque e do leitor de tela depois de fechar */
+@media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron { transition: none; } }
 
 .tb-handoff { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); text-align: center; padding: var(--space-5); }
 .tb-zonegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: var(--space-2); }
@@ -9503,6 +9515,16 @@ function estadoDaCarta(s, o, plano = null) {
   const enjoo = !!o.sick && criatura && !impeto;
   return { pt, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
 }
+/** U6 · a bandeja da mão: recolhida só quando a pessoa pediu e a mão não é necessária agora.
+    Mulligan e descarte exigem a mão: ela abre sozinha e diz por quê. */
+function bandejaDaMao(s, v, recolhida) {
+  const total = (((s.zones || [])[v] || {}).hand || []).length;
+  const pd = s.pending;
+  const motivo = s.status === 'mulligan' ? 'mão inicial'
+    : pd && pd.p === v && pd.kind === 'discard' ? 'descarte'
+      : null;
+  return { aberta: !recolhida || !!motivo, forcada: !!(recolhida && motivo), motivo, total };
+}
 /** U5 · o que faz uma permanente diferente das irmãs de mesmo nome (e por isso fica fora do leque). */
 const MODIFICADORES = ['pump', 'pumpNext', 'tempKeywords', 'keywordsNext', 'goaded', 'attacking', 'blocking', 'blockedBy', 'cantAttackNext',
   'chosenColor', 'bestowed', 'faceDown', 'pairedWith', 'mayPay', 'xPaid'];
@@ -9678,7 +9700,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -9918,6 +9940,10 @@ function createTableSetup({ decks, cardRepo, store }) {
 function createTableScreen({ store }) {
   const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
   let table = null, adjudicating = null, bottomPick = new Set(), shownViewer = null, handoff = false;
+  // U6 · mão recolhida: preferência guardada no aparelho, vale para as próximas partidas também
+  const MAO_KEY = 'mesa.maoRecolhida';
+  let maoRecolhida = false;
+  store.get(MAO_KEY).then(v => { if (v === true && !maoRecolhida) { maoRecolhida = true; if (table) paint(); } }).catch(() => {});
 
   const save = () => store.set(T.SAVE_KEY, table.serialize()).catch(() => {});
   const card = name => (table.setup.cards || {})[name] || null;
@@ -10382,8 +10408,24 @@ function createTableScreen({ store }) {
         openObject(oid);
       }
     }));
-    return h('div', { class: 'tb-dock' }, banner,
-      h('div', { class: 'tb-hand', 'aria-label': 'sua mão' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia')));
+    // U6 · puxador: recolhe/expande sem repintar a mesa (a animação acontece no mesmo elemento)
+    const band = T.bandejaDaMao(s, v, maoRecolhida);
+    const bandeja = h('div', { class: 'tb-hand', id: 'tb-hand', 'aria-label': 'sua mão', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada) } });
+    const rotulo = aberta => band.forcada ? `✋ ${band.total} · aberta para ${band.motivo}` : `✋ ${band.total}`;
+    const puxador = h('button', { class: 'tb-hand__toggle', id: 'tb-hand-toggle', type: 'button', 'aria-controls': 'tb-hand-body', 'aria-expanded': String(band.aberta),
+      'aria-label': band.aberta ? `Recolher a mão (${band.total} cartas)` : `Mostrar a mão (${band.total} cartas)`, disabled: band.forcada,
+      onClick: () => {
+        maoRecolhida = !maoRecolhida;
+        store.set(MAO_KEY, maoRecolhida).catch(() => {});
+        const aberta = !maoRecolhida;
+        bandeja.dataset.recolhida = String(!aberta);
+        puxador.setAttribute('aria-expanded', String(aberta));
+        puxador.setAttribute('aria-label', aberta ? `Recolher a mão (${band.total} cartas)` : `Mostrar a mão (${band.total} cartas)`);
+      } },
+      h('span', { class: 'tb-hand__grip', 'aria-hidden': 'true' }), h('span', { class: 'tb-hand__count' }, rotulo()), h('span', { class: 'tb-hand__chevron', 'aria-hidden': 'true' }, '▾'));
+    bandeja.append(puxador, h('div', { class: 'tb-hand__body', id: 'tb-hand-body' },
+      h('div', { class: 'tb-hand__inner' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia'))));
+    return h('div', { class: 'tb-dock' }, banner, bandeja);
   }
 
   function paint() {

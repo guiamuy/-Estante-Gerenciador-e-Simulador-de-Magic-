@@ -45,7 +45,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
 | Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
-| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque | ✅ |
+| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
@@ -312,7 +312,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 |---|---|---|---|---|
 | 1º ✅ | U1 tema em dois estados (leva 82) | E43 | 1 | — |
 | 2º ✅ | U5 cartas iguais em leque na mesa (leva 83) | E44 | 1 | — |
-| 3º | U6 bandeja da mão recolhível | E44 | 1 | — |
+| 3º ✅ | U6 bandeja da mão recolhível (leva 84) | E44 | 1 | — |
 | 4º | U7 de quem é o turno, visível de longe | E44 | 1 | — |
 | 5º | U12 imagens do jogo baixadas sozinhas | E45 | 1 | estende o guardião offline (O1) |
 | 6º | U10 Shark: um bot só, com nome | E46 | 1 | remove o amador; muda a tela de preparar |
@@ -429,7 +429,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 | E43 🟡 | U1 (leva 82) · U3 · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
-| E44 🟡 | U5 (leva 83) · U6 · U7 · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
+| E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 | U12 | Imagens do jogo baixadas sozinhas quando há internet |
 | E46 | U10 · U11 | Shark: um bot só, com nome, e mais forte |
 | E47 | U13 | Conta e perfil: nome, avatar e backup com Google (decisão pendente) |
@@ -2941,11 +2941,18 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (`leque.unit.test.mjs`, 6: o que junta, o que separa, ordem, `separa`, robustez); e2e `U5` (leque de 4 com 3 camadas, deslocamento medido, largura menor que 2 cartas, toque abre a folha, sem rolagem horizontal, combate abre o leque em 3 atacantes); passo no `O1`.
 - **Fora:** abrir o leque com gesto; arrastar cartas.
 
-**U6 · Bandeja da mão recolhível** ○
+**U6 · Bandeja da mão recolhível** ✅ (leva 84)
+- **Entregue:** um puxador no topo da mão ("✋ 7 ▾") recolhe e expande a bandeja em 200 ms. Recolhida, sobra só o puxador e a mesa ganha a altura da mão. A escolha fica guardada no aparelho e vale para as próximas partidas.
 - **Valor:** ver a mesa inteira quando a mão não importa.
-- **Aceite:** um puxador no topo da bandeja recolhe/expande com animação de 200 ms; recolhida, mostra só a contagem e o puxador (≥ 44px); a preferência dura a partida; o estado pendente que exige a mão (descartar, escolher) expande sozinho e avisa.
-- **Testes:** e2e (recolher, expandir, descarte forçado reabre); U (estado da bandeja no modelo da mesa).
-- **Depende de:** —.
+- **Aceite (como ficou):**
+  - puxador com alvo ≥ 44px, `aria-expanded` e rótulo "Recolher/Mostrar a mão (N cartas)";
+  - recolher e expandir não repintam a mesa (a animação roda no mesmo elemento); recolhida, as cartas saem do toque e do leitor de tela;
+  - mão inicial e descarte abrem a bandeja sozinhos, o puxador diz "aberta para descarte" e fica travado até a decisão; depois volta a recolher;
+  - `prefers-reduced-motion` sem animação.
+- **Divergência do aceite original:** dizia "a preferência dura a partida". Ficou guardada no aparelho, valendo também para as próximas, porque quem prefere a mesa limpa prefere em todas.
+- **Sem rede:** preferência local; passo no `e2e · O1`.
+- **Testes:** U (`bandeja.unit.test.mjs`, 3: padrão, forçada por mão inicial e descarte, só a mão de quem vê); e2e `U6` (recolher, corpo com altura 0, doca encolhe mais de 100px, persiste após recarga, descarte força abrir e trava, mão inicial força abrir, volta a recolher); passo no `O1`.
+- **Fora:** gesto de arrastar o puxador.
 
 **U7 · De quem é o turno, visível de longe** ○
 - **Valor:** saber em um relance quem joga, bot × você ou jogador 1 × jogador 2.
