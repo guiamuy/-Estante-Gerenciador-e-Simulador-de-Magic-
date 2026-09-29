@@ -481,6 +481,9 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
     Object.values(s.objects).filter(o => o.owner === p && o.name === 'Plains' && o.zone === 'hand').slice(0, 2).forEach(o => M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }));
   });
   await page.waitForSelector('[data-zone="lands"] .tb-leque[data-leque="2"]');
+  // U7 · a faixa de quem joga também sem rede
+  assert.equal(await page.getAttribute('#tb-vez', 'data-papel'), 'eu');
+  assert.equal(await page.getAttribute('.tb-side--me', 'data-ativo'), 'true');
   // U6 · recolher a mão também funciona sem rede (preferência local)
   await page.click('#tb-hand-toggle');
   assert.equal(await page.getAttribute('#tb-hand', 'data-recolhida'), 'true');
@@ -1470,6 +1473,78 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   assert.deepEqual(errors, []);
 });
 
+test('e2e · U7 de quem é a vez: faixa na cor do jogador, lado ativo aceso, prioridade separada, cortina diz o turno', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Peixes', '30 Island\n10 Sky Pike\n10 Wall Guard', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  assert.equal(await page.getAttribute('#tb-vez', 'data-papel'), 'mulligan');
+  assert.match(await page.innerText('#tb-vez'), /Mão inicial/);
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  const quem = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return { ativo: s.players[s.turn.active].name, prio: s.players[s.turn.priority].name }; });
+  // quem está com o aparelho é quem tem a prioridade; no começo é o do turno
+  let q = await quem();
+  await page.waitForSelector('#tb-vez[data-papel="eu"]');
+  assert.match(await page.innerText('#tb-vez'), /Seu turno/);
+  assert.equal(await page.innerText('#tb-vez .tb-vez__avatar'), q.ativo.slice(0, 1));
+  assert.equal(await page.getAttribute('.tb-side--me', 'data-ativo'), 'true', 'o seu lado acende');
+  assert.equal(await page.getAttribute('.tb-side--opp', 'data-ativo'), 'false');
+  assert.equal(await page.locator('#tb-vez-prio').count(), 0, 'prioridade com quem joga: sem selo extra');
+  const corEu = await page.$eval('#tb-vez', el => getComputedStyle(el).backgroundColor);
+  const bordaEu = await page.$eval('.tb-side--me', el => getComputedStyle(el).borderTopColor);
+  await page.waitForTimeout(350);                                   // a faixa anima (escala .98) ao trocar o turno
+  const hVez = (await page.locator('#tb-vez').boundingBox()).height; assert.ok(hVez >= 44, 'faixa alta o bastante: ' + hVez + ' ' + await page.$eval('#tb-vez', el => getComputedStyle(el).minHeight));
+  // passar o turno: a cortina diz de quem é o turno para quem recebe o aparelho
+  await page.click('#tb-pass-turn');
+  await page.waitForSelector('#tb-handoff');
+  q = await quem();
+  assert.match(await page.innerText('#tb-handoff'), new RegExp(q.prio));
+  assert.match(await page.innerText('#tb-vez-cortina'), q.ativo === q.prio ? /Seu turno/ : new RegExp(`Turno de ${q.ativo}`));
+  await reveal(page);
+  await page.waitForSelector('#tb-vez');
+  assert.equal(await page.getAttribute('#tb-vez', 'data-papel'), 'eu', 'agora é o turno de quem pegou o aparelho');
+  assert.ok(await page.$eval('#tb-vez', el => el.classList.contains('tb-vez--troca')), 'a faixa anima quando o turno troca');
+  // o outro lado vê o turno na cor do oponente: quem joga agora ataca, e o outro decide os bloqueios
+  const atacante = await page.evaluate(() => {
+    const M = window.__estanteMesa; let s = M.estado(); const p = s.turn.active;
+    const pike = Object.values(s.objects).find(o => o.owner === p && o.name === 'Sky Pike' && o.zone !== 'battlefield');
+    M.act({ t: 'move', p, oid: pike.oid, to: 'battlefield' });
+    // o outro tem uma Wall Guard (alcance): pode bloquear o voador, então a decisão é dele
+    const d = 1 - p, muro = Object.values(s.objects).find(o => o.owner === d && o.name === 'Wall Guard' && o.zone !== 'battlefield');
+    M.act({ t: 'move', p, oid: muro.oid, to: 'battlefield' });
+    return { p, oid: pike.oid, nome: s.players[p].name };
+  });
+  // dois turnos depois o Sky Pike já não tem enjoo: o motor avança (sem ataque no turno do outro) até o dono poder atacar
+  await page.evaluate(({ p, oid }) => {
+    const M = window.__estanteMesa; const t0 = M.estado().turn.number;
+    for (let i = 0; i < 80; i++) {
+      const s = M.estado(), pd = s.pending;
+      if (pd && pd.kind === 'attackers' && s.turn.active === p && s.turn.number >= t0 + 2) break;
+      if (pd && pd.kind === 'attackers') M.act({ t: 'attack', p: pd.p, attackers: [] });
+      else if (pd && pd.kind === 'blockers') M.act({ t: 'block', p: pd.p, blocks: [] });
+      else if (pd && pd.kind === 'discard') M.act({ t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] });
+      else M.act({ t: 'pass', p: s.turn.priority });
+    }
+    M.act({ t: 'attack', p, attackers: [oid] });
+  }, atacante);
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending.kind), 'blockers', 'o defensor precisa decidir');
+  await reveal(page);
+  await page.waitForSelector('#tb-vez[data-papel="oponente"]');
+  assert.match(await page.innerText('#tb-vez'), new RegExp(`Turno de ${atacante.nome}`));
+  assert.match(await page.innerText('#tb-vez-prio'), /você responde/, 'prioridade separada do turno');
+  assert.notEqual(await page.$eval('#tb-vez', el => getComputedStyle(el).backgroundColor), corEu, 'cor do oponente é outra');
+  assert.equal(await page.getAttribute('.tb-side--opp', 'data-ativo'), 'true', 'o lado de quem joga acende');
+  assert.equal(await page.getAttribute('.tb-side--me', 'data-ativo'), 'false');
+  assert.notEqual(await page.$eval('.tb-side--opp', el => getComputedStyle(el).borderTopColor), bordaEu, 'borda na cor do oponente');
+  if (process.env.SHOTS) { await page.waitForTimeout(350); await page.screenshot({ path: process.env.SHOTS + '/vez-oponente.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · A15 segurar a carta espia texto, P/T e ações; soltar fecha sem abrir a folha; toque curto abre a folha', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await createDeck(page, base, 'Peixes', '30 Island\n20 Sky Pike', 'livre');
@@ -1507,6 +1582,8 @@ test('e2e · A15 segurar a carta espia texto, P/T e ações; soltar fecha sem ab
   if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
   const campo = page.locator('.tb-side--me [data-zone="permanents"] .tb-card[aria-label^="Sky Pike"]').first();
   await page.waitForTimeout(300);                                  // deixa o movimento de entrada terminar
+  // U7 · a faixa de quem joga desce o campo ~50px: num 390×844 a carta cai atrás da doca da mão; a pessoa rola, o teste também
+  await campo.evaluate(el => el.scrollIntoView({ block: 'center' }));
   const b2 = await campo.boundingBox();
   await page.mouse.move(b2.x + b2.width / 2, b2.y + b2.height / 2); await page.mouse.down();
   await page.waitForSelector('#tb-peek', { state: 'attached', timeout: 3000 });

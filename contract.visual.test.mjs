@@ -27,7 +27,9 @@ const PAIRS = [
   ['--fg', '--bg'], ['--fg', '--bg-elev-1'], ['--fg', '--bg-elev-2'], ['--fg', '--bg-elev-3'],
   ['--fg-muted', '--bg'], ['--fg-muted', '--bg-elev-1'],
   ['--accent', '--bg'], ['--accent', '--bg-elev-1'], ['--accent-fg', '--accent'],
-  ['--positive', '--bg-elev-1'], ['--negative', '--bg-elev-1'], ['--positive-fg', '--positive'], ['--negative-fg', '--negative']
+  ['--positive', '--bg-elev-1'], ['--negative', '--bg-elev-1'], ['--positive-fg', '--positive'], ['--negative-fg', '--negative'],
+  // U7 · cor do oponente: legível sobre o fundo e com texto próprio legível sobre ela
+  ['--player-opp', '--bg'], ['--player-opp', '--bg-elev-1'], ['--player-opp-fg', '--player-opp']
 ];
 
 for (const [name, theme] of [['escuro', DARK], ['claro', LIGHT]]) {

@@ -45,7 +45,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
 | Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
-| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível | ✅ |
+| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível · U7 turno visível | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
@@ -313,7 +313,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 1º ✅ | U1 tema em dois estados (leva 82) | E43 | 1 | — |
 | 2º ✅ | U5 cartas iguais em leque na mesa (leva 83) | E44 | 1 | — |
 | 3º ✅ | U6 bandeja da mão recolhível (leva 84) | E44 | 1 | — |
-| 4º | U7 de quem é o turno, visível de longe | E44 | 1 | — |
+| 4º ✅ | U7 de quem é o turno, visível de longe (leva 85) | E44 | 1 | — |
 | 5º | U12 imagens do jogo baixadas sozinhas | E45 | 1 | estende o guardião offline (O1) |
 | 6º | U10 Shark: um bot só, com nome | E46 | 1 | remove o amador; muda a tela de preparar |
 | 7º | U3 símbolos de Magic em botões, textos e filtros | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
@@ -429,7 +429,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 | E43 🟡 | U1 (leva 82) · U3 · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
-| E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
+| E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 (leva 85) · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 | U12 | Imagens do jogo baixadas sozinhas quando há internet |
 | E46 | U10 · U11 | Shark: um bot só, com nome, e mais forte |
 | E47 | U13 | Conta e perfil: nome, avatar e backup com Google (decisão pendente) |
@@ -2954,11 +2954,18 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (`bandeja.unit.test.mjs`, 3: padrão, forçada por mão inicial e descarte, só a mão de quem vê); e2e `U6` (recolher, corpo com altura 0, doca encolhe mais de 100px, persiste após recarga, descarte força abrir e trava, mão inicial força abrir, volta a recolher); passo no `O1`.
 - **Fora:** gesto de arrastar o puxador.
 
-**U7 · De quem é o turno, visível de longe** ○
+**U7 · De quem é o turno, visível de longe** ✅ (leva 85)
+- **Entregue:** faixa no topo da mesa com a inicial e "Seu turno" (na cor de acento) ou "Turno de Ana" (em azul, a cor do oponente); o lado de quem joga acende com borda e brilho na mesma cor; quando a vez de agir não é de quem tem o turno, um selo "⚑ você responde" / "⚑ Bia responde" aparece separado; a faixa entra com um movimento curto quando o turno troca; a cortina do jogo a dois no mesmo aparelho mostra a mesma faixa para quem recebe.
 - **Valor:** saber em um relance quem joga, bot × você ou jogador 1 × jogador 2.
-- **Aceite:** faixa de turno com nome, avatar/ícone e cor do jogador ativo; a metade da mesa do jogador ativo ganha borda luminosa suave; troca de turno com transição de 300 ms; no hot-seat, a cortina de troca diz de quem é a vez; ícone de prioridade separado do ícone de turno.
-- **Testes:** e2e (o indicador muda quando o turno passa; cortina no hot-seat); contrato visual (cores dos jogadores vêm de tokens).
-- **Depende de:** —.
+- **Aceite (como ficou):**
+  - cores dos jogadores vêm de tokens (`--player-opp`, `--player-opp-fg`, `--player-opp-soft`; o seu é o acento), com contraste conferido no contrato visual nos dois temas;
+  - turno ≠ prioridade: a decisão pendente (bloqueio, descarte) conta como a vez de quem decide;
+  - mão inicial e fim de partida têm faixa neutra própria ("Mão inicial", "Você venceu", "Empate");
+  - faixa com alvo ≥ 44px; transição de 300 ms; `prefers-reduced-motion` sem animação.
+- **Efeito colateral medido:** a faixa desce o campo cerca de 50px; num 390×844 com a mão aberta, a primeira fila do seu lado cai atrás da doca. Hoje a pessoa rola ou recolhe a mão (U6); a U8 resolve por tamanho de aparelho. O e2e A15 passou a rolar a carta para a vista antes de segurá-la (mesma correção já feita para a pilha de terrenos).
+- **Divergência do aceite original:** o aceite falava em avatar; sem perfil (U13) ainda, o círculo mostra a inicial do nome. Quando o perfil existir, a foto entra no mesmo círculo.
+- **Sem rede:** só apresentação; passo no `e2e · O1`.
+- **Testes:** U (`vez.unit.test.mjs`, 4: seu turno/do outro, prioridade separada inclusive em bloqueio pendente, mão inicial e fim, nome ausente); contrato visual (3 pares de contraste novos); e2e `U7` (faixa na mão inicial, seu turno com lado aceso, cortina diz o turno, animação na troca, ataque real com bloqueio pendente do outro: faixa azul, "você responde", lado do oponente aceso, cores diferentes medidas); passo no `O1`.
 
 **U8 · Disposições por tamanho de aparelho** ○
 - **Valor:** a mesa aproveita a tela de um Galaxy S, S+ e Ultra sem sobra nem corte.
