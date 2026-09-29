@@ -330,3 +330,45 @@ test('A14 · registro vira linha do tempo por turno e fase; separadores somem; a
   assert.ok(e.some(x => x.passo === 'mulligan'), 'a mão inicial fica antes do primeiro turno');
   assert.equal(T.linhaDoTempo(e).some(tt => tt.fases.some(f => f.linhas.some(l => /^— Turno/.test(l)))), false, 'sem separadores dentro das fases');
 });
+
+/* ---------------- A15 · toque longo ---------------- */
+const { gestures: G } = loadModules();
+/** Elemento falso: só o que o gesto usa. */
+function elemento() {
+  const ls = {};
+  return { dataset: {}, style: {},
+    addEventListener(t, fn) { (ls[t] = ls[t] || []).push(fn); },
+    fire(t, e = {}) { const ev = { clientX: 0, clientY: 0, button: 0, stopped: false, prevented: false, stopImmediatePropagation() { this.stopped = true; }, preventDefault() { this.prevented = true; }, ...e }; for (const fn of ls[t] || []) fn(ev); return ev; } };
+}
+const espera = ms => new Promise(r => setTimeout(r, ms));
+
+test('A15 · segurar abre, soltar fecha, e o clique que vem depois é engolido', async () => {
+  const el = elemento(); const log = [];
+  G.onLongPress(el, { start: () => log.push('start'), end: () => log.push('end'), ms: 30 });
+  el.fire('pointerdown'); await espera(60);
+  assert.deepEqual(log, ['start'], 'abriu depois do tempo');
+  el.fire('pointerup');
+  assert.deepEqual(log, ['start', 'end'], 'fechou ao soltar');
+  const click = el.fire('click');
+  assert.equal(click.stopped, true, 'o clique do soltar não vira toque simples');
+  const outro = el.fire('click');
+  assert.equal(outro.stopped, false, 'o próximo clique é normal');
+});
+
+test('A15 · toque curto não abre e o clique passa; arrastar cancela; botão direito não conta', async () => {
+  const el = elemento(); const log = [];
+  G.onLongPress(el, { start: () => log.push('start'), end: () => log.push('end'), ms: 30 });
+  el.fire('pointerdown'); el.fire('pointerup');
+  await espera(50);
+  assert.deepEqual(log, [], 'toque curto: nada');
+  assert.equal(el.fire('click').stopped, false, 'o clique do toque curto passa');
+  el.fire('pointerdown', { clientX: 0, clientY: 0 }); el.fire('pointermove', { clientX: 30, clientY: 0 }); await espera(50);
+  assert.deepEqual(log, [], 'arrastar (rolar a faixa) cancela');
+  el.fire('pointerup');
+  el.fire('pointerdown', { button: 2 }); await espera(50);
+  assert.deepEqual(log, [], 'botão direito não é toque longo');
+  el.fire('pointerdown'); await espera(10);
+  assert.equal(el.fire('contextmenu').prevented, true, 'o menu de contexto do navegador não aparece enquanto segura');
+  el.fire('pointercancel'); await espera(40);
+  assert.deepEqual(log, [], 'cancelamento antes do tempo não abre');
+});

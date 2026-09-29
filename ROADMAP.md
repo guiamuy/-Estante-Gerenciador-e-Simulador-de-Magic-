@@ -101,7 +101,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | B · Bot | B7 didática do bot: resumo do turno e "o que eu poderia fazer" | 🟡 |
 | A · Mesa | A13 campo que se lê de relance: P/T, anéis de estado, pilhas de terreno | 🟡 |
 | A · Mesa | A14 pilha explicada, recusa com motivo, registro em linha do tempo | 🟡 |
-| A · Mesa | A15–A16 zoom e prévia | ○ |
+| A · Mesa | A15 segurar para ler a carta com texto, estado e ações | 🟡 |
+| A · Mesa | A16 prévia de combate e resumo do turno | ○ |
 | X · Scanner | X7 captura automática sem moldura | 🟡 |
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
 | X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
@@ -372,7 +373,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
-| E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
+| E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15 (leva 79) · A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
@@ -833,15 +834,30 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Fora:** modo tutorial guiado; ver na tela a pilha de uma habilidade que ninguém pode responder (ela
   resolve sozinha antes de aparecer — o registro conta o que aconteceu).
 
-**A15 · Ler a carta sem sair da partida** ○
+**A15 · Ler a carta sem sair da partida** 🟡
 - **Valor:** conferir o texto no meio da jogada, com uma mão.
 - **Aceite:**
   - toque longo amplia a carta com o texto de oracle e os marcadores dela; soltar fecha;
   - dentro da ampliação, as ações legais daquela carta continuam disponíveis;
   - funciona igual na mão, no campo, na pilha e nas zonas abertas.
-- **Testes:** I headless, V.
+- **Entregue (leva 79):** **segurar** qualquer carta (mão, campo, pilha de terrenos, pilha de mágicas,
+  cemitério/exílio abertos, escolha de cartas) abre a carta grande por cima da mesa: arte, nome, tipo,
+  custo, zona, **P/T atual**, estado (virada, enjoo, ataca, marcadores…), texto de regras e **"Pode
+  agora:"** com as ações legais daquela carta como chips (as mesmas da folha). **Soltar fecha**, e o
+  clique que o navegador dispara ao soltar é engolido — segurar nunca vira toque simples. Um **toque
+  curto** continua abrindo a folha para agir. Arrastar (rolar a faixa) cancela; o menu de contexto do
+  navegador não aparece enquanto segura; vibração curta ao abrir.
+- **Decisão:** dentro da ampliação as ações são **só leitura** (chips): com um dedo segurando, tocar num
+  botão não é gesto de uma mão. Agir é um toque curto na mesma carta — a folha e o espiar saem da mesma
+  lista (`acoesDe`), então nunca divergem.
+- **Testes:** U (gesto: segurar abre, soltar fecha, o clique seguinte é engolido e o próximo é normal;
+  toque curto passa; arrastar cancela; botão direito não conta; menu de contexto bloqueado; cancelamento
+  antes do tempo não abre), V (sobreposição fixa sem roubar o toque, proporção da carta, animação só sem
+  "reduzir animações", só tokens), I headless (mão: espiar com P/T, tipo, zona e chip "Conjurar", sem
+  abrir a folha; soltar sem virar toque; toque curto abre a folha; campo com estado "enjoo"; pilha de
+  terrenos).
 - **Depende de:** A13, D5.
-- **Fora:** rulings na mesa (V2).
+- **Fora:** rulings na mesa (V2); teclado (o espiar é gesto de toque; a folha cobre leitura e ação).
 
 **A16 · Prévia de combate e resumo do turno** ○
 - **Valor:** decidir ataque e bloqueio sem contar de cabeça.

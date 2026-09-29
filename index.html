@@ -578,6 +578,16 @@ body {
 .tb-log__phase { display: grid; grid-template-columns: 6.5em 1fr; gap: var(--space-2); }
 .tb-log__phasehead { font-size: var(--text-xs); color: var(--fg-muted); padding-top: 2px; }
 .tb-log__lines { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: 2px; }
+/* A15 · espiar a carta: sobreposição que só existe enquanto o dedo segura */
+.tb-peek { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--overlay); pointer-events: none; }
+.tb-peek__card { display: grid; grid-template-columns: minmax(120px, 42%) 1fr; gap: var(--space-3); width: min(100%, 560px); max-height: 92vh; overflow: hidden; padding: var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
+.tb-peek__img { width: 100%; border-radius: var(--radius-card); display: block; }
+.tb-peek__semimagem { display: grid; place-items: center; aspect-ratio: 63 / 88; background: var(--bg-elev-3); border-radius: var(--radius-card); padding: var(--space-2); text-align: center; }
+.tb-peek__body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; overflow: hidden; }
+.tb-peek__body .tb-adj__oracle { overflow-y: auto; max-height: 40vh; }
+.tb-peek__acoes { display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-peek__acao { min-height: 0; padding: 2px var(--space-2); font-size: var(--text-xs); }
+@media (prefers-reduced-motion: no-preference) { .tb-peek__card { animation: tb-entrou var(--dur-1) var(--ease-out); } }
 /* A14 · pilha explicada */
 .tb-stack__head { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; }
 .tb-stack__prio { font-size: var(--text-xs); color: var(--accent); }
@@ -1935,7 +1945,30 @@ function pulse(el) {
   el.classList.remove('is-pulse'); void el.offsetWidth; el.classList.add('is-pulse');
   try { navigator.vibrate && navigator.vibrate(12); } catch (e) { /* sem vibração */ }
 }
-return { onTaps, pulse, DOUBLE_MS };
+/* A15 · TOQUE LONGO
+   Segurar abre (espiar a carta); soltar fecha. O clique que o navegador dispara
+   ao soltar é engolido, para o toque longo não virar toque simples. Arrastar
+   (rolar a faixa) cancela. Funciona com dedo e com mouse. */
+const LONG_MS = 380;
+function onLongPress(el, { start, end, ms = LONG_MS, moveTolerance = 10 }) {
+  let timer = null, held = false, x0 = 0, y0 = 0;
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  const release = () => { cancel(); if (held) { held = false; if (end) end(); } };
+  let swallow = false;   // o clique que vem depois de soltar uma pressão longa não conta
+  el.addEventListener('pointerdown', e => {
+    if (e.button != null && e.button !== 0) return;
+    x0 = e.clientX; y0 = e.clientY; held = false; swallow = false; cancel();
+    timer = setTimeout(() => { timer = null; held = true; swallow = true; if (start) start(e); }, ms);
+  });
+  el.addEventListener('pointermove', e => { if (timer && (Math.abs(e.clientX - x0) > moveTolerance || Math.abs(e.clientY - y0) > moveTolerance)) cancel(); });
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointercancel', release);
+  el.addEventListener('pointerleave', release);
+  el.addEventListener('click', e => { if (swallow) { swallow = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  el.addEventListener('contextmenu', e => { if (held || timer) e.preventDefault(); });
+  return el;
+}
+return { onTaps, pulse, DOUBLE_MS, onLongPress, LONG_MS };
 })();
 
 /* ==== src/app/cards.js ==== */
@@ -8885,7 +8918,7 @@ const __m17 = (function () {
    Mesmas regras do F5: fábricas sem framework, só tokens, alvo de toque
    de 44px. Documentados no catálogo /ds.
    ===================================================================== */
-const { h, Text, Button } = __m3;
+const { h, Text, Button, Row, Badge } = __m3;
 
 /** Carta na mesa. Virada gira 90°; enjoo aparece como selo; marcadores e dano como pílulas. */
 /* A13 · a carta diz tudo sem toque: nome sempre legível, P/T da criatura, anel de estado
@@ -8907,7 +8940,7 @@ function TableCard(card, opts = {}) {
   const pt = est && est.pt ? `${est.pt.p}/${est.pt.t}` : null;
   const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? `${pt}` : null,
     ...(est ? est.marcas.filter(m => m.k !== 'dano' && m.k !== 'marcador').map(m => m.texto) : [])].filter(Boolean).join(', ');
-  return h('button', {
+  const el = h('button', {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
     'aria-label': fala,
     dataset: { tapped: String(tapped), sick: String(sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '',
@@ -8920,6 +8953,9 @@ function TableCard(card, opts = {}) {
     pt ? h('span', { class: 'tb-card__pt', dataset: { pt } }, pt) : null),
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
   sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
+  // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
+  if (opts.onPeek) __m20.onLongPress(el, { start: () => opts.onPeek(true), end: () => opts.onPeek(false) });
+  return el;
 }
 
 /** Faixa rolável de cartas com rótulo. Vazia, ocupa pouco e diz o que é. */
@@ -8961,20 +8997,40 @@ function StackStrip(items) {
 
 /** A14 · a pilha explicada: coluna de cartões do topo para baixo, o próximo a resolver em destaque,
     e de quem é a prioridade. `itens` vem de explicaPilha (table-model). */
-function StackPanel({ itens, prioridade, imgOf, onOpen }) {
+function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek }) {
   if (!itens.length) return null;
+  const cartao = it => {
+    const b = h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
+      h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && !it.habilidade && imgOf(it.imagemDe) ? h('img', { src: imgOf(it.imagemDe), alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, it.habilidade ? 'hab.' : it.nome))),
+      h('span', { class: 'tb-stack__text' },
+        h('span', { class: 'tb-stack__title' }, it.nome, it.topo ? h('span', { class: 'tb-pill tb-pill--estado' }, 'resolve a seguir') : null),
+        h('span', { class: 'tb-stack__who' }, `de ${it.quem}`),
+        h('span', { class: 'tb-stack__what' }, it.oQueFaz),
+        it.alvos.length ? h('span', { class: 'tb-stack__target' }, `→ ${it.alvos.join(', ')}`) : null));
+    // A15 · segurar espia a carta da pilha também
+    if (onPeek && !it.habilidade) __m20.onLongPress(b, { start: () => onPeek(it, true), end: () => onPeek(it, false) });
+    return b;
+  };
   return h('section', { class: 'tb-stack', id: 'tb-stack', 'aria-label': 'pilha' },
     h('div', { class: 'tb-stack__head' },
       h('span', { class: 'tb-zone__label' }, `Pilha · ${itens.length}`),
       prioridade ? h('span', { class: 'tb-stack__prio', id: 'tb-stack-prio' }, `Prioridade: ${prioridade}`) : null),
-    h('ol', { class: 'tb-stack__list' }, ...itens.map(it => h('li', { class: 'tb-stack__item', dataset: { top: String(it.topo), oid: it.oid } },
-      h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
-        h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && !it.habilidade && imgOf(it.imagemDe) ? h('img', { src: imgOf(it.imagemDe), alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, it.habilidade ? 'hab.' : it.nome))),
-        h('span', { class: 'tb-stack__text' },
-          h('span', { class: 'tb-stack__title' }, it.nome, it.topo ? h('span', { class: 'tb-pill tb-pill--estado' }, 'resolve a seguir') : null),
-          h('span', { class: 'tb-stack__who' }, `de ${it.quem}`),
-          h('span', { class: 'tb-stack__what' }, it.oQueFaz),
-          it.alvos.length ? h('span', { class: 'tb-stack__target' }, `→ ${it.alvos.join(', ')}`) : null))))));
+    h('ol', { class: 'tb-stack__list' }, ...itens.map(it => h('li', { class: 'tb-stack__item', dataset: { top: String(it.topo), oid: it.oid } }, cartao(it)))));
+}
+
+/* A15 · espiar a carta: arte grande, nome, tipo, P/T, estado e texto de regras, mais as ações
+   que ela tem agora (só leitura: soltar fecha; um toque curto abre a folha para agir). */
+function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [], zona }) {
+  return h('div', { class: 'tb-peek', id: 'tb-peek', role: 'dialog', 'aria-label': `${name}: ${oracle || 'sem texto'}` },
+    h('div', { class: 'tb-peek__card' },
+      image ? h('img', { src: image, alt: '', class: 'tb-peek__img' }) : h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })),
+      h('div', { class: 'tb-peek__body' },
+        Row({ class: 'ds-row--wrap' }, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }), pt ? Badge(`${pt.p}/${pt.t}`, { tone: 'accent' }) : null),
+        Text([tipo, custo, zona].filter(Boolean).join(' · '), { size: 'xs', tone: 'muted' }),
+        marcas.length ? Row({ class: 'ds-row--wrap' }, ...marcas.map(m => h('span', { class: 'tb-pill tb-pill--estado' }, m))) : null,
+        oracle ? h('p', { class: 'tb-adj__oracle' }, oracle) : Text('Sem texto de regras guardado.', { size: 'sm', tone: 'subtle' }),
+        acoes.length ? h('div', { class: 'tb-peek__acoes' }, Text('Pode agora:', { size: 'xs', tone: 'muted' }), Row({ class: 'ds-row--wrap' }, ...acoes.map(a => h('span', { class: 'ds-chip tb-peek__acao', dataset: { acao: a.label }, 'aria-pressed': 'false' }, a.label)))) : Text('Nada a fazer com ela agora.', { size: 'xs', tone: 'subtle' }),
+        Text('Solte para voltar. Um toque curto abre as ações.', { size: 'xs', tone: 'subtle' }))));
 }
 
 /** O momento de prioridade: frase curta e ação primária sempre no mesmo lugar. */
@@ -8994,7 +9050,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, PriorityBanner, AdjudicationPanel };
+return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel };
 })();
 
 
@@ -9460,7 +9516,8 @@ const __m19 = (function () {
 const E = __m16;
 const T = __m18;
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
-const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, PriorityBanner, AdjudicationPanel } = __m17;
+const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel } = __m17;
+const { onLongPress } = __m20;
 const { norm } = __m7;
 const { FORMATS } = __m14;
 const { deckCoverage, dungeonByName, roomById } = __m23; // S57 · masmorra
@@ -9782,7 +9839,9 @@ function createTableScreen({ store }) {
       buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null),
       actions: [Button('Fechar', { onClick: closeDialog })] });
   }
-  const doBtn = (label, action, opts = {}) => Button(label, { block: true, variant: opts.variant, onClick: () => { closeDialog(); act(action); } });
+  // A15 · as ações de uma carta são descritas uma vez e viram botão (folha) ou chip (espiar)
+  const doBtn = (label, action, opts = {}) => ({ label, action, variant: opts.variant });
+  const toButton = d => d.disabled ? Button(d.label, { block: true, disabled: true }) : Button(d.label, { block: true, variant: d.variant, onClick: () => { closeDialog(); act(d.action); } });
 
   function moveButtons(v, oid) {
     const s = table.state, o = s.objects[oid];
@@ -9812,8 +9871,13 @@ function createTableScreen({ store }) {
   }
 
   function openObject(oid) {
+    const d = acoesDe(oid); if (!d) return;
+    sheet(d.o.name, d.acoes.map(toButton), d.where);
+  }
+  /** A15 · tudo que a carta pode fazer agora, como descrições, e a linha de contexto. */
+  function acoesDe(oid) {
     const s = table.state, v = table.viewer(), o = s.objects[oid];
-    if (!o) return;
+    if (!o) return null;
     // A3: primeiro as ações de regra que o motor oferece para este objeto
     const f = s.facts[o.name];
     const costTxt = f.cost ? costLabel(f.cost, o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) : '';
@@ -9852,9 +9916,9 @@ function createTableScreen({ store }) {
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
     // mesa assistida: conjurar sem pagar quando o tempo é legal mas falta mana
-    if (s.manaCheck && canAdjudicate(v) && (o.zone === 'hand' || o.zone === 'command') && !legal.some(b => /Conjurar/.test(b.textContent)) && !f.types.includes('land')) {
+    if (s.manaCheck && canAdjudicate(v) && (o.zone === 'hand' || o.zone === 'command') && !legal.some(b => /Conjurar/.test(b.label)) && !f.types.includes('land')) {
       let timingOk = false; try { E.apply(s, { t: 'cast', p: v, oid, free: true }); timingOk = true; } catch (e) { /* fora de hora */ }
-      if (timingOk) { legal.push(Button(`Conjurar · ${costTxt || 'sem custo'} — mana insuficiente`, { block: true, disabled: true })); legal.push(doBtn('Conjurar sem pagar (ajuste manual)', { t: 'cast', p: v, oid, free: true })); }
+      if (timingOk) { legal.push({ label: `Conjurar · ${costTxt || 'sem custo'} — mana insuficiente`, disabled: true }); legal.push(doBtn('Conjurar sem pagar (ajuste manual)', { t: 'cast', p: v, oid, free: true })); }
     }
     if (o.zone === 'companion' && canAdjudicate(v) && !legal.length && !s.players[v].companionUsed) {
       let ok = false; try { E.apply(s, { t: 'companion', p: v, oid, free: true }); ok = true; } catch (e) { /* fora de hora */ }
@@ -9876,14 +9940,30 @@ function createTableScreen({ store }) {
     const where = h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `${s.players[o.owner].name} · ${T.ZONE_PT[o.zone] || 'companheiro (fora do jogo)'}${o.tapped ? ' · virada' : ''}${costTxt ? ' · ' + costTxt : ''}`
       + (st ? ` · ${st.power}/${st.toughness}` : '') + (anexos.length ? ` · ${anexos.join(', ')}` : '')
       + (o.attachedTo && s.objects[o.attachedTo] ? ` · anexada a ${s.objects[o.attachedTo].name}` : ''));
-    sheet(o.name, [...legal, ...direct], where);
+    return { o, acoes: [...legal, ...direct], where, st, anexos, costTxt };
   }
+
+  /* ---- A15 · espiar: segurar mostra a carta grande com texto e ações; soltar fecha ---- */
+  let peekEl = null;
+  function peek(oid, aberto) {
+    if (!aberto) { if (peekEl) { peekEl.remove(); peekEl = null; } return; }
+    const d = acoesDe(oid); if (!d) return;
+    const s = table.state, o = d.o;
+    const est = T.estadoDaCarta(s, o, plan);
+    if (peekEl) peekEl.remove();
+    peekEl = CardPeek({ name: o.name, image: imgOf(o.name, 'normal'), tipo: est.tipo, pt: est.pt, custo: d.costTxt || null, zona: T.ZONE_PT[o.zone] || null,
+      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.map(m => m.texto)], oracle: oracleOf(o.name),
+      acoes: d.acoes.filter(a => !a.disabled) });
+    document.body.appendChild(peekEl);
+    try { navigator.vibrate && navigator.vibrate(8); } catch (e) { /* sem vibração */ }
+  }
+  const comPeek = oid => ({ onPeek: aberto => peek(oid, aberto) });
 
   function openZone(p, zone, label) {
     const s = table.state;
     const ids = s.zones[p][zone];
     Dialog({ title: `${label} de ${s.players[p].name}`, body: ids.length
-      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); } })))
+      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid) })))
       : Empty('Vazio.'), actions: [Button('Fechar', { onClick: closeDialog })] });
   }
 
@@ -9916,11 +9996,11 @@ function createTableScreen({ store }) {
   let vistos = new Set();
   const entrou = oid => !vistos.has(oid);
   const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) },
-    { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid) }));
+    { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid), ...comPeek(oid) }));
   /** Terrenos iguais numa pilha só: tocar age na primeira desvirada (ou na primeira, se todas viradas). */
   const landPiles = (s, ids, onClick) => T.agrupaTerrenos(s, ids).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
-    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, eligible: plan.eligible.has(alvo) });
+    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, eligible: plan.eligible.has(alvo), ...comPeek(alvo) });
   });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
 
@@ -10084,13 +10164,13 @@ function createTableScreen({ store }) {
       const pk = s.pending;
       const cards = pk.from.map(oid => {
         const o = s.objects[oid];
-        return TableCard({ ...o, image: imgOf(o.name, 'normal') }, { size: 'hand', selected: pk.picked.includes(oid),
+        return TableCard({ ...o, image: imgOf(o.name, 'normal') }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
           onClick: () => { if (!pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
       });
       return h('div', { class: 'tb-dock' }, banner, h('div', { class: 'tb-hand', id: 'tb-pick-cards' }, h('div', { class: 'tb-row' }, ...cards)));
     }
     const hand = s.zones[v].hand.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal') }, {
-      size: 'hand', selected: bottomPick.has(oid),
+      size: 'hand', selected: bottomPick.has(oid), ...comPeek(oid),
       onClick: () => {
         if (s.status === 'mulligan' && pl.mulligans) { bottomPick.has(oid) ? bottomPick.delete(oid) : bottomPick.size < pl.mulligans && bottomPick.add(oid); return paint(); }
         if (s.pending && s.pending.kind === 'discard' && s.pending.p === v) return act({ t: 'discard', p: v, oid });
@@ -10117,7 +10197,7 @@ function createTableScreen({ store }) {
     const opp = s.players.map((_, i) => i).find(i => i !== v);
     // A14 · a pilha explicada em português, do topo para baixo
     const pilha = T.explicaPilha(s, { oracleDe: oracleOf });
-    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, onOpen: it => { if (!it.habilidade) openObject(it.oid); } });
+    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, onOpen: it => { if (!it.habilidade) openObject(it.oid); }, onPeek: (it, aberto) => peek(it.oid, aberto) });
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
       name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
       controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],

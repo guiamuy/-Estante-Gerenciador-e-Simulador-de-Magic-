@@ -1285,6 +1285,62 @@ test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita a
   assert.deepEqual(errors, []);
 });
 
+test('e2e · A15 segurar a carta espia texto, P/T e ações; soltar fecha sem abrir a folha; toque curto abre a folha', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Peixes', '30 Island\n20 Sky Pike', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-mana]');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  await drawUntil(page, 'Sky Pike');
+  // segurar uma carta da mão
+  const carta = handCard(page, 'Sky Pike');
+  const box = await carta.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForSelector('#tb-peek', { state: 'attached', timeout: 3000 });
+  const peek = await page.innerText('#tb-peek');
+  assert.match(peek, /Sky Pike/); assert.match(peek, /2\/1/, 'P/T no espiar');
+  assert.match(peek, /Creature/); assert.match(peek, /mão/);
+  assert.match(peek, /Pode agora:/); assert.match(peek, /Conjurar/, 'a ação legal aparece como chip');
+  assert.equal(await page.locator('.ds-dialog').count(), 0, 'espiar não abre a folha');
+  await page.mouse.up();
+  await page.waitForFunction(() => !document.querySelector('#tb-peek'));
+  await page.waitForTimeout(150);
+  assert.equal(await page.locator('.ds-dialog').count(), 0, 'soltar não vira toque simples');
+  // toque curto: a folha com os mesmos botões
+  await carta.click();
+  await page.waitForSelector('.ds-dialog');
+  assert.match(await page.innerText('.ds-dialog'), /Conjurar/);
+  await page.keyboard.press('Escape');
+  // no campo: segurar mostra P/T, estado e o texto
+  await drawUntil(page, 'Island'); await handCard(page, 'Island').click(); await page.click('text=Jogar terreno');
+  await handCard(page, 'Sky Pike').click(); await page.click('.ds-dialog >> text=Conjurar');
+  for (let i = 0; i < 4 && await page.locator('#tb-stack').count(); i++) await page.click('#tb-pass');
+  if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
+  const campo = page.locator('.tb-side--me [data-zone="permanents"] .tb-card[aria-label^="Sky Pike"]').first();
+  await page.waitForTimeout(300);                                  // deixa o movimento de entrada terminar
+  const b2 = await campo.boundingBox();
+  await page.mouse.move(b2.x + b2.width / 2, b2.y + b2.height / 2); await page.mouse.down();
+  await page.waitForSelector('#tb-peek', { state: 'attached', timeout: 3000 });
+  const peek2 = await page.innerText('#tb-peek');
+  assert.match(peek2, /campo/); assert.match(peek2, /enjoo/, 'o estado aparece no espiar');
+  await page.mouse.up();
+  await page.waitForFunction(() => !document.querySelector('#tb-peek'));
+  // a pilha de terrenos também espia
+  const ilha = page.locator('.tb-side--me [data-zone="lands"] .tb-card').first();
+  await ilha.evaluate(el => el.scrollIntoView({ block: 'center' }));   // a faixa de terrenos fica atrás do painel fixo de baixo
+  const b3 = await ilha.boundingBox();
+  await page.mouse.move(b3.x + b3.width / 2, b3.y + b3.height / 2); await page.mouse.down();
+  await page.waitForSelector('#tb-peek', { state: 'attached', timeout: 3000 });
+  assert.match(await page.innerText('#tb-peek'), /Island/);
+  await page.mouse.up();
+  await page.waitForFunction(() => !document.querySelector('#tb-peek'));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; prioridade; recusa com motivo; registro em linha do tempo', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
