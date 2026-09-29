@@ -1306,6 +1306,13 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   await toMyMain(page);
   await drawUntil(page, 'Island'); await handCard(page, 'Island').click(); await page.click('text=Jogar terreno');
   await handCard(page, 'Sky Pike').click();
+  // U3 · o custo aparece em símbolos: um genérico e um azul, com nome falado; o texto "{1}{U}" continua lá para copiar e buscar
+  const conjurar = page.locator('.ds-dialog button', { hasText: 'Conjurar ·' }).first();
+  assert.deepEqual(await conjurar.locator('.ds-sym').evaluateAll(els => els.map(e => [e.dataset.sym, e.getAttribute('aria-label')])), [['1', '1 genérico'], ['U', 'azul']]);
+  assert.match(await conjurar.innerText(), /Conjurar · \{1\}\{U\}/);
+  const simb = await conjurar.locator('.ds-sym').first().boundingBox();
+  assert.ok(simb.width >= 14 && Math.abs(simb.width - simb.height) < 1, `símbolo redondo e legível (${simb.width}×${simb.height})`);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/simbolos-folha.png' });
   await page.click('.ds-dialog >> text=/Conjurar · \\{1\\}\\{U\\}/');
   await page.waitForSelector('.tb-side--me [data-zone="permanents"] .tb-card[aria-label*="Sky Pike"]');
   // A13 · terrenos iguais são uma pilha: "×2" e as duas viradas para pagar (antes eram dois cartões)
@@ -1691,6 +1698,49 @@ test('e2e · U6b arrastar a borda de cima da bandeja: para baixo recolhe, para c
   const antes = await page.textContent('.tb-dock');
   await page.click('#tb-pass');
   await page.waitForFunction(t0 => document.querySelector('.tb-dock') && document.querySelector('.tb-dock').textContent !== t0, antes, { timeout: 5000 });
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · U3 símbolos: reserva de mana com símbolo e contagem, texto da carta na espiada, catálogo, e campo de texto intocado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Magos', '20 Island\n10 Prodigal Sorcerer', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  // três Ilhas no campo, viradas para mana: a reserva mostra {U} ×3
+  await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const ilhas = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Island' && o.zone !== 'battlefield').slice(0, 3);
+    ilhas.forEach(o => M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }));
+    ilhas.forEach(o => M.act({ t: 'tap_mana', p, oid: o.oid, option: 0 }));
+  });
+  await page.waitForSelector('.tb-pool .ds-sym[data-sym="U"]');
+  assert.equal(await page.locator('.tb-pool .ds-sym').count(), 1, 'um símbolo por cor');
+  assert.match(await page.innerText('.tb-pool'), /×3/);
+  assert.equal(await page.getAttribute('.tb-pool', 'aria-label'), 'reserva de mana: 3');
+  // a espiada mostra o texto da carta com {T} em símbolo
+  const pid = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const o = Object.values(s.objects).find(x => x.owner === p && x.name === 'Prodigal Sorcerer' && x.zone !== 'battlefield'); M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); return o.oid; });
+  const carta = page.locator(`.tb-side--me .tb-card[data-oid="${pid}"]`);
+  await carta.waitFor(); await carta.evaluate(el => el.scrollIntoView({ block: 'center' })); await page.waitForTimeout(300);
+  const b = await carta.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
+  await page.waitForSelector('#tb-peek .ds-sym[data-sym="T"]', { timeout: 3000 });
+  assert.match(await page.innerText('#tb-peek'), /\{T\}: Prodigal Sorcerer deals 1 damage/);
+  await page.mouse.up();
+  // catálogo do design system: a referência dos símbolos
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-simbolos');
+  assert.equal(await page.locator('#ds-simbolos .ds-sym').count(), 22);
+  assert.equal(await page.innerText('#ds-simbolos-texto'), '{T}: Add {G}. {1}{U}{U}, sacrifique: compre duas cartas. Pague {W/P} ou 2 de vida.', 'texto lido idêntico ao original');
+  // campo de texto nunca é transformado: colar uma lista com "{G}" continua texto puro
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-new, #decks-starter-empty, #decks-list', { timeout: 5000 }).catch(() => {});
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import'); await page.click('#col-import');
+  await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '1 Carta {G}');
+  assert.equal(await page.inputValue('#col-import-text'), '1 Carta {G}');
+  assert.equal(await page.locator('#col-import-text .ds-sym').count(), 0);
   assert.deepEqual(errors, []);
 });
 
