@@ -235,11 +235,14 @@ test('A13 · anel e marcas: ataca, bloqueia, alvo de mágica, ficha, aura anexad
 });
 
 test('A13 · terrenos iguais viram pilha: total, viradas e a primeira desvirada para tocar', () => {
+  // expectativa mudada na homologação (H9): virados e desvirados não dividem pilha — senão não há como
+  // escolher o terreno virado para desvirar, e o toque sempre cai no primeiro desvirado
   const s = mesa([{ name: 'Island', tapped: true }, { name: 'Island' }, { name: 'Island', tapped: true }, { name: 'Sky Pike' }, { name: 'Island' }]);
   const pilhas = T.agrupaTerrenos(s, ['o0', 'o1', 'o2', 'o4']);
-  assert.equal(pilhas.length, 1);
-  const ilhas = pilhas[0];
-  assert.equal(ilhas.total, 4); assert.equal(ilhas.viradas, 2); assert.equal(ilhas.primeira, 'o0'); assert.equal(ilhas.primeiraDesvirada, 'o1');
+  assert.equal(pilhas.length, 2, 'uma pilha virada e uma desvirada');
+  const [viradas, desviradas] = pilhas;
+  assert.equal(viradas.total, 2); assert.equal(viradas.viradas, 2); assert.equal(viradas.primeira, 'o0'); assert.equal(viradas.primeiraDesvirada, null);
+  assert.equal(desviradas.total, 2); assert.equal(desviradas.viradas, 0); assert.equal(desviradas.primeiraDesvirada, 'o1');
   const todas = T.agrupaTerrenos(mesa([{ name: 'Island', tapped: true }, { name: 'Island', tapped: true }]), ['o0', 'o1'])[0];
   assert.equal(todas.primeiraDesvirada, null, 'todas viradas: tocar cai na primeira');
   assert.equal(T.agrupaTerrenos(s, []).length, 0);

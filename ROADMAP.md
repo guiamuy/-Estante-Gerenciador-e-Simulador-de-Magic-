@@ -44,6 +44,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | ✅ |
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
+| Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
@@ -471,6 +472,31 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** P, I.
 - **Depende de:** A1.
 - **Fora:** —
+
+**Q9 · Homologação dos épicos O, C (C10–C14), X (X9–X10) e A (A13–A16), 28/09/2026** ✅
+- **Valor:** as últimas 15 levas foram entregues sem teste em aparelho; uma revisão independente e uma bateria de ponta a ponta procuraram o que escapou antes de seguir.
+- **Como:** revisor sem contexto da implementação leu o código das levas; cada achado virou teste que falha na versão anterior e passa na corrigida (`homologacao.unit.test.mjs`, e2e `HOMOLOGAÇÃO 1–5`).
+- **Achados e correções:**
+  - H1 prévia de combate: criatura que sai do campo por outro caminho (ficha, exílio) agora conta como morta na prévia.
+  - H2 link de filtro: valores com `&` e vários critérios sobrevivem à recarga (hash codificado).
+  - H3 leitor ao vivo: depois de quadros vazios, a mesma carta pode ser lida de novo.
+  - H4 marcar com toque duplo: desfazer não devolve chave crua nem carta já zerada.
+  - H5 vida no Commander: botões do diálogo usavam o componente errado e não respondiam.
+  - H6 link de filtro não sequestra o endereço quando você já saiu da Coleção.
+  - H7 desfazer importação subtrai só o que a importação somou; edições feitas depois ficam.
+  - H8 toque duplo em Importar, Desfazer, Resolver pendência, Descartar e Enviar lote não duplica.
+  - H9 pilha de terrenos: virado separado de desvirado; terreno com marcador, dano ou anexo fica sozinho.
+  - H10 toque longo no iPhone não abre o menu de imagem; a espiada fecha ao trocar de tela.
+  - H11 guardião offline da coleção não roda duas passagens ao mesmo tempo.
+  - H12 resumo do turno diz o que saiu do campo sem morrer (ficha, exílio).
+  - H13 enjoo de invocação respeita ímpeto concedido por efeito, não só impresso.
+  - H14 motivo das jogadas do bot aparece também na linha do tempo.
+  - Logo da barra superior com alvo de toque de 44 px.
+- **Declarado, sem mudança:** H15 — o filtro de identidade de cor não inclui incolores a menos que "C" esteja marcado. É intencional (identidade vazia não é subconjunto marcado pelo usuário); fica registrado aqui.
+- **Expectativas alteradas, com motivo:** A13 pilhas de terreno (agora 2, por H9); C12 hash `f=e%3Dcmm` (H2); C11 desfazer mantém a resolução feita depois (H7).
+- **Auditoria de tela:** todas as telas em claro e escuro, sem rolagem horizontal e com alvos ≥ 44 px (e2e `HOMOLOGAÇÃO 1`); partida inteira contra o bot profissional (`HOMOLOGAÇÃO 5`).
+- **Só o aparelho confirma:** toque longo no iOS, OCR com fotos reais, desempenho da coleção grande no celular.
+- **Portão:** 448 verdes (409 unidade/fuzz/golden + 39 e2e); motor v56 inalterado; goldens inalterados.
 
 ### M · Motor de regras
 

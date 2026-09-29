@@ -409,7 +409,7 @@ a { color: var(--accent); }
   border-bottom: 1px solid var(--border); box-shadow: var(--shadow-1);
 }
 .ds-appbar__inner { display: flex; align-items: center; gap: var(--space-3); min-height: 56px; }
-.ds-appbar__brand { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.1; }
+.ds-appbar__brand { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.1; display: inline-flex; align-items: center; min-height: var(--tap-min); }   /* homologação · o logotipo leva ao início: alvo de 44px */
 .ds-appbar__brand small { display: block; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--fg-muted); }
 
 .ds-hidden { display: none !important; }
@@ -509,6 +509,7 @@ body {
 .tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2); scroll-snap-type: x proximity; }
 
 .tb-card {
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;   /* H10 · segurar não abre o menu da imagem no iPhone */
   position: relative; flex: none; width: 84px; aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
   scroll-snap-align: start; transition: transform var(--dur-2) var(--ease-out);
 }
@@ -531,6 +532,7 @@ body {
   transition: transform var(--dur-2) var(--ease-out);
 }
 .tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
+.tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
 .tb-card[data-tapped="true"] { margin: 0 calc(84px * .2); }
 .tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
@@ -595,7 +597,7 @@ body {
 .tb-stack__head { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; }
 .tb-stack__prio { font-size: var(--text-xs); color: var(--accent); }
 .tb-stack__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
-.tb-stack__card { display: grid; grid-template-columns: 56px 1fr; gap: var(--space-2); align-items: center; width: 100%; min-height: var(--tap-min); padding: var(--space-1); border: none; border-radius: var(--radius-2); background: none; color: inherit; font: inherit; text-align: left; }
+.tb-stack__card { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; display: grid; grid-template-columns: 56px 1fr; gap: var(--space-2); align-items: center; width: 100%; min-height: var(--tap-min); padding: var(--space-1); border: none; border-radius: var(--radius-2); background: none; color: inherit; font: inherit; text-align: left; }
 .tb-stack__card .tb-card { pointer-events: none; }
 .tb-stack__item[data-top="true"] .tb-stack__card { background: var(--accent-soft); }
 .tb-stack__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -3624,6 +3626,17 @@ function createCollection({ store }) {
       await store.set(VIEWS, [...cur, v]); return v;
     },
     async removeView(id) { const cur = await api.views(); await store.set(VIEWS, cur.filter(v => v.id !== id)); },
+    /** H7 · desfaz uma importação pela diferença: tira só as cópias que ela somou (o que mudou depois fica). */
+    async subtractItems(list) {
+      await load();
+      for (const p of list || []) { const it = makeItem(p, p.qty); const cur = items.get(it.key); if (!cur) continue; cur.qty -= it.qty; if (cur.qty <= 0) items.delete(it.key); }
+      await persist(); return list.length;
+    },
+    async removePendingEntries(list) {
+      const cur = await api.pending();
+      for (const x of list || []) { const i = cur.findIndex(y => y.name === x.name && y.qty === x.qty && (y.raw || '') === (x.raw || '')); if (i >= 0) cur.splice(i, 1); }
+      await store.set(PENDING, cur); return cur.length;
+    },
     /** C11 · linhas de importação que não foram reconhecidas ficam aqui até serem corrigidas ou descartadas. */
     async pending() { return ((await store.get(PENDING)) || []).map(x => ({ ...x })); },
     async addPending(list) { const cur = await api.pending(); const next = [...cur, ...list.map(x => ({ name: x.name, qty: x.qty, set: x.set || '', number: x.number || '', finish: x.finish || '', raw: x.raw || '', reason: x.reason || '' }))]; await store.set(PENDING, next); return next.length; },
@@ -4487,6 +4500,8 @@ function decodificaFiltro(str) {
   return f;
 }
 const mesmoFiltro = (a, b) => codificaFiltro(a) === codificaFiltro(b);
+/** H2 · o trecho do endereço: o filtro inteiro vai codificado num parâmetro só (o "&" do filtro não vira outro parâmetro). */
+function linkDoFiltro(f) { const cod = codificaFiltro(f); return cod ? '?f=' + encodeURIComponent(cod) : ''; }
 
 /* ---- C13 · agrupar e ordenar o recorte (puro; a tela só desenha) ---- */
 const AGRUPAMENTOS = [['', 'Sem agrupar'], ['cor', 'Cor'], ['tipo', 'Tipo'], ['edicao', 'Edição'], ['raridade', 'Raridade'], ['custo', 'Custo']];
@@ -4574,7 +4589,7 @@ function faltaParaMontar(deck, owned) {
   return { need, have, missing: need - have, itens, pct: need ? Math.round((have / need) * 100) : 100 };
 }
 
-return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, linkDoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -5035,8 +5050,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const fLink = q().get('f');
   if (fLink) { state.filtro = FL.decodificaFiltro(fLink); state.filter = state.filtro.texto || ''; }
   function sincronizaLink() {
-    const cod = FL.codificaFiltro(state.filtro);
-    const alvo = '#/colecao' + (cod ? '?f=' + cod : '');
+    // H6 · pintura que chega depois de a pessoa sair da coleção não pode reescrever o endereço de outra tela
+    if (!String(location.hash).startsWith('#/colecao')) return;
+    const alvo = '#/colecao' + FL.linkDoFiltro(state.filtro);
     if (location.hash !== alvo) history.replaceState(null, '', alvo);
   }
   const LANG_PT = Object.fromEntries(LANGS), FIN_PT = Object.fromEntries(FINISHES);
@@ -5252,29 +5268,33 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       actions: [Button('Cancelar', { onClick: closeDialog }),
         Button(total ? `Importar ${total} cópia(s)` : 'Guardar pendências', { variant: 'primary', id: 'col-import-run', disabled: !total && !plano.pendentes.length, onClick: () => importar(plano) })] });
   }
-  async function importar(plano) {
+  // H8 · uma operação de escrita por vez: toque duplo não soma nem apaga duas vezes
+  let ocupado = false;
+  const umaVez = fn => async (...args) => { if (ocupado) return; ocupado = true; try { return await fn(...args); } finally { ocupado = false; } };
+  const importar = umaVez(async plano => {
     closeDialog();
-    const before = { items: await collection.items(), pending: await collection.pending() };
     const lista = [...plano.novas, ...plano.somam];
     if (lista.length) await collection.importItems(lista, 'add');
     if (plano.pendentes.length) await collection.addPending(plano.pendentes);
     const copias = plano.copias.novas + plano.copias.somam;
-    state.undo = { before, copias, pendentes: plano.pendentes.length };
+    // H7 · desfazer guarda o que a importação somou, não uma foto da coleção inteira
+    state.undo = { lista, pendentes: plano.pendentes.map(x => ({ name: x.name, qty: x.qty, raw: x.raw || '' })), copias, nPendentes: plano.pendentes.length };
     await refresh(); paintCare();
     toast(copias ? `${copias} cópia(s) importada(s)` : `${plano.pendentes.length} pendência(s) guardada(s)`);
     if (state.cards && plano.novas.length) { try { const extra = await cardRepo.byNames(plano.novas.map(x => x.name)); extra.forEach((c, k) => state.cards.set(k, c)); paint(); } catch (e) { /* sem rede */ } }
-  }
-  async function desfazer() {
+  });
+  const desfazer = umaVez(async () => {
     const u = state.undo; if (!u) return;
-    await collection.importItems(u.before.items, 'replace');
-    await collection.clearPending(); if (u.before.pending.length) await collection.addPending(u.before.pending);
-    state.undo = null; await refresh(); toast('Importação desfeita');
-  }
+    state.undo = null;
+    await collection.subtractItems(u.lista);
+    await collection.removePendingEntries(u.pendentes);
+    await refresh(); toast('Importação desfeita');
+  });
   function paintUndo() {
     const u = state.undo;
     if (!u) return mount(undoBar, null);
     mount(undoBar, Surface({ class: 'ds-surface--pad' }, Row({ class: 'ds-row--wrap' },
-      Text(`Importação: ${u.copias} cópia(s)${u.pendentes ? ` · ${u.pendentes} pendente(s)` : ''}`, { size: 'sm' }), h('div', { class: 'ds-grow' }),
+      Text(`Importação: ${u.copias} cópia(s)${u.nPendentes ? ` · ${u.nPendentes} pendente(s)` : ''}`, { size: 'sm' }), h('div', { class: 'ds-grow' }),
       Button('Desfazer', { id: 'col-undo-btn', onClick: desfazer }),
       Button('OK', { variant: 'ghost', id: 'col-undo-ok', onClick: () => { state.undo = null; paintUndo(); } }))));
   }
@@ -5300,12 +5320,12 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
         h('div', { class: 'col-print__label' }, Text(x.raw || `${x.qty} ${x.name}`, { size: 'xs', tone: 'muted' }), Field(`${x.qty} cópia(s)${x.set ? ` · ${x.set.toUpperCase()}${x.number ? ' ' + x.number : ''}` : ''}`, input), sug),
         h('div', { class: 'col-row__qty' },
           Button('Adicionar', { variant: 'primary', dataset: { resolve: String(i) }, onClick: () => resolverPendencia(i, input.value) }),
-          Button('Descartar', { variant: 'ghost', dataset: { discard: String(i) }, onClick: async () => { await collection.removePending(i); await refresh(); closeDialog(); openPending(); } })));
+          Button('Descartar', { variant: 'ghost', dataset: { discard: String(i) }, onClick: umaVez(async () => { await collection.removePending(i); await refresh(); closeDialog(); openPending(); }) })));
     };
     Dialog({ title: `Pendências · ${list.length}`, body: h('div', { class: 'col-prints', id: 'col-pending-list' }, ...list.map(linhaPendente)),
       actions: [Button('Fechar', { variant: 'primary', onClick: closeDialog })] });
   }
-  async function resolverPendencia(i, nome) {
+  const resolverPendencia = umaVez(async (i, nome) => {
     const x = state.pending[i]; if (!x) return;
     const digitado = String(nome || '').trim(); if (!digitado) return toast('Escreva o nome da carta');
     let canonico = null;
@@ -5317,7 +5337,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     await collection.removePending(i);
     await refresh(); toast(`${canonico}: ${x.qty} cópia(s) adicionada(s)`);
     closeDialog(); openPending();
-  }
+  });
 
   /* ---- C14 · painel: números do recorte, cada barra é um filtro, e o que falta para montar ---- */
   const dashboard = h('div', { id: 'col-dashboard' });
@@ -8331,7 +8351,9 @@ function previewCombat(state, blocks) {
     const before = s.players.map(pl => pl.life);
     const alive0 = new Set(battlefield(s).map(o => o.oid));
     dealCombatDamage(s);
-    const mortos = [...alive0].filter(oid => s.objects[oid].zone !== 'battlefield').map(oid => ({ oid, name: s.objects[oid].name, controller: state.objects[oid].controller }));
+    // H1 · ficha que morre deixa de existir em s.objects: conta como morta, pelo nome do estado original
+    const saiu = oid => !s.objects[oid] || s.objects[oid].zone !== 'battlefield';
+    const mortos = [...alive0].filter(saiu).map(oid => ({ oid, name: (s.objects[oid] || state.objects[oid]).name, controller: state.objects[oid].controller }));
     return { life: s.players.map((pl, i) => pl.life - before[i]), died: mortos.map(m => m.name), mortos, vida: s.players.map(pl => pl.life) };
   } catch (e) { return null; }
 }
@@ -9267,7 +9289,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           const j = robo.jogada(s, b);
           if (j && j.acao) {
             events.push(...record(j.acao));
-            lines.push(`${s.players[b].name}: ${j.motivo}`);
+            lines.push(`${s.players[b].name}: ${j.motivo}`); anota([`${s.players[b].name}: ${j.motivo}`], s);   // H14
             turnoDoBot = s.turn.number; motivosDoBot.push(j.motivo);
             continue;
           }
@@ -9406,18 +9428,25 @@ function estadoDaCarta(s, o, plano = null) {
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
   for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}` }); }
   if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
-  const enjoo = !!o.sick && criatura && !(facts.kw || []).includes('haste');
+  let impeto = (facts.kw || []).includes('haste');
+  try { impeto = impeto || !!E.hasKeyword(s, o, 'haste'); } catch (e) { impeto = impeto || (o.tempKeywords || []).includes('haste'); }   // H13
+  const enjoo = !!o.sick && criatura && !impeto;
   return { pt, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
 }
 /** Terrenos iguais viram uma pilha: nome, quantas, quantas viradas, e a primeira desvirada para tocar. */
 function agrupaTerrenos(s, oids) {
+  // H9 · só empilha o que é igual de verdade: mesmo nome, mesmo estado (virada ou não), sem marcador,
+  // dano ou anexo. Assim cada pilha é intercambiável e tocar nela nunca esconde a carta que importa.
+  const anexados = new Set(((s.zones || []).flatMap(z => z.battlefield || [])).map(x => s.objects[x] && s.objects[x].attachedTo).filter(Boolean));
   const pilhas = new Map();
   for (const oid of oids) {
     const o = s.objects[oid]; if (!o) continue;
-    const cur = pilhas.get(o.name) || { name: o.name, oids: [], total: 0, viradas: 0, primeira: null, primeiraDesvirada: null };
+    const unico = anexados.has(oid) || Object.values(o.counters || {}).some(Boolean) || o.damage || o.attachedTo;
+    const chave = unico ? `${o.name}|${oid}` : `${o.name}|${o.tapped ? 1 : 0}`;
+    const cur = pilhas.get(chave) || { name: o.name, oids: [], total: 0, viradas: 0, primeira: null, primeiraDesvirada: null };
     cur.oids.push(oid); cur.total++; if (o.tapped) cur.viradas++; else if (cur.primeiraDesvirada == null) cur.primeiraDesvirada = oid;
     if (cur.primeira == null) cur.primeira = oid;
-    pilhas.set(o.name, cur);
+    pilhas.set(chave, cur);
   }
   return [...pilhas.values()];
 }
@@ -9537,8 +9566,11 @@ function descrevePrevia(s, pv, v) {
 }
 /** Foto do fim/início de turno: o que o resumo compara. */
 function fotoDoTurno(s) {
-  return { turno: s.turn.number || 0, ativo: s.turn.active, vida: s.players.map(p => p.life), compradas: s.players.map(p => p.drawnThisTurn || 0),
-    campo: s.zones.map(z => z.battlefield.slice()) };
+  const campo = s.zones.map(z => z.battlefield.slice());
+  // H12 · os nomes vão junto: ficha que morre deixa de existir e o resumo ainda precisa dizer o que era
+  const nomes = {}, fichas = {};
+  for (const oid of campo.flat()) { const o = s.objects[oid]; if (o) { nomes[oid] = o.name; if (o.token) fichas[oid] = true; } }
+  return { turno: s.turn.number || 0, ativo: s.turn.active, vida: s.players.map(p => p.life), compradas: s.players.map(p => p.drawnThisTurn || 0), campo, nomes, fichas };
 }
 /** O que mudou num turno, em até quatro linhas: vida, compras, o que entrou, o que morreu. */
 function resumoDoTurnoMesa(inicio, fim, s) {
@@ -9550,10 +9582,20 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   const compras = s.players.map((_, i) => i).filter(i => fim.compradas[i]).map(i => `${nome(i)} ${fim.compradas[i]}`);
   if (compras.length) linhas.push(`Compraram: ${compras.join(' · ')}`);
   const antes = new Set(inicio.campo.flat()), depois = new Set(fim.campo.flat());
-  const entrou = [...depois].filter(o => !antes.has(o)).map(o => (s.objects[o] || {}).name).filter(Boolean);
-  const saiu = [...antes].filter(o => !depois.has(o) && s.objects[o] && s.objects[o].zone === 'graveyard').map(o => s.objects[o].name);
+  const nomeDe = o => (s.objects[o] && s.objects[o].name) || (fim.nomes && fim.nomes[o]) || (inicio.nomes && inicio.nomes[o]) || null;
+  const entrou = [...depois].filter(o => !antes.has(o)).map(nomeDe).filter(Boolean);
+  const cemiterio = [], outros = [];
+  for (const o of antes) {
+    if (depois.has(o)) continue;
+    const obj = s.objects[o], nome = nomeDe(o); if (!nome) continue;
+    if (!obj) outros.push(`${nome} (ficha)`);                            // ficha que morreu deixou de existir
+    else if (obj.zone === 'graveyard') cemiterio.push(nome);
+    else if (obj.zone === 'exile') outros.push(`${nome} (exílio)`);
+    else if (obj.zone === 'hand' || obj.zone === 'library') outros.push(`${nome} (${obj.zone === 'hand' ? 'mão' : 'grimório'})`);
+  }
   if (entrou.length) linhas.push(`Entrou: ${entrou.join(', ')}`);
-  if (saiu.length) linhas.push(`Morreu ou foi para o cemitério: ${saiu.join(', ')}`);
+  if (cemiterio.length) linhas.push(`Morreu ou foi para o cemitério: ${cemiterio.join(', ')}`);
+  if (outros.length) linhas.push(`Saiu do campo: ${outros.join(', ')}`);
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
@@ -10014,6 +10056,8 @@ function createTableScreen({ store }) {
 
   /* ---- A15 · espiar: segurar mostra a carta grande com texto e ações; soltar fecha ---- */
   let peekEl = null;
+  // H10 · se a tela mudar com o dedo ainda na carta (gesto de voltar), o espiar não fica preso na página
+  window.addEventListener('hashchange', () => { if (peekEl) { peekEl.remove(); peekEl = null; } });
   function peek(oid, aberto) {
     if (!aberto) { if (peekEl) { peekEl.remove(); peekEl = null; } return; }
     const d = acoesDe(oid); if (!d) return;
@@ -10042,7 +10086,7 @@ function createTableScreen({ store }) {
     if (!hasPriority(v)) return toast('Espere sua prioridade para ajustar a vida');
     const btns = [[-1, '−1'], [-5, '−5'], [1, '+1'], [5, '+5']].map(([d, l]) => Button(l, { onClick: () => { closeDialog(); act({ t: 'life', p: v, target, delta: d }); } }));
     const cmd = s.format === 'commander' ? Object.values(s.objects).filter(o => o.commander && o.owner !== target).map(o =>
-      doBtn(`+1 de dano de comandante (${o.name})`, { t: 'commander_damage', p: v, target, source: o.oid, delta: 1 })) : [];
+      toButton(doBtn(`+1 de dano de comandante (${o.name})`, { t: 'commander_damage', p: v, target, source: o.oid, delta: 1 }))) : [];   // H5 · descritor vira botão
     const dmg = Object.entries(s.players[target].commanderDamage).map(([oid, d]) => `${s.objects[oid].name}: ${d}`).join(' · ');
     Dialog({ title: `Vida de ${s.players[target].name}: ${s.players[target].life}`, body: Stack({},
       h('div', { class: 'tb-lifepad' }, ...btns), ...cmd, dmg ? Text('Dano de comandante: ' + dmg, { size: 'sm', tone: 'muted' }) : null),
@@ -10473,14 +10517,17 @@ function createLot({ store }) {
     },
     rearm() { armed = true; lastSeen = null; },
     async undo() {
-      await load(); const key = history.pop(); if (!key) return null;
-      const cur = find(key);
-      if (cur) { cur.qty -= 1; if (!cur.qty) items.splice(items.indexOf(cur), 1); }
-      await persist(); return cur ? cur.name : key;
+      await load();
+      // H4 · pula o que já saiu do lote por outro caminho; nunca devolve a chave crua
+      let key = history.pop(), cur = key ? find(key) : null;
+      while (key && !cur) { key = history.pop(); cur = key ? find(key) : null; }
+      if (!cur) { await persist(); return null; }
+      cur.qty -= 1; if (!cur.qty) items.splice(items.indexOf(cur), 1);
+      await persist(); return cur.name;
     },
     async setQty(key, qty) {
       await load(); const cur = find(key); if (!cur) return;
-      if (qty > 0) cur.qty = qty; else items.splice(items.indexOf(cur), 1);
+      if (qty > 0) cur.qty = qty; else { items.splice(items.indexOf(cur), 1); history = history.filter(k => k !== key); }   // H4
       await persist();
     },
     /** Corrige o nome (a impressão lida deixa de valer) ou só a impressão. */
@@ -10698,7 +10745,7 @@ function prontoParaLer({ carta, brilho: luz, nitidez: foco, parada }, limiares =
 /** X7 · detector com memória: junta os quadros e diz quando disparar.
     `quadros` é quantas leituras seguidas precisam concordar para valer "parada". */
 function criaDetector({ quadros = 3, limiares = LIMIARES } = {}) {
-  let hist = [], ultimaLeitura = null;
+  let hist = [], ultimaLeitura = null, vazios = 0;
   return {
     get historico() { return hist.slice(); },
     /** Recebe o quadro em tons de cinza (ou uma lista de escalas dele) e devolve o que fazer com ele. */
@@ -10708,6 +10755,8 @@ function criaDetector({ quadros = 3, limiares = LIMIARES } = {}) {
       const escalas = Array.isArray(cinza) ? cinza : [{ cinza, w, h }];
       const achado = detectaEmEscalas(escalas);
       const carta = achado.carta; ({ cinza, w, h } = achado.quadro);
+      // H3 · a carta saiu do quadro por alguns quadros seguidos: a próxima (mesmo no mesmo lugar) é nova
+      if (!carta) { vazios++; if (vazios >= quadros) ultimaLeitura = null; } else vazios = 0;
       hist = [...hist.slice(-(quadros - 1)), carta];
       const cheio = hist.length >= quadros && hist.every(Boolean);
       const parada = cheio && hist.every(r => paradaEm(r, hist[hist.length - 1]));
@@ -11189,7 +11238,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       else await collection.set(x.name, (await collection.qty(x.name)) + x.qty);
     }
   }
+  let enviando = false;   // H8 · toque duplo em "Adicionar" não soma o lote duas vezes
   async function commit() {
+    if (enviando) return; enviando = true;
+    try { await commitUmaVez(); } finally { enviando = false; }
+  }
+  async function commitUmaVez() {
     const list = await lot.list();
     const total = list.reduce((s, x) => s + x.qty, 0);
     let msg;
@@ -11256,7 +11310,7 @@ function urlsDeImagem(card, tamanho = 'normal') {
 function nomesDaLista(deck) { return [...new Set((deck && deck.entries || []).map(e => e.name).filter(Boolean))]; }
 
 function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, persistence = null, online = () => true, agora = () => Date.now() }) {
-  let emCurso = null;
+  let emCurso = null, colecaoEmCurso = null, colecaoDeNovo = false;
   const semFalha = async (fn, padrao) => { try { return await fn(); } catch (e) { return padrao; } };
 
   async function aquecer(cards, tamanho) {
@@ -11282,8 +11336,17 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
   const api = {
     /** Lista salva: dados de todas as cartas + imagem grande (a mesa mostra a carta inteira). */
     guardarLista(deck) { return guardar(nomesDaLista(deck), 'normal'); },
-    /** Coleção: dados de todas as cartas + miniatura (a lista da coleção mostra a miniatura). */
-    async guardarColecao() { const grupos = await collection.entries(); return guardar(grupos.map(g => g.name), 'small'); },
+    /** Coleção: dados de todas as cartas + miniatura (a lista da coleção mostra a miniatura).
+        H11 · uma passada por vez: pedido durante a passada marca "de novo" e roda uma só no fim. */
+    guardarColecao() {
+      if (colecaoEmCurso) { colecaoDeNovo = true; return colecaoEmCurso; }
+      colecaoEmCurso = (async () => {
+        let r;
+        do { colecaoDeNovo = false; const grupos = await collection.entries(); r = await guardar(grupos.map(g => g.name), 'small'); } while (colecaoDeNovo);
+        return r;
+      })().finally(() => { colecaoEmCurso = null; });
+      return colecaoEmCurso;
+    },
 
     /** O que já funciona sem internet, em números. */
     async status() {

@@ -555,7 +555,8 @@ test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, con
   await page.click('.ds-dialog button:has-text("Fechar")');
 
   // C12b · o recorte está no link, e uma visão salva o traz de volta com um toque
-  assert.match(await page.evaluate(() => location.hash), /^#\/colecao\?f=e=cmm$/, 'link do recorte');
+  // H2 · o filtro vai codificado num parâmetro só (antes ia cru e só o primeiro critério sobrevivia)
+  assert.match(await page.evaluate(() => location.hash), /^#\/colecao\?f=e%3Dcmm$/, 'link do recorte');
   await page.click('#col-view-save'); await page.waitForSelector('#col-view-name');
   await page.fill('#col-view-name', 'Só CMM'); await page.click('#col-view-save-confirm');
   await page.waitForSelector('#col-views [data-view]');
@@ -742,10 +743,13 @@ test('e2e · C11 importar por lista: conferir, importar, pendências com sugest�
   await page.waitForFunction(() => !document.querySelector('.ds-dialog'));
   assert.equal((await page.innerText('#col-pending')).trim(), '', 'sem pendências');
 
-  // desfazer volta a coleção ao que era antes da importação (inclusive o que foi resolvido depois)
+  // H7 · desfazer tira só o que a importação somou: a Counterspell resolvida depois fica (antes: apagava tudo)
   await page.click('#col-undo-btn');
-  await page.waitForFunction(() => /Sua coleção está vazia/.test(document.querySelector('#col-list').innerText));
+  await page.waitForFunction(() => !document.querySelector('.col-row[data-name="Sol Ring"]') && !document.querySelector('.col-row[data-name="Grizzly Bear"]'));
+  assert.equal(await page.locator('.col-row[data-name="Counterspell"]').count(), 1, 'o que você resolveu depois continua');
   assert.equal(await page.locator('#col-undo button').count(), 0, 'a barra de desfazer some');
+  await page.click('.col-row[data-name="Counterspell"] button[aria-label^="Remover"]'); await page.click('#col-remove-confirm');
+  await page.waitForFunction(() => /Sua coleção está vazia/.test(document.querySelector('#col-list').innerText));
   // a mesma lista importada de novo soma ao que já existe
   await page.click('.ds-empty button:has-text("Importar lista"), #col-import');
   await page.waitForSelector('#col-import-text');
@@ -1528,5 +1532,200 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   await page.click('#mesa-offline-pin');
   await page.waitForFunction(() => /\d+ de \d+ cartas guardadas/.test((document.querySelector('#mesa-offline-falta') || {}).innerText || ''), null, { timeout: 10000 });
   assert.equal(await page.locator('#mesa-offline-ok').count(), 0, 'tentar de novo sem a rede saber não inventa carta');
+  assert.deepEqual(errors, []);
+});
+
+/* =====================================================================
+   HOMOLOGAÇÃO (28/09/2026) · bateria que cruza os épicos como uma pessoa usaria,
+   em tela de celular (390×844), nos dois temas. Achados da revisão: H1…H15.
+   ===================================================================== */
+/** O que toda tela precisa cumprir: sem rolagem lateral, alvo de toque ≥ 44px, sem erro no console. */
+async function auditaTela(page, nome) {
+  await page.waitForTimeout(350);   // deixa terminar a animação de entrada de diálogos e cartas
+  const r = await page.evaluate(() => {
+    const vis = el => { const b = el.getBoundingClientRect(); const st = getComputedStyle(el); return b.width > 0 && b.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
+    const pequenos = [...document.querySelectorAll('button, [role="button"], a[href], input:not([type="hidden"]):not([type="file"]):not(.ds-hidden), select, textarea, .ds-chip')]
+      .filter(el => vis(el) && !el.closest('.tb-card__pills') && !el.closest('.tb-peek') && !el.classList.contains('tb-peek__acao'))
+      .filter(el => el.getBoundingClientRect().height < 43.5)
+      .map(el => (el.id ? '#' + el.id : '') + '.' + String(el.className).split(' ')[0] + ' «' + (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24) + '» ' + Math.round(el.getBoundingClientRect().height) + 'px');
+    const larguraDoc = document.documentElement.scrollWidth, larguraTela = window.innerWidth;
+    const vazou = [...document.querySelectorAll('body *')].filter(el => { if (!vis(el)) return false; const b = el.getBoundingClientRect(); if (b.right <= larguraTela + 1) return false; let p = el.parentElement; while (p) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll' || o === 'hidden') return false; p = p.parentElement; } return true; })
+      .slice(0, 5).map(el => el.tagName + '.' + String(el.className).split(' ')[0] + ' → ' + Math.round(el.getBoundingClientRect().right));
+    return { pequenos, larguraDoc, larguraTela, vazou };
+  });
+  assert.ok(r.larguraDoc <= r.larguraTela, `${nome}: rolagem lateral (${r.larguraDoc} > ${r.larguraTela}): ${r.vazou.join(' | ')}`);
+  assert.deepEqual(r.pequenos, [], `${nome}: alvos de toque abaixo de 44px`);
+}
+
+test('e2e · HOMOLOGAÇÃO 1 · todas as telas, nos dois temas: sem rolagem lateral, alvos ≥ 44px e sem erro no console', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  // dados para cada tela ter conteúdo de verdade
+  await createDeck(page, base, 'Delver', PAUPER);
+  const deckUrl = await page.evaluate(() => location.hash);
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-csv-import');
+  await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
+  await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  const telas = [
+    ['início', '#/', '#home-offline'], ['listas', '#/listas', '#decks-list'], ['listas prontas', '#/listas/prontas', '#starter-list'],
+    ['editor de lista', '#/listas/editar', '#deck-text'], ['lista', deckUrl, '.deck-summary'], ['coleção · lista', '#/colecao', '.col-row'],
+    ['cartas', '#/cartas', '#cards-q'], ['scanner', '#/scanner', '#scan-read'], ['preparar partida', '#/mesa', '#mesa-start'], ['catálogo', '#/ds', 'h1']
+  ];
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
+    for (const [nome, url, sel] of telas) {
+      await page.goto(base + url); await page.waitForSelector(sel, { timeout: 10000 });
+      await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
+      await page.waitForTimeout(150);
+      await auditaTela(page, `${nome} (${tema})`);
+    }
+    // as outras visões da coleção e o painel
+    await page.goto(base + '#/colecao'); await page.waitForSelector('.col-row');
+    await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
+    for (const v of ['galeria', 'densa', 'pilhas']) { await page.click(`[data-visao="${v}"]`); await page.waitForTimeout(150); await auditaTela(page, `coleção · ${v} (${tema})`); }
+    await page.click('[data-visao="lista"]');
+    await page.click('#col-filters'); await page.waitForSelector('#col-filters-body'); await auditaTela(page, `filtros (${tema})`); await page.click('#col-filters-apply');
+    await page.click('#col-export'); await page.waitForSelector('#col-export-text'); await auditaTela(page, `exportar (${tema})`); await page.click('.ds-dialog button:has-text("Fechar")');
+    await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await auditaTela(page, `importar (${tema})`); await page.keyboard.press('Escape');
+    // a mesa em andamento
+    await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+    await page.waitForSelector('#tb-keep'); await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
+    await auditaTela(page, `mesa · mão inicial (${tema})`);
+    await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+    await auditaTela(page, `mesa · jogando (${tema})`);
+    await page.click('#tb-log'); await page.waitForSelector('.ds-dialog'); await auditaTela(page, `mesa · registro (${tema})`); await page.keyboard.press('Escape');
+  }
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · HOMOLOGAÇÃO 2 · H5 vida no Commander abre com o dano de comandante', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Cmd', 'Commander\n1 Mock Commander\n\nDeck\n99 Plains', 'commander');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-table-format="commander"]').catch(() => {});
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-seed', '3');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  await reveal(page); await page.waitForSelector('#tb-life-opp');
+  for (let i = 0; i < 6 && !(await page.locator('#tb-pass').count()); i++) await reveal(page);
+  await page.click('#tb-life-opp');
+  await page.waitForSelector('.ds-dialog', { timeout: 4000 });
+  assert.match(await page.innerText('.ds-dialog'), /\+1 de dano de comandante \(Mock Commander\)/, 'o diálogo abre (antes: TypeError)');
+  await page.click('.ds-dialog >> text=/\\+1 de dano de comandante/');
+  await page.waitForFunction(() => !document.querySelector('.ds-dialog'));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · HOMOLOGAÇÃO 3 · H2 link com vários critérios e "&" sobrevive a recarregar; H6 sair da coleção não sequestra o endereço', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-csv-import');
+  await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
+  await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.fill('#col-filter', 'Sol & Co');
+  await page.fill('#col-filter', 'sol');
+  await page.click('#col-filters'); await page.waitForSelector('#col-filters-body');
+  await page.click('[data-edicao="cmm"]'); await page.click('[data-acabamento="foil"]'); await page.click('#col-filters-apply');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  assert.equal(await page.inputValue('#col-filter'), 'sol', 'texto volta');
+  assert.match(await page.innerText('#col-filters'), /Filtros \(2\)/, 'edição e acabamento voltam (antes: só o primeiro critério)');
+  // texto com & no link
+  await page.fill('#col-filter', 'a & b');
+  await page.reload(); await page.waitForSelector('#col-filter');
+  assert.equal(await page.inputValue('#col-filter'), 'a & b');
+
+  // H6 · a coleção demora a buscar os dados; a pessoa sai antes; o endereço continua o da tela nova
+  await page.route('https://api.scryfall.com/cards/collection', async r => { await new Promise(x => setTimeout(x, 1500)); r.fallback(); });
+  await page.evaluate(() => { localStorage.clear(); });
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-summary');
+  await page.click('#nav-decks');
+  await page.waitForTimeout(2200);
+  assert.match(await page.evaluate(() => location.hash), /^#\/listas/, 'o endereço é o da tela aberta');
+  await page.click('#nav-collection');
+  await page.waitForSelector('#col-summary', { timeout: 4000 });
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · HOMOLOGAÇÃO 4 · H7 desfazer a importação mantém o que você mudou depois; H8 toque duplo não duplica', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(true));            // a base de nomes (baixada pelo scanner) dá as sugestões das pendências
+  await page.goto(base + '#/scanner');
+  await page.waitForFunction(() => /Base: \d+ nomes/.test((document.querySelector('#scan-status') || {}).innerText || ''));
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '2 Island');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Island"]');
+  await page.click('#col-undo-ok');
+  // segunda importação, com um nome desconhecido e um que soma
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '3 Island\n1 Counterspel\n1 Xyzzy');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run');
+  await page.dblclick('#col-import-run');                                       // H8 · toque duplo
+  await page.waitForFunction(() => /5/.test(document.querySelector('.col-row[data-name="Island"] .col-row__n').innerText));
+  await page.waitForTimeout(300);
+  assert.equal(await page.innerText('.col-row[data-name="Island"] .col-row__n'), '5', 'somou uma vez só');
+  // edição depois da importação: +1 na Island e resolver a pendência com toque duplo
+  await page.click('.col-row[data-name="Island"] button[aria-label^="Uma cópia a mais"]');
+  await page.waitForFunction(() => document.querySelector('.col-row[data-name="Island"] .col-row__n').innerText === '6');
+  await page.click('#col-pending-open'); await page.waitForSelector('#col-pending-list');
+  await page.click('[data-pending="0"] [data-sugestao="Counterspell"]');
+  await page.dblclick('[data-resolve="0"]');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  await page.waitForTimeout(300);
+  assert.equal(await page.innerText('.col-row[data-name="Counterspell"] .col-row__n'), '1', 'resolveu uma vez só');
+  assert.match(await page.innerText('.ds-dialog'), /Pendências · 1/, 'a outra pendência (Xyzzy) não foi apagada junto');
+  await page.keyboard.press('Escape');
+  // desfazer: tira só as 3 Island da importação; o +1 e a Counterspell resolvida ficam
+  await page.click('#col-undo-btn');
+  await page.waitForFunction(() => document.querySelector('.col-row[data-name="Island"] .col-row__n').innerText === '3');
+  assert.equal(await page.locator('.col-row[data-name="Counterspell"]').count(), 1, 'a pendência resolvida depois continua');
+  assert.equal((await page.innerText('#col-pending')).trim(), '', 'a pendência que veio da importação saiu junto');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · HOMOLOGAÇÃO 5 · partida inteira contra o bot profissional até o fim, sem travar nem erro', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '31');
+  await page.click('[data-opponent="profissional"]');
+  await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  let turnoMax = 0;
+  for (let i = 0; i < 900; i++) {
+    if (await page.locator('#tb-new').count()) break;                              // partida acabou
+    const b = await page.innerText('.tb-banner').catch(() => '');
+    const m = (await page.innerText('.tb-steps__head').catch(() => '')).match(/Turno (\d+)/); if (m) turnoMax = Math.max(turnoMax, +m[1]);
+    if (/Descarte/.test(b)) { await page.locator('.tb-hand .tb-card').first().click(); continue; }
+    if (await page.locator('#tb-no-block').count()) { await page.click('#tb-no-block'); continue; }
+    if (await page.locator('#tb-attack:not([disabled])').count() && await page.locator('.tb-side--me .tb-card[data-eligible="true"]').count()) {
+      await page.locator('.tb-side--me .tb-card[data-eligible="true"]').first().click(); await page.click('#tb-attack'); continue;
+    }
+    if (await page.locator('#tb-no-attack').count()) { await page.click('#tb-no-attack'); continue; }
+    // joga um terreno quando dá, para a partida andar
+    const terreno = page.locator('.tb-hand .tb-card[aria-label^="Island"]').first();
+    if (/Principal 1/.test(b) && await terreno.count() && !(await page.evaluate(() => window.__jogouTerreno === document.querySelector('.tb-steps__head').innerText))) {
+      await page.evaluate(() => { window.__jogouTerreno = document.querySelector('.tb-steps__head').innerText; });
+      await terreno.click(); if (await page.locator('.ds-dialog >> text=Jogar terreno').count()) { await page.click('.ds-dialog >> text=Jogar terreno'); continue; } await page.keyboard.press('Escape');
+    }
+    if (await page.locator('#tb-pass-turn').count()) { await page.click('#tb-pass-turn'); continue; }
+    if (await page.locator('#tb-pass').count()) { await page.click('#tb-pass'); continue; }
+    if (await page.locator('#tb-pay').count()) { await page.click('#tb-decline').catch(() => page.click('#tb-pay')); continue; }
+    if (await page.locator('#tb-adj-done').count()) { await page.click('#tb-adj-done'); continue; }
+    await page.waitForTimeout(50);
+  }
+  assert.ok(turnoMax >= 6, `a partida andou (turno ${turnoMax})`);
+  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  assert.match(await page.innerText('#tb-timeline'), /Bot profissional/);
   assert.deepEqual(errors, []);
 });
