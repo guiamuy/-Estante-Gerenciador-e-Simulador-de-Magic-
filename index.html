@@ -581,6 +581,23 @@ body {
 }
 .col-row:last-child { border-bottom: none; }
 @media (min-width: 640px) { .col-row { grid-template-columns: 48px 1fr auto; grid-template-areas: "thumb info qty"; } }
+/* C14 · painel da coleção: números, barras que filtram, curva e "o que falta" */
+.col-dash__tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.col-dash__tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-2); background: var(--bg-elev-2); border-radius: var(--radius-2); }
+.col-dash__grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
+@media (min-width: 640px) { .col-dash__grid { grid-template-columns: 1fr 1fr; } }
+.col-dash__chart { display: flex; flex-direction: column; gap: var(--space-1); }
+.col-dash__bar { display: grid; grid-template-columns: 7.5em 1fr 3ch; align-items: center; gap: var(--space-2); min-height: var(--tap-min);
+  padding: 0 var(--space-1); border: none; border-radius: var(--radius-1); background: none; color: inherit; font: inherit; text-align: left; }
+button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft); }
+.col-dash__label { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-dash__track { height: 8px; background: var(--bg-elev-3); border-radius: 4px; overflow: hidden; }
+.col-dash__fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; min-width: 2px; }
+.col-dash__fill--w { background: var(--mana-w); } .col-dash__fill--u { background: var(--mana-u); } .col-dash__fill--b { background: var(--mana-b); }
+.col-dash__fill--r { background: var(--mana-r); } .col-dash__fill--g { background: var(--mana-g); } .col-dash__fill--c { background: var(--mana-c); }
+.col-dash__n { font-size: var(--text-sm); color: var(--fg-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.col-dash__curve { height: 120px; min-width: 0; }
+.col-dash__col { border: none; background: none; color: inherit; font: inherit; padding: 0; border-radius: var(--radius-1); min-height: var(--tap-min); }
 /* C13 · visões da coleção */
 .col-views-body { display: flex; flex-direction: column; gap: var(--space-3); }
 .col-group__head { align-items: baseline; gap: var(--space-2); padding-top: var(--space-2); }
@@ -3534,7 +3551,7 @@ function createCollection({ store }) {
       await persist(); return list.length;
     },
     /** C13 · visão, agrupamento e ordenação lembrados por aparelho. */
-    async prefs() { return { visao: 'lista', agrupar: '', ordenar: 'nome', ...((await store.get(PREFS)) || {}) }; },
+    async prefs() { return { visao: 'lista', agrupar: '', ordenar: 'nome', painel: true, ...((await store.get(PREFS)) || {}) }; },
     async savePrefs(p) { const cur = await api.prefs(); await store.set(PREFS, { ...cur, ...p }); },
     /** C12b · visões salvas: nome + filtro, por aparelho. */
     async views() { return ((await store.get(VIEWS)) || []).map(v => ({ ...v })); },
@@ -4468,7 +4485,33 @@ function agrupaColecao(itens, por, cards) {
   return out.map(({ ordem, ...g }) => g);
 }
 
-return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, ordenaColecao, agrupaColecao, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+/* ---- C14 · painel: os números do recorte, e o que falta para montar uma lista ---- */
+/** Resumo de um recorte: totais e distribuições (cada fatia com cartas e cópias, na ordem natural). */
+function resumoColecao(itens, cards) {
+  const fatias = por => agrupaColecao(itens, por, cards).map(g => ({ chave: g.chave, rotulo: g.rotulo, cartas: g.itens.length, copias: g.copias }));
+  const edicoes = new Set();
+  let semDados = 0;
+  for (const g of itens) { for (const it of g.items) if (it.set) edicoes.add(it.set); if (!cartaDe(g, cards)) semDados++; }
+  const custo = fatias('custo').filter(f => f.chave !== '?');
+  // a curva mostra todos os degraus de 0 a 7+, mesmo os vazios, para a forma ser comparável
+  const curva = Array.from({ length: 8 }, (_, b) => custo.find(f => f.chave === String(b)) || { chave: String(b), rotulo: b === 7 ? 'Custo 7+' : `Custo ${b}`, cartas: 0, copias: 0 });
+  return {
+    cartas: itens.length, copias: itens.reduce((s2, g) => s2 + (g.qtyRecorte ?? g.qty), 0), edicoes: edicoes.size, semDados,
+    cor: fatias('cor'), tipo: fatias('tipo'), raridade: fatias('raridade'), custo: curva
+  };
+}
+/** O que falta para montar uma lista com a coleção: por carta e no total (zona principal e comandante). */
+function faltaParaMontar(deck, owned) {
+  const itens = [];
+  const porNome = new Map();
+  for (const e of (deck && deck.entries) || []) { if (e.zone !== 'main' && e.zone !== 'commander' && e.zone !== 'companion') continue; const k = norm(e.name); const cur = porNome.get(k) || { name: e.name, qty: 0 }; cur.qty += e.qty; porNome.set(k, cur); }
+  let need = 0, have = 0;
+  for (const [k, e] of porNome) { const tenho = Math.min(e.qty, owned[k] || 0); need += e.qty; have += tenho; if (tenho < e.qty) itens.push({ name: e.name, qty: e.qty, have: tenho, falta: e.qty - tenho }); }
+  itens.sort((a, b) => b.falta - a.falta || a.name.localeCompare(b.name));
+  return { need, have, missing: need - have, itens, pct: need ? Math.round((have / need) * 100) : 100 };
+}
+
+return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -4911,6 +4954,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     filtro: FL.novoFiltro(), recorte: null,
     // C13 · visão (lista/galeria/densa/pilhas), agrupamento e ordenação lembrados; pilha aberta; quantas linhas já desenhadas
     visao: 'lista', agrupar: '', ordenar: 'nome', pilhaAberta: null, limite: 120,
+    // C14 · painel aberto ou fechado (lembrado), lista escolhida em "o que falta para montar"
+    painel: true, montar: '', decksAll: [],
     // C10 · seleção manual por nome, para exportar um recorte
     selecting: false, selected: new Set(), exportFormat: 'simples',
     // C11 · pendências da importação por lista e a última importação (para desfazer)
@@ -4945,8 +4990,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     state.pending = await collection.pending();
     state.views = await collection.views();
     const prefs = await collection.prefs();
-    state.visao = prefs.visao; state.agrupar = prefs.agrupar; state.ordenar = prefs.ordenar;
+    state.visao = prefs.visao; state.agrupar = prefs.agrupar; state.ordenar = prefs.ordenar; state.painel = prefs.painel !== false;
     const all = await decks.list();
+    state.decksAll = all;
     state.usedIn = new Map();
     for (const d of all) for (const e of d.entries) {
       const k = norm(e.name); const arr = state.usedIn.get(k) || [];
@@ -5210,9 +5256,79 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     closeDialog(); openPending();
   }
 
+  /* ---- C14 · painel: números do recorte, cada barra é um filtro, e o que falta para montar ---- */
+  const dashboard = h('div', { id: 'col-dashboard' });
+  function aplicaFatia(tipo, chave) {
+    const f = { ...state.filtro };
+    if (tipo === 'cor') { if (chave === 'M' || chave === '?') return; f.cores = f.cores.length === 1 && f.cores[0] === chave ? [] : [chave]; f.modoCor = 'qualquer'; }
+    if (tipo === 'tipo') { if (chave === '?' || chave === 'Outro') return; f.tipos = f.tipos.length === 1 && f.tipos[0] === chave ? [] : [chave]; }
+    if (tipo === 'raridade') { if (chave === '?') return; f.raridades = f.raridades.length === 1 && f.raridades[0] === chave ? [] : [chave]; }
+    if (tipo === 'custo') { const b = parseInt(chave, 10); const ja = f.cmcMin === b && (b === 7 ? f.cmcMax == null : f.cmcMax === b); f.cmcMin = ja ? null : b; f.cmcMax = ja ? null : (b === 7 ? null : b); }
+    state.filtro = f; state.limite = 120; paint(); paintFilterBtn();
+  }
+  const ligada = (tipo, chave) => {
+    const f = state.filtro;
+    if (tipo === 'cor') return f.cores.length === 1 && f.cores[0] === chave;
+    if (tipo === 'tipo') return f.tipos.length === 1 && f.tipos[0] === chave;
+    if (tipo === 'raridade') return f.raridades.length === 1 && f.raridades[0] === chave;
+    if (tipo === 'custo') { const b = parseInt(chave, 10); return f.cmcMin === b && (b === 7 ? f.cmcMax == null : f.cmcMax === b); }
+    return false;
+  };
+  /** Barras horizontais: rótulo, barra e número; cada uma é um botão que filtra. */
+  function barras(titulo, tipo, fatias) {
+    const max = Math.max(1, ...fatias.map(f => f.copias));
+    const clicavel = f => !(f.chave === '?' || (tipo === 'cor' && f.chave === 'M') || (tipo === 'tipo' && f.chave === 'Outro'));
+    return h('div', { class: 'col-dash__chart', dataset: { chart: tipo } }, Text(titulo, { size: 'sm', tone: 'muted' }),
+      ...fatias.map(f => h(clicavel(f) ? 'button' : 'div', { class: 'col-dash__bar' + (ligada(tipo, f.chave) ? ' col-dash__bar--on' : ''), type: clicavel(f) ? 'button' : null,
+        dataset: { dash: `${tipo}:${f.chave}` }, 'aria-pressed': clicavel(f) ? String(ligada(tipo, f.chave)) : null, 'aria-label': `${f.rotulo}: ${f.cartas} carta(s), ${f.copias} cópia(s)`, onClick: clicavel(f) ? () => aplicaFatia(tipo, f.chave) : null },
+        h('span', { class: 'col-dash__label' }, tipo === 'cor' && f.chave !== '?' && f.chave !== 'M' ? h('span', { class: `ds-pip ds-pip--${f.chave.toLowerCase()}` }) : null, f.rotulo),
+        h('span', { class: 'col-dash__track' }, h('span', { class: 'col-dash__fill' + (tipo === 'cor' && 'WUBRGC'.includes(f.chave) ? ` col-dash__fill--${f.chave.toLowerCase()}` : ''), style: { width: `${Math.round((f.copias / max) * 100)}%` } })),
+        h('span', { class: 'col-dash__n' }, String(f.copias)))));
+  }
+  /** Curva de custo: colunas de 0 a 7+, cada uma um botão. */
+  function curva(fatias) {
+    const max = Math.max(1, ...fatias.map(f => f.copias));
+    return h('div', { class: 'col-dash__chart', dataset: { chart: 'custo' } }, Text('Curva de custo', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'deck-curve col-dash__curve', 'aria-label': 'curva de custo' }, ...fatias.map((f, i) => h('button', { class: 'deck-curve__col col-dash__col' + (ligada('custo', f.chave) ? ' col-dash__bar--on' : ''), type: 'button', dataset: { dash: `custo:${f.chave}` }, 'aria-pressed': String(ligada('custo', f.chave)), 'aria-label': `Custo ${i === 7 ? '7 ou mais' : i}: ${f.copias} cópia(s)`, onClick: () => aplicaFatia('custo', f.chave) },
+        h('span', { class: 'deck-curve__n' }, f.copias ? String(f.copias) : ''),
+        h('div', { class: 'deck-curve__bar', style: { height: `${Math.round((f.copias / max) * 100)}%` } }),
+        h('span', { class: 'deck-curve__cmc' }, i === 7 ? '7+' : String(i))))));
+  }
+  function montar() {
+    const deck = state.decksAll.find(d => d.id === state.montar) || null;
+    const sel = Select([{ value: '', label: 'Escolha uma lista…' }, ...state.decksAll.map(d => ({ value: d.id, label: d.name }))], { id: 'col-build-deck', value: state.montar, onChange: e => { state.montar = e.target.value; paintDashboard(state.recorte); } });
+    let corpo = null;
+    if (deck) {
+      const owned = {}; for (const g of state.items) owned[g.key] = g.qty;
+      const f = FL.faltaParaMontar(deck, owned);
+      corpo = Stack({ style: { gap: 'var(--space-1)' }, id: 'col-build-result' },
+        Row({ class: 'ds-row--wrap' }, Text(`${f.have} de ${f.need}`, { size: 'xl', display: true }), Text(f.missing ? `faltam ${f.missing} carta(s) · ${f.pct}% na sua coleção` : 'você tem tudo para montar esta lista', { size: 'sm', tone: f.missing ? 'muted' : 'positive' })),
+        f.itens.length ? Text(f.itens.slice(0, 8).map(x => `${x.falta} ${x.name}`).join(' · ') + (f.itens.length > 8 ? ` · e mais ${f.itens.length - 8}` : ''), { size: 'xs', tone: 'muted' }) : null,
+        Row({ class: 'ds-row--wrap' },
+          f.itens.length ? Button('Copiar o que falta', { id: 'col-build-copy', onClick: async () => { const txt = f.itens.map(x => `${x.falta} ${x.name}`).join('\n'); toast(share && await share.copy(txt) ? `${f.itens.length} carta(s) copiadas` : 'Não foi possível copiar'); } }) : null,
+          Button('Abrir a lista', { variant: 'ghost', onClick: () => go('/lista?id=' + deck.id) })));
+    }
+    return h('div', { class: 'col-dash__chart', dataset: { chart: 'montar' } }, Text('O que falta para montar', { size: 'sm', tone: 'muted' }), sel, corpo);
+  }
+  function paintDashboard(r) {
+    const cabeca = Row({ class: 'ds-row--wrap' }, Text('Painel', { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
+      Button(state.painel ? 'Recolher' : 'Mostrar', { variant: 'ghost', id: 'col-dash-toggle', onClick: () => lembra({ painel: !state.painel }) }));
+    if (!state.painel) return mount(dashboard, Surface({ class: 'ds-surface--pad' }, cabeca));
+    const res = FL.resumoColecao(r.itens, state.cards);
+    const tile = (n, rot, id) => h('div', { class: 'col-dash__tile', id }, Text(String(n), { size: '2xl', display: true }), Text(rot, { size: 'xs', tone: 'muted' }));
+    mount(dashboard, Surface({ class: 'ds-surface--pad' }, Stack({},
+      cabeca,
+      FL.filtroVazio(state.filtro) ? null : Text(`Números do recorte atual (${FL.descreveFiltro(state.filtro)}). Toque numa barra ligada para desligar.`, { size: 'xs', tone: 'muted' }),
+      h('div', { class: 'col-dash__tiles' }, tile(res.cartas, 'cartas', 'col-dash-cartas'), tile(res.copias, 'cópias', 'col-dash-copias'), tile(res.edicoes, 'edições', 'col-dash-edicoes')),
+      res.semDados ? Text(`${res.semDados} carta(s) sem dados guardados ficam fora das distribuições.`, { size: 'xs', tone: 'subtle' }) : null,
+      h('div', { class: 'col-dash__grid' },
+        barras('Por cor', 'cor', res.cor), barras('Por tipo', 'tipo', res.tipo), barras('Por raridade', 'raridade', res.raridade), curva(res.custo)),
+      state.decksAll.length ? montar() : null)));
+  }
+
   /* ---- C13 · visões, agrupar, ordenar ---- */
   const toolbar = h('div', { id: 'col-toolbar' });
-  async function lembra(p) { Object.assign(state, p); state.limite = 120; state.pilhaAberta = null; paint(); try { await collection.savePrefs({ visao: state.visao, agrupar: state.agrupar, ordenar: state.ordenar }); } catch (e) { /* sem armazenamento: só nesta sessão */ } }
+  async function lembra(p) { Object.assign(state, p); state.limite = 120; state.pilhaAberta = null; paint(); try { await collection.savePrefs({ visao: state.visao, agrupar: state.agrupar, ordenar: state.ordenar, painel: state.painel }); } catch (e) { /* sem armazenamento: só nesta sessão */ } }
   function paintToolbar() {
     const visoes = [['lista', 'Lista'], ['galeria', 'Galeria'], ['densa', 'Densa'], ['pilhas', 'Pilhas']];
     mount(toolbar, Row({ class: 'ds-row--wrap' },
@@ -5328,7 +5444,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const total = state.items.reduce((sum, i) => sum + i.qty, 0);
     mount(summary, Text(`${state.items.length} carta(s) · ${total} cópia(s)`, { size: 'sm', tone: 'muted' }));
     if (state.loading) return;
-    if (!state.items.length) { paintUndo(); paintPending(); return mount(listEl, Empty('Sua coleção está vazia. Cole uma lista, importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
+    if (!state.items.length) { paintUndo(); paintPending(); mount(dashboard, null); return mount(listEl, Empty('Sua coleção está vazia. Cole uma lista, importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
       Row({ class: 'ds-row--wrap' }, Button('Importar lista', { onClick: () => openImportList() }), Button('Importar CSV', { onClick: () => csvInput.click() })))); }
     // C12 · o motor de filtro decide o recorte; a ordenação vem depois
     state.filtro = { ...state.filtro, texto: state.filter };
@@ -5336,6 +5452,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     state.recorte = r;
     sincronizaLink(); paintViews();
     paintCount(r);
+    paintDashboard(r);
     paintToolbar();
     if (!r.itens.length) { mount(listEl, Empty(FL.filtroVazio(state.filtro) ? 'Nenhuma carta na coleção.' : 'Nenhuma carta passa por esses filtros.', FL.filtroVazio(state.filtro) ? null : Button('Limpar filtros', { onClick: limparFiltros }))); paintSelection(); paintUndo(); paintPending(); return; }
     // C13 · ordenar, agrupar e desenhar na visão escolhida, em lotes (a rolagem não trava com milhares)
@@ -5446,7 +5563,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     Row({ class: 'ds-row--wrap' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn),
-    toolbar, viewsRow, countLine, listEl, selectionBar);
+    dashboard, toolbar, viewsRow, countLine, listEl, selectionBar);
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

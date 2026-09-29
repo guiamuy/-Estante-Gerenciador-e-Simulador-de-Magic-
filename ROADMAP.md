@@ -111,7 +111,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | O · Offline | O3 conduta offline para o que vem, espaço e proteção no painel | 🟡 |
 | C · Coleção | C12 filtros de verdade: motor, painel, recorte exportável, link, visões salvas, listas | 🟡 |
 | C · Coleção | C13 galeria, densa e pilhas; agrupar, ordenar e lembrar | 🟡 |
-| C · Coleção | C14 painel da coleção | ○ |
+| C · Coleção | C14 painel: números, barras que filtram, curva, o que falta para montar | 🟡 |
 | S · Scripts | S66 partida guiada dos Elfos, ficha de Elfo e gatilho opcional de outra permanente | ✅ |
 | S · Scripts | S65 matriz de palavras-chave e combate | ✅ |
 | A · Mesa | S64 lista guardada no aparelho para jogar sem internet | ✅ |
@@ -281,7 +281,7 @@ abaixo é a que vale):
 | 2º ✅ | **E39 · Scanner (X7–X10)** — entregue em 4 levas (64 a 67); X10 parcial até fotos reais | 4 a 5 |
 | 3º ✅ | **E41 · Listas (C10, C11)** — entregue em 2 levas (68 e 69) | 2 |
 | 3º-A ✅ | **E42 · Offline de verdade (O1–O3)** — entregue em 3 levas (70 a 72) | 2 a 3 |
-| 4º | **E40 · Coleção (C12–C14)** — filtros, visões e painel gráfico | 4 |
+| 4º ✅ | **E40 · Coleção (C12–C14)** — entregue em 4 levas (73 a 76) | 4 |
 | 5º | **E38 · Mesa (A13–A16)** — leitura do campo, pilha explicada, zoom e prévia | 4 a 5 |
 
 **Regra que o E42 fixa, valendo para tudo que vier depois:** toda funcionalidade nova nasce funcionando
@@ -372,7 +372,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
-| E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 | Filtros de verdade e a coleção como coleção, com painel gráfico |
+| E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
 | E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
@@ -2360,7 +2360,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Fora:** arrastar para reordenar manualmente; virtualização real da rolagem (o lote de 120 resolve até
   alguns milhares; se travar no aparelho com mais, vira história).
 
-**C14 · Painel da coleção** ○
+**C14 · Painel da coleção** 🟡
 - **Valor:** entender o acervo de relance, em números e gráficos.
 - **Aceite:**
   - resumo no topo: total de cartas, cartas distintas, edições, distribuição por cor, por tipo, por
@@ -2368,9 +2368,22 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   - cada pedaço do gráfico é um filtro: tocar em "verde" filtra os verdes;
   - "o que falta para montar": escolhe uma lista salva e mostra o que você já tem e o que falta;
   - tudo desenhado com os tokens do design system, legível no claro e no escuro.
-- **Testes:** U (as contagens batem com a coleção de teste), V, I.
+- **Entregue (leva 76):** **Painel** no topo da coleção (recolhe e fica lembrado): três números (cartas,
+  cópias, edições), barras por cor (com a cor de mana do próprio design system e a pipa ao lado), por tipo
+  e por raridade, e a curva de custo de 0 a 7+. Cada barra e cada coluna é um botão de 44 px que liga o
+  filtro correspondente (e desliga ao tocar de novo); o painel passa a mostrar os números **do recorte**,
+  então filtrar e ler o painel se alimentam. Multicolor, "Outro" e "Sem dados" não são botões (não há
+  filtro equivalente) — declarado na tela. **O que falta para montar**: escolhe uma lista salva e vê
+  "16 de 32 · faltam 16 · 50%", as cartas que faltam (mais falta primeiro), *Copiar o que falta* e
+  *Abrir a lista*. Marcas finas, valores em texto dos tokens, sem cor literal.
+- **Sem rede:** só dados guardados; carta sem dados fica fora das distribuições, e o painel diz quantas.
+- **Testes:** U (resumo com totais, edições, sem dados, distribuições e a curva sempre com 8 degraus; a
+  fatia "verde" bate com o filtro por verde; o que falta por carta, total e porcentagem, reserva fora),
+  V (barras e colunas com 44 px, só tokens, cores de mana pelos tokens), I headless (números, rótulos
+  das barras, tocar em verde filtra e o painel muda, tocar de novo desliga, coluna da curva filtra,
+  o que falta para a Delver, recolher lembrado ao voltar).
 - **Depende de:** C13.
-- **Fora:** valor em dinheiro da coleção.
+- **Fora:** valor em dinheiro da coleção; gráfico de identidade de cor (o painel usa a cor da carta).
 
 ### X · Scanner
 

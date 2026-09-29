@@ -657,6 +657,55 @@ test('e2e · C13 a coleção como coleção: galeria, densa, pilhas, agrupar, or
   assert.deepEqual(errors, []);
 });
 
+test('e2e · C14 painel da coleção: números, barra que filtra, curva, recolher lembrado e o que falta para montar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Delver', PAUPER);          // 20 Island, 4 Delver, 4 Preordain, 4 Counterspell
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-import'); await page.click('#col-import');
+  await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '12 Island\n4 Counterspell\n2 Sol Ring (CMM) 400\n4 Grizzly Bear');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.waitForFunction(() => /Creature/.test(document.querySelector('.col-row[data-name="Grizzly Bear"]').innerText), null, { timeout: 8000 });
+
+  // números e distribuições
+  await page.waitForFunction(() => document.querySelector('#col-dash-cartas') && document.querySelector('#col-dash-cartas').innerText.startsWith('4'));
+  assert.match(await page.innerText('#col-dash-copias'), /^22/); assert.match(await page.innerText('#col-dash-edicoes'), /^1/);
+  assert.match(await page.getAttribute('[data-dash="cor:G"]', 'aria-label'), /Verde: 1 carta\(s\), 4 cópia\(s\)/);
+  assert.match(await page.getAttribute('[data-dash="custo:0"]', 'aria-label'), /Custo 0: 12 cópia\(s\)/);
+  assert.match(await page.getAttribute('[data-dash="tipo:Instant"]', 'aria-label'), /Instantânea: 1 carta\(s\), 4 cópia\(s\)/);
+
+  // tocar em "verde" filtra; o painel passa a mostrar o recorte; tocar de novo desliga
+  await page.click('[data-dash="cor:G"]');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  assert.match(await page.innerText('.col-row'), /Grizzly Bear/);
+  assert.equal(await page.getAttribute('[data-dash="cor:G"]', 'aria-pressed'), 'true');
+  assert.match(await page.innerText('#col-dash-cartas'), /^1/);
+  assert.match(await page.innerText('#col-filters'), /Filtros \(1\)/);
+  await page.click('[data-dash="cor:G"]');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 4);
+  // a curva também filtra (custo 2 → Counterspell e Grizzly Bear)
+  await page.click('[data-dash="custo:2"]');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 2);
+  assert.match(await page.innerText('#col-count-desc'), /custo 2/);
+  await page.click('#col-filters-clear');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 4);
+
+  // o que falta para montar a Delver
+  await page.selectOption('#col-build-deck', { label: 'Delver' });
+  await page.waitForSelector('#col-build-result');
+  const falta = await page.innerText('#col-build-result');
+  assert.match(falta, /16 de 32/); assert.match(falta, /faltam 16 carta\(s\) · 50% na sua coleção/);
+  assert.match(falta, /8 Island · 4 Delver of Secrets · 4 Preordain/, 'o que falta, mais falta primeiro');
+
+  // recolher fica lembrado
+  await page.click('#col-dash-toggle');
+  await page.waitForFunction(() => !document.querySelector('#col-dash-cartas'));
+  await page.goto(base + '#/listas'); await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-dash-toggle');
+  assert.equal(await page.locator('#col-dash-cartas').count(), 0, 'continua recolhido');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C11 importar por lista: conferir, importar, pendências com sugestão e desfazer', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));            // sem câmera: só a base de nomes interessa

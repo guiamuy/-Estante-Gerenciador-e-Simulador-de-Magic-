@@ -171,3 +171,29 @@ test('C13 · desempenho: agrupar e ordenar 5 000 cartas em menos de 100 ms', () 
   assert.equal(agrupado.length, 3);
   assert.ok(dt < 100, `levou ${dt.toFixed(1)} ms`);
 });
+
+/* ---------------- C14 · painel ---------------- */
+test('C14 · resumo do recorte: totais, edições, sem dados e distribuições com a curva completa de 0 a 7+', () => {
+  const r = F.resumoColecao(RECORTE, CARDS);
+  assert.deepEqual(JSON.parse(JSON.stringify({ cartas: r.cartas, copias: r.copias, edicoes: r.edicoes, semDados: r.semDados })), { cartas: 7, copias: 38, edicoes: 5, semDados: 1 });
+  assert.deepEqual(JSON.parse(JSON.stringify(r.cor.map(f => [f.rotulo, f.cartas, f.copias]))), [['Azul', 1, 3], ['Preto', 1, 4], ['Verde', 1, 4], ['Multicolor', 1, 3], ['Incolor', 2, 22], ['Sem dados', 1, 2]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(r.raridade.map(f => f.rotulo))), ['Comum', 'Incomum', 'Sem dados']);
+  assert.equal(r.custo.length, 8, 'curva sempre com 8 degraus');
+  assert.deepEqual(JSON.parse(JSON.stringify(r.custo.map(f => f.copias))), [20, 2, 10, 0, 0, 4, 0, 0]);   // custo 2: 4 elfos + 3 Counterspell + 3 Boros Charm
+  assert.equal(r.custo[7].rotulo, 'Custo 7+');
+  // as contagens batem com o filtro: tocar em "verde" dá o mesmo que filtrar por verde
+  const verde = F.filtraColecao(GRUPOS, F.novoFiltro({ cores: ['G'] }), { cards: CARDS });
+  assert.equal(verde.copias, r.cor.find(f => f.rotulo === 'Verde').copias);
+  const vazio = F.resumoColecao([], CARDS);
+  assert.equal(vazio.cartas, 0); assert.equal(vazio.cor.length, 0); assert.equal(vazio.custo.length, 8);
+});
+
+test('C14 · o que falta para montar uma lista: por carta, total e porcentagem; reserva não conta', () => {
+  const deck = { entries: [{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Counterspell', qty: 4, zone: 'main' }, { name: 'Delver of Secrets', qty: 4, zone: 'main' }, { name: 'Pyroblast', qty: 2, zone: 'side' }, { name: 'Malcolm', qty: 1, zone: 'commander' }] };
+  const owned = { island: 12, counterspell: 4, malcolm: 1 };
+  const f = F.faltaParaMontar(deck, owned);
+  assert.deepEqual(JSON.parse(JSON.stringify({ need: f.need, have: f.have, missing: f.missing, pct: f.pct })), { need: 29, have: 17, missing: 12, pct: 59 });
+  assert.deepEqual(JSON.parse(JSON.stringify(f.itens.map(x => [x.name, x.have, x.falta]))), [['Island', 12, 8], ['Delver of Secrets', 0, 4]], 'mais falta primeiro; reserva fora');
+  assert.equal(F.faltaParaMontar({ entries: [] }, {}).pct, 100, 'lista vazia: nada falta');
+  assert.equal(F.faltaParaMontar(null, {}).missing, 0);
+});
