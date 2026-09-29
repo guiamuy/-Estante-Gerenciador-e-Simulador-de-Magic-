@@ -760,9 +760,10 @@ test('e2e · C13 a coleção como coleção: galeria, densa, pilhas, agrupar, or
   // lista em lotes: 120 primeiro, "mostrar mais" traz o resto (as conhecidas vêm depois de "Carta Inventada…")
   assert.equal(await page.locator('.col-row').count(), 120, 'primeiro lote');
   assert.match(await page.innerText('#col-more'), /Mostrar mais \(183 restantes\)/);
-  await page.click('#col-more');
+  // aciona o botão sem rolar: rolar até ele dispara o carregamento sozinho (rolagem infinita) e troca o botão no meio do clique
+  await page.$eval('#col-more', b => b.click());
   await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 240);
-  await page.click('#col-more');
+  await page.$eval('#col-more', b => b.click());
   await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 303 && !document.querySelector('#col-more'));
   await page.waitForFunction(() => /Creature/.test(document.querySelector('.col-row[data-name="Grizzly Bear"]').innerText), null, { timeout: 8000 }); // dados chegaram
 
@@ -787,7 +788,7 @@ test('e2e · C13 a coleção como coleção: galeria, densa, pilhas, agrupar, or
   // agrupar por edição com cabeçalho e contagem (os lotes valem dentro dos grupos)
   await page.selectOption('#col-group', 'edicao');
   await page.waitForSelector('[data-group="cmm"]');
-  for (let i = 0; i < 4 && (await page.locator('#col-more').count()); i++) { await page.click('#col-more'); await page.waitForTimeout(150); }
+  for (let i = 0; i < 4 && (await page.locator('#col-more').count()); i++) { await page.$eval('#col-more', b => b.click()).catch(() => {}); await page.waitForTimeout(150); } // sem rolar (mesma corrida da rolagem infinita)
   assert.match(await page.innerText('[data-group="cmm"]'), /CMM\s+1 carta\(s\) · 2 cópia\(s\)/);
   assert.match(await page.innerText('[data-group="~"]'), /Sem edição\s+151 carta\(s\)/);
   assert.equal(await page.evaluate(() => document.querySelector('[data-group="~"] + .col-dense .col-dense__row').dataset.name), 'Grizzly Bear', 'dentro do grupo, mais cópias primeiro');
@@ -1741,6 +1742,59 @@ test('e2e · U3 símbolos: reserva de mana com símbolo e contagem, texto da car
   await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '1 Carta {G}');
   assert.equal(await page.inputValue('#col-import-text'), '1 Carta {G}');
   assert.equal(await page.locator('#col-import-text .ds-sym').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · U3 parte 2 · símbolos no acervo: carta sem imagem vira texto com custo, coleção com custo, filtro de cor por símbolo, busca', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const foto = async nome => { if (process.env.SHOTS) { await page.waitForTimeout(250); await page.screenshot({ path: `${process.env.SHOTS}/${nome}.png` }); } };
+  const custo = loc => loc.locator('.ds-sym').evaluateAll(els => els.map(e => e.dataset.sym));
+  await createDeck(page, base, 'Símbolos', '4 Sky Pike\n4 Lightning Bolt\n4 Grizzly Bear\n2 Prodigal Sorcerer\n10 Island', 'livre');
+  // lista: sem imagem, a carta vira texto com nome, custo em símbolos e tipo
+  const pike = page.locator('.deck-slot[data-name="Sky Pike"] .ds-card__fallback');
+  await pike.waitFor();
+  assert.deepEqual(await custo(pike.locator('.ds-card__custo')), ['1', 'U']);
+  assert.match(await pike.locator('.ds-card__tipo').innerText(), /Creature — Fish/);
+  assert.deepEqual(await custo(page.locator('.deck-slot[data-name="Prodigal Sorcerer"] .ds-card__custo')), ['2', 'U']);
+  assert.equal(await page.locator('.deck-slot[data-name="Island"] .ds-card__custo').count(), 0, 'terreno sem custo não mostra linha vazia');
+  await foto('u3-lista');
+  // coleção: custo ao lado do nome na linha e na densa; carta em texto na galeria
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import'); await page.click('#col-import');
+  await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '2 Sky Pike\n1 Lightning Bolt\n3 Grizzly Bear\n1 Prodigal Sorcerer');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Sky Pike"] .col-row__custo');
+  assert.deepEqual(await custo(page.locator('.col-row[data-name="Sky Pike"] .col-row__custo')), ['1', 'U']);
+  assert.deepEqual(await custo(page.locator('.col-row[data-name="Lightning Bolt"] .col-row__custo')), ['R']);
+  assert.match(await page.innerText('.col-row[data-name="Sky Pike"] .col-row__info'), /Sky Pike\s*\{1\}\{U\}/, 'o texto lido continua trazendo o custo');
+  await foto('u3-colecao-lista');
+  if (process.env.SHOTS) { const r = page.locator('.col-row[data-name="Sky Pike"]'); await r.scrollIntoViewIfNeeded(); await r.screenshot({ path: `${process.env.SHOTS}/u3-colecao-linha.png` }); }
+  await page.click('[data-visao="densa"]'); await page.waitForSelector('.col-dense__row[data-name="Grizzly Bear"] .col-dense__custo');
+  assert.deepEqual(await custo(page.locator('.col-dense__row[data-name="Grizzly Bear"] .col-dense__custo')), ['1', 'G']);
+  await foto('u3-colecao-densa');
+  await page.click('[data-visao="galeria"]'); await page.waitForSelector('.col-card[data-name="Prodigal Sorcerer"] .ds-card__custo');
+  await foto('u3-colecao-galeria');
+  await page.click('[data-visao="lista"]');
+  // filtro de cor: chip redondo com o símbolo, nome falado, alvo de toque, e funciona
+  await page.click('#col-filters'); await page.waitForSelector('#col-filters-body');
+  const chipAzul = page.locator('[data-cor="U"]');
+  assert.equal(await chipAzul.getAttribute('aria-label'), 'Azul');
+  assert.equal(await chipAzul.locator('.ds-sym[data-sym="U"]').count(), 1);
+  assert.doesNotMatch((await chipAzul.innerText()).replace(/\{U\}/, ''), /Azul/, 'sem a palavra na tela');
+  await page.waitForTimeout(350);                                   // o painel entra com animação de escala
+  const bb = await chipAzul.boundingBox(); assert.ok(bb.width >= 44 && bb.height >= 44, `alvo de toque (${bb.width}×${bb.height})`);
+  assert.deepEqual(await page.locator('#col-filters-body [data-cor]').evaluateAll(cs => cs.map(c => c.dataset.cor)), ['W', 'U', 'B', 'R', 'G', 'C']);
+  await chipAzul.click();
+  assert.equal(await chipAzul.getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction(() => /2 carta\(s\)/.test((document.querySelector('#col-filters-count') || {}).innerText || ''));
+  await foto('u3-filtro');
+  await page.click('#col-filters-reset');
+  await page.keyboard.press('Escape');
+  // busca: resultado sem imagem mostra custo e tipo
+  await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-q');
+  await page.fill('#cards-q', 'sorcerer'); await page.press('#cards-q', 'Enter');
+  await page.waitForSelector('#cards-results .ds-card__custo');
+  assert.deepEqual(await custo(page.locator('#cards-results .ds-card__custo').first()), ['2', 'U']);
+  await foto('u3-busca');
   assert.deepEqual(errors, []);
 });
 

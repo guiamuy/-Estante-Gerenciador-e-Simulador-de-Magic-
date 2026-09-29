@@ -326,7 +326,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 4º ✅ | U7 de quem é o turno, visível de longe (leva 85) | E44 | 1 | — |
 | 5º ✅ | U12 imagens do jogo baixadas sozinhas (leva 86) | E45 | 1 | estende o guardião offline (O1) |
 | 6º ✅ | U10 Shark: um bot só, com nome (leva 87) | E46 | 1 | remove o amador; muda a tela de preparar |
-| 7º 🟡 | U3 símbolos de Magic em botões, textos e filtros (leva 90: renderizador + mesa + diálogos) | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
+| 7º ✅ | U3 símbolos de Magic em botões, textos e filtros (levas 90 e 91) | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
 | 8º | U2 ícones flat, botões com profundidade e toque animado, CTAs sem excesso de texto | E43 | 3 | passa por todas as telas; contrato visual novo |
 | 9º | U4 "sem internet" mais visual | E43 | 1 | depois de U2, para usar os ícones |
 | 10º | U8 disposições por tamanho de aparelho (Galaxy S, S+ e Ultra) | E44 | 2 | medidas reais dos aparelhos conferidas antes |
@@ -438,7 +438,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
-| E43 🟡 | U1 (leva 82) · U3 🟡 (leva 90) · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
+| E43 🟡 | U1 (leva 82) · U3 (levas 90 e 91) · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
 | E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 (leva 85) · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 ✅ | U12 (leva 86) | Imagens do jogo baixadas sozinhas quando há internet |
 | E46 🟡 | U10 (leva 87) · U11 | Shark: um bot só, com nome, e mais forte |
@@ -2965,7 +2965,7 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Depende de:** U1.
 - **Fora:** ilustrações; animações além do toque e das transições já existentes.
 
-**U3 · Símbolos de Magic em toda a plataforma** 🟡 (leva 90: parte 1 de 2)
+**U3 · Símbolos de Magic em toda a plataforma** ✅ (levas 90 e 91)
 - **Entregue (parte 1):** renderizador de símbolos com glifos próprios do app (desenho original, flat: sol, gota, caveira, chama, árvore, losango, setas de virar e desvirar, raio, floco), números e X/Y/Z, híbridos de duas cores, "2 ou cor" e phyrexianos. Aplicado em: toda a mesa (botões de habilidade e de conjurar com custo, linha de custo da folha da carta, pilha, registro), espiada da carta (texto de regras), todo diálogo do app (o visualizador de carta nas listas, na coleção e na busca inclusive) e a reserva de mana, que virou um símbolo por cor com a quantidade ("{U} ×3"). Seção "Símbolos de mana" no catálogo `#/ds` como referência viva.
 - **Valor:** {T}, {W}{U}{B}{R}{G}{C}, {X}, {E} e números em símbolo, como na carta.
 - **Aceite (como ficou):**
@@ -2975,9 +2975,9 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
   - números e X/Y/Z vêm de pseudo-elemento CSS, não de `<text>` no SVG (que entraria no texto lido como "1{1}");
   - cores só por tokens (`--mana-*`, `--mana-ink-dark`, `--mana-ink-light`, `--mana-ring`), iguais nos dois temas; alinhamento pelo meio da linha e numeral compensado opticamente;
   - dentro de botão (flex), o trecho vira um `span` inline, para não quebrar o texto em itens separados.
-- **Falta (parte 2):** listas (custo de cada carta na lista e na galeria), coleção (linha, densa, galeria), filtros (chips de cor com símbolo em vez de nome), busca de cartas.
+- **Entregue (parte 2, leva 91):** carta sem imagem (sem internet ou ainda não guardada) deixou de ser só o nome: vira uma "carta em texto" com nome, custo em símbolos e tipo — na lista, na galeria da coleção e na busca. Linha e visão densa da coleção mostram o custo ao lado do nome. Filtro de cor: chips redondos só com o símbolo (nome falado "Azul", alvo 44px; desmarcado fica esmaecido, marcado ganha anel). Identidade de cor (listas de Commander) em símbolos com nome falado ("identidade: azul e vermelho"), no lugar das bolinhas lisas.
 - **Sem rede:** só apresentação; os glifos são SVG embutido no app (nada de fonte ou imagem externa).
-- **Testes:** U (`simbolos.unit.test.mjs`, 5: separação, todos os tipos, o que não é símbolo, nome falado, reentrância); e2e U3 (reserva "{U} ×3" com nome, espiada com {T}, catálogo com 22 símbolos e texto lido idêntico, campo de texto intocado); e2e M7/M6/A6 (botão "Conjurar · {1}{U}" com dois símbolos, nomes falados, texto intacto, símbolo redondo ≥ 14px).
+- **Testes:** U (`simbolos.unit.test.mjs`, 5: separação, todos os tipos, o que não é símbolo, nome falado, reentrância); e2e U3 parte 2 (carta em texto com custo e tipo na lista, terreno sem linha de custo vazia, custo na linha e na densa com texto lido intacto, galeria, chip de cor por símbolo com nome falado, 44px, ordem WUBRGC e filtro funcionando, busca); e2e U3 (reserva "{U} ×3" com nome, espiada com {T}, catálogo com 22 símbolos e texto lido idêntico, campo de texto intocado); e2e M7/M6/A6 (botão "Conjurar · {1}{U}" com dois símbolos, nomes falados, texto intacto, símbolo redondo ≥ 14px).
 - **Depende de:** —.
 - **Fora:** símbolos de expansão; ícones de raridade; símbolo de meio mana ({H}).
 

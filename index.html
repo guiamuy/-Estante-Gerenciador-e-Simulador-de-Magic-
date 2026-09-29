@@ -309,6 +309,12 @@ a { color: var(--accent); }
 }
 .ds-chip:hover { border-color: var(--border-strong); color: var(--fg); }
 .ds-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
+/* U3 · chip de cor: só o símbolo, redondo, com anel quando marcado */
+.ds-chip--simbolo { width: var(--tap-min); padding: 0; justify-content: center; font-size: 24px; border-radius: var(--radius-full); }
+.ds-chip--simbolo[aria-pressed="true"] { background: var(--bg-elev-2); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.ds-chip--simbolo[aria-pressed="false"] .ds-sym { opacity: .55; filter: saturate(.6); }
+.ds-chip--simbolo .ds-sym { transition: opacity var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
+.ds-chip--simbolo[aria-pressed="true"] .ds-sym { transform: scale(1.06); }
 
 /* ---------------- U3 · símbolo de mana ---------------- */
 .ds-sym { display: inline-block; width: 1.08em; height: 1.08em; vertical-align: middle; top: -.08em; margin: 0 .05em; position: relative; flex: none; line-height: 0; }
@@ -327,6 +333,10 @@ a { color: var(--accent); }
 .ds-sym__txt { display: inline-block; width: 0; height: 0; overflow: hidden; vertical-align: top; white-space: nowrap; opacity: 0; }
 .ds-sym + .ds-sym { margin-left: .02em; }
 .ds-comsimb { display: inline; white-space: inherit; }
+.ds-pips { display: inline-flex; align-items: center; gap: 1px; font-size: 16px; line-height: 1; }
+.ds-card__nome { line-height: 1.2; }
+.ds-card__custo { font-size: 15px; line-height: 1; white-space: nowrap; }
+.ds-card__tipo { font-family: var(--font-body); font-size: var(--text-xs); color: var(--fg-muted); line-height: 1.2; }
 
 /* ---------------- pip de mana ---------------- */
 .ds-pip {
@@ -430,7 +440,7 @@ a { color: var(--accent); }
 .ds-card:hover { box-shadow: var(--shadow-2); }
 .ds-card img { width: 100%; height: 100%; object-fit: cover; }
 .ds-card__fallback {
-  position: absolute; inset: 0; display: grid; place-items: center;
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1);
   padding: var(--space-2); text-align: center;
   font-family: var(--font-display); font-size: var(--text-sm); color: var(--fg);
 }
@@ -773,6 +783,11 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .col-export__text { min-height: 200px; font-family: var(--font-mono); font-size: var(--text-sm); }
 .col-row__thumb { grid-area: thumb; width: 48px; aspect-ratio: 488 / 680; border-radius: var(--radius-1); overflow: hidden; background: var(--bg-elev-3); border: 1px solid var(--border); padding: 0; color: var(--fg-muted); font-family: var(--font-display); }
 .col-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* U3 · custo em símbolos ao lado do nome, na linha e na visão densa */
+.col-row__titulo { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.col-row__titulo > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-row__custo, .col-dense__custo { flex: none; font-size: 16px; line-height: 1; white-space: nowrap; }
+.col-dense__custo { margin-left: var(--space-2); }
 .col-row__info { grid-area: info; min-width: 0; }
 .col-row__info .ds-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .col-row__qty { grid-area: qty; display: flex; align-items: center; gap: var(--space-1); }
@@ -1198,11 +1213,12 @@ const Badge = (label, opts = {}) => h('span', { class: ['ds-badge', opts.tone ? 
 function Chip(label, opts = {}) {
   return h('button', { class: 'ds-chip', type: 'button', 'aria-pressed': String(!!opts.pressed), onClick: opts.onClick, dataset: opts.dataset }, label);
 }
+/** Identidade de cor (ex.: "UR") em símbolos. U3: antes eram bolinhas lisas sem glifo nem nome. */
 function ManaPips(identity) {
-  const ci = String(identity || '').toUpperCase();
-  if (!ci) return h('span', { class: 'ds-pip ds-pip--c', title: 'incolor' });
-  return h('span', {}, ...ci.split('').filter(c => 'WUBRG'.includes(c))
-    .map(c => h('span', { class: `ds-pip ds-pip--${c.toLowerCase()}`, title: c })));
+  const cores = String(identity || '').toUpperCase().split('').filter(c => 'WUBRG'.includes(c));
+  const lista = cores.length ? cores : ['C'];
+  return h('span', { class: 'ds-pips', role: 'img', 'aria-label': 'identidade: ' + lista.map(c => nomeDoSimbolo(c)).join(' e ') },
+    ...lista.map(c => { const el = Simbolo(c); el.removeAttribute('role'); el.setAttribute('aria-hidden', 'true'); return el; }));
 }
 
 /* ---------------- U3 · símbolos de Magic ----------------
@@ -1325,7 +1341,11 @@ const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-lab
 
 /* ---------------- carta ---------------- */
 function CardFace(card, opts = {}) {
-  const fallback = () => h('span', { class: 'ds-card__fallback' }, card?.name || '—');
+  // U3 · sem imagem (sem internet ou ainda não guardada), a carta vira texto: nome, custo em símbolos e tipo
+  const fallback = () => h('span', { class: 'ds-card__fallback' },
+    h('span', { class: 'ds-card__nome' }, card?.name || '—'),
+    card && card.mana_cost ? h('span', { class: 'ds-card__custo' }, ComSimbolos(String(card.mana_cost).split('//')[0].trim())) : null,
+    card && card.type_line ? h('span', { class: 'ds-card__tipo' }, String(card.type_line).split('//')[0].trim()) : null);
   // O2 · imagem que não carrega (sem internet e ainda não guardada) vira o nome, não um ícone quebrado
   const img = card && card.image ? h('img', { src: card.image, alt: card.name || '', loading: 'lazy', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(fallback(), el); } }) : null;
   return h(opts.onClick ? 'button' : 'div', {
@@ -2316,7 +2336,7 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
       Badge(state.source === 'rede' ? 'da Scryfall' : 'da base local', { tone: state.source === 'rede' ? 'accent' : undefined })));
     if (collection) results.appendChild(Text('Toque duas vezes numa carta para marcar que você a tem.', { size: 'sm', tone: 'muted' }));
     results.appendChild(CardGrid(...state.results.map(c => {
-      const face = CardFace({ name: c.name, image: (c.images && c.images.normal) || c.img }, { dataset: { card: c.id } });
+      const face = CardFace({ name: c.name, image: (c.images && c.images.normal) || c.img, mana_cost: c.mana_cost, type_line: c.type_line }, { dataset: { card: c.id } });
       const slot = h('div', { class: 'deck-slot', dataset: { card: c.id } }, face, collection ? ownedBadge(c.name) : null);
       onTaps(face, { single: () => openCardViewer(toViewable(c)), double: collection ? () => quickOwn(c, slot) : null });
       return slot;
@@ -4873,7 +4893,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK } = __m23;
@@ -5180,7 +5200,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
           const lacking = have < e.qty;
           const cov = coverage(c || { name: e.name }, undefined, e.name); // S58 · nome da lista vale para achar o script
-          const face = CardFace({ name: e.name, image: img(c) });
+          const face = CardFace({ name: e.name, image: img(c), mana_cost: c && c.mana_cost, type_line: c && c.type_line });
           const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level } }, face,
             h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}` }, COVERAGE_MARK[cov.level]),
             e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
@@ -5260,7 +5280,9 @@ function abrirPainelFiltros({ filtro, grupos, onChange, onLimpar, semImpressoes 
   const contador = Text('', { size: 'sm', attrs: { id: 'col-filters-count' } });
   const aplica = () => { const r = onChange({ ...f }) || { total: 0, copias: 0 }; contador.textContent = `${r.total} carta(s) · ${r.copias} cópia(s)`; };
   const grupoChips = (lista, get, set, ds) => Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
-    const c = Chip(label, { pressed: get().includes(valor), dataset: { [ds]: String(valor) } });
+    // U3 · cor é símbolo, não palavra: o chip mostra o símbolo e diz o nome para o leitor de tela
+    const c = ds === 'cor' ? h('button', { class: 'ds-chip ds-chip--simbolo', type: 'button', 'aria-pressed': String(get().includes(valor)), 'aria-label': label, title: label, dataset: { [ds]: String(valor) } }, Simbolo(valor))
+      : Chip(label, { pressed: get().includes(valor), dataset: { [ds]: String(valor) } });
     c.addEventListener('click', () => { const cur = get(); set(cur.includes(valor) ? cur.filter(x => x !== valor) : [...cur, valor]); c.setAttribute('aria-pressed', String(get().includes(valor))); aplica(); });
     return c;
   }));
@@ -5697,7 +5719,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const thumb = g => { const c = cardOf(g); const im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images)); return im ? (im.small || im.normal || null) : null; };
   /** Galeria: a arte, a quantidade e um toque para as impressões. */
   function cartao(g) {
-    const face = CardFace({ name: g.name, image: thumb(g) }, { onClick: () => openPrintings(g), dataset: { name: g.name } });
+    const cg = cardOf(g);
+    const face = CardFace({ name: g.name, image: thumb(g), mana_cost: cg && cg.mana_cost, type_line: cg && cg.type_line }, { onClick: () => openPrintings(g), dataset: { name: g.name } });
     return h('div', { class: 'deck-slot col-card', dataset: { name: g.name } }, face,
       h('span', { class: 'deck-slot__qty' }, '×' + (g.qtyRecorte ?? g.qty)));
   }
@@ -5705,7 +5728,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function denso(g) {
     const c = cardOf(g);
     return h('button', { class: 'col-dense__row', type: 'button', dataset: { name: g.name }, onClick: () => openPrintings(g) },
-      h('span', { class: 'col-dense__name' }, g.name),
+      h('span', { class: 'col-dense__name' }, g.name, c && c.mana_cost ? h('span', { class: 'col-dense__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null), // U3
       h('span', { class: 'col-dense__meta' }, [c && c.type_line ? c.type_line.split(' — ')[0] : null, g.items.filter(i => i.set).map(i => i.set.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join(' ') || null].filter(Boolean).join(' · ')),
       h('span', { class: 'col-dense__qty' }, String(g.qtyRecorte ?? g.qty)));
   }
@@ -5788,7 +5811,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${g.name}`, onClick: () => c && openCardViewer(c) },
         img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', {}, g.name.slice(0, 1))),
       h('button', { class: 'col-row__info', type: 'button', 'aria-label': `Impressões de ${g.name}`, onClick: () => openPrintings(g) },
-        Text(g.name, { size: 'md' }),
+        h('span', { class: 'col-row__titulo' }, Text(g.name, { size: 'md' }), c && c.mana_cost ? h('span', { class: 'col-row__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null), // U3
         Text(printed ? printsSummary(g) : ([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'), { size: 'xs', tone: 'muted' })),
       h('div', { class: 'col-row__qty' },
         Button('−', { icon: true, ariaLabel: `Uma cópia a menos de ${g.name}`, onClick: () => g.qty > 1 ? setQty(g, g.qty - 1) : confirmRemove(g) }),
