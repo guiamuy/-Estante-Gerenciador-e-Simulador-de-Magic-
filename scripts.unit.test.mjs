@@ -297,6 +297,9 @@ function runExample(sc) {
   }
   // S39 · "desvirar a própria carta" precisa dela virada antes
   if ('selfUntapped' in (want || {})) { s = J(s); s.objects[oid].tapped = true; }
+  // M13 · mana pela identidade do comandante: o cenário dá ao jogador um comandante branco e preto
+  const porIdentidade = (sc.abilities || []).some(x => (x.effects || []).some(e => e.do === 'add_mana' && e.identity));
+  if (porIdentidade) { s = J(s); s.players[a].identity = ['W', 'B']; }
   if (how === 'madness') s = act(s, { t: 'discard', p: a, oid });
   if (how === 'disturb') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
   if (how === 'flashback') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
@@ -316,7 +319,7 @@ function runExample(sc) {
     })()
     : how.startsWith('mode') ? { t: 'cast', p: a, oid, mode: Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) }
     : how === 'equip' ? { t: 'activate', p: a, oid, index: equipIndex, targets: [{ oid: mine }] }
-    : how.startsWith('activate') ? { t: 'activate', p: a, oid, index: Number(how.split(':')[1]), ...(soDaMao ? { fromHand: true } : {}), ...(target ? { targets: [target] } : {}) }
+    : how.startsWith('activate') ? { t: 'activate', p: a, oid, index: Number(how.split(':')[1]), ...(soDaMao ? { fromHand: true } : {}), ...(target ? { targets: [target] } : {}), ...(porIdentidade ? { color: 'W' } : {}) }
       : { t: 'cast', p: a, oid, ...(target ? { targets: [target] } : {}) };
   const oferta = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.index || 0) === (action.index || 0) && x.color);
   if (oferta) action.color = oferta.color;

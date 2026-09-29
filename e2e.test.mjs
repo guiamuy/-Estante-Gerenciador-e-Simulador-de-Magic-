@@ -379,7 +379,9 @@ test('e2e · C3 importar CSV do ManaBox, ver impressões e exportar CSV', { skip
 test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, coleção, busca e scanner offline', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(false));          // câmera e OCR falsos: o scanner não precisa do CDN
+  await page.addInitScript(() => { window.__MTG_TEST = true; }); // E36 · passo do Commander usa o acesso de teste da mesa
   await createDeck(page, base, 'Delver', PAUPER);
+  await createDeck(page, base, 'Cmd', 'Commander\n1 Mock Commander\n\nDeck\n99 Plains', 'commander');
   await page.goto(base + '#/colecao');
   await page.waitForSelector('#col-import'); await page.click('#col-import');
   await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '2 Sol Ring\n1 Grizzly Bear');
@@ -392,7 +394,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.click('#home-offline-prep');
   await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 15000 });
   const linhas = await page.innerText('#home-offline-lines');
-  assert.match(linhas, /✓ Listas: 1 de 1 prontas/); assert.match(linhas, /✓ Coleção: 2 de 2/);
+  assert.match(linhas, /✓ Listas: 2 de 2 prontas/); // E36: a lista de Commander também assert.match(linhas, /✓ Coleção: 2 de 2/);
   assert.match(linhas, /✓ Base de nomes/); assert.match(linhas, /✓ Leitor de texto/);
   // O3 · o painel mostra o espaço usado pelo app (gatilho G1)
   assert.match(await page.innerText('#home-offline-space'), /Espaço usado: [\d,]+ (KB|MB|GB) de [\d,]+ (KB|MB|GB)/);
@@ -424,6 +426,26 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('#tb-pass');
   for (let i = 0; i < 8; i++) { const p = await page.$('#tb-pass'); if (!p) break; await p.click(); await page.waitForTimeout(60); }
   assert.match(await page.innerText('.tb'), /Bot amador/, 'o bot joga sem internet');
+
+  // E36 · M13 · Commander sem rede: o comandante que sai do campo volta para a zona de comando
+  await page.goto(base + '#/mesa');
+  await page.click('[data-table-format="commander"]').catch(() => {});
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-seed', '3');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  for (let i = 0; i < 6 && !(await page.locator('#tb-pass').count()); i++) await reveal(page);
+  const cmdOid = await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const c = Object.values(s.objects).find(o => o.commander && o.owner === p);
+    M.act({ t: 'move', p, oid: c.oid, to: 'battlefield' }); M.act({ t: 'move', p, oid: c.oid, to: 'exile' });
+    return c.oid;
+  });
+  for (let i = 0; i < 3 && !(await page.locator('#tb-cmd-home').count()); i++) await reveal(page);
+  assert.match(await page.innerText('#tb-cmd-stay'), /Deixar no exílio/);
+  await page.click('#tb-cmd-home');
+  await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].zone === 'command', cmdOid);
 
   // coleção: exportar e importar por lista continuam funcionando (conferência pela base de nomes)
   await page.goto(base + '#/colecao');
@@ -1616,6 +1638,40 @@ test('e2e · HOMOLOGAÇÃO 2 · H5 vida no Commander abre com o dano de comandan
   assert.match(await page.innerText('.ds-dialog'), /\+1 de dano de comandante \(Mock Commander\)/, 'o diálogo abre (antes: TypeError)');
   await page.click('.ds-dialog >> text=/\\+1 de dano de comandante/');
   await page.waitForFunction(() => !document.querySelector('.ds-dialog'));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · M13 comandante que sai do campo: a mesa pergunta e leva para a zona de comando', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Cmd', 'Commander\n1 Mock Commander\n\nDeck\n99 Plains', 'commander');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-table-format="commander"]').catch(() => {});
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-seed', '3');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  await reveal(page);
+  for (let i = 0; i < 6 && !(await page.locator('#tb-pass').count()); i++) await reveal(page);
+  // o comandante de quem tem a prioridade entra e morre (ajuste da mesa assistida)
+  const oid = await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const c = Object.values(s.objects).find(o => o.commander && o.owner === p);
+    M.act({ t: 'move', p, oid: c.oid, to: 'battlefield' });
+    M.act({ t: 'move', p, oid: c.oid, to: 'graveyard' });
+    return c.oid;
+  });
+  for (let i = 0; i < 3 && !(await page.locator('#tb-cmd-home').count()); i++) await reveal(page);
+  await page.waitForSelector('#tb-cmd-home', { timeout: 4000 });
+  assert.match(await page.innerText('body'), /Mock Commander saiu do campo/);
+  assert.match(await page.innerText('#tb-cmd-stay'), /Deixar no cemitério/);
+  const alvo = await page.locator('#tb-cmd-home').boundingBox();
+  assert.ok(alvo.height >= 44, 'alvo de toque');
+  await page.click('#tb-cmd-home');
+  await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].zone === 'command', oid);
+  assert.equal(await page.locator('#tb-cmd-home').count(), 0, 'a pergunta some');
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending), null);
   assert.deepEqual(errors, []);
 });
 

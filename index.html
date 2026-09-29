@@ -2988,8 +2988,9 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 2 } } },
   { name: 'Orzhov Signet', abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true }, effects: [{ do: 'add_mana', symbols: ['W', 'B'] }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 2 } } },
-  { name: 'Arcane Signet', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', anyColor: true }] }],
-    covers: 'partial', note: 'na carta real só produz cores da identidade do seu comandante',
+  // M13 · texto conferido na Scryfall em 29/09/2026: "{T}: Add one mana of any color in your commander's color identity."
+  // Regras oficiais: dois comandantes somam as identidades; incolor ou sem comandante não produz nada (nem {C}).
+  { name: 'Arcane Signet', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', anyColor: true, identity: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Talisman of Creativity', abilities: [
     { kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] },
@@ -5668,7 +5669,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 56;
+const ENGINE_VERSION = 57;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -5738,13 +5739,15 @@ function parseProduction(card) {
   for (const line of text.split('\n')) {
     const m = line.match(/^\{T\}: Add (.+?)\./i); if (!m) continue;
     const body = m[1];
+    // M13 · "any color in your commander's color identity": depende da partida, resolvido em productions()
+    if (/any color in your commander'?s color identity/i.test(body)) { opts.push({ identity: true }); continue; }
     if (/one mana of any color/i.test(body)) { ['W', 'U', 'B', 'R', 'G'].forEach(c => opts.push([c])); continue; }
     const syms = [...body.matchAll(/\{([WUBRGC])\}/g)].map(x => x[1]);
     if (!syms.length) continue;
     if (/\bor\b/i.test(body)) syms.forEach(c => opts.push([c])); else opts.push(syms);
   }
   const seen = new Set();
-  return opts.filter(o => { const k = o.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
+  return opts.filter(o => { const k = Array.isArray(o) ? o.join('') : JSON.stringify(o); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 
 /* ---------------- catálogo mínimo ---------------- */
@@ -5913,6 +5916,14 @@ function createGame(setup) {
         z[zone].push(oid);
       }
     }
+    // M13 · 903.4: identidade de cor do(s) comandante(s), fixada antes do jogo começar
+    if (rules.commander) {
+      const cis = new Set((pl.deck || []).filter(e => e.zone === 'commander').flatMap(e => {
+        const c = (setup.cards || {})[e.name];
+        return ((c && c.color_identity) || (s.facts[e.name] || {}).colors || []).map(x => String(x).toUpperCase());
+      }));
+      s.players[pi].identity = ['W', 'U', 'B', 'R', 'G'].filter(c => cis.has(c));
+    }
     shuffle(s, z.library);
   });
   s.turn.active = Math.floor(nextRand(s) * s.players.length);
@@ -5923,6 +5934,7 @@ function createGame(setup) {
 
 /* ---------------- movimento entre zonas ---------------- */
 function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[obj.owner][zone]; }
+const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 function moveObject(s, oid, to, { top = true } = {}) {
   const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
@@ -5946,6 +5958,8 @@ function moveObject(s, oid, to, { top = true } = {}) {
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   o.zone = to;
   const dest = zoneList(s, o, to);
+  // M13 · 903.9: comandante que vai para cemitério, exílio, mão ou grimório pode voltar à zona de comando
+  if (o.commander && VOLTA_COMANDO.includes(to) && fromZone !== to && fromZone !== 'command') (s.voltaComando = s.voltaComando || []).push(oid);
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // S22 · permanente que entra virada
   if (to === 'battlefield' && (s.facts[o.name].script || {}).entersTapped) o.tapped = true;
@@ -6037,15 +6051,18 @@ function payFrom(pool, cost, extraGeneric = 0) {
 /** S11b · o que a permanente produz, contando o que auras concedem. */
 function expandProduction(s, o, opt) {
   if (Array.isArray(opt)) return [opt.slice()];
+  if (opt.identity) return identidade(s, o.controller).map(c => [c]); // M13 · sem comandante ou incolor: nada
   const n = opt.per ? countFor(s, o, opt.per) : (opt.amount || 1);
   if (n <= 0) return [];
   if (opt.anyColor) return ['W', 'U', 'B', 'R', 'G'].map(c => Array(n).fill(c));
   return [Array(n).fill(opt.symbol)];
 }
+/** M13 · cores da identidade dos comandantes do jogador (vazia fora do Commander). */
+function identidade(s, p) { return ((s.players[p] || {}).identity || []).slice(); }
 function productions(s, o) {
   const spec = ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
-  let opts = spec.length ? spec.flatMap(x => expandProduction(s, o, x)) : (s.facts[o.name].produces || []).map(x => x.slice());
+  let opts = spec.length ? spec.flatMap(x => expandProduction(s, o, x)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x));
   for (const x of attachedTo(s, o)) {
     const g = grantsOf(s, x); if (!g) continue;
     if (g.produces) opts = opts.concat(g.produces.flatMap(y => expandProduction(s, o, y)));
@@ -6749,7 +6766,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; note({}); break;
     case 'add_mana': {
-      const syms = eff.symbols || (eff.anyColor ? [eff.color || 'C'] : []);
+      // M13 · identidade do comandante: sem cor válida, a habilidade não produz nada (nem {C})
+      const syms = eff.symbols || (eff.identity ? (eff.color && identidade(s, ctrl).includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
@@ -7413,6 +7431,16 @@ function stateBased(s, events) {
     }
     if (!changed) break;
   }
+  // M13 · 903.9a/b: o dono decide se o comandante volta para a zona de comando, um de cada vez
+  if (s.voltaComando) {
+    s.voltaComando = s.voltaComando.filter(oid => s.objects[oid] && VOLTA_COMANDO.includes(s.objects[oid].zone) && !s.players[s.objects[oid].owner].lost);
+    if (!s.voltaComando.length) delete s.voltaComando;
+    else if (!s.pending && s.status === 'playing') {
+      const o = s.objects[s.voltaComando[0]];
+      s.pending = { kind: 'commander_zone', p: o.owner, oid: o.oid, from: o.zone };
+      events.push({ kind: 'choice', what: 'levar o comandante para a zona de comando', name: o.name, amount: 1 });
+    }
+  }
   const left = alive(s);
   if (s.status !== 'over' && s.players.length > 1 && left.length <= 1) {
     s.status = 'over'; s.winner = left.length ? left[0] : null; s.pending = null; events.push({ kind: 'over', winner: s.winner });
@@ -7632,7 +7660,9 @@ const HANDLERS = {
     if (!base) throw new RuleError('habilidade', 'essa permanente não tem essa habilidade');
     // S23 · mana de qualquer cor: a cor escolhida vem na ação
     if ((base.cost || {}).fromHand && !a.fromHand) throw new RuleError('habilidade', 'esta habilidade só funciona com a carta na mão');
-    const ab = { ...base, effects: (base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: a.color || 'C' } : e) };
+    if ((base.effects || []).some(e => e.do === 'add_mana' && e.identity) && a.color && !identidade(s, a.p).includes(a.color))
+      throw new RuleError('mana', 'essa cor está fora da identidade do seu comandante');
+    const ab = { ...base, effects: (base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: e.identity ? (a.color || null) : (a.color || 'C') } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
     const chosen = a.targets || [];
@@ -7793,6 +7823,16 @@ const HANDLERS = {
     s.pending = null;
     ev.push({ kind: 'choice-done', what: 'tipo de criatura', name: o ? o.name : '?', amount: 1 });
     resumeEffects(s, ev);
+  },
+  /** M13 · 903.9: comandante na zona de comando ou onde caiu. */
+  commander_zone(s, a, ev) {
+    const pd = s.pending;
+    if (!pd || pd.kind !== 'commander_zone' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum comandante esperando decisão');
+    s.pending = null;
+    s.voltaComando = (s.voltaComando || []).filter(x => x !== pd.oid);
+    if (!s.voltaComando.length) delete s.voltaComando;
+    const o = s.objects[pd.oid];
+    if (a.yes && o && o.zone === pd.from) { moveObject(s, pd.oid, 'command'); ev.push({ kind: 'commander-home', oid: pd.oid, name: o.name, from: pd.from }); }
   },
   choose_color(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'choose_color' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma cor a escolher');
@@ -7985,7 +8025,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
+const PENDING_ACTIONS = { commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -7996,6 +8036,7 @@ function apply(state, action) {
     const k = state.pending.kind;
     throw new RuleError('pendente', k === 'discard' ? `descarte ${state.pending.n} carta(s) primeiro` : k === 'attackers' ? 'declare os atacantes primeiro'
       : k === 'triggers' ? 'escolha a ordem dos gatilhos primeiro' : k === 'choose_color' ? 'escolha a cor primeiro'
+      : k === 'commander_zone' ? 'decida se o comandante volta para a zona de comando primeiro'
       : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
       : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
@@ -8039,6 +8080,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       el.forEach(oid => out.push({ t: 'attack', p, attackers: [...new Set([oid, ...obrig])] }));
     }
     if (k === 'choose_color') ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'choose_color', p, color }));
+    if (k === 'commander_zone') { out.push({ t: 'commander_zone', p, yes: true }); out.push({ t: 'commander_zone', p, yes: false }); }
     if (k === 'pick_target') s.pending.options.forEach((o, index) => out.push({ t: 'pick_target', p, index }));
     if (k === 'madness') {
       const o = s.objects[s.pending.oid];
@@ -8317,6 +8359,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (ab.adapt != null && !(ab.effects || []).length) { if (canPayAbility(s, p, o, ab)) out.push({ t: 'activate', p, oid: o.oid, index }); return; }
       if (!need.length) {
         const anyColor = (ab.effects || []).some(e => e.do === 'add_mana' && e.anyColor);
+        const porIdentidade = (ab.effects || []).some(e => e.do === 'add_mana' && e.identity);
+        if (porIdentidade) return identidade(s, p).forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
         if (anyColor) return ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
         return out.push({ t: 'activate', p, oid: o.oid, index, ...(pay ? { pay } : {}) });
       }
@@ -8719,6 +8763,7 @@ function jogadaAmador(s, p, opts = {}) {
   if (s.status !== 'playing' || s.players[p].lost) return null;
   const pend = s.pending;
   const minhaDecisao = !!(pend && pend.p === p);
+  if (minhaDecisao && pend.kind === 'commander_zone') return { acao: { t: 'commander_zone', p, yes: true }, motivo: 'meu comandante volta para a zona de comando' };
   if (minhaDecisao && pend.kind === 'attackers') return decideAtaque(s, p);
   if (minhaDecisao && pend.kind === 'blockers') return decideBloqueio(s, p);
   const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede');
@@ -8852,6 +8897,7 @@ function jogadaProfissional(s, p, opts = {}) {
   if (s.status !== 'playing' || s.players[p].lost) return null;
   const pend = s.pending;
   const minhaDecisao = !!(pend && pend.p === p);
+  if (minhaDecisao && pend.kind === 'commander_zone') return { acao: { t: 'commander_zone', p, yes: true }, motivo: 'meu comandante volta para a zona de comando' };
   if (minhaDecisao && pend.kind === 'attackers') return decideAtaqueProfissional(s, p, opts);
   if (minhaDecisao && pend.kind === 'blockers') return decideBloqueioProfissional(s, p, opts);
   const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede');
@@ -9174,11 +9220,13 @@ function describe(before, a, events, after) {
     case 'pay': L.push(`${P} pagou para a mágica não ser anulada`); break;
     case 'decline': L.push(`${P} deixou a mágica ser anulada`); break;
     case 'pick_done': L.push(`${P} terminou a escolha`); break;
+    case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
+      L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     case 'choose_color': L.push(`${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break;
     case 'concede': L.push(`${P} desistiu`); break;
     case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o)).join(', ')}` : `${P} não atacou`); break;
     case 'block': L.push(a.blocks.length ? `${P} bloqueou: ${a.blocks.map(([b, x]) => `${nameOf(before, b)} → ${nameOf(before, x)}`).join(', ')}` : `${P} não bloqueou`); break;
-    case 'tap_mana': { const o = before.objects[a.oid]; const opt = (before.facts[o.name].produces[a.option || 0] || []).map(c => `{${c}}`).join(''); L.push(`${P} gerou ${opt} com ${o.name}`); break; }
+    case 'tap_mana': { const o = before.objects[a.oid]; const opt = (E.productions(before, o)[a.option || 0] || []).map(c => `{${c}}`).join(''); L.push(`${P} gerou ${opt} com ${o.name}`); break; }
     case 'companion': L.push(`${P} pôs o companheiro ${nameOf(before, a.oid)} na mão${a.free ? ' (sem pagar)' : ` ({${E.COMPANION_COST}})`}`); break;
     case 'activate': {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
@@ -9312,6 +9360,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'pick' ? ((pd.needMv ? somaMvDoGoldfish(s, pd) >= pd.needMv : (pd.picked || []).length >= (pd.min || 0)) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
           : pd.kind === 'may_pay' ? { t: 'decline', p: pd.p }
           : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: 'W' }
+          : pd.kind === 'commander_zone' ? { t: 'commander_zone', p: pd.p, yes: true } // M13
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
           : pd.kind === 'choose_mode' ? { t: 'choose_mode', p: pd.p, index: 0 }
@@ -9472,7 +9521,7 @@ function descreveEfeito(e) {
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
-    case 'add_mana': return e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
+    case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório`;
     case 'scry': return `olha as ${n} de cima e decide (scry ${n})`;
     case 'surveil': return `vigia ${n}`;
@@ -9999,7 +10048,7 @@ function createTableScreen({ store }) {
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
     // M7: mana da fonte, uma opção por cor que ela gera
     if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
-      f.produces.forEach((opt, k) => legal.push(doBtn(`Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k })));
+      E.productions(s, o).forEach((opt, k) => legal.push(doBtn(`Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k })));
     // S24: faces duplas
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
       legal.push(doBtn(x.disturb ? `Disturb · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
@@ -10245,6 +10294,13 @@ function createTableScreen({ store }) {
       banner = PriorityBanner({ title: LABEL[pk.label] || 'Escolha cartas', tone: 'warning',
         hint: `${pk.picked.length} de até ${pk.max} escolhida(s) · o resto ${REST[pk.rest] || ''}`,
         actions: [done ? Button('Confirmar', { variant: 'primary', id: 'tb-pick-done', onClick: () => act({ t: 'pick_done', p: v }) }) : null].filter(Boolean) });
+    } else if (s.pending && s.pending.kind === 'commander_zone' && s.pending.p === v) {
+      // M13 · 903.9: o dono escolhe; o padrão é voltar, que é o que quase todo mundo faz
+      const cmd = s.objects[s.pending.oid];
+      const ONDE = { graveyard: 'Deixar no cemitério', exile: 'Deixar no exílio', hand: 'Deixar na mão', library: 'Deixar no grimório' };
+      banner = PriorityBanner({ title: `${cmd ? cmd.name : 'Seu comandante'} saiu do campo`, hint: 'Levar para a zona de comando? De lá você conjura de novo, pagando o imposto.', tone: 'warning',
+        actions: [Button('Zona de comando', { variant: 'primary', id: 'tb-cmd-home', onClick: () => act({ t: 'commander_zone', p: v, yes: true }) }),
+          Button(ONDE[s.pending.from] || 'Deixar onde está', { id: 'tb-cmd-stay', onClick: () => act({ t: 'commander_zone', p: v, yes: false }) })] });
     } else if (s.pending && s.pending.kind === 'choose_color' && s.pending.p === v) {
       const alvo = s.objects[s.pending.oid];
       banner = PriorityBanner({ title: `Escolha uma cor para ${alvo ? alvo.name : 'a permanente'}`, hint: 'A carta pede uma cor ao entrar no campo.',

@@ -379,7 +379,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
-| E36 | S67+ | Commander: 67 cartas manuais (42 Killian, 25 Malcolm) e 24 parciais |
+| E36 🟡 | M13a (leva 81) · S67+ | Commander: regras do formato no motor (identidade na mana, volta à zona de comando); depois 95 cartas sem script (terrenos que só geram mana já rodam pelo texto) e 22 parciais |
 | E34 | S33 | Commander Killian e Malcolm: reanimação por aura, modais e tutores |
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
@@ -639,7 +639,16 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M5, S1.
 - **Fora:** cópias de permanentes e fichas que copiam outra carta.
 
-**M13 · Regras específicas de Commander** ○
+**M13 · Regras específicas de Commander** 🟡 (leva 81: identidade na mana e volta à zona de comando)
+- **Entregue (leva 81, E36):**
+  - identidade de cor do comandante fixada no jogador ao começar (903.4); dois comandantes somam as identidades;
+  - "one mana of any color in your commander's color identity": Command Tower (lida do texto) e Arcane Signet (script, agora completo) só geram cores da identidade; comandante incolor ou partida sem comandante não gera nada, nem {C} (rulings de 10/11/2020, conferidos na Scryfall em 29/09/2026);
+  - comandante que vai para cemitério, exílio, mão ou grimório: o dono decide se volta para a zona de comando (903.9a/b, conferido em 29/09/2026); dois de uma vez, uma pergunta de cada; bots e goldfish sempre levam;
+  - mesa: aviso "X saiu do campo" com "Zona de comando" e "Deixar no cemitério/exílio/mão/grimório"; linha do tempo registra a escolha.
+- **Sem rede:** tudo roda no motor, no aparelho; passo novo no `e2e · O1` (Commander sem internet, comandante exilado volta para a zona de comando).
+- **Simplificação declarada:** para mão e grimório a regra é de substituição (o comandante nem chega lá); no motor a pergunta vem logo depois da mudança de zona. O resultado só difere para efeitos que olham a mão ou o grimório nesse intervalo, e nenhuma carta das listas faz isso.
+- **Testes:** `commander.unit.test.mjs` (11, todos falham na versão anterior), e2e `M13` na mesa, passo no `e2e · O1`; `commander-7` regravada: a partida-referência agora passa por 4 decisões de zona de comando (2 sim, 2 não).
+- **Falta (M13b):** partner e background como validação de lista; Exotic Orchard e Fellwar Stone ("cores que um terreno do oponente poderia produzir").
 - **Valor:** o Commander completo sem lembrar exceções.
 - **Aceite:**
   - substituição do comandante para a zona de comando (escolha);
