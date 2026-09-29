@@ -117,6 +117,11 @@
   --shadow-2: 0 4px 12px rgba(0, 0, 0, .48);
   --shadow-3: 0 12px 34px rgba(0, 0, 0, .6);
   --shadow-up: 0 -10px 28px -14px rgba(0, 0, 0, .6); /* U6b · sombra da folha inferior, para cima */
+  /* U2 · profundidade de botão: brilho no topo, lábio embaixo, sombra curta; pressionado afunda */
+  --btn-shine: rgba(255, 240, 210, .07);
+  --btn-shine-accent: rgba(255, 250, 235, .16);
+  --btn-rest: 0 1px 0 rgba(0, 0, 0, .38), 0 3px 6px -3px rgba(0, 0, 0, .55);
+  --btn-pressed: inset 0 2px 3px rgba(0, 0, 0, .38);
   --focus-ring: 0 0 0 3px var(--accent-soft);
   color-scheme: dark;
 }
@@ -153,6 +158,10 @@
   --shadow-2: 0 4px 12px rgba(74, 56, 26, .18);
   --shadow-3: 0 12px 34px rgba(74, 56, 26, .24);
   --shadow-up: 0 -10px 28px -14px rgba(74, 56, 26, .24); /* U6b · sombra da folha inferior, para cima */
+  --btn-shine: rgba(255, 252, 244, .5);
+  --btn-shine-accent: rgba(255, 244, 214, .14);
+  --btn-rest: 0 1px 0 rgba(92, 68, 30, .22), 0 3px 6px -3px rgba(74, 56, 26, .3);
+  --btn-pressed: inset 0 2px 3px rgba(74, 56, 26, .22);
   color-scheme: light;
 }
 
@@ -188,6 +197,10 @@
     --shadow-2: 0 4px 12px rgba(74, 56, 26, .18);
     --shadow-3: 0 12px 34px rgba(74, 56, 26, .24);
     --shadow-up: 0 -10px 28px -14px rgba(74, 56, 26, .24); /* U6b · sombra da folha inferior, para cima */
+    --btn-shine: rgba(255, 252, 244, .5);
+    --btn-shine-accent: rgba(255, 244, 214, .14);
+    --btn-rest: 0 1px 0 rgba(92, 68, 30, .22), 0 3px 6px -3px rgba(74, 56, 26, .3);
+    --btn-pressed: inset 0 2px 3px rgba(74, 56, 26, .22);
     color-scheme: light;
   }
 }
@@ -253,23 +266,62 @@ a { color: var(--accent); }
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
   min-height: var(--tap-min); padding: 0 var(--space-4);
   border: 1px solid var(--border); border-radius: var(--radius-1);
-  background: var(--bg-elev-2); color: var(--fg);
+  background-color: var(--bg-elev-2); background-image: linear-gradient(180deg, var(--btn-shine), transparent 70%); color: var(--fg);
+  box-shadow: var(--btn-rest);
   font-size: var(--text-md); font-weight: var(--weight-medium);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; -webkit-user-select: none;
   transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out),
               color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out),
               box-shadow var(--dur-1) var(--ease-out);
 }
-.ds-btn:hover { border-color: var(--border-strong); background: var(--bg-elev-3); }
-.ds-btn:active { transform: translateY(1px); }
-.ds-btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
-.ds-btn--primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); box-shadow: var(--shadow-1); }
-.ds-btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-fg); }
-.ds-btn--ghost { background: transparent; border-color: transparent; color: var(--fg-muted); }
-.ds-btn--ghost:hover { background: var(--bg-elev-2); color: var(--fg); border-color: transparent; }
+@media (hover: hover) { .ds-btn:hover { border-color: var(--border-strong); background-color: var(--bg-elev-3); } }
+/* U2 · toque: o botão afunda (desce 1px, encolhe 3%, a sombra vira interna) — retorno imediato sem esperar a ação */
+.ds-btn:active:not([disabled]) { transform: translateY(1px) scale(.97); box-shadow: var(--btn-pressed); }
+.ds-btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.ds-btn--primary { background-color: var(--accent); background-image: linear-gradient(180deg, var(--btn-shine-accent), transparent 70%); color: var(--accent-fg); border-color: var(--accent); }
+@media (hover: hover) { .ds-btn--primary:hover { background-color: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-fg); } }
+.ds-btn--ghost { background-color: transparent; background-image: none; border-color: transparent; color: var(--fg-muted); box-shadow: none; }
+@media (hover: hover) { .ds-btn--ghost:hover { background-color: var(--bg-elev-2); color: var(--fg); border-color: transparent; } }
+.ds-btn--ghost:active:not([disabled]) { background-color: var(--bg-elev-2); color: var(--fg); box-shadow: none; }
 .ds-btn--danger { color: var(--negative); border-color: var(--border); }
 .ds-btn--danger:hover { background: var(--negative); color: var(--negative-fg); border-color: var(--negative); }
 .ds-btn--block { width: 100%; }
 .ds-btn--icon { width: var(--tap-min); padding: 0; }
+.ds-btn--icone { width: var(--tap-min); padding: 0; flex: none; }
+.ds-btn .ds-icon { flex: none; }
+.ds-btn__rotulo { min-width: 0; }
+.ds-btn:has(> .ds-icon + .ds-btn__rotulo) { padding-left: var(--space-3); }
+@media (prefers-reduced-motion: reduce) { .ds-btn:active:not([disabled]) { transform: none; } }
+
+/* U2 · atalhos da tela inicial: ícone grande, uma palavra, detalhe curto */
+.ds-atalhos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.ds-atalho { flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+  min-height: 92px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); text-align: left; }
+.ds-atalho__icone { color: var(--accent); }
+.ds-btn--primary .ds-atalho__icone { color: inherit; }
+.ds-atalho__texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-atalho__rotulo { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.15; font-weight: var(--weight-regular); }
+.ds-atalho__detalhe { font-size: var(--text-xs); line-height: 1.35; opacity: .82; font-weight: var(--weight-regular); }
+.ds-atalho--largo { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: flex-start; min-height: 76px; gap: var(--space-4); }
+.ds-atalho--largo .ds-atalho__icone svg { width: 30px; height: 30px; }
+
+.ds-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--space-2); }
+.ds-icones__item { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) 0; color: var(--fg); }
+.ds-icones__item figcaption { font-size: var(--text-xs); color: var(--fg-muted); font-family: var(--font-mono); }
+/* U2 · destino da barra: ícone com legenda de uma palavra embaixo */
+.ds-nav { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 52px; min-height: var(--tap-min); padding: 3px var(--space-1) 2px; border-radius: var(--radius-1);
+  color: var(--fg-muted); font: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; position: relative;
+  transition: color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
+.ds-nav__rotulo { font-size: 11px; line-height: 1.1; font-weight: var(--weight-medium); letter-spacing: .01em; white-space: nowrap; }
+.ds-nav[aria-current="page"] { color: var(--accent); }
+.ds-nav[aria-current="page"]::after { content: ''; position: absolute; left: 30%; right: 30%; bottom: -1px; height: 2px; border-radius: 2px; background: currentColor; }
+@media (hover: hover) { .ds-nav:hover { color: var(--fg); background: var(--bg-elev-2); } }
+.ds-nav:active { transform: scale(.94); background: var(--bg-elev-2); }
+.ds-nav--alerta { color: var(--warning); }
+@media (prefers-reduced-motion: reduce) { .ds-nav:active { transform: none; } }
+/* U2 · tema: os dois ícones moram no botão; o atributo escolhe qual aparece (sem trocar o conteúdo) */
+[data-icone-tema="lua"] .ds-icon[data-icone="sol"], [data-icone-tema="sol"] .ds-icon[data-icone="lua"] { display: none; }
 
 /* ---------------- campos ---------------- */
 .ds-field { display: block; }
@@ -510,7 +562,13 @@ body {
    única cor viva. O banner de prioridade é o único elemento em destaque. */
 .tb { padding-bottom: var(--space-4); }
 .tb-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); }
-.tb-top__actions { display: flex; gap: var(--space-2); margin-left: auto; }
+.tb-top__actions { display: flex; gap: 2px; margin-left: auto; }
+/* U2 · ferramentas da mesa ao lado da faixa de vez (antes ocupavam uma linha inteira) */
+.tb-top > .tb-vez { flex: 1 1 0; min-width: 0; }
+.tb-top > .tb-top__actions { order: 2; margin-left: 0; }
+.tb-top > .tb-steps { order: 3; flex-basis: 100%; }
+.tb-top__actions .ds-btn { color: var(--fg-muted); }
+.tb-vez__rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tb-steps { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .tb-steps__head { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-muted); }
 .tb-steps__head strong { color: var(--fg); font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-md); }
@@ -539,7 +597,8 @@ body {
 .tb-vez__avatar { flex: none; width: 34px; height: 34px; border-radius: var(--radius-full); display: grid; place-items: center;
   background: var(--bg-elev-1); color: var(--fg); font-family: var(--font-display); font-size: var(--text-md); }
 .tb-vez__rotulo { font-size: var(--text-md); }
-.tb-vez__prio { margin-left: auto; padding: 2px var(--space-2); border-radius: var(--radius-full); background: var(--bg-elev-1); color: var(--fg); font-size: var(--text-xs); font-weight: var(--weight-medium); white-space: nowrap; }
+.tb-vez__texto { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; line-height: 1.2; }
+.tb-vez__prio { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 1px var(--space-2) 1px 6px; border-radius: var(--radius-full); background: var(--bg-elev-1); color: var(--fg); font-size: var(--text-xs); font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @keyframes tb-vez-troca { from { opacity: .2; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
 .tb-vez--troca { animation: tb-vez-troca 300ms var(--ease-out); }
 .tb-handoff .tb-vez { flex: none; width: min(100%, 360px); }
@@ -1075,8 +1134,9 @@ const __m1 = (function () {
    usuário ele era igual ao escuro e o botão parecia não fazer nada. Na primeira abertura o
    app segue o sistema; a partir do primeiro toque a escolha fica guardada. */
 const THEMES = [
-  { id: 'dark', icon: '☾', label: 'Tema escuro · toque para o claro' },
-  { id: 'light', icon: '☀', label: 'Tema claro · toque para o escuro' }
+  // U2 · ícone do conjunto do app (lua/sol em SVG), não mais o caractere ☾/☀
+  { id: 'dark', icone: 'lua', label: 'Tema escuro · toque para o claro' },
+  { id: 'light', icone: 'sol', label: 'Tema claro · toque para o escuro' }
 ];
 const KEY = 'ui.theme';
 /** O que o sistema prefere agora; escuro quando não dá para saber. */
@@ -1093,7 +1153,7 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
     if (root && root.setAttribute) root.setAttribute('data-theme', current);
     if (doc.querySelectorAll) doc.querySelectorAll('[data-theme-toggle]').forEach(b => {
       const t = THEMES.find(x => x.id === current);
-      b.textContent = t.icon;
+      b.setAttribute('data-icone-tema', t.icone); // o CSS mostra a lua ou o sol que já moram no botão
       b.setAttribute('aria-label', t.label);
       b.title = t.label;
       b.setAttribute('aria-pressed', current === 'light' ? 'true' : 'false');
@@ -1181,17 +1241,83 @@ function Text(value, opts = {}) {
 }
 
 /* ---------------- botão ---------------- */
+/** U2 · `icone: 'nome'` põe o ícone do app antes do rótulo (o rótulo vai num span, para o
+    flex não quebrar o texto em pedaços). */
 function Button(label, opts = {}) {
   const cls = ['ds-btn'];
   if (opts.variant) cls.push(`ds-btn--${opts.variant}`);
   if (opts.block) cls.push('ds-btn--block');
   if (opts.icon) cls.push('ds-btn--icon');
+  if (opts.classe) cls.push(opts.classe);
   return h('button', {
     class: cls.join(' '), type: 'button',
     disabled: opts.disabled || false,
     'aria-label': opts.ariaLabel || (opts.icon ? String(label) : null),
+    title: opts.title || null,
     onClick: opts.onClick, id: opts.id, dataset: opts.dataset
-  }, label);
+  }, opts.icone ? [Icone(opts.icone, { tamanho: opts.tamanhoIcone || 20 }), h('span', { class: 'ds-btn__rotulo' }, label)] : label);
+}
+
+/* ---------------- ícones ----------------
+   U6b criou o conjunto na mesa; U2 (leva 92) o trouxe para cá e o estendeu ao app inteiro.
+   Regras: grade 24, traço 1,75, pontas e cantos redondos, cor herdada (currentColor),
+   sem preenchimento. Nada de emoji em botão. */
+const ICONES = {
+  // mão: três cartas em leque
+  mao: '<rect x="3.5" y="6.5" width="8" height="12" rx="1.6" transform="rotate(-14 7.5 12.5)"/><rect x="8" y="5" width="8" height="12" rx="1.6"/><rect x="12.5" y="6.5" width="8" height="12" rx="1.6" transform="rotate(14 16.5 12.5)"/>',
+  // passar o turno: avançar até o próximo
+  pular: '<path d="M5 6.5l7 5.5-7 5.5z"/><path d="M12 6.5l7 5.5-7 5.5z"/>',
+  subir: '<path d="M6 14.5l6-6 6 6"/>',
+  voltar: '<path d="M14.5 6l-6 6 6 6"/>',
+  seguir: '<path d="M9.5 6l6 6-6 6"/>',
+  // jogar: o gesto universal de começar
+  jogar: '<path d="M8 5.2v13.6a.6.6 0 0 0 .9.5l10.4-6.8a.6.6 0 0 0 0-1L8.9 4.7a.6.6 0 0 0-.9.5z"/>',
+  // listas: uma carta com linhas de lista e outra atrás
+  listas: '<rect x="7.5" y="3.5" width="12" height="15.5" rx="1.8"/><path d="M4.5 7.5v11a2.5 2.5 0 0 0 2.5 2.5h8.5"/><path d="M11 8.5h5M11 11.5h5M11 14.5h3"/>',
+  // coleção: fichário com quatro bolsos
+  colecao: '<rect x="3.5" y="3" width="7" height="8" rx="1.4"/><rect x="13.5" y="3" width="7" height="8" rx="1.4"/><rect x="3.5" y="13" width="7" height="8" rx="1.4"/><rect x="13.5" y="13" width="7" height="8" rx="1.4"/>',
+  // scanner: visor da câmera enquadrando uma carta
+  scanner: '<path d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5"/><rect x="9" y="7.5" width="6" height="9" rx="1.2"/>',
+  buscar: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>',
+  // componentes: camadas do design system
+  camadas: '<path d="M12 3.5l8.5 4.5-8.5 4.5-8.5-4.5z"/><path d="M3.5 12.2l8.5 4.5 8.5-4.5"/><path d="M3.5 16.4l8.5 4.5 8.5-4.5"/>',
+  desfazer: '<path d="M9 13.5L4.5 9 9 4.5"/><path d="M4.5 9H14a5.5 5.5 0 0 1 0 11h-3.5"/>',
+  // registro: linhas com marcadores
+  registro: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="2.6"/>',
+  // desistir: bandeira branca
+  desistir: '<path d="M5.5 21V3.8"/><path d="M5.5 4.5h12.2l-2.6 4.3 2.6 4.3H5.5"/>',
+  lua: '<path d="M19.8 14.6A8.2 8.2 0 0 1 9.4 4.2a8.2 8.2 0 1 0 10.4 10.4z"/>',
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5L7 7M17 17l1.5 1.5M5.5 18.5L7 17M17 7l1.5-1.5"/>',
+  // sem internet: nuvem cortada
+  semRede: '<path d="M8.2 7.9A5.8 5.8 0 0 1 17.6 11a3.8 3.8 0 0 1 2.3 5.9M16 19.2H7.3a4.5 4.5 0 0 1-1.7-8.7"/><path d="M3.5 3.5l17 17"/>',
+  // instalar: aparelho recebendo o app
+  instalar: '<rect x="6.5" y="2.8" width="11" height="18.4" rx="2.2"/><path d="M12 7v7.2M9 11.4l3 3 3-3"/>',
+  baixar: '<path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19.5h14"/>',
+  proteger: '<path d="M12 3.3l7 2.8v5.3c0 4.3-2.9 7.7-7 9.3-4.1-1.6-7-5-7-9.3V6.1z"/><path d="M9 12l2.1 2.1L15.2 10"/>',
+  conferir: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4.5v4.2h-4.2"/>',
+  // prioridade com o outro: a mesa espera uma resposta
+  ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
+};
+function Icone(nome, { tamanho = 20, classe = '' } = {}) {
+  const el = h('span', { class: ('ds-icon ' + classe).trim(), 'aria-hidden': 'true', dataset: { icone: nome } });
+  el.innerHTML = `<svg viewBox="0 0 24 24" width="${tamanho}" height="${tamanho}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false">${ICONES[nome] || ''}</svg>`;
+  return el;
+}
+/** Botão só de ícone: o rótulo vira nome acessível e dica; `rotulo: true` mostra o texto ao lado. */
+function IconButton(icone, rotulo, { id, variant, onClick, rotulo: mostra = false, classe = '', disabled = false } = {}) {
+  return h('button', { class: ['ds-btn', 'ds-btn--icone', classe, variant ? `ds-btn--${variant}` : ''].filter(Boolean).join(' '), type: 'button', id, 'aria-label': rotulo, title: rotulo, onClick, disabled },
+    Icone(icone), mostra ? h('span', { class: 'ds-btn__rotulo ' + (classe ? classe + '__rotulo' : '') }, rotulo) : null);
+}
+/** U2 · atalho da tela inicial: ícone grande sobre um rótulo de uma palavra, com detalhe opcional. */
+function Atalho(rotulo, { icone, id, variant, onClick, detalhe } = {}) {
+  return h('button', { class: ['ds-btn', 'ds-atalho', variant ? `ds-btn--${variant}` : ''].filter(Boolean).join(' '), type: 'button', id, onClick },
+    Icone(icone, { tamanho: 26, classe: 'ds-atalho__icone' }),
+    h('span', { class: 'ds-atalho__texto' }, h('span', { class: 'ds-atalho__rotulo' }, rotulo), detalhe ? h('span', { class: 'ds-atalho__detalhe' }, detalhe) : null));
+}
+/** U2 · destino da barra: ícone com legenda curta embaixo; `aria-current` marca onde você está. */
+function NavBotao(rotulo, { icone, id, onClick, rota, ariaLabel } = {}) {
+  return h('button', { class: 'ds-nav', type: 'button', id, onClick, 'aria-label': ariaLabel || null, dataset: rota ? { rota } : undefined },
+    Icone(icone, { tamanho: 22 }), h('span', { class: 'ds-nav__rotulo' }, rotulo));
 }
 
 /* ---------------- campos ---------------- */
@@ -1387,7 +1513,7 @@ function toast(message, ms = 2400) {
   toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar };
+  analisaSimbolos, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, ICONES, Icone, IconButton, Atalho, NavBotao };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -1483,6 +1609,16 @@ function renderDS() {
       h('div', { class: 'ds-row ds-row--wrap', id: 'ds-simbolos', style: { gap: 'var(--space-3)', fontSize: '28px' } },
         ...['W', 'U', 'B', 'R', 'G', 'C', '0', '1', '2', '3', '10', 'X', 'T', 'Q', 'E', 'S', 'W/U', 'B/R', 'G/W', '2/W', 'U/P', 'R/P'].map(c => __m3.Simbolo(c))),
       h('p', { class: 'ds-text', id: 'ds-simbolos-texto', style: { maxWidth: '36ch' } }, __m3.ComSimbolos('{T}: Add {G}. {1}{U}{U}, sacrifique: compre duas cartas. Pague {W/P} ou 2 de vida.'))),
+
+    // U2 · conjunto de ícones do app, atalho da tela inicial, destino da barra e botões com ícone
+    Section('Ícones',
+      h('div', { class: 'ds-icones', id: 'ds-icones' },
+        ...Object.keys(__m3.ICONES).map(n => h('figure', { class: 'ds-icones__item' }, __m3.Icone(n, { tamanho: 24 }), h('figcaption', {}, n)))),
+      Row({ class: 'ds-row--wrap' },
+        Button('Com ícone', { icone: 'baixar', variant: 'primary' }), Button('Proteger', { icone: 'proteger' }),
+        __m3.IconButton('desfazer', 'Desfazer'), __m3.IconButton('registro', 'Registro', { variant: 'ghost' })),
+      Row({ class: 'ds-row--wrap' }, __m3.NavBotao('Jogar', { icone: 'jogar' }), __m3.NavBotao('Listas', { icone: 'listas' })),
+      h('div', { class: 'ds-atalhos' }, __m3.Atalho('Atalho', { icone: 'colecao', detalhe: 'Detalhe curto' }), __m3.Atalho('Principal', { icone: 'jogar', variant: 'primary' }))),
 
     Section('Marca',
       h('div', { class: 'ds-row ds-row--wrap', id: 'ds-brand', style: { gap: 'var(--space-5)' } },
@@ -9348,7 +9484,7 @@ const __m17 = (function () {
    Mesmas regras do F5: fábricas sem framework, só tokens, alvo de toque
    de 44px. Documentados no catálogo /ds.
    ===================================================================== */
-const { h, Text, Button, Row, Badge } = __m3;
+const { h, Text, Button, Row, Badge, Icone } = __m3;
 
 /** Carta na mesa. Virada gira 90°; enjoo aparece como selo; marcadores e dano como pílulas. */
 /* A13 · a carta diz tudo sem toque: nome sempre legível, P/T da criatura, anel de estado
@@ -9449,27 +9585,9 @@ function ligaGestoDeBandeja(el, { aberta, aoDecidir, alvoVisual }) {
   });
 }
 
-/** U6b · ícones do app: SVG inline, cor herdada (currentColor), traço 1,75, cantos redondos.
-    Uma fonte só para todos os ícones da mesa; o U2 estende o conjunto para o app inteiro. */
-const ICONES = {
-  // mão: três cartas em leque
-  mao: '<rect x="3.5" y="6.5" width="8" height="12" rx="1.6" transform="rotate(-14 7.5 12.5)"/><rect x="8" y="5" width="8" height="12" rx="1.6"/><rect x="12.5" y="6.5" width="8" height="12" rx="1.6" transform="rotate(14 16.5 12.5)"/>',
-  // passar o turno: avançar até o próximo
-  pular: '<path d="M5 6.5l7 5.5-7 5.5z"/><path d="M12 6.5l7 5.5-7 5.5z"/>',
-  // divisa para cima (a bandeja sobe)
-  subir: '<path d="M6 14.5l6-6 6 6"/>'
-};
-function Icone(nome, { tamanho = 20, classe = '' } = {}) {
-  const el = h('span', { class: ('ds-icon ' + classe).trim(), 'aria-hidden': 'true' });
-  el.innerHTML = `<svg viewBox="0 0 24 24" width="${tamanho}" height="${tamanho}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome] || ''}</svg>`;
-  return el;
-}
-/** Botão de ícone com rótulo acessível; `rotulo: true` mostra o texto ao lado quando há espaço. */
-function IconButton(icone, rotulo, { id, variant, onClick, rotulo: mostra = false } = {}) {
-  const b = h('button', { class: ['ds-btn', 'tb-iconbtn', variant ? `ds-btn--${variant}` : ''].filter(Boolean).join(' '), type: 'button', id, 'aria-label': rotulo, title: rotulo, onClick },
-    Icone(icone), mostra ? h('span', { class: 'tb-iconbtn__rotulo' }, rotulo) : null);
-  return b;
-}
+/** U6b · os ícones moraram aqui; desde o U2 vêm do conjunto único dos componentes.
+    O botão de ícone da mesa só acrescenta a classe `tb-iconbtn` (legenda some com a bandeja recolhida). */
+const IconButton = (icone, rotulo, o = {}) => __m3.IconButton(icone, rotulo, { ...o, classe: 'tb-iconbtn' });
 
 /** Faixa rolável de cartas com rótulo. Vazia, ocupa pouco e diz o que é. */
 function ZoneRow(label, cards, opts = {}) {
@@ -9928,7 +10046,7 @@ function estadoDaCarta(s, o, plano = null) {
     Turno e prioridade são coisas diferentes: no seu turno o oponente pode estar respondendo. */
 function vezDaMesa(s, v) {
   const nome = i => ((s.players || [])[i] || {}).name || `Jogador ${i + 1}`;
-  if (s.status === 'mulligan') return { fase: 'mulligan', turnoDe: null, meuTurno: false, rotulo: 'Mão inicial', inicial: '✋', prioridadeDe: null, minhaPrioridade: false, prioridadeRotulo: null, turno: 0 };
+  if (s.status === 'mulligan') return { fase: 'mulligan', turnoDe: null, meuTurno: false, rotulo: 'Mão inicial', inicial: '', /* U2 · a tela desenha o ícone da mão; nada de emoji */ prioridadeDe: null, minhaPrioridade: false, prioridadeRotulo: null, turno: 0 };
   if (s.status === 'over') {
     const w = s.winner;
     return { fase: 'fim', turnoDe: w, meuTurno: w === v, rotulo: w == null ? 'Empate' : w === v ? 'Você venceu' : `${nome(w)} venceu`, inicial: w == null ? '=' : nome(w).slice(0, 1).toUpperCase(),
@@ -10383,10 +10501,12 @@ function createTableScreen({ store }) {
     if (anima) ultimoTurno = vz.turno;
     const papel = vz.fase !== 'jogo' ? vz.fase : vz.meuTurno ? 'eu' : 'oponente';
     const filhos = [
-      h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true' }, vz.inicial),
-      h('span', { class: 'tb-vez__rotulo' }, vz.rotulo),
-      vz.prioridadeRotulo ? h('span', { class: 'tb-vez__prio', id: anima ? 'tb-vez-prio' : null, dataset: { minha: String(vz.minhaPrioridade) } },
-        h('span', { 'aria-hidden': 'true' }, '⚑'), ' ', vz.prioridadeRotulo) : null].filter(Boolean);
+      h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true' }, vz.fase === 'mulligan' ? Icone('mao', { tamanho: 20 }) : vz.inicial),
+      // U2 · rótulo e selo de prioridade empilhados: a faixa divide a linha com as ferramentas sem cortar o nome
+      h('span', { class: 'tb-vez__texto' },
+        h('span', { class: 'tb-vez__rotulo' }, vz.rotulo),
+        vz.prioridadeRotulo ? h('span', { class: 'tb-vez__prio', id: anima ? 'tb-vez-prio' : null, dataset: { minha: String(vz.minhaPrioridade) } },
+          Icone('ampulheta', { tamanho: 13 }), vz.prioridadeRotulo) : null)];
     if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, ...filhos);
     if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
     vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
@@ -10927,9 +11047,10 @@ function createTableScreen({ store }) {
         vezBox(s, v),
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
         h('div', { class: 'tb-top__actions' },
-          Button('Desfazer', { id: 'tb-undo', disabled: !table.canUndo(), onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
-          Button('Registro', { id: 'tb-log', onClick: openLog }),
-          Button('Desistir', { variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
+          // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
+          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
+          IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
+          IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
         opp != null ? side(s, opp, false) : null,
@@ -12091,7 +12212,7 @@ const __m13 = (function () {
 const { createPlatform, descreveEspaco } = __m0;
 const { createTheme } = __m1;
 const { createRouter } = __m2;
-const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note } = __m3;
+const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note, Icone, Atalho, NavBotao } = __m3;
 const { renderDS } = __m5;
 const { logoLockup, installFavicon } = __m4;
 const { createScryfall } = __m6;
@@ -12143,19 +12264,23 @@ const ROUTES = [
 ];
 
 function renderHome() {
-  return h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-6)' } },
+  const el = h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-6)' } },
     Text('Plataforma de Magic', { size: '2xl', display: true, as: 'h1' }),
-    Text('Monte suas listas, marque o que já tem na coleção e jogue na mesa assistida: o motor cuida de turno, pilha e vida; você aplica o que ele ainda não sabe.', { tone: 'muted' }),
+    Text('Monte listas, marque o que já tem e jogue na mesa assistida: o motor cuida de turno, pilha e vida.', { tone: 'muted' }),
     h('div', { style: { height: 'var(--space-5)' } }),
-    h('div', { class: 'ds-row ds-row--wrap' },
-      Button('Jogar', { variant: 'primary', id: 'go-play', onClick: () => { location.hash = '#/mesa'; } }),
-      Button('Minhas listas', { id: 'go-decks', onClick: () => { location.hash = '#/listas'; } }),
-      Button('Minha coleção', { id: 'go-collection', onClick: () => { location.hash = '#/colecao'; } }),
-      Button('Escanear cartas', { id: 'go-scanner', onClick: () => { location.hash = '#/scanner'; } }),
-      Button('Buscar cartas', { id: 'go-cards', onClick: () => { location.hash = '#/cartas'; } }),
-      Button('Catálogo de componentes', { id: 'go-ds', onClick: () => { location.hash = '#/ds'; } })),
+    // U2 · atalhos com ícone e uma palavra; o detalhe diz o que tem lá dentro
+    h('nav', { class: 'ds-atalhos', id: 'home-atalhos', 'aria-label': 'Atalhos' },
+      Atalho('Jogar', { icone: 'jogar', variant: 'primary', id: 'go-play', detalhe: 'Contra o Shark, sozinho ou a dois', onClick: () => { location.hash = '#/mesa'; } }),
+      Atalho('Listas', { icone: 'listas', id: 'go-decks', detalhe: 'Montar e importar', onClick: () => { location.hash = '#/listas'; } }),
+      Atalho('Coleção', { icone: 'colecao', id: 'go-collection', detalhe: 'O que você tem', onClick: () => { location.hash = '#/colecao'; } }),
+      Atalho('Escanear', { icone: 'scanner', id: 'go-scanner', detalhe: 'Pela câmera', onClick: () => { location.hash = '#/scanner'; } }),
+      Atalho('Buscar', { icone: 'buscar', id: 'go-cards', detalhe: 'Todas as cartas', onClick: () => { location.hash = '#/cartas'; } })),
     h('div', { style: { height: 'var(--space-5)' } }),
-    offlinePanel());
+    offlinePanel(),
+    h('div', { class: 'ds-row', style: { justifyContent: 'center', marginTop: 'var(--space-4)' } },
+      Button('Componentes', { variant: 'ghost', icone: 'camadas', id: 'go-ds', title: 'Catálogo de componentes', onClick: () => { location.hash = '#/ds'; } })));
+  el.querySelector('#go-play').classList.add('ds-atalho--largo');
+  return el;
 }
 
 /* O1 · o que já funciona sem internet, e o botão que prepara o resto */
@@ -12183,7 +12308,7 @@ function offlinePanel() {
     const linhaEspaco = esp || st.protecao !== 'indisponivel' ? Text(
       [esp ? `Espaço usado: ${esp.texto}` : null, st.protecao === 'protegido' ? 'protegido contra limpeza do navegador' : st.protecao === 'vulneravel' ? 'o navegador pode apagar se faltar espaço' : null].filter(Boolean).join(' · '),
       { size: 'xs', tone: esp && esp.apertado ? 'negative' : 'subtle', attrs: { id: 'home-offline-space' } }) : null;
-    const proteger = st.protecao === 'vulneravel' ? Button('Proteger armazenamento', { id: 'home-offline-protect', onClick: async () => {
+    const proteger = st.protecao === 'vulneravel' ? Button('Proteger armazenamento', { id: 'home-offline-protect', icone: 'proteger', onClick: async () => {
       const r = await platform.persistence.request(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Instale o app e mantenha backups em dia.', 3600); paint(); } }) : null;
     mount(box, Stack({},
       Row({ class: 'ds-row--wrap' }, Text('Sem internet', { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
@@ -12194,7 +12319,7 @@ function offlinePanel() {
       extra || null,
       !st.rede ? Note('Listas, coleção, mesa, bots e scanner funcionam com o que já está guardado. O que faltar aparece acima; prepare quando a internet voltar.') : null,
       Row({ class: 'ds-row--wrap' },
-        st.rede ? Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', id: 'home-offline-prep', onClick: preparar }) : null,
+        st.rede ? Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', icone: tudoPronto ? 'conferir' : 'baixar', id: 'home-offline-prep', onClick: preparar }) : null,
         proteger)));
   }
   async function preparar() {
@@ -12212,7 +12337,7 @@ function offlinePanel() {
 }
 
 function installButton() {
-  const btn = Button('Instalar', { variant: 'ghost', id: 'btn-install', onClick: async () => {
+  const btn = NavBotao('Instalar', { icone: 'instalar', id: 'btn-install', ariaLabel: 'Instalar o app', onClick: async () => {
     const r = await installer.prompt();
     if (r === 'accepted') toast('Estante instalada');
   } });
@@ -12227,9 +12352,10 @@ function appBar() {
     h('div', { class: 'ds-appbar__inner ds-wrap' },
       h('a', { class: 'ds-appbar__brand', href: '#/', html: logoLockup(30) }),
       h('div', { class: 'ds-grow' }),
-      Button('Jogar', { variant: 'ghost', id: 'nav-play', onClick: () => { location.hash = '#/mesa'; } }),
-      Button('Listas', { variant: 'ghost', id: 'nav-decks', onClick: () => { location.hash = '#/listas'; } }),
-      Button('Coleção', { variant: 'ghost', id: 'nav-collection', onClick: () => { location.hash = '#/colecao'; } }),
+      // U2 · destinos com ícone e legenda de uma palavra; o destino atual fica marcado
+      NavBotao('Jogar', { icone: 'jogar', id: 'nav-play', rota: '/mesa /partida', onClick: () => { location.hash = '#/mesa'; } }),
+      NavBotao('Listas', { icone: 'listas', id: 'nav-decks', rota: '/listas /lista', onClick: () => { location.hash = '#/listas'; } }),
+      NavBotao('Coleção', { icone: 'colecao', id: 'nav-collection', rota: '/colecao', onClick: () => { location.hash = '#/colecao'; } }),
       installButton(),
       offlineChip(),
       temaBotao()));
@@ -12237,17 +12363,26 @@ function appBar() {
 /** U1 · o botão nasce com o ícone do tema já aplicado (antes nascia sempre ☾, mesmo no claro). */
 function temaBotao() {
   const t = __m1.THEMES.find(x => x.id === theme.current) || __m1.THEMES[0];
-  const b = Button(t.icon, { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: t.label, dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() });
-  b.title = t.label; b.setAttribute('aria-pressed', theme.current === 'light' ? 'true' : 'false');
+  const b = h('button', { class: 'ds-nav ds-nav--tema', type: 'button', id: 'theme-toggle', 'aria-label': t.label, title: t.label, 'data-theme-toggle': 'true',
+    'data-icone-tema': t.icone, 'aria-pressed': theme.current === 'light' ? 'true' : 'false', onClick: () => theme.cycle() },
+    Icone('lua', { tamanho: 22 }), Icone('sol', { tamanho: 22 }));
   return b;
 }
 
 /* O2 · chip discreto quando a internet cai; leva ao painel da tela inicial */
 let chipRede = null;
 function offlineChip() {
-  chipRede = Button('Sem internet', { variant: 'ghost', id: 'nav-offline', ariaLabel: 'Sem internet: ver o que funciona', onClick: () => { location.hash = '#/'; } });
+  chipRede = NavBotao('Offline', { icone: 'semRede', id: 'nav-offline', ariaLabel: 'Sem internet: ver o que funciona', onClick: () => { location.hash = '#/'; } });
+  chipRede.classList.add('ds-nav--alerta'); chipRede.title = 'Sem internet: ver o que funciona';
   chipRede.classList.toggle('ds-hidden', temRede());
   return chipRede;
+}
+/** U2 · marca na barra o destino em que você está (aria-current), pelo prefixo da rota. */
+function marcaNav(bar, path) {
+  bar.querySelectorAll('.ds-nav[data-rota]').forEach(b => {
+    const on = b.dataset.rota.split(' ').some(r => path === r || path.startsWith(r + '/'));
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
 }
 function pintaRede() { if (chipRede) chipRede.classList.toggle('ds-hidden', temRede()); }
 
@@ -12273,6 +12408,7 @@ async function boot(root) {
   const router = createRouter(ROUTES, ({ route }) => {
     document.title = 'Estante · ' + (route.title || '');
     mount(outlet, route.render());
+    marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/');
     window.scrollTo(0, 0);
   });
   router.start();

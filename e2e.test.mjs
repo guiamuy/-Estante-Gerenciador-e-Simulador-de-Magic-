@@ -389,7 +389,10 @@ test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à r
   const inicial = await tema();
   assert.ok(['dark', 'light'].includes(inicial), 'nunca fica sem tema definido');
   // o ícone nasce certo, antes de qualquer toque (antes nascia ☾ mesmo no tema claro)
-  assert.equal(await page.innerText('#theme-toggle'), inicial === 'light' ? '☀' : '☾');
+  // U2 · expectativa mudou: agora são dois SVGs no botão e só o do tema atual aparece
+  const iconeVisivel = () => page.$$eval('#theme-toggle .ds-icon', els => els.filter(e => getComputedStyle(e).display !== 'none').map(e => e.dataset.icone));
+  assert.deepEqual(await iconeVisivel(), [inicial === 'light' ? 'sol' : 'lua']);
+  assert.equal((await page.innerText('#theme-toggle')).trim(), '', 'sem caractere de emoji no botão');
   await page.click('#theme-toggle');
   await page.waitForFunction(t0 => document.documentElement.getAttribute('data-theme') !== t0, inicial);
   const depois = await tema();
@@ -397,7 +400,7 @@ test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à r
   assert.match(await page.getAttribute('#theme-toggle', 'aria-label'), depois === 'light' ? /claro · toque para o escuro/ : /escuro · toque para o claro/);
   await page.reload(); await page.waitForSelector('#theme-toggle');
   assert.equal(await tema(), depois, 'a escolha ficou guardada');
-  assert.equal(await page.innerText('#theme-toggle'), depois === 'light' ? '☀' : '☾', 'ícone certo depois de recarregar');
+  assert.deepEqual(await iconeVisivel(), [depois === 'light' ? 'sol' : 'lua'], 'ícone certo depois de recarregar');
   await page.click('#theme-toggle');
   await page.waitForFunction(t0 => document.documentElement.getAttribute('data-theme') === t0, inicial);
   // versão antiga guardou "auto": abre no tema do sistema, sem estado morto
@@ -596,6 +599,11 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
 
   // O2 · a barra avisa, e cada tela que batia na rede tem o seu caminho sem ela
   assert.equal(await page.locator('#nav-offline').isVisible(), true, 'chip "Sem internet" na barra');
+  // U2 · sem internet os ícones continuam desenhados (SVG no próprio arquivo, nada de fonte externa)
+  assert.equal(await page.locator('#nav-offline svg').count(), 1, 'chip com o ícone de nuvem cortada');
+  assert.match(await page.getAttribute('#nav-offline', 'aria-label'), /Sem internet/);
+  const desenhados = await page.$$eval('.ds-appbar button:not(.ds-hidden) .ds-icon', s => s.filter(x => getComputedStyle(x).display !== 'none').map(x => x.getBoundingClientRect().width > 0 && !!x.querySelector('path, rect, circle')));
+  assert.ok(desenhados.length >= 5 && desenhados.every(Boolean), 'ícones da barra desenhados: ' + JSON.stringify(desenhados));
   // coleção: adicionar pelo nome confere pela base de nomes
   await page.goto(base + '#/colecao');
   await page.waitForSelector('#col-add');
@@ -1658,7 +1666,13 @@ test('e2e · U7 de quem é a vez: faixa na cor do jogador, lado ativo aceso, pri
   assert.equal(await page.getAttribute('.tb-side--opp', 'data-ativo'), 'true', 'o lado de quem joga acende');
   assert.equal(await page.getAttribute('.tb-side--me', 'data-ativo'), 'false');
   assert.notEqual(await page.$eval('.tb-side--opp', el => getComputedStyle(el).borderTopColor), bordaEu, 'borda na cor do oponente');
-  if (process.env.SHOTS) { await page.waitForTimeout(350); await page.screenshot({ path: process.env.SHOTS + '/vez-oponente.png' }); }
+  // U2 · com o selo de prioridade, a faixa divide a linha com as ferramentas e nada fica cortado, mesmo em 360
+  await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(350);
+  const corte = await page.evaluate(() => [...document.querySelectorAll('#tb-vez .tb-vez__rotulo, #tb-vez-prio')].map(e => e.scrollWidth - e.clientWidth));
+  assert.deepEqual(corte, [0, 0], 'rótulo e selo inteiros');
+  const [fx, fr] = [await page.locator('#tb-vez').boundingBox(), await page.locator('#tb-concede').boundingBox()];
+  assert.ok(fr.y < fx.y + fx.height && fr.y + fr.height > fx.y, 'ferramentas na linha da faixa');
+  if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/vez-oponente.png' }); }
   assert.deepEqual(errors, []);
 });
 
@@ -2261,5 +2275,102 @@ test('e2e · HOMOLOGAÇÃO 5 · partida inteira contra o Shark até o fim, sem t
   assert.ok(turnoMax >= 6, `a partida andou (turno ${turnoMax})`);
   await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
   assert.match(await page.innerText('#tb-timeline'), /Shark/);
+  assert.deepEqual(errors, []);
+});
+
+// U2 (leva 92) · ícones do app, botões com profundidade e CTAs enxutos. Mede o que foi prometido:
+// nenhum emoji em botão, todo ícone é SVG escondido do leitor de tela com nome acessível no botão,
+// rótulos de até 3 palavras fora de diálogos, alvos ≥ 44px, botão afunda ao toque (e não se mexe com
+// movimento reduzido), a barra marca onde você está, e as ferramentas da mesa dividem a linha com a vez.
+test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da mesa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const EMOJI = /[\p{Extended_Pictographic}☀-➿\u{1F300}-\u{1FAFF}]/u;
+  const audita = sel => page.$$eval(sel, (els, rx) => {
+    const EM = new RegExp(rx, 'u');
+    const vis = el => { const b = el.getBoundingClientRect(); const st = getComputedStyle(el); return b.width > 0 && b.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
+    return els.filter(vis).map(el => {
+      const rot = [...el.querySelectorAll('.ds-btn__rotulo, .ds-nav__rotulo, .ds-atalho__rotulo')].map(x => x.textContent.trim()).join(' ') || (el.querySelector('svg') ? '' : el.textContent.trim());
+      const svgs = [...el.querySelectorAll('svg')];
+      return { id: el.id, nome: (el.getAttribute('aria-label') || el.textContent).trim(), palavras: rot ? rot.split(/\s+/).length : 0, emoji: EM.test(el.textContent),
+        svgOculto: svgs.every(s => s.closest('[aria-hidden="true"]')), svgs: svgs.length, alto: Math.round(el.getBoundingClientRect().height), largo: Math.round(el.getBoundingClientRect().width) };
+    });
+  }, EMOJI.source);
+  const confere = (lista, onde, { maxPalavras = 3 } = {}) => {
+    assert.ok(lista.length, `${onde}: nada para auditar`);
+    for (const b of lista) {
+      assert.ok(b.nome, `${onde}: botão sem nome acessível (${b.id})`);
+      assert.equal(b.emoji, false, `${onde}: emoji em botão (${b.id} «${b.nome}»)`);
+      assert.ok(b.svgOculto, `${onde}: ícone exposto ao leitor de tela (${b.id})`);
+      assert.ok(b.palavras <= maxPalavras, `${onde}: rótulo longo (${b.id}: ${b.palavras} palavras)`);
+      assert.ok(b.alto >= 44 && b.largo >= 44, `${onde}: alvo pequeno (${b.id} ${b.largo}×${b.alto})`);
+    }
+  };
+  // início: barra e atalhos, todos com ícone
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  const barra = await audita('.ds-appbar button'); confere(barra, 'barra');
+  assert.ok(barra.filter(b => ['nav-play', 'nav-decks', 'nav-collection', 'theme-toggle'].includes(b.id)).every(b => b.svgs >= 1), 'destinos da barra têm ícone');
+  const atalhos = await audita('#home-atalhos button'); confere(atalhos, 'atalhos', { maxPalavras: 1 });
+  assert.deepEqual(atalhos.map(a => a.id), ['go-play', 'go-decks', 'go-collection', 'go-scanner', 'go-cards']);
+  assert.ok(atalhos.every(a => a.svgs === 1), 'cada atalho tem um ícone');
+  confere(await audita('#home button'), 'início inteiro');
+  // atalho principal ocupa a largura toda; os outros, duas colunas lado a lado
+  const caixa = id => page.locator(id).boundingBox();
+  const [jogar, listas, colecao] = [await caixa('#go-play'), await caixa('#go-decks'), await caixa('#go-collection')];
+  assert.ok(jogar.width > listas.width * 1.8, 'Jogar em destaque, largura toda');
+  assert.ok(Math.abs(listas.y - colecao.y) < 2 && colecao.x > listas.x + listas.width - 1, 'Listas e Coleção na mesma linha');
+  // nada marcado na barra no início; marcado ao entrar
+  assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 0);
+  // profundidade: em repouso tem sombra; pressionado afunda (encolhe e sombra interna); solto, volta
+  const estilo = sel => page.$eval(sel, el => ({ sombra: getComputedStyle(el).boxShadow, transf: getComputedStyle(el).transform }));
+  const repouso = await estilo('#go-decks');
+  assert.notEqual(repouso.sombra, 'none', 'botão em repouso tem sombra'); assert.equal(repouso.transf, 'none');
+  const bx = await caixa('#go-decks');
+  await page.mouse.move(bx.x + 20, bx.y + 20); await page.mouse.down(); await page.waitForTimeout(200);
+  const apertado = await estilo('#go-decks');
+  assert.match(apertado.sombra, /inset/, 'pressionado: sombra interna');
+  const escala = Number((apertado.transf.match(/matrix\(([^,]+)/) || [])[1]);
+  assert.ok(escala > 0.9 && escala < 1, 'pressionado: encolhe um pouco (' + apertado.transf + ')');
+  await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up(); await page.waitForTimeout(200);
+  assert.equal((await estilo('#go-decks')).transf, 'none', 'solto: volta');
+  // movimento reduzido: afunda só na sombra, sem se mexer
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.mouse.move(bx.x + 20, bx.y + 20); await page.mouse.down();
+  const reduzido = await estilo('#go-decks');
+  assert.equal(reduzido.transf, 'none', 'movimento reduzido: sem deslocamento'); assert.match(reduzido.sombra, /inset/);
+  await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up();
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // fantasma não tem sombra (não compete com a ação principal)
+  assert.equal((await estilo('#go-ds')).sombra, 'none');
+  // barra marca o destino atual
+  await page.click('#nav-collection'); await page.waitForSelector('#nav-collection[aria-current="page"]');
+  assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 1);
+  await page.click('#nav-decks'); await page.waitForSelector('#nav-decks[aria-current="page"]');
+  // mesa: prepara uma partida contra o goldfish
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
+  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  assert.equal(await page.getAttribute('#nav-play', 'aria-current'), 'page', 'preparar partida conta como Jogar');
+  await page.fill('#mesa-seed', '7'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  // mão inicial: a faixa usa o ícone da mão, não o emoji
+  assert.equal(await page.locator('#tb-vez .tb-vez__avatar svg').count(), 1);
+  assert.equal(EMOJI.test(await page.innerText('#tb-vez')), false, 'faixa sem emoji');
+  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  assert.equal(await page.getAttribute('#nav-play', 'aria-current'), 'page', 'a partida também conta como Jogar');
+  const ferramentas = await audita('.tb-top__actions button'); confere(ferramentas, 'topo da mesa', { maxPalavras: 0 });
+  assert.deepEqual(ferramentas.map(f => f.id), ['tb-undo', 'tb-log', 'tb-concede']);
+  assert.deepEqual(ferramentas.map(f => f.nome), ['Desfazer', 'Registro da partida', 'Desistir']);
+  await page.waitForTimeout(400); // a faixa entra com animação de 300ms
+  const [vez, desistir] = [await caixa('#tb-vez'), await caixa('#tb-concede')];
+  assert.ok(Math.abs((vez.y + vez.height / 2) - (desistir.y + desistir.height / 2)) < 4, 'ferramentas na mesma linha da faixa de vez');
+  assert.ok(desistir.x + desistir.width <= 360, 'cabem na tela de 360');
+  // desistir continua pedindo confirmação; cancelar não encerra a partida
+  await page.click('#tb-concede'); await page.waitForSelector('.ds-dialog');
+  assert.match(await page.innerText('.ds-dialog'), /Desistir da partida\?/);
+  await page.click('.ds-dialog >> text=Cancelar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.notEqual(await page.evaluate(() => window.__estanteMesa.estado().status), 'over');
+  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline'); await page.keyboard.press('Escape');
   assert.deepEqual(errors, []);
 });

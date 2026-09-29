@@ -38,9 +38,13 @@ test('U1 · a escolha sempre vai para o documento (nunca fica sem data-theme) e 
   const th = T.createTheme(P.memoryStore(), janela('dark'), { documentElement: d.root, querySelectorAll: () => [d.botao] });
   await th.init();
   assert.equal(d.root.attrs['data-theme'], 'dark', 'a raiz recebe o tema');
-  assert.equal(d.botao.textContent, '☾'); assert.equal(d.botao.attrs['aria-pressed'], 'false');
+  // U2 (leva 92) · expectativa mudou: o botão deixou de ser o caractere ☾/☀ e passou a ter os dois
+  // ícones SVG do app; o tema só escolhe qual aparece (data-icone-tema) e nunca reescreve o conteúdo.
+  assert.equal(d.botao.attrs['data-icone-tema'], 'lua'); assert.equal(d.botao.attrs['aria-pressed'], 'false');
+  assert.equal(d.botao.textContent, '', 'o conteúdo (os SVGs) não é trocado por texto');
   await th.cycle();
-  assert.equal(d.root.attrs['data-theme'], 'light'); assert.equal(d.botao.textContent, '☀'); assert.equal(d.botao.attrs['aria-pressed'], 'true');
+  assert.equal(d.root.attrs['data-theme'], 'light'); assert.equal(d.botao.attrs['data-icone-tema'], 'sol'); assert.equal(d.botao.attrs['aria-pressed'], 'true');
+  assert.ok(T.THEMES.every(t => !/[\u2600-\u27BF]/.test(JSON.stringify(t))), 'nenhum tema carrega caractere de símbolo');
   assert.match(d.botao.attrs['aria-label'], /claro · toque para o escuro/);
   const falho = { get: async () => { throw new Error('x'); }, set: async () => { throw new Error('x'); } };
   const th2 = T.createTheme(falho, janela('light'));
