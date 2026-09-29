@@ -45,7 +45,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
 | Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
-| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível · U7 turno visível · U12 imagens do jogo sozinhas | ✅ |
+| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível · U7 turno visível · U12 imagens do jogo sozinhas · U10 Shark | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
@@ -315,7 +315,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 3º ✅ | U6 bandeja da mão recolhível (leva 84) | E44 | 1 | — |
 | 4º ✅ | U7 de quem é o turno, visível de longe (leva 85) | E44 | 1 | — |
 | 5º ✅ | U12 imagens do jogo baixadas sozinhas (leva 86) | E45 | 1 | estende o guardião offline (O1) |
-| 6º | U10 Shark: um bot só, com nome | E46 | 1 | remove o amador; muda a tela de preparar |
+| 6º ✅ | U10 Shark: um bot só, com nome (leva 87) | E46 | 1 | remove o amador; muda a tela de preparar |
 | 7º | U3 símbolos de Magic em botões, textos e filtros | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
 | 8º | U2 ícones flat, botões com profundidade e toque animado, CTAs sem excesso de texto | E43 | 3 | passa por todas as telas; contrato visual novo |
 | 9º | U4 "sem internet" mais visual | E43 | 1 | depois de U2, para usar os ícones |
@@ -431,7 +431,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E43 🟡 | U1 (leva 82) · U3 · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
 | E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 (leva 85) · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 ✅ | U12 (leva 86) | Imagens do jogo baixadas sozinhas quando há internet |
-| E46 | U10 · U11 | Shark: um bot só, com nome, e mais forte |
+| E46 🟡 | U10 (leva 87) · U11 | Shark: um bot só, com nome, e mais forte |
 | E47 | U13 | Conta e perfil: nome, avatar e backup com Google (decisão pendente) |
 | E48 | U14 | Partida online 1x1 entre dois celulares (decisão de infraestrutura pendente) |
 | E49 | U15 | Chat na partida online |
@@ -2974,11 +2974,16 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Depende de:** U5, U6, U7.
 - **Fora:** tablets; modo paisagem.
 
-**U10 · Shark: um bot só, com nome** ○
+**U10 · Shark: um bot só, com nome** ✅ (leva 87)
+- **Entregue:** a tela de jogar oferece três oponentes: Goldfish (sem oponente), Shark (bot) e Outra pessoa neste aparelho. O Shark é o bot profissional de antes, com o nome "Shark" na mesa, no registro, na linha do tempo e no resumo do turno. Os textos da tela falam do Shark, não de "bots".
 - **Valor:** menos escolha na preparação, nome com identidade: Goldfish (sem oponente) e Shark (o bot).
-- **Aceite:** a tela de preparar oferece Goldfish, Shark e Outra pessoa; o Shark é o bot profissional de hoje; o amador sai da interface e do torneio de aferição (o código de avaliação continua, é a base do Shark); partidas salvas com o oponente antigo continuam abrindo como Shark; nome do jogador do bot na mesa: "Shark".
-- **Testes:** U (torneio mede Shark contra a política aleatória e contra a versão anterior); e2e (preparar com Shark; partida salva com "profissional" abre).
-- **Depende de:** —.
+- **Aceite (como ficou):**
+  - partida salva contra "Bot amador" ou "Bot profissional" abre como Shark: o nome do assento e o nível guardado são trocados na hora de abrir; nome escolhido pela pessoa no jogo a dois nunca é trocado;
+  - `criaBot()` sem nível passou a ser o Shark.
+- **Divergência do aceite original:** dizia "o amador sai do torneio de aferição". Ele saiu da tela, mas ficou no torneio como sparring: é a versão mais simples do mesmo avaliador e serve de régua para provar que o Shark joga melhor. O torneio ganhou "Shark × aleatório ≥ 80%" (deu 16–0) e manteve "Shark × sparring ≥ 60%" (deu 15–9, 63%).
+- **Sem rede:** o `e2e · O1` agora joga contra o Shark sem internet.
+- **Testes:** U (`shark.unit.test.mjs`, 4: padrão, nível da mesa, partida antiga "amador" e "profissional" abrindo como Shark, nome do jogo a dois preservado); torneio (Shark × aleatório novo); e2e B4/U10 (só três oponentes, nenhum nível antigo na tela, "Shark" no registro), B5 (Shark bloqueado sem 100%), HOMOLOGAÇÃO 5 (partida inteira contra o Shark), O1.
+- **Expectativas alteradas:** A14 da mesa (nome "Shark" e nível "shark" depois de salvar), B3 do bot (nível do sparring explícito, porque o padrão virou o Shark), e2e B4, B5, O1 e HOMOLOGAÇÃO 5 (seletor e nome). Cada uma diz o motivo no próprio teste.
 
 **U11 · Shark mais forte** ○
 - **Valor:** o bot joga melhor de forma medida.

@@ -9033,9 +9033,14 @@ function dicas(s, p, { quantas = 2, orcamentoMs = 400, agora = () => Date.now() 
   return medidas.slice(0, quantas);
 }
 
-/** Bot pronto para a mesa, nos dois níveis. */
-function criaBot({ nivel = 'amador', orcamentoMs = 400, agora = () => Date.now() } = {}) {
-  const profissional = nivel === 'profissional';
+/** U10 · a mesa tem um bot só: o Shark (o profissional). O amador continua aqui como
+    sparring do torneio de aferição, sem aparecer para o usuário. */
+const NOME_DO_BOT = 'Shark';
+/** Qualquer nível vindo da mesa (inclusive os antigos "amador" e "profissional") vira o Shark. */
+const nivelDaMesa = () => 'profissional';
+/** Bot pronto para jogar. Padrão: o Shark. */
+function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now() } = {}) {
+  const profissional = nivel === 'profissional' || nivel === 'shark';
   return {
     nivel,
     jogada(s, p) {
@@ -9047,7 +9052,7 @@ function criaBot({ nivel = 'amador', orcamentoMs = 400, agora = () => Date.now()
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, criaBot };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */
@@ -9348,8 +9353,13 @@ function shouldStop(s, i) {
 
 function createTable(setup, { log = [], marks = null, options: opts = {} } = {}) {
   // B3 · um assento pode ser dirigido pelo bot: { nivel, seat }
-  const options = { autoPass: opts.autoPass !== false, bot: opts.bot || null };
-  const robo = options.bot ? __m25.criaBot({ nivel: options.bot.nivel }) : null;
+  // U10 · um bot só: partidas salvas contra o "amador" ou o "profissional" continuam como Shark
+  const options = { autoPass: opts.autoPass !== false, bot: opts.bot ? { nivel: 'shark', seat: opts.bot.seat } : null };
+  if (options.bot) {
+    const assento = (setup.players || [])[options.bot.seat];
+    if (assento && /^Bot (amador|profissional)$/.test(assento.name || '')) setup = { ...setup, players: setup.players.map((pl, i) => i === options.bot.seat ? { ...pl, name: __m25.NOME_DO_BOT } : pl) };
+  }
+  const robo = options.bot ? __m25.criaBot({ nivel: __m25.nivelDaMesa(options.bot.nivel) }) : null;
   // B7 · os motivos do bot viram um resumo curto no fim do turno dele
   let motivosDoBot = [], turnoDoBot = null;
   let match, lines, barrier, humanMarks;
@@ -9896,33 +9906,32 @@ function createTableSetup({ decks, cardRepo, store }) {
     }
 
     const theirsField = h('div', {});
-    const ehBot = () => state.opponent === 'amador' || state.opponent === 'profissional';
+    const ehBot = () => state.opponent === 'shark';
     const paintOpponent = () => mount(theirsField, ehBot() ? Stack({},
-      Text('O bot joga com a lista escolhida abaixo e diz no registro por que fez cada jogada.', { size: 'sm', tone: 'muted' }),
+      Text('O Shark joga com a lista escolhida abaixo e diz no registro por que fez cada jogada.', { size: 'sm', tone: 'muted' }),
       Field('Lista do bot', Select(optsDe(visiveis()), { id: 'mesa-bot-deck', value: state.theirs, onChange: e => { state.theirs = e.target.value; } })))
       : state.opponent === 'hotseat' ? Stack({},
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
       Field('Lista do oponente', Select(optsDe(visiveis()), { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
-    // B5 · os dois níveis do bot só existem no motor completo (ADR-05): sem a lista
-    // 100% coberta o motor não resolve tudo sozinho, e o bot decidiria no escuro.
-    const OPONENTES = [['goldfish', 'Goldfish (sem oponente)'], ['amador', 'Bot amador experiente'],
-      ['profissional', 'Bot profissional'], ['hotseat', 'Outra pessoa neste aparelho']];
+    // B5 · o bot só existe no motor completo (ADR-05): sem a lista 100% coberta o motor
+    // não resolve tudo sozinho, e o bot decidiria no escuro. U10 · um bot só: o Shark.
+    const OPONENTES = [['goldfish', 'Goldfish (sem oponente)'], ['shark', 'Shark (bot)'], ['hotseat', 'Outra pessoa neste aparelho']];
     const oppChips = Row({ class: 'ds-row--wrap' });
     const oppNota = h('div', { id: 'mesa-opponent-note' });
     function paintChips() {
       const travado = state.coverage !== 100;
       if (travado && ehBot()) { state.opponent = 'goldfish'; paintOpponent(); }
       mount(oppChips, ...OPONENTES.map(([k, label]) => {
-        const bloqueado = travado && (k === 'amador' || k === 'profissional');
+        const bloqueado = travado && k === 'shark';
         const c = Chip(label, { pressed: state.opponent === k, dataset: { opponent: k } });
-        if (bloqueado) { c.disabled = true; c.title = 'O bot precisa da lista 100% coberta pelo motor'; }
+        if (bloqueado) { c.disabled = true; c.title = 'O Shark precisa da lista 100% coberta pelo motor'; }
         else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); });
         return c;
       }));
       mount(oppNota, travado
-        ? Text('Os bots jogam só com lista 100% coberta pelo motor: sem isso a partida pararia para você adjudicar as cartas deles.', { size: 'sm', tone: 'muted' })
+        ? Text('O Shark joga só com lista 100% coberta pelo motor: sem isso a partida pararia para você adjudicar as cartas dele.', { size: 'sm', tone: 'muted' })
         : saved ? Text('A partida em andamento continua com o oponente dela. Para trocar de oponente, descarte a partida acima.', { size: 'sm', tone: 'muted' })
           : null);
     }
@@ -9940,7 +9949,7 @@ function createTableSetup({ decks, cardRepo, store }) {
         for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; else unknown++; }
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
-          comBot ? { name: state.opponent === 'profissional' ? 'Bot profissional' : 'Bot amador', deck: theirs }
+          comBot ? { name: __m25.NOME_DO_BOT, deck: theirs }
             : theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
         // S64 · sem os dados da carta o motor não tem tipo, custo nem força: no motor
         // completo isso daria partida errada em silêncio, então ele não começa assim
@@ -9951,7 +9960,7 @@ function createTableSetup({ decks, cardRepo, store }) {
         // as cartas já vieram da rede agora: guarda para a próxima partida, mesmo sem internet
         cardRepo.pin(names).catch(() => {});
         const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }),
-          { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: state.opponent, seat: 1 } : null } });
+          { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null } });
         await store.set(T.SAVE_KEY, table.serialize());
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
         go('/partida');

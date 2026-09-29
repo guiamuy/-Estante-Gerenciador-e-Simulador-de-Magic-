@@ -1,5 +1,6 @@
-// Camada 2 · B6 · torneio de bots: a única prova de que "profissional" é mesmo
-// mais forte que "amador", e de que nenhum dos dois trava a partida. Semente
+// Camada 2 · B6 · torneio de bots: a única prova de que o Shark (o antigo "profissional",
+// U10) é mesmo mais forte que a política aleatória e que a versão de referência mais
+// simples ("amador", que saiu da tela e ficou só como sparring), e de que nenhum trava a partida. Semente
 // fixa por partida e assentos trocados a cada rodada, para o resultado não vir
 // da vantagem de começar jogando.
 import { test } from 'node:test';
@@ -82,20 +83,29 @@ const relatorio = (titulo, r, partidas) => [
   `  turnos médios: ${(r.turnos / partidas).toFixed(1)} · tempo médio por jogada: ${(r.ms / Math.max(1, r.acoes)).toFixed(1)} ms`
 ].join('\n');
 
-test('B6 · o amador ganha da política aleatória em pelo menos 70% das partidas decididas', () => {
+test('B6 · o sparring (amador) ganha da política aleatória em pelo menos 70% das partidas decididas', () => {
   const partidas = 16;
   const r = serie({ nivelForte: 'amador', nivelFraco: 'aleatorio', partidas, base: 2000 });
-  console.log(relatorio('amador × aleatório', r, partidas));
+  console.log(relatorio('sparring × aleatório', r, partidas));
   assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
   assert.equal(r.decididas >= partidas * 0.6, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
-  assert.equal(r.taxa >= 0.7, true, `o amador ganhou ${(r.taxa * 100).toFixed(0)}% das decididas`);
+  assert.equal(r.taxa >= 0.7, true, `o sparring ganhou ${(r.taxa * 100).toFixed(0)}% das decididas`);
 });
 
-test('B6 · o profissional ganha do amador em pelo menos 60% das partidas decididas', () => {
+test('U10 · o Shark ganha da política aleatória em pelo menos 80% das partidas decididas', () => {
+  const partidas = 16;
+  const r = serie({ nivelForte: 'shark', nivelFraco: 'aleatorio', partidas, base: 5000 });
+  console.log(relatorio('Shark × aleatório', r, partidas));
+  assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
+  assert.equal(r.decididas >= partidas * 0.6, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
+  assert.equal(r.taxa >= 0.8, true, `o Shark ganhou ${(r.taxa * 100).toFixed(0)}% das decididas`);
+});
+
+test('B6 · o Shark (profissional) ganha do sparring em pelo menos 60% das partidas decididas', () => {
   // 24 partidas: com 12 a medida balança ±15 pontos e o número não significa nada.
   const partidas = 24;
   const r = serie({ nivelForte: 'profissional', nivelFraco: 'amador', partidas, base: 3000 });
-  console.log(relatorio('profissional × amador', r, partidas));
+  console.log(relatorio('Shark × sparring', r, partidas));
   assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
   assert.equal(r.decididas >= partidas * 0.6, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
   assert.equal(r.taxa >= 0.6, true, `o profissional ganhou ${(r.taxa * 100).toFixed(0)}% das decididas`);

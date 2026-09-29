@@ -159,6 +159,7 @@ test('A14 · o assento do bot joga sozinho e explica cada jogada no registro', (
   const setup = T.buildSetup({ format: 'pauper', seed: 21, cards: CARDS,
     seats: [{ name: 'Você', deck: { entries: PAUPER_DECK } }, { name: 'Bot amador', deck: { entries: PAUPER_DECK } }],
     manaCheck: true, mode: 'full' });
+  // U10 (leva 87) · a partida é criada como antes (nível e nome antigos): a mesa precisa abrir como Shark
   const mesa = T.createTable(setup, { options: { autoPass: true, bot: { nivel: 'amador', seat: 1 } } });
   mesa.act({ t: 'keep', p: 0, bottom: [] });
   // o bot mantém a mão sozinho e joga a vez dele sem nenhuma ação humana
@@ -175,12 +176,15 @@ test('A14 · o assento do bot joga sozinho e explica cada jogada no registro', (
   assert.equal(mesa.state.players[1].kept, true, 'o bot decidiu o mulligan sozinho');
   assert.equal(mesa.state.turn.number >= 1, true, 'a partida andou');
   const registro = mesa.lines.join('\n');
-  assert.match(registro, /Bot amador: /, 'o registro traz o motivo da jogada do bot');
+  // U10 · expectativa mudou de propósito: o nome antigo "Bot amador" vira "Shark", e o nível guardado vira "shark"
+  assert.match(registro, /Shark: /, 'o registro traz o motivo da jogada do bot');
+  assert.doesNotMatch(registro, /Bot amador/, 'o nome antigo não aparece mais');
   // B7 · e o resumo do turno dele aparece quando o turno vira
-  assert.match(registro, /Resumo do turno \d+ · Bot amador/, 'o resumo do turno do bot entra no registro');
+  assert.match(registro, /Resumo do turno \d+ · Shark/, 'o resumo do turno do bot entra no registro');
   // e a escolha do bot sobrevive a salvar e continuar
   const salvo = JSON.parse(JSON.stringify(mesa.serialize()));
-  assert.deepEqual(JSON.parse(JSON.stringify(salvo.options.bot)), { nivel: 'amador', seat: 1 });
+  assert.deepEqual(JSON.parse(JSON.stringify(salvo.options.bot)), { nivel: 'shark', seat: 1 });
+  assert.equal(salvo.setup.players[1].name, 'Shark');
   const voltou = T.restoreTable(salvo);
   assert.equal(voltou.state.turn.number, mesa.state.turn.number, 'continuou do mesmo ponto');
 });

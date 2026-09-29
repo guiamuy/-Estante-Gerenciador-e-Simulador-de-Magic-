@@ -134,12 +134,17 @@ const PAUPER = '20 Island\n4 Delver of Secrets\n4 Preordain\n4 Counterspell';
 const tapHand = async (page, name) => { await page.locator('.tb-hand .tb-card', { hasText: name }).first().click(); };
 const handCardByImgless = name => `.tb-hand .tb-card[aria-label^="${name}"]`;
 
-test('e2e · B4 jogar contra o bot: escolher o nível e ver a jogada dele no registro', { skip }, async t => {
+test('e2e · B4/U10 jogar contra o Shark: três oponentes, um bot só, e a jogada dele no registro', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await createDeck(page, base, 'Delver', PAUPER);
   await page.goto(base + '#/mesa');
   await page.fill('#mesa-seed', '9');
-  await page.click('[data-opponent="profissional"]');
+  // U10 · Goldfish, Shark e outra pessoa; o amador não aparece mais
+  await page.waitForSelector('[data-opponent="shark"]');
+  assert.deepEqual(await page.locator('[data-opponent]').evaluateAll(cs => cs.map(c => c.dataset.opponent)), ['goldfish', 'shark', 'hotseat']);
+  assert.doesNotMatch(await page.innerText('body'), /amador|profissional/i, 'nenhum nível antigo na tela');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]');
   await page.waitForSelector('#mesa-bot-deck');            // a lista do bot aparece
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]');                  // bot só joga no motor completo
@@ -159,19 +164,20 @@ test('e2e · B4 jogar contra o bot: escolher o nível e ver a jogada dele no reg
     await page.waitForTimeout(60);
   }
   const registro = await page.innerText('.tb');
-  assert.match(registro, /Bot profissional/, 'o nome do bot aparece na mesa');
+  assert.match(registro, /Shark/, 'o nome do bot aparece na mesa');
+  assert.doesNotMatch(registro, /Bot profissional|Bot amador/);
   assert.deepEqual(errors, []);
 });
 
-test('e2e · B5 sem lista 100% coberta, os bots ficam bloqueados com o motivo', { skip }, async t => {
+test('e2e · B5 sem lista 100% coberta, o Shark fica bloqueado com o motivo', { skip }, async t => {
   const { page, errors, base } = await open(t);
   // lista com uma carta que o motor não resolve: a cobertura não fecha em 100%
   await createDeck(page, base, 'Meia-boca', '20 Island\n4 Mystery Enchantment\n4 Preordain');
   await page.goto(base + '#/mesa');
   await page.waitForSelector('#mesa-opponent-note');
   await page.waitForFunction(() => /100% coberta/.test(document.querySelector('#mesa-opponent-note')?.innerText || ''), null, { timeout: 8000 });
-  assert.equal(await page.locator('[data-opponent="amador"]').isDisabled(), true, 'amador bloqueado');
-  assert.equal(await page.locator('[data-opponent="profissional"]').isDisabled(), true, 'profissional bloqueado');
+  assert.equal(await page.locator('[data-opponent="shark"]').isDisabled(), true, 'Shark bloqueado');
+  assert.match(await page.innerText('#mesa-opponent-note'), /O Shark joga só com lista 100% coberta/);
   assert.equal(await page.locator('[data-opponent="goldfish"]').isDisabled(), false, 'goldfish continua livre');
   assert.deepEqual(errors, []);
 });
@@ -484,8 +490,8 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // mesa: bot liberado (cobertura sai do que está guardado) e a partida roda
   await page.goto(base + '#/mesa');
   await page.fill('#mesa-seed', '9');
-  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="amador"]'); return c && !c.disabled; }, null, { timeout: 8000 });
-  await page.click('[data-opponent="amador"]');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]');
   await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]');
@@ -493,7 +499,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
   await page.waitForSelector('#tb-pass');
   for (let i = 0; i < 8; i++) { const p = await page.$('#tb-pass'); if (!p) break; await p.click(); await page.waitForTimeout(60); }
-  assert.match(await page.innerText('.tb'), /Bot amador/, 'o bot joga sem internet');
+  assert.match(await page.innerText('.tb'), /Shark/, 'o Shark joga sem internet');
 
   // E36 · M13 · Commander sem rede: o comandante que sai do campo volta para a zona de comando
   await page.goto(base + '#/mesa');
@@ -2010,12 +2016,12 @@ test('e2e · HOMOLOGAÇÃO 4 · H7 desfazer a importação mantém o que você m
   assert.deepEqual(errors, []);
 });
 
-test('e2e · HOMOLOGAÇÃO 5 · partida inteira contra o bot profissional até o fim, sem travar nem erro', { skip }, async t => {
+test('e2e · HOMOLOGAÇÃO 5 · partida inteira contra o Shark até o fim, sem travar nem erro', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await createDeck(page, base, 'Delver', PAUPER);
   await page.goto(base + '#/mesa');
   await page.fill('#mesa-seed', '31');
-  await page.click('[data-opponent="profissional"]');
+  await page.click('[data-opponent="shark"]');
   await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]');
@@ -2046,6 +2052,6 @@ test('e2e · HOMOLOGAÇÃO 5 · partida inteira contra o bot profissional até o
   }
   assert.ok(turnoMax >= 6, `a partida andou (turno ${turnoMax})`);
   await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
-  assert.match(await page.innerText('#tb-timeline'), /Bot profissional/);
+  assert.match(await page.innerText('#tb-timeline'), /Shark/);
   assert.deepEqual(errors, []);
 });

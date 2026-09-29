@@ -197,7 +197,7 @@ function esvaziaMao(s, p) {
   }
   return s;
 }
-const bot = B.criaBot();
+const bot = B.criaBot({ nivel: 'amador' }); // U10 · o padrão virou o Shark; estes testes são do sparring (B3)
 
 test('B3 · baixa terreno e põe criatura em campo, dizendo o que fez', () => {
   let s = mesa3(11, true); const a = s.turn.active;   // com cobrança de mana, a curva importa
@@ -297,7 +297,7 @@ test('B3 · no turno do oponente, guarda a resposta em vez de gastar à toa', ()
 
 test('B3 · joga uma partida inteira sem nunca escolher ação ilegal', () => {
   let s = mesa3(17, true);
-  const botA = B.criaBot(), botB = B.criaBot();
+  const botA = B.criaBot({ nivel: 'amador' }), botB = B.criaBot({ nivel: 'amador' });
   let jogadas = 0;
   for (let i = 0; i < 600 && s.status === 'playing'; i++) {
     const quem = s.pending ? s.pending.p : s.turn.priority;
