@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
-import { CARDS, PAUPER_DECK } from './fixtures.mjs';
+import { CARDS, PAUPER_DECK, COMBAT_CARDS } from './fixtures.mjs';
 const { engine: E, table: T } = loadModules();
 
 const deck = { entries: PAUPER_DECK };
@@ -183,4 +183,64 @@ test('A14 · o assento do bot joga sozinho e explica cada jogada no registro', (
   assert.deepEqual(JSON.parse(JSON.stringify(salvo.options.bot)), { nivel: 'amador', seat: 1 });
   const voltou = T.restoreTable(salvo);
   assert.equal(voltou.state.turn.number, mesa.state.turn.number, 'continuou do mesmo ponto');
+});
+
+/* ---------------- A13 · o que a carta mostra sem toque ---------------- */
+/** Estado mínimo de mesa assistida: campo com o que o teste precisar, sem passar pelo motor. */
+function mesa(objetos, extra = {}) {
+  const facts = {};
+  for (const [name, c] of Object.entries({ ...CARDS, ...COMBAT_CARDS })) facts[name] = E.cardFacts(c);
+  const objects = {}; const battlefield = [];
+  objetos.forEach((o, i) => { const oid = 'o' + i; objects[oid] = { oid, zone: 'battlefield', controller: 0, counters: {}, damage: 0, tapped: false, sick: false, ...o }; battlefield.push(oid); });
+  return { facts, objects, stack: [], zones: [{ battlefield, hand: [], library: [], graveyard: [], exile: [], command: [], companion: [] }, { battlefield: [], hand: [], library: [], graveyard: [], exile: [], command: [], companion: [] }], players: [{ life: 20 }, { life: 20 }], turn: { active: 0, step: 'main1', priority: 0 }, mode: 'assisted', ...extra };
+}
+const marcas = est => JSON.parse(JSON.stringify(est.marcas.map(m => m.texto)));
+
+test('A13 · criatura mostra P/T com marcadores, bônus e dano; terreno não tem P/T; enjoo só em criatura sem ímpeto', () => {
+  const s = mesa([{ name: 'Sky Pike', sick: true, counters: { p1p1: 2 }, damage: 1 }, { name: 'Island', sick: true, tapped: true }, { name: 'Wall Guard', pump: { p: 1, t: 1 } }]);
+  const pike = T.estadoDaCarta(s, s.objects.o0);
+  assert.deepEqual(JSON.parse(JSON.stringify(pike.pt)), { p: 4, t: 3 }, '2/1 com dois +1/+1');
+  assert.equal(pike.sick, true); assert.equal(pike.criatura, true);
+  assert.deepEqual(marcas(pike), ['+2/+2', '1 dano']);
+  assert.equal(pike.tipo, 'Creature');
+  const ilha = T.estadoDaCarta(s, s.objects.o1);
+  assert.equal(ilha.pt, null); assert.equal(ilha.sick, false, 'terreno não tem enjoo'); assert.equal(ilha.tapped, true);
+  const muro = T.estadoDaCarta(s, s.objects.o2);
+  assert.deepEqual(JSON.parse(JSON.stringify(muro.pt)), { p: 1, t: 5 }, 'bônus até o fim do turno entra no P/T');
+  const cao = T.estadoDaCarta(mesa([{ name: 'Raging Hound', sick: true }]), mesa([{ name: 'Raging Hound', sick: true }]).objects.o0);
+  assert.equal(cao.sick, false, 'ímpeto: recém-chegada mas sem selo de enjoo');
+});
+
+test('A13 · anel e marcas: ataca, bloqueia, alvo de mágica, ficha, aura anexada e encantada', () => {
+  const s = mesa([
+    { name: 'Sky Pike', attacking: 1 },
+    { name: 'Wall Guard', blocking: 'o0' },
+    { name: 'Sky Pike', token: true },
+    { name: 'Wall Guard', attachedTo: 'o2' },
+    { name: 'Sky Pike' }
+  ]);
+  // uma mágica na pilha mirando a última criatura
+  s.objects.feitico = { oid: 'feitico', name: 'Lightning Bolt', zone: 'stack', controller: 1, targets: [{ oid: 'o4' }] };
+  s.stack = ['feitico'];
+  const a = T.estadoDaCarta(s, s.objects.o0); assert.equal(a.anel, 'ataca'); assert.deepEqual(marcas(a), ['ataca']);
+  const b = T.estadoDaCarta(s, s.objects.o1); assert.equal(b.anel, 'bloqueia'); assert.deepEqual(marcas(b), ['bloqueia']);
+  const c = T.estadoDaCarta(s, s.objects.o2); assert.deepEqual(marcas(c), ['ficha', 'com Wall Guard'], 'ficha e "encantada" pela anexada');
+  const d = T.estadoDaCarta(s, s.objects.o3); assert.deepEqual(marcas(d), ['→ Sky Pike'], 'a anexada aponta para quem está');
+  const e = T.estadoDaCarta(s, s.objects.o4); assert.equal(e.anel, 'alvo'); assert.deepEqual(marcas(e), ['alvo de Lightning Bolt']);
+  // o plano de bloqueio em montagem também aparece, antes de confirmar
+  const plano = { attack: new Set(), blocks: new Map([['o4', 'o0']]), eligible: new Set() };
+  const f = T.estadoDaCarta(s, s.objects.o4, plano); assert.equal(f.anel, 'bloqueia'); assert.ok(marcas(f).includes('→ Sky Pike'));
+  const planoAtaque = { attack: new Set(['o2']), blocks: new Map(), eligible: new Set() };
+  assert.equal(T.estadoDaCarta(s, s.objects.o2, planoAtaque).anel, 'ataca', 'atacante escolhido já mostra o anel');
+});
+
+test('A13 · terrenos iguais viram pilha: total, viradas e a primeira desvirada para tocar', () => {
+  const s = mesa([{ name: 'Island', tapped: true }, { name: 'Island' }, { name: 'Island', tapped: true }, { name: 'Sky Pike' }, { name: 'Island' }]);
+  const pilhas = T.agrupaTerrenos(s, ['o0', 'o1', 'o2', 'o4']);
+  assert.equal(pilhas.length, 1);
+  const ilhas = pilhas[0];
+  assert.equal(ilhas.total, 4); assert.equal(ilhas.viradas, 2); assert.equal(ilhas.primeira, 'o0'); assert.equal(ilhas.primeiraDesvirada, 'o1');
+  const todas = T.agrupaTerrenos(mesa([{ name: 'Island', tapped: true }, { name: 'Island', tapped: true }]), ['o0', 'o1'])[0];
+  assert.equal(todas.primeiraDesvirada, null, 'todas viradas: tocar cai na primeira');
+  assert.equal(T.agrupaTerrenos(s, []).length, 0);
 });

@@ -1142,14 +1142,28 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   await handCard(page, 'Sky Pike').click();
   await page.click('.ds-dialog >> text=/Conjurar · \\{1\\}\\{U\\}/');
   await page.waitForSelector('.tb-side--me [data-zone="permanents"] .tb-card[aria-label*="Sky Pike"]');
-  assert.equal(await page.locator('.tb-side--me [data-zone="lands"] .tb-card[data-tapped="true"]').count(), 2, 'os dois terrenos viraram para pagar');
+  // A13 · terrenos iguais são uma pilha: "×2" e as duas viradas para pagar (antes eram dois cartões)
+  const pilha = page.locator('.tb-side--me [data-zone="lands"] .tb-card').first();
+  assert.equal(await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count(), 1, 'uma pilha de Island');
+  assert.equal(await pilha.getAttribute('data-pilha-total'), '2'); assert.equal(await pilha.getAttribute('data-pilha-viradas'), '2');
+  assert.equal(await pilha.getAttribute('data-tapped'), 'true', 'todas viradas: a pilha aparece virada');
+  assert.match(await page.innerText('.tb-side--me [data-zone="lands"] .tb-zone__label'), /Terrenos · 2/, 'a zona conta cartas, não pilhas');
+  // A13 · a criatura recém-chegada mostra P/T e enjoo sem toque
+  const pike = page.locator('.tb-side--me [data-zone="permanents"] .tb-card[aria-label*="Sky Pike"]').first();
+  assert.equal(await pike.locator('.tb-card__pt').innerText(), '2/1');
+  assert.equal(await pike.getAttribute('data-sick'), 'true');
+  assert.match(await pike.getAttribute('aria-label'), /Sky Pike, com enjoo, 2\/1/);
+  assert.ok(await pike.evaluate(el => el.classList.contains('tb-card--entrou')), 'quem acabou de entrar recebe o movimento curto');
   if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
 
   // próximo turno: declarar ataque com a criatura sem enjoo
   await page.click('#tb-pass-turn');
   for (let i = 0; i < 8 && !(await page.locator('#tb-attack').count()); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
   assert.match(await page.innerText('.tb-banner'), /Declarar atacantes/);
+  assert.equal(await pike.getAttribute('data-sick'), 'false', 'no turno seguinte o enjoo passou');
   await page.locator('.tb-side--me .tb-card[data-eligible="true"]').first().click();
+  // A13 · atacante escolhido já ganha o anel antes de confirmar
+  assert.equal(await page.locator('.tb-side--me .tb-card[data-estado="ataca"]').count(), 1, 'anel de ataque no planejamento');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/atk.png' });
   await page.click('#tb-attack');
   await page.waitForFunction(() => /18/.test(document.querySelector('#tb-life-opp').innerText));

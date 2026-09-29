@@ -99,7 +99,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | B · Bot | B3 amador experiente e B4 profissional, jogáveis na mesa | 🟡 |
 | B · Bot | B5 escolha na mesa e B6 torneio medido no portão | 🟡 |
 | B · Bot | B7 didática do bot: resumo do turno e "o que eu poderia fazer" | 🟡 |
-| A · Mesa | A13–A16 mesa profissional: campo, pilha explicada, zoom e prévia | ○ |
+| A · Mesa | A13 campo que se lê de relance: P/T, anéis de estado, pilhas de terreno | 🟡 |
+| A · Mesa | A14–A16 pilha explicada, zoom e prévia | ○ |
 | X · Scanner | X7 captura automática sem moldura | 🟡 |
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
 | X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
@@ -370,7 +371,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
-| E38 | A13–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
+| E38 🟡 | A13 (leva 77) · A14–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
@@ -771,7 +772,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** S2.
 - **Fora:** —
 
-**A13 · Mesa de verdade: leitura instantânea do campo** ○
+**A13 · Mesa de verdade: leitura instantânea do campo** 🟡
 - **Valor:** olhar a tela e entender a partida em dois segundos, sem decorar convenções.
 - **Aceite:**
   - zonas com hierarquia visual clara (campo, terrenos, mão, pilha, cemitério e exílio), cada uma com
@@ -781,9 +782,24 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   - carta maior no campo, com nome, custo e P/T sempre legíveis em tela de celular;
   - movimento curto quando a carta muda de zona (até 200 ms), respeitando "reduzir animações" do sistema;
   - tudo em tokens `ds-*`, sem estilo solto, com alvo de toque de 44px.
-- **Testes:** V (contrato visual das zonas e dos estados), I headless (cada estado com sua marca).
+- **Entregue (leva 77):** a carta do campo cresceu (64 → 84 px; mão 100 px) e passou a dizer tudo sem
+  toque: **nome** numa faixa por cima da arte, **P/T atual** da criatura (marcadores, bônus e dano já
+  contados, pelo mesmo cálculo do motor), **anel de estado** (vermelho = ataca, dourado = bloqueia,
+  tracejado = alvo de mágica na pilha), selos de enjoo (só criatura sem ímpeto) e ficha, pílulas para
+  marcadores, dano, aura anexada ("→ Sky Pike") e encantada ("com Pacifism"); o atacante ou bloqueador
+  escolhido já mostra o anel antes de confirmar. **Terrenos iguais viram uma pilha** ("×4 · 2 virada(s)";
+  tocar age no primeiro desvirado) e as zonas contam cartas de verdade ("Terrenos · 4"). Quem entra no
+  campo ganha um movimento de 180 ms, desligado com "reduzir animações". Tudo em tokens.
+- **Decisão:** o estado da carta é calculado num módulo puro (`estadoDaCarta`, `agrupaTerrenos` em
+  table-model), então cada marca tem teste sem navegador; a tela só desenha.
+- **Testes:** U (P/T com marcadores, bônus e dano; terreno sem P/T nem enjoo; ímpeto sem selo; anel e
+  marcas de ataca, bloqueia, alvo, ficha, anexada e encantada; plano de ataque/bloqueio antes de
+  confirmar; pilhas de terreno com total, viradas e primeira desvirada), V (tamanhos, nome e P/T, anéis
+  só com tokens, movimento ≤ 200 ms e desligado em "reduzir animações"), I headless (pilha de Island
+  ×2 virada para pagar, zona contando 2, Sky Pike com 2/1 e enjoo que passa no turno seguinte, movimento
+  de entrada, anel de ataque no planejamento; testes existentes da mesa, do bot e do offline seguem).
 - **Depende de:** A1, A6.
-- **Fora:** arte animada; mesa em 3D.
+- **Fora:** arte animada; mesa em 3D; P/T na mão (a carta da mão mostra a arte inteira).
 
 **A14 · A pilha explicada** ○
 - **Valor:** entender o que está acontecendo, principalmente no motor completo, onde o motor decide sozinho.

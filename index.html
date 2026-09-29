@@ -509,11 +509,22 @@ body {
 .tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2); scroll-snap-type: x proximity; }
 
 .tb-card {
-  position: relative; flex: none; width: 64px; aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
+  position: relative; flex: none; width: 84px; aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
   scroll-snap-align: start; transition: transform var(--dur-2) var(--ease-out);
 }
-.tb-card--sm { width: 52px; }
-.tb-card--hand { width: 92px; }
+.tb-card--sm { width: 56px; }
+.tb-card--hand { width: 100px; }
+/* A13 · nome e P/T sempre legíveis por cima da arte; anel diz o estado sem toque */
+.tb-card__label { position: absolute; left: 0; right: 0; top: 0; padding: 2px var(--space-1); font-size: 10px; line-height: 1.2; color: var(--fg); background: var(--scrim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--scrim); border: 1px solid var(--border); }
+.tb-card[data-estado="ataca"] .tb-card__face { outline: 3px solid var(--negative); }
+.tb-card[data-estado="bloqueia"] .tb-card__face { outline: 3px solid var(--accent); }
+.tb-card[data-estado="alvo"] .tb-card__face { outline: 3px dashed var(--warning); }
+.tb-pill--estado { background: var(--bg-elev-3); color: var(--fg); border: 1px solid var(--border); }
+.tb-pill--qtd { background: var(--fg); color: var(--bg); }
+@keyframes tb-entrou { from { opacity: 0; transform: translateY(var(--space-3)) scale(.96); } to { opacity: 1; transform: none; } }
+.tb-card--entrou { animation: tb-entrou var(--dur-2) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tb-card--entrou { animation: none; } .tb-card, .tb-card__face { transition: none; } }
 .tb-card__face {
   position: absolute; inset: 0; overflow: hidden; border-radius: var(--radius-card);
   background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--shadow-1);
@@ -521,7 +532,7 @@ body {
 }
 .tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
-.tb-card[data-tapped="true"] { margin: 0 calc(64px * .2); }
+.tb-card[data-tapped="true"] { margin: 0 calc(84px * .2); }
 .tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
 .tb-card[data-selected="true"] .tb-card__face { outline: 3px solid var(--accent); transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card__pills { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; align-items: center; }
@@ -8861,30 +8872,48 @@ const __m17 = (function () {
 const { h, Text, Button } = __m3;
 
 /** Carta na mesa. Virada gira 90°; enjoo aparece como selo; marcadores e dano como pílulas. */
+/* A13 · a carta diz tudo sem toque: nome sempre legível, P/T da criatura, anel de estado
+   (ataca / bloqueia / alvo), selos (enjoo, ficha) e pílulas (marcadores, dano, anexos).
+   `estado` vem de estadoDaCarta (table-model); sem ele, cai no que a carta traz. */
 function TableCard(card, opts = {}) {
+  const est = opts.estado || null;
   const pills = [];
-  for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' },
-    k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}`));
-  if (card.damage) pills.push(h('span', { class: 'tb-pill tb-pill--neg' }, `${card.damage} dano`));
+  if (est) for (const m of est.marcas) pills.push(h('span', { class: 'tb-pill' + (m.k === 'dano' ? ' tb-pill--neg' : m.k === 'ataca' || m.k === 'bloqueia' || m.k === 'alvo' ? ' tb-pill--estado' : ''), dataset: { marca: m.k } }, m.texto));
+  else {
+    for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' },
+      k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}`));
+    if (card.damage) pills.push(h('span', { class: 'tb-pill tb-pill--neg' }, `${card.damage} dano`));
+  }
   for (const t of opts.tags || []) pills.push(h('span', { class: 'tb-pill tb-pill--tag' }, t));
+  if (opts.pilha && opts.pilha.total > 1) pills.push(h('span', { class: 'tb-pill tb-pill--qtd', dataset: { marca: 'pilha' } }, `×${opts.pilha.total}` + (opts.pilha.viradas && opts.pilha.viradas < opts.pilha.total ? ` · ${opts.pilha.viradas} virada(s)` : '')));
+  const sick = est ? est.sick : !!card.sick;
+  const tapped = opts.pilha ? opts.pilha.viradas === opts.pilha.total && opts.pilha.total > 0 : !!card.tapped;
+  const pt = est && est.pt ? `${est.pt.p}/${est.pt.t}` : null;
+  const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? `${pt}` : null,
+    ...(est ? est.marcas.filter(m => m.k !== 'dano' && m.k !== 'marcador').map(m => m.texto) : [])].filter(Boolean).join(', ');
   return h('button', {
-    class: ['tb-card', opts.size ? `tb-card--${opts.size}` : ''].filter(Boolean).join(' '), type: 'button',
-    'aria-label': card.name + (card.tapped ? ', virada' : '') + (card.sick ? ', com enjoo' : ''),
-    dataset: { tapped: String(!!card.tapped), sick: String(!!card.sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '' },
+    class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
+    'aria-label': fala,
+    dataset: { tapped: String(tapped), sick: String(sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '',
+      estado: est && est.anel ? est.anel : '', ...(opts.pilha ? { pilhaTotal: String(opts.pilha.total), pilhaViradas: String(opts.pilha.viradas) } : {}) },
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' },
-    card.image ? h('img', { src: card.image, alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, card.name)),
+    card.image ? h('img', { src: card.image, alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, card.name),
+    card.image && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
+    pt ? h('span', { class: 'tb-card__pt', dataset: { pt } }, pt) : null),
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
-  card.sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
+  sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
 }
 
 /** Faixa rolável de cartas com rótulo. Vazia, ocupa pouco e diz o que é. */
 function ZoneRow(label, cards, opts = {}) {
   if (!cards.length) return h('div', { class: 'tb-zone tb-zone--empty', dataset: { zone: opts.zone || '' } },
     h('span', { class: 'tb-zone__label' }, label), h('span', { class: 'tb-zone__empty' }, opts.empty || '—'));
+  // A13 · a zona diz quantas tem (a contagem real, não o número de pilhas)
+  const n = opts.count != null ? opts.count : cards.length;
   return h('div', { class: 'tb-zone', dataset: { zone: opts.zone || '' } },
-    h('span', { class: 'tb-zone__label' }, label), h('div', { class: 'tb-row' }, ...cards));
+    h('span', { class: 'tb-zone__label' }, `${label} · ${n}`), h('div', { class: 'tb-row' }, ...cards));
 }
 
 /** Contador de vida: o número é o botão. */
@@ -9237,7 +9266,46 @@ function restoreTable(data) {
   return createTable(data.setup, { log: data.log, marks: data.marks, options: data.options || {} });
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable };
+/* ---- A13 · o que a carta mostra sem ninguém tocar ----
+   Puro: a tela só desenha o que sai daqui. `plano` é o ataque/bloqueio em montagem. */
+function estadoDaCarta(s, o, plano = null) {
+  const facts = (s.facts && s.facts[o.name]) || {};
+  const tipos = facts.types || [];
+  const criatura = tipos.includes('creature') || !!o.faceDown;
+  let pt = null;
+  if (criatura) { try { const st = E.stats(s, o); pt = { p: st.power, t: st.toughness }; } catch (e) { pt = null; } }
+  const marcas = [];
+  if (o.token) marcas.push({ k: 'ficha', texto: 'ficha' });
+  if (o.faceDown) marcas.push({ k: 'virada-baixo', texto: 'face para baixo' });
+  const alvoDe = (s.stack || []).filter(id => { const it = s.objects[id]; return it && (it.targets || []).some(t => t && t.oid === o.oid); }).map(id => s.objects[id].name);
+  let anel = null;
+  if (o.attacking != null) { marcas.push({ k: 'ataca', texto: 'ataca' }); anel = 'ataca'; }
+  else if (o.blocking != null && o.blocking !== false) { marcas.push({ k: 'bloqueia', texto: 'bloqueia' }); anel = 'bloqueia'; }
+  if (alvoDe.length) { marcas.push({ k: 'alvo', texto: `alvo de ${alvoDe[0].split(',')[0]}` }); anel = anel || 'alvo'; }
+  if (o.attachedTo && s.objects[o.attachedTo]) marcas.push({ k: 'anexo', texto: `→ ${s.objects[o.attachedTo].name.split(',')[0]}` });
+  const anexos = s.zones.flatMap(z => z.battlefield).filter(x => s.objects[x].attachedTo === o.oid);
+  if (anexos.length) marcas.push({ k: 'encantada', texto: anexos.length === 1 ? `com ${s.objects[anexos[0]].name.split(',')[0]}` : `+${anexos.length} anexadas` });
+  if (plano && plano.blocks && plano.blocks.has(o.oid)) { const alvo = s.objects[plano.blocks.get(o.oid)]; marcas.push({ k: 'bloqueia', texto: `→ ${alvo ? alvo.name.split(',')[0] : '?'}` }); anel = 'bloqueia'; }
+  if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
+  for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}` }); }
+  if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
+  const enjoo = !!o.sick && criatura && !(facts.kw || []).includes('haste');
+  return { pt, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
+}
+/** Terrenos iguais viram uma pilha: nome, quantas, quantas viradas, e a primeira desvirada para tocar. */
+function agrupaTerrenos(s, oids) {
+  const pilhas = new Map();
+  for (const oid of oids) {
+    const o = s.objects[oid]; if (!o) continue;
+    const cur = pilhas.get(o.name) || { name: o.name, oids: [], total: 0, viradas: 0, primeira: null, primeiraDesvirada: null };
+    cur.oids.push(oid); cur.total++; if (o.tapped) cur.viradas++; else if (cur.primeiraDesvirada == null) cur.primeiraDesvirada = oid;
+    if (cur.primeira == null) cur.primeira = oid;
+    pilhas.set(o.name, cur);
+  }
+  return [...pilhas.values()];
+}
+
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos };
 })();
 
 
@@ -9685,13 +9753,16 @@ function createTableScreen({ store }) {
   }
 
   /* ---- pintura ---- */
-  const attachedCount = (s, o) => s.zones.flatMap(z => z.battlefield).filter(x => s.objects[x].attachedTo === o.oid).length;
-  const tagsOf = (s, o) => [o.token ? 'ficha' : null, o.attacking != null ? 'ataca' : null, o.blocking ? 'bloqueia' : null,
-    o.attachedTo && s.objects[o.attachedTo] ? `→ ${s.objects[o.attachedTo].name.split(',')[0]}` : null,
-    attachedCount(s, o) ? `+${attachedCount(s, o)} anexada(s)` : null,
-    plan.blocks.has(o.oid) ? `→ ${s.objects[plan.blocks.get(o.oid)].name.split(',')[0]}` : null].filter(Boolean);
+  // A13 · quem entrou no campo desde a última pintura ganha o movimento curto
+  let vistos = new Set();
+  const entrou = oid => !vistos.has(oid);
   const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) },
-    { onClick: () => onBoardTap(oid) || onClick(oid), tags: tagsOf(s, s.objects[oid]), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid) }));
+    { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid) }));
+  /** Terrenos iguais numa pilha só: tocar age na primeira desvirada (ou na primeira, se todas viradas). */
+  const landPiles = (s, ids, onClick) => T.agrupaTerrenos(s, ids).map(pilha => {
+    const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
+    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, eligible: plan.eligible.has(alvo) });
+  });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
 
   function side(s, p, mine) {
@@ -9717,7 +9788,7 @@ function createTableScreen({ store }) {
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
       sub: subMasm, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
-    const field = [ZoneRow('Permanentes', cardsOf(s, others, openObject), { zone: 'permanents', empty: 'nenhuma' }), ZoneRow('Terrenos', cardsOf(s, lands, openObject), { zone: 'lands', empty: 'nenhum' })];
+    const field = [ZoneRow('Permanentes', cardsOf(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.length })];
     return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), 'aria-label': mine ? 'seu lado' : 'lado do oponente' },
       h('div', { class: 'tb-side__head' }, life, chips),
       ...(mine ? field : field.reverse()));
@@ -9905,6 +9976,8 @@ function createTableScreen({ store }) {
         h('div', { class: 'tb-center' }, StackStrip(stackItems), adj),
         side(s, v, true)),
       dock(s, v));
+    // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
+    vistos = new Set(s.zones.flatMap(z => z.battlefield));
   }
 
   return root;
