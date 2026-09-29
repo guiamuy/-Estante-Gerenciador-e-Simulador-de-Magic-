@@ -372,3 +372,40 @@ test('A15 · toque curto não abre e o clique passa; arrastar cancela; botão di
   el.fire('pointercancel'); await espera(40);
   assert.deepEqual(log, [], 'cancelamento antes do tempo não abre');
 });
+
+/* ---------------- A16 · prévia em palavras e resumo do turno ---------------- */
+test('A16 · a prévia contada do ponto de vista de quem olha: vida antes → depois, mortos de cada lado, letal', () => {
+  const s = { players: [{ name: 'Você', life: 20 }, { name: 'Bot', life: 3 }] };
+  const pv = { life: [0, -4], vida: [20, -1], mortos: [{ name: 'Sky Pike', controller: 0 }, { name: 'Venom Eel', controller: 1 }], died: ['Sky Pike', 'Venom Eel'] };
+  const d = T.descrevePrevia(s, pv, 0);
+  assert.equal(d.texto, 'Bot 3 → -1 · morrem seus: Sky Pike · morrem do outro lado: Venom Eel');
+  assert.equal(d.letal, true);
+  const doBot = T.descrevePrevia(s, pv, 1);
+  assert.equal(doBot.texto, 'Bot 3 → -1 · morrem seus: Venom Eel · morrem do outro lado: Sky Pike');
+  assert.equal(doBot.letal, false, 'letal só conta contra os outros');
+  assert.equal(T.descrevePrevia(s, { life: [0, 0], vida: [20, 3], mortos: [] }, 0).texto, 'ninguém perde vida · ninguém morre');
+  assert.equal(T.descrevePrevia(s, null, 0), null, 'bloqueio inválido: sem prévia');
+});
+
+test('A16 · resumo do turno: vida, compras, o que entrou e o que foi para o cemitério; e a mesa guarda um por turno', () => {
+  const s = mesa([{ name: 'Sky Pike' }, { name: 'Island' }], { players: [{ name: 'Você', life: 18 }, { name: 'Bot', life: 17 }] });
+  s.objects.morto = { oid: 'morto', name: 'Wall Guard', zone: 'graveyard', controller: 1 };
+  const inicio = { turno: 3, ativo: 0, vida: [20, 20], compradas: [0, 0], campo: [['o1'], ['morto']] };
+  const fim = { turno: 3, ativo: 0, vida: [18, 17], compradas: [1, 0], campo: [['o0', 'o1'], []] };
+  const r = T.resumoDoTurnoMesa(inicio, fim, s);
+  assert.equal(r.turno, 3); assert.equal(r.ativo, 'Você');
+  assert.deepEqual(JSON.parse(JSON.stringify(r.linhas)), ['Vida: Você 20 → 18 · Bot 20 → 17', 'Compraram: Você 1', 'Entrou: Sky Pike', 'Morreu ou foi para o cemitério: Wall Guard']);
+  const parado = { ...fim, compradas: [0, 0] };   // compras são as do próprio turno (o motor zera a cada turno)
+  assert.deepEqual(JSON.parse(JSON.stringify(T.resumoDoTurnoMesa(parado, parado, s).linhas)), ['Nada mudou no campo nem na vida.']);
+  // a mesa de verdade: jogar um terreno e passar o turno gera o resumo do turno
+  const t = goldfish(4);
+  t.act({ t: 'keep', p: 0, bottom: [] });
+  toMain(t);
+  const turno = t.state.turn.number;
+  const oid = handOf(t, 'Island') || pull(t, 'Island');
+  t.act({ t: 'play_land', p: 0, oid });
+  for (let i = 0; i < 60 && t.state.turn.number === turno; i++) t.act({ t: 'pass', p: t.state.turn.priority });
+  const meu = t.resumos.find(x => x.turno === turno);
+  assert.ok(meu, 'resumo do meu turno guardado');
+  assert.ok(meu.linhas.some(l => /Entrou: .*Island/.test(l)), 'o terreno aparece no resumo: ' + meu.linhas.join(' | '));
+});

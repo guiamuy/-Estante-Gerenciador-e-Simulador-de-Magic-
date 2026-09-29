@@ -102,7 +102,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | A · Mesa | A13 campo que se lê de relance: P/T, anéis de estado, pilhas de terreno | 🟡 |
 | A · Mesa | A14 pilha explicada, recusa com motivo, registro em linha do tempo | 🟡 |
 | A · Mesa | A15 segurar para ler a carta com texto, estado e ações | 🟡 |
-| A · Mesa | A16 prévia de combate e resumo do turno | ○ |
+| A · Mesa | A16 prévia de combate que bate com o motor e resumo dos turnos | 🟡 |
 | X · Scanner | X7 captura automática sem moldura | 🟡 |
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
 | X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
@@ -285,7 +285,7 @@ abaixo é a que vale):
 | 3º ✅ | **E41 · Listas (C10, C11)** — entregue em 2 levas (68 e 69) | 2 |
 | 3º-A ✅ | **E42 · Offline de verdade (O1–O3)** — entregue em 3 levas (70 a 72) | 2 a 3 |
 | 4º ✅ | **E40 · Coleção (C12–C14)** — entregue em 4 levas (73 a 76) | 4 |
-| 5º | **E38 · Mesa (A13–A16)** — leitura do campo, pilha explicada, zoom e prévia | 4 a 5 |
+| 5º ✅ | **E38 · Mesa (A13–A16)** — entregue em 4 levas (77 a 80) | 4 a 5 |
 
 **Regra que o E42 fixa, valendo para tudo que vier depois:** toda funcionalidade nova nasce funcionando
 sem internet com o que já está no aparelho, e o portão prova isso no teste "tudo sem internet"
@@ -373,7 +373,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
-| E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15 (leva 79) · A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
+| E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15 (leva 79) · A16 (leva 80) — épico completo, aguardando teste no aparelho | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
@@ -859,15 +859,31 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A13, D5.
 - **Fora:** rulings na mesa (V2); teclado (o espiar é gesto de toque; a folha cobre leitura e ação).
 
-**A16 · Prévia de combate e resumo do turno** ○
+**A16 · Prévia de combate e resumo do turno** 🟡
 - **Valor:** decidir ataque e bloqueio sem contar de cabeça.
 - **Aceite:**
   - ao montar o ataque, a mesa mostra o dano que passa, quem morre dos dois lados e a vida resultante;
   - ao montar o bloqueio, a mesma prévia, atualizada a cada toque;
   - no fim do turno, um resumo curto: vida, cartas compradas, o que entrou e o que morreu.
-- **Testes:** U (a prévia bate com o resultado real do combate em cenários montados), I.
+- **Entregue (leva 80):** ao escolher atacantes, a faixa diz "Se ninguém bloquear: Bia 20 → 18 ·
+  ninguém morre." (e "É letal." quando é), atualizada a cada toque. No bloqueio, a mesma frase com os
+  bloqueios escolhidos: vida antes → depois de cada jogador, "morrem seus" / "morrem do outro lado";
+  bloqueio ilegal (ameaça com um só) diz que não dá. Quando o turno vira, a mesa mostra o **resumo dos
+  últimos turnos** (o seu e o do oponente, até o próximo OK): vida, quem comprou quantas, o que entrou no
+  campo, o que foi para o cemitério. A prévia usa o próprio motor numa cópia do estado
+  (`previewAttack`, `previewCombat` agora com a vida resultante e o lado de cada morto), então nunca
+  diverge das regras.
+- **Motor:** só leitura — duas funções de prévia, estado e partidas-referência inalterados (motor v56).
+- **Testes:** U (a prévia bate com o combate real em sete cenários — simples, vínculo com a vida, toque
+  mortífero, atropelar, golpe duplo com um sem bloqueio, ameaça bloqueada por dois com indestrutível,
+  alcance contra voar —, prévia de ataque sem bloqueio igual ao real, prévia não muda o estado, bloqueio
+  ilegal sem prévia; texto da prévia pelos dois lados e letal; resumo do turno com vida, compras, entrada
+  e cemitério, e a mesa guardando o resumo do turno de verdade), V, I headless (goldfish: prévia do ataque
+  e resumo com "Vida: Goldfish 20 → 18" mesmo com o goldfish jogando logo depois; hot-seat: prévia do
+  ataque, do bloqueio sem e com Wall Guard).
 - **Depende de:** M6, A13.
-- **Fora:** sugerir o melhor bloqueio (isso é bot, B4).
+- **Fora:** sugerir o melhor bloqueio (isso é bot, B4); prévia com mágicas de combate que ainda não foram
+  conjuradas.
 
 ### S · Scripts de carta (motor completo)
 

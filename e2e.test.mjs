@@ -1165,8 +1165,18 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   // A13 · atacante escolhido já ganha o anel antes de confirmar
   assert.equal(await page.locator('.tb-side--me .tb-card[data-estado="ataca"]').count(), 1, 'anel de ataque no planejamento');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/atk.png' });
+  // A16 · contra o goldfish a prévia do ataque já diz a vida resultante
+  assert.match(await page.innerText('.tb-banner'), /Se ninguém bloquear: Goldfish 20 → 18 · ninguém morre\./);
   await page.click('#tb-attack');
   await page.waitForFunction(() => /18/.test(document.querySelector('#tb-life-opp').innerText));
+  // A16 · passado o turno, o resumo dele aparece na mesa: vida e o que entrou; some com OK
+  await page.click('#tb-pass-turn');
+  await page.waitForSelector('#tb-resumo', { timeout: 8000 });
+  const resumoTurno = await page.innerText('#tb-resumo');
+  assert.match(resumoTurno, /Turno \d+ · Você/, 'o seu turno aparece mesmo com o goldfish jogando logo depois');
+  assert.match(resumoTurno, /Vida: Goldfish 20 → 18/);
+  await page.click('#tb-resumo-ok');
+  await page.waitForFunction(() => !document.querySelector('#tb-resumo'));
   await page.click('#tb-log');
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /Você atacou com Sky Pike/);
@@ -1198,16 +1208,20 @@ test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', {
     if (await page.locator('#tb-no-attack').count() && !(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').count())) { await page.click('#tb-no-attack'); continue; }
     if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn'); else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
   }
+  assert.match(await page.innerText('.tb-banner'), /Toque nas criaturas que vão atacar/, 'sem atacante escolhido, sem prévia');
   await page.locator('.tb-side--me .tb-card[data-eligible="true"][aria-label*="Sky Pike"]').click();
+  // A16 · prévia do ataque a cada toque: dano que passa e vida resultante, se ninguém bloquear
+  assert.match(await page.innerText('.tb-banner'), /Se ninguém bloquear: (Ana|Bia) 20 → 18 · ninguém morre\./);
   await page.click('#tb-attack');
   await page.waitForSelector('#tb-handoff');
   assert.match(await page.innerText('#tb-handoff'), /declarar bloqueadores/);
   await page.click('#tb-reveal');
   const defLife = await page.innerText('#tb-life-me');
-  assert.match(await page.innerText('.tb-banner'), /Prévia: você perde 2 de vida/);
+  // A16 · a prévia do bloqueio agora diz a vida resultante e quem morre de cada lado (antes: "você perde 2 de vida")
+  assert.match(await page.innerText('.tb-banner'), /Prévia: (Ana|Bia) 20 → 18 · ninguém morre\./);
   await page.locator('.tb-side--me .tb-card[data-eligible="true"][aria-label*="Wall Guard"]').click();
   await page.click('.ds-dialog >> text=Bloquear Sky Pike');
-  assert.match(await page.innerText('.tb-banner'), /Prévia: você não perde de vida/);
+  assert.match(await page.innerText('.tb-banner'), /Prévia: ninguém perde vida · ninguém morre\./);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/blk.png' });
   await page.click('#tb-block');
   await page.waitForSelector('#tb-reveal'); // o combate se resolve sozinho e a vez volta para o atacante

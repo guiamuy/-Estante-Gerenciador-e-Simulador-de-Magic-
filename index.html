@@ -588,6 +588,9 @@ body {
 .tb-peek__acoes { display: flex; flex-direction: column; gap: var(--space-1); }
 .tb-peek__acao { min-height: 0; padding: 2px var(--space-2); font-size: var(--text-xs); }
 @media (prefers-reduced-motion: no-preference) { .tb-peek__card { animation: tb-entrou var(--dur-1) var(--ease-out); } }
+/* A16 · resumo do turno */
+.tb-resumo { padding: var(--space-2) var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-resumo__lines { margin: 0; padding-left: var(--space-4); font-size: var(--text-sm); color: var(--fg-muted); display: flex; flex-direction: column; gap: 2px; }
 /* A14 · pilha explicada */
 .tb-stack__head { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; }
 .tb-stack__prio { font-size: var(--text-xs); color: var(--accent); }
@@ -8328,8 +8331,16 @@ function previewCombat(state, blocks) {
     const before = s.players.map(pl => pl.life);
     const alive0 = new Set(battlefield(s).map(o => o.oid));
     dealCombatDamage(s);
-    const died = [...alive0].filter(oid => s.objects[oid].zone !== 'battlefield').map(oid => s.objects[oid].name);
-    return { life: s.players.map((pl, i) => pl.life - before[i]), died };
+    const mortos = [...alive0].filter(oid => s.objects[oid].zone !== 'battlefield').map(oid => ({ oid, name: s.objects[oid].name, controller: state.objects[oid].controller }));
+    return { life: s.players.map((pl, i) => pl.life - before[i]), died: mortos.map(m => m.name), mortos, vida: s.players.map(pl => pl.life) };
+  } catch (e) { return null; }
+}
+/** A16 · prévia do ataque antes de declarar: o que acontece se ninguém bloquear. Não muda nada. */
+function previewAttack(state, attackers) {
+  try {
+    if (!attackers || !attackers.length) return null;
+    const s = apply(clone(state), { t: 'attack', p: state.pending ? state.pending.p : state.turn.active, attackers }).state;
+    return previewCombat(s, []);
   } catch (e) { return null; }
 }
 
@@ -8442,7 +8453,7 @@ function invariants(s, expectedObjects) {
 
 return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, productions, protections, prevented, canBlock,
-  createGame, apply, legalActions, previewCombat, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
+  createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
 
@@ -9208,8 +9219,10 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
   let match, lines, barrier, humanMarks;
   /** A14 · cada linha do registro sabe o turno e a fase em que aconteceu. */
   let entradas = [];
+  // A16 · foto do começo do turno e o resumo de cada turno que terminou
+  let foto = null, resumos = [];
 
-  function reset() { match = E.createMatch(setup); lines = []; entradas = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; }
+  function reset() { match = E.createMatch(setup); lines = []; entradas = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; foto = null; resumos = []; }
   const anota = (textos, st) => { for (const texto of textos) entradas.push({ texto, turno: st.turn.number || 0, passo: st.status === 'mulligan' ? 'mulligan' : st.turn.step, ativo: (st.players[st.turn.active] || {}).name || '' }); };
   function fechaResumoDoBot() {
     if (!options.bot || !motivosDoBot.length) return;
@@ -9225,6 +9238,11 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     const after = match.state;
     if (revealed(before, after)) barrier = match.log.length;
     const novas = describe(before, action, events, after);
+    // A16 · virou o turno: fecha o resumo do que acabou (o "antes" ainda é o fim do turno velho)
+    if ((after.turn.number || 0) > (before.turn.number || 0)) {
+      if (foto && foto.turno > 0) { const r = resumoDoTurnoMesa(foto, fotoDoTurno(before), before); if (r) resumos.push(r); }
+      foto = fotoDoTurno(after);
+    } else if (!foto && after.status === 'playing') foto = fotoDoTurno(after);
     lines.push(...novas);
     // a linha pertence ao momento em que a ação foi feita (o separador de turno, ao turno novo)
     for (const texto of novas) anota([texto], /^— Turno/.test(texto) ? after : before);
@@ -9313,6 +9331,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     get log() { return match.log; },
     get lines() { return lines.slice(); },
     get entradas() { return entradas.map(e => ({ ...e })); },
+    get resumos() { return resumos.map(r => ({ ...r, linhas: r.linhas.slice() })); },
     setup,
     act,
     /** Quem está com o aparelho agora (perspectiva da tela). */
@@ -9500,7 +9519,45 @@ function linhaDoTempo(entradas) {
   return turnos;
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT };
+/* ---- A16 · prévia de combate em palavras, e o resumo do turno ---- */
+/** A prévia (previewCombat/previewAttack) contada do ponto de vista de quem olha (v). */
+function descrevePrevia(s, pv, v) {
+  if (!pv) return null;
+  const nome = i => (s.players[i] || {}).name || `jogador ${i + 1}`;
+  const vidas = s.players.map((pl, i) => ({ i, nome: nome(i), antes: pl.life, depois: pv.vida ? pv.vida[i] : pl.life + pv.life[i], delta: pv.life[i] })).filter(x => x.delta !== 0);
+  const meus = pv.mortos ? pv.mortos.filter(m => m.controller === v).map(m => m.name) : [];
+  const deles = pv.mortos ? pv.mortos.filter(m => m.controller !== v).map(m => m.name) : [];
+  const partes = [];
+  partes.push(vidas.length ? vidas.map(x => `${x.nome} ${x.antes} → ${x.depois}`).join(' · ') : 'ninguém perde vida');
+  if (meus.length) partes.push(`morrem seus: ${meus.join(', ')}`);
+  if (deles.length) partes.push(`morrem do outro lado: ${deles.join(', ')}`);
+  if (!meus.length && !deles.length) partes.push('ninguém morre');
+  const letal = s.players.some((pl, i) => i !== v && !pl.lost && (pv.vida ? pv.vida[i] : pl.life + pv.life[i]) <= 0);
+  return { texto: partes.join(' · '), vidas, meus, deles, letal };
+}
+/** Foto do fim/início de turno: o que o resumo compara. */
+function fotoDoTurno(s) {
+  return { turno: s.turn.number || 0, ativo: s.turn.active, vida: s.players.map(p => p.life), compradas: s.players.map(p => p.drawnThisTurn || 0),
+    campo: s.zones.map(z => z.battlefield.slice()) };
+}
+/** O que mudou num turno, em até quatro linhas: vida, compras, o que entrou, o que morreu. */
+function resumoDoTurnoMesa(inicio, fim, s) {
+  if (!inicio || !fim) return null;
+  const nome = i => (s.players[i] || {}).name || `jogador ${i + 1}`;
+  const linhas = [];
+  const vida = s.players.map((_, i) => i).filter(i => fim.vida[i] !== inicio.vida[i]).map(i => `${nome(i)} ${inicio.vida[i]} → ${fim.vida[i]}`);
+  if (vida.length) linhas.push(`Vida: ${vida.join(' · ')}`);
+  const compras = s.players.map((_, i) => i).filter(i => fim.compradas[i]).map(i => `${nome(i)} ${fim.compradas[i]}`);
+  if (compras.length) linhas.push(`Compraram: ${compras.join(' · ')}`);
+  const antes = new Set(inicio.campo.flat()), depois = new Set(fim.campo.flat());
+  const entrou = [...depois].filter(o => !antes.has(o)).map(o => (s.objects[o] || {}).name).filter(Boolean);
+  const saiu = [...antes].filter(o => !depois.has(o) && s.objects[o] && s.objects[o].zone === 'graveyard').map(o => s.objects[o].name);
+  if (entrou.length) linhas.push(`Entrou: ${entrou.join(', ')}`);
+  if (saiu.length) linhas.push(`Morreu ou foi para o cemitério: ${saiu.join(', ')}`);
+  return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
+}
+
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -9746,6 +9803,18 @@ function createTableScreen({ store }) {
   const imgOf = (name, size = 'small') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
 
+  // A16 · resumo do turno que acabou: aparece no começo do turno seguinte, some com um toque ou no próximo resumo
+  let resumoVisto = 0;
+  function resumoBox() {
+    // os turnos que terminaram desde o último OK (no máximo os dois últimos: o seu e o do oponente)
+    const novos = table.resumos.filter(r => r.turno > resumoVisto).slice(-2).reverse();
+    if (!novos.length) return null;
+    return h('section', { class: 'tb-resumo', id: 'tb-resumo', dataset: { turn: String(novos[0].turno) }, 'aria-label': 'Resumo dos últimos turnos' },
+      ...novos.map((r, i) => h('div', { class: 'tb-resumo__turno', dataset: { turn: String(r.turno) } },
+        Row({}, Text(`Turno ${r.turno} · ${r.ativo}`, { size: 'sm', display: true }), h('div', { class: 'ds-grow' }),
+          i === 0 ? Button('OK', { variant: 'ghost', id: 'tb-resumo-ok', onClick: () => { resumoVisto = novos[0].turno; paint(); } }) : null),
+        h('ul', { class: 'tb-resumo__lines' }, ...r.linhas.map(l => h('li', {}, l))))));
+  }
   // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
@@ -10051,14 +10120,18 @@ function createTableScreen({ store }) {
       const obrig = E.mustAttack(s, v);
       const nomes = obrig.map(oid => nameOf(s, oid)).join(', ');
       const total = new Set([...plan.attack, ...obrig]).size;
+      // A16 · prévia do ataque, se ninguém bloquear, a cada toque
+      const pa = total ? T.descrevePrevia(s, E.previewAttack(s, [...new Set([...plan.attack, ...obrig])]), v) : null;
       banner = PriorityBanner({ title: 'Declarar atacantes',
-        hint: `Toque nas criaturas que vão atacar. ${plan.eligible.size} podem atacar.` + (obrig.length ? ` ${nomes} ${obrig.length > 1 ? 'foram provocadas e precisam' : 'foi provocada e precisa'} atacar.` : ''),
+        hint: (pa ? `Se ninguém bloquear: ${pa.texto}.${pa.letal ? ' É letal.' : ''} ` : `Toque nas criaturas que vão atacar. ${plan.eligible.size} podem atacar. `) + (obrig.length ? ` ${nomes} ${obrig.length > 1 ? 'foram provocadas e precisam' : 'foi provocada e precisa'} atacar.` : ''),
         actions: [Button(total ? `Atacar com ${total}` : 'Atacar', { variant: 'primary', id: 'tb-attack', disabled: !total, onClick: () => { const list = [...new Set([...plan.attack, ...obrig])]; resetPlan(); act({ t: 'attack', p: v, attackers: list }); } }),
           obrig.length ? null : Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'blockers' && s.pending.p === v) {
       const blocks = [...plan.blocks.entries()];
       const pv = E.previewCombat(s, blocks);
-      const hint = pv ? `Prévia: você ${pv.life[v] < 0 ? 'perde ' + (-pv.life[v]) : 'não perde'} de vida` + (pv.died.length ? ` · morrem: ${pv.died.join(', ')}` : '') : 'Bloqueio inválido (ameaça pede dois bloqueadores).';
+      const dp = T.descrevePrevia(s, pv, v);
+      // A16 · a mesma prévia do ataque, agora com os bloqueios escolhidos, vida resultante e mortos dos dois lados
+      const hint = dp ? `Prévia: ${dp.texto}.${pv.life[v] < 0 && s.players[v].life + pv.life[v] <= 0 ? ' Você morre assim.' : ''}` : 'Bloqueio inválido (ameaça pede dois bloqueadores).';
       banner = PriorityBanner({ title: 'Declarar bloqueadores', hint: 'Toque nas suas criaturas para escolher quem bloqueiam. ' + hint, tone: 'warning',
         actions: [Button(blocks.length ? `Bloquear (${blocks.length})` : 'Confirmar', { variant: 'primary', id: 'tb-block', disabled: !blocks.length || !pv, onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks }); } }),
           Button('Sem bloqueio', { id: 'tb-no-block', onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks: [] }); } })] });
@@ -10214,7 +10287,7 @@ function createTableScreen({ store }) {
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
         opp != null ? side(s, opp, false) : null,
-        h('div', { class: 'tb-center' }, painelPilha, recusaBox(), adj),
+        h('div', { class: 'tb-center' }, painelPilha, recusaBox(), resumoBox(), adj),
         side(s, v, true)),
       dock(s, v));
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar

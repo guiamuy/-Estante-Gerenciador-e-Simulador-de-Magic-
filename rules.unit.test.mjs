@@ -4270,3 +4270,44 @@ test('S63 · mão inicial e mulligan não contam para "a terceira compra do turn
   assert.equal(s.objects[ladino].zone, 'battlefield', 'o gatilho da terceira compra trouxe a carta de volta');
   assert.equal(s.objects[ladino].tapped, true, 'e ela volta virada');
 });
+
+/* ---------------- A16 · a prévia bate com o combate de verdade ---------------- */
+test('A16 · prévia do ataque (sem bloqueio) e do bloqueio batem com o resultado real, em cenários de palavra-chave', () => {
+  const cenarios = [
+    { nome: 'simples', a: ['Sky Pike', 'Raging Hound'], d: [], ataca: ['Sky Pike', 'Raging Hound'], blocos: [] },
+    { nome: 'vínculo com a vida', a: ['Leech Knight'], d: ['Venom Eel'], ataca: ['Leech Knight'], blocos: [] },
+    { nome: 'toque mortífero bloqueando', a: ['Leech Knight'], d: ['Venom Eel'], ataca: ['Leech Knight'], blocos: [['Venom Eel@d', 'Leech Knight']] },
+    { nome: 'atropelar', a: ['Raging Hound'], d: ['Venom Eel'], ataca: ['Raging Hound'], blocos: [['Venom Eel@d', 'Raging Hound']] },
+    { nome: 'golpe duplo e um sem bloqueio', a: ['Twin Blade', 'Brute'], d: ['Sky Pike', 'Venom Eel'], ataca: ['Twin Blade', 'Brute'], blocos: [['Sky Pike@d', 'Twin Blade']] },
+    { nome: 'ameaça bloqueada por dois, indestrutível', a: ['Brute'], d: ['Sky Pike', 'Venom Eel'], ataca: ['Brute'], blocos: [['Sky Pike@d', 'Brute'], ['Venom Eel@d', 'Brute']] },
+    { nome: 'alcance contra voar', a: ['Sky Pike'], d: ['Wall Guard'], ataca: ['Sky Pike'], blocos: [['Wall Guard@d', 'Sky Pike']] }
+  ];
+  for (const c of cenarios) {
+    let { s, a, d, ids } = toAttack(21, put => { c.a.forEach(n => put(n, 'a')); c.d.forEach(n => put(n, 'd')); });
+    const atacantes = c.ataca.map(n => ids[n]);
+    const h0 = E.hashState(s);
+    const pa = E.previewAttack(s, atacantes);
+    assert.equal(E.hashState(s), h0, `${c.nome}: a prévia do ataque não muda nada`);
+    s = act(s, { t: 'attack', p: a, attackers: atacantes });
+    s = passTo(s, 'combat_blockers');
+    const blocos = c.blocos.map(([b, at]) => [ids[b], ids[at]]);
+    const pb = E.previewCombat(s, blocos);
+    const vidaAntes = s.players.map(p => p.life);
+    const vivos = new Set(s.zones.flatMap(z => z.battlefield));
+    if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: d, blocks: blocos });   // sem criatura, não há declaração
+    s = passTo(s, 'combat_end');
+    const real = JSON.parse(JSON.stringify(s.players.map((p, i) => p.life - vidaAntes[i])));
+    const mortosReais = [...vivos].filter(o => s.objects[o].zone !== 'battlefield').map(o => s.objects[o].name).sort();
+    assert.deepEqual(JSON.parse(JSON.stringify(pb.life)), real, `${c.nome}: vida prevista = vida real`);
+    assert.deepEqual(JSON.parse(JSON.stringify([...pb.died].sort())), JSON.parse(JSON.stringify(mortosReais)), `${c.nome}: quem morre previsto = real`);
+    assert.deepEqual(JSON.parse(JSON.stringify(pb.vida)), JSON.parse(JSON.stringify(s.players.map(p => p.life))), `${c.nome}: vida resultante`);
+    if (!blocos.length) assert.deepEqual(JSON.parse(JSON.stringify(pa.life)), real, `${c.nome}: sem bloqueio, a prévia do ataque também bate`);
+    assert.ok(pb.mortos.every(m => m.controller === a || m.controller === d), 'cada morto sabe de que lado era');
+  }
+  assert.equal(E.previewAttack(toAttack(22, () => {}).s, []), null, 'sem atacantes: sem prévia');
+  // bloqueio ilegal (ameaça com um bloqueador só): a prévia diz que não dá, em vez de inventar um resultado
+  let { s, a, d, ids } = toAttack(23, put => { put('Brute', 'a'); put('Venom Eel', 'd'); });
+  s = act(s, { t: 'attack', p: a, attackers: [ids['Brute']] });
+  s = passTo(s, 'combat_blockers');
+  assert.equal(E.previewCombat(s, [[ids['Venom Eel@d'], ids['Brute']]]), null);
+});

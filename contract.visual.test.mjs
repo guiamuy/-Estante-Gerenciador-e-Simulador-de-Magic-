@@ -111,3 +111,9 @@ test('A15 · espiar a carta: sobreposição sem capturar o dedo, arte na propor�
   assert.match(bloco, /prefers-reduced-motion: no-preference/, 'animação só para quem não pediu para reduzir');
   assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(bloco), 'sem cor literal');
 });
+
+test('A16 · cartão de resumo do turno só com tokens', () => {
+  const bloco = componentCss.slice(componentCss.indexOf('/* A16 · resumo do turno */'), componentCss.indexOf('/* A14 · pilha explicada */'));
+  assert.ok(bloco.includes('.tb-resumo {'));
+  assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(bloco), 'sem cor literal');
+});
