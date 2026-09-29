@@ -244,3 +244,89 @@ test('A13 · terrenos iguais viram pilha: total, viradas e a primeira desvirada 
   assert.equal(todas.primeiraDesvirada, null, 'todas viradas: tocar cai na primeira');
   assert.equal(T.agrupaTerrenos(s, []).length, 0);
 });
+
+/* ---------------- A14 · a pilha explicada ---------------- */
+test('A14 · efeitos em português de jogador, um por um, e o desconhecido não some', () => {
+  const d = T.descreveEfeito;
+  assert.equal(d({ do: 'draw', amount: 2 }), 'compra 2 cartas');
+  assert.equal(d({ do: 'draw', amount: 1 }), 'compra 1 carta');
+  assert.equal(d({ do: 'damage', amount: 3, target: 'any' }), 'causa 3 de dano a qualquer alvo');
+  assert.equal(d({ do: 'counter', target: 'spell' }), 'anula uma mágica');
+  assert.equal(d({ do: 'destroy', target: 'creature' }), 'destrói uma criatura');
+  assert.equal(d({ do: 'pump', power: 2, toughness: -1, target: 'creature' }), 'uma criatura recebe +2/−1 até o fim do turno');
+  assert.equal(d({ do: 'token', amount: 2, token: { name: 'Goblin', power: 1, toughness: 1 } }), 'cria 2 fichas de Goblin 1/1');
+  assert.equal(d({ do: 'lose', amount: 1, target: 'each-opponent' }), 'cada oponente perde 1 de vida');
+  assert.equal(d({ do: 'draw', amount: { per: 'opponents-empty-hand' } }), 'compra X cartas');
+  assert.equal(d({ do: 'coisa_nova' }), 'coisa nova', 'efeito fora do dicionário aparece pelo nome');
+  assert.equal(T.descreveEfeitos([{ do: 'scry', amount: 1 }, { do: 'draw', amount: 1 }]), 'olha as 1 de cima e decide (scry 1); compra 1 carta');
+  assert.equal(T.descreveEfeitos([]), '');
+});
+
+test('A14 · a pilha explicada: topo primeiro, quem, o que faz (script, permanente, oracle ou sem script), alvo e prioridade', () => {
+  const s = mesa([{ name: 'Sky Pike' }], { turn: { active: 0, step: 'main1', priority: 1 }, players: [{ name: 'Você', life: 20 }, { name: 'Bot', life: 20 }] });
+  s.facts['Lightning Bolt'] = { types: ['instant'], typeText: 'Instant', script: { effects: [{ do: 'damage', amount: 3, target: 'any' }] } };
+  s.facts['Mystery Ritual'] = { types: ['sorcery'], typeText: 'Sorcery', script: null };
+  s.objects.bolt = { oid: 'bolt', name: 'Lightning Bolt', zone: 'stack', controller: 0, targets: [{ oid: 'o0' }] };
+  s.objects.hab = { oid: 'hab', name: 'Sky Pike', ability: true, zone: 'stack', controller: 1, effects: [{ do: 'draw', amount: 1 }], targets: [{ player: 0 }] };
+  s.objects.crit = { oid: 'crit', name: 'Sky Pike', zone: 'stack', controller: 0, targets: [] };
+  s.objects.mist = { oid: 'mist', name: 'Mystery Ritual', zone: 'stack', controller: 0, targets: [] };
+  s.stack = ['mist', 'crit', 'bolt', 'hab'];
+  const p = T.explicaPilha(s, { oracleDe: n => n === 'Mystery Ritual' ? 'Faz algo estranho.\nSegunda linha.' : '' });
+  assert.equal(p.prioridade, 'Bot');
+  assert.deepEqual(JSON.parse(JSON.stringify(p.itens.map(i => [i.nome, i.quem, i.oQueFaz, i.alvos, i.topo]))), [
+    ['Habilidade de Sky Pike', 'Bot', 'compra 1 carta', ['Você'], true],
+    ['Lightning Bolt', 'Você', 'causa 3 de dano a qualquer alvo', ['Sky Pike'], false],
+    ['Sky Pike', 'Você', 'entra no campo de batalha', [], false],
+    ['Mystery Ritual', 'Você', 'Faz algo estranho.', [], false]
+  ]);
+  const vazia = T.explicaPilha(mesa([]));
+  assert.equal(vazia.vazia, true); assert.equal(vazia.itens.length, 0);
+  const semOracle = T.explicaPilha({ ...s, stack: ['mist'] });
+  assert.equal(semOracle.itens[0].oQueFaz, 'sem script: você aplica o efeito na mesa');
+});
+
+test('A14 · ação recusada vira uma frase: o que tentou, por que não deu, o que fazer', () => {
+  const s = mesa([{ name: 'Island' }]);
+  const erro = new E.RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia');
+  const r = T.explicaRecusa(erro, { t: 'play_land', p: 0, oid: 'o0' }, s);
+  assert.equal(r.titulo, 'Não dá para jogar o terreno Island agora');
+  assert.equal(r.motivo, 'Terreno só na sua fase principal, com a pilha vazia');
+  assert.match(r.dica, /trilho do topo/);
+  assert.equal(r.frase, 'Não dá para jogar o terreno Island agora: terreno só na sua fase principal, com a pilha vazia. Veja em que fase a mesa está no trilho do topo.');
+  const prio = T.explicaRecusa(new E.RuleError('prioridade', 'jogador sem prioridade'), { t: 'cast', p: 0 }, s);
+  assert.equal(prio.titulo, 'Não dá para conjurar agora'); assert.match(prio.dica, /sua vez de agir/);
+  const generica = T.explicaRecusa(new Error('boom'), { t: 'coisa' }, s);
+  assert.equal(generica.frase, 'Ação recusada: boom.');
+  assert.equal(T.explicaRecusa(null, null, null).frase, 'Ação recusada: ação recusada.');
+});
+
+test('A14 · registro vira linha do tempo por turno e fase; separadores somem; a mesa grava turno e passo de cada linha', () => {
+  const entradas = [
+    { texto: 'Você manteve 7 carta(s)', turno: 0, passo: 'mulligan', ativo: 'Você' },
+    { texto: '— Turno 1 · Você —', turno: 1, passo: 'untap', ativo: 'Você' },
+    { texto: 'Você jogou Island', turno: 1, passo: 'main1', ativo: 'Você' },
+    { texto: 'Você conjurou Sky Pike', turno: 1, passo: 'main1', ativo: 'Você' },
+    { texto: 'Você atacou com Sky Pike', turno: 1, passo: 'combat_attackers', ativo: 'Você' },
+    { texto: 'Bot: vida 20 → 18', turno: 1, passo: 'combat_damage', ativo: 'Você' },
+    { texto: '— Turno 2 · Bot —', turno: 2, passo: 'untap', ativo: 'Bot' },
+    { texto: 'Bot jogou Mountain', turno: 2, passo: 'main1', ativo: 'Bot' }
+  ];
+  const lt = T.linhaDoTempo(entradas);
+  assert.deepEqual(JSON.parse(JSON.stringify(lt.map(t => [t.turno, t.ativo, t.fases.map(f => [f.rotulo, f.linhas.length])]))), [
+    [0, 'Você', [['Mão inicial', 1]]],
+    [1, 'Você', [['Principal 1', 2], ['Combate', 2]]],
+    [2, 'Bot', [['Principal 1', 1]]]
+  ]);
+  // a mesa de verdade grava turno e passo
+  const t = goldfish(4);
+  t.act({ t: 'keep', p: 0, bottom: [] });
+  toMain(t);
+  const oid = handOf(t, 'Island') || pull(t, 'Island');
+  t.act({ t: 'play_land', p: 0, oid });
+  const e = t.entradas;
+  assert.ok(e.length >= 2);
+  const jogou = e.find(x => /jogou Island/.test(x.texto));
+  assert.ok(jogou && jogou.passo === 'main1' && jogou.turno >= 1, 'a linha sabe o passo em que aconteceu');
+  assert.ok(e.some(x => x.passo === 'mulligan'), 'a mão inicial fica antes do primeiro turno');
+  assert.equal(T.linhaDoTempo(e).some(tt => tt.fases.some(f => f.linhas.some(l => /^— Turno/.test(l)))), false, 'sem separadores dentro das fases');
+});

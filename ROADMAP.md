@@ -100,7 +100,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | B · Bot | B5 escolha na mesa e B6 torneio medido no portão | 🟡 |
 | B · Bot | B7 didática do bot: resumo do turno e "o que eu poderia fazer" | 🟡 |
 | A · Mesa | A13 campo que se lê de relance: P/T, anéis de estado, pilhas de terreno | 🟡 |
-| A · Mesa | A14–A16 pilha explicada, zoom e prévia | ○ |
+| A · Mesa | A14 pilha explicada, recusa com motivo, registro em linha do tempo | 🟡 |
+| A · Mesa | A15–A16 zoom e prévia | ○ |
 | X · Scanner | X7 captura automática sem moldura | 🟡 |
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
 | X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
@@ -371,7 +372,7 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E33ai ✅ | S65 (leva 57) | Matriz de palavras-chave: as quinze provadas em combate, com teste de completude |
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
-| E38 🟡 | A13 (leva 77) · A14–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
+| E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15–A16 | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
@@ -801,7 +802,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** A1, A6.
 - **Fora:** arte animada; mesa em 3D; P/T na mão (a carta da mão mostra a arte inteira).
 
-**A14 · A pilha explicada** ○
+**A14 · A pilha explicada** 🟡
 - **Valor:** entender o que está acontecendo, principalmente no motor completo, onde o motor decide sozinho.
 - **Aceite:**
   - a pilha aparece como uma coluna de cartões, do topo para baixo, cada um com quem controla, o que faz
@@ -809,9 +810,28 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
   - o que vai resolver a seguir fica destacado, e a mesa diz de quem é a prioridade;
   - o registro vira uma linha do tempo por turno, agrupada por fase, em linguagem de jogador;
   - quando uma ação é recusada, a mesa explica o motivo em uma frase, no lugar de um aviso genérico.
-- **Testes:** I headless (pilha com dois itens e alvo; ação recusada mostrando o motivo), V.
+- **Entregue (leva 78):** a pilha virou uma **coluna de cartões** do topo para baixo: miniatura, nome
+  ("Habilidade de X" para habilidades), **de quem é**, **o que faz em português** (dicionário de efeitos do
+  motor: "causa 3 de dano a qualquer alvo", "compra 2 cartas", "cria 2 fichas de Goblin 1/1"…; permanente
+  = "entra no campo de batalha"; carta sem script = primeira linha do oracle ou "você aplica o efeito na
+  mesa") e **o alvo** ("→ Goldfish"). O que resolve a seguir vem destacado com "resolve a seguir", e o
+  cabeçalho diz **"Prioridade: Ana"**. **Ação recusada** vira uma frase na mesa, no lugar do aviso
+  genérico: "Não dá para jogar o terreno Island agora. Já jogou terreno neste turno." + dica por tipo de
+  motivo (prioridade, tempo, mana, custo, alvo); some na próxima ação válida. O **registro** virou linha
+  do tempo: turno mais recente primeiro, cada um agrupado por fase (Mão inicial, Início, Principal 1,
+  Combate, Principal 2, Final), e cada linha do registro agora sabe o turno e o passo em que aconteceu.
+- **Decisão:** um gancho de teste (`window.__estanteMesa`, só com `window.__MTG_TEST`) permite ao
+  portão provocar uma recusa que a folha de ações nunca oferece; em uso normal não existe.
+- **Testes:** U (dicionário de efeitos, um a um, e o desconhecido aparecendo pelo nome; pilha explicada
+  com habilidade, mágica com script, permanente e carta sem script, alvos e prioridade; recusa por código
+  com título, motivo e dica; linha do tempo por turno e fase e a mesa gravando turno/passo de cada
+  linha), V (cartão da pilha com 44 px, destaque do topo por token), I headless (hot-seat com Counterspell
+  na mão do outro para a pilha esperar: cartão com quem/o que faz/"resolve a seguir"/prioridade; segundo
+  terreno recusado com a frase na mesa e sumindo na próxima ação; linha do tempo com o turno mais recente
+  primeiro, fases nomeadas e sem separadores soltos).
 - **Depende de:** A4, A13.
-- **Fora:** modo tutorial guiado.
+- **Fora:** modo tutorial guiado; ver na tela a pilha de uma habilidade que ninguém pode responder (ela
+  resolve sozinha antes de aparecer — o registro conta o que aconteceu).
 
 **A15 · Ler a carta sem sair da partida** ○
 - **Valor:** conferir o texto no meio da jogada, com uma mão.

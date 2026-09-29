@@ -1285,6 +1285,82 @@ test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita a
   assert.deepEqual(errors, []);
 });
 
+test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; prioridade; recusa com motivo; registro em linha do tempo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  // Counterspell na mão do outro faz a pilha esperar: com resposta possível, ninguém passa sozinho
+  await createDeck(page, base, 'Magos', '10 Island\n10 Prodigal Sorcerer\n20 Counterspell', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('[data-mana]');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  await reveal(page); await toMyMain(page);
+  await drawUntil(page, 'Island'); await handCard(page, 'Island').click(); await page.click('text=Jogar terreno');
+
+  // a criatura conjurada aparece na pilha explicada, com prioridade dita
+  await drawUntil(page, 'Prodigal Sorcerer');
+  await handCard(page, 'Prodigal Sorcerer').click();
+  await page.click('.ds-dialog >> text=Conjurar');
+  // quem conjurou é "eu" daqui em diante (o estado diz, sem depender de quem segura o aparelho)
+  const eu = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const oid = s.stack.find(o => s.objects[o].name === 'Prodigal Sorcerer'); return s.players[s.objects[oid].controller].name; });
+  const outro = eu === 'Ana' ? 'Bia' : 'Ana';
+  const meuIndice = () => page.evaluate(nome => window.__estanteMesa.estado().players.findIndex(p => p.name === nome), eu);
+  await reveal(page);                                             // a prioridade foi para o outro (que tem Counterspell na mão): ele vê a pilha
+  await page.waitForSelector('#tb-stack');
+  const pilha = await page.innerText('#tb-stack');
+  assert.match(pilha, /Pilha · 1/); assert.match(pilha, /Prodigal Sorcerer/); assert.match(pilha, new RegExp(`de ${eu}`)); assert.match(pilha, /entra no campo de batalha/); assert.match(pilha, /resolve a seguir/);
+  assert.match(await page.innerText('#tb-stack-prio'), /Prioridade: (Ana|Bia)/);
+  const resolve = async () => { for (let i = 0; i < 8 && await page.locator('#tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); } await reveal(page); if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done'); };
+  await resolve();
+  const minhaVez = async () => { for (let i = 0; i < 6 && !(await page.innerText('#tb-life-me')).includes(eu); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); await reveal(page); } };
+  await minhaVez();
+  await page.waitForSelector(`.tb-side--me [data-zone="permanents"] .tb-card[aria-label^="Prodigal Sorcerer"]`);
+
+  // ação recusada que a folha nunca oferece: segundo terreno no turno — o motivo fica na mesa, em uma frase
+  await drawUntil(page, 'Island');
+  const p = await meuIndice();
+  await page.evaluate(p => { const s = window.__estanteMesa.estado(); const oid = s.zones[p].hand.find(o => s.objects[o].name === 'Island'); window.__estanteMesa.act({ t: 'play_land', p, oid }); }, p);
+  await page.waitForSelector('#tb-recusa');
+  const recusa = await page.innerText('#tb-recusa');
+  assert.match(recusa, /Não dá para jogar o terreno Island agora\./); assert.match(recusa, /Já jogou terreno neste turno\./);
+
+  // a próxima ação válida limpa a recusa; depois o turno vai e volta, para o Prodigal perder o enjoo
+  await page.click('#tb-pass-turn');
+  await page.waitForFunction(() => !document.querySelector('#tb-recusa'), null, { timeout: 8000 });
+  for (let i = 0; i < 120; i++) {
+    await reveal(page);
+    if (await page.locator(`.tb-side--me .tb-card[aria-label^="Prodigal Sorcerer"]:not([data-sick="true"])`).count() && (await page.innerText('.tb-banner')).includes('Principal 1') && (await page.innerText('#tb-life-me')).includes(eu)) break;
+    if ((await page.innerText('.tb-banner')).includes('Descarte')) { await page.locator('.tb-hand .tb-card').first().click(); continue; }   // mão acima de 7 na limpeza
+    if (await page.locator('#tb-no-attack').count()) await page.click('#tb-no-attack');
+    else if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn');
+    else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
+  }
+  await page.locator('.tb-side--me .tb-card[aria-label^="Prodigal Sorcerer"]').click();
+  await page.click(`.ds-dialog >> text=/Ativar \\({T}\\) → ${outro}/`);
+  // a habilidade não pode ser respondida por Counterspell: resolve sozinha (o cartão da habilidade
+  // com "causa 1 de dano" e alvo tem teste de unidade em explicaPilha); aqui vale o efeito
+  await resolve();
+  await page.waitForFunction(() => /19/.test(document.querySelector('#tb-life-opp').innerText + document.querySelector('#tb-life-me').innerText), null, { timeout: 8000 });
+
+  // registro em linha do tempo: turno mais recente primeiro, fases nomeadas
+  await reveal(page);
+  await page.click('#tb-log');
+  await page.waitForSelector('#tb-timeline');
+  const turnos = await page.locator('#tb-timeline .tb-log__turn').allInnerTexts();
+  assert.ok(turnos.length >= 3, 'vários turnos');
+  assert.match(turnos[0], /^Turno \d+ · (Ana|Bia)/);
+  assert.match(turnos.join('\n'), /Principal 1/);
+  assert.match(turnos.join('\n'), /vida 20 → 19/);
+  const ordem = await page.locator('#tb-timeline .tb-log__turn').evaluateAll(ts => Number(ts[0].dataset.turn) > Number(ts[1].dataset.turn));
+  assert.ok(ordem, 'o mais recente vem primeiro');
+  assert.doesNotMatch(await page.innerText('#tb-timeline'), /— Turno/, 'sem separadores soltos');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · M9 gatilho de entrada e habilidade ativada na mesa', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await createDeck(page, base, 'Magos', '20 Island\n10 Prodigal Sorcerer\n10 Elvish Visionary', 'livre');

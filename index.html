@@ -571,8 +571,24 @@ body {
 .tb-sheet__img { width: 100%; max-width: 240px; margin: 0 auto; display: block; border-radius: var(--radius-card); }
 .tb-sheet__actions { display: flex; flex-direction: column; gap: var(--space-2); }
 .tb-lifepad { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
-.tb-log { margin: 0; padding-left: var(--space-5); max-height: 55vh; overflow-y: auto; font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-1); }
-.tb-log li[data-turn="true"] { color: var(--accent); list-style: none; margin-left: calc(var(--space-5) * -1); padding-top: var(--space-2); }
+.tb-log { margin: 0; max-height: 55vh; overflow-y: auto; font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-3); }
+/* A14 · linha do tempo: turno, fase, linhas */
+.tb-log__turn { display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-log__turnhead { margin: 0; font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-md); color: var(--accent); }
+.tb-log__phase { display: grid; grid-template-columns: 6.5em 1fr; gap: var(--space-2); }
+.tb-log__phasehead { font-size: var(--text-xs); color: var(--fg-muted); padding-top: 2px; }
+.tb-log__lines { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: 2px; }
+/* A14 · pilha explicada */
+.tb-stack__head { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; }
+.tb-stack__prio { font-size: var(--text-xs); color: var(--accent); }
+.tb-stack__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-stack__card { display: grid; grid-template-columns: 56px 1fr; gap: var(--space-2); align-items: center; width: 100%; min-height: var(--tap-min); padding: var(--space-1); border: none; border-radius: var(--radius-2); background: none; color: inherit; font: inherit; text-align: left; }
+.tb-stack__card .tb-card { pointer-events: none; }
+.tb-stack__item[data-top="true"] .tb-stack__card { background: var(--accent-soft); }
+.tb-stack__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tb-stack__title { display: flex; gap: var(--space-1); align-items: center; flex-wrap: wrap; font-family: var(--font-display); font-size: var(--text-md); }
+.tb-stack__what { font-size: var(--text-sm); color: var(--fg); }
+.tb-stack__target { font-size: var(--text-xs); color: var(--fg-muted); }
 @media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
 
 /* barra no celular: quatro destinos cabem sem rolagem lateral */
@@ -8943,6 +8959,24 @@ function StackStrip(items) {
       TableCard(it, { size: 'sm', onClick: it.onClick }), h('span', { class: 'tb-stack__who' }, it.who)))));
 }
 
+/** A14 · a pilha explicada: coluna de cartões do topo para baixo, o próximo a resolver em destaque,
+    e de quem é a prioridade. `itens` vem de explicaPilha (table-model). */
+function StackPanel({ itens, prioridade, imgOf, onOpen }) {
+  if (!itens.length) return null;
+  return h('section', { class: 'tb-stack', id: 'tb-stack', 'aria-label': 'pilha' },
+    h('div', { class: 'tb-stack__head' },
+      h('span', { class: 'tb-zone__label' }, `Pilha · ${itens.length}`),
+      prioridade ? h('span', { class: 'tb-stack__prio', id: 'tb-stack-prio' }, `Prioridade: ${prioridade}`) : null),
+    h('ol', { class: 'tb-stack__list' }, ...itens.map(it => h('li', { class: 'tb-stack__item', dataset: { top: String(it.topo), oid: it.oid } },
+      h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
+        h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && !it.habilidade && imgOf(it.imagemDe) ? h('img', { src: imgOf(it.imagemDe), alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, it.habilidade ? 'hab.' : it.nome))),
+        h('span', { class: 'tb-stack__text' },
+          h('span', { class: 'tb-stack__title' }, it.nome, it.topo ? h('span', { class: 'tb-pill tb-pill--estado' }, 'resolve a seguir') : null),
+          h('span', { class: 'tb-stack__who' }, `de ${it.quem}`),
+          h('span', { class: 'tb-stack__what' }, it.oQueFaz),
+          it.alvos.length ? h('span', { class: 'tb-stack__target' }, `→ ${it.alvos.join(', ')}`) : null))))));
+}
+
 /** O momento de prioridade: frase curta e ação primária sempre no mesmo lugar. */
 function PriorityBanner({ title, hint, actions, tone }) {
   return h('div', { class: 'tb-banner', dataset: { tone: tone || 'default' }, role: 'status', 'aria-live': 'polite' },
@@ -8960,7 +8994,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, PriorityBanner, AdjudicationPanel };
+return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, PriorityBanner, AdjudicationPanel };
 })();
 
 
@@ -9116,12 +9150,16 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
   // B7 · os motivos do bot viram um resumo curto no fim do turno dele
   let motivosDoBot = [], turnoDoBot = null;
   let match, lines, barrier, humanMarks;
+  /** A14 · cada linha do registro sabe o turno e a fase em que aconteceu. */
+  let entradas = [];
 
-  function reset() { match = E.createMatch(setup); lines = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; }
+  function reset() { match = E.createMatch(setup); lines = []; entradas = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; }
+  const anota = (textos, st) => { for (const texto of textos) entradas.push({ texto, turno: st.turn.number || 0, passo: st.status === 'mulligan' ? 'mulligan' : st.turn.step, ativo: (st.players[st.turn.active] || {}).name || '' }); };
   function fechaResumoDoBot() {
     if (!options.bot || !motivosDoBot.length) return;
     const nome = (match.state.players[options.bot.seat] || {}).name || 'Bot';
-    lines.push(`Resumo do turno ${turnoDoBot} · ${nome}`, ...__m25.resumoDoTurno(motivosDoBot).map(l => '  ' + l));
+    const resumo = [`Resumo do turno ${turnoDoBot} · ${nome}`, ...__m25.resumoDoTurno(motivosDoBot).map(l => '  ' + l)];
+    lines.push(...resumo); anota(resumo, match.state);
     motivosDoBot = [];
   }
 
@@ -9130,7 +9168,10 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     const events = match.act(action);
     const after = match.state;
     if (revealed(before, after)) barrier = match.log.length;
-    lines.push(...describe(before, action, events, after));
+    const novas = describe(before, action, events, after);
+    lines.push(...novas);
+    // a linha pertence ao momento em que a ação foi feita (o separador de turno, ao turno novo)
+    for (const texto of novas) anota([texto], /^— Turno/.test(texto) ? after : before);
     return events;
   }
 
@@ -9215,6 +9256,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     get state() { return match.state; },
     get log() { return match.log; },
     get lines() { return lines.slice(); },
+    get entradas() { return entradas.map(e => ({ ...e })); },
     setup,
     act,
     /** Quem está com o aparelho agora (perspectiva da tela). */
@@ -9305,7 +9347,104 @@ function agrupaTerrenos(s, oids) {
   return [...pilhas.values()];
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos };
+/* ---- A14 · a pilha explicada, em português de jogador ---- */
+const ALVO_PT = { any: 'qualquer alvo', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
+const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
+/** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
+function descreveEfeito(e) {
+  if (!e || !e.do) return '';
+  const alvo = e.target ? (ALVO_PT[e.target] || e.target) : null;
+  const n = qtd(e.amount);
+  switch (e.do) {
+    case 'draw': return `compra ${plural(n, 'carta', 'cartas')}`;
+    case 'damage': return `causa ${n} de dano a ${alvo || 'um alvo'}`;
+    case 'gain': return `ganha ${n} de vida`;
+    case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
+    case 'counter': return `anula ${alvo || 'uma mágica'}`;
+    case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
+    case 'exile': return `exila ${alvo || 'uma permanente'}`;
+    case 'bounce': return `devolve ${alvo || 'uma permanente'} para a mão do dono`;
+    case 'to_hand': return 'volta para a mão';
+    case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
+    case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
+    case 'add_mana': return e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
+    case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório`;
+    case 'scry': return `olha as ${n} de cima e decide (scry ${n})`;
+    case 'surveil': return `vigia ${n}`;
+    case 'look': return `olha as ${n} cartas de cima`;
+    case 'untap': return `desvira ${alvo || 'uma permanente'}`;
+    case 'tap': return `vira ${alvo || 'uma permanente'}`;
+    case 'exile_graveyard': return 'exila cartas do cemitério';
+    case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
+    case 'counters': return `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
+    case 'keyword': return `${alvo || 'a criatura'} ganha ${e.keyword || 'uma habilidade'} até o fim do turno`;
+    case 'sacrifice_own': return 'sacrifica uma permanente sua';
+    case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
+    case 'transform': return 'transforma';
+    case 'reanimate': case 'reanimate_tapped': return 'devolve uma criatura do cemitério ao campo';
+    case 'fog': return 'previne todo o dano de combate deste turno';
+    case 'attach': return 'anexa';
+    case 'venture': return 'aventura na masmorra';
+    case 'mill': return `põe ${plural(n, 'carta', 'cartas')} do grimório no cemitério`;
+    case 'goad': return `provoca ${alvo || 'uma criatura'}`;
+    case 'cant_attack': return `${alvo || 'a criatura'} não pode atacar`;
+    case 'lose_unless': return 'perde vida a menos que pague';
+    case 'draw_free_cast': return 'compra e pode conjurar de graça';
+    case 'exile_top_playable': return 'exila a carta de cima e pode jogá-la';
+    case 'prevent_spell': case 'prevent_color': return 'previne dano';
+    default: return String(e.do).replace(/_/g, ' ');
+  }
+}
+const descreveEfeitos = effects => (effects || []).map(descreveEfeito).filter(Boolean).join('; ');
+/** A pilha do topo para baixo: quem, o que faz, alvos; quem tem a prioridade. `oracleDe(nome)` cobre carta sem script. */
+function explicaPilha(s, { oracleDe = () => '' } = {}) {
+  const nomeDo = t => t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : t.player != null ? ((s.players[t.player] || {}).name || `jogador ${t.player + 1}`) : '';
+  const itens = s.stack.slice().reverse().map((oid, i) => {
+    const o = s.objects[oid]; if (!o) return null;
+    const facts = (s.facts && s.facts[o.name]) || {};
+    let oQueFaz = '';
+    if (o.ability) oQueFaz = descreveEfeitos(o.effects) || 'habilidade';
+    else {
+      const sc = facts.script;
+      const permanente = (facts.types || []).some(t => ['creature', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle'].includes(t));
+      if (sc && (sc.effects || []).length) oQueFaz = descreveEfeitos(sc.effects);
+      else if (permanente) oQueFaz = 'entra no campo de batalha';
+      else { const or = String(oracleDe(o.name) || '').split('\n')[0]; oQueFaz = or ? or : 'sem script: você aplica o efeito na mesa'; }
+    }
+    return { oid, nome: o.ability ? `Habilidade de ${o.name}` : o.name, quem: (s.players[o.controller] || {}).name || '?', oQueFaz, alvos: (o.targets || []).map(nomeDo).filter(Boolean), topo: i === 0, habilidade: !!o.ability, imagemDe: o.name };
+  }).filter(Boolean);
+  const pr = s.turn && s.turn.priority != null ? s.players[s.turn.priority] : null;
+  return { itens, prioridade: pr ? pr.name : null, vazia: !itens.length };
+}
+/** Ação recusada explicada em uma frase: o que você tentou + por que não deu + o que fazer. */
+const ACAO_PT = { play_land: 'jogar o terreno', cast: 'conjurar', activate: 'ativar a habilidade', attack: 'declarar o ataque', block: 'declarar bloqueadores', pass: 'passar', tap_mana: 'virar para mana', draw: 'comprar', mulligan: 'fazer mulligan', keep: 'manter a mão', concede: 'desistir' };
+const DICA_PT = { prioridade: 'Espere a sua vez de agir: quem tem a prioridade aparece na pilha.', tempo: 'Veja em que fase a mesa está no trilho do topo.', mana: 'Vire mais terrenos ou escolha outra carta.', custo: 'Pague o custo pedido antes.', alvo: 'Escolha outro alvo.', tipo: 'Use o botão certo para este tipo de carta.' };
+function explicaRecusa(erro, action, s) {
+  const codigo = (erro && erro.code) || '';
+  const msg = (erro && erro.message) || String(erro || 'ação recusada');
+  const nome = action && action.oid && s && s.objects[action.oid] ? ` ${s.objects[action.oid].name}` : '';
+  const tentativa = action && ACAO_PT[action.t] ? `Não dá para ${ACAO_PT[action.t]}${nome} agora` : 'Ação recusada';
+  const dica = DICA_PT[codigo] || '';
+  return { titulo: tentativa, motivo: msg.charAt(0).toUpperCase() + msg.slice(1), dica, frase: `${tentativa}: ${msg}.${dica ? ' ' + dica : ''}` };
+}
+/** Registro como linha do tempo: por turno, por fase, em ordem. Separadores "— Turno" viram cabeçalho. */
+const FASE_PT = { untap: 'Início', upkeep: 'Início', draw: 'Início', main1: 'Principal 1', combat_begin: 'Combate', combat_attackers: 'Combate', combat_blockers: 'Combate', combat_damage: 'Combate', combat_end: 'Combate', main2: 'Principal 2', end: 'Final', cleanup: 'Final', mulligan: 'Mão inicial' };
+function linhaDoTempo(entradas) {
+  const turnos = [];
+  for (const e of entradas) {
+    if (/^— Turno/.test(e.texto)) continue;
+    let t = turnos[turnos.length - 1];
+    if (!t || t.turno !== e.turno) { t = { turno: e.turno, ativo: e.ativo, fases: [] }; turnos.push(t); }
+    const rotulo = FASE_PT[e.passo] || e.passo || '';
+    let f = t.fases[t.fases.length - 1];
+    if (!f || f.rotulo !== rotulo) { f = { rotulo, linhas: [] }; t.fases.push(f); }
+    f.linhas.push(e.texto);
+  }
+  return turnos;
+}
+
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT };
 })();
 
 
@@ -9321,7 +9460,7 @@ const __m19 = (function () {
 const E = __m16;
 const T = __m18;
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
-const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, PriorityBanner, AdjudicationPanel } = __m17;
+const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, PriorityBanner, AdjudicationPanel } = __m17;
 const { norm } = __m7;
 const { FORMATS } = __m14;
 const { deckCoverage, dungeonByName, roomById } = __m23; // S57 · masmorra
@@ -9550,14 +9689,29 @@ function createTableScreen({ store }) {
   const imgOf = (name, size = 'small') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
 
+  // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
+  let recusa = null;
+  // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
+  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state };
+  const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function recusaBox() {
+    if (!recusa) return null;
+    const n = Note(`<b>${esc(recusa.titulo)}.</b> ${esc(recusa.motivo)}.${recusa.dica ? ' ' + esc(recusa.dica) : ''}`, 'warning');
+    n.id = 'tb-recusa'; return n;
+  }
   function act(action) {
     try {
       const events = table.act(action);
       const res = events.filter(e => e.kind === 'resolved' && e.adjudicate).pop();
       if (res) adjudicating = { name: res.name, oid: res.oid };
+      recusa = null;
       save(); paint();
       return true;
-    } catch (e) { toast(e.message || String(e)); return false; }
+    } catch (e) {
+      recusa = T.explicaRecusa(e, action, table.state);
+      toast(recusa.frase, 3600); paint();
+      return false;
+    }
   }
 
   (async () => {
@@ -9746,9 +9900,14 @@ function createTableScreen({ store }) {
       actions: [Button('Fechar', { onClick: closeDialog })] });
   }
 
+  /** A14 · registro como linha do tempo: turno mais recente primeiro, agrupado por fase. */
   function openLog() {
-    const lines = table.lines.slice().reverse();
-    Dialog({ title: 'Registro', body: lines.length ? h('ol', { class: 'tb-log', reversed: true }, ...lines.map(l => h('li', { dataset: { turn: String(l.startsWith('—')) } }, l))) : Empty('Nada aconteceu ainda.'),
+    const turnos = T.linhaDoTempo(table.entradas).reverse();
+    Dialog({ title: 'Registro', body: turnos.length ? h('div', { class: 'tb-log', id: 'tb-timeline' }, ...turnos.map(t => h('section', { class: 'tb-log__turn', dataset: { turn: String(t.turno) } },
+      h('h3', { class: 'tb-log__turnhead' }, t.turno ? `Turno ${t.turno} · ${t.ativo}` : 'Antes do primeiro turno'),
+      ...t.fases.map(f => h('div', { class: 'tb-log__phase', dataset: { phase: f.rotulo } },
+        f.rotulo ? h('span', { class: 'tb-log__phasehead' }, f.rotulo) : null,
+        h('ul', { class: 'tb-log__lines' }, ...f.linhas.map(l => h('li', {}, l)))))))) : Empty('Nada aconteceu ainda.'),
       actions: [Button('Fechar', { onClick: closeDialog })] });
   }
 
@@ -9956,7 +10115,9 @@ function createTableScreen({ store }) {
     }
     syncPlan(s, v);
     const opp = s.players.map((_, i) => i).find(i => i !== v);
-    const stackItems = s.stack.map(oid => { const o = s.objects[oid]; return { ...o, image: o.ability ? null : imgOf(o.name), name: o.ability ? `Habilidade de ${o.name}` : o.name, who: s.players[o.controller].name, onClick: () => o.ability || openObject(oid) }; });
+    // A14 · a pilha explicada em português, do topo para baixo
+    const pilha = T.explicaPilha(s, { oracleDe: oracleOf });
+    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, onOpen: it => { if (!it.habilidade) openObject(it.oid); } });
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
       name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
       controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],
@@ -9973,7 +10134,7 @@ function createTableScreen({ store }) {
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
         opp != null ? side(s, opp, false) : null,
-        h('div', { class: 'tb-center' }, StackStrip(stackItems), adj),
+        h('div', { class: 'tb-center' }, painelPilha, recusaBox(), adj),
         side(s, v, true)),
       dock(s, v));
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
