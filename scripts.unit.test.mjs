@@ -272,9 +272,9 @@ function runExample(sc) {
   [s, oid] = put(s, a, sc.name, !soDaMao && (how.startsWith('activate') || how.startsWith('loyalty') || how === 'equip') ? 'battlefield' : 'hand');
   if (how.startsWith('loyalty')) { s = JSON.parse(JSON.stringify(s)); s.objects[oid].counters.loyalty = LOYALTY[sc.name] || 3; }
   const ownSweep = [...(sc.effects || []), ...(sc.abilities || []).flatMap(x => x.effects || [])].some(e => e.target === 'each-own-creature');
-  const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'own-land' ? land : ex.target === 'enemy-enchantment' ? enemyWard : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
+  const watch = ex.target === 'own-creature' || ownSweep ? mine : ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : ex.target === 'enemy-enchantment' ? enemyWard : ex.target === 'enemy-permanent' ? art : spellOid || theirs;
   const target = { 'opponent': { player: d }, 'self-player': { player: a }, 'enemy-creature': { oid: theirs },
-    'own-creature': { oid: mine }, 'own-land': { oid: land }, 'own-graveyard-creature': { oid: buriedMine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'enemy-permanent': { oid: art }, 'enemy-enchantment': { oid: enemyWard } }[ex.target || 'none'];
+    'own-creature': { oid: mine }, 'own-land': { oid: land }, 'own-forest': { oid: myForest }, 'own-graveyard-creature': { oid: buriedMine }, 'enemy-spell': { oid: spellOid }, 'enemy-instant': { oid: spellOid }, 'enemy-permanent': { oid: art }, 'enemy-enchantment': { oid: enemyWard } }[ex.target || 'none'];
   const tokensOf = st2 => Object.values(st2.objects).filter(o => o.token && o.controller === a).length;
   const before = { life: s.players.map(p => p.life), hand: s.zones[a].hand.length, total: Object.values(s.objects).filter(o => !o.ability && !o.token).length, tokens: tokensOf(s) };
   // equipar é a última habilidade ativada do script
@@ -333,7 +333,8 @@ function runExample(sc) {
     && (x.alt == null ? -1 : x.alt) === (action.alt == null ? -1 : action.alt) && !!x.flashback === !!action.flashback
     && JSON.stringify(x.targets || null) === JSON.stringify(action.targets || null)),
     `${sc.name}: a mesa não ofereceu a ação do cenário`);
-  const manaPower = x => { const o = E.productions(s, s.objects[land]); return [o.length, Math.max(0, ...o.map(y => y.length))].join(':'); };
+  const terrenoDoCenario = ex.target === 'own-forest' ? myForest : land; // Q11 · "Enchant Forest" encanta a Floresta
+  const manaPower = x => { const o = E.productions(s, s.objects[terrenoDoCenario]); return [o.length, Math.max(0, ...o.map(y => y.length))].join(':'); };
   const baseMana = manaPower();
   s = act(s, action);
   if (s.stack.length && !s.pending) s = resolve(s); // habilidade de mana não usa a pilha
@@ -377,7 +378,7 @@ function runExample(sc) {
   }
   const isPermanentCard = !!PERM_TYPES[sc.name] || how === 'disturb' || how === 'omen' || how === 'transmute' || how === 'bestow';
   if (!isPermanentCard && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
-  if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : mine, `${sc.name} deveria estar anexada`);
+  if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : mine, `${sc.name} deveria estar anexada`);
   const o = s.objects[watchOverride || watch];
   for (const [check, value] of Object.entries(want)) {
     const msg = `${sc.name} · ${check}`;

@@ -112,6 +112,7 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, .42);
   --shadow-2: 0 4px 12px rgba(0, 0, 0, .48);
   --shadow-3: 0 12px 34px rgba(0, 0, 0, .6);
+  --shadow-up: 0 -10px 28px -14px rgba(0, 0, 0, .6); /* U6b · sombra da folha inferior, para cima */
   --focus-ring: 0 0 0 3px var(--accent-soft);
   color-scheme: dark;
 }
@@ -147,6 +148,7 @@
   --shadow-1: 0 1px 2px rgba(74, 56, 26, .14);
   --shadow-2: 0 4px 12px rgba(74, 56, 26, .18);
   --shadow-3: 0 12px 34px rgba(74, 56, 26, .24);
+  --shadow-up: 0 -10px 28px -14px rgba(74, 56, 26, .24); /* U6b · sombra da folha inferior, para cima */
   color-scheme: light;
 }
 
@@ -181,6 +183,7 @@
     --shadow-1: 0 1px 2px rgba(74, 56, 26, .14);
     --shadow-2: 0 4px 12px rgba(74, 56, 26, .18);
     --shadow-3: 0 12px 34px rgba(74, 56, 26, .24);
+    --shadow-up: 0 -10px 28px -14px rgba(74, 56, 26, .24); /* U6b · sombra da folha inferior, para cima */
     color-scheme: light;
   }
 }
@@ -365,7 +368,7 @@ a { color: var(--accent); }
 
 /* ---------------- toast ---------------- */
 .ds-toast {
-  position: fixed; left: 50%; bottom: var(--space-5); z-index: var(--z-toast);
+  position: fixed; left: 50%; bottom: calc(var(--space-5) + var(--doca-h, 0px)); z-index: var(--z-toast); max-width: calc(100vw - 2 * var(--space-4)); /* U6b · acima da bandeja da mesa */
   transform: translateX(-50%) translateY(10px);
   background: var(--fg); color: var(--bg);
   padding: var(--space-2) var(--space-4); border-radius: var(--radius-2);
@@ -602,18 +605,48 @@ body {
 .tb-banner__text span { font-size: var(--text-sm); color: var(--fg-muted); }
 .tb-banner__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .tb-hand .tb-row { padding-top: var(--space-2); }
-/* U6 · bandeja da mão recolhível: o puxador fica, o corpo encolhe em 200 ms */
-.tb-hand__toggle { display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%; min-height: var(--tap-min);
-  padding: 0 var(--space-3); border: none; background: none; color: var(--fg-muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
-.tb-hand__toggle:disabled { cursor: default; color: var(--warning); }
-.tb-hand__grip { width: 36px; height: 4px; border-radius: var(--radius-full); background: var(--border); }
-.tb-hand__chevron { transition: transform var(--dur-2) var(--ease-out); }
-.tb-hand[data-recolhida="true"] .tb-hand__chevron { transform: rotate(180deg); }
-.tb-hand__body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 200ms var(--ease-out); }
-.tb-hand[data-recolhida="true"] .tb-hand__body { grid-template-rows: 0fr; }
-.tb-hand__inner { min-height: 0; overflow: hidden; transition: visibility 0s; }
-.tb-hand[data-recolhida="true"] .tb-hand__inner { visibility: hidden; transition: visibility 0s 200ms; }   /* some do toque e do leitor de tela depois de fechar */
-@media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron { transition: none; } }
+/* U6b · bandeja em camadas, no desenho de folha inferior (bottom sheet):
+   puxador na borda de cima · uma linha com a mão, o momento e as ações · as cartas.
+   Recolhida, sobra a linha (≈ 60 px). O arrasto acompanha o dedo por --puxao. */
+.tb-dock { --puxao: 0px; border-radius: var(--radius-3) var(--radius-3) 0 0; border-top: 1px solid var(--border);
+  box-shadow: var(--shadow-up); padding-top: 0; }
+.tb-dock__zona { position: absolute; left: 0; right: 0; top: -14px; height: 22px; touch-action: none; }
+.tb-dock__grip { display: flex; justify-content: center; align-items: center; height: 16px; cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+.tb-dock__grip span { width: 40px; height: 4px; border-radius: var(--radius-full); background: var(--border-strong); opacity: .7; transition: width var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out); }
+.tb-dock.is-arrastando .tb-dock__grip span { width: 56px; opacity: 1; }
+.tb-dock__bar { display: flex; align-items: center; gap: var(--space-2); touch-action: none; -webkit-user-select: none; user-select: none; }
+.tb-dock__bar .tb-banner { flex: 1 1 auto; min-width: 0; padding-bottom: 0; flex-wrap: nowrap; gap: var(--space-2); }
+.tb-dock__bar .tb-banner__text { flex: 1 1 auto; min-width: 0; }
+.tb-dock__bar .tb-banner__text strong { font-size: var(--text-md); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-dock__bar .tb-banner__text span { font-size: var(--text-xs); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-dock__bar .tb-banner__actions { flex: 0 0 auto; flex-wrap: nowrap; justify-content: flex-end; gap: var(--space-1); }
+/* decisões com muitas opções (cores, gatilhos, masmorra) quebram linha abaixo da barra em vez de espremer o título */
+.tb-dock__bar .tb-banner:has(.tb-banner__actions > :nth-child(3)) { flex-wrap: wrap; }
+.tb-dock__bar .tb-banner:has(.tb-banner__actions > :nth-child(3)) .tb-banner__actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
+.tb-dock__bar .tb-banner__actions .ds-btn { padding: 0 var(--space-3); }
+.tb-dock[data-recolhida="true"] .tb-banner__text span { display: none; }
+.tb-dock[data-recolhida="true"] .tb-iconbtn__rotulo { display: none; }
+.tb-dock__aviso { display: block; margin: var(--space-1) 0 0; font-size: var(--text-xs); color: var(--warning); }
+.tb-hand__toggle { flex: none; display: inline-flex; align-items: center; gap: 6px; min-width: var(--tap-min); min-height: var(--tap-min);
+  padding: 0 var(--space-2) 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2);
+  color: var(--fg); font: inherit; cursor: pointer; box-shadow: var(--shadow-1); transition: transform var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out); }
+.tb-hand__toggle:active { transform: translateY(1px) scale(.97); box-shadow: none; }
+.tb-hand__toggle:disabled { cursor: default; opacity: 1; border-color: var(--warning); color: var(--warning); }
+.tb-hand__count { font-family: var(--font-display); font-size: var(--text-md); font-variant-numeric: tabular-nums; min-width: 1ch; }
+.tb-hand__chevron { color: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out); transform: rotate(180deg); }
+.tb-dock[data-recolhida="true"] .tb-hand__chevron { transform: none; }
+.ds-icon { display: inline-flex; line-height: 0; }
+.tb-iconbtn { gap: var(--space-1); }
+.tb-iconbtn { padding: 0; width: var(--tap-min); }
+.tb-hand__body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 220ms var(--ease-out); }
+.tb-dock[data-recolhida="true"] .tb-hand__body { grid-template-rows: 0fr; }
+.tb-hand__inner { min-height: 0; overflow: hidden; transition: visibility 0s; transform: translateY(max(0px, var(--puxao))); }
+.tb-dock[data-recolhida="true"] .tb-hand__inner { visibility: hidden; transition: visibility 0s 220ms; transform: translateY(min(0px, var(--puxao))); }
+.tb-dock.is-arrastando .tb-hand__body { transition: none; }
+/* durante o arrasto a folha inteira acompanha o dedo, com resistência no sentido que não muda nada */
+.tb-dock.is-arrastando { transform: translateY(calc(var(--puxao) * .35)); transition: none; }
+.tb-dock { transition: transform 180ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron, .tb-dock, .tb-hand__toggle { transition: none; } }
 
 .tb-handoff { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); text-align: center; padding: var(--space-5); }
 .tb-zonegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: var(--space-2); }
@@ -2317,7 +2350,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
-  damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature'] },
+  damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard'] },
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
@@ -2368,6 +2401,8 @@ const EFFECTS = {
   scry: { fields: ['amount'], targets: ['self'] },
   surveil: { fields: ['amount'], targets: ['self'] },
   mill: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller'] },
+  // Q11 · explorar (701.45): revela o topo; terreno vai para a mão; senão, +1/+1 e a carta pode ir para o cemitério
+  explore: { fields: [], targets: ['creature-you-control', 'self-source'] },
   put_back: { fields: ['amount'], targets: ['self'] },
   // S57 · aventurar-se na masmorra: entra na primeira sala, ou avança para a próxima
   venture: { fields: [], targets: ['self'] },
@@ -2460,9 +2495,9 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
   'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
-  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature']);
+  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source']); // Q11
 /** S8 · cenários: o que o teste automático monta e o que espera. */
-const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
+const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-forest', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
 const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'targetExiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
@@ -2470,7 +2505,7 @@ const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equ
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
-const ATTACH_KINDS = ['creature', 'permanent', 'land'];
+const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control']; // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents'];
@@ -2535,6 +2570,7 @@ function validateScript(sc) {
     const parts = Object.keys(alt.cost || {});
     if (!parts.length) errs.push(`custo alternativo ${i + 1}: sem custo`);
     for (const k of parts) if (!ALT_COST_PARTS.includes(k)) errs.push(`custo alternativo ${i + 1}: parte "${k}" desconhecida`);
+    if (alt.effects) errs.push(...effectErrors(alt.effects, `custo alternativo ${i + 1}`)); // Q11 · sobrecarga tem efeitos próprios
   }
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther)) errs.push('lampejo do passado sem custo');
   if (sc && sc.escape && !sc.escape.mana) errs.push('fuga sem custo de mana');
@@ -2742,7 +2778,10 @@ const RAW_SCRIPTS = [
   { name: 'Lightning Helix', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'gain', amount: 3 }], example: { target: 'opponent', expect: { opponentLife: -3, selfLife: 3 } } },
   // varredura
   { name: 'Pyroclasm', effects: [{ do: 'damage', amount: 2, target: 'each-creature' }], example: { target: 'none', expect: { gone: true } } },
-  { name: 'Electrickery', effects: [{ do: 'damage', amount: 1, target: 'each-opponent-creature' }], example: { target: 'none', expect: { damaged: true } } },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Electrickery deals 1 damage to target creature you don't control. Overload {1}{R}"
+  { name: 'Electrickery', effects: [{ do: 'damage', amount: 1, target: 'creature-opponent-controls' }],
+    alt: [{ label: 'Sobrecarga {1}{R}: 1 de dano em cada criatura do oponente', cost: { mana: '{1}{R}' }, effects: [{ do: 'damage', amount: 1, target: 'each-opponent-creature' }] }],
+    example: { target: 'enemy-creature', expect: { damaged: 1 } } },
   { name: 'Infest', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'each-creature' }], example: { target: 'none', expect: { gone: true } } },
   { name: 'Nausea', effects: [{ do: 'pump', power: -1, toughness: -1, target: 'each-creature' }], example: { target: 'none', expect: { damaged: true } } },
   // anular
@@ -2780,7 +2819,8 @@ const RAW_SCRIPTS = [
   { name: 'Terminate', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Utter End', effects: [{ do: 'exile', target: 'permanent' }], example: { target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Anguished Unmaking', effects: [{ do: 'exile', target: 'permanent' }, { do: 'lose', amount: 3 }], example: { target: 'enemy-creature', expect: { gone: true, selfLife: -3 } } },
-  { name: 'End the Festivities', effects: [{ do: 'damage', amount: 1, target: 'each-creature' }], example: { target: 'none', expect: { damaged: true } } },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "…deals 1 damage to each opponent and each creature and planeswalker they control." (antes queimava as suas)
+  { name: 'End the Festivities', effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }, { do: 'damage', amount: 1, target: 'each-opponent-creature' }], example: { target: 'none', expect: { damaged: true, opponentLife: -1 } } },
   { name: 'Rally the Peasants', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'each-own-creature' }], flashback: { mana: '{2}{R}' },
     example: { action: 'flashback', target: 'none', expect: { pump: [2, 0], exiled: true } } },
   { name: 'Tormod\'s Crypt', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] }],
@@ -2800,8 +2840,10 @@ const RAW_SCRIPTS = [
   { name: 'Sentinel\'s Eyes', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 1, keywords: ['vigilance'] },
     escape: { mana: '{W}', exileGraveyard: 2 },
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 3], keyword: 'vigilance' } } },
-  { name: 'Spirit Link', aura: { enchant: 'creature' }, grants: { keywords: ['lifelink'] },
-    example: { action: 'aura', target: 'own-creature', expect: { keyword: 'lifelink' } } },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Whenever enchanted creature deals damage, you gain that much life." — gatilho de quem controla a aura, como Armadillo Cloak, não vínculo com a vida
+  { name: 'Spirit Link', aura: { enchant: 'creature' },
+    abilities: [{ kind: 'triggered', when: 'enchanted-deals-damage', effects: [{ do: 'gain', amount: { per: 'trigger-value' } }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   { name: 'Lifelink', aura: { enchant: 'creature' }, grants: { keywords: ['lifelink'] },
     example: { action: 'aura', target: 'own-creature', expect: { keyword: 'lifelink' } } },
   { name: 'Angelic Gift', aura: { enchant: 'creature' }, grants: { keywords: ['flying'] },
@@ -2814,8 +2856,9 @@ const RAW_SCRIPTS = [
     covers: 'partial', note: 'proteção de cor e devolver para a mão ainda não entram',
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   // S11b · restante do GW Bogles
-  { name: 'Utopia Sprawl', aura: { enchant: 'land' }, choose: 'color', grants: { extraMana: 'chosen' },
-    example: { action: 'aura', target: 'own-land', expect: { mana: true } } },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Enchant Forest" (antes aceitava qualquer terreno seu)
+  { name: 'Utopia Sprawl', aura: { enchant: 'land', subtype: 'Forest' }, choose: 'color', grants: { extraMana: 'chosen' },
+    example: { action: 'aura', target: 'own-forest', expect: { mana: true } } },
   { name: 'Abundant Growth', aura: { enchant: 'land' }, grants: { produces: [['W'], ['U'], ['B'], ['R'], ['G']] },
     abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'aura', target: 'own-land', expect: { mana: true, handDelta: 1 } } },
@@ -2832,7 +2875,7 @@ const RAW_SCRIPTS = [
   { name: 'Duress', effects: [{ do: 'discard_chosen', amount: 1, target: 'opponent' }],
     example: { target: 'opponent', expect: { opponentLife: 0 } } },
   { name: 'Faerie Macabre', abilities: [{ kind: 'activated', cost: { discardSelf: true, fromHand: true },
-    effects: [{ do: 'exile', target: 'card-in-any-graveyard' }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true }] }],
+    effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'exile', target: 'card-in-any-graveyard', upTo: true }] }], // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "up to two target cards"
     example: { action: 'activate:0', target: 'own-graveyard-creature', expect: { targetExiled: true } } },
   { name: 'Relic of Progenitus', abilities: [
     { kind: 'activated', cost: { tap: true }, effects: [{ do: 'exile_chosen', amount: 1, target: 'player' }] },
@@ -3033,8 +3076,9 @@ const RAW_SCRIPTS = [
   { name: 'Quirion Ranger', abilities: [{ kind: 'activated', cost: { returnLand: 'Forest' }, oncePerTurn: true,
     effects: [{ do: 'untap', target: 'creature' }] }],
     example: { action: 'activate:0', target: 'own-creature', expect: { untapped: true } } },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "you may search…"
   { name: 'Shield-Wall Sentinel', abilities: [{ kind: 'triggered', when: 'etb',
-    effects: [{ do: 'search', amount: 1, filter: { types: ['creature'], keyword: 'defender' }, to: 'hand' }] }],
+    effects: [{ do: 'search', amount: 1, optional: true, filter: { types: ['creature'], keyword: 'defender' }, to: 'hand' }] }],
     example: { action: 'etb', target: 'none', expect: { picked: true } } },
   { name: 'Drift of Phantasms', transmute: { mana: '{1}{U}{U}' },
     example: { action: 'transmute', target: 'none', expect: { picked: true } } },
@@ -3190,7 +3234,8 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true },
       effects: [{ do: 'search', amount: 1, filter: { types: ['land'], basic: true, subtypes: ['Mountain', 'Forest', 'Plains'] }, to: 'battlefield-tapped' }] }],
     example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
-  { name: 'Setessan Training', aura: { enchant: 'creature' }, grants: { power: 1, toughness: 0, keywords: ['trample'] },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Enchant creature you control"
+  { name: 'Setessan Training', aura: { enchant: 'creature-you-control' }, grants: { power: 1, toughness: 0, keywords: ['trample'] },
     abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 2], keyword: 'trample' } } },
   { name: "Vampire's Kiss", effects: [{ do: 'lose', amount: 2, target: 'player' }, { do: 'gain', amount: 2 },
@@ -3206,7 +3251,8 @@ const RAW_SCRIPTS = [
     plot: { mana: '{1}{R}' },
     effects: [{ do: 'draw', amount: 2, onlyIf: 'paid-additional' }],
     example: { target: 'none', expect: { handDelta: 1 } } },
-  { name: 'Bojuka Bog', entersTapped: true, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile_graveyard', target: 'opponent' }] }],
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "exile target player's graveyard" (qualquer jogador, inclusive você)
+  { name: 'Bojuka Bog', entersTapped: true, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile_graveyard', target: 'player' }] }],
     example: { action: 'etb', target: 'none', expect: { graveyardEmpty: true, tappedOnEntry: true } } },
   // S21 · planeswalkers
   { name: 'Saheeli, Sublime Artificer', loyalty: [
@@ -3222,12 +3268,18 @@ const RAW_SCRIPTS = [
     example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
   { name: 'Pulse of Murasa', effects: [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }, { do: 'gain', amount: 6 }],
     example: { target: 'own-graveyard-creature', expect: { returned: true, selfLife: 6 } } },
-  { name: 'Tinder Wall', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['R', 'R'] }] }],
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): falta "{R}, Sacrifice: 2 damage to target creature it's blocking" (sem alvo "criatura bloqueada" no motor)
+  { name: 'Tinder Wall', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['R', 'R'] }] },
+    { kind: 'activated', cost: { mana: '{R}', sacrifice: true }, effects: [{ do: 'damage', amount: 2, target: 'creature-blocked-by-source' }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 2 } } },
-  { name: 'Fanatical Offering', additional: { sacrificeOther: { types: ['artifact', 'creature'] } }, effects: [{ do: 'draw', amount: 2 }],
-    example: { target: 'none', expect: { handDelta: 2 } } },
-  { name: 'Krark-Clan Shaman', abilities: [{ kind: 'activated', cost: { mana: '{R}', sacrificeOther: { types: ['artifact'] } },
-    effects: [{ do: 'damage', amount: 1, target: 'each-creature' }] }],
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Draw two cards and create a Map token." A ficha entra (é artefato: alimenta Krark-Clan Shaman); explorar fica manual.
+  { name: 'Fanatical Offering', additional: { sacrificeOther: { types: ['artifact', 'creature'] } },
+    effects: [{ do: 'draw', amount: 2 }, { do: 'token', amount: 1, token: { name: 'Map', types: ['artifact'],
+      abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, sorceryOnly: true, effects: [{ do: 'explore', target: 'creature-you-control' }] }] } }],
+    example: { target: 'none', expect: { handDelta: 2, tokens: 1 } } },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Sacrifice an artifact: This creature deals 1 damage to each creature without flying." (antes custava {R} e acertava voadoras)
+  { name: 'Krark-Clan Shaman', abilities: [{ kind: 'activated', cost: { sacrificeOther: { types: ['artifact'] } },
+    effects: [{ do: 'damage', amount: 1, target: 'each-nonflying-creature' }] }],
     example: { action: 'activate:0', target: 'none', expect: { damaged: true } } },
   // S19 · valores dinâmicos
   { name: 'Priest of Titania', produces: [{ symbol: 'G', per: 'elves-on-battlefield' }],
@@ -3236,26 +3288,33 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Axebane Guardian', produces: [{ anyColor: true, per: 'defenders-you-control' }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // Texto conferido em 29/09/2026 (Card Kingdom e TappedOut; Scryfall recusou a consulta): "{T}: Target creature gets
+  // +X/+X until end of turn, where X is the number of Elves on the battlefield." — Elfos de TODOS os jogadores.
+  // Antes contava só os seus (achado do usuário no aparelho, leva 89).
   { name: 'Timberwatch Elf', abilities: [{ kind: 'activated', cost: { tap: true },
-    effects: [{ do: 'pump', power: { per: 'elves-you-control' }, toughness: { per: 'elves-you-control' }, target: 'creature' }] }],
+    effects: [{ do: 'pump', power: { per: 'elves-on-battlefield' }, toughness: { per: 'elves-on-battlefield' }, target: 'creature' }] }],
     example: { action: 'activate:0', target: 'own-creature', expect: { pump: [1, 1] } } },
   { name: 'Distant Melody', effects: [{ do: 'choose_type' }, { do: 'draw', amount: { per: 'chosen-type-permanents' } }],
     example: { target: 'none', expect: { handDelta: 2 } } },
   { name: 'Valakut Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'damage', amount: 3, target: 'any' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -3 } } },
-  { name: 'Bloodrite Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'lose', amount: 2, target: 'player' }, { do: 'gain', amount: 2 }] }],
-    example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -2, selfLife: 2 } } },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "{8}: Target player loses 3 life and you gain 3 life."
+  { name: 'Bloodrite Invoker', abilities: [{ kind: 'activated', cost: { mana: '{8}' }, effects: [{ do: 'lose', amount: 3, target: 'player' }, { do: 'gain', amount: 3 }] }],
+    example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -3, selfLife: 3 } } },
   // S18 · ninjutsu e insanidade
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "you may draw a card"
   { name: 'Ninja of the Deep Hours', ninjutsu: { mana: '{1}{U}' },
-    abilities: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'draw', amount: 1 }] }],
+    abilities: [{ kind: 'triggered', when: 'combat-damage', optional: true, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } },
-  { name: 'Moon-Circuit Hacker', ninjutsu: { mana: '{1}{U}' },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Ninjutsu {U}" (antes cobrava {1}{U})
+  { name: 'Moon-Circuit Hacker', ninjutsu: { mana: '{U}' },
     abilities: [{ kind: 'triggered', when: 'combat-damage', optional: true,
       effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1, onlyIf: 'source-entered-earlier' }] }],
     example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } },
   { name: 'Fiery Temper', effects: [{ do: 'damage', amount: 3, target: 'any' }], madness: { mana: '{R}' },
     example: { action: 'madness', target: 'opponent', expect: { opponentLife: -3 } } },
-  { name: 'Alms of the Vein', effects: [{ do: 'damage', amount: 3, target: 'player' }, { do: 'gain', amount: 3 }], madness: { mana: '{B}' },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Target opponent loses 3 life and you gain 3 life." (perder vida, não dano; e só oponente)
+  { name: 'Alms of the Vein', effects: [{ do: 'lose', amount: 3, target: 'opponent' }, { do: 'gain', amount: 3 }], madness: { mana: '{B}' },
     example: { action: 'madness', target: 'opponent', expect: { opponentLife: -3, selfLife: 3 } } },
   // S16 · custos alternativos, lampejo do passado e "a menos que pague"
   { name: 'Daze', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{1}' } }],
@@ -3285,7 +3344,8 @@ const RAW_SCRIPTS = [
   { name: 'Corpse Knight', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] },
     effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }] }],
     example: { action: 'etb', target: 'none', expect: { selfLife: 0 } } },
-  { name: 'Elvish Vanguard', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'], subtype: 'Elf' },
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Whenever another Elf enters" — de qualquer jogador
+  { name: 'Elvish Vanguard', abilities: [{ kind: 'triggered', when: 'other-etb', anyController: true, filter: { types: ['creature'], subtype: 'Elf' },
     effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
     example: { action: 'etb', target: 'none', expect: { selfLife: 0 } } },
   { name: 'Kor Skyfisher', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'bounce', target: 'permanent-you-control' }] }],
@@ -3313,7 +3373,8 @@ const RAW_SCRIPTS = [
   { name: 'Mystical Tutor', effects: [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], example: { target: 'none', expect: { picked: true } } },
   { name: 'Solve the Equation', effects: [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'hand' }], example: { target: 'none', expect: { picked: true } } },
   { name: 'Idyllic Tutor', effects: [{ do: 'search', amount: 1, filter: { types: ['enchantment'] }, to: 'hand' }], example: { target: 'none', expect: { picked: true } } },
-  { name: 'Squadron Hawk', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'search', amount: 3, filter: { name: 'Squadron Hawk' }, to: 'hand' }] }],
+  // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "you may search… for up to three"
+  { name: 'Squadron Hawk', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'search', amount: 3, optional: true, filter: { name: 'Squadron Hawk' }, to: 'hand' }] }],
     example: { action: 'etb', target: 'none', expect: { picked: true } } },
   { name: 'Stream of Thought', effects: [{ do: 'mill', amount: 4, target: 'opponent' }],
     covers: 'partial', note: 'embaralhar quatro cartas do seu cemitério e o lampejo do passado ainda não entram',
@@ -6469,6 +6530,8 @@ const scriptOf = (s, o) => s.facts[o.name].script;
 /** S12 · efeitos válidos agora: do modo escolhido, quando a mágica é modal. */
 function spellEffects(s, o, mode) {
   const sc = scriptOf(s, o); if (!sc) return [];
+  // Q11 · custo alternativo com efeitos próprios (sobrecarga): Electrickery por {1}{R} vira varredura
+  if (o && o.altIndex != null && sc.alt && sc.alt[o.altIndex] && sc.alt[o.altIndex].effects) return sc.alt[o.altIndex].effects;
   const modes = sc.modes || [];
   if (!modes.length) return sc.effects || [];
   const i = mode != null ? mode : (o.mode || 0);
@@ -6572,8 +6635,19 @@ function legalTargets(s, p, kind, selfOid, color) {
     for (const o of perms) {
       if (!s.facts[o.name].types.includes('land')) continue;
       if (kind === 'land-you-control' && o.controller !== p) continue;
+      // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
+      const sub = selfOid && s.objects[selfOid] && s.facts[s.objects[selfOid].name] ? auraSubtype(s.facts[s.objects[selfOid].name]) : null;
+      if (sub && !new RegExp('\\b' + sub + '\\b', 'i').test(s.facts[o.name].typeText || o.name)) continue;
       out.push({ oid: o.oid });
     }
+  }
+  // Q11 · Tinder Wall: "target creature it's blocking" — a criatura que a fonte está bloqueando agora
+  if (kind === 'creature-blocked-by-source') {
+    const fonte = selfOid && s.objects[selfOid];
+    const perm = fonte && fonte.ability ? s.objects[fonte.source] : fonte;
+    const bloqueada = (perm && perm.zone === 'battlefield' && perm.blocking) || (fonte && fonte.blockedAt) || null;
+    const alvo = bloqueada && s.objects[bloqueada];
+    if (alvo && alvo.zone === 'battlefield') out.push({ oid: alvo.oid });
   }
   if (['creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls'].includes(kind)) {
     for (const o of perms) {
@@ -6812,6 +6886,22 @@ function applyEffect(s, src, eff, tgt, events) {
       startPick(s, { p: who, from, min: n, max: n, to: 'library-top', rest: 'stay', label: 'devolver ao topo', source: src.name }, events);
       break;
     }
+    case 'explore': {
+      // Q11 · 701.45: revela o topo do grimório do controlador da criatura; terreno vai para a mão;
+      // senão, marcador +1/+1 na criatura e o dono pode pôr a carta no cemitério (decisão sem custo)
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (!alvo || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
+      const who = alvo.controller;
+      const topo = s.zones[who].library[0];
+      if (!topo) { addCounters(s, alvo, 1); note({ name: alvo.name, amount: 1 }); break; }
+      const carta = s.objects[topo];
+      events.push({ kind: 'revealed', oid: topo, name: carta.name, p: who });
+      if ((s.facts[carta.name] || { types: [] }).types.includes('land')) { moveObject(s, topo, 'hand'); note({ name: alvo.name, land: carta.name }); break; }
+      addCounters(s, alvo, 1); note({ name: alvo.name, amount: 1, top: carta.name });
+      s.pending = { kind: 'may_pay', p: who, cost: null, name: `${alvo.name} explorou: ${carta.name} no topo`,
+        then: { effects: [{ do: 'mill', amount: 1, target: 'self' }], source: src.source || src.oid, name: src.name, controller: who, targets: [] } };
+      break;
+    }
     case 'mill': {
       const who = playerOf();
       s.zones[who].library.slice(0, eff.amount).forEach(oid => moveObject(s, oid, 'graveyard'));
@@ -6967,6 +7057,7 @@ function sweepTargets(s, src, eff) {
   const except = typeof eff === 'string' ? null : eff.exceptSubtype; // S38 · varredura que poupa um subtipo
   const fora = x => except && (isChangeling(s, x) || new RegExp('\\b' + except + '\\b', 'i').test(s.facts[x.name].typeText || ''));
   if (kind === 'each-flying-creature') return battlefield(s).filter(x => isCreature(s, x) && has(s, x, 'flying') && !fora(x));
+  if (kind === 'each-nonflying-creature') return battlefield(s).filter(x => isCreature(s, x) && !has(s, x, 'flying') && !fora(x)); // Q11 · Krark-Clan Shaman
   return battlefield(s).filter(x => isCreature(s, x) && !fora(x) &&
     (kind === 'each-creature' || (kind === 'each-opponent-creature' ? x.controller !== src.controller : x.controller === src.controller)));
 }
@@ -7187,10 +7278,11 @@ function resolveScript(s, o, events) {
    Uma habilidade na pilha é um objeto próprio, que some quando resolve.
    M10 · com dois ou mais gatilhos ao mesmo tempo, o controlador escolhe a ordem. */
 const isAbility = o => !!(o && o.ability);
-function makeAbility(s, source, ab, targets) {
+function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   const oid = 'ab' + (s.nextAbility++);
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
-    controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: targets || [] };
+    controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: targets || [],
+    ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
   s.stack.push(oid);
   return oid;
 }
@@ -7266,9 +7358,11 @@ function queueTriggers(s, when, objects, controller) {
     const other = when === 'etb' ? 'other-etb' : when === 'dies' ? 'other-dies'
       : when === 'leaves-battlefield' ? 'other-leaves-battlefield' : 'other-cast'; // S52 · Luminous Phantom
     for (const w of battlefield(s)) {
-      if (w.oid === o.oid || w.controller !== ctrl) continue;
+      if (w.oid === o.oid) continue;
       for (const ab of abilitiesOf(s, w)) {
         if (ab.kind !== 'triggered' || ab.when !== other) continue;
+        // Q11 · "whenever another Elf enters" (Elvish Vanguard) dispara para Elfos de qualquer jogador; o padrão continua "sua"
+        if (w.controller !== ctrl && !ab.anyController) continue;
         if (!matchesTriggerFilter(s, o, ab.filter)) continue;
         // S66 · o gatilho de "outra permanente" carrega as mesmas marcas do gatilho
         // próprio: sem isto, "você pode" virava obrigatório e o custo opcional sumia
@@ -7429,6 +7523,8 @@ function auraTarget(f, bestowed) {
   const a = f.script && f.script.aura;
   return a ? (a.enchant === 'land' ? 'land-you-control' : a.enchant || 'creature') : null;
 }
+/** Q11 · "Enchant Forest": além do tipo, a aura exige um subtipo do terreno (Utopia Sprawl). */
+function auraSubtype(f) { const a = f.script && f.script.aura; return a && a.subtype ? a.subtype : null; }
 const bestowOf = (s, o) => (s.facts[o.name].script || {}).bestow;
 function attachTo(s, o, hostOid, events) {
   const host = s.objects[hostOid];
@@ -7629,7 +7725,7 @@ const HANDLERS = {
     if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
     const alvoAura = auraTarget(f, a.bestow);
     if (a.bestow && !bestowOf(s, o)) throw new RuleError('conceder', 'esta carta não tem conceder');
-    const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode }, a.mode).filter(SC.isTargeted);
+    const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, altIndex: a.alt != null ? a.alt : null }, a.mode).filter(SC.isTargeted);
     const chosen = a.targets || [];
     const minAlvos = need.filter(x => !x.upTo).length; // S38 · "até N alvos" aceita menos
     if (chosen.length < minAlvos || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvos === need.length ? need.length : `de ${minAlvos} a ${need.length}`} alvo(s)`);
@@ -7670,6 +7766,7 @@ const HANDLERS = {
     moveObject(s, a.oid, 'stack');
     if (need.length) s.objects[a.oid].targets = chosen;
     if (modes.length) s.objects[a.oid].mode = a.mode;
+    if (a.alt != null && (altCosts(s, o)[a.alt] || {}).effects) s.objects[a.oid].altIndex = a.alt; // Q11 · sobrecarga
     // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
     if (a.x) s.objects[a.oid].xPaid = a.x; // S50 · quanto de X foi pago
     if ((f.script || {}).storm) s.objects[a.oid].stormCopies = s.spellsThisTurn || 0;
@@ -7765,6 +7862,7 @@ const HANDLERS = {
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid)) throw new RuleError('alvo', 'alvo ilegal'); });
+    const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
     // S33 · adaptar: só põe marcadores se a criatura não tiver nenhum
     if (ab.adapt != null && !(o.counters.p1p1 > 0)) addCounters(s, o, ab.adapt);
@@ -7772,7 +7870,7 @@ const HANDLERS = {
     if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
       (ab.effects || []).forEach(e => applyEffect(s, o, e, null, ev || []));
     } else { // S41 · vigilância do alvo · S43 · a cor escolhida viaja com a habilidade
-      const abOid = makeAbility(s, o, ab, chosen);
+      const abOid = makeAbility(s, o, ab, chosen, bloqueavaAntes);
       if (a.color) s.objects[abOid].chosenColor = a.color;
       chargeWard(s, a.p, abOid, chosen);
     }
@@ -8350,7 +8448,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     altCosts(s, o).forEach((alt, i) => {
       if (!canPayAlt(s, p, alt.cost, oid)) return;
       const pay = defaultPayment(s, p, alt.cost, oid);
-      castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...(Object.keys(pay).length ? { pay } : {}) }));
+      castWith(o, ((alt.effects || (f.script && f.script.effects)) || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...(Object.keys(pay).length ? { pay } : {}) }));
     });
   }
   // S37 · barganha: a mesma conjuração, sacrificando um artefato, encantamento ou ficha
@@ -9145,6 +9243,83 @@ function TableCard(card, opts = {}) {
 }
 const LEQUE_MAX = 3;
 
+/** U6b · decide o que um arrasto vertical na borda de cima da bandeja faz. Puro, para testar.
+    dy > 0 é para baixo. Recolhe com arrasto para baixo, abre com arrasto para cima; um arrasto
+    curto e lento volta ao estado de antes. `v` é a velocidade em px/ms no fim do gesto. */
+function gestoDeBandeja({ dy, dx = 0, v = 0, aberta }) {
+  if (Math.abs(dx) > Math.abs(dy)) return null;                 // gesto horizontal: não é da bandeja
+  const longe = Math.abs(dy) >= 36, rapido = Math.abs(v) >= 0.45 && Math.abs(dy) >= 12;
+  if (!(longe || rapido)) return null;
+  if (dy > 0 && aberta) return 'recolher';
+  if (dy < 0 && !aberta) return 'abrir';
+  return null;
+}
+/** Liga o gesto a um elemento: acompanha o dedo (via --puxao) e decide ao soltar.
+    O gesto começa no elemento e é acompanhado na janela inteira (o dedo sai da borda logo no começo). */
+function ligaGestoDeBandeja(el, { aberta, aoDecidir, alvoVisual }) {
+  let y0 = null, x0 = 0, t0 = 0, ultimoY = 0, ultimoT = 0, penultY = 0, penultT = 0, arrastando = false, id = null;
+  const fim = () => { window.removeEventListener('pointermove', move, true); window.removeEventListener('pointerup', solta, true); window.removeEventListener('pointercancel', cancela, true); };
+  const limpa = () => { arrastando = false; y0 = null; fim(); if (alvoVisual) { alvoVisual.classList.remove('is-arrastando'); alvoVisual.style.removeProperty('--puxao'); } };
+  function move(e) {
+    if (y0 == null || e.pointerId !== id) return;
+    const dy = e.clientY - y0, dx = e.clientX - x0;
+    if (!arrastando && Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) { arrastando = true; if (alvoVisual) alvoVisual.classList.add('is-arrastando'); }
+    if (!arrastando) return;
+    e.preventDefault();
+    // acompanha o dedo só na direção que muda algo; na outra, resiste (efeito de borracha)
+    const util = aberta() ? Math.max(0, dy) : Math.min(0, dy);
+    if (alvoVisual) alvoVisual.style.setProperty('--puxao', `${Math.round(util + (dy - util) * 0.25)}px`);
+    penultY = ultimoY; penultT = ultimoT; ultimoY = e.clientY; ultimoT = e.timeStamp;
+  }
+  function solta(e) {
+    if (y0 == null || e.pointerId !== id) return;
+    const dy = e.clientY - y0, dx = e.clientX - x0;
+    const v = (ultimoY - penultY) / Math.max(1, ultimoT - penultT);
+    const foi = arrastando;
+    limpa();
+    if (!foi) return;
+    // o toque que virou arrasto não vira clique no botão que estava embaixo do dedo
+    // (vale só para o clique que o navegador dispara junto com o soltar; depois de 350 ms some, para não comer um toque de verdade)
+    const engole = ev => { ev.stopImmediatePropagation(); ev.preventDefault(); window.removeEventListener('click', engole, true); };
+    window.addEventListener('click', engole, true);
+    setTimeout(() => window.removeEventListener('click', engole, true), 350);
+    const d = gestoDeBandeja({ dy, dx, v, aberta: aberta() });
+    if (d) aoDecidir(d);
+  }
+  function cancela() { limpa(); }
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    y0 = penultY = ultimoY = e.clientY; x0 = e.clientX; t0 = penultT = ultimoT = e.timeStamp; id = e.pointerId;
+    // com mouse, arrastar começaria uma seleção de texto (e o navegador cancelaria o gesto); o clique continua valendo
+    if (e.pointerType === 'mouse') e.preventDefault();
+    window.addEventListener('pointermove', move, { capture: true, passive: false });
+    window.addEventListener('pointerup', solta, true);
+    window.addEventListener('pointercancel', cancela, true);
+  });
+}
+
+/** U6b · ícones do app: SVG inline, cor herdada (currentColor), traço 1,75, cantos redondos.
+    Uma fonte só para todos os ícones da mesa; o U2 estende o conjunto para o app inteiro. */
+const ICONES = {
+  // mão: três cartas em leque
+  mao: '<rect x="3.5" y="6.5" width="8" height="12" rx="1.6" transform="rotate(-14 7.5 12.5)"/><rect x="8" y="5" width="8" height="12" rx="1.6"/><rect x="12.5" y="6.5" width="8" height="12" rx="1.6" transform="rotate(14 16.5 12.5)"/>',
+  // passar o turno: avançar até o próximo
+  pular: '<path d="M5 6.5l7 5.5-7 5.5z"/><path d="M12 6.5l7 5.5-7 5.5z"/>',
+  // divisa para cima (a bandeja sobe)
+  subir: '<path d="M6 14.5l6-6 6 6"/>'
+};
+function Icone(nome, { tamanho = 20, classe = '' } = {}) {
+  const el = h('span', { class: ('ds-icon ' + classe).trim(), 'aria-hidden': 'true' });
+  el.innerHTML = `<svg viewBox="0 0 24 24" width="${tamanho}" height="${tamanho}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${ICONES[nome] || ''}</svg>`;
+  return el;
+}
+/** Botão de ícone com rótulo acessível; `rotulo: true` mostra o texto ao lado quando há espaço. */
+function IconButton(icone, rotulo, { id, variant, onClick, rotulo: mostra = false } = {}) {
+  const b = h('button', { class: ['ds-btn', 'tb-iconbtn', variant ? `ds-btn--${variant}` : ''].filter(Boolean).join(' '), type: 'button', id, 'aria-label': rotulo, title: rotulo, onClick },
+    Icone(icone), mostra ? h('span', { class: 'tb-iconbtn__rotulo' }, rotulo) : null);
+  return b;
+}
+
 /** Faixa rolável de cartas com rótulo. Vazia, ocupa pouco e diz o que é. */
 function ZoneRow(label, cards, opts = {}) {
   if (!cards.length) return h('div', { class: 'tb-zone tb-zone--empty', dataset: { zone: opts.zone || '' } },
@@ -9238,7 +9413,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel };
+return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
 })();
 
 
@@ -9280,6 +9455,8 @@ function effectLine(ev) {
     case 'counter': return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : `${ev.name} anulou ${t}`;
     case 'counters': return `${ev.name} recebeu ${n} marcador(es) +1/+1`;
     case 'draw': return `${t} comprou ${n} com ${ev.name}`;
+    case 'explore': return ev.failed ? `${ev.name}: nada para explorar` : ev.land ? `${ev.name}: ${ev.target || ''} explorou e achou ${ev.land} (foi para a mão)`.replace(': explorou', ' explorou')
+      : `${ev.name}: ${ev.target || 'a criatura'} explorou, ganhou +1/+1${ev.top ? ` (${ev.top} no topo)` : ''}`;
     case 'gain_per_revealed': return `${t} revelou cartas e ganhou ${n} de vida com ${ev.name}`;
     case 'discard': return `${ev.name}: ${t} descarta ${n}`;
     case 'token': return `${ev.name} criou ${n} ficha ${ev.name === t ? '' : ''}`.trim();
@@ -9694,6 +9871,7 @@ function descreveEfeito(e) {
     case 'attach': return 'anexa';
     case 'venture': return 'aventura na masmorra';
     case 'mill': return `põe ${plural(n, 'carta', 'cartas')} do grimório no cemitério`;
+    case 'explore': return 'explora: revela o topo; terreno vai para a mão, senão +1/+1 e a carta pode ir para o cemitério';
     case 'goad': return `provoca ${alvo || 'uma criatura'}`;
     case 'cant_attack': return `${alvo || 'a criatura'} não pode atacar`;
     case 'lose_unless': return 'perde vida a menos que pague';
@@ -9818,7 +9996,7 @@ const __m19 = (function () {
 const E = __m16;
 const T = __m18;
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
-const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel } = __m17;
+const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja } = __m17;
 const { onLongPress } = __m20;
 const { norm } = __m7;
 const { FORMATS } = __m14;
@@ -10197,19 +10375,6 @@ function createTableScreen({ store }) {
   const canAdjudicate = v => table.state.mode === 'assisted' && hasPriority(v); // S9: no motor completo o jogo não aceita controle manual
 
   /** B7 · duas melhores jogadas que ainda estão na mesa, com o motivo. */
-  function mostraDicas(v) {
-    const s = table.state;
-    const lista = __m25.dicas(s, v, { quantas: 2 });
-    Dialog({ title: 'O que eu poderia fazer?', body: lista.length
-      ? Stack({ style: { gap: 'var(--space-2)' } },
-        Text('Pelas contas do bot, estas são as jogadas que mais melhoram a sua posição agora.', { size: 'sm', tone: 'muted' }),
-        ...lista.map((d, i) => Surface({ class: 'ds-surface--pad', id: i ? undefined : 'tb-dica-1' }, Stack({ style: { gap: 'var(--space-1)' } },
-          Text(d.motivo.charAt(0).toUpperCase() + d.motivo.slice(1), { size: 'md' }),
-          Text(`Ganho estimado: ${d.ganho}`, { size: 'sm', tone: 'muted' })))))
-      : Empty('Nada que melhore a sua posição agora — passar está de bom tamanho.'),
-      actions: [Button('Fechar', { onClick: closeDialog })] });
-  }
-
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
     sheet(d.o.name, d.acoes.map(toButton), d.where);
@@ -10499,12 +10664,12 @@ function createTableScreen({ store }) {
     } else if (s.turn.priority === v) {
       const top = s.stack.length ? s.objects[s.stack[s.stack.length - 1]].name : null;
       banner = PriorityBanner({
-        title: top ? `Pilha: ${top}` : `Sua prioridade · ${E.STEP_PT[s.turn.step]}`,
-        hint: top ? 'Responda ou passe. Se todos passarem, o topo resolve.' : (s.turn.active === v ? 'Seu turno.' : `Turno de ${s.players[s.turn.active].name}.`),
+        // U6b · título curto (cabe na bandeja recolhida); a fase e o dono do turno vão para a linha de apoio
+        title: top ? `Pilha: ${top}` : 'Sua vez',
+        hint: top ? 'Responda ou passe. Se todos passarem, o topo resolve.' : `${E.STEP_PT[s.turn.step]} · ${s.turn.active === v ? 'seu turno' : `turno de ${s.players[s.turn.active].name}`}`,
         actions: [Button('Passar', { variant: 'primary', id: 'tb-pass', onClick: () => act({ t: 'pass', p: v }) }),
-          // B7 · o mesmo avaliador do bot, agora a seu favor
-          s.mode === 'full' ? Button('O que eu poderia fazer?', { id: 'tb-dicas', onClick: () => mostraDicas(v) }) : null,
-          top ? null : Button('Passar o turno', { id: 'tb-pass-turn', onClick: () => {
+          // U6b · "O que eu poderia fazer?" saiu da bandeja a pedido do usuário (espaço para a mesa)
+          top ? null : IconButton('pular', 'Passar o turno', { id: 'tb-pass-turn', onClick: () => {
             const start = s.turn.number;
             try { const ev = table.passUntil(v, n => n.turn.number !== start && n.turn.active === v && n.turn.step === 'main1');
               const res = ev.filter(e => e.kind === 'resolved' && e.adjudicate).pop(); if (res) adjudicating = { name: res.name, oid: res.oid };
@@ -10534,24 +10699,47 @@ function createTableScreen({ store }) {
         openObject(oid);
       }
     }));
-    // U6 · puxador: recolhe/expande sem repintar a mesa (a animação acontece no mesmo elemento)
+    // U6b · bandeja em três camadas: puxador na borda de cima (toque ou arrasto), uma linha com a mão,
+    // o momento e as ações, e as cartas. Recolhida, sobra só a linha: a mesa ganha a altura da mão e da dica.
     const band = T.bandejaDaMao(s, v, maoRecolhida);
+    const doca = h('div', { class: 'tb-dock', id: 'tb-dock', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada) } });
     const bandeja = h('div', { class: 'tb-hand', id: 'tb-hand', 'aria-label': 'sua mão', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada) } });
-    const rotulo = aberta => band.forcada ? `✋ ${band.total} · aberta para ${band.motivo}` : `✋ ${band.total}`;
+    const rotuloAria = aberta => band.forcada ? `Mão aberta para ${band.motivo} (${band.total} cartas)` : aberta ? `Recolher a mão (${band.total} cartas)` : `Mostrar a mão (${band.total} cartas)`;
+    const aplica = aberta => {
+      doca.dataset.recolhida = String(!aberta); bandeja.dataset.recolhida = String(!aberta);
+      puxador.setAttribute('aria-expanded', String(aberta)); puxador.setAttribute('aria-label', rotuloAria(aberta));
+    };
+    const alterna = recolher => {
+      if (band.forcada) return;
+      maoRecolhida = recolher != null ? recolher : !maoRecolhida;
+      store.set(MAO_KEY, maoRecolhida).catch(() => {});
+      aplica(!maoRecolhida);
+      try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
+    };
     const puxador = h('button', { class: 'tb-hand__toggle', id: 'tb-hand-toggle', type: 'button', 'aria-controls': 'tb-hand-body', 'aria-expanded': String(band.aberta),
-      'aria-label': band.aberta ? `Recolher a mão (${band.total} cartas)` : `Mostrar a mão (${band.total} cartas)`, disabled: band.forcada,
-      onClick: () => {
-        maoRecolhida = !maoRecolhida;
-        store.set(MAO_KEY, maoRecolhida).catch(() => {});
-        const aberta = !maoRecolhida;
-        bandeja.dataset.recolhida = String(!aberta);
-        puxador.setAttribute('aria-expanded', String(aberta));
-        puxador.setAttribute('aria-label', aberta ? `Recolher a mão (${band.total} cartas)` : `Mostrar a mão (${band.total} cartas)`);
-      } },
-      h('span', { class: 'tb-hand__grip', 'aria-hidden': 'true' }), h('span', { class: 'tb-hand__count' }, rotulo()), h('span', { class: 'tb-hand__chevron', 'aria-hidden': 'true' }, '▾'));
-    bandeja.append(puxador, h('div', { class: 'tb-hand__body', id: 'tb-hand-body' },
+      'aria-label': rotuloAria(band.aberta), title: 'Mão', disabled: band.forcada, onClick: () => alterna() },
+      Icone('mao', { tamanho: 22, classe: 'tb-hand__icone' }),
+      h('span', { class: 'tb-hand__count' }, String(band.total)),
+      Icone('subir', { tamanho: 16, classe: 'tb-hand__chevron' }));
+    const grip = h('div', { class: 'tb-dock__grip', 'aria-hidden': 'true' }, h('span', {}));
+    grip.addEventListener('click', () => alterna());
+    const AVISO = { 'mão inicial': 'Decida a mão inicial', descarte: 'Escolha o que descartar' };
+    const aviso = band.forcada ? h('span', { class: 'tb-dock__aviso', id: 'tb-hand-aviso', role: 'status' }, AVISO[band.motivo] || `Mão aberta: ${band.motivo}`) : null;
+    const barra = h('div', { class: 'tb-dock__bar' }, puxador, banner);
+    bandeja.append(h('div', { class: 'tb-hand__body', id: 'tb-hand-body' },
       h('div', { class: 'tb-hand__inner' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia'))));
-    return h('div', { class: 'tb-dock' }, banner, bandeja);
+    doca.append(...[grip, barra, aviso, bandeja].filter(Boolean));
+    // o aviso flutuante (toast) sobe para ficar acima da bandeja, em vez de cobri-la
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => { if (!doca.isConnected) { ro.disconnect(); document.documentElement.style.removeProperty('--doca-h'); return; }
+        document.documentElement.style.setProperty('--doca-h', `${Math.round(doca.getBoundingClientRect().height)}px`); });
+      ro.observe(doca);
+    }
+    // arrasto na borda de cima (puxador e linha de ações): para baixo recolhe, para cima abre
+    const zona = h('div', { class: 'tb-dock__zona', 'aria-hidden': 'true' });
+    doca.prepend(zona);
+    for (const alvo of [zona, grip, barra]) ligaGestoDeBandeja(alvo, { aberta: () => doca.dataset.recolhida !== 'true', alvoVisual: doca, aoDecidir: d => alterna(d === 'recolher') });
+    return doca;
   }
 
   function paint() {

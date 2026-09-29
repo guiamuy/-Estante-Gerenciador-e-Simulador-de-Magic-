@@ -103,7 +103,10 @@ function mesa(nomeAlvo, { naMao = false, comPilha = false, todosEnjoados = false
 const ativadas = nome => ((S.SCRIPTS[nome] || {}).abilities || []).filter(x => x.kind === 'activated');
 
 /** Habilidades que o motor não oferece na mesa farta por um motivo declarado. */
-const EXCECOES = {};
+const EXCECOES = {
+  // Q11 · "{R}, sacrificar: 2 de dano na criatura que ela bloqueia" só tem alvo durante o bloqueio; coberta em pauper.regras.test.mjs
+  'Tinder Wall #1': 'só bloqueando'
+};
 
 test('A14 · toda habilidade ativada das listas Pauper é oferecida numa mesa farta', () => {
   const faltas = [];

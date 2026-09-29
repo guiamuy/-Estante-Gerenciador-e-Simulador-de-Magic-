@@ -24,3 +24,17 @@ test('U6 · mão inicial e descarte abrem sozinhos e dizem por quê', () => {
 test('U6 · mesa sem zonas não quebra', () => {
   assert.equal(T.bandejaDaMao({ zones: [] }, 0, true).total, 0);
 });
+
+/* ---------------- U6b · gesto na borda de cima da bandeja ---------------- */
+const { mesaUi: K } = loadModules();
+test('U6b · arrasto para baixo recolhe, para cima abre; curto e lento não muda; lateral não é da bandeja', () => {
+  const g = K.gestoDeBandeja;
+  assert.equal(g({ dy: 60, aberta: true }), 'recolher');
+  assert.equal(g({ dy: -60, aberta: false }), 'abrir');
+  assert.equal(g({ dy: 60, aberta: false }), null, 'já recolhida: para baixo não faz nada');
+  assert.equal(g({ dy: -60, aberta: true }), null, 'já aberta: para cima não faz nada');
+  assert.equal(g({ dy: 20, v: 0.1, aberta: true }), null, 'curto e lento: volta');
+  assert.equal(g({ dy: 20, v: 0.8, aberta: true }), 'recolher', 'curto mas rápido (peteleco): vale');
+  assert.equal(g({ dy: 8, v: 2, aberta: true }), null, 'toque trêmulo não vira gesto');
+  assert.equal(g({ dy: 50, dx: 80, aberta: true }), null, 'arrasto mais lateral que vertical: não é da bandeja');
+});

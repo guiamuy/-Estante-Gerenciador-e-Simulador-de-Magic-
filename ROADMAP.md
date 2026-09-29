@@ -44,7 +44,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | ✅ |
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
-| Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) · Q10 homologação das levas 81–87 + auditoria offline | ✅ |
+| Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) · Q10 homologação das levas 81–87 + auditoria offline · Q11 regras Pauper contra o texto oficial | ✅ |
 | U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível · U7 turno visível · U12 imagens do jogo sozinhas · U10 Shark | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
@@ -217,6 +217,14 @@ testes rigorosa e completa, para minimizar a chance e a quantidade de bugs — s
 pedir. Na prática, em cada leva: cada regra nova nasce com teste que falharia sem ela; cada bug vira teste
 antes da correção; o caminho que o usuário vai tocar no aparelho tem teste headless; e o que ficou sem
 cobertura é declarado na entrega, não omitido.
+
+**Conduta de design (definida pelo usuário em 29/09/2026, "a partir de agora e sempre").** Toda leva que toca
+tela é tratada como trabalho de design de produto, não só de funcionalidade: (1) antes de mexer, captura da tela
+real em 360×780 e 390×844, clara e escura; (2) desenho decidido por espaço útil da mesa, hierarquia e toque (alvo
+≥ 44px, uma mão, nada que dependa de hover); (3) ícones do conjunto do app (SVG com `currentColor`, traço 1,75), nunca
+emoji; (4) CTAs curtos, com ícone quando o gesto é conhecido; (5) movimento curto e com propósito, respeitando
+`prefers-reduced-motion`; (6) captura de novo depois, nas mesmas medidas, e ajuste até ficar limpo; (7) teste que
+mede o que foi prometido (altura, alinhamento, alvo de toque, contraste).
 
 **Conduta offline (definida pelo usuário em 28/09/2026, épico E42; reforçada em 29/09/2026).** Toda funcionalidade — a que existe e
 a que vier (Coleção, Mesa, Commander) — funciona sem internet com o que já está no aparelho. **O que não puder
@@ -525,6 +533,22 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** P, I.
 - **Depende de:** A1.
 - **Fora:** —
+
+**Q11 · Regras das listas Pauper contra o texto oficial, 29/09/2026** ✅ (leva 89)
+- **Origem:** o usuário viu no aparelho o Timberwatch Elf contando só os Elfos dele. O texto diz "the number of Elves on the battlefield" (de todos).
+- **Como:** um juiz independente conferiu as 138 cartas únicas das 7 listas Pauper contra o texto oficial (mtgdecks.net, Card Kingdom, TappedOut e mtg.wtf em 29/09/2026; Scryfall e Gatherer recusaram as consultas). 120 estavam corretas; 18 tinham erro (com o Elf). Todas corrigidas, cada uma com teste que falha na versão anterior (`pauper.regras.test.mjs`, 11 testes, com mesa real).
+- **Erros que mudavam a partida (alto):** Krark-Clan Shaman cobrava {R} a mais e acertava voadoras (texto: "each creature without flying"); Electrickery varria as criaturas do oponente por {R} (texto: 1 alvo; varredura só com sobrecarga {1}{R}); End the Festivities queimava as suas criaturas e não tirava vida do oponente; Timberwatch Elf.
+- **Médio:** Alms of the Vein causava dano (é perda de vida, e só no oponente); Bloodrite Invoker drenava 2 (são 3); Moon-Circuit Hacker cobrava ninjutsu {1}{U} (é {U}); Elvish Vanguard ignorava Elfos do oponente; Spirit Link dava vínculo com a vida (é gatilho de quem controla a aura, e soma com Armadillo Cloak); Fanatical Offering não criava a ficha Map.
+- **Baixo:** Utopia Sprawl encantava qualquer terreno (é "Enchant Forest"); Setessan Training encantava criatura do oponente; Ninja of the Deep Hours, Squadron Hawk e Shield-Wall Sentinel tinham compra/busca obrigatória ("you may"); Faerie Macabre exigia um alvo ("up to two"); Bojuka Bog só mirava o oponente ("target player"); Tinder Wall não tinha a segunda habilidade.
+- **Motor ganhou (para as correções acima, sem aproximação):** custo alternativo com efeitos próprios (sobrecarga); varredura "cada criatura sem voar"; alvo "criatura que a fonte está bloqueando" com última informação conhecida (a fonte já sacrificada); gatilho "outra permanente entra" de qualquer controlador (`anyController`); aura com subtipo de terreno e "criatura que você controla"; o efeito **explorar** (701.45), usado pela ficha Map.
+- **Não corrigido, declarado:** Hydroblast exige alvo vermelho na conjuração; a carta real aceita qualquer alvo e só age se for vermelho. Resultado igual em quase todo jogo; fica registrado.
+- **Portão:** cobertura das 7 listas continua 100%; `pauper.audit` (cada habilidade oferecida numa mesa farta) ganhou a exceção declarada "Tinder Wall #1: só bloqueando", coberta no teste próprio.
+
+**U6b · Bandeja da mão, segunda versão (retorno do usuário no aparelho), 29/09/2026** ✅ (leva 89)
+- **Retorno:** recolhida, a bandeja ainda ocupava muito da tela; o emoji de mão era pouco elegante; faltava gesto; "O que eu poderia fazer?" ocupava espaço.
+- **Entregue:** desenho de folha inferior. Puxador na borda de cima; uma linha com o botão da mão (ícone do app + contagem), o momento em duas palavras ("Sua vez", "Pilha: X") e as ações; as cartas embaixo. **Recolhida: 69 px num 390×844 (antes: 169 px, 20% da tela → 8%). Aberta: 224 px (antes: 324 px).** "Passar o turno" virou ícone (com nome acessível). "O que eu poderia fazer?" saiu (o avaliador continua no bot). Arrastar a borda de cima: para baixo recolhe, para cima abre; a folha acompanha o dedo, com resistência no sentido que não muda nada; arrasto curto e lento volta; peteleco rápido vale; o toque que vira arrasto não aciona o botão que estava embaixo. Na mão inicial e no descarte a bandeja abre sozinha com uma frase de ação ("Decida a mão inicial", "Escolha o que descartar"). O aviso flutuante (toast) sobe para ficar acima da bandeja.
+- **Divergência:** o pedido dizia "slide de cima para baixo para expandir" nos dois sentidos; implementei o padrão de folha inferior (para baixo recolhe, para cima abre), que é o que o dedo espera numa bandeja presa ao rodapé.
+- **Testes:** U (`bandeja.unit.test.mjs`: decisão do gesto — distância, velocidade, sentido, lateral); e2e U6 (altura ≤ 80 px recolhida, ações na mesma linha com alvo ≥ 44 px, ícone SVG e não emoji, avisos), e2e U6b (arrasto para baixo e para cima, arrasto curto não muda, arrasto a partir do botão não passa a prioridade, toque logo depois continua funcionando), e2e B4 (sem "O que eu poderia fazer?").
 
 **Q10 · Homologação das levas 81–87 e auditoria offline do app inteiro, 29/09/2026** ✅ (leva 88)
 - **Como:** dois revisores independentes, sem contexto da implementação: um leu o diff das levas 81–87 (Commander M13a, tema, leque, mão, turno, imagens, Shark); o outro fez o inventário de todos os pontos do app que tocam a rede e o que acontece com cada um sem rede e quando a rede volta. Cada achado corrigido virou teste que falha na versão anterior.

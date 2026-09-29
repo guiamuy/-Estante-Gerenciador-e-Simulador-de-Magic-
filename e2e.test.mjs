@@ -152,11 +152,9 @@ test('e2e · B4/U10 jogar contra o Shark: três oponentes, um bot só, e a jogad
   await page.waitForSelector('#tb-keep');
   await page.click('#tb-keep');                            // o bot decide a mão dele sozinho
   await page.waitForSelector('#tb-pass');
-  // B7 · com a prioridade na mão e no motor completo, a dica está ali
-  await page.waitForSelector('#tb-dicas', { timeout: 8000 });
-  await page.click('#tb-dicas');
-  await page.waitForFunction(() => /O que eu poderia fazer/.test(document.body.innerText), null, { timeout: 4000 });
-  await page.click('text=Fechar');
+  // U6b · "O que eu poderia fazer?" saiu da bandeja a pedido do usuário (espaço para a mesa)
+  assert.equal(await page.locator('#tb-dicas').count(), 0);
+  assert.doesNotMatch(await page.innerText('.tb-dock'), /O que eu poderia fazer/);
   for (let i = 0; i < 12; i++) {                           // alguns turnos correndo
     const passar = await page.$('#tb-pass');
     if (!passar) break;
@@ -1279,8 +1277,9 @@ const handCard = (page, name) => page.locator(`.tb-hand .tb-card[aria-label^="${
 async function toMyMain(page) {
   for (let i = 0; i < 12; i++) {
     await reveal(page);
-    const b = await page.innerText('.tb-banner');
-    if (/Principal 1/.test(b) && /Seu turno/.test(b)) return;
+    // U6b · a fase e o dono do turno ficam na linha de apoio da bandeja (escondida quando recolhida): lê o texto todo
+    const b = await page.textContent('.tb-banner');
+    if (/Principal 1/.test(b) && /seu turno/i.test(b)) return;
     if (await page.locator('#tb-no-attack').count()) { await page.click('#tb-no-attack'); continue; }
     if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn'); else await page.click('#tb-pass');
   }
@@ -1526,7 +1525,10 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   await toMyMain(page);
   const toggle = page.locator('#tb-hand-toggle');
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
-  assert.match(await toggle.innerText(), /✋ \d+/);
+  // U6b · ícone do app (SVG), não emoji; a contagem continua ao lado
+  assert.doesNotMatch(await toggle.innerText(), /✋/);
+  assert.equal(await toggle.locator('svg').count() >= 1, true, 'ícone desenhado');
+  assert.match(await toggle.innerText(), /^\s*\d+\s*$/);
   const bt = await toggle.boundingBox(); assert.ok(bt.height >= 44, 'puxador com alvo de toque');
   const docaAntes = (await page.locator('.tb-dock').boundingBox()).height;
   await toggle.click();
@@ -1537,6 +1539,13 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   assert.ok(corpo.height < 2, `corpo recolhido (${corpo.height})`);
   const docaDepois = (await page.locator('.tb-dock').boundingBox()).height;
   assert.ok(docaAntes - docaDepois > 100, `a mesa ganha espaço (${docaAntes} → ${docaDepois})`);
+  // U6b · recolhida, a bandeja é uma linha só: no máximo 80 px num 390×844 (antes: 169 px)
+  assert.ok(docaDepois <= 80, `bandeja recolhida fina: ${docaDepois} px`);
+  // as ações continuam alcançáveis e com alvo de toque, sem quebrar linha
+  const passar = await page.locator('#tb-pass').boundingBox(), pular = await page.locator('#tb-pass-turn').boundingBox();
+  assert.ok(passar.height >= 44 && pular.height >= 44 && pular.width >= 44);
+  assert.ok(Math.abs(passar.y - pular.y) < 2, 'na mesma linha');
+  assert.equal(await page.getAttribute('#tb-pass-turn', 'aria-label'), 'Passar o turno', 'ícone com nome acessível');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mao-recolhida.png' });
   assert.equal(await page.locator('.tb-hand .tb-card').first().isVisible(), false, 'cartas da mão escondidas');
   // a escolha sobrevive à recarga (a partida continua de onde parou)
@@ -1553,7 +1562,8 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   await page.click('#tb-pass-turn');
   await page.waitForFunction(() => document.querySelector('#tb-hand') && document.querySelector('#tb-hand').dataset.forcada === 'true', null, { timeout: 5000 });
   assert.equal(await page.getAttribute('#tb-hand', 'data-recolhida'), 'false');
-  assert.match(await page.innerText('#tb-hand-toggle'), /aberta para descarte/);
+  assert.match(await page.innerText('#tb-hand-aviso'), /Escolha o que descartar/);
+  assert.match(await page.getAttribute('#tb-hand-toggle', 'aria-label'), /aberta para descarte/);
   assert.equal(await page.locator('#tb-hand-toggle').isDisabled(), true, 'não dá para recolher no meio do descarte');
   while (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); })) {
     await page.locator('.tb-hand .tb-card').first().click();
@@ -1566,7 +1576,7 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep');
   assert.equal(await page.getAttribute('#tb-hand', 'data-forcada'), 'true');
-  assert.match(await page.innerText('#tb-hand-toggle'), /aberta para mão inicial/);
+  assert.match(await page.innerText('#tb-hand-aviso'), /Decida a mão inicial/);
   await page.click('#tb-keep');
   await page.waitForFunction(() => document.querySelector('#tb-hand').dataset.recolhida === 'true');
   assert.deepEqual(errors, []);
@@ -1641,6 +1651,46 @@ test('e2e · U7 de quem é a vez: faixa na cor do jogador, lado ativo aceso, pri
   assert.equal(await page.getAttribute('.tb-side--me', 'data-ativo'), 'false');
   assert.notEqual(await page.$eval('.tb-side--opp', el => getComputedStyle(el).borderTopColor), bordaEu, 'borda na cor do oponente');
   if (process.env.SHOTS) { await page.waitForTimeout(350); await page.screenshot({ path: process.env.SHOTS + '/vez-oponente.png' }); }
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · U6b arrastar a borda de cima da bandeja: para baixo recolhe, para cima abre, arrasto curto não muda nada, toque nos botões continua funcionando', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Peixes', '30 Island\n20 Sky Pike', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  const estado = () => page.getAttribute('#tb-dock', 'data-recolhida');
+  const grip = await page.locator('.tb-dock__grip').boundingBox();
+  const arrasta = async (dy, { passos = 8, x = grip.x + grip.width / 2, y = grip.y + grip.height / 2 } = {}) => {
+    await page.mouse.move(x, y); await page.mouse.down();
+    for (let i = 1; i <= passos; i++) { await page.mouse.move(x, y + (dy * i) / passos); await page.waitForTimeout(12); }
+    await page.mouse.up(); await page.waitForTimeout(300);
+  };
+  assert.equal(await estado(), 'false');
+  await arrasta(20);                                                 // curto e devagar: nada
+  assert.equal(await estado(), 'false', 'arrasto curto não recolhe');
+  await arrasta(90);                                                 // para baixo: recolhe
+  assert.equal(await estado(), 'true', 'arrastar para baixo recolhe');
+  const g2 = await page.locator('.tb-dock__grip').boundingBox();
+  await arrasta(-90, { x: g2.x + g2.width / 2, y: g2.y + g2.height / 2 });   // para cima: abre
+  assert.equal(await estado(), 'false', 'arrastar para cima abre');
+  // o gesto também vale na linha de ações (perímetro de cima), sem disparar o botão por baixo do dedo
+  const turno = await page.evaluate(() => document.querySelector('#tb-vez') && document.querySelector('#tb-vez').dataset.turno);
+  const barra = await page.locator('#tb-pass').boundingBox();
+  await arrasta(90, { x: barra.x + barra.width / 2, y: barra.y + barra.height / 2 });
+  assert.equal(await estado(), 'true', 'arrastar a partir do botão recolhe');
+  assert.equal(await page.evaluate(() => document.querySelector('#tb-vez').dataset.turno), turno, 'e não passou a prioridade sem querer');
+  assert.equal((await page.locator('#tb-pass').count()), 1);
+  // um toque normal logo depois do gesto continua funcionando (o bloqueio do clique do arrasto não come o próximo toque)
+  await page.waitForTimeout(400);
+  await page.click('#tb-hand-toggle');
+  assert.equal(await estado(), 'false');
+  const antes = await page.textContent('.tb-dock');
+  await page.click('#tb-pass');
+  await page.waitForFunction(t0 => document.querySelector('.tb-dock') && document.querySelector('.tb-dock').textContent !== t0, antes, { timeout: 5000 });
   assert.deepEqual(errors, []);
 });
 
