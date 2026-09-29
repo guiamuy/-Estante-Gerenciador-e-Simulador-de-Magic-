@@ -45,7 +45,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
 | Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
-| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível · U7 turno visível | ✅ |
+| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível · U7 turno visível · U12 imagens do jogo sozinhas | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
@@ -314,7 +314,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 2º ✅ | U5 cartas iguais em leque na mesa (leva 83) | E44 | 1 | — |
 | 3º ✅ | U6 bandeja da mão recolhível (leva 84) | E44 | 1 | — |
 | 4º ✅ | U7 de quem é o turno, visível de longe (leva 85) | E44 | 1 | — |
-| 5º | U12 imagens do jogo baixadas sozinhas | E45 | 1 | estende o guardião offline (O1) |
+| 5º ✅ | U12 imagens do jogo baixadas sozinhas (leva 86) | E45 | 1 | estende o guardião offline (O1) |
 | 6º | U10 Shark: um bot só, com nome | E46 | 1 | remove o amador; muda a tela de preparar |
 | 7º | U3 símbolos de Magic em botões, textos e filtros | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
 | 8º | U2 ícones flat, botões com profundidade e toque animado, CTAs sem excesso de texto | E43 | 3 | passa por todas as telas; contrato visual novo |
@@ -430,7 +430,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 | E43 🟡 | U1 (leva 82) · U3 · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
 | E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 (leva 85) · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
-| E45 | U12 | Imagens do jogo baixadas sozinhas quando há internet |
+| E45 ✅ | U12 (leva 86) | Imagens do jogo baixadas sozinhas quando há internet |
 | E46 | U10 · U11 | Shark: um bot só, com nome, e mais forte |
 | E47 | U13 | Conta e perfil: nome, avatar e backup com Google (decisão pendente) |
 | E48 | U14 | Partida online 1x1 entre dois celulares (decisão de infraestrutura pendente) |
@@ -2986,11 +2986,17 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** torneio (vitórias e tempo); fuzz (nenhuma ação ilegal).
 - **Depende de:** U10.
 
-**U12 · Imagens do jogo baixadas sozinhas** ○
-- **Valor:** entrar na mesa e ver as cartas mesmo sem rede, sem ter pedido nada.
-- **Aceite:** o guardião offline (O1) passa a aquecer também a imagem pequena (a que a mesa usa) de cada carta das listas salvas, sempre que há rede, em segundo plano, com limite de taxa; o painel da tela inicial mostra "Imagens do jogo: N de M"; ao voltar a rede, o que faltava é baixado.
-- **Testes:** U (`offline.unit.test.mjs`: lista aquece pequena e grande; sem rede nada; volta da rede retoma); e2e no `O1` (contagem no painel).
-- **Depende de:** O1, O2.
+**U12 · Imagens do jogo baixadas sozinhas** ✅ (leva 86)
+- **Entregue:** o guardião offline agora baixa, para cada carta das listas salvas, a imagem pequena (a do campo da mesa) e a grande (mão e zoom), a pequena primeiro. Acontece sozinho ao salvar uma lista, ao abrir o app com internet e quando a internet volta. O painel da tela inicial ganhou a linha "Imagens do jogo: N de M", e o que falta entra na lista de "Falta preparar".
+- **Correção que a história revelou:** até aqui a lista só guardava a imagem grande, e o campo da mesa usa a pequena. Sem internet, as permanentes apareciam só com o nome, mesmo depois de "Preparar tudo".
+- **Aceite (como ficou):**
+  - uma imagem por vez, com folga de 80 ms depois de cada download de verdade; o que já está guardado não espera nem baixa de novo;
+  - sem rede nada é tentado; a contagem do painel lê só o que está no aparelho (nova `cardRepo.emCache`, que nunca chama a rede);
+  - navegador sem cache de imagens: a linha não aparece, em vez de mostrar um número falso.
+- **Sem rede:** é a própria história; passo no `e2e · O1` (contagem 1 de 1, pequena e grande no cache, pequena pedida primeiro).
+- **Testes:** U (`offline.unit.test.mjs`: 4 novos — contagem sem ir à rede e com imagem apagada, rede volta e `manter()` baixa, navegador sem cache, uma por vez com folga só após download); e2e `U12` (salvar a lista baixa a imagem sem tocar em nada; cache apagado e internet caindo: nada tentado; internet volta: baixa sozinho; painel conta); passo no `O1`. Todos falham na versão anterior.
+- **Expectativa alterada:** o teste O1 "lista não aquece miniatura" afirmava o comportamento antigo; agora afirma as duas, a pequena primeiro. O motivo está escrito no teste.
+- **Fora:** imagens da coleção em tamanho grande (continua só a miniatura, que é o que a tela da coleção usa).
 
 **U13 · Conta e perfil** ○ (decisão pendente, ver §6)
 - **Valor:** nome e avatar seus na mesa e no chat; backup fora do aparelho.

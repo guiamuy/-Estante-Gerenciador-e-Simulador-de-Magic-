@@ -1655,6 +1655,12 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     },
 
     async byName(name) { return (await this.byNames([name])).get(norm(name)) || null; },
+    /** U12 · só o que já está no aparelho, sem nunca ir à rede (para contar e mostrar status). */
+    async emCache(names) {
+      const out = new Map();
+      for (const k of [...new Set(names.map(norm))].filter(Boolean)) { const rec = await readCache(k); if (rec && rec.card) out.set(k, rec.card); }
+      return out;
+    },
 
     /** S64 · guarda as cartas destes nomes para sempre, para a lista jogar sem rede.
         Devolve {fixadas, faltando}: o que ficou guardado e o que a rede não trouxe. */
@@ -1754,7 +1760,7 @@ const __m8 = (function () {
    (este e o do worker) e o <img> nunca lia deste. */
 const CACHE_NAME = 'estante-img-v1';
 
-function createImageCache({ caches, fetch: doFetch } = {}) {
+function createImageCache({ caches, fetch: doFetch, pausa = 80, espera = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
   const available = !!(caches && typeof caches.open === 'function');
   let cachep = null;
   const open = () => cachep || (cachep = caches.open(CACHE_NAME));
@@ -1776,6 +1782,7 @@ function createImageCache({ caches, fetch: doFetch } = {}) {
           if (!res) res = await doFetch(url, { mode: 'no-cors' });
           await c.put(url, res.clone ? res.clone() : res);
           n++;
+          if (pausa > 0) await espera(pausa);   // U12 · uma imagem por vez, com folga: o CDN não vê rajada
         } catch (e) { /* imagem indisponível não quebra a tela */ }
       }
       return n;
@@ -11509,7 +11516,20 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
 
   async function aquecer(cards, tamanho) {
     if (!images || !images.available || !online()) return 0;
-    return semFalha(() => images.warm(cards.flatMap(c => urlsDeImagem(c, tamanho))), 0);
+    const tamanhos = Array.isArray(tamanho) ? tamanho : [tamanho];
+    // U12 · a miniatura primeiro (é a que a mesa mostra no campo), depois a grande (mão e zoom)
+    return semFalha(() => images.warm(tamanhos.flatMap(t => cards.flatMap(c => urlsDeImagem(c, t)))), 0);
+  }
+  /** U12 · quantas imagens pequenas das listas já estão no aparelho. */
+  async function contaImagens(listas) {
+    if (!images || !images.available || !images.has) return null;
+    const nomes = [...new Set(listas.flatMap(nomesDaLista).map(norm))];
+    if (!nomes.length) return { total: 0, guardadas: 0 };
+    const mapa = cardRepo.emCache ? await semFalha(() => cardRepo.emCache(nomes), new Map()) : new Map();
+    const urls = [...new Set([...mapa.values()].filter(Boolean).flatMap(c => urlsDeImagem(c, 'small')))];
+    let guardadas = 0;
+    for (const u of urls) if (await semFalha(() => images.has(u), false)) guardadas++;
+    return { total: urls.length, guardadas };
   }
   /** Guarda os dados das cartas destes nomes e, com rede, as imagens no tamanho pedido. */
   async function guardar(nomes, tamanho) {
@@ -11528,8 +11548,9 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
   }
 
   const api = {
-    /** Lista salva: dados de todas as cartas + imagem grande (a mesa mostra a carta inteira). */
-    guardarLista(deck) { return guardar(nomesDaLista(deck), 'normal'); },
+    /** Lista salva: dados de todas as cartas + imagens do jogo. U12: a pequena (campo da mesa) e a
+        grande (mão e zoom). Antes só a grande: sem rede, o campo da mesa aparecia sem imagem. */
+    guardarLista(deck) { return guardar(nomesDaLista(deck), ['small', 'normal']); },
     /** Coleção: dados de todas as cartas + miniatura (a lista da coleção mostra a miniatura).
         H11 · uma passada por vez: pedido durante a passada marca "de novo" e roda uma só no fim. */
     guardarColecao() {
@@ -11565,6 +11586,7 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
         // O3 · espaço e proteção do armazenamento (gatilhos G1 e G2)
         espaco: persistence && persistence.estimate ? await semFalha(() => persistence.estimate(), null) : null,
         protecao: persistence ? await semFalha(() => persistence.status(), 'indisponivel') : 'indisponivel',
+        imagens: await semFalha(() => contaImagens(todas), null),   // U12 · imagens do jogo no aparelho
         ultimaPreparacao: store ? await semFalha(() => store.get('offline.preparado'), null) : null
       };
     },
@@ -11708,13 +11730,16 @@ function offlinePanel() {
     if (st.colecao.cartas && !st.colecao.pronta) faltas.push(`${st.colecao.cartas - st.colecao.guardadas} carta(s) da coleção sem dados guardados`);
     if (!st.nomes) faltas.push('base de nomes do scanner não baixada');
     if (!st.leitor) faltas.push('leitor do scanner não baixado');
+    if (st.imagens && st.imagens.guardadas < st.imagens.total) faltas.push(`${st.imagens.total - st.imagens.guardadas} imagem(ns) do jogo a baixar`);
     const tudoPronto = !faltas.length;
     const linhas = [
       `${marca(st.listas.total > 0 && st.listas.prontas === st.listas.total)} Listas: ${st.listas.prontas} de ${st.listas.total} prontas para jogar sem internet`,
       `${marca(st.colecao.pronta && st.colecao.cartas > 0)} Coleção: ${st.colecao.guardadas} de ${st.colecao.cartas} carta(s) com dados guardados`,
       `${marca(st.nomes)} Base de nomes do scanner${st.nomesInfo ? ` (${st.nomesInfo.count.toLocaleString('pt-BR')} nomes)` : ''}`,
-      `${marca(st.leitor)} Leitor de texto do scanner`
-    ];
+      `${marca(st.leitor)} Leitor de texto do scanner`,
+      // U12 · imagens pequenas das listas (as do campo da mesa); baixam sozinhas quando há internet
+      st.imagens && st.imagens.total ? `${marca(st.imagens.guardadas >= st.imagens.total)} Imagens do jogo: ${st.imagens.guardadas} de ${st.imagens.total}` : null
+    ].filter(Boolean);
     const esp = descreveEspaco(st.espaco);
     const linhaEspaco = esp || st.protecao !== 'indisponivel' ? Text(
       [esp ? `Espaço usado: ${esp.texto}` : null, st.protecao === 'protegido' ? 'protegido contra limpeza do navegador' : st.protecao === 'vulneravel' ? 'o navegador pode apagar se faltar espaço' : null].filter(Boolean).join(' · '),

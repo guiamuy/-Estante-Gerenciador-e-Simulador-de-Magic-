@@ -38,14 +38,17 @@ test('O1 · nomes da lista e URLs de imagem: todas as zonas, frente e verso, sem
   assert.deepEqual(JSON.parse(JSON.stringify(O.urlsDeImagem(null))), []);
 });
 
-test('O1 · lista salva é guardada sozinha: dados fixados e imagem grande aquecida', async () => {
+test('O1 · lista salva é guardada sozinha: dados fixados e imagens do jogo aquecidas (U12: pequena e grande)', async () => {
   const m = await mundo();
   m.keeper.vigiar({ atraso: 0, timer: fn => { fn(); return 0; }, cancela: () => {} });
   await m.decks.save({ name: 'Delver', format: 'pauper', entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }, { name: 'Island', qty: 20, zone: 'main' }] });
   for (let i = 0; i < 50 && (await m.cardRepo.pinned(['Delver of Secrets', 'Island'])) < 2; i++) await new Promise(r => setTimeout(r, 10));
   assert.equal(await m.cardRepo.pinned(['Delver of Secrets', 'Island']), 2, 'as duas guardadas para sempre');
   assert.ok(m.images.aquecidas.includes('https://img/Delver of Secrets/n.jpg'), 'imagem grande da carta');
-  assert.ok(!m.images.aquecidas.some(u => u.endsWith('/s.jpg')), 'lista não aquece miniatura');
+  // U12 (leva 86) · expectativa mudou de propósito: antes a lista NÃO aquecia a miniatura, e sem rede o campo
+  // da mesa (que usa a pequena) ficava sem imagem. Agora aquece as duas, a pequena primeiro.
+  assert.ok(m.images.aquecidas.includes('https://img/Delver of Secrets/s.jpg'), 'imagem pequena da carta (campo da mesa)');
+  assert.ok(m.images.aquecidas.indexOf('https://img/Delver of Secrets/s.jpg') < m.images.aquecidas.indexOf('https://img/Delver of Secrets/n.jpg'), 'pequena primeiro');
 });
 
 test('O1 · coleção alterada é guardada sozinha, com miniatura, uma vez por rajada de mudanças', async () => {
@@ -134,4 +137,71 @@ test('O3 · o status do guardião traz espaço e proteção; sem adaptador, diz 
     persistence: { status: async () => { throw new Error('x'); }, estimate: async () => { throw new Error('x'); } }, online: () => true });
   st = await quebrado.status();
   assert.equal(st.espaco, null); assert.equal(st.protecao, 'indisponivel', 'falha do navegador não derruba o painel');
+});
+
+/* ---------------- U12 · imagens do jogo baixadas sozinhas ---------------- */
+function imagensContaveis() {
+  const guardadas = new Set();
+  return { available: true, guardadas, aquecidas: [], async warm(urls) { for (const u of urls) { this.aquecidas.push(u); guardadas.add(u); } return urls.length; }, async has(u) { return guardadas.has(u); } };
+}
+async function mundoU12({ rede = true } = {}) {
+  const store = P.memoryStore();
+  const { st, api: scryfall } = scryfallFalsa(); st.rede = rede;
+  const cardRepo = C.createCardRepo({ store, scryfall });
+  const decks = D.createDeckStore({ store }), collection = D.createCollection({ store });
+  const images = imagensContaveis();
+  const keeper = O.createOfflineKeeper({ cardRepo, decks, collection, images, names: { info: () => null, load: async () => null, ensure: async () => null }, ocr: {}, store, online: () => st.rede });
+  return { st, cardRepo, decks, images, keeper };
+}
+
+test('U12 · status conta as imagens pequenas das listas, sem ir à rede para contar', async () => {
+  const m = await mundoU12();
+  await m.decks.save({ name: 'A', entries: [{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Delver of Secrets', qty: 4, zone: 'main' }] });
+  await m.decks.save({ name: 'B', entries: [{ name: 'Island', qty: 1, zone: 'main' }, { name: 'Fantasma', qty: 1, zone: 'main' }] });
+  let st = await m.keeper.status();
+  assert.deepEqual(JSON.parse(JSON.stringify(st.imagens)), { total: 0, guardadas: 0 }, 'sem dados guardados ainda, nada a contar');
+  const chamadas = m.st.chamadas;
+  await m.keeper.prepararTudo();
+  assert.ok(m.st.chamadas > chamadas);
+  const depoisDePreparar = m.st.chamadas;
+  st = await m.keeper.status();
+  assert.deepEqual(JSON.parse(JSON.stringify(st.imagens)), { total: 2, guardadas: 2 }, 'Island e Delver, cada uma uma vez, mesmo em duas listas');
+  assert.equal(m.st.chamadas, depoisDePreparar, 'contar não chama a Scryfall');
+  // imagem apagada do cache (navegador limpou) aparece como faltando
+  m.images.guardadas.delete('https://img/Island/s.jpg');
+  st = await m.keeper.status();
+  assert.deepEqual(JSON.parse(JSON.stringify(st.imagens)), { total: 2, guardadas: 1 });
+});
+
+test('U12 · sem rede nada é baixado; quando a rede volta, manter() baixa o que faltava', async () => {
+  const m = await mundoU12();
+  await m.decks.save({ name: 'A', entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }] });
+  await m.keeper.guardarLista({ entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }] });
+  m.images.guardadas.clear(); m.images.aquecidas.length = 0;
+  m.st.rede = false;
+  assert.equal(await m.keeper.manter(), null);
+  assert.equal(m.images.aquecidas.length, 0, 'offline: nenhuma imagem pedida');
+  m.st.rede = true;
+  await m.keeper.manter();
+  assert.ok(m.images.guardadas.has('https://img/Delver of Secrets/s.jpg') && m.images.guardadas.has('https://img/Delver of Secrets/n.jpg'));
+  assert.deepEqual(JSON.parse(JSON.stringify((await m.keeper.status()).imagens)), { total: 1, guardadas: 1 });
+});
+
+test('U12 · navegador sem cache de imagens: status diz null em vez de mentir', async () => {
+  const m = await mundoU12();
+  const k = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: D.createCollection({ store: P.memoryStore() }), images: { available: false }, names: {}, ocr: {}, store: P.memoryStore(), online: () => true });
+  assert.equal((await k.status()).imagens, null);
+});
+
+test('U12 · cache de imagens: uma por vez, com folga só depois de download de verdade', async () => {
+  const pausas = []; const pedidos = [];
+  const cacheMem = new Map();
+  const caches = { open: async () => ({ match: async u => cacheMem.get(u), put: async (u, r) => { cacheMem.set(u, r); } }) };
+  const fetch = async u => { pedidos.push(u); return { ok: true, clone() { return this; } }; };
+  const { createImageCache } = loadModules().imagesMod;
+  const c = createImageCache({ caches, fetch, pausa: 50, espera: async ms => { pausas.push(ms); } });
+  await c.warm(['a', 'b', 'a']);
+  assert.deepEqual(pedidos, ['a', 'b']); assert.deepEqual(pausas, [50, 50]);
+  await c.warm(['a', 'b']);
+  assert.deepEqual(pausas, [50, 50], 'o que já está guardado não espera nem baixa');
 });

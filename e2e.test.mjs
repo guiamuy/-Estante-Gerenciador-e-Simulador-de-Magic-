@@ -27,7 +27,9 @@ const DB = Object.fromEntries([
   // O2 · o Sol Ring tem imagem apontando para fora: o visualizador precisa cair no texto quando ela não carrega
   { ...card('Sol Ring', 'Artifact', [], 1), image_uris: { small: 'https://cards.scryfall.io/small/front/x/sol.jpg', normal: 'https://cards.scryfall.io/normal/front/x/sol.jpg', large: 'https://cards.scryfall.io/large/front/x/sol.jpg' } },
   card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U']),
-  card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), card('Preordain', 'Sorcery', ['U'], 1),
+  // U12 · o Delver tem imagem (pequena e grande): o guardião precisa baixá-las com rede e contá-las no painel
+  { ...card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), image_uris: { small: 'https://cards.scryfall.io/small/front/x/delver.png', normal: 'https://cards.scryfall.io/normal/front/x/delver.png' } },
+  card('Preordain', 'Sorcery', ['U'], 1),
   card('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', ['W', 'B'], 3), card('Mock Commander', 'Legendary Creature — Human', ['W', 'B'], 2),
   card('Plains', 'Basic Land — Plains', [], 0), card('Mock Ogre', 'Creature — Ogre', ['B'], 4),
   { ...card('Sky Pike', 'Creature — Fish', ['U'], 2), mana_cost: '{1}{U}', keywords: ['Flying'], power: '2', toughness: '1' },
@@ -405,6 +407,31 @@ test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à r
   assert.deepEqual(errors, []);
 });
 
+test('e2e · U12 imagens do jogo baixam sozinhas: ao salvar a lista e quando a internet volta, sem tocar em nada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  let cdnNoAr = true;
+  await page.route('https://**.scryfall.io/**', r => cdnNoAr ? r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }) : r.abort('internetdisconnected'));
+  const temNoCache = () => page.evaluate(async () => { const c = await caches.open('estante-img-v1'); return !!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')); });
+  await createDeck(page, base, 'Delver', '4 Delver of Secrets\n16 Island');
+  await page.waitForFunction(async () => { const c = await caches.open('estante-img-v1'); return !!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')); }, null, { timeout: 10000, polling: 200 });
+  assert.equal(await temNoCache(), true, 'salvar a lista já baixou a imagem pequena');
+  // o navegador limpou as imagens e a internet caiu: nada é tentado
+  await page.evaluate(() => caches.delete('estante-img-v1'));
+  cdnNoAr = false;
+  await page.context().setOffline(true);
+  await page.waitForTimeout(300);
+  assert.equal(await temNoCache(), false);
+  // a internet volta: o app baixa sozinho o que faltava
+  cdnNoAr = true;
+  await page.context().setOffline(false);
+  await page.waitForFunction(async () => { const c = await caches.open('estante-img-v1'); return !!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')); }, null, { timeout: 10000, polling: 200 });
+  // e o painel conta
+  await page.goto(base + '#/');
+  await page.waitForFunction(() => /Imagens do jogo: 1 de 1/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, coleção, busca e scanner offline', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(false));          // câmera e OCR falsos: o scanner não precisa do CDN
@@ -417,6 +444,10 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
 
+  // U12 · o CDN de imagens responde com um PNG mínimo enquanto há rede
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  const pedidasAoCdn = [];
+  await page.route('https://**.scryfall.io/**', r => { pedidasAoCdn.push(r.request().url()); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }); });
   // com rede: o painel diz o que falta e "Preparar tudo" resolve
   await page.goto(base + '#/');
   await page.waitForSelector('#home-offline-prep');
@@ -425,6 +456,12 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   const linhas = await page.innerText('#home-offline-lines');
   assert.match(linhas, /✓ Listas: 2 de 2 prontas/); // E36: a lista de Commander também assert.match(linhas, /✓ Coleção: 2 de 2/);
   assert.match(linhas, /✓ Base de nomes/); assert.match(linhas, /✓ Leitor de texto/);
+  // U12 · imagens do jogo: a pequena do Delver (a do campo da mesa) está no aparelho, e a grande também
+  assert.match(linhas, /✓ Imagens do jogo: 1 de 1/);
+  const noCache = await page.evaluate(async () => { const c = await caches.open('estante-img-v1'); return [!!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')), !!(await c.match('https://cards.scryfall.io/normal/front/x/delver.png'))]; });
+  assert.deepEqual(noCache, [true, true], 'pequena e grande no cache de imagens');
+  assert.ok(pedidasAoCdn.indexOf('https://cards.scryfall.io/small/front/x/delver.png') < pedidasAoCdn.indexOf('https://cards.scryfall.io/normal/front/x/delver.png'), 'a pequena primeiro');
+  await page.unroute('https://**.scryfall.io/**');
   // O3 · o painel mostra o espaço usado pelo app (gatilho G1)
   assert.match(await page.innerText('#home-offline-space'), /Espaço usado: [\d,]+ (KB|MB|GB) de [\d,]+ (KB|MB|GB)/);
 
@@ -440,6 +477,8 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.goto(base + '#/listas');
   await page.click('text=Delver');
   await page.waitForSelector('.deck-summary');
+  // U12 · o Delver agora tem imagem; sem service worker no teste, ela falha e a carta cai para o nome (O2) — espera a troca
+  await page.waitForFunction(() => /Delver of Secrets/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   assert.match(await page.innerText('body'), /Delver of Secrets/);
 
   // mesa: bot liberado (cobertura sai do que está guardado) e a partida roda
