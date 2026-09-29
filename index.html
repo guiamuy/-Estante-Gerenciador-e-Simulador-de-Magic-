@@ -952,35 +952,41 @@ return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descrev
 
 /* ==== src/ui/theme.js ==== */
 const __m1 = (function () {
-/* F4 · tema: automático, escuro, claro. Persistido pela camada de plataforma. */
+/* F4 · tema: escuro ou claro. U1 (leva 82): o estado "automático" saiu — no aparelho do
+   usuário ele era igual ao escuro e o botão parecia não fazer nada. Na primeira abertura o
+   app segue o sistema; a partir do primeiro toque a escolha fica guardada. */
 const THEMES = [
-  { id: 'auto', icon: '◐', label: 'Tema automático' },
-  { id: 'dark', icon: '◗', label: 'Tema escuro' },
-  { id: 'light', icon: '◖', label: 'Tema claro' }
+  { id: 'dark', icon: '☾', label: 'Tema escuro · toque para o claro' },
+  { id: 'light', icon: '☀', label: 'Tema claro · toque para o escuro' }
 ];
 const KEY = 'ui.theme';
+/** O que o sistema prefere agora; escuro quando não dá para saber. */
+const doSistema = (win = typeof window !== 'undefined' ? window : null) =>
+  (win && typeof win.matchMedia === 'function' && win.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+/** Resolve o valor guardado: "auto" (versões antigas) e lixo viram o tema do sistema. */
+const resolve = (saved, win) => THEMES.some(t => t.id === saved) ? saved : doSistema(win);
 
-function createTheme(store) {
-  let current = 'auto';
+function createTheme(store, win) {
+  let current = 'dark';
   const apply = id => {
-    current = THEMES.some(t => t.id === id) ? id : 'auto';
+    current = resolve(id, win);
     const root = document.documentElement;
-    if (current === 'auto') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', current);
-    document.querySelectorAll('[data-theme-toggle]').forEach(b => {
+    if (root && root.setAttribute) root.setAttribute('data-theme', current);
+    if (document.querySelectorAll) document.querySelectorAll('[data-theme-toggle]').forEach(b => {
       const t = THEMES.find(x => x.id === current);
       b.textContent = t.icon;
       b.setAttribute('aria-label', t.label);
       b.title = t.label;
+      b.setAttribute('aria-pressed', current === 'light' ? 'true' : 'false');
     });
     return current;
   };
   return {
     get current() { return current; },
-    async init() { let saved = null; try { saved = await store.get(KEY); } catch (e) {} return apply(saved || 'auto'); },
+    async init() { let saved = null; try { saved = await store.get(KEY); } catch (e) {} return apply(saved); },
+    /** Alterna entre os dois temas e guarda. */
     async cycle() {
-      const i = THEMES.findIndex(t => t.id === current);
-      const next = THEMES[(i + 1) % THEMES.length].id;
+      const next = current === 'dark' ? 'light' : 'dark';
       apply(next);
       try { await store.set(KEY, next); } catch (e) {}
       return next;
@@ -988,7 +994,7 @@ function createTheme(store) {
     apply
   };
 }
-return { createTheme, THEMES };
+return { createTheme, THEMES, doSistema, resolve };
 })();
 
 /* ==== src/app/router.js ==== */
@@ -11630,7 +11636,7 @@ function appBar() {
       Button('Coleção', { variant: 'ghost', id: 'nav-collection', onClick: () => { location.hash = '#/colecao'; } }),
       installButton(),
       offlineChip(),
-      Button('◐', { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: 'Tema', dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() })));
+      Button('☾', { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: 'Tema', dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() })));
 }
 
 /* O2 · chip discreto quando a internet cai; leva ao painel da tela inicial */

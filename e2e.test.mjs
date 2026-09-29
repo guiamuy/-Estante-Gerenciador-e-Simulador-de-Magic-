@@ -376,6 +376,32 @@ test('e2e · C3 importar CSV do ManaBox, ver impressões e exportar CSV', { skip
 // continua servindo do aparelho: listas, mesa com bot, coleção (exportar, importar),
 // busca pela base local e scanner. Só o que é API externa (edição pela Scryfall,
 // imagens ainda não vistas) fica de fora — e sem erro na tela.
+test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à recarga, "auto" antigo migra', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/'); await page.waitForSelector('#theme-toggle');
+  const tema = () => page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+  const inicial = await tema();
+  assert.ok(['dark', 'light'].includes(inicial), 'nunca fica sem tema definido');
+  await page.click('#theme-toggle');
+  await page.waitForFunction(t0 => document.documentElement.getAttribute('data-theme') !== t0, inicial);
+  const depois = await tema();
+  assert.notEqual(depois, inicial);
+  assert.match(await page.getAttribute('#theme-toggle', 'aria-label'), depois === 'light' ? /claro · toque para o escuro/ : /escuro · toque para o claro/);
+  await page.reload(); await page.waitForSelector('#theme-toggle');
+  assert.equal(await tema(), depois, 'a escolha ficou guardada');
+  await page.click('#theme-toggle');
+  await page.waitForFunction(t0 => document.documentElement.getAttribute('data-theme') === t0, inicial);
+  // versão antiga guardou "auto": abre no tema do sistema, sem estado morto
+  await page.evaluate(() => new Promise((res, rej) => {
+    const r = indexedDB.open('mtg', 1);
+    r.onsuccess = () => { const t = r.result.transaction('kv', 'readwrite'); t.objectStore('kv').put('auto', 'ui.theme'); t.oncomplete = res; t.onerror = rej; };
+    r.onerror = rej;
+  }));
+  await page.reload(); await page.waitForSelector('#theme-toggle');
+  assert.ok(['dark', 'light'].includes(await tema()));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, coleção, busca e scanner offline', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(false));          // câmera e OCR falsos: o scanner não precisa do CDN

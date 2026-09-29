@@ -45,6 +45,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
 | Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
+| U · Patamar de produto | U1 tema em dois estados | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
@@ -301,6 +302,49 @@ Total estimado: **20 a 23 rodadas** até o Commander voltar à fila. Cada histó
 portão verde e algo testável no celular em menos de um minuto — histórias que não couberem numa rodada
 são quebradas na hora, e a quebra é anotada aqui.
 
+
+**Replanejamento de 29/09/2026 (definido pelo usuário).** O Commander (E36) volta a esperar. Antes dele
+entram os épicos de patamar de produto abaixo, pedidos nesta ordem de assunto e ordenados aqui por
+dependência técnica e por custo. Toda leva continua com portão verde, teste sem internet e história
+atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado na hora.
+
+| Ordem | História | Épico | Rodadas | Observação |
+|---|---|---|---|---|
+| 1º ✅ | U1 tema em dois estados (leva 82) | E43 | 1 | — |
+| 2º | U5 cartas iguais em leque na mesa | E44 | 1 | — |
+| 3º | U6 bandeja da mão recolhível | E44 | 1 | — |
+| 4º | U7 de quem é o turno, visível de longe | E44 | 1 | — |
+| 5º | U12 imagens do jogo baixadas sozinhas | E45 | 1 | estende o guardião offline (O1) |
+| 6º | U10 Shark: um bot só, com nome | E46 | 1 | remove o amador; muda a tela de preparar |
+| 7º | U3 símbolos de Magic em botões, textos e filtros | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
+| 8º | U2 ícones flat, botões com profundidade e toque animado, CTAs sem excesso de texto | E43 | 3 | passa por todas as telas; contrato visual novo |
+| 9º | U4 "sem internet" mais visual | E43 | 1 | depois de U2, para usar os ícones |
+| 10º | U8 disposições por tamanho de aparelho (Galaxy S, S+ e Ultra) | E44 | 2 | medidas reais dos aparelhos conferidas antes |
+| 11º | U11 Shark mais forte, medido no torneio | E46 | 2 a 3 | ganho provado contra a versão anterior |
+| 12º | U13 conta e perfil com Google (nome, avatar, backup) | E47 | 3 a 4 | **precisa de decisão e de um Client ID seu** (abaixo) |
+| 13º | U14 partida online 1x1 | E48 | 6 a 10 | **precisa de decisão de infraestrutura** (abaixo) |
+| 14º | U15 chat na partida 1x1 | E49 | 1 a 2 | depende de U14 |
+| depois | E36 · Commander (M13b, S67+) | — | — | volta à fila |
+
+Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
+cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
+
+**Duas decisões que só o usuário toma, e que eu preciso antes de U13 e U14:**
+1. **Conta com Google (U13).** Dá para fazer sem servidor: Google Identity Services para entrar e a pasta
+   privada do app no Google Drive (`appDataFolder`) para o backup, tudo direto do navegador. Mas exige um
+   projeto no Google Cloud com um OAuth Client ID criado por você e a origem do GitHub Pages autorizada.
+   Sem esse ID o login não abre. Alternativa sem Google: perfil local (nome e avatar) e backup por arquivo,
+   que já existe em L1. Recomendo fazer o perfil local primeiro (1 rodada) e ligar o Google quando o ID
+   existir.
+2. **Partida online (U14).** O motor é determinístico e joga por registro de ações, então sincronizar é
+   mandar as ações de um aparelho ao outro. O que não existe é o canal entre os dois celulares: GitHub Pages
+   não roda servidor. Opções: (a) Firebase Realtime Database no plano gratuito como transporte — mais
+   simples, funciona atrás de qualquer rede de celular, exige um projeto Firebase seu; (b) WebRTC ponto a
+   ponto com sinalização no Firebase — menos tráfego no servidor, mas falha em muitas redes de operadora
+   sem um servidor TURN; (c) um servidor próprio de WebSocket — melhor controle, mas você passa a manter um
+   serviço. Recomendo (a). Em qualquer opção a partida online precisa de internet nos dois lados, por
+   natureza, e isso fica declarado na conduta offline.
+
 **Próximas entregas:**
 
 | Entrega | Conteúdo | Resultado para o usuário |
@@ -384,6 +428,13 @@ são quebradas na hora, e a quebra é anotada aqui.
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
+| E43 🟡 | U1 (leva 82) · U3 · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
+| E44 | U5 · U6 · U7 · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
+| E45 | U12 | Imagens do jogo baixadas sozinhas quando há internet |
+| E46 | U10 · U11 | Shark: um bot só, com nome, e mais forte |
+| E47 | U13 | Conta e perfil: nome, avatar e backup com Google (decisão pendente) |
+| E48 | U14 | Partida online 1x1 entre dois celulares (decisão de infraestrutura pendente) |
+| E49 | U15 | Chat na partida online |
 
 ---
 
@@ -2845,6 +2896,99 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (contagem, condições, identidade, reserva do Pauper, texto e exportação), I (definir companheiro e condição quebrada).
 - **Depende de:** L1, L5.
 - **Fora:** regra de jogo do companheiro (M14).
+
+### U · Patamar de produto (E43–E49, pedidos em 29/09/2026)
+
+**U1 · Tema em dois estados** ✅ (leva 82)
+- **Entregue:** o botão da barra alterna só entre escuro e claro. O estado "automático", que no aparelho do usuário era igual ao escuro, deixou de existir como opção. Na primeira abertura o app segue a preferência do sistema e, a partir do primeiro toque, guarda a escolha.
+- **Valor:** um toque, dois estados, sem estado que parece não fazer nada.
+- **Aceite:** ícone ☾/☀ com rótulo acessível; a escolha sobrevive à recarga; quem já tinha "automático" guardado passa para o tema que o sistema dava naquele momento; sem rede funciona igual (é só preferência local).
+- **Sem rede:** tudo local.
+- **Testes:** U (`theme.unit.test.mjs`: alternância, migração do "auto", persistência, primeira abertura pelo sistema); e2e (toque alterna e persiste após recarga; auditoria de tela roda nos dois temas); contrato visual mantido.
+- **Fora:** tema "automático" como opção. Quem quiser seguir o sistema toca uma vez.
+
+**U2 · Ícones flat, botões com profundidade e toque animado, CTAs enxutos** ○
+- **Valor:** a interface se entende pelo símbolo, não pelo texto; cada toque tem confirmação visual.
+- **Aceite:** conjunto de ícones SVG inline no catálogo `/ds`, um por conceito (adicionar, remover, buscar, filtrar, exportar, importar, câmera, jogar, desfazer, configurar, offline, tema…); `ds-btn` ganha sombra em repouso, afundamento no toque (`:active`, 120 ms) e estado de foco; CTAs com ícone + rótulo curto (até 2 palavras) ou só ícone com `aria-label`; auditoria automática do texto dos botões (nenhum CTA com mais de 3 palavras fora dos diálogos); tudo pelos tokens `ds-*`.
+- **Testes:** contrato visual (tokens, sem cor solta, tap ≥ 44px, ícones com `aria-label`); e2e de auditoria (contagem de palavras nos CTAs em cada tela); capturas nas duas cores.
+- **Depende de:** U1.
+- **Fora:** ilustrações; animações além do toque e das transições já existentes.
+
+**U3 · Símbolos de Magic em toda a plataforma** ○
+- **Valor:** {T}, {W}{U}{B}{R}{G}{C}, {X}, {E} e números em símbolo, como na carta, nos botões de habilidade, nos textos de carta, nas listas e nos filtros.
+- **Aceite:** renderizador `simbolos(texto)` puro que troca `{…}` por SVG inline (círculo com a cor da mana, {T} com a seta, número no círculo cinza, híbridos meio a meio, phyrexiano com φ); aplicado em: botões de habilidade e custo da mesa, texto da carta no visualizador e na espiada, custos nas listas, chips de cor nos filtros; cor sai dos tokens de mana já existentes.
+- **Testes:** U (cada símbolo conhecido vira um SVG; texto sem `{}` sai intacto; símbolo desconhecido sai como texto); e2e (o botão "Conjurar · {1}{U}" mostra dois símbolos); contrato visual.
+- **Depende de:** —.
+- **Fora:** símbolos de expansão; ícones de raridade.
+
+**U4 · Sem internet mais visual** ○
+- **Valor:** o estado sem rede se percebe pelo símbolo e pela cor, não por uma frase.
+- **Aceite:** chip da barra vira ícone com pulso discreto e rótulo acessível; painel da tela inicial com anel de progresso do que está guardado; cada tela que hoje mostra um aviso em texto ganha ícone e uma linha só; estados vazios sem rede com ilustração de ícone.
+- **Testes:** e2e no `O1 tudo sem internet` (o chip e o painel novos aparecem); contrato visual.
+- **Depende de:** U2.
+
+**U5 · Cartas iguais em leque na mesa** ○
+- **Valor:** cinco Ilhas ocupam o espaço de uma e meia; a mesa cabe na tela.
+- **Aceite:** no campo, permanentes com o mesmo nome e o mesmo estado (virada/desvirada, sem marcador, dano ou anexo) empilham em leque com deslocamento fixo, contador visível e cada carta ainda tocável (a de cima abre o menu; toque longo espia); terrenos já agrupados (A15) passam a usar o mesmo leque; criaturas também; alvo de toque ≥ 44px na parte visível de cada carta.
+- **Testes:** U (`agrupaLeque` puro: agrupa por nome e estado, ordem estável); e2e (5 Ilhas viram um leque com "×5"; tocar na de cima abre o menu; largura da mesa não passa da tela).
+- **Depende de:** A15.
+- **Fora:** arrastar cartas do leque.
+
+**U6 · Bandeja da mão recolhível** ○
+- **Valor:** ver a mesa inteira quando a mão não importa.
+- **Aceite:** um puxador no topo da bandeja recolhe/expande com animação de 200 ms; recolhida, mostra só a contagem e o puxador (≥ 44px); a preferência dura a partida; o estado pendente que exige a mão (descartar, escolher) expande sozinho e avisa.
+- **Testes:** e2e (recolher, expandir, descarte forçado reabre); U (estado da bandeja no modelo da mesa).
+- **Depende de:** —.
+
+**U7 · De quem é o turno, visível de longe** ○
+- **Valor:** saber em um relance quem joga, bot × você ou jogador 1 × jogador 2.
+- **Aceite:** faixa de turno com nome, avatar/ícone e cor do jogador ativo; a metade da mesa do jogador ativo ganha borda luminosa suave; troca de turno com transição de 300 ms; no hot-seat, a cortina de troca diz de quem é a vez; ícone de prioridade separado do ícone de turno.
+- **Testes:** e2e (o indicador muda quando o turno passa; cortina no hot-seat); contrato visual (cores dos jogadores vêm de tokens).
+- **Depende de:** —.
+
+**U8 · Disposições por tamanho de aparelho** ○
+- **Valor:** a mesa aproveita a tela de um Galaxy S, S+ e Ultra sem sobra nem corte.
+- **Aceite:** três disposições por faixa de largura/altura em CSS px (medidas conferidas na especificação de cada aparelho antes de codificar, com a data da consulta anotada aqui); tamanho de carta, zonas e bandeja escalam por faixa; a auditoria de tela roda nas três medidas mais o iPhone de referência.
+- **Testes:** e2e (auditoria de overflow e alvo de toque em cada medida); capturas por medida.
+- **Depende de:** U5, U6, U7.
+- **Fora:** tablets; modo paisagem.
+
+**U10 · Shark: um bot só, com nome** ○
+- **Valor:** menos escolha na preparação, nome com identidade: Goldfish (sem oponente) e Shark (o bot).
+- **Aceite:** a tela de preparar oferece Goldfish, Shark e Outra pessoa; o Shark é o bot profissional de hoje; o amador sai da interface e do torneio de aferição (o código de avaliação continua, é a base do Shark); partidas salvas com o oponente antigo continuam abrindo como Shark; nome do jogador do bot na mesa: "Shark".
+- **Testes:** U (torneio mede Shark contra a política aleatória e contra a versão anterior); e2e (preparar com Shark; partida salva com "profissional" abre).
+- **Depende de:** —.
+
+**U11 · Shark mais forte** ○
+- **Valor:** o bot joga melhor de forma medida.
+- **Aceite:** ganho comprovado no torneio (`bot.torneio.test.mjs`) contra a versão anterior do próprio Shark, com semente fixa, em Pauper; candidatos: profundidade 2 na resposta, avaliação de curva e de mana disponível, bloqueio com troca favorável, guardar remoção para ameaça maior; tempo por jogada no celular continua abaixo de 1 s (medido no portão).
+- **Testes:** torneio (vitórias e tempo); fuzz (nenhuma ação ilegal).
+- **Depende de:** U10.
+
+**U12 · Imagens do jogo baixadas sozinhas** ○
+- **Valor:** entrar na mesa e ver as cartas mesmo sem rede, sem ter pedido nada.
+- **Aceite:** o guardião offline (O1) passa a aquecer também a imagem pequena (a que a mesa usa) de cada carta das listas salvas, sempre que há rede, em segundo plano, com limite de taxa; o painel da tela inicial mostra "Imagens do jogo: N de M"; ao voltar a rede, o que faltava é baixado.
+- **Testes:** U (`offline.unit.test.mjs`: lista aquece pequena e grande; sem rede nada; volta da rede retoma); e2e no `O1` (contagem no painel).
+- **Depende de:** O1, O2.
+
+**U13 · Conta e perfil** ○ (decisão pendente, ver §6)
+- **Valor:** nome e avatar seus na mesa e no chat; backup fora do aparelho.
+- **Aceite (fase 1, sem Google):** tela Perfil com nome e avatar (foto da galeria ou ícone), guardados localmente, usados na mesa e no hot-seat; exportar/importar backup completo (listas, coleção, preferências) por arquivo.
+- **Aceite (fase 2, com Google):** entrar com Google (Identity Services), uma conta por Gmail, backup automático na pasta privada do app no Drive; restauração em aparelho novo.
+- **Testes:** U (modelo de perfil, backup completo ida e volta); e2e (perfil aparece na mesa); fase 2 com o Google simulado.
+- **Depende de:** Client ID do usuário para a fase 2.
+
+**U14 · Partida online 1x1** ○ (decisão pendente, ver §6)
+- **Valor:** dois celulares, cada um com o app, uma partida.
+- **Aceite:** criar sala com código de 6 letras, entrar pelo código, cada aparelho aplica as ações do outro no mesmo motor; reconexão retoma pelo registro; mão do oponente escondida na tela (a sincronização é por ações, então o estado completo está nos dois aparelhos — declarado como limite de confiança entre amigos); sem rede a tela diz que a partida online precisa de internet.
+- **Testes:** U (protocolo de sala e reconciliação de ações); e2e com dois contextos de navegador e transporte simulado; O1 (mensagem sem rede).
+- **Depende de:** U13 (nome/avatar), decisão de transporte.
+
+**U15 · Chat na partida online** ○
+- **Valor:** falar com o adversário sem sair da mesa.
+- **Aceite:** ícone discreto com contador de não lidas; painel deslizante; balões, hora, "digitando…"; mesmo transporte da partida; frases rápidas ("boa", "gg").
+- **Testes:** U (modelo de mensagens); e2e com dois contextos.
+- **Depende de:** U14.
 
 ### P · Plataforma
 
