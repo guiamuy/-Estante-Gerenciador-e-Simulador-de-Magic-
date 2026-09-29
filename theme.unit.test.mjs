@@ -33,11 +33,15 @@ test('U1 · primeira abertura segue o sistema; "auto" guardado por versão antig
 });
 
 test('U1 · a escolha sempre vai para o documento (nunca fica sem data-theme) e o botão diz o próximo passo', async () => {
-  const store = P.memoryStore();
-  const th = T.createTheme(store, janela('dark'));
+  // Q10 · documento falso injetado: agora o teste confere de verdade o data-theme e o botão
+  const d = documento();
+  const th = T.createTheme(P.memoryStore(), janela('dark'), { documentElement: d.root, querySelectorAll: () => [d.botao] });
   await th.init();
-  // o módulo escreve em document.documentElement / querySelectorAll do contexto de teste
-  assert.ok(['dark', 'light'].includes(th.current));
+  assert.equal(d.root.attrs['data-theme'], 'dark', 'a raiz recebe o tema');
+  assert.equal(d.botao.textContent, '☾'); assert.equal(d.botao.attrs['aria-pressed'], 'false');
+  await th.cycle();
+  assert.equal(d.root.attrs['data-theme'], 'light'); assert.equal(d.botao.textContent, '☀'); assert.equal(d.botao.attrs['aria-pressed'], 'true');
+  assert.match(d.botao.attrs['aria-label'], /claro · toque para o escuro/);
   const falho = { get: async () => { throw new Error('x'); }, set: async () => { throw new Error('x'); } };
   const th2 = T.createTheme(falho, janela('light'));
   assert.equal(await th2.init(), 'light', 'armazenamento quebrado não derruba o tema');

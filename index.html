@@ -1013,13 +1013,13 @@ const doSistema = (win = typeof window !== 'undefined' ? window : null) =>
 /** Resolve o valor guardado: "auto" (versões antigas) e lixo viram o tema do sistema. */
 const resolve = (saved, win) => THEMES.some(t => t.id === saved) ? saved : doSistema(win);
 
-function createTheme(store, win) {
+function createTheme(store, win, doc = (typeof document !== 'undefined' ? document : {})) {
   let current = 'dark';
   const apply = id => {
     current = resolve(id, win);
-    const root = document.documentElement;
+    const root = doc.documentElement;
     if (root && root.setAttribute) root.setAttribute('data-theme', current);
-    if (document.querySelectorAll) document.querySelectorAll('[data-theme-toggle]').forEach(b => {
+    if (doc.querySelectorAll) doc.querySelectorAll('[data-theme-toggle]').forEach(b => {
       const t = THEMES.find(x => x.id === current);
       b.textContent = t.icon;
       b.setAttribute('aria-label', t.label);
@@ -1503,6 +1503,11 @@ function createScryfall(opts = {}) {
             ? 'a página está aberta como arquivo local, e a Scryfall exige uma origem http válida'
             : 'falha de rede ao falar com a Scryfall');
       }
+      // Q10 · o service worker responde 503 marcado quando está sem rede e sem cópia: é falha de rede, sem retentativa
+      if (res.status === 503 && res.headers && typeof res.headers.get === 'function' && res.headers.get('X-Estante-Offline')) {
+        stats.failures++;
+        throw new ScryfallError('network', 'sem internet e sem cópia local desta consulta');
+      }
       if (res.status === 404) { stats.notFound++; return { notFound: true }; }
       if (res.status === 400) {
         stats.failures++;
@@ -1762,16 +1767,24 @@ const CACHE_NAME = 'estante-img-v1';
 
 function createImageCache({ caches, fetch: doFetch, pausa = 80, espera = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
   const available = !!(caches && typeof caches.open === 'function');
-  let cachep = null;
-  const open = () => cachep || (cachep = caches.open(CACHE_NAME));
+  // Q10 · abre o cache a cada operação: guardar o objeto aberto fazia o app escrever num cache
+  // fantasma depois de o navegador apagar o de verdade (e "has" dizia que estava tudo lá)
+  const open = () => caches.open(CACHE_NAME);
+  // Q10 · uma fila só para o aparelho inteiro: dois fluxos (guardião ao abrir + rede voltando +
+  // lista salva) não baixam a mesma imagem duas vezes nem abrem laços paralelos contra o CDN
+  let fila = Promise.resolve();
+  const emSerie = fn => { const r = fila.then(fn, fn); fila = r.catch(() => {}); return r; };
 
   return {
     available,
     /** Garante que a imagem esteja em cache. Silencioso em caso de falha:
         imagem é conforto, não correção. CORS primeiro (resposta normal, sem o
         acolchoamento de cota da resposta opaca); opaca só se o CDN não deixar. */
-    async warm(urls) {
-      if (!available || !doFetch) return 0;
+    warm(urls) {
+      if (!available || !doFetch) return Promise.resolve(0);
+      return emSerie(() => this._warm(urls));
+    },
+    async _warm(urls) {
       const c = await open();
       let n = 0;
       for (const url of [...new Set(urls.filter(Boolean))]) {
@@ -1938,8 +1951,15 @@ async function detectEnvironment({ location, navigator: nav, fetch: doFetch, tim
       signal: ctrl ? ctrl.signal : undefined
     });
     clearTimeout(timer);
-    return res && (res.ok || res.status === 404) ? ENVIRONMENTS.online : ENVIRONMENTS.sandboxed;
+    if (res && (res.ok || res.status === 404)) return ENVIRONMENTS.online;
+    // Q10 · o service worker responde 503 marcado quando não há rede: é "sem conexão", não sandbox
+    if (res && res.status === 503 && res.headers && typeof res.headers.get === 'function' && res.headers.get('X-Estante-Offline')) return ENVIRONMENTS.offline;
+    return ENVIRONMENTS.sandboxed;
   } catch (e) {
+    // Q10 · o navegador diz "online" mas nada responde (Wi-Fi sem internet, portal cativo): é sem conexão,
+    // não um visualizador restrito. O texto de sandbox confundia, e o chip "Sem internet" não aparecia.
+    if (e && e.name === 'AbortError') return ENVIRONMENTS.offline;
+    if (typeof location !== 'undefined' && location && /^https?:/.test(String(location.protocol))) return ENVIRONMENTS.offline;
     return (nav && nav.onLine === false) ? ENVIRONMENTS.offline : ENVIRONMENTS.sandboxed;
   }
 }
@@ -2229,7 +2249,10 @@ function openCardViewer(card, extra = []) {
 
   const paint = () => {
     const f = hasFaces ? card.faces[face] : null;
-    const img = (f && f.images && f.images.large) || (card.images && (card.images.large || card.images.normal));
+    // Q10 · a imagem "normal" é a que o guardião guarda no aparelho: ela vem primeiro, e a grande só se
+    // não houver a normal. Antes o visualizador pedia a grande e dizia "não guardada" com a normal no cache.
+    const imgs = (f && f.images) || card.images || {};
+    const img = imgs.normal || imgs.large || null;
     const name = f ? f.name : card.name;
     const typeLine = f ? f.type_line : card.type_line;
     const oracle = f ? f.oracle_text : card.oracle_text;
@@ -4937,7 +4960,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
   function paint() {
     const d = state.deck;
     const stats = deckStats(d, state.cards, state.owned);
-    const issues = validateDeck(d, state.cards, { semRede: state.degraded });
+    const issues = validateDeck(d, state.cards, { semRede: state.degraded || (typeof navigator !== 'undefined' && navigator.onLine === false) }); // Q10
     const identity = [...new Set(d.entries.filter(e => e.zone === 'commander').flatMap(e => (entryCard(e) && entryCard(e).color_identity) || []))].join('');
 
     // C12b · recorte da lista pelo filtro (texto + painel); grupos no formato da coleção
@@ -5481,7 +5504,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       Select(FL.ORDENACOES.map(([value, label]) => ({ value, label: `Ordem: ${label}` })), { id: 'col-sort', value: state.ordenar, onChange: e => lembra({ ordenar: e.target.value }) })));
   }
   const cardOf = g => state.cards.get(g.key) || state.cards.get(norm(g.name));
-  const thumb = g => { const c = cardOf(g); return c && ((c.images && (c.images.normal || c.images.small)) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.normal)) || null; };
+  // Q10 · a miniatura é a que o guardião guarda para a coleção: sem rede, galeria e pilhas mostram a carta
+  const thumb = g => { const c = cardOf(g); const im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images)); return im ? (im.small || im.normal || null) : null; };
   /** Galeria: a arte, a quantidade e um toque para as impressões. */
   function cartao(g) {
     const face = CardFace({ name: g.name, image: thumb(g) }, { onClick: () => openPrintings(g), dataset: { name: g.name } });
@@ -5500,7 +5524,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function pilha(g) {
     const topo = g.itens.slice(0, 5);
     return h('button', { class: 'col-pile', type: 'button', dataset: { pile: g.chave }, 'aria-label': `Abrir ${g.rotulo}: ${g.itens.length} carta(s)`, onClick: () => { state.pilhaAberta = g.chave; state.limite = 120; paint(); } },
-      h('div', { class: 'col-pile__stack' }, ...topo.map((x, i) => { const src = thumb(x); return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, src ? h('img', { src, alt: '', loading: 'lazy' }) : h('span', { class: 'ds-card__fallback' }, x.name)); })),
+      h('div', { class: 'col-pile__stack' }, ...topo.map((x, i) => { const src = thumb(x); return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, src ? h('img', { src, alt: '', loading: 'lazy', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(h('span', { class: 'ds-card__fallback' }, x.name), el); } }) : h('span', { class: 'ds-card__fallback' }, x.name)); })),
       h('div', { class: 'col-pile__label' }, Text(g.rotulo, { size: 'md' }), Text(`${g.itens.length} carta(s) · ${g.copias} cópia(s)`, { size: 'xs', tone: 'muted' })));
   }
 
@@ -7002,10 +7026,16 @@ function resumeEffects(s, events) {
   const r = s.resume; if (!r) return;
   s.resume = null;
   const src = s.objects[r.oid] || { oid: r.oid, name: r.name, controller: r.controller };
+  const alvos = (r.alvos || []).slice();
   for (const eff of r.effects) {
-    applyEffect(s, src, eff, null, events);
+    // Q10 · mesmos alvos da resolução interrompida (os que ainda não foram usados, na ordem)
+    let tgt = null;
+    if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
+    else if (eff.target === 'first-target') tgt = r.alvo || null;
+    else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
+    applyEffect(s, src, eff, tgt, events);
     stateBased(s, events);
-    if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1) }; return; }
+    if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
   }
 }
 
@@ -7129,7 +7159,8 @@ function resolveScript(s, o, events) {
   if (chosen.length && stillLegal.slice(0, chosen.length).every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
   let ti = 0, firstTarget = null;
   for (const [idx, eff] of effects.entries()) {
-    if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx) }; return; }
+    // Q10 · a retomada leva o alvo junto: "perde 1 de vida" depois de devolver o comandante era cobrado de quem conjurou
+    if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx), alvo: firstTarget, alvos: chosen.slice(ti) }; return; }
     if (!effectAllowed(s, o, eff)) continue; // S47/S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) {
       const tgt = chosen[ti]; const ok = stillLegal[ti]; ti++;
@@ -7720,8 +7751,11 @@ const HANDLERS = {
     if (!base) throw new RuleError('habilidade', 'essa permanente não tem essa habilidade');
     // S23 · mana de qualquer cor: a cor escolhida vem na ação
     if ((base.cost || {}).fromHand && !a.fromHand) throw new RuleError('habilidade', 'esta habilidade só funciona com a carta na mão');
-    if ((base.effects || []).some(e => e.do === 'add_mana' && e.identity) && a.color && !identidade(s, a.p).includes(a.color))
-      throw new RuleError('mana', 'essa cor está fora da identidade do seu comandante');
+    if ((base.effects || []).some(e => e.do === 'add_mana' && e.identity)) {
+      // Q10 · sem cor, ou cor fora da identidade, a habilidade não é ativada (antes virava a fonte por nada)
+      if (!a.color) throw new RuleError('mana', identidade(s, a.p).length ? 'escolha uma cor da identidade do seu comandante' : 'sem identidade de cor, essa habilidade não produz mana');
+      if (!identidade(s, a.p).includes(a.color)) throw new RuleError('mana', 'essa cor está fora da identidade do seu comandante');
+    }
     const ab = { ...base, effects: (base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: e.identity ? (a.color || null) : (a.color || 'C') } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
@@ -7893,6 +7927,9 @@ const HANDLERS = {
     if (!s.voltaComando.length) delete s.voltaComando;
     const o = s.objects[pd.oid];
     if (a.yes && o && o.zone === pd.from) { moveObject(s, pd.oid, 'command'); ev.push({ kind: 'commander-home', oid: pd.oid, name: o.name, from: pd.from }); }
+    // Q10 · a decisão pode ter interrompido uma mágica no meio (Vapor Snag: devolve e ainda tira 1 de vida):
+    // o resto dos efeitos continua daqui, como nas outras decisões
+    if (!continueUnless(s, ev)) resumeEffects(s, ev);
   },
   choose_color(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'choose_color' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma cor a escolher');
@@ -8504,7 +8541,7 @@ function resolveAbility(s, o, events) {
       sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
     } else applyEffect(s, o, eff, null, events);
     stateBased(s, events);
-    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1) }; return; }
+    if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti) }; return; }
   }
 }
 
@@ -9173,7 +9210,8 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek }) {
 function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [], zona }) {
   return h('div', { class: 'tb-peek', id: 'tb-peek', role: 'dialog', 'aria-label': `${name}: ${oracle || 'sem texto'}` },
     h('div', { class: 'tb-peek__card' },
-      image ? h('img', { src: image, alt: '', class: 'tb-peek__img' }) : h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })),
+      image ? h('img', { src: image, alt: '', class: 'tb-peek__img', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })), el); } }) // Q10 · sem imagem no aparelho: o nome, não um retângulo vazio
+        : h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })),
       h('div', { class: 'tb-peek__body' },
         Row({ class: 'ds-row--wrap' }, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }), pt ? Badge(`${pt.p}/${pt.t}`, { tone: 'accent' }) : null),
         Text([tipo, custo, zona].filter(Boolean).join(' · '), { size: 'xs', tone: 'muted' }),
@@ -9591,7 +9629,7 @@ function bandejaDaMao(s, v, recolhida) {
 }
 /** U5 · o que faz uma permanente diferente das irmãs de mesmo nome (e por isso fica fora do leque). */
 const MODIFICADORES = ['pump', 'pumpNext', 'tempKeywords', 'keywordsNext', 'goaded', 'attacking', 'blocking', 'blockedBy', 'cantAttackNext',
-  'chosenColor', 'bestowed', 'faceDown', 'pairedWith', 'mayPay', 'xPaid'];
+  'chosenColor', 'bestowed', 'faceDown', 'paired', 'mayPay', 'xPaid', 'tempProtection', 'usedThisTurn']; // Q10 · paired (não pairedWith), proteção do turno, "uma vez por turno"
 const temValor = v => Array.isArray(v) ? v.length > 0 : (v && typeof v === 'object') ? Object.keys(v).length > 0 : !!v;
 /** U5 · permanentes iguais viram um leque: nome, quantas, quantas viradas, e a primeira desvirada para tocar.
     Só empilha o que é intercambiável de verdade (H9): mesmo nome, mesmo estado (virada, enjoo), sem marcador,
@@ -9797,7 +9835,7 @@ const randomSeed = () => {
 };
 
 /* ---------------- A2 · preparar partida ---------------- */
-function createTableSetup({ decks, cardRepo, store }) {
+function createTableSetup({ decks, cardRepo, store, keeper = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, mode: 'assisted', coverage: 0, busy: false };
 
@@ -9958,7 +9996,9 @@ function createTableSetup({ decks, cardRepo, store }) {
           return;
         }
         // as cartas já vieram da rede agora: guarda para a próxima partida, mesmo sem internet
-        cardRepo.pin(names).catch(() => {});
+        // Q10 · e as imagens do jogo também (pequena do campo, grande da mão), em segundo plano
+        if (keeper && keeper.guardarLista) { for (const d of [mine, theirs].filter(Boolean)) keeper.guardarLista(d).catch(() => {}); }
+        else cardRepo.pin(names).catch(() => {});
         const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }),
           { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null } });
         await store.set(T.SAVE_KEY, table.serialize());
@@ -10004,18 +10044,26 @@ function createTableScreen({ store }) {
   const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
   let table = null, adjudicating = null, bottomPick = new Set(), shownViewer = null, handoff = false;
   // U6 · mão recolhida: preferência guardada no aparelho, vale para as próximas partidas também
-  // U7 · faixa de quem joga: anima só quando o turno troca
-  let ultimoTurno = null;
+  // U7 · faixa de quem joga: anima só quando o turno troca.
+  // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
+  // anuncia a troca (region viva recriada a cada pintura não é lida).
+  let ultimoTurno = null, vezEl = null;
   function vezBox(s, v, { anima = true } = {}) {
     const vz = T.vezDaMesa(s, v);
     const troca = anima && ultimoTurno !== null && vz.turno !== ultimoTurno;
     if (anima) ultimoTurno = vz.turno;
     const papel = vz.fase !== 'jogo' ? vz.fase : vz.meuTurno ? 'eu' : 'oponente';
-    return h('div', { class: 'tb-vez' + (troca ? ' tb-vez--troca' : ''), id: anima ? 'tb-vez' : 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } },
+    const filhos = [
       h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true' }, vz.inicial),
       h('span', { class: 'tb-vez__rotulo' }, vz.rotulo),
       vz.prioridadeRotulo ? h('span', { class: 'tb-vez__prio', id: anima ? 'tb-vez-prio' : null, dataset: { minha: String(vz.minhaPrioridade) } },
-        h('span', { 'aria-hidden': 'true' }, '⚑'), ' ', vz.prioridadeRotulo) : null);
+        h('span', { 'aria-hidden': 'true' }, '⚑'), ' ', vz.prioridadeRotulo) : null].filter(Boolean);
+    if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, ...filhos);
+    if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
+    vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
+    vezEl.dataset.papel = papel; vezEl.dataset.turno = String(vz.turno);
+    if (vezEl.textContent !== filhos.map(f => f.textContent).join('')) vezEl.replaceChildren(...filhos);
+    return vezEl;
   }
   const MAO_KEY = 'mesa.maoRecolhida';
   let maoRecolhida = false;
@@ -10125,7 +10173,7 @@ function createTableScreen({ store }) {
   function sheet(name, buttons, extra) {
     const img = imgOf(name, 'normal');
     Dialog({ title: name, body: Stack({},
-      img ? h('img', { src: img, alt: name, class: 'tb-sheet__img' }) : null,
+      img ? h('img', { src: img, alt: name, class: 'tb-sheet__img', onError: e => { e.target.remove(); } }) : null, // Q10 · sem imagem: a folha fica só com o texto
       extra || null,
       oracleOf(name) ? h('p', { class: 'tb-adj__oracle' }, oracleOf(name)) : null,
       buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null),
@@ -11146,6 +11194,16 @@ function createOcr(win = window, doc = document) {
   let mode = null;
   return {
     warm: () => engine(),
+    /** Q10 · os arquivos do leitor ainda estão no aparelho? null quando o navegador não tem cache. */
+    async guardado(cachesApi = (typeof caches !== 'undefined' ? caches : null)) {
+      if (!cachesApi || typeof cachesApi.open !== 'function') return null;
+      try {
+        const c = await cachesApi.open('estante-ocr-v1');
+        if (!(await c.match(TESSERACT_URL))) return false;
+        const chaves = await c.keys();
+        return chaves.some(r => /traineddata/.test(r.url));
+      } catch (e) { return null; }
+    },
     async read(canvas, want = 'name', escala = 1) {
       const w = await engine();
       if (mode !== want) { await w.setParameters(MODES[want]); mode = want; }
@@ -11519,8 +11577,8 @@ function urlsDeImagem(card, tamanho = 'normal') {
 /** Nomes únicos de uma lista, todas as zonas. */
 function nomesDaLista(deck) { return [...new Set((deck && deck.entries || []).map(e => e.name).filter(Boolean))]; }
 
-function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, persistence = null, online = () => true, agora = () => Date.now() }) {
-  let emCurso = null, colecaoEmCurso = null, colecaoDeNovo = false;
+function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, persistence = null, online = () => true, agora = () => Date.now(), prontas = null, caches = null }) {
+  let emCurso = null, colecaoEmCurso = null, colecaoDeNovo = false, manterEmCurso = null;
   const semFalha = async (fn, padrao) => { try { return await fn(); } catch (e) { return padrao; } };
 
   async function aquecer(cards, tamanho) {
@@ -11529,13 +11587,13 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
     // U12 · a miniatura primeiro (é a que a mesa mostra no campo), depois a grande (mão e zoom)
     return semFalha(() => images.warm(tamanhos.flatMap(t => cards.flatMap(c => urlsDeImagem(c, t)))), 0);
   }
-  /** U12 · quantas imagens pequenas das listas já estão no aparelho. */
+  /** U12 · quantas imagens do jogo das listas já estão no aparelho (Q10: a pequena do campo E a grande da mão). */
   async function contaImagens(listas) {
     if (!images || !images.available || !images.has) return null;
     const nomes = [...new Set(listas.flatMap(nomesDaLista).map(norm))];
     if (!nomes.length) return { total: 0, guardadas: 0 };
     const mapa = cardRepo.emCache ? await semFalha(() => cardRepo.emCache(nomes), new Map()) : new Map();
-    const urls = [...new Set([...mapa.values()].filter(Boolean).flatMap(c => urlsDeImagem(c, 'small')))];
+    const urls = [...new Set([...mapa.values()].filter(Boolean).flatMap(c => [...urlsDeImagem(c, 'small'), ...urlsDeImagem(c, 'normal')]))];
     let guardadas = 0;
     for (const u of urls) if (await semFalha(() => images.has(u), false)) guardadas++;
     return { total: urls.length, guardadas };
@@ -11585,7 +11643,10 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       const nomesCol = grupos.map(g => g.name);
       const colGuardadas = nomesCol.length ? await semFalha(() => cardRepo.pinned(nomesCol), 0) : 0;
       const infoNomes = names && names.info ? (names.info() || (await semFalha(() => names.load().then(() => names.info()), null))) : null;
-      const leitor = !!(store && await semFalha(() => store.get('ocr.ready'), null));
+      // Q10 · o leitor só conta como pronto se os arquivos dele ainda estão no aparelho (o navegador pode limpar o cache)
+      const leitorFlag = !!(store && await semFalha(() => store.get('ocr.ready'), null));
+      const leitorNoCache = ocr && ocr.guardado ? await semFalha(() => ocr.guardado(), null) : null;
+      const leitor = leitorFlag && leitorNoCache !== false;
       return {
         rede: online(),
         listas: { total: listas.length, prontas: listas.filter(l => l.pronta).length, detalhe: listas },
@@ -11629,13 +11690,36 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       return emCurso;
     },
 
-    /** Manutenção silenciosa (ao abrir o app com rede): guarda o que ainda não está guardado. */
-    async manter() {
-      if (!online()) return null;
-      const rel = { listas: 0, colecao: 0 };
-      for (const d of await decks.list()) { const r = await semFalha(() => api.guardarLista(d), null); if (r) rel.listas += r.fixadas.length; }
-      const c = await semFalha(() => api.guardarColecao(), null); if (c) rel.colecao = c.fixadas.length;
-      return rel;
+    /** Manutenção silenciosa (ao abrir o app com rede, quando a rede volta, ao voltar para o app):
+        guarda o que ainda não está guardado. Q10 · uma passada por vez; base de nomes e listas prontas
+        entram sozinhas; o leitor do scanner é baixado de novo só se já tinha sido preparado e sumiu. */
+    manter() {
+      if (!online()) return Promise.resolve(null);
+      if (manterEmCurso) return manterEmCurso;
+      manterEmCurso = (async () => {
+        const rel = { listas: 0, colecao: 0, nomes: false, leitor: null, prontas: 0 };
+        for (const d of await decks.list()) { const r = await semFalha(() => api.guardarLista(d), null); if (r) rel.listas += r.fixadas.length; }
+        const c = await semFalha(() => api.guardarColecao(), null); if (c) rel.colecao = c.fixadas.length;
+        // base de nomes do scanner (e do "adicionar por nome"): pequena, entra sempre
+        if (names && names.ensure) rel.nomes = !!(await semFalha(() => names.ensure({ online: true }), null));
+        // leitor do scanner: pesado; só reaquece o que a pessoa já tinha preparado e o navegador apagou
+        if (ocr && ocr.warm && ocr.guardado && store) {
+          const preparado = await semFalha(() => store.get('ocr.ready'), null);
+          if (preparado && (await semFalha(() => ocr.guardado(), null)) === false) rel.leitor = await semFalha(async () => { await ocr.warm(); return true; }, false);
+        }
+        // listas prontas: os dados das cartas delas, uma vez por versão do app (imagens só depois de adicionar)
+        if (prontas) {
+          const nomes = [...new Set(prontas())];
+          const marca = `${nomes.length}:${nomes.slice(0, 5).join('|')}`;
+          const feita = store ? await semFalha(() => store.get('offline.prontas'), null) : null;
+          if (nomes.length && feita !== marca) {
+            const r = await semFalha(() => guardar(nomes, null), null);
+            if (r && !r.faltando.length) { rel.prontas = r.fixadas.length; if (store) await semFalha(() => store.set('offline.prontas', marca), null); }
+          }
+        }
+        return rel;
+      })().finally(() => { manterEmCurso = null; });
+      return manterEmCurso;
     },
 
     /** Liga os ganchos: lista salva e coleção alterada são guardadas sozinhas (com rede). */
@@ -11692,7 +11776,8 @@ const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== f
 // O2 · as telas recebem um ambiente VIVO: se a internet cair no meio do uso, `env.online` muda junto
 const envVivo = { get id() { return environment.id; }, get online() { return environment.online; }, get label() { return environment.label; }, get reason() { return environment.reason; }, get fix() { return environment.fix; } };
 // O1 · o que é seu fica no aparelho: listas e coleção guardadas sozinhas, com rede
-const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, persistence: platform.persistence, online: temRede });
+const keeper = createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store: platform.store, persistence: platform.persistence, online: temRede,
+  prontas: () => __m24.STARTER_DECKS.flatMap(d => (__m14.parseDeckText(d.text).entries || []).map(e => e.name).filter(Boolean)) }); // Q10 · listas prontas entram sozinhas
 keeper.vigiar();
 let environment = ENVIRONMENTS.online;
 const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });
@@ -11706,7 +11791,7 @@ const ROUTES = [
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
-  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store }) },
+  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
@@ -11847,12 +11932,17 @@ async function boot(root) {
   });
   router.start();
   // O1 · manutenção silenciosa: com rede, guarda o que ainda não está guardado
-  const manter = () => { if (temRede()) keeper.manter().catch(() => {}); };
+  // Q10 · uma passada por vez (o guardião garante), e também ao voltar para o app (o celular suspende a aba e
+  // perde o evento "online"); no máximo uma a cada 10 minutos por esse caminho
+  let ultimaManutencao = 0;
+  const manter = () => { if (temRede()) { ultimaManutencao = Date.now(); keeper.manter().catch(() => {}); } };
   setTimeout(manter, 4000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - ultimaManutencao > 10 * 60 * 1000) { redeDetectar().then(manter); } });
   // O2 · rede indo e voltando durante o uso: ambiente e chip acompanham
   const redeDetectar = () => detectEnvironment({ location, navigator, fetch: fetch.bind(globalThis) }).then(e => { environment = e; pintaRede(); }).catch(() => {});
   window.addEventListener('online', () => { environment = ENVIRONMENTS.online; pintaRede(); redeDetectar(); manter(); });
   window.addEventListener('offline', () => { environment = ENVIRONMENTS.offline; pintaRede(); });
+  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteKeeper = keeper; // gancho de teste
   return { router, theme, platform, keeper };
 }
 

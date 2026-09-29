@@ -118,3 +118,32 @@ test('W1 · estratégia de cache do service worker por tipo de requisição', ()
   assert.equal(pick('https://cdn.jsdelivr.net/npm/outra-lib@1/x.js'), 'passthrough');
   assert.equal(ctx.__pick({ url: 'https://api.scryfall.com/x', method: 'DELETE' }).strategy, 'passthrough');
 });
+
+/* ---------------- Q10 · sem internet de verdade, sem retentar nem confundir ---------------- */
+test('Q10 · 503 marcado pelo service worker (sem rede, sem cópia) é falha de rede: sem retentativa, sem "erro 503"', async () => {
+  let n = 0; const clk = fakeClock();
+  const offline = { status: 503, ok: false, headers: { get: k => (k === 'X-Estante-Offline' ? '1' : null) }, json: async () => ({ object: 'error' }) };
+  const sf = D1.createScryfall({ now: clk.now, sleep: clk.sleep, fetch: async () => { n++; return offline; } });
+  await assert.rejects(sf.named('Sol Ring'), e => e.kind === 'network' && /sem internet/.test(e.message));
+  assert.equal(n, 1, 'uma tentativa só');
+  assert.ok(clk.sleeps.every(ms => ms <= 100), 'só o intervalo mínimo entre chamadas (D1), nenhuma espera de retentativa: ' + clk.sleeps.join(','));
+  // 503 comum (servidor de verdade fora) continua retentando como antes
+  let m = 0;
+  const sf2 = D1.createScryfall({ now: clk.now, sleep: clk.sleep, fetch: async () => { m++; return m < 2 ? res(503, {}) : res(200, { id: 'x', name: 'Sol Ring' }); } });
+  assert.equal((await sf2.named('Sol Ring')).name, 'Sol Ring'); assert.equal(m, 2);
+});
+
+test('Q10 · Wi-Fi sem internet: o navegador diz online, nada responde → "sem conexão", não "visualizador restrito"', async () => {
+  const { detectEnvironment: det, ENVIRONMENTS: ENV } = loadModules().env;
+  const loc = { protocol: 'https:' };
+  const abort = () => { const e = new Error('aborted'); e.name = 'AbortError'; throw e; };
+  assert.equal((await det({ location: loc, navigator: { onLine: true }, fetch: async () => { throw new TypeError('Failed to fetch'); } })).id, 'offline', 'falha de rede numa página https é sem conexão');
+  assert.equal((await det({ location: loc, navigator: { onLine: true }, fetch: abort, timeoutMs: 1 })).id, 'offline', 'tempo esgotado é sem conexão');
+  const offline503 = { status: 503, ok: false, headers: { get: k => (k === 'X-Estante-Offline' ? '1' : null) } };
+  assert.equal((await det({ location: loc, navigator: { onLine: true }, fetch: async () => offline503 })).id, 'offline', 'o service worker respondeu que está sem rede');
+  assert.equal((await det({ location: loc, navigator: { onLine: true }, fetch: async () => ({ status: 200, ok: true, headers: { get: () => null } }) })).id, 'online');
+  assert.equal((await det({ location: loc, navigator: { onLine: false }, fetch: async () => ({ ok: true }) })).id, 'offline');
+  assert.equal((await det({ location: { protocol: 'file:' }, navigator: { onLine: true }, fetch: async () => ({ ok: true }) })).id, 'file');
+  // origem que não é http (visualizador embutido) sem resposta continua sendo tratada como restrita
+  assert.equal((await det({ location: { protocol: 'blob:' }, navigator: { onLine: true }, fetch: async () => { throw new TypeError('x'); } })).id, ENV.sandboxed.id);
+});

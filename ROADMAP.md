@@ -44,7 +44,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X1 câmera com moldura · X2 reconhecimento pelo nome · X4 lote com uma mão · C6 base offline de nomes | ✅ |
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
-| Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
+| Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) · Q10 homologação das levas 81–87 + auditoria offline | ✅ |
 | U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque · U6 mão recolhível · U7 turno visível · U12 imagens do jogo sozinhas · U10 Shark | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
@@ -218,8 +218,10 @@ pedir. Na prática, em cada leva: cada regra nova nasce com teste que falharia s
 antes da correção; o caminho que o usuário vai tocar no aparelho tem teste headless; e o que ficou sem
 cobertura é declarado na entrega, não omitido.
 
-**Conduta offline (definida pelo usuário em 28/09/2026, épico E42).** Toda funcionalidade — a que existe e
-a que vier (Coleção, Mesa, Commander) — funciona sem internet com o que já está no aparelho. Só depende de
+**Conduta offline (definida pelo usuário em 28/09/2026, épico E42; reforçada em 29/09/2026).** Toda funcionalidade — a que existe e
+a que vier (Coleção, Mesa, Commander) — funciona sem internet com o que já está no aparelho. **O que não puder
+funcionar sem rede por natureza precisa ser carregado sozinho nos momentos em que há rede**, para funcionar da
+próxima vez (guardião offline: `manter()` ao abrir o app, quando a rede volta e ao voltar para o app). Só depende de
 rede o que é chamada a API externa por natureza (carta nunca vista, edição pela Scryfall, imagem nunca
 vista), e a tela diz isso em vez de falhar. Na prática, em cada leva: a história declara no Aceite **o que
 faz sem rede**; dado novo que a funcionalidade precise entra no guardião offline (`src/app/offline.js`) e
@@ -523,6 +525,30 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** P, I.
 - **Depende de:** A1.
 - **Fora:** —
+
+**Q10 · Homologação das levas 81–87 e auditoria offline do app inteiro, 29/09/2026** ✅ (leva 88)
+- **Como:** dois revisores independentes, sem contexto da implementação: um leu o diff das levas 81–87 (Commander M13a, tema, leque, mão, turno, imagens, Shark); o outro fez o inventário de todos os pontos do app que tocam a rede e o que acontece com cada um sem rede e quando a rede volta. Cada achado corrigido virou teste que falha na versão anterior.
+- **Motor (regras):**
+  - A1 · comandante devolvido/exilado/morto **no meio da resolução** de uma mágica: o resto dos efeitos sumia e ficava pendurado para disparar fora de hora (Vapor Snag, Lightning Helix, Resculpt, Anguished Unmaking). Corrigido; e a retomada agora leva o alvo junto — "perde 1 de vida" era cobrado de quem conjurou.
+  - A2 · ativar Arcane Signet sem escolher cor virava a fonte e não produzia nada; agora é recusado.
+  - `commander-7` regravada: registro e resultado final idênticos; dois pontos de controle intermediários mudam porque o estado da retomada passou a guardar o alvo.
+- **Mesa:** A4 · leque juntava cartas com vínculo de alma, proteção até o fim do turno ou "uma vez por turno" (nome de campo errado `pairedWith`); A8 · a faixa de turno virou uma região viva estável, anunciada pelo leitor de tela; a espiada e a folha da carta sem imagem mostram o nome em vez de um retângulo vazio.
+- **Offline (auditoria), em ordem de impacto:**
+  1. visualizador de carta pedia a imagem "large", que nunca é guardada; agora mostra a "normal" guardada (antes: "imagem ainda não guardada" com a imagem no aparelho);
+  2. galeria e pilhas da coleção usam a miniatura guardada; carta sem imagem vira o nome;
+  3. cache de imagens apagado pelo navegador com o app aberto: o app escrevia num cache fantasma e "confirmava" que guardou; agora abre o cache a cada operação;
+  4. "Leitor de texto do scanner ✓" mentia depois de o navegador apagar o cache; o status confere os arquivos, e `manter()` baixa de novo o que a pessoa já tinha preparado;
+  5. base de nomes do scanner e dados das 9 listas prontas (301 cartas) entram sozinhos com rede, uma vez por versão;
+  6. começar uma partida guarda as imagens das listas em jogo em segundo plano;
+  7. `manter()` roda uma passada por vez, também ao voltar para o app (a aba suspensa perde o evento "online"), no máximo a cada 10 min; fila única de imagens: dois fluxos não baixam a mesma URL duas vezes;
+  8. Wi-Fi sem internet (o navegador diz "online", nada responde) era classificado como "visualizador restrito", com texto errado e sem o chip; agora é "sem conexão";
+  9. service worker sem rede e sem cópia respondia 503 e o app retentava 3 vezes (~1,4 s) com "erro 503"; agora é falha de rede imediata;
+  10. lista aberta sem rede diz "não conferida" (aviso) em vez de "não reconhecida" (erro) para carta sem dados;
+  11. a contagem "Imagens do jogo" inclui a grande (mão e zoom), não só a pequena.
+- **Testes corrigidos (passavam sem testar):** asserção da coleção que tinha virado comentário no `O1`; tautologia no teste do leque; teste do tema que não olhava o documento (agora injeta um documento falso e confere `data-theme` e o botão); duas esperas assíncronas no e2e que passavam na hora (Playwright não espera função assíncrona) viraram laços de consulta.
+- **Declarado, sem mudança:** A13 · o rename "Bot amador → Shark" ao abrir partida salva não alcança partidas gravadas antes do motor v57, porque a mesa recusa qualquer partida de motor diferente (regra que já existia). O código fica para as próximas mudanças de nome; a frase "partidas antigas abrem como Shark" vale só para partidas do v57.
+- **Ficou de fora (próximas levas):** aquecer imagens da coleção em tamanho grande (dobra o volume); adicionar impressão sem rede (busca na Scryfall por natureza); testes com o service worker real (hoje o e2e o bloqueia).
+- **Portão:** 499 verdes (454 + 45 e2e); motor v57; goldens: só `commander-7`, pelo motivo acima.
 
 **Q9 · Homologação dos épicos O, C (C10–C14), X (X9–X10) e A (A13–A16), 28/09/2026** ✅
 - **Valor:** as últimas 15 levas foram entregues sem teste em aparelho; uma revisão independente e uma bateria de ponta a ponta procuraram o que escapou antes de seguir.

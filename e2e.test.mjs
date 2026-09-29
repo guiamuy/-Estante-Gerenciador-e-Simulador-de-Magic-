@@ -415,13 +415,15 @@ test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à r
 
 test('e2e · U12 imagens do jogo baixam sozinhas: ao salvar a lista e quando a internet volta, sem tocar em nada', { skip }, async t => {
   const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   let cdnNoAr = true;
   await page.route('https://**.scryfall.io/**', r => cdnNoAr ? r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }) : r.abort('internetdisconnected'));
   const temNoCache = () => page.evaluate(async () => { const c = await caches.open('estante-img-v1'); return !!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')); });
   await createDeck(page, base, 'Delver', '4 Delver of Secrets\n16 Island');
-  await page.waitForFunction(async () => { const c = await caches.open('estante-img-v1'); return !!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')); }, null, { timeout: 10000, polling: 200 });
-  assert.equal(await temNoCache(), true, 'salvar a lista já baixou a imagem pequena');
+  let salvou = false;
+  for (let i = 0; i < 50 && !salvou; i++) { salvou = await temNoCache(); if (!salvou) await page.waitForTimeout(200); }
+  assert.equal(salvou, true, 'salvar a lista já baixou a imagem pequena');
   // o navegador limpou as imagens e a internet caiu: nada é tentado
   await page.evaluate(() => caches.delete('estante-img-v1'));
   cdnNoAr = false;
@@ -431,10 +433,20 @@ test('e2e · U12 imagens do jogo baixam sozinhas: ao salvar a lista e quando a i
   // a internet volta: o app baixa sozinho o que faltava
   cdnNoAr = true;
   await page.context().setOffline(false);
-  await page.waitForFunction(async () => { const c = await caches.open('estante-img-v1'); return !!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')); }, null, { timeout: 10000, polling: 200 });
+  let voltou = false;
+  for (let i = 0; i < 50 && !voltou; i++) { voltou = await temNoCache(); if (!voltou) await page.waitForTimeout(200); }
+  assert.equal(voltou, true, 'a internet voltou: o app baixou sozinho');
   // e o painel conta
   await page.goto(base + '#/');
-  await page.waitForFunction(() => /Imagens do jogo: 1 de 1/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  await page.waitForFunction(() => /Imagens do jogo: 2 de 2/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  // Q10 · começar uma partida também guarda as imagens das listas em jogo (o cache tinha sido apagado)
+  await page.evaluate(() => caches.delete('estante-img-v1'));
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '3'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  let guardou = false;
+  for (let i = 0; i < 40 && !guardou; i++) { guardou = await temNoCache(); if (!guardou) await page.waitForTimeout(200); }
+  assert.equal(guardou, true, 'iniciar a partida aqueceu a imagem pequena da lista (e no cache de verdade, não num cache fantasma apagado pelo navegador)');
   assert.deepEqual(errors, []);
 });
 
@@ -460,13 +472,25 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.click('#home-offline-prep');
   await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 15000 });
   const linhas = await page.innerText('#home-offline-lines');
-  assert.match(linhas, /✓ Listas: 2 de 2 prontas/); // E36: a lista de Commander também assert.match(linhas, /✓ Coleção: 2 de 2/);
+  assert.match(linhas, /✓ Listas: 2 de 2 prontas/); // E36: a lista de Commander também
+  assert.match(linhas, /✓ Coleção: 2 de 2/);           // Q10 · esta asserção tinha virado comentário
   assert.match(linhas, /✓ Base de nomes/); assert.match(linhas, /✓ Leitor de texto/);
   // U12 · imagens do jogo: a pequena do Delver (a do campo da mesa) está no aparelho, e a grande também
-  assert.match(linhas, /✓ Imagens do jogo: 1 de 1/);
+  assert.match(linhas, /✓ Imagens do jogo: 2 de 2/); // Q10 · pequena e grande do Delver
   const noCache = await page.evaluate(async () => { const c = await caches.open('estante-img-v1'); return [!!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')), !!(await c.match('https://cards.scryfall.io/normal/front/x/delver.png'))]; });
   assert.deepEqual(noCache, [true, true], 'pequena e grande no cache de imagens');
-  assert.ok(pedidasAoCdn.indexOf('https://cards.scryfall.io/small/front/x/delver.png') < pedidasAoCdn.indexOf('https://cards.scryfall.io/normal/front/x/delver.png'), 'a pequena primeiro');
+  // Q10 · a ordem "pequena primeiro" é do guardião e está no teste de unidade; aqui a tela da lista também pede a grande ao abrir
+  assert.ok(pedidasAoCdn.includes('https://cards.scryfall.io/small/front/x/delver.png') && pedidasAoCdn.includes('https://cards.scryfall.io/normal/front/x/delver.png'), 'as duas foram pedidas ao CDN');
+  // Q10 · o navegador apagou o cache do leitor: o painel diz, e ao voltar para a tela inicial com rede o app baixa de novo sozinho
+  await page.evaluate(() => caches.delete('estante-ocr-v1'));
+  await page.reload(); await page.waitForSelector('#home-offline-lines');
+  await page.waitForFunction(() => /· Leitor de texto do scanner/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  // a manutenção silenciosa roda 4 s depois de abrir o app; ao voltar à tela inicial, o painel já diz ✓
+  // (waitForFunction não espera função assíncrona: o laço abaixo consulta o cache pelo Node)
+  for (let i = 0; i < 40; i++) { if (await page.evaluate(async () => { try { return (await (await caches.open('estante-ocr-v1')).keys()).length >= 2; } catch (e) { return false; } })) break; await page.waitForTimeout(300); }
+  await page.goto(base + '#/listas'); await page.goto(base + '#/');
+  await page.waitForSelector('#home-offline-lines');
+  await page.waitForFunction(() => /✓ Leitor de texto do scanner/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
   await page.unroute('https://**.scryfall.io/**');
   // O3 · o painel mostra o espaço usado pelo app (gatilho G1)
   assert.match(await page.innerText('#home-offline-space'), /Espaço usado: [\d,]+ (KB|MB|GB) de [\d,]+ (KB|MB|GB)/);
@@ -588,6 +612,28 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('#card-viewer [data-sem-imagem]', { timeout: 8000 });
   assert.match(await page.innerText('#card-viewer'), /Imagem ainda não guardada/);
   await page.keyboard.press('Escape');
+  // Q10 · imagem GUARDADA aparece sem rede: o visualizador pede a "normal" (a que o guardião guarda), não a "large"
+  await page.evaluate(async () => { const c = await caches.open('estante-img-v1'); const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c2 => c2.charCodeAt(0));
+    for (const t of ['small', 'normal']) await c.put('https://cards.scryfall.io/' + t + '/front/x/sol.jpg', new Response(png, { headers: { 'Content-Type': 'image/png' } })); });
+  await page.route('https://**.scryfall.io/**', async r => { const hit = await page.evaluate(async u => { const c = await caches.open('estante-img-v1'); const m = await c.match(u); return m ? Array.from(new Uint8Array(await m.arrayBuffer())) : null; }, r.request().url()); return hit ? r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(hit) }) : r.abort('internetdisconnected'); });
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
+  await page.waitForSelector('#card-viewer img[src*="/normal/"]', { timeout: 8000 });
+  await page.waitForFunction(() => { const i = document.querySelector('#card-viewer img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 });
+  assert.equal(await page.locator('#card-viewer [data-sem-imagem]').count(), 0, 'com a normal no aparelho, o visualizador mostra a carta');
+  await page.keyboard.press('Escape');
+  // Q10 · galeria e pilhas da coleção mostram a miniatura guardada; a que não está vira o nome, nunca um quadro vazio
+  await page.click('[data-visao="galeria"]');
+  await page.waitForSelector('.col-card[data-name="Sol Ring"] img');
+  await page.waitForFunction(() => { const i = document.querySelector('.col-card[data-name="Sol Ring"] img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 });
+  assert.equal(await page.getAttribute('.col-card[data-name="Sol Ring"] img', 'src'), 'https://cards.scryfall.io/small/front/x/sol.jpg', 'a galeria usa a miniatura, que é a guardada');
+  await page.click('[data-visao="pilhas"]');
+  await page.waitForSelector('.col-pile', { timeout: 8000 });
+  await page.waitForFunction(() => document.querySelectorAll('.col-pile .ds-card__fallback').length > 0 || document.querySelectorAll('.col-pile img').length > 0, null, { timeout: 8000 });
+  await page.waitForTimeout(400);                                   // a imagem que falha vira nome
+  assert.equal(await page.locator('.col-pile .col-pile__card:empty').count(), 0, 'nenhuma carta da pilha fica em branco');
+  await page.click('[data-visao="lista"]');
+  await page.unroute('https://**.scryfall.io/**');
+  await page.route('https://**.scryfall.io/**', r => r.abort('internetdisconnected'));
   // lista editada sem rede: carta nunca vista fica "não conferida", não "não reconhecida"
   await page.goto(base + '#/listas');
   await page.click('text=Delver');
@@ -974,8 +1020,12 @@ test('e2e · C5 aviso de backup e de armazenamento desprotegido', { skip }, asyn
 // Câmera e OCR simulados: o teste controla o texto que o "leitor" devolve.
 const FAKE_DEVICE = deny => `
   window.__ocrQueue = [];
-  window.Tesseract = { createWorker: async () => ({ setParameters: async () => {}, terminate: async () => {},
-    recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) }) };
+  // Q10 · o leitor falso deixa no cache o que o service worker deixaria ao baixar o leitor de verdade
+  window.Tesseract = { createWorker: async () => {
+    try { const c = await caches.open('estante-ocr-v1'); await c.put('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', new Response('')); await c.put('https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz', new Response('')); } catch (e) {}
+    return { setParameters: async () => {}, terminate: async () => {},
+      recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) };
+  } };
   const gum = async () => {
     if (${deny}) { const e = new Error('Permission denied'); e.name = 'NotAllowedError'; throw e; }
     const c = document.createElement('canvas'); c.width = 640; c.height = 480;
@@ -990,8 +1040,12 @@ const FAKE_DEVICE = deny => `
 // retângulo claro com textura, na proporção da carta.
 const FAKE_CARD_CAM = `
   window.__ocrQueue = [];
-  window.Tesseract = { createWorker: async () => ({ setParameters: async () => {}, terminate: async () => {},
-    recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) }) };
+  // Q10 · o leitor falso deixa no cache o que o service worker deixaria ao baixar o leitor de verdade
+  window.Tesseract = { createWorker: async () => {
+    try { const c = await caches.open('estante-ocr-v1'); await c.put('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', new Response('')); await c.put('https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz', new Response('')); } catch (e) {}
+    return { setParameters: async () => {}, terminate: async () => {},
+      recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) };
+  } };
   const gum = async () => {
     const c = document.createElement('canvas'); c.width = 640; c.height = 480;
     const g = c.getContext('2d');

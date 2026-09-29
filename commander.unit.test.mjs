@@ -93,10 +93,10 @@ test('M13 · Arcane Signet: script completo, cor fora da identidade é recusada,
   g = J(g); g.players[a2].identity = [];
   [g, sig2] = poe(g, a2, 'Arcane Signet');
   assert.ok(!E.legalActions(g, a2).some(x => x.t === 'activate' && x.oid === sig2), 'nada a oferecer');
-  let g2 = act(g, { t: 'activate', p: a2, oid: sig2, index: 0 });
-  if (g2.stack.length) g2 = act(act(g2, { t: 'pass', p: a2 }), { t: 'pass', p: 1 - a2 });
-  const total = Object.values(g2.players[a2].pool).reduce((n, x) => n + x, 0);
-  assert.equal(total, 0, 'ruling: não produz {C}');
+  // Q10 · antes o motor aceitava ativar sem cor: a Signet virava e não produzia nada. Agora recusa, e a fonte fica desvirada.
+  assert.throws(() => act(g, { t: 'activate', p: a2, oid: sig2, index: 0 }), /sem identidade de cor/);
+  assert.equal(g.objects[sig2].tapped, false);
+  assert.throws(() => act(s, { t: 'activate', p: a, oid: sig, index: 0 }), /escolha uma cor da identidade/, 'com identidade, sem cor: recusa também');
 });
 
 test('M13 · Pauper com Command Tower: sem comandante, a torre não gera mana', () => {
@@ -191,4 +191,25 @@ test('M13 · bots e goldfish sempre levam o comandante para a zona de comando; a
   const sim = { t: 'commander_zone', p: d, yes: true }, nao = { t: 'commander_zone', p: d, yes: false };
   assert.match(String(T.describe(s, sim, [], act(s, sim))), /levou Killian Teste para a zona de comando/);
   assert.match(String(T.describe(s, nao, [], act(s, nao))), /deixou Killian Teste no cemitério/);
+});
+
+/* ---------------- Q10 · achados da segunda homologação ---------------- */
+test('Q10 · comandante devolvido no meio da resolução: o resto da mágica continua (Vapor Snag tira 1 de vida)', () => {
+  const SC = loadModules().scripts;
+  let s = jogo({ mode: 'assisted' }); const a = s.turn.active, d = 1 - a; let cmd, snag;
+  [s, cmd] = comandanteEmCampo(s, d);
+  s = J(s);
+  s.facts['Vapor Snag'] = E.cardFacts({ name: 'Vapor Snag', type_line: 'Instant', mana_cost: '{U}', cmc: 1, keywords: [], oracle_text: 'x' });
+  s.facts['Vapor Snag'].script = SC.SCRIPTS['Vapor Snag'];
+  [s, snag] = poe(s, a, 'Vapor Snag', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: snag, targets: [{ oid: cmd }] });
+  s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: d });
+  assert.equal(s.pending && s.pending.kind, 'commander_zone', 'o comandante foi devolvido: o dono decide');
+  assert.equal(s.players[d].life, 40, 'a perda de vida ainda não aconteceu (vem depois da decisão)');
+  const sim = act(s, { t: 'commander_zone', p: d, yes: true });
+  assert.equal(sim.objects[cmd].zone, 'command');
+  assert.equal(sim.players[d].life, 39, 'o resto da mágica continuou');
+  assert.equal(sim.resume, null, 'nada pendurado para disparar fora de hora');
+  const nao = act(s, { t: 'commander_zone', p: d, yes: false });
+  assert.equal(nao.objects[cmd].zone, 'hand'); assert.equal(nao.players[d].life, 39); assert.equal(nao.resume, null);
 });

@@ -101,8 +101,9 @@ self.addEventListener('fetch', event => {
       } catch (e) {
         const hit = await cache.match(key);
         if (hit) { const h = new Headers(hit.headers); h.set('X-Estante-Cache', 'hit'); return new Response(await hit.blob(), { status: hit.status, headers: h }); }
+        // Q10 · sem rede e sem cópia: o app trata como falha de rede (sem retentar), não como erro do servidor
         return new Response(JSON.stringify({ object: 'error', details: 'offline e sem cópia local' }),
-          { status: 503, headers: { 'Content-Type': 'application/json' } });
+          { status: 503, headers: { 'Content-Type': 'application/json', 'X-Estante-Offline': '1' } });
       }
     }
 

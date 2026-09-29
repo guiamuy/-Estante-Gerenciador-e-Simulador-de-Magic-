@@ -165,12 +165,13 @@ test('U12 · status conta as imagens pequenas das listas, sem ir à rede para co
   assert.ok(m.st.chamadas > chamadas);
   const depoisDePreparar = m.st.chamadas;
   st = await m.keeper.status();
-  assert.deepEqual(JSON.parse(JSON.stringify(st.imagens)), { total: 2, guardadas: 2 }, 'Island e Delver, cada uma uma vez, mesmo em duas listas');
+  // Q10 · a contagem passou a incluir a grande: 2 cartas × 2 tamanhos
+  assert.deepEqual(JSON.parse(JSON.stringify(st.imagens)), { total: 4, guardadas: 4 }, 'Island e Delver, cada uma uma vez, mesmo em duas listas');
   assert.equal(m.st.chamadas, depoisDePreparar, 'contar não chama a Scryfall');
   // imagem apagada do cache (navegador limpou) aparece como faltando
   m.images.guardadas.delete('https://img/Island/s.jpg');
   st = await m.keeper.status();
-  assert.deepEqual(JSON.parse(JSON.stringify(st.imagens)), { total: 2, guardadas: 1 });
+  assert.deepEqual(JSON.parse(JSON.stringify(st.imagens)), { total: 4, guardadas: 3 });
 });
 
 test('U12 · sem rede nada é baixado; quando a rede volta, manter() baixa o que faltava', async () => {
@@ -184,7 +185,7 @@ test('U12 · sem rede nada é baixado; quando a rede volta, manter() baixa o que
   m.st.rede = true;
   await m.keeper.manter();
   assert.ok(m.images.guardadas.has('https://img/Delver of Secrets/s.jpg') && m.images.guardadas.has('https://img/Delver of Secrets/n.jpg'));
-  assert.deepEqual(JSON.parse(JSON.stringify((await m.keeper.status()).imagens)), { total: 1, guardadas: 1 });
+  assert.deepEqual(JSON.parse(JSON.stringify((await m.keeper.status()).imagens)), { total: 2, guardadas: 2 }); // Q10 · pequena e grande
 });
 
 test('U12 · navegador sem cache de imagens: status diz null em vez de mentir', async () => {
@@ -204,4 +205,82 @@ test('U12 · cache de imagens: uma por vez, com folga só depois de download de 
   assert.deepEqual(pedidos, ['a', 'b']); assert.deepEqual(pausas, [50, 50]);
   await c.warm(['a', 'b']);
   assert.deepEqual(pausas, [50, 50], 'o que já está guardado não espera nem baixa');
+});
+
+/* ---------------- Q10 · auditoria offline ---------------- */
+test('Q10 · fila única de imagens: duas passadas ao mesmo tempo não baixam a mesma URL duas vezes', async () => {
+  const { createImageCache } = loadModules().imagesMod;
+  const cacheMem = new Map(); const pedidos = [];
+  const caches = { open: async () => ({ match: async u => cacheMem.get(u), put: async (u, r) => { cacheMem.set(u, r); } }) };
+  const fetch = async u => { pedidos.push(u); await new Promise(r => setTimeout(r, 5)); return { ok: true, clone() { return this; } }; };
+  const c = createImageCache({ caches, fetch, pausa: 0 });
+  const [a, b] = await Promise.all([c.warm(['x', 'y']), c.warm(['y', 'z'])]);
+  assert.deepEqual(pedidos, ['x', 'y', 'z'], 'em série, sem repetir a que a outra passada já guardou');
+  assert.deepEqual([a, b], [2, 2]);
+});
+
+test('Q10 · manter() roda uma passada por vez, baixa a base de nomes e os dados das listas prontas uma vez por versão', async () => {
+  const m = await mundoU12();
+  let ensures = 0;
+  const names = { info: () => null, load: async () => null, ensure: async () => { ensures++; return { count: 1 }; } };
+  const k = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: D.createCollection({ store: P.memoryStore() }), images: m.images, names, ocr: {}, store: P.memoryStore(), online: () => m.st.rede,
+    prontas: () => ['Island', 'Delver of Secrets', 'Island'] });
+  const antes = m.st.chamadas;
+  const [r1, r2] = await Promise.all([k.manter(), k.manter()]);
+  assert.equal(r1, r2, 'a segunda chamada espera a primeira, não abre outra passada');
+  assert.equal(ensures, 1, 'base de nomes pedida uma vez');
+  assert.equal(r1.prontas, 2, 'as duas cartas únicas das listas prontas foram guardadas');
+  assert.equal(await m.cardRepo.pinned(['Island', 'Delver of Secrets']), 2);
+  const depois = m.st.chamadas;
+  assert.ok(depois > antes);
+  const r3 = await k.manter();
+  assert.equal(r3.prontas, 0, 'na passada seguinte as prontas já estão feitas');
+  assert.equal(m.st.chamadas, depois, 'e nada volta à rede');
+  m.st.rede = false;
+  assert.equal(await k.manter(), null);
+});
+
+test('Q10 · leitor do scanner: a bandeira só vale se os arquivos ainda estão no cache; sumiu, manter() baixa de novo', async () => {
+  const m = await mundoU12();
+  let noCache = true, warms = 0;
+  const ocr = { warm: async () => { warms++; noCache = true; }, guardado: async () => noCache };
+  const store = P.memoryStore(); await store.set('ocr.ready', 1);
+  const k = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: D.createCollection({ store: P.memoryStore() }), images: m.images, names: {}, ocr, store, online: () => true });
+  assert.equal((await k.status()).leitor, true);
+  noCache = false;
+  assert.equal((await k.status()).leitor, false, 'o navegador apagou o cache: o painel não mente');
+  await k.manter();
+  assert.equal(warms, 1, 'reaquecido sozinho porque já tinha sido preparado');
+  assert.equal((await k.status()).leitor, true);
+  // quem nunca preparou não recebe o download pesado sozinho
+  const store2 = P.memoryStore(); let warms2 = 0;
+  const k2 = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: D.createCollection({ store: P.memoryStore() }), images: m.images, names: {}, ocr: { warm: async () => { warms2++; }, guardado: async () => false }, store: store2, online: () => true });
+  await k2.manter();
+  assert.equal(warms2, 0);
+  // navegador sem cache: null não derruba a bandeira
+  const k3 = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: D.createCollection({ store: P.memoryStore() }), images: m.images, names: {}, ocr: { guardado: async () => null }, store, online: () => true });
+  assert.equal((await k3.status()).leitor, true);
+});
+
+test('Q10 · a contagem de imagens do jogo inclui a grande (mão e zoom), não só a pequena', async () => {
+  const m = await mundoU12();
+  await m.decks.save({ name: 'A', entries: [{ name: 'Island', qty: 1, zone: 'main' }] });
+  await m.keeper.manter();
+  assert.deepEqual(JSON.parse(JSON.stringify((await m.keeper.status()).imagens)), { total: 2, guardadas: 2 });
+  m.images.guardadas.delete('https://img/Island/n.jpg');
+  assert.deepEqual(JSON.parse(JSON.stringify((await m.keeper.status()).imagens)), { total: 2, guardadas: 1 }, 'a grande sumiu: o painel diz');
+});
+
+test('Q10 · cache de imagens apagado pelo navegador com o app aberto: o app não escreve num cache fantasma', async () => {
+  const { createImageCache } = loadModules().imagesMod;
+  // simula o Cache Storage: apagar troca o objeto; um handle antigo fica desligado do nome
+  let atual = new Map();
+  const caches = { open: async () => { const mapa = atual; return { match: async u => mapa.get(u), put: async (u, r) => { mapa.set(u, r); } }; }, delete: async () => { atual = new Map(); return true; } };
+  const c = createImageCache({ caches, fetch: async () => ({ ok: true, clone() { return this; } }), pausa: 0 });
+  await c.warm(['a']);
+  assert.equal(await c.has('a'), true);
+  await caches.delete();
+  assert.equal(await c.has('a'), false, 'apagado: o app vê que sumiu');
+  await c.warm(['a']);
+  assert.equal(atual.has('a'), true, 'guardado de novo no cache de verdade');
 });

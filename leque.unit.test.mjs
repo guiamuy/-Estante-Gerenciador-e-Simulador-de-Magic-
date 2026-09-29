@@ -37,6 +37,13 @@ test('U5 · estado diferente separa: virada, enjoo, marcador, dano, efeito do tu
   assert.equal(T.agrupaLeque(s2, ['a', 'b']).length, 1);
 });
 
+test('Q10 · vínculo de alma, proteção até o fim do turno e "uma vez por turno" também separam', () => {
+  const s = mesa([{ oid: 'a', name: 'Sky Pike' }, { oid: 'b', name: 'Sky Pike', paired: 'x' }, { oid: 'c', name: 'Sky Pike', tempProtection: ['R'] },
+    { oid: 'd', name: 'Sky Pike', usedThisTurn: true }, { oid: 'e', name: 'Sky Pike' }]);
+  const p = T.agrupaLeque(s, ['a', 'b', 'c', 'd', 'e']);
+  assert.equal(p.length, 4); assert.deepEqual(J(p[0].oids), ['a', 'e']);
+});
+
 test('U5 · enjoo só importa para criatura; terreno recém-jogado junta com os outros', () => {
   const s = mesa([{ oid: 'a', name: 'Island' }, { oid: 'b', name: 'Island', sick: true }, { oid: 'c', name: 'Island' }]);
   assert.deepEqual(resumo(T.agrupaLeque(s, ['a', 'b', 'c'])), [['Island', 3, 0]]);
@@ -62,5 +69,5 @@ test('U5 · tudo virado: o toque vai para a primeira; mesa sem fatos não quebra
   assert.equal(p.primeiraDesvirada, null); assert.equal(p.primeira, 'a'); assert.equal(p.viradas, 2);
   const semFatos = { objects: { a: { oid: 'a', name: 'X', counters: {} } }, zones: [] };
   assert.equal(T.agrupaLeque(semFatos, ['a', 'fantasma']).length, 1, 'oid inexistente é ignorado');
-  assert.equal(T.agrupaTerrenos, T.agrupaTerrenos, 'nome antigo continua disponível');
+  assert.deepEqual(J(T.agrupaTerrenos(s, ['a', 'b'])), J(T.agrupaLeque(s, ['a', 'b'])), 'nome antigo dá o mesmo resultado');
 });
