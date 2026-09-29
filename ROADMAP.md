@@ -45,7 +45,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X3 edição pela linha de coleção · X5 destino do lote · X6 scanner offline | ✅ |
 | L · Listas | L11 companheiro | ✅ |
 | Q · Qualidade | Q9 homologação das levas 66–80 (H1–H15) | ✅ |
-| U · Patamar de produto | U1 tema em dois estados | ✅ |
+| U · Patamar de produto | U1 tema em dois estados · U5 cartas iguais em leque | ✅ |
 | M · Motor | M6 combate · M7 mana · M14 companheiro na partida | ✅ |
 | A · Mesa | A6 combate na mesa | ✅ |
 | A · Mesa | A12 listas prontas e escolha do modo de jogo | ✅ |
@@ -311,7 +311,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | Ordem | História | Épico | Rodadas | Observação |
 |---|---|---|---|---|
 | 1º ✅ | U1 tema em dois estados (leva 82) | E43 | 1 | — |
-| 2º | U5 cartas iguais em leque na mesa | E44 | 1 | — |
+| 2º ✅ | U5 cartas iguais em leque na mesa (leva 83) | E44 | 1 | — |
 | 3º | U6 bandeja da mão recolhível | E44 | 1 | — |
 | 4º | U7 de quem é o turno, visível de longe | E44 | 1 | — |
 | 5º | U12 imagens do jogo baixadas sozinhas | E45 | 1 | estende o guardião offline (O1) |
@@ -429,7 +429,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 | E43 🟡 | U1 (leva 82) · U3 · U2 · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
-| E44 | U5 · U6 · U7 · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
+| E44 🟡 | U5 (leva 83) · U6 · U7 · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 | U12 | Imagens do jogo baixadas sozinhas quando há internet |
 | E46 | U10 · U11 | Shark: um bot só, com nome, e mais forte |
 | E47 | U13 | Conta e perfil: nome, avatar e backup com Google (decisão pendente) |
@@ -2905,6 +2905,7 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Aceite:** ícone ☾/☀ com rótulo acessível; a escolha sobrevive à recarga; quem já tinha "automático" guardado passa para o tema que o sistema dava naquele momento; sem rede funciona igual (é só preferência local).
 - **Sem rede:** tudo local.
 - **Testes:** U (`theme.unit.test.mjs`: alternância, migração do "auto", persistência, primeira abertura pelo sistema); e2e (toque alterna e persiste após recarga; auditoria de tela roda nos dois temas); contrato visual mantido.
+- **Correção (leva 83):** o botão nascia sempre com ☾, mesmo no tema claro, até o primeiro toque. Agora nasce com o ícone do tema aplicado; o e2e confere antes e depois de recarregar.
 - **Fora:** tema "automático" como opção. Quem quiser seguir o sistema toca uma vez.
 
 **U2 · Ícones flat, botões com profundidade e toque animado, CTAs enxutos** ○
@@ -2927,12 +2928,18 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** e2e no `O1 tudo sem internet` (o chip e o painel novos aparecem); contrato visual.
 - **Depende de:** U2.
 
-**U5 · Cartas iguais em leque na mesa** ○
+**U5 · Cartas iguais em leque na mesa** ✅ (leva 83)
+- **Entregue:** no campo, cópias iguais (terrenos, criaturas, fichas, artefatos) viram um leque: a carta da frente é o botão e até três aparecem atrás, deslocadas 14px, com "×N" na frente. Quatro Ilhas ocupam menos que duas cartas. Os dois lados da mesa usam o leque.
 - **Valor:** cinco Ilhas ocupam o espaço de uma e meia; a mesa cabe na tela.
-- **Aceite:** no campo, permanentes com o mesmo nome e o mesmo estado (virada/desvirada, sem marcador, dano ou anexo) empilham em leque com deslocamento fixo, contador visível e cada carta ainda tocável (a de cima abre o menu; toque longo espia); terrenos já agrupados (A15) passam a usar o mesmo leque; criaturas também; alvo de toque ≥ 44px na parte visível de cada carta.
-- **Testes:** U (`agrupaLeque` puro: agrupa por nome e estado, ordem estável); e2e (5 Ilhas viram um leque com "×5"; tocar na de cima abre o menu; largura da mesa não passa da tela).
-- **Depende de:** A15.
-- **Fora:** arrastar cartas do leque.
+- **Aceite (como ficou):**
+  - só junta o que é intercambiável: mesmo nome, mesmo controlador, mesmo estado (virada; enjoo, só para criatura), sem marcador, dano, anexo, efeito até o fim do turno ou papel no combate;
+  - o toque é do leque inteiro e age na primeira desvirada (ou na primeira, se todas viradas); segurar espia; alvo de toque ≥ 44px;
+  - no combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque;
+  - leque virado gira junto; `prefers-reduced-motion` respeitado (sem animação nova).
+- **Divergência do aceite original:** o texto dizia "cada carta ainda tocável". Como as cartas do leque são iguais por construção, tocar em qualquer uma faria a mesma coisa; o leque inteiro virou um alvo só, maior e mais fácil de acertar.
+- **Sem rede:** só apresentação; passo no `e2e · O1` (duas Planícies viram um leque sem internet).
+- **Testes:** U (`leque.unit.test.mjs`, 6: o que junta, o que separa, ordem, `separa`, robustez); e2e `U5` (leque de 4 com 3 camadas, deslocamento medido, largura menor que 2 cartas, toque abre a folha, sem rolagem horizontal, combate abre o leque em 3 atacantes); passo no `O1`.
+- **Fora:** abrir o leque com gesto; arrastar cartas.
 
 **U6 · Bandeja da mão recolhível** ○
 - **Valor:** ver a mesa inteira quando a mão não importa.

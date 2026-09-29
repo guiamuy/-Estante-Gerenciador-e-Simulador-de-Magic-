@@ -535,6 +535,15 @@ body {
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
 .tb-card[data-tapped="true"] { margin: 0 calc(84px * .2); }
+/* U5 · leque de cópias iguais: a carta da frente é o botão; as de trás mostram só a borda */
+.tb-leque { --passo: 14px; position: relative; flex: none; display: inline-block; padding-right: calc(var(--atras) * var(--passo)); scroll-snap-align: start; }
+.tb-leque > .tb-card { z-index: 5; }
+.tb-leque__camada { position: absolute; top: 0; left: calc(var(--i) * var(--passo)); width: 84px; aspect-ratio: 488 / 680; overflow: hidden; pointer-events: none;
+  border-radius: var(--radius-card); background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--shadow-1); filter: brightness(.82); }
+.tb-leque__camada img { width: 100%; height: 100%; object-fit: cover; -webkit-touch-callout: none; }
+.tb-leque[data-tapped="true"] { margin: 0 calc(84px * .2); }
+.tb-leque[data-tapped="true"] > .tb-card { margin: 0; }
+.tb-leque[data-tapped="true"] .tb-leque__camada { transform: rotate(90deg) scale(.78); }
 .tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
 .tb-card[data-selected="true"] .tb-card__face { outline: 3px solid var(--accent); transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card__pills { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; align-items: center; }
@@ -1032,7 +1041,7 @@ function h(tag, props = {}, ...children) {
   for (const [k, v] of Object.entries(props || {})) {
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k === 'style' && typeof v === 'object') for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith('--')) el.style.setProperty(sk, sv); else el.style[sk] = sv; } // U5 · variáveis CSS também
     else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k === 'dataset') Object.assign(el.dataset, v);
     else if (k === 'html') el.innerHTML = v;
@@ -9040,8 +9049,14 @@ function TableCard(card, opts = {}) {
   sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
   // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
   if (opts.onPeek) __m20.onLongPress(el, { start: () => opts.onPeek(true), end: () => opts.onPeek(false) });
-  return el;
+  // U5 · cópias iguais em leque: até 3 cartas atrás aparecem deslocadas; o toque é da carta da frente
+  const atras = opts.pilha ? Math.min(LEQUE_MAX, opts.pilha.total - 1) : 0;
+  if (atras <= 0) return el;
+  const camadas = Array.from({ length: atras }, (_, i) => h('span', { class: 'tb-leque__camada', 'aria-hidden': 'true', style: { '--i': String(i + 1), zIndex: String(atras - i) } },
+    card.image ? h('img', { src: card.image, alt: '', loading: 'lazy' }) : null));
+  return h('span', { class: 'tb-leque', dataset: { leque: String(opts.pilha.total), tapped: String(tapped) }, style: { '--atras': String(atras) } }, el, ...camadas);
 }
+const LEQUE_MAX = 3;
 
 /** Faixa rolável de cartas com rótulo. Vazia, ocupa pouco e diz o que é. */
 function ZoneRow(label, cards, opts = {}) {
@@ -9488,16 +9503,23 @@ function estadoDaCarta(s, o, plano = null) {
   const enjoo = !!o.sick && criatura && !impeto;
   return { pt, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
 }
-/** Terrenos iguais viram uma pilha: nome, quantas, quantas viradas, e a primeira desvirada para tocar. */
-function agrupaTerrenos(s, oids) {
-  // H9 · só empilha o que é igual de verdade: mesmo nome, mesmo estado (virada ou não), sem marcador,
-  // dano ou anexo. Assim cada pilha é intercambiável e tocar nela nunca esconde a carta que importa.
+/** U5 · o que faz uma permanente diferente das irmãs de mesmo nome (e por isso fica fora do leque). */
+const MODIFICADORES = ['pump', 'pumpNext', 'tempKeywords', 'keywordsNext', 'goaded', 'attacking', 'blocking', 'blockedBy', 'cantAttackNext',
+  'chosenColor', 'bestowed', 'faceDown', 'pairedWith', 'mayPay', 'xPaid'];
+const temValor = v => Array.isArray(v) ? v.length > 0 : (v && typeof v === 'object') ? Object.keys(v).length > 0 : !!v;
+/** U5 · permanentes iguais viram um leque: nome, quantas, quantas viradas, e a primeira desvirada para tocar.
+    Só empilha o que é intercambiável de verdade (H9): mesmo nome, mesmo estado (virada, enjoo), sem marcador,
+    dano, anexo, efeito até o fim do turno ou papel no combate. `separa(oid)` deixa a tela tirar do leque
+    o que precisa de toque próprio (atacante elegível, bloqueador escolhido). A ordem é a de chegada. */
+function agrupaLeque(s, oids, { separa } = {}) {
   const anexados = new Set(((s.zones || []).flatMap(z => z.battlefield || [])).map(x => s.objects[x] && s.objects[x].attachedTo).filter(Boolean));
   const pilhas = new Map();
   for (const oid of oids) {
     const o = s.objects[oid]; if (!o) continue;
-    const unico = anexados.has(oid) || Object.values(o.counters || {}).some(Boolean) || o.damage || o.attachedTo;
-    const chave = unico ? `${o.name}|${oid}` : `${o.name}|${o.tapped ? 1 : 0}`;
+    const criatura = (((s.facts || {})[o.name] || {}).types || []).includes('creature');
+    const unico = anexados.has(oid) || Object.values(o.counters || {}).some(Boolean) || o.damage || o.attachedTo ||
+      MODIFICADORES.some(k => temValor(o[k])) || (separa && separa(oid));
+    const chave = unico ? `${o.name}|${oid}` : `${o.name}|${o.tapped ? 1 : 0}|${criatura && o.sick ? 1 : 0}|${o.controller}`;
     const cur = pilhas.get(chave) || { name: o.name, oids: [], total: 0, viradas: 0, primeira: null, primeiraDesvirada: null };
     cur.oids.push(oid); cur.total++; if (o.tapped) cur.viradas++; else if (cur.primeiraDesvirada == null) cur.primeiraDesvirada = oid;
     if (cur.primeira == null) cur.primeira = oid;
@@ -9505,6 +9527,8 @@ function agrupaTerrenos(s, oids) {
   }
   return [...pilhas.values()];
 }
+/** A15 · terrenos iguais numa pilha (hoje é o mesmo leque das outras permanentes). */
+const agrupaTerrenos = (s, oids, opts) => agrupaLeque(s, oids, opts);
 
 /* ---- A14 · a pilha explicada, em português de jogador ---- */
 const ALVO_PT = { any: 'qualquer alvo', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
@@ -9654,7 +9678,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -10165,10 +10189,12 @@ function createTableScreen({ store }) {
   const entrou = oid => !vistos.has(oid);
   const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) },
     { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid), ...comPeek(oid) }));
-  /** Terrenos iguais numa pilha só: tocar age na primeira desvirada (ou na primeira, se todas viradas). */
-  const landPiles = (s, ids, onClick) => T.agrupaTerrenos(s, ids).map(pilha => {
+  /** U5 · iguais em leque: tocar age na primeira desvirada (ou na primeira, se todas viradas).
+      No combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque. */
+  const separaNoCombate = oid => plan.eligible.has(oid) || plan.attack.has(oid) || plan.blocks.has(oid) || [...plan.blocks.values()].includes(oid);
+  const landPiles = (s, ids, onClick) => T.agrupaLeque(s, ids, { separa: separaNoCombate }).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
-    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, eligible: plan.eligible.has(alvo), ...comPeek(alvo) });
+    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo), ...comPeek(alvo) });
   });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
 
@@ -10195,7 +10221,7 @@ function createTableScreen({ store }) {
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
       sub: subMasm, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
-    const field = [ZoneRow('Permanentes', cardsOf(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.length })];
+    const field = [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.length })];
     return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), 'aria-label': mine ? 'seu lado' : 'lado do oponente' },
       h('div', { class: 'tb-side__head' }, life, chips),
       ...(mine ? field : field.reverse()));
@@ -11636,7 +11662,14 @@ function appBar() {
       Button('Coleção', { variant: 'ghost', id: 'nav-collection', onClick: () => { location.hash = '#/colecao'; } }),
       installButton(),
       offlineChip(),
-      Button('☾', { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: 'Tema', dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() })));
+      temaBotao()));
+}
+/** U1 · o botão nasce com o ícone do tema já aplicado (antes nascia sempre ☾, mesmo no claro). */
+function temaBotao() {
+  const t = __m1.THEMES.find(x => x.id === theme.current) || __m1.THEMES[0];
+  const b = Button(t.icon, { icon: true, variant: 'ghost', id: 'theme-toggle', ariaLabel: t.label, dataset: { themeToggle: 'true' }, onClick: () => theme.cycle() });
+  b.title = t.label; b.setAttribute('aria-pressed', theme.current === 'light' ? 'true' : 'false');
+  return b;
 }
 
 /* O2 · chip discreto quando a internet cai; leva ao painel da tela inicial */

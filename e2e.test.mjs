@@ -382,6 +382,8 @@ test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à r
   const tema = () => page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   const inicial = await tema();
   assert.ok(['dark', 'light'].includes(inicial), 'nunca fica sem tema definido');
+  // o ícone nasce certo, antes de qualquer toque (antes nascia ☾ mesmo no tema claro)
+  assert.equal(await page.innerText('#theme-toggle'), inicial === 'light' ? '☀' : '☾');
   await page.click('#theme-toggle');
   await page.waitForFunction(t0 => document.documentElement.getAttribute('data-theme') !== t0, inicial);
   const depois = await tema();
@@ -389,6 +391,7 @@ test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à r
   assert.match(await page.getAttribute('#theme-toggle', 'aria-label'), depois === 'light' ? /claro · toque para o escuro/ : /escuro · toque para o claro/);
   await page.reload(); await page.waitForSelector('#theme-toggle');
   assert.equal(await tema(), depois, 'a escolha ficou guardada');
+  assert.equal(await page.innerText('#theme-toggle'), depois === 'light' ? '☀' : '☾', 'ícone certo depois de recarregar');
   await page.click('#theme-toggle');
   await page.waitForFunction(t0 => document.documentElement.getAttribute('data-theme') === t0, inicial);
   // versão antiga guardou "auto": abre no tema do sistema, sem estado morto
@@ -472,6 +475,12 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   assert.match(await page.innerText('#tb-cmd-stay'), /Deixar no exílio/);
   await page.click('#tb-cmd-home');
   await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].zone === 'command', cmdOid);
+  // U5 · o leque também sem rede: duas Planícies no campo viram uma pilha só
+  await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    Object.values(s.objects).filter(o => o.owner === p && o.name === 'Plains' && o.zone === 'hand').slice(0, 2).forEach(o => M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }));
+  });
+  await page.waitForSelector('[data-zone="lands"] .tb-leque[data-leque="2"]');
 
   // coleção: exportar e importar por lista continuam funcionando (conferência pela base de nomes)
   await page.goto(base + '#/colecao');
@@ -1348,6 +1357,55 @@ test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita a
   await page.keyboard.press('Escape');
   await page.click('#tb-life-opp');
   assert.match(await page.innerText('.ds-toast, .ds-dialog').catch(() => ''), /motor completo|de vida/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · U5 cópias iguais em leque: terrenos e criaturas, toque na da frente, cabe na tela, combate separa quem ataca', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Peixes', '30 Island\n20 Sky Pike', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  // 4 Ilhas e 3 Sky Pike direto no campo (ajuste da mesa assistida), sem depender da sorte da compra
+  await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const meus = n => Object.values(s.objects).filter(o => o.owner === p && o.name === n && o.zone !== 'battlefield').map(o => o.oid);
+    meus('Island').slice(0, 4).forEach(oid => M.act({ t: 'move', p, oid, to: 'battlefield' }));
+    meus('Sky Pike').slice(0, 3).forEach(oid => M.act({ t: 'move', p, oid, to: 'battlefield' }));
+  });
+  const terras = page.locator('.tb-side--me [data-zone="lands"] .tb-leque');
+  await terras.first().waitFor();
+  assert.equal(await terras.count(), 1, 'as quatro Ilhas são um leque só');
+  assert.equal(await terras.getAttribute('data-leque'), '4');
+  if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/leque.png' }); }
+  assert.equal(await terras.locator('.tb-leque__camada').count(), 3, 'três cartas aparecem atrás');
+  assert.match(await page.innerText('.tb-side--me [data-zone="lands"] .tb-zone__label'), /Terrenos · 4/);
+  const bTerra = await terras.boundingBox(), bFrente = await terras.locator('.tb-card').boundingBox();
+  assert.ok(bTerra.width < bFrente.width * 2, `o leque de 4 ocupa menos que 2 cartas (${bTerra.width} × ${bFrente.width})`);
+  const desloc = await terras.locator('.tb-leque__camada').nth(2).evaluate(el => el.getBoundingClientRect().left - el.parentElement.getBoundingClientRect().left);
+  assert.ok(Math.abs(desloc - 42) <= 1, `a terceira de trás está 3 passos à direita (${desloc})`);
+  assert.ok(bFrente.height >= 44 && bFrente.width >= 44, 'alvo de toque');
+  const peixes = page.locator('.tb-side--me [data-zone="permanents"] .tb-leque');
+  assert.equal(await peixes.count(), 1, 'as três Sky Pike com enjoo são um leque');
+  assert.match(await peixes.locator('.tb-card').getAttribute('aria-label'), /Sky Pike, 3 cópias, com enjoo/);
+  // o toque é da carta da frente: abre a folha dela
+  await terras.locator('.tb-card').click();
+  await page.waitForSelector('.ds-dialog');
+  assert.match(await page.innerText('.ds-dialog'), /Island/);
+  await page.keyboard.press('Escape');
+  const larguraDaPagina = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  assert.ok(larguraDaPagina, 'sem rolagem horizontal');
+  // próximo turno, combate: cada atacante possível ganha o seu próprio toque
+  if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
+  await page.click('#tb-pass-turn');
+  for (let i = 0; i < 10 && !(await page.locator('#tb-attack').count()); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
+  await page.waitForSelector('#tb-attack');
+  assert.equal(await page.locator('.tb-side--me [data-zone="permanents"] .tb-card[data-eligible="true"]').count(), 3, 'no combate o leque abre em três');
+  await page.locator('.tb-side--me .tb-card[data-eligible="true"]').first().click();
+  assert.equal(await page.locator('.tb-side--me .tb-card[data-estado="ataca"]').count(), 1, 'só a escolhida ataca');
   assert.deepEqual(errors, []);
 });
 
