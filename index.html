@@ -1029,6 +1029,14 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-hint:empty { display: none; }
 .scan-stage.is-pulse .scan-frame { animation: scan-ok var(--dur-3) var(--ease-out); }
 @keyframes scan-ok { 50% { border-color: var(--positive); transform: translate(-50%, -50%) scale(1.02); } }
+/* Leva 109 · o "leu" pisca no próprio palco (a moldura costuma estar escondida) */
+.scan-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 0 var(--positive); opacity: 0; }
+.scan-stage.is-pulse::after { animation: scan-ok-palco var(--dur-3) var(--ease-out); }
+@keyframes scan-ok-palco { 30% { opacity: 1; box-shadow: inset 0 0 0 6px var(--positive); } 100% { opacity: 0; box-shadow: inset 0 0 0 0 var(--positive); } }
+.scan-diag { display: flex; flex-direction: column; gap: var(--space-2); }
+.scan-diag:empty { display: none; }
+.scan-diag__lista { display: flex; flex-direction: column; gap: var(--space-1); }
+.scan-diag__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) 0; border-bottom: 1px solid var(--line); }
 .scan-result { min-height: calc(var(--tap-min) * 1.5); display: flex; flex-direction: column; gap: var(--space-2); }
 .scan-status { display: flex; flex-direction: column; gap: var(--space-2); }
 .scan-status:empty { display: none; }
@@ -1041,7 +1049,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-dock { display: flex; flex-direction: column; gap: var(--space-2); }
 .scan-dock__row { display: flex; gap: var(--space-2); }
 .scan-dock__row .ds-btn { flex: 1; }
-@media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame { animation: none; } }
+.scan-dock__chips { flex-wrap: wrap; }
+.scan-dock__chips .ds-chip { flex: 0 1 auto; }
+@media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame, .scan-stage.is-pulse::after { animation: none; } }
 
 /* ===================== A6 · combate e mana na mesa ===================== */
 .tb-pill--tag { background: var(--bg-elev-3); color: var(--fg); border: 1px solid var(--accent); }
@@ -12225,6 +12235,47 @@ function matchName(index, text, { limit = 3 } = {}) {
     .sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
 }
 
+/** Leva 109 · texto esparso do quadro inteiro (várias linhas): casa cada linha e devolve os melhores
+ * nomes entre todas. É o caminho quando o detector não acha a carta (carta na mão, com sleeve, mesa escura). */
+function matchLines(index, text, { limit = 3 } = {}) {
+  const best = new Map();
+  for (const linha of String(text || '').split(/\r?\n/)) {
+    if (!/[a-z]{3}/i.test(linha)) continue;
+    for (const m of matchName(index, linha, { limit })) if (!best.has(m.name) || best.get(m.name) < m.score) best.set(m.name, m.score);
+  }
+  return [...best.entries()].map(([name, score]) => ({ name, score })).sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
+}
+/** Leva 109 · aceite por votos, sem exigir carta parada: leitura exata (≥ EXATA) entra na hora; leitura
+ * aproximada (≥ ACCEPT) precisa de duas seguidas com o mesmo nome; quadro sem nome zera a contagem.
+ * Devolve o nome aceito ou null. Não soma de novo por conta própria: isso é do lote (observe). */
+const EXATA = 0.97;
+function criaVotacao({ precisa = 2, exata = EXATA, aceite = ACCEPT } = {}) {
+  let nome = null, contagem = 0;
+  return {
+    voto(found) {
+      const best = found && found[0];
+      if (!best || best.score < aceite) { nome = null; contagem = 0; return null; }
+      if (best.name === nome) contagem++; else { nome = best.name; contagem = 1; }
+      if (best.score >= exata || contagem >= precisa) { contagem = 0; return best.name; }
+      return null;
+    },
+    zera() { nome = null; contagem = 0; }
+  };
+}
+/** Leva 109 · diário das últimas leituras, para a pessoa copiar e mandar o que o aparelho leu. */
+function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
+  let itens = [];
+  return {
+    anota(x) { itens = [{ t: agora(), ...x }, ...itens].slice(0, maximo); },
+    lista() { return itens.slice(); },
+    texto(info = {}) {
+      const cab = Object.entries(info).map(([k, v]) => `${k}: ${v}`).join('\n');
+      const linhas = itens.map(x => `${x.via} · ${x.ms} ms · "${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 60)}" → ${x.melhor ? `${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '—'} · ${x.decisao}`);
+      return [cab, ...linhas].filter(Boolean).join('\n');
+    }
+  };
+}
+
 /* ---------------- C6 · catálogo de nomes ---------------- */
 function createNameIndex({ store, scryfall, now = () => Date.now() }) {
   let index = null, meta = null;
@@ -12251,7 +12302,9 @@ function createNameIndex({ store, scryfall, now = () => Date.now() }) {
       return meta;
     },
     info() { return meta; },
-    match(text, opts) { return index ? matchName(index, text, opts) : []; }
+    match(text, opts) { return index ? matchName(index, text, opts) : []; },
+    /** Leva 109 · texto de várias linhas (quadro inteiro): a melhor linha manda. */
+    matchLines(text, opts) { return index ? matchLines(index, text, opts) : []; }
   };
   return api;
 }
@@ -12288,6 +12341,21 @@ function createLot({ store }) {
       if (cur) Object.assign(cur, extra, { qty: cur.qty + qty });
       else items.push({ key, name, qty, ...extra, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) });
       history.push(key); await persist(); return key;
+    },
+    /** Leva 109 · edição e miniatura chegam depois do aceite, em segundo plano: atualiza o item sem mexer
+     * em quantidade, confiança nem marca de conferência; com edição, a chave muda (e funde com igual). */
+    async enrich(key, { printing = null, img = '' } = {}) {
+      await load(); const cur = find(key); if (!cur) return null;
+      if (img) cur.img = img;
+      if (!(printing && printing.set)) { await persist(); return key; }
+      const nova = lotKey(cur.name, printing);
+      const ed = { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified };
+      if (nova === key) { Object.assign(cur, ed); await persist(); return key; }
+      const dup = find(nova);
+      if (dup) { dup.qty += cur.qty; if (cur.img && !dup.img) dup.img = cur.img; items.splice(items.indexOf(cur), 1); }
+      else { Object.assign(cur, ed, { key: nova }); }
+      history = history.map(k => k === key ? nova : k); await persist();
+      return nova;
     },
     /** X9 · "é essa mesmo": a leitura deixa de pedir conferência. */
     async confirmar(key) {
@@ -12681,12 +12749,14 @@ function escalaOcr(alturaCartaPx) { return alturaCartaPx > 0 ? Math.max(1, Math.
 // linha do nome: só letras, uma linha; linha de coleção: números, edição e idioma, bloco curto
 const OCR_MODES = {
   name: { tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
+  // Leva 109 · plano B: texto esparso no quadro inteiro, quando o detector não acha a carta
+  frame: { tessedit_pageseg_mode: '11', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
   collector: { tessedit_pageseg_mode: '6', tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•*. ' }
 };
 /** Recorte de uma faixa da carta (frações) em coordenadas do quadro. */
 function faixaDaCarta(carta, B) { return { x: carta.x + carta.w * B.x, y: carta.y + carta.h * B.y, w: carta.w * B.w, h: carta.h * B.h }; }
 
-return { cleanOcr, matchName, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaDiario, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr };
 })();
 
@@ -12700,11 +12770,13 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr, ESCALAS_DETECTOR } = __m21;
+const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr, ESCALAS_DETECTOR, criaVotacao, criaDiario, realcaTexto } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-const AUTO_MS = 1400;     // ritmo antigo, mantido como rede de segurança
-const OLHO_MS = 180;      // X7 · cada olhada no quadro para achar a carta sozinho
+// Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros e o teto do plano B
+const RESPIRO_MS = 120;        // entre uma leitura e a próxima, para a tela respirar
+const PLANO_B_MS = 900;        // sem carta achada, lê o quadro inteiro no máximo a cada tanto
+const PLANO_B_LARGURA = 960;   // largura do quadro inteiro que vai para o OCR (px)
 const go = to => { location.hash = '#' + to; };
 
 /** OCR de uma linha. Motor carregado sob demanda e reaproveitado. */
@@ -12729,14 +12801,16 @@ function createOcr(win = window, doc = document) {
     const ctx = c.getContext('2d'); ctx.drawImage(canvas, 0, 0, c.width, c.height);
     try {
       const img = ctx.getImageData(0, 0, c.width, c.height);
-      const t = trataFaixa(img.data, c.width, c.height, modo);
+      const t = modo === 'frame' ? { data: realcaTexto(img.data), w: c.width, h: c.height } : trataFaixa(img.data, c.width, c.height, modo);
       if (t.h !== c.height) { c.height = t.h; }
       const out = ctx.createImageData(t.w, t.h); out.data.set(t.data); ctx.putImageData(out, 0, 0);
     } catch (e) { /* canvas protegido: segue sem tratamento */ }
     return c;
   }
   const MODES = OCR_MODES;
-  let mode = null;
+  let mode = null, fila = Promise.resolve();
+  // Leva 109 · uma leitura por vez: o laço automático e a leitura da edição dividem o mesmo motor
+  const serial = fn => { const p = fila.then(fn, fn); fila = p.catch(() => {}); return p; };
   return {
     warm: () => engine(),
     /** Q10 · os arquivos do leitor ainda estão no aparelho? null quando o navegador não tem cache. */
@@ -12749,10 +12823,12 @@ function createOcr(win = window, doc = document) {
         return chaves.some(r => /traineddata/.test(r.url));
       } catch (e) { return null; }
     },
-    async read(canvas, want = 'name', escala = 1) {
-      const w = await engine();
-      if (mode !== want) { await w.setParameters(MODES[want]); mode = want; }
-      const r = await w.recognize(prepare(canvas, escala, want)); return (r && r.data && r.data.text) || '';
+    read(canvas, want = 'name', escala = 1) {
+      return serial(async () => {
+        const w = await engine();
+        if (mode !== want) { await w.setParameters(MODES[want]); mode = want; }
+        const r = await w.recognize(prepare(canvas, escala, want)); return (r && r.data && r.data.text) || '';
+      });
     },
     async stop() { if (worker) { try { await worker.terminate(); } catch (e) { /* ignora */ } worker = null; loading = null; mode = null; } }
   };
@@ -12762,7 +12838,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   const lot = createLot({ store });
   const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, timer: null, alive: true, edition: true, ocrReady: false,
     // X7 · captura automática: a moldura vira ajuda opcional
-    moldura: false, carta: null, dica: '', olho: null };
+    moldura: false, carta: null, dica: '', olho: null, diag: false };
   const detector = criaDetector();
   const online = () => !env || env.online !== false;
   const printsCache = new Map();
@@ -12778,6 +12854,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   // X8 · pilha de leitura: cresce enquanto você escaneia, sem sair da câmera
   const pilha = h('div', { class: 'scan-pile', id: 'scan-pile' });
   const result = h('div', { class: 'scan-result', id: 'scan-result', 'aria-live': 'polite' });
+  // Leva 109 · diagnóstico: o que o aparelho leu, para copiar e mandar
+  const diagBox = h('div', { class: 'scan-diag', id: 'scan-diag' });
   const dock = h('div', { class: 'scan-dock' });
   const manualIn = Input({ id: 'scan-manual', placeholder: 'Ou digite o nome da carta' });
 
@@ -12805,7 +12883,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     catch (e) { state.camera = /denied|notallowed|permission/i.test(String(e && (e.name || e.message))) ? 'denied' : 'unavailable'; }
     paintStatus(); paintDock();
     // X2: motor de OCR em paralelo
-    if (state.camera === 'on') { state.engine = 'loading'; paintStatus(); ocr.warm().then(() => { state.engine = 'ready'; state.ocrReady = true; store.set('ocr.ready', Date.now()); paintStatus(); paintDock(); }).catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); }); }
+    if (state.camera === 'on') { state.engine = 'loading'; paintStatus(); ocr.warm().then(() => { state.engine = 'ready'; state.ocrReady = true; store.set('ocr.ready', Date.now()); paintStatus(); paintDock(); ligaSePronto(); }).catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); }); }
   }
 
   /* ---- leitura ---- */
@@ -12813,8 +12891,11 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     // X7 · com a carta encontrada, a faixa sai dela: sem moldura, em qualquer posição
     const c = state.carta;
     if (c) return faixaDaCarta(c, B);
-    const vr = stage.getBoundingClientRect(), fr = frame.getBoundingClientRect();
-    const band = { x: fr.left - vr.left + fr.width * B.x, y: fr.top - vr.top + fr.height * B.y, w: fr.width * B.w, h: fr.height * B.h };
+    // Leva 109 · sem carta achada, a referência é a moldura guia — mesmo escondida, a geometria dela vale
+    // (antes, escondida, a região saía com largura zero e o leitor recebia o nada)
+    const vr = stage.getBoundingClientRect();
+    const fh = vr.height * 0.86, fw = fh * 63 / 88, fx = (vr.width - fw) / 2, fy = (vr.height - fh) / 2;
+    const band = { x: fx + fw * B.x, y: fy + fh * B.y, w: fw * B.w, h: fh * B.h };
     return coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, band);
   }
   /** X10 · altura da carta no quadro (px do vídeo): decide a ampliação que o OCR recebe. */
@@ -12823,13 +12904,19 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (c) return c.h * (video.videoHeight || stage.getBoundingClientRect().height);
     return bandRegion({ x: 0, y: 0, w: 1, h: 1 }).h;
   }
-  /** X7 · quadro inteiro reduzido em tons de cinza, para achar a carta. */
-  function quadroCinza(alvo = 80) {
-    const c = camera.capture();
-    const w = alvo, hh = Math.max(8, Math.round(alvo * (c.height / Math.max(1, c.width))));
+  /** Leva 109 · recorte de uma região (0..1) de um quadro já capturado, sem voltar à câmera. */
+  function recorte(quadro, r) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(quadro.width * r.w)); c.height = Math.max(1, Math.round(quadro.height * r.h));
+    c.getContext('2d').drawImage(quadro, Math.round(quadro.width * r.x), Math.round(quadro.height * r.y), c.width, c.height, 0, 0, c.width, c.height);
+    return c;
+  }
+  /** X7 · quadro reduzido em tons de cinza, para achar a carta. Leva 109: a partir de um quadro já capturado. */
+  function quadroCinza(quadro, alvo = 80) {
+    const w = alvo, hh = Math.max(8, Math.round(alvo * (quadro.height / Math.max(1, quadro.width))));
     const small = document.createElement('canvas'); small.width = w; small.height = hh;
     const ctx = small.getContext('2d');
-    ctx.drawImage(c, 0, 0, w, hh);
+    ctx.drawImage(quadro, 0, 0, w, hh);
     const d = ctx.getImageData(0, 0, w, hh).data;
     const g = new Uint8ClampedArray(w * hh);
     for (let i = 0, j = 0; i < d.length; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
@@ -12847,15 +12934,6 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     state.dica = (r && r.motivo) || '';
     mount(dica, state.dica ? Text(state.dica, { size: 'sm' }) : null);
   }
-  /** X7 · uma olhada por ciclo: acha a carta, avisa o que falta e dispara sozinho. */
-  function olhar() {
-    if (!state.alive || state.camera !== 'on' || state.busy) return;
-    let q; try { q = ESCALAS_DETECTOR.map(alvo => quadroCinza(alvo)); } catch (e) { return; }
-    const r = detector.quadro(q);
-    state.carta = r.carta || null;
-    pintaOlho(r);
-    if (r.pronto && state.auto && state.base === 'ready') readOnce(false);
-  }
   /* X3 · edição pela linha de coleção; confirma contra as impressões quando há rede */
   /** X8 · miniatura da carta lida, quando a rede já trouxe as impressões. */
   async function miniatura(name, printing) {
@@ -12872,52 +12950,143 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!printsCache.has(name)) { try { printsCache.set(name, await scryfall.search(`!"${name}"`, { unique: 'prints', order: 'released' })); } catch (e) { return []; } }
     return printsCache.get(name) || [];
   }
-  async function identify(name) {
+  /** Edição pela linha de coleção do quadro em que a carta foi lida (Leva 109: não volta à câmera). */
+  async function identify(name, quadro, carta) {
     if (!state.edition) return { exact: null, candidates: [], parsed: null };
     let parsed = { number: '', set: '', lang: '' };
-    try { parsed = parseCollectorLine(await ocr.read(camera.capture(bandRegion(COLLECTOR_BAND)), 'collector', escalaOcr(alturaCartaPx()))); } catch (e) { /* segue sem edição */ }
+    // com a carta achada, a linha de coleção sai dela; sem carta (leitura manual), sai da moldura guia
+    const reg = carta ? faixaDaCarta(carta, COLLECTOR_BAND) : bandRegion(COLLECTOR_BAND);
+    const altura = carta ? carta.h * quadro.height : bandRegion({ x: 0, y: 0, w: 1, h: 1 }).h * quadro.height;
+    try { parsed = parseCollectorLine(await ocr.read(recorte(quadro, reg), 'collector', escalaOcr(altura))); } catch (e) { /* segue sem edição */ }
     const list = await prints(name);
     if (list.length) return { ...resolvePrinting(list, parsed), parsed };
     return { exact: parsed.set && parsed.number ? { set: parsed.set, number: parsed.number, verified: false } : null, candidates: [], parsed };
   }
 
+  /* ---- Leva 109 · o laço: uma leitura atrás da outra, aceite por votos, enriquecimento depois ---- */
+  const votacao = criaVotacao();
+  const diario = criaDiario();
+  let planoBEm = 0;
+  const dormir = ms => new Promise(r => setTimeout(r, ms));
+  /** Uma leitura: captura, acha a carta, lê (faixa do nome ou quadro inteiro) e casa com a base. */
+  async function lerUmaVez(via) {
+    const quadro = camera.capture();
+    let r = null, carta = null;
+    try { r = detector.quadro(ESCALAS_DETECTOR.map(alvo => quadroCinza(quadro, alvo))); carta = r.carta || null; } catch (e) { r = null; }
+    state.carta = carta; pintaOlho(r);
+    const t0 = performance.now();
+    let texto = '', found = [], caminho = 'carta';
+    if (carta) {
+      texto = await ocr.read(recorte(quadro, faixaDaCarta(carta, NAME_BAND)), 'name', escalaOcr(carta.h * quadro.height));
+      found = names.match(texto);
+    } else if (via === 'manual' || performance.now() - planoBEm >= PLANO_B_MS) {
+      // plano B: sem carta achada (na mão, com sleeve, mesa escura), lê o quadro inteiro em texto esparso
+      caminho = 'quadro'; planoBEm = performance.now();
+      const escala = Math.min(1, PLANO_B_LARGURA / Math.max(1, quadro.width));
+      const reduzido = escala < 1 ? (() => { const c = document.createElement('canvas'); c.width = Math.round(quadro.width * escala); c.height = Math.round(quadro.height * escala); c.getContext('2d').drawImage(quadro, 0, 0, c.width, c.height); return c; })() : quadro;
+      texto = await ocr.read(reduzido, 'frame', 1);
+      found = names.matchLines ? names.matchLines(texto) : names.match(texto);
+    } else return null; // sem carta e ainda não é hora do plano B
+    return { quadro, carta, texto, found, ms: Math.round(performance.now() - t0), caminho };
+  }
+  /** Aceite: entra na pilha na hora; edição e miniatura chegam depois. */
+  async function aceita(name, leitura) {
+    const best = leitura.found.find(x => x.name === name) || leitura.found[0];
+    const meta = { score: best.score, alternativas: leitura.found.filter(x => x.name !== name).slice(0, 3).map(x => x.name) };
+    const key = leitura.manual ? await lot.add(name, 1, null, meta) : await lot.observe({ name, score: best.score }, null, meta);
+    if (!key) return null;
+    announce(name);
+    state.last = { text: leitura.texto, found: leitura.found, key, printing: null, candidates: [], pendente: true };
+    paintResult(); paintDock();
+    // em segundo plano: edição pela linha de coleção e miniatura; a pilha se atualiza quando chegarem
+    (async () => {
+      try {
+        const ed = await identify(name, leitura.quadro, leitura.carta);
+        const img = await miniatura(name, ed.exact);
+        const nova = await lot.enrich(key, { printing: ed.exact, img });
+        if (state.last && state.last.key === key) { state.last = { ...state.last, key: nova || key, printing: ed.exact, candidates: ed.candidates || [], pendente: false }; }
+        else if (state.last && state.last.pendente === false) { /* outra leitura já passou na frente */ }
+        if (state.alive) { paintResult(); paintDock(); }
+      } catch (e) { if (state.last && state.last.key === key) { state.last.pendente = false; paintResult(); } }
+    })();
+    return key;
+  }
+  /** Uma passada do laço automático. */
+  async function passo() {
+    if (!state.alive || !state.auto || state.camera !== 'on' || state.base !== 'ready' || state.engine !== 'ready') return;
+    if (state.busy) return;
+    state.busy = true;
+    try {
+      const L = await lerUmaVez('auto');
+      if (!L) return;
+      const nome = votacao.voto(L.found);
+      let decisao = 'nada';
+      if (nome) { const key = await aceita(nome, L); decisao = key ? `${nome} +1` : 'já na pilha'; }
+      else if (L.found[0] && L.found[0].score >= ACCEPT) { decisao = 'espera confirmar'; lot.observe(null); }
+      else lot.observe(null);
+      if (!nome && L.found.length) { state.last = { text: L.texto, found: L.found, key: null, printing: null, candidates: [], pendente: false }; paintResult(); }
+      diario.anota({ via: L.caminho, texto: L.texto, melhor: L.found[0] || null, ms: L.ms, decisao });
+      if (state.diag) paintDiag();
+    } catch (e) { diario.anota({ via: 'erro', texto: String(e && e.message || e), melhor: null, ms: 0, decisao: 'falhou' }); }
+    finally { state.busy = false; }
+  }
+  async function laco() {
+    while (state.alive && state.auto) {
+      await passo();
+      await dormir(RESPIRO_MS);
+    }
+  }
+  /** "Ler agora": uma leitura pedida pela pessoa, fora do laço. */
   async function readOnce(manual) {
-    if (state.busy || state.camera !== 'on' || state.base !== 'ready') return;
+    if (state.camera !== 'on' || state.base !== 'ready') return;
+    while (state.busy) await dormir(30);
     state.busy = true; paintDock();
     try {
-      const text = await ocr.read(camera.capture(bandRegion(NAME_BAND)), 'name', escalaOcr(alturaCartaPx()));
-      const found = names.match(text);
-      const best = found[0];
-      let ed = { exact: null, candidates: [] }, key = null;
-      if (best && best.score >= ACCEPT) {
-        // X8 · a pilha mostra miniatura e confiança: as duas saem desta leitura
-        // X9 · as alternativas seguem junto: conferir vira um toque no próprio cartão
-        const meta = async () => ({ score: best.score, img: await miniatura(best.name, ed.exact), alternativas: found.slice(1, 4).map(x => x.name) });
-        if (manual) { ed = await identify(best.name); key = await lot.add(best.name, 1, ed.exact, await meta()); lot.rearm(); }
-        else if (await wouldAdd(best)) { ed = await identify(best.name); key = await lot.observe(best, ed.exact, await meta()); }
-        else await lot.observe(best);
-        if (key) announce(best.name + (ed.exact ? ` · ${printLabel(ed.exact)}` : ''));
-      } else if (!manual) { seen.name = null; await lot.observe(best); }
-      state.last = { text, found, key, printing: ed.exact, candidates: ed.candidates || [] };
+      const L = await lerUmaVez('manual');
+      if (!L) return;
+      L.manual = true;
+      const best = L.found[0];
+      let decisao = 'nada';
+      if (best && best.score >= ACCEPT) { const key = await aceita(best.name, L); decisao = key ? `${best.name} +1` : 'já na pilha'; }
+      else { state.last = { text: L.texto, found: L.found, key: null, printing: null, candidates: [], pendente: false }; lot.observe(null); }
+      diario.anota({ via: L.caminho, texto: L.texto, melhor: best || null, ms: L.ms, decisao });
       state.engine = 'ready';
-    } catch (e) { state.engine = 'failed'; toast('Não foi possível ler agora. Tente de novo com mais luz.'); }
-    finally { state.busy = false; paintResult(); paintDock(); paintStatus(); }
+    } catch (e) { state.engine = 'failed'; toast('Não foi possível ler agora. Tente de novo com mais luz.'); diario.anota({ via: 'erro', texto: String(e && e.message || e), melhor: null, ms: 0, decisao: 'falhou' }); }
+    finally { state.busy = false; paintResult(); paintDock(); paintStatus(); if (state.diag) paintDiag(); }
   }
-  /** Só gasta a segunda leitura (edição) quando a automática vai mesmo somar. */
-  const seen = { name: null };
-  async function wouldAdd(best) { const add = best.name !== seen.name; seen.name = best.name; return add; }
   function announce(name) { pulse(stage); toast(`${name} +1`, 1400); }
+  function infoAparelho() {
+    const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
+    return { aparelho: (navigator.userAgent || '').slice(0, 80), video: `${video.videoWidth || 0}×${video.videoHeight || 0}`, base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado' };
+  }
+  function paintDiag() {
+    if (!state.diag) return mount(diagBox, null);
+    const itens = diario.lista();
+    const linha = x => h('div', { class: 'scan-diag__linha' },
+      Badge(x.via, { tone: x.via === 'carta' ? 'positive' : x.via === 'erro' ? 'danger' : undefined }),
+      Text(`${x.ms} ms`, { size: 'xs', tone: 'muted' }),
+      Text(`"${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 40) || '—'}"`, { size: 'xs' }),
+      Text(x.melhor ? `→ ${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '→ —', { size: 'xs', tone: 'muted' }),
+      Text(x.decisao, { size: 'xs' }));
+    mount(diagBox, Stack({},
+      Row({ class: 'ds-row--wrap' }, Text(`Câmera ${infoAparelho().video} · leitor ${infoAparelho().leitor} · ${state.auto ? 'automático ligado' : 'pausado'}`, { size: 'xs', tone: 'muted' }),
+        h('div', { class: 'ds-grow' }),
+        Button('Copiar', { id: 'scan-diag-copiar', icone: 'copiar', onClick: async () => { try { await navigator.clipboard.writeText(diario.texto(infoAparelho())); toast('Diagnóstico copiado', 1400); } catch (e) { toast('Não deu para copiar: selecione o texto', 1400); } } })),
+      itens.length ? h('div', { class: 'scan-diag__lista' }, ...itens.slice(0, 8).map(linha)) : Text('Nenhuma leitura ainda. Aponte a câmera para uma carta.', { size: 'xs', tone: 'muted' })));
+  }
   function setAuto(on) {
-    state.auto = on; clearInterval(state.timer); state.timer = null;
-    clearInterval(state.olho); state.olho = null;
+    const antes = state.auto;
+    state.auto = on;
     if (on) {
-      lot.rearm(); seen.name = null; detector.rearmar();
-      // X7 · quem decide a hora de ler é o detector; o relógio antigo fica só como
-      // rede de segurança para quadro que nunca estabiliza
-      state.olho = setInterval(olhar, OLHO_MS);
-      state.timer = setInterval(() => { if (state.alive && !state.carta) readOnce(false); }, AUTO_MS);
+      lot.rearm(); votacao.zera(); detector.rearmar(); planoBEm = 0;
+      if (!antes) laco();
     } else { contorno.style.display = 'none'; mount(dica, null); state.carta = null; }
-    paintDock();
+    paintDock(); if (!state.last) paintResult();
+  }
+  /** Leva 109 · liga o automático sozinho assim que câmera, base e leitor estão prontos. */
+  function ligaSePronto() {
+    if (state.auto || !state.alive) return;
+    if (state.camera === 'on' && state.base === 'ready' && state.engine === 'ready') setAuto(true);
   }
 
   /* ---- pintura ---- */
@@ -12937,10 +13106,11 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   function paintResult() {
     const L = state.last;
-    if (!L) return mount(result, Text('Enquadre a carta na moldura: nome na faixa de cima, número de coleção no canto de baixo.', { size: 'sm', tone: 'muted' }));
+    if (!L) return mount(result, Text(state.auto ? 'Aponte a câmera para a carta. Ela entra na pilha sozinha.' : 'Enquadre a carta e toque em Ler agora, ou ligue o automático.', { size: 'sm', tone: 'muted' }));
     if (!L.found.length) return mount(result, Text('Nenhuma carta reconhecida. Aproxime, alinhe o nome e evite reflexo.', { size: 'sm', tone: 'muted' }));
     const [best, ...rest] = L.found;
     const edition = !state.edition || !L.key ? null
+      : L.pendente ? Row({}, Spinner(), Text('Conferindo a edição…', { size: 'sm', tone: 'muted', attrs: { id: 'scan-edition-espera' } }))
       : L.printing ? Text(`Edição: ${printLabel(L.printing)}${L.printing.set_name ? ' · ' + L.printing.set_name : ''}${L.printing.verified ? '' : ' (não conferida)'}`, { size: 'sm', attrs: { id: 'scan-edition' } })
         : Stack({ style: { gap: 'var(--space-1)' } }, Text(L.candidates.length ? 'Edição incerta. É uma destas?' : !online() ? 'Sem internet: a cópia entra sem edição (defina depois, na coleção).' : 'Edição não identificada: a cópia entra sem edição.', { size: 'sm', tone: 'muted', attrs: { id: 'scan-edition' } }),
           L.candidates.length ? Row({ class: 'ds-row--wrap' }, ...L.candidates.map(c => Chip(`${printLabel(c)} · ${c.set_name}`, { dataset: { printing: c.set + '-' + c.number }, onClick: async () => {
@@ -12957,17 +13127,22 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const n = await lot.total();
     paintPile();
     const canRead = state.camera === 'on' && state.base === 'ready' && state.engine !== 'failed';
-    const autoChip = Chip('Automático', { pressed: state.auto, dataset: { auto: '1' } });
+    // Leva 109 · o automático começa ligado; o chip serve para pausar
+    const autoChip = Chip(state.auto ? 'Automático' : 'Pausado', { icone: state.auto ? 'scanner' : 'pausa', pressed: state.auto, dataset: { auto: '1' } });
     autoChip.addEventListener('click', () => setAuto(!state.auto));
+    const diagChip = Chip('Diagnóstico', { pressed: state.diag, dataset: { diag: '1' } });
+    diagChip.addEventListener('click', () => { state.diag = !state.diag; paintDiag(); paintDock(); });
     const edChip = Chip('Edição', { pressed: state.edition, dataset: { edition: '1' } });
     edChip.addEventListener('click', () => { state.edition = !state.edition; paintDock(); });
     // X7 · a moldura deixou de ser obrigação: fica como ajuda para quem quiser
     const molduraChip = Chip('Moldura', { pressed: state.moldura, dataset: { moldura: '1' } });
     molduraChip.addEventListener('click', () => { state.moldura = !state.moldura; frame.style.display = state.moldura ? '' : 'none'; paintDock(); });
+    // Leva 109 · quatro chips não cabem em 360 px numa linha só com o botão: os chips ganham a linha deles, com quebra
     mount(dock,
       Row({ class: 'scan-dock__row' },
-        Button(state.busy ? 'Lendo…' : 'Ler agora', { variant: 'primary', id: 'scan-read', icone: 'scanner', disabled: !canRead || state.busy, onClick: () => readOnce(true) }),
-        canRead ? autoChip : null, canRead ? edChip : null, canRead ? molduraChip : null),
+        Button('Ler agora', { variant: 'primary', id: 'scan-read', icone: 'scanner', disabled: !canRead, onClick: () => readOnce(true) }),
+        canRead ? autoChip : null),
+      Row({ class: 'scan-dock__row scan-dock__chips ds-row--wrap' }, canRead ? edChip : null, canRead ? molduraChip : null, diagChip),
       Row({ class: 'scan-dock__row' },
         Button(`Lote: ${n}`, { id: 'scan-lot', icone: 'pilhas', onClick: openLot }),
         Button('Desfazer', { id: 'scan-undo', icone: 'desfazer', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } })));
@@ -13086,7 +13261,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   paintResult(); boot();
   return Stack({ class: 'ds-wrap scan', style: { paddingTop: 'var(--space-4)', paddingBottom: 'var(--space-4)' } },
     Row({}, Text('Scanner', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }), Button('Coleção', { icone: 'colecao', id: 'scan-colecao', onClick: () => go('/colecao') })),
-    status, stage, pilha, result,
+    status, stage, pilha, result, diagBox,
     Field('Sem câmera ou leitura difícil?', manualIn), suggest,
     h('div', { class: 'scan-dock-wrap' }, dock));
 }

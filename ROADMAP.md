@@ -340,6 +340,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 15º-c ✅ | Auditoria texto × script, parte 2: 27 textos do Forge e 15 correções de impacto médio (leva 106) | E33 | 1 | — |
 | 15º-d ✅ | Auditoria texto × script, parte 3: 22 achados de impacto baixo (leva 107) | E33 | 1 | — |
 | 15º-e ✅ | Homologação da auditoria por leitura independente: 11 correções (leva 108) | E33 | 1 | — |
+| 16º ✅ | Scanner automático de verdade (leva 109) | E39 | 1 | ajuste fino depende do diagnóstico do aparelho |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3141,6 +3142,24 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Expectativas ajustadas com justificativa:** S57/S59/S61 (a Cidade Baixa entra pela instrução, não pela escolha), S39/S51 e cenário S8 da Galvanic Alchemist (vínculo pela pilha).
 - **Motor v62.** Partidas-referência regravadas só pela versão: logs, status e turnos idênticos.
 - **Portão:** 618 verdes (555 + 63 e2e).
+
+**Leva 109 · Scanner automático de verdade** ✅ (relato do usuário de 30/09: "muito ruim e nada funcional")
+- **Causas encontradas (lendo o scanner inteiro):** (1) o automático começava desligado; (2) a leitura só disparava
+  quando o detector de retângulo achava a carta inteira, parada por três quadros e com as quatro bordas em degrau —
+  carta na mão, com sleeve, sombra ou mesa escura: nada acontecia; e o "plano B" por relógio lia uma região de largura
+  zero (a moldura escondida); (3) cada leitura aceita ficava travada esperando a segunda leitura (edição) e a Scryfall;
+  (4) o "leu" animava a moldura, que está escondida; (5) sem diagnóstico, impossível saber o que o aparelho lia.
+- **Entregue:**
+  - automático ligado sozinho assim que câmera, base de nomes e leitor ficam prontos; o chip vira "Pausado/Automático"; "Ler agora" continua como reserva e espera a leitura em curso;
+  - laço contínuo (uma leitura atrás da outra, respiro de 120 ms), uma captura por passada: carta achada → faixa do nome; carta não achada → **plano B**: o quadro inteiro (até 960 px) em texto esparso (PSM 11), cada linha casada com a base de nomes (`matchLines`), no máximo a cada 0,9 s;
+  - aceite por **votos** (`criaVotacao`): leitura exata (≥ 97%) entra na hora; aproximada (≥ 82%) precisa de duas seguidas com o mesmo nome; quadro sem nome zera. Não exige mais carta parada (o detector segue dando contorno e dicas);
+  - a carta entra na pilha no instante do aceite (vibração, flash no palco, "+1"); edição (linha de coleção do mesmo quadro) e miniatura chegam depois, em segundo plano (`lot.enrich`), sem travar a próxima leitura; o resultado mostra "Conferindo a edição…" enquanto isso;
+  - um só motor de OCR, com fila: laço e edição não se atropelam;
+  - painel **Diagnóstico** (chip): as últimas leituras com caminho (carta/quadro), tempo, texto lido, palpite e decisão, e **Copiar** (aparelho, resolução da câmera, base, leitor) — é o que o usuário manda quando algo não lê.
+- **Correções:** região de leitura com a moldura escondida (largura zero); pulso no palco; "Ler agora" não fica desabilitado enquanto o laço lê; dock em duas linhas (quatro chips não cabiam em 360 px, o guarda-corpo pegou).
+- **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
+- **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
+- **Portão:** 623 verdes (559 + 64 e2e).
 
 **Leva 103 · E36 · M13b: parcerias de comandante e mana pelos terrenos do oponente** ✅ (pedido de 30/09)
 - **Lista:** dois comandantes só com parceria válida (Partner, Partner with, Friends forever, Choose a Background + Antecedente, Doctor's companion); mensagem diz o que falta; variante desconhecida vira aviso. Funciona sem internet (só dados guardados).

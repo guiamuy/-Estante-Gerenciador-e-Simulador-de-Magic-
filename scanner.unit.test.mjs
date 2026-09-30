@@ -453,3 +453,60 @@ test('X10 · detector em duas escalas: a primeira que acha manda; sem carta, dev
   assert.ok(det.quadro([vazio, comCarta]).carta, 'quadro() com lista');
   assert.ok(det.quadro(comCarta.cinza, QW, QH).carta, 'e ainda com (cinza, w, h)');
 });
+
+/* ---------------- Leva 109 · scanner automático de verdade ---------------- */
+test('Leva 109 · texto esparso do quadro inteiro: cada linha é casada e a melhor vence', () => {
+  const r = X.matchLines(INDEX, 'Creature - Human\nS0l Rinq @®\n123/281 R\nArtifact');
+  assert.equal(r[0].name, 'Sol Ring');
+  assert.ok(r[0].score >= X.ACCEPT, 'a linha do nome dá a nota');
+  assert.deepEqual(JSON.parse(JSON.stringify(X.matchLines(INDEX, ''))), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(X.matchLines(INDEX, 'ab\n\n1'))), [], 'linhas curtas não sugerem nada');
+  // a linha certa vence mesmo depois de uma linha que casa fraco com outro nome
+  assert.equal(X.matchLines(INDEX, 'Islandwalk Rangr\nCounterspell')[0].name, 'Counterspell');
+});
+
+test('Leva 109 · votos: leitura exata entra na hora; aproximada precisa de duas seguidas iguais; quadro vazio zera', () => {
+  const v = X.criaVotacao();
+  assert.equal(v.voto([{ name: 'Sol Ring', score: 1 }]), 'Sol Ring', 'exata entra de primeira');
+  assert.equal(v.voto([{ name: 'Counterspell', score: 0.86 }]), null, 'aproximada espera a segunda');
+  assert.equal(v.voto([{ name: 'Counterspell', score: 0.84 }]), 'Counterspell', 'duas seguidas iguais');
+  assert.equal(v.voto([{ name: 'Island', score: 0.85 }]), null);
+  assert.equal(v.voto([]), null, 'quadro vazio');
+  assert.equal(v.voto([{ name: 'Island', score: 0.85 }]), null, 'o vazio zerou a contagem');
+  assert.equal(v.voto([{ name: 'Island', score: 0.85 }]), 'Island');
+  assert.equal(v.voto([{ name: 'Ponder', score: 0.7 }]), null, 'abaixo do aceite não vota');
+  assert.equal(v.voto([{ name: 'Ponder', score: 0.7 }]), null);
+  // o mesmo nome aceito continua sendo devolvido: quem decide "não somar de novo" é o lote
+  assert.equal(v.voto([{ name: 'Island', score: 0.9 }]), null);
+  assert.equal(v.voto([{ name: 'Island', score: 0.9 }]), 'Island');
+});
+
+test('Leva 109 · a pilha recebe a edição e a miniatura depois, sem perder a confiança nem a quantidade', async () => {
+  const store = P.memoryStore();
+  const lot = X.createLot({ store });
+  const key = await lot.add('Sol Ring', 1, null, { score: 0.9, alternativas: ['Soul Ring'] });
+  await lot.setQty(key, 2);
+  const nova = await lot.enrich(key, { printing: { set: 'cmm', number: '400', set_name: 'Commander Masters', id: 'x', verified: true }, img: 'https://i/sol.jpg' });
+  const [item] = await lot.list();
+  assert.equal(item.key, nova, 'a chave passa a incluir a edição');
+  assert.deepEqual([item.qty, item.score, item.set, item.img, item.conferir], [2, 0.9, 'cmm', 'https://i/sol.jpg', true]);
+  assert.equal(await lot.enrich('nao-existe', { img: 'x' }), null, 'item que saiu da pilha: nada a fazer');
+  // enriquecer com uma edição que já existe na pilha funde as duas
+  const outra = await lot.add('Sol Ring', 1, { set: 'cmm', number: '400' });
+  assert.equal(outra, nova);
+  assert.equal((await lot.list()).length, 1); assert.equal((await lot.list())[0].qty, 3);
+});
+
+test('Leva 109 · diário do scanner: guarda as últimas leituras, com tempo e decisão, e vira texto para copiar', () => {
+  const d = X.criaDiario({ maximo: 3, agora: (() => { let t = 1000; return () => (t += 250); })() });
+  d.anota({ via: 'carta', texto: 'S0l Rinq', melhor: { name: 'Sol Ring', score: 0.86 }, ms: 310, decisao: 'espera' });
+  d.anota({ via: 'quadro', texto: '', melhor: null, ms: 900, decisao: 'nada' });
+  d.anota({ via: 'carta', texto: 'Sol Ring', melhor: { name: 'Sol Ring', score: 1 }, ms: 280, decisao: 'Sol Ring +1' });
+  d.anota({ via: 'carta', texto: 'Island', melhor: { name: 'Island', score: 1 }, ms: 260, decisao: 'Island +1' });
+  assert.equal(d.lista().length, 3, 'só as últimas');
+  assert.equal(d.lista()[0].texto, 'Island', 'a mais recente primeiro');
+  const txt = d.texto({ aparelho: 'teste', video: '1280×720' });
+  assert.match(txt, /aparelho: teste/); assert.match(txt, /1280×720/);
+  assert.match(txt, /carta · 280 ms · "Sol Ring" → Sol Ring 100% · Sol Ring \+1/);
+  assert.match(txt, /quadro · 900 ms · "" → — · nada/);
+});

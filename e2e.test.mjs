@@ -631,6 +631,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // scanner: base de nomes e leitor já no aparelho; a edição avisa que fica para depois
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])', { timeout: 10000 });
+  await pausaAuto(page);
   await page.evaluate(() => window.__ocrQueue.push('Sol Ring', ''));
   await page.click('#scan-read');
   await page.waitForFunction(() => /Lote: 1/.test((document.querySelector('#scan-lot') || {}).innerText || ''));
@@ -1091,6 +1092,14 @@ const FAKE_DEVICE = deny => `
   else Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: gum } });
 `;
 
+// Leva 109 · o automático começa ligado: os testes de leitura manual pausam antes de encher a fila do leitor falso
+async function pausaAuto(page) {
+  await page.waitForSelector('[data-auto]');
+  if (await page.getAttribute('[data-auto]', 'aria-pressed') === 'true') await page.click('[data-auto]');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'false');
+  await page.waitForTimeout(250); // uma leitura em curso termina antes de a fila ser usada
+  await page.evaluate(() => { window.__ocrQueue.length = 0; });
+}
 // X7 · câmera falsa que mostra uma carta de verdade no quadro: fundo escuro e um
 // retângulo claro com textura, na proporção da carta.
 const FAKE_CARD_CAM = `
@@ -1126,8 +1135,9 @@ test('e2e · X7 scanner acha a carta sozinho, sem moldura, e dispara a leitura',
   // a moldura começa escondida: ela virou ajuda opcional
   assert.equal(await page.locator('.scan-frame').isVisible(), false, 'sem moldura obrigatória');
   await page.click('[data-edition]');                     // este teste é só do nome
+  // Leva 109 · expectativa mudou: o automático começa ligado, sem toque
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
   await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring', 'Sol Ring'));
-  await page.click('[data-auto]');
   // o contorno aparece em cima da carta encontrada
   await page.waitForFunction(() => {
     const el = document.querySelector('#scan-outline');
@@ -1160,6 +1170,7 @@ test('e2e · X9 leitura de confiança média fica "confira" e se resolve com um 
   await page.addInitScript(FAKE_DEVICE(false));
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
   await page.click('[data-edition]');
   // 87% de confiança: entra na pilha, mas marcada
   await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
@@ -1206,6 +1217,7 @@ test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, c
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
   assert.match(await page.innerText('#scan-status'), /Base: \d+ nomes/);
+  await pausaAuto(page);
 
   await page.click('[data-edition]'); // este teste cobre só o nome; a edição tem teste próprio
   await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
@@ -1214,10 +1226,12 @@ test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, c
   await page.waitForFunction(() => { const el = document.querySelector('#scan-lot'); return el && /Lote: 1/.test(el.innerText); });
 
   // automática: mesma carta parada soma uma vez; sumiu e voltou, soma de novo
+  // Leva 109 · sem carta achada no quadro cinza, o laço lê o quadro inteiro (plano B), a cada ~0,9 s
   await page.evaluate(() => window.__ocrQueue.push('Island', 'Island', '', 'Island'));
   await page.click('[data-auto]');
-  await page.waitForFunction(() => /(\d+)/.exec(document.querySelector('#scan-lot').innerText)[1] === '3', null, { timeout: 12000 });
+  await page.waitForFunction(() => /(\d+)/.exec(document.querySelector('#scan-lot').innerText)[1] === '3', null, { timeout: 15000 });
   await page.click('[data-auto]');
+  await page.waitForTimeout(300);
 
   await page.click('[data-candidate="Island"]');
   await page.waitForFunction(() => /Lote: 4/.test(document.querySelector('#scan-lot').innerText));
@@ -1294,6 +1308,7 @@ test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e
   await page.goto(base + '#/scanner');
   await page.reload();
   await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
   await page.evaluate(() => window.__ocrQueue.push('Counterspell', '267/303 U\nMH2 • EN'));
   await page.click('#scan-read');
   await page.waitForSelector('#scan-edition');
@@ -3188,5 +3203,41 @@ test('e2e · leva 107 Duress mostra a mão inteira: terrenos e criaturas apagado
   assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending.picked.length), 0);
   await page.locator('#tb-pick-cards .tb-card:not(.tb-card--fora)').first().click();
   await page.waitForFunction(o => Object.values(window.__estanteMesa.estado().objects).some(x => x.owner === o && x.name === 'Counterspell' && x.zone === 'graveyard'), 1 - p);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 109 scanner automático de verdade: liga sozinho, lê sem carta detectada (plano B), pilha na hora, edição depois, diagnóstico copiável', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  // liga sozinho: nenhum toque em "Automático"
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  assert.match(await page.innerText('#scan-result'), /entra na pilha sozinha/);
+  // quadro cinza: o detector não acha carta; o plano B lê o quadro inteiro e a leitura exata entra na hora
+  await page.evaluate(() => window.__ocrQueue.push('Creature - Human\nCounterspell\n267/303 U'));
+  await page.waitForFunction(() => /Counterspell/.test(document.querySelector('#scan-pile').innerText), null, { timeout: 12000 });
+  // a pilha mostra a carta antes de a edição chegar; depois a edição aparece no resultado
+  await page.waitForSelector('#scan-edition', { timeout: 8000 });
+  // leitura aproximada precisa de duas seguidas iguais
+  await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
+  await page.waitForTimeout(2200);
+  assert.doesNotMatch(await page.innerText('#scan-pile'), /Sol Ring/, 'uma leitura aproximada sozinha não entra');
+  await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®', 'Sol Rimg'));
+  await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-pile').innerText), null, { timeout: 12000 });
+  // diagnóstico: as leituras com tempo, texto e decisão; copiar põe tudo na área de transferência
+  await page.click('[data-diag]');
+  await page.waitForSelector('#scan-diag .scan-diag__linha');
+  const diag = await page.innerText('#scan-diag');
+  assert.match(diag, /quadro/); assert.match(diag, /Counterspell \d+%/); assert.match(diag, /\+1/);
+  await page.click('#scan-diag-copiar');
+  const copiado = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(copiado, /aparelho: /); assert.match(copiado, /Counterspell 100% · Counterspell \+1/);
+  await auditaTela(page, 'scanner com diagnóstico');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-diag.png', fullPage: true });
+  // pausar para de ler
+  await page.click('[data-auto]');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'false');
   assert.deepEqual(errors, []);
 });
