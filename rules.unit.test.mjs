@@ -3533,7 +3533,9 @@ test('S53 · plot: paga, exila da mão, e conjura de graça num turno depois', (
   s = proximoTurno(s);
   s = passTo(s, 'main1');
   if (s.turn.active !== a) { s = proximoTurno(s); s = passTo(s, 'main1'); }
-  const conjura = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === roubo && x.plotted);
+  // Leva 105 · expectativa ajustada: do plot a mesa agora oferece também descartar/sacrificar (o custo adicional vale
+  // sem pagar mana, 118.9); este cenário é o de não pagar nada, então escolhe essa variante explicitamente
+  const conjura = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === roubo && x.plotted && x.add === null);
   assert.ok(conjura, 'num turno depois, a mesa oferece conjurar de graça');
   const mao = s.zones[a].hand.length;
   s = settle(resolveSpell(act(s, conjura)));

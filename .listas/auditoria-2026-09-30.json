@@ -1,0 +1,1023 @@
+{
+ "sobre": "Leva 105 · comparação texto oficial × script das 111 cartas Pauper com texto confirmado. Achados de auditoria automatizada: cada um precisa ser confirmado com teste antes de corrigir. Status das correções no ROADMAP (leva 105/106).",
+ "cartas": [
+  {
+   "name": "Brinebarrow Intruder",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Faerie Miscreant",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When this creature enters, if you control another creature named Faerie Miscreant, draw a card. (Ruling 2019-07-12: The ability will check again as it tries to resolve.)",
+     "o_que_o_motor_faz": "A condição controlsOtherNamed só é checada quando o gatilho dispara (triggerConditionMet, index.html:8116/8173); não há nova checagem na resolução (resolveAbility 9476+). Se a outra Faerie Miscreant sair em resposta, ainda compra.",
+     "linha_script": "3661",
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Faerie Seer",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Moon-Circuit Hacker",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)",
+     "o_que_o_motor_faz": "Ninjutsu é ação imediata (actions.ninjutsu, index.html:8970), não habilidade na pilha — ninguém pode responder; e só é oferecida no passo de declarar bloqueadores (unblockedAttackers exige step 'combat_blockers', 7203), não no passo de dano (ex.: após dano de iniciativa) como a regra permite.",
+     "linha_script": "3875",
+     "impacto": "baixo",
+     "confianca": "media"
+    },
+    {
+     "frase_oficial": "If you do, discard a card unless this creature entered this turn.",
+     "o_que_o_motor_faz": "onlyIf 'source-entered-earlier' usa !fonte.sick (7581). Se o Hacker sair do campo antes de o gatilho resolver, moveObject zera sick (6897) e o motor manda descartar, embora pela última informação conhecida ele tenha entrado neste turno.",
+     "linha_script": "3877",
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Ninja of the Deep Hours",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)",
+     "o_que_o_motor_faz": "Ninjutsu resolve na hora, sem usar a pilha (actions.ninjutsu, index.html:8970), e só fica disponível no passo de declarar bloqueadores (7203), não também no passo de dano de combate/fim de combate.",
+     "linha_script": "3871",
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Spellstutter Sprite",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "counter target spell with mana value X or less, where X is the number of Faeries you control. (Ruling 2007-10-01: X is determined again when the ability resolves; if the number of Faeries decreased enough, the ability won't resolve.)",
+     "o_que_o_motor_faz": "O limite de valor de mana só é aplicado ao escolher o alvo (putTriggerOnStack, 8228-8229). Na resolução, resolveAbility chama targetStillLegal sem passar eff (9496), então targetMvMax não é rechecado: matar uma Faerie em resposta não salva a mágica.",
+     "linha_script": "3663-3665",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Harrier Strix",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Counterspell",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Dispel",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Hydroblast",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Counter target spell if it's red. / Destroy target permanent if it's red. (Ruling 2016-06-08: Hydroblast can target any spell or permanent, not just a red one. It checks the color of the target only on resolution.)",
+     "o_que_o_motor_faz": "targetColor: 'R' filtra os alvos já na escolha (legalTargets, 7543-7546): só aceita mágica/permanente vermelha. Não dá para conjurar Hydroblast em alvo não vermelho (ex.: para contar tempestade/prowess ou blefe). Mesmo script da Blue Elemental Blast, que é a que restringe na escolha.",
+     "linha_script": "3960-3962",
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Steel Sabotage",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Annul",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Blue Elemental Blast",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Relic of Progenitus",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Voldaren Epicure",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.\") + Madness: If you discard this card, discard it into exile.",
+     "o_que_o_motor_faz": "O descarte do custo da ficha Blood passa por payExtraCosts (8307-8313), que move a carta direto ao cemitério com moveObject, sem abrir a janela de insanidade (madness só existe nos caminhos discard/cycle, 8964/9042). Descartar Fiery Temper pela Blood não permite conjurá-la por insanidade.",
+     "linha_script": "3810",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Lightning Bolt",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Fiery Temper",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Faithless Looting",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Grab the Prize",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "As an additional cost to cast this spell, discard a card.",
+     "o_que_o_motor_faz": "O descarte do custo adicional vai direto ao cemitério (payExtraCosts, 8313), sem insanidade: descartar uma carta com madness (ex.: Fiery Temper) não dá a opção de conjurá-la.",
+     "linha_script": "3812",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Highway Robbery",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Plot {1}{R} (... Cast it as a sorcery on a later turn without paying its mana cost.) + You may discard a card or sacrifice a land. If you do, draw two cards.",
+     "o_que_o_motor_faz": "Ao conjurar a carta plotada, legalActions só oferece add: null (index.html:9288), então nunca há descarte/sacrifício e o 'draw 2' (onlyIf 'paid-additional') nunca acontece: o Highway Robbery plotado não faz nada.",
+     "linha_script": "3815-3817",
+     "impacto": "alto",
+     "confianca": "alta"
+    },
+    {
+     "frase_oficial": "You may discard a card or sacrifice a land. If you do, draw two cards.",
+     "o_que_o_motor_faz": "Modelado como custo adicional opcional (additional + additionalOptional), pago ao conjurar. No oficial a escolha e o descarte/sacrifício acontecem na resolução: se a mágica for anulada, o motor já tirou a carta/terreno; e o descarte via custo não abre insanidade (payExtraCosts, 8313).",
+     "linha_script": "3815",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Vampire's Kiss",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Create two Blood tokens. (They're artifacts with \"{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.\")",
+     "o_que_o_motor_faz": "O descarte do custo da Blood vai direto ao cemitério (payExtraCosts, 8307-8313) sem abrir insanidade para cartas com madness.",
+     "linha_script": "3807",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "End the Festivities",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "End the Festivities deals 1 damage to each opponent and each creature and planeswalker they control.",
+     "o_que_o_motor_faz": "'each-opponent-creature' usa sweepTargets (7881-7882), que filtra só isCreature: planeswalkers do oponente não recebem dano.",
+     "linha_script": "3386",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Jagged Barrens",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Bojuka Bog",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Razortrap Gorge",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Rakdos Carnarium",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When this land enters, return a land you control to its owner's hand.",
+     "o_que_o_motor_faz": "Usa target 'land-you-control', que está em TARGETED (3060): a terra é escolhida como alvo quando o gatilho vai para a pilha. No oficial não há alvo e a escolha é na resolução; no motor, se a terra escolhida sair em resposta o gatilho é anulado (fizzle) em vez de obrigar a devolver outra terra, e terra com shroud não pode ser escolhida.",
+     "linha_script": "3480",
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Duress",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Target opponent reveals their hand.",
+     "o_que_o_motor_faz": "discard_chosen (7734-7742) só passa ao conjurador as cartas não-criatura/não-terreno (startPick com 'mao' filtrada); criaturas e terrenos não são revelados, e se não houver carta elegível nada é mostrado.",
+     "linha_script": "3438",
+     "impacto": "medio",
+     "confianca": "media"
+    },
+    {
+     "frase_oficial": "That player discards that card.",
+     "o_que_o_motor_faz": "finishPick move a carta ao cemitério com moveObject (7910-7916), não pelo caminho de descarte: uma carta com madness (ex.: Fiery Temper) descartada pelo Duress não dá ao dono a opção de insanidade.",
+     "linha_script": "3438",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Nihil Spellbomb",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Cast into the Fire",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Smash to Smithereens",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Smash to Smithereens deals 3 damage to that artifact's controller.",
+     "o_que_o_motor_faz": "O dano vai para o controlador lido DEPOIS de destruir (resolveScript linha 8085 lê s.objects[t.oid].controller); moveObject (linha 6895) já zerou controller = owner. Artefato roubado: o dano vai para o dono, não para quem o controlava.",
+     "linha_script": 3563,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Dark Withering",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Gladecover Scout",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Silhana Ledgewalker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Aura Gnarlid",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Aura Gnarlid gets +1/+1 for each Aura on the battlefield.",
+     "o_que_o_motor_faz": "countFor 'auras-on-battlefield' (linha 6749) só conta objetos cujo script tem 'aura'; Auras sem script e criaturas com conceder (bestow, script.bestow) anexadas como Aura não contam.",
+     "linha_script": 3435,
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Abundant Growth",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Enchant land",
+     "o_que_o_motor_faz": "auraTarget (linha 8383) converte enchant 'land' em alvo 'land-you-control': só pode encantar terreno próprio, nunca de oponente.",
+     "linha_script": 3425,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Ancestral Mask",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Armadillo Cloak",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Whenever enchanted creature deals damage, you gain that much life.",
+     "o_que_o_motor_faz": "noteEnchantedDealt só é chamado no dano de combate (linha 7339). Dano não de combate causado pela criatura encantada (habilidade ativada de dano, ex.: Scattershot Archer; efeito com a criatura como fonte) não dispara o gatilho — applyEffect 'damage' (linha 7595-7611) não avisa a aura.",
+     "linha_script": 3429,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Ethereal Armor",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Utopia Sprawl",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Enchant Forest",
+     "o_que_o_motor_faz": "auraTarget (linha 8383) converte enchant 'land' em 'land-you-control': só encanta Forest própria; Forest do oponente não é alvo legal.",
+     "linha_script": 3423,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Rancor",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When Rancor is put into a graveyard from the battlefield, return Rancor to its owner's hand.",
+     "o_que_o_motor_faz": "to_hand com 'self-source' (linha 7755-7757) move a carta para a mão de qualquer zona, sem conferir se ainda está no cemitério. Se Rancor for exilada do cemitério com o gatilho na pilha (ex.: Tormod's Crypt, Relic), o motor a devolve do exílio para a mão; na regra ela fica exilada (objeto novo, 400.7).",
+     "linha_script": 3397,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Sentinel's Eyes",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Escape—{W}, Exile two other cards from your graveyard.",
+     "o_que_o_motor_faz": "payAlt (linha 7170-7173) exila automaticamente as duas primeiras cartas do cemitério (slice(0, 2)) e ignora a.pay: o jogador não escolhe quais cartas exilar (pode perder flashback, outra cópia com fuga, alvo de recursão).",
+     "linha_script": 3404,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Benevolent Blessing",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Enchanted creature has protection from the chosen color. This effect doesn't remove Auras and Equipment you control that are already attached to it.",
+     "o_que_o_motor_faz": "O motor nunca remove Auras/Equipamentos por proteção (stateBased linhas 8457-8466 só confere se o hospedeiro saiu do campo). A exceção para os seus fica certa por acaso, mas Auras/Equipamentos da cor escolhida controlados por oponente continuam anexados quando deveriam cair.",
+     "linha_script": 3431,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Setessan Training",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Enchant creature you control",
+     "o_que_o_motor_faz": "A restrição só é checada ao conjurar; stateBased (linha 8457-8466) não põe a aura no cemitério se outro jogador ganhar o controle da criatura encantada (704.5m).",
+     "linha_script": 3803,
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Sheltering Landscape",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Mask of Law and Grace",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Enchanted creature has protection from black and from red.",
+     "o_que_o_motor_faz": "Proteção bloqueia alvo, dano e bloqueio, mas o motor não tem a ação de estado que tira Auras/Equipamentos pretos ou vermelhos já anexados (stateBased linhas 8457-8466).",
+     "linha_script": 3574,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Journey to Nowhere",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When Journey to Nowhere leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+     "o_que_o_motor_faz": "moveObject (linha 6895-6896) não apaga 'holding'. No caso do ruling (Journey sai antes do ETB resolver), o ETB grava holding na carta fora do campo; se ela voltar ao campo e o novo ETB não tiver alvo, ao sair de novo devolve a criatura antiga, que deveria ficar exilada para sempre.",
+     "linha_script": 3449,
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Scattershot Archer",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Standard Bearer",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "While choosing targets as part of casting a spell or activating an ability, your opponents must choose at least one Flagbearer on the battlefield if able.",
+     "o_que_o_motor_faz": "A exigência fica em legalTargets (linha 7538-7542), que também é usada por gatilhos (putTriggerOnStack linha 8228). Gatilhos do oponente (ex.: ETB de Journey to Nowhere) são forçados a mirar o Standard Bearer; pelo texto, só mágicas e habilidades ativadas.",
+     "linha_script": 3633,
+     "impacto": "medio",
+     "confianca": "alta"
+    },
+    {
+     "frase_oficial": "While choosing targets as part of casting a spell or activating an ability ...",
+     "o_que_o_motor_faz": "targetStillLegal (linha 7563) chama legalTargets na resolução: se um Flagbearer se tornou alvo possível depois da conjuração, o alvo original (não Flagbearer) fica 'ilegal' e a mágica é anulada. A regra só vale na hora de escolher os alvos.",
+     "linha_script": 3633,
+     "impacto": "medio",
+     "confianca": "alta"
+    },
+    {
+     "frase_oficial": "... must choose at least one Flagbearer on the battlefield if able.",
+     "o_que_o_motor_faz": "O filtro é aplicado a cada alvo separadamente: todos os alvos passam a ter de ser Flagbearers. Com dois alvos distintos (Cast into the Fire modo 1, Fire // Ice etc.) e um só Flagbearer, o segundo alvo fica impossível.",
+     "linha_script": 3633,
+     "impacto": "medio",
+     "confianca": "alta"
+    },
+    {
+     "frase_oficial": "... must choose at least one Flagbearer on the battlefield if able.",
+     "o_que_o_motor_faz": "O filtro forçado é aplicado antes do filtro de cor (linha 7543) e de targetAllowed (targetNotColor, targetMv etc.). Ex.: Red Elemental Blast 'destroy target blue permanent' contra oponente com Standard Bearer: sobra só o Bearer, que é removido pelo filtro de cor, e nenhum alvo fica disponível. Na regra, Bearer que não é alvo legal não impõe nada.",
+     "linha_script": 3633,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Tormod's Crypt",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Spirit Link",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Whenever enchanted creature deals damage, you gain that much life.",
+     "o_que_o_motor_faz": "O gatilho 'enchanted-deals-damage' só é disparado no dano de combate (linha 7339); dano não de combate da criatura encantada (habilidade de dano, ex.: Scattershot Archer / pingers) não dá vida.",
+     "linha_script": 3408,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Lunarch Veteran",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Disturb {1}{W} (verso Luminous Phantom — Creature — Spirit Cleric, carta branca por indicador de cor; texto do verso segundo a nota em oficiais.json)",
+     "o_que_o_motor_faz": "A face de trás é criada por cardFacts sem cores nem subtipos (linha 6795: type_line só com os tipos, sem 'colors'): Luminous Phantom fica incolor e sem Spirit/Cleric. Afeta proteção de cor, 'não-branca' e contagens por subtipo.",
+     "linha_script": 3759,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Squadron Hawk",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Novice Inspector",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this artifact: Draw a card.\")",
+     "o_que_o_motor_faz": "A ficha é definida só com types ['artifact'], sem subtypes ['Clue']: o tipo de artefato Clue não existe na linha de tipo da ficha, então efeitos que contam ou miram 'Clue' por subtipo não a reconhecem.",
+     "linha_script": 3991,
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Thraben Inspector",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When this creature enters, investigate. (Create a Clue token ...) / ruling: Clue is an artifact type.",
+     "o_que_o_motor_faz": "A ficha é definida só com types ['artifact'], sem subtypes ['Clue'] (linha 3989); o subtipo Clue some da linha de tipo.",
+     "linha_script": 3989,
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Kor Skyfisher",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When Kor Skyfisher enters the battlefield, return a permanent you control to its owner's hand. (ruling: doesn't target; you choose as the ability resolves; no one can respond)",
+     "o_que_o_motor_faz": "O script usa bounce com alvo 'permanent-you-control' (TARGETED, linha 3060): a escolha é feita ao pôr o gatilho na pilha, o oponente pode responder removendo o alvo e o gatilho é anulado sem devolver nada; permanentes suas com shroud ou proteção contra branco não podem ser escolhidas (targetable, linha 7429-7431).",
+     "linha_script": 3916,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Raffine's Informant",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Prismatic Strands",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Prevent all damage that sources of the color of your choice would deal this turn.",
+     "o_que_o_motor_faz": "prevent_color guarda a cor em s.preventedColors e colorPrevented() é consultado no dano de combate (7331) e no dano de efeito a alvo (7607), mas o ramo de dano 'each-opponent' em applyEffect (7606) subtrai vida antes do teste de prevenção: dano de fonte da cor escolhida a 'cada oponente' (ex.: End the Festivities, Guttersnipe) não é prevenido.",
+     "linha_script": "3630 (motor: 7606)",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Rally the Peasants",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Thraben Charm",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Battle Screech",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Create two 1/1 white Bird creature tokens with flying.",
+     "o_que_o_motor_faz": "A definição da ficha não tem colors: ['W'] (outras fichas do arquivo usam colors, ex. 2992/3790); createToken (8043) grava colors: def.colors || [], então os Pássaros ficam incolores. Consequências: não servem para pagar o flashback 'Tap three untapped white creatures' (extraCostCandidates filtra por spec.color, 8248) — a jogada padrão de virar os dois Pássaros recém-criados é recusada — e não são afetados por prevenção/proteção de branco (Prismatic Strands, proteção contra branco).",
+     "linha_script": "3724",
+     "impacto": "alto",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Boros Garrison",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When Boros Garrison enters the battlefield, return a land you control to its owner's hand.",
+     "o_que_o_motor_faz": "Usa bounce com alvo 'land-you-control', que está no conjunto TARGETED (3060): o terreno é escolhido como alvo ao pôr o gatilho na pilha, em vez de escolhido na resolução sem mirar. Se o terreno escolhido sair do campo em resposta (ex.: sacrificado), o gatilho fizzla e nenhum terreno volta; no oficial outro terreno (possivelmente a própria Garrison) teria de voltar.",
+     "linha_script": "3483",
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Wind-Scarred Crag",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Dust to Dust",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Electrickery",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Hallow",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Prevent all damage target spell would deal this turn. You gain life equal to the damage prevented this way.",
+     "o_que_o_motor_faz": "prevent_spell marca damagePrevented/preventGainTo, mas o ramo 'each-opponent' do dano (7606) aplica a perda de vida antes de testar colorPrevented: dano da mágica-alvo a 'cada oponente' (ex.: End the Festivities) não é prevenido e não gera a vida.",
+     "linha_script": "3576 (motor: 7606)",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Martyr of Sands",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{1}, Reveal X white cards from your hand, Sacrifice Martyr of Sands: You gain three times X life.",
+     "o_que_o_motor_faz": "payExtraCosts (8296-8299) revela automaticamente todas as cartas brancas da mão; o jogador não escolhe X (não pode revelar menos para esconder informação).",
+     "linha_script": "3635",
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Drift of Phantasms",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Transmute {1}{U}{U} ({1}{U}{U}, Discard this card: Search your library for a card with the same mana value as this card... Transmute only as a sorcery.)",
+     "o_que_o_motor_faz": "A ação transmute (8943-8955) resolve na hora, sem pôr a habilidade na pilha: não pode ser respondida (ex.: Stifle). Além disso, sem carta de mesmo valor no grimório, não embaralha.",
+     "linha_script": "3646 (motor: 8943)",
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Overgrown Battlement",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Quirion Ranger",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Shield-Wall Sentinel",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Tinder Wall",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Bloodrite Invoker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Galvanic Alchemist",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Orochi Leafcaller",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Tuktuk Rubblefort",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Pulse of Murasa",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Freed from the Real",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{U}: Tap enchanted creature. / {U}: Untap enchanted creature. (Ruling 2018-03-16: Only the player who controls Freed from the Real can activate its abilities. This might not be the controller of the enchanted creature.)",
+     "o_que_o_motor_faz": "O script usa grants.activated, que grantedAbilities (7402-7407) acrescenta às habilidades da criatura encantada; activate exige o.controller === a.p (8706). Resultado: com a Aura na criatura do oponente, quem controla a Aura não consegue ativar (uso de travar criatura), e o dono da criatura passa a poder ativar pagando {U}.",
+     "linha_script": "3553-3556 (motor: 7407, 8706)",
+     "impacto": "alto",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Refurbished Familiar",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When this creature enters, each opponent discards a card. For each opponent who can't, you draw a card.",
+     "o_que_o_motor_faz": "discard usa target 'opponent' (alvo, TARGETED): só um oponente descarta; em partida com mais de um oponente os demais não descartam. Oponente com hexproof de jogador deixa o gatilho sem alvo e ele fizzla inteiro (8230), perdendo também o compra — no oficial não mira.",
+     "linha_script": "3738",
+     "impacto": "medio",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Writhing Chrysalis",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Gixian Infiltrator",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Krark-Clan Shaman",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Evolution Witness",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{1}{G}: Adapt 2. (If this creature has no +1/+1 counters on it, put two +1/+1 counters on it.)",
+     "o_que_o_motor_faz": "Em activate (8734-8735) os marcadores são postos no pagamento do custo, antes de a habilidade ir para a pilha (a habilidade na pilha fica sem efeitos). O oponente não pode responder com a criatura ainda 2/1 (ex.: 1 de dano mata no oficial) e o gatilho de 'counters put' dispara antes da resolução.",
+     "linha_script": "3596 (motor: 8734)",
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Cast Down",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Eviscerator's Insight",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Terminate",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Cleansing Wildfire",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Ichor Wellspring",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Lembas",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Makeshift Munitions",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Drossforge Bridge",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Slagwoods Bridge",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Twisted Landscape",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Vault of Whispers",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Weather the Storm",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Ruling 2019-06-14: \"The storm ability and the copies it creates all resolve before the spell with storm. They resolve even if the spell with storm is countered.\"",
+     "o_que_o_motor_faz": "As cópias não são objetos na pilha: ficam em o.stormCopies (index.html 8632) e só resolvem dentro de resolveTop da mágica original (8407-8412). Se a original for anulada (counter -> moveObject para o cemitério, 7635), nenhuma cópia resolve. Verificado: segunda Weather the Storm anulada por Negate => ganho 0 (esperado 3 da cópia).",
+     "linha_script": 3587,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Breath Weapon",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Ancient Grudge",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Ruling 2021-03-19: \"A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way.\"",
+     "o_que_o_motor_faz": "O exílio por lampejo só acontece na resolução (resolveTop 8429). Anulada, a carta vai para o cemitério (counter em 7635 usa moveObject(...,'graveyard') sem checar o.flashback) e pode ser conjurada de novo por lampejo. Verificado: Ancient Grudge por lampejo anulada por Negate termina em 'graveyard'.",
+     "linha_script": 3561,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Birchlore Rangers",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Morph {G} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+     "o_que_o_motor_faz": "A marca faceDown não é limpa ao mudar de zona (moveObject 6895-6896 não apaga faceDown). Verificado: Birchlore virada para baixo destruída fica no cemitério com faceDown=true; se voltar à mão e for conjurada normalmente (cast sem faceDown não apaga a marca, 8638), entra virada para baixo, sem habilidades.",
+     "linha_script": 3784,
+     "impacto": "baixo",
+     "confianca": "alta"
+    },
+    {
+     "frase_oficial": "Tap two untapped Elves you control: Add one mana of any color.",
+     "o_que_o_motor_faz": "extraCostCandidates (8242-8252) testa o subtipo Elf pelo typeText da carta sem olhar faceDown: uma criatura virada para baixo (sem subtipos, 708.2) cujo verso é Elfo conta como Elfo para pagar o custo.",
+     "linha_script": 3782,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Elvish Vanguard",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Jaspera Sentinel",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Llanowar Elves",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Priest of Titania",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{T}: Add {G} for each Elf on the battlefield.",
+     "o_que_o_motor_faz": "countFor 'elves-on-battlefield' (6751/6756) usa só regex no typeText: não conta metamorfos (isChangeling, que as outras contagens por subtipo usam em 6736/6743) e conta criaturas viradas para baixo cujo verso é Elfo (face-down não tem subtipo).",
+     "linha_script": 3850,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Timberwatch Elf",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Target creature gets +X/+X until end of turn, where X is the number of Elves on the battlefield.",
+     "o_que_o_motor_faz": "Mesma contagem 'elves-on-battlefield' (6751/6756): ignora metamorfos (changeling) e conta Elfos virados para baixo.",
+     "linha_script": 3860,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Salt Road Packbeast",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Elvish Mystic",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Nyxborn Hydra",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Bestow {X}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.) — regra 608.3b/702.103e: Aura concedida com alvo ilegal na resolução deixa de ser concedida e resolve como criatura.",
+     "o_que_o_motor_faz": "resolveTop (8414-8417) trata a mágica concedida como aura comum: alvo ilegal => 'fizzled' e a Hidra vai para o cemitério. Verificado: Hidra concedida em Urso, Murder no Urso em resposta => Hidra no cemitério (devia entrar como criatura 0/1 com X marcadores).",
+     "linha_script": 3591,
+     "impacto": "medio",
+     "confianca": "alta"
+    },
+    {
+     "frase_oficial": "Nyxborn Hydra enters the battlefield with X +1/+1 counters on it.",
+     "o_que_o_motor_faz": "o.xPaid nunca é limpo (moveObject 6894 lê, nada apaga; cast só grava se a.x>0, 8631). Verificado: Hidra conjurada com X=2, devolvida à mão e reconjurada com X=0 entra com 2 marcadores.",
+     "linha_script": 3592,
+     "impacto": "medio",
+     "confianca": "alta"
+    },
+    {
+     "frase_oficial": "It becomes a creature again if it's not attached. / conjurada sem conceder é mágica de criatura",
+     "o_que_o_motor_faz": "o.bestowed só é apagado quando o hospedeiro sai (stateBased 8462). Se a própria Hidra concedida sai do campo (destruída/devolvida), a marca persiste; reconjurada normalmente é tratada como aura sem alvo e vai para o cemitério. Verificado: Hidra concedida destruída por Disenchant, reconjurada com X=3 => 'graveyard bestowed=true'.",
+     "linha_script": 3591,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Lys Alana Huntmaster",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token.",
+     "o_que_o_motor_faz": "No cast, queueTriggers('cast-self') roda em 8634, antes de s.objects[a.oid].faceDown=true (8638); matchesTriggerFilter (8130) ainda vê a carta de frente. Verificado: Birchlore Rangers conjurada virada para baixo (mágica de criatura 2/2 sem subtipo) criou ficha de Elfo Guerreiro.",
+     "linha_script": 3789,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Distant Melody",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Choose a creature type. Draw a card for each permanent you control of that type.",
+     "o_que_o_motor_faz": "choose_type (7808-7816) oferece só subtipos de criaturas no campo (dos dois lados) e corta em 12 opções (tipos.slice(0, 12)): com mais de 12 tipos em campo o tipo desejado pode não aparecer; permanentes kindred não-criatura não geram opção.",
+     "linha_script": 3862,
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Vitu-Ghazi Inspector",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When Vitu-Ghazi Inspector enters the battlefield, if evidence was collected, put a +1/+1 counter on target creature and you gain 2 life.",
+     "o_que_o_motor_faz": "o.evidenced (gravado em 8652) nunca é limpo ao mudar de zona. Verificado: Inspector conjurado com provas, devolvido à mão por Vapor Snag e reconjurado SEM provas dispara de novo (+1 marcador e +2 de vida).",
+     "linha_script": 3539,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Mirrorshell Crab",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Ward {3} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {3}.)",
+     "o_que_o_motor_faz": "chargeWard só é chamado ao conjurar mágica (8657) e ativar habilidade (8742); putTriggerOnStack (8212-8234) não chama: habilidade disparada do oponente que mira a Crab ignora a vigilância. Além disso chargeWard retorna após a primeira permanente com vigilância (7379-7380), cobrando só uma.",
+     "linha_script": 3542,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Negate",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Counter target noncreature spell.",
+     "o_que_o_motor_faz": "legalTargets 'noncreature-spell' (7528-7530) usa f.types da carta e ignora o.bestowed: uma Nyxborn Hydra conjurada com conceder (mágica de Aura, não criatura) não pode ser alvo. Verificado: 'alvo ilegal'.",
+     "linha_script": 3354,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Spell Pierce",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Counter target noncreature spell unless its controller pays {2}.",
+     "o_que_o_motor_faz": "Mesma checagem de 'noncreature-spell' (7528-7530) que ignora o.bestowed: mágica concedida (Aura) não pode ser alvo.",
+     "linha_script": 3888,
+     "impacto": "baixo",
+     "confianca": "alta"
+    }
+   ]
+  }
+ ]
+}

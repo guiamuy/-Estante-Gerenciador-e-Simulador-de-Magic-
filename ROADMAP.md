@@ -336,7 +336,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 14º | U15 chat na partida 1x1 | E49 | 1 a 2 | depende de U14 |
 | 15º | E36 · Commander: M13b ✅ (leva 103), depois S67+ | — | — | em curso enquanto U13/U14 esperam decisão |
 | 15º-a ✅ | Escolhas de quem paga e X (leva 104) | E33 | 1 | relato do usuário |
-| 15º-b | Auditoria texto × script das 138 cartas Pauper (leva 105) | E33 | 1 a 2 | precisa dos textos das 27 cartas `incerto` |
+| 15º-b ✅ | Auditoria texto × script, parte 1: 111 cartas, 9 correções (leva 105) | E33 | 1 | — |
+| 15º-c | Auditoria texto × script, parte 2: achados restantes e as 27 sem texto (leva 106) | E33 | 2 a 3 | textos das 27 cartas |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3056,10 +3057,26 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Motor:** v58 sem mudança de versão — ações antigas continuam válidas (o pagamento escolhido já ia no log) e as partidas-referência não mudaram.
 - **Portão:** 567 verdes (505 + 62 e2e).
 
-**Leva 105 · Auditoria texto × script das 138 cartas Pauper** ⏳
-- **Valor:** cada carta das listas Pauper conferida contra o texto oficial, com divergência virando teste antes da correção.
-- **Aceite:** 138/138 com texto de fonte confiável e data; cada script comparado linha a linha; divergências corrigidas ou declaradas (parcial/manual); Highway Robbery na resolução.
-- **Depende de:** textos das 27 cartas `incerto` (ver `.listas/oficiais.json`).
+**Leva 105 · Auditoria texto × script das cartas Pauper — parte 1** ✅ (111 de 138 conferidas)
+- **Como:** as 111 cartas com texto oficial confirmado (`.listas/oficiais.json`, 30/09/2026) foram comparadas frase a frase com o script e o motor; resultado em `.listas/auditoria-2026-09-30.json` (111 cartas, 52 com achados). Cada achado corrigido abaixo foi confirmado por um teste que falha no motor anterior.
+- **Corrigido (9 testes novos em `pauper.regras.test.mjs`):**
+  - 400.7 · carta que muda de zona vira objeto novo: X pago, conceder, provas, face para baixo, lampejo, custo adicional pago, cor escolhida e plot não sobrevivem (Nyxborn Hydra reconjurada com X = 0 entrava com o X antigo; Vitu-Ghazi Inspector disparava sem provas; conceder "grudava");
+  - 702.103e · Nyxborn Hydra concedida cuja criatura sai antes de resolver entra como criatura com os X marcadores (antes: cemitério);
+  - 702.34a · Ancient Grudge (e todo lampejo) anulada vai para o exílio (antes: cemitério, e podia voltar);
+  - 702.35a · insanidade também no descarte como custo e no descarte escolhido: Grab the Prize, ficha de Blood (Voldaren Epicure, Vampire's Kiss) e Duress — o motor do Rakdos Madness;
+  - Highway Robbery conjurada do plot oferece descartar ou sacrificar terreno (antes: só "não pagar", e a carta não fazia nada);
+  - fichas: aves da Battle Screech brancas (antes incolores: não pagavam o lampejo "vire três criaturas brancas"); Clue, Blood e Map com subtipo; Eldrazi Spawn incolor declarado; guarda-corpo: toda ficha das cartas Pauper declara cor e subtipo;
+  - Prismatic Strands e Hallow previnem também o dano "a cada oponente" (End the Festivities);
+  - Freed from the Real: as duas habilidades são da aura (quem ativa é o controlador dela, também na criatura do oponente).
+- **Motor v59:** regras mudaram (lampejo, insanidade, conceder, 400.7), então partidas salvas no v58 não abrem. Partidas-referência regravadas só pela versão: logs, status e turnos idênticos, conferidos um a um.
+- **Portão:** 576 verdes (514 + 62 e2e).
+
+**Leva 106 · Auditoria texto × script — parte 2** ⏳
+- **Achados ainda a confirmar com teste e corrigir (da auditoria de 30/09), por impacto:**
+  - médio: Weather the Storm (cópias de tempestade dependem da mágica original: anulada, nenhuma resolve); Spellstutter Sprite (X não é conferido de novo na resolução); Standard Bearer (regra do Flagbearer vale para gatilhos, exige todos os alvos e barra o Red Elemental Blast); Kor Skyfisher (devolver é escolha na resolução, não alvo); Armadillo Cloak e Spirit Link (só dano de combate ganha vida); Evolution Witness (adaptar coloca marcadores ao pagar o custo, sem pilha); Benevolent Blessing e Mask of Law and Grace (proteção não derruba auras/equipamentos da cor); Distant Melody (tipos só do campo, até 12);
+  - baixo: Rancor volta mesmo exilada; Sentinel's Eyes (fuga exila as primeiras cartas); Abundant Growth e Utopia Sprawl só em terreno seu; Smash to Smithereens com artefato roubado; Aura Gnarlid conta só auras com script; Setessan Training com troca de controle; Journey to Nowhere (caso-limite do ruling); Lunarch Veteran (face de trás sem cor e subtipos); Hydroblast e Red/Blue Elemental Blast (a cor é conferida na resolução); Rakdos Carnarium e Boros Garrison (terreno escolhido na resolução, sem alvo); Faerie Miscreant (condição na resolução); ninjutsu (pilha e janela); Moon-Circuit Hacker; Duress (mostrar a mão inteira); Martyr of Sands (escolher quantas revela); Drift of Phantasms (transmutar pela pilha); Priest of Titania e Timberwatch Elf (changeling e face para baixo na contagem); Lys Alana Huntmaster com Elfo conjurado virado; Mirrorshell Crab (proteção contra habilidade disparada); Negate e Spell Pierce contra mágica concedida; End the Festivities em planeswalker; Highway Robbery na resolução; Refurbished Familiar em multiplayer.
+- **Ainda sem texto conferido (27):** Of One Mind, Cryoshatter, Sewer-veillance Cam, Sneaky Snacker, Kitchen Imp, Alms of the Vein, Red Elemental Blast, Slippery Bogle, Malevolent Rumble, Flaring Pain, Lifelink, Leonardo, Big Brother, Perilous Landscape, Axebane Guardian, Sagu Wildling, Saruli Caretaker, Secret Door, Valakut Invoker, Reaping the Graves, Lead the Stampede, Winding Way, Masked Vandal, Faerie Macabre, Moment's Peace, Nylea's Disciple, Fanatical Offering, Troublemaker Ouphe. Seguem com o script atual; a auditoria delas depende do texto oficial.
+- **Depende de:** o link da Scryfall numa mensagem do usuário (libera a busca dos 27 textos).
 
 **Leva 103 · E36 · M13b: parcerias de comandante e mana pelos terrenos do oponente** ✅ (pedido de 30/09)
 - **Lista:** dois comandantes só com parceria válida (Partner, Partner with, Friends forever, Choose a Background + Antecedente, Doctor's companion); mensagem diz o que falta; variante desconhecida vira aviso. Funciona sem internet (só dados guardados).

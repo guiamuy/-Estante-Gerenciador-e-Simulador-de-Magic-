@@ -2925,8 +2925,8 @@ const EFFECTS = {
   lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
   counters: { fields: ['amount'], targets: ['self-source', 'creature'] },
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
-  tap: { fields: [], targets: ['self-source', 'creature', 'permanent', 'permanent-opponent-controls'] },
-  untap: { fields: [], targets: ['self-source', 'creature', 'permanent'] },
+  tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
+  untap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent'] },
   exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all'] },
   // S37 · o oponente revela a mão e você escolhe o que ele descarta
   discard_chosen: { fields: ['amount'], targets: ['opponent', 'player'] },
@@ -3550,10 +3550,12 @@ const RAW_SCRIPTS = [
     sneak: { mana: '{W}' },
     example: { target: 'none', expect: { selfStats: [3, 1] } } },
   // S39 · o combo das Walls: habilidade ativada concedida por aura e por vínculo de alma (textos conferidos em 26/09)
+  // Leva 105 · "{U}: Tap enchanted creature." / "{U}: Untap enchanted creature." são habilidades da AURA:
+  // quem ativa é o controlador dela, mesmo na criatura do oponente (antes eram dadas à criatura)
   { name: 'Freed from the Real', aura: { enchant: 'creature' },
-    grants: { activated: [
-      { cost: { mana: '{U}' }, effects: [{ do: 'tap', target: 'self-source' }] },
-      { cost: { mana: '{U}' }, effects: [{ do: 'untap', target: 'self-source' }] }] },
+    abilities: [
+      { kind: 'activated', cost: { mana: '{U}' }, effects: [{ do: 'tap', target: 'enchanted' }] },
+      { kind: 'activated', cost: { mana: '{U}' }, effects: [{ do: 'untap', target: 'enchanted' }] }],
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   { name: 'Galvanic Alchemist', soulbond: { activated: [{ cost: { mana: '{2}{U}' }, effects: [{ do: 'untap', target: 'self-source' }] }] },
     example: { action: 'activate:0', target: 'none', expect: { selfUntapped: true } } },
@@ -3721,7 +3723,7 @@ const RAW_SCRIPTS = [
     alt: [{ label: 'Delve: exilar 6 cartas do cemitério', cost: { mana: '{1}{U}{U}', exileGraveyard: 6 } }],
     covers: 'partial', note: 'no delve real você exila quantas quiser',
     example: { target: 'none', expect: { picked: true } } },
-  { name: 'Battle Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], power: 1, toughness: 1, keywords: ['flying'] } }],
+  { name: 'Battle Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['W'], power: 1, toughness: 1, keywords: ['flying'] } }],
     flashback: { tapOther: { types: ['creature'], color: 'W', amount: 3 } },
     example: { target: 'none', expect: { tokens: 2 } } },
   { name: "Eviscerator's Insight", additional: { sacrificeOther: { types: ['artifact', 'creature'] } }, effects: [{ do: 'draw', amount: 2 }],
@@ -3768,7 +3770,7 @@ const RAW_SCRIPTS = [
   { name: 'Kitchen Imp', madness: { mana: '{B}' }, self: {},
     example: { action: 'madness', target: 'none', expect: { attached: false } } },
   { name: 'Writhing Chrysalis', abilities: [{ kind: 'triggered', when: 'cast-self', effects: [
-    { do: 'token', amount: 2, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], power: 0, toughness: 1,
+    { do: 'token', amount: 2, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
       abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] },
     { kind: 'triggered', when: 'other-sacrificed', filter: { subtype: 'Eldrazi' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
     example: { target: 'none', expect: { tokens: 2 } } },
@@ -3792,7 +3794,7 @@ const RAW_SCRIPTS = [
   // S22 · cartas conferidas na Scryfall (22/09)
   { name: 'Malevolent Rumble', effects: [
     { do: 'look', count: 4, amount: 1, filter: { types: ['creature', 'land', 'artifact', 'enchantment', 'planeswalker'] }, to: 'hand', rest: 'graveyard' },
-    { do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], power: 0, toughness: 1,
+    { do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
       abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }],
     example: { target: 'none', expect: { picked: true } } },
   { name: 'Sheltering Landscape', entersTapped: false, cycling: { mana: '{R}{G}{W}' },
@@ -3804,10 +3806,10 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'aura', target: 'own-creature', expect: { stats: [3, 2], keyword: 'trample' } } },
   { name: "Vampire's Kiss", effects: [{ do: 'lose', amount: 2, target: 'player' }, { do: 'gain', amount: 2 },
-    { do: 'token', amount: 2, token: { name: 'Blood', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true, discard: 1 }, effects: [{ do: 'draw', amount: 1 }] }] } }],
+    { do: 'token', amount: 2, token: { name: 'Blood', types: ['artifact'], subtypes: ['Blood'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true, discard: 1 }, effects: [{ do: 'draw', amount: 1 }] }] } }],
     example: { target: 'opponent', expect: { opponentLife: -2, selfLife: 2, tokens: 2 } } },
   { name: 'Voldaren Epicure', abilities: [{ kind: 'triggered', when: 'etb', effects: [
-    { do: 'damage', amount: 1, target: 'each-opponent' }, { do: 'token', amount: 1, token: { name: 'Blood', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true, discard: 1 }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
+    { do: 'damage', amount: 1, target: 'each-opponent' }, { do: 'token', amount: 1, token: { name: 'Blood', types: ['artifact'], subtypes: ['Blood'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true, discard: 1 }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
   { name: 'Grab the Prize', additional: { discard: 1 }, effects: [{ do: 'draw', amount: 2 },
     { do: 'damage', amount: 2, target: 'each-opponent', onlyIf: 'discarded-nonland' }],
@@ -3839,7 +3841,7 @@ const RAW_SCRIPTS = [
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 2 } } },
   // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Draw two cards and create a Map token." A ficha entra (é artefato: alimenta Krark-Clan Shaman); explorar fica manual.
   { name: 'Fanatical Offering', additional: { sacrificeOther: { types: ['artifact', 'creature'] } },
-    effects: [{ do: 'draw', amount: 2 }, { do: 'token', amount: 1, token: { name: 'Map', types: ['artifact'],
+    effects: [{ do: 'draw', amount: 2 }, { do: 'token', amount: 1, token: { name: 'Map', types: ['artifact'], subtypes: ['Map'], colors: [],
       abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, sorceryOnly: true, effects: [{ do: 'explore', target: 'creature-you-control' }] }] } }],
     example: { target: 'none', expect: { handDelta: 2, tokens: 1 } } },
   // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Sacrifice an artifact: This creature deals 1 damage to each creature without flying." (antes custava {R} e acertava voadoras)
@@ -3986,9 +3988,9 @@ const RAW_SCRIPTS = [
     { do: 'token', amount: 1, token: { name: 'Crab', types: ['creature'], power: 0, toughness: 3 } },
     { do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }],
     example: { target: 'none', expect: { tokens: 2 } } },
-  { name: 'Thraben Inspector', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
+  { name: 'Thraben Inspector', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
-  { name: 'Novice Inspector', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
+  { name: 'Novice Inspector', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
   { name: 'Swan Song', effects: [{ do: 'counter', target: 'noncreature-spell' }, { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Bird', types: ['creature'], power: 2, toughness: 2, keywords: ['flying'] } }],
     covers: 'partial', note: 'na carta real só anula encantamento, instantânea ou feitiço',
@@ -6603,7 +6605,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 58;
+const ENGINE_VERSION = 59;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 /** Leva 104 · teto de formas de pagar um custo com escolha (e de valores de X) oferecidas de uma vez. */
@@ -6874,6 +6876,9 @@ function createGame(setup) {
 /* ---------------- movimento entre zonas ---------------- */
 function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[obj.owner][zone]; }
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
+/** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
+const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 function moveObject(s, oid, to, { top = true } = {}) {
   const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
@@ -6887,11 +6892,18 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // S24 · fora do campo e da pilha, a carta volta para a face da frente
   // S52 · "se fosse para o cemitério, exile em vez disso" (Luminous Phantom)
   if (to === 'graveyard' && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard') to = 'exile';
+  // Leva 105 · 702.34a: conjurada com lampejo, sai da pilha para o exílio seja qual for o destino (anulada também)
+  if (fromZone === 'stack' && o.flashback && to !== 'exile') to = 'exile';
   if (to !== 'battlefield' && to !== 'stack') flipToFront(s, o);
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
   // 400.7: objeto novo ao mudar de zona; sai do combate
   const xPago = o.xPaid || 0; // S50 · o X pago sobrevive à mudança de zona só para os marcadores de entrada
+  // Leva 105 · 400.7: o que foi escolhido ao conjurar vale da mão para a pilha e da pilha para o campo;
+  // qualquer outra mudança de zona cria um objeto novo, sem X pago, conceder, provas, face para baixo etc.
+  if (!(to === 'stack' || (fromZone === 'stack' && to === 'battlefield'))) {
+    for (const k of MARCAS_DA_CONJURACAO) delete o[k];
+  }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
   delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -7180,7 +7192,7 @@ function payAlt(s, p, cost, pay, selfOid) {
   if (cost.discard) {
     const list = (pay && pay.discard) || defaultPayment(s, p, cost, selfOid).discard || [];
     if (list.length !== cost.discard || list.some(x => !s.zones[p].hand.includes(x) || x === selfOid)) throw new RuleError('custo', `descarte ${cost.discard} carta(s) como custo`);
-    list.forEach(x => moveObject(s, x, 'graveyard'));
+    list.forEach(x => descartaCarta(s, x));
   }
   if (cost.returnLand) {
     const oid = (pay && pay.land) || (defaultPayment(s, p, cost, selfOid).land);
@@ -7198,6 +7210,21 @@ function afterMadness(s) {
 }
 const ninjutsuOf = (s, o) => (s.facts[o.name].script || {}).ninjutsu;
 const madnessOf = (s, o) => (s.facts[o.name].script || {}).madness;
+/** Leva 105 · 702.35a: descartar uma carta com insanidade a exila e o dono decide se conjura. Descarte que
+ * acontece no meio de outra ação (custo, escolha de Duress) entra numa fila; a decisão aparece assim que a
+ * ação termina (apply). Antes esses descartes iam direto para o cemitério. */
+function descartaCarta(s, oid) {
+  const o = s.objects[oid]; const md = madnessOf(s, o);
+  if (!md) { moveObject(s, oid, 'graveyard'); return; }
+  moveObject(s, oid, 'exile');
+  (s.filaInsanidade = s.filaInsanidade || []).push({ p: o.owner, oid, cost: md.mana });
+}
+function abreInsanidadeDaFila(s) {
+  if (s.pending || !s.filaInsanidade || !s.filaInsanidade.length) return;
+  const m = s.filaInsanidade.shift();
+  if (!s.filaInsanidade.length) delete s.filaInsanidade;
+  if (s.objects[m.oid] && s.objects[m.oid].zone === 'exile') { s.pendingAfterMadness = null; s.pending = { kind: 'madness', p: m.p, oid: m.oid, cost: m.cost }; }
+}
 /** 702.49: depois dos bloqueadores, devolve um atacante não bloqueado e entra virado e atacando. */
 function unblockedAttackers(s, p) {
   if (s.turn.step !== 'combat_blockers' || s.pending || !s.combat) return [];
@@ -7584,6 +7611,12 @@ function effectAllowed(s, fonte, eff) {
   return true;
 }
 function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
+/** Leva 105 · a permanente que a aura de origem encanta, sem alvo ("Tap enchanted creature"). */
+function criaturaEncantada(s, src) {
+  const aura = src.ability ? s.objects[src.source] : src;
+  const host = aura && aura.zone === 'battlefield' && aura.attachedTo ? s.objects[aura.attachedTo] : null;
+  return host && host.zone === 'battlefield' ? host : null;
+}
 function applyEffect(s, src, eff, tgt, events) {
   const ctrl = src.controller;
   // S41 · guarda o nome do alvo antes de aplicar: anular uma habilidade a apaga do jogo
@@ -7603,7 +7636,12 @@ function applyEffect(s, src, eff, tgt, events) {
           }
         };
         // S47 · "a cada oponente" é dano em jogador. Antes caía na varredura de criaturas.
-        if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) pl.life -= n; }); note({ amount: n }); break; }
+        // Leva 105 · a prevenção (Prismatic Strands, Hallow) vale também para o dano a cada oponente
+        if (eff.target === 'each-opponent') {
+          const bloqueado = colorPrevented(s, src);
+          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else pl.life -= n; });
+          note({ amount: n, ...(bloqueado ? { prevented: true } : {}) }); break;
+        }
         if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protectedFrom(s, obj, src)))) { ganhaVida(n); note({ amount: n, prevented: true }); break; }
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); note({ amount: n }); break; }
         if (obj) { obj.damage += n; noteEnchantedEvent(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
@@ -7737,7 +7775,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const mao = s.zones[who].hand.filter(x => matchesFilter(s, s.objects[x], filtro));
       if (!mao.length) { note({ amount: 0 }); break; }
       const n = Math.min(amountOf(s, src, eff.amount), mao.length);
-      startPick(s, { p: ctrl, from: mao, min: n, max: n, to: 'graveyard', rest: 'stay', filter: filtro,
+      startPick(s, { p: ctrl, from: mao, min: n, max: n, to: 'graveyard', rest: 'stay', filter: filtro, discard: true,
         label: 'escolher o descarte', source: src.name }, events);
       note({ amount: n, pending: true }); break;
     }
@@ -7864,10 +7902,10 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     case 'tap': { // S39 · "vire a criatura encantada" chega aqui como self-source
-      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && !alvo.tapped) { alvo.tapped = true; noteEnchantedEvent(s, alvo); } note({}); break;
     }
-    case 'untap': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
+    case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
     default: break;
   }
 }
@@ -7900,6 +7938,7 @@ function startPick(s, spec, events) {
   s.pending = { kind: 'pick', p: spec.p, from: spec.from, picked: [], min: spec.min || 0, max: spec.max,
     to: spec.to, rest: spec.rest || 'stay', shuffle: !!spec.shuffle, filter: spec.filter || null, label: spec.label, source: spec.source,
     ...(spec.needMv ? { needMv: spec.needMv } : {}),
+    ...(spec.discard ? { discard: true } : {}), // Leva 105 · escolha que é descarte (insanidade)
     ...(spec.onPicked ? { onPicked: spec.onPicked } : {}) }; // S59 · o que a carta escolhida recebe
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
 }
@@ -7912,6 +7951,7 @@ function finishPick(s, events) {
     if (where === 'library-top') moveObject(s, oid, 'library', { top: true });
     else if (where === 'library-bottom') moveObject(s, oid, 'library', { top: false });
     else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield'); s.objects[oid].tapped = true; s.objects[oid].controller = pk.p; }
+    else if (where === 'graveyard' && pk.discard) descartaCarta(s, oid); // Leva 105 · Duress: é descarte
     else moveObject(s, oid, where);
   };
   [...pk.picked].reverse().forEach(oid => dest(oid, pk.to)); // o primeiro escolhido termina no topo
@@ -8310,7 +8350,7 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     // S47 · a mágica pode perguntar depois se o descarte foi terreno (Grab the Prize)
     const semTerreno = list.every(x => !s.facts[s.objects[x].name].types.includes('land'));
     if (s.objects[selfOid]) s.objects[selfOid].discardedNonland = semTerreno;
-    list.forEach(x => moveObject(s, x, 'graveyard'));
+    list.forEach(x => descartaCarta(s, x)); // Leva 105 · insanidade também no descarte como custo
   }
   if (cost.sacrificeOther) {
     const oid = (pay && pay.sacrifice) || extraCostCandidates(s, p, cost.sacrificeOther, selfOid)[0];
@@ -8414,7 +8454,15 @@ function resolveTop(s, events = []) {
   const aura = auraTarget(f, o.bestowed);
   if (aura) { // S11 · aura: confere o alvo de novo e entra anexada
     const tgt = (o.targets || [])[0];
-    if (!tgt || !targetStillLegal(s, controller, aura, tgt, item)) { events.push({ kind: 'fizzled', oid: item, name: o.name }); moveObject(s, item, 'graveyard'); return { kind: 'resolved', oid: item, name: o.name, to: 'graveyard', scripted: true, adjudicate: false }; }
+    if (!tgt || !targetStillLegal(s, controller, aura, tgt, item)) {
+      // Leva 105 · 702.103e: com conceder e alvo ilegal, a mágica deixa de ser Aura e entra como criatura
+      if (o.bestowed) {
+        delete o.bestowed; delete o.targets;
+        moveObject(s, item, 'battlefield'); s.objects[item].controller = controller;
+        events.push({ kind: 'unattached', oid: item, name: o.name });
+        return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };
+      }
+      events.push({ kind: 'fizzled', oid: item, name: o.name }); moveObject(s, item, 'graveyard'); return { kind: 'resolved', oid: item, name: o.name, to: 'graveyard', scripted: true, adjudicate: false }; }
     moveObject(s, item, 'battlefield'); s.objects[item].controller = controller;
     attachTo(s, s.objects[item], tgt.oid, events);
     return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };
@@ -9116,6 +9164,7 @@ function apply(state, action) {
   stateBased(s, events);
   flushTriggers(s, events); // M9: gatilhos entram na pilha antes de alguém receber prioridade
   stateBased(s, events);
+  abreInsanidadeDaFila(s); // Leva 105
   return { state: s, events };
 }
 
@@ -9228,6 +9277,18 @@ function legalActions(s, p, { adjudication = false } = {}) {
     return combos.filter(c => { const k = JSON.stringify(c); if (vistos.has(k)) return false; vistos.add(k); return true; })
       .map(targets => ({ ...base, targets }));
   };
+  /** S53/Leva 104/105 · custo adicional: opções ("descarte uma carta OU sacrifique um terreno"), opcional ou não,
+   * uma variante por forma de pagar. [{}] sem custo adicional; [] quando é obrigatório e não dá para pagar. */
+  const adicionais = o => {
+    const f = s.facts[o.name];
+    const addSpec = f.script && f.script.additional;
+    const opcoes = Array.isArray(addSpec) ? addSpec : addSpec ? [addSpec] : [];
+    if (!opcoes.length) return [{}];
+    const out2 = [];
+    opcoes.forEach((op, i) => { if (canPayExtra(s, p, op, o.oid)) pagamentosDe(s, p, op, o.oid).forEach(pay => out2.push({ add: i, pay })); });
+    if (f.script && f.script.additionalOptional) out2.push({ add: null });
+    return out2;
+  };
   const casts = o => {
     const f = s.facts[o.name];
     const aura = auraTarget(f);
@@ -9243,18 +9304,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       // S50/Leva 104 · custo com X: quem conjura escolhe X (601.2b), de 0 até o que dá para pagar
       const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x)));
       const empurra = c => xs.forEach(x => out.push(x == null ? c : { ...c, x }));
-      // S53 · o custo adicional pode ter opções ("descarte uma carta OU sacrifique um terreno") e ser opcional
-      const addSpec = f.script && f.script.additional;
-      const opcoes = Array.isArray(addSpec) ? addSpec : addSpec ? [addSpec] : [];
-      const opcional = !!(f.script && f.script.additionalOptional);
-      const pagaveis = opcoes.map((op, i) => ({ op, i })).filter(({ op }) => canPayExtra(s, p, op, oid));
-      if (opcoes.length && !pagaveis.length && !opcional) continue;
-      if (!opcoes.length) casts(o).forEach(empurra);
-      else {
-        // Leva 104 · o jogador escolhe a carta descartada e a permanente sacrificada
-        pagaveis.forEach(({ op, i }) => pagamentosDe(s, p, op, oid).forEach(pay => casts(o).forEach(x => empurra({ ...x, add: i, pay }))));
-        if (opcional) casts(o).forEach(x => empurra({ ...x, add: null }));
-      }
+      adicionais(o).forEach(v => casts(o).forEach(x => empurra({ ...x, ...v })));
     }
   }
   // S61 · Cavernas das Runas: as cartas exiladas que você pode jogar
@@ -9285,7 +9335,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const o = s.objects[oid];
     if (o.plotted == null || o.plotted >= s.turn.number || o.owner !== p) continue;
     const f = s.facts[o.name];
-    castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, plotted: true, add: null }));
+    // Leva 105 · conjurar do plot não paga mana, mas o custo adicional continua (118.9): Highway Robbery descarta ou sacrifica
+    adicionais(o).forEach(v => castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, plotted: true, add: null, ...v })));
   }
   // S29 · transmutar, da mão, no tempo de feitiço
   if (canSorcery) for (const oid of s.zones[p].hand) {

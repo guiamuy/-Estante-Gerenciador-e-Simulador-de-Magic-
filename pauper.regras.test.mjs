@@ -304,3 +304,144 @@ test('Leva 104 · Nyxborn Hydra com conceder: o jogador escolhe X, paga {X}{G}{G
   assert.equal(s.objects[hid].counters.p1p1, 3, 'com 3 marcadores');
   assert.deepEqual(stats(s, urso), [5, 5], 'Urso 2/2 + 3/3');
 });
+
+/* ---------------- Leva 105 · auditoria texto × script das listas Pauper ----------------
+ * Textos oficiais em .listas/oficiais.json (coletados em 30/09/2026); cada teste falha no motor anterior. */
+const passaAte = (s, fim) => { for (let i = 0; i < 400 && !fim(s); i++) { if (s.pending && s.pending.kind === 'discard') s = act(s, { t: 'discard', p: s.pending.p, oid: s.zones[s.pending.p].hand[0] }); else if (s.pending && s.pending.kind === 'attackers') s = act(s, { t: 'attack', p: s.pending.p, attackers: [] }); else if (s.pending && s.pending.kind === 'blockers') s = act(s, { t: 'block', p: s.pending.p, blocks: [] }); else s = act(s, { t: 'pass', p: s.turn.priority }); } return s; };
+
+test('Leva 105 · 400.7: carta que muda de zona vira objeto novo — X pago, conceder, provas, face para baixo e lampejo não sobrevivem', () => {
+  let [s, a] = jogoComMana(4); let hid;
+  [s, hid] = poe(s, a, 'Nyxborn Hydra', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: hid, x: 3 }));
+  assert.equal(s.objects[hid].counters.p1p1, 3);
+  s = act(s, { t: 'move', p: a, oid: hid, to: 'hand' });
+  const o = s.objects[hid];
+  for (const k of ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional']) assert.equal(o[k], undefined, `${k} foi limpo`);
+  // de volta à mão e conjurada com X = 0: entra sem marcadores (antes: com os 3 da vez anterior)
+  s = J(s); for (const f of s.zones[a].battlefield.filter(x => s.objects[x].name === 'Forest')) s.objects[f].tapped = false;
+  s = resolve(act(s, { t: 'cast', p: a, oid: hid, x: 0 }));
+  assert.notEqual(s.objects[hid].counters.p1p1, 3, 'o X antigo não volta');
+  assert.equal(s.objects[hid].zone, 'graveyard', '0/0 sem marcadores morre');
+});
+
+test('Leva 105 · Nyxborn Hydra concedida some da criatura antes de resolver: entra como criatura com X marcadores (702.103e)', () => {
+  let [s, a] = jogoComMana(5); let hid, urso;
+  [s, hid] = poe(s, a, 'Nyxborn Hydra', 'hand'); [s, urso] = poe(s, a, 'Urso');
+  s = act(s, { t: 'cast', p: a, oid: hid, bestow: true, x: 2, targets: [{ oid: urso }] });
+  s = act(s, { t: 'move', p: a, oid: urso, to: 'graveyard' });
+  s = resolve(s);
+  assert.equal(s.objects[hid].zone, 'battlefield', 'entrou (antes: ia para o cemitério)');
+  assert.equal(s.objects[hid].attachedTo, undefined);
+  assert.equal(s.objects[hid].bestowed, undefined, 'como criatura');
+  assert.equal(s.objects[hid].counters.p1p1, 2);
+});
+
+test('Leva 105 · Ancient Grudge com lampejo anulada vai para o exílio (702.34a)', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let grudge, pedra, cs;
+  [s, grudge] = poe(s, a, 'Ancient Grudge', 'graveyard'); [s, pedra] = poe(s, d, 'Pedra'); [s, cs] = poe(s, d, 'Counterspell', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: grudge, flashback: true, targets: [{ oid: pedra }] });
+  s = act(s, { t: 'pass', p: a });
+  s = act(s, { t: 'cast', p: d, oid: cs, targets: [{ oid: grudge }] });
+  s = resolve(s);
+  assert.equal(s.objects[grudge].zone, 'exile', 'anulada depois do lampejo: exílio (antes: cemitério, e podia voltar)');
+  assert.equal(s.objects[pedra].zone, 'battlefield');
+});
+
+test('Leva 105 · insanidade vale para descarte como custo e para descarte escolhido (Grab the Prize, Blood, Duress)', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let grab, temper;
+  [s, grab] = poe(s, a, 'Grab the Prize', 'hand'); [s, temper] = poe(s, a, 'Fiery Temper', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [temper] } });
+  assert.equal(s.objects[temper].zone, 'exile', 'descartada com insanidade: exílio');
+  assert.equal(s.pending && s.pending.kind, 'madness', 'e o dono decide se conjura (antes: cemitério direto)');
+  s = act(s, { t: 'cast_madness', p: a, targets: [{ player: d }] });
+  s = passaAte(s, x => !x.stack.length);
+  assert.equal(s.players[d].life, 20 - 3 - 2, 'Fiery Temper (3) e Grab the Prize (2: o descarte não era terreno)');
+  // ficha de Blood: descartar é custo da habilidade
+  let epi, t2;
+  [s, epi] = poe(s, a, 'Voldaren Epicure', 'hand'); s = passaAte(act(s, { t: 'cast', p: a, oid: epi }), x => !x.stack.length);
+  const blood = s.zones[a].battlefield.find(x => s.objects[x].name === 'Blood');
+  [s, t2] = poe(s, a, 'Fiery Temper', 'hand');
+  s = act(s, { t: 'activate', p: a, oid: blood, index: 0, pay: { discard: [t2] } });
+  assert.equal(s.objects[t2].zone, 'exile'); assert.equal(s.pending && s.pending.kind, 'madness');
+  s = act(s, { t: 'decline_madness', p: a });
+  assert.equal(s.objects[t2].zone, 'graveyard', 'recusou: cemitério');
+  // Duress: o oponente descarta a carta que eu escolho; a insanidade é dele
+  let dur, t3;
+  s = passaAte(s, x => !x.stack.length);
+  [s, dur] = poe(s, a, 'Duress', 'hand'); [s, t3] = poe(s, d, 'Fiery Temper', 'hand');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: dur, targets: [{ player: d }] }), x => !!x.pending);
+  if (s.pending.kind === 'pick') s = act(s, { t: 'pick', p: a, oid: t3 });
+  if (s.pending.kind === 'pick') s = act(s, { t: 'pick_done', p: a }); // ao chegar no máximo a escolha fecha sozinha
+  assert.equal(s.objects[t3].zone, 'exile');
+  assert.deepEqual([s.pending && s.pending.kind, s.pending && s.pending.p], ['madness', d]);
+});
+
+test('Leva 105 · Highway Robbery conjurada do plot ainda deixa descartar ou sacrificar um terreno (antes: só "não pagar")', () => {
+  let s = jogo(); const a = s.turn.active; let hr;
+  [s, hr] = poe(s, a, 'Highway Robbery', 'hand');
+  s = act(s, { t: 'plot', p: a, oid: hr });
+  const turno = s.turn.number;
+  s = passaAte(s, x => x.turn.number > turno + 1 && x.turn.active === a && x.turn.step === 'main1' && !x.stack.length);
+  [s] = poe(s, a, 'Forest');
+  const ops = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === hr && x.plotted);
+  assert.deepEqual([...new Set(J(ops).map(x => x.add === null ? 'nada' : x.add))].sort(), [0, 1, 'nada']);
+  const mao = s.zones[a].hand.length;
+  s = resolve(act(s, ops.find(x => x.add === 0)));
+  assert.equal(s.zones[a].hand.length, mao - 1 + 2, 'descartou uma e comprou duas');
+});
+
+test('Leva 105 · fichas com cor e tipo do texto oficial: pássaros brancos da Battle Screech pagam o lampejo; Clue, Blood e Map têm subtipo', () => {
+  let s = jogo(); const a = s.turn.active; let bs;
+  [s, bs] = poe(s, a, 'Battle Screech', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: bs }));
+  const aves = s.zones[a].battlefield.filter(x => s.objects[x].token && s.objects[x].name === 'Bird');
+  assert.equal(aves.length, 2);
+  assert.deepEqual(J(s.facts.Bird.colors), ['W'], '"two 1/1 white Bird creature tokens with flying"');
+  [s] = poe(s, a, 'Urso'); s = J(s); s.facts.Urso.colors = ['W'];
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === bs && x.flashback), 'as duas aves e um branco pagam "vire três criaturas brancas"');
+  // guarda-corpo: toda ficha das cartas Pauper declara cor e subtipo
+  const acha = (x, out = []) => { if (x && typeof x === 'object') { if (x.do === 'token') out.push(x.token); Object.values(x).forEach(v => acha(v, out)); } return out; };
+  const semDados = [];
+  for (const sc of S.RAW_SCRIPTS) for (const t of acha(sc)) if (!Array.isArray(t.colors) || !Array.isArray(t.subtypes)) semDados.push(`${sc.name} → ${t.name}`);
+  const pauper = new Set(['Voldaren Epicure', "Vampire's Kiss", 'Malevolent Rumble', 'Novice Inspector', 'Thraben Inspector', 'Battle Screech', 'Writhing Chrysalis', 'Fanatical Offering', 'Lys Alana Huntmaster']);
+  assert.deepEqual(semDados.filter(x => pauper.has(x.split(' → ')[0])), [], 'fichas sem cor ou subtipo declarados');
+});
+
+test('Leva 105 · dano a "cada oponente" respeita a prevenção por cor (Prismatic Strands) e a Hallow', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let ps, fest;
+  [s, ps] = poe(s, a, 'Prismatic Strands', 'hand'); [s, fest] = poe(s, d, 'End the Festivities', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: ps });
+  s = passaAte(s, x => !!x.pending || !x.stack.length);
+  if (s.pending && s.pending.kind === 'choose_color') s = act(s, { t: 'choose_color', p: a, color: 'R' });
+  s = passaAte(s, x => !x.stack.length);
+  s = J(s); s.facts['End the Festivities'].colors = ['R'];
+  const vida = s.players[a].life;
+  s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); s.turn.priority = d;
+  s = passaAte(act(s, { t: 'cast', p: d, oid: fest }), x => !x.stack.length);
+  assert.equal(s.players[a].life, vida, 'fonte vermelha prevenida (antes: tirava 1)');
+});
+
+test('Leva 105 · Freed from the Real: quem ativa é o dono da aura, também na criatura do oponente', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let fr, urso;
+  [s, urso] = poe(s, d, 'Urso'); [s, fr] = poe(s, a, 'Freed from the Real', 'hand');
+  s = resolve(act(s, { t: 'cast', p: a, oid: fr, targets: [{ oid: urso }] }));
+  assert.equal(s.objects[fr].attachedTo, urso);
+  const meus = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === fr);
+  assert.ok(meus.length >= 1, 'eu ativo pela aura (antes: a habilidade era da criatura do oponente)');
+  s = resolve(act(s, meus[0]));
+  assert.equal(s.objects[urso].tapped, true, 'virou a criatura encantada');
+  s = J(s); s.turn.priority = d;
+  assert.ok(!E.legalActions(s, d).some(x => x.t === 'activate' && (x.oid === urso || x.oid === fr)), 'o oponente não ativa');
+});
+
+test('Leva 105 · Hallow na End the Festivities: o dano a mim é prevenido e eu ganho essa vida', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let hal, fest;
+  [s, hal] = poe(s, a, 'Hallow', 'hand'); [s, fest] = poe(s, d, 'End the Festivities', 'hand');
+  s = J(s); s.turn.priority = d;
+  s = act(s, { t: 'cast', p: d, oid: fest });
+  s = act(s, { t: 'pass', p: d });
+  const vida = s.players[a].life;
+  s = passaAte(act(s, { t: 'cast', p: a, oid: hal, targets: [{ oid: fest }] }), x => !x.stack.length);
+  assert.equal(s.players[a].life, vida + 1, 'sem dano e +1 de vida (antes: −1)');
+});
