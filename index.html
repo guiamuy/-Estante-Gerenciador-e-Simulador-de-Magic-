@@ -2916,7 +2916,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-opponent-creature-planeswalker', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
-  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature'] },
+  destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature', 'enchanted'] },
   exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard'] },
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
   exile_chosen: { fields: ['amount'], targets: ['player', 'opponent', 'self'] },
@@ -3433,7 +3433,8 @@ const RAW_SCRIPTS = [
   { name: 'Armadillo Cloak', aura: { enchant: 'creature' }, grants: { power: 2, toughness: 2, keywords: ['trample'] },
     abilities: [{ kind: 'triggered', when: 'enchanted-deals-damage', effects: [{ do: 'gain', amount: { per: 'trigger-value' } }] }],
     example: { action: 'aura', target: 'own-creature', expect: { stats: [4, 4], keyword: 'trample' } } },
-  { name: 'Benevolent Blessing', aura: { enchant: 'creature' }, choose: 'color', grants: { protection: 'chosen' },
+  // Leva 108 · "This effect doesn't remove Auras and Equipment you control that are already attached to it."
+  { name: 'Benevolent Blessing', aura: { enchant: 'creature' }, choose: 'color', grants: { protection: 'chosen', mantemOsSeus: true },
     example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
   { name: 'Silhana Ledgewalker', self: { evasion: 'flying-only' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -3584,7 +3585,8 @@ const RAW_SCRIPTS = [
     example: { target: 'enemy-instant', expect: { preventedColor: false } } },
   // S35 · varredura das Pauper (textos conferidos em 26/09)
   { name: 'Cryoshatter', aura: { enchant: 'creature' }, grants: { power: -5, toughness: 0 },
-    abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'destroy', target: 'enchanted-creature' }] }],
+    // Leva 108 · "destroy it" não mira (não cobra ward) e vale para a criatura que disparou, mesmo se a aura sair antes
+    abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'destroy', target: 'enchanted' }] }],
     example: { action: 'aura', target: 'own-creature', expect: { stats: [-3, 2] } } },
   { name: 'Steel Sabotage', modes: [
     { label: 'Anular uma mágica de artefato', effects: [{ do: 'counter', target: 'artifact-spell' }] },
@@ -3801,7 +3803,7 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // S22 · cartas conferidas na Scryfall (22/09)
   { name: 'Malevolent Rumble', effects: [
-    { do: 'look', count: 4, amount: 1, filter: { types: ['creature', 'land', 'artifact', 'enchantment', 'planeswalker'] }, to: 'hand', rest: 'graveyard' },
+    { do: 'look', count: 4, amount: 1, revela: true, filter: { types: ['creature', 'land', 'artifact', 'enchantment', 'planeswalker'] }, to: 'hand', rest: 'graveyard' }, // Leva 108 · "Reveal": todos veem
     { do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
       abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }],
     example: { target: 'none', expect: { picked: true } } },
@@ -6623,7 +6625,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 61;
+const ENGINE_VERSION = 62;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 /** Leva 104 · teto de formas de pagar um custo com escolha (e de valores de X) oferecidas de uma vez. */
@@ -7078,6 +7080,13 @@ const protections = (s, o) => (o.tempProtection || []).concat(attachedTo(s, o).f
 const prevented = (s, o) => !s.noPrevention && attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent);
 const colorsOf = (s, src) => (src && s.facts[src.name] ? s.facts[src.name].colors || [] : []);
 const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
+/** Leva 108 · proteção que derruba anexos (702.16c), menos a que diz "não remove as auras e equipamentos que você
+ * controla e que já estavam anexados" (Benevolent Blessing) quando o anexo é do mesmo controlador da fonte. */
+const protecaoDerruba = (s, host, anexo) => (host.tempProtection || []).concat(attachedTo(s, host).flatMap(x => {
+  const g = grantsOf(s, x); if (!g || !g.protection) return [];
+  if (g.mantemOsSeus && x.controller === anexo.controller) return [];
+  return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
+})).some(c => colorsOf(s, anexo).includes(c));
 /** S30 · escudo do turno: nenhum dano de fonte das cores escolhidas passa. */
 const colorPrevented = (s, src) => !s.noPrevention && (
   (src && src.damagePrevented) || (s.preventedColors || []).some(c => colorsOf(s, src).includes(c)));
@@ -7457,7 +7466,8 @@ function pairSoulbond(s, novo) {
     isCreature(s, x) && soulbondPartner(s, x) == null && (temVinculo(novo) || temVinculo(x)));
   if (!livres.length) return;
   // S51 · vínculo de alma é "você PODE emparelhar": a escolha, inclusive recusar, é sempre do jogador
-  s.queuedChoices = (s.queuedChoices || []).concat([{ oid: novo.oid, p: novo.controller, kind: 'pair', options: livres.map(x => x.oid) }]);
+  // Leva 108 · 702.95a: é habilidade disparada — vai para a pilha e o oponente pode responder antes do par
+  s.queued.push({ source: novo.oid, name: novo.name, controller: novo.controller, effects: [{ do: 'emparelhar', novo: novo.oid }], when: 'soulbond' });
 }
 /** S39 · o vínculo de alma só vale enquanto as duas estão em campo e são suas. */
 function soulbondPartner(s, o) {
@@ -7540,7 +7550,7 @@ function legalTargets(s, p, kind, selfOid, color) {
     for (const o of perms) {
       if (o.controller === p) continue;
       const f = s.facts[o.name];
-      if (kind === 'creature-opponent-controls' && !f.types.includes('creature')) continue;
+      if (kind === 'creature-opponent-controls' && !isCreature(s, o)) continue; // Leva 108 · concedida é Aura; virada para baixo é criatura
       if (kind === 'artifact-enchantment-opponent-controls' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
       out.push({ oid: o.oid });
     }
@@ -7549,9 +7559,9 @@ function legalTargets(s, p, kind, selfOid, color) {
     for (const o of perms) {
       if (o.controller !== p) continue;
       const tipos = s.facts[o.name].types;
-      if (kind === 'creature-you-control' && !tipos.includes('creature')) continue;
+      if (kind === 'creature-you-control' && !isCreature(s, o)) continue; // Leva 108
       // S43 · "outra criatura que você controla": a própria fonte não vale
-      if (kind === 'other-creature-you-control' && (!tipos.includes('creature') || o.oid === selfOid)) continue;
+      if (kind === 'other-creature-you-control' && (!isCreature(s, o) || o.oid === selfOid)) continue;
       if (kind === 'creature-enchantment-you-control' && !tipos.includes('creature') && !tipos.includes('enchantment')) continue;
       out.push({ oid: o.oid });
     }
@@ -7664,6 +7674,7 @@ function effectAllowed(s, fonte, eff) {
 function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
 /** Leva 105 · a permanente que a aura de origem encanta, sem alvo ("Tap enchanted creature"). */
 function criaturaEncantada(s, src) {
+  if (src.hostOid) { const h = s.objects[src.hostOid]; return h && h.zone === 'battlefield' ? h : null; } // Leva 108
   const aura = src.ability ? s.objects[src.source] : src;
   const host = aura && aura.zone === 'battlefield' && aura.attachedTo ? s.objects[aura.attachedTo] : null;
   return host && host.zone === 'battlefield' ? host : null;
@@ -7701,10 +7712,12 @@ function applyEffect(s, src, eff, tgt, events) {
         else s.players[playerOf()].life -= n;
         causouDano(s, src, n); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
         note({ amount: n }); } break;
-    case 'destroy':
-      if (has(s, obj, 'indestructible')) note({ failed: true });
-      else { moveObject(s, obj.oid, 'graveyard'); note({}); }
+    case 'destroy': {
+      const alvoD = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // Leva 108 · Cryoshatter sem alvo
+      if (!alvoD || has(s, alvoD, 'indestructible')) note({ failed: true });
+      else { moveObject(s, alvoD.oid, 'graveyard'); note({}); }
       break;
+    }
     case 'exile': { // S48 · a permanente pode lembrar o que exilou, para devolver depois
       // Leva 107 · ruling do Journey to Nowhere: se ele já saiu do campo quando o exílio resolve, a criatura fica exilada para sempre
       if (eff.remember) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = obj.oid; }
@@ -7771,7 +7784,8 @@ function applyEffect(s, src, eff, tgt, events) {
       // S46 · a busca pode ser do controlador do alvo, e pode ser opcional ("pode vasculhar")
       const who = eff.target === 'target-controller' ? playerOf() : ctrl;
       const from = s.zones[who].library.filter(oid => matchesFilter(s, s.objects[oid], eff.filter));
-      if (!from.length) { note({ amount: 0 }); break; }
+      // Leva 108 · "then shuffle": buscar sem achar nada ainda embaralha (buscas opcionais contam como feitas)
+      if (!from.length) { shuffle(s, s.zones[who].library); note({ amount: 0 }); break; }
       startPick(s, { p: who, from, min: eff.optional ? 0 : eff.amount, max: eff.amount, to: eff.to || 'hand', rest: 'stay', shuffle: true, filter: eff.filter, label: 'vasculhar', source: src.name }, events);
       break;
     }
@@ -7789,6 +7803,14 @@ function applyEffect(s, src, eff, tgt, events) {
         s.combat.attackers.push(ninja.oid); note({ name: ninja.name });
       } else note({ failed: true });
       break;
+    }
+    case 'emparelhar': { // Leva 108 · resolução do vínculo de alma: as duas ainda em campo, sem par, do mesmo jogador
+      const novo = s.objects[eff.novo];
+      if (!novo || novo.zone !== 'battlefield' || novo.controller !== ctrl || soulbondPartner(s, novo)) { note({ failed: true }); break; }
+      const temVinculo = x => !!((s.facts[x.name].script || {}).soulbond);
+      const livres = battlefield(s).filter(x => x.oid !== novo.oid && x.controller === ctrl && isCreature(s, x) && soulbondPartner(s, x) == null && (temVinculo(novo) || temVinculo(x)));
+      if (livres.length) s.pending = { kind: 'choose_pair', p: ctrl, oid: novo.oid, options: livres.map(x => x.oid) };
+      note({ pending: !!livres.length }); break;
     }
     case 'adapt': { // Leva 106 · na resolução: sem marcador +1/+1, recebe N
       const fonte = src.ability ? s.objects[src.source] : src;
@@ -7815,6 +7837,8 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!from.length) { note({ amount: 0 }); break; }
       // S59 · "ponha uma criatura entre elas no campo" é obrigatório, mas só se houver uma
       const servem = from.filter(oid => matchesFilter(s, s.objects[oid], eff.filter)).length;
+      // Leva 108 · "Reveal the top N": a linha do tempo mostra as cartas para os dois jogadores
+      if (eff.revela) events.push({ kind: 'effect', do: 'reveal', name: src.name, target: from.map(x => s.objects[x].name).join(', ') });
       startPick(s, { p: who, from, min: Math.min(eff.min || 0, servem), max: eff.amount, to: eff.to || 'hand',
         rest: eff.rest || 'library-bottom', shuffle: !!eff.shuffle, filter: eff.filter, onPicked: eff.onPicked || null,
         label: 'olhar o topo', source: src.name }, events);
@@ -7865,7 +7889,11 @@ function applyEffect(s, src, eff, tgt, events) {
       const who = playerOf();
       const filtro = { notTypes: ['creature', 'land'] };
       const mao = s.zones[who].hand.filter(x => matchesFilter(s, s.objects[x], filtro));
-      if (!mao.length) { note({ amount: 0 }); break; }
+      // Leva 108 · a mão é revelada mesmo sem carta que sirva: quem conjurou vê e confirma
+      if (!mao.length) {
+        if (s.zones[who].hand.length) startPick(s, { p: ctrl, from: [], mostrar: s.zones[who].hand.slice(), min: 0, max: 0, to: 'graveyard', rest: 'stay', filter: filtro, label: 'escolher o descarte', source: src.name }, events);
+        note({ amount: 0 }); break;
+      }
       const n = Math.min(amountOf(s, src, eff.amount), mao.length);
       // Leva 107 · "reveals their hand": a mão inteira aparece; só as cartas que servem podem ser escolhidas
       startPick(s, { p: ctrl, from: mao, mostrar: s.zones[who].hand.slice(), min: n, max: n, to: 'graveyard', rest: 'stay', filter: filtro, discard: true,
@@ -7936,7 +7964,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'venture': { // S57 · aventurar-se na masmorra
       const fonte = src.ability ? src.source : src.oid;
-      venture(s, ctrl, fonte, events); note({}); break;
+      venture(s, ctrl, fonte, events, eff.into || null); note({}); break; // Leva 108 · "venture into Undercity" (iniciativa)
     }
     case 'choose_type': { // S50 · abre a escolha do tipo, entre os tipos que você controla
       const fonte = src.ability ? (s.objects[src.source] || src) : src;
@@ -8117,7 +8145,7 @@ function noteEnchantedEvent(s, host) {
   for (const x of attachedTo(s, host)) {
     for (const ab of abilitiesOf(s, x)) {
       if (ab.kind !== 'triggered' || ab.when !== 'enchanted-tapped-or-damaged') continue;
-      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when });
+      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when, host: host.oid });
     }
   }
 }
@@ -8288,13 +8316,16 @@ function matchesTriggerFilter(s, o, filter) {
 /** S57 · aventurar-se na masmorra (regra 309). Sem masmorra, você escolhe uma e
     entra na primeira sala; com masmorra, avança para uma das salas seguintes.
     A sala é uma habilidade disparada que vai para a pilha, como qualquer gatilho. */
-function venture(s, p, srcOid, events) {
+function venture(s, p, srcOid, events, into = null) {
   const pl = s.players[p];
   const atual = pl.dungeon && !pl.dungeon.done ? SC.dungeonByName(pl.dungeon.name) : null;
+  if (!atual && into) return enterDungeon(s, p, into, srcOid, events); // Leva 108 · instrução de entrar numa masmorra específica
   if (!atual) {
-    const opcoes = SC.DUNGEONS.map(d => d.name);
+    // Leva 108 · ruling (Scryfall, CLB): "you cannot venture into Undercity unless instructed to do so" — só a iniciativa leva a ela
+    const permitidas = SC.DUNGEONS.filter(d => d.name !== 'Undercity');
+    const opcoes = permitidas.map(d => d.name);
     if (!opcoes.length) return;
-    if (opcoes.length > 1) { s.pending = { kind: 'choose_dungeon', p, options: opcoes, labels: SC.DUNGEONS.map(d => d.pt || d.name), source: srcOid }; return; }
+    if (opcoes.length > 1) { s.pending = { kind: 'choose_dungeon', p, options: opcoes, labels: permitidas.map(d => d.pt || d.name), source: srcOid }; return; }
     return enterDungeon(s, p, opcoes[0], srcOid, events);
   }
   const sala = SC.roomById(atual, pl.dungeon.room);
@@ -8372,6 +8403,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.optional) s.objects[oid].optionalTrigger = true; // S49 · gatilho opcional sem custo
   if (q.condition) s.objects[oid].condicao = q.condition; // Leva 107 · "se" do gatilho é conferido de novo na resolução (603.4)
   if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
+  if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
 }
 /** S15 · põe um gatilho na pilha, escolhendo o alvo quando ele exige um. */
@@ -8407,7 +8439,8 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
   return battlefield(s).filter(o => o.controller === p && (o.oid !== selfOid || spec.includeSelf) &&
     (spec.types || []).some(x => s.facts[o.name].types.includes(x)) &&
     // S50 · o custo pode pedir um subtipo ("dois Elfos que você controla")
-    (!spec.subtype || isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')) &&
+    // Leva 108 · virada para baixo não tem tipo de criatura (708.2): não serve como "Elfo" num custo
+    (!spec.subtype || (!o.faceDown && (isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')))) &&
     // S46 · a cor pedida pelo custo vale também para saber se dá para pagar
     (!spec.color || (s.facts[o.name].colors || []).includes(spec.color)) &&
     // S62 · enjoo de invocação vale só para o {T} da própria permanente (302.6).
@@ -8648,7 +8681,7 @@ function stateBased(s, events) {
       // Leva 106 · 702.16c: proteção contra a cor da aura ou do equipamento também solta (Benevolent Blessing, Mask of Law and Grace)
       // Leva 107 · "Enchant creature you control" (Setessan Training): se outro jogador passa a controlar a criatura, a aura cai
       const soSua = String(((s.facts[o.name].script || {}).aura || {}).enchant || '').endsWith('you-control');
-      if (host && host.zone === 'battlefield' && !protectedFrom(s, host, o) && !(soSua && host.controller !== o.controller)) continue;
+      if (host && host.zone === 'battlefield' && !protecaoDerruba(s, host, o) && !(soSua && host.controller !== o.controller)) continue;
       if (o.bestowed) { delete o.bestowed; delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); } // volta a ser criatura
       else if (s.facts[o.name].script && s.facts[o.name].script.aura) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); }
       else { delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); }
@@ -9204,10 +9237,16 @@ const HANDLERS = {
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
+    if (violaPortaEstandarte(s, a.p, need, chosen, oid)) throw new RuleError('alvo', 'um dos alvos precisa ser o porta-estandarte do oponente'); // Leva 108
     s.pending = null;
     moveObject(s, oid, 'stack');
+    s.objects[oid].controller = a.p;
     if (need.length) s.objects[oid].targets = chosen;
+    // Leva 108 · conjurar pela insanidade é conjurar: conta para tempestade, dispara "quando você conjura" e cobra ward
+    s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
+    queueTriggers(s, 'cast-self', [s.objects[oid]]);
     afterMadness(s);
+    chargeWard(s, a.p, oid, chosen);
     s.turn.passes = 0;
   },
   decline_madness(s, a) {
@@ -9365,7 +9404,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
             if (!opts.length) { combos = []; break; }
             combos = addTarget(combos, opts);
           }
-          combos.forEach(targets => out.push({ t: 'cast_madness', p, targets }));
+          combos.filter(targets => !violaPortaEstandarte(s, p, need, targets, s.pending.oid)).forEach(targets => out.push({ t: 'cast_madness', p, targets }));
         }
       }
       out.push({ t: 'decline_madness', p });
@@ -10582,6 +10621,7 @@ function effectLine(ev) {
   const n = ev.amount, t = ev.target;
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
+    case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t} (indestrutível)` : `${ev.name} destruiu ${t}`;
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} para a mão`;

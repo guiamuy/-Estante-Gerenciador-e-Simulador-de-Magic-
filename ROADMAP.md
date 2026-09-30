@@ -339,7 +339,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 15º-b ✅ | Auditoria texto × script, parte 1: 111 cartas, 9 correções (leva 105) | E33 | 1 | — |
 | 15º-c ✅ | Auditoria texto × script, parte 2: 27 textos do Forge e 15 correções de impacto médio (leva 106) | E33 | 1 | — |
 | 15º-d ✅ | Auditoria texto × script, parte 3: 22 achados de impacto baixo (leva 107) | E33 | 1 | — |
-| 15º-e | Homologação da auditoria por agente independente (leva 108) | E33 | 1 | — |
+| 15º-e ✅ | Homologação da auditoria por leitura independente: 11 correções (leva 108) | E33 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3125,8 +3125,22 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Motor v61.** Partidas-referência regravadas só pela versão: logs, status e turnos idênticos.
 - **Portão:** 609 verdes (546 + 63 e2e).
 
-**Leva 108 · Homologação da auditoria por agente independente** ⏳
-- Uma segunda leitura das 138 cartas, feita por quem não escreveu as correções, contra o motor v61; só o que ainda divergir vira teste e correção.
+**Leva 108 · Homologação da auditoria por leitura independente** ✅
+- **Como:** três leituras novas das 138 cartas contra o motor v61, feitas sem acesso ao raciocínio das correções e com sondas executando o motor de verdade (`.listas/homologacao-v61.json`). As correções das levas 105–107 se confirmaram; sobraram 11 divergências, todas corrigidas com teste que falha no motor anterior:
+  - Benevolent Blessing: a correção da leva 106 (proteção derruba anexos) passava por cima de "This effect doesn't remove Auras and Equipment you control that are already attached to it" — agora os seus anexos ficam;
+  - Secret Door: aventurar-se não oferece a Cidade Baixa (ruling da Scryfall: só por instrução, como a iniciativa); `venture` ganhou `into` para essa instrução;
+  - busca sem achar nada embaralha (Sheltering Landscape, Perilous Landscape, Roost Seek da Sagu Wildling, Squadron Hawk, Shield-Wall Sentinel);
+  - Cryoshatter não mira (não cobra ward) e destrói a criatura que disparou mesmo se a aura sair antes;
+  - conjurar pela insanidade (Fiery Temper, Dark Withering, Alms of the Vein, Kitchen Imp) conta para tempestade, dispara "quando você conjura", respeita o Standard Bearer e cobra ward;
+  - Duress revela a mão mesmo sem carta que sirva;
+  - alvos "criatura" em campo usam o que a permanente É (Brinebarrow Intruder não mira mágica concedida; virada para baixo é criatura);
+  - Malevolent Rumble revela as quatro cartas na linha do tempo;
+  - vínculo de alma (Galvanic Alchemist) vai para a pilha;
+  - Birchlore Rangers virada para baixo não conta como Elfo num custo.
+- **Declarado, sem mudança:** Terminate "can't be regenerated" não faz diferença (o motor não tem regeneração); Distant Melody lista os tipos de criatura em campo (a escolha que rende é sempre uma delas).
+- **Expectativas ajustadas com justificativa:** S57/S59/S61 (a Cidade Baixa entra pela instrução, não pela escolha), S39/S51 e cenário S8 da Galvanic Alchemist (vínculo pela pilha).
+- **Motor v62.** Partidas-referência regravadas só pela versão: logs, status e turnos idênticos.
+- **Portão:** 618 verdes (555 + 63 e2e).
 
 **Leva 103 · E36 · M13b: parcerias de comandante e mana pelos terrenos do oponente** ✅ (pedido de 30/09)
 - **Lista:** dois comandantes só com parceria válida (Partner, Partner with, Friends forever, Choose a Background + Antecedente, Doctor's companion); mensagem diz o que falta; variante desconhecida vira aviso. Funciona sem internet (só dados guardados).

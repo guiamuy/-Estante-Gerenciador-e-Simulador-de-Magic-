@@ -815,3 +815,88 @@ test('Leva 107 · Refurbished Familiar: cada oponente descarta, sem alvo', () =>
   s = passaAte(act(s, { t: 'cast', p: a, oid: rf }), x => !!x.pending);
   assert.deepEqual([s.pending.kind, s.pending.p], ['discard', d]);
 });
+
+/* ---------------- Leva 108 · homologação por leitura independente (motor v61) ---------------- */
+test('Leva 108 · Benevolent Blessing não derruba as auras e equipamentos que você já tinha anexados', () => {
+  let s = jogo(); const a = s.turn.active; let urso, ran, bb;
+  [s, urso] = poe(s, a, 'Urso'); [s, ran] = poe(s, a, 'Rancor', 'battlefield', { attachedTo: urso });
+  s = J(s); s.facts.Rancor.colors = ['G'];
+  [s, bb] = poe(s, a, 'Benevolent Blessing', 'battlefield', { attachedTo: urso, chosenColor: 'G' });
+  s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[ran].zone, 'battlefield', 'o Rancor verde continua (antes da correção: caía)');
+  assert.equal(s.objects[bb].zone, 'battlefield');
+});
+
+test('Leva 108 · Secret Door: aventurar-se não oferece a Cidade Baixa (só a iniciativa leva a ela)', () => {
+  let s = jogo(); const a = s.turn.active; let sd;
+  [s, sd] = poe(s, a, 'Secret Door');
+  s = passaAte(act(s, { t: 'activate', p: a, oid: sd, index: 0 }), x => !!x.pending || !x.stack.length);
+  if (s.pending && s.pending.kind === 'choose_dungeon') assert.ok(!J(s.pending.options).includes('Undercity'));
+  else assert.notEqual(s.players[a].dungeon && s.players[a].dungeon.name, 'Undercity');
+});
+
+test('Leva 108 · buscar sem achar nada ainda embaralha (Sheltering Landscape, Squadron Hawk)', () => {
+  let s = jogo(); const a = s.turn.active; let sl;
+  [s, sl] = poe(s, a, 'Sheltering Landscape');
+  s = J(s); s.zones[a].library = s.zones[a].library.filter(x => !/^(Forest|Plains|Mountain)$/.test(s.objects[x].name));
+  const antes = J(s.zones[a].library);
+  s = passaAte(act(s, { t: 'activate', p: a, oid: sl, index: 0 }), x => !x.stack.length || !!x.pending);
+  assert.notDeepEqual(J(s.zones[a].library), antes, 'a ordem mudou: embaralhou (antes: ficava igual)');
+});
+
+test('Leva 108 · Cryoshatter não mira (não cobra ward) e destrói mesmo se a aura sair antes', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let crab, cryo;
+  [s, crab] = poe(s, a, 'Mirrorshell Crab'); [s, cryo] = poe(s, d, 'Cryoshatter', 'battlefield', { attachedTo: crab });
+  s = act(s, { t: 'tap', p: a, oid: crab });
+  assert.ok(!(s.pending && s.pending.kind === 'may_pay'), 'sem cobrança de ward');
+  s = act(s, { t: 'move', p: s.turn.priority, oid: cryo, to: 'graveyard' });
+  s = passaAte(s, x => !x.stack.length);
+  assert.equal(s.objects[crab].zone, 'graveyard', 'destruída mesmo com a aura fora');
+});
+
+test('Leva 108 · conjurar pela insanidade conta para tempestade e dispara "quando você conjura"', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let grab, ft;
+  [s, grab] = poe(s, a, 'Grab the Prize', 'hand'); [s, ft] = poe(s, a, 'Fiery Temper', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [ft] } });
+  const antes = s.spellsThisTurn;
+  s = act(s, { t: 'cast_madness', p: a, targets: [{ player: d }] });
+  assert.equal(s.spellsThisTurn, antes + 1, 'conta como mágica conjurada (antes: não)');
+});
+
+test('Leva 108 · Duress sem carta que sirva ainda revela a mão', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let du;
+  s = J(s); for (const x of s.zones[d].hand.slice()) if (!['land', 'creature'].some(t => s.facts[s.objects[x].name].types.includes(t))) { s.zones[d].hand = s.zones[d].hand.filter(y => y !== x); s.zones[d].library.push(x); s.objects[x].zone = 'library'; }
+  [s] = poe(s, d, 'Urso', 'hand');
+  [s, du] = poe(s, a, 'Duress', 'hand');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: du, targets: [{ player: d }] }), x => !!x.pending || !x.stack.length);
+  assert.ok(s.pending && s.pending.kind === 'pick' && s.pending.mostrar.length === s.zones[d].hand.length, 'mão revelada para confirmar');
+  s = act(s, { t: 'pick_done', p: a });
+  assert.equal(s.pending, null);
+});
+
+test('Leva 108 · Brinebarrow Intruder não mira mágica concedida em campo (Aura, não criatura)', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let urso, hid, bi;
+  [s, urso] = poe(s, d, 'Urso'); [s, hid] = poe(s, d, 'Nyxborn Hydra', 'battlefield', { attachedTo: urso, bestowed: true });
+  s = J(s); s.facts['Nyxborn Hydra'] = E.cardFacts({ name: 'Nyxborn Hydra', type_line: 'Enchantment Creature — Hydra', mana_cost: '{X}{G}', cmc: 1, power: '0', toughness: '0', keywords: [], oracle_text: '' });
+  s.facts['Nyxborn Hydra'].script = S.SCRIPTS['Nyxborn Hydra'];
+  [s, bi] = poe(s, a, 'Brinebarrow Intruder', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: bi }); s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: d });
+  const opcoes = s.pending && s.pending.kind === 'pick_target' ? J(s.pending.options).map(o => o.oid) : J(s.stack.map(x => s.objects[x]).filter(o => o.ability).flatMap(o => o.targets.map(t => t.oid)));
+  assert.ok(!opcoes.includes(hid), 'a Hydra concedida não é criatura');
+});
+
+test('Leva 108 · Malevolent Rumble revela as quatro cartas na linha do tempo', () => {
+  let s = jogo(); const a = s.turn.active; let mr;
+  [s, mr] = poe(s, a, 'Malevolent Rumble', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: mr }); s = act(s, { t: 'pass', p: a });
+  const r = E.apply(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(r.events.some(e => e.do === 'reveal' && e.target.split(', ').length === 4));
+});
+
+test('Leva 108 · Birchlore virada para baixo não conta como Elfo no custo', () => {
+  let s = jogo(); const a = s.turn.active; let b1, b2;
+  [s, b1] = poe(s, a, 'Birchlore Rangers'); [s, b2] = poe(s, a, 'Birchlore Rangers', 'battlefield', { faceDown: true });
+  s = J(s); s.facts['Birchlore Rangers'].typeText = 'Creature — Elf Druid Ranger';
+  const ops = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === b1);
+  assert.ok(!ops.some(x => (x.pay.tapOther || []).includes(b2)), 'a virada para baixo não serve');
+});

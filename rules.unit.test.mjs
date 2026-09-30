@@ -2182,6 +2182,8 @@ function vnGame(seed = 1) {
 // S51 · o vínculo de alma passou a sempre perguntar com quem emparelhar (a carta diz "você pode")
 const entra = (s, p, oid, par) => {
   let st = act(s, { t: 'move', p, oid, to: 'battlefield' });
+  // Leva 108 · o vínculo de alma é gatilho: resolve a habilidade na pilha antes da escolha do par
+  for (let i = 0; i < 4 && st.stack.length && !st.pending; i++) st = act(st, { t: 'pass', p: st.turn.priority });
   if (st.pending && st.pending.kind === 'choose_pair' && st.pending.p === p) {
     st = par === 'nenhum' ? act(st, { t: 'choose_pair', p, decline: true })
       : act(st, { t: 'choose_pair', p, oid: par != null ? par : st.pending.options[0] });
@@ -3401,6 +3403,9 @@ test('S51 · com mais de um par possível, você escolhe o par do vínculo de al
   [s, muro] = put(s, a, 'Wall');
   [s, alq] = put(s, a, 'Alchemist', { zone: 'hand' });
   s = act(s, { t: 'move', p: a, oid: alq, to: 'battlefield' });
+  // Leva 108 · expectativa ajustada: o vínculo de alma vai para a pilha (702.95a); a pergunta vem quando ele resolve
+  assert.ok(s.stack.length && !s.pending, 'o gatilho do vínculo está na pilha');
+  s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: s.turn.priority });
   assert.ok(s.pending && s.pending.kind === 'choose_pair' && s.pending.p === a, 'a mesa perguntou com quem emparelhar');
   const opcoes = JSON.parse(JSON.stringify(s.pending.options)).sort();
   assert.deepEqual(opcoes, [urso, muro].sort(), 'as duas criaturas livres entram na escolha');
@@ -3799,7 +3804,9 @@ const MZ_CARDS = {
   'Bear': { name: 'Bear', type_line: 'Creature — Bear', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], power: '2', toughness: '2', keywords: [], oracle_text: '' }
 };
 const MZ_SCRIPTS = {
-  Porta: { name: 'Porta', abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture' }] }],
+  // Leva 108 · a Cidade Baixa só entra por instrução ("venture into Undercity", da iniciativa): segunda habilidade de teste
+  Porta: { name: 'Porta', abilities: [{ kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture' }] },
+    { kind: 'activated', cost: { mana: '{4}{U}' }, sorceryOnly: true, effects: [{ do: 'venture', into: 'Undercity' }] }],
     example: { action: 'activate:0', target: 'none', expect: { picked: true } } },
   Fungo: { name: 'Fungo', abilities: [{ kind: 'triggered', when: 'etb',
     effects: [{ do: 'pump', power: -4, toughness: 0, target: 'creature', until: 'your-next-turn' }] }],
@@ -3843,9 +3850,13 @@ function viraTurno(s) {
 }
 /** Aventura-se uma vez e resolve a habilidade da sala, escolhendo a Mina Perdida
     quando a mesa pergunta em qual masmorra entrar (S59 trouxe a segunda). */
+// Leva 108 · índices antigos (0 Mina, 1 Cidade Baixa, 2 Tumba, 3 Mago Louco): a Cidade Baixa agora entra pela
+// segunda habilidade ("venture into Undercity"); as outras seguem pela escolha, que não oferece mais a Cidade Baixa
 function aventura(s, p, porta, masmorra = 0) {
-  s = settle(act(s, { t: 'activate', p, oid: porta, index: 0 }));
-  if (s.pending && s.pending.kind === 'choose_dungeon') s = settle(act(s, { t: 'choose_dungeon', p, index: masmorra }));
+  const naCidade = s.players[p].dungeon && !s.players[p].dungeon.done && s.players[p].dungeon.name === 'Undercity';
+  const index = masmorra === 1 || naCidade ? 1 : 0;
+  s = settle(act(s, { t: 'activate', p, oid: porta, index }));
+  if (s.pending && s.pending.kind === 'choose_dungeon') s = settle(act(s, { t: 'choose_dungeon', p, index: masmorra > 1 ? masmorra - 1 : masmorra }));
   return s;
 }
 
@@ -3856,8 +3867,9 @@ test('S57 · aventurar-se entra na primeira sala, e a sala vai para a pilha', ()
   // S59 · com mais de uma masmorra montada, a mesa pergunta em qual entrar
   let perguntou = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
   assert.ok(perguntou.pending && perguntou.pending.kind === 'choose_dungeon', 'a mesa pergunta a masmorra');
+  // Leva 108 · expectativa ajustada: "you cannot venture into Undercity unless instructed to do so" (ruling da Scryfall)
   assert.deepEqual(JSON.parse(JSON.stringify(perguntou.pending.labels)),
-    ['Mina Perdida de Phandelver', 'Cidade Baixa', 'Tumba da Aniquilação', 'Masmorra do Mago Louco']);
+    ['Mina Perdida de Phandelver', 'Tumba da Aniquilação', 'Masmorra do Mago Louco']);
   s = aventura(s, a, porta);
   assert.equal(s.players[a].dungeon.name, 'Lost Mine of Phandelver', 'com uma masmorra montada, ela é escolhida sozinha');
   assert.equal(s.players[a].dungeon.room, 'entrada', 'o marcador ficou na Entrada da Caverna');
@@ -4231,9 +4243,9 @@ test('S61 · a Masmorra do Mago Louco vai da primeira sala ao Covil, e a Secret 
   // o Covil pergunta se quero conjurar uma das três sem pagar
   assert.ok(s.pending && s.pending.kind === 'free_cast', 'o Covil abriu a conjuração sem pagar');
   s = settle(act(s, { t: 'decline_free', p: a }));
-  // as quatro masmorras estão na escolha
+  // Leva 108 · expectativa ajustada: aventurar-se oferece as três masmorras; a Cidade Baixa só por instrução (ruling da Scryfall)
   let outra = settle(act(s, { t: 'activate', p: a, oid: porta, index: 0 }));
-  assert.equal(JSON.parse(JSON.stringify(outra.pending.options)).length, 4, 'as quatro masmorras aparecem na escolha');
+  assert.equal(JSON.parse(JSON.stringify(outra.pending.options)).length, 3, 'as três masmorras (sem a Cidade Baixa) aparecem na escolha');
 });
 
 /* ---------------- S62 · custo que vira OUTRA criatura aceita criatura enjoada ---------------- */

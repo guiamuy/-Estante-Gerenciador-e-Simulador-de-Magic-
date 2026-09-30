@@ -1,0 +1,856 @@
+{
+ "sobre": "Leva 108 · segunda leitura independente das 138 cartas Pauper contra o motor v61; divergências corrigidas no motor v62 (ver ROADMAP, leva 108).",
+ "cartas": [
+  {
+   "name": "Brinebarrow Intruder",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When this creature enters, target creature an opponent controls gets -2/-0 until end of turn.",
+     "o_que_o_motor_faz": "legalTargets 'creature-opponent-controls' (index.html:7543) filtra por f.types.includes('creature') em vez de isCreature: uma Nyxborn Hydra concedida (Aura, não criatura) do oponente aparece como alvo.",
+     "linha_script": 3676,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Oponente com Urso e Nyxborn Hydra concedida anexada a ele; Brinebarrow entra. Esperado: único alvo Urso (gatilho resolve sozinho). Atual (sonda): pick_target com [Urso, Nyxborn Hydra(bestowed)]."
+    }
+   ]
+  },
+  {
+   "name": "Faerie Miscreant",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Faerie Seer",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Moon-Circuit Hacker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Ninja of the Deep Hours",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Spellstutter Sprite",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Harrier Strix",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Counterspell",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Dispel",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Of One Mind",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Cryoshatter",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When enchanted creature becomes tapped or is dealt damage, destroy it.",
+     "o_que_o_motor_faz": "O efeito usa target 'enchanted-creature' (em TARGETED), então a habilidade 'mira' e marcasDoGatilho chama chargeWard: com a aura na criatura de outro jogador que tem ward, o dono da Cryoshatter é cobrado e, se não pagar, o gatilho é anulado. O texto não tem alvo; ward não dispara.",
+     "linha_script": 3587,
+     "impacto": "medio",
+     "confianca": "alta",
+     "como_provar": "Jogador A com Mirrorshell Crab (ward {3}); B controla Cryoshatter anexada ao Crab. A vira o Crab. Esperado: gatilho resolve e o Crab é destruído. Atual (sonda, manaCheck on): pendência may_pay {3} 'vigilância de Mirrorshell Crab' para B; B recusa e o Crab fica no campo."
+    },
+    {
+     "frase_oficial": "When enchanted creature becomes tapped or is dealt damage, destroy it.",
+     "o_que_o_motor_faz": "Na resolução, targetStillLegal recalcula 'enchanted-creature' pelo attachedTo da aura (index.html:7579-7581); se a Cryoshatter saiu do campo com o gatilho na pilha, não há hospedeiro e o gatilho é anulado. Pela 113.7a a habilidade existe independente da fonte e 'it' é a criatura que estava encantada.",
+     "linha_script": 3587,
+     "impacto": "baixo",
+     "confianca": "media",
+     "como_provar": "A tem Urso com Cryoshatter (de B). A vira o Urso; com o gatilho na pilha, a Cryoshatter vai para o cemitério. Esperado: Urso destruído. Atual (sonda): Urso continua no campo."
+    }
+   ]
+  },
+  {
+   "name": "Sewer-veillance Cam",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Hydroblast",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Steel Sabotage",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Annul",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Blue Elemental Blast",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Relic of Progenitus",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Voldaren Epicure",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Sneaky Snacker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Kitchen Imp",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Madness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+     "o_que_o_motor_faz": "cast_madness (index.html:9196) põe a carta na pilha sem os passos de conjurar que a ação cast faz: não incrementa s.spellsThisTurn (tempestade), não dispara 'cast-self'/'other-cast', não cobra ward (chargeWard) e não aplica violaPortaEstandarte (Standard Bearer). Conjurar por insanidade é conjurar (702.35a). Para esta carta (sem alvo) sobram só tempestade e gatilhos de conjuração.",
+     "linha_script": 3778,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Descarte Kitchen Imp com Faithless Looting, conjure por insanidade e depois Weather the Storm: esperado 2 cópias; atual: s.spellsThisTurn não conta a conjuração por insanidade."
+    }
+   ]
+  },
+  {
+   "name": "Lightning Bolt",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Fiery Temper",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Madness {R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+     "o_que_o_motor_faz": "cast_madness (index.html:9196) põe a carta na pilha sem os passos de conjurar que a ação cast faz: não incrementa s.spellsThisTurn (tempestade), não dispara 'cast-self'/'other-cast', não cobra ward (chargeWard) e não aplica violaPortaEstandarte (Standard Bearer). Conjurar por insanidade é conjurar (702.35a).",
+     "linha_script": 3894,
+     "impacto": "medio",
+     "confianca": "alta",
+     "como_provar": "Oponente com Mirrorshell Crab (ward {3}) e Standard Bearer; conjure Grab the Prize descartando Fiery Temper e conjure-a por insanidade mirando o Crab: esperado cobrança de ward {3} (como no Lightning Bolt normal) e, com o Bearer, só o Bearer como alvo; atual: nenhuma cobrança, e mirar o jogador é aceito (sonda: cast_madness targets [{player:d}] passou com Standard Bearer em campo; s.spellsThisTurn ficou 1 depois de Grab the Prize + Fiery Temper)."
+    }
+   ]
+  },
+  {
+   "name": "Faithless Looting",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Grab the Prize",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Highway Robbery",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Vampire's Kiss",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Alms of the Vein",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Madness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+     "o_que_o_motor_faz": "cast_madness (index.html:9196) põe a carta na pilha sem os passos de conjurar que a ação cast faz: não incrementa s.spellsThisTurn (tempestade), não dispara 'cast-self'/'other-cast', não cobra ward (chargeWard) e não aplica violaPortaEstandarte (Standard Bearer). Conjurar por insanidade é conjurar (702.35a). Para esta carta (alvo é jogador: ward e Standard Bearer não se aplicam) sobram tempestade e gatilhos de conjuração.",
+     "linha_script": 3897,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Descarte Alms of the Vein (Faithless Looting), conjure por insanidade e depois conjure Weather the Storm: esperado 2 cópias (Looting + Alms); atual: s.spellsThisTurn não conta a conjuração por insanidade (sonda com Fiery Temper: 1 após Grab the Prize + insanidade)."
+    }
+   ]
+  },
+  {
+   "name": "End the Festivities",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Jagged Barrens",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Bojuka Bog",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Razortrap Gorge",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Rakdos Carnarium",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Red Elemental Blast",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Duress",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Target opponent reveals their hand. You choose a noncreature, nonland card from it.",
+     "o_que_o_motor_faz": "discard_chosen (index.html:7868) sai com 'amount: 0' quando não há carta que sirva, sem abrir a escolha nem emitir evento de revelação: a mão do oponente não é mostrada nesse caso (só é mostrada quando há carta escolhível).",
+     "linha_script": 3443,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Mão do oponente só com criaturas e terrenos; conjure Duress. Esperado: a mão inteira aparece para quem conjurou. Atual (sonda): pending null, eventos só 'effect amount 0' e 'resolved'."
+    }
+   ]
+  },
+  {
+   "name": "Nihil Spellbomb",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Cast into the Fire",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Smash to Smithereens",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Dark Withering",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Madness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+     "o_que_o_motor_faz": "cast_madness (index.html:9196) põe a carta na pilha sem os passos de conjurar que a ação cast faz: não incrementa s.spellsThisTurn (tempestade), não dispara 'cast-self'/'other-cast', não cobra ward (chargeWard) e não aplica violaPortaEstandarte (Standard Bearer). Conjurar por insanidade é conjurar (702.35a).",
+     "linha_script": 3572,
+     "impacto": "medio",
+     "confianca": "alta",
+     "como_provar": "Oponente com Mirrorshell Crab (ward {3}) e Standard Bearer; conjure Grab the Prize descartando Fiery Temper e conjure-a por insanidade mirando o Crab: esperado cobrança de ward {3} (como no Lightning Bolt normal) e, com o Bearer, só o Bearer como alvo; atual: nenhuma cobrança, e mirar o jogador é aceito (sonda: cast_madness targets [{player:d}] passou com Standard Bearer em campo; s.spellsThisTurn ficou 1 depois de Grab the Prize + Fiery Temper)."
+    }
+   ]
+  },
+  {
+   "name": "Gladecover Scout",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Slippery Bogle",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Silhana Ledgewalker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Aura Gnarlid",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Malevolent Rumble",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Reveal the top four cards of your library. You may put a permanent card from among them into your hand.",
+     "o_que_o_motor_faz": "Usa 'look' (index.html:7812): abre a escolha só para quem conjurou e não emite evento 'revealed' (como o explore faz); o oponente não vê as quatro cartas nem qual foi para a mão.",
+     "linha_script": 3804,
+     "impacto": "baixo",
+     "confianca": "media",
+     "como_provar": "Conjure Malevolent Rumble e verifique os eventos da resolução. Esperado: evento de revelação das 4 cartas visível ao oponente. Atual: só 'choice' para o conjurador, sem 'revealed'."
+    }
+   ]
+  },
+  {
+   "name": "Abundant Growth",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Ancestral Mask",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Armadillo Cloak",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Ethereal Armor",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Utopia Sprawl",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Rancor",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Sentinel's Eyes",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Benevolent Blessing",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Enchanted creature has protection from the chosen color. This effect doesn't remove Auras and Equipment you control that are already attached to it.",
+     "o_que_o_motor_faz": "stateBased (index.html:8648-8651) solta/derruba toda aura ou equipamento da cor protegida via protectedFrom(host, aura), sem exceção para os que você controla e que já estavam anexados — nem para a própria Benevolent Blessing. Escolher branco derruba a própria Blessing e a Ethereal Armor; escolher verde derruba o Rancor.",
+     "linha_script": 3436,
+     "impacto": "medio",
+     "confianca": "alta",
+     "como_provar": "Urso 2/2 seu com Rancor e Ethereal Armor anexados. Conjure Benevolent Blessing no Urso e escolha verde: esperado Rancor continua anexado; motor: Rancor vai ao cemitério e volta à mão pelo gatilho. Repita escolhendo branco: esperado Blessing e Ethereal Armor continuam anexadas; motor: as duas vão para o cemitério (sonda de 30/09/2026 confirmou os dois casos)."
+    }
+   ]
+  },
+  {
+   "name": "Setessan Training",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Sheltering Landscape",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{T}, Sacrifice Sheltering Landscape: Search your library for a basic Mountain, Forest, or Plains card, put it onto the battlefield tapped, then shuffle.",
+     "o_que_o_motor_faz": "applyEffect case 'search' (index.html:7774): quando nenhuma carta do grimório serve, faz `break` sem embaralhar (a transmutação já foi corrigida na leva 107 para embaralhar mesmo sem achar; a busca comum não). A ordem conhecida do topo (Brainstorm, scry, Ponder) sobrevive a uma busca que deveria embaralhar.",
+     "linha_script": 3810,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Tire do grimório todas as Mountain/Forest/Plains básicas, anote a ordem das 8 do topo, ative a habilidade 0 do Sheltering Landscape e resolva: esperado grimório embaralhado; motor: ordem idêntica (sonda confirmou)."
+    }
+   ]
+  },
+  {
+   "name": "Mask of Law and Grace",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Flaring Pain",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Journey to Nowhere",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Scattershot Archer",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Standard Bearer",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Tormod's Crypt",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Lifelink",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Spirit Link",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Lunarch Veteran",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Squadron Hawk",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When Squadron Hawk enters the battlefield, you may search your library for up to three cards named Squadron Hawk, reveal them, put them into your hand, then shuffle your library.",
+     "o_que_o_motor_faz": "applyEffect case 'search' (index.html:7774): quando nenhuma carta do grimório serve, faz `break` sem embaralhar (a transmutação já foi corrigida na leva 107 para embaralhar mesmo sem achar; a busca comum não). A ordem conhecida do topo (Brainstorm, scry, Ponder) sobrevive a uma busca que deveria embaralhar.",
+     "linha_script": 3959,
+     "impacto": "baixo",
+     "confianca": "media",
+     "como_provar": "Grimório sem outro Squadron Hawk; anote a ordem do topo; Hawk entra e o gatilho resolve: esperado o jogador poder buscar (e então embaralhar) mesmo sem achar; motor: nenhuma escolha, ordem idêntica."
+    }
+   ]
+  },
+  {
+   "name": "Novice Inspector",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Thraben Inspector",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Kor Skyfisher",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Raffine's Informant",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Leonardo, Big Brother",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Prismatic Strands",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Rally the Peasants",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Thraben Charm",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Battle Screech",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Perilous Landscape",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{T}, Sacrifice Perilous Landscape: Search your library for a basic Island, Mountain, or Plains card, put it onto the battlefield tapped, then shuffle.",
+     "o_que_o_motor_faz": "applyEffect case 'search' (index.html:7774): quando nenhuma carta do grimório serve, faz `break` sem embaralhar (a transmutação já foi corrigida na leva 107 para embaralhar mesmo sem achar; a busca comum não). A ordem conhecida do topo (Brainstorm, scry, Ponder) sobrevive a uma busca que deveria embaralhar.",
+     "linha_script": 3499,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Grimório sem Island/Mountain/Plains básicas; anote a ordem do topo; ative a habilidade 0 e resolva: esperado embaralhado; motor: ordem idêntica."
+    }
+   ]
+  },
+  {
+   "name": "Boros Garrison",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Wind-Scarred Crag",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Dust to Dust",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Electrickery",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Hallow",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Martyr of Sands",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Axebane Guardian",
+   "status": "parcial-declarado",
+   "divergencias": []
+  },
+  {
+   "name": "Drift of Phantasms",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Overgrown Battlement",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Quirion Ranger",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Sagu Wildling",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Roost Seek (presságio): Search your library for a basic land card, reveal it, put it into your hand, then shuffle.",
+     "o_que_o_motor_faz": "applyEffect case 'search' (index.html:7774): quando nenhuma carta do grimório serve, faz `break` sem embaralhar (a transmutação já foi corrigida na leva 107 para embaralhar mesmo sem achar; a busca comum não). A ordem conhecida do topo (Brainstorm, scry, Ponder) sobrevive a uma busca que deveria embaralhar.",
+     "linha_script": 3775,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Grimório sem terrenos básicos; anote a ordem do topo; conjure Roost Seek (omen) e resolva: esperado grimório embaralhado (além da própria carta embaralhada); motor: a busca sai sem embaralhar — só a inserção do presságio mexe no grimório, confirme comparando com a posição da carta devolvida."
+    }
+   ]
+  },
+  {
+   "name": "Saruli Caretaker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Shield-Wall Sentinel",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When this creature enters, you may search your library for a creature card with defender, reveal it, put it into your hand, then shuffle.",
+     "o_que_o_motor_faz": "applyEffect case 'search' (index.html:7774): quando nenhuma carta do grimório serve, faz `break` sem embaralhar (a transmutação já foi corrigida na leva 107 para embaralhar mesmo sem achar; a busca comum não). A ordem conhecida do topo (Brainstorm, scry, Ponder) sobrevive a uma busca que deveria embaralhar.",
+     "linha_script": 3653,
+     "impacto": "baixo",
+     "confianca": "media",
+     "como_provar": "Grimório sem criatura com defensor; anote a ordem do topo; Shield-Wall Sentinel entra e o gatilho resolve: esperado poder buscar e embaralhar; motor: nada acontece, ordem idêntica."
+    }
+   ]
+  },
+  {
+   "name": "Tinder Wall",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Bloodrite Invoker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Galvanic Alchemist",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Soulbond (You may pair this creature with another unpaired creature when either enters the battlefield. They remain paired for as long as you control both of them.)",
+     "o_que_o_motor_faz": "702.95a: vínculo de alma são duas habilidades disparadas (vão para a pilha, com o 'se' conferido na resolução). pairSoulbond (index.html:7453-7461) grava uma escolha em queuedChoices e flushTriggers (8353-8354) abre choose_pair imediatamente, fora da pilha: o oponente não pode responder (ex.: remover o parceiro antes de emparelhar) e a escolha acontece antes dos outros gatilhos de entrada.",
+     "linha_script": 3565,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Urso seu no campo; conjure Galvanic Alchemist e passe as prioridades: esperado um gatilho de vínculo na pilha (s.stack.length === 1) ao qual o oponente pode responder; motor: s.pending.kind === 'choose_pair' com a pilha vazia."
+    }
+   ]
+  },
+  {
+   "name": "Orochi Leafcaller",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Secret Door",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{4}{U}: Venture into the dungeon. Activate only as a sorcery. — e regra da Undercity: \"You can't enter this dungeon unless you venture into Undercity\" (309.5b/701.49; só pela iniciativa).",
+     "o_que_o_motor_faz": "venture() (index.html:8295) oferece todas as masmorras de SC.DUNGEONS, inclusive 'Undercity' (Cidade Baixa, index.html:3007). Pela Secret Door só podem ser escolhidas Lost Mine of Phandelver, Tomb of Annihilation e Dungeon of the Mad Mage.",
+     "linha_script": 3476,
+     "impacto": "medio",
+     "confianca": "alta",
+     "como_provar": "Secret Door no campo, fase principal, pilha vazia. Ative {4}{U} e passe até resolver: esperado s.pending.options = [Lost Mine of Phandelver, Tomb of Annihilation, Dungeon of the Mad Mage]; motor: inclui 'Undercity' (sonda confirmou as 4 opções)."
+    }
+   ]
+  },
+  {
+   "name": "Tuktuk Rubblefort",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Valakut Invoker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Pulse of Murasa",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Reaping the Graves",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Freed from the Real",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Lead the Stampede",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Winding Way",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Masked Vandal",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Faerie Macabre",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Moment's Peace",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Nylea's Disciple",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Refurbished Familiar",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Writhing Chrysalis",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Gixian Infiltrator",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Krark-Clan Shaman",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Evolution Witness",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Fanatical Offering",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Cast Down",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Eviscerator's Insight",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Terminate",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Cleansing Wildfire",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Ichor Wellspring",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Lembas",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Makeshift Munitions",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Drossforge Bridge",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Slagwoods Bridge",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Twisted Landscape",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Vault of Whispers",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Weather the Storm",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Troublemaker Ouphe",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Breath Weapon",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Ancient Grudge",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Birchlore Rangers",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Tap two untapped Elves you control: Add one mana of any color.",
+     "o_que_o_motor_faz": "extraCostCandidates (index.html:8406-8416) aceita como Elfo qualquer criatura cuja linha de tipo tenha Elf (ou metamorfo), sem conferir faceDown. Uma criatura virada para baixo (morph, 2/2 sem tipo, regra 708.2) — por exemplo outra Birchlore Rangers conjurada virada — entra no custo como se fosse Elfo. countFor/matchesTriggerFilter já excluem faceDown; o custo não.",
+     "linha_script": 3792,
+     "impacto": "baixo",
+     "confianca": "alta",
+     "como_provar": "Campo de A: Birchlore Rangers virada para cima (sem enjoo) + Birchlore Rangers virada para baixo (faceDown:true), nenhum outro Elfo. Esperado: legalActions não oferece a habilidade (só há 1 Elfo). Atual: oferece activate index 0 com pay.tapOther=[Rangers, virada-para-baixo] e adiciona 1 mana (sonda node v61 confirmou)."
+    }
+   ]
+  },
+  {
+   "name": "Elvish Vanguard",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Jaspera Sentinel",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Llanowar Elves",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Priest of Titania",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Timberwatch Elf",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Salt Road Packbeast",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Elvish Mystic",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Nyxborn Hydra",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Lys Alana Huntmaster",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Distant Melody",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Vitu-Ghazi Inspector",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Mirrorshell Crab",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Negate",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Spell Pierce",
+   "status": "ok",
+   "divergencias": []
+  }
+ ]
+}
