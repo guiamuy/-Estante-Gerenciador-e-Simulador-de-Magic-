@@ -1,5 +1,5 @@
 {
- "sobre": "Leva 104 · textos oficiais das 138 cartas não básicas das sete listas Pauper, coletados em 30/09/2026 para a auditoria texto × script (leva 105). Entradas com incerto=true ainda precisam de fonte confiável; nunca usar como verdade.",
+ "sobre": "Leva 104 · textos oficiais das 138 cartas não básicas das sete listas Pauper, coletados em 30/09/2026 para a auditoria texto × script (leva 105). Entradas com incerto=true ainda precisam de fonte confiável; nunca usar como verdade. Leva 106: as 27 incertas completadas com o Oracle do Forge (GitHub), que bateu 6/6 com textos confirmados na Scryfall.",
  "cartas": [
   {
    "name": "Brinebarrow Intruder",
@@ -149,36 +149,36 @@
      "texto": "Of One Mind is unaffected if you no longer control a Human and non-Human creature after you've cast it."
     }
    ],
-   "fonte": "https://scryfall.com/card/iko/60/de/seelenverwandtschaft",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/o/of_one_mind.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Fonte unica: pagina alema da Scryfall (IKO #60), que exibe o 'English Oracle Text'. Raridade incomum e custo {2}{U} confirmados tambem por casualplaneswalker.com (lista do set). Redacao exata da condicao de custo ('a Human creature and a non-Human creature') nao confirmada por segunda fonte; rulings em cache antigo (dizem 'converted mana cost', hoje 'mana value'). Pagina em ingles (iko/60) retornou 403."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Cryoshatter",
-   "mana_cost": null,
-   "type_line": null,
-   "oracle_text": "",
+   "mana_cost": "{U}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature gets -5/-0.\nWhen enchanted creature becomes tapped or is dealt damage, destroy it.",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/eoe/53/cryoshatter",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/c/cryoshatter.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "NAO LOCALIZADO. Scryfall EOE #53 retornou 403 em todas as tentativas e nao ha fonte alternativa acessivel (orcamento de WebSearch da sessao esgotado; WebFetch so aceita URLs ja vistas). Nenhum texto gravado para nao escrever por palpite; registrar como manual ate confirmacao."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Sewer-veillance Cam",
-   "mana_cost": null,
-   "type_line": null,
-   "oracle_text": "",
+   "mana_cost": "{U}",
+   "type_line": "Artifact",
+   "oracle_text": "Flash\nWhen this artifact enters or leaves the battlefield, you may tap or untap target creature.\n{3}{U}, Sacrifice this artifact: Draw two cards.",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/tmt/53/sewer-veillance-cam",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/sewer_veillance_cam.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "NAO LOCALIZADO. Scryfall TMT #53 (e todas as versoes localizadas) retornou 403; a pagina de spoilers da casualplaneswalker.com so mostra imagem/titulo, sem texto; o link da pagina de carta da CPW nao entrou no conjunto de URLs permitidas. Nenhum texto gravado; registrar como manual."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Hydroblast",
@@ -290,27 +290,27 @@
    "name": "Sneaky Snacker",
    "mana_cost": "{U}{B}",
    "type_line": "Creature — Faerie Rogue",
-   "oracle_text": "Flying\nWhen you draw your third card in a turn, return this card from your graveyard to the battlefield tapped.",
+   "oracle_text": "Flying\nWhen you draw your third card in a turn, return Sneaky Snacker from your graveyard to the battlefield tapped.",
    "power": "2",
    "toughness": "1",
    "rulings": [],
-   "fonte": "https://scryfall.com/card/mh3/205/sneaky-snacker",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/sneaky_snacker.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Fonte unica: Scryfall MH3 #205 (cache antigo) com o texto 'return Sneaky Snacker from your graveyard...'. Troquei o nome por 'this card' (padrao atual para carta no cemiterio), o que NAO foi confirmado por fonte atual; a redacao do gatilho ('draw your third card in a turn') tambem so tem uma fonte. Confirmar antes de usar."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Kitchen Imp",
    "mana_cost": "{3}{B}",
    "type_line": "Creature — Imp",
    "oracle_text": "Flying, haste\nMadness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
-   "power": null,
-   "toughness": null,
+   "power": "2",
+   "toughness": "2",
    "rulings": [],
-   "fonte": "https://casualplaneswalker.com/card/kitchen-imp/",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/k/kitchen_imp.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Texto, custo e tipo: casualplaneswalker.com (card page + faq concordam). P/T NAO localizado (Scryfall MH2 #89/#343 e J21 #342 retornaram 403; CPW nao exibe P/T). Nenhum ruling obtido."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Lightning Bolt",
@@ -426,16 +426,16 @@
   },
   {
    "name": "Alms of the Vein",
-   "mana_cost": null,
-   "type_line": null,
-   "oracle_text": "",
+   "mana_cost": "{2}{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Target opponent loses 3 life and you gain 3 life.\nMadness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/sir/98/alms-of-the-vein",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/a/alms_of_the_vein.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "NAO LOCALIZADO. Scryfall SOI #98, SIR #98 e versoes localizadas retornaram 403; nenhuma fonte alternativa acessivel (orcamento de WebSearch esgotado). Nenhum texto gravado; registrar como manual."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "End the Festivities",
@@ -514,16 +514,16 @@
   },
   {
    "name": "Red Elemental Blast",
-   "mana_cost": null,
-   "type_line": null,
-   "oracle_text": "",
+   "mana_cost": "{R}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Counter target blue spell.\n• Destroy target blue permanent.",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/a25/147/red-elemental-blast",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/r/red_elemental_blast.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "NAO LOCALIZADO. Scryfall (A25 #147, LEA, 2ED, 3ED, 4ED, LEB, SUM, CEI, PRM, PTC) retornou 403 em todas as tentativas; nenhuma fonte alternativa acessivel. Nenhum texto gravado; registrar como manual."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Duress",
@@ -621,10 +621,10 @@
    "power": "1",
    "toughness": "1",
    "rulings": [],
-   "fonte": "https://aetherhub.com/Card/UMA/Slippery-Bogle/223",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/slippery_bogle.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Texto e P/T 1/1 confirmados na fonte (AetherHub UMA). INCERTO so no custo: a fonte leu 'G', mas a carta e hibrida {G/U} (Eventide) por conhecimento geral; confirmar no Scryfall."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Silhana Ledgewalker",
@@ -674,10 +674,10 @@
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://aetherhub.com/Card/MH3/Malevolent%20Rumble/161",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/m/malevolent_rumble.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Fonte unica (AetherHub MH3 #161, duas leituras iguais do texto); custo {1}{G} NAO confirmado na fonte (a leitura inicial sugeriu generico) e a redacao exata (Reveal vs Look/Mill) nao foi cruzada com segunda fonte. Conferir no Scryfall antes de scriptar."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Abundant Growth",
@@ -882,7 +882,7 @@
   },
   {
    "name": "Flaring Pain",
-   "mana_cost": "{R}",
+   "mana_cost": "{1}{R}",
    "type_line": "Instant",
    "oracle_text": "Damage can't be prevented this turn.\nFlashback {R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
    "power": null,
@@ -897,10 +897,10 @@
      "texto": "The 'damage can't be prevented' statement overrides all forms of preventing damage."
     }
    ],
-   "fonte": "https://aetherhub.com/Card/JUD/Flaring%20Pain/89",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/f/flaring_pain.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "INCERTO so no custo: AetherHub leu {R}, hareruya leu {1}{R} (com flashback {R}). Texto concorda nas duas fontes. Conferir custo no Scryfall."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Journey to Nowhere",
@@ -972,10 +972,10 @@
      "texto": "The controller of the enchanted creature, not the controller of Lifelink, gains the life (in case they're different players)."
     }
    ],
-   "fonte": "https://aetherhub.com/Card/M12/Lifelink/24",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/l/lifelink.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "INCERTO so no custo: a fonte nao exibiu o custo; {W} e conhecimento geral, sem segunda fonte. Texto e ruling de fonte unica (AetherHub M12)."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Spirit Link",
@@ -1106,15 +1106,15 @@
   {
    "name": "Leonardo, Big Brother",
    "mana_cost": "{2}{W}",
-   "type_line": "Creature — Mutant Ninja Turtle",
+   "type_line": "Legendary Creature — Mutant Ninja Turtle",
    "oracle_text": "Sneak {W} (You may cast this spell for {W} if you also return an unblocked attacker you control to hand during the declare blockers step. He enters tapped and attacking.)\nLeonardo gets +1/+0 for each other creature you control.",
    "power": "1",
    "toughness": "3",
    "rulings": [],
-   "fonte": "https://www.hareruyamtg.com/en/products/detail/188571",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/l/leonardo_big_brother.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "INCERTO: (1) type line: hareruya diz 'Creature — Mutant Ninja Turtle', echomtg diz 'Legendary'; nao resolvido. (2) custo de Sneak: simbolo ausente no texto da hareruya; {W} vem do echomtg (que tambem leu custo 'W' com CMC 3, inconsistente; usado {2}{W} da hareruya). (3) pronome 'He' vs 'It' no reminder. Fonte fraca; conferir no Scryfall antes de scriptar."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Prismatic Strands",
@@ -1206,14 +1206,14 @@
    "name": "Perilous Landscape",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Perilous Landscape: Search your library for a basic Island, Mountain, or Plains card, put it onto the battlefield tapped, then shuffle.\nCycling {U}{R}{W} ({U}{R}{W}, Discard this card: Draw a card.)",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/mh3/223/perilous-landscape",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/p/perilous_landscape.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Nao consegui ler: Scryfall respondeu 403 em todas as paginas (mh3/223, tdc/383, frc/78) e a pagina mtg.wtf nao entrou no conjunto de URLs permitidas. Texto nao verificado; nao escrevi de memoria. Orcamento de WebSearch esgotado."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Boros Garrison",
@@ -1350,10 +1350,10 @@
      "texto": "Axebane Guardian's activated ability is a mana ability. It doesn't use the stack and can't be responded to. The number of creatures with defender you control is counted, and the color(s) of mana produced chosen, immediately after the ability is activated when the ability resolves."
     }
    ],
-   "fonte": "https://scryfall.com/card/rtr/115/it/guardiano-di-rovina-asce",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/a/axebane_guardian.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Pagina em ingles deu 403 (rtr/115, tdc/248). Custo, tipo, P/T e ruling vieram da pagina italiana (texto impresso antigo, com 'mana pool'). O oracle_text acima e a redacao moderna que eu recordo, NAO verificada em fonte inglesa; o texto do ruling pode estar resumido/alterado."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Drift of Phantasms",
@@ -1414,29 +1414,35 @@
   },
   {
    "name": "Sagu Wildling",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
-   "power": null,
-   "toughness": null,
+   "mana_cost": "{4}{G}",
+   "type_line": "Creature — Dragon",
+   "oracle_text": "Flying\nWhen this creature enters, you gain 3 life.",
+   "power": "3",
+   "toughness": "3",
    "rulings": [],
-   "fonte": "https://scryfall.com/card/tdm/157/sagu-wildling-roost-seek",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/sagu_wildling_roost_seek.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Carta dupla (Sagu Wildling // Roost Seek). Scryfall deu 403 em tdm/157 e tdm/306 e nao achei outra fonte. Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106.",
+   "verso": {
+    "name": "Roost Seek",
+    "types": "Sorcery Omen",
+    "mana_cost": "G",
+    "oracle_text": "Search your library for a basic land card, reveal it, put it into your hand, then shuffle. (Also shuffle this card.)"
+   }
   },
   {
    "name": "Saruli Caretaker",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
-   "power": null,
-   "toughness": null,
+   "mana_cost": "{G}",
+   "type_line": "Creature — Dryad",
+   "oracle_text": "Defender\n{T}, Tap an untapped creature you control: Add one mana of any color.",
+   "power": "0",
+   "toughness": "3",
    "rulings": [],
-   "fonte": "https://scryfall.com/card/rna/139/saruli-caretaker",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/saruli_caretaker.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (rna/139). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Shield-Wall Sentinel",
@@ -1505,16 +1511,16 @@
   },
   {
    "name": "Secret Door",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
-   "power": null,
-   "toughness": null,
+   "mana_cost": "{U}",
+   "type_line": "Artifact Creature — Wall",
+   "oracle_text": "Defender\n{4}{U}: Venture into the dungeon. Activate only as a sorcery. (Enter the first room or advance to the next room.)",
+   "power": "0",
+   "toughness": "4",
    "rulings": [],
-   "fonte": "https://scryfall.com/card/afr/71/secret-door",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/secret_door.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (afr/71). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Tuktuk Rubblefort",
@@ -1531,16 +1537,16 @@
   },
   {
    "name": "Valakut Invoker",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
-   "power": null,
-   "toughness": null,
+   "mana_cost": "{2}{R}",
+   "type_line": "Creature — Human Shaman",
+   "oracle_text": "{8}: Valakut Invoker deals 3 damage to any target.",
+   "power": "2",
+   "toughness": "3",
    "rulings": [],
-   "fonte": "https://scryfall.com/card/bfz/159/valakut-invoker",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/v/valakut_invoker.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (bfz/159, cmr/206). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Pulse of Murasa",
@@ -1562,16 +1568,16 @@
   },
   {
    "name": "Reaping the Graves",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
+   "mana_cost": "{2}{B}",
+   "type_line": "Instant",
+   "oracle_text": "Return target creature card from your graveyard to your hand.\nStorm (When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.)",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/scg/72/zht/reaping-the-graves",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/r/reaping_the_graves.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (td0/A47, scg/72 zht/it). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Freed from the Real",
@@ -1593,48 +1599,48 @@
   },
   {
    "name": "Lead the Stampede",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
+   "mana_cost": "{2}{G}",
+   "type_line": "Sorcery",
+   "oracle_text": "Look at the top five cards of your library. You may reveal any number of creature cards from among them and put the revealed cards into your hand. Put the rest on the bottom of your library in any order.",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/iko/163/lead-the-stampede",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/l/lead_the_stampede.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 em todas as impressoes (iko/163, ima/173, mbs/82, cns/170, ddu/16, ddh/24). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Winding Way",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
+   "mana_cost": "{1}{G}",
+   "type_line": "Sorcery",
+   "oracle_text": "Choose creature or land. Reveal the top four cards of your library. Put all cards of the chosen type revealed this way into your hand and the rest into your graveyard.",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/mh1/193/winding-way",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/w/winding_way.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (mh1/193, otc/213, plst/MH1-193). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Masked Vandal",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
-   "power": null,
-   "toughness": null,
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Shapeshifter",
+   "oracle_text": "Changeling (This card is every creature type.)\nWhen Masked Vandal enters, you may exile a creature card from your graveyard. If you do, exile target artifact or enchantment an opponent controls.",
+   "power": "1",
+   "toughness": "3",
    "rulings": [],
-   "fonte": "https://scryfall.com/card/khm/184/masked-vandal",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/m/masked_vandal.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (khm/184, khm/405, plst, akhm). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Faerie Macabre",
    "mana_cost": "{1}{B}{B}",
    "type_line": "Creature — Faerie Rogue",
-   "oracle_text": "",
+   "oracle_text": "Flying\nDiscard Faerie Macabre: Exile up to two target cards from graveyards.",
    "power": "2",
    "toughness": "2",
    "rulings": [
@@ -1647,36 +1653,36 @@
      "texto": "The targeted cards may be in the same graveyard or in different graveyards."
     }
    ],
-   "fonte": "https://scryfall.com/card/shm/66/fr/faerie-macabre",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/f/faerie_macabre.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "So consegui a pagina francesa (sem Oracle em ingles): custo, tipo (peuple fee et gredin = Faerie Rogue), P/T e 2 rulings vieram dela. oracle_text nao verificado; nao escrevi de memoria. Paginas em ingles deram 403."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Moment's Peace",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
+   "mana_cost": "{1}{G}",
+   "type_line": "Instant",
+   "oracle_text": "Prevent all combat damage that would be dealt this turn.\nFlashback {2}{G} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
    "power": null,
    "toughness": null,
    "rulings": [],
-   "fonte": "https://scryfall.com/card/ody/251/zht/moments-peace",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/m/moments_peace.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (sld/1466, td0/A80, ody/251 zht). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Nylea's Disciple",
-   "mana_cost": "",
-   "type_line": "",
-   "oracle_text": "",
-   "power": null,
-   "toughness": null,
+   "mana_cost": "{2}{G}{G}",
+   "type_line": "Creature — Centaur Archer",
+   "oracle_text": "When Nylea's Disciple enters, you gain life equal to your devotion to green. (Each {G} in the mana costs of permanents you control counts toward your devotion to green.)",
+   "power": "3",
+   "toughness": "3",
    "rulings": [],
-   "fonte": "https://scryfall.com/card/ths/167/nyleas-disciple",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/n/nyleas_disciple.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403 (ths/167, pio/301, ths/167 it). Nao escrevi de memoria."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Refurbished Familiar",
@@ -1803,10 +1809,10 @@
      "texto": "Map tokens are a kind of predefined token. Each one is a colorless artifact with the artifact subtype Map and the ability \"{1}, {T}, Sacrifice this artifact: Target creature you control explores.\""
     }
    ],
-   "fonte": "https://www.cardtrader.com/en/cards/266897-fanatical-offering-the-lost-caverns-of-ixalan (texto); https://www.grimoria.app/cards/fanatical-offering (rulings)",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/f/fanatical_offering.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall 403. Custo de mana nao veio explicito: CMC 2 (EchoMTG) => {1}{B}; Grimoria exibiu simbolos '1 B B' (provavel erro). Texto de lembrete do Map diverge entre fontes ('this token' vs 'this artifact'). Efeito principal consistente nas 3 fontes. Rulings de 2023-11-10 vieram de Grimoria (datas em formato por extenso) e sao parciais (ha mais sobre explorar)."
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Cast Down",
@@ -2004,14 +2010,14 @@
    "name": "Troublemaker Ouphe",
    "mana_cost": "{1}{G}",
    "type_line": "Creature — Ouphe",
-   "oracle_text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nWhen this creature enters, if it was bargained, exile target artifact or enchantment an opponent controls.",
+   "oracle_text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nWhen Troublemaker Ouphe enters, if it was bargained, exile target artifact or enchantment an opponent controls.",
    "power": "2",
    "toughness": "2",
    "rulings": [],
-   "fonte": "https://casualplaneswalker.com/card/troublemaker-ouphe/faq ; https://www.echomtg.com/mtg/items/troublemaker-ouphe/153423/",
+   "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/t/troublemaker_ouphe.txt",
    "consulta": "2026-09-30",
-   "incerto": true,
-   "nota": "Scryfall deu 403. Custo de mana NAO veio explicito em nenhuma fonte (CMC 2, criatura verde => {1}{G} por inferencia). Redacao do gatilho: uma fonte trouxe 'this creature enters', outra 'Troublemaker Ouphe enters the battlefield'; usei a forma moderna. Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+   "incerto": false,
+   "nota": "Texto Oracle do Forge (repositório aberto no GitHub), conferido contra seis cartas já confirmadas na Scryfall: idêntico. Leva 106."
   },
   {
    "name": "Breath Weapon",

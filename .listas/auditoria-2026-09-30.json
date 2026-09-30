@@ -1,5 +1,5 @@
 {
- "sobre": "Leva 105 · comparação texto oficial × script das 111 cartas Pauper com texto confirmado. Achados de auditoria automatizada: cada um precisa ser confirmado com teste antes de corrigir. Status das correções no ROADMAP (leva 105/106).",
+ "sobre": "Leva 105 · comparação texto oficial × script das 111 cartas Pauper com texto confirmado. Achados de auditoria automatizada: cada um precisa ser confirmado com teste antes de corrigir. Status das correções no ROADMAP (leva 105/106). Leva 106: +27 cartas (textos do Forge).",
  "cartas": [
   {
    "name": "Brinebarrow Intruder",
@@ -1018,6 +1018,205 @@
      "confianca": "alta"
     }
    ]
+  },
+  {
+   "name": "Of One Mind",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Cryoshatter",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When enchanted creature becomes tapped or is dealt damage, destroy it.",
+     "o_que_o_motor_faz": "O gatilho 'enchanted-tapped-or-damaged' só é avisado por noteEnchantedEvent, chamado em tapForMana (7095), dano de combate (7360), dano de efeito (7647), efeito 'tap' (7906) e virar manual (9101). Virar ao declarar atacante (index.html 8725: `if (!has(s, o, 'vigilance')) o.tapped = true;`), virar como custo de habilidade ({T}, 8402: `if (cost.tap) source.tapped = true;`) e virar como custo tapOther (8371) NÃO disparam: a criatura encantada ataca ou usa habilidade {T} (não de mana) e não é destruída. O ROADMAP (S35) declara 'disparando por virar de qualquer origem'.",
+     "linha_script": 3582,
+     "impacto": "alto",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Sewer-veillance Cam",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Sneaky Snacker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Kitchen Imp",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Alms of the Vein",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Red Elemental Blast",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Slippery Bogle",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Malevolent Rumble",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Flaring Pain",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Damage can't be prevented this turn. (ruling 2004-10-04: 'The damage can't be prevented statement overrides all forms of preventing damage.')",
+     "o_que_o_motor_faz": "s.noPrevention desliga prevented(), colorPrevented() e Fog, mas a prevenção de dano por proteção não olha a flag: combate (7359) `if (obj && (prevented(s, obj) || protectedFrom(s, obj, src))) continue;` e efeito de dano (7645) `... || protectedFrom(s, obj, src)`. Com Flaring Pain resolvido, dano vermelho numa criatura com proteção contra vermelho (ex.: aura que dá proteção, tempProtection) continua prevenido.",
+     "linha_script": 3622,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Lifelink",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Enchanted creature has lifelink. (Damage dealt by the creature also causes its controller to gain that much life.)",
+     "o_que_o_motor_faz": "Vínculo com a vida só é aplicado no dano de combate (7365). O caso 'damage' de applyEffect (7628-7650) não verifica lifelink da fonte: dano não-combate causado pela criatura encantada (habilidade dela, luta) não dá vida. Lacuna geral do motor, só aparece se a criatura encantada causar dano fora do combate.",
+     "linha_script": 3410,
+     "impacto": "baixo",
+     "confianca": "media"
+    }
+   ]
+  },
+  {
+   "name": "Leonardo, Big Brother",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Sneak {W} (You may cast this spell for {W} if you also return an unblocked attacker you control to hand during the declare blockers step. He enters tapped and attacking.)",
+     "o_que_o_motor_faz": "Esgueirar-se reusa o caminho do ninjutsu (index.html 9019-9034): paga {W} e move a carta direto da mão para o campo (moveObject 'battlefield'), sem conjurar: não usa a pilha, não pode ser anulado (Counterspell etc.), não dispara gatilhos de conjuração ('other-cast', 'cast-self') nem conta em spellsThisTurn. Oficialmente é conjurar a mágica por custo alternativo. ROADMAP S54 não declara essa simplificação.",
+     "linha_script": 3550,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Perilous Landscape",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Axebane Guardian",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "{T}: Add X mana in any combination of colors, where X is the number of creatures with defender you control.",
+     "o_que_o_motor_faz": "produces {anyColor:true, per:'defenders-you-control'} é expandido em expandProduction (7009): `if (opt.anyColor) return ['W','U','B','R','G'].map(c => Array(n).fill(c));` — só oferece X manas todas da MESMA cor. Com X=2 não é possível gerar {U}{G}, por exemplo; custos com duas cores não são pagáveis só pelo Guardian.",
+     "linha_script": 3856,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Sagu Wildling",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Saruli Caretaker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Secret Door",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Valakut Invoker",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Reaping the Graves",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Storm (When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.)",
+     "o_que_o_motor_faz": "As cópias de tempestade reexecutam resolveScript com os MESMOS alvos da original (index.html 8446-8449; declarado só no Aceite do S34 do ROADMAP, 'as cópias resolvem com os mesmos alvos'). Para Reaping the Graves isso anula a tempestade: a primeira cópia devolve a única criatura escolhida e as demais (e a original) ficam sem alvo legal. Com N mágicas antes, o jogador recupera 1 criatura em vez de até N+1. O script (linha 3591) não está marcado covers:'partial'.",
+     "linha_script": 3591,
+     "impacto": "alto",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Lead the Stampede",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Winding Way",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "Put all cards of the chosen type revealed this way into your hand and the rest into your graveyard.",
+     "o_que_o_motor_faz": "Os dois modos usam do:'look' sem 'min' (linhas 3937-3938); o 'look' abre a escolha com min = Math.min(eff.min||0, servem) = 0 (index.html 7726). O jogador pode deixar criaturas/terrenos do tipo escolhido irem para o cemitério em vez de todos irem para a mão (escolha que a carta não dá; relevante com cemitério como recurso). Correção: min: 4 nos dois modos.",
+     "linha_script": 3937,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Masked Vandal",
+   "status": "divergente",
+   "divergencias": [
+    {
+     "frase_oficial": "When Masked Vandal enters, you may exile a creature card from your graveyard. If you do, exile target artifact or enchantment an opponent controls.",
+     "o_que_o_motor_faz": "O custo do gatilho (linha 3611, cost.exileFromGraveyard) é pago automaticamente em putTriggerOnStack (index.html 8259-8261) com payExtraCosts(..., null, ...), que pega a primeira criatura do cemitério (8362): (1) não há o 'you may' — se houver criatura no cemitério, ela é sempre exilada; (2) o jogador não escolhe qual criatura exilar; (3) o custo é pago ANTES da checagem de alvo (8263-8270), então sem artefato/encantamento do oponente a criatura é exilada à toa e o gatilho some.",
+     "linha_script": 3611,
+     "impacto": "medio",
+     "confianca": "alta"
+    }
+   ]
+  },
+  {
+   "name": "Faerie Macabre",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Moment's Peace",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Nylea's Disciple",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Fanatical Offering",
+   "status": "ok",
+   "divergencias": []
+  },
+  {
+   "name": "Troublemaker Ouphe",
+   "status": "ok",
+   "divergencias": []
   }
  ]
 }

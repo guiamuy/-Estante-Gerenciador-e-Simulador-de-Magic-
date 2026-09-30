@@ -1467,9 +1467,11 @@ test('S30 · Flagbearer obriga o oponente a mirar nele quando há alvo legal', (
   let bearer, outra, bolt;
   [s, bearer] = put(s, d, 'Bearer'); [s, outra] = put(s, d, 'WhiteBear');
   [s, bolt] = put(s, a, 'RedBolt', { zone: 'hand' });
-  const alvos = JSON.parse(JSON.stringify(E.legalTargets(s, a, 'any', bolt))).map(x => x.oid).filter(Boolean);
+  // Leva 106 · expectativa ajustada: a regra saiu de legalTargets (que também serve a gatilhos e à conferência na
+  // resolução, onde ela não vale) e passou para as ações de conjurar/ativar; o que o jogador vê é o mesmo
+  const alvos = JSON.parse(JSON.stringify(E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === bolt).flatMap(x => x.targets))).map(x => x.oid).filter(Boolean);
   assert.deepEqual(alvos, [bearer], 'só o Flagbearer é oferecido');
-  assert.throws(() => act(s, { t: 'cast', p: a, oid: bolt, targets: [{ oid: outra }] }), /alvo ilegal/);
+  assert.throws(() => act(s, { t: 'cast', p: a, oid: bolt, targets: [{ oid: outra }] }), /porta-estandarte/);
 
   // o dono do Flagbearer não é obrigado
   let meuBolt; [s, meuBolt] = put(s, d, 'RedBolt', { zone: 'hand' });
@@ -1687,7 +1689,10 @@ test('S33 · adaptar só age sem marcadores, e pôr marcadores dispara o gatilho
   let witness, morta;
   [s, witness] = put(s, a, 'Witness');
   [s, morta] = put(s, a, 'Rock', { zone: 'graveyard' });
+  // Leva 106 · expectativa ajustada: adaptar usa a pilha (701.46a); os marcadores entram na resolução
   s = act(s, { t: 'activate', p: a, oid: witness, index: 0 });
+  assert.equal(s.objects[witness].counters.p1p1 || 0, 0, 'na pilha, ainda sem marcadores');
+  s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(s.objects[witness].counters.p1p1, 2, 'adaptou 2');
   s = settle(s);
   assert.equal(s.objects[morta].zone, 'hand', 'o gatilho de marcadores devolveu a permanente do cemitério');
@@ -1744,7 +1749,11 @@ test('S34 · tempestade copia a mágica uma vez por mágica conjurada antes no t
   s = resolveSpell(act(s, { t: 'cast', p: a, oid: c1 }));
   s = resolveSpell(act(s, { t: 'cast', p: a, oid: c2 }));
   const vida = s.players[a].life;
-  s = resolveSpell(act(s, { t: 'cast', p: a, oid: storm }));
+  // Leva 106 · expectativa ajustada no mecanismo: as cópias agora são itens próprios na pilha (resolvem antes e
+  // independentes da original), então é preciso esvaziar a pilha, não resolver um item só
+  s = act(s, { t: 'cast', p: a, oid: storm });
+  assert.equal(s.stack.length, 3, 'a original e duas cópias na pilha');
+  s = settle(s);
   assert.equal(s.players[a].life, vida + 9, 'duas cópias mais a original: 3 vezes 3 de vida');
 });
 
@@ -3611,6 +3620,9 @@ test('S54 · esgueirar-se: entra virada e atacando, devolvendo um atacante sem b
   assert.ok(acao, 'a mesa oferece esgueirar-se depois dos bloqueadores');
   s = act(s, acao);
   assert.equal(s.objects[corredor].zone, 'hand', 'o atacante sem bloqueio voltou para a mão');
+  // Leva 106 · expectativa ajustada: esgueirar-se é conjurar; a mágica passa pela pilha antes de entrar
+  assert.equal(s.objects[leo].zone, 'stack', 'o Leonardo foi conjurado');
+  s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: d });
   assert.equal(s.objects[leo].zone, 'battlefield', 'o Leonardo entrou em campo');
   assert.equal(s.objects[leo].tapped, true, 'entrou virado');
   assert.ok(s.objects[leo].attacking != null, 'e entrou atacando');
