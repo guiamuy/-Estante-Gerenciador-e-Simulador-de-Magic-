@@ -2121,6 +2121,65 @@ async function auditaTela(page, nome) {
   });
   assert.ok(r.larguraDoc <= r.larguraTela, `${nome}: rolagem lateral (${r.larguraDoc} > ${r.larguraTela}): ${r.vazou.join(' | ')}`);
   assert.deepEqual(r.pequenos, [], `${nome}: alvos de toque abaixo de 44px`);
+  assert.deepEqual(await sobreposicoes(page), [], `${nome}: texto por cima de texto ou de selo/botão`);
+}
+
+/** Leva 100 · guarda-corpo de sobreposição: nenhum texto visível pode cair por cima de outro texto nem de um selo,
+    chip ou botão que não o contém. Mede o retângulo de cada linha de texto (Range), recortado pelos ancestrais com
+    overflow (texto com reticências não "vaza"), e só compara o que está na mesma camada (fixa, grudada ou página).
+    Sobreposição de design fica de fora pelo seletor abaixo ou por `data-sobrepoe` no elemento. */
+async function sobreposicoes(page) {
+  return page.evaluate(() => {
+    const INTENCIONAL = '.tb-card, .tb-leque, .ds-anel, .ds-sym, .ds-card, .tb-balao, .ds-toast, [data-sobrepoe]';
+    const SOLIDO = '.ds-badge, .ds-chip, .ds-btn, .ds-nav, .tb-chip, .tb-pill, .ds-btn__conta';
+    const camada = el => { for (let p = el; p && p !== document.body; p = p.parentElement) { const pos = getComputedStyle(p).position; if (pos === 'fixed' || pos === 'sticky') return p; } return document.body; };
+    const recorte = el => {
+      let c = { l: -1e9, t: -1e9, r: 1e9, b: 1e9 };
+      for (let p = el; p && p !== document.documentElement; p = p.parentElement) {
+        const st = getComputedStyle(p);
+        if (st.overflowX !== 'visible' || st.overflowY !== 'visible' || st.clip !== 'auto' && st.clip !== '') {
+          const b = p.getBoundingClientRect(); c = { l: Math.max(c.l, b.left), t: Math.max(c.t, b.top), r: Math.min(c.r, b.right), b: Math.min(c.b, b.bottom) };
+        }
+      }
+      return c;
+    };
+    const corta = (a, c) => ({ l: Math.max(a.left ?? a.l, c.l), t: Math.max(a.top ?? a.t, c.t), r: Math.min(a.right ?? a.r, c.r), b: Math.min(a.bottom ?? a.b, c.b) });
+    const area = x => Math.max(0, x.r - x.l) * Math.max(0, x.b - x.t);
+    const inter = (a, b) => area({ l: Math.max(a.l, b.l), t: Math.max(a.t, b.t), r: Math.min(a.r, b.r), b: Math.min(a.b, b.b) });
+    const visivel = el => { for (let p = el; p; p = p.parentElement) { const st = getComputedStyle(p); if (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity) === 0) return false; } return el.getClientRects().length > 0; };
+    const textos = [];
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) {
+      const t = w.currentNode; const el = t.parentElement;
+      if (!el || !t.textContent.trim() || el.closest(INTENCIONAL) || ['SCRIPT', 'STYLE', 'OPTION', 'TEXTAREA'].includes(el.tagName) || !visivel(el)) continue;
+      const c = recorte(el); const r = document.createRange(); r.selectNodeContents(t);
+      // a caixa da linha inclui o espaço de ascendente e descendente da fonte: com entrelinha justa (1.05) as caixas de
+      // duas linhas se tocam sem que as letras se toquem. Compara a faixa central (60%) da linha, onde fica a tinta.
+      for (const rc of r.getClientRects()) { const d = rc.height * .2; const x = corta({ left: rc.left, right: rc.right, top: rc.top + d, bottom: rc.bottom - d }, c); if (area(x) > 6) textos.push({ el, x, cam: camada(el), txt: t.textContent.trim().slice(0, 24) }); }
+    }
+    const solidos = [...document.querySelectorAll(SOLIDO)].filter(el => !el.closest(INTENCIONAL) && visivel(el)).map(el => ({ el, x: corta(el.getBoundingClientRect(), recorte(el.parentElement || el)), cam: camada(el) }));
+    // caixa do bloco de texto (independe da fonte: no aparelho a fonte é mais larga que no teste, e a caixa que
+    // o layout reservou já dizia que o nome ia invadir o selo)
+    const blocos = [...new Set(textos.map(t => t.el))].map(el => ({ el, x: corta(el.getBoundingClientRect(), recorte(el.parentElement || el)), cam: camada(el), txt: el.textContent.trim().slice(0, 24) }));
+    const ruins = new Set();
+    for (const a of blocos) for (const s of solidos) {
+      if (s.cam !== a.cam || s.el.contains(a.el) || a.el.contains(s.el)) continue;
+      if (inter(a.x, s.x) > 4) ruins.add(`caixa «${a.txt}» × ${s.el.className.split(' ')[0]} «${(s.el.textContent || '').trim().slice(0, 18)}»`);
+    }
+    for (let i = 0; i < textos.length; i++) {
+      const a = textos[i];
+      for (let j = i + 1; j < textos.length; j++) {
+        const b = textos[j];
+        if (a.cam !== b.cam || a.el === b.el || a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        if (inter(a.x, b.x) > 4) ruins.add(`«${a.txt}» × «${b.txt}»`);
+      }
+      for (const s of solidos) {
+        if (s.cam !== a.cam || s.el.contains(a.el) || a.el.contains(s.el)) continue;
+        if (inter(a.x, s.x) > 4) ruins.add(`«${a.txt}» × ${s.el.className.split(' ')[0]} «${(s.el.textContent || '').trim().slice(0, 18)}»`);
+      }
+    }
+    return [...ruins].slice(0, 12);
+  });
 }
 
 test('e2e · HOMOLOGAÇÃO 1 · todas as telas, nos dois temas: sem rolagem lateral, alvos ≥ 44px e sem erro no console', { skip }, async t => {
@@ -2870,5 +2929,56 @@ test('e2e · U8 disposições por aparelho: Galaxy S, S+, Ultra e iPhone sem rol
     await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start, #mesa-continue');
     if (await page.locator('#mesa-continue').count()) { await page.locator('#mesa-continue ~ .ds-btn--danger, .ds-btn--danger').first().click(); await page.waitForSelector('#mesa-start'); }
   }
+  assert.deepEqual(errors, []);
+});
+
+// Leva 100 · guarda-corpo de sobreposição com as listas reais (nomes longos + selos), nas quatro medidas.
+// Antes, em 360, o "Blue" de "Pauper Mono Blue Faeries" passava por cima do selo "Pauper".
+test('e2e · sem sobreposição: todas as listas prontas na estante, listas e prontas nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  for (const nome of await page.$$eval('[data-starter-add]', bs => bs.map(b => b.dataset.starterAdd))) {
+    await page.click(`[data-starter-add="${nome}"]`);
+    await page.waitForFunction(n => !document.querySelector(`[data-starter-add="${n}"]`), nome);
+  }
+  for (const [nome, w, h] of [['Galaxy S', 360, 780], ['S+ zoom', 384, 832], ['iPhone', 390, 844], ['S+/Ultra', 412, 891]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
+    assert.equal(await page.locator('#decks-list .ds-list__item').count(), 9);
+    await auditaTela(page, `${nome} · listas com as nove prontas`);
+    await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+    await auditaTela(page, `${nome} · listas prontas`);
+    await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+    await auditaTela(page, `${nome} · preparar partida`);
+  }
+  // a reserva de cada lista de Pauper aparece como 60 + 15
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
+  const reservas = await page.$$eval('#decks-list .deck-item__reserva', els => els.map(e => e.textContent));
+  assert.deepEqual(reservas, Array(7).fill('60 cartas + 15 na reserva'));
+  assert.deepEqual(errors, []);
+});
+
+// Leva 100 · a lista que o aparelho guardou com o corte errado da leva 95 (Mono Blue 62/13) vira 60/15 ao abrir o app.
+test('e2e · E51 corte errado da leva 95 corrigido ao abrir: Mono Blue Faeries passa de 62/13 para 60/15', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  const velha = await page.evaluate(() => {
+    const sd = __m24.STARTER_DECKS.find(d => d.name === 'Pauper Mono Blue Faeries');
+    const total = {}; for (const e of __m14.parseDeckText(sd.text).entries) total[e.name] = (total[e.name] || 0) + e.qty;
+    const errada = __m24.CORTES_ERRADOS_L95['Pauper Mono Blue Faeries'];
+    return [...Object.entries(total).map(([name, q]) => ({ name, qty: q - (errada[name] || 0), zone: 'main' })).filter(e => e.qty > 0), ...Object.entries(errada).map(([name, qty]) => ({ name, qty, zone: 'side' }))];
+  });
+  await page.evaluate(async es => {
+    const db = await new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => res(r.result); r.onerror = rej; });
+    await new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); const kv = tx.objectStore('kv');
+      kv.put({ id: 'mb', name: 'Pauper Mono Blue Faeries', format: 'pauper', entries: es, created: 1, updated: 1 }, 'deck.mb');
+      kv.put(['mb'], 'deck.__ids'); kv.put(['mb'], 'decks.reservaVista'); tx.oncomplete = res; tx.onerror = rej; });
+  }, velha);
+  await page.goto(base + '#/lista?id=mb'); await page.reload(); await page.waitForSelector('.deck-summary');
+  await page.waitForFunction(() => /60 no deck · 15 na reserva/.test(document.querySelector('#deck-counts').innerText));
+  const reserva = await page.$$eval('.deck-group--reserva .deck-slot', ss => ss.map(s => s.dataset.name).sort());
+  assert.deepEqual(reserva, ['Annul', 'Blue Elemental Blast', 'Cryoshatter', 'Dispel', 'Hydroblast', 'Relic of Progenitus', 'Steel Sabotage']);
   assert.deepEqual(errors, []);
 });

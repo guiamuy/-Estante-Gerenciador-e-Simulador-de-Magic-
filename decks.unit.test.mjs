@@ -500,8 +500,9 @@ test('E50 P5 · toda lista pronta de Pauper tem principal com 60 ou mais e reser
     const es = D.parseDeckText(d.text).entries;
     const side = es.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0);
     const main = es.filter(e => e.zone !== 'side').reduce((n, e) => n + e.qty, 0);
-    assert.ok(main >= 60 && main <= 64, `${d.name}: principal ${main}`);
-    assert.ok(side >= 11 && side <= 15, `${d.name}: reserva ${side}`);
+    // leva 100 · expectativa apertada (antes aceitava 60–64 / 11–15, o que deixou passar o corte errado): exatamente 60 e 15
+    assert.equal(main, 60, `${d.name}: principal ${main}`);
+    assert.equal(side, 15, `${d.name}: reserva ${side}`);
     assert.equal(main + side, 75, `${d.name}: 75 no total`);
     // na mesa, o grimório tem só o principal
     const s = E.createGame({ format: 'pauper', seed: 1, players: [{ name: 'A', deck: es }, { name: 'B', deck: [], dummy: true }] });
@@ -557,4 +558,52 @@ test('E51 · migraReservas passa por todas as listas salvas uma vez só: se o jo
   await decks.save({ ...depois, entries: depois.entries.map(e => ({ ...e, zone: 'main' })) });
   assert.equal((await S.migraReservas(decks, store)).length, 0);
   assert.equal((await decks.get(a.id)).entries.some(e => e.zone === 'side'), false);
+});
+
+// E51 (leva 100) · guarda-corpo: cada lista pronta de Pauper é, zona a zona, a lista que o usuário enviou em 22/09
+// (.listas/pauper.txt: as linhas até somar 60 são o principal; o resto, a reserva). Qualquer divergência falha aqui.
+test('E51 · listas prontas de Pauper batem, carta a carta e zona a zona, com a lista original do usuário', async () => {
+  const { starter: S } = loadModules();
+  const { readFileSync } = await import('node:fs');
+  const linhas = readFileSync(new URL('./.listas/pauper.txt', import.meta.url), 'utf8').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const originais = {}; let atual = null;
+  for (const l of linhas) { const m = l.match(/^(\d+)\s+(.+)$/); if (m && atual) originais[atual].push([Number(m[1]), m[2]]); else { atual = l; originais[atual] = []; } }
+  const soma = pares => { const o = {}; for (const [q, n] of pares) o[n] = (o[n] || 0) + q; return o; };
+  const pauper = S.STARTER_DECKS.filter(d => d.format === 'pauper');
+  assert.equal(pauper.length, 7);
+  for (const d of pauper) {
+    const o = originais[d.name]; assert.ok(o, `${d.name} está na lista original`);
+    let acc = 0, corte = -1; o.forEach(([q], i) => { acc += q; if (acc === 60 && corte < 0) corte = i + 1; });
+    assert.ok(corte > 0, `${d.name}: as primeiras linhas somam 60`);
+    const es = D.parseDeckText(d.text).entries;
+    const zona = z => soma(es.filter(e => e.zone === z).map(e => [e.qty, e.name]));
+    assert.deepEqual(JSON.parse(JSON.stringify(zona('main'))), soma(o.slice(0, corte)), `${d.name}: principal`);
+    assert.deepEqual(JSON.parse(JSON.stringify(zona('side'))), soma(o.slice(corte)), `${d.name}: reserva`);
+  }
+});
+
+test('E51 · lista salva com o corte errado da leva 95 é corrigida ao abrir; editada depois, não é tocada', async () => {
+  const { starter: S } = loadModules();
+  assert.deepEqual(JSON.parse(JSON.stringify(Object.keys(S.CORTES_ERRADOS_L95).sort())), ['Pauper Jund Wildfire', 'Pauper Mono Blue Faeries', 'Pauper Rakdos Madness', 'Pauper Walls Combo']);
+  const store = P.memoryStore(); const decks = D.createDeckStore({ store });
+  const sd = S.STARTER_DECKS.find(x => x.name === 'Pauper Mono Blue Faeries');
+  const certas = D.parseDeckText(sd.text).entries;
+  // reconstrói a lista como a leva 95 deixou: reserva = corte errado, principal = o resto
+  const errada = S.CORTES_ERRADOS_L95['Pauper Mono Blue Faeries'];
+  const total = {}; for (const e of certas) total[e.name] = (total[e.name] || 0) + e.qty;
+  const velha = [...Object.entries(total).map(([name, q]) => ({ name, qty: q - (errada[name] || 0), zone: 'main' })).filter(e => e.qty > 0), ...Object.entries(errada).map(([name, qty]) => ({ name, qty, zone: 'side' }))];
+  const a = await decks.save({ name: 'Pauper Mono Blue Faeries', format: 'pauper', entries: velha });
+  // já tinha sido "vista" pela passada da leva 98
+  await store.set('decks.reservaVista', [a.id]);
+  const corr = S.corrigeCorteErrado(await decks.get(a.id)); assert.ok(corr);
+  assert.deepEqual(JSON.parse(JSON.stringify(await S.migraReservas(decks, store))), ['Pauper Mono Blue Faeries']);
+  const d = await decks.get(a.id);
+  const z = zn => d.entries.filter(e => e.zone === zn).reduce((n, e) => n + e.qty, 0);
+  assert.equal(z('main'), 60); assert.equal(z('side'), 15);
+  assert.equal(d.entries.find(e => e.zone === 'side' && e.name === 'Cryoshatter').qty, 1);
+  // de novo: nada muda
+  assert.equal((await S.migraReservas(decks, store)).length, 0);
+  // lista com o corte errado mas editada (uma carta a mais na reserva): não mexe
+  const editada = [...velha.map(e => ({ ...e })), { name: 'Island', qty: 1, zone: 'side' }];
+  assert.equal(S.corrigeCorteErrado({ name: 'x', format: 'pauper', entries: editada }), null);
 });

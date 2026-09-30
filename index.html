@@ -624,6 +624,10 @@ body {
 .deck-curve__bar { width: 100%; min-height: 2px; background: var(--accent); border-radius: var(--radius-1) var(--radius-1) 0 0; }
 .deck-curve__n, .deck-curve__cmc { font-size: var(--text-xs); color: var(--fg-muted); }
 .ds-list__item .ds-stack { min-width: 0; }
+.deck-item__texto { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); overflow-wrap: anywhere; }
+.deck-item__nome { overflow-wrap: anywhere; hyphens: auto; }
+.deck-item__lado { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); text-align: right; }
+.deck-item__lado .ds-text { white-space: nowrap; }
 
 /* ===================== A0 · mesa =====================
    A mesa é o interior da estante: madeira escura ao fundo, a carta como
@@ -4645,10 +4649,12 @@ const __m24 = (function () {
    As listas que já vêm com o app, no mesmo formato de texto que a leitura
    de lista entende. Não há um segundo caminho de dados: a lista pronta é
    lida pelo mesmo parseDeckText de uma lista colada à mão.
-   E50 P5 · as sete do Pauper têm a reserva separada por "Sideboard" (a origem não separava;
-   o corte é depois do último terreno, onde toda lista de torneio fecha o principal). Em quatro
-   delas a origem já tinha somado cópias da reserva ao principal (Mono Blue 62/13, Rakdos 62/13, Walls 64/11, Jund 63/12): o
-   principal fica válido (≥ 60) e a reserva, incompleta; dá para ajustar editando a lista.
+   E50 P5 / E51 · as sete do Pauper têm principal (60) e reserva (15) separados por "Sideboard",
+   exatamente como na lista que o usuário enviou em 22/09 (.listas/pauper.txt: as 60 primeiras linhas
+   somadas são o principal, o resto é a reserva). A leva 95 cortou "depois do último terreno" e errou
+   em quatro listas (Mono Blue, Rakdos, Walls e Jund): a conversão original somava a mesma carta que
+   aparecia no principal e na reserva (ex.: 3+1 Cryoshatter). Corrigido na leva 100; as listas já salvas
+   com o corte errado são corrigidas ao abrir o app (CORTES_ERRADOS_L95, abaixo).
    ===================================================================== */
 const STARTER_DECKS = [
   { name: "Pauper Mono Blue Faeries", format: 'pauper', text: `4 Brinebarrow Intruder
@@ -4659,9 +4665,9 @@ const STARTER_DECKS = [
 4 Spellstutter Sprite
 2 Harrier Strix
 4 Counterspell
-2 Dispel
+1 Dispel
 4 Of One Mind
-4 Cryoshatter
+3 Cryoshatter
 3 Sewer-veillance Cam
 19 Island
 
@@ -4670,7 +4676,9 @@ Sideboard
 3 Steel Sabotage
 2 Annul
 2 Blue Elemental Blast
-2 Relic of Progenitus` },
+2 Relic of Progenitus
+1 Cryoshatter
+1 Dispel` },
   { name: "Pauper Rakdos Madness", format: 'pauper', text: `4 Voldaren Epicure
 4 Sneaky Snacker
 4 Kitchen Imp
@@ -4681,7 +4689,7 @@ Sideboard
 4 Highway Robbery
 4 Vampire's Kiss
 4 Alms of the Vein
-3 End the Festivities
+1 End the Festivities
 8 Mountain
 4 Jagged Barrens
 2 Bojuka Bog
@@ -4692,6 +4700,7 @@ Sideboard
 Sideboard
 4 Red Elemental Blast
 2 Duress
+2 End the Festivities
 2 Nihil Spellbomb
 2 Cast into the Fire
 2 Smash to Smithereens
@@ -4760,12 +4769,12 @@ Sideboard
 3 Tinder Wall
 1 Bloodrite Invoker
 1 Galvanic Alchemist
-2 Orochi Leafcaller
+1 Orochi Leafcaller
 1 Secret Door
 1 Tuktuk Rubblefort
 1 Valakut Invoker
-3 Pulse of Murasa
-2 Reaping the Graves
+1 Pulse of Murasa
+1 Reaping the Graves
 1 Freed from the Real
 4 Lead the Stampede
 4 Winding Way
@@ -4776,20 +4785,23 @@ Sideboard
 2 Faerie Macabre
 2 Moment's Peace
 2 Nylea's Disciple
-2 Scattershot Archer` },
+2 Pulse of Murasa
+2 Scattershot Archer
+1 Orochi Leafcaller
+1 Reaping the Graves` },
   { name: "Pauper Jund Wildfire", format: 'pauper', text: `4 Refurbished Familiar
 4 Writhing Chrysalis
 3 Gixian Infiltrator
-4 Krark-Clan Shaman
+3 Krark-Clan Shaman
 1 Evolution Witness
 4 Fanatical Offering
 3 Cast Down
 2 Eviscerator's Insight
-2 Terminate
+1 Terminate
 4 Cleansing Wildfire
 4 Ichor Wellspring
 3 Lembas
-4 Nihil Spellbomb
+3 Nihil Spellbomb
 1 Makeshift Munitions
 4 Drossforge Bridge
 4 Slagwoods Bridge
@@ -4804,7 +4816,10 @@ Sideboard
 3 Red Elemental Blast
 3 Troublemaker Ouphe
 2 Breath Weapon
-1 Ancient Grudge` },
+1 Ancient Grudge
+1 Krark-Clan Shaman
+1 Nihil Spellbomb
+1 Terminate` },
   { name: "Pauper Elves", format: 'pauper', text: `4 Birchlore Rangers
 4 Elvish Vanguard
 4 Jaspera Sentinel
@@ -5013,6 +5028,9 @@ Deck
 12 Island
 7 Mountain` }
 ];
+/* E51 (leva 100) · reserva que a leva 95 separou errado (11 a 13 cartas) nas quatro listas; só listas salvas
+   exatamente com este corte (e as mesmas cartas no total) são corrigidas sozinhas. */
+const CORTES_ERRADOS_L95 = {"Pauper Mono Blue Faeries": {"Hydroblast": 4, "Steel Sabotage": 3, "Annul": 2, "Blue Elemental Blast": 2, "Relic of Progenitus": 2}, "Pauper Rakdos Madness": {"Red Elemental Blast": 4, "Duress": 2, "Nihil Spellbomb": 2, "Cast into the Fire": 2, "Smash to Smithereens": 2, "Dark Withering": 1}, "Pauper Walls Combo": {"Masked Vandal": 3, "Faerie Macabre": 2, "Moment's Peace": 2, "Nylea's Disciple": 2, "Scattershot Archer": 2}, "Pauper Jund Wildfire": {"Weather the Storm": 3, "Red Elemental Blast": 3, "Troublemaker Ouphe": 3, "Breath Weapon": 2, "Ancient Grudge": 1}};
 /* ---- E51 · reserva nas listas já salvas ----
    Listas prontas adicionadas antes da leva 95 foram salvas com as 75 no principal. */
 const chaveNome = n => __m7.norm(n);
@@ -5061,21 +5079,36 @@ function reservaMisturada(deck) {
   const main = (deck.entries || []).filter(e => e.zone === 'main').reduce((n, e) => n + e.qty, 0);
   return main > 60 && main <= 80;
 }
+/** E51 · correção do corte errado da leva 95: a lista tem as mesmas cartas (no total) de uma pronta e a reserva dela é
+    exatamente a reserva errada daquela pronta → recebe o principal e a reserva certos. Editou algo → não mexe. */
+function corrigeCorteErrado(deck) {
+  if (!deck || deck.format === 'commander') return null;
+  const reserva = totais((deck.entries || []).filter(e => e.zone === 'side'));
+  const t = totais(deck.entries);
+  for (const [nome, errada] of Object.entries(CORTES_ERRADOS_L95)) {
+    const sd = STARTER_DECKS.find(x => x.name === nome); if (!sd || sd.format !== deck.format) continue;
+    const es = entradasDaPronta(sd);
+    if (mesmos(t, totais(es)) && mesmos(reserva, totais(Object.entries(errada).map(([name, qty]) => ({ name, qty }))))) return es.map(e => ({ ...e }));
+  }
+  return null;
+}
 /** Passa por todas as listas salvas uma vez; devolve os nomes migrados. */
 async function migraReservas(decks, store) {
   // cada lista é olhada uma vez: se depois o jogador juntar a reserva de volta ao principal, a escolha dele vale
   const vistas = new Set((store && await store.get('decks.reservaVista').catch(() => null)) || []);
   const feitas = [];
+  // leva 100 · segunda passada, com marca própria: corrige o corte errado da leva 95 mesmo em lista já vista
+  const vistas2 = new Set((store && await store.get('decks.reservaVista.v2').catch(() => null)) || []);
   for (const d of await decks.list()) {
-    if (vistas.has(d.id)) continue;
-    const es = migraReserva(d);
+    const corrigir = !vistas2.has(d.id) && corrigeCorteErrado(d);
+    const es = corrigir || (!vistas.has(d.id) && migraReserva(d));
     if (es) { await decks.save({ ...d, entries: es }); feitas.push(d.name); }
-    vistas.add(d.id);
+    vistas.add(d.id); vistas2.add(d.id);
   }
-  if (store) await store.set('decks.reservaVista', [...vistas]).catch(() => {});
+  if (store) { await store.set('decks.reservaVista', [...vistas]).catch(() => {}); await store.set('decks.reservaVista.v2', [...vistas2]).catch(() => {}); }
   return feitas;
 }
-return { STARTER_DECKS, migraReserva, sugereReserva, reservaMisturada, migraReservas, prontaDe };
+return { STARTER_DECKS, migraReserva, sugereReserva, reservaMisturada, migraReservas, prontaDe, corrigeCorteErrado, CORTES_ERRADOS_L95 };
 })();
 
 /* ==== src/data/filter.js ==== */
@@ -5385,13 +5418,17 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
       const reserva = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
       const cmd = d.entries.filter(e => e.zone === 'commander').map(e => e.name).join(' + ');
-      return h('button', { class: 'ds-list__item', type: 'button', onClick: () => go('/lista?id=' + d.id) },
-        Stack({ style: { gap: 'var(--space-1)', textAlign: 'left' } },
-          Text(d.name, { size: 'lg', display: true }),
-          cmd ? Text(cmd, { size: 'sm', tone: 'muted' }) : null),
-        h('div', { class: 'ds-grow' }),
-        Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
-          Row({ style: { gap: 'var(--space-1)' } }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), reserva ? Badge(`+${reserva} reserva`, { title: `${reserva} carta(s) na reserva: ficam de fora da partida` }) : null),
+      // leva 100 · o nome ocupa o espaço que sobrar e quebra dentro dele; a coluna da direita tem largura própria e
+      // nunca é invadida (antes "Blue" de "Pauper Mono Blue Faeries" passava por cima do selo Pauper). A reserva
+      // desceu para a linha de apoio, à esquerda.
+      const main = need - reserva;
+      return h('button', { class: 'ds-list__item deck-item', type: 'button', onClick: () => go('/lista?id=' + d.id) },
+        h('div', { class: 'deck-item__texto' },
+          Text(d.name, { size: 'lg', display: true, attrs: { class: 'ds-text ds-text--lg ds-text--display deck-item__nome' } }),
+          cmd ? Text(cmd, { size: 'sm', tone: 'muted' }) : null,
+          reserva ? Text(`${main} cartas + ${reserva} na reserva`, { size: 'xs', tone: 'muted', attrs: { class: 'ds-text ds-text--xs ds-text--muted deck-item__reserva' } }) : null),
+        h('div', { class: 'deck-item__lado' },
+          Badge(FORMATS[d.format] || d.format, { tone: 'accent' }),
           Text(`tenho ${have} de ${need}`, { size: 'xs', tone: have === need ? 'positive' : 'muted' })),
         Icone('seguir', { tamanho: 18, classe: 'ds-list__seta' }));
     })));
