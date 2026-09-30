@@ -3058,7 +3058,7 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Portão:** 567 verdes (505 + 62 e2e).
 
 **Leva 105 · Auditoria texto × script das cartas Pauper — parte 1** ✅ (111 de 138 conferidas)
-- **Como:** as 111 cartas com texto oficial confirmado (`.listas/oficiais.json`, 30/09/2026) foram comparadas frase a frase com o script e o motor; resultado em `.listas/auditoria-2026-09-30.json` (111 cartas, 52 com achados). Cada achado corrigido abaixo foi confirmado por um teste que falha no motor anterior.
+- **Como:** as 111 cartas com texto oficial confirmado (`.listas/oficiais.json`, 30/09/2026) foram comparadas frase a frase com o script e o motor; resultado em `.listas/auditoria-2026-09-30.json` (111 cartas, 50 com achados). Cada achado corrigido abaixo foi confirmado por um teste que falha no motor anterior.
 - **Corrigido (9 testes novos em `pauper.regras.test.mjs`):**
   - 400.7 · carta que muda de zona vira objeto novo: X pago, conceder, provas, face para baixo, lampejo, custo adicional pago, cor escolhida e plot não sobrevivem (Nyxborn Hydra reconjurada com X = 0 entrava com o X antigo; Vitu-Ghazi Inspector disparava sem provas; conceder "grudava");
   - 702.103e · Nyxborn Hydra concedida cuja criatura sai antes de resolver entra como criatura com os X marcadores (antes: cemitério);
