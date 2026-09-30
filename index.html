@@ -9556,11 +9556,11 @@ function resolveSimulado(s, max = 8) {
   return cur;
 }
 /** Nota da posição depois da jogada — conjurar só vale a pena depois de resolver. */
-function notaDepois(s, p, acao) {
+function notaDepois(s, p, acao, opts = {}) {
   const r = simula(s, acao);
   if (!r) return null;
   const depois = ['cast', 'activate', 'cast_madness', 'cast_free'].includes(acao.t) ? resolveSimulado(r.estado) : r.estado;
-  return avalia(depois, p).nota;
+  return (opts.av || avalia)(depois, p).nota;
 }
 const criaturasDe = (s, p) => s.zones[p].battlefield.map(oid => s.objects[oid]).filter(x => ehCriatura(s, x));
 const oponenteDe = (s, p) => { const i = s.players.findIndex((pl, k) => k !== p && !pl.lost); return i >= 0 ? i : (p + 1) % s.players.length; };
@@ -9677,23 +9677,24 @@ const RESOLVE = ['cast', 'activate', 'cast_madness', 'cast_free'];
     que mais me atrapalham, e a leitura completa (com resolução) só nas melhores
     delas. Antes eu cortava as respostas em ordem alfabética da chave, o que dava
     uma amostra sem sentido e fazia o profissional decidir no escuro. */
-function notaComResposta(s, p, opts) {
+function notaComResposta(s, p, opts = {}) {
+  const av = opts.av || avalia;
   const d = oponenteDe(s, p);
-  if (s.status !== 'playing' || s.players[d].lost) return avalia(s, p).nota;
+  if (s.status !== 'playing' || s.players[d].lost) return av(s, p).nota;
   const delas = E.legalActions(s, d).filter(a => a.t !== 'concede');
-  if (!delas.length) return avalia(s, p).nota;
+  if (!delas.length) return av(s, p).nota;
   const barato = [];
   for (const a of delas) {
     const r = simula(s, a);
     if (!r) continue;
-    barato.push({ a, n: avalia(r.estado, p).nota, r });
+    barato.push({ a, n: av(r.estado, p).nota, r });
   }
-  if (!barato.length) return avalia(s, p).nota;
+  if (!barato.length) return av(s, p).nota;
   barato.sort((x, y) => x.n - y.n || (chaveAcao(x.a) < chaveAcao(y.a) ? -1 : 1)); // pior para mim primeiro
-  let pior = avalia(s, p).nota;
+  let pior = av(s, p).nota;
   for (const { a, r } of barato.slice(0, RESPOSTAS_CONSIDERADAS)) {
     const depois = RESOLVE.includes(a.t) ? resolveSimulado(r.estado) : r.estado;
-    const n = avalia(depois, p).nota;
+    const n = av(depois, p).nota;
     if (n < pior) pior = n; // o oponente escolhe o que é pior para mim
   }
   return pior;
@@ -9716,6 +9717,17 @@ function decideBloqueioProfissional(s, p, opts = {}) {
     if (livre) { usados.add(livre); todos.push([livre, atk]); junta([[livre, atk]]); }
   }
   junta(todos);
+  // U11 · v2 também considera bloqueio duplo: dois bloqueadores que juntos matam um atacante que nenhum mata sozinho
+  if (opts.duplo) {
+    for (const atk of porAmeaca) {
+      const st = E.stats(s, s.objects[atk]);
+      const podem = livres.filter(b => E.canBlock(s, b, atk));
+      for (let i = 0; i < podem.length; i++) for (let j = i + 1; j < podem.length; j++) {
+        const pa = E.stats(s, s.objects[podem[i]]).power, pb = E.stats(s, s.objects[podem[j]]).power;
+        if (pa < st.toughness && pb < st.toughness && pa + pb >= st.toughness) junta([[podem[i], atk], [podem[j], atk]]);
+      }
+    }
+  }
   const r = escolhe(conjuntos.map(c => ({ t: 'block', p, blocks: c })), a => {
     const sim = simula(s, a);
     if (!sim) return -Infinity;
@@ -9723,7 +9735,7 @@ function decideBloqueioProfissional(s, p, opts = {}) {
     for (let i = 0; i < 20 && cur.status === 'playing' && !cur.pending && cur.turn.step !== 'main2' && cur.turn.step !== 'end'; i++) {
       const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) break; cur = rp.estado;
     }
-    return avalia(cur, p).nota;
+    return (opts.av || avalia)(cur, p).nota;
   }, opts);
   const blocos = (r.acao || { blocks: [] }).blocks;
   const motivo = blocos.length ? `bloqueei ${blocos.length}: contei o dano e o resultado me favorece`
@@ -9732,20 +9744,21 @@ function decideBloqueioProfissional(s, p, opts = {}) {
 }
 
 /** Resolve o combate simulado até o dano, com o oponente bloqueando como o amador. */
-function notaDoAtaque(s, p, atacantes) {
+function notaDoAtaque(s, p, atacantes, opts = {}) {
   const r = simula(s, { t: 'attack', p, attackers: atacantes });
   if (!r) return null;
   let cur = r.estado;
   for (let i = 0; i < 30 && cur.status === 'playing'; i++) {
     if (cur.pending && cur.pending.kind === 'blockers') {
-      const b = decideBloqueio(cur, cur.pending.p);
+      // U11 · o Shark v2 supõe que o oponente bloqueia tão bem quanto ele (contando o dano); o v1 supunha a regra de bolso
+      const b = opts.bloqueioForte ? decideBloqueioProfissional(cur, cur.pending.p, { ...opts, bloqueioForte: false, orcamentoMs: 60 }) : decideBloqueio(cur, cur.pending.p);
       const rb = simula(cur, b.acao); if (!rb) break; cur = rb.estado; continue;
     }
     if (cur.pending) break;
     if (cur.turn.step === 'main2' || cur.turn.step === 'end' || cur.turn.step === 'cleanup') break;
     const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) break; cur = rp.estado;
   }
-  return avalia(cur, p).nota;
+  return (opts.av || avalia)(cur, p).nota;
 }
 
 /** B4 · ataque escolhido pelo resultado do combate, não por regra de bolso. */
@@ -9762,7 +9775,7 @@ function decideAtaqueProfissional(s, p, opts = {}) {
   junta(podem);                // ataque total
   for (const oid of podem) junta([oid]); // uma criatura de cada vez
   const r = escolhe(conjuntos.map(c => ({ t: 'attack', p, attackers: c })),
-    a => { const n = notaDoAtaque(s, p, a.attackers); return n == null ? -Infinity : n; }, opts);
+    a => { const n = notaDoAtaque(s, p, a.attackers, opts); return n == null ? -Infinity : n; }, opts);
   const lista = (r.acao || { attackers: obrigadas }).attackers;
   const motivo = !lista.length ? 'não ataquei: depois do bloqueio provável, atacar me deixa pior'
     : `ataquei com ${lista.length}: contei o bloqueio provável e o dano compensa`;
@@ -9781,7 +9794,7 @@ function jogadaProfissional(s, p, opts = {}) {
   if (!acoes.length) return null;
   const terrenos = acoes.filter(a => a.t === 'play_land');
   if (terrenos.length) {
-    const melhor = escolhe(terrenos, a => { const n = notaDepois(s, p, a); return n == null ? -Infinity : n; }, opts).acao;
+    const melhor = escolhe(terrenos, a => { const n = notaDepois(s, p, a, opts); return n == null ? -Infinity : n; }, opts).acao;
     return { acao: melhor, motivo: motivoDe(s, p, melhor, 0) };
   }
   const base = notaComResposta(s, p, opts); // passar também sofre a resposta do outro
@@ -9850,6 +9863,29 @@ function dicas(s, p, { quantas = 2, orcamentoMs = 400, agora = () => Date.now() 
   return medidas.slice(0, quantas);
 }
 
+/* ---------------- U11 · Shark v2 ----------------
+   O v1 (profissional da B4) fica congelado como referência do torneio ('shark-v1'). O v2 muda a avaliação:
+   - mana: conta as fontes em campo, viradas ou não. O v1 contava só as desviradas, então virar terrenos para
+     conjurar parecia perda (−3 por terreno) e ele segurava criaturas na mão;
+   - no turno do oponente, fonte desvirada ainda vale um pouco (é resposta possível);
+   - evasão: criatura que voa, atropela ou tem ameaça vale mais que o mesmo corpo sem evasão;
+   - perigo: com a própria vida baixa, cada ponto de vida pesa mais (e o dano no oponente com vida baixa também).
+   E no ataque ele supõe que o oponente bloqueia contando o dano, como ele mesmo faria. */
+const EVASAO = ['flying', 'trample', 'menace'];
+function avaliaV2(s, p) {
+  const base = avalia(s, p);
+  if (base.parcelas.vitoria) return base;
+  const d = oponenteDe(s, p);
+  const fontes = q => { let n = 0; for (const oid of s.zones[q].battlefield) if (produzMana(s, s.objects[oid])) n++; return n; };
+  const parcelas = { ...base.parcelas };
+  parcelas.mana = (fontes(p) - fontes(d)) * PESOS.mana + (s.turn.active !== p ? fontesDeMana(s, p) : 0);
+  const evasao = q => criaturasDe(s, q).reduce((n, c) => n + (EVASAO.some(k => E.hasKeyword(s, c, k)) ? Math.max(0, E.stats(s, c).power) : 0), 0);
+  parcelas.evasao = (evasao(p) - evasao(d)) * 2;
+  const eu = s.players[p].life, ele = s.players[d].life;
+  parcelas.perigo = (eu <= 6 ? -(7 - eu) * 3 : 0) + (ele <= 6 ? (7 - ele) * 3 : 0);
+  return { nota: Object.values(parcelas).reduce((a, b) => a + b, 0), parcelas };
+}
+
 /** U10 · a mesa tem um bot só: o Shark (o profissional). O amador continua aqui como
     sparring do torneio de aferição, sem aparecer para o usuário. */
 const NOME_DO_BOT = 'Shark';
@@ -9857,17 +9893,20 @@ const NOME_DO_BOT = 'Shark';
 const nivelDaMesa = () => 'profissional';
 /** Bot pronto para jogar. Padrão: o Shark. */
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now() } = {}) {
-  const profissional = nivel === 'profissional' || nivel === 'shark';
+  // U11 · 'profissional' e 'shark' são o Shark atual (v2); 'shark-v1' é a versão anterior, só para o torneio
+  const v1 = nivel === 'shark-v1';
+  const profissional = v1 || nivel === 'profissional' || nivel === 'shark';
+  const extra = v1 ? {} : { av: avaliaV2, bloqueioForte: true, duplo: true };
   return {
     nivel,
     jogada(s, p) {
-      return profissional ? jogadaProfissional(s, p, { orcamentoMs, agora })
+      return profissional ? jogadaProfissional(s, p, { orcamentoMs, agora, ...extra })
         : jogadaAmador(s, p, { orcamentoMs, agora });
     }
   };
 }
 
-return { PESOS, LIMIAR_RESPOSTA, avalia, simula, escolhe, chaveAcao, fontesDeMana,
+return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
   notaComResposta, notaDoAtaque, resumoDoTurno, dicas, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();

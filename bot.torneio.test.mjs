@@ -17,6 +17,8 @@ const CARDS = {
   Alce: { ...cre('Alce', 3, 3), mana_cost: '{2}{G}', cmc: 3 },
   Gigante: { ...cre('Gigante', 5, 5, ['Trample']), mana_cost: '{4}{G}', cmc: 5 },
   Sentinela: cre('Sentinela', 1, 4, ['Vigilance']),
+  // U11 · voador para o segundo deck do torneio (evasão entra na avaliação do v2)
+  Falcao: { ...cre('Falcao', 2, 1, ['Flying']), mana_cost: '{1}{G}', cmc: 2 },
   Flecha: { name: 'Flecha', type_line: 'Instant', mana_cost: '{1}{G}', cmc: 2, colors: ['G'], keywords: [], oracle_text: 'Flecha deals 3 damage to target creature.' },
   Crescimento: { name: 'Crescimento', type_line: 'Instant', mana_cost: '{G}', cmc: 1, colors: ['G'], keywords: [], oracle_text: 'Target creature gets +3/+3 until end of turn.' }
 };
@@ -31,6 +33,9 @@ const DECK = [{ name: 'Floresta', qty: 22, zone: 'main' }, { name: 'Recruta', qt
   { name: 'Gigante', qty: 4, zone: 'main' }, { name: 'Sentinela', qty: 4, zone: 'main' },
   { name: 'Flecha', qty: 6, zone: 'main' }, { name: 'Crescimento', qty: 6, zone: 'main' }];
 
+// U11 · segundo deck: voadores e mais remoção, para o torneio não medir um espelho só
+const DECK_VOO = [['Floresta', 22], ['Falcao', 8], ['Urso', 6], ['Alce', 6], ['Gigante', 2], ['Flecha', 8], ['Crescimento', 8]].map(([name, qty]) => ({ name, qty, zone: 'main' }));
+
 /** Política aleatória legal do motor (B1), embrulhada como bot. */
 const botAleatorio = semente => {
   const politica = E.randomPolicy(semente);
@@ -39,11 +44,11 @@ const botAleatorio = semente => {
 const criaJogador = (nivel, semente) => nivel === 'aleatorio' ? botAleatorio(semente) : B.criaBot({ nivel });
 
 /** Uma partida inteira entre dois bots. Devolve quem venceu e como foi. */
-function partida({ seed, nivel0, nivel1, maxAcoes = 1200 }) {
+function partida({ seed, nivel0, nivel1, maxAcoes = 1200, deck0 = DECK, deck1 = DECK }) {
   let s = E.createGame({ format: 'livre', seed, mode: 'full', manaCheck: true, cards: CARDS, scripts: SCRIPTS,
-    players: [{ name: 'P0', deck: DECK }, { name: 'P1', deck: DECK }] });
+    players: [{ name: 'P0', deck: deck0 }, { name: 'P1', deck: deck1 }] });
   const jogadores = [criaJogador(nivel0, seed), criaJogador(nivel1, seed + 7)];
-  let acoes = 0, ilegal = null;
+  let acoes = 0, ilegal = null, pior = 0;
   const t0 = Date.now();
   for (let i = 0; i < maxAcoes && s.status !== 'over'; i++) {
     const quem = s.status === 'mulligan'
@@ -51,22 +56,27 @@ function partida({ seed, nivel0, nivel1, maxAcoes = 1200 }) {
       : s.pending ? s.pending.p : s.turn.priority;
     if (quem < 0) break;
     if (s.status === 'mulligan') { s = E.apply(s, { t: 'keep', p: quem, bottom: [] }).state; continue; }
+    const tj = Date.now();
     const j = jogadores[quem].jogada(s, quem);
+    pior = Math.max(pior, Date.now() - tj);
     if (!j || !j.acao) break;
     try { s = E.apply(s, j.acao).state; } catch (e) { ilegal = `${quem}: ${j.acao.t} — ${e.message}`; break; }
     acoes++;
   }
   const ms = Date.now() - t0;
   return { vencedor: s.status === 'over' ? s.winner : null, turnos: s.turn.number, acoes, ms,
-    msPorJogada: acoes ? ms / acoes : 0, ilegal, vidas: s.players.map(p => p.life) };
+    msPorJogada: acoes ? ms / acoes : 0, pior, ilegal, vidas: s.players.map(p => p.life) };
 }
 
 /** Série de partidas com os assentos trocados a cada rodada. */
-function serie({ nivelForte, nivelFraco, partidas = 12, base = 1000 }) {
-  const r = { forte: 0, fraco: 0, semDecisao: 0, ilegais: [], turnos: 0, ms: 0, acoes: 0 };
+function serie({ nivelForte, nivelFraco, partidas = 12, base = 1000, misto = false }) {
+  const r = { forte: 0, fraco: 0, semDecisao: 0, ilegais: [], turnos: 0, ms: 0, acoes: 0, pior: 0 };
   for (let i = 0; i < partidas; i++) {
     const forteComeca = i % 2 === 0;   // troca de assento a cada partida
-    const g = partida({ seed: base + i * 13, nivel0: forteComeca ? nivelForte : nivelFraco, nivel1: forteComeca ? nivelFraco : nivelForte });
+    // misto: a cada par de partidas, um dos lados usa o deck de voadores, trocando quem fica com ele
+    const decks = !misto || i % 4 < 2 ? [DECK, DECK] : (i >> 2) % 2 ? [DECK, DECK_VOO] : [DECK_VOO, DECK];
+    const g = partida({ seed: base + i * 13, nivel0: forteComeca ? nivelForte : nivelFraco, nivel1: forteComeca ? nivelFraco : nivelForte, deck0: decks[0], deck1: decks[1] });
+    r.pior = Math.max(r.pior, g.pior);
     if (g.ilegal) r.ilegais.push(`semente ${base + i * 13} · ${g.ilegal}`);
     r.turnos += g.turnos; r.ms += g.ms; r.acoes += g.acoes;
     if (g.vencedor == null) { r.semDecisao++; continue; }
@@ -80,7 +90,7 @@ function serie({ nivelForte, nivelFraco, partidas = 12, base = 1000 }) {
 const relatorio = (titulo, r, partidas) => [
   `${titulo}: ${r.forte}–${r.fraco} em ${r.decididas} decididas de ${partidas}`,
   `  taxa do mais forte: ${(r.taxa * 100).toFixed(0)}% · sem decisão: ${r.semDecisao}`,
-  `  turnos médios: ${(r.turnos / partidas).toFixed(1)} · tempo médio por jogada: ${(r.ms / Math.max(1, r.acoes)).toFixed(1)} ms`
+  `  turnos médios: ${(r.turnos / partidas).toFixed(1)} · tempo médio por jogada: ${(r.ms / Math.max(1, r.acoes)).toFixed(1)} ms · pior jogada: ${r.pior} ms`
 ].join('\n');
 
 test('B6 · o sparring (amador) ganha da política aleatória em pelo menos 70% das partidas decididas', () => {
@@ -116,4 +126,27 @@ test('B6 · a mesma semente dá sempre a mesma partida', () => {
   const b = partida({ seed: 4242, nivel0: 'profissional', nivel1: 'amador' });
   assert.deepEqual({ v: a.vencedor, t: a.turnos, n: a.acoes, vidas: a.vidas.join(',') },
     { v: b.vencedor, t: b.turnos, n: b.acoes, vidas: b.vidas.join(',') }, 'torneio reproduzível');
+});
+
+// U11 · o Shark atual (v2) contra a versão anterior congelada ('shark-v1'). 40 partidas com semente fixa, assentos
+// trocados e metade com o deck de voadores. Medido na leva 101: 72% em 60 partidas no roteiro de exploração;
+// aqui o piso é 60%, com margem para o sorteio. E o tempo: nenhuma jogada acima de 1 s no Node (no celular,
+// ~3× mais lento, a média de poucos ms por jogada continua longe do limite).
+test('U11 · o Shark v2 ganha do Shark v1 em pelo menos 60% das partidas decididas, sem ação ilegal e rápido', () => {
+  const partidas = 40;
+  const r = serie({ nivelForte: 'shark', nivelFraco: 'shark-v1', partidas, base: 7000, misto: true });
+  console.log(relatorio('Shark v2 × Shark v1', r, partidas));
+  assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
+  assert.equal(r.decididas >= partidas * 0.8, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
+  assert.equal(r.taxa >= 0.6, true, `o v2 ganhou ${(r.taxa * 100).toFixed(0)}% das decididas`);
+  assert.equal(r.pior < 1000, true, `pior jogada ${r.pior} ms`);
+  assert.equal(r.ms / Math.max(1, r.acoes) < 50, true, 'média por jogada abaixo de 50 ms');
+});
+
+test('U11 · v1 e v2 só diferem por critério: a avaliação v2 é determinística e respeita vitória e derrota', () => {
+  const s = E.createGame({ format: 'livre', seed: 11, mode: 'full', manaCheck: true, cards: CARDS, scripts: SCRIPTS, players: [{ name: 'P0', deck: DECK }, { name: 'P1', deck: DECK_VOO }] });
+  assert.deepEqual(B.avaliaV2(s, 0), B.avaliaV2(s, 0));
+  const t = JSON.parse(JSON.stringify(s)); t.players[1].lost = true; t.status = 'over'; t.winner = 0;
+  assert.equal(B.avaliaV2(t, 0).parcelas.vitoria, B.PESOS.vitoria);
+  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1');
 });

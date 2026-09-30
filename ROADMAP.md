@@ -330,7 +330,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 8º ✅ | U2 ícones flat, botões com profundidade e toque animado, CTAs sem excesso de texto (levas 92, 93 e 96) | E43 | 3 | — |
 | 9º ✅ | U4 "sem internet" mais visual (leva 97) | E43 | 1 | — |
 | 10º ✅ | U8 disposições por tamanho de aparelho (Galaxy S, S+ e Ultra) (leva 99) | E44 | 1 | — |
-| 11º | U11 Shark mais forte, medido no torneio | E46 | 2 a 3 | ganho provado contra a versão anterior |
+| 11º ✅ | U11 Shark mais forte, medido no torneio (leva 101) | E46 | 1 | 70% contra a versão anterior |
 | 12º | U13 conta e perfil com Google (nome, avatar, backup) | E47 | 3 a 4 | **precisa de decisão e de um Client ID seu** (abaixo) |
 | 13º | U14 partida online 1x1 | E48 | 6 a 10 | **precisa de decisão de infraestrutura** (abaixo) |
 | 14º | U15 chat na partida 1x1 | E49 | 1 a 2 | depende de U14 |
@@ -3105,7 +3105,13 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (`shark.unit.test.mjs`, 4: padrão, nível da mesa, partida antiga "amador" e "profissional" abrindo como Shark, nome do jogo a dois preservado); torneio (Shark × aleatório novo); e2e B4/U10 (só três oponentes, nenhum nível antigo na tela, "Shark" no registro), B5 (Shark bloqueado sem 100%), HOMOLOGAÇÃO 5 (partida inteira contra o Shark), O1.
 - **Expectativas alteradas:** A14 da mesa (nome "Shark" e nível "shark" depois de salvar), B3 do bot (nível do sparring explícito, porque o padrão virou o Shark), e2e B4, B5, O1 e HOMOLOGAÇÃO 5 (seletor e nome). Cada uma diz o motivo no próprio teste.
 
-**U11 · Shark mais forte** ○
+**U11 · Shark mais forte** ✅ (leva 101)
+- **Entregue:** o Shark de antes ficou congelado como `shark-v1` (só existe no torneio); o Shark da mesa passou a ser o v2, com três mudanças: (1) avaliação de mana conta as fontes em campo, viradas ou não — o v1 contava só as desviradas, então virar terrenos para conjurar parecia perda e ele segurava criaturas na mão; no turno do oponente, fonte desvirada ainda vale um pouco (resposta possível); (2) evasão (voar, atropelar, ameaça) e perigo (vida baixa dos dois lados) entram na nota; (3) no combate ele supõe que o oponente bloqueia contando o dano e considera bloqueio duplo (dois bloqueadores que juntos matam um atacante que nenhum mata sozinho).
+- **Medida (semente fixa, assentos trocados, metade das partidas com um deck de voadores):** Shark v2 × v1 70% (28–12) em 40 partidas no portão; 72% em 60 no roteiro de exploração. Shark × sparring subiu para 71%; Shark × aleatório 100%. Tempo: média ~5 ms por jogada, pior jogada 334 ms no Node (limite do portão: 1 s).
+- **Desvio declarado do aceite:** a medida é com os decks sintéticos do torneio, não com as listas Pauper reais — o repositório não tem os dados completos (custo, força, resistência) das cartas das sete listas sem rede. Fica para quando houver um pacote de dados das cartas no próprio repositório.
+- **Fora:** "guardar remoção para a ameaça maior" (o avaliador já pesa o valor do alvo, mas não há regra explícita); profundidade 2 além da resposta imediata.
+- **Sem internet:** o bot é todo local; o O1 já joga contra ele sem rede.
+- **Testes:** `bot.torneio.test.mjs` (v2 × v1 ≥ 60%, sem ação ilegal, pior jogada < 1 s, média < 50 ms; avaliação v2 determinística e respeita vitória/derrota).
 - **Valor:** o bot joga melhor de forma medida.
 - **Aceite:** ganho comprovado no torneio (`bot.torneio.test.mjs`) contra a versão anterior do próprio Shark, com semente fixa, em Pauper; candidatos: profundidade 2 na resposta, avaliação de curva e de mana disponível, bloqueio com troca favorável, guardar remoção para ameaça maior; tempo por jogada no celular continua abaixo de 1 s (medido no portão).
 - **Testes:** torneio (vitórias e tempo); fuzz (nenhuma ação ilegal).
