@@ -293,6 +293,22 @@ a { color: var(--accent); }
 .ds-btn:has(> .ds-icon + .ds-btn__rotulo) { padding-left: var(--space-3); }
 @media (prefers-reduced-motion: reduce) { .ds-btn:active:not([disabled]) { transform: none; } }
 
+/* leva 102 · visor da carta: grande, nítida, com o texto embaixo */
+.ds-carta-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ds-visor__moldura { position: relative; width: min(100%, 380px); aspect-ratio: 488 / 680; margin: 0 auto var(--space-4); border-radius: 4.75% / 3.5%; overflow: hidden;
+  background: var(--bg-elev-2); box-shadow: var(--shadow-3); }
+.ds-visor__moldura[data-carregando="true"]::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--fg) 8%, transparent) 50%, transparent 70%) 0 0 / 200% 100%; animation: ds-brilho 1.2s linear infinite; }
+@keyframes ds-brilho { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .ds-visor__moldura[data-carregando="true"]::after { animation: none; } }
+.ds-visor__moldura .ds-empty { height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.ds-visor__texto { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-visor__cabeca { align-items: flex-start; flex-wrap: nowrap; gap: var(--space-2); }
+.ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
+.ds-visor__custo { flex: none; font-size: 18px; white-space: nowrap; }
+.ds-visor__tipo { gap: var(--space-2); align-items: center; }
+.ds-visor__oracle { margin: var(--space-1) 0 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border);
+  font-size: var(--text-md); line-height: 1.5; white-space: pre-wrap; color: var(--fg); }
+
 /* U4 · sem internet mais visual: anel de progresso, linha por item com estado desenhado, aviso de uma linha */
 .ds-anel { position: relative; flex: none; width: var(--anel, 64px); height: var(--anel, 64px); display: grid; place-items: center; }
 .ds-anel svg { position: absolute; inset: 0; }
@@ -1639,6 +1655,33 @@ const Note = (content, tone) => h('div', { class: ['ds-note', tone ? `ds-note--$
 const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-label': 'carregando' });
 
 /* ---------------- carta ---------------- */
+/* ---------------- leva 102 · imagem de carta em alta qualidade ----------------
+   A Scryfall entrega a mesma carta em 146 (small), 488 (normal), 672 (large) e 745 px (png). No celular (tela 3×)
+   uma miniatura de 100 px precisa de 300 px de imagem: a "small" ficava borrada. `srcset` deixa o navegador pedir
+   o tamanho certo para a tela; sem rede, a imagem que não estiver guardada cai para a próxima da cadeia
+   (normal → small → large → png) e só no fim vira a carta em texto. */
+function srcsetDaCarta(im) {
+  if (!im) return '';
+  const pares = [[im.small, 146], [im.normal, 488], [im.large, 672], [im.png, 745]].filter(([u]) => u);
+  const vistos = new Set();
+  return pares.filter(([u]) => !vistos.has(u) && vistos.add(u)).map(([u, w]) => `${u} ${w}w`).join(', ');
+}
+/** <img> da carta. `sizes` é a largura em CSS px com que ela aparece (o navegador multiplica pela densidade da tela). */
+function ImagemCarta(im, { alt = '', sizes = '120px', classe = '', lazy = true, onFalha = null } = {}) {
+  if (!im || !(im.normal || im.small || im.large || im.png)) return null;
+  const cadeia = [...new Set([im.normal, im.small, im.large, im.png].filter(Boolean))];
+  const img = h('img', { class: ('ds-carta-img ' + classe).trim(), alt, src: cadeia[0], srcset: srcsetDaCarta(im), sizes, decoding: 'async', loading: lazy ? 'lazy' : null, draggable: 'false' });
+  const tentadas = new Set();
+  img.addEventListener('error', () => {
+    tentadas.add(img.currentSrc || img.src);
+    img.removeAttribute('srcset');
+    const prox = cadeia.find(u => !tentadas.has(u));
+    if (prox) { tentadas.add(prox); img.src = prox; } else if (onFalha) onFalha(img);
+  });
+  img.addEventListener('load', () => { img.dataset.carregada = 'true'; });
+  return img;
+}
+
 function CardFace(card, opts = {}) {
   // U3 · sem imagem (sem internet ou ainda não guardada), a carta vira texto: nome, custo em símbolos e tipo
   const fallback = () => h('span', { class: 'ds-card__fallback' },
@@ -1646,7 +1689,10 @@ function CardFace(card, opts = {}) {
     card && card.mana_cost ? h('span', { class: 'ds-card__custo' }, ComSimbolos(String(card.mana_cost).split('//')[0].trim())) : null,
     card && card.type_line ? h('span', { class: 'ds-card__tipo' }, String(card.type_line).split('//')[0].trim()) : null);
   // O2 · imagem que não carrega (sem internet e ainda não guardada) vira o nome, não um ícone quebrado
-  const img = card && card.image ? h('img', { src: card.image, alt: card.name || '', loading: 'lazy', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(fallback(), el); } }) : null;
+  const troca = el => { if (el.parentNode) el.parentNode.replaceChild(fallback(), el); };
+  // leva 102 · com o conjunto de tamanhos (`imagens`), a carta sai nítida em qualquer tela; só com uma url, como antes
+  const img = card && card.imagens ? ImagemCarta(card.imagens, { alt: card.name || '', sizes: opts.sizes || '(max-width: 400px) 31vw, 160px', onFalha: troca })
+    : card && card.image ? h('img', { src: card.image, alt: card.name || '', loading: 'lazy', onError: e => troca(e.target) }) : null;
   return h(opts.onClick ? 'button' : 'div', {
     class: 'ds-card', type: opts.onClick ? 'button' : null,
     'aria-label': card?.name || 'carta', onClick: opts.onClick, dataset: opts.dataset
@@ -1691,7 +1737,7 @@ function toast(message, ms = 2400) {
   toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
+  analisaSimbolos, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -2599,7 +2645,7 @@ const __m12 = (function () {
    problema dele.
    ===================================================================== */
 const { normalizeCard } = __m6;
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede, ImagemCarta, ComSimbolos } = __m3;
 const COLORS = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']];
 const TYPES = [['', 'Qualquer tipo'], ['creature', 'Criatura'], ['instant', 'Instantânea'], ['sorcery', 'Feitiço'],
   ['artifact', 'Artefato'], ['enchantment', 'Encantamento'], ['land', 'Terreno'], ['planeswalker', 'Planeswalker']];
@@ -2781,7 +2827,7 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
 }
 
 /* ---------------- D5 · visualizador ---------------- */
-function openCardViewer(card, extra = []) {
+function openCardViewer(card, extra = [], { quantidade = null } = {}) {
   let face = 0;
   const hasFaces = (card.faces || []).length > 1;
   const body = h('div', { id: 'card-viewer' });
@@ -2791,7 +2837,7 @@ function openCardViewer(card, extra = []) {
     // Q10 · a imagem "normal" é a que o guardião guarda no aparelho: ela vem primeiro, e a grande só se
     // não houver a normal. Antes o visualizador pedia a grande e dizia "não guardada" com a normal no cache.
     const imgs = (f && f.images) || card.images || {};
-    const img = imgs.normal || imgs.large || null;
+    const img = imgs.normal || imgs.large || imgs.small || null;
     const name = f ? f.name : card.name;
     const typeLine = f ? f.type_line : card.type_line;
     const oracle = f ? f.oracle_text : card.oracle_text;
@@ -2808,15 +2854,20 @@ function openCardViewer(card, extra = []) {
     const price = card.prices && (card.prices.usd || card.prices.usd_foil);
 
     const semImagem = () => h('div', { class: 'ds-empty', dataset: { semImagem: '1' } }, Text(name), Text('Imagem ainda não guardada neste aparelho.', { size: 'xs', tone: 'subtle' }));
+    // leva 102 · a carta grande: moldura com a proporção da carta (nada pula ao carregar), brilho enquanto carrega,
+    // o tamanho nítido para a tela (large/png num celular 3×) e, sem rede, cai para a imagem guardada
+    const moldura = h('div', { class: 'ds-visor__moldura', dataset: { carregando: 'true' } });
+    const foto = img ? ImagemCarta(imgs, { alt: name, sizes: 'min(86vw, 380px)', lazy: false, classe: 'ds-visor__img', onFalha: el => { moldura.dataset.carregando = 'false'; el.replaceWith(semImagem()); } }) : null;
+    if (foto) { foto.addEventListener('load', () => { moldura.dataset.carregando = 'false'; }); moldura.appendChild(foto); } else { moldura.dataset.carregando = 'false'; moldura.appendChild(semImagem()); }
     mount(body,
-      img ? h('img', { src: img, alt: name, style: { width: '100%', maxWidth: '300px', margin: '0 auto var(--space-4)', borderRadius: 'var(--radius-card)', display: 'block' },
-        onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(semImagem(), el); } })
-          : h('div', { class: 'ds-empty' }, Text(name)),
-      Row({}, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
-        cost ? Text(cost, { size: 'sm', mono: true, tone: 'accent' }) : null),
-      Text(typeLine + (pt ? ` — ${pt}` : ''), { size: 'sm', tone: 'muted' }),
-      oracle ? h('p', { class: 'ds-text ds-text--sm', style: { whiteSpace: 'pre-wrap', marginTop: 'var(--space-3)' } }, oracle)
-             : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' }),
+      moldura,
+      h('div', { class: 'ds-visor__texto' },
+        // o nome já está no título do diálogo; aqui só aparece o da face, em carta de duas faces
+        (hasFaces || cost) ? Row({ class: 'ds-visor__cabeca' }, hasFaces ? Text(name, { size: 'lg', display: true }) : null, h('div', { class: 'ds-grow' }),
+          cost ? h('span', { class: 'ds-visor__custo' }, ComSimbolos(String(cost))) : null) : null,
+        Row({ class: 'ds-row--wrap ds-visor__tipo' }, Text(typeLine || '', { size: 'sm', tone: 'muted' }), pt ? Badge(pt) : null, quantidade ? Badge(`você tem ${quantidade}`, { tone: 'accent' }) : null),
+        oracle ? h('p', { class: 'ds-visor__oracle', lang: 'en' }, ComSimbolos(oracle))
+               : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' })),
       h('div', { style: { height: 'var(--space-4)' } }),
       Text('Legalidade', { size: 'sm', caps: true, as: 'h3' }),
       Stack({ style: { gap: 'var(--space-1)' } }, ...legal),
@@ -5382,7 +5433,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
@@ -6245,11 +6296,20 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   const cardOf = g => state.cards.get(g.key) || state.cards.get(norm(g.name));
   // Q10 · a miniatura é a que o guardião guarda para a coleção: sem rede, galeria e pilhas mostram a carta
-  const thumb = g => { const c = cardOf(g); const im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images)); return im ? (im.small || im.normal || null) : null; };
-  /** Galeria: a arte, a quantidade e um toque para as impressões. */
+  // leva 102 · todos os tamanhos da carta: o navegador escolhe o nítido para a tela (antes: a "small", borrada no celular)
+  const imagensDe = c => c && (c.images || (c.faces && c.faces[0] && c.faces[0].images)) || null;
+  const thumb = g => imagensDe(cardOf(g));
+  /** leva 102 · a carta grande, nítida, com o texto embaixo; X no topo; atalho para impressões e quantidade. */
+  function verCarta(g) {
+    const c = cardOf(g);
+    if (!c) return openPrintings(g);
+    openCardViewer(c, [Button('Impressões', { icone: 'camadas', id: 'col-viewer-prints', onClick: () => { closeDialog(); openPrintings(g); } })], { quantidade: g.qty });
+  }
+  /** Galeria: a arte, a quantidade e um toque para a carta grande. */
   function cartao(g) {
     const cg = cardOf(g);
-    const face = CardFace({ name: g.name, image: thumb(g), mana_cost: cg && cg.mana_cost, type_line: cg && cg.type_line }, { onClick: () => openPrintings(g), dataset: { name: g.name } });
+    // leva 102 · um toque abre a carta grande com o texto; as impressões ficam num botão dentro dela
+    const face = CardFace({ name: g.name, imagens: thumb(g), mana_cost: cg && cg.mana_cost, type_line: cg && cg.type_line }, { onClick: () => verCarta(g), dataset: { name: g.name } });
     return h('div', { class: 'deck-slot col-card', dataset: { name: g.name } }, face,
       h('span', { class: 'deck-slot__qty' }, '×' + (g.qtyRecorte ?? g.qty)));
   }
@@ -6265,7 +6325,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function pilha(g) {
     const topo = g.itens.slice(0, 5);
     return h('button', { class: 'col-pile', type: 'button', dataset: { pile: g.chave }, 'aria-label': `Abrir ${g.rotulo}: ${g.itens.length} carta(s)`, onClick: () => { state.pilhaAberta = g.chave; state.limite = 120; paint(); } },
-      h('div', { class: 'col-pile__stack' }, ...topo.map((x, i) => { const src = thumb(x); return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, src ? h('img', { src, alt: '', loading: 'lazy', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(h('span', { class: 'ds-card__fallback' }, x.name), el); } }) : h('span', { class: 'ds-card__fallback' }, x.name)); })),
+      h('div', { class: 'col-pile__stack' }, ...topo.map((x, i) => { const ims = thumb(x); const falha = () => h('span', { class: 'ds-card__fallback' }, x.name); return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, (ims && ImagemCarta(ims, { sizes: '56px', onFalha: el => el.replaceWith(falha()) })) || falha()); })),
       h('div', { class: 'col-pile__label' }, Text(g.rotulo, { size: 'md' }), Text(`${g.itens.length} carta(s) · ${g.copias} cópia(s)`, { size: 'xs', tone: 'muted' })));
   }
 
@@ -6331,14 +6391,14 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   /* ---- linhas ---- */
   function row(g) {
     const c = state.cards.get(g.key) || state.cards.get(norm(g.name));
-    const img = c && ((c.images && c.images.small) || (c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.small));
+    const ims = imagensDe(c);
     const used = state.usedIn.get(g.key) || [];
     const printed = g.items.some(i => i.set);
     const checked = state.selected.has(g.key);
     return h('div', { class: ['col-row', state.selecting ? 'col-row--select' : '', checked ? 'col-row--checked' : ''].filter(Boolean).join(' '), dataset: { name: g.name } },
       state.selecting ? h('button', { class: 'col-row__check', type: 'button', role: 'checkbox', 'aria-checked': String(checked), 'aria-label': `${checked ? 'Tirar' : 'Pôr'} ${g.name} na seleção`, onClick: () => toggleSelected(g) }, checked ? '✓' : '') : null,
-      h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${g.name}`, onClick: () => c && openCardViewer(c) },
-        img ? h('img', { src: img, alt: '', loading: 'lazy' }) : h('span', {}, g.name.slice(0, 1))),
+      h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${g.name}`, onClick: () => verCarta(g) },
+        (ims && ImagemCarta(ims, { sizes: '64px', onFalha: el => el.replaceWith(h('span', {}, g.name.slice(0, 1))) })) /* 64 e não 48: numa tela 3× pede a "normal", a que o guardião guarda para a coleção */ || h('span', {}, g.name.slice(0, 1))),
       h('button', { class: 'col-row__info', type: 'button', 'aria-label': `Impressões de ${g.name}`, onClick: () => openPrintings(g) },
         h('span', { class: 'col-row__titulo' }, Text(g.name, { size: 'md' }), c && c.mana_cost ? h('span', { class: 'col-row__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null), // U3
         Text(printed ? printsSummary(g) : ([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'), { size: 'xs', tone: 'muted' })),
@@ -11034,12 +11094,13 @@ function createTableScreen({ store }) {
     return vezEl;
   }
   const MAO_KEY = 'mesa.maoRecolhida';
-  let maoRecolhida = false;
+  let maoRecolhida = false, statusAnterior = null;
   store.get(MAO_KEY).then(v => { if (v === true && !maoRecolhida) { maoRecolhida = true; if (table) paint(); } }).catch(() => {});
 
   const save = () => store.set(T.SAVE_KEY, table.serialize()).catch(() => {});
   const card = name => (table.setup.cards || {})[name] || null;
-  const imgOf = (name, size = 'small') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
+  // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
+  const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
 
   // A16 · resumo do turno que acabou: aparece no começo do turno seguinte, some com um toque ou no próximo resumo
@@ -11501,6 +11562,10 @@ function createTableScreen({ store }) {
     }));
     // U6b · bandeja em três camadas: puxador na borda de cima (toque ou arrasto), uma linha com a mão,
     // o momento e as ações, e as cartas. Recolhida, sobra só a linha: a mesa ganha a altura da mão e da dica.
+    // leva 102 · bug: quem tinha recolhido a mão numa partida anterior começava o 1º turno sem ver as cartas (a mão
+    // inicial abre forçada e, ao manter, voltava a recolher). Toda partida sai da mão inicial com a mão aberta.
+    if (statusAnterior === 'mulligan' && s.status !== 'mulligan' && maoRecolhida) { maoRecolhida = false; store.set(MAO_KEY, false).catch(() => {}); }
+    statusAnterior = s.status;
     const band = T.bandejaDaMao(s, v, maoRecolhida);
     const doca = h('div', { class: 'tb-dock', id: 'tb-dock', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada) } });
     const bandeja = h('div', { class: 'tb-hand', id: 'tb-hand', 'aria-label': 'sua mão', dataset: { recolhida: String(!band.aberta), forcada: String(band.forcada) } });
@@ -12620,7 +12685,7 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       if (colecaoEmCurso) { colecaoDeNovo = true; return colecaoEmCurso; }
       colecaoEmCurso = (async () => {
         let r;
-        do { colecaoDeNovo = false; const grupos = await collection.entries(); r = await guardar(grupos.map(g => g.name), 'small'); } while (colecaoDeNovo);
+        do { colecaoDeNovo = false; const grupos = await collection.entries(); r = await guardar(grupos.map(g => g.name), 'normal'); } while (colecaoDeNovo); // leva 102 · a nítida (a small ficava borrada no celular)
         return r;
       })().finally(() => { colecaoEmCurso = null; });
       return colecaoEmCurso;

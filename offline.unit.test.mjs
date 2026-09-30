@@ -61,7 +61,8 @@ test('O1 · coleção alterada é guardada sozinha, com miniatura, uma vez por r
   assert.equal(agendados, 3, 'cada gravação reagenda');
   await pendente();                                        // só o último agendamento roda (devolve a promessa)
   assert.equal(await m.cardRepo.pinned(['Sol Ring', 'Counterspell']), 2);
-  assert.ok(m.images.aquecidas.includes('https://img/Sol Ring/s.jpg') && !m.images.aquecidas.some(u => u.endsWith('/n.jpg')), 'coleção aquece só a miniatura');
+  // leva 102 · expectativa mudou: a coleção guarda a imagem "normal" (488 px), nítida no celular; a "small" (146 px) ficava borrada
+  assert.ok(m.images.aquecidas.includes('https://img/Sol Ring/n.jpg') && !m.images.aquecidas.some(u => u.endsWith('/s.jpg')), 'coleção aquece a imagem nítida');
 });
 
 test('O1 · sem rede nada é tentado; com rede, guardar de novo não volta à Scryfall', async () => {

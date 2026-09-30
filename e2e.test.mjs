@@ -655,14 +655,17 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.route('https://**.scryfall.io/**', async r => { const hit = await page.evaluate(async u => { const c = await caches.open('estante-img-v1'); const m = await c.match(u); return m ? Array.from(new Uint8Array(await m.arrayBuffer())) : null; }, r.request().url()); return hit ? r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(hit) }) : r.abort('internetdisconnected'); });
   await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
   await page.waitForSelector('#card-viewer img[src*="/normal/"]', { timeout: 8000 });
-  await page.waitForFunction(() => { const i = document.querySelector('#card-viewer img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 });
+  // leva 102 · com srcset, a largura natural é dividida pela densidade: o PNG de 1 px do teste dá 0. Vale o evento de carga.
+  await page.waitForFunction(() => { const i = document.querySelector('#card-viewer img'); return i && i.dataset.carregada === 'true'; }, null, { timeout: 8000 });
   assert.equal(await page.locator('#card-viewer [data-sem-imagem]').count(), 0, 'com a normal no aparelho, o visualizador mostra a carta');
   await page.keyboard.press('Escape');
   // Q10 · galeria e pilhas da coleção mostram a miniatura guardada; a que não está vira o nome, nunca um quadro vazio
   await page.click('[data-visao="galeria"]');
   await page.waitForSelector('.col-card[data-name="Sol Ring"] img');
-  await page.waitForFunction(() => { const i = document.querySelector('.col-card[data-name="Sol Ring"] img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 8000 });
-  assert.equal(await page.getAttribute('.col-card[data-name="Sol Ring"] img', 'src'), 'https://cards.scryfall.io/small/front/x/sol.jpg', 'a galeria usa a miniatura, que é a guardada');
+  await page.waitForFunction(() => { const i = document.querySelector('.col-card[data-name="Sol Ring"] img'); return i && i.dataset.carregada === 'true'; }, null, { timeout: 8000 });
+  // leva 102 · expectativa mudou: a galeria pede o tamanho nítido pela densidade da tela (srcset), começando pela "normal"
+  assert.match(await page.$eval('.col-card[data-name="Sol Ring"] img', i => i.currentSrc), /\/(normal|small)\/front\/x\/sol\.jpg$/, 'a galeria mostra uma imagem guardada');
+  assert.match(await page.getAttribute('.col-card[data-name="Sol Ring"] img', 'srcset'), /small\/front\/x\/sol\.jpg 146w, .*normal\/front\/x\/sol\.jpg 488w/);
   await page.click('[data-visao="pilhas"]');
   await page.waitForSelector('.col-pile', { timeout: 8000 });
   await page.waitForFunction(() => document.querySelectorAll('.col-pile .ds-card__fallback').length > 0 || document.querySelectorAll('.col-pile img').length > 0, null, { timeout: 8000 });
@@ -816,8 +819,10 @@ test('e2e · C13 a coleção como coleção: galeria, densa, pilhas, agrupar, or
   await page.click('[data-visao="galeria"]');
   await page.waitForSelector('.col-card[data-name="Sol Ring"]');
   assert.match(await page.innerText('.col-card[data-name="Sol Ring"]'), /×2/);
+  // leva 102 · expectativa mudou: o toque na galeria abre a carta grande; as impressões ficam no botão dentro dela
   await page.click('.col-card[data-name="Sol Ring"] .ds-card');
-  await page.waitForSelector('.ds-dialog'); assert.match(await page.innerText('.ds-dialog'), /CMM/); await page.keyboard.press('Escape');
+  await page.waitForSelector('#card-viewer'); await page.click('#col-viewer-prints');
+  await page.waitForSelector('#col-add-print'); assert.match(await page.innerText('.ds-dialog'), /CMM/); await page.keyboard.press('Escape');
 
   // densa: uma linha por carta, com tipo e edições (o filtro de texto traz a Counterspell para a tela)
   await page.click('[data-visao="densa"]');
@@ -1629,7 +1634,10 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   assert.equal(await page.getAttribute('#tb-hand', 'data-forcada'), 'true');
   assert.match(await page.innerText('#tb-hand-aviso'), /Decida a mão inicial/);
   await page.click('#tb-keep');
-  await page.waitForFunction(() => document.querySelector('#tb-hand').dataset.recolhida === 'true');
+  // leva 102 · expectativa mudou (bug relatado no celular): ao sair da mão inicial a mão fica ABERTA no 1º turno,
+  // mesmo que a partida anterior tenha terminado com ela recolhida; antes ela voltava a recolher e o jogador não via as cartas
+  await page.waitForFunction(() => document.querySelector('#tb-hand').dataset.recolhida === 'false');
+  assert.equal(await page.locator('.tb-hand .tb-card').first().isVisible(), true);
   assert.deepEqual(errors, []);
 });
 
@@ -2925,9 +2933,10 @@ test('e2e · U8 disposições por aparelho: Galaxy S, S+, Ultra e iPhone sem rol
     assert.equal(m.passosCortados, 0, `${nome}: nomes das fases inteiros`);
     if (w < 400) assert.equal(new Set(m.chipsY).size, 1, `${nome}: contadores de zona numa linha só: ${m.chipsY}`);
     assert.equal(m.cabecalho === 'absolute', w < 375, `${nome}: a linha repetida do turno sai só na tela estreita`);
-    await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForTimeout(200);
-    await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start, #mesa-continue');
-    if (await page.locator('#mesa-continue').count()) { await page.locator('#mesa-continue ~ .ds-btn--danger, .ds-btn--danger').first().click(); await page.waitForSelector('#mesa-start'); }
+    // leva 102 · sai da partida apagando o salvamento direto no banco e recarregando (o caminho pela tela de desistir
+    // ficava instável com a máquina carregada: diálogo de fim de partida por cima da próxima navegação)
+    await page.evaluate(k => new Promise(res => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(k); tx.oncomplete = res; }; }), await page.evaluate(() => __m18.SAVE_KEY));
+    await page.goto(base + '#/'); await page.reload();
   }
   assert.deepEqual(errors, []);
 });
@@ -2980,5 +2989,73 @@ test('e2e · E51 corte errado da leva 95 corrigido ao abrir: Mono Blue Faeries p
   await page.waitForFunction(() => /60 no deck · 15 na reserva/.test(document.querySelector('#deck-counts').innerText));
   const reserva = await page.$$eval('.deck-group--reserva .deck-slot', ss => ss.map(s => s.dataset.name).sort());
   assert.deepEqual(reserva, ['Annul', 'Blue Elemental Blast', 'Cryoshatter', 'Dispel', 'Hydroblast', 'Relic of Progenitus', 'Steel Sabotage']);
+  assert.deepEqual(errors, []);
+});
+
+// Leva 102 · bug do celular: quem tinha recolhido a mão numa partida anterior começava o 1º turno sem ver as cartas.
+test('e2e · leva 102 mão aberta no 1º turno mesmo com a bandeja recolhida da partida anterior; dentro da partida, recolher continua valendo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 700 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.evaluate(() => new Promise(res => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').put(true, 'mesa.maoRecolhida'); tx.oncomplete = res; }; }));
+  await page.reload(); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  await page.waitForTimeout(300);
+  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass'); await page.waitForTimeout(400);
+  const ver = () => page.evaluate(() => { const c = document.querySelector('#tb-hand .tb-card'); const r = c.getBoundingClientRect(); return { recolhida: document.querySelector('#tb-dock').dataset.recolhida, vis: getComputedStyle(c).visibility, dentro: r.top >= 0 && r.bottom <= innerHeight + 1, turno: window.__estanteMesa.estado().turn.number }; });
+  const v1 = await ver();
+  assert.deepEqual(v1, { recolhida: 'false', vis: 'visible', dentro: true, turno: v1.turno }, '1º turno: mão à vista');
+  // o jogador recolhe de propósito: continua recolhida na mesma partida, depois de repintar
+  await page.click('#tb-hand-toggle'); await page.waitForFunction(() => document.querySelector('#tb-dock').dataset.recolhida === 'true');
+  // uma jogada repinta a mesa (terreno), sem descarte forçado no meio
+  await page.evaluate(() => { const M = window.__estanteMesa; const s = M.estado(); const p = s.turn.active; const o = s.zones[p].hand.find(x => s.objects[x].name === 'Island'); if (o) M.act({ t: 'play_land', p, oid: o }); });
+  await page.waitForTimeout(400);
+  assert.equal(await page.getAttribute('#tb-dock', 'data-recolhida'), 'true', 'a escolha dentro da partida vale: ' + JSON.stringify(await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { forcada: document.querySelector('#tb-dock').dataset.forcada, status: s.status, pend: s.pending && s.pending.kind, passo: s.turn.step, t: s.turn.number, mao: s.zones[0].hand.length }; })));
+  assert.deepEqual(errors, []);
+});
+
+// Leva 102 · coleção: miniaturas nítidas (srcset pela densidade da tela) e um toque abre a carta grande com o texto.
+test('e2e · leva 102 coleção com imagens nítidas e visor da carta: grande, texto embaixo, X no topo, atalho para impressões', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const ctx = await page.context().browser().newContext({ viewport: { width: 360, height: 780 }, deviceScaleFactor: 3, serviceWorkers: 'block' });
+  const p3 = await ctx.newPage(); t.after(() => ctx.close());
+  const erros3 = []; p3.on('pageerror', e => erros3.push(String(e)));
+  const pedidas = [];
+  await p3.route('https://api.scryfall.com/**', async r => { const ids = r.request().postData() ? JSON.parse(r.request().postData()).identifiers : []; return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean), not_found: [] } }); });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await p3.route('https://**.scryfall.io/**', r => { pedidas.push(r.request().url()); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG }); });
+  await p3.addInitScript(() => { window.__MTG_TEST = true; });
+  await p3.goto(base + '#/colecao'); await p3.waitForSelector('#col-import');
+  await p3.click('#col-import'); await p3.fill('#col-import-text', '2 Sol Ring');
+  await p3.click('#col-import-check'); await p3.waitForSelector('#col-import-run'); await p3.click('#col-import-run');
+  await p3.waitForSelector('.col-row[data-name="Sol Ring"] .col-row__thumb img');
+  // miniatura da linha: srcset com todos os tamanhos; numa tela 3× o navegador não pede a "small"
+  const linha = await p3.$eval('.col-row[data-name="Sol Ring"] .col-row__thumb img', i => ({ srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes') }));
+  assert.match(linha.srcset, /146w.*488w.*672w/); assert.equal(linha.sizes, '64px');
+  await p3.waitForFunction(() => { const i = document.querySelector('.col-row[data-name="Sol Ring"] .col-row__thumb img'); return i && i.complete && i.currentSrc; });
+  assert.doesNotMatch(await p3.$eval('.col-row[data-name="Sol Ring"] .col-row__thumb img', i => i.currentSrc), /\/small\//, 'tela 3×: a miniatura não é a borrada');
+  // galeria: toque na carta abre o visor
+  await p3.click('[data-visao="galeria"]'); await p3.waitForSelector('.col-card[data-name="Sol Ring"] img');
+  await p3.waitForFunction(() => { const i = document.querySelector('.col-card[data-name="Sol Ring"] img'); return i && i.complete && i.currentSrc; });
+  assert.doesNotMatch(await p3.$eval('.col-card[data-name="Sol Ring"] img', i => i.currentSrc), /\/small\//, 'galeria nítida');
+  await p3.click('.col-card[data-name="Sol Ring"] .ds-card');
+  await p3.waitForSelector('#card-viewer .ds-visor__moldura img'); await p3.waitForTimeout(400);
+  const visor = await p3.evaluate(() => {
+    const m = document.querySelector('#card-viewer .ds-visor__moldura'), i = m.querySelector('img'), o = document.querySelector('#card-viewer .ds-visor__oracle') || document.querySelector('#card-viewer .ds-visor__texto');
+    return { w: Math.round(m.getBoundingClientRect().width), prop: +(m.getBoundingClientRect().height / m.getBoundingClientRect().width).toFixed(2), src: i.currentSrc, sizes: i.getAttribute('sizes'),
+      textoAbaixo: o.getBoundingClientRect().top >= m.getBoundingClientRect().bottom - 1, qtd: document.querySelector('#card-viewer').innerText.includes('você tem 2'), x: !!document.querySelector('#ds-dialog-close svg') };
+  });
+  assert.ok(visor.w >= 280, 'carta grande: ' + visor.w); assert.equal(visor.prop, 1.39, 'proporção da carta');
+  assert.match(visor.src, /\/(large|png|normal)\//, 'a imagem grande e nítida'); assert.doesNotMatch(visor.src, /\/small\//);
+  assert.ok(visor.textoAbaixo, 'texto embaixo da carta'); assert.ok(visor.qtd, 'quantas você tem'); assert.ok(visor.x, 'X no topo');
+  await auditaTela(p3, 'visor da carta na coleção');
+  if (process.env.SHOTS) await p3.screenshot({ path: process.env.SHOTS + '/visor-colecao.png' });
+  // o X fecha; o atalho leva às impressões
+  await p3.click('#ds-dialog-close'); await p3.waitForSelector('.ds-dialog', { state: 'detached' });
+  await p3.click('.col-card[data-name="Sol Ring"] .ds-card'); await p3.waitForSelector('#col-viewer-prints');
+  await p3.click('#col-viewer-prints'); await p3.waitForSelector('#col-add-print');
+  assert.deepEqual(erros3, []);
   assert.deepEqual(errors, []);
 });
