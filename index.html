@@ -1368,6 +1368,14 @@ const ICONES = {
   linhas: '<rect x="4" y="4.5" width="16" height="4" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/><rect x="4" y="15.5" width="16" height="4" rx="1"/>',
   densa: '<path d="M4 5h16M4 9.7h16M4 14.3h16M4 19h16"/>',
   pilhas: '<rect x="8" y="3.5" width="11" height="14" rx="1.6"/><path d="M5 7v11a2.5 2.5 0 0 0 2.5 2.5H15"/>',
+  // U2 parte 3 · oponentes, marcas de cobertura e ações da busca
+  peixe: '<path d="M3.5 12c2.6-3.6 6.2-5.2 10-5.2 2.8 0 5 1.5 6.8 3.2l-1.3 2-1.3 2c-1.8 1.7-4 3.2-6.8 3.2-3.8 0-7.4-1.6-10-5.2z"/><path d="M3.5 12L1.8 8.6M3.5 12l-1.7 3.4"/><path d="M15.5 10.6h.01" stroke-width="2.4"/>',
+  tubarao: '<path d="M2.5 17.5c3-.6 5.2-2 6.8-4.2L14 5.5c.6 3.6 2.3 7.3 7.5 12"/><path d="M2.5 17.5h19"/><path d="M5 20.5c2-.7 4-.7 6 0s4 .7 6 0"/>',
+  pessoas: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.3 2.8-5.2 5.5-5.2s4.9 1.9 5.5 5.2"/><circle cx="16.5" cy="9.5" r="2.6"/><path d="M15.8 14.4c2.3.1 4.1 1.8 4.7 4.6"/>',
+  meia: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16z" fill="currentColor"/>',
+  pausa: '<rect x="6.5" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2"/>',
+  virar: '<path d="M4.5 10a7.5 7.5 0 0 1 13.4-3.6L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M19.5 14a7.5 7.5 0 0 1-13.4 3.6L4 15.5"/><path d="M4 20v-4.5h4.5"/>',
+  externo: '<path d="M13.5 4.5h6v6"/><path d="M19.5 4.5L11 13"/><path d="M17.5 13.5v4a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4"/>',
   // prioridade com o outro: a mesa espera uma resposta
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
@@ -2501,7 +2509,7 @@ const __m12 = (function () {
    problema dele.
    ===================================================================== */
 const { normalizeCard } = __m6;
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton } = __m3;
 const COLORS = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']];
 const TYPES = [['', 'Qualquer tipo'], ['creature', 'Criatura'], ['instant', 'Instantânea'], ['sorcery', 'Feitiço'],
   ['artifact', 'Artefato'], ['enchantment', 'Encantamento'], ['land', 'Terreno'], ['planeswalker', 'Planeswalker']];
@@ -2601,8 +2609,8 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
 
   const colorChips = Row({ class: 'ds-row--wrap', id: 'cards-colors' },
     ...COLORS.map(([c, label]) => {
-      const chip = Chip(h('span', {}, h('span', { class: `ds-pip ds-pip--${c.toLowerCase()}` }), label),
-        { dataset: { color: c } });
+      // U2 parte 3 · o mesmo chip de símbolo do filtro da coleção (U3), com o nome falado
+      const chip = h('button', { class: 'ds-chip ds-chip--simbolo', type: 'button', 'aria-pressed': 'false', 'aria-label': label, title: label, dataset: { color: c } }, Simbolo(c));
       chip.addEventListener('click', () => {
         state.colors.has(c) ? state.colors.delete(c) : state.colors.add(c);
         chip.setAttribute('aria-pressed', String(state.colors.has(c)));
@@ -2638,13 +2646,13 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
         Badge(h('span', {}, h('span', { id: 'local-count' }, '0'), ' cartas'))),
       Text('Funciona sem rede. A busca online alimenta esta base automaticamente; você também pode importar um arquivo.', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' },
-        Button('Importar cartas', { id: 'local-import', onClick: () => fileInput.click() }),
-        Button('Exportar base', { id: 'local-export', onClick: async () => {
+        Button('Importar cartas', { id: 'local-import', icone: 'importar', onClick: () => fileInput.click() }),
+        Button('Exportar base', { id: 'local-export', icone: 'exportar', onClick: async () => {
           if (!local || !files) return;
           files.save('estante-cartas.json', await local.exportJson(), 'application/json');
           toast('Base exportada');
         } }),
-        Button('Limpar base', { variant: 'danger', id: 'local-clear', onClick: async () => {
+        Button('Limpar base', { variant: 'danger', id: 'local-clear', icone: 'lixeira', onClick: async () => {
           if (!local) return; await local.clear(); refreshLocalCount(); toast('Base local limpa');
         } })),
       fileInput));
@@ -2662,8 +2670,8 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
           Field('Tipo', Select(TYPES.map(([value, label]) => ({ value, label })), { id: 'cards-type', onChange: e => { state.type = e.target.value; } })),
           Field('Raridade', Select(RARITIES.map(([value, label]) => ({ value, label })), { id: 'cards-rarity', onChange: e => { state.rarity = e.target.value; } })),
           Field('Formato', Select(FORMATS.map(([value, label]) => ({ value, label })), { id: 'cards-format', onChange: e => { state.format = e.target.value; } }))),
-        Row({}, Button('Buscar', { variant: 'primary', id: 'cards-search', onClick: run }),
-          Button('Limpar', { id: 'cards-clear', onClick: () => {
+        Row({}, Button('Buscar', { variant: 'primary', id: 'cards-search', icone: 'buscar', onClick: run }),
+          Button('Limpar', { id: 'cards-clear', variant: 'ghost', icone: 'fechar', onClick: () => {
             state.text = ''; state.colors.clear(); state.type = state.rarity = state.format = '';
             input.value = ''; state.results = null; state.error = null;
             colorChips.querySelectorAll('.ds-chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
@@ -2728,8 +2736,8 @@ function openCardViewer(card, extra = []) {
   paint();
 
   const actions = [];
-  if (hasFaces) actions.push(Button('Virar carta', { id: 'card-flip', onClick: () => { face = (face + 1) % card.faces.length; paint(); } }));
-  if (card.uri) actions.push(Button('Abrir na Scryfall', { onClick: () => window.open(card.uri, '_blank', 'noopener') }));
+  if (hasFaces) actions.push(Button('Virar carta', { id: 'card-flip', icone: 'virar', onClick: () => { face = (face + 1) % card.faces.length; paint(); } }));
+  if (card.uri) actions.push(Button('Scryfall', { icone: 'externo', title: 'Abrir na Scryfall', onClick: () => window.open(card.uri, '_blank', 'noopener') }));
   actions.push(...extra);
   actions.push(Button('Fechar', { variant: 'primary', onClick: closeDialog }));
 
@@ -3927,6 +3935,8 @@ function coverage(card, scripts = SCRIPTS, key) {
 }
 const COVERAGE_PT = { completo: 'Completo', parcial: 'Parcial', manual: 'Manual' };
 const COVERAGE_MARK = { completo: '✓', parcial: '◐', manual: '✎' };
+/** U2 parte 3 · as mesmas marcas como ícones do app (o caractere fica para texto puro, como a cópia). */
+const COVERAGE_ICONE = { completo: 'marcar', parcial: 'meia', manual: 'editar' };
 
 /** Cobertura de uma lista: contagem por nível e percentual completo. */
 function deckCoverage(entries, cards, scripts = SCRIPTS) {
@@ -3946,7 +3956,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -5190,7 +5200,7 @@ const __m15 = (function () {
 const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
-const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK } = __m23;
+const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
 const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
 const { onTaps, pulse } = __m20;
@@ -5502,7 +5512,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           const cov = coverage(c || { name: e.name }, undefined, e.name); // S58 · nome da lista vale para achar o script
           const face = CardFace({ name: e.name, image: img(c), mana_cost: c && c.mana_cost, type_line: c && c.type_line });
           const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level } }, face,
-            h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}` }, COVERAGE_MARK[cov.level]),
+            h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}`, role: 'img', 'aria-label': `Motor: ${COVERAGE_PT[cov.level]}` }, Icone(COVERAGE_ICONE[cov.level], { tamanho: 14 })),
             e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
             lacking ? h('span', { class: 'deck-slot__flag' }, have ? `falta ${e.qty - have}` : 'falta') : null);
           // C7: um toque abre a carta (ou marca, no modo marcação); dois toques marcam "tenho"
@@ -5530,7 +5540,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
       state.degraded ? Note('<b>Sem acesso à Scryfall agora.</b> Mostrando as cartas que já estavam salvas neste aparelho.', 'warning') : null,
       (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
-          Badge(`✓ ${cv.completo}`, { tone: 'positive' }), cv.parcial ? Badge(`◐ ${cv.parcial}`) : null, cv.manual ? Badge(`✎ ${cv.manual}`) : null),
+          // U2 parte 3 · selos com ícone desenhado no lugar de ✓ ◐ ✎
+          Badge([Icone('marcar', { tamanho: 14 }), ` ${cv.completo}`], { tone: 'positive' }), cv.parcial ? Badge([Icone('meia', { tamanho: 14 }), ` ${cv.parcial}`]) : null, cv.manual ? Badge([Icone('editar', { tamanho: 14 }), ` ${cv.manual}`]) : null),
         Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela pode jogar no modo motor completo.' : `Na mesa assistida, você aplica o efeito de ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
           { size: 'sm', tone: 'muted' }),
         cv.worst.length ? Button('Copiar sem script', { id: 'deck-copy-missing', icone: 'copiar', title: 'Copiar as cartas que o motor ainda não resolve', onClick: async () => {
@@ -10537,8 +10548,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
       return mount(root, Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
         Empty('Para jogar você precisa de uma lista na estante. As listas prontas já vêm com o app.',
           Row({ class: 'ds-row--wrap' },
-            Button('Ver listas prontas', { variant: 'primary', id: 'mesa-starter', onClick: () => go('/listas/prontas') }),
-            Button('Criar lista', { onClick: () => go('/listas/editar') }))));
+            Button('Ver prontas', { variant: 'primary', id: 'mesa-starter', icone: 'caixa', title: 'Ver listas prontas', onClick: () => go('/listas/prontas') }),
+            Button('Criar lista', { icone: 'mais', onClick: () => go('/listas/editar') }))));
     }
     state.mine = all[0].id; state.theirs = all[0].id;
     const byId = id => all.find(d => d.id === id);
@@ -10603,7 +10614,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
           ? Text('Guardada para jogar sem internet.', { size: 'sm', tone: 'positive', attrs: { id: 'mesa-offline-ok' } })
           : Row({ class: 'ds-row--wrap' },
             Text(`${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-offline-falta' } }),
-            Button('Guardar para jogar sem internet', { id: 'mesa-offline-pin', onClick: () => guardar(nomes) })),
+            Button('Baixar cartas', { id: 'mesa-offline-pin', icone: 'baixar', title: 'Guardar para jogar sem internet', onClick: () => guardar(nomes) })),
         Text(`motor v${E.ENGINE_VERSION}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-engine-version' } })));
       paintMode();
       paintChips();
@@ -10650,15 +10661,16 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
       Field('Lista do oponente', Select(optsDe(visiveis()), { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
     // B5 · o bot só existe no motor completo (ADR-05): sem a lista 100% coberta o motor
     // não resolve tudo sozinho, e o bot decidiria no escuro. U10 · um bot só: o Shark.
-    const OPONENTES = [['goldfish', 'Goldfish (sem oponente)'], ['shark', 'Shark (bot)'], ['hotseat', 'Outra pessoa neste aparelho']];
-    const oppChips = Row({ class: 'ds-row--wrap' });
+    // U2 parte 3 · os três oponentes num segmentado com ícone; o nome longo fica no title e na nota abaixo
+    const OPONENTES = [['goldfish', 'Goldfish', 'peixe', 'Goldfish: sem oponente, só você joga'], ['shark', 'Shark', 'tubarao', 'Shark: o bot'], ['hotseat', 'A dois', 'pessoas', 'Outra pessoa neste aparelho']];
+    const oppChips = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Oponente' });
     const oppNota = h('div', { id: 'mesa-opponent-note' });
     function paintChips() {
       const travado = state.coverage !== 100;
       if (travado && ehBot()) { state.opponent = 'goldfish'; paintOpponent(); }
-      mount(oppChips, ...OPONENTES.map(([k, label]) => {
+      mount(oppChips, ...OPONENTES.map(([k, label, icone, longo]) => {
         const bloqueado = travado && k === 'shark';
-        const c = Chip(label, { pressed: state.opponent === k, dataset: { opponent: k } });
+        const c = Chip(label, { icone, pressed: state.opponent === k, dataset: { opponent: k } }); c.title = longo; c.setAttribute('aria-label', longo);
         if (bloqueado) { c.disabled = true; c.title = 'O Shark precisa da lista 100% coberta pelo motor'; }
         else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); });
         return c;
@@ -10674,7 +10686,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
       if (state.busy) return;
       const comBot = ehBot();
       const mine = byId(state.mine), theirs = state.opponent === 'hotseat' || comBot ? byId(state.theirs) : null;
-      state.busy = true; startBtn.disabled = true; startBtn.textContent = 'Buscando cartas…';
+      state.busy = true; startBtn.disabled = true; startBtn.querySelector('.ds-btn__rotulo').textContent = 'Buscando cartas…'; // U2 · o ícone fica
       try {
         const names = [...new Set([...mine.entries, ...(theirs ? theirs.entries : [])].map(e => e.name))];
         const found = await cardRepo.byNames(names);
@@ -10706,9 +10718,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         go('/partida');
       } catch (e) {
         toast('Não foi possível preparar a partida: ' + (e.message || e));
-      } finally { state.busy = false; startBtn.disabled = false; startBtn.textContent = 'Começar partida'; }
+      } finally { state.busy = false; startBtn.disabled = false; startBtn.querySelector('.ds-btn__rotulo').textContent = 'Começar partida'; }
     }
-    const startBtn = Button('Começar partida', { variant: 'primary', id: 'mesa-start', onClick: start });
+    const startBtn = Button('Começar partida', { variant: 'primary', id: 'mesa-start', icone: 'jogar', onClick: start });
 
     paintFormat(); paintMine(); paintCoverage();
     mount(root,
@@ -10717,8 +10729,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         Text('Partida em andamento', { size: 'lg', display: true, as: 'h2' }),
         Text(`${saved.setup.players.map(p => p.name).join(' × ')} · ${FORMATS[saved.setup.format] || saved.setup.format} · ${saved.log.length} ações`, { size: 'sm', tone: 'muted' }),
         Row({ class: 'ds-row--wrap' },
-          Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', onClick: () => go('/partida') }),
-          Button('Descartar', { variant: 'danger', onClick: async () => { await store.remove(T.SAVE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
+          Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', icone: 'jogar', onClick: () => go('/partida') }),
+          Button('Descartar', { variant: 'danger', icone: 'lixeira', onClick: async () => { await store.remove(T.SAVE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
         ChipField('Modo de jogo', formatBox),
         mineField,
@@ -10729,9 +10741,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         ChipField('Mana', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
           c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })(),
           'Ligado, conjurar toca seus terrenos sozinho e só oferece o que dá para pagar. Cartas que o motor não entende podem ser conjuradas sem pagar.'),
-        ChipField('Paradas', (() => { const c = Chip('Parar em todos os passos', { pressed: false, dataset: { stopall: '1' } });
+        ChipField('Paradas', (() => { const c = Chip('Parar sempre', { icone: 'pausa', pressed: false, dataset: { stopall: '1' } }); c.setAttribute('aria-label', 'Parar em todos os passos');
           c.addEventListener('click', () => { state.stopAll = !state.stopAll; c.setAttribute('aria-pressed', String(state.stopAll)); }); return c; })(),
-          'Desligado, a mesa passa sozinha onde não há decisão, como no Arena.'),
+          'Ligado, a mesa para em todos os passos. Desligado, passa sozinha onde não há decisão, como no Arena.'),
         Field('Semente', Input({ id: 'mesa-seed', value: String(state.seed), inputmode: 'numeric', onInput: e => { state.seed = parseInt(e.target.value, 10) || 0; } }),
           { hint: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
         Row({}, startBtn))));
@@ -11879,7 +11891,7 @@ const __m22 = (function () {
    Câmera pela camada F2; OCR no aparelho (Tesseract, carregado só quando
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
-const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast } = __m3;
+const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton } = __m3;
 const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr, ESCALAS_DETECTOR } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -12146,11 +12158,11 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     molduraChip.addEventListener('click', () => { state.moldura = !state.moldura; frame.style.display = state.moldura ? '' : 'none'; paintDock(); });
     mount(dock,
       Row({ class: 'scan-dock__row' },
-        Button(state.busy ? 'Lendo…' : 'Ler agora', { variant: 'primary', id: 'scan-read', disabled: !canRead || state.busy, onClick: () => readOnce(true) }),
+        Button(state.busy ? 'Lendo…' : 'Ler agora', { variant: 'primary', id: 'scan-read', icone: 'scanner', disabled: !canRead || state.busy, onClick: () => readOnce(true) }),
         canRead ? autoChip : null, canRead ? edChip : null, canRead ? molduraChip : null),
       Row({ class: 'scan-dock__row' },
-        Button(`Lote: ${n}`, { id: 'scan-lot', onClick: openLot }),
-        Button('Desfazer', { id: 'scan-undo', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } })));
+        Button(`Lote: ${n}`, { id: 'scan-lot', icone: 'pilhas', onClick: openLot }),
+        Button('Desfazer', { id: 'scan-undo', icone: 'desfazer', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } })));
   }
 
   /** X8 · desenha a pilha: miniatura, nome, edição, confiança e quantidade. */
@@ -12166,13 +12178,13 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         x.score != null ? Badge(`${Math.round(x.score * 100)}%`, { tone: x.conferir ? 'warning' : 'positive' }) : null,
         x.conferir ? conferencia(x) : null),
       h('div', { class: 'scan-pile__qty' },
-        Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty - 1); paintPile(); paintDock(); } }),
+        IconButton('menos', `Uma a menos de ${x.name}`, { onClick: async () => { await lot.setQty(x.key, x.qty - 1); paintPile(); paintDock(); } }),
         h('span', {}, String(x.qty)),
-        Button('+', { icon: true, ariaLabel: `Uma a mais de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty + 1); paintPile(); paintDock(); } }),
-        Button('×', { icon: true, ariaLabel: `Tirar ${x.name} da pilha`, onClick: async () => { const n = await lot.remove(x.key); paintPile(); paintDock(); if (n) toast(`${n} saiu da pilha`); } })));
+        IconButton('mais', `Uma a mais de ${x.name}`, { onClick: async () => { await lot.setQty(x.key, x.qty + 1); paintPile(); paintDock(); } }),
+        IconButton('fechar', `Tirar ${x.name} da pilha`, { onClick: async () => { const n = await lot.remove(x.key); paintPile(); paintDock(); if (n) toast(`${n} saiu da pilha`); } })));
     mount(pilha, Row({ class: 'scan-pile__head' },
       Text(`Na pilha: ${list.reduce((s2, x) => s2 + x.qty, 0)} carta(s)`, { size: 'sm' }),
-      Button('Adicionar em lote', { variant: 'primary', id: 'scan-pile-commit', onClick: openLot })),
+      Button('Adicionar em lote', { variant: 'primary', id: 'scan-pile-commit', icone: 'mais', onClick: openLot })),
       h('div', { class: 'scan-pile__strip' }, ...recentes.map(cartao)));
   }
   /** X9 · leitura de confiança média: "É essa" confirma, alternativa troca, "Corrigir" abre a busca. */
@@ -12199,9 +12211,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       h('div', { class: 'col-print__label' }, Row({ class: 'ds-row--wrap' }, Text(x.name, { size: 'md' }), x.conferir ? Badge('Confira', { tone: 'warning' }) : null),
         Text(x.set ? `${printLabel(x)}${x.set_name ? ' · ' + x.set_name : ''}` : 'sem edição', { size: 'xs', tone: 'muted' })),
       h('div', { class: 'col-row__qty' },
-        Button('−', { icon: true, ariaLabel: `Uma a menos de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty - 1); reopen(); } }),
+        IconButton('menos', `Uma a menos de ${x.name}`, { onClick: async () => { await lot.setQty(x.key, x.qty - 1); reopen(); } }),
         h('span', { class: 'col-print__n' }, String(x.qty)),
-        Button('+', { icon: true, ariaLabel: `Uma a mais de ${x.name}`, onClick: async () => { await lot.setQty(x.key, x.qty + 1); reopen(); } }),
+        IconButton('mais', `Uma a mais de ${x.name}`, { onClick: async () => { await lot.setQty(x.key, x.qty + 1); reopen(); } }),
         Button('Corrigir', { variant: 'ghost', onClick: () => fix(x) })));
     const destSelect = Select([{ value: 'collection', label: 'Coleção' }, ...allDecks.map(d => ({ value: d.id, label: `Lista: ${d.name}` }))], { id: 'scan-dest', value: dest.to,
       onChange: e => { dest.to = e.target.value; reopen(); } });
@@ -12265,7 +12277,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   paintResult(); boot();
   return Stack({ class: 'ds-wrap scan', style: { paddingTop: 'var(--space-4)', paddingBottom: 'var(--space-4)' } },
-    Row({}, Text('Scanner', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }), Button('Coleção', { onClick: () => go('/colecao') })),
+    Row({}, Text('Scanner', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }), Button('Coleção', { icone: 'colecao', id: 'scan-colecao', onClick: () => go('/colecao') })),
     status, stage, pilha, result,
     Field('Sem câmera ou leitura difícil?', manualIn), suggest,
     h('div', { class: 'scan-dock-wrap' }, dock));

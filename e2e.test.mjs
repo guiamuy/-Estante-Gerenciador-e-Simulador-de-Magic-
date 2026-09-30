@@ -1109,9 +1109,10 @@ test('e2e · X7 scanner acha a carta sozinho, sem moldura, e dispara a leitura',
   assert.match(await cartao.innerText(), /\d+%/, 'com a confiança da leitura');
   assert.match(await page.innerText('#scan-pile'), /Na pilha: \d+ carta/, 'e o total');
   // dá para ajustar a quantidade e tirar da pilha sem sair da câmera
-  await cartao.locator('button', { hasText: '+' }).first().click();
+  // U2 parte 3 · expectativa mudou: +, − e × viraram ícones desenhados; o teste acha o botão pelo nome falado
+  await cartao.locator('button[aria-label^="Uma a mais"]').first().click();
   await page.waitForFunction(() => /Na pilha: 2 carta/.test(document.querySelector('#scan-pile').innerText));
-  await cartao.locator('button', { hasText: '×' }).first().click();
+  await cartao.locator('button[aria-label^="Tirar"]').first().click();
   await page.waitForFunction(() => !document.querySelector('#scan-pile .scan-pile__card'), null, { timeout: 4000 });
   // a moldura volta quando o usuário quer
   await page.click('[data-moldura]');
@@ -2694,5 +2695,71 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   assert.match(log, /Wall Guard morreu/, 'o bloqueador morreu (3 do Raio + 2 de combate ≥ 4)');
   assert.doesNotMatch(log, /vida 20 → 18/, 'o Sky Pike continuou bloqueado: nada passou');
   assert.equal(await page.innerText('#tb-life-opp'), vidaAntes);
+  assert.deepEqual(errors, []);
+});
+
+// U2 parte 3 (leva 96) · busca de cartas, scanner, preparar partida, mesa e marcas de cobertura com ícones.
+test('e2e · U2 parte 3 cartas, scanner, preparar partida e mesa: ícones, rótulos curtos, oponentes em segmentado, marcas desenhadas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const EMOJI = /[\p{Extended_Pictographic}☀-➿×−]/u;
+  const audita = async (onde, escopo = 'main button, #tb-dock button') => {
+    await page.waitForTimeout(350);
+    const r = await page.evaluate(([rx, sel]) => {
+      const EM = new RegExp(rx, 'u');
+      const vis = el => { const b = el.getBoundingClientRect(); const st = getComputedStyle(el); return b.width > 0 && b.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
+      return { largura: document.documentElement.scrollWidth, ruins: [...document.querySelectorAll(sel)].filter(el => vis(el) && !el.closest('.ds-dialog')).map(el => {
+        const conteudo = el.matches('.ds-list__item, .col-row__nome, .col-row__n, .ds-card, .tb-card, .tb-stack__card, .tb-banner__text, .tb-hand__toggle, [data-dash], .deck-curve__col, .tb-lifec, .tb-chip, .tb-zone button');
+        const rot = [...el.querySelectorAll('.ds-btn__rotulo, .ds-chip__rotulo')].map(x => x.textContent.trim()).join(' ') || (el.querySelector('svg') ? '' : el.textContent.trim());
+        const nome = (el.getAttribute('aria-label') || el.textContent).trim(); const probs = [];
+        if (!nome) probs.push('sem nome');
+        if (!conteudo && EM.test(el.textContent)) probs.push('emoji/caractere');
+        if (!conteudo && rot && rot.split(/\s+/).length > 3) probs.push('rótulo longo');
+        if (el.getBoundingClientRect().height < 43.5) probs.push('alvo ' + Math.round(el.getBoundingClientRect().height));
+        return probs.length ? `${el.id || el.className.split(' ')[0]} «${nome.slice(0, 30)}»: ${probs.join(', ')}` : null;
+      }).filter(Boolean) };
+    }, [EMOJI.source, escopo]);
+    assert.ok(r.largura <= 360, `${onde}: rolagem lateral (${r.largura})`);
+    assert.deepEqual(r.ruins, [], onde);
+  };
+  const temIcone = async sel => assert.ok(await page.locator(`${sel} svg`).count() >= 1, `${sel} com ícone`);
+  // busca de cartas: ações com ícone, cores em símbolo com nome falado
+  await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-q');
+  for (const id of ['#local-import', '#local-export', '#local-clear', '#cards-search', '#cards-clear']) await temIcone(id);
+  assert.deepEqual(await page.$$eval('#cards-colors [data-color]', cs => cs.map(c => [c.dataset.color, c.getAttribute('aria-label'), !!c.querySelector('.ds-sym')])),
+    [['W', 'Branco', true], ['U', 'Azul', true], ['B', 'Preto', true], ['R', 'Vermelho', true], ['G', 'Verde', true]]);
+  await page.click('#cards-colors [data-color="U"]'); assert.equal(await page.getAttribute('#cards-colors [data-color="U"]', 'aria-pressed'), 'true');
+  await audita('cartas');
+  // scanner
+  await page.goto(base + '#/scanner'); await page.waitForSelector('#scan-read');
+  for (const id of ['#scan-read', '#scan-lot', '#scan-undo', '#scan-colecao']) await temIcone(id);
+  assert.match(await page.innerText('#scan-lot'), /Lote: 0/);
+  await audita('scanner');
+  // lista pronta: marcas de cobertura desenhadas, com nome falado
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
+  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item'); await page.click('#decks-list .ds-list__item');
+  await page.waitForSelector('.deck-slot');
+  const marcas = await page.$$eval('.deck-slot__cov', els => els.map(e => ({ svg: !!e.querySelector('svg'), txt: e.textContent.trim(), nome: e.getAttribute('aria-label') })));
+  assert.ok(marcas.length > 10 && marcas.every(m => m.svg && !m.txt && /^Motor: /.test(m.nome)), 'marcas desenhadas: ' + JSON.stringify(marcas.slice(0, 3)));
+  assert.equal(EMOJI.test(await page.innerText('#deck-coverage')), false, 'selos de cobertura sem ✓ ◐ ✎');
+  assert.ok(await page.locator('#deck-coverage .ds-badge svg').count() >= 1);
+  // preparar partida
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await temIcone('#mesa-start');
+  const oponentes = await page.$$eval('.ds-segmentado [data-opponent]', cs => cs.map(c => ({ k: c.dataset.opponent, rot: c.querySelector('.ds-chip__rotulo').textContent, svg: !!c.querySelector('svg'), nome: c.getAttribute('aria-label'), y: Math.round(c.getBoundingClientRect().y), dir: Math.round(c.getBoundingClientRect().right) })));
+  assert.deepEqual(oponentes.map(o => [o.k, o.rot]), [['goldfish', 'Goldfish'], ['shark', 'Shark'], ['hotseat', 'A dois']]);
+  assert.ok(oponentes.every(o => o.svg && o.y === oponentes[0].y && o.dir <= 360), 'três oponentes numa linha, com ícone');
+  assert.equal(oponentes[2].nome, 'Outra pessoa neste aparelho', 'nome falado completo');
+  assert.equal(await page.getAttribute('[data-stopall]', 'aria-label'), 'Parar em todos os passos');
+  await page.click('[data-opponent="hotseat"]'); await page.waitForSelector('#mesa-them');
+  await page.click('[data-opponent="goldfish"]');
+  await audita('preparar partida');
+  // mesa
+  await page.fill('#mesa-seed', '7'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await audita('mesa', 'main button');
   assert.deepEqual(errors, []);
 });
