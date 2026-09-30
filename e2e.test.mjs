@@ -446,7 +446,7 @@ test('e2e · U12 imagens do jogo baixam sozinhas: ao salvar a lista e quando a i
   assert.equal(voltou, true, 'a internet voltou: o app baixou sozinho');
   // e o painel conta
   await page.goto(base + '#/');
-  await page.waitForFunction(() => /Imagens do jogo: 2 de 2/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  await page.waitForFunction(() => /Imagens do jogo\s+2 de 2/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
   // Q10 · começar uma partida também guarda as imagens das listas em jogo (o cache tinha sido apagado)
   await page.evaluate(() => caches.delete('estante-img-v1'));
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
@@ -479,12 +479,20 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('#home-offline-prep');
   await page.click('#home-offline-prep');
   await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 15000 });
+  // U4 (leva 97) · expectativa mudou: o "✓ Listas: …" em texto virou uma linha por item com ícone e estado desenhado;
+  // o teste lê o estado de cada linha (data-estado) e o texto dela
   const linhas = await page.innerText('#home-offline-lines');
-  assert.match(linhas, /✓ Listas: 2 de 2 prontas/); // E36: a lista de Commander também
-  assert.match(linhas, /✓ Coleção: 2 de 2/);           // Q10 · esta asserção tinha virado comentário
-  assert.match(linhas, /✓ Base de nomes/); assert.match(linhas, /✓ Leitor de texto/);
+  const estados = await page.$$eval('#home-offline-lines [data-item]', ls => Object.fromEntries(ls.map(l => [l.dataset.item, l.dataset.estado])));
+  assert.deepEqual(estados, { listas: 'pronto', colecao: 'pronto', nomes: 'pronto', leitor: 'pronto', imagens: 'pronto' });
+  assert.match(linhas, /Listas\s+2 de 2 prontas/); // E36: a lista de Commander também
+  assert.match(linhas, /Coleção\s+2 de 2/);           // Q10 · esta asserção tinha virado comentário
+  assert.match(linhas, /Base de nomes/); assert.match(linhas, /Leitor de texto/);
   // U12 · imagens do jogo: a pequena do Delver (a do campo da mesa) está no aparelho, e a grande também
-  assert.match(linhas, /✓ Imagens do jogo: 2 de 2/); // Q10 · pequena e grande do Delver
+  assert.match(linhas, /Imagens do jogo\s+2 de 2/); // Q10 · pequena e grande do Delver
+  // U4 · o anel fecha em 100% e fica verde; cada estado tem nome falado
+  assert.equal(await page.getAttribute('#home-offline-ring', 'data-pct'), '100');
+  assert.match(await page.getAttribute('#home-offline-ring', 'aria-label'), /100% guardado/);
+  assert.equal(await page.locator('#home-offline-lines [data-item="listas"] .ds-offline__estado').getAttribute('aria-label'), 'pronto');
   const noCache = await page.evaluate(async () => { const c = await caches.open('estante-img-v1'); return [!!(await c.match('https://cards.scryfall.io/small/front/x/delver.png')), !!(await c.match('https://cards.scryfall.io/normal/front/x/delver.png'))]; });
   assert.deepEqual(noCache, [true, true], 'pequena e grande no cache de imagens');
   // Q10 · a ordem "pequena primeiro" é do guardião e está no teste de unidade; aqui a tela da lista também pede a grande ao abrir
@@ -492,13 +500,14 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // Q10 · o navegador apagou o cache do leitor: o painel diz, e ao voltar para a tela inicial com rede o app baixa de novo sozinho
   await page.evaluate(() => caches.delete('estante-ocr-v1'));
   await page.reload(); await page.waitForSelector('#home-offline-lines');
-  await page.waitForFunction(() => /· Leitor de texto do scanner/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  await page.waitForFunction(() => (document.querySelector('#home-offline-lines [data-item="leitor"]') || {}).dataset?.estado === 'falta', null, { timeout: 8000 });
+  assert.ok(Number(await page.getAttribute('#home-offline-ring', 'data-pct')) < 100, 'anel abaixo de 100 com o leitor faltando');
   // a manutenção silenciosa roda 4 s depois de abrir o app; ao voltar à tela inicial, o painel já diz ✓
   // (waitForFunction não espera função assíncrona: o laço abaixo consulta o cache pelo Node)
   for (let i = 0; i < 40; i++) { if (await page.evaluate(async () => { try { return (await (await caches.open('estante-ocr-v1')).keys()).length >= 2; } catch (e) { return false; } })) break; await page.waitForTimeout(300); }
   await page.goto(base + '#/listas'); await page.goto(base + '#/');
   await page.waitForSelector('#home-offline-lines');
-  await page.waitForFunction(() => /✓ Leitor de texto do scanner/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  await page.waitForFunction(() => (document.querySelector('#home-offline-lines [data-item="leitor"]') || {}).dataset?.estado === 'pronto', null, { timeout: 8000 });
   await page.unroute('https://**.scryfall.io/**');
   // O3 · o painel mostra o espaço usado pelo app (gatilho G1)
   assert.match(await page.innerText('#home-offline-space'), /Espaço usado: [\d,]+ (KB|MB|GB) de [\d,]+ (KB|MB|GB)/);
@@ -510,6 +519,12 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.context().setOffline(true);
   await page.goto(base + '#/listas'); await page.goto(base + '#/');   // sai e volta: o painel é pintado de novo
   await page.waitForFunction(() => /sem internet agora/.test((document.querySelector('#home-offline-state') || {}).innerText || ''));
+  // U4 · sem internet: o estado geral tem o ícone da nuvem cortada, o aviso é uma linha só, o chip da barra pulsa
+  assert.equal(await page.locator('#home-offline-state svg').count(), 1);
+  assert.equal(await page.locator('#home-offline-aviso svg').count(), 1);
+  assert.ok((await page.locator('#home-offline-aviso').boundingBox()).height <= 64, 'aviso curto');
+  assert.equal(await page.locator('#nav-offline').isVisible(), true);
+  assert.notEqual(await page.$eval('#nav-offline', el => getComputedStyle(el, '::before').animationName), 'none', 'o ponto do chip pulsa');
 
   // listas: a lista abre com os dados das cartas
   await page.goto(base + '#/listas');
@@ -597,6 +612,12 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // a imagem do Sol Ring não carrega sem rede: o cartão mostra o nome no lugar (CardFace)
   await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#cards-results').innerText), null, { timeout: 8000 });
   assert.equal(await page.locator('#cards-results .ds-card__fallback').count(), 1, 'imagem quebrada vira nome');
+  // U4 · o aviso de rede é uma linha com ícone; busca sem resultado na base local mostra o estado vazio com ícone
+  if (await page.locator('#cards-sem-rede').count()) assert.equal(await page.locator('#cards-sem-rede svg').count(), 1);
+  await page.fill('#cards-q', 'zzzz inexistente'); await page.press('#cards-q', 'Enter');
+  await page.waitForSelector('#cards-results .ds-empty', { timeout: 8000 });
+  assert.equal(await page.locator('#cards-results .ds-empty--icone svg').count(), 1, 'vazio sem rede com ícone');
+  assert.match(await page.innerText('#cards-results .ds-empty'), /Nada na base do aparelho/);
 
   // scanner: base de nomes e leitor já no aparelho; a edição avisa que fica para depois
   await page.goto(base + '#/scanner');

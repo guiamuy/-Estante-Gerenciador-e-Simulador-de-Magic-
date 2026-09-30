@@ -328,7 +328,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 6º ✅ | U10 Shark: um bot só, com nome (leva 87) | E46 | 1 | remove o amador; muda a tela de preparar |
 | 7º ✅ | U3 símbolos de Magic em botões, textos e filtros (levas 90 e 91) | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
 | 8º ✅ | U2 ícones flat, botões com profundidade e toque animado, CTAs sem excesso de texto (levas 92, 93 e 96) | E43 | 3 | — |
-| 9º | U4 "sem internet" mais visual | E43 | 1 | depois de U2, para usar os ícones |
+| 9º ✅ | U4 "sem internet" mais visual (leva 97) | E43 | 1 | — |
 | 10º | U8 disposições por tamanho de aparelho (Galaxy S, S+ e Ultra) | E44 | 2 | medidas reais dos aparelhos conferidas antes |
 | 11º | U11 Shark mais forte, medido no torneio | E46 | 2 a 3 | ganho provado contra a versão anterior |
 | 12º | U13 conta e perfil com Google (nome, avatar, backup) | E47 | 3 a 4 | **precisa de decisão e de um Client ID seu** (abaixo) |
@@ -438,7 +438,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E35 ✅ | deploy | Merge na main em 26/09/2026: motor v3 → v35, Pauper sem carta manual |
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
-| E43 🟡 | U1 (leva 82) · U3 (levas 90 e 91) · U2 (levas 92, 93 e 96) · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
+| E43 ✅ | U1 (leva 82) · U3 (levas 90 e 91) · U2 (levas 92, 93 e 96) · U4 (leva 97) | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
 | E50 ✅ | P1 (leva 94) · P2–P6 (leva 95) | Polimento de jogo e app (pedido de 30/09): ícone com relevo, X nos diálogos, bloqueio mais claro, imagens de fichas, balão na bandeja, side deck separado, pilha com a carta e texto oficial |
 | E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 (leva 85) · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 ✅ | U12 (leva 86) | Imagens do jogo baixadas sozinhas quando há internet |
@@ -3022,7 +3022,10 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Depende de:** —.
 - **Fora:** símbolos de expansão; ícones de raridade; símbolo de meio mana ({H}).
 
-**U4 · Sem internet mais visual** ○
+**U4 · Sem internet mais visual** ✅ (leva 97)
+- **Entregue:** o painel da tela inicial ganhou um anel de progresso (média do que cada item já guardou; verde com ✓ desenhado em 100%) e uma linha por item — listas, coleção, base de nomes, leitor de texto, imagens do jogo — com ícone, detalhe ("2 de 2 prontas para jogar") e estado desenhado (pronto, em parte, falta baixar, nada a guardar) com nome falado. Estado geral: "Tudo pronto", "Falta preparar N itens" ou, sem rede, "Você está sem internet agora" com a nuvem cortada. O chip da barra virou "Sem rede" (era "Offline") com um ponto que pulsa devagar (parado com movimento reduzido). Avisos de rede viraram uma linha com ícone (`AvisoRede`): busca de cartas, lista sem Scryfall, scanner sem leitor e sem base de nomes. Busca sem resultado na base do aparelho mostra estado vazio com ícone grande. Componentes novos no catálogo: `AnelProgresso`, `AvisoRede`, `Empty` com ícone.
+- **Fora:** avisos dentro de diálogos (importar lista sem conferir, edição sem Scryfall) continuam como nota; avisos de ambiente que não são "sem internet" (origem bloqueada, arquivo local) continuam explicados por extenso.
+- **Testes:** `offline.visual.unit.test.mjs` (estado por item, anel, itens vazios fora do cálculo); e2e O1 lê o estado de cada linha, o anel em 100% e abaixo de 100 com o leitor apagado, o ícone e o pulso sem rede, e o vazio com ícone na busca.
 - **Valor:** o estado sem rede se percebe pelo símbolo e pela cor, não por uma frase.
 - **Aceite:** chip da barra vira ícone com pulso discreto e rótulo acessível; painel da tela inicial com anel de progresso do que está guardado; cada tela que hoje mostra um aviso em texto ganha ícone e uma linha só; estados vazios sem rede com ilustração de ícone.
 - **Testes:** e2e no `O1 tudo sem internet` (o chip e o painel novos aparecem); contrato visual.

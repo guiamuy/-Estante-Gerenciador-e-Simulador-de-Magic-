@@ -293,6 +293,41 @@ a { color: var(--accent); }
 .ds-btn:has(> .ds-icon + .ds-btn__rotulo) { padding-left: var(--space-3); }
 @media (prefers-reduced-motion: reduce) { .ds-btn:active:not([disabled]) { transform: none; } }
 
+/* U4 · sem internet mais visual: anel de progresso, linha por item com estado desenhado, aviso de uma linha */
+.ds-anel { position: relative; flex: none; width: var(--anel, 64px); height: var(--anel, 64px); display: grid; place-items: center; }
+.ds-anel svg { position: absolute; inset: 0; }
+.ds-anel__trilha { fill: none; stroke: var(--bg-elev-3); stroke-width: 6; }
+.ds-anel__barra { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 600ms var(--ease-out); }
+.ds-anel[data-cheio="true"] .ds-anel__barra { stroke: var(--positive); }
+.ds-anel__num { position: relative; font-family: var(--font-display); font-size: var(--text-md); font-variant-numeric: tabular-nums; color: var(--fg); display: inline-flex; }
+.ds-anel[data-cheio="true"] .ds-anel__num { color: var(--positive); }
+.ds-offline__topo { display: flex; align-items: center; gap: var(--space-4); }
+.ds-offline__titulo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-offline__estado-geral { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--fg-muted); }
+.ds-offline__estado-geral[data-tom="pronto"] { color: var(--positive); }
+.ds-offline__estado-geral[data-tom="offline"] { color: var(--warning); }
+.ds-offline__lista { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-2); overflow: hidden; }
+.ds-offline__linha { display: flex; align-items: center; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-2) var(--space-3); background: var(--bg-elev-1); }
+.ds-offline__linha + .ds-offline__linha { border-top: 1px solid var(--border); }
+.ds-offline__icone { flex: none; width: 36px; height: 36px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--bg-elev-2); color: var(--fg-muted); }
+.ds-offline__linha[data-estado="pronto"] .ds-offline__icone { color: var(--accent); }
+.ds-offline__texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.ds-offline__texto strong { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--fg); }
+.ds-offline__texto span { font-size: var(--text-xs); color: var(--fg-muted); }
+.ds-offline__estado { flex: none; display: inline-flex; color: var(--fg-subtle); }
+.ds-offline__linha[data-estado="pronto"] .ds-offline__estado { color: var(--positive); }
+.ds-offline__linha[data-estado="parcial"] .ds-offline__estado, .ds-offline__linha[data-estado="falta"] .ds-offline__estado { color: var(--warning); }
+.ds-aviso-rede { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-2);
+  background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--fg); font-size: var(--text-sm); line-height: 1.35; }
+.ds-aviso-rede .ds-icon { flex: none; color: var(--warning); }
+.ds-empty--icone { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); }
+.ds-empty__icone { width: 72px; height: 72px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--bg-elev-2); color: var(--fg-subtle); }
+/* chip da barra: um ponto que pulsa devagar enquanto a internet não volta */
+#nav-offline { position: relative; }
+#nav-offline::before { content: ''; position: absolute; top: 5px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); box-shadow: 0 0 0 0 var(--warning); animation: ds-pulso-rede 2.4s var(--ease-out) infinite; }
+@keyframes ds-pulso-rede { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+@media (prefers-reduced-motion: reduce) { #nav-offline::before { animation: none; } .ds-anel__barra { transition: none; } }
+
 /* U2 · atalhos da tela inicial: ícone grande, uma palavra, detalhe curto */
 .ds-atalhos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 .ds-atalho { flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
@@ -1544,7 +1579,19 @@ const ListItem = (opts, ...kids) => h(opts.onClick ? 'button' : 'div', {
 const ListGroup = label => h('div', { class: 'ds-list__group' }, label);
 
 /* ---------------- estados ---------------- */
-const Empty = (message, action) => h('div', { class: 'ds-empty' }, Text(message, { tone: 'muted' }), action || null);
+/** U4 · estado vazio pode ter um ícone grande (ex.: sem internet), como uma pequena ilustração. */
+const Empty = (message, action, { icone } = {}) => h('div', { class: 'ds-empty' + (icone ? ' ds-empty--icone' : '') },
+  icone ? h('span', { class: 'ds-empty__icone' }, Icone(icone, { tamanho: 36 })) : null, Text(message, { tone: 'muted' }), action || null);
+/** U4 · aviso de rede numa linha: ícone da nuvem cortada + frase curta. Para avisos longos, `Note` continua. */
+const AvisoRede = (texto, { id } = {}) => h('div', { class: 'ds-aviso-rede', role: 'status', id: id || null }, Icone('semRede', { tamanho: 18 }), h('span', {}, texto));
+/** U4 · anel de progresso (0–100) com o número no centro. */
+function AnelProgresso(pct, { tamanho = 64, id, rotulo = 'guardado' } = {}) {
+  const r = 26, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  const el = h('div', { class: 'ds-anel', id: id || null, role: 'img', 'aria-label': `${v}% ${rotulo}`, dataset: { pct: String(v), cheio: String(v >= 100) }, style: { '--anel': tamanho + 'px' } });
+  el.innerHTML = `<svg viewBox="0 0 64 64" width="${tamanho}" height="${tamanho}" aria-hidden="true"><circle cx="32" cy="32" r="${r}" class="ds-anel__trilha"/><circle cx="32" cy="32" r="${r}" class="ds-anel__barra" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - v / 100)).toFixed(2)}" transform="rotate(-90 32 32)"/></svg><span class="ds-anel__num">${v >= 100 ? '' : v + '%'}</span>`;
+  if (v >= 100) el.querySelector('.ds-anel__num').appendChild(Icone('marcar', { tamanho: Math.round(tamanho * .38) }));
+  return el;
+}
 const Note = (content, tone) => h('div', { class: ['ds-note', tone ? `ds-note--${tone}` : ''].filter(Boolean).join(' '), html: content });
 const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-label': 'carregando' });
 
@@ -1601,7 +1648,7 @@ function toast(message, ms = 2400) {
   toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, ICONES, Icone, IconButton, Atalho, NavBotao };
+  analisaSimbolos, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -2509,7 +2556,7 @@ const __m12 = (function () {
    problema dele.
    ===================================================================== */
 const { normalizeCard } = __m6;
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const COLORS = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']];
 const TYPES = [['', 'Qualquer tipo'], ['creature', 'Criatura'], ['instant', 'Instantânea'], ['sorcery', 'Feitiço'],
   ['artifact', 'Artefato'], ['enchantment', 'Encantamento'], ['land', 'Terreno'], ['planeswalker', 'Planeswalker']];
@@ -2594,7 +2641,9 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
 
     clear(results);
     if (state.results === null) return;
-    if (!state.results.length) { results.appendChild(Empty('Nenhuma carta encontrada com esses critérios.')); return; }
+    if (!state.results.length) { results.appendChild(state.source === 'local' && env && !env.online
+      ? Empty('Nada na base do aparelho com esses critérios. Com internet, a busca vai à Scryfall.', null, { icone: 'semRede' })
+      : Empty('Nenhuma carta encontrada com esses critérios.')); return; }
     results.appendChild(Row({},
       Text(`${state.results.length} carta(s)`, { size: 'sm', tone: 'muted' }),
       Badge(state.source === 'rede' ? 'da Scryfall' : 'da base local', { tone: state.source === 'rede' ? 'accent' : undefined })));
@@ -2621,8 +2670,10 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
   const input = Input({ id: 'cards-q', placeholder: 'Nome contém…', onInput: e => { state.text = e.target.value; } });
   input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 
+  // U4 · sem internet é um aviso de uma linha com ícone; os outros ambientes (origem bloqueada, arquivo local) continuam explicados
   const envWarning = (env && !env.online)
-    ? Note(`<b>Ambiente sem acesso à Scryfall (${env.label}).</b> ${env.reason} ${env.fix}`, 'warning')
+    ? (env.id === 'offline' ? AvisoRede('Sem internet: a busca usa as cartas guardadas no aparelho.', { id: 'cards-sem-rede' })
+      : Note(`<b>Ambiente sem acesso à Scryfall (${env.label}).</b> ${env.reason} ${env.fix}`, 'warning'))
     : null;
 
   const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden', id: 'local-file' });
@@ -5197,7 +5248,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
@@ -5537,7 +5588,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           Button('Exportar', { id: 'deck-export', icone: 'exportar', onClick: exportDialog }),
           IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
-      state.degraded ? Note('<b>Sem acesso à Scryfall agora.</b> Mostrando as cartas que já estavam salvas neste aparelho.', 'warning') : null,
+      state.degraded ? AvisoRede('Sem conexão com a Scryfall: mostrando as cartas guardadas no aparelho.', { id: 'deck-sem-rede' }) : null,
       (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
           // U2 parte 3 · selos com ícone desenhado no lugar de ✓ ◐ ✎
@@ -11891,7 +11942,7 @@ const __m22 = (function () {
    Câmera pela camada F2; OCR no aparelho (Tesseract, carregado só quando
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
-const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton } = __m3;
+const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr, ESCALAS_DETECTOR } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -12116,12 +12167,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function paintStatus() {
     const msg = [];
     if (state.base === 'loading') msg.push(Row({}, Spinner(), Text('Baixando a base de nomes de cartas (uma vez só)…', { size: 'sm', tone: 'muted' })));
-    if (state.base === 'missing') msg.push(Note('<b>Sem a base de nomes.</b> Ela é baixada da Scryfall na primeira vez; conecte-se e abra o scanner de novo.', 'warning'));
+    if (state.base === 'missing') msg.push(AvisoRede('Sem a base de nomes: ela baixa na próxima conexão.', { id: 'scan-sem-base' }));
     if (state.camera === 'denied') msg.push(Note('<b>A câmera foi bloqueada.</b> Libere o acesso nas permissões do site (cadeado na barra de endereço) e recarregue. Enquanto isso, digite o nome abaixo.', 'warning'));
     if (state.camera === 'unavailable') msg.push(Note('<b>Câmera indisponível neste aparelho ou navegador.</b> Digite o nome abaixo para montar o lote.', 'warning'));
     if (state.camera === 'on' && state.engine === 'loading') msg.push(Row({}, Spinner(), Text('Preparando o leitor de texto…', { size: 'sm', tone: 'muted' })));
     if (state.engine === 'failed') msg.push(Note('<b>O leitor de texto não carregou.</b> Ele precisa de internet na primeira vez. Digite o nome abaixo.', 'warning'));
-    if (!online() && !state.ocrReady) msg.push(Note('<b>Sem internet.</b> O leitor de texto precisa ser baixado uma vez com conexão; depois funciona offline.', 'warning'));
+    if (!online() && !state.ocrReady) msg.push(AvisoRede('Sem internet: o leitor de texto baixa na próxima conexão. Digite o nome abaixo.', { id: 'scan-sem-rede' }));
     const info = names.info();
     if (info && state.base === 'ready') msg.push(Text(`Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB` + (state.ocrReady ? ' · leitor disponível offline' : ''), { size: 'xs', tone: 'subtle' }));
     mount(status, ...msg);
@@ -12478,7 +12529,23 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
   return api;
 }
 
-return { createOfflineKeeper, urlsDeImagem, nomesDaLista };
+/** U4 · o que já funciona sem internet, item a item, e o progresso geral (0–100) para o anel da tela inicial.
+    Cada item conta pela própria fração; item sem nada a guardar (sem listas, coleção vazia) fica de fora do anel. */
+function resumoOffline(st) {
+  const fr = (a, b) => b ? Math.max(0, Math.min(1, a / b)) : null;
+  const itens = [
+    { id: 'listas', icone: 'listas', rotulo: 'Listas', detalhe: st.listas.total ? `${st.listas.prontas} de ${st.listas.total} prontas para jogar` : 'nenhuma lista ainda', fracao: fr(st.listas.prontas, st.listas.total) },
+    { id: 'colecao', icone: 'colecao', rotulo: 'Coleção', detalhe: st.colecao.cartas ? `${st.colecao.guardadas} de ${st.colecao.cartas} carta(s) com dados` : 'coleção vazia', fracao: st.colecao.cartas ? fr(st.colecao.guardadas, st.colecao.cartas) : null },
+    { id: 'nomes', icone: 'buscar', rotulo: 'Base de nomes', detalhe: st.nomes ? (st.nomesInfo ? `${st.nomesInfo.count.toLocaleString('pt-BR')} nomes para o scanner` : 'baixada para o scanner') : 'não baixada', fracao: st.nomes ? 1 : 0 },
+    { id: 'leitor', icone: 'scanner', rotulo: 'Leitor de texto', detalhe: st.leitor ? 'pronto para o scanner' : 'não baixado', fracao: st.leitor ? 1 : 0 },
+    st.imagens && st.imagens.total ? { id: 'imagens', icone: 'camadas', rotulo: 'Imagens do jogo', detalhe: `${st.imagens.guardadas} de ${st.imagens.total}`, fracao: fr(st.imagens.guardadas, st.imagens.total) } : null
+  ].filter(Boolean).map(it => ({ ...it, estado: it.fracao == null ? 'vazio' : it.fracao >= 1 ? 'pronto' : it.fracao > 0 ? 'parcial' : 'falta' }));
+  const contam = itens.filter(it => it.fracao != null);
+  const pct = contam.length ? Math.round(100 * contam.reduce((n, it) => n + it.fracao, 0) / contam.length) : 0;
+  const tudoPronto = contam.length > 0 && contam.every(it => it.fracao >= 1);
+  return { itens, pct, tudoPronto, faltam: contam.filter(it => it.fracao < 1).length };
+}
+return { createOfflineKeeper, urlsDeImagem, nomesDaLista, resumoOffline };
 })();
 
 /* ==== src/app/main.js ==== */
@@ -12488,7 +12555,7 @@ const __m13 = (function () {
 const { createPlatform, descreveEspaco } = __m0;
 const { createTheme } = __m1;
 const { createRouter } = __m2;
-const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note, Icone, Atalho, NavBotao } = __m3;
+const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note, Icone, Atalho, NavBotao, AvisoRede } = __m3;
 const { renderDS } = __m5;
 const { logoLockup, installFavicon } = __m4;
 const { createScryfall } = __m6;
@@ -12562,7 +12629,12 @@ function renderHome() {
 /* O1 · o que já funciona sem internet, e o botão que prepara o resto */
 function offlinePanel() {
   const box = Surface({ class: 'ds-surface--pad', id: 'home-offline' }, Row({}, Spinner(), Text('Conferindo o que já está guardado…', { size: 'sm', tone: 'muted' })));
-  const marca = ok => ok ? '✓' : '·';
+  // U4 · cada item com ícone e estado desenhado; o anel resume o quanto já está guardado
+  const ESTADO = { pronto: ['marcar', 'pronto'], parcial: ['meia', 'em parte'], falta: ['baixar', 'falta baixar'], vazio: ['menos', 'nada a guardar'] };
+  const linha = it => h('div', { class: 'ds-offline__linha', dataset: { item: it.id, estado: it.estado, pronto: String(it.estado === 'pronto') } },
+    h('span', { class: 'ds-offline__icone' }, Icone(it.icone, { tamanho: 20 })),
+    h('span', { class: 'ds-offline__texto' }, h('strong', {}, it.rotulo), h('span', {}, it.detalhe)),
+    h('span', { class: 'ds-offline__estado', role: 'img', 'aria-label': ESTADO[it.estado][1] }, Icone(ESTADO[it.estado][0], { tamanho: 18 })));
   async function paint(extra) {
     let st; try { st = await keeper.status(); } catch (e) { return mount(box, Text('Não foi possível conferir o que está guardado.', { size: 'sm', tone: 'muted' })); }
     const faltas = [];
@@ -12572,28 +12644,27 @@ function offlinePanel() {
     if (!st.leitor) faltas.push('leitor do scanner não baixado');
     if (st.imagens && st.imagens.guardadas < st.imagens.total) faltas.push(`${st.imagens.total - st.imagens.guardadas} imagem(ns) do jogo a baixar`);
     const tudoPronto = !faltas.length;
-    const linhas = [
-      `${marca(st.listas.total > 0 && st.listas.prontas === st.listas.total)} Listas: ${st.listas.prontas} de ${st.listas.total} prontas para jogar sem internet`,
-      `${marca(st.colecao.pronta && st.colecao.cartas > 0)} Coleção: ${st.colecao.guardadas} de ${st.colecao.cartas} carta(s) com dados guardados`,
-      `${marca(st.nomes)} Base de nomes do scanner${st.nomesInfo ? ` (${st.nomesInfo.count.toLocaleString('pt-BR')} nomes)` : ''}`,
-      `${marca(st.leitor)} Leitor de texto do scanner`,
-      // U12 · imagens pequenas das listas (as do campo da mesa); baixam sozinhas quando há internet
-      st.imagens && st.imagens.total ? `${marca(st.imagens.guardadas >= st.imagens.total)} Imagens do jogo: ${st.imagens.guardadas} de ${st.imagens.total}` : null
-    ].filter(Boolean);
+    const rs = __m26.resumoOffline(st);
     const esp = descreveEspaco(st.espaco);
     const linhaEspaco = esp || st.protecao !== 'indisponivel' ? Text(
       [esp ? `Espaço usado: ${esp.texto}` : null, st.protecao === 'protegido' ? 'protegido contra limpeza do navegador' : st.protecao === 'vulneravel' ? 'o navegador pode apagar se faltar espaço' : null].filter(Boolean).join(' · '),
       { size: 'xs', tone: esp && esp.apertado ? 'negative' : 'subtle', attrs: { id: 'home-offline-space' } }) : null;
     const proteger = st.protecao === 'vulneravel' ? Button('Proteger armazenamento', { id: 'home-offline-protect', icone: 'proteger', onClick: async () => {
       const r = await platform.persistence.request(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Instale o app e mantenha backups em dia.', 3600); paint(); } }) : null;
+    box.dataset.rede = String(!!st.rede); box.dataset.pronto = String(tudoPronto);
     mount(box, Stack({},
-      Row({ class: 'ds-row--wrap' }, Text('Sem internet', { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
-        Text(st.rede ? (tudoPronto ? 'Tudo pronto' : 'Falta preparar') : 'Você está sem internet agora', { size: 'sm', tone: tudoPronto ? 'positive' : 'muted', attrs: { id: 'home-offline-state' } })),
-      h('div', { id: 'home-offline-lines' }, ...linhas.map(l => Text(l, { size: 'sm', tone: 'muted' }))),
+      h('div', { class: 'ds-offline__topo' },
+        __m3.AnelProgresso(tudoPronto ? 100 : rs.pct, { id: 'home-offline-ring', rotulo: 'guardado para jogar sem internet' }),
+        h('div', { class: 'ds-offline__titulo' },
+          Text('Sem internet', { size: 'lg', display: true }),
+          h('span', { class: 'ds-offline__estado-geral', id: 'home-offline-state', dataset: { tom: st.rede ? (tudoPronto ? 'pronto' : 'falta') : 'offline' } },
+            st.rede ? null : Icone('semRede', { tamanho: 16 }),
+            st.rede ? (tudoPronto ? 'Tudo pronto' : rs.faltam === 1 ? 'Falta preparar 1 item' : `Falta preparar ${rs.faltam} itens`) : 'Você está sem internet agora'))),
+      h('div', { id: 'home-offline-lines', class: 'ds-offline__lista' }, ...rs.itens.map(linha)),
       linhaEspaco,
       esp && esp.apertado ? Note('<b>O espaço do app está quase no limite.</b> Faça um backup da coleção; se continuar crescendo, o app nativo passa a valer a pena (gatilho G1 do plano).', 'warning') : null,
       extra || null,
-      !st.rede ? Note('Listas, coleção, mesa, bots e scanner funcionam com o que já está guardado. O que faltar aparece acima; prepare quando a internet voltar.') : null,
+      !st.rede ? AvisoRede('Tudo que está marcado funciona agora; o resto baixa quando a internet voltar.', { id: 'home-offline-aviso' }) : null,
       Row({ class: 'ds-row--wrap' },
         st.rede ? Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', icone: tudoPronto ? 'conferir' : 'baixar', id: 'home-offline-prep', onClick: preparar }) : null,
         proteger)));
@@ -12648,7 +12719,7 @@ function temaBotao() {
 /* O2 · chip discreto quando a internet cai; leva ao painel da tela inicial */
 let chipRede = null;
 function offlineChip() {
-  chipRede = NavBotao('Offline', { icone: 'semRede', id: 'nav-offline', ariaLabel: 'Sem internet: ver o que funciona', onClick: () => { location.hash = '#/'; } });
+  chipRede = NavBotao('Sem rede', { icone: 'semRede', id: 'nav-offline', ariaLabel: 'Sem internet: ver o que funciona', onClick: () => { location.hash = '#/'; } });
   chipRede.classList.add('ds-nav--alerta'); chipRede.title = 'Sem internet: ver o que funciona';
   chipRede.classList.toggle('ds-hidden', temRede());
   return chipRede;
