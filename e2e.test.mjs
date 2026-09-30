@@ -2784,3 +2784,55 @@ test('e2e · U2 parte 3 cartas, scanner, preparar partida e mesa: ícones, rótu
   await audita('mesa', 'main button');
   assert.deepEqual(errors, []);
 });
+
+// E51 · listas salvas no aparelho antes da separação da reserva: ao abrir o app, a lista pronta ganha a reserva sozinha;
+// lista editada mostra o aviso com "Separar reserva"; a carta pode ir e voltar entre deck e reserva; a partida só usa o deck.
+test('e2e · E51 reserva nas listas já salvas: migração ao abrir, aviso com sugestão, mover carta, partida sem a reserva', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  // grava duas listas "antigas" direto no banco: a Elves igual à pronta (75 no principal) e a Boros com uma carta a mais
+  const textos = await page.evaluate(() => Object.fromEntries(__m24.STARTER_DECKS.map(d => [d.name, d.text])));
+  const antiga = (nome, extra) => { const es = []; for (const l of textos[nome].split('\n')) { const m = l.match(/^(\d+) (.+)$/); if (m) es.push({ name: m[2], qty: Number(m[1]), zone: 'main' }); } if (extra) es.push(extra); return es; };
+  await page.evaluate(async ([elves, boros]) => {
+    const db = await new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => res(r.result); r.onerror = rej; });
+    await new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); const kv = tx.objectStore('kv');
+      kv.put({ id: 'velha1', name: 'Pauper Elves', format: 'pauper', entries: elves, created: 1, updated: 2 }, 'deck.velha1');
+      kv.put({ id: 'velha2', name: 'Pauper Boros Bully', format: 'pauper', entries: boros, created: 1, updated: 1 }, 'deck.velha2');
+      kv.put(['velha1', 'velha2'], 'deck.__ids'); tx.oncomplete = res; tx.onerror = rej; });
+  }, [antiga('Pauper Elves'), antiga('Pauper Boros Bully', { name: 'Plains', qty: 1, zone: 'main' })]);
+  await page.goto(base + '#/listas'); await page.reload();
+  await page.waitForSelector('#decks-list .ds-list__item');
+  await page.waitForFunction(() => /Reserva separada em Pauper Elves/.test((document.querySelector('#ds-toast') || {}).textContent || ''));
+  // Elves: a lista mostra 60 no deck e 15 na reserva, com o grupo Reserva separado
+  await page.locator('#decks-list .ds-list__item', { hasText: 'Pauper Elves' }).click(); await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('#deck-counts'), /60 no deck · 15 na reserva/);
+  assert.equal(await page.locator('.deck-group--reserva').count(), 1);
+  assert.equal(await page.locator('#deck-reserva-aviso').count(), 0);
+  // uma carta vai para o deck e volta (uma cópia)
+  await page.locator('.deck-group--reserva .deck-slot[data-name="Hydroblast"] .ds-card, .deck-group--reserva .deck-slot[data-name="Hydroblast"]').first().click();
+  await page.waitForSelector('.ds-dialog'); await page.click('#deck-one-to-main');
+  await page.waitForFunction(() => /61 no deck · 14 na reserva/.test(document.querySelector('#deck-counts').innerText));
+  await page.locator('.deck-slot[data-name="Hydroblast"]').first().click(); await page.waitForSelector('.ds-dialog');
+  await page.click('#deck-to-side');
+  await page.waitForFunction(() => /60 no deck · 15 na reserva/.test(document.querySelector('#deck-counts').innerText));
+  // Boros editada: não migrou sozinha; o aviso oferece separar pela lista pronta
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
+  await page.locator('#decks-list .ds-list__item', { hasText: 'Pauper Boros Bully' }).click(); await page.waitForSelector('#deck-reserva-aviso');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.locator('#deck-reserva-aviso').scrollIntoViewIfNeeded(); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/reserva-aviso.png' }); }
+  assert.match(await page.innerText('#deck-reserva-aviso'), /76 cartas no deck e nenhuma na reserva\. A lista pronta Pauper Boros Bully tem 15 delas na reserva\./);
+  await page.click('#deck-reserva-separar');
+  await page.waitForFunction(() => /61 no deck · 15 na reserva/.test(document.querySelector('#deck-counts').innerText));
+  assert.equal(await page.locator('#deck-reserva-aviso').count(), 0);
+  // reabrir o app não mexe de novo
+  await page.reload(); await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('#deck-counts'), /61 no deck · 15 na reserva/);
+  // a partida carrega só o deck: 60 cartas da Elves
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.selectOption('#mesa-mine', 'velha1');
+  assert.match(await page.innerText('#mesa-reserva'), /Reserva: 15 carta/);
+  await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  const n = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return Object.values(s.objects).filter(o => o.owner === 0 && !o.token && !o.ability).length; });
+  assert.equal(n, 60, 'grimório + mão = 60, sem a reserva');
+  assert.deepEqual(errors, []);
+});

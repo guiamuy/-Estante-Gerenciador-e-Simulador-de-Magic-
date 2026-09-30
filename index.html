@@ -604,6 +604,10 @@ body {
 .deck-group--reserva { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 2px dashed var(--border-strong); }
 .deck-group--reserva .ds-cardgrid { opacity: .78; }
 .deck-group__nota { margin-left: auto; }
+.deck-reserva-aviso { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); border: 1px dashed var(--warning); background: var(--bg-elev-1); }
+.deck-reserva-aviso__texto { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); line-height: 1.4; }
+.deck-reserva-aviso__texto .ds-icon { flex: none; color: var(--warning); margin-top: 1px; }
+.deck-reserva-aviso .ds-btn { align-self: flex-start; }
 .deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
 .deck-slot { position: relative; }
 .deck-slot[data-missing="true"] .ds-card img { opacity: .42; filter: grayscale(.85); }
@@ -4974,7 +4978,69 @@ Deck
 12 Island
 7 Mountain` }
 ];
-return { STARTER_DECKS };
+/* ---- E51 · reserva nas listas já salvas ----
+   Listas prontas adicionadas antes da leva 95 foram salvas com as 75 no principal. */
+const chaveNome = n => __m7.norm(n);
+const totais = entries => { const m = new Map(); for (const e of entries || []) m.set(chaveNome(e.name), (m.get(chaveNome(e.name)) || 0) + (e.qty || 0)); return m; };
+const mesmos = (a, b) => a.size === b.size && [...a].every(([k, v]) => b.get(k) === v);
+const temReserva = deck => (deck.entries || []).some(e => e.zone === 'side' && e.qty > 0);
+const entradasDaPronta = sd => __m14.parseDeckText(sd.text).entries;
+/** Lista pronta de onde esta lista veio: mesmo nome (sem diferenciar maiúsculas) e mesmo formato. */
+function prontaDe(deck) {
+  return STARTER_DECKS.find(sd => sd.format === deck.format && chaveNome(sd.name) === chaveNome(deck.name)) || null;
+}
+/** Migração automática e segura: a lista tem exatamente as mesmas cartas (nome e quantidade, somando as zonas)
+    de uma lista pronta que tem reserva, e ela mesma não tem reserva → recebe as entradas da pronta, com a reserva
+    separada. Qualquer diferença (lista editada) devolve null: aí quem decide é o jogador, pela sugestão. */
+function migraReserva(deck) {
+  if (!deck || temReserva(deck) || deck.format === 'commander') return null;
+  const t = totais(deck.entries);
+  for (const sd of STARTER_DECKS) {
+    if (sd.format !== deck.format) continue;
+    const es = entradasDaPronta(sd);
+    if (!es.some(e => e.zone === 'side')) continue;
+    if (mesmos(t, totais(es))) return es.map(e => ({ ...e }));
+  }
+  return null;
+}
+/** Sugestão para lista editada: move para a reserva, a partir do principal, as cartas que a lista pronta de mesmo
+    nome tem na reserva (até a quantidade que a lista tiver). Devolve { entries, movidas } ou null sem o que mover. */
+function sugereReserva(deck) {
+  if (!deck || temReserva(deck) || deck.format === 'commander') return null;
+  const sd = prontaDe(deck); if (!sd) return null;
+  const alvo = entradasDaPronta(sd).filter(e => e.zone === 'side');
+  const entries = (deck.entries || []).map(e => ({ ...e }));
+  let movidas = 0;
+  for (const r of alvo) {
+    const m = entries.find(e => e.zone === 'main' && chaveNome(e.name) === chaveNome(r.name));
+    if (!m) continue;
+    const n = Math.min(m.qty, r.qty); if (!n) continue;
+    m.qty -= n; movidas += n;
+    entries.push({ ...m, qty: n, zone: 'side' });
+  }
+  return movidas ? { entries: entries.filter(e => e.qty > 0), movidas, pronta: sd.name } : null;
+}
+/** Lista suspeita de reserva misturada: formato de 60 (não Commander), sem reserva e com mais de 60 no principal. */
+function reservaMisturada(deck) {
+  if (!deck || deck.format === 'commander' || temReserva(deck)) return false;
+  const main = (deck.entries || []).filter(e => e.zone === 'main').reduce((n, e) => n + e.qty, 0);
+  return main > 60 && main <= 80;
+}
+/** Passa por todas as listas salvas uma vez; devolve os nomes migrados. */
+async function migraReservas(decks, store) {
+  // cada lista é olhada uma vez: se depois o jogador juntar a reserva de volta ao principal, a escolha dele vale
+  const vistas = new Set((store && await store.get('decks.reservaVista').catch(() => null)) || []);
+  const feitas = [];
+  for (const d of await decks.list()) {
+    if (vistas.has(d.id)) continue;
+    const es = migraReserva(d);
+    if (es) { await decks.save({ ...d, entries: es }); feitas.push(d.name); }
+    vistas.add(d.id);
+  }
+  if (store) await store.set('decks.reservaVista', [...vistas]).catch(() => {});
+  return feitas;
+}
+return { STARTER_DECKS, migraReserva, sugereReserva, reservaMisturada, migraReservas, prontaDe };
 })();
 
 /* ==== src/data/filter.js ==== */
@@ -5267,7 +5333,7 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
   const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden' });
   fileInput.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { const r = await decks.importAll(await files.readText(f), collection); toast(`${r.decks} lista(s) restaurada(s)`); paint(); }
+    try { const r = await decks.importAll(await files.readText(f), collection); const m = await __m24.migraReservas(decks, null); toast(`${r.decks} lista(s) restaurada(s)` + (m.length ? ` · reserva separada em ${m.length}` : '')); paint(); }
     catch (err) { toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Não é um backup da Estante'); }
     finally { e.target.value = ''; }
   });
@@ -5480,6 +5546,20 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
       state.deck.format === 'commander' && e.zone !== 'commander'
         ? Button('Definir como comandante', { onClick: async () => { e.zone = 'commander'; e.qty = 1; closeDialog(); await persist(); paint(); } }) : null,
       e.zone === 'commander' || e.zone === 'companion' ? Button('Mover para o deck', { onClick: async () => { e.zone = 'main'; closeDialog(); await persist(); paint(); } }) : null,
+      // E51 · principal ↔ reserva, uma cópia ou todas (junta com a entrada que já existir do outro lado)
+      ...(state.deck.format !== 'commander' && (e.zone === 'main' || e.zone === 'side') ? (() => {
+        const para = e.zone === 'main' ? 'side' : 'main';
+        const move = async n => {
+          const destino = state.deck.entries.find(x => x !== e && x.zone === para && norm(x.name) === norm(e.name));
+          if (destino) destino.qty += n; else state.deck.entries.push({ ...e, qty: n, zone: para });
+          e.qty -= n; if (e.qty <= 0) state.deck.entries.splice(state.deck.entries.indexOf(e), 1);
+          closeDialog(); await persist(); paint();
+          toast(`${n} ${e.name} → ${para === 'side' ? 'reserva' : 'deck'}`);
+        };
+        const rot = para === 'side' ? 'reserva' : 'deck';
+        return [Button(e.qty > 1 ? `Todas para ${rot === 'deck' ? 'o deck' : 'a reserva'}` : `Mover para ${rot === 'deck' ? 'o deck' : 'a reserva'}`, { id: para === 'side' ? 'deck-to-side' : 'deck-to-main', onClick: () => move(e.qty) }),
+          e.qty > 1 ? Button(`1 para ${rot === 'deck' ? 'o deck' : 'a reserva'}`, { id: para === 'side' ? 'deck-one-to-side' : 'deck-one-to-main', onClick: () => move(1) }) : null];
+      })() : []),
       // L11: companheiro fica fora das 100 (Commander) e das 60 (Pauper); só um por lista
       e.zone !== 'companion' && c && isCompanionCard(c) ? Button('Definir como companheiro', { id: 'deck-set-companion', onClick: async () => {
         const prev = state.deck.entries.find(x => x.zone === 'companion');
@@ -5604,6 +5684,16 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           Text(`${stats.have}/${stats.need}`, { size: '3xl', display: true }),
           Text(stats.missing ? `faltam ${stats.missing} carta(s)` : 'coleção completa', { size: 'sm', tone: stats.missing ? 'muted' : 'positive' })),
         curveView(stats.curve)),
+      // E51 · reserva misturada no principal (lista salva antes da separação, ou colada sem "Sideboard")
+      __m24.reservaMisturada(d) ? (() => {
+        const sug = __m24.sugereReserva(d);
+        return h('div', { class: 'deck-reserva-aviso', id: 'deck-reserva-aviso', role: 'status' },
+          h('div', { class: 'deck-reserva-aviso__texto' }, Icone('pilhas', { tamanho: 20 }),
+            h('span', {}, h('strong', {}, `${stats.main} cartas no deck e nenhuma na reserva.`), ' ',
+              sug ? `A lista pronta ${sug.pronta} tem ${sug.movidas} delas na reserva.` : 'Toque numa carta e use "Mover para a reserva", ou edite a lista e ponha a reserva sob "Sideboard".')),
+          sug ? Button('Separar reserva', { variant: 'primary', icone: 'pilhas', id: 'deck-reserva-separar', onClick: async () => {
+            state.deck = await decks.save({ ...state.deck, entries: sug.entries }); toast(`${sug.movidas} carta(s) foram para a reserva`); paint(); } }) : null);
+      })() : null,
       issues.length
         ? Note(issues.map(i => (i.level === 'error' ? '<b>✕</b> ' : '<b>!</b> ') + escapeHtml(i.message)).join('<br>'), issues.some(i => i.level === 'error') ? 'negative' : 'warning')
         : (d.format !== 'livre' ? Note(`<b>✓</b> Lista válida para ${FORMATS[d.format]}.`) : null),
@@ -12758,6 +12848,11 @@ async function boot(root) {
     marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/');
     window.scrollTo(0, 0);
   });
+  // E51 · listas prontas salvas antes da separação da reserva: separa sozinho, uma vez
+  try {
+    const feitas = await __m24.migraReservas(decks, platform.store);
+    if (feitas.length) { toast(feitas.length === 1 ? `Reserva separada em ${feitas[0]}` : `Reserva separada em ${feitas.length} listas`, 3600); }
+  } catch (e) { /* sem armazenamento: a lista continua como estava */ }
   router.start();
   // O1 · manutenção silenciosa: com rede, guarda o que ainda não está guardado
   // Q10 · uma passada por vez (o guardião garante), e também ao voltar para o app (o celular suspende a aba e

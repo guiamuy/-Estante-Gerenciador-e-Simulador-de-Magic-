@@ -511,3 +511,50 @@ test('E50 P5 · toda lista pronta de Pauper tem principal com 60 ou mais e reser
   const elves = D.parseDeckText(S.STARTER_DECKS.find(x => x.name === 'Pauper Elves').text).entries;
   assert.deepEqual(JSON.parse(JSON.stringify(elves.filter(e => e.zone === 'side').map(e => e.name).slice(0, 3))), ['Hydroblast', 'Masked Vandal', "Nylea's Disciple"]);
 });
+
+// E51 · listas salvas antes da separação: migração automática segura, sugestão para lista editada, aviso e vistas.
+test('E51 · lista pronta salva com 75 no principal recebe a reserva separada; lista editada não é tocada; Commander nunca', async () => {
+  const { starter: S } = loadModules();
+  const elves = S.STARTER_DECKS.find(x => x.name === 'Pauper Elves');
+  const es = D.parseDeckText(elves.text).entries;
+  const velha = { id: 'a', name: 'Pauper Elves', format: 'pauper', entries: es.map(e => ({ ...e, zone: 'main' })) };
+  const m = S.migraReserva(velha);
+  assert.ok(m, 'mesma lista, sem reserva → migra');
+  assert.equal(m.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0), 15);
+  assert.equal(m.filter(e => e.zone === 'main').reduce((n, e) => n + e.qty, 0), 60);
+  // renomeada: continua reconhecida pelas cartas
+  assert.ok(S.migraReserva({ ...velha, name: 'Meus Elfos' }));
+  // já tem reserva → nada
+  assert.equal(S.migraReserva({ ...velha, entries: m }), null);
+  // editada (uma carta a mais) → não migra sozinha, mas a sugestão pela pronta de mesmo nome existe
+  const editada = { ...velha, entries: [...velha.entries.map(e => ({ ...e })), { name: 'Forest', qty: 1, zone: 'main' }] };
+  assert.equal(S.migraReserva(editada), null);
+  const sug = S.sugereReserva(editada);
+  assert.equal(sug.movidas, 15); assert.equal(sug.pronta, 'Pauper Elves');
+  assert.equal(sug.entries.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0), 15);
+  assert.equal(sug.entries.filter(e => e.zone === 'main').reduce((n, e) => n + e.qty, 0), 61);
+  // sem pronta de mesmo nome: sem sugestão, mas o aviso aparece
+  assert.equal(S.sugereReserva({ ...editada, name: 'Outra' }), null);
+  assert.equal(S.reservaMisturada({ ...editada, name: 'Outra' }), true);
+  assert.equal(S.reservaMisturada({ ...velha, entries: m }), false, 'com reserva, sem aviso');
+  assert.equal(S.reservaMisturada({ format: 'pauper', entries: [{ name: 'Island', qty: 60, zone: 'main' }] }), false, '60 certinho, sem aviso');
+  assert.equal(S.reservaMisturada({ format: 'commander', entries: [{ name: 'Island', qty: 99, zone: 'main' }] }), false);
+  assert.equal(S.migraReserva({ ...velha, format: 'commander' }), null);
+});
+
+test('E51 · migraReservas passa por todas as listas salvas uma vez só: se o jogador juntar a reserva de volta, a escolha dele vale', async () => {
+  const { starter: S } = loadModules();
+  const store = P.memoryStore();
+  const decks = D.createDeckStore({ store });
+  const es = D.parseDeckText(S.STARTER_DECKS.find(x => x.name === 'Pauper Boros Bully').text).entries;
+  const a = await decks.save({ name: 'Pauper Boros Bully', format: 'pauper', entries: es.map(e => ({ ...e, zone: 'main' })) });
+  const b = await decks.save({ name: 'Minha', format: 'pauper', entries: [{ name: 'Island', qty: 60, zone: 'main' }] });
+  assert.deepEqual(JSON.parse(JSON.stringify(await S.migraReservas(decks, store))), ['Pauper Boros Bully']);
+  const depois = await decks.get(a.id);
+  assert.equal(depois.entries.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0), 15);
+  assert.equal((await decks.get(b.id)).entries.length, 1, 'lista sem pronta equivalente fica como está');
+  // o jogador junta tudo de novo: a próxima abertura não separa outra vez
+  await decks.save({ ...depois, entries: depois.entries.map(e => ({ ...e, zone: 'main' })) });
+  assert.equal((await S.migraReservas(decks, store)).length, 0);
+  assert.equal((await decks.get(a.id)).entries.some(e => e.zone === 'side'), false);
+});
