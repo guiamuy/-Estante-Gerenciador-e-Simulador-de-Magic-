@@ -2836,3 +2836,39 @@ test('e2e · E51 reserva nas listas já salvas: migração ao abrir, aviso com s
   assert.equal(n, 60, 'grimório + mão = 60, sem a reserva');
   assert.deepEqual(errors, []);
 });
+
+// U8 (leva 99) · disposições por aparelho. Medidas em CSS px conferidas em 30/09/2026 (yesviz.com):
+// Galaxy S23/S24/S25 360×780; Galaxy S25+ e S25 Ultra 412×891; iPhone de referência 390×844; S+ com zoom 384×832.
+test('e2e · U8 disposições por aparelho: Galaxy S, S+, Ultra e iPhone sem rolagem lateral, alvos ≥ 44px, carta e zonas por faixa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  const deckUrl = await page.evaluate(() => location.hash);
+  const MEDIDAS = [['Galaxy S', 360, 780, '76px'], ['Galaxy S+ (zoom)', 384, 832, '84px'], ['iPhone', 390, 844, '84px'], ['Galaxy S+/Ultra', 412, 891, '92px']];
+  for (const [nome, w, h, campo] of MEDIDAS) {
+    await page.setViewportSize({ width: w, height: h });
+    for (const [tela, rota, espera] of [['início', '#/', '#home-atalhos'], ['listas', '#/listas', '#decks-list'], ['lista', deckUrl, '.deck-summary'], ['coleção', '#/colecao', '#col-import'], ['preparar', '#/mesa', '#mesa-start']]) {
+      await page.goto(base + rota); await page.waitForSelector(espera);
+      await auditaTela(page, `${nome} · ${tela}`);
+    }
+    await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+    await page.waitForSelector('#tb-pass');
+    await page.evaluate(() => { const M = window.__estanteMesa; const s = M.estado(); const p = s.turn.active; for (const nm of ['Island', 'Island', 'Delver of Secrets']) { const o = Object.values(s.objects).find(x => x.owner === p && x.name === nm && x.zone !== 'battlefield'); if (o) M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); } });
+    await auditaTela(page, `${nome} · mesa`);
+    const m = await page.evaluate(() => ({
+      campo: getComputedStyle(document.documentElement).getPropertyValue('--carta-campo').trim(),
+      carta: Math.round(document.querySelector('.tb-side--me .tb-card').getBoundingClientRect().width),
+      passosCortados: [...document.querySelectorAll('.tb-steps__list li')].filter(l => l.scrollWidth > l.clientWidth + 1).length,
+      chipsY: [...document.querySelectorAll('.tb-side--me .tb-chip')].map(c => Math.round(c.getBoundingClientRect().y)),
+      cabecalho: getComputedStyle(document.querySelector('.tb-steps__head')).position }));
+    assert.equal(m.campo, campo, `${nome}: carta do campo`);
+    assert.equal(m.carta, parseInt(campo), `${nome}: carta desenhada no tamanho da faixa`);
+    assert.equal(m.passosCortados, 0, `${nome}: nomes das fases inteiros`);
+    if (w < 400) assert.equal(new Set(m.chipsY).size, 1, `${nome}: contadores de zona numa linha só: ${m.chipsY}`);
+    assert.equal(m.cabecalho === 'absolute', w < 375, `${nome}: a linha repetida do turno sai só na tela estreita`);
+    await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForTimeout(200);
+    await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start, #mesa-continue');
+    if (await page.locator('#mesa-continue').count()) { await page.locator('#mesa-continue ~ .ds-btn--danger, .ds-btn--danger').first().click(); await page.waitForSelector('#mesa-start'); }
+  }
+  assert.deepEqual(errors, []);
+});

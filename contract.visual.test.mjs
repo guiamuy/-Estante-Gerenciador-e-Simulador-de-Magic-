@@ -86,8 +86,13 @@ test('C14 · barras e colunas do painel são alvos de 44px e só usam tokens (co
 /* ---------------- A13 · mesa que se lê de relance ---------------- */
 test('A13 · carta da mesa: maior, com nome e P/T por cima da arte, anéis de estado só com tokens, e movimento que respeita "reduzir animações"', () => {
   const carta = componentCss.slice(componentCss.indexOf('.tb-card {'), componentCss.indexOf('.tb-card[data-tapped="true"] {'));
-  assert.match(carta, /\.tb-card \{[^}]*width: 84px/, 'carta do campo com 84 px (era 64)');
-  assert.match(carta, /\.tb-card--hand \{ width: 100px; \}/);
+  // U8 (leva 99) · expectativa mudou: o tamanho vem de tokens por faixa de aparelho; o padrão continua 84/100 e as faixas
+  // estreita (76/92) e larga (92/110) ficam no bloco U8
+  assert.match(carta, /\.tb-card \{[^}]*width: var\(--carta-campo\)/, 'carta do campo pelo token');
+  assert.match(carta, /\.tb-card--hand \{ width: var\(--carta-mao\); \}/);
+  assert.match(componentCss, /:root \{ --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; \}/, 'padrão 84/100/56');
+  assert.match(componentCss, /@media \(max-width: 374px\) \{\s*:root \{ --carta-campo: 76px; --carta-mao: 92px;/, 'Galaxy S');
+  assert.match(componentCss, /@media \(min-width: 400px\) \{\s*:root \{ --carta-campo: 92px; --carta-mao: 110px;/, 'S+ e Ultra');
   assert.ok(carta.includes('.tb-card__label {') && carta.includes('.tb-card__pt {'), 'nome e P/T têm estilo próprio');
   for (const estado of ['ataca', 'bloqueia', 'alvo']) assert.match(carta, new RegExp(`\\.tb-card\\[data-estado="${estado}"\\] \\.tb-card__face \\{ outline: 3px (solid|dashed) var\\(--(negative|accent|warning)\\); \\}`), `anel de ${estado}`);
   assert.match(carta, /@keyframes tb-entrou/);

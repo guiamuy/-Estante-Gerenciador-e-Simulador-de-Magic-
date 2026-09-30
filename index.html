@@ -646,6 +646,8 @@ body {
   border-bottom: 3px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tb-steps__list li[data-current="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: var(--weight-medium); }
+.tb-steps__curto { display: none; }
+
 
 .tb-board { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-3); }
 .tb-side {
@@ -698,11 +700,11 @@ body {
 
 .tb-card {
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;   /* H10 · segurar não abre o menu da imagem no iPhone */
-  position: relative; flex: none; width: 84px; aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
+  position: relative; flex: none; width: var(--carta-campo); aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
   scroll-snap-align: start; transition: transform var(--dur-2) var(--ease-out);
 }
-.tb-card--sm { width: 56px; }
-.tb-card--hand { width: 100px; }
+.tb-card--sm { width: var(--carta-pilha); }
+.tb-card--hand { width: var(--carta-mao); }
 /* A13 · nome e P/T sempre legíveis por cima da arte; anel diz o estado sem toque */
 .tb-card__label { position: absolute; left: 0; right: 0; top: 0; padding: 2px var(--space-1); font-size: 10px; line-height: 1.2; color: var(--fg); background: var(--scrim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--scrim); border: 1px solid var(--border); }
@@ -722,14 +724,14 @@ body {
 .tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
-.tb-card[data-tapped="true"] { margin: 0 calc(84px * .2); }
+.tb-card[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 /* U5 · leque de cópias iguais: a carta da frente é o botão; as de trás mostram só a borda */
 .tb-leque { --passo: 14px; position: relative; flex: none; display: inline-block; padding-right: calc(var(--atras) * var(--passo)); scroll-snap-align: start; }
 .tb-leque > .tb-card { z-index: 5; }
-.tb-leque__camada { position: absolute; top: 0; left: calc(var(--i) * var(--passo)); width: 84px; aspect-ratio: 488 / 680; overflow: hidden; pointer-events: none;
+.tb-leque__camada { position: absolute; top: 0; left: calc(var(--i) * var(--passo)); width: var(--carta-campo); aspect-ratio: 488 / 680; overflow: hidden; pointer-events: none;
   border-radius: var(--radius-card); background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--shadow-1); filter: brightness(.82); }
 .tb-leque__camada img { width: 100%; height: 100%; object-fit: cover; -webkit-touch-callout: none; }
-.tb-leque[data-tapped="true"] { margin: 0 calc(84px * .2); }
+.tb-leque[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 .tb-leque[data-tapped="true"] > .tb-card { margin: 0; }
 .tb-leque[data-tapped="true"] .tb-leque__camada { transform: rotate(90deg) scale(.78); }
 .tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
@@ -1037,7 +1039,40 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 }
 .deck-slot[data-coverage="completo"] .deck-slot__cov { color: var(--positive); border-color: var(--positive); }
 .deck-slot[data-coverage="manual"] .deck-slot__cov { color: var(--warning); border-color: var(--warning); }
-</style>
+/* ===================== U8 · disposições por aparelho =====================
+   Medidas em CSS px conferidas em 30/09/2026 (yesviz.com): Galaxy S23/S24/S25 360×780 (DPR 3);
+   Galaxy S25+ e S25 Ultra 412×891 (DPR 3,5); as capturas do aparelho do usuário (1080×2340) dão 360×780.
+   Faixas: estreita ≤ 374 (Galaxy S), padrão 375–399 (iPhone 390, S+ com zoom de tela), larga ≥ 400 (S+ e Ultra).
+   Altura: com a barra do navegador, o 780 vira ~700 úteis; abaixo de 740 a mão encolhe para a mesa caber. */
+:root { --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; }
+@media (max-width: 374px) {
+  :root { --carta-campo: 76px; --carta-mao: 92px; --carta-pilha: 52px; }
+  .tb-steps__longo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* o leitor de tela ainda lê o nome inteiro */
+  .tb-steps__curto { display: inline; }
+  .tb-steps__list li { position: relative; }
+  .tb-dock__bar .tb-banner__actions .ds-btn { padding: 0 var(--space-2); font-size: var(--text-sm); }
+  /* contadores de zona numa grade de uma linha abaixo da vida (antes o Exílio caía sozinho numa segunda linha) */
+  .tb-life__n { font-size: var(--text-2xl); }
+}
+/* até 399 (Galaxy S, iPhone e S+ com zoom de tela): contadores de zona empilhados (número em cima) numa grade de
+   uma linha ao lado da vida — antes o Exílio caía sozinho numa segunda linha e empurrava as permanentes para baixo */
+@media (max-width: 399px) {
+  .tb-side__head { gap: var(--space-2); flex-wrap: nowrap; }
+  .tb-chips { flex: 1 1 0; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  .tb-chip { flex-direction: column-reverse; justify-content: center; gap: 0; padding: 2px var(--space-1); border-radius: var(--radius-2); line-height: 1.1; font-size: 10px; white-space: nowrap; min-width: 0; }
+  .tb-chip b { font-size: var(--text-md); }
+}
+@media (min-width: 400px) {
+  :root { --carta-campo: 92px; --carta-mao: 110px; --carta-pilha: 60px; }
+}
+@media (max-height: 740px) and (max-width: 399px) {
+  :root { --carta-mao: 84px; }
+}
+/* tela baixa ou estreita: a linha "Turno N · Fulano … Principal 1" repete a faixa de vez e o trilho de fases; sai */
+@media (max-height: 740px), (max-width: 374px) {
+  .tb-steps__head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tb-top { padding-top: var(--space-2); }
+}</style>
 </head>
 <body>
 <div id="app"></div>
@@ -9938,7 +9973,9 @@ const PHASES = [['início', ['untap', 'upkeep', 'draw']], ['principal 1', ['main
 function StepBar({ turn, step, active, label }) {
   return h('div', { class: 'tb-steps', 'aria-label': `Turno ${turn}, ${label}, vez de ${active}` },
     h('div', { class: 'tb-steps__head' }, h('span', {}, `Turno ${turn} · ${active}`), h('strong', {}, label)),
-    h('ol', { class: 'tb-steps__list' }, ...PHASES.map(([name, steps]) => h('li', { dataset: { current: String(steps.includes(step)) } }, name))));
+    // U8 · na tela de 360 os nomes longos viram curtos ("princ. 1"); o nome inteiro fica no title
+    h('ol', { class: 'tb-steps__list' }, ...PHASES.map(([name, steps]) => h('li', { dataset: { current: String(steps.includes(step)) }, title: name },
+      h('span', { class: 'tb-steps__longo' }, name), h('span', { class: 'tb-steps__curto', 'aria-hidden': 'true' }, name.replace('principal', 'princ.'))))));
 }
 
 function StackStrip(items) {

@@ -329,7 +329,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 7º ✅ | U3 símbolos de Magic em botões, textos e filtros (levas 90 e 91) | E43 | 2 | renderizador de {W}{U}{B}{R}{G}{C}{T}{X}{E} e números |
 | 8º ✅ | U2 ícones flat, botões com profundidade e toque animado, CTAs sem excesso de texto (levas 92, 93 e 96) | E43 | 3 | — |
 | 9º ✅ | U4 "sem internet" mais visual (leva 97) | E43 | 1 | — |
-| 10º | U8 disposições por tamanho de aparelho (Galaxy S, S+ e Ultra) | E44 | 2 | medidas reais dos aparelhos conferidas antes |
+| 10º ✅ | U8 disposições por tamanho de aparelho (Galaxy S, S+ e Ultra) (leva 99) | E44 | 1 | — |
 | 11º | U11 Shark mais forte, medido no torneio | E46 | 2 a 3 | ganho provado contra a versão anterior |
 | 12º | U13 conta e perfil com Google (nome, avatar, backup) | E47 | 3 a 4 | **precisa de decisão e de um Client ID seu** (abaixo) |
 | 13º | U14 partida online 1x1 | E48 | 6 a 10 | **precisa de decisão de infraestrutura** (abaixo) |
@@ -3077,7 +3077,11 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Sem rede:** só apresentação; passo no `e2e · O1`.
 - **Testes:** U (`vez.unit.test.mjs`, 4: seu turno/do outro, prioridade separada inclusive em bloqueio pendente, mão inicial e fim, nome ausente); contrato visual (3 pares de contraste novos); e2e `U7` (faixa na mão inicial, seu turno com lado aceso, cortina diz o turno, animação na troca, ataque real com bloqueio pendente do outro: faixa azul, "você responde", lado do oponente aceso, cores diferentes medidas); passo no `O1`.
 
-**U8 · Disposições por tamanho de aparelho** ○
+**U8 · Disposições por tamanho de aparelho** ✅ (leva 99)
+- **Medidas (consulta em 30/09/2026, [yesviz.com](https://yesviz.com/viewport.php)):** Galaxy S23/S24/S25 360×780 CSS px (DPR 3); Galaxy S25+ e S25 Ultra 412×891 (DPR 3,5). As capturas do aparelho do usuário (1080×2340) dão 360×780: é um Galaxy S de tela padrão.
+- **Entregue:** três faixas por largura — estreita ≤ 374 (Galaxy S), padrão 375–399 (iPhone 390, S+ com zoom de tela), larga ≥ 400 (S+ e Ultra) — com tokens de tamanho de carta: campo 76/84/92, mão 92/100/110, pilha 52/56/60; tela baixa (≤ 740 de altura útil, a barra do navegador come ~80) encolhe a mão para 84. Na estreita: fases com nome curto ("princ. 1", o leitor de tela lê o nome inteiro), a linha repetida "Turno N · Fulano … Principal 1" sai (a faixa de vez e o trilho já dizem), vida um pouco menor, botões da barra da bandeja mais justos. Até 399: contadores de zona (Grimório, Cemitério, Exílio) empilhados, número em cima, numa grade de uma linha ao lado da vida — antes o Exílio caía numa segunda linha e empurrava as permanentes para baixo da bandeja.
+- **Testes:** e2e "U8" (quatro medidas × início, listas, lista, coleção, preparar e mesa: sem rolagem lateral, alvos ≥ 44 px, carta no tamanho da faixa, fases inteiras, contadores numa linha, linha repetida só sai na estreita); contrato visual confere os tokens por faixa.
+- **Fora:** tablets e paisagem (como previsto); zoom de fonte do sistema acima do padrão.
 - **Valor:** a mesa aproveita a tela de um Galaxy S, S+ e Ultra sem sobra nem corte.
 - **Aceite:** três disposições por faixa de largura/altura em CSS px (medidas conferidas na especificação de cada aparelho antes de codificar, com a data da consulta anotada aqui); tamanho de carta, zonas e bandeja escalam por faixa; a auditoria de tela roda nas três medidas mais o iPhone de referência.
 - **Testes:** e2e (auditoria de overflow e alvo de toque em cada medida); capturas por medida.
