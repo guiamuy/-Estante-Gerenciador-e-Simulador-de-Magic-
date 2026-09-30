@@ -367,6 +367,21 @@ a { color: var(--accent); }
 .ds-chip--simbolo[aria-pressed="false"] .ds-sym { opacity: .55; filter: saturate(.6); }
 .ds-chip--simbolo .ds-sym { transition: opacity var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
 .ds-chip--simbolo[aria-pressed="true"] .ds-sym { transform: scale(1.06); }
+/* U2 (parte 2) · chips com ícone, selo de contagem, lixeira discreta, seta de item de lista */
+.ds-chip--icone { display: inline-flex; align-items: center; gap: 6px; }
+/* U2 · controle segmentado: escolhas exclusivas numa pílula só, partes iguais, cabe em 360 */
+.ds-segmentado { display: flex; flex: 1 1 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--bg-elev-1); }
+.ds-segmentado .ds-chip { flex: 1 1 0; min-width: 0; padding: 0 var(--space-1); gap: 4px; border-color: transparent; }
+.ds-segmentado .ds-chip__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-btn--voltar { margin-left: calc(-1 * var(--space-2)); padding-left: var(--space-2); }
+.ds-chip--icone .ds-icon { flex: none; }
+.ds-btn__conta { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg);
+  font-size: var(--text-xs); font-weight: var(--weight-bold); line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.ds-btn__conta[hidden] { display: none; }
+.ds-btn--perigo { color: var(--negative); }
+@media (hover: hover) { .ds-btn--perigo:hover { color: var(--negative); background-color: var(--bg-elev-2); } }
+.ds-list__seta { color: var(--fg-subtle); flex: none; margin-left: var(--space-1); }
+
 
 /* ---------------- U3 · símbolo de mana ---------------- */
 .ds-sym { display: inline-block; width: 1.08em; height: 1.08em; vertical-align: middle; top: -.08em; margin: 0 .05em; position: relative; flex: none; line-height: 0; }
@@ -510,6 +525,7 @@ a { color: var(--accent); }
 .ds-appbar__brand small { display: block; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--fg-muted); }
 
 .ds-hidden { display: none !important; }
+.ds-nowrap { white-space: nowrap; }
 
 /* ===================== marca ===================== */
 .brand { display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--fg); }
@@ -786,6 +802,11 @@ body {
 
 /* ===================== C2 · coleção ===================== */
 .col-add { display: flex; gap: var(--space-2); }
+.col-topo { flex-wrap: nowrap; align-items: flex-start; }
+.col-topo > .ds-btn { flex: none; }
+.col-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.col-acoes .ds-btn { justify-content: flex-start; font-size: var(--text-sm); padding: 0 var(--space-3); white-space: nowrap; min-width: 0; }
+.col-row__remover { color: var(--fg-muted); }
 .col-add .ds-input { flex: 1; min-width: 0; }
 .col-list { overflow: hidden; }
 .col-row {
@@ -1268,6 +1289,7 @@ const ICONES = {
   // passar o turno: avançar até o próximo
   pular: '<path d="M5 6.5l7 5.5-7 5.5z"/><path d="M12 6.5l7 5.5-7 5.5z"/>',
   subir: '<path d="M6 14.5l6-6 6 6"/>',
+  descer: '<path d="M6 9.5l6 6 6-6"/>',
   voltar: '<path d="M14.5 6l-6 6 6 6"/>',
   seguir: '<path d="M9.5 6l6 6-6 6"/>',
   // jogar: o gesto universal de começar
@@ -1295,6 +1317,25 @@ const ICONES = {
   baixar: '<path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19.5h14"/>',
   proteger: '<path d="M12 3.3l7 2.8v5.3c0 4.3-2.9 7.7-7 9.3-4.1-1.6-7-5-7-9.3V6.1z"/><path d="M9 12l2.1 2.1L15.2 10"/>',
   conferir: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4.5v4.2h-4.2"/>',
+  mais: '<path d="M12 5v14M5 12h14"/>',
+  menos: '<path d="M5 12h14"/>',
+  fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  editar: '<path d="M4.5 19.5l1-4.2L15.8 5a1.9 1.9 0 0 1 2.7 0l.5.5a1.9 1.9 0 0 1 0 2.7L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>',
+  lixeira: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7"/><path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/><path d="M10.2 11v5.5M13.8 11v5.5"/>',
+  // exportar: sai da bandeja; importar: entra nela
+  exportar: '<path d="M12 15V3.8"/><path d="M7.8 8L12 3.8 16.2 8"/><path d="M4.5 13.5v4.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4.5"/>',
+  importar: '<path d="M12 3.8V15"/><path d="M7.8 10.8L12 15l4.2-4.2"/><path d="M4.5 13.5v4.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4.5"/>',
+  copiar: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>',
+  filtro: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+  selecionar: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.2l2.4 2.4 4.8-5"/>',
+  marcar: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  // listas prontas: caixa que vem com o app
+  caixa: '<path d="M4 8l8-4.5L20 8v8.5l-8 4.5-8-4.5z"/><path d="M4 8l8 4.5L20 8M12 12.5V21"/>',
+  planilha: '<rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M4 9h16M4 14.5h16M10 9v11.5"/>',
+  // visões da coleção
+  linhas: '<rect x="4" y="4.5" width="16" height="4" rx="1"/><rect x="4" y="10" width="16" height="4" rx="1"/><rect x="4" y="15.5" width="16" height="4" rx="1"/>',
+  densa: '<path d="M4 5h16M4 9.7h16M4 14.3h16M4 19h16"/>',
+  pilhas: '<rect x="8" y="3.5" width="11" height="14" rx="1.6"/><path d="M5 7v11a2.5 2.5 0 0 0 2.5 2.5H15"/>',
   // prioridade com o outro: a mesa espera uma resposta
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
@@ -1337,7 +1378,9 @@ function Select(options, opts = {}) {
 /* ---------------- indicadores ---------------- */
 const Badge = (label, opts = {}) => h('span', { class: ['ds-badge', opts.tone ? `ds-badge--${opts.tone}` : ''].filter(Boolean).join(' ') }, label);
 function Chip(label, opts = {}) {
-  return h('button', { class: 'ds-chip', type: 'button', 'aria-pressed': String(!!opts.pressed), onClick: opts.onClick, dataset: opts.dataset }, label);
+  // U2 · `icone` põe o ícone do app antes do rótulo
+  return h('button', { class: 'ds-chip' + (opts.icone ? ' ds-chip--icone' : ''), type: 'button', id: opts.id || null, 'aria-pressed': String(!!opts.pressed), onClick: opts.onClick, dataset: opts.dataset },
+    opts.icone ? [Icone(opts.icone, { tamanho: 18 }), h('span', { class: 'ds-chip__rotulo' }, label)] : label);
 }
 /** Identidade de cor (ex.: "UR") em símbolos. U3: antes eram bolinhas lisas sem glifo nem nome. */
 function ManaPips(identity) {
@@ -1618,7 +1661,10 @@ function renderDS() {
         Button('Com ícone', { icone: 'baixar', variant: 'primary' }), Button('Proteger', { icone: 'proteger' }),
         __m3.IconButton('desfazer', 'Desfazer'), __m3.IconButton('registro', 'Registro', { variant: 'ghost' })),
       Row({ class: 'ds-row--wrap' }, __m3.NavBotao('Jogar', { icone: 'jogar' }), __m3.NavBotao('Listas', { icone: 'listas' })),
-      h('div', { class: 'ds-atalhos' }, __m3.Atalho('Atalho', { icone: 'colecao', detalhe: 'Detalhe curto' }), __m3.Atalho('Principal', { icone: 'jogar', variant: 'primary' }))),
+      h('div', { class: 'ds-atalhos' }, __m3.Atalho('Atalho', { icone: 'colecao', detalhe: 'Detalhe curto' }), __m3.Atalho('Principal', { icone: 'jogar', variant: 'primary' })),
+      h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Exemplo de segmentado' },
+        Chip('Lista', { icone: 'linhas', pressed: true }), Chip('Galeria', { icone: 'colecao' }), Chip('Densa', { icone: 'densa' }), Chip('Pilhas', { icone: 'pilhas' })),
+      Row({ class: 'ds-row--wrap' }, Chip('Marcar', { icone: 'marcar' }), __m3.IconButton('lixeira', 'Excluir', { variant: 'ghost', classe: 'ds-btn--perigo' }))),
 
     Section('Marca',
       h('div', { class: 'ds-row ds-row--wrap', id: 'ds-brand', style: { gap: 'var(--space-5)' } },
@@ -5029,7 +5075,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK } = __m23;
@@ -5058,8 +5104,8 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
     const owned = await collection.all();
     if (!all.length) return mount(list, Empty('Nenhuma lista ainda. Comece por uma lista pronta ou cole uma lista exportada do Moxfield, Archidekt ou Arena.',
       Row({ class: 'ds-row--wrap' },
-        Button('Ver listas prontas', { variant: 'primary', id: 'decks-starter-empty', onClick: () => go('/listas/prontas') }),
-        Button('Nova lista', { onClick: () => go('/listas/editar') }))));
+        Button('Ver prontas', { variant: 'primary', icone: 'caixa', id: 'decks-starter-empty', onClick: () => go('/listas/prontas') }),
+        Button('Nova lista', { icone: 'mais', onClick: () => go('/listas/editar') }))));
     mount(list, h('div', { class: 'ds-list' }, ...all.map(d => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
@@ -5071,22 +5117,23 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
         h('div', { class: 'ds-grow' }),
         Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
           Badge(FORMATS[d.format] || d.format, { tone: 'accent' }),
-          Text(`tenho ${have} de ${need}`, { size: 'xs', tone: have === need ? 'positive' : 'muted' })));
+          Text(`tenho ${have} de ${need}`, { size: 'xs', tone: have === need ? 'positive' : 'muted' })),
+        Icone('seguir', { tamanho: 18, classe: 'ds-list__seta' }));
     })));
   }
   paint();
 
   return Stack(pad(),
     Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
-      Button('Listas prontas', { id: 'deck-starter', onClick: () => go('/listas/prontas') }),
-      Button('Nova lista', { variant: 'primary', id: 'deck-new', onClick: () => go('/listas/editar') })),
+      Button('Prontas', { id: 'deck-starter', icone: 'caixa', title: 'Listas prontas', onClick: () => go('/listas/prontas') }),
+      Button('Nova', { variant: 'primary', id: 'deck-new', icone: 'mais', title: 'Nova lista', onClick: () => go('/listas/editar') })),
     list,
     Surface({ class: 'ds-surface--pad' }, Stack({},
       Text('Backup', { size: 'sm', as: 'h2', display: true }),
       Text('Listas e coleção ficam guardadas neste aparelho. Exporte um backup para levar para outro aparelho ou não perder nada ao limpar o navegador.', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' },
-        Button('Exportar backup', { onClick: async () => { files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
-        Button('Restaurar backup', { onClick: () => fileInput.click() })),
+        Button('Exportar', { icone: 'exportar', id: 'decks-backup-export', title: 'Exportar backup', onClick: async () => { files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
+        Button('Restaurar', { icone: 'importar', id: 'decks-backup-restore', title: 'Restaurar backup', onClick: () => fileInput.click() })),
       fileInput)));
 }
 
@@ -5138,8 +5185,9 @@ function createStarterDecks({ decks }) {
       return c;
     }));
     mount(root,
-      Row({}, Text('Listas prontas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
-        Button('Minhas listas', { id: 'starter-back', onClick: () => go('/listas') })),
+      // U2 · voltar fica acima do título, como em todo app de celular
+      h('div', {}, Button('Minhas listas', { id: 'starter-back', icone: 'voltar', variant: 'ghost', classe: 'ds-btn--voltar', onClick: () => go('/listas') })),
+      Text('Listas prontas', { size: '2xl', display: true, as: 'h1' }),
       Text('Decks reais para você jogar agora. Um toque põe a lista na sua estante, e de lá você joga, edita ou exporta como qualquer outra.', { tone: 'muted' }),
       chips,
       state.erro ? Note(state.erro, { tone: 'danger' }) : null,
@@ -5153,7 +5201,7 @@ function createStarterDecks({ decks }) {
           Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
             Badge(FORMATS[item.format] || item.format, { tone: 'accent' }),
             tenho ? Text('já na sua estante', { size: 'xs', tone: 'positive' })
-              : Button('Adicionar', { variant: 'primary', dataset: { starterAdd: item.name }, onClick: () => adicionar(item) })));
+              : Button('Adicionar', { icone: 'mais', dataset: { starterAdd: item.name }, onClick: () => adicionar(item) })));
       })) : Empty('Nenhuma lista pronta neste formato.'),
       visiveis.length ? Row({ class: 'ds-row--wrap' },
         Button(state.format === 'all' ? 'Adicionar todas' : `Adicionar as ${visiveis.length} de ${FORMATS[state.format] || state.format}`,
@@ -5208,10 +5256,10 @@ function createDeckEditor({ decks, collection }) {
           Field('Formato', Select(FORMAT_OPTS, { id: 'deck-format', value: state.format, onChange: e => { state.format = e.target.value; } }))),
         Field('Cartas', textIn),
         preview,
-        (() => { const c = Chip('Já tenho todas as cartas desta lista', { pressed: false, dataset: { ownall: '1' } });
+        (() => { const c = Chip('Já tenho todas', { icone: 'marcar', pressed: false, dataset: { ownall: '1' } }); c.title = 'Já tenho todas as cartas desta lista'; c.setAttribute('aria-label', 'Já tenho todas as cartas desta lista');
           c.addEventListener('click', () => { state.ownAll = !state.ownAll; c.setAttribute('aria-pressed', String(state.ownAll)); }); return c; })(),
-        Row({}, Button(d ? 'Salvar alterações' : 'Criar lista', { variant: 'primary', id: 'deck-save', onClick: save }),
-          Button('Cancelar', { onClick: () => history.back() })))));
+        Row({}, Button(d ? 'Salvar alterações' : 'Criar lista', { variant: 'primary', icone: 'marcar', id: 'deck-save', onClick: save }),
+          Button('Cancelar', { variant: 'ghost', onClick: () => history.back() })))));
   })();
   return root;
 }
@@ -5226,7 +5274,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
 
   async function load() {
     state.deck = await decks.get(id);
-    if (!state.deck) return mount(root, Empty('Lista não encontrada.', Button('Ver listas', { onClick: () => go('/listas') })));
+    if (!state.deck) return mount(root, Empty('Lista não encontrada.', Button('Ver listas', { icone: 'voltar', onClick: () => go('/listas') })));
     state.owned = await collection.all();
     cardRepo.stats.degraded = false;
     const progress = Text('Buscando cartas…', { size: 'sm', tone: 'muted' });
@@ -5316,13 +5364,13 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
     const passou = new Set(recorte.itens.map(g => g.key));
     const filtrando = !FL.filtroVazio(filtroAtual);
     const filtroIn = Input({ id: 'deck-filter', placeholder: 'Nome ou texto da carta', value: state.texto, onInput: e => { state.texto = e.target.value; paintPreservandoFoco(); } });
-    const filtroBtn = Button('Filtros', { id: 'deck-filters', onClick: () => abrirPainelFiltros({ filtro: filtroAtual, grupos: gruposLista, semImpressoes: true, titulo: 'Filtrar a lista',
+    const filtroBtn = Button('Filtros', { id: 'deck-filters', icone: 'filtro', onClick: () => abrirPainelFiltros({ filtro: filtroAtual, grupos: gruposLista, semImpressoes: true, titulo: 'Filtrar a lista',
       onChange: f => { state.filtro = { ...f }; state.texto = f.texto || state.texto; paint(); return FL.filtraColecao(gruposLista, { ...state.filtro, texto: state.texto }, { cards: state.cards }); },
       onLimpar: () => { state.filtro = FL.novoFiltro(); state.texto = ''; paint(); } }) });
     pintaBotaoFiltros(filtroBtn, state.filtro);
     const linhaFiltro = Row({ class: 'ds-row--wrap' }, h('div', { class: 'ds-grow', style: { minWidth: '160px' } }, filtroIn), filtroBtn,
       filtrando ? Text(`${recorte.total} carta(s) · ${recorte.copias} cópia(s)${recorte.semDados ? ` · ${recorte.semDados} sem dados` : ''} · ${FL.descreveFiltro(filtroAtual)}`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-count' } }) : null,
-      filtrando ? Button('Limpar', { variant: 'ghost', id: 'deck-filters-clear', onClick: () => { state.filtro = FL.novoFiltro(); state.texto = ''; paint(); } }) : null);
+      filtrando ? Button('Limpar', { variant: 'ghost', icone: 'fechar', id: 'deck-filters-clear', onClick: () => { state.filtro = FL.novoFiltro(); state.texto = ''; paint(); } }) : null);
 
     const groups = CATEGORIES.map(([key, label]) => {
       const items = d.entries.filter(e => (!filtrando || passou.has(norm(e.name))) && categoryOf(e, entryCard(e)) === key)
@@ -5348,7 +5396,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
         })));
     }).filter(Boolean);
 
-    const markChip = Chip('Marcar o que tenho', { pressed: state.marking, onClick: () => { state.marking = !state.marking; paint(); } });
+    const markChip = Chip('Marcar as minhas', { id: 'deck-mark', icone: 'marcar', pressed: state.marking, onClick: () => { state.marking = !state.marking; paint(); } });
 
     mount(root,
       Row({ class: 'ds-row--wrap' },
@@ -5358,9 +5406,10 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
             Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } }))),
         h('div', { class: 'ds-grow' }),
         Row({ class: 'ds-row--wrap' },
-          Button('Editar', { id: 'deck-edit', onClick: () => go('/listas/editar?id=' + d.id) }),
-          Button('Exportar', { onClick: exportDialog }),
-          Button('Excluir', { variant: 'danger', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
+          // U2 · editar e exportar com ícone; excluir vira ícone discreto (continua pedindo confirmação)
+          Button('Editar', { id: 'deck-edit', icone: 'editar', onClick: () => go('/listas/editar?id=' + d.id) }),
+          Button('Exportar', { id: 'deck-export', icone: 'exportar', onClick: exportDialog }),
+          IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
       state.degraded ? Note('<b>Sem acesso à Scryfall agora.</b> Mostrando as cartas que já estavam salvas neste aparelho.', 'warning') : null,
       (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
@@ -5368,7 +5417,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           Badge(`✓ ${cv.completo}`, { tone: 'positive' }), cv.parcial ? Badge(`◐ ${cv.parcial}`) : null, cv.manual ? Badge(`✎ ${cv.manual}`) : null),
         Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela pode jogar no modo motor completo.' : `Na mesa assistida, você aplica o efeito de ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
           { size: 'sm', tone: 'muted' }),
-        cv.worst.length ? Button('Copiar cartas sem script', { id: 'deck-copy-missing', onClick: async () => {
+        cv.worst.length ? Button('Copiar sem script', { id: 'deck-copy-missing', icone: 'copiar', title: 'Copiar as cartas que o motor ainda não resolve', onClick: async () => {
           const txt = cv.worst.map(n => `1 ${n}`).join('\n');
           toast(await share.copy(txt) ? `${cv.worst.length} carta(s) copiadas` : 'Não foi possível copiar');
         } }) : null)); })(),
@@ -5405,7 +5454,11 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
 function pintaBotaoFiltros(btn, filtro) {
   if (!btn) return;
   const n = __m27.filtrosAtivos({ ...filtro, texto: '' });
-  btn.textContent = n ? `Filtros (${n})` : 'Filtros';
+  // U2 · o ícone fica; o número de filtros ativos vira um selo ao lado do rótulo
+  let conta = btn.querySelector('.ds-btn__conta');
+  if (!conta) { conta = document.createElement('span'); conta.className = 'ds-btn__conta'; btn.appendChild(conta); }
+  conta.textContent = n ? String(n) : ''; conta.hidden = !n;
+  btn.setAttribute('aria-label', n ? `Filtros, ${n} ativo(s)` : 'Filtros');
   btn.dataset.ativos = String(n);
 }
 function abrirPainelFiltros({ filtro, grupos, onChange, onLimpar, semImpressoes = false, titulo = 'Filtros' }) {
@@ -5532,8 +5585,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     ].filter(Boolean);
     mount(care, Stack({ class: 'col-care' }, Note(lines.join('<br>'), 'warning'),
       Row({ class: 'ds-row--wrap' },
-        risk ? Button('Proteger armazenamento', { id: 'col-protect', onClick: protect }) : null,
-        backupDue ? Button('Exportar backup', { id: 'col-backup', onClick: doBackup }) : null)));
+        risk ? Button('Proteger armazenamento', { id: 'col-protect', icone: 'proteger', onClick: protect }) : null,
+        backupDue ? Button('Exportar backup', { id: 'col-backup', icone: 'exportar', onClick: doBackup }) : null)));
   }
 
   /* ---- C9 · quantidade por nome ---- */
@@ -5560,9 +5613,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     return h('div', { class: 'col-print', dataset: { key: it.key } },
       h('div', { class: 'col-print__label' }, Text(printLabel(it), { size: 'sm' }), it.set_name ? Text(it.set_name, { size: 'xs', tone: 'muted' }) : null),
       h('div', { class: 'col-row__qty' },
-        Button('−', { icon: true, ariaLabel: 'Uma cópia a menos desta impressão', onClick: async () => { await collection.setItem(it.key, it.qty - 1); await refresh(); reopen(); } }),
+        IconButton('menos', 'Uma cópia a menos desta impressão', { onClick: async () => { await collection.setItem(it.key, it.qty - 1); await refresh(); reopen(); } }),
         h('span', { class: 'col-print__n' }, String(it.qty)),
-        Button('+', { icon: true, ariaLabel: 'Uma cópia a mais desta impressão', onClick: async () => { await collection.setItem(it.key, it.qty + 1); await refresh(); reopen(); } }),
+        IconButton('mais', 'Uma cópia a mais desta impressão', { onClick: async () => { await collection.setItem(it.key, it.qty + 1); await refresh(); reopen(); } }),
         it.set ? Button('Editar', { variant: 'ghost', onClick: () => editPrinting(it, reopen) }) : null));
   }
   function openPrintings(g0) {
@@ -5726,14 +5779,14 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     if (!u) return mount(undoBar, null);
     mount(undoBar, Surface({ class: 'ds-surface--pad' }, Row({ class: 'ds-row--wrap' },
       Text(`Importação: ${u.copias} cópia(s)${u.nPendentes ? ` · ${u.nPendentes} pendente(s)` : ''}`, { size: 'sm' }), h('div', { class: 'ds-grow' }),
-      Button('Desfazer', { id: 'col-undo-btn', onClick: desfazer }),
+      Button('Desfazer', { id: 'col-undo-btn', icone: 'desfazer', onClick: desfazer }),
       Button('OK', { variant: 'ghost', id: 'col-undo-ok', onClick: () => { state.undo = null; paintUndo(); } }))));
   }
   function paintPending() {
     const n = state.pending.length;
     if (!n) return mount(pendingBox, null);
     mount(pendingBox, Note(`<b>${n} linha(s) da importação ficaram pendentes</b> porque o nome não foi encontrado. `, 'warning'),
-      Row({}, Button('Resolver pendências', { id: 'col-pending-open', onClick: openPending })));
+      Row({}, Button('Resolver pendências', { id: 'col-pending-open', icone: 'marcar', onClick: openPending })));
   }
   function openPending() {
     const list = state.pending;
@@ -5826,7 +5879,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   function paintDashboard(r) {
     const cabeca = Row({ class: 'ds-row--wrap' }, Text('Painel', { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
-      Button(state.painel ? 'Recolher' : 'Mostrar', { variant: 'ghost', id: 'col-dash-toggle', onClick: () => lembra({ painel: !state.painel }) }));
+      Button(state.painel ? 'Recolher' : 'Mostrar', { variant: 'ghost', icone: state.painel ? 'subir' : 'descer', id: 'col-dash-toggle', onClick: () => lembra({ painel: !state.painel }) }));
     if (!state.painel) return mount(dashboard, Surface({ class: 'ds-surface--pad' }, cabeca));
     const res = FL.resumoColecao(r.itens, state.cards);
     const tile = (n, rot, id) => h('div', { class: 'col-dash__tile', id }, Text(String(n), { size: '2xl', display: true }), Text(rot, { size: 'xs', tone: 'muted' }));
@@ -5844,9 +5897,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const toolbar = h('div', { id: 'col-toolbar' });
   async function lembra(p) { Object.assign(state, p); state.limite = 120; state.pilhaAberta = null; paint(); try { await collection.savePrefs({ visao: state.visao, agrupar: state.agrupar, ordenar: state.ordenar, painel: state.painel }); } catch (e) { /* sem armazenamento: só nesta sessão */ } }
   function paintToolbar() {
-    const visoes = [['lista', 'Lista'], ['galeria', 'Galeria'], ['densa', 'Densa'], ['pilhas', 'Pilhas']];
+    const visoes = [['lista', 'Lista', 'linhas'], ['galeria', 'Galeria', 'colecao'], ['densa', 'Densa', 'densa'], ['pilhas', 'Pilhas', 'pilhas']];
     mount(toolbar, Row({ class: 'ds-row--wrap' },
-      Row({ class: 'ds-row--wrap', role: 'group', 'aria-label': 'Visão' }, ...visoes.map(([k, label]) => { const c = Chip(label, { pressed: state.visao === k, dataset: { visao: k } }); c.addEventListener('click', () => lembra({ visao: k })); return c; })),
+      h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Visão' }, ...visoes.map(([k, label, icone]) => { const c = Chip(label, { icone, pressed: state.visao === k, dataset: { visao: k } }); c.addEventListener('click', () => lembra({ visao: k })); return c; })),
       Select(FL.AGRUPAMENTOS.map(([value, label]) => ({ value, label: value ? `Agrupar: ${label}` : label })), { id: 'col-group', value: state.agrupar, onChange: e => lembra({ agrupar: e.target.value }) }),
       Select(FL.ORDENACOES.map(([value, label]) => ({ value, label: `Ordem: ${label}` })), { id: 'col-sort', value: state.ordenar, onChange: e => lembra({ ordenar: e.target.value }) })));
   }
@@ -5897,9 +5950,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const n = state.selected.size;
     mount(selectionBar, Surface({ class: 'ds-surface--pad col-selection' }, Row({ class: 'ds-row--wrap' },
       Text(n ? `${n} carta(s) selecionada(s)` : 'Toque nas cartas para selecionar', { size: 'sm', attrs: { id: 'col-selection-count' } }), h('div', { class: 'ds-grow' }),
-      Button('Todas', { onClick: () => { state.items.forEach(g => state.selected.add(g.key)); paint(); } }),
-      Button('Exportar seleção', { variant: 'primary', id: 'col-export-selection', disabled: !n, onClick: () => openExport({ selecao: true }) }),
-      Button('Sair', { id: 'col-select-off', onClick: () => toggleSelecting(false) }))));
+      Button('Todas', { icone: 'selecionar', id: 'col-select-all', onClick: () => { state.items.forEach(g => state.selected.add(g.key)); paint(); } }),
+      Button('Exportar seleção', { variant: 'primary', icone: 'exportar', id: 'col-export-selection', disabled: !n, onClick: () => openExport({ selecao: true }) }),
+      IconButton('fechar', 'Sair da seleção', { id: 'col-select-off', onClick: () => toggleSelecting(false) }))));
   }
   async function openExport({ selecao = false, filtro = false } = {}) {
     const all = await collection.items();
@@ -5950,18 +6003,19 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
         h('span', { class: 'col-row__titulo' }, Text(g.name, { size: 'md' }), c && c.mana_cost ? h('span', { class: 'col-row__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null), // U3
         Text(printed ? printsSummary(g) : ([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'), { size: 'xs', tone: 'muted' })),
       h('div', { class: 'col-row__qty' },
-        Button('−', { icon: true, ariaLabel: `Uma cópia a menos de ${g.name}`, onClick: () => g.qty > 1 ? setQty(g, g.qty - 1) : confirmRemove(g) }),
+        IconButton('menos', `Uma cópia a menos de ${g.name}`, { onClick: () => g.qty > 1 ? setQty(g, g.qty - 1) : confirmRemove(g) }),
         h('button', { class: 'col-row__n', type: 'button', 'aria-label': `${g.qty} cópias de ${g.name}. Editar`, onClick: () => editQty(g) }, String(g.qty)),
-        Button('+', { icon: true, ariaLabel: `Uma cópia a mais de ${g.name}`, onClick: () => setQty(g, g.qty + 1) }),
-        Button('Remover', { variant: 'ghost', ariaLabel: `Remover ${g.name}`, onClick: () => confirmRemove(g) })));
+        IconButton('mais', `Uma cópia a mais de ${g.name}`, { onClick: () => setQty(g, g.qty + 1) }),
+        IconButton('lixeira', `Remover ${g.name}`, { variant: 'ghost', classe: 'col-row__remover', onClick: () => confirmRemove(g) })));
   }
 
   function paint() {
     const total = state.items.reduce((sum, i) => sum + i.qty, 0);
-    mount(summary, Text(`${state.items.length} carta(s) · ${total} cópia(s)`, { size: 'sm', tone: 'muted' }));
+    // U2 · cada contagem inteira numa linha (em 360 quebrava "3 / cópia(s)")
+    mount(summary, Text([h('span', { class: 'ds-nowrap' }, `${state.items.length} carta(s)`), ' · ', h('span', { class: 'ds-nowrap' }, `${total} cópia(s)`)], { size: 'sm', tone: 'muted' }));
     if (state.loading) return;
     if (!state.items.length) { paintUndo(); paintPending(); mount(dashboard, null); return mount(listEl, Empty('Sua coleção está vazia. Cole uma lista, importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
-      Row({ class: 'ds-row--wrap' }, Button('Importar lista', { onClick: () => openImportList() }), Button('Importar CSV', { onClick: () => csvInput.click() })))); }
+      Row({ class: 'ds-row--wrap' }, Button('Importar lista', { icone: 'importar', onClick: () => openImportList() }), Button('Importar CSV', { icone: 'planilha', onClick: () => csvInput.click() })))); }
     // C12 · o motor de filtro decide o recorte; a ordenação vem depois
     state.filtro = { ...state.filtro, texto: state.filter };
     const r = FL.filtraColecao(state.items, state.filtro, { cards: state.cards, usadoEm: state.usedIn });
@@ -5970,7 +6024,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     paintCount(r);
     paintDashboard(r);
     paintToolbar();
-    if (!r.itens.length) { mount(listEl, Empty(FL.filtroVazio(state.filtro) ? 'Nenhuma carta na coleção.' : 'Nenhuma carta passa por esses filtros.', FL.filtroVazio(state.filtro) ? null : Button('Limpar filtros', { onClick: limparFiltros }))); paintSelection(); paintUndo(); paintPending(); return; }
+    if (!r.itens.length) { mount(listEl, Empty(FL.filtroVazio(state.filtro) ? 'Nenhuma carta na coleção.' : 'Nenhuma carta passa por esses filtros.', FL.filtroVazio(state.filtro) ? null : Button('Limpar filtros', { icone: 'fechar', onClick: limparFiltros }))); paintSelection(); paintUndo(); paintPending(); return; }
     // C13 · ordenar, agrupar e desenhar na visão escolhida, em lotes (a rolagem não trava com milhares)
     const ordenado = FL.ordenaColecao(r.itens, state.ordenar, state.cards);
     const agrupar = state.visao === 'pilhas' ? (state.agrupar || 'tipo') : state.agrupar;
@@ -5980,7 +6034,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       if (state.visao === 'pilhas' && state.pilhaAberta !== g.chave) { partes.push(pilha(g)); continue; }
       const cabe = Math.max(0, Math.min(g.itens.length, restantes)); sobrou += g.itens.length - cabe; restantes -= cabe;
       if (agrupar) partes.push(Row({ class: 'col-group__head', dataset: { group: g.chave } }, Text(g.rotulo, { size: 'lg', display: true, as: 'h2' }), Text(`${g.itens.length} carta(s) · ${g.copias} cópia(s)`, { size: 'sm', tone: 'muted' }),
-        state.visao === 'pilhas' ? Button('Fechar pilha', { variant: 'ghost', dataset: { pileClose: g.chave }, onClick: () => { state.pilhaAberta = null; paint(); } }) : null));
+        state.visao === 'pilhas' ? Button('Fechar pilha', { variant: 'ghost', icone: 'fechar', dataset: { pileClose: g.chave }, onClick: () => { state.pilhaAberta = null; paint(); } }) : null));
       if (!cabe) continue;
       const fatia = g.itens.slice(0, cabe);
       if (state.visao === 'lista') partes.push(h('div', { class: 'col-list ds-surface' }, ...fatia.map(row)));
@@ -6057,23 +6111,24 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   const addIn = Input({ id: 'col-add', placeholder: 'Nome da carta, em inglês', onInput: e => { addState.name = e.target.value; } });
   addIn.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
-  const addBtn = Button('Adicionar', { variant: 'primary', id: 'col-add-btn', onClick: add });
+  const addBtn = IconButton('mais', 'Adicionar carta', { variant: 'primary', id: 'col-add-btn', onClick: add });
   const filterIn = Input({ id: 'col-filter', placeholder: 'Nome ou texto da carta', value: state.filter, onInput: e => { state.filter = e.target.value; paint(); } });
-  filterBtn = Button('Filtros', { id: 'col-filters', onClick: openFilters }); paintFilterBtn();
+  filterBtn = Button('Filtros', { id: 'col-filters', icone: 'filtro', onClick: openFilters }); paintFilterBtn();
 
   load();
   return Stack(pad(),
-    Row({ class: 'ds-row--wrap' }, Stack({ style: { gap: 'var(--space-1)' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
-      Button('Escanear', { variant: 'primary', id: 'col-scan', onClick: () => go('/scanner') }),
-      Button('Buscar cartas', { onClick: () => go('/cartas') })),
+    Row({ class: 'col-topo' }, Stack({ style: { gap: 'var(--space-1)', minWidth: '0' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
+      IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }),
+      Button('Escanear', { variant: 'primary', id: 'col-scan', icone: 'scanner', onClick: () => go('/scanner') })),
     care,
     Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
       Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
-      Row({ class: 'ds-row--wrap' },
-        Button('Importar lista', { id: 'col-import', onClick: () => openImportList() }),
-        Button('Importar CSV', { id: 'col-csv-import', onClick: () => csvInput.click() }),
-        Button('Exportar', { id: 'col-export', onClick: () => openExport() }),
-        Button('Selecionar', { id: 'col-select', onClick: () => toggleSelecting() })),
+      h('div', { class: 'col-acoes' },
+        // U2 · quatro ações em grade de duas colunas, cada uma com ícone
+        Button('Colar lista', { id: 'col-import', icone: 'importar', title: 'Importar uma lista de cartas', onClick: () => openImportList() }),
+        Button('Abrir CSV', { id: 'col-csv-import', icone: 'planilha', title: 'Importar CSV (ManaBox e outros)', onClick: () => csvInput.click() }),
+        Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
+        Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() })),
       csvInput, listInput)),
     undoBar, pendingBox,
     Row({ class: 'ds-row--wrap' },

@@ -84,12 +84,13 @@ test('e2e · criar lista, ver galeria, marcar coleção e exportar faltantes', {
   assert.match(body, /Terrenos/);
   assert.match(await page.innerText('.deck-summary'), /0\/34/);
 
-  await page.click('text=Marcar o que tenho');
+  // U2 (leva 93) · o chip virou "Marcar as minhas" (≤ 3 palavras); o teste passa a usar o id
+  await page.click('#deck-mark');
   await page.locator('.deck-slot').first().click();
   await page.waitForFunction(() => document.querySelector('.deck-summary').innerText.includes('1/34'));
 
-  await page.click('text=Marcar o que tenho');
-  await page.click('text=Exportar');
+  await page.click('#deck-mark');
+  await page.click('#deck-export');
   await page.click('text=Só o que falta');
   const out = await page.inputValue('.ds-dialog textarea');
   assert.doesNotMatch(out, /Malcolm/, 'comandante marcado não aparece nos faltantes');
@@ -506,8 +507,11 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
 
   // listas: a lista abre com os dados das cartas
   await page.goto(base + '#/listas');
+  // U2 parte 2 · sem internet as ações das listas continuam com ícone (SVG do próprio arquivo)
+  assert.equal(await page.locator('#deck-new svg').count(), 1, 'Nova com ícone sem internet');
   await page.click('text=Delver');
   await page.waitForSelector('.deck-summary');
+  assert.equal(await page.locator('#deck-edit svg, #deck-export svg, #deck-delete svg').count(), 3, 'ações da lista com ícone sem internet');
   // U12 · o Delver agora tem imagem; sem service worker no teste, ela falha e a carta cai para o nome (O2) — espera a troca
   await page.waitForFunction(() => /Delver of Secrets/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
   assert.match(await page.innerText('body'), /Delver of Secrets/);
@@ -690,7 +694,8 @@ test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, con
   await page.waitForFunction(() => /0 carta\(s\)/.test(document.querySelector('#col-filters-count').innerText), null, { timeout: 4000 });
   await page.click('#col-filters-apply');
   assert.match(await page.innerText('#col-list'), /Nenhuma carta passa/);
-  assert.match(await page.innerText('#col-filters'), /Filtros \(3\)/);
+  // U2 (leva 93) · expectativa mudou: o texto "Filtros (3)" virou rótulo + selo com o número (o ícone fica)
+  assert.equal((await page.innerText('#col-filters .ds-btn__conta')).trim(), '3', '3 filtro(s) ativo(s)'); assert.match(await page.getAttribute('#col-filters', 'aria-label'), /Filtros, 3 ativo/);
   assert.match(await page.innerText('#col-count-desc'), /azul · instantânea · foil/);
   await page.click('#col-filters-clear');
   await page.waitForSelector('.col-row[data-name="Island"]');
@@ -749,7 +754,8 @@ test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, con
   await page.waitForFunction(() => /1 carta\(s\) · 4 cópia\(s\)/.test(document.querySelector('#col-filters-count').innerText));
   await page.click('#col-filters-apply');
   await page.waitForFunction(() => document.querySelectorAll('.deck-slot').length === 1);
-  assert.match(await page.innerText('#deck-filters'), /Filtros \(1\)/);
+  // U2 (leva 93) · expectativa mudou: o texto "Filtros (1)" virou rótulo + selo com o número (o ícone fica)
+  assert.equal((await page.innerText('#deck-filters .ds-btn__conta')).trim(), '1', '1 filtro(s) ativo(s)'); assert.match(await page.getAttribute('#deck-filters', 'aria-label'), /Filtros, 1 ativo/);
   assert.deepEqual(errors, []);
 });
 
@@ -843,7 +849,8 @@ test('e2e · C14 painel da coleção: números, barra que filtra, curva, recolhe
   assert.match(await page.innerText('.col-row'), /Grizzly Bear/);
   assert.equal(await page.getAttribute('[data-dash="cor:G"]', 'aria-pressed'), 'true');
   assert.match(await page.innerText('#col-dash-cartas'), /^1/);
-  assert.match(await page.innerText('#col-filters'), /Filtros \(1\)/);
+  // U2 (leva 93) · expectativa mudou: o texto "Filtros (1)" virou rótulo + selo com o número (o ícone fica)
+  assert.equal((await page.innerText('#col-filters .ds-btn__conta')).trim(), '1', '1 filtro(s) ativo(s)'); assert.match(await page.getAttribute('#col-filters', 'aria-label'), /Filtros, 1 ativo/);
   await page.click('[data-dash="cor:G"]');
   await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 4);
   // a curva também filtra (custo 2 → Counterspell e Grizzly Bear)
@@ -2003,7 +2010,7 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   assert.equal(await page.locator('[data-starter-add="Pauper Elves"]').count(), 0, 'não oferece adicionar de novo');
 
   await page.click('#starter-back');
-  await page.waitForSelector('#decks-list');
+  await page.waitForSelector('#decks-list .ds-list__item');   // espera a lista pintar (antes lia enquanto ainda carregava)
   const listas = await page.innerText('#decks-list');
   assert.match(listas, /Pauper Elves/);
   assert.match(listas, /Pauper/);
@@ -2181,7 +2188,8 @@ test('e2e · HOMOLOGAÇÃO 3 · H2 link com vários critérios e "&" sobrevive a
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
   assert.equal(await page.inputValue('#col-filter'), 'sol', 'texto volta');
-  assert.match(await page.innerText('#col-filters'), /Filtros \(2\)/, 'edição e acabamento voltam (antes: só o primeiro critério)');
+  // U2 (leva 93) · expectativa mudou: o texto "Filtros (2)" virou rótulo + selo com o número (o ícone fica)
+  assert.equal((await page.innerText('#col-filters .ds-btn__conta')).trim(), '2', 'edição e acabamento voltam (antes: só o primeiro critério)'); assert.match(await page.getAttribute('#col-filters', 'aria-label'), /Filtros, 2 ativo/);
   // texto com & no link
   await page.fill('#col-filter', 'a & b');
   await page.reload(); await page.waitForSelector('#col-filter');
@@ -2372,5 +2380,110 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   await page.click('.ds-dialog >> text=Cancelar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   assert.notEqual(await page.evaluate(() => window.__estanteMesa.estado().status), 'over');
   await page.click('#tb-log'); await page.waitForSelector('#tb-timeline'); await page.keyboard.press('Escape');
+  assert.deepEqual(errors, []);
+});
+
+// U2 parte 2 (leva 93) · listas, listas prontas, lista, editor e coleção: ícones, ações enxutas e tudo cabendo em 360.
+test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalhos numa linha, segmentado e selo de filtros', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const EMOJI = /[\p{Extended_Pictographic}☀-➿]/u;
+  // conteúdo (item de lista, carta) não é chamada para ação: fica fora da contagem de palavras
+  const audita = async onde => {
+    await page.waitForTimeout(350);
+    const r = await page.evaluate(rx => {
+      const EM = new RegExp(rx, 'u');
+      const vis = el => { const b = el.getBoundingClientRect(); const st = getComputedStyle(el); return b.width > 0 && b.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
+      const botoes = [...document.querySelectorAll('main button')].filter(el => vis(el) && !el.closest('.ds-dialog'));
+      return {
+        largura: document.documentElement.scrollWidth,
+        ruins: botoes.map(el => {
+          const conteudo = el.matches('.ds-list__item, .col-row__nome, .col-row__n, .deck-slot button, .ds-card, [data-dash], .deck-curve__col');
+          const rot = [...el.querySelectorAll('.ds-btn__rotulo, .ds-chip__rotulo, .ds-atalho__rotulo')].map(x => x.textContent.trim()).join(' ') || (el.querySelector('svg') ? '' : el.textContent.trim());
+          const nome = (el.getAttribute('aria-label') || el.textContent).trim();
+          const probs = [];
+          if (!nome) probs.push('sem nome');
+          if (EM.test(el.textContent)) probs.push('emoji');
+          if (!conteudo && rot && rot.split(/\s+/).length > 3) probs.push('rótulo longo');
+          if (![...el.querySelectorAll('svg')].every(s => s.closest('[aria-hidden="true"]'))) probs.push('ícone exposto');
+          if (el.getBoundingClientRect().height < 43.5) probs.push('alvo ' + Math.round(el.getBoundingClientRect().height));
+          return probs.length ? `${el.id || el.className.split(' ')[0]} «${nome.slice(0, 30)}»: ${probs.join(', ')}` : null;
+        }).filter(Boolean)
+      };
+    }, EMOJI.source);
+    assert.ok(r.largura <= 360, `${onde}: rolagem lateral (${r.largura})`);
+    assert.deepEqual(r.ruins, [], onde);
+  };
+  const temIcone = async sel => assert.equal(await page.locator(`${sel} svg`).count(), 1, `${sel} com ícone`);
+  const caixa = sel => page.locator(sel).first().boundingBox();
+  const mesmaLinha = async (a, b, msg) => { const [x, y] = [await caixa(a), await caixa(b)]; assert.ok(y.y < x.y + x.height && y.y + y.height > x.y, msg); };
+
+  // listas vazia
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-starter-empty');
+  await temIcone('#decks-starter-empty'); await audita('listas vazia');
+  // prontas: voltar acima do título
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  assert.ok((await caixa('#starter-back')).y + 20 < (await caixa('main h1')).y, 'voltar acima do título');
+  await temIcone('#starter-back'); await audita('listas prontas');
+  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
+  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  // listas: Prontas e Nova na linha do título, com ícone; item com seta
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
+  await temIcone('#deck-starter'); await temIcone('#deck-new'); await temIcone('#decks-backup-export'); await temIcone('#decks-backup-restore');
+  await mesmaLinha('main h1', '#deck-new', 'Nova na linha do título');
+  assert.equal(await page.locator('#decks-list .ds-list__item .ds-list__seta svg').count(), 1);
+  await audita('listas');
+  // lista: editar, exportar e excluir (ícone) na mesma linha; excluir confirma; marcar alterna
+  await page.click('#decks-list .ds-list__item'); await page.waitForSelector('.deck-summary');
+  await temIcone('#deck-edit'); await temIcone('#deck-export'); await temIcone('#deck-delete');
+  await mesmaLinha('#deck-edit', '#deck-delete', 'excluir ao lado de editar');
+  assert.equal(await page.getAttribute('#deck-delete', 'aria-label'), 'Excluir lista');
+  await page.click('#deck-delete'); await page.waitForSelector('.ds-dialog');
+  await page.click('.ds-dialog >> text=Cancelar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.equal(await page.locator('.deck-summary').count(), 1, 'cancelar não exclui');
+  await page.click('#deck-mark'); await page.waitForSelector('#deck-mark[aria-pressed="true"]');
+  await temIcone('#deck-mark'); await audita('lista (marcando)');
+  await page.click('#deck-mark');
+  // editor
+  await page.goto(base + '#/listas/editar'); await page.waitForSelector('#deck-text');
+  assert.equal(await page.getAttribute('[data-ownall]', 'aria-label'), 'Já tenho todas as cartas desta lista', 'nome falado completo');
+  await audita('editor');
+  // coleção vazia e com cartas
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import');
+  await audita('coleção vazia');
+  await page.click('#col-import'); await page.fill('#col-import-text', '1 Sol Ring\n2 Counterspell');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]'); await page.waitForTimeout(300);
+  await mesmaLinha('main h1', '#col-scan', 'Escanear na linha do título'); await mesmaLinha('main h1', '#col-search', 'Buscar na linha do título');
+  assert.equal(await page.getAttribute('#col-search', 'aria-label'), 'Buscar cartas');
+  assert.equal(await page.locator('#col-summary .ds-nowrap').count(), 2, 'contagens sem quebra no meio');
+  for (const id of ['#col-import', '#col-csv-import', '#col-export', '#col-select', '#col-filters', '#col-add-btn']) await temIcone(id);
+  // as quatro ações em duas colunas
+  await mesmaLinha('#col-import', '#col-csv-import', 'Colar lista e Abrir CSV lado a lado');
+  await mesmaLinha('#col-export', '#col-select', 'Exportar e Selecionar lado a lado');
+  // visões: segmentado numa linha só, com ícone em cada parte
+  const visoes = await page.$$eval('.ds-segmentado [data-visao]', els => els.map(e => ({ y: Math.round(e.getBoundingClientRect().y), svg: !!e.querySelector('svg'), dir: Math.round(e.getBoundingClientRect().right) })));
+  assert.equal(visoes.length, 4); assert.ok(visoes.every(v => v.y === visoes[0].y && v.svg && v.dir <= 360), 'quatro visões numa linha: ' + JSON.stringify(visoes));
+  // − e + viraram ícones; a lixeira tem nome falado com a carta
+  const linha = '.col-row[data-name="Counterspell"]';
+  assert.equal(await page.locator(`${linha} button[aria-label^="Uma cópia a"] svg`).count(), 2);
+  assert.equal(await page.locator(`${linha} button[aria-label="Remover Counterspell"] svg`).count(), 1);
+  await page.click(`${linha} button[aria-label^="Uma cópia a mais"]`);
+  await page.waitForFunction(() => document.querySelector('.col-row[data-name="Counterspell"] .col-row__n').textContent.trim() === '3');
+  await audita('coleção');
+  // selo de filtros: o ícone fica e o número aparece ao lado
+  assert.equal(await page.isHidden('#col-filters .ds-btn__conta'), true, 'sem filtro, sem selo');
+  await page.click('#col-filters'); await page.waitForSelector('#col-filters-body');
+  await page.locator('#col-filters-body [data-tipo]').first().click(); await page.click('#col-filters-apply');
+  await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.equal((await page.innerText('#col-filters .ds-btn__conta')).trim(), '1');
+  await temIcone('#col-filters');
+  assert.match(await page.getAttribute('#col-filters', 'aria-label'), /Filtros, 1 ativo/);
+  // seleção: sair é ícone com nome falado
+  await page.click('#col-select'); await page.waitForSelector('#col-select-off');
+  assert.equal(await page.getAttribute('#col-select-off', 'aria-label'), 'Sair da seleção');
+  await temIcone('#col-select-all'); await audita('coleção (selecionando)');
+  await page.click('#col-select-off');
   assert.deepEqual(errors, []);
 });
