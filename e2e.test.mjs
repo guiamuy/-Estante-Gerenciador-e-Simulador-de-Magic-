@@ -38,7 +38,10 @@ const DB = Object.fromEntries([
   { ...card('Grizzly Bear', 'Creature — Bear', ['G'], 2), mana_cost: '{1}{G}', power: '2', toughness: '2' },
   { ...card('Mystery Ritual', 'Sorcery', ['U'], 2), oracle_text: 'Faz algo que o motor ainda não entende.' },
   { ...card('Prodigal Sorcerer', 'Creature — Human Wizard', ['U'], 3), mana_cost: '{2}{U}', power: '1', toughness: '1', oracle_text: '{T}: Prodigal Sorcerer deals 1 damage to any target.' },
-  { ...card('Elvish Visionary', 'Creature — Elf Shaman', ['G'], 2), mana_cost: '{1}{G}', power: '1', toughness: '1', oracle_text: 'When Elvish Visionary enters, draw a card.' }
+  { ...card('Elvish Visionary', 'Creature — Elf Shaman', ['G'], 2), mana_cost: '{1}{G}', power: '1', toughness: '1', oracle_text: 'When Elvish Visionary enters, draw a card.' },
+  // E50 P3 · carta que cria ficha, e a ficha como a Scryfall a guarda (tipo "Token", com imagem)
+  { ...card('Thraben Inspector', 'Creature — Human Soldier', ['W'], 1), mana_cost: '{W}', power: '1', toughness: '2', oracle_text: 'When Thraben Inspector enters, investigate.' },
+  { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
 async function open(t) {
@@ -58,6 +61,9 @@ async function open(t) {
     if (r.request().url().includes('/catalog/card-names')) return r.fulfill({ json: { object: 'catalog', data: Object.values(DB).map(c => c.name) } });
     if (r.request().url().includes('/cards/search')) {
       const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '').toLowerCase();
+      // E50 P3 · busca de ficha: !"nome" t:token (com pow/tou) devolve só cartas de tipo Token
+      const ficha = q.match(/^!"(.+)" t:token/);
+      if (ficha) return r.fulfill({ json: { object: 'list', data: Object.values(DB).filter(c => c.name.toLowerCase() === ficha[1] && /token/i.test(c.type_line)), has_more: false } });
       const exact = q.match(/^!"(.+)"$/);
       const words = q.split(/[\s:()"=<>]+/).filter(w => w.length > 2);
       const data = exact
@@ -1933,8 +1939,25 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
   }
   await page.locator('.tb-side--me .tb-card[aria-label^="Prodigal Sorcerer"]').click();
   await page.click(`.ds-dialog >> text=/Ativar \\({T}\\) → ${outro}/`);
-  // a habilidade não pode ser respondida por Counterspell: resolve sozinha (o cartão da habilidade
-  // com "causa 1 de dano" e alvo tem teste de unidade em explicaPilha); aqui vale o efeito
+  // E50 P6 · a habilidade não pode ser respondida por Counterspell, então ela resolve sem parar na tela; o painel
+  // da pilha com ela é montado aqui com o estado real da mesa (a habilidade que acabou de ser ativada) e conferido:
+  // mostra a carta de origem (não um cartão "hab.") e a linha oficial em inglês
+  const painel = await page.evaluate(() => {
+    const s = JSON.parse(JSON.stringify(window.__estanteMesa.estado()));
+    const src = Object.values(s.objects).find(o => o.name === 'Prodigal Sorcerer' && o.zone === 'battlefield');
+    s.objects.abx = { oid: 'abx', ability: true, name: 'Prodigal Sorcerer', source: src.oid, effects: s.facts['Prodigal Sorcerer'].script.abilities[0].effects, controller: src.controller, targets: [{ player: 1 - src.controller }], zone: 'stack' };
+    s.stack = ['abx'];
+    const p = __m18.explicaPilha(s, { oracleDe: n => n === 'Prodigal Sorcerer' ? '{T}: Prodigal Sorcerer deals 1 damage to any target.' : '' });
+    const el = __m17.StackPanel({ itens: p.itens, prioridade: p.prioridade, imgOf: n => n === 'Prodigal Sorcerer' ? 'https://cards.scryfall.io/small/front/x/prodigal.png' : null });
+    const it = el.querySelector('.tb-stack__card');
+    return { hab: (it.querySelector('.tb-stack__hab') || {}).textContent, texto: it.textContent, img: (it.querySelector('.tb-card__face img') || {}).getAttribute ? it.querySelector('.tb-card__face img').getAttribute('src') : null, what: it.querySelector('.tb-stack__what').textContent, lang: it.querySelector('.tb-stack__what').getAttribute('lang') };
+  });
+  assert.equal(painel.hab, 'habilidade');
+  assert.doesNotMatch(painel.texto, /hab\./);
+  assert.match(String(painel.img), /prodigal\.png$/, 'a carta de origem na pilha');
+  assert.match(painel.what, /deals 1 damage to any target/, 'linha oficial em inglês');
+  assert.equal(painel.lang, 'en');
+  assert.doesNotMatch(painel.what, /causa|dano a|-you-control/);
   await resolve();
   await page.waitForFunction(() => /19/.test(document.querySelector('#tb-life-opp').innerText + document.querySelector('#tb-life-me').innerText), null, { timeout: 8000 });
 
@@ -2522,5 +2545,154 @@ test('e2e · E50 X no topo de todo diálogo (fixo ao rolar, fecha, foco não vai
   await page.click('#deck-delete'); await page.waitForSelector('.ds-dialog');
   await page.click('#ds-dialog-close'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   assert.equal(await page.locator('.deck-summary').count(), 1, 'fechar pelo X não exclui');
+  assert.deepEqual(errors, []);
+});
+
+// E50 P4 · o momento e a dica da bandeja: cortados em 360, viram botão que abre um balão com o texto inteiro.
+test('e2e · E50 balão da bandeja: texto cortado marca, um toque abre o balão inteiro por cima, X ou toque fora fecham', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
+  await page.click('[data-starter-format="pauper"]'); await page.click('[data-starter-add="Pauper Elves"]');
+  await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '7'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.waitForTimeout(400);
+  const texto = page.locator('.tb-dock__bar .tb-banner__text');
+  assert.equal(await texto.getAttribute('data-cortado'), 'true', 'em 360 a dica da mão inicial não cabe');
+  assert.equal(await texto.getAttribute('aria-expanded'), 'false');
+  assert.ok((await texto.boundingBox()).height >= 44, 'o texto é um alvo de toque');
+  assert.equal(await page.locator('.tb-dock__bar .tb-banner__mais').isVisible(), true, 'indicador de que há mais');
+  await texto.click();
+  const balao = page.locator('.tb-dock__bar .tb-balao');
+  await balao.waitFor({ state: 'visible' });
+  assert.equal(await texto.getAttribute('aria-expanded'), 'true');
+  const tb = await balao.innerText();
+  assert.match(tb, /mão inicial/i); assert.match(tb, /Manter ou embaralhar e comprar 7 de novo\./, 'a dica inteira');
+  const [bb, db] = [await balao.boundingBox(), await page.locator('#tb-dock').boundingBox()];
+  assert.ok(bb.y + bb.height <= db.y + 60, 'o balão abre por cima da bandeja');
+  assert.ok(bb.x >= 0 && bb.x + bb.width <= 360, 'cabe na tela');
+  await balao.locator('button[aria-label="Fechar"]').click();
+  await balao.waitFor({ state: 'hidden' });
+  assert.equal(await texto.getAttribute('aria-expanded'), 'false');
+  // toque fora também fecha
+  await texto.click(); await balao.waitFor({ state: 'visible' }); await page.waitForTimeout(150);
+  await page.locator('#tb-vez').click(); await balao.waitFor({ state: 'hidden' });
+  // os botões da barra continuam funcionando com o balão fechado
+  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  assert.deepEqual(errors, []);
+});
+
+// E50 P3 · ficha com imagem: a carta que cria a ficha traz os dados dela (Scryfall, tipo Token) ao preparar a partida,
+// a mesa mostra a imagem da ficha e o guardião guarda ficha e imagem junto com a lista.
+test('e2e · E50 fichas têm imagem: dados vêm ao preparar, a mesa mostra a ficha com figura, e ficam guardados para jogar sem internet', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  const pedidas = [];
+  page.on('request', r => { if (r.url().includes('/cards/search')) pedidas.push(decodeURIComponent(new URL(r.url()).searchParams.get('q'))); });
+  await createDeck(page, base, 'Pistas', '20 Plains\n10 Thraben Inspector', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('[data-mana]');
+  await page.fill('#mesa-seed', '2');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  assert.ok(pedidas.some(q => /^!"Clue" t:token/.test(q)), 'ao preparar, a ficha foi pedida à Scryfall como token: ' + JSON.stringify(pedidas));
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep');
+  await reveal(page); await toMyMain(page);
+  await drawUntil(page, 'Thraben Inspector'); await handCard(page, 'Thraben Inspector').click(); await page.click('.ds-dialog >> text=Conjurar');
+  for (let i = 0; i < 6 && await page.locator('.tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
+  if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
+  const ficha = page.locator('.tb-side--me .tb-card[aria-label^="Clue"]').first();
+  await ficha.waitFor({ timeout: 8000 });
+  const img = await ficha.locator('img').first().getAttribute('src');
+  assert.match(String(img), /clue\.png$/, 'a ficha na mesa tem a imagem da Scryfall');
+  assert.match(await ficha.getAttribute('aria-label'), /ficha/, 'continua marcada como ficha');
+  // a folha da ficha abre com o texto oficial dela
+  await ficha.click(); await page.waitForSelector('.ds-dialog');
+  assert.match(await page.innerText('.ds-dialog'), /Sacrifice this artifact: Draw a card/);
+  await page.keyboard.press('Escape');
+  // a ficha ficou guardada: sem rede, o repositório responde do cache
+  const guardada = await page.evaluate(async () => { const r = new Promise((res, rej) => { const q = indexedDB.open('mtg', 1); q.onsuccess = () => { const tx = q.result.transaction('kv'); const g = tx.objectStore('kv').get('card.ficha:clue'); g.onsuccess = () => res(g.result); g.onerror = rej; }; q.onerror = rej; }); return r; });
+  assert.ok(guardada && guardada.card && guardada.pin, 'ficha fixada no aparelho: ' + JSON.stringify(guardada && Object.keys(guardada)));
+  assert.deepEqual(errors, []);
+});
+
+// E50 P2 · a janela depois dos bloqueios: o atacante vê quem bloqueou quem, responde (remoção no bloqueador) e só
+// então o dano acontece; a defensora também tem a vez de responder. Antes, o passo era pulado direto para o dano.
+test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, marcas nas cartas, resposta antes do dano', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Raios', '20 Island\n10 Sky Pike\n10 Wall Guard\n10 Lightning Bolt', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('[data-mana]'); // mana livre
+  await page.fill('#mesa-seed', '2');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  const put = async name => { await drawUntil(page, name); await handCard(page, name).click(); await page.click('.ds-dialog >> text=Conjurar'); for (let i = 0; i < 4 && await page.locator('.tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); } if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done'); };
+  await reveal(page); await toMyMain(page);
+  const first = (await page.innerText('#tb-life-me')).includes('Ana') ? 'Ana' : 'Bia';
+  await put(first === 'Ana' ? 'Sky Pike' : 'Wall Guard');
+  // com Raios nos dois grimórios, a outra jogadora ganha paradas para responder: passa até chegar à principal da outra
+  for (let i = 0; i < 12 && !(await page.locator('#tb-pass-turn').count()); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
+  await page.click('#tb-pass-turn'); await reveal(page); await toMyMain(page);
+  await put(first === 'Ana' ? 'Wall Guard' : 'Sky Pike');
+  for (let i = 0; i < 16 && !(await page.locator('#tb-attack').count()); i++) {
+    await reveal(page);
+    if (await page.locator('#tb-no-attack').count() && !(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').count())) { await page.click('#tb-no-attack'); continue; }
+    if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn'); else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
+  }
+  // o atacante garante um Raio na mão antes de atacar (vai responder ao bloqueio)
+  await drawUntil(page, 'Lightning Bolt');
+  await page.locator('.tb-side--me .tb-card[data-eligible="true"][aria-label*="Sky Pike"]').click();
+  await page.click('#tb-attack');
+  // com o Raio na mão, a atacante ganha uma parada logo depois de declarar: passa; a cortina leva à defensora
+  const ate = async re => { for (let i = 0; i < 10; i++) { await reveal(page); if (re.test(await page.textContent('.tb-banner'))) return; if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(100); } throw new Error('não chegou a ' + re); };
+  await ate(/Declarar bloqueadores/);
+  await page.locator('.tb-side--me .tb-card[data-eligible="true"][aria-label*="Wall Guard"]').click();
+  await page.click('.ds-dialog >> text=Bloquear Sky Pike');
+  await page.click('#tb-block');
+  // a vez passa para o atacante ANTES do dano: cortina, depois o quadro dos bloqueios
+  await page.waitForSelector('#tb-handoff'); await page.click('#tb-reveal');
+  await page.waitForSelector('.tb-banner'); await page.waitForTimeout(200);
+  const faixa = await page.textContent('.tb-banner');
+  assert.match(faixa, /Bloqueios declarados/, 'o atacante vê o quadro: ' + faixa);
+  assert.match(faixa, /Sky Pike ← Wall Guard/);
+  assert.match(faixa, /Sua janela/);
+  assert.equal(await page.locator('#tb-pass').innerText(), 'Ir ao dano');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/janela-bloqueios.png' }); await page.click('.tb-dock__bar .tb-banner__text'); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/janela-balao.png' }); await page.click('.tb-dock__bar .tb-banner__text'); }
+  // marcas: o atacante mostra o bloqueador; o bloqueador mostra quem bloqueia
+  assert.match(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').first().getAttribute('aria-label'), /← Wall Guard/);
+  assert.match(await page.locator('.tb-side--opp .tb-card[aria-label*="Wall Guard"]').first().getAttribute('aria-label'), /→ Sky Pike/);
+  const vidaAntes = await page.innerText('#tb-life-opp');
+  // resposta: Raio no bloqueador
+  await handCard(page, 'Lightning Bolt').click();
+  await page.click('.ds-dialog >> text=/Conjurar → Wall Guard/');
+  await page.waitForSelector('#tb-stack, #tb-handoff');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/janela-pos-raio.png' });
+  await reveal(page); await page.waitForSelector('.tb-banner, #tb-resumo', { timeout: 8000 });
+  if (await page.locator('#tb-resumo-ok').count()) await page.click('#tb-resumo-ok');
+  const dep = await page.textContent('.tb-banner');
+  assert.ok(/Pilha: Lightning Bolt|Bloqueios/.test(dep), 'depois do Raio: ' + dep);
+  // a defensora responde ou passa; depois o Raio resolve e o dano de combate vem em seguida
+  for (let i = 0; i < 8; i++) {
+    await reveal(page);
+    if (await page.locator('#tb-resumo-ok').count()) await page.click('#tb-resumo-ok');
+    const b = (await page.locator('.tb-banner').count()) ? await page.textContent('.tb-banner') : '';
+    if (!(await page.locator('.tb-stack').count()) && !/Bloqueios/.test(b)) break;
+    if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(100);
+  }
+  await reveal(page);
+  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  const log = await page.innerText('.ds-dialog');
+  assert.match(log, /bloqueou: Wall Guard → Sky Pike/);
+  assert.match(log, /conjurou Lightning Bolt/);
+  assert.match(log, /Wall Guard morreu/, 'o bloqueador morreu (3 do Raio + 2 de combate ≥ 4)');
+  assert.doesNotMatch(log, /vida 20 → 18/, 'o Sky Pike continuou bloqueado: nada passou');
+  assert.equal(await page.innerText('#tb-life-opp'), vidaAntes);
   assert.deepEqual(errors, []);
 });

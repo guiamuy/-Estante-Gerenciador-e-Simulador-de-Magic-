@@ -492,3 +492,22 @@ test('C12b · visões salvas: nome + filtro, por aparelho, com apagar', async ()
   const c2 = D.createCollection({ store: P.memoryStore() });
   assert.equal((await c2.views()).length, 0, 'outro aparelho não vê');
 });
+
+// E50 P5 · as listas prontas do Pauper separam a reserva; a partida só carrega o titular.
+test('E50 P5 · toda lista pronta de Pauper tem principal com 60 ou mais e reserva de até 15, e a reserva não entra no grimório', () => {
+  const { starter: S, engine: E } = loadModules();
+  for (const d of S.STARTER_DECKS.filter(x => x.format === 'pauper')) {
+    const es = D.parseDeckText(d.text).entries;
+    const side = es.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0);
+    const main = es.filter(e => e.zone !== 'side').reduce((n, e) => n + e.qty, 0);
+    assert.ok(main >= 60 && main <= 64, `${d.name}: principal ${main}`);
+    assert.ok(side >= 11 && side <= 15, `${d.name}: reserva ${side}`);
+    assert.equal(main + side, 75, `${d.name}: 75 no total`);
+    // na mesa, o grimório tem só o principal
+    const s = E.createGame({ format: 'pauper', seed: 1, players: [{ name: 'A', deck: es }, { name: 'B', deck: [], dummy: true }] });
+    const lib = Object.values(s.objects).filter(o => o.owner === 0).length;
+    assert.equal(lib, main, `${d.name}: ${lib} objetos na mesa`);
+  }
+  const elves = D.parseDeckText(S.STARTER_DECKS.find(x => x.name === 'Pauper Elves').text).entries;
+  assert.deepEqual(JSON.parse(JSON.stringify(elves.filter(e => e.zone === 'side').map(e => e.name).slice(0, 3))), ['Hydroblast', 'Masked Vandal', "Nylea's Disciple"]);
+});

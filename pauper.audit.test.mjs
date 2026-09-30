@@ -55,7 +55,9 @@ function cartasPauper() {
   const nomes = new Set();
   for (const d of starter.STARTER_DECKS) {
     if (d.format !== 'pauper') continue;
-    for (const e of D.parseDeckText(d.text).entries) if (e.zone !== 'side') nomes.add(e.name);
+    // E50 P5 · as listas prontas agora separam a reserva; a auditoria continua cobrindo a reserva também
+    // (o jogador pode mover cartas dela para o principal ao editar a lista)
+    for (const e of D.parseDeckText(d.text).entries) nomes.add(e.name);
   }
   return [...nomes];
 }

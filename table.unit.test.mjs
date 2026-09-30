@@ -227,7 +227,8 @@ test('A13 · anel e marcas: ataca, bloqueia, alvo de mágica, ficha, aura anexad
   s.objects.feitico = { oid: 'feitico', name: 'Lightning Bolt', zone: 'stack', controller: 1, targets: [{ oid: 'o4' }] };
   s.stack = ['feitico'];
   const a = T.estadoDaCarta(s, s.objects.o0); assert.equal(a.anel, 'ataca'); assert.deepEqual(marcas(a), ['ataca']);
-  const b = T.estadoDaCarta(s, s.objects.o1); assert.equal(b.anel, 'bloqueia'); assert.deepEqual(marcas(b), ['bloqueia']);
+  // E50 P2 · expectativa mudou: a bloqueadora diz QUEM bloqueia ("→ Sky Pike"), não só "bloqueia"
+  const b = T.estadoDaCarta(s, s.objects.o1); assert.equal(b.anel, 'bloqueia'); assert.deepEqual(marcas(b), ['→ Sky Pike']);
   const c = T.estadoDaCarta(s, s.objects.o2); assert.deepEqual(marcas(c), ['ficha', 'com Wall Guard'], 'ficha e "encantada" pela anexada');
   const d = T.estadoDaCarta(s, s.objects.o3); assert.deepEqual(marcas(d), ['→ Sky Pike'], 'a anexada aponta para quem está');
   const e = T.estadoDaCarta(s, s.objects.o4); assert.equal(e.anel, 'alvo'); assert.deepEqual(marcas(e), ['alvo de Lightning Bolt']);
@@ -280,12 +281,15 @@ test('A14 · a pilha explicada: topo primeiro, quem, o que faz (script, permanen
   s.stack = ['mist', 'crit', 'bolt', 'hab'];
   const p = T.explicaPilha(s, { oracleDe: n => n === 'Mystery Ritual' ? 'Faz algo estranho.\nSegunda linha.' : '' });
   assert.equal(p.prioridade, 'Bot');
-  assert.deepEqual(JSON.parse(JSON.stringify(p.itens.map(i => [i.nome, i.quem, i.oQueFaz, i.alvos, i.topo]))), [
-    ['Habilidade de Sky Pike', 'Bot', 'compra 1 carta', ['Você'], true],
-    ['Lightning Bolt', 'Você', 'causa 3 de dano a qualquer alvo', ['Sky Pike'], false],
-    ['Sky Pike', 'Você', 'entra no campo de batalha', [], false],
-    ['Mystery Ritual', 'Você', 'Faz algo estranho.', [], false]
+  // E50 P6 · expectativa mudou: o texto oficial, quando guardado, vale inteiro (antes só a primeira linha);
+  // sem texto guardado, a descrição do script em português continua valendo
+  assert.deepEqual(JSON.parse(JSON.stringify(p.itens.map(i => [i.nome, i.quem, i.oQueFaz, i.alvos, i.topo, i.oficial]))), [
+    ['Habilidade de Sky Pike', 'Bot', 'compra 1 carta', ['Você'], true, false],
+    ['Lightning Bolt', 'Você', 'causa 3 de dano a qualquer alvo', ['Sky Pike'], false, false],
+    ['Sky Pike', 'Você', 'entra no campo de batalha', [], false, false],
+    ['Mystery Ritual', 'Você', 'Faz algo estranho.\nSegunda linha.', [], false, true]
   ]);
+  assert.equal(p.itens[0].origem, undefined, 'habilidade sem origem guardada'); assert.equal(p.itens[1].origem, 'bolt');
   const vazia = T.explicaPilha(mesa([]));
   assert.equal(vazia.vazia, true); assert.equal(vazia.itens.length, 0);
   const semOracle = T.explicaPilha({ ...s, stack: ['mist'] });
@@ -415,4 +419,64 @@ test('A16 · resumo do turno: vida, compras, o que entrou e o que foi para o cem
   const meu = t.resumos.find(x => x.turno === turno);
   assert.ok(meu, 'resumo do meu turno guardado');
   assert.ok(meu.linhas.some(l => /Entrou: .*Island/.test(l)), 'o terreno aparece no resumo: ' + meu.linhas.join(' | '));
+});
+
+test('E50 P6 · com o texto oficial guardado, a pilha fala inglês: a mágica mostra o texto inteiro e a habilidade mostra só a sua linha', () => {
+  const s = mesa([{ name: 'Sky Pike' }], { turn: { active: 0, step: 'main1', priority: 0 }, players: [{ name: 'Você', life: 20 }, { name: 'Shark', life: 20 }] });
+  const ORACLE = {
+    'Kor Skyfisher': 'Flying\nWhen Kor Skyfisher enters the battlefield, return a permanent you control to its owner\'s hand.',
+    'Timberwatch Elf': '{T}: Target creature gets +X/+X until end of turn, where X is the number of Elves on the battlefield.',
+    'Lightning Bolt': 'Lightning Bolt deals 3 damage to any target.',
+    'Dupla': 'Whenever you gain life, draw a card.\n{T}: Add {G}.\nWhenever a creature dies, you lose 1 life.'
+  };
+  s.facts['Kor Skyfisher'] = { types: ['creature'], script: { triggers: [{ on: 'etb', effects: [{ do: 'bounce', target: 'permanent-you-control' }] }] } };
+  s.facts['Timberwatch Elf'] = { types: ['creature'], script: { abilities: [{ cost: '{T}', effects: [{ do: 'pump', target: 'creature' }] }] } };
+  s.facts['Lightning Bolt'] = { types: ['instant'], script: { effects: [{ do: 'damage', amount: 3, target: 'any' }] } };
+  s.facts['Dupla'] = { types: ['creature'], script: { triggers: [{ effects: [{ do: 'draw', amount: 1 }] }, { effects: [{ do: 'lose', amount: 1 }] }], abilities: [{ effects: [{ do: 'add_mana' }] }] } };
+  s.objects.kor = { oid: 'kor', name: 'Kor Skyfisher', zone: 'battlefield', controller: 1 };
+  s.objects.ab1 = { oid: 'ab1', name: 'Kor Skyfisher', ability: true, source: 'kor', zone: 'stack', controller: 1, effects: [{ do: 'bounce', target: 'permanent-you-control' }], targets: [] };
+  s.objects.ab2 = { oid: 'ab2', name: 'Timberwatch Elf', ability: true, source: 'x', zone: 'stack', controller: 0, effects: [{ do: 'pump', target: 'creature' }], targets: [{ oid: 'o0' }] };
+  s.objects.ab3 = { oid: 'ab3', name: 'Dupla', ability: true, source: 'y', zone: 'stack', controller: 0, effects: [{ do: 'lose', amount: 1 }], targets: [] };
+  s.objects.bolt = { oid: 'bolt', name: 'Lightning Bolt', zone: 'stack', controller: 0, targets: [{ oid: 'o0' }] };
+  s.stack = ['bolt', 'ab3', 'ab2', 'ab1'];
+  const p = T.explicaPilha(s, { oracleDe: n => ORACLE[n] || '' });
+  assert.deepEqual(JSON.parse(JSON.stringify(p.itens.map(i => [i.nome, i.oQueFaz, i.oficial, i.origem, i.imagemDe]))), [
+    ['Habilidade de Kor Skyfisher', "When Kor Skyfisher enters the battlefield, return a permanent you control to its owner's hand.", true, 'kor', 'Kor Skyfisher'],
+    ['Habilidade de Timberwatch Elf', ORACLE['Timberwatch Elf'], true, 'x', 'Timberwatch Elf'],
+    ['Habilidade de Dupla', 'Whenever a creature dies, you lose 1 life.', true, 'y', 'Dupla'],
+    ['Lightning Bolt', 'Lightning Bolt deals 3 damage to any target.', true, 'bolt', 'Lightning Bolt']
+  ]);
+  for (const it of p.itens) assert.doesNotMatch(it.oQueFaz, /[a-z]+-[a-z]+-[a-z]+|devolve|causa/, 'nada de chave de script nem português misturado: ' + it.oQueFaz);
+  // linha oficial: sem correspondência segura (duas ativadas, script só com uma) devolve o texto inteiro
+  const facts2 = { script: { abilities: [{ effects: [{ do: 'add_mana' }] }] } };
+  assert.equal(T.linhaOficialDaHabilidade({ effects: [{ do: 'add_mana' }] }, facts2, '{T}: Add {G}.\n{T}: Add {R}.'), '{T}: Add {G}.\n{T}: Add {R}.');
+  assert.equal(T.linhaOficialDaHabilidade({ effects: [] }, {}, ''), '');
+  // sem texto guardado, a descrição em português não vaza chaves do script
+  assert.equal(T.descreveEfeito({ do: 'bounce', target: 'permanent-you-control' }), 'devolve uma permanente que você controla para a mão do dono');
+  assert.equal(T.descreveAlvo('each-creature-opponent-controls'), 'cada criatura de um oponente');
+  assert.equal(T.descreveAlvo('creature-blocked-by-source'), 'uma criatura blocked by source');
+  assert.equal(T.descreveAlvo('own-forest'), 'own forest');
+});
+
+test('E50 P2 · depois dos bloqueios: resumo por atacante, marcas "← bloqueador" e "livre", e a janela de cada lado', () => {
+  const s = mesa([{ name: 'Sky Pike', attacking: 1 }, { name: 'Sky Pike', attacking: 1 }, { name: 'Wall Guard', controller: 1, blocking: 'o0' }],
+    { turn: { active: 0, step: 'combat_blockers', priority: 0 }, players: [{ name: 'Ana', life: 20 }, { name: 'Bia', life: 20 }] });
+  s.objects.o0.blockedBy = ['o2']; s.objects.o0.blocked = true;
+  s.combat = { attackers: ['o0', 'o1'] };
+  const r = T.resumoDosBloqueios(s, 0);
+  assert.equal(r.titulo, 'Bloqueios declarados'); assert.equal(r.atacante, true);
+  assert.equal(r.texto, 'Sky Pike ← Wall Guard · Sky Pike: sem bloqueio');
+  assert.equal(r.bloqueados, 1); assert.equal(r.livres, 1);
+  assert.match(r.dica, /Sua janela/);
+  const rd = T.resumoDosBloqueios(s, 1); assert.equal(rd.titulo, 'Bloqueios feitos'); assert.equal(rd.atacante, false);
+  assert.deepEqual(marcas(T.estadoDaCarta(s, s.objects.o0)), ['← Wall Guard']);
+  assert.deepEqual(marcas(T.estadoDaCarta(s, s.objects.o1)), ['livre']);
+  assert.deepEqual(marcas(T.estadoDaCarta(s, s.objects.o2)), ['→ Sky Pike']);
+  // ainda declarando (pendência), não há resumo e o atacante sem bloqueio ainda só "ataca"
+  s.pending = { kind: 'blockers', p: 1 };
+  assert.equal(T.resumoDosBloqueios(s, 0), null);
+  assert.deepEqual(marcas(T.estadoDaCarta(s, s.objects.o1)), ['ataca']);
+  s.pending = null; s.turn.step = 'combat_damage';
+  assert.equal(T.resumoDosBloqueios(s, 0), null, 'só no passo de bloqueadores');
+  // a parada automática depois dos bloqueios (quem tem resposta para; quem não tem, não) é coberta no e2e "E50 janela"
 });

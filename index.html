@@ -566,6 +566,9 @@ body {
 .ds-text--positive { color: var(--positive); }
 .ds-text--negative { color: var(--negative); }
 .deck-group { margin-top: var(--space-5); }
+.deck-group--reserva { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 2px dashed var(--border-strong); }
+.deck-group--reserva .ds-cardgrid { opacity: .78; }
+.deck-group__nota { margin-left: auto; }
 .deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
 .deck-slot { position: relative; }
 .deck-slot[data-missing="true"] .ds-card img { opacity: .42; filter: grayscale(.85); }
@@ -716,7 +719,22 @@ body {
   padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 }
 .tb-banner { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding-bottom: var(--space-2); }
-.tb-banner__text { flex: 1 1 180px; display: flex; flex-direction: column; min-width: 0; }
+.tb-banner { position: relative; }
+.tb-banner__text { flex: 1 1 180px; display: flex; flex-direction: column; min-width: 0; position: relative; padding: 0 var(--space-4) 0 0; border-radius: var(--radius-1); text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.tb-banner__mais { position: absolute; right: 0; top: 50%; transform: translateY(-50%) rotate(180deg); color: var(--fg-subtle); display: none; }
+.tb-banner__text[data-cortado="true"] .tb-banner__mais { display: inline-flex; }
+.tb-banner__text[aria-expanded="true"] .tb-banner__mais { transform: translateY(-50%) rotate(0deg); }
+/* balão por cima da bandeja com o momento e a dica inteiros */
+.tb-balao { position: absolute; left: 0; right: 0; bottom: calc(100% + var(--space-2)); z-index: 2; display: flex; gap: var(--space-2); align-items: flex-start;
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-2);
+  background: var(--bg-elev-2); color: var(--fg); box-shadow: var(--shadow-3); animation: ds-rise var(--dur-2) var(--ease-out); }
+.tb-balao[hidden] { display: none; }
+.tb-balao::after { content: ''; position: absolute; left: var(--space-5); bottom: -7px; width: 12px; height: 12px; transform: rotate(45deg); background: var(--bg-elev-2); border-right: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong); }
+.tb-balao__texto { flex: 1 1 auto; min-width: 0; }
+.tb-balao__texto strong { display: block; font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); color: var(--accent); }
+.tb-banner[data-tone="warning"] .tb-balao__texto strong { color: var(--warning); }
+.tb-balao__texto p { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--fg); line-height: var(--lh-sm); }
+.tb-balao__fechar { flex: none; margin: -6px -2px 0 0; }
 .tb-banner__text strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); color: var(--accent); }
 .tb-banner[data-tone="warning"] .tb-banner__text strong { color: var(--warning); }
 .tb-banner__text span { font-size: var(--text-sm); color: var(--fg-muted); }
@@ -733,7 +751,7 @@ body {
 .tb-dock.is-arrastando .tb-dock__grip span { width: 56px; opacity: 1; }
 .tb-dock__bar { display: flex; align-items: center; gap: var(--space-2); touch-action: none; -webkit-user-select: none; user-select: none; }
 .tb-dock__bar .tb-banner { flex: 1 1 auto; min-width: 0; padding-bottom: 0; flex-wrap: nowrap; gap: var(--space-2); }
-.tb-dock__bar .tb-banner__text { flex: 1 1 auto; min-width: 0; }
+.tb-dock__bar .tb-banner__text { flex: 1 1 auto; min-width: 0; min-height: var(--tap-min); justify-content: center; }
 .tb-dock__bar .tb-banner__text strong { font-size: var(--text-md); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tb-dock__bar .tb-banner__text span { font-size: var(--text-xs); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tb-dock__bar .tb-banner__actions { flex: 0 0 auto; flex-wrap: nowrap; justify-content: flex-end; gap: var(--space-1); }
@@ -800,6 +818,10 @@ body {
 .tb-stack__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tb-stack__title { display: flex; gap: var(--space-1); align-items: center; flex-wrap: wrap; font-family: var(--font-display); font-size: var(--text-md); }
 .tb-stack__what { font-size: var(--text-sm); color: var(--fg); }
+.tb-stack__what--oficial { white-space: pre-line; }
+.tb-stack__card .tb-card { position: relative; }
+.tb-stack__hab { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); font-size: 10px; line-height: 1.2; padding: 1px 6px; border-radius: var(--radius-full);
+  background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); white-space: nowrap; }
 .tb-stack__target { font-size: var(--text-xs); color: var(--fg-muted); }
 @media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
 
@@ -2083,6 +2105,27 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
       }
       await Promise.all(writes);
       return { fixadas, faltando, novas: novos.length };
+    },
+    /** E50 P3 · dados e imagem das fichas (Scryfall guarda ficha como carta com tipo "Token"). Cache primeiro, fixado
+        para sempre; a busca é "!nome t:token", com força/resistência quando é criatura. Devolve Map chave→carta|null. */
+    async fichas(defs, { onlineOnly = false } = {}) {
+      const out = new Map();
+      for (const t of defs || []) {
+        const chave = 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
+        const rec = await readCache(chave);
+        if (rec && (rec.card || fresh(rec))) { out.set(chave, rec.card); continue; }
+        if (onlineOnly) { out.set(chave, null); continue; }
+        try {
+          const q = `!"${t.name}" t:token` + (t.power != null ? ` pow=${t.power} tou=${t.toughness}` : '') + ((t.colors || []).length ? ` c=${t.colors.join('').toLowerCase()}` : '');
+          let achadas = await scryfall.search(q, { pages: 1, unique: 'prints' });
+          if (!achadas.length && (t.colors || []).length) achadas = await scryfall.search(`!"${t.name}" t:token` + (t.power != null ? ` pow=${t.power} tou=${t.toughness}` : ''), { pages: 1, unique: 'prints' });
+          const card = achadas.find(c => c.images || (c.faces && c.faces[0] && c.faces[0].images)) || null;
+          const novo = { ts: now(), card, pin: !!card };
+          mem.set(chave, novo); await store.set(KEY(chave), novo);
+          out.set(chave, card);
+        } catch (e) { stats.degraded = true; out.set(chave, rec ? rec.card : null); }
+      }
+      return out;
     },
     /** Quantos destes nomes já estão guardados para jogar sem rede. */
     async pinned(names) {
@@ -3817,6 +3860,28 @@ for (const sc of RAW_SCRIPTS) {
   if (errs.length) SCRIPT_ERRORS[sc.name] = errs; else SCRIPTS[sc.name] = sc;
 }
 
+/* ---------------- E50 P3 · fichas que as cartas criam ---------------- */
+/** Percorre um script inteiro (efeitos, habilidades, gatilhos, modos, alternativas) e devolve as fichas que ele cria. */
+function fichasDoScript(sc) {
+  const out = [];
+  const anda = v => {
+    if (!v || typeof v !== 'object') return;
+    if (Array.isArray(v)) return v.forEach(anda);
+    if (v.do === 'token' && v.token && v.token.name) out.push(v.token);
+    for (const k of Object.keys(v)) if (k !== 'token') anda(v[k]);
+  };
+  anda(sc);
+  return out;
+}
+/** Chave estável de uma ficha: nome + força/resistência (Goblin 1/1 e Goblin 2/2 são fichas diferentes). */
+const chaveDaFicha = t => `${String(t.name).toLowerCase()}${t.power != null ? ` ${t.power}/${t.toughness}` : ''}`;
+/** Fichas únicas criadas pelas cartas destes nomes (só as com script). */
+function fichasDasCartas(names) {
+  const vistas = new Map();
+  for (const n of names || []) { const sc = SCRIPTS[n]; if (!sc) continue; for (const t of fichasDoScript(sc)) { const k = chaveDaFicha(t); if (!vistas.has(k)) vistas.set(k, t); } }
+  return [...vistas.values()];
+}
+
 /* ---------------- S2 · cobertura ---------------- */
 const KW_LINE = new RegExp(`^(${KEYWORDS.join('|')})(,\\s*(${KEYWORDS.join('|')}))*$`, 'i');
 const MANA_LINE = /^\{T\}: Add /i;
@@ -3881,7 +3946,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, DUNGEONS, dungeonByName, roomById };
+return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -4480,8 +4545,10 @@ const __m24 = (function () {
    As listas que já vêm com o app, no mesmo formato de texto que a leitura
    de lista entende. Não há um segundo caminho de dados: a lista pronta é
    lida pelo mesmo parseDeckText de uma lista colada à mão.
-   As sete do Pauper têm o deck principal com 75 cartas porque a origem não
-   separava a reserva; dá para editar a lista e mover 15 para a reserva.
+   E50 P5 · as sete do Pauper têm a reserva separada por "Sideboard" (a origem não separava;
+   o corte é depois do último terreno, onde toda lista de torneio fecha o principal). Em quatro
+   delas a origem já tinha somado cópias da reserva ao principal (Mono Blue 62/13, Rakdos 62/13, Walls 64/11, Jund 63/12): o
+   principal fica válido (≥ 60) e a reserva, incompleta; dá para ajustar editando a lista.
    ===================================================================== */
 const STARTER_DECKS = [
   { name: "Pauper Mono Blue Faeries", format: 'pauper', text: `4 Brinebarrow Intruder
@@ -4497,6 +4564,8 @@ const STARTER_DECKS = [
 4 Cryoshatter
 3 Sewer-veillance Cam
 19 Island
+
+Sideboard
 4 Hydroblast
 3 Steel Sabotage
 2 Annul
@@ -4519,6 +4588,8 @@ const STARTER_DECKS = [
 2 Razortrap Gorge
 2 Swamp
 1 Rakdos Carnarium
+
+Sideboard
 4 Red Elemental Blast
 2 Duress
 2 Nihil Spellbomb
@@ -4542,6 +4613,8 @@ const STARTER_DECKS = [
 12 Forest
 3 Plains
 2 Sheltering Landscape
+
+Sideboard
 3 Mask of Law and Grace
 2 Flaring Pain
 2 Journey to Nowhere
@@ -4568,6 +4641,8 @@ const STARTER_DECKS = [
 3 Mountain
 3 Boros Garrison
 1 Wind-Scarred Crag
+
+Sideboard
 3 Red Elemental Blast
 3 Dust to Dust
 2 Electrickery
@@ -4595,6 +4670,8 @@ const STARTER_DECKS = [
 4 Lead the Stampede
 4 Winding Way
 12 Forest
+
+Sideboard
 3 Masked Vandal
 2 Faerie Macabre
 2 Moment's Peace
@@ -4621,6 +4698,8 @@ const STARTER_DECKS = [
 2 Forest
 2 Vault of Whispers
 1 Mountain
+
+Sideboard
 3 Weather the Storm
 3 Red Elemental Blast
 3 Troublemaker Ouphe
@@ -4641,6 +4720,8 @@ const STARTER_DECKS = [
 4 Winding Way
 2 Distant Melody
 14 Forest
+
+Sideboard
 3 Hydroblast
 2 Masked Vandal
 2 Nylea's Disciple
@@ -5140,6 +5221,7 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
     mount(list, h('div', { class: 'ds-list' }, ...all.map(d => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
+      const reserva = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
       const cmd = d.entries.filter(e => e.zone === 'commander').map(e => e.name).join(' + ');
       return h('button', { class: 'ds-list__item', type: 'button', onClick: () => go('/lista?id=' + d.id) },
         Stack({ style: { gap: 'var(--space-1)', textAlign: 'left' } },
@@ -5147,7 +5229,7 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
           cmd ? Text(cmd, { size: 'sm', tone: 'muted' }) : null),
         h('div', { class: 'ds-grow' }),
         Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
-          Badge(FORMATS[d.format] || d.format, { tone: 'accent' }),
+          Row({ style: { gap: 'var(--space-1)' } }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), reserva ? Badge(`+${reserva} reserva`, { title: `${reserva} carta(s) na reserva: ficam de fora da partida` }) : null),
           Text(`tenho ${have} de ${need}`, { size: 'xs', tone: have === need ? 'positive' : 'muted' })),
         Icone('seguir', { tamanho: 18, classe: 'ds-list__seta' }));
     })));
@@ -5176,7 +5258,8 @@ function createStarterDecks({ decks }) {
   const state = { format: 'all', minhas: [], busy: false, erro: null };
   const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander']];
 
-  const contagem = texto => parseDeckText(texto).entries.reduce((n, e) => n + e.qty, 0);
+  // E50 P5 · principal e reserva contados separados
+  const contagem = texto => { const es = parseDeckText(texto).entries; const side = es.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0); const main = es.reduce((n, e) => n + e.qty, 0) - side; return side ? `${main} cartas + ${side} na reserva` : `${main} cartas`; };
   const jaTenho = nome => state.minhas.some(d => norm(d.name) === norm(nome));
 
   async function adicionar(item) {
@@ -5227,7 +5310,7 @@ function createStarterDecks({ decks }) {
         return h('div', { class: 'ds-list__item' },
           Stack({ style: { gap: 'var(--space-1)', textAlign: 'left' } },
             Text(item.name, { size: 'lg', display: true }),
-            Text(`${contagem(item.text)} cartas`, { size: 'sm', tone: 'muted' })),
+            Text(contagem(item.text), { size: 'sm', tone: 'muted' })),
           h('div', { class: 'ds-grow' }),
           Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
             Badge(FORMATS[item.format] || item.format, { tone: 'accent' }),
@@ -5408,8 +5491,10 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
         .sort((a, b) => ((entryCard(a) || {}).cmc || 0) - ((entryCard(b) || {}).cmc || 0) || a.name.localeCompare(b.name));
       if (!items.length) return null;
       const n = items.reduce((s, e) => s + e.qty, 0);
-      return Stack({ class: 'deck-group' },
-        Row({ class: 'deck-group__head' }, Text(label, { size: 'lg', display: true, as: 'h2' }), Text(String(n), { size: 'sm', tone: 'muted' })),
+      // E50 P5 · a reserva fica visualmente separada do deck titular e diz que não entra na partida
+      return Stack({ class: 'deck-group' + (key === 'side' ? ' deck-group--reserva' : ''), dataset: { grupo: key } },
+        Row({ class: 'deck-group__head' }, Text(label, { size: 'lg', display: true, as: 'h2' }), Text(String(n), { size: 'sm', tone: 'muted' }),
+          key === 'side' ? Text('fora da partida · trocas entre jogos', { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs ds-text--subtle deck-group__nota' } }) : null),
         h('div', { class: 'ds-cardgrid' }, ...items.map(e => {
           const c = entryCard(e);
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
@@ -9718,14 +9803,16 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek }) {
   if (!itens.length) return null;
   const cartao = it => {
     const b = h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
-      h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && !it.habilidade && imgOf(it.imagemDe) ? h('img', { src: imgOf(it.imagemDe), alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, it.habilidade ? 'hab.' : it.nome))),
+      // E50 P6 · a habilidade mostra a carta de onde veio (antes: um cartão escrito "hab.")
+      h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && imgOf(it.imagemDe) ? h('img', { src: imgOf(it.imagemDe), alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, it.imagemDe || it.nome)),
+        it.habilidade ? h('span', { class: 'tb-card__pill tb-stack__hab' }, 'habilidade') : null),
       h('span', { class: 'tb-stack__text' },
         h('span', { class: 'tb-stack__title' }, it.nome, it.topo ? h('span', { class: 'tb-pill tb-pill--estado' }, 'resolve a seguir') : null),
         h('span', { class: 'tb-stack__who' }, `de ${it.quem}`),
-        h('span', { class: 'tb-stack__what' }, it.oQueFaz),
+        h('span', { class: 'tb-stack__what' + (it.oficial ? ' tb-stack__what--oficial' : ''), lang: it.oficial ? 'en' : null }, it.oQueFaz),
         it.alvos.length ? h('span', { class: 'tb-stack__target' }, `→ ${it.alvos.join(', ')}`) : null));
     // A15 · segurar espia a carta da pilha também
-    if (onPeek && !it.habilidade) __m20.onLongPress(b, { start: () => onPeek(it, true), end: () => onPeek(it, false) });
+    if (onPeek) __m20.onLongPress(b, { start: () => onPeek(it, true), end: () => onPeek(it, false) });
     return b;
   };
   return h('section', { class: 'tb-stack', id: 'tb-stack', 'aria-label': 'pilha' },
@@ -9752,10 +9839,26 @@ function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [
 }
 
 /** O momento de prioridade: frase curta e ação primária sempre no mesmo lugar. */
+/** E50 P4 · o momento e a dica cabem numa linha só quando há espaço; cortados, viram um botão que abre um
+    balão por cima da bandeja com o texto inteiro. `data-cortado` é medido depois de montar. */
 function PriorityBanner({ title, hint, actions, tone }) {
-  return h('div', { class: 'tb-banner', dataset: { tone: tone || 'default' }, role: 'status', 'aria-live': 'polite' },
-    h('div', { class: 'tb-banner__text' }, h('strong', {}, title), hint ? h('span', {}, hint) : null),
-    h('div', { class: 'tb-banner__actions' }, ...(actions || [])));
+  const texto = h('button', { class: 'tb-banner__text', type: 'button', 'aria-expanded': 'false', title: hint ? `${title} — ${hint}` : title },
+    h('strong', {}, title), hint ? h('span', {}, hint) : null, Icone('descer', { tamanho: 14, classe: 'tb-banner__mais' }));
+  const balao = h('div', { class: 'tb-balao', role: 'note', hidden: true },
+    h('div', { class: 'tb-balao__texto' }, h('strong', {}, title), hint ? h('p', {}, hint) : null),
+    IconButton('fechar', 'Fechar', { variant: 'ghost', classe: 'tb-balao__fechar', onClick: () => abre(false) }));
+  const banner = h('div', { class: 'tb-banner', dataset: { tone: tone || 'default' }, role: 'status', 'aria-live': 'polite' },
+    texto, h('div', { class: 'tb-banner__actions' }, ...(actions || [])), balao);
+  const fora = e => { if (!balao.contains(e.target) && e.target !== texto && !texto.contains(e.target)) abre(false); };
+  function abre(sim) {
+    balao.hidden = !sim; texto.setAttribute('aria-expanded', String(sim)); banner.dataset.balao = String(sim);
+    if (sim) setTimeout(() => document.addEventListener('pointerdown', fora, { once: true }), 0); else document.removeEventListener('pointerdown', fora);
+  }
+  texto.addEventListener('click', () => abre(balao.hidden));
+  const mede = () => { if (!texto.isConnected) return; const cortado = [...texto.querySelectorAll('strong, span')].some(el => el.scrollWidth > el.clientWidth + 1); texto.dataset.cortado = String(cortado); };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(mede);
+  if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(() => { if (!texto.isConnected) return ro.disconnect(); mede(); }); ro.observe(texto); }
+  return banner;
 }
 
 /** Cartão de adjudicação: o motor não sabe o efeito, o jogador aplica. */
@@ -9916,6 +10019,9 @@ const RESPONSE_STOPS = new Set(['combat_attackers', 'end']);
 function shouldStop(s, i) {
   const respond = E.legalActions(s, i).some(a => a.t !== 'pass' && a.t !== 'tap_mana'); // gerar mana sozinho não é resposta
   if (s.stack.length) return respond;
+  // E50 P2 · depois dos bloqueios declarados, quem tem resposta (pump, remoção, habilidade) para antes do dano —
+  // o atacante primeiro (prioridade dele), depois o defensor. Antes o passo era pulado e o dano vinha direto.
+  if (s.turn.step === 'combat_blockers' && s.combat && (s.combat.attackers || []).length) return respond;
   if (s.turn.active === i) return s.turn.step === 'combat_attackers' ? respond : ACTIVE_STOPS.has(s.turn.step); // a declaração em si já é uma parada (pendência)
   if (s.players[s.turn.active].dummy && s.turn.step === 'combat_attackers') return false; // goldfish não ataca
   return respond && RESPONSE_STOPS.has(s.turn.step);
@@ -10113,8 +10219,12 @@ function estadoDaCarta(s, o, plano = null) {
   if (o.faceDown) marcas.push({ k: 'virada-baixo', texto: 'face para baixo' });
   const alvoDe = (s.stack || []).filter(id => { const it = s.objects[id]; return it && (it.targets || []).some(t => t && t.oid === o.oid); }).map(id => s.objects[id].name);
   let anel = null;
-  if (o.attacking != null) { marcas.push({ k: 'ataca', texto: 'ataca' }); anel = 'ataca'; }
-  else if (o.blocking != null && o.blocking !== false) { marcas.push({ k: 'bloqueia', texto: 'bloqueia' }); anel = 'bloqueia'; }
+  // E50 P2 · depois dos bloqueios, a carta diz com quem está travada ("← Wall Guard") ou que passou livre
+  const bloqueadores = (o.blockedBy || []).filter(b => s.objects[b]);
+  if (o.attacking != null && bloqueadores.length) { marcas.push({ k: 'ataca', texto: `← ${s.objects[bloqueadores[0]].name.split(',')[0]}${bloqueadores.length > 1 ? ` +${bloqueadores.length - 1}` : ''}` }); anel = 'ataca'; }
+  else if (o.attacking != null && s.turn.step === 'combat_blockers' && !(s.pending && s.pending.kind === 'blockers')) { marcas.push({ k: 'ataca', texto: 'livre' }); anel = 'ataca'; }
+  else if (o.attacking != null) { marcas.push({ k: 'ataca', texto: 'ataca' }); anel = 'ataca'; }
+  else if (o.blocking != null && o.blocking !== false) { marcas.push({ k: 'bloqueia', texto: s.objects[o.blocking] ? `→ ${s.objects[o.blocking].name.split(',')[0]}` : 'bloqueia' }); anel = 'bloqueia'; }
   if (alvoDe.length) { marcas.push({ k: 'alvo', texto: `alvo de ${alvoDe[0].split(',')[0]}` }); anel = anel || 'alvo'; }
   if (o.attachedTo && s.objects[o.attachedTo]) marcas.push({ k: 'anexo', texto: `→ ${s.objects[o.attachedTo].name.split(',')[0]}` });
   const anexos = s.zones.flatMap(z => z.battlefield).filter(x => s.objects[x].attachedTo === o.oid);
@@ -10187,13 +10297,25 @@ function agrupaLeque(s, oids, { separa } = {}) {
 const agrupaTerrenos = (s, oids, opts) => agrupaLeque(s, oids, opts);
 
 /* ---- A14 · a pilha explicada, em português de jogador ---- */
+/** E50 P6 · chave de alvo do script fora do dicionário vira português legível, nunca "permanent-you-control". */
+function descreveAlvo(chave) {
+  const k = String(chave);
+  const base = { creature: 'criatura', permanent: 'permanente', land: 'terreno', artifact: 'artefato', enchantment: 'encantamento', player: 'jogador', opponent: 'oponente', spell: 'mágica', card: 'carta' };
+  const each = k.startsWith('each-');
+  const semEach = each ? k.slice(5) : k;
+  const nome = Object.keys(base).find(b => semEach === b || semEach.startsWith(b + '-')) || null;
+  const resto = nome ? semEach.slice(nome.length + 1) : semEach;
+  const qual = { 'you-control': 'que você controla', 'opponent-controls': 'de um oponente', 'own': 'sua', 'other': 'outra', 'nonflying': 'sem voar', 'attacking': 'atacante', 'blocking': 'bloqueadora', 'tapped': 'virada', 'untapped': 'desvirada' }[resto] || resto.replace(/-/g, ' ');
+  if (!nome) return (each ? 'cada ' : '') + qual;
+  return (each ? 'cada ' : (['player', 'opponent'].includes(nome) ? 'um ' : 'uma ')) + base[nome] + (qual && qual !== nome ? ' ' + qual : '');
+}
 const ALVO_PT = { any: 'qualquer alvo', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
-  const alvo = e.target ? (ALVO_PT[e.target] || e.target) : null;
+  const alvo = e.target ? (ALVO_PT[e.target] || descreveAlvo(e.target)) : null;
   const n = qtd(e.amount);
   switch (e.do) {
     case 'draw': return `compra ${plural(n, 'carta', 'cartas')}`;
@@ -10237,22 +10359,58 @@ function descreveEfeito(e) {
   }
 }
 const descreveEfeitos = effects => (effects || []).map(descreveEfeito).filter(Boolean).join('; ');
-/** A pilha do topo para baixo: quem, o que faz, alvos; quem tem a prioridade. `oracleDe(nome)` cobre carta sem script. */
+/** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
+    Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
+    a posição no script decide. Sem correspondência segura, devolve o texto inteiro. */
+function linhaOficialDaHabilidade(o, facts, oracle) {
+  const texto = String(oracle || '').trim(); if (!texto) return '';
+  const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
+  const sc = (facts && facts.script) || {};
+  const mesmo = a => a && JSON.stringify(a.effects || []) === JSON.stringify(o.effects || []);
+  const iG = (sc.triggers || []).findIndex(mesmo), iA = (sc.abilities || []).findIndex(mesmo);
+  const gatilhos = linhas.filter(l => /^(When|Whenever|At the beginning)\b/.test(l));
+  const ativadas = linhas.filter(l => /^[^.:]{1,60}:\s/.test(l) && !/^(When|Whenever|At the beginning)\b/.test(l));
+  // a posição só é confiável quando script e carta têm o mesmo número de linhas daquele tipo
+  if (iG >= 0 && gatilhos.length === (sc.triggers || []).length && gatilhos[iG]) return gatilhos[iG];
+  if (iA >= 0 && ativadas.length === (sc.abilities || []).length && ativadas[iA]) return ativadas[iA];
+  if (iG >= 0 && gatilhos.length === 1) return gatilhos[0];
+  if (iA >= 0 && ativadas.length === 1) return ativadas[0];
+  return texto;
+}
+/** E50 P2 · o quadro dos bloqueios declarados, do ponto de vista de v: cada atacante com quem o bloqueia
+    (ou "sem bloqueio"), e o que cada lado pode fazer agora. Só vale no passo de bloqueadores, com ataque em curso
+    e sem declaração pendente. */
+function resumoDosBloqueios(s, v) {
+  if (!s.combat || !(s.combat.attackers || []).length || s.turn.step !== 'combat_blockers' || (s.pending && s.pending.kind === 'blockers')) return null;
+  const nome = oid => ((s.objects[oid] || {}).name || '?').split(',')[0];
+  const linhas = s.combat.attackers.map(a => { const o = s.objects[a] || {}; const por = (o.blockedBy || []).filter(b => s.objects[b]); return { oid: a, nome: nome(a), bloqueadores: por.map(b => ({ oid: b, nome: nome(b) })), controlador: o.controller }; });
+  const bloqueados = linhas.filter(l => l.bloqueadores.length), livres = linhas.filter(l => !l.bloqueadores.length);
+  const atacante = s.turn.active === v;
+  const texto = linhas.map(l => l.bloqueadores.length ? `${l.nome} ← ${l.bloqueadores.map(b => b.nome).join(' + ')}` : `${l.nome}: sem bloqueio`).join(' · ');
+  return { linhas, bloqueados: bloqueados.length, livres: livres.length, atacante, texto,
+    titulo: atacante ? 'Bloqueios declarados' : 'Bloqueios feitos',
+    dica: atacante ? 'Sua janela: reforce, remova um bloqueador ou passe para o dano.' : 'Sua janela: responda antes do dano ou passe.' };
+}
+/** A pilha do topo para baixo: quem, o que faz, alvos; quem tem a prioridade. `oracleDe(nome)` cobre carta sem script.
+    E50 P6 · o que faz é o texto oficial da carta (inglês) sempre que ele estiver guardado; a descrição em português
+    do script só entra sem o texto (offline sem dados), e `oficial` diz qual dos dois é. */
 function explicaPilha(s, { oracleDe = () => '' } = {}) {
   const nomeDo = t => t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : t.player != null ? ((s.players[t.player] || {}).name || `jogador ${t.player + 1}`) : '';
   const itens = s.stack.slice().reverse().map((oid, i) => {
     const o = s.objects[oid]; if (!o) return null;
     const facts = (s.facts && s.facts[o.name]) || {};
-    let oQueFaz = '';
-    if (o.ability) oQueFaz = descreveEfeitos(o.effects) || 'habilidade';
+    let oQueFaz = '', oficial = false;
+    const oracle = String(oracleDe(o.name) || '');
+    const permanente = (facts.types || []).some(t => ['creature', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle'].includes(t));
+    if (o.ability) { oQueFaz = linhaOficialDaHabilidade(o, facts, oracle); oficial = !!oQueFaz; if (!oQueFaz) oQueFaz = descreveEfeitos(o.effects) || 'habilidade'; }
+    else if (permanente && !(facts.script && (facts.script.effects || []).length)) oQueFaz = 'entra no campo de batalha';
+    else if (oracle.trim()) { oQueFaz = oracle.trim(); oficial = true; }
     else {
       const sc = facts.script;
-      const permanente = (facts.types || []).some(t => ['creature', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle'].includes(t));
       if (sc && (sc.effects || []).length) oQueFaz = descreveEfeitos(sc.effects);
-      else if (permanente) oQueFaz = 'entra no campo de batalha';
-      else { const or = String(oracleDe(o.name) || '').split('\n')[0]; oQueFaz = or ? or : 'sem script: você aplica o efeito na mesa'; }
+      else oQueFaz = 'sem script: você aplica o efeito na mesa';
     }
-    return { oid, nome: o.ability ? `Habilidade de ${o.name}` : o.name, quem: (s.players[o.controller] || {}).name || '?', oQueFaz, alvos: (o.targets || []).map(nomeDo).filter(Boolean), topo: i === 0, habilidade: !!o.ability, imagemDe: o.name };
+    return { oid, nome: o.ability ? `Habilidade de ${o.name}` : o.name, quem: (s.players[o.controller] || {}).name || '?', oQueFaz, oficial, alvos: (o.targets || []).map(nomeDo).filter(Boolean), topo: i === 0, habilidade: !!o.ability, imagemDe: o.name, origem: o.ability ? o.source : oid };
   }).filter(Boolean);
   const pr = s.turn && s.turn.priority != null ? s.players[s.turn.priority] : null;
   return { itens, prioridade: pr ? pr.name : null, vazia: !itens.length };
@@ -10335,7 +10493,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, descreveEfeito, descreveEfeitos, explicaPilha, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -10388,7 +10546,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     const FORMAT_KEYS = ['pauper', 'commander', 'livre'].filter(k => all.some(d => d.format === k));
     state.format = 'all';
     const visiveis = () => all.filter(d => state.format === 'all' || d.format === state.format);
-    const optsDe = lista => lista.map(d => ({ value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format}` }));
+    // E50 P5 · o rótulo diz quantas cartas entram no grimório; a reserva fica de fora e é dita à parte
+    const contaDeck = d => { let main = 0, side = 0; for (const e of d.entries) { if (e.zone === 'side') side += e.qty; else main += e.qty; } return { main, side }; };
+    const optsDe = lista => lista.map(d => { const c = contaDeck(d); return { value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format} · ${c.main} cartas${c.side ? ` (+${c.side} na reserva)` : ''}` }; });
     const opts = optsDe(all);
     const mineField = h('div', {});
     const formatBox = h('div', { id: 'mesa-format' });
@@ -10434,7 +10594,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
       let guardadas = 0;
       try { guardadas = await cardRepo.pinned(nomes); } catch (e) { /* sem armazenamento: some o aviso */ }
       const prontaOffline = guardadas >= nomes.length;
+      const reserva = contaDeck(d).side;
       mount(covBox, Stack({ style: { gap: 'var(--space-1)' } },
+        reserva ? Text(`Reserva: ${reserva} carta(s) ficam de fora da partida. Trocas entre jogos entram depois.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-reserva' } }) : null,
         Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · você aplica o efeito de ${cv.parcial + cv.manual} carta(s) na mesa` : ' · nada a adjudicar'), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }),
         faltam.length ? Text(`Fica com você: ${faltam.slice(0, 6).join(', ')}${faltam.length > 6 ? ` e mais ${faltam.length - 6}` : ''}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
         prontaOffline
@@ -10518,6 +10680,11 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         const found = await cardRepo.byNames(names);
         const cards = {}; let unknown = 0;
         for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; else unknown++; }
+        // E50 P3 · as fichas que essas cartas criam entram no mapa pelo nome da ficha (imagem e texto na mesa)
+        try {
+          const defs = __m23.fichasDasCartas(names);
+          if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c && !cards[t.name]) cards[t.name] = c; } }
+        } catch (e) { /* sem ficha guardada: a mesa mostra o nome */ }
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
           comBot ? { name: __m25.NOME_DO_BOT, deck: theirs }
@@ -11023,6 +11190,11 @@ function createTableScreen({ store }) {
         actions: mine.map((q, i) => Button(q.name, { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-trigger', onClick: () => act({ t: 'order_trigger', p: v, index: i }) })) });
     } else if (s.pending && s.pending.kind === 'discard') {
       banner = PriorityBanner({ title: `Descarte ${s.pending.n} carta(s)`, hint: 'Mão acima de 7 na limpeza. Toque nas cartas da mão.', tone: 'warning', actions: [] });
+    } else if (s.turn.priority === v && !s.stack.length && T.resumoDosBloqueios(s, v)) {
+      // E50 P2 · a janela depois dos bloqueios: quem bloqueou quem, e que este é o momento de responder
+      const rb = T.resumoDosBloqueios(s, v);
+      banner = PriorityBanner({ title: rb.titulo, hint: `${rb.texto}. ${rb.dica}`, tone: 'warning',
+        actions: [Button(rb.atacante ? 'Ir ao dano' : 'Passar', { variant: 'primary', id: 'tb-pass', onClick: () => act({ t: 'pass', p: v }) })] });
     } else if (s.turn.priority === v) {
       const top = s.stack.length ? s.objects[s.stack[s.stack.length - 1]].name : null;
       banner = PriorityBanner({
@@ -11121,7 +11293,8 @@ function createTableScreen({ store }) {
     const opp = s.players.map((_, i) => i).find(i => i !== v);
     // A14 · a pilha explicada em português, do topo para baixo
     const pilha = T.explicaPilha(s, { oracleDe: oracleOf });
-    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, onOpen: it => { if (!it.habilidade) openObject(it.oid); }, onPeek: (it, aberto) => peek(it.oid, aberto) });
+    // E50 P6 · toque e segurar numa habilidade abrem/espiam a carta de origem (se ainda existir na mesa)
+    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, onOpen: it => { const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
       name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
       controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],
@@ -12162,6 +12335,11 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
     if (tamanho && r.fixadas.length) {
       const mapa = await cardRepo.byNames(r.fixadas);
       imagens = await aquecer([...mapa.values()].filter(Boolean), tamanho);
+    }
+    // E50 P3 · as fichas que estas cartas criam também ficam guardadas, com imagem
+    if (tamanho && cardRepo.fichas && __m23.fichasDasCartas) {
+      const defs = __m23.fichasDasCartas(unicos);
+      if (defs.length) { const f = await semFalha(() => cardRepo.fichas(defs), new Map()); imagens += await aquecer([...f.values()].filter(Boolean), tamanho); }
     }
     return { ...r, imagens };
   }

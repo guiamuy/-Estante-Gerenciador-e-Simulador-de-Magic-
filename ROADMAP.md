@@ -439,7 +439,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 | E43 🟡 | U1 (leva 82) · U3 (levas 90 e 91) · U2 (levas 92 e 93, partes 1 e 2) · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
-| E50 🟡 | P1 (leva 94) · P2 · P3 · P4 · P5 · P6 · P7 | Polimento de jogo e app (pedido de 30/09): ícone com relevo, X nos diálogos, bloqueio mais claro, imagens de fichas, balão na bandeja, side deck separado, pilha com a carta e texto oficial |
+| E50 ✅ | P1 (leva 94) · P2–P6 (leva 95) | Polimento de jogo e app (pedido de 30/09): ícone com relevo, X nos diálogos, bloqueio mais claro, imagens de fichas, balão na bandeja, side deck separado, pilha com a carta e texto oficial |
 | E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 (leva 85) · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 ✅ | U12 (leva 86) | Imagens do jogo baixadas sozinhas quando há internet |
 | E46 🟡 | U10 (leva 87) · U11 | Shark: um bot só, com nome, e mais forte |
@@ -2967,12 +2967,31 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** `icone.unit.test.mjs` (fonte única, zona segura do mascarável, PNG 512); e2e "E50 X no topo".
 - **Fora:** o botão "Fechar" do rodapé continua nos diálogos que já tinham; sai quando a parte 3 do U2 passar pelos diálogos.
 
-**P2 · Declaração de bloqueio mais clara e janela do atacante depois dos bloqueios** ○
-**P3 · Imagens de fichas** ○
-**P4 · Balão expansível na bandeja da mão** ○
-**P5 · Side deck separado do deck titular (listas e mesa)** ○
-**P6 · Pilha mostra a carta de origem e o texto oficial em inglês** ○
-**P7 · (absorvido em P1: X nos diálogos)**
+**P2 · Declaração de bloqueio mais clara e janela do atacante depois dos bloqueios** ✅ (leva 95)
+- **Entregue:** depois dos bloqueios, a mesa PARA para quem tem resposta (antes o passo `combat_blockers` era pulado direto para o dano: o atacante nunca podia reforçar ou tirar um bloqueador). A faixa do atacante vira "Bloqueios declarados" com o quadro "Sky Pike ← Wall Guard · Outra: sem bloqueio" e "Sua janela: reforce, remova um bloqueador ou passe para o dano"; o botão diz "Ir ao dano". A defensora recebe a mesma janela ("Bloqueios feitos"). Nas cartas: o atacante bloqueado mostra "← bloqueador", o que passou mostra "livre", o bloqueador mostra "→ quem bloqueia" (antes só "ataca"/"bloqueia").
+- **Regra que muda o resultado:** nenhuma regra do motor mudou (a prioridade depois dos bloqueios já era do jogador ativo); mudou onde a mesa para sozinha (`shouldStop`). Goldens intactos.
+- **Testes:** `table.unit` (resumoDosBloqueios, marcas); e2e "E50 janela do atacante" (Raio no bloqueador antes do dano; a defensora vê o Raio na pilha).
+
+**P3 · Imagens de fichas** ✅ (leva 95)
+- **Entregue:** as fichas que as cartas da lista criam (Clue, Elf Warrior, Goblin, Treasure…) são buscadas na Scryfall como cartas de tipo Token (`!"nome" t:token`, com força/resistência e cor quando é criatura), guardadas para sempre no repositório (chave `ficha:`) e as imagens baixadas junto com as da lista pelo guardião. Na mesa a ficha aparece com a figura e o texto oficial na folha.
+- **Sem internet:** ao preparar a partida sem rede, só as fichas já guardadas têm imagem (as outras mostram o nome, como antes); o guardião completa quando a rede volta.
+- **Testes:** `fichas.unit.test.mjs` (coleta nos scripts, busca, cache, sem rede, rede quebrada); e2e "E50 fichas têm imagem".
+- **Fora:** fichas criadas por cartas sem script (adjudicação manual) continuam sem imagem.
+
+**P4 · Balão expansível na bandeja da mão** ✅ (leva 95)
+- **Entregue:** o momento e a dica na barra da bandeja viram um botão (44px) quando não cabem — um chevron indica que há mais — e um toque abre um balão por cima da bandeja com o título e a dica inteiros; X ou toque fora fecham; medido de novo a cada mudança de tamanho.
+- **Testes:** e2e "E50 balão da bandeja".
+
+**P5 · Side deck separado do deck titular (listas e mesa)** ✅ (leva 95)
+- **Entregue:** as sete listas prontas de Pauper agora têm a reserva sob "Sideboard" (o parser já entendia; a origem não separava). Corte depois do último terreno, onde toda lista de torneio fecha o principal. Elves, Bogles e Boros: 60/15. Mono Blue e Rakdos: 62/13; Jund: 63/12; Walls: 64/11 — nessas a origem já tinha somado cópias da reserva ao principal (declarado no código; ajustável editando a lista). A partida carrega só o principal (o grimório do Elves cai de 67 para 52 depois da mão). Listas: selo "+15 reserva" no item; listas prontas: "60 cartas + 15 na reserva"; lista: grupo "Reserva" separado por linha tracejada, esmaecido, com "fora da partida · trocas entre jogos"; preparar partida: "Nome · Pauper · 60 cartas (+15 na reserva)" e a linha "Reserva: 15 carta(s) ficam de fora da partida".
+- **Testes:** `decks.unit` (principal ≥ 60, reserva ≤ 15, 75 no total, só o principal na mesa); a auditoria de regras do Pauper continua cobrindo a reserva.
+- **Fora:** trocas de reserva entre jogos (melhor de três) — história futura.
+
+**P6 · Pilha mostra a carta de origem e o texto oficial em inglês** ✅ (leva 95)
+- **Entregue:** a habilidade na pilha mostra a imagem da carta de onde veio com um selo "habilidade" (antes: cartão escrito "hab."); toque e segurar abrem/espiam a carta de origem. O "o que faz" passa a ser o texto oficial da carta em inglês: a mágica mostra o texto inteiro; a habilidade mostra só a sua linha (gatilho por "When/Whenever/At", ativada pela linha com custo; quando a correspondência não é segura, o texto inteiro). Só sem texto guardado a descrição em português do script entra, e agora sem vazar chaves ("permanent-you-control" → "uma permanente que você controla").
+- **Testes:** `table.unit` (linhaOficialDaHabilidade, descreveAlvo, explicaPilha); e2e A14 (painel montado com o estado real).
+
+**P7 · X no topo dos diálogos** ✅ (absorvido em P1)
 
 **U2 · Ícones flat, botões com profundidade e toque animado, CTAs enxutos** 🟡 (levas 92 e 93 · partes 1 e 2 de 3)
 - **Entregue (parte 1, leva 92):** conjunto único de 25 ícones SVG do app (traço 1,75, cor herdada), no catálogo `#/ds` em "Ícones"; os da mesa (mão, passar, subir) passaram a vir dele. Botões ganharam profundidade: brilho no topo, lábio e sombra curta em repouso; ao toque afundam (1px, 97%, sombra interna); com movimento reduzido só a sombra muda; fantasmas ficam planos. Barra: Jogar, Listas e Coleção viraram ícone com legenda de uma palavra, e o destino atual fica marcado (sublinhado + `aria-current`); tema, instalar e "sem internet" também viraram ícones (o ☾/☀ saiu). Início: atalhos em cartões com ícone e uma palavra (Jogar em destaque, largura toda; Listas, Coleção, Escanear e Buscar em duas colunas, cada um com detalhe curto); "Catálogo de componentes" desceu para um botão discreto no rodapé. Painel sem internet: Preparar e Proteger com ícone. Mesa: Desfazer, Registro e Desistir viraram ícones com nome falado e passaram para a mesma linha da faixa de vez (ganha uma linha inteira de mesa); o selo de prioridade usa ampulheta (a bandeira ficou para desistir) e fica embaixo do rótulo; a mão inicial usa o ícone da mão no lugar do ✋.
