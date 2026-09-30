@@ -376,18 +376,31 @@ test('Leva 105 · insanidade vale para descarte como custo e para descarte escol
   assert.deepEqual([s.pending && s.pending.kind, s.pending && s.pending.p], ['madness', d]);
 });
 
-test('Leva 105 · Highway Robbery conjurada do plot ainda deixa descartar ou sacrificar um terreno (antes: só "não pagar")', () => {
-  let s = jogo(); const a = s.turn.active; let hr;
+// Leva 107 · expectativa reescrita: o texto oficial faz o descarte/sacrifício na RESOLUÇÃO; o teste da leva 105
+// (opções de custo adicional no plot) passou a ser este — do plot, na resolução, a escolha continua existindo
+test('Leva 105/107 · Highway Robbery (também do plot) pergunta na resolução: descartar, sacrificar um terreno ou nada', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let hr, f1;
   [s, hr] = poe(s, a, 'Highway Robbery', 'hand');
   s = act(s, { t: 'plot', p: a, oid: hr });
   const turno = s.turn.number;
   s = passaAte(s, x => x.turn.number > turno + 1 && x.turn.active === a && x.turn.step === 'main1' && !x.stack.length);
-  [s] = poe(s, a, 'Forest');
+  [s, f1] = poe(s, a, 'Forest');
   const ops = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === hr && x.plotted);
-  assert.deepEqual([...new Set(J(ops).map(x => x.add === null ? 'nada' : x.add))].sort(), [0, 1, 'nada']);
+  assert.equal(ops.length, 1, 'conjurar do plot: uma ação, sem custo adicional');
   const mao = s.zones[a].hand.length;
-  s = resolve(act(s, ops.find(x => x.add === 0)));
-  assert.equal(s.zones[a].hand.length, mao - 1 + 2, 'descartou uma e comprou duas');
+  s = passaAte(act(s, ops[0]), x => !!x.pending);
+  assert.equal(s.pending.kind, 'pick'); assert.equal(s.pending.min, 0, 'pode não fazer nada');
+  assert.ok(J(s.pending.from).includes(f1) && s.zones[a].hand.every(x => J(s.pending.from).includes(x)), 'mão e terrenos');
+  s = act(s, { t: 'pick', p: a, oid: f1 }); if (s.pending && s.pending.kind === 'pick') s = act(s, { t: 'pick_done', p: a });
+  assert.equal(s.objects[f1].zone, 'graveyard', 'sacrificou a Floresta');
+  assert.equal(s.zones[a].hand.length, mao + 2, 'e comprou duas');
+  // anulada: nada foi pago
+  let hr2, cs; [s, hr2] = poe(s, a, 'Highway Robbery', 'hand'); [s, cs] = poe(s, d, 'Counterspell', 'hand');
+  s = passaAte(s, x => !x.stack.length && !x.pending);
+  const antes = s.zones[a].hand.length;
+  s = act(s, { t: 'cast', p: a, oid: hr2 }); s = act(s, { t: 'pass', p: a });
+  s = passaAte(act(s, { t: 'cast', p: d, oid: cs, targets: [{ oid: hr2 }] }), x => !x.stack.length);
+  assert.equal(s.zones[a].hand.length, antes - 1, 'só a mágica saiu da mão (antes: o descarte já tinha sido pago)');
 });
 
 test('Leva 105 · fichas com cor e tipo do texto oficial: pássaros brancos da Battle Screech pagam o lampejo; Clue, Blood e Map têm subtipo', () => {
@@ -622,4 +635,183 @@ test('Leva 106 · Distant Melody não corta a lista de tipos em 12', () => {
   s = J(s); nomes.forEach((n, i) => { s.facts[n].typeText = `Creature — T${i}a T${i}b T${i}c`; if (!s.facts[n].types.includes('creature')) s.facts[n].types.push('creature'); });
   s = passaAte(act(s, { t: 'cast', p: a, oid: dm }), x => !!x.pending);
   assert.equal(s.pending.options.length, 15, 'os 15 tipos (antes: 12)');
+});
+
+/* ---------------- Leva 107 · auditoria texto × script, parte 3 (achados de impacto baixo) ---------------- */
+const fatos = (s, name, type_line, extra = {}) => { s.facts[name] = E.cardFacts({ name, type_line, mana_cost: '', cmc: 0, keywords: [], oracle_text: '', ...extra }); if (S.SCRIPTS[name]) s.facts[name].script = S.SCRIPTS[name]; };
+
+test('Leva 107 · Rancor exilado com o gatilho na pilha não volta para a mão', () => {
+  let s = jogo(); const a = s.turn.active; let urso, ran;
+  [s, urso] = poe(s, a, 'Urso'); [s, ran] = poe(s, a, 'Rancor', 'battlefield', { attachedTo: urso });
+  s = act(s, { t: 'move', p: a, oid: urso, to: 'graveyard' });
+  assert.equal(s.objects[ran].zone, 'graveyard'); assert.ok(s.stack.length, 'gatilho na pilha');
+  s = act(s, { t: 'move', p: a, oid: ran, to: 'exile' });
+  s = passaAte(s, x => !x.stack.length);
+  assert.equal(s.objects[ran].zone, 'exile', 'fica no exílio (antes: voltava para a mão)');
+});
+
+test("Leva 107 · Sentinel's Eyes com fuga: o jogador escolhe quais duas cartas exila", () => {
+  let s = jogo(); const a = s.turn.active; let se, g1, g2, g3, urso;
+  [s, urso] = poe(s, a, 'Urso'); [s, se] = poe(s, a, "Sentinel's Eyes", 'graveyard');
+  [s, g1] = poe(s, a, 'Gaivota', 'graveyard'); [s, g2] = poe(s, a, 'Pedra', 'graveyard'); [s, g3] = poe(s, a, 'Island', 'graveyard');
+  const ops = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === se && x.escape && x.targets[0].oid === urso);
+  assert.equal(new Set(ops.map(x => J(x.pay.exileGrave).sort().join())).size, 3, 'três pares possíveis (antes: sempre os dois primeiros)');
+  const par = [g2, g3];
+  s = act(s, ops.find(x => J(x.pay.exileGrave).sort().join() === par.slice().sort().join()));
+  assert.deepEqual([s.objects[g1].zone, s.objects[g2].zone, s.objects[g3].zone], ['graveyard', 'exile', 'exile']);
+});
+
+test('Leva 107 · Abundant Growth e Utopia Sprawl encantam terreno de qualquer jogador', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let ag, us, fd;
+  [s, fd] = poe(s, d, 'Forest'); [s, ag] = poe(s, a, 'Abundant Growth', 'hand'); [s, us] = poe(s, a, 'Utopia Sprawl', 'hand');
+  s = J(s); s.facts.Forest.typeText = 'Basic Land — Forest';
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === ag && x.targets[0].oid === fd), '"Enchant land"');
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === us && x.targets[0].oid === fd), '"Enchant Forest"');
+});
+
+test('Leva 107 · Smash to Smithereens: o dano vai para quem controlava o artefato, não para o dono', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let sm, pedra;
+  [s, pedra] = poe(s, d, 'Pedra'); s = J(s); s.objects[pedra].controller = a; s.zones[d].battlefield = s.zones[d].battlefield.filter(x => x !== pedra); s.zones[a].battlefield.push(pedra);
+  [s, sm] = poe(s, d, 'Smash to Smithereens', 'hand'); s.facts['Smash to Smithereens'].types = ['instant'];
+  s.turn.priority = d;
+  const va = s.players[a].life, vd = s.players[d].life;
+  s = passaAte(act(s, { t: 'cast', p: d, oid: sm, targets: [{ oid: pedra }] }), x => !x.stack.length);
+  assert.deepEqual([s.players[a].life, s.players[d].life], [va - 3, vd], 'quem roubou leva os 3 (antes: o dono)');
+});
+
+test('Leva 107 · Aura Gnarlid conta toda Aura, com ou sem script, e a criatura concedida', () => {
+  let s = jogo(); const a = s.turn.active; let gn, urso, au;
+  [s, gn] = poe(s, a, 'Aura Gnarlid'); [s, urso] = poe(s, a, 'Urso'); [s, au] = poe(s, a, 'Pedra', 'battlefield', { attachedTo: urso });
+  s = J(s); s.facts.Pedra.typeText = 'Enchantment — Aura'; s.facts.Pedra.types = ['enchantment'];
+  assert.deepEqual(stats(s, gn), [2, 2], 'base de teste 1/1 + 1 Aura sem script (antes: 1/1, não contava)');
+});
+
+test('Leva 107 · Setessan Training cai quando outro jogador passa a controlar a criatura', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let urso, st;
+  [s, urso] = poe(s, a, 'Urso'); [s, st] = poe(s, a, 'Setessan Training', 'battlefield', { attachedTo: urso });
+  s = J(s); s.objects[urso].controller = d; s.zones[a].battlefield = s.zones[a].battlefield.filter(x => x !== urso); s.zones[d].battlefield.push(urso);
+  s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[st].zone, 'graveyard', '"Enchant creature you control"');
+});
+
+test('Leva 107 · Journey to Nowhere que sai antes do exílio resolver: a criatura fica exilada para sempre', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let jn, alvo;
+  [s, alvo] = poe(s, d, 'Urso'); [s, jn] = poe(s, a, 'Journey to Nowhere', 'hand');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: jn }), x => x.objects[jn].zone === 'battlefield');
+  s = passaAte(s, x => x.stack.length && x.stack.some(o => x.objects[o].ability) || !!x.pending);
+  if (s.pending && s.pending.kind === 'pick_target') s = act(s, { t: 'pick_target', p: a, index: J(s.pending.options).findIndex(o => o.oid === alvo) });
+  s = act(s, { t: 'move', p: a, oid: jn, to: 'graveyard' }); // sai com o exílio ainda na pilha
+  s = passaAte(s, x => !x.stack.length);
+  assert.equal(s.objects[alvo].zone, 'exile');
+  assert.equal(s.objects[jn].holding, undefined, 'nada guardado para devolver depois');
+  s = act(s, { t: 'move', p: a, oid: jn, to: 'battlefield' }); s = act(s, { t: 'move', p: a, oid: jn, to: 'graveyard' });
+  s = passaAte(s, x => !x.stack.length && !x.pending);
+  assert.equal(s.objects[alvo].zone, 'exile', 'uma nova Journey saindo não devolve a criatura antiga');
+});
+
+test('Leva 107 · Luminous Phantom (face de trás do Lunarch Veteran) é branca e Spirit Cleric', () => {
+  const s = jogo();
+  assert.deepEqual(J(s.facts['Luminous Phantom'].colors), ['W']);
+  assert.match(s.facts['Luminous Phantom'].typeText, /Spirit Cleric/);
+});
+
+test('Leva 107 · Hydroblast mira qualquer mágica; só anula se ela for vermelha na resolução', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let hb, ilha, verm;
+  [s, ilha] = poe(s, d, 'Counterspell', 'hand'); [s, hb] = poe(s, a, 'Hydroblast', 'hand');
+  s = J(s); s.facts.Counterspell.colors = ['U']; s.turn.priority = d;
+  let raio; [s, raio] = poe(s, d, 'Lightning Bolt', 'hand'); s.facts['Lightning Bolt'].colors = ['R'];
+  s = act(s, { t: 'cast', p: d, oid: raio, targets: [{ player: a }] }); s = act(s, { t: 'pass', p: d });
+  const alvos = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === hb && (x.mode || 0) === 0).map(x => x.targets[0].oid);
+  assert.ok(alvos.includes(raio));
+  s = passaAte(act(s, { t: 'cast', p: a, oid: hb, mode: 0, targets: [{ oid: raio }] }), x => !x.stack.length);
+  assert.equal(s.objects[raio].zone, 'graveyard'); assert.equal(s.players[a].life, 20, 'vermelha: anulada');
+  // mágica azul: pode ser alvo (antes: não) e resolve sem anular
+  let hb2, dur; [s, hb2] = poe(s, a, 'Hydroblast', 'hand'); [s, dur] = poe(s, d, 'Duress', 'hand');
+  s = J(s); s.facts.Duress.colors = ['B']; s.facts.Duress.types = ['instant']; s.turn.priority = d;
+  s = act(s, { t: 'cast', p: d, oid: dur, targets: [{ player: a }] }); s = act(s, { t: 'pass', p: d });
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast' && x.oid === hb2 && (x.mode || 0) === 0 && x.targets[0].oid === dur), 'mágica preta pode ser alvo');
+  s = act(s, { t: 'cast', p: a, oid: hb2, mode: 0, targets: [{ oid: dur }] }); s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: d });
+  assert.equal(s.objects[dur].zone, 'stack', 'não é vermelha: o Hydroblast não fez nada');
+});
+
+test('Leva 107 · Faerie Miscreant: sem a outra Miscreant na resolução, não compra (603.4)', () => {
+  let s = jogo(); const a = s.turn.active; let m1, m2;
+  [s, m1] = poe(s, a, 'Faerie Miscreant'); [s, m2] = poe(s, a, 'Faerie Miscreant', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: m2 }); s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.ok(s.stack.length, 'o gatilho disparou');
+  const mao = s.zones[a].hand.length;
+  s = act(s, { t: 'move', p: a, oid: m1, to: 'graveyard' });
+  s = passaAte(s, x => !x.stack.length);
+  assert.equal(s.zones[a].hand.length, mao, 'não comprou (antes: comprava)');
+});
+
+test('Leva 107 · Moon-Circuit Hacker que entrou neste turno não obriga a descartar, mesmo fora do campo', () => {
+  let s = jogo(); const a = s.turn.active; let hk;
+  [s, hk] = poe(s, a, 'Moon-Circuit Hacker', 'hand');
+  s = act(s, { t: 'move', p: a, oid: hk, to: 'battlefield' }); s = act(s, { t: 'move', p: a, oid: hk, to: 'graveyard' });
+  s = J(s); s.objects.abx = { oid: 'abx', ability: true, name: 'Moon-Circuit Hacker', source: hk, controller: a, owner: a, zone: 'stack', targets: [], counters: {},
+    effects: S.SCRIPTS['Moon-Circuit Hacker'].abilities[0].effects, optionalTrigger: true }; s.stack.push('abx');
+  s = passaAte(s, x => !!x.pending);
+  s = act(s, { t: 'pay', p: a });
+  assert.ok(!(s.pending && s.pending.kind === 'discard'), 'entrou neste turno: não descarta (antes: descartava)');
+});
+
+test('Leva 107 · Duress mostra a mão inteira do oponente; só as que servem podem ser escolhidas', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let du, ct;
+  [s, ct] = poe(s, d, 'Counterspell', 'hand'); [s, du] = poe(s, a, 'Duress', 'hand');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: du, targets: [{ player: d }] }), x => !!x.pending);
+  if (s.pending.kind === 'pick') assert.deepEqual(J(s.pending.mostrar).sort(), J(s.zones[d].hand).sort());
+});
+
+test('Leva 107 · Martyr of Sands: o jogador escolhe quantas cartas brancas revela', () => {
+  let s = jogo(); const a = s.turn.active; let ms, w1, w2;
+  [s, ms] = poe(s, a, 'Martyr of Sands'); [s, w1] = poe(s, a, 'Urso', 'hand'); [s, w2] = poe(s, a, 'Gaivota', 'hand');
+  s = J(s); s.facts.Urso.colors = ['W']; s.facts.Gaivota.colors = ['W'];
+  const opcoes = [...new Set(E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === ms).map(x => x.pay.revelar))].sort();
+  assert.ok(opcoes.includes(0) && opcoes.includes(1) && opcoes.includes(2), 'de 0 a 2 (antes: sempre todas)');
+  const vida = s.players[a].life;
+  s = passaAte(act(s, { t: 'activate', p: a, oid: ms, index: 0, pay: { revelar: 1 } }), x => !x.stack.length);
+  assert.equal(s.players[a].life, vida + 3);
+});
+
+test('Leva 107 · Priest of Titania e Timberwatch Elf: metamorfo conta como Elfo, virado para baixo não', () => {
+  let s = jogo(); const a = s.turn.active; let pt, mv, bir;
+  [s, pt] = poe(s, a, 'Priest of Titania'); [s, bir] = poe(s, a, 'Birchlore Rangers', 'battlefield', { faceDown: true });
+  s = J(s); s.facts['Priest of Titania'].typeText = 'Creature — Elf Druid'; s.facts['Birchlore Rangers'].typeText = 'Creature — Elf Druid Ranger';
+  assert.deepEqual(J(E.productions(s, s.objects[pt])), [['G']], 'a Birchlore virada para baixo não é Elfo (antes: contava)');
+  [s, mv] = poe(s, a, 'Masked Vandal');
+  assert.deepEqual(J(E.productions(s, s.objects[pt])), [['G', 'G']], 'o Masked Vandal (changeling) conta');
+});
+
+test('Leva 107 · Lys Alana Huntmaster não dispara com Elfo conjurado virado para baixo', () => {
+  let s = jogo(); const a = s.turn.active; let la, bir;
+  [s, la] = poe(s, a, 'Lys Alana Huntmaster'); [s, bir] = poe(s, a, 'Birchlore Rangers', 'hand');
+  s = J(s); s.facts['Birchlore Rangers'].typeText = 'Creature — Elf Druid Ranger';
+  s = act(s, { t: 'cast', p: a, oid: bir, faceDown: true });
+  assert.equal(s.stack.length, 1, 'só a mágica, sem o gatilho (antes: disparava)');
+});
+
+test('Leva 107 · Negate e Spell Pierce miram mágica concedida (é Aura, não criatura)', () => {
+  let [s, a] = jogoComMana(5); const d = 1 - a; let hid, urso, ng;
+  [s, hid] = poe(s, a, 'Nyxborn Hydra', 'hand'); [s, urso] = poe(s, a, 'Urso'); [s, ng] = poe(s, d, 'Negate', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: hid, bestow: true, x: 1, targets: [{ oid: urso }] });
+  s = act(s, { t: 'pass', p: a }); s = J(s); s.manaCheck = false;
+  assert.ok(E.legalActions(s, d).some(x => x.t === 'cast' && x.oid === ng && x.targets[0].oid === hid), 'antes: não dava');
+});
+
+test('Leva 107 · End the Festivities também atinge planeswalker do oponente', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let ef, pw;
+  [s, pw] = poe(s, d, 'Pedra'); s = J(s); s.facts.Pedra.types = ['planeswalker']; s.objects[pw].counters.loyalty = 3;
+  [s, ef] = poe(s, a, 'End the Festivities', 'hand');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: ef }), x => !x.stack.length);
+  assert.equal(s.objects[pw].counters.loyalty, 2, 'perdeu 1 de lealdade (antes: nada)');
+});
+
+test('Leva 107 · Refurbished Familiar: cada oponente descarta, sem alvo', () => {
+  const sc = S.SCRIPTS['Refurbished Familiar'];
+  assert.equal(sc.abilities[0].effects[1].target, 'each-opponent');
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let rf;
+  [s, rf] = poe(s, a, 'Refurbished Familiar', 'hand');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: rf }), x => !!x.pending);
+  assert.deepEqual([s.pending.kind, s.pending.p], ['discard', d]);
 });

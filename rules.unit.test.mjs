@@ -762,6 +762,9 @@ test('S18 · ninjutsu troca o atacante não bloqueado pelo ninja, virado e ataca
   assert.ok(E.legalActions(s, a).some(x => x.t === 'ninjutsu' && x.oid === sneak && x.attacker === runner));
   s = act(s, { t: 'ninjutsu', p: a, oid: sneak, attacker: runner });
   assert.equal(s.objects[runner].zone, 'hand', 'o atacante voltou para a mão');
+  // Leva 107 · expectativa ajustada: ninjutsu é habilidade ativada; o ninja entra quando ela resolve (702.49a)
+  assert.equal(s.objects[sneak].zone, 'hand', 'a habilidade está na pilha');
+  s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: d });
   assert.equal(s.objects[sneak].zone, 'battlefield');
   assert.equal(s.objects[sneak].tapped, true);
   assert.equal(s.objects[sneak].attacking != null, true);
@@ -1387,6 +1390,9 @@ test('S29 · transmutar descarta e busca carta de mesmo valor de mana', () => {
   assert.ok(E.legalActions(s, a).some(x => x.t === 'transmute' && x.oid === drifter));
   s = act(s, { t: 'transmute', p: a, oid: drifter });
   assert.equal(s.objects[drifter].zone, 'graveyard');
+  // Leva 107 · expectativa ajustada: transmutar usa a pilha; a busca vem na resolução
+  assert.equal(s.stack.length, 1, 'a habilidade está na pilha');
+  s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: s.turn.priority });
   assert.equal(s.pending.kind, 'pick');
   assert.ok(s.pending.from.every(oid => (s.facts[s.objects[oid].name].cmc || 0) === 3), 'só cartas de valor 3');
 });

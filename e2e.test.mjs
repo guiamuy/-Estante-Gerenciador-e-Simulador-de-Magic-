@@ -46,6 +46,8 @@ const DB = Object.fromEntries([
   { ...card('Nyxborn Hydra', 'Enchantment Creature — Hydra', ['G'], 1), mana_cost: '{X}{G}', keywords: ['Bestow', 'Reach', 'Trample'], power: '0', toughness: '0',
     oracle_text: "Bestow {X}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nReach, trample\nNyxborn Hydra enters with X +1/+1 counters on it.\nEnchanted creature gets +1/+1 for each +1/+1 counter on Nyxborn Hydra and has reach and trample." },
   card('Forest', 'Basic Land — Forest', [], 0),
+  // Leva 107 · texto oficial conferido em 30/09/2026 (Scryfall/.listas/oficiais.json)
+  { ...card('Duress', 'Sorcery', ['B'], 1), mana_cost: '{B}', oracle_text: 'Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.' },
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
@@ -3139,5 +3141,52 @@ test('e2e · leva 104 escolhas de quem paga: Jaspera vira a criatura escolhida, 
   await reveal(page);
   await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
   assert.match(await page.innerText('#tb-timeline'), /conjurou Nyxborn Hydra com X = 3/);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 107 Duress mostra a mão inteira: terrenos e criaturas apagados, só a que serve pode ser escolhida', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Discard', '24 Island\n12 Duress\n12 Counterspell\n12 Sky Pike', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  const p = await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority, o = 1 - p;
+    const de = (q, n) => Object.values(s.objects).find(x => x.owner === q && x.name === n && x.zone === 'library');
+    // a mão do oponente com um de cada: terreno, criatura e a mágica que o Duress pode pegar
+    for (const n of ['Island', 'Sky Pike', 'Counterspell']) M.act({ t: 'move', p, oid: de(o, n).oid, to: 'hand' });
+    const d = de(p, 'Duress'); M.act({ t: 'move', p, oid: d.oid, to: 'hand' });
+    M.act({ t: 'cast', p, oid: d.oid, targets: [{ player: o }], free: true });
+    return p;
+  });
+  for (let i = 0; i < 6 && !(await page.locator('#tb-pick-cards').count()); i++) {
+    await reveal(page);
+    const vez = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.pending ? null : s.turn.priority; });
+    if (vez != null) await page.evaluate(v => window.__estanteMesa.act({ t: 'pass', p: v }), vez);
+    await page.waitForTimeout(150);
+  }
+  await reveal(page);
+  await page.waitForSelector('#tb-pick-cards');
+  const info = await page.evaluate(() => {
+    const s = window.__estanteMesa.estado(), pk = s.pending;
+    return { mostrar: pk.mostrar.length, from: pk.from.length, apagadas: document.querySelectorAll('#tb-pick-cards .tb-card--fora').length, total: document.querySelectorAll('#tb-pick-cards .tb-card').length };
+  });
+  assert.ok(info.mostrar > info.from, 'mostra mais do que dá para escolher');
+  assert.equal(info.total, info.mostrar, 'a mão inteira aparece');
+  assert.equal(info.apagadas, info.mostrar - info.from, 'terrenos e criaturas apagados');
+  assert.match(await page.innerText(".tb-banner"), /Escolha o descarte do oponente/);
+  await auditaTela(page, 'Duress com a mão revelada');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/duress.png' });
+  // tocar numa apagada não faz nada; na que serve, descarta
+  // aria-disabled: o Playwright não clica sozinho numa carta desabilitada; força o toque para provar que nada acontece
+  await page.locator('#tb-pick-cards .tb-card--fora').first().click({ force: true });
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending.picked.length), 0);
+  await page.locator('#tb-pick-cards .tb-card:not(.tb-card--fora)').first().click();
+  await page.waitForFunction(o => Object.values(window.__estanteMesa.estado().objects).some(x => x.owner === o && x.name === 'Counterspell' && x.zone === 'graveyard'), 1 - p);
   assert.deepEqual(errors, []);
 });

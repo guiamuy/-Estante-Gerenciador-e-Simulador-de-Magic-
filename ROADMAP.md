@@ -338,7 +338,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 15º-a ✅ | Escolhas de quem paga e X (leva 104) | E33 | 1 | relato do usuário |
 | 15º-b ✅ | Auditoria texto × script, parte 1: 111 cartas, 9 correções (leva 105) | E33 | 1 | — |
 | 15º-c ✅ | Auditoria texto × script, parte 2: 27 textos do Forge e 15 correções de impacto médio (leva 106) | E33 | 1 | — |
-| 15º-d | Auditoria texto × script, parte 3: achados de impacto baixo (leva 107) | E33 | 1 a 2 | — |
+| 15º-d ✅ | Auditoria texto × script, parte 3: 22 achados de impacto baixo (leva 107) | E33 | 1 | — |
+| 15º-e | Homologação da auditoria por agente independente (leva 108) | E33 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3093,8 +3094,39 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Motor v60** (regras mudaram; partidas do v59 não abrem). Partidas-referência regravadas só pela versão: logs, status e turnos idênticos.
 - **Portão:** 591 verdes (529 + 62 e2e).
 
-**Leva 107 · Auditoria texto × script — parte 3: achados de impacto baixo** ⏳
-- Rancor volta mesmo exilada; Sentinel's Eyes (fuga exila as primeiras cartas); Abundant Growth e Utopia Sprawl só em terreno seu; Smash to Smithereens com artefato roubado; Aura Gnarlid conta só auras com script; Setessan Training com troca de controle; Journey to Nowhere (caso-limite); Lunarch Veteran (face de trás sem cor e subtipos); Hydroblast e Red/Blue Elemental Blast (cor conferida na resolução); Faerie Miscreant (condição na resolução); ninjutsu (pilha e janela); Moon-Circuit Hacker; Duress (mostrar a mão inteira); Martyr of Sands (escolher quantas revela); Drift of Phantasms (transmutar pela pilha); Priest of Titania e Timberwatch Elf (changeling e face para baixo); Lys Alana Huntmaster com Elfo virado; Mirrorshell Crab (proteção contra gatilho); Negate e Spell Pierce contra mágica concedida; End the Festivities em planeswalker; Highway Robbery na resolução; Refurbished Familiar em multiplayer.
+**Leva 107 · Auditoria texto × script — parte 3: achados de impacto baixo** ✅
+- **Corrigido (18 testes novos em `pauper.regras.test.mjs` e 1 e2e, todos falham no motor anterior):**
+  - Rancor exilado com o gatilho na pilha fica no exílio (400.7);
+  - Sentinel's Eyes (fuga) e delve: o jogador escolhe quais cartas do cemitério exila;
+  - Abundant Growth e Utopia Sprawl encantam terreno de qualquer jogador;
+  - Smash to Smithereens: o dano vai para quem controlava o artefato na hora (608.2h), não para o dono;
+  - Aura Gnarlid conta toda Aura pela linha de tipo (com ou sem script) e a criatura concedida;
+  - Setessan Training cai quando outro jogador passa a controlar a criatura;
+  - Journey to Nowhere: saindo antes do exílio resolver, a criatura fica exilada para sempre; uma Journey nova não devolve criatura antiga;
+  - Lunarch Veteran: a face de trás (Luminous Phantom) é branca e Spirit Cleric (Oracle do Forge);
+  - Hydroblast e Pyroblast miram qualquer mágica/permanente; a cor é conferida na resolução (Red/Blue Elemental Blast continuam mirando só a cor, como diz o texto);
+  - Faerie Miscreant (e todo "se" de gatilho): condição conferida de novo na resolução (603.4); informação de combate passada vale o que foi visto no disparo;
+  - ninjutsu é habilidade ativada: pela pilha, e disponível do bloqueio até o fim do combate (esgueirar-se só no passo de bloqueio);
+  - Moon-Circuit Hacker: "entrou neste turno" vale a última informação, mesmo fora do campo;
+  - Duress: a mão inteira do oponente aparece; as que não servem ficam apagadas e não podem ser escolhidas; as escolhíveis vêm primeiro;
+  - Martyr of Sands: o jogador escolhe quantas cartas brancas revela;
+  - Drift of Phantasms (transmutar): pela pilha, embaralha mesmo sem achar nada; descartar abre insanidade;
+  - Priest of Titania e Timberwatch Elf: metamorfo conta como Elfo; carta virada para baixo não;
+  - Lys Alana Huntmaster não dispara com Elfo conjurado virado para baixo (os gatilhos de conjuração veem a mágica como ela foi conjurada);
+  - Mirrorshell Crab e toda proteção (ward): cobra também de gatilho que mira, e cada permanente com ward cobra a sua;
+  - Negate e Spell Pierce miram mágica concedida (é Aura, não criatura); virada para baixo é mágica de criatura;
+  - End the Festivities atinge planeswalker do oponente;
+  - Highway Robbery: descartar ou sacrificar um terreno acontece na resolução (anulada, nada foi pago), também conjurada do plot;
+  - Refurbished Familiar: "cada oponente descarta" sem alvo.
+- **Achado no caminho:** gatilho com alvo escolhido pelo jogador (mais de uma opção) perdia o custo opcional, o "você pode", a condição e o valor — Masked Vandal exilava de graça quando o oponente tinha dois alvos. Corrigido com `marcasDoGatilho`, usado nos dois caminhos.
+- **Tela:** faixa de texto do aviso da bandeja com altura mínima de toque (o guarda-corpo pegou 43 px no aviso do Duress). Capturas em 390 claro e 360 escuro.
+- **Declarado:** Refurbished Familiar e "cada oponente" contam o oponente da mesa 1 contra 1 (o motor não tem multijogador na interface).
+- **Expectativas ajustadas com justificativa:** S18 (ninjutsu pela pilha), S29 (transmutar pela pilha), teste da Highway Robbery da leva 105 reescrito (a escolha agora é na resolução).
+- **Motor v61.** Partidas-referência regravadas só pela versão: logs, status e turnos idênticos.
+- **Portão:** 609 verdes (546 + 63 e2e).
+
+**Leva 108 · Homologação da auditoria por agente independente** ⏳
+- Uma segunda leitura das 138 cartas, feita por quem não escreveu as correções, contra o motor v61; só o que ainda divergir vira teste e correção.
 
 **Leva 103 · E36 · M13b: parcerias de comandante e mana pelos terrenos do oponente** ✅ (pedido de 30/09)
 - **Lista:** dois comandantes só com parceria válida (Partner, Partner with, Friends forever, Choose a Background + Antecedente, Doctor's companion); mensagem diz o que falta; variante desconhecida vira aviso. Funciona sem internet (só dados guardados).
