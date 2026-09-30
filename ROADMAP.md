@@ -337,7 +337,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 15º | E36 · Commander: M13b ✅ (leva 103), depois S67+ | — | — | em curso enquanto U13/U14 esperam decisão |
 | 15º-a ✅ | Escolhas de quem paga e X (leva 104) | E33 | 1 | relato do usuário |
 | 15º-b ✅ | Auditoria texto × script, parte 1: 111 cartas, 9 correções (leva 105) | E33 | 1 | — |
-| 15º-c | Auditoria texto × script, parte 2: achados restantes e as 27 sem texto (leva 106) | E33 | 2 a 3 | textos das 27 cartas |
+| 15º-c ✅ | Auditoria texto × script, parte 2: 27 textos do Forge e 15 correções de impacto médio (leva 106) | E33 | 1 | — |
+| 15º-d | Auditoria texto × script, parte 3: achados de impacto baixo (leva 107) | E33 | 1 a 2 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3071,12 +3072,29 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Motor v59:** regras mudaram (lampejo, insanidade, conceder, 400.7), então partidas salvas no v58 não abrem. Partidas-referência regravadas só pela versão: logs, status e turnos idênticos, conferidos um a um.
 - **Portão:** 576 verdes (514 + 62 e2e).
 
-**Leva 106 · Auditoria texto × script — parte 2** ⏳
-- **Achados ainda a confirmar com teste e corrigir (da auditoria de 30/09), por impacto:**
-  - médio: Weather the Storm (cópias de tempestade dependem da mágica original: anulada, nenhuma resolve); Spellstutter Sprite (X não é conferido de novo na resolução); Standard Bearer (regra do Flagbearer vale para gatilhos, exige todos os alvos e barra o Red Elemental Blast); Kor Skyfisher (devolver é escolha na resolução, não alvo); Armadillo Cloak e Spirit Link (só dano de combate ganha vida); Evolution Witness (adaptar coloca marcadores ao pagar o custo, sem pilha); Benevolent Blessing e Mask of Law and Grace (proteção não derruba auras/equipamentos da cor); Distant Melody (tipos só do campo, até 12);
-  - baixo: Rancor volta mesmo exilada; Sentinel's Eyes (fuga exila as primeiras cartas); Abundant Growth e Utopia Sprawl só em terreno seu; Smash to Smithereens com artefato roubado; Aura Gnarlid conta só auras com script; Setessan Training com troca de controle; Journey to Nowhere (caso-limite do ruling); Lunarch Veteran (face de trás sem cor e subtipos); Hydroblast e Red/Blue Elemental Blast (a cor é conferida na resolução); Rakdos Carnarium e Boros Garrison (terreno escolhido na resolução, sem alvo); Faerie Miscreant (condição na resolução); ninjutsu (pilha e janela); Moon-Circuit Hacker; Duress (mostrar a mão inteira); Martyr of Sands (escolher quantas revela); Drift of Phantasms (transmutar pela pilha); Priest of Titania e Timberwatch Elf (changeling e face para baixo na contagem); Lys Alana Huntmaster com Elfo conjurado virado; Mirrorshell Crab (proteção contra habilidade disparada); Negate e Spell Pierce contra mágica concedida; End the Festivities em planeswalker; Highway Robbery na resolução; Refurbished Familiar em multiplayer.
-- **Ainda sem texto conferido (27):** Of One Mind, Cryoshatter, Sewer-veillance Cam, Sneaky Snacker, Kitchen Imp, Alms of the Vein, Red Elemental Blast, Slippery Bogle, Malevolent Rumble, Flaring Pain, Lifelink, Leonardo, Big Brother, Perilous Landscape, Axebane Guardian, Sagu Wildling, Saruli Caretaker, Secret Door, Valakut Invoker, Reaping the Graves, Lead the Stampede, Winding Way, Masked Vandal, Faerie Macabre, Moment's Peace, Nylea's Disciple, Fanatical Offering, Troublemaker Ouphe. Seguem com o script atual; a auditoria delas depende do texto oficial.
-- **Depende de:** o link da Scryfall numa mensagem do usuário (libera a busca dos 27 textos).
+**Leva 106 · Auditoria texto × script — parte 2: as 27 cartas sem texto e os achados de impacto médio** ✅
+- **Textos:** as 27 cartas sem fonte confiável vieram do Oracle do Forge (simulador aberto no GitHub), que bateu 6 de 6 com textos já confirmados na Scryfall; entraram em `.listas/oficiais.json` (138/138 com texto e data) e passaram pela mesma comparação (`.listas/auditoria-2026-09-30.json`, 138 cartas).
+- **Corrigido (15 testes novos em `pauper.regras.test.mjs`, todos falham no motor anterior):**
+  - tempestade (702.40): cópias vão para a pilha por cima da original, cada uma escolhe alvo ("may choose new targets") e resolve mesmo com a original anulada — Weather the Storm e Reaping the Graves; cópias da mesma mágica não pedem ordem;
+  - Cryoshatter: "becomes tapped" também ao atacar, ao pagar {T} e ao ser virada como custo;
+  - Winding Way: TODAS as cartas do tipo escolhido vão para a mão;
+  - Masked Vandal: exilar do cemitério é opcional, o jogador escolhe a carta, o alvo vem antes e recusar não faz nada;
+  - Spellstutter Sprite (e toda condição de alvo): conferida de novo na resolução, contando as Fadas de quem conjurou;
+  - vínculo com a vida, Armadillo Cloak e Spirit Link valem para dano fora do combate (habilidades e mágicas);
+  - Flaring Pain: "Damage can't be prevented" vale também para a proteção;
+  - Standard Bearer: a regra vale só ao conjurar/ativar, depois da cor, e basta um alvo ser o porta-estandarte (REB volta a ter alvo);
+  - Kor Skyfisher, Rakdos Carnarium e Boros Garrison: devolvem por escolha na resolução, sem alvo (a Skyfisher pode devolver a si mesma);
+  - adaptar (Evolution Witness) passa pela pilha;
+  - proteção contra a cor derruba auras e solta equipamentos dessa cor (Benevolent Blessing, Mask of Law and Grace);
+  - Distant Melody: todos os tipos, do que mais rende para o menos ("Outros tipos" na mesa quando passam de 8);
+  - esgueirar-se (Leonardo, Big Brother) é conjurar: pilha, pode ser anulado, conta para tempestade e dispara "quando você conjura".
+- **Declarado parcial:** Axebane Guardian gera X de uma cor por toque; "qualquer combinação de cores" não entra (com 5 defensores seriam 126 opções por toque).
+- **Expectativas ajustadas com justificativa:** S33 (adaptar na pilha), S34 (cópias de tempestade como itens da pilha), S54 (esgueirar-se passa pela pilha), S30 (Flagbearer nas ações de conjurar/ativar), cenário S8 da Kor Skyfisher (escolha em vez de alvo).
+- **Motor v60** (regras mudaram; partidas do v59 não abrem). Partidas-referência regravadas só pela versão: logs, status e turnos idênticos.
+- **Portão:** 591 verdes (529 + 62 e2e).
+
+**Leva 107 · Auditoria texto × script — parte 3: achados de impacto baixo** ⏳
+- Rancor volta mesmo exilada; Sentinel's Eyes (fuga exila as primeiras cartas); Abundant Growth e Utopia Sprawl só em terreno seu; Smash to Smithereens com artefato roubado; Aura Gnarlid conta só auras com script; Setessan Training com troca de controle; Journey to Nowhere (caso-limite); Lunarch Veteran (face de trás sem cor e subtipos); Hydroblast e Red/Blue Elemental Blast (cor conferida na resolução); Faerie Miscreant (condição na resolução); ninjutsu (pilha e janela); Moon-Circuit Hacker; Duress (mostrar a mão inteira); Martyr of Sands (escolher quantas revela); Drift of Phantasms (transmutar pela pilha); Priest of Titania e Timberwatch Elf (changeling e face para baixo); Lys Alana Huntmaster com Elfo virado; Mirrorshell Crab (proteção contra gatilho); Negate e Spell Pierce contra mágica concedida; End the Festivities em planeswalker; Highway Robbery na resolução; Refurbished Familiar em multiplayer.
 
 **Leva 103 · E36 · M13b: parcerias de comandante e mana pelos terrenos do oponente** ✅ (pedido de 30/09)
 - **Lista:** dois comandantes só com parceria válida (Partner, Partner with, Friends forever, Choose a Background + Antecedente, Doctor's companion); mensagem diz o que falta; variante desconhecida vira aviso. Funciona sem internet (só dados guardados).
