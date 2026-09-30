@@ -2487,3 +2487,40 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   await page.click('#col-select-off');
   assert.deepEqual(errors, []);
 });
+
+// E50 (leva 94) · todo diálogo tem um X fixo no topo; o ícone do app na barra é um ladrilho com relevo.
+test('e2e · E50 X no topo de todo diálogo (fixo ao rolar, fecha, foco não vai para ele) e ícone da barra com relevo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  // ícone da barra: ladrilho com sombra em repouso, afunda no toque
+  const tile = await page.$eval('.ds-appbar .brand-tile', el => ({ sombra: getComputedStyle(el).boxShadow, svg: !!el.querySelector('svg'), h: el.getBoundingClientRect().height }));
+  assert.ok(tile.svg && tile.sombra !== 'none' && tile.h >= 30, JSON.stringify(tile));
+  assert.match(await page.$eval('link[rel="icon"]', l => l.href), /^data:image\/svg\+xml,/);
+  // diálogo longo: a folha de uma carta na lista
+  await createDeck(page, base, 'Longa', PAUPER);
+  await page.setViewportSize({ width: 360, height: 380 }); // tela baixa: a folha da carta precisa rolar
+  await page.locator('.deck-slot').first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(350); // animação de entrada
+  assert.ok(await page.$eval('.ds-dialog', el => el.scrollHeight > el.clientHeight + 40), 'o diálogo rola nesta tela');
+  const x = page.locator('#ds-dialog-close');
+  assert.equal(await x.getAttribute('aria-label'), 'Fechar');
+  assert.equal(await x.locator('svg').count(), 1, 'X desenhado');
+  const cx = await x.boundingBox(); assert.ok(cx.height >= 44 && cx.width >= 44, 'alvo de 44px');
+  const topo = await page.locator('.ds-dialog').boundingBox();
+  assert.ok(cx.y < topo.y + 70, 'X no topo do diálogo');
+  assert.equal(await page.evaluate(() => document.activeElement.id), '', 'o foco inicial não vai para o X');
+  assert.notEqual(await page.evaluate(() => document.activeElement.id), 'ds-dialog-close');
+  // rola o diálogo: o X continua visível, na mesma posição da tela
+  await page.$eval('.ds-dialog', el => { el.scrollTop = 400; el.dispatchEvent(new Event('scroll')); });
+  await page.waitForTimeout(100);
+  const cx2 = await x.boundingBox();
+  assert.ok(Math.abs(cx2.y - cx.y) < 2, 'X fixo ao rolar: ' + cx.y + ' → ' + cx2.y);
+  assert.equal(await page.getAttribute('.ds-dialog__head', 'data-rolou'), 'true', 'cabeçalho marca que rolou');
+  await x.click(); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // diálogo curto de confirmação também tem o X, e ele não confirma nada
+  await page.click('#deck-delete'); await page.waitForSelector('.ds-dialog');
+  await page.click('#ds-dialog-close'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.equal(await page.locator('.deck-summary').count(), 1, 'fechar pelo X não exclui');
+  assert.deepEqual(errors, []);
+});

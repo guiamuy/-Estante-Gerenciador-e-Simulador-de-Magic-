@@ -439,6 +439,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E35b | deploy | Próximo merge quando o Commander fechar |
 | E28 | B2–B4 | Bot heurístico, dificuldade e torneio de aferição |
 | E43 🟡 | U1 (leva 82) · U3 (levas 90 e 91) · U2 (levas 92 e 93, partes 1 e 2) · U4 | Identidade visual: tema em dois estados, símbolos de Magic, ícones flat, botões com toque animado, sem internet mais visual |
+| E50 🟡 | P1 (leva 94) · P2 · P3 · P4 · P5 · P6 · P7 | Polimento de jogo e app (pedido de 30/09): ícone com relevo, X nos diálogos, bloqueio mais claro, imagens de fichas, balão na bandeja, side deck separado, pilha com a carta e texto oficial |
 | E44 🟡 | U5 (leva 83) · U6 (leva 84) · U7 (leva 85) · U8 | Mesa mais legível: cartas em leque, mão recolhível, turno visível, disposições por aparelho |
 | E45 ✅ | U12 (leva 86) | Imagens do jogo baixadas sozinhas quando há internet |
 | E46 🟡 | U10 (leva 87) · U11 | Shark: um bot só, com nome, e mais forte |
@@ -2957,6 +2958,21 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (`theme.unit.test.mjs`: alternância, migração do "auto", persistência, primeira abertura pelo sistema); e2e (toque alterna e persiste após recarga; auditoria de tela roda nos dois temas); contrato visual mantido.
 - **Correção (leva 83):** o botão nascia sempre com ☾, mesmo no tema claro, até o primeiro toque. Agora nasce com o ícone do tema aplicado; o e2e confere antes e depois de recarregar.
 - **Fora:** tema "automático" como opção. Quem quiser seguir o sistema toca uma vez.
+
+**E50 · Polimento de jogo e app** (pedido de 30/09; executado antes de U4/U8/E36)
+
+**P1 · Ícone do app com relevo e X no topo dos diálogos** ✅ (leva 94)
+- **Entregue:** o ícone de instalação, o favicon e o ladrilho da barra saem de uma fonte única (`iconeDoApp` em brand.js): ladrilho escuro com brilho no topo, verniz escurecendo embaixo, marca em marfim e latão com sombra; `icon.svg` e `icon-512.png` são gerados por `node gerar-icone.mjs` e um teste garante que o publicado é o que a fonte gera. Na barra, o ladrilho tem o mesmo relevo dos botões e afunda ao toque. Todo diálogo ganhou um cabeçalho fixo com o X (44px, nome "Fechar"): fecha sem rolar até o fim; ao rolar, o cabeçalho ganha sombra; o foco inicial continua no primeiro controle útil, não no X.
+- **Sem internet:** nada muda (ícones e SVG dentro do arquivo).
+- **Testes:** `icone.unit.test.mjs` (fonte única, zona segura do mascarável, PNG 512); e2e "E50 X no topo".
+- **Fora:** o botão "Fechar" do rodapé continua nos diálogos que já tinham; sai quando a parte 3 do U2 passar pelos diálogos.
+
+**P2 · Declaração de bloqueio mais clara e janela do atacante depois dos bloqueios** ○
+**P3 · Imagens de fichas** ○
+**P4 · Balão expansível na bandeja da mão** ○
+**P5 · Side deck separado do deck titular (listas e mesa)** ○
+**P6 · Pilha mostra a carta de origem e o texto oficial em inglês** ○
+**P7 · (absorvido em P1: X nos diálogos)**
 
 **U2 · Ícones flat, botões com profundidade e toque animado, CTAs enxutos** 🟡 (levas 92 e 93 · partes 1 e 2 de 3)
 - **Entregue (parte 1, leva 92):** conjunto único de 25 ícones SVG do app (traço 1,75, cor herdada), no catálogo `#/ds` em "Ícones"; os da mesa (mão, passar, subir) passaram a vir dele. Botões ganharam profundidade: brilho no topo, lábio e sombra curta em repouso; ao toque afundam (1px, 97%, sombra interna); com movimento reduzido só a sombra muda; fantasmas ficam planos. Barra: Jogar, Listas e Coleção viraram ícone com legenda de uma palavra, e o destino atual fica marcado (sublinhado + `aria-current`); tema, instalar e "sem internet" também viraram ícones (o ☾/☀ saiu). Início: atalhos em cartões com ícone e uma palavra (Jogar em destaque, largura toda; Listas, Coleção, Escanear e Buscar em duas colunas, cada um com detalhe curto); "Catálogo de componentes" desceu para um botão discreto no rodapé. Painel sem internet: Preparar e Proteger com ícone. Mesa: Desfazer, Registro e Desistir viraram ícones com nome falado e passaram para a mesma linha da faixa de vez (ganha uma linha inteira de mesa); o selo de prioridade usa ampulheta (a bandeira ficou para desistir) e fica embaixo do rótulo; a mão inicial usa o ícone da mão no lugar do ✋.
