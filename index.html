@@ -3686,8 +3686,9 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { tap: true, life: 1 }, effects: [{ do: 'add_mana', symbols: ['W'] }] }],
     covers: 'partial', note: 'a opção de gerar preto pagando 1 de vida ainda não entra',
     example: { action: 'activate:1', target: 'none', expect: { poolAdded: 1, selfLife: -1 } } },
-  { name: 'Fellwar Stone', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', anyColor: true }] }],
-    covers: 'partial', note: 'na carta real só gera cores que os terrenos dos oponentes produzem',
+  // M13b · texto conferido em 30/09/2026 (Hareruya; mesmo texto do Exotic Orchard na Scryfall):
+  // "{T}: Add one mana of any color that a land an opponent controls could produce."
+  { name: 'Fellwar Stone', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', anyColor: true, opponentLands: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
   { name: 'Lotus Petal', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
@@ -4542,6 +4543,40 @@ function validateCompanion(deck, cards, playing, add, fmt) {
 }
 
 /* ---------------- L5 · validação ---------------- */
+/* M13b · parcerias do Commander (702.124, regras de 07/06/2024; textos conferidos em 30/09/2026).
+ * Lê as linhas de palavra-chave do texto oficial, sem o lembrete entre parênteses. Variantes diferentes
+ * não se combinam (702.124f). Variante "Partner—…" que o app não conhece vira aviso, nunca aprovação. */
+function parceriasDe(c) {
+  const out = [];
+  const texto = String((c && c.oracle_text) || '').replace(/\([^)]*\)/g, '');
+  for (const bruta of texto.split('\n')) {
+    const l = bruta.trim(); let m;
+    if (/^Partner$/i.test(l)) out.push({ tipo: 'partner' });
+    else if ((m = l.match(/^Partner with (.+)$/i))) out.push({ tipo: 'with', nome: m[1].trim() });
+    else if ((m = l.match(/^Partner\s*[—–-]\s*(.+)$/i))) out.push({ tipo: 'desconhecida', rotulo: 'Partner—' + m[1].trim() });
+    else if (/^Friends forever$/i.test(l)) out.push({ tipo: 'friends' });
+    else if (/^Choose a Background$/i.test(l)) out.push({ tipo: 'escolhe' });
+    else if (/^Doctor's companion$/i.test(l)) out.push({ tipo: 'companion' });
+  }
+  return out;
+}
+const ehAntecedente = c => /\blegendary\b/i.test(c.type_line || '') && /\benchantment\b.*—.*\bbackground\b/i.test(c.type_line || '');
+/** 702.124m · Doutor: criatura lendária cujos tipos de criatura são exatamente Time Lord Doctor. */
+const ehDoutor = c => /\blegendary\b/i.test(c.type_line || '') && /\bcreature\b/i.test(c.type_line || '') &&
+  (String(c.type_line).split('—')[1] || '').trim().split(/\s+/).join(' ').toLowerCase() === 'time lord doctor';
+function parceriaDe(a, b) {
+  const pa = parceriasDe(a), pb = parceriasDe(b);
+  const tem = (ps, t) => ps.some(x => x.tipo === t);
+  const nome = c => String(c.name || '').split(' // ')[0].toLowerCase();
+  if (tem(pa, 'partner') && tem(pb, 'partner')) return { ok: true, tipo: 'partner' };
+  if (pa.some(x => x.tipo === 'with' && x.nome.toLowerCase() === nome(b)) && pb.some(x => x.tipo === 'with' && x.nome.toLowerCase() === nome(a))) return { ok: true, tipo: 'with' };
+  if (tem(pa, 'friends') && tem(pb, 'friends')) return { ok: true, tipo: 'friends' };
+  if ((tem(pa, 'escolhe') && ehAntecedente(b)) || (tem(pb, 'escolhe') && ehAntecedente(a))) return { ok: true, tipo: 'background' };
+  if ((tem(pa, 'companion') && ehDoutor(b)) || (tem(pb, 'companion') && ehDoutor(a))) return { ok: true, tipo: 'doctor' };
+  const nova = pa.concat(pb).find(x => x.tipo === 'desconhecida');
+  if (nova) return { ok: false, desconhecida: nova.rotulo };
+  return { ok: false };
+}
 function validateDeck(deck, cards, { semRede = false } = {}) {
   const issues = [];
   const add = (level, message) => issues.push({ level, message });
@@ -4565,11 +4600,16 @@ function validateDeck(deck, cards, { semRede = false } = {}) {
     const cmd = deck.entries.filter(e => e.zone === 'commander');
     if (!cmd.length) add('error', 'Nenhum comandante definido. Abra a carta e toque em "Definir como comandante".');
     if (cmd.length > 2) add('error', 'Mais de dois comandantes.');
+    // M13b · dois comandantes só com uma parceria válida (702.124h–m); um Antecedente só vale ao lado de quem o escolhe
+    const par = cmd.length === 2 && cmd.every(get) ? parceriaDe(get(cmd[0]), get(cmd[1])) : null;
     for (const e of cmd) {
       const c = get(e); if (!c) continue;
-      const ok = /legendary/i.test(c.type_line) && /creature/i.test(c.type_line) || /can be your commander/i.test(c.oracle_text || '');
+      const ok = /legendary/i.test(c.type_line) && /creature/i.test(c.type_line) || /can be your commander/i.test(c.oracle_text || '') ||
+        (par && par.ok && par.tipo === 'background' && ehAntecedente(c));
       if (!ok) add('error', `${e.name} não pode ser comandante.`);
     }
+    if (par && par.desconhecida) add('warning', `A parceria "${par.desconhecida}" não é conferida pelo app: confira se ${cmd[0].name} e ${cmd[1].name} podem ser comandantes juntos.`);
+    else if (par && !par.ok) add('error', `${cmd[0].name} e ${cmd[1].name} não podem ser comandantes juntos: os dois precisam de "Partner" (ou "Friends forever"), cada um com "Partner with" o outro, ou um com "Choose a Background" e o outro um Antecedente lendário.`);
     if (total !== 100) add(total < 100 ? 'warning' : 'error', `${total} de 100 cartas (comandante incluído).`);
     const dup = playing.filter(e => e.qty > 1 && get(e) && !isBasic(get(e)) && !anyNumber(get(e)));
     if (dup.length) add('error', `Mais de uma cópia: ${dup.map(e => e.name).join(', ')}`);
@@ -6556,7 +6596,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 57;
+const ENGINE_VERSION = 58;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 const COMBO_LIMIT = 16;
@@ -6628,6 +6668,8 @@ function parseProduction(card) {
     const body = m[1];
     // M13 · "any color in your commander's color identity": depende da partida, resolvido em productions()
     if (/any color in your commander'?s color identity/i.test(body)) { opts.push({ identity: true }); continue; }
+    // M13b · Exotic Orchard: "any color that a land an opponent controls could produce", resolvido em productions()
+    if (/any color that a land an opponent controls could produce/i.test(body)) { opts.push({ opponentLands: true }); continue; }
     if (/one mana of any color/i.test(body)) { ['W', 'U', 'B', 'R', 'G'].forEach(c => opts.push([c])); continue; }
     const syms = [...body.matchAll(/\{([WUBRGC])\}/g)].map(x => x[1]);
     if (!syms.length) continue;
@@ -6936,9 +6978,10 @@ function payFrom(pool, cost, extraGeneric = 0) {
   return tryHybrid(0, P, life, extraGeneric);
 }
 /** S11b · o que a permanente produz, contando o que auras concedem. */
-function expandProduction(s, o, opt) {
+function expandProduction(s, o, opt, visto) {
   if (Array.isArray(opt)) return [opt.slice()];
   if (opt.identity) return identidade(s, o.controller).map(c => [c]); // M13 · sem comandante ou incolor: nada
+  if (opt.opponentLands) return coresDosTerrenosDosOponentes(s, o.controller, new Set([...(visto || []), o.oid])).map(c => [c]);
   const n = opt.per ? countFor(s, o, opt.per) : (opt.amount || 1);
   if (n <= 0) return [];
   if (opt.anyColor) return ['W', 'U', 'B', 'R', 'G'].map(c => Array(n).fill(c));
@@ -6946,13 +6989,30 @@ function expandProduction(s, o, opt) {
 }
 /** M13 · cores da identidade dos comandantes do jogador (vazia fora do Commander). */
 function identidade(s, p) { return ((s.players[p] || {}).identity || []).slice(); }
-function productions(s, o) {
+/** M13b · cores (nunca {C}) que um terreno de um oponente de p poderia produzir (rulings de 01/02/2009 do
+ * Exotic Orchard): ignora custos e se o terreno está virado; `visto` corta o ciclo entre fontes que
+ * dependem umas das outras, então dois Orchards sozinhos não geram nada e uma Forest habilita os dois. */
+function coresDosTerrenosDosOponentes(s, p, visto = new Set()) {
+  const achadas = new Set();
+  for (const l of battlefield(s)) {
+    if (l.controller === p || visto.has(l.oid) || !((s.facts[l.name] || {}).types || []).includes('land')) continue;
+    for (const opt of productions(s, l, visto)) for (const c of opt) if (c !== 'C') achadas.add(c);
+  }
+  return ['W', 'U', 'B', 'R', 'G'].filter(c => achadas.has(c));
+}
+/** Cores a que uma habilidade de mana está restrita; null quando não há restrição. */
+function coresPermitidas(s, p, eff) {
+  if (eff.identity) return identidade(s, p);
+  if (eff.opponentLands) return coresDosTerrenosDosOponentes(s, p);
+  return null;
+}
+function productions(s, o, visto) {
   const spec = ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
-  let opts = spec.length ? spec.flatMap(x => expandProduction(s, o, x)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x));
+  let opts = spec.length ? spec.flatMap(x => expandProduction(s, o, x, visto)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x, visto));
   for (const x of attachedTo(s, o)) {
     const g = grantsOf(s, x); if (!g) continue;
-    if (g.produces) opts = opts.concat(g.produces.flatMap(y => expandProduction(s, o, y)));
+    if (g.produces) opts = opts.concat(g.produces.flatMap(y => expandProduction(s, o, y, visto)));
     if (g.extraMana) {
       const extra = g.extraMana === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : g.extraMana;
       if (extra.length) opts = opts.flatMap(base => extra.map(c => base.concat([c])));
@@ -7683,7 +7743,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; note({}); break;
     case 'add_mana': {
       // M13 · identidade do comandante: sem cor válida, a habilidade não produz nada (nem {C})
-      const syms = eff.symbols || (eff.identity ? (eff.color && identidade(s, ctrl).includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
+      const restritas = coresPermitidas(s, ctrl, eff); // M13/M13b · identidade ou terrenos dos oponentes
+      const syms = eff.symbols || (restritas ? (eff.color && restritas.includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
@@ -8595,7 +8656,14 @@ const HANDLERS = {
       if (!a.color) throw new RuleError('mana', identidade(s, a.p).length ? 'escolha uma cor da identidade do seu comandante' : 'sem identidade de cor, essa habilidade não produz mana');
       if (!identidade(s, a.p).includes(a.color)) throw new RuleError('mana', 'essa cor está fora da identidade do seu comandante');
     }
-    const ab = { ...base, effects: (base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: e.identity ? (a.color || null) : (a.color || 'C') } : e) };
+    if ((base.effects || []).some(e => e.do === 'add_mana' && e.opponentLands)) {
+      // M13b · Fellwar Stone: mesma recusa, com as cores dos terrenos dos oponentes
+      const cores = coresDosTerrenosDosOponentes(s, a.p);
+      if (!cores.length) throw new RuleError('mana', 'nenhum terreno dos oponentes produz cor: essa habilidade não gera mana');
+      if (!a.color) throw new RuleError('mana', 'escolha uma cor que um terreno de um oponente poderia produzir');
+      if (!cores.includes(a.color)) throw new RuleError('mana', 'essa cor nenhum terreno dos oponentes poderia produzir');
+    }
+    const ab = { ...base, effects: (base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: (e.identity || e.opponentLands) ? (a.color || null) : (a.color || 'C') } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
     const chosen = a.targets || [];
@@ -9297,6 +9365,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (!need.length) {
         const anyColor = (ab.effects || []).some(e => e.do === 'add_mana' && e.anyColor);
         const porIdentidade = (ab.effects || []).some(e => e.do === 'add_mana' && e.identity);
+        const porOponentes = (ab.effects || []).some(e => e.do === 'add_mana' && e.opponentLands);
+        if (porOponentes) return coresDosTerrenosDosOponentes(s, p).forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
         if (porIdentidade) return identidade(s, p).forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
         if (anyColor) return ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
         return out.push({ t: 'activate', p, oid: o.oid, index, ...(pay ? { pay } : {}) });
@@ -10654,7 +10724,7 @@ function descreveEfeito(e) {
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
-    case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
+    case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório`;
     case 'scry': return `olha as ${n} de cima e decide (scry ${n})`;
     case 'surveil': return `vigia ${n}`;

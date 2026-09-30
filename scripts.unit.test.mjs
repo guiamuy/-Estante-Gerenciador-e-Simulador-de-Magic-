@@ -300,6 +300,9 @@ function runExample(sc) {
   // M13 · mana pela identidade do comandante: o cenário dá ao jogador um comandante branco e preto
   const porIdentidade = (sc.abilities || []).some(x => (x.effects || []).some(e => e.do === 'add_mana' && e.identity));
   if (porIdentidade) { s = J(s); s.players[a].identity = ['W', 'B']; }
+  // M13b · mana pelas cores dos terrenos do oponente (Fellwar Stone): o cenário dá a ele uma Floresta
+  const porOponentes = (sc.abilities || []).some(x => (x.effects || []).some(e => e.do === 'add_mana' && e.opponentLands));
+  if (porOponentes) { let fl; [s, fl] = put(s, d, 'Test Forest'); }
   if (how === 'madness') s = act(s, { t: 'discard', p: a, oid });
   if (how === 'disturb') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }
   if (how === 'flashback') { s = JSON.parse(JSON.stringify(s)); s.zones[a].hand = s.zones[a].hand.filter(x => x !== oid); s.zones[a].graveyard.push(oid); s.objects[oid].zone = 'graveyard'; }

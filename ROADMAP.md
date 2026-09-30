@@ -334,7 +334,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 12º | U13 conta e perfil com Google (nome, avatar, backup) | E47 | 3 a 4 | **precisa de decisão e de um Client ID seu** (abaixo) |
 | 13º | U14 partida online 1x1 | E48 | 6 a 10 | **precisa de decisão de infraestrutura** (abaixo) |
 | 14º | U15 chat na partida 1x1 | E49 | 1 a 2 | depende de U14 |
-| depois | E36 · Commander (M13b, S67+) | — | — | volta à fila |
+| 15º | E36 · Commander: M13b ✅ (leva 103), depois S67+ | — | — | em curso enquanto U13/U14 esperam decisão |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -741,7 +741,7 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Depende de:** M5, S1.
 - **Fora:** cópias de permanentes e fichas que copiam outra carta.
 
-**M13 · Regras específicas de Commander** 🟡 (leva 81: identidade na mana e volta à zona de comando)
+**M13 · Regras específicas de Commander** ✅ (leva 81: identidade na mana e volta à zona de comando; leva 103: parcerias e mana pelos terrenos do oponente)
 - **Entregue (leva 81, E36):**
   - identidade de cor do comandante fixada no jogador ao começar (903.4); dois comandantes somam as identidades;
   - "one mana of any color in your commander's color identity": Command Tower (lida do texto) e Arcane Signet (script, agora completo) só geram cores da identidade; comandante incolor ou partida sem comandante não gera nada, nem {C} (rulings de 10/11/2020, conferidos na Scryfall em 29/09/2026);
@@ -750,13 +750,17 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Sem rede:** tudo roda no motor, no aparelho; passo novo no `e2e · O1` (Commander sem internet, comandante exilado volta para a zona de comando).
 - **Simplificação declarada:** para mão e grimório a regra é de substituição (o comandante nem chega lá); no motor a pergunta vem logo depois da mudança de zona. O resultado só difere para efeitos que olham a mão ou o grimório nesse intervalo, e nenhuma carta das listas faz isso.
 - **Testes:** `commander.unit.test.mjs` (11, todos falham na versão anterior), e2e `M13` na mesa, passo no `e2e · O1`; `commander-7` regravada: a partida-referência agora passa por 4 decisões de zona de comando (2 sim, 2 não).
-- **Falta (M13b):** partner e background como validação de lista; Exotic Orchard e Fellwar Stone ("cores que um terreno do oponente poderia produzir").
+- **Entregue (leva 103, M13b):**
+  - validação de lista com dois comandantes (702.124, regras de 07/06/2024 conferidas em 30/09/2026): "Partner" nos dois, "Partner with" um nomeando o outro, "Friends forever" nos dois, "Choose a Background" + Antecedente lendário (o Antecedente deixa de ser "não pode ser comandante" só nesse par), "Doctor's companion" + Doutor (criatura lendária só Time Lord Doctor); variantes não se misturam (702.124f); identidade soma os dois;
+  - variante "Partner—…" que o app não conhece vira **aviso** para conferir, nunca aprovação nem erro;
+  - "any color that a land an opponent controls could produce": Exotic Orchard (lida do texto) e Fellwar Stone (script, agora completo). Rulings do Exotic Orchard de 01/02/2009, conferidos na Scryfall em 30/09/2026: nunca {C}; terreno virado ou com custo conta; dois Orchards sozinhos não geram nada; uma Forest de qualquer lado habilita os dois. Fellwar sem cor possível é recusada e fica desvirada.
+- **Fora (declarado):** o efeito dos Antecedentes na partida ("Commander creatures you own have …") depende do script de cada carta; nenhum está nas listas prontas. Doctor's companion validado pela linha de tipo, sem carta real nas listas.
 - **Valor:** o Commander completo sem lembrar exceções.
 - **Aceite:**
   - substituição do comandante para a zona de comando (escolha);
-  - partner e background;
-  - identidade de cor aplicada à mana produzida.
-- **Testes:** U.
+  - partner e background ✅ (leva 103);
+  - identidade de cor aplicada à mana produzida ✅ (leva 81).
+- **Testes:** U (`commander.unit.test.mjs`, 3 novos da M13b; `decks.unit.test.mjs`, 5 novos de parceria).
 - **Depende de:** M6, M10.
 - **Fora:** multiplayer com mais de 2 jogadores na interface.
 
@@ -3035,6 +3039,13 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Visor da carta na coleção:** um toque na carta (galeria ou miniatura da lista) abre a carta grande (até 380 px, proporção exata, brilho enquanto carrega), com custo em símbolos, tipo, força/resistência, "você tem N" e o texto oficial numa caixa embaixo; X no topo fecha; botão "Impressões" leva à edição e quantidade (antes o toque na galeria abria direto as impressões).
 - **Bug corrigido:** quem tinha recolhido a mão numa partida anterior começava o 1º turno sem ver as cartas — a mão inicial abria forçada e, ao manter, voltava a recolher. Agora toda partida sai da mão inicial com a mão aberta; recolher dentro da partida continua valendo.
 - **Testes:** e2e "leva 102 mão aberta" (preferência recolhida gravada → 1º turno com a mão à vista; recolher dentro da partida persiste); e2e "leva 102 coleção" (tela 3×: miniatura e galeria não usam a small; visor grande com proporção da carta, texto embaixo, quantidade, X, auditoria de sobreposição, atalho para impressões). Expectativas alteradas com justificativa: U6 (a mão não volta a recolher depois do mulligan), C13 (galeria abre o visor), O1 e offline.unit (coleção guarda e mostra a "normal"; com srcset vale o evento de carga, não a largura natural do PNG de 1 px do teste).
+
+**Leva 103 · E36 · M13b: parcerias de comandante e mana pelos terrenos do oponente** ✅ (pedido de 30/09)
+- **Lista:** dois comandantes só com parceria válida (Partner, Partner with, Friends forever, Choose a Background + Antecedente, Doctor's companion); mensagem diz o que falta; variante desconhecida vira aviso. Funciona sem internet (só dados guardados).
+- **Mesa:** Exotic Orchard e Fellwar Stone geram só as cores que um terreno de um oponente poderia gerar, com os rulings oficiais (ver M13).
+- **Motor v58:** a produção de mana do Exotic Orchard mudou (antes: qualquer cor); partidas salvas no v57 com essa carta repetiriam o log com opções diferentes, então a versão sobe e a mesa recusa partidas antigas, como já fazia. **Goldens regravadas** só pela versão (entra no hash do estado): os quatro logs, status e turnos idênticos, conferidos um a um.
+- **Testes:** 8 unidades novas, todas falham na versão anterior; cenário S8 da Fellwar Stone ganha uma Floresta do oponente.
+- **Portão:** 557 verdes (496 unidade/fuzz/golden/torneio + 61 e2e); motor v58.
 
 **Guarda-corpo de sobreposição (leva 100)** ✅
 - **Problema:** em 360 px, no aparelho do usuário, o "Blue" de "Pauper Mono Blue Faeries" passava por cima do selo "Pauper" na tela de listas. No teste a fonte é mais estreita e a tinta não encostava; a caixa reservada pelo layout, sim.

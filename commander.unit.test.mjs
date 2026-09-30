@@ -16,7 +16,12 @@ const CARDS = {
   'Parceiro Azul': k('Parceiro Azul', 'Legendary Creature — Siren', { mana_cost: '{1}{U}', cmc: 2, power: '1', toughness: '1', color_identity: ['U'] }),
   'Parceiro Vermelho': k('Parceiro Vermelho', 'Legendary Creature — Elemental', { mana_cost: '{1}{R}', cmc: 2, power: '1', toughness: '1', color_identity: ['R'] }),
   'Golem Incolor': k('Golem Incolor', 'Legendary Artifact Creature — Golem', { mana_cost: '{3}', cmc: 3, power: '3', toughness: '3', color_identity: [] }),
-  'Urso': k('Urso', 'Creature — Bear', { mana_cost: '{1}', cmc: 1, power: '2', toughness: '2' })
+  'Urso': k('Urso', 'Creature — Bear', { mana_cost: '{1}', cmc: 1, power: '2', toughness: '2' }),
+  // M13b · textos conferidos em 30/09/2026 (Scryfall, página da carta C16 295; Hareruya para a Fellwar Stone)
+  'Forest': k('Forest', 'Basic Land — Forest'),
+  'Wastes': k('Wastes', 'Basic Land'),
+  'Exotic Orchard': k('Exotic Orchard', 'Land', { oracle_text: '{T}: Add one mana of any color that a land an opponent controls could produce.' }),
+  'Fellwar Stone': k('Fellwar Stone', 'Artifact', { mana_cost: '{2}', cmc: 2, oracle_text: '{T}: Add one mana of any color that a land an opponent controls could produce.' })
 };
 const deck = cmds => [...cmds.map(name => ({ name, qty: 1, zone: 'commander' })),
   { name: 'Island', qty: 40, zone: 'main' }, { name: 'Urso', qty: 20, zone: 'main' }];
@@ -212,4 +217,64 @@ test('Q10 · comandante devolvido no meio da resolução: o resto da mágica con
   assert.equal(sim.resume, null, 'nada pendurado para disparar fora de hora');
   const nao = act(s, { t: 'commander_zone', p: d, yes: false });
   assert.equal(nao.objects[cmd].zone, 'hand'); assert.equal(nao.players[d].life, 39); assert.equal(nao.resume, null);
+});
+
+/* ---------------- M13b · "any color that a land an opponent controls could produce" ---------------- */
+// Rulings da Scryfall de 01/02/2009 (Exotic Orchard), conferidos em 30/09/2026:
+// não gera {C} mesmo que o terreno do oponente gere; ignora custos e se o terreno está virado;
+// dois Orchards sozinhos não geram nada; uma Forest de qualquer lado habilita os dois.
+function mesaVazia() {
+  let s = J(jogo()); const a = s.turn.active, d = 1 - a;
+  for (const p of [a, d]) for (const oid of s.zones[p].battlefield.slice()) { s.zones[p].battlefield = s.zones[p].battlefield.filter(x => x !== oid); delete s.objects[oid]; }
+  return [s, a, d];
+}
+test('M13b · Exotic Orchard lida do texto: só as cores dos terrenos dos oponentes, nunca {C}', () => {
+  let [s, a, d] = mesaVazia(); let orq, ilha, flo;
+  [s, orq] = poe(s, a, 'Exotic Orchard');
+  assert.deepEqual(J(E.productions(s, s.objects[orq])), [], 'oponente sem terreno: nada');
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'tap_mana' && x.oid === orq), 'e não aparece como fonte');
+  [s, flo] = poe(s, a, 'Forest');
+  assert.deepEqual(J(E.productions(s, s.objects[orq])), [], 'terreno meu não conta');
+  let w; [s, w] = poe(s, d, 'Wastes');
+  assert.deepEqual(J(E.productions(s, s.objects[orq])), [], 'terreno do oponente que só gera {C}: nada (ruling 1)');
+  [s, ilha] = poe(s, d, 'Island');
+  s = J(s); s.objects[ilha].tapped = true;
+  assert.deepEqual(J(E.productions(s, s.objects[orq])), [['U']], 'ilha virada ainda conta (ruling 2)');
+  let flo2; [s, flo2] = poe(s, d, 'Forest');
+  assert.deepEqual(J(E.productions(s, s.objects[orq])), [['U'], ['G']]);
+  s = act(s, { t: 'tap_mana', p: a, oid: orq, option: 1 });
+  assert.equal(s.players[a].pool.G, 1, 'segunda opção: verde'); assert.equal(s.players[a].pool.C, 0);
+});
+
+test('M13b · dois Exotic Orchards sozinhos não geram nada; uma Forest de qualquer lado habilita os dois', () => {
+  let [s, a, d] = mesaVazia(); let o1, o2, f;
+  [s, o1] = poe(s, a, 'Exotic Orchard'); [s, o2] = poe(s, d, 'Exotic Orchard');
+  assert.deepEqual(J(E.productions(s, s.objects[o1])), []);
+  assert.deepEqual(J(E.productions(s, s.objects[o2])), []);
+  const comForest = lado => { let t = s, x; [t, x] = poe(t, lado, 'Forest'); return t; };
+  for (const lado of [a, d]) {
+    const t = comForest(lado);
+    assert.deepEqual(J(E.productions(t, t.objects[o1])), [['G']], `Forest do jogador ${lado}: Orchard de A gera verde`);
+    assert.deepEqual(J(E.productions(t, t.objects[o2])), [['G']], `Forest do jogador ${lado}: Orchard de B gera verde`);
+  }
+});
+
+test('M13b · Fellwar Stone: script completo, só cores dos terrenos dos oponentes', () => {
+  const sc = loadModules().scripts.SCRIPTS['Fellwar Stone'];
+  assert.ok(sc && sc.covers !== 'partial', 'deixou de ser parcial');
+  let [s, a, d] = mesaVazia(); let pedra, ilha;
+  [s, pedra] = poe(s, a, 'Fellwar Stone');
+  assert.ok(!E.legalActions(s, a).some(x => x.t === 'activate' && x.oid === pedra), 'oponente sem terreno: nada a oferecer');
+  assert.throws(() => act(s, { t: 'activate', p: a, oid: pedra, index: 0 }), /nenhum terreno dos oponentes/);
+  assert.equal(s.objects[pedra].tapped, false, 'recusada, a pedra fica desvirada');
+  [s, ilha] = poe(s, d, 'Island');
+  let minha; [s, minha] = poe(s, a, 'Forest');
+  const cores = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === pedra).map(x => x.color);
+  assert.deepEqual(J(cores), ['U'], 'só azul: a Forest é minha');
+  assert.throws(() => act(s, { t: 'activate', p: a, oid: pedra, index: 0, color: 'G' }), /nenhum terreno dos oponentes poderia produzir/);
+  assert.throws(() => act(s, { t: 'activate', p: a, oid: pedra, index: 0 }), /escolha uma cor/);
+  const s2 = act(s, { t: 'activate', p: a, oid: pedra, index: 0, color: 'U' });
+  const r = s2.stack.length ? act(act(s2, { t: 'pass', p: a }), { t: 'pass', p: d }) : s2;
+  assert.equal(r.players[a].pool.U, 1, 'gerou azul');
+  assert.equal(r.objects[pedra].tapped, true);
 });

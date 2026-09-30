@@ -607,3 +607,75 @@ test('E51 · lista salva com o corte errado da leva 95 é corrigida ao abrir; ed
   const editada = [...velha.map(e => ({ ...e })), { name: 'Island', qty: 1, zone: 'side' }];
   assert.equal(S.corrigeCorteErrado({ name: 'x', format: 'pauper', entries: editada }), null);
 });
+
+/* ---------------- M13b · dois comandantes (702.124, texto das regras de 07/06/2024, conferido em 30/09/2026) ---------------- */
+// Linhas de palavra-chave no formato dos textos oficiais (conferidos em 30/09/2026: Vhal, Candlekeep Researcher
+// "Choose a Background (You can have a Background as a second commander.)"; Raised by Giants "Legendary
+// Enchantment — Background"; Rocksteady "Partner with Bebop, Skull & Crossbones (When this creature enters, …)").
+// Os nomes são de teste: o que se valida é a regra, não a carta.
+const par = (name, ci, texto, tipo = 'Legendary Creature — Human') => cc(name, tipo, 3, ci, { oracle_text: texto });
+const PAR = new Map([
+  par('Parceira Branca', ['W'], 'Flying\nPartner (You can have two commanders if both have partner.)'),
+  par('Parceiro Azul', ['U'], 'Partner (You can have two commanders if both have partner.)'),
+  par('Lenda Comum', ['G'], 'Trample'),
+  par('Pir Teste', ['G'], 'Partner with Toothy Teste (When this creature enters, target player may put Toothy Teste into their hand from their library, then shuffle.)'),
+  par('Toothy Teste', ['U'], 'Partner with Pir Teste (When this creature enters, target player may put Pir Teste into their hand from their library, then shuffle.)'),
+  par('Outro Com', ['R'], 'Partner with Ninguém Teste (When this creature enters, target player may put Ninguém Teste into their hand from their library, then shuffle.)'),
+  par('Amigo Um', ['W'], 'Friends forever (You can have two commanders if both have friends forever.)'),
+  par('Amigo Dois', ['B'], 'Friends forever (You can have two commanders if both have friends forever.)'),
+  par('Vhal Teste', ['G'], 'Vigilance\nChoose a Background (You can have a Background as a second commander.)', 'Legendary Creature — Human Wizard'),
+  par('Criado por Gigantes', ['G'], 'Commander creatures you own have base power and toughness 10/10.', 'Legendary Enchantment — Background'),
+  par('Antecedente Comum', ['B'], 'Commander creatures you own have menace.', 'Enchantment — Background'),
+  par('Companheira Teste', ['W'], "Doctor's companion (You can have two commanders if the other is the Doctor.)"),
+  par('Doutor Teste', ['U'], 'Vigilance', 'Legendary Creature — Time Lord Doctor'),
+  par('Doutor Humano', ['U'], 'Vigilance', 'Legendary Creature — Time Lord Doctor Human'),
+  par('Variante Nova', ['R'], 'Partner—Survivors (You can have two commanders if both have this ability.)'),
+  par('Variante Nova 2', ['G'], 'Partner—Survivors (You can have two commanders if both have this ability.)'),
+  cc('Carta Azul', 'Instant', 2, ['U']), cc('Carta Verde', 'Instant', 2, ['G']), cc('Wastes', 'Basic Land', 0, [])
+]);
+const dupla = (a, b, extra = []) => ({ format: 'commander', entries: [
+  { name: a, qty: 1, zone: 'commander' }, ...(b ? [{ name: b, qty: 1, zone: 'commander' }] : []),
+  ...extra, { name: 'Wastes', qty: 100 - (b ? 2 : 1) - extra.length, zone: 'main' }] });
+const msgsPar = d => D.validateDeck(d, PAR).map(i => `${i.level}: ${i.message}`).join('\n');
+const JUNTOS = /não podem ser comandantes juntos/;
+
+test('M13b · Partner: os dois precisam ter; identidade soma as duas cores', () => {
+  const ok = msgsPar(dupla('Parceira Branca', 'Parceiro Azul', [{ name: 'Carta Azul', qty: 1, zone: 'main' }]));
+  assert.equal(ok, '', 'W + U com Partner nos dois: nenhuma pendência, carta azul dentro da identidade');
+  assert.match(msgsPar(dupla('Parceira Branca', 'Lenda Comum')), JUNTOS, 'só um tem Partner');
+  assert.match(msgsPar(dupla('Parceira Branca', 'Parceiro Azul', [{ name: 'Carta Verde', qty: 1, zone: 'main' }])), /Fora da identidade de cor do comandante: Carta Verde/);
+  assert.equal(msgsPar(dupla('Parceira Branca')), '', 'um comandante só, com Partner: tudo certo');
+  const off = D.validateDeck(dupla('Parceira Branca', 'Lenda Comum'), PAR, { semRede: true }).map(i => i.message).join('\n');
+  assert.match(off, JUNTOS, 'sem internet a checagem é a mesma: roda só com os dados guardados');
+});
+
+test('M13b · Partner with: cada um nomeia o outro; misturar com Partner não vale (702.124f)', () => {
+  assert.equal(msgsPar(dupla('Pir Teste', 'Toothy Teste')), '');
+  assert.match(msgsPar(dupla('Pir Teste', 'Outro Com')), JUNTOS, 'Partner with de outro nome');
+  assert.match(msgsPar(dupla('Pir Teste', 'Parceiro Azul')), JUNTOS, 'Partner with não combina com Partner');
+});
+
+test('M13b · Friends forever e Doctor\'s companion', () => {
+  assert.equal(msgsPar(dupla('Amigo Um', 'Amigo Dois')), '');
+  assert.match(msgsPar(dupla('Amigo Um', 'Parceiro Azul')), JUNTOS, 'Friends forever não combina com Partner');
+  assert.equal(msgsPar(dupla('Companheira Teste', 'Doutor Teste')), '');
+  assert.match(msgsPar(dupla('Companheira Teste', 'Doutor Humano')), JUNTOS, 'o Doutor não pode ter outro tipo de criatura');
+  assert.match(msgsPar(dupla('Companheira Teste', 'Parceiro Azul')), JUNTOS);
+});
+
+test('M13b · Choose a Background: o Antecedente lendário vira segundo comandante; sozinho ou com outro, não', () => {
+  assert.equal(msgsPar(dupla('Vhal Teste', 'Criado por Gigantes')), '', 'Antecedente com quem escolhe: vale, e não é "não pode ser comandante"');
+  assert.equal(msgsPar(dupla('Criado por Gigantes', 'Vhal Teste')), '', 'a ordem não importa');
+  assert.match(msgsPar(dupla('Criado por Gigantes')), /Criado por Gigantes não pode ser comandante/, 'Antecedente sozinho');
+  const semEscolha = msgsPar(dupla('Parceira Branca', 'Criado por Gigantes'));
+  assert.match(semEscolha, JUNTOS); assert.match(semEscolha, /Criado por Gigantes não pode ser comandante/);
+  assert.match(msgsPar(dupla('Vhal Teste', 'Antecedente Comum')), JUNTOS, 'Antecedente que não é lendário');
+  assert.match(msgsPar(dupla('Vhal Teste', 'Parceiro Azul')), JUNTOS, 'quem escolhe Antecedente não aceita Partner');
+});
+
+test('M13b · variante de parceria que o app não conhece: aviso para conferir, nunca aprovação silenciosa', () => {
+  const m = msgsPar(dupla('Variante Nova', 'Variante Nova 2'));
+  assert.match(m, /^warning: .*Partner—Survivors.*não é conferida/m);
+  assert.doesNotMatch(m, /^error:/m);
+  assert.match(msgsPar(dupla('Variante Nova', 'Lenda Comum')), /^warning: .*não é conferida/m, 'com uma variante desconhecida, o app não afirma nada: avisa');
+});
