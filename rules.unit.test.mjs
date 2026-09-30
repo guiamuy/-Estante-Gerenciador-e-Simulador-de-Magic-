@@ -3491,8 +3491,12 @@ test('S53 · custo adicional com duas opções: descartar, sacrificar terreno, o
   [s, roubo] = put(s, a, 'Robbery', { zone: 'hand' });
   [s, mata] = put(s, a, 'Mountain');
   const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === roubo);
-  const adds = JSON.parse(JSON.stringify(ofertas.map(x => (x.add === null ? 'nada' : x.add)))).sort();
+  // Leva 104 · expectativa alterada: antes o motor escolhia sozinho a carta descartada e o terreno
+  // sacrificado (uma oferta por opção); agora há uma oferta por carta/terreno que o jogador pode escolher.
+  const adds = [...new Set(JSON.parse(JSON.stringify(ofertas.map(x => (x.add === null ? 'nada' : x.add)))))].sort();
   assert.deepEqual(adds, [0, 1, 'nada'], 'as duas opções de custo e a de não pagar');
+  const maoAntes = s.zones[a].hand.filter(x => x !== roubo);
+  assert.equal(ofertas.filter(x => x.add === 0).length, maoAntes.length, 'descartar: uma oferta por carta da mão');
 
   // descartando, compro duas
   const mao = s.zones[a].hand.length;

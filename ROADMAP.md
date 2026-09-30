@@ -335,6 +335,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 13º | U14 partida online 1x1 | E48 | 6 a 10 | **precisa de decisão de infraestrutura** (abaixo) |
 | 14º | U15 chat na partida 1x1 | E49 | 1 a 2 | depende de U14 |
 | 15º | E36 · Commander: M13b ✅ (leva 103), depois S67+ | — | — | em curso enquanto U13/U14 esperam decisão |
+| 15º-a ✅ | Escolhas de quem paga e X (leva 104) | E33 | 1 | relato do usuário |
+| 15º-b | Auditoria texto × script das 138 cartas Pauper (leva 105) | E33 | 1 a 2 | precisa dos textos das 27 cartas `incerto` |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3039,6 +3041,25 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Visor da carta na coleção:** um toque na carta (galeria ou miniatura da lista) abre a carta grande (até 380 px, proporção exata, brilho enquanto carrega), com custo em símbolos, tipo, força/resistência, "você tem N" e o texto oficial numa caixa embaixo; X no topo fecha; botão "Impressões" leva à edição e quantidade (antes o toque na galeria abria direto as impressões).
 - **Bug corrigido:** quem tinha recolhido a mão numa partida anterior começava o 1º turno sem ver as cartas — a mão inicial abria forçada e, ao manter, voltava a recolher. Agora toda partida sai da mão inicial com a mão aberta; recolher dentro da partida continua valendo.
 - **Testes:** e2e "leva 102 mão aberta" (preferência recolhida gravada → 1º turno com a mão à vista; recolher dentro da partida persiste); e2e "leva 102 coleção" (tela 3×: miniatura e galeria não usam a small; visor grande com proporção da carta, texto embaixo, quantidade, X, auditoria de sobreposição, atalho para impressões). Expectativas alteradas com justificativa: U6 (a mão não volta a recolher depois do mulligan), C13 (galeria abre o visor), O1 e offline.unit (coleção guarda e mostra a "normal"; com srcset vale o evento de carga, não a largura natural do PNG de 1 px do teste).
+
+**Leva 104 · Escolhas de quem paga: custo que escolhe outra permanente e custo com X** ✅ (relato do usuário de 30/09)
+- **Relato:** a Jaspera Sentinel virava sozinha uma criatura que o jogador não escolheu; a Nyxborn Hydra não deixava escolher o X.
+- **Causa (classe, não carta):** o motor oferecia só a primeira forma de pagar os custos com escolha (virar outra, sacrificar outra, descartar, devolver terreno, exilar do cemitério, barganha) e o X ia de 1 a 4 fixos no conjurar normal e nem existia no conceder. Na mesa, as opções saíam com o mesmo rótulo ("Conjurar", "Conjurar", …), sem dizer o X.
+- **Entregue:**
+  - motor: uma ação por forma de pagar (`pagamentosDe`, até 24 por custo) em habilidades, custos adicionais, lampejo do passado, custos alternativos e barganha; X de 0 até o máximo pagável (teto 20) no conjurar e no conceder; conceder cobra {X}{G}{G} de verdade e a Hydra entra com os X marcadores; X inválido é recusado; a linha do tempo registra "com X = n";
+  - mesa: ações que só diferem no pagamento viram um botão só; o toque abre "Qual criatura vira para pagar?" (ou sacrifica, descarta, devolve, exila), com o nome de cada opção; com X, um seletor − / + que só anda no intervalo pagável, mostra o total em símbolos e confirma "Conjurar com X = n"; "Como você paga o custo?" quando há caminhos diferentes (Highway Robbery: descartar, sacrificar terreno ou não pagar).
+- **Achados no caminho:** Birchlore Rangers não podia se virar como um dos dois Elfos — ruling de 04/10/2004 ("It can tap itself but is not required to do so."), corrigido; símbolos: o primeiro símbolo de um texto às vezes ficava como texto ("{3}" no total do X), porque o `matchAll` herdava o `lastIndex` da expressão global — corrigido com teste.
+- **Guarda-corpo:** auditoria `A19` (todo custo com escolha das listas Pauper oferece mais de uma forma de pagar na mesa farta) e `A20` (toda carta com {X} pergunta o valor em cada forma de conjurar). Com o código anterior as duas falham, citando Grab the Prize, Highway Robbery, Prismatic Strands, Battle Screech, Quirion Ranger, Saruli Caretaker e a Nyxborn Hydra no conceder.
+- **Textos oficiais coletados:** `.listas/oficiais.json` com as 138 cartas não básicas das listas Pauper (30/09/2026); 27 marcadas `incerto` (16 sem texto) porque a Scryfall recusou as páginas e a cota de busca da sessão acabou. Jaspera Sentinel e Nyxborn Hydra entraram na base da auditoria (`.listas/cartas.json`).
+- **Declarado para a leva 105 (auditoria texto × script):** Highway Robbery está modelada como custo adicional; no texto oficial o descarte ou sacrifício acontece na resolução ("You may discard a card or sacrifice a land. If you do, draw two cards."). Diferença só aparece se a mágica for anulada. Exilar do cemitério por fuga/delve ainda pega as primeiras cartas.
+- **Testes:** 6 unidades em `pauper.regras.test.mjs`, 1 em `simbolos.unit.test.mjs`, A19 e A20 na auditoria, e2e "leva 104" (Jaspera com escolha, seletor de X com intervalo, total em símbolos, auditoria de tela). Expectativa alterada com justificativa: S53 (uma oferta por carta descartável, não uma por opção).
+- **Motor:** v58 sem mudança de versão — ações antigas continuam válidas (o pagamento escolhido já ia no log) e as partidas-referência não mudaram.
+- **Portão:** 567 verdes (505 + 62 e2e).
+
+**Leva 105 · Auditoria texto × script das 138 cartas Pauper** ⏳
+- **Valor:** cada carta das listas Pauper conferida contra o texto oficial, com divergência virando teste antes da correção.
+- **Aceite:** 138/138 com texto de fonte confiável e data; cada script comparado linha a linha; divergências corrigidas ou declaradas (parcial/manual); Highway Robbery na resolução.
+- **Depende de:** textos das 27 cartas `incerto` (ver `.listas/oficiais.json`).
 
 **Leva 103 · E36 · M13b: parcerias de comandante e mana pelos terrenos do oponente** ✅ (pedido de 30/09)
 - **Lista:** dois comandantes só com parceria válida (Partner, Partner with, Friends forever, Choose a Background + Antecedente, Doctor's companion); mensagem diz o que falta; variante desconhecida vira aviso. Funciona sem internet (só dados guardados).

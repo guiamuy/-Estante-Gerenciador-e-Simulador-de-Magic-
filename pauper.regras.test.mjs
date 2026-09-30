@@ -206,3 +206,101 @@ test('Correções menores: Bloodrite 3/3, Moon-Circuit ninjutsu {U}, Bojuka qual
   s = act(s, { t: 'play_land', p: a, oid: bog });
   if (s.pending && s.pending.kind === 'pick_target') assert.ok(s.pending.options.some(o => o.player === a), 'pode mirar o próprio cemitério');
 });
+
+/* ---------------- Leva 104 · escolhas do jogador em custos e em X ----------------
+ * Relato do usuário (30/09/2026): a Jaspera Sentinel virava sozinha uma criatura que ele
+ * não escolheu, e a Nyxborn Hydra não deixava escolher o X. Textos conferidos em 30/09/2026:
+ * Jaspera Sentinel "{T}, Tap an untapped creature you control: Add one mana of any color."
+ * (playgroup.gg, EchoMTG); Nyxborn Hydra {X}{G}, "Bestow {X}{G}{G}", "enters with X +1/+1
+ * counters", "Enchanted creature gets +1/+1 for each +1/+1 counter on Nyxborn Hydra and has
+ * reach and trample." (Scryfall MH3 164). Regra 601.2b/f/h: quem paga escolhe o valor de X e
+ * as permanentes e cartas usadas nos custos. */
+const pagos = (s, a, oid, filtro = () => true) => E.legalActions(s, a).filter(x => x.oid === oid && filtro(x));
+const chave = x => JSON.stringify(x.pay || {});
+
+test('Leva 104 · Jaspera Sentinel: o jogador escolhe qual criatura vira (a enjoada também serve)', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let jas, urso, elfo, dele;
+  [s, jas] = poe(s, a, 'Jaspera Sentinel'); [s, urso] = poe(s, a, 'Urso'); [s, elfo] = poe(s, a, 'Llanowar Elves', 'battlefield', { sick: true });
+  [s, dele] = poe(s, d, 'Urso');
+  const verdes = pagos(s, a, jas, x => x.t === 'activate' && x.color === 'G');
+  assert.deepEqual(J(verdes.map(x => x.pay.tapOther).sort()), [[elfo], [urso]].sort(), 'uma opção por criatura minha, e só as minhas');
+  const r = act(s, { t: 'activate', p: a, oid: jas, index: 0, color: 'G', pay: { tapOther: [elfo] } });
+  assert.equal(r.objects[elfo].tapped, true, 'virou a que eu escolhi');
+  assert.equal(r.objects[urso].tapped, false, 'e não a outra (antes: sempre a primeira)');
+  assert.throws(() => act(s, { t: 'activate', p: a, oid: jas, index: 0, color: 'G', pay: { tapOther: [dele] } }), /vire 1 criatura/);
+});
+
+// Ruling de 04/10/2004 (Scryfall, conferido em 30/09/2026): "It can tap itself but is not required to do so."
+test('Leva 104 · Birchlore Rangers: o jogador escolhe os dois Elfos, e ela pode ser um deles', () => {
+  let s = jogo(); const a = s.turn.active; let bir, e1, e2, e3;
+  [s, bir] = poe(s, a, 'Birchlore Rangers'); [s, e1] = poe(s, a, 'Llanowar Elves'); [s, e2] = poe(s, a, 'Elvish Vanguard'); [s, e3] = poe(s, a, 'Timberwatch Elf');
+  [s] = poe(s, a, 'Urso');
+  const pares = pagos(s, a, bir, x => x.t === 'activate' && x.color === 'G').map(x => J(x.pay.tapOther).sort().join('+'));
+  const esperado = [[bir, e1], [bir, e2], [bir, e3], [e1, e2], [e1, e3], [e2, e3]].map(p => p.sort().join('+'));
+  assert.deepEqual(J(pares).sort(), esperado.sort(), 'todo par de Elfos (inclusive a própria Birchlore), nenhum Urso');
+  const r = act(s, { t: 'activate', p: a, oid: bir, index: 0, color: 'G', pay: { tapOther: [e2, e3] } });
+  assert.deepEqual([e1, e2, e3].map(x => r.objects[x].tapped), [false, true, true]);
+});
+
+test('Leva 104 · custo adicional: o jogador escolhe a carta descartada e a permanente sacrificada', () => {
+  let s = jogo(); const a = s.turn.active; let grab, fan, pedra, urso;
+  [s, grab] = poe(s, a, 'Grab the Prize', 'hand');
+  const mao = s.zones[a].hand.filter(x => x !== grab);
+  const descartes = pagos(s, a, grab, x => x.t === 'cast').map(x => J(x.pay.discard)[0]);
+  assert.deepEqual(J(descartes).sort(), J(mao).sort(), 'cada carta da mão é uma opção');
+  const escolhida = mao[mao.length - 1];
+  const r = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [escolhida] } });
+  assert.equal(r.objects[escolhida].zone, 'graveyard', 'foi a escolhida (antes: sempre a primeira da mão)');
+  [s, fan] = poe(s, a, 'Fanatical Offering', 'hand'); [s, pedra] = poe(s, a, 'Pedra'); [s, urso] = poe(s, a, 'Urso');
+  const sacr = pagos(s, a, fan, x => x.t === 'cast').map(x => x.pay.sacrifice);
+  assert.ok(sacr.includes(pedra) && sacr.includes(urso), 'artefato ou criatura, à escolha');
+  const r2 = act(s, { t: 'cast', p: a, oid: fan, pay: { sacrifice: urso } });
+  assert.equal(r2.objects[urso].zone, 'graveyard'); assert.equal(r2.objects[pedra].zone, 'battlefield');
+});
+
+test('Leva 104 · habilidade com sacrifício e com devolver terreno: o jogador escolhe qual', () => {
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let mun, pedra, urso, alvo;
+  [s, mun] = poe(s, a, 'Makeshift Munitions'); [s, pedra] = poe(s, a, 'Pedra'); [s, urso] = poe(s, a, 'Urso'); [s, alvo] = poe(s, d, 'Urso');
+  const sacr = new Set(pagos(s, a, mun, x => x.t === 'activate').map(x => x.pay.sacrifice));
+  assert.deepEqual([...sacr].sort(), [pedra, urso].sort());
+  const r = act(s, { t: 'activate', p: a, oid: mun, index: 0, targets: [{ oid: alvo }], pay: { sacrifice: pedra } });
+  assert.equal(r.objects[pedra].zone, 'graveyard'); assert.equal(r.objects[urso].zone, 'battlefield');
+  let qr, f1, f2;
+  [s, qr] = poe(s, a, 'Quirion Ranger'); [s, f1] = poe(s, a, 'Forest'); [s, f2] = poe(s, a, 'Forest');
+  const terras = new Set(pagos(s, a, qr, x => x.t === 'activate').map(x => x.pay && x.pay.land));
+  assert.deepEqual([...terras].sort(), [f1, f2].sort(), 'uma opção por Floresta');
+  const r2 = act(s, { t: 'activate', p: a, oid: qr, index: 0, targets: [{ oid: urso }], pay: { land: f2 } });
+  assert.equal(r2.objects[f2].zone, 'hand'); assert.equal(r2.objects[f1].zone, 'battlefield');
+});
+
+function jogoComMana(florestas) {
+  let s = jogo(); s = J(s); s.manaCheck = true;
+  s.facts['Nyxborn Hydra'] = E.cardFacts({ name: 'Nyxborn Hydra', type_line: 'Enchantment Creature — Hydra', mana_cost: '{X}{G}', cmc: 1, power: '0', toughness: '0', keywords: ['Reach', 'Trample'], oracle_text: '' });
+  s.facts['Nyxborn Hydra'].script = S.SCRIPTS['Nyxborn Hydra'];
+  const a = s.turn.active; const ids = [];
+  for (let i = 0; i < florestas; i++) { let f; [s, f] = poe(s, a, 'Forest'); ids.push(f); }
+  return [s, a];
+}
+test('Leva 104 · Nyxborn Hydra: X de 0 até o máximo pagável, e entra com X marcadores', () => {
+  let [s, a] = jogoComMana(6); let hid;
+  [s, hid] = poe(s, a, 'Nyxborn Hydra', 'hand');
+  const xs = pagos(s, a, hid, x => x.t === 'cast' && !x.bestow).map(x => x.x || 0).sort((p, q) => p - q);
+  assert.deepEqual(J(xs), [0, 1, 2, 3, 4, 5], 'seis Florestas: {X}{G} com X até 5 (antes: parava em 4)');
+  s = resolve(act(s, { t: 'cast', p: a, oid: hid, x: 5 }));
+  assert.equal(s.objects[hid].zone, 'battlefield');
+  assert.equal(s.objects[hid].counters.p1p1, 5);
+  assert.throws(() => act(jogoComMana(2)[0], { t: 'cast', p: a, oid: hid, x: 3 }));
+});
+
+test('Leva 104 · Nyxborn Hydra com conceder: o jogador escolhe X, paga {X}{G}{G} e a criatura ganha +X/+X', () => {
+  let [s, a] = jogoComMana(5); let hid, urso;
+  [s, hid] = poe(s, a, 'Nyxborn Hydra', 'hand'); [s, urso] = poe(s, a, 'Urso');
+  const xs = [...new Set(pagos(s, a, hid, x => x.t === 'cast' && x.bestow).map(x => x.x || 0))].sort((p, q) => p - q);
+  assert.deepEqual(xs, [0, 1, 2, 3], 'cinco Florestas: {X}{G}{G} com X até 3 (antes: X nem era perguntado)');
+  s = act(s, { t: 'cast', p: a, oid: hid, bestow: true, x: 3, targets: [{ oid: urso }] });
+  assert.equal(s.zones[a].battlefield.filter(x => s.objects[x].name === 'Forest' && !s.objects[x].tapped).length, 0, 'pagou as cinco');
+  s = resolve(s);
+  assert.equal(s.objects[hid].attachedTo, urso, 'entrou anexada');
+  assert.equal(s.objects[hid].counters.p1p1, 3, 'com 3 marcadores');
+  assert.deepEqual(stats(s, urso), [5, 5], 'Urso 2/2 + 3/3');
+});

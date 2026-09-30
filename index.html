@@ -1092,7 +1092,12 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 @media (max-height: 740px), (max-width: 374px) {
   .tb-steps__head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .tb-top { padding-top: var(--space-2); }
-}</style>
+}/* Leva 104 · seletor de X */
+.tb-x { align-items: stretch; }
+.tb-x__linha { justify-content: center; align-items: center; gap: var(--space-4); }
+.tb-x__valor { min-width: 3ch; text-align: center; font-family: var(--font-display); font-size: var(--text-3xl); font-variant-numeric: tabular-nums; line-height: 1; color: var(--fg); }
+.tb-x__total { margin: 0; text-align: center; color: var(--fg-muted); font-size: var(--text-md); min-height: 1.5em; }
+</style>
 </head>
 <body>
 <div id="app"></div>
@@ -1535,7 +1540,8 @@ const NOME_SIMBOLO = { W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 've
 /** Puro: separa um texto em pedaços de texto e símbolos reconhecidos. */
 function analisaSimbolos(texto) {
   const out = []; let i = 0; const s = String(texto == null ? '' : texto);
-  for (const m of s.matchAll(SIMBOLO_RX)) {
+  // Leva 104 · expressão nova a cada chamada: o matchAll herdava o lastIndex deixado por outro test()
+  for (const m of s.matchAll(new RegExp(SIMBOLO_RX.source, 'gi'))) {
     if (m.index > i) out.push({ texto: s.slice(i, m.index) });
     out.push({ simbolo: m[1].toUpperCase(), bruto: m[0] });
     i = m.index + m[0].length;
@@ -1737,7 +1743,7 @@ function toast(message, ms = 2400) {
   toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -3772,7 +3778,8 @@ const RAW_SCRIPTS = [
   { name: 'Jaspera Sentinel', abilities: [{ kind: 'activated', cost: { tap: true, tapOther: { types: ['creature'] } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
-  { name: 'Birchlore Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], subtype: 'Elf', amount: 2 } },
+  // Leva 104 · ruling de 04/10/2004: "It can tap itself but is not required to do so." (conferido em 30/09/2026)
+  { name: 'Birchlore Rangers', abilities: [{ kind: 'activated', cost: { tapOther: { types: ['creature'], subtype: 'Elf', amount: 2, includeSelf: true } },
     effects: [{ do: 'add_mana', anyColor: true }] }],
     morph: { mana: '{G}' },
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
@@ -6599,6 +6606,9 @@ const SC = __m23;
 const ENGINE_VERSION = 58;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
+/** Leva 104 · teto de formas de pagar um custo com escolha (e de valores de X) oferecidas de uma vez. */
+const LIMITE_PAGAMENTOS = 24;
+const LIMITE_X = 20;
 const COMBO_LIMIT = 16;
 /** 601.2c · dois alvos da mesma mágica não podem ser o mesmo objeto ou jogador. */
 const sameChoice = (a, b) => a.oid != null ? a.oid === b.oid : a.player === b.player;
@@ -7083,6 +7093,13 @@ function payCost(s, p, cost, extra = 0) {
   s.players[p].pool = r.pool; s.players[p].life -= r.life;
 }
 const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
+/** Leva 104 · valores de X que a mesa oferece: [null] sem X; senão 0..máximo pagável (teto LIMITE_X). */
+function valoresDeX(s, qtdX, pagavel) {
+  if (!qtdX) return [null];
+  const xs = [];
+  for (let x = 0; x <= LIMITE_X; x++) { if (!pagavel(x)) break; xs.push(x); }
+  return xs;
+}
 const castExtra = (s, p, o, x = 0) => (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0)
   - affinityDiscount(s, p, o); // S33 · afinidade reduz o custo genérico
 /** Quantas permanentes do tipo pedido você controla (limitado ao custo genérico). */
@@ -8223,7 +8240,7 @@ function putTriggerOnStack(s, q, events) {
 }
 /** S20 · candidatos para os custos de sacrificar ou virar outra permanente. */
 function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
-  return battlefield(s).filter(o => o.controller === p && o.oid !== selfOid &&
+  return battlefield(s).filter(o => o.controller === p && (o.oid !== selfOid || spec.includeSelf) &&
     (spec.types || []).some(x => s.facts[o.name].types.includes(x)) &&
     // S50 · o custo pode pedir um subtipo ("dois Elfos que você controla")
     (!spec.subtype || isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')) &&
@@ -8234,6 +8251,45 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     // confirmada na carta Jaspera Sentinel (consulta em 27/09/2026).
     (!needUntapped || !o.tapped)).map(o => o.oid);
 }
+/** Leva 104 · combinações de k elementos, na ordem da lista, até `limite`. */
+function combinacoes(lista, k, limite = LIMITE_PAGAMENTOS) {
+  const out = [];
+  const passo = (ini, atual) => {
+    if (out.length >= limite) return;
+    if (atual.length === k) { out.push(atual.slice()); return; }
+    for (let i = ini; i < lista.length && out.length < limite; i++) { atual.push(lista[i]); passo(i + 1, atual); atual.pop(); }
+  };
+  passo(0, []);
+  return out;
+}
+/** Leva 104 · todas as formas de pagar a parte "escolha" de um custo (601.2b/h: quem paga escolhe
+ * qual permanente vira ou é sacrificada, qual carta é descartada, qual terreno volta, qual carta do
+ * cemitério é exilada). Devolve [{}] quando o custo não tem escolha e [] quando não dá para pagar.
+ * Antes o motor oferecia só a primeira opção (relato do usuário: Jaspera Sentinel). */
+function pagamentosDe(s, p, cost, selfOid) {
+  if (!cost) return [{}];
+  let out = [{}];
+  const usados = pay => [].concat(pay.tapOther || [], pay.sacrifice || [], pay.land || []);
+  const multiplica = (opcoes, campo) => {
+    const novo = [];
+    for (const base of out) for (const v of opcoes) {
+      if ([].concat(v).some(x => usados(base).includes(x))) continue; // a mesma permanente não paga duas partes
+      novo.push({ ...base, [campo]: v });
+      if (novo.length >= LIMITE_PAGAMENTOS) break;
+    }
+    out = novo;
+  };
+  if (cost.sacrificeOther) multiplica(extraCostCandidates(s, p, cost.sacrificeOther, selfOid), 'sacrifice');
+  if (cost.tapOther) multiplica(combinacoes(extraCostCandidates(s, p, cost.tapOther, selfOid, true), cost.tapOther.amount || 1), 'tapOther');
+  if (cost.discard) multiplica(combinacoes(s.zones[p].hand.filter(x => x !== selfOid), cost.discard), 'discard');
+  if (cost.returnLand) {
+    const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
+    multiplica(battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name)).map(x => x.oid), 'land');
+  }
+  if (cost.exileFromGraveyard) multiplica(s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)), 'exile');
+  return out;
+}
+const comPagamento = pay => (pay && Object.keys(pay).length ? { pay } : {});
 function payExtraCosts(s, p, cost, pay, selfOid) {
   if (cost.discardSelf) moveObject(s, selfOid, 'graveyard');
   if (cost.exileSelf) moveObject(s, selfOid, 'exile');
@@ -8528,6 +8584,7 @@ const HANDLERS = {
     if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
     const alvoAura = auraTarget(f, a.bestow);
     if (a.bestow && !bestowOf(s, o)) throw new RuleError('conceder', 'esta carta não tem conceder');
+    if (a.x != null && !(Number.isInteger(a.x) && a.x >= 0 && a.x <= LIMITE_X)) throw new RuleError('custo', `X precisa ser um número inteiro de 0 a ${LIMITE_X}`);
     const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, altIndex: a.alt != null ? a.alt : null }, a.mode).filter(SC.isTargeted);
     const chosen = a.targets || [];
     const minAlvos = need.filter(x => !x.upTo).length; // S38 · "até N alvos" aceita menos
@@ -8549,7 +8606,7 @@ const HANDLERS = {
     }
     else if (a.disturb) { const db = disturbOf(s, s.objects[a.oid]) || disturbOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
     else if (a.omen) { const om = omenOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
-    else if (a.bestow) { const bs = bestowOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(bs.mana)); }
+    else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0)); }
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) payCost(s, a.p, f.cost, castExtra(s, a.p, o, a.x || 0));
@@ -9183,21 +9240,20 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const o = s.objects[oid], f = s.facts[o.name];
     if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); }
     else if ((canSorcery || !isSorcerySpeed(f)) && payable(o, castExtra(s, p, o, 0))) {
-      // S50 · custo com X: a mesa oferece os valores de X que dá para pagar (até 4)
-      if ((f.cost.x || 0) > 0) for (let x = 1; x <= 4; x++) { if (!payable(o, castExtra(s, p, o, x))) break; casts(o).forEach(c => out.push({ ...c, x })); }
+      // S50/Leva 104 · custo com X: quem conjura escolhe X (601.2b), de 0 até o que dá para pagar
+      const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x)));
+      const empurra = c => xs.forEach(x => out.push(x == null ? c : { ...c, x }));
       // S53 · o custo adicional pode ter opções ("descarte uma carta OU sacrifique um terreno") e ser opcional
       const addSpec = f.script && f.script.additional;
       const opcoes = Array.isArray(addSpec) ? addSpec : addSpec ? [addSpec] : [];
       const opcional = !!(f.script && f.script.additionalOptional);
       const pagaveis = opcoes.map((op, i) => ({ op, i })).filter(({ op }) => canPayExtra(s, p, op, oid));
       if (opcoes.length && !pagaveis.length && !opcional) continue;
-      const sugestao = op => ({ ...(op.discard ? { discard: s.zones[p].hand.filter(x => x !== oid).slice(0, op.discard) } : {}),
-        ...(op.sacrificeOther ? { sacrifice: extraCostCandidates(s, p, op.sacrificeOther, oid)[0] } : {}),
-        ...(op.tapOther ? { tapOther: extraCostCandidates(s, p, op.tapOther, oid, true).slice(0, op.tapOther.amount || 1) } : {}) });
-      if (!opcoes.length) casts(o).forEach(x => out.push(x));
+      if (!opcoes.length) casts(o).forEach(empurra);
       else {
-        pagaveis.forEach(({ op, i }) => casts(o).forEach(x => out.push({ ...x, add: i, pay: sugestao(op) })));
-        if (opcional) casts(o).forEach(x => out.push({ ...x, add: null }));
+        // Leva 104 · o jogador escolhe a carta descartada e a permanente sacrificada
+        pagaveis.forEach(({ op, i }) => pagamentosDe(s, p, op, oid).forEach(pay => casts(o).forEach(x => empurra({ ...x, add: i, pay }))));
+        if (opcional) casts(o).forEach(x => empurra({ ...x, add: null }));
       }
     }
   }
@@ -9257,8 +9313,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (!(canSorcery || !isSorcerySpeed(f))) continue;
     altCosts(s, o).forEach((alt, i) => {
       if (!canPayAlt(s, p, alt.cost, oid)) return;
-      const pay = defaultPayment(s, p, alt.cost, oid);
-      castWith(o, ((alt.effects || (f.script && f.script.effects)) || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...(Object.keys(pay).length ? { pay } : {}) }));
+      pagamentosDe(s, p, alt.cost, oid).forEach(pay =>
+        castWith(o, ((alt.effects || (f.script && f.script.effects)) || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...comPagamento(pay) })));
     });
   }
   // S37 · barganha: a mesma conjuração, sacrificando um artefato, encantamento ou ficha
@@ -9268,7 +9324,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (s.manaCheck && !canPay(s, p, s.facts[o.name].cost, castExtra(s, p, o, 0))) continue;
     const candidatos = battlefield(s).filter(x => x.controller === p && x.oid !== oid &&
       (x.token || ['artifact', 'enchantment'].some(y => s.facts[x.name].types.includes(y))));
-    if (candidatos.length) out.push({ t: 'cast', p, oid, bargain: true, pay: { bargain: candidatos[0].oid } });
+    candidatos.slice(0, LIMITE_PAGAMENTOS).forEach(c => out.push({ t: 'cast', p, oid, bargain: true, pay: { bargain: c.oid } }));
   }
   // S41 · colher provas: a mesma conjuração, exilando cartas do seu cemitério
   for (const oid of s.zones[p].hand) {
@@ -9282,8 +9338,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid]; const bs = bestowOf(s, o);
     if (!bs || !(canSorcery || !isSorcerySpeed(s.facts[o.name]))) continue;
-    if (s.manaCheck && !canPay(s, p, parseCost(bs.mana))) continue;
-    legalTargets(s, p, 'creature', oid).slice(0, TARGET_LIMIT).forEach(t => out.push({ t: 'cast', p, oid, bestow: true, targets: [t] }));
+    const bc = parseCost(bs.mana);
+    if (s.manaCheck && !canPay(s, p, bc)) continue;
+    // Leva 104 · conceder com {X} (Nyxborn Hydra): X também é escolha de quem conjura
+    const xs = valoresDeX(s, bc.x || 0, x => !s.manaCheck || canPay(s, p, bc, x * bc.x));
+    legalTargets(s, p, 'creature', oid).slice(0, TARGET_LIMIT).forEach(t => xs.forEach(x => out.push({ t: 'cast', p, oid, bestow: true, targets: [t], ...(x == null ? {} : { x }) })));
   }
   // S24 · presságio: conjura a face de trás, da mão
   for (const oid of s.zones[p].hand) {
@@ -9311,9 +9370,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (!canPayExtra(s, p, fb, oid)) continue;
     const add = (f.script && f.script.additional) || null;
     if (add && !canPayExtra(s, p, add, oid)) continue;
-    const pay = { ...(fb.tapOther ? { tapOther: extraCostCandidates(s, p, fb.tapOther, oid, true).slice(0, fb.tapOther.amount || 1) } : {}),
-      ...(add && add.sacrificeOther ? { sacrifice: extraCostCandidates(s, p, add.sacrificeOther, oid)[0] } : {}) };
-    castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, flashback: true, ...(Object.keys(pay).length ? { pay } : {}) }));
+    const pays = pagamentosDe(s, p, { tapOther: fb.tapOther, ...(add && add.sacrificeOther ? { sacrificeOther: add.sacrificeOther } : {}) }, oid);
+    pays.forEach(pay => castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, flashback: true, ...comPagamento(pay) })));
   }
   // S48 · fuga: conjura do cemitério e a carta fica em jogo (Sentinel's Eyes)
   for (const oid of s.zones[p].graveyard) {
@@ -9357,19 +9415,16 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (ab.sorceryOnly && !canSorcery) return;
       if (!canPayAbility(s, p, o, ab)) return;
       const cost = ab.cost || {};
-      const pay = (cost.sacrificeOther || cost.tapOther) ? {
-        ...(cost.sacrificeOther ? { sacrifice: extraCostCandidates(s, p, cost.sacrificeOther, o.oid)[0] } : {}),
-        ...(cost.tapOther ? { tapOther: extraCostCandidates(s, p, cost.tapOther, o.oid, true).slice(0, cost.tapOther.amount || 1) } : {}) } : null;
+      // Leva 104 · uma ação por forma de pagar (qual criatura vira, qual permanente é sacrificada, qual terreno volta)
+      const pays = pagamentosDe(s, p, cost, o.oid);
       const need = (ab.effects || []).filter(SC.isTargeted);
       if (ab.adapt != null && !(ab.effects || []).length) { if (canPayAbility(s, p, o, ab)) out.push({ t: 'activate', p, oid: o.oid, index }); return; }
       if (!need.length) {
         const anyColor = (ab.effects || []).some(e => e.do === 'add_mana' && e.anyColor);
         const porIdentidade = (ab.effects || []).some(e => e.do === 'add_mana' && e.identity);
         const porOponentes = (ab.effects || []).some(e => e.do === 'add_mana' && e.opponentLands);
-        if (porOponentes) return coresDosTerrenosDosOponentes(s, p).forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
-        if (porIdentidade) return identidade(s, p).forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
-        if (anyColor) return ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, color, ...(pay ? { pay } : {}) }));
-        return out.push({ t: 'activate', p, oid: o.oid, index, ...(pay ? { pay } : {}) });
+        const cores = porOponentes ? coresDosTerrenosDosOponentes(s, p) : porIdentidade ? identidade(s, p) : anyColor ? ['W', 'U', 'B', 'R', 'G'] : [null];
+        return cores.forEach(color => pays.forEach(pay => out.push({ t: 'activate', p, oid: o.oid, index, ...(color ? { color } : {}), ...comPagamento(pay) })));
       }
       let combos = [[]];
       for (const eff of need) {
@@ -9379,7 +9434,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
       // S43 · proteção pede a cor junto do alvo
       const cores = (ab.effects || []).some(e => e.do === 'protection') ? ['W', 'U', 'B', 'R', 'G'] : [null];
-      combos.forEach(targets => cores.forEach(color => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...(pay ? { pay } : {}) })));
+      combos.forEach(targets => cores.forEach(color => pays.forEach(pay => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...comPagamento(pay) }))));
     });
   }
   if (adjudication && s.mode === 'assisted') {
@@ -10338,7 +10393,8 @@ function describe(before, a, events, after) {
       const o = before.objects[a.oid];
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
       const extra = a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
-      L.push(extra ? `${P} conjurou ${o.name}${extra}${alvo ? ` → ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}`) + (alvo ? ` → ${alvo}` : ''));
+      const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
+      L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` → ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` → ${alvo}` : ''));
       break;
     }
     case 'move': L.push(`${P} moveu ${nameOf(before, a.oid)}: ${ZONE_PT[before.objects[a.oid].zone]} → ${ZONE_PT[a.to]}`); break;
@@ -11284,7 +11340,85 @@ function createTableScreen({ store }) {
   }
   // A15 · as ações de uma carta são descritas uma vez e viram botão (folha) ou chip (espiar)
   const doBtn = (label, action, opts = {}) => ({ label, action, variant: opts.variant });
-  const toButton = d => d.disabled ? Button(d.label, { block: true, disabled: true }) : Button(d.label, { block: true, variant: d.variant, onClick: () => { closeDialog(); act(d.action); } });
+  const toButton = d => d.disabled ? Button(d.label, { block: true, disabled: true }) : Button(d.label, { block: true, variant: d.variant,
+    onClick: () => { closeDialog(); if (d.opcoes) escolher(d.label, d.opcoes); else act(d.action); } });
+
+  /* ---- Leva 104 · escolhas de quem paga: valor de X e o que vira, sacrifica, descarta ou volta ---- */
+  const nomesDe = (s, lista) => {
+    const todos = [].concat(lista || []).map(oid => (s.objects[oid] || {}).name || '?');
+    return todos.join(' + ');
+  };
+  /** O que difere entre duas ações iguais no rótulo: o campo de pagamento e a pergunta a fazer. */
+  const CAMPOS_PAGAMENTO = [
+    ['tapOther', n => n > 1 ? 'Quais criaturas viram para pagar?' : 'Qual criatura vira para pagar?', 'Virar'],
+    ['sacrifice', () => 'O que você sacrifica para pagar?', 'Sacrificar'],
+    ['discard', n => n > 1 ? 'Quais cartas você descarta?' : 'Qual carta você descarta?', 'Descartar'],
+    ['land', () => 'Qual terreno volta para a mão?', 'Devolver'],
+    ['exile', () => 'Qual carta do cemitério é exilada?', 'Exilar'],
+    ['bargain', () => 'O que você sacrifica na barganha?', 'Sacrificar']];
+  /** Junta as ações que só diferem no pagamento ou no X num botão só, que abre a escolha. */
+  function agrupaEscolhas(lista) {
+    const out = [], porRotulo = new Map();
+    for (const d of lista) {
+      if (d.disabled || !d.action) { out.push(d); continue; }
+      const k = d.label;
+      if (!porRotulo.has(k)) { const g = { ...d, opcoes: [d.action] }; porRotulo.set(k, g); out.push(g); }
+      else porRotulo.get(k).opcoes.push(d.action);
+    }
+    return out.map(d => (d.opcoes && d.opcoes.length > 1 ? d : (d.opcoes ? (({ opcoes, ...resto }) => resto)(d) : d)));
+  }
+  function escolher(titulo, opcoes) {
+    const s = table.state;
+    const xs = [...new Set(opcoes.map(a => a.x).filter(x => x != null))].sort((p, q) => p - q);
+    if (xs.length > 1) return escolherX(titulo, opcoes, xs);
+    const campos = CAMPOS_PAGAMENTO.filter(([c]) => opcoes.some(a => a.pay && a.pay[c] != null));
+    if (!campos.length && !opcoes.some(a => a.add === null)) return act(opcoes[0]);
+    // uma pergunta só quando todas as opções pagam do mesmo jeito; senão, "como você paga?"
+    const unico = campos.length === 1 && opcoes.every(a => a.pay && a.pay[campos[0][0]] != null) ? campos[0] : null;
+    const qtd = unico ? [].concat(opcoes[0].pay[unico[0]]).length : 0;
+    const pergunta = unico ? unico[1] : () => 'Como você paga o custo?';
+    const rotulos = opcoes.map(a => {
+      const partes = CAMPOS_PAGAMENTO.filter(([c]) => a.pay && a.pay[c] != null).map(([c, , verbo]) => `${verbo} ${nomesDe(s, a.pay[c])}`);
+      return partes.length ? partes.join(' e ') : a.add === null ? 'Não pagar o custo opcional' : 'Sem custo extra';
+    });
+    // nomes repetidos (duas Llanowar Elves) ganham um número para não parecerem a mesma opção
+    const vistos = {}; const finais = rotulos.map(r => (rotulos.filter(x => x === r).length > 1 ? `${r} (${(vistos[r] = (vistos[r] || 0) + 1)})` : r));
+    Dialog({ title: titulo, body: Stack({},
+      h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-escolha-pergunta' }, pergunta(qtd)),
+      h('div', { class: 'tb-sheet__actions', id: 'tb-escolha' }, ...opcoes.map((a, i) => Button(finais[i], { block: true, variant: 'primary', onClick: () => { closeDialog(); act(a); } })))),
+      actions: [Button('Voltar', { onClick: closeDialog })] });
+  }
+  /** X: um seletor com − e +, o total em símbolos e a confirmação. Só valores pagáveis. */
+  function escolherX(titulo, opcoes, xs) {
+    const s = table.state, a0 = opcoes[0], o = s.objects[a0.oid], f = s.facts[o.name];
+    const base = a0.bestow ? E.parseCost(((f.script || {}).bestow || {}).mana || '') : f.cost;
+    let i = xs.length > 1 ? Math.min(1, xs.length - 1) : 0; // começa em X = 1 quando dá
+    const valor = h('output', { class: 'tb-x__valor', id: 'tb-x-valor', 'aria-live': 'polite' });
+    const total = h('p', { class: 'tb-x__total', id: 'tb-x-total' });
+    const confirma = Button('', { block: true, variant: 'primary', classe: 'tb-x__ok' });
+    const menos = IconButton('menos', 'Diminuir X', { id: 'tb-x-menos', onClick: () => { i = Math.max(0, i - 1); pinta(); } });
+    const mais = IconButton('mais', 'Aumentar X', { id: 'tb-x-mais', onClick: () => { i = Math.min(xs.length - 1, i + 1); pinta(); } });
+    function pinta() {
+      const x = xs[i];
+      valor.textContent = String(x);
+      const txt = costLabel({ ...base, x: 0 }, x * (base.x || 0)) || '{0}';
+      total.textContent = `Você paga ${txt}`;
+      simbolizar(total);
+      confirma.textContent = `Conjurar com X = ${x}`;
+      menos.disabled = i === 0; mais.disabled = i === xs.length - 1;
+    }
+    confirma.addEventListener('click', () => {
+      const x = xs[i];
+      const resto = opcoes.filter(a => a.x === x);
+      closeDialog();
+      if (resto.length > 1) escolher(titulo, resto); else act(resto[0]);
+    });
+    pinta();
+    Dialog({ title: titulo, body: Stack({ class: 'tb-x' },
+      h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `Quanto é X? Dá para pagar de ${xs[0]} a ${xs[xs.length - 1]}.`),
+      Row({ class: 'tb-x__linha' }, menos, valor, mais), total, confirma),
+      actions: [Button('Voltar', { onClick: closeDialog })] });
+  }
 
   function moveButtons(v, oid) {
     const s = table.state, o = s.objects[oid];
@@ -11370,7 +11504,7 @@ function createTableScreen({ store }) {
     const where = h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `${s.players[o.owner].name} · ${T.ZONE_PT[o.zone] || 'companheiro (fora do jogo)'}${o.tapped ? ' · virada' : ''}${costTxt ? ' · ' + costTxt : ''}`
       + (st ? ` · ${st.power}/${st.toughness}` : '') + (anexos.length ? ` · ${anexos.join(', ')}` : '')
       + (o.attachedTo && s.objects[o.attachedTo] ? ` · anexada a ${s.objects[o.attachedTo].name}` : ''));
-    return { o, acoes: [...legal, ...direct], where, st, anexos, costTxt };
+    return { o, acoes: [...agrupaEscolhas(legal), ...direct], where, st, anexos, costTxt };
   }
 
   /* ---- A15 · espiar: segurar mostra a carta grande com texto e ações; soltar fecha ---- */

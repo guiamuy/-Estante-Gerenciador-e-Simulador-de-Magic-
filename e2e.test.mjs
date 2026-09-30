@@ -41,13 +41,20 @@ const DB = Object.fromEntries([
   { ...card('Elvish Visionary', 'Creature — Elf Shaman', ['G'], 2), mana_cost: '{1}{G}', power: '1', toughness: '1', oracle_text: 'When Elvish Visionary enters, draw a card.' },
   // E50 P3 · carta que cria ficha, e a ficha como a Scryfall a guarda (tipo "Token", com imagem)
   { ...card('Thraben Inspector', 'Creature — Human Soldier', ['W'], 1), mana_cost: '{W}', power: '1', toughness: '2', oracle_text: 'When Thraben Inspector enters, investigate.' },
+  // Leva 104 · textos oficiais conferidos em 30/09/2026 (Jaspera: playgroup.gg e EchoMTG; Hydra: Scryfall MH3 164)
+  { ...card('Jaspera Sentinel', 'Creature — Elf Rogue', ['G'], 1), mana_cost: '{G}', keywords: ['Reach'], power: '1', toughness: '2', oracle_text: 'Reach\n{T}, Tap an untapped creature you control: Add one mana of any color.' },
+  { ...card('Nyxborn Hydra', 'Enchantment Creature — Hydra', ['G'], 1), mana_cost: '{X}{G}', keywords: ['Bestow', 'Reach', 'Trample'], power: '0', toughness: '0',
+    oracle_text: "Bestow {X}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nReach, trample\nNyxborn Hydra enters with X +1/+1 counters on it.\nEnchanted creature gets +1/+1 for each +1/+1 counter on Nyxborn Hydra and has reach and trample." },
+  card('Forest', 'Basic Land — Forest', [], 0),
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
 async function open(t) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
+  const ctx = await browser.newContext({ viewport: { width: +(process.env.SHOT_W || 390), height: process.env.SHOT_W === '360' ? 780 : 844 }, serviceWorkers: 'block',
+    ...(process.env.SHOT_TEMA ? { colorScheme: process.env.SHOT_TEMA } : {}) });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
@@ -3057,5 +3064,80 @@ test('e2e · leva 102 coleção com imagens nítidas e visor da carta: grande, t
   await p3.click('.col-card[data-name="Sol Ring"] .ds-card'); await p3.waitForSelector('#col-viewer-prints');
   await p3.click('#col-viewer-prints'); await p3.waitForSelector('#col-add-print');
   assert.deepEqual(erros3, []);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 104 escolhas de quem paga: Jaspera vira a criatura escolhida, Nyxborn Hydra pergunta o X', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Hidras', '24 Forest\n8 Jaspera Sentinel\n8 Grizzly Bear\n8 Elvish Visionary\n12 Nyxborn Hydra', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await toMyMain(page);
+  // campo montado pela mesa assistida: Jaspera, um Urso, um Visionary e cinco Florestas; uma Hydra na mão
+  await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const fora = n => Object.values(s.objects).filter(o => o.owner === p && o.name === n && o.zone !== 'battlefield' && o.zone !== 'hand').map(o => o.oid);
+    const mover = (n, k, to = 'battlefield') => fora(n).slice(0, k).forEach(oid => M.act({ t: 'move', p, oid, to }));
+    for (const oid of Object.values(s.objects).filter(o => o.owner === p && o.zone === 'hand').map(o => o.oid)) M.act({ t: 'move', p, oid, to: 'library', top: false });
+    mover('Jaspera Sentinel', 1); mover('Grizzly Bear', 1); mover('Elvish Visionary', 1); mover('Forest', 5); mover('Nyxborn Hydra', 1, 'hand');
+  });
+  // um turno inteiro para passar o enjoo
+  await page.click('#tb-pass-turn'); await toMyMain(page);
+  const eu = await page.evaluate(() => window.__estanteMesa.estado().turn.active);
+  const oidDe = nome => page.evaluate(([n, p]) => Object.values(window.__estanteMesa.estado().objects).find(o => o.name === n && o.owner === p && o.zone === 'battlefield').oid, [nome, eu]);
+  const [urso, vis] = [await oidDe('Grizzly Bear'), await oidDe('Elvish Visionary')];
+
+  // Jaspera: "Gerar verde" abre a pergunta; a criatura virada é a escolhida
+  await page.locator('.tb-side--me .tb-card[aria-label^="Jaspera Sentinel"]').click();
+  await page.waitForSelector('.ds-dialog');
+  const gerar = page.locator('.ds-dialog .ds-btn', { hasText: 'Gerar' });
+  assert.equal(await gerar.count(), 5, 'um botão por cor, não um por cor × criatura');
+  await gerar.nth(4).click();
+  await page.waitForSelector('#tb-escolha');
+  assert.match(await page.innerText('#tb-escolha-pergunta'), /Qual criatura vira para pagar/);
+  const opcoes = await page.locator('#tb-escolha .ds-btn').allInnerTexts();
+  assert.deepEqual(opcoes.slice().sort(), ['Virar Elvish Visionary', 'Virar Grizzly Bear']);
+  await auditaTela(page, 'escolha do custo');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/escolha-custo.png' });
+  await page.click('#tb-escolha >> text=Virar Elvish Visionary');
+  await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].tapped, vis);
+  const depois = await page.evaluate(([u, p]) => { const s = window.__estanteMesa.estado(); return { urso: s.objects[u].tapped, verde: s.players[p].pool.G }; }, [urso, eu]);
+  assert.equal(depois.urso, false, 'o Urso, que eu não escolhi, continua desvirado');
+  assert.equal(depois.verde, 1);
+
+  // Nyxborn Hydra: "Conjurar" abre o seletor de X com o intervalo pagável
+  const maxX = await page.evaluate(p => {
+    const s = window.__estanteMesa.estado(); const h = s.zones[p].hand.find(o => s.objects[o].name === 'Nyxborn Hydra');
+    return Math.max(...__m16.legalActions(s, p).filter(a => a.t === 'cast' && a.oid === h && !a.bestow).map(a => a.x));
+  }, eu);
+  assert.equal(maxX, 5, 'cinco Florestas e o verde da Jaspera: {X}{G} com X até 5');
+  await handCard(page, 'Nyxborn Hydra').click();
+  await page.click('.ds-dialog .ds-btn:has-text("Conjurar")');
+  await page.waitForSelector('#tb-x-valor');
+  assert.equal(await page.innerText('#tb-x-valor'), '1', 'começa em 1');
+  assert.match(await page.innerText('.ds-dialog'), /de 0 a 5/);
+  for (let i = 0; i < 6; i++) await page.click('#tb-x-mais', { force: true });
+  assert.equal(await page.innerText('#tb-x-valor'), '5', 'não passa do que dá para pagar');
+  assert.equal(await page.locator('#tb-x-mais').isDisabled(), true);
+  await page.click('#tb-x-menos'); await page.click('#tb-x-menos');
+  assert.equal(await page.innerText('#tb-x-valor'), '3');
+  assert.equal(await page.locator('#tb-x-total .ds-sym').count(), 2, 'o total em símbolos: {3}{G} — ' + await page.innerHTML('#tb-x-total'));
+  await auditaTela(page, 'seletor de X');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/seletor-x.png' });
+  await page.click('.tb-x__ok');
+  await page.waitForFunction(p => Object.values(window.__estanteMesa.estado().objects).some(o => o.name === 'Nyxborn Hydra' && o.owner === p && ['stack', 'battlefield'].includes(o.zone)), eu, { timeout: 4000 })
+    .catch(async () => assert.fail('a Hydra não foi conjurada: ' + (await page.locator('#tb-recusa').count() ? await page.innerText('#tb-recusa') : 'sem recusa na tela')));
+  const hidra = await page.evaluate(p => Object.values(window.__estanteMesa.estado().objects).find(o => o.name === 'Nyxborn Hydra' && o.owner === p && ['stack', 'battlefield'].includes(o.zone)).oid, eu);
+  for (let i = 0; i < 6 && await page.evaluate(o => window.__estanteMesa.estado().objects[o].zone !== 'battlefield', hidra); i++) {
+    if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(200);
+  }
+  const h = await page.evaluate(o => { const x = window.__estanteMesa.estado().objects[o]; return { zona: x.zone, marcadores: x.counters.p1p1 }; }, hidra);
+  assert.deepEqual(h, { zona: 'battlefield', marcadores: 3 }, 'entrou com os 3 marcadores escolhidos');
+  await reveal(page);
+  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  assert.match(await page.innerText('#tb-timeline'), /conjurou Nyxborn Hydra com X = 3/);
   assert.deepEqual(errors, []);
 });

@@ -35,3 +35,13 @@ test('U3 · nome falado em português', () => {
 test('U3 · o analisador é reentrante (regex global não guarda estado entre chamadas)', () => {
   for (let i = 0; i < 3; i++) assert.equal(J(K.analisaSimbolos('{G}{G}')).length, 2);
 });
+
+// Leva 104 · achado do portão no seletor de X: "Você paga {3}{G}" mostrava o {3} como texto. O teste de
+// simbolizar() deixava o lastIndex da expressão global no fim do primeiro símbolo, e o matchAll herdava esse
+// ponto de partida, pulando o primeiro símbolo do texto. Agora o analisador não depende de estado anterior.
+test('Leva 104 · analisar duas vezes o mesmo texto dá o mesmo resultado (sem estado preso na expressão)', () => {
+  const um = J(K.analisaSimbolos('Você paga {3}{G}'));
+  K.SIMBOLO_RX.lastIndex = 0; K.SIMBOLO_RX.test('Você paga {3}{G}'); // o que o simbolizar() fazia antes de trocar o texto
+  assert.deepEqual(J(K.analisaSimbolos('Você paga {3}{G}')), um);
+  assert.deepEqual(um.filter(p => p.simbolo).map(p => p.simbolo), ['3', 'G']);
+});

@@ -1,0 +1,2332 @@
+{
+ "sobre": "Leva 104 · textos oficiais das 138 cartas não básicas das sete listas Pauper, coletados em 30/09/2026 para a auditoria texto × script (leva 105). Entradas com incerto=true ainda precisam de fonte confiável; nunca usar como verdade.",
+ "cartas": [
+  {
+   "name": "Brinebarrow Intruder",
+   "mana_cost": "{U}",
+   "type_line": "Creature — Human Rogue",
+   "oracle_text": "Flash\nWhen this creature enters, target creature an opponent controls gets -2/-0 until end of turn.",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/brinebarrow-intruder/faq",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto: casualplaneswalker.com (redacao atual). Custo e P/T: hareruyamtg.com/en/products/detail/92682. Fonte devolve Flash e gatilho na mesma linha; quebra de linha inferida pela estrutura (palavra-chave em linha propria). Scryfall KHM #49 retornou 403; rulings nao obtidos (nenhum visto)."
+  },
+  {
+   "name": "Faerie Miscreant",
+   "mana_cost": "{U}",
+   "type_line": "Creature — Faerie Rogue",
+   "oracle_text": "Flying\nWhen this creature enters, if you control another creature named Faerie Miscreant, draw a card.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2019-07-12",
+     "texto": "Faerie Miscreant's triggered ability checks to see if you control another creature named Faerie Miscreant at the time the new Faerie Miscreant enters the battlefield. If you don't, the ability won't trigger at all. The ability will check again as it tries to resolve. If, at that time, you don't control another creature named Faerie Miscreant, the ability will have no effect."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ori/57/faerie-miscreant",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto atual: casualplaneswalker.com/card/faerie-miscreant/faq. Custo, tipo, P/T e ruling: Scryfall ORI #57 (cache antigo; ruling pode ter 'enters the battlefield' na redacao antiga)."
+  },
+  {
+   "name": "Faerie Seer",
+   "mana_cost": "{U}",
+   "type_line": "Creature — Faerie Wizard",
+   "oracle_text": "Flying\nWhen this creature enters, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/faerie-seer/faq",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto: casualplaneswalker.com (com texto-lembrete). Custo/tipo/P-T: Scryfall J25 #106. Nenhum ruling listado."
+  },
+  {
+   "name": "Moon-Circuit Hacker",
+   "mana_cost": "{1}{U}",
+   "type_line": "Enchantment Creature — Human Ninja",
+   "oracle_text": "Ninjutsu {U} ({U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card unless this creature entered this turn.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/moon-circuit-hacker/faq",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Versao ORIGINAL de Kamigawa: Neon Dynasty (NEO #67), nao a A-Moon-Circuit Hacker do Alchemy (scry 2, draw, discard), que e diferente. Texto: casualplaneswalker.com + journeysendgames.com (concordam). P/T 2/1 confirmado por journeysendgames e echomtg. Scryfall NEO #67 retornou 403; rulings nao obtidos."
+  },
+  {
+   "name": "Ninja of the Deep Hours",
+   "mana_cost": "{3}{U}",
+   "type_line": "Creature — Human Ninja",
+   "oracle_text": "Ninjutsu {1}{U} ({1}{U}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, you may draw a card.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/ninja-of-the-deep-hours/",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto, custo e P/T: casualplaneswalker.com (card page + faq concordam). Scryfall retornou 403; rulings (se houver, p.ex. de ninjutsu) nao obtidos."
+  },
+  {
+   "name": "Spellstutter Sprite",
+   "mana_cost": "{1}{U}",
+   "type_line": "Creature — Faerie Wizard",
+   "oracle_text": "Flash\nFlying\nWhen this creature enters, counter target spell with mana value X or less, where X is the number of Faeries you control.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2007-10-01",
+     "texto": "The value of X needs to be determined both when the ability triggers (so you can choose a target) and again when the ability resolves (to check if that target is still legal). If the number of Faeries you control has decreased enough in that time to make the target illegal, Spellstutter Sprite's ability won't resolve (and the targeted spell will resolve as normal)."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/lrw/89/spellstutter-sprite",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall LRW #89. O resumo da pagina veio em duas redacoes ligeiramente diferentes do ruling; usei a mais longa/literal. Pode haver rulings adicionais nao exibidos."
+  },
+  {
+   "name": "Harrier Strix",
+   "mana_cost": "{U}",
+   "type_line": "Creature — Bird",
+   "oracle_text": "Flying\nWhen this creature enters, tap target permanent.\n{2}{U}: Draw a card, then discard a card.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/otj/52/harrier-strix",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Redacao atual (this creature/this land/this artifact, 'enters') normalizada a partir de cache antigo da Scryfall (que ainda mostrava o nome da carta e 'enters the battlefield'), seguindo o padrao confirmado em fontes atuais (CPW/mtg.wtf/Scryfall) para outras cartas. Custo/tipo/P-T/habilidades concordam entre Scryfall OTJ #52 e hareruyamtg (echomtg listou {1}{U}, divergente; adotei {U} conforme titulo da Scryfall). Nenhum ruling listado."
+  },
+  {
+   "name": "Counterspell",
+   "mana_cost": "{U}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target spell.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/5ed/77/counterspell",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Confirmado em Scryfall 5ED #77, DSC #114 e SLD SCTLR. Nenhum ruling listado."
+  },
+  {
+   "name": "Dispel",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target instant spell.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/rtr/36/dispel",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall RTR #36 (duas consultas). Nenhum ruling listado."
+  },
+  {
+   "name": "Of One Mind",
+   "mana_cost": "{2}{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "This spell costs {2} less to cast if you control a Human creature and a non-Human creature.\nDraw two cards.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2020-04-17",
+     "texto": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying, add any cost increases, then apply any cost reductions (such as that of Of One Mind). The converted mana cost of the spell remains unchanged, no matter what the total cost to cast it was."
+    },
+    {
+     "data": "2020-04-17",
+     "texto": "Once you announce that you're casting Of One Mind, no player may take actions until the spell has been paid for. Notably, opponents can't try to change whether you control a Human and a non-Human creature."
+    },
+    {
+     "data": "2020-04-17",
+     "texto": "Of One Mind is unaffected if you no longer control a Human and non-Human creature after you've cast it."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/iko/60/de/seelenverwandtschaft",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Fonte unica: pagina alema da Scryfall (IKO #60), que exibe o 'English Oracle Text'. Raridade incomum e custo {2}{U} confirmados tambem por casualplaneswalker.com (lista do set). Redacao exata da condicao de custo ('a Human creature and a non-Human creature') nao confirmada por segunda fonte; rulings em cache antigo (dizem 'converted mana cost', hoje 'mana value'). Pagina em ingles (iko/60) retornou 403."
+  },
+  {
+   "name": "Cryoshatter",
+   "mana_cost": null,
+   "type_line": null,
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/eoe/53/cryoshatter",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "NAO LOCALIZADO. Scryfall EOE #53 retornou 403 em todas as tentativas e nao ha fonte alternativa acessivel (orcamento de WebSearch da sessao esgotado; WebFetch so aceita URLs ja vistas). Nenhum texto gravado para nao escrever por palpite; registrar como manual ate confirmacao."
+  },
+  {
+   "name": "Sewer-veillance Cam",
+   "mana_cost": null,
+   "type_line": null,
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/tmt/53/sewer-veillance-cam",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "NAO LOCALIZADO. Scryfall TMT #53 (e todas as versoes localizadas) retornou 403; a pagina de spoilers da casualplaneswalker.com so mostra imagem/titulo, sem texto; o link da pagina de carta da CPW nao entrou no conjunto de URLs permitidas. Nenhum texto gravado; registrar como manual."
+  },
+  {
+   "name": "Hydroblast",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Counter target spell if it's red.\n• Destroy target permanent if it's red.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2004-10-04",
+     "texto": "The decision to counter a spell or destroy a permanent is a decision made on announcement before the target is selected. If the spell is redirected, this mode can't be changed, so only targets of the selected type are valid."
+    },
+    {
+     "data": "2016-06-08",
+     "texto": "Hydroblast can target any spell or permanent, not just a red one. It checks the color of the target only on resolution."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/5ed/94/hydroblast",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall 5ED #94 e ME1 #37 concordam (texto e rulings)."
+  },
+  {
+   "name": "Steel Sabotage",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Counter target artifact spell.\n• Return target artifact to its owner's hand.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2011-06-01",
+     "texto": "An artifact spell exists only on the stack. An artifact exists only on the battlefield."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/mbs/33/steel-sabotage",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall MBS #33 (fonte unica; 2XM #70 retornou 403). Pode haver rulings adicionais nao exibidos."
+  },
+  {
+   "name": "Annul",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target artifact or enchantment spell.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/usg/59/annul",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall USG #59 e MRD #29 concordam. Nenhum ruling listado."
+  },
+  {
+   "name": "Blue Elemental Blast",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Counter target red spell.\n• Destroy target red permanent.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2004-10-04",
+     "texto": "The decision to counter a spell or destroy a permanent is a decision made on announcement before the target is selected. If the spell is redirected, this mode can't be changed, so only targets of the selected type are valid."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/a25/43/blue-elemental-blast",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall A25 #43; texto confirmado tambem por casualplaneswalker.com."
+  },
+  {
+   "name": "Relic of Progenitus",
+   "mana_cost": "{1}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Target player exiles a card from their graveyard.\n{1}, Exile this artifact: Exile all graveyards. Draw a card.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2016-06-08",
+     "texto": "If you activate Relic of Progenitus's first ability, the targeted player chooses which card to exile. The choice is made as the ability resolves."
+    },
+    {
+     "data": "2016-06-08",
+     "texto": "You can activate Relic of Progenitus's second ability even if no players have any cards in their graveyards. You'll still draw a card."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ala/218/relic-of-progenitus",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Redacao atual (this creature/this land/this artifact, 'enters') normalizada a partir de cache antigo da Scryfall (que ainda mostrava o nome da carta e 'enters the battlefield'), seguindo o padrao confirmado em fontes atuais (CPW/mtg.wtf/Scryfall) para outras cartas. Scryfall ALA #218 e HOP #124 (mesmo texto; rulings com redacao um pouco diferente entre as duas, usei a mais longa)."
+  },
+  {
+   "name": "Voldaren Epicure",
+   "mana_cost": "{R}",
+   "type_line": "Creature — Vampire",
+   "oracle_text": "When this creature enters, it deals 1 damage to each opponent. Create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.\")",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/vow/308/voldaren-epicure",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Redacao atual (this creature/this land/this artifact, 'enters') normalizada a partir de cache antigo da Scryfall (que ainda mostrava o nome da carta e 'enters the battlefield'), seguindo o padrao confirmado em fontes atuais (CPW/mtg.wtf/Scryfall) para outras cartas. Scryfall VOW #308 (ja mostrava 'enters' mas com o nome da carta). Nenhum ruling listado."
+  },
+  {
+   "name": "Sneaky Snacker",
+   "mana_cost": "{U}{B}",
+   "type_line": "Creature — Faerie Rogue",
+   "oracle_text": "Flying\nWhen you draw your third card in a turn, return this card from your graveyard to the battlefield tapped.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh3/205/sneaky-snacker",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Fonte unica: Scryfall MH3 #205 (cache antigo) com o texto 'return Sneaky Snacker from your graveyard...'. Troquei o nome por 'this card' (padrao atual para carta no cemiterio), o que NAO foi confirmado por fonte atual; a redacao do gatilho ('draw your third card in a turn') tambem so tem uma fonte. Confirmar antes de usar."
+  },
+  {
+   "name": "Kitchen Imp",
+   "mana_cost": "{3}{B}",
+   "type_line": "Creature — Imp",
+   "oracle_text": "Flying, haste\nMadness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/kitchen-imp/",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Texto, custo e tipo: casualplaneswalker.com (card page + faq concordam). P/T NAO localizado (Scryfall MH2 #89/#343 e J21 #342 retornaram 403; CPW nao exibe P/T). Nenhum ruling obtido."
+  },
+  {
+   "name": "Lightning Bolt",
+   "mana_cost": "{R}",
+   "type_line": "Instant",
+   "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/a25/141/lightning-bolt",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall A25 #141 (M11 #149 retornou 403). Nenhum ruling exibido."
+  },
+  {
+   "name": "Fiery Temper",
+   "mana_cost": "{1}{R}{R}",
+   "type_line": "Instant",
+   "oracle_text": "Fiery Temper deals 3 damage to any target.\nMadness {R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/fiery-temper/",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto e custo: casualplaneswalker.com (card page + faq concordam). Scryfall retornou 403 em todas as impressoes; rulings nao obtidos."
+  },
+  {
+   "name": "Faithless Looting",
+   "mana_cost": "{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2025-06-06",
+     "texto": "\"Flashback [cost]\" means you may cast this card from your graveyard if the resulting spell is an instant or sorcery by paying [cost] rather than paying its mana cost, and if flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack."
+    },
+    {
+     "data": "2025-06-06",
+     "texto": "You must still follow any timing restrictions and permissions, including those based on the card's type."
+    },
+    {
+     "data": "2025-06-06",
+     "texto": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying, add any cost increases, then apply any cost reductions."
+    },
+    {
+     "data": "2025-06-06",
+     "texto": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+    },
+    {
+     "data": "2025-06-06",
+     "texto": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+    },
+    {
+     "data": "2025-06-06",
+     "texto": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
+    },
+    {
+     "data": "2016-06-08",
+     "texto": "You draw two cards and discard two cards all while Faithless Looting is resolving. Nothing can happen between the two, and no player may choose to take actions."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/soc/244/faithless-looting",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Rulings e custo: Scryfall SOC #244. Texto-lembrete do Flashback: casualplaneswalker.com (TDC #213). A pagina da Scryfall exibiu o Oracle sem o texto-lembrete; manter o lembrete e opcional para o motor."
+  },
+  {
+   "name": "Grab the Prize",
+   "mana_cost": "{1}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "As an additional cost to cast this spell, discard a card.\nDraw two cards. If the discarded card wasn't a land card, Grab the Prize deals 2 damage to each opponent.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/dsk/138/grab-the-prize",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall DSK #138. Nenhum ruling listado."
+  },
+  {
+   "name": "Highway Robbery",
+   "mana_cost": "{1}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "You may discard a card or sacrifice a land. If you do, draw two cards.\nPlot {1}{R} (You may pay {1}{R} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/otj/129/highway-robbery",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall OTJ #129. Nenhum ruling exibido (a pagina em cache pode omitir rulings de plot)."
+  },
+  {
+   "name": "Vampire's Kiss",
+   "mana_cost": "{1}{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Target player loses 2 life and you gain 2 life. Create two Blood tokens. (They're artifacts with \"{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.\")",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2021-11-19",
+     "texto": "If the target player is an illegal target as this spell tries to resolve, you won't gain 2 life and won't create any Blood tokens."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/vow/136/vampires-kiss",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall VOW #136 e DBL #403 concordam."
+  },
+  {
+   "name": "Alms of the Vein",
+   "mana_cost": null,
+   "type_line": null,
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/sir/98/alms-of-the-vein",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "NAO LOCALIZADO. Scryfall SOI #98, SIR #98 e versoes localizadas retornaram 403; nenhuma fonte alternativa acessivel (orcamento de WebSearch esgotado). Nenhum texto gravado; registrar como manual."
+  },
+  {
+   "name": "End the Festivities",
+   "mana_cost": "{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "End the Festivities deals 1 damage to each opponent and each creature and planeswalker they control.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/vow/155/end-the-festivities",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall VOW #155. Nenhum ruling listado."
+  },
+  {
+   "name": "Jagged Barrens",
+   "mana_cost": null,
+   "type_line": "Land — Desert",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {B} or {R}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2024-04-12",
+     "texto": "Desert is a land subtype with no special meaning. It doesn't grant the land an intrinsic mana ability. Other cards may care about which lands are Deserts."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/otj/259",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Redacao atual (this creature/this land/this artifact, 'enters') normalizada a partir de cache antigo da Scryfall (que ainda mostrava o nome da carta e 'enters the battlefield'), seguindo o padrao confirmado em fontes atuais (CPW/mtg.wtf/Scryfall) para outras cartas. Scryfall OTJ #259 (cache antigo). Terreno sem custo de mana (mana_cost null). Ruling pode estar truncado pelo resumo da pagina."
+  },
+  {
+   "name": "Bojuka Bog",
+   "mana_cost": null,
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/bojuka-bog/faq/",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto atual confirmado por casualplaneswalker.com e mtg.wtf (C14 #285). Terreno sem custo de mana. Scryfall retornou 403 em todas as impressoes; rulings nao obtidos."
+  },
+  {
+   "name": "Razortrap Gorge",
+   "mana_cost": null,
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped unless a player has 13 or less life.\n{T}: Add {B} or {R}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/dsk/267/razortrap-gorge",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Redacao atual (this creature/this land/this artifact, 'enters') normalizada a partir de cache antigo da Scryfall (que ainda mostrava o nome da carta e 'enters the battlefield'), seguindo o padrao confirmado em fontes atuais (CPW/mtg.wtf/Scryfall) para outras cartas. Scryfall DSK #267 (cache antigo). Terreno sem custo de mana. Nenhum ruling listado."
+  },
+  {
+   "name": "Rakdos Carnarium",
+   "mana_cost": null,
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {B}{R}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2013-04-15",
+     "texto": "If this land enters the battlefield and you control no other lands, its ability will force you to return it to your hand."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/gk2/77",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Redacao atual (this creature/this land/this artifact, 'enters') normalizada a partir de cache antigo da Scryfall (que ainda mostrava o nome da carta e 'enters the battlefield'), seguindo o padrao confirmado em fontes atuais (CPW/mtg.wtf/Scryfall) para outras cartas. Scryfall GK2 #77, IMA #245 e CLU #243 concordam. Terreno sem custo de mana."
+  },
+  {
+   "name": "Red Elemental Blast",
+   "mana_cost": null,
+   "type_line": null,
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/a25/147/red-elemental-blast",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "NAO LOCALIZADO. Scryfall (A25 #147, LEA, 2ED, 3ED, 4ED, LEB, SUM, CEI, PRM, PTC) retornou 403 em todas as tentativas; nenhuma fonte alternativa acessivel. Nenhum texto gravado; registrar como manual."
+  },
+  {
+   "name": "Duress",
+   "mana_cost": "{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/one/92/duress",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall ONE #92. Nenhum ruling listado."
+  },
+  {
+   "name": "Nihil Spellbomb",
+   "mana_cost": "{1}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}, Sacrifice this artifact: Exile target player's graveyard.\nWhen this artifact is put into a graveyard from the battlefield, you may pay {B}. If you do, draw a card.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2018-03-16",
+     "texto": "You may activate Nihil Spellbomb's first ability targeting any player, even one whose graveyard has no cards in it."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/a25/226/nihil-spellbomb",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Redacao atual (this creature/this land/this artifact, 'enters') normalizada a partir de cache antigo da Scryfall (que ainda mostrava o nome da carta e 'enters the battlefield'), seguindo o padrao confirmado em fontes atuais (CPW/mtg.wtf/Scryfall) para outras cartas. Scryfall SOM #187 e A25 #226 concordam (texto e ruling)."
+  },
+  {
+   "name": "Cast into the Fire",
+   "mana_cost": "{1}{R}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Cast into the Fire deals 1 damage to each of up to two target creatures.\n• Exile target artifact.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/132966",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto e custo concordam em 4 fontes (hareruya, moxmythic, casualplaneswalker, echomtg); Scryfall/Gatherer bloqueados, rulings nao obtidos."
+  },
+  {
+   "name": "Smash to Smithereens",
+   "mana_cost": "{1}{R}",
+   "type_line": "Instant",
+   "oracle_text": "Destroy target artifact. Smash to Smithereens deals 3 damage to that artifact's controller.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2015-06-22",
+     "texto": "Smash to Smithereens targets only the artifact, not any player. If that artifact becomes an illegal target by the time Smash to Smithereens tries to resolve, Smash to Smithereens will be countered and none of its effects will happen. No damage will be dealt."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/ORI/Smash-to-Smithereens/163",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub, printing ORI); custo nao aparece no texto da fonte (simbolos sao imagem), preenchido por conhecimento geral."
+  },
+  {
+   "name": "Dark Withering",
+   "mana_cost": "{B}",
+   "type_line": "Instant",
+   "oracle_text": "Destroy target nonblack creature.\nMadness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/TSP/Dark-Withering/101",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub TSP). Rulings nao obtidos (nenhum exibido na fonte)."
+  },
+  {
+   "name": "Gladecover Scout",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Elf Scout",
+   "oracle_text": "Hexproof (This creature can't be the target of spells or abilities your opponents control.)",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/M14/Gladecover%20Scout/176",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub M14). Custo e P/T nao aparecem no texto da fonte, preenchidos por conhecimento geral. Sem rulings exibidos."
+  },
+  {
+   "name": "Slippery Bogle",
+   "mana_cost": "{G/U}",
+   "type_line": "Creature — Beast",
+   "oracle_text": "Hexproof (This creature can't be the target of spells or abilities your opponents control.)",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/UMA/Slippery-Bogle/223",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Texto e P/T 1/1 confirmados na fonte (AetherHub UMA). INCERTO so no custo: a fonte leu 'G', mas a carta e hibrida {G/U} (Eventide) por conhecimento geral; confirmar no Scryfall."
+  },
+  {
+   "name": "Silhana Ledgewalker",
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Elf Rogue",
+   "oracle_text": "Hexproof (This creature can't be the target of spells or abilities your opponents control.)\nSilhana Ledgewalker can't be blocked except by creatures with flying.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2007-05-01",
+     "texto": "Creatures with the Reach ability (such as Giant Spider) don't actually have Flying, so they can't block this."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/GPT/Silhana%20Ledgewalker/94",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub GPT). Custo e P/T por conhecimento geral (nao aparecem no texto da fonte)."
+  },
+  {
+   "name": "Aura Gnarlid",
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Beast",
+   "oracle_text": "Creatures with power less than Aura Gnarlid's power can't block it.\nAura Gnarlid gets +1/+1 for each Aura on the battlefield.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2010-06-15",
+     "texto": "The power of each potential blocking creature is checked against Aura Gnarlid's power only as blockers are declared. Once a creature blocks Aura Gnarlid, increasing the Gnarlid's power or decreasing the blocking creature's power won't undo that block."
+    },
+    {
+     "data": "2010-06-15",
+     "texto": "Aura Gnarlid's second ability counts each Aura regardless of who controls it."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/ROE/Aura-Gnarlid/175",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub ROE). P/T 1/1 lido em uma das leituras da fonte; custo {1}{G} por conhecimento geral."
+  },
+  {
+   "name": "Malevolent Rumble",
+   "mana_cost": "{1}{G}",
+   "type_line": "Sorcery",
+   "oracle_text": "Reveal the top four cards of your library. You may put a permanent card from among them into your hand. Put the rest into your graveyard. Create a 0/1 colorless Eldrazi Spawn creature token with \"Sacrifice this creature: Add {C}.\"",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/MH3/Malevolent%20Rumble/161",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Fonte unica (AetherHub MH3 #161, duas leituras iguais do texto); custo {1}{G} NAO confirmado na fonte (a leitura inicial sugeriu generico) e a redacao exata (Reveal vs Look/Mill) nao foi cruzada com segunda fonte. Conferir no Scryfall antes de scriptar."
+  },
+  {
+   "name": "Abundant Growth",
+   "mana_cost": "{G}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant land\nWhen Abundant Growth enters the battlefield, draw a card.\nEnchanted land has \"{T}: Add one mana of any color.\"",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2016-06-08",
+     "texto": "The enchanted land retains any other abilities it has. Activating one of the land's activated abilities won't cause the other(s) to be activated."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/DMC/Abundant%20Growth/128",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto do printing DMC (sem 'mana pool'; printings AVR/EMA ainda trazem 'to your mana pool'). Fonte usa 'enters the battlefield'; o Oracle atual abrevia para 'enters' (errata Bloomburrow, 2024), sem mudanca de efeito. Custo por conhecimento geral."
+  },
+  {
+   "name": "Ancestral Mask",
+   "mana_cost": "{2}{G}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature gets +2/+2 for each other enchantment on the battlefield.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/MMQ/Ancestral%20Mask/229",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub MMQ). Custo por conhecimento geral. Rulings nao obtidos."
+  },
+  {
+   "name": "Armadillo Cloak",
+   "mana_cost": "{1}{G}{W}{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature gets +2/+2 and has trample.\nWhenever enchanted creature deals damage, you gain that much life.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2016-06-08",
+     "texto": "If Armadillo Cloak enchants a creature you don't control, you'll gain life when it deals damage, as long as that damage hasn't already caused you to lose the game."
+    },
+    {
+     "data": "2016-06-08",
+     "texto": "While Armadillo Cloak's last ability is similar to lifelink, it isn't lifelink—it's a normal triggered ability. If a creature you control with lifelink wears an Armadillo Cloak and deals damage, first you'll gain that much life for lifelink, and then Armadillo Cloak's triggered ability is put onto the stack. This also means that multiple instances of Armadillo Cloak's triggered ability do trigger separately."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Market/CardInfo?CardName=Armadillo+Cloak&set=ARC&number=78",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub ARC). Custo por conhecimento geral (nao aparece no texto da fonte)."
+  },
+  {
+   "name": "Ethereal Armor",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1 for each enchantment you control and has first strike.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2021-03-19",
+     "texto": "Ethereal Armor counts each enchantment you control, including itself and any Auras you control that are attached to an opponent or to permanents controlled by an opponent."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/DSK/Ethereal-Armor/7",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto e ruling iguais em DSK e PL23; o printing RTR exibe a mesma frase com data 2012-10-01. Custo por conhecimento geral."
+  },
+  {
+   "name": "Utopia Sprawl",
+   "mana_cost": "{G}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant Forest\nAs Utopia Sprawl enters the battlefield, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/AFC/Utopia%20Sprawl/172",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto do printing AFC (redacao moderna, sem 'mana pool'); DIS/A25 mostram redacao antiga. Custo {G} confirmado em echomtg. Fonte usa 'enters the battlefield'; Oracle atual abrevia para 'enters'. Rulings nao obtidos."
+  },
+  {
+   "name": "Rancor",
+   "mana_cost": "{G}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature gets +2/+0 and has trample.\nWhen Rancor is put into a graveyard from the battlefield, return Rancor to its owner's hand.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://www.echomtg.com/mtg/items/rancor/104854/",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto de echomtg (sem rulings na fonte; Scryfall/Gatherer bloqueados). Custo {G} por conhecimento geral."
+  },
+  {
+   "name": "Sentinel's Eyes",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature gets +1/+1 and has vigilance.\nEscape—{W}, Exile two other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2020-01-24",
+     "texto": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as an escape cost), add any cost increases, then apply any cost reductions."
+    },
+    {
+     "data": "2020-01-24",
+     "texto": "Once you begin casting a spell with escape, it immediately moves to the stack. Players can't take any other actions until you're done casting the spell."
+    },
+    {
+     "data": "2020-01-24",
+     "texto": "If a card with escape is put into your graveyard during your turn, you'll be able to cast it right away if it's legal to do so, before an opponent can take any actions."
+    },
+    {
+     "data": "2020-01-24",
+     "texto": "If you cast a spell with its escape permission, you can't choose to apply any other alternative costs or to cast it without paying its mana cost."
+    },
+    {
+     "data": "2020-01-24",
+     "texto": "If a card has multiple abilities giving you permission to cast it, such as two escape abilities or an escape ability and a flashback ability, you choose which one to apply."
+    },
+    {
+     "data": "2020-01-24",
+     "texto": "After an escaped spell resolves, it returns to its owner's graveyard if it's not a permanent spell."
+    },
+    {
+     "data": "2020-01-24",
+     "texto": "Escape's permission doesn't change when you may cast the spell from your graveyard."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/THB/Sentinels-Eyes/36",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto e custo em 3 fontes (AetherHub, hareruya, echomtg)."
+  },
+  {
+   "name": "Benevolent Blessing",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Flash\nEnchant creature\nAs Benevolent Blessing enters the battlefield, choose a color.\nEnchanted creature has protection from the chosen color. This effect doesn't remove Auras and Equipment you control that are already attached to it.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/90962",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto igual em hareruya, AetherHub e echomtg. Fonte usa 'enters the battlefield'; Oracle atual abrevia para 'enters'. Sem rulings na fonte."
+  },
+  {
+   "name": "Setessan Training",
+   "mana_cost": "{1}{G}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature you control\nWhen Setessan Training enters the battlefield, draw a card.\nEnchanted creature gets +1/+0 and has trample.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2020-01-24",
+     "texto": "If the creature Setessan Training would enchant is an illegal target by the time the Aura spell resolves, the entire spell doesn't resolve."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/THB/Setessan-Training/201",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto AetherHub THB; hareruya (M21) acrescenta reminder de trample que nao esta no texto do AetherHub. Fonte usa 'enters the battlefield'; Oracle atual abrevia para 'enters'."
+  },
+  {
+   "name": "Sheltering Landscape",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Sheltering Landscape: Search your library for a basic Mountain, Forest, or Plains card, put it onto the battlefield tapped, then shuffle.\nCycling {R}{G}{W} ({R}{G}{W}, Discard this card: Draw a card.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/MH3/Sheltering-Landscape/227",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (AetherHub MH3 #227), duas leituras identicas; nao cruzado com segunda fonte. Sem rulings exibidos."
+  },
+  {
+   "name": "Mask of Law and Grace",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature has protection from black and from red.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2004-10-04",
+     "texto": "If a text-changing effect is used to change one of the color words so it grants Protection from white, then it will cause itself to be put into the graveyard."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/UDS/Mask%20of%20Law%20and%20Grace/11",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Custo {W} (hareruya e echomtg, CMC 1); AetherHub leu {1}{W}."
+  },
+  {
+   "name": "Flaring Pain",
+   "mana_cost": "{R}",
+   "type_line": "Instant",
+   "oracle_text": "Damage can't be prevented this turn.\nFlashback {R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2004-10-04",
+     "texto": "Spells and abilities that replace or redirect damage are not affected by this card."
+    },
+    {
+     "data": "2004-10-04",
+     "texto": "The 'damage can't be prevented' statement overrides all forms of preventing damage."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/JUD/Flaring%20Pain/89",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "INCERTO so no custo: AetherHub leu {R}, hareruya leu {1}{R} (com flashback {R}). Texto concorda nas duas fontes. Conferir custo no Scryfall."
+  },
+  {
+   "name": "Journey to Nowhere",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment",
+   "oracle_text": "When Journey to Nowhere enters the battlefield, exile target creature.\nWhen Journey to Nowhere leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2009-10-01",
+     "texto": "If Journey to Nowhere leaves the battlefield before its first ability has resolved, its second ability will trigger and do nothing. Then its first ability will resolve and exile the targeted creature forever."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/ZEN/Journey%20to%20Nowhere/14",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto em AetherHub (ZEN, CMD) e echomtg; custo {1}{W} em AetherHub e echomtg. Fonte usa 'enters the battlefield'; Oracle atual abrevia para 'enters'."
+  },
+  {
+   "name": "Scattershot Archer",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Elf Archer",
+   "oracle_text": "{T}: Scattershot Archer deals 1 damage to each creature with flying.",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/27328",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte unica (hareruya CON); a fonte listou os subtipos como 'Archer Elf', escrito aqui na ordem do Oracle (Elf Archer) por conhecimento geral. Sem rulings obtidos."
+  },
+  {
+   "name": "Standard Bearer",
+   "mana_cost": "{1}{W}",
+   "type_line": "Creature — Human Flagbearer",
+   "oracle_text": "While choosing targets as part of casting a spell or activating an ability, your opponents must choose at least one Flagbearer on the battlefield if able.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/APC/Standard%20Bearer/18",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto igual em AetherHub e hareruya; custo {1}{W} em hareruya e echomtg; P/T 1/1 em hareruya. Rulings nao obtidos (fonte nao exibe)."
+  },
+  {
+   "name": "Tormod's Crypt",
+   "mana_cost": "{0}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}, Sacrifice Tormod's Crypt: Exile all cards from target player's graveyard.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://aetherhub.com/Card/M21/Tormods-Crypt/241",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto igual em 3 fontes (AetherHub M21, hareruya, echomtg). Rulings nao obtidos."
+  },
+  {
+   "name": "Lifelink",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature has lifelink. (Damage dealt by the creature also causes its controller to gain that much life.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2009-10-01",
+     "texto": "The controller of the enchanted creature, not the controller of Lifelink, gains the life (in case they're different players)."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/M12/Lifelink/24",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "INCERTO so no custo: a fonte nao exibiu o custo; {W} e conhecimento geral, sem segunda fonte. Texto e ruling de fonte unica (AetherHub M12)."
+  },
+  {
+   "name": "Spirit Link",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature (Target a creature as you cast this. This card enters the battlefield attached to that creature.)\nWhenever enchanted creature deals damage, you gain that much life.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2004-10-04",
+     "texto": "Damage that is redirected is not dealt to the original creature or player, but it is dealt to the new creature or player."
+    },
+    {
+     "data": "2004-10-04",
+     "texto": "You only gain the life when the triggered ability resolves. If you are reduced to zero life before the ability resolves, you will lose before gaining the life."
+    },
+    {
+     "data": "2008-04-01",
+     "texto": "You gain life for all damage which is not prevented, regardless of what the creature damages (player or another creature) or the toughness of the blocking creature. If you put this on a 5/5 and it is blocked by a 1/1, you still gain 5 life."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/10E/Spirit%20Link/45",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto igual em 10E, DMR e echomtg (7ED); custo {W} e CMC 1 em echomtg. Reminder de 'Enchant creature' presente nas fontes; pode nao constar no Oracle atual."
+  },
+  {
+   "name": "Lunarch Veteran",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Cleric",
+   "oracle_text": "Whenever another creature enters the battlefield under your control, you gain 1 life.\nDisturb {1}{W} (You may cast this card from your graveyard transformed for its disturb cost.)",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/102032",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Dupla-face (disturb). Verso, Luminous Phantom (hareruya, fonte unica): Creature — Spirit Cleric 1/1, sem custo; 'Flying\\nWhenever another creature you control leaves the battlefield, you gain 1 life.\\nIf Luminous Phantom would be put into a graveyard from anywhere, exile it instead.' Redacao da fonte e pre-errata 2024 (Oracle atual diz 'another creature you control enters'); efeito igual. Sem rulings obtidos."
+  },
+  {
+   "name": "Squadron Hawk",
+   "mana_cost": "{1}{W}",
+   "type_line": "Creature — Bird",
+   "oracle_text": "Flying\nWhen Squadron Hawk enters the battlefield, you may search your library for up to three cards named Squadron Hawk, reveal them, put them into your hand, then shuffle your library.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/14134",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto igual em hareruya, AetherHub (M11, A25) e echomtg. Redacao pre-errata 2024 ('enters the battlefield'; Oracle atual 'enters', e 'then shuffle'); efeito igual. Rulings nao obtidos."
+  },
+  {
+   "name": "Novice Inspector",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Detective",
+   "oracle_text": "When Novice Inspector enters the battlefield, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this artifact: Draw a card.\")",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/151249",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto igual em hareruya, AetherHub e echomtg. Redacao pre-errata; o Oracle atual (vide Thraben Inspector, grimoria) diz 'When this creature enters, investigate. (... Sacrifice this token: Draw a card.)'. Rulings nao obtidos."
+  },
+  {
+   "name": "Thraben Inspector",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Soldier",
+   "oracle_text": "When this creature enters, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [
+    {
+     "data": "2016-04-08",
+     "texto": "You can't sacrifice a Clue to pay multiple costs. For example, you can't sacrifice a Clue token to activate its own ability and also to activate Alquist Proft, Master Sleuth's ability."
+    },
+    {
+     "data": "2016-04-08",
+     "texto": "If an effect refers to a Clue, it means any Clue artifact, not just a Clue artifact token."
+    },
+    {
+     "data": "2016-04-08",
+     "texto": "Clue is an artifact type. Even though it appears on some cards with other permanent types, it's never a creature type, a land type, or anything but an artifact type."
+    }
+   ],
+   "fonte": "https://grimoria.app/cards/thraben-inspector",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Unica fonte com redacao Oracle atual (espelho de dados do Scryfall: 'this creature enters'). Hareruya/AetherHub/echomtg trazem a versao antiga 'Thraben Inspector enters the battlefield'."
+  },
+  {
+   "name": "Kor Skyfisher",
+   "mana_cost": "{1}{W}",
+   "type_line": "Creature — Kor Soldier",
+   "oracle_text": "Flying\nWhen Kor Skyfisher enters the battlefield, return a permanent you control to its owner's hand.",
+   "power": "2",
+   "toughness": "3",
+   "rulings": [
+    {
+     "data": "2017-03-14",
+     "texto": "Kor Skyfisher's triggered ability doesn't target a permanent. You choose which one to return to its owner's hand as the ability resolves. No one can respond to the choice."
+    },
+    {
+     "data": "2017-03-14",
+     "texto": "If Kor Skyfisher is still on the battlefield as its triggered ability resolves, you may return Kor Skyfisher itself."
+    }
+   ],
+   "fonte": "https://aetherhub.com/Card/J21/Kor-Skyfisher/100",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto e custo/PT em AetherHub, hareruya e echomtg. Redacao pre-errata ('enters the battlefield'; Oracle atual 'enters')."
+  },
+  {
+   "name": "Raffine's Informant",
+   "mana_cost": "{1}{W}",
+   "type_line": "Creature — Human Wizard",
+   "oracle_text": "When Raffine's Informant enters the battlefield, it connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.)",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/110684",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Custo {1}{W} (hareruya; CMC 2 em echomtg, que leu {W}{U}, provavel erro). Redacao pre-errata ('enters the battlefield'; Oracle atual 'enters'). Sem rulings obtidos."
+  },
+  {
+   "name": "Leonardo, Big Brother",
+   "mana_cost": "{2}{W}",
+   "type_line": "Creature — Mutant Ninja Turtle",
+   "oracle_text": "Sneak {W} (You may cast this spell for {W} if you also return an unblocked attacker you control to hand during the declare blockers step. He enters tapped and attacking.)\nLeonardo gets +1/+0 for each other creature you control.",
+   "power": "1",
+   "toughness": "3",
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/188571",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "INCERTO: (1) type line: hareruya diz 'Creature — Mutant Ninja Turtle', echomtg diz 'Legendary'; nao resolvido. (2) custo de Sneak: simbolo ausente no texto da hareruya; {W} vem do echomtg (que tambem leu custo 'W' com CMC 3, inconsistente; usado {2}{W} da hareruya). (3) pronome 'He' vs 'It' no reminder. Fonte fraca; conferir no Scryfall antes de scriptar."
+  },
+  {
+   "name": "Prismatic Strands",
+   "mana_cost": "{2}{W}",
+   "type_line": "Instant",
+   "oracle_text": "Prevent all damage that sources of the color of your choice would deal this turn.\nFlashback—Tap an untapped white creature you control. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/11898",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto igual em hareruya e AetherHub (C19). Rulings nao obtidos."
+  },
+  {
+   "name": "Rally the Peasants",
+   "mana_cost": "{2}{W}",
+   "type_line": "Instant",
+   "oracle_text": "Creatures you control get +2/+0 until end of turn.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2016-06-08",
+     "texto": "Only creatures you control when Rally the Peasants resolves will be affected. Creatures that enter the battlefield or that you gain control of later in the turn will not."
+    }
+   ],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/14119",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Custo {2}{W} (hareruya e echomtg '2w'); AetherHub leu {1}{R}, descartado. Data do ruling vem do AetherHub, nao confirmada no Scryfall."
+  },
+  {
+   "name": "Thraben Charm",
+   "mana_cost": "{1}{W}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Thraben Charm deals damage equal to twice the number of creatures you control to target creature.\n• Destroy target enchantment.\n• Exile any number of target players' graveyards.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh3/45/thraben-charm",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. A pagina nao listou rulings (lista vazia pode ser limitacao do resumo)."
+  },
+  {
+   "name": "Battle Screech",
+   "mana_cost": "{2}{W}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Create two 1/1 white Bird creature tokens with flying.\nFlashback—Tap three untapped white creatures you control. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2022-12-08",
+     "texto": "You can tap any untapped white creatures you control to pay for Battle Screech's flashback cost, even ones you haven't controlled continuously since the beginning of your most recent turn."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you're paying, add any cost increases, then apply any cost reductions."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "You must still follow any timing restrictions and permissions, including those based on the card's type."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "\"Flashback [cost]\" means \"You may cast this card from your graveyard by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
+    }
+   ],
+   "fonte": "https://mtg.wtf/card/jud/3/Battle-Screech ; https://aetherhub.com/Card/CMM/Battle-Screech/17",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Custo e rulings conferidos em mtg.wtf; o lembrete de flashback vem do aetherhub (mtg.wtf omitiu reminder text). O aetherhub exibiu custo errado ({1}{W}) no resumo; vale {2}{W}{W}."
+  },
+  {
+   "name": "Perilous Landscape",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh3/223/perilous-landscape",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Nao consegui ler: Scryfall respondeu 403 em todas as paginas (mh3/223, tdc/383, frc/78) e a pagina mtg.wtf nao entrou no conjunto de URLs permitidas. Texto nao verificado; nao escrevi de memoria. Orcamento de WebSearch esgotado."
+  },
+  {
+   "name": "Boros Garrison",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "Boros Garrison enters the battlefield tapped.\nWhen Boros Garrison enters the battlefield, return a land you control to its owner's hand.\n{T}: Add {R}{W}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2013-04-15",
+     "texto": "If this land enters the battlefield and you control no other lands, its ability will force you to return it to your hand."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/clu/231/boros-garrison",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Reconsultado na mesma pagina em cache com pedido de copia literal: mesma redacao (com o nome da carta e 'enters the battlefield'). Outras impressoes deram 403."
+  },
+  {
+   "name": "Wind-Scarred Crag",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {R} or {W}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/fdn/271/wind-scarred-crag",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Sem rulings listados."
+  },
+  {
+   "name": "Dust to Dust",
+   "mana_cost": "{1}{W}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Exile two target artifacts.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2004-10-04",
+     "texto": "If one target is removed or becomes invalid after declaration, the other target is still affected."
+    }
+   ],
+   "fonte": "https://mtg.wtf/card/drk/5/Dust-to-Dust",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Fonte mtg.wtf (espelho de dados do Scryfall)."
+  },
+  {
+   "name": "Electrickery",
+   "mana_cost": "{R}",
+   "type_line": "Instant",
+   "oracle_text": "Electrickery deals 1 damage to target creature you don't control.\nOverload {1}{R} (You may cast this spell for its overload cost. If you do, change its text by replacing all instances of \"target\" with \"each.\")",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2024-01-12",
+     "texto": "Because a spell with overload doesn't target when its overload cost is paid, it may affect permanents with hexproof or with protection from the appropriate color."
+    },
+    {
+     "data": "2024-01-12",
+     "texto": "If you are instructed to cast a spell with overload \"without paying its mana cost,\" you can't choose to pay its overload cost instead."
+    },
+    {
+     "data": "2024-01-12",
+     "texto": "If you don't pay the overload cost of a spell with overload, that spell will have a single target. If you pay the overload cost, the spell won't have any targets."
+    },
+    {
+     "data": "2024-01-12",
+     "texto": "Note that if the spell with overload is dealing damage, protection from that spell's color will still prevent that damage."
+    },
+    {
+     "data": "2024-01-12",
+     "texto": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as an overload cost), add any cost increases, then apply any cost reductions."
+    }
+   ],
+   "fonte": "https://mtg.wtf/card/rtr/93/Electrickery",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte mtg.wtf nao exibiu o lembrete de overload; o texto entre parenteses e a redacao padrao da palavra-chave, completada por mim (nao altera regra). Rulings mais antigos (2013) podem existir e nao apareceram."
+  },
+  {
+   "name": "Hallow",
+   "mana_cost": "{W}",
+   "type_line": "Instant",
+   "oracle_text": "Prevent all damage target spell would deal this turn. You gain life equal to the damage prevented this way.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/dst/4/hallow",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Sem rulings listados."
+  },
+  {
+   "name": "Martyr of Sands",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Cleric",
+   "oracle_text": "{1}, Reveal X white cards from your hand, Sacrifice Martyr of Sands: You gain three times X life.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2006-07-15",
+     "texto": "A card that's already revealed for another cost or because of an effect can be revealed to pay this cost."
+    },
+    {
+     "data": "2006-07-15",
+     "texto": "Each card that's revealed to pay the cost remains revealed until the ability leaves the stack."
+    },
+    {
+     "data": "2006-07-15",
+     "texto": "If one of the cards that's revealed to pay the cost leaves its owner's hand before the ability resolves, it stops being revealed, but the value of X is not affected."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/uma/25/martyr-of-sands",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica."
+  },
+  {
+   "name": "Axebane Guardian",
+   "mana_cost": "{2}{G}",
+   "type_line": "Creature — Human Druid",
+   "oracle_text": "Defender\n{T}: Add X mana in any combination of colors, where X is the number of creatures with defender you control.",
+   "power": "0",
+   "toughness": "3",
+   "rulings": [
+    {
+     "data": "2012-10-01",
+     "texto": "Axebane Guardian's activated ability is a mana ability. It doesn't use the stack and can't be responded to. The number of creatures with defender you control is counted, and the color(s) of mana produced chosen, immediately after the ability is activated when the ability resolves."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/rtr/115/it/guardiano-di-rovina-asce",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Pagina em ingles deu 403 (rtr/115, tdc/248). Custo, tipo, P/T e ruling vieram da pagina italiana (texto impresso antigo, com 'mana pool'). O oracle_text acima e a redacao moderna que eu recordo, NAO verificada em fonte inglesa; o texto do ruling pode estar resumido/alterado."
+  },
+  {
+   "name": "Drift of Phantasms",
+   "mana_cost": "{2}{U}",
+   "type_line": "Creature — Spirit",
+   "oracle_text": "Defender (This creature can't attack.)\nFlying\nTransmute {1}{U}{U} ({1}{U}{U}, Discard this card: Search your library for a card with the same mana value as this card, reveal it, put it into your hand, then shuffle. Transmute only as a sorcery.)",
+   "power": "0",
+   "toughness": "5",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/plst/RAV-46/drift-of-phantasms",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Rulings nao apareceram no resumo (podem existir rulings de transmute)."
+  },
+  {
+   "name": "Overgrown Battlement",
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Wall",
+   "oracle_text": "Defender\n{T}: Add {G} for each creature you control with defender.",
+   "power": "0",
+   "toughness": "4",
+   "rulings": [
+    {
+     "data": "2017-11-17",
+     "texto": "Overgrown Battlement's last ability is a mana ability. It doesn't use the stack and can't be responded to (such as by removing creatures with defender you control)."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ncc/303/overgrown-battlement",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. O resumo nao mostrou o lembrete de Defender; pode existir '(This creature can't attack.)' no Oracle."
+  },
+  {
+   "name": "Quirion Ranger",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Elf Ranger",
+   "oracle_text": "Return a Forest you control to its owner's hand: Untap target creature. Activate only once each turn.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2021-06-18",
+     "texto": "Returning the Forest you control to its owner's hand is the cost to activate the ability. Once you activate the ability, no one can try to do anything to the Forest to stop you from activating the ability."
+    },
+    {
+     "data": "2021-06-18",
+     "texto": "You may return any land you control with the subtype Forest. It doesn't have to be one named Forest."
+    },
+    {
+     "data": "2021-06-18",
+     "texto": "You can target any creature with Quirion Ranger's ability, not just a tapped creature."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/mh2/285/quirion-ranger",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica."
+  },
+  {
+   "name": "Sagu Wildling",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/tdm/157/sagu-wildling-roost-seek",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Carta dupla (Sagu Wildling // Roost Seek). Scryfall deu 403 em tdm/157 e tdm/306 e nao achei outra fonte. Nao escrevi de memoria."
+  },
+  {
+   "name": "Saruli Caretaker",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/rna/139/saruli-caretaker",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (rna/139). Nao escrevi de memoria."
+  },
+  {
+   "name": "Shield-Wall Sentinel",
+   "mana_cost": "{4}",
+   "type_line": "Artifact Creature — Golem",
+   "oracle_text": "Defender\nWhen this creature enters, you may search your library for a creature card with defender, reveal it, put it into your hand, then shuffle.",
+   "power": "1",
+   "toughness": "3",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/dmu/238/shield-wall-sentinel",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Sem rulings listados. Lembrete de Defender pode ter sido omitido pelo resumo."
+  },
+  {
+   "name": "Tinder Wall",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Plant Wall",
+   "oracle_text": "Defender (This creature can't attack.)\nSacrifice this creature: Add {R}{R}.\n{R}, Sacrifice this creature: It deals 2 damage to target creature it's blocking.",
+   "power": "0",
+   "toughness": "3",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/ice/270/tinder-wall",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Sem rulings listados."
+  },
+  {
+   "name": "Bloodrite Invoker",
+   "mana_cost": "{2}{B}",
+   "type_line": "Creature — Vampire Shaman",
+   "oracle_text": "{8}: Target player loses 3 life and you gain 3 life.",
+   "power": "3",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/roe/97/bloodrite-invoker",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Sem rulings listados."
+  },
+  {
+   "name": "Galvanic Alchemist",
+   "mana_cost": "{2}{U}",
+   "type_line": "Creature — Human Wizard",
+   "oracle_text": "Soulbond (You may pair this creature with another unpaired creature when either enters the battlefield. They remain paired for as long as you control both of them.)\nAs long as Galvanic Alchemist is paired with another creature, each of those creatures has \"{2}{U}: Untap this creature.\"",
+   "power": "1",
+   "toughness": "4",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/avr/54/galvanic-alchemist",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Reconsultado em cache: mesma redacao. Rulings de soulbond nao apareceram no resumo."
+  },
+  {
+   "name": "Orochi Leafcaller",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Snake Shaman",
+   "oracle_text": "{G}: Add one mana of any color.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/chk/234/orochi-leafcaller",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Sem rulings listados."
+  },
+  {
+   "name": "Secret Door",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/afr/71/secret-door",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (afr/71). Nao escrevi de memoria."
+  },
+  {
+   "name": "Tuktuk Rubblefort",
+   "mana_cost": "{2}{R}",
+   "type_line": "Creature — Wall",
+   "oracle_text": "Defender, reach\nCreatures you control have haste.",
+   "power": "0",
+   "toughness": "3",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/znr/173/tuktuk-rubblefort",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Reconsultado em cache com pedido linha a linha: mesma redacao. Sem rulings listados. Lembrete de defender/reach pode ter sido omitido pelo resumo."
+  },
+  {
+   "name": "Valakut Invoker",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/bfz/159/valakut-invoker",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (bfz/159, cmr/206). Nao escrevi de memoria."
+  },
+  {
+   "name": "Pulse of Murasa",
+   "mana_cost": "{2}{G}",
+   "type_line": "Instant",
+   "oracle_text": "Return target creature or land card from a graveyard to its owner's hand. You gain 6 life.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2019-07-12",
+     "texto": "If the target card is an illegal target by the time Pulse of Murasa tries to resolve, the spell doesn't resolve. You won't gain 6 life."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/m20/189/pulse-of-murasa",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica."
+  },
+  {
+   "name": "Reaping the Graves",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/scg/72/zht/reaping-the-graves",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (td0/A47, scg/72 zht/it). Nao escrevi de memoria."
+  },
+  {
+   "name": "Freed from the Real",
+   "mana_cost": "{2}{U}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\n{U}: Tap enchanted creature.\n{U}: Untap enchanted creature.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2018-03-16",
+     "texto": "Only the player who controls Freed from the Real can activate its abilities. This might not be the controller of the enchanted creature."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/a25/58/freed-from-the-real",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica."
+  },
+  {
+   "name": "Lead the Stampede",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/iko/163/lead-the-stampede",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 em todas as impressoes (iko/163, ima/173, mbs/82, cns/170, ddu/16, ddh/24). Nao escrevi de memoria."
+  },
+  {
+   "name": "Winding Way",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh1/193/winding-way",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (mh1/193, otc/213, plst/MH1-193). Nao escrevi de memoria."
+  },
+  {
+   "name": "Masked Vandal",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/khm/184/masked-vandal",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (khm/184, khm/405, plst, akhm). Nao escrevi de memoria."
+  },
+  {
+   "name": "Faerie Macabre",
+   "mana_cost": "{1}{B}{B}",
+   "type_line": "Creature — Faerie Rogue",
+   "oracle_text": "",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    {
+     "data": "2008-05-01",
+     "texto": "Faerie Macabre's second ability can be activated only while it's in your hand. You can do this any time you could cast an instant."
+    },
+    {
+     "data": "2008-05-01",
+     "texto": "The targeted cards may be in the same graveyard or in different graveyards."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/shm/66/fr/faerie-macabre",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "So consegui a pagina francesa (sem Oracle em ingles): custo, tipo (peuple fee et gredin = Faerie Rogue), P/T e 2 rulings vieram dela. oracle_text nao verificado; nao escrevi de memoria. Paginas em ingles deram 403."
+  },
+  {
+   "name": "Moment's Peace",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/ody/251/zht/moments-peace",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (sld/1466, td0/A80, ody/251 zht). Nao escrevi de memoria."
+  },
+  {
+   "name": "Nylea's Disciple",
+   "mana_cost": "",
+   "type_line": "",
+   "oracle_text": "",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/ths/167/nyleas-disciple",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403 (ths/167, pio/301, ths/167 it). Nao escrevi de memoria."
+  },
+  {
+   "name": "Refurbished Familiar",
+   "mana_cost": "{3}{B}",
+   "type_line": "Artifact Creature — Zombie Rat",
+   "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nFlying\nWhen this creature enters, each opponent discards a card. For each opponent who can't, you draw a card.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2024-06-07",
+     "texto": "When Refurbished Familiar's last ability resolves, the next opponent in turn order (or, if it's an opponent's turn, that opponent) chooses a card in hand without revealing it, then each other opponent in turn order (if any) does the same. All chosen cards are then discarded at the same time."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/mh3/105/refurbished-familiar",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica."
+  },
+  {
+   "name": "Writhing Chrysalis",
+   "mana_cost": "{2}{R}{G}",
+   "type_line": "Creature — Eldrazi Drone",
+   "oracle_text": "Devoid (This card has no color.)\nWhen you cast this spell, create two 0/1 colorless Eldrazi Spawn creature tokens with \"Sacrifice this token: Add {C}.\"\nReach\nWhenever you sacrifice another Eldrazi, put a +1/+1 counter on this creature.",
+   "power": "2",
+   "toughness": "3",
+   "rulings": [
+    {
+     "data": "2024-06-07",
+     "texto": "A card with devoid is just colorless. It's not colorless and the colors of mana in its mana cost."
+    },
+    {
+     "data": "2024-06-07",
+     "texto": "Devoid doesn't affect the color identity of the card for the purposes of the Commander variant."
+    },
+    {
+     "data": "2024-06-07",
+     "texto": "Devoid works in all zones, not just on the battlefield."
+    },
+    {
+     "data": "2024-06-07",
+     "texto": "If a card loses devoid, it will still be colorless. This is because effects that change an object's color (like the one created by devoid) are considered before the object loses devoid."
+    },
+    {
+     "data": "2024-06-07",
+     "texto": "Other cards and abilities can give a card with devoid a color. If that happens, it's just the new color, not that color and colorless."
+    },
+    {
+     "data": "2024-06-07",
+     "texto": "Writhing Chrysalis's second ability will resolve before Writhing Chrysalis does. If Writhing Chrysalis is countered or otherwise leaves the stack in response to that triggered ability, the triggered ability will still resolve as normal."
+    }
+   ],
+   "fonte": "https://mtg.wtf/card/mh3/208/Writhing-Chrysalis",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Fonte mtg.wtf; o resumo nao exibiu o lembrete de devoid, completei com a redacao padrao (nao altera regra). Conferir ordem das linhas (Reach em linha propria) e o custo {2}{R}{G} se for critico."
+  },
+  {
+   "name": "Gixian Infiltrator",
+   "mana_cost": "{1}{B}",
+   "type_line": "Creature — Phyrexian Human",
+   "oracle_text": "Whenever you sacrifice another permanent, put a +1/+1 counter on Gixian Infiltrator.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/bro/98/gixian-infiltrator",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "WebFetch resume a pagina via modelo; texto de fonte unica. Reconsultado em cache: mesma redacao. Sem rulings listados."
+  },
+  {
+   "name": "Krark-Clan Shaman",
+   "mana_cost": "{R}",
+   "type_line": "Creature — Goblin Shaman",
+   "oracle_text": "Sacrifice an artifact: Krark-Clan Shaman deals 1 damage to each creature without flying.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/41120",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall deu 403 (fonte unica: Hareruya, confere com o nome da carta). Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Evolution Witness",
+   "mana_cost": "{2}{G}",
+   "type_line": "Creature — Elf Shaman Mutant",
+   "oracle_text": "{1}{G}: Adapt 2. (If this creature has no +1/+1 counters on it, put two +1/+1 counters on it.)\nWhenever one or more +1/+1 counters are put on Evolution Witness, return target permanent card from your graveyard to your hand.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2024-06-07",
+     "texto": "You can always activate an ability that will cause a creature to adapt. As that ability resolves, if the creature has a +1/+1 counter on it for any reason, you simply won't put any +1/+1 counters on it."
+    },
+    {
+     "data": "2024-06-07",
+     "texto": "If a creature somehow loses all of its +1/+1 counters, it can adapt again and get more +1/+1 counters."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/mh3/424/evolution-witness",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Fanatical Offering",
+   "mana_cost": "{1}{B}",
+   "type_line": "Instant",
+   "oracle_text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards and create a Map token. (It's an artifact with \"{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.\")",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2023-11-10",
+     "texto": "If an ability instructs a creature to explore, its controller reveals the top card of their library. If it's a land card, they'll put it into their hand. Otherwise, they'll put a +1/+1 counter on that creature, then choose to either leave that card on top of their library or put it into their graveyard."
+    },
+    {
+     "data": "2023-11-10",
+     "texto": "If no card is revealed, most likely because that player's library is empty, the exploring creature receives a +1/+1 counter."
+    },
+    {
+     "data": "2023-11-10",
+     "texto": "Map tokens are a kind of predefined token. Each one is a colorless artifact with the artifact subtype Map and the ability \"{1}, {T}, Sacrifice this artifact: Target creature you control explores.\""
+    }
+   ],
+   "fonte": "https://www.cardtrader.com/en/cards/266897-fanatical-offering-the-lost-caverns-of-ixalan (texto); https://www.grimoria.app/cards/fanatical-offering (rulings)",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall 403. Custo de mana nao veio explicito: CMC 2 (EchoMTG) => {1}{B}; Grimoria exibiu simbolos '1 B B' (provavel erro). Texto de lembrete do Map diverge entre fontes ('this token' vs 'this artifact'). Efeito principal consistente nas 3 fontes. Rulings de 2023-11-10 vieram de Grimoria (datas em formato por extenso) e sao parciais (ha mais sobre explorar)."
+  },
+  {
+   "name": "Cast Down",
+   "mana_cost": "{1}{B}",
+   "type_line": "Instant",
+   "oracle_text": "Destroy target nonlegendary creature.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/dom/81/cast-down",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Eviscerator's Insight",
+   "mana_cost": "{1}{B}",
+   "type_line": "Instant",
+   "oracle_text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards.\nFlashback {4}{B}",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh3/93/eviscerators-insight",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Terminate",
+   "mana_cost": "{B}{R}",
+   "type_line": "Instant",
+   "oracle_text": "Destroy target creature. It can't be regenerated.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://www.mtg.wtf/card/mm3/194/Terminate ; https://www.hareruyamtg.com/en/products/detail/81903",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall deu 403; duas fontes concordam no texto. Nenhum ruling exibido nas fontes."
+  },
+  {
+   "name": "Cleansing Wildfire",
+   "mana_cost": "{1}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. Draw a card.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2020-09-25",
+     "texto": "If the target land is an illegal target by the time Cleansing Wildfire tries to resolve, the spell doesn't resolve. No player searches for a basic land card and you don't draw a card. If the target is legal but not destroyed (most likely because it has indestructible), its controller does search for a basic land card and you do draw a card."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/znr/137/cleansing-wildfire",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Ichor Wellspring",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "When Ichor Wellspring enters the battlefield or is put into a graveyard from the battlefield, draw a card.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2011-06-01",
+     "texto": "The ability will trigger when Ichor Wellspring is put into a graveyard from the battlefield, even if the ability that triggered when it entered the battlefield hasn't resolved yet."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/c21/245/ichor-wellspring",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto conforme a fonte; a redacao 'enters the battlefield' pode ter sido atualizada para 'enters' no Oracle atual (efeito identico). "
+  },
+  {
+   "name": "Lembas",
+   "mana_cost": "{2}",
+   "type_line": "Artifact — Food",
+   "oracle_text": "When this artifact enters, scry 1, then draw a card.\n{2}, {T}, Sacrifice this artifact: You gain 3 life.\nWhen this artifact is put into a graveyard from the battlefield, its owner shuffles it into their library.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2024-11-08",
+     "texto": "Food is an artifact type. Even though it appears on some creatures, it's never a creature type."
+    },
+    {
+     "data": "2024-11-08",
+     "texto": "You can't sacrifice a Food to pay multiple costs. For example, you can't sacrifice a Food token to activate its own ability and also to activate Maraleaf Rider's ability."
+    },
+    {
+     "data": "2024-11-08",
+     "texto": "Whatever you do, don't eat the delicious cards."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ltr/243/lembas",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Makeshift Munitions",
+   "mana_cost": "{1}{R}",
+   "type_line": "Enchantment",
+   "oracle_text": "{1}, Sacrifice an artifact or creature: Makeshift Munitions deals 1 damage to any target.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://www.hareruyamtg.com/en/products/detail/91140 ; https://www.hareruyamtg.com/en/products/detail/87497",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall deu 403; duas paginas Hareruya concordam. Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Drossforge Bridge",
+   "mana_cost": "",
+   "type_line": "Artifact Land",
+   "oracle_text": "Drossforge Bridge enters the battlefield tapped.\nIndestructible\n{T}: Add {B} or {R}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh2/246/drossforge-bridge",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto conforme a fonte; a redacao 'enters the battlefield' pode ter sido atualizada para 'enters' no Oracle atual (efeito identico). Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Slagwoods Bridge",
+   "mana_cost": "",
+   "type_line": "Artifact Land",
+   "oracle_text": "Slagwoods Bridge enters the battlefield tapped.\nIndestructible\n{T}: Add {R} or {G}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://facetofacegames.com/en-eu/products/slagwoods-bridge-256-modern-horizons-2-foil ; https://playgroup.gg/cards/slagwoods-bridge?pod=duel",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall deu 403. Fontes nao-Scryfall (uma delas parafraseou 'This land enters tapped'). Texto conforme a fonte; a redacao 'enters the battlefield' pode ter sido atualizada para 'enters' no Oracle atual (efeito identico). Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Twisted Landscape",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Twisted Landscape: Search your library for a basic Swamp, Mountain, or Forest card, put it onto the battlefield tapped, then shuffle.\nCycling {B}{R}{G} ({B}{R}{G}, Discard this card: Draw a card.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh3/232/twisted-landscape (confirmado tambem em mh3/521)",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Duas buscas concordam. Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Vault of Whispers",
+   "mana_cost": "",
+   "type_line": "Artifact Land",
+   "oracle_text": "{T}: Add {B}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mrd/286/vault-of-whispers ; https://www.hareruyamtg.com",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Weather the Storm",
+   "mana_cost": "{1}{G}",
+   "type_line": "Instant",
+   "oracle_text": "You gain 3 life.\nStorm (When you cast this spell, copy it for each spell cast before it this turn.)",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2019-06-14",
+     "texto": "The copies storm creates are created on the stack, so they're not cast. Abilities that trigger when a player casts a spell (such as storm) won't trigger."
+    },
+    {
+     "data": "2019-06-14",
+     "texto": "Storm counts spells cast before the spell with storm was cast. Spells cast after the spell with storm was cast but before the storm ability resolves aren't counted."
+    },
+    {
+     "data": "2019-06-14",
+     "texto": "The storm ability and the copies it creates all resolve before the spell with storm. They resolve even if the spell with storm is countered."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/mh1/191/weather-the-storm",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Troublemaker Ouphe",
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Ouphe",
+   "oracle_text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nWhen this creature enters, if it was bargained, exile target artifact or enchantment an opponent controls.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/troublemaker-ouphe/faq ; https://www.echomtg.com/mtg/items/troublemaker-ouphe/153423/",
+   "consulta": "2026-09-30",
+   "incerto": true,
+   "nota": "Scryfall deu 403. Custo de mana NAO veio explicito em nenhuma fonte (CMC 2, criatura verde => {1}{G} por inferencia). Redacao do gatilho: uma fonte trouxe 'this creature enters', outra 'Troublemaker Ouphe enters the battlefield'; usei a forma moderna. Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Breath Weapon",
+   "mana_cost": "{2}{R}",
+   "type_line": "Instant",
+   "oracle_text": "Breath Weapon deals 2 damage to each non-Dragon creature.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/clb/165/breath-weapon",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Ancient Grudge",
+   "mana_cost": "{1}{R}",
+   "type_line": "Instant",
+   "oracle_text": "Destroy target artifact.\nFlashback {G}",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2021-03-19",
+     "texto": "\"Flashback [cost]\" means \"You may cast this card from your graveyard by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "You must still follow any timing restrictions and permissions, including those based on the card's type."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you're paying, add any cost increases, then apply any cost reductions."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+    },
+    {
+     "data": "2021-03-19",
+     "texto": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/sld/98",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Birchlore Rangers",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Elf Druid Ranger",
+   "oracle_text": "Tap two untapped Elves you control: Add one mana of any color.\nMorph {G} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2004-10-04",
+     "texto": "Since the ability does not have the {T} symbol, you can use the ability before this creature begins a turn under your control."
+    },
+    {
+     "data": "2004-10-04",
+     "texto": "It can tap itself but is not required to do so."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ons/248/zht/birchlore-rangers",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Elvish Vanguard",
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Elf Warrior",
+   "oracle_text": "Whenever another Elf enters, put a +1/+1 counter on Elvish Vanguard.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2016-06-08",
+     "texto": "If Elvish Vanguard enters the battlefield at the same time as another Elf, its ability will trigger."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ddu/8",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto do gatilho conforme pagina (forma 'enters'); versoes antigas dizem 'enters the battlefield' (efeito identico)."
+  },
+  {
+   "name": "Jaspera Sentinel",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Elf Rogue",
+   "oracle_text": "Reach\n{T}, Tap an untapped creature you control: Add one mana of any color.",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [],
+   "fonte": "https://playgroup.gg/cards/jaspera-sentinel ; https://www.echomtg.com/mtg/items/jaspera-sentinel/124099/",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall deu 403. Duas fontes concordam (ambas listam subtipo Elf Rogue; conferir se nao e Elf Scout, o que nao muda o fato de ser Elf). Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Llanowar Elves",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Elf Druid",
+   "oracle_text": "{T}: Add {G}.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/dom/168/llanowar-elves",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Priest of Titania",
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Elf Druid",
+   "oracle_text": "{T}: Add {G} for each Elf on the battlefield.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    {
+     "data": "2024-06-07",
+     "texto": "Priest of Titania's ability counts all Elves on the battlefield. This includes Priest of Titania itself as well as Elves controlled by other players."
+    },
+    {
+     "data": "2024-06-07",
+     "texto": "Priest of Titania's ability is a mana ability. It doesn't use the stack and players can't respond to it. Notably, this means other players can't try to remove Elves from the battlefield after you activate this ability but before it resolves."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/mh3/286/priest-of-titania (confere com usg/270)",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Timberwatch Elf",
+   "mana_cost": "{2}{G}",
+   "type_line": "Creature — Elf",
+   "oracle_text": "{T}: Target creature gets +X/+X until end of turn, where X is the number of Elves on the battlefield.",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [
+    {
+     "data": "2016-06-08",
+     "texto": "The number of Elves on the battlefield is counted only as Timberwatch Elf's ability resolves. If Timberwatch Elf is still on the battlefield, it'll count itself."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ema/190/timberwatch-elf",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Salt Road Packbeast",
+   "mana_cost": "{5}{W}",
+   "type_line": "Creature — Beast",
+   "oracle_text": "Affinity for creatures (This spell costs {1} less to cast for each creature you control.)\nWhen this creature enters, draw a card.",
+   "power": "4",
+   "toughness": "3",
+   "rulings": [],
+   "fonte": "https://journeysendgames.com/products/salt-road-packbeast-tarkir-dragonstorm-near-mint ; https://casualplaneswalker.com/card/salt-road-packbeast/faq",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall deu 403. Duas fontes concordam (mana cost {5}{W} so na primeira). Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Elvish Mystic",
+   "mana_cost": "{G}",
+   "type_line": "Creature — Elf Druid",
+   "oracle_text": "{T}: Add {G}.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://casualplaneswalker.com/card/elvish-mystic/faq ; https://www.echomtg.com/mtg/items/elvish-mystic/138742/",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Scryfall deu 403. Uma fonte listou P/T 1/0 (erro da fonte; a outra e o card real dizem 1/1). Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Nyxborn Hydra",
+   "mana_cost": "{X}{G}",
+   "type_line": "Enchantment Creature — Hydra",
+   "oracle_text": "Bestow {X}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nReach, trample\nNyxborn Hydra enters the battlefield with X +1/+1 counters on it.\nEnchanted creature gets +1/+1 for each +1/+1 counter on Nyxborn Hydra and has reach and trample.",
+   "power": "0",
+   "toughness": "1",
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/mh3/164/nyxborn-hydra",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto conforme a fonte; a redacao 'enters the battlefield' pode ter sido atualizada para 'enters' no Oracle atual (efeito identico). Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  },
+  {
+   "name": "Lys Alana Huntmaster",
+   "mana_cost": "{2}{G}{G}",
+   "type_line": "Creature — Elf Warrior",
+   "oracle_text": "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token.",
+   "power": "3",
+   "toughness": "3",
+   "rulings": [
+    {
+     "data": "2016-06-08",
+     "texto": "Lys Alana Huntmaster's ability will resolve before the Elf spell that caused it to trigger."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/khc/67",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Distant Melody",
+   "mana_cost": "{3}{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Choose a creature type. Draw a card for each permanent you control of that type.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2008-04-01",
+     "texto": "This spell counts the number of permanents you control of the chosen type, not just the number of creatures you control. It will also take your kindred permanents of the chosen type into account."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/ecc/45/distant-melody",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Vitu-Ghazi Inspector",
+   "mana_cost": "{1}{G}",
+   "type_line": "Creature — Elf Detective",
+   "oracle_text": "As an additional cost to cast this spell, you may collect evidence 6. (Exile cards with total mana value 6 or greater from your graveyard.)\nReach\nWhen Vitu-Ghazi Inspector enters the battlefield, if evidence was collected, put a +1/+1 counter on target creature and you gain 2 life.",
+   "power": "1",
+   "toughness": "3",
+   "rulings": [
+    {
+     "data": "2024-02-02",
+     "texto": "If the target creature is an illegal target as Vitu-Ghazi Inspector's triggered ability tries to resolve, it won't resolve and none of its effects will happen. You won't gain life."
+    },
+    {
+     "data": "2024-02-02",
+     "texto": "If you can't exile enough cards to meet or exceed the required mana value, you can't choose to collect evidence at all."
+    },
+    {
+     "data": "2024-02-02",
+     "texto": "Once you've announced that you're casting a spell, players can't take actions until you've finished doing so. Notably, opponents can't try to remove cards from your graveyard to stop you from collecting evidence."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/mkm/183/vitu-ghazi-inspector",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Texto conforme a fonte; a redacao 'enters the battlefield' pode ter sido atualizada para 'enters' no Oracle atual (efeito identico). "
+  },
+  {
+   "name": "Mirrorshell Crab",
+   "mana_cost": "{5}{U}{U}",
+   "type_line": "Artifact Creature — Crab",
+   "oracle_text": "Ward {3} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {3}.)\nChannel — {2}{U}, Discard Mirrorshell Crab: Counter target spell or ability unless its controller pays {3}.",
+   "power": "5",
+   "toughness": "7",
+   "rulings": [
+    {
+     "data": "2022-02-18",
+     "texto": "If a player casts a spell that targets multiple permanents their opponent controls with ward, each of those ward abilities will trigger. If that player doesn't pay for all of them, the spell will be countered."
+    },
+    {
+     "data": "2022-02-18",
+     "texto": "Discarding the card is part of the cost to activate a channel ability."
+    },
+    {
+     "data": "2022-02-18",
+     "texto": "If a channel ability requires a target, you may not activate it without a target just to discard the card."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/neo/63/mirrorshell-crab",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Negate",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target noncreature spell.",
+   "power": null,
+   "toughness": null,
+   "rulings": [
+    {
+     "data": "2024-11-08",
+     "texto": "A \"creature spell\" is any spell with the creature type, even if it has other types such as artifact or enchantment."
+    }
+   ],
+   "fonte": "https://scryfall.com/card/dmu/58/negate",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": ""
+  },
+  {
+   "name": "Spell Pierce",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target noncreature spell unless its controller pays {2}.",
+   "power": null,
+   "toughness": null,
+   "rulings": [],
+   "fonte": "https://scryfall.com/card/xln/81/spell-pierce",
+   "consulta": "2026-09-30",
+   "incerto": false,
+   "nota": "Rulings nao confirmados (conteudo da pagina nao trazia secao de rulings). "
+  }
+ ]
+}

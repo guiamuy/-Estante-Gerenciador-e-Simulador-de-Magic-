@@ -87,7 +87,8 @@ function mesa(nomeAlvo, { naMao = false, comPilha = false, todosEnjoados = false
   };
   // campo do jogador: quatro criaturas, dois terrenos, artefato e encantamento
   for (let i = 0; i < 4; i++) mover(a, 'Mímico', 'battlefield', { sick: todosEnjoados || i === 3 });
-  mover(a, 'Forest', 'battlefield'); mover(a, 'Island', 'battlefield');
+  // Leva 104 · duas Florestas: "devolva uma Floresta" (Quirion Ranger) também tem escolha a oferecer
+  mover(a, 'Forest', 'battlefield'); mover(a, 'Forest', 'battlefield'); mover(a, 'Island', 'battlefield');
   mover(a, 'Bugiganga', 'battlefield'); mover(a, 'Talismã', 'battlefield'); mover(a, 'Fortificador', 'battlefield');
   // cemitério: criatura, terreno e mágica
   mover(a, 'Mímico', 'graveyard'); mover(a, 'Forest', 'graveyard'); mover(a, 'Isca', 'graveyard');
@@ -289,4 +290,61 @@ test('A18 · gatilhos condicionais das listas ficam declarados, não escondidos'
     'Troublemaker Ouphe · bargained',
     'Vitu-Ghazi Inspector · evidenced'
   ]);
+});
+
+/* ---------------- Leva 104 · escolhas de quem paga ----------------
+ * Relato do usuário (30/09/2026): a Jaspera Sentinel virava sozinha uma criatura que ele não
+ * escolheu e a Nyxborn Hydra não perguntava o X. A14–A16 só provavam que a ação existia; estas
+ * provam que a mesa oferece TODAS as formas de pagar quando há mais de uma (601.2b/f/h). */
+const CAMPOS_ESCOLHA = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'exileFromGraveyard'];
+const temEscolha = c => !!c && CAMPOS_ESCOLHA.some(k => c[k]);
+const formas = ops => new Set(ops.map(x => JSON.stringify(x.pay || {}))).size;
+
+test('A19 · custo com escolha: a mesa farta oferece mais de uma forma de pagar, em toda carta das listas Pauper', () => {
+  const faltas = [];
+  let conferidos = 0;
+  for (const nome of cartasPauper()) {
+    const sc = S.SCRIPTS[nome] || {};
+    ativadas(nome).forEach((ab, i) => {
+      if (!temEscolha(ab.cost)) return;
+      const comPilha = (ab.effects || []).some(e => /spell/.test(e.target || ''));
+      const { s, a, alvo } = mesa(nome, { naMao: !!(ab.cost || {}).fromHand, comPilha });
+      const ops = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === alvo && (x.index || 0) === i);
+      conferidos++;
+      if (ops.length && formas(ops) < 2 && !EXCECOES[`${nome} #${i}`]) faltas.push(`${nome} #${i}: só ${formas(ops)} forma de pagar`);
+    });
+    const adicionais = [].concat(sc.additional || []);
+    adicionais.forEach((op, k) => {
+      if (!temEscolha(op)) return;
+      const { s, a, alvo } = mesa(nome, { naMao: true });
+      const ops = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === alvo && x.add === k);
+      conferidos++;
+      if (formas(ops) < 2) faltas.push(`${nome} · custo adicional ${k}: só ${formas(ops)} forma de pagar`);
+    });
+    if (sc.flashback && temEscolha(sc.flashback)) {
+      const { s, a, alvo } = mesa(nome, { naCova: true });
+      const ops = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === alvo && x.flashback);
+      conferidos++;
+      if (formas(ops) < 2) faltas.push(`${nome} · lampejo: só ${formas(ops)} forma de pagar`);
+    }
+  }
+  assert.ok(conferidos >= 10, `a auditoria precisa ter o que conferir (${conferidos})`);
+  assert.deepEqual(faltas, [], 'custos em que o motor escolhe pelo jogador: ' + faltas.join(' · '));
+});
+
+test('A20 · custo com {X}: toda carta das listas Pauper com X pergunta o valor, em cada forma de conjurar', () => {
+  const comX = cartasPauper().filter(n => /\{X\}/.test(((TEXTOS[n] || {}).mana_cost || '') + ((S.SCRIPTS[n] || {}).bestow || {}).mana));
+  assert.ok(comX.includes('Nyxborn Hydra'), 'a Nyxborn Hydra tem o custo oficial na base de textos');
+  const faltas = [];
+  for (const nome of comX) {
+    const { s, a, alvo } = mesa(nome, { naMao: true });
+    const ops = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === alvo);
+    const normal = new Set(ops.filter(x => !x.bestow).map(x => x.x));
+    if (/\{X\}/.test(TEXTOS[nome].mana_cost || '') && normal.size < 3) faltas.push(`${nome}: X normal com ${normal.size} valores`);
+    if (/\{X\}/.test(((S.SCRIPTS[nome] || {}).bestow || {}).mana || '')) {
+      const conceder = new Set(ops.filter(x => x.bestow).map(x => x.x));
+      if (conceder.size < 3) faltas.push(`${nome}: X do conceder com ${conceder.size} valores`);
+    }
+  }
+  assert.deepEqual(faltas, [], 'cartas com X que não perguntam o valor: ' + faltas.join(' · '));
 });
