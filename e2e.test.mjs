@@ -53,6 +53,9 @@ const DB = Object.fromEntries([
   { ...card('Grab the Prize', 'Sorcery', ['R'], 2), mana_cost: '{1}{R}', oracle_text: "As an additional cost to cast this spell, discard a card.\nDraw two cards. If the discarded card wasn't a land card, Grab the Prize deals 2 damage to each opponent." },
   { ...card('Utopia Sprawl', 'Enchantment — Aura', ['G'], 1), mana_cost: '{G}', oracle_text: 'Enchant Forest\nAs Utopia Sprawl enters the battlefield, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.' },
   { ...card('Mountain', 'Basic Land — Mountain', [], 0), image_uris: { small: 'https://cards.scryfall.io/small/front/x/mountain.jpg', normal: 'https://cards.scryfall.io/normal/front/x/mountain.jpg' } },
+  // Leva 111 · Blood: texto da ficha (Oracle do Forge, tokenscripts, 30/09/2026) e Voldaren Epicure (.listas/oficiais.json)
+  { ...card('Blood', 'Token Artifact — Blood', [], 0), id: 'tok-blood', oracle_text: '{1}, {T}, Discard a card, Sacrifice this token: Draw a card.' },
+  { ...card('Voldaren Epicure', 'Creature — Vampire', ['R'], 1), mana_cost: '{R}', power: '1', toughness: '1', oracle_text: 'When this creature enters, it deals 1 damage to each opponent. Create a Blood token. (It\'s an artifact with "{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.")' },
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
@@ -2742,6 +2745,8 @@ test('e2e · E50 fichas têm imagem: dados vêm ao preparar, a mesa mostra a fic
   // a folha da ficha abre com o texto oficial dela
   await ficha.click(); await page.waitForSelector('.ds-dialog');
   assert.match(await page.innerText('.ds-dialog'), /Sacrifice this artifact: Draw a card/);
+  // leva 111: e a habilidade da ficha está lá (antes, com a carta da ficha na mesa, a folha vinha sem ela)
+  assert.match(await page.innerText('.ds-dialog'), /Ativar \(\{2\}, sacrificar\)/);
   await page.keyboard.press('Escape');
   // a ficha ficou guardada: sem rede, o repositório responde do cache
   const guardada = await page.evaluate(async () => { const r = new Promise((res, rej) => { const q = indexedDB.open('mtg', 1); q.onsuccess = () => { const tx = q.result.transaction('kv'); const g = tx.objectStore('kv').get('card.ficha:clue'); g.onsuccess = () => res(g.result); g.onerror = rej; }; q.onerror = rej; }); return r; });
@@ -3389,5 +3394,44 @@ test('e2e · leva 110 lista em símbolos: cores, formato, principal e reserva co
   await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list .deck-item');
   await auditaTela(page, 'listas prontas em símbolos');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/prontas.png' });
+  assert.deepEqual(errors, []);
+});
+
+// Leva 111 · relato do usuário com foto: a ficha de Sangue abria sem a habilidade. Com a carta da ficha vinda da Scryfall,
+// a ficha nascia sem script; e, sem mana, a folha não dizia nada.
+test('e2e · leva 111 ficha de Sangue: sem mana a habilidade aparece apagada com o motivo; com mana, descarta, sacrifica e compra', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Sangue', '20 Mountain\n20 Voldaren Epicure\n20 Grizzly Bear', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '5'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await toMyMain(page);
+  const p = await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const de = n => Object.values(M.estado().objects).find(x => x.owner === p && x.name === n && x.zone === 'library');
+    const epi = de('Voldaren Epicure'); M.act({ t: 'move', p, oid: epi.oid, to: 'hand' }); M.act({ t: 'cast', p, oid: epi.oid, free: true });
+    M.act({ t: 'move', p, oid: de('Grizzly Bear').oid, to: 'hand' });
+    return p;
+  });
+  for (let i = 0; i < 6 && await page.evaluate(() => window.__estanteMesa.estado().stack.length > 0); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(150); }
+  const ficha = page.locator('.tb-side--me .tb-card[aria-label^="Blood"]').first();
+  await ficha.waitFor({ timeout: 8000 });
+  // sem terreno desvirado: a habilidade aparece, apagada, dizendo por quê
+  await ficha.click(); await page.waitForSelector('.ds-dialog');
+  const apagado = page.locator('.ds-dialog .ds-btn', { hasText: 'Ativar ({1}, {T}, descartar uma carta, sacrificar)' });
+  assert.equal(await apagado.count(), 1, 'a habilidade aparece: ' + await page.innerText('.ds-dialog'));
+  assert.equal(await apagado.isDisabled(), true, 'apagada sem mana');
+  assert.match(await apagado.innerText(), /—\s*\S/, 'com o motivo');
+  await auditaTela(page, 'folha do Sangue sem mana');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/sangue-sem-mana.png' });
+  await page.keyboard.press('Escape');
+  // com uma Montanha: ativa, escolhe o descarte, sacrifica e compra
+  await page.evaluate(p => { const M = window.__estanteMesa; const m = Object.values(M.estado().objects).find(x => x.owner === p && x.name === 'Mountain' && x.zone === 'library'); M.act({ t: 'move', p, oid: m.oid, to: 'battlefield' }); }, p);
+  const mao = await page.evaluate(p => window.__estanteMesa.estado().zones[p].hand.length, p);
+  await ficha.click(); await page.waitForSelector('.ds-dialog');
+  await page.click('.ds-dialog .ds-btn:has-text("Ativar ({1}, {T}, descartar uma carta, sacrificar)")');
+  if (await page.locator('#tb-escolha').count()) { await page.locator('#tb-escolha .ds-btn').first().click(); }
+  for (let i = 0; i < 6 && await page.evaluate(() => window.__estanteMesa.estado().stack.length > 0); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(150); }
+  const fim = await page.evaluate(p => { const s = window.__estanteMesa.estado(); return { sangue: s.zones[p].battlefield.filter(o => s.objects[o].name === 'Blood').length, mao: s.zones[p].hand.length, cemiterio: s.zones[p].graveyard.length }; }, p);
+  assert.deepEqual(fim, { sangue: 0, mao, cemiterio: 1 }, 'descartou uma, comprou uma, a ficha sumiu');
   assert.deepEqual(errors, []);
 });

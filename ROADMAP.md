@@ -342,6 +342,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 15º-e ✅ | Homologação da auditoria por leitura independente: 11 correções (leva 108) | E33 | 1 | — |
 | 16º ✅ | Scanner automático de verdade (leva 109) | E39 | 1 | ajuste fino depende do diagnóstico do aparelho |
 | 16º-a ✅ | Mesa e listas, cinco relatos com fotos do aparelho (leva 110) | E43 | 1 | — |
+| 16º-b ✅ | Habilidades das fichas (leva 111) | M12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3161,6 +3162,17 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
+
+**Leva 111 · Habilidades das fichas** ✅ (relato do usuário com foto, 30/09/2026: "não me deu a opção de usar a habilidade" do Sangue)
+- **Causa:** desde a E50 P3 a mesa traz a carta da ficha (imagem e texto da Scryfall) ao preparar a partida; o motor criava os fatos dela pela carta, sem script, e `createToken` só punha as habilidades quando os fatos ainda não existiam. Resultado: com rede, toda ficha nascia sem habilidade (Blood, Clue, Food, Map, Treasure, Eldrazi Spawn). Nos testes de motor, sem a carta da ficha, tudo passava.
+- **Entregue:** a ficha sempre recebe as habilidades da definição do script. Fichas predefinidas conferidas contra o Oracle do Forge (tokenscripts, consulta de 30/09/2026): Treasure, Clue, Food, Blood e Map batem com o script; Eldrazi Spawn bate com Writhing Chrysalis e Malevolent Rumble (`.listas/oficiais.json`).
+- **Folha da permanente:** habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo ("— mana insuficiente"), em vez de a folha vir vazia; o custo no botão diz tudo, inclusive "descartar uma carta".
+- **Fichas corrigidas no caminho (texto do Forge, 30/09/2026):** Goblin (Dragon Fodder, Krenko's Command) agora vermelho e Goblin; Dinosaur, Human Soldier, Crab, Bird 2/2 (Swan Song), Servo, Treasure, Clue e Food com subtipo e cor. **Resculpt** estava errado (palpite): ficha "Phyrexian Golem" incolor e alvo só criatura → agora "Elemental" 4/4 azul e vermelho e alvo artefato ou criatura (novo alvo `artifact-creature`). **Saheeli, Sublime Artificer**: o −2 criava um Servo (palpite); o texto real copia um artefato até o fim do turno, que o motor não faz → o −2 saiu e a carta fica parcial declarada.
+- **Declarado, sem mudança:** a ficha da sala Muiral (Dungeon of the Mad Mage) aparece como "Skeleton Muiral" porque os fatos do motor são por nome e o Skeleton 4/1 com ameaça da outra sala tem o mesmo nome; a regra (1/1 preto Esqueleto) está certa, só o nome mostrado difere.
+- **Testes novos (todos falham antes):** U Blood com e sem a carta da ficha (descarte escolhido, sacrifica, compra); Clue, Eldrazi Spawn, Treasure (só gera sacrificando, uma opção por cor), Food (Sorin transformado) e Map (mira criatura sua); e2e "leva 111" (Sangue sem mana apagado com motivo; com mana, descarta, sacrifica e compra) e a E50 P3 confere a habilidade da Pista na folha.
+- **Motor v64** (definições de ficha e dois scripts mudaram). Partidas-referência regravadas só pela versão: logs, status e turnos idênticos.
+- **Capturas:** 360 escuro e 390 claro (folha do Sangue sem mana).
+- **Portão:** 634 verdes (567 + 67 e2e).
 
 **Leva 110 · Mesa e listas: cinco relatos com fotos do aparelho** ✅ (30/09/2026)
 - **Fiery Temper (e todo "qualquer alvo"):** com 10 ou mais criaturas no campo, o motor cortava a lista de alvos antes dos jogadores (`TARGET_LIMIT`), e a mesa mostrava só os 3 primeiros botões da insanidade (4 no "conjurar de graça"). Agora, com um alvo, nada é cortado; com vários, os jogadores nunca saem (`limitaAlvos`). Insanidade e conjurar de graça abrem a folha **Escolha o alvo** com todos os alvos, agrupados em jogadores, suas permanentes e as do oponente, com o estado quando houver (virada, dano). Texto oficial em `.listas/oficiais.json` (consulta de 30/09/2026).

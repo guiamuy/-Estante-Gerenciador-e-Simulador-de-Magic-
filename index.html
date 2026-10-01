@@ -2999,7 +2999,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-opponent-creature-planeswalker', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature', 'enchanted'] },
-  exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard'] },
+  exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-creature', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard'] },
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
   exile_chosen: { fields: ['amount'], targets: ['player', 'opponent', 'self'] },
   bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact'] },
@@ -3070,7 +3070,7 @@ const EFFECTS = {
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
     Só a Mina Perdida de Phandelver está montada; as outras três precisam de
     efeitos que o motor ainda não tem (provocar, jogar do exílio, conjurar de graça). */
-const TESOURO = { name: 'Treasure', types: ['artifact'],
+const TESOURO = { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [],
   abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] };
 const DUNGEONS = [
   { name: 'Lost Mine of Phandelver', pt: 'Mina Perdida de Phandelver', rooms: [
@@ -3143,7 +3143,7 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
-const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment',
+const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature',
   'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source']); // Q11
 /** S8 · cenários: o que o teste automático monta e o que espera. */
@@ -3613,7 +3613,7 @@ const RAW_SCRIPTS = [
   { name: 'Unsubstantiate', effects: [{ do: 'bounce', target: 'spell-or-creature' }],
     example: { target: 'enemy-spell', expect: { bounced: true } } },
   { name: "An Offer You Can't Refuse", effects: [{ do: 'counter', target: 'noncreature-spell' },
-    { do: 'token', amount: 2, target: 'target-controller', token: { name: 'Treasure', types: ['artifact'],
+    { do: 'token', amount: 2, target: 'target-controller', token: { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [],
       abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
   { name: 'Arcane Denial', effects: [{ do: 'counter', target: 'spell' }],
@@ -3834,7 +3834,7 @@ const RAW_SCRIPTS = [
   { name: 'Sorin of House Markov',
     abilities: [{ kind: 'triggered', when: 'main2', condition: { lifeGained: 3 }, effects: [{ do: 'transform', target: 'self-source' }] }],
     back: { name: 'Sorin, Ravenous Neonate', types: ['planeswalker'], loyalty: 3, loyaltyAbilities: [
-      { cost: 2, label: '+2: Criar uma ficha de Comida', effects: [{ do: 'token', amount: 1, token: { name: 'Food', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] } }] },
+      { cost: 2, label: '+2: Criar uma ficha de Comida', effects: [{ do: 'token', amount: 1, token: { name: 'Food', types: ['artifact'], subtypes: ['Food'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', tap: true, sacrifice: true }, effects: [{ do: 'gain', amount: 3 }] }] } }] },
       { cost: -1, label: '−1: Dano igual à vida ganha no turno', effects: [{ do: 'damage', amount: { per: 'life-gained-this-turn' }, target: 'any' }] }] },
     covers: 'partial', note: 'extorsão, vínculo com a vida da frente vem do texto, e o −6 de roubar criatura ainda não entra',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -3915,11 +3915,15 @@ const RAW_SCRIPTS = [
   { name: 'Bojuka Bog', entersTapped: true, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'exile_graveyard', target: 'player' }] }],
     example: { action: 'etb', target: 'none', expect: { graveyardEmpty: true, tappedOnEntry: true } } },
   // S21 · planeswalkers
-  { name: 'Saheeli, Sublime Artificer', loyalty: [
-    { cost: -2, label: '−2: Criar uma ficha 1/1 de Servo', effects: [{ do: 'token', amount: 1, token: { name: 'Servo', types: ['artifact', 'creature'], power: 1, toughness: 1 } }] }],
+  // Leva 111 · texto conferido em 30/09/2026 (Oracle do Forge): "Whenever you cast a noncreature spell, create a 1/1 colorless
+  // Servo artifact creature token." e "[-2]: Target artifact you control becomes a copy of another target artifact or creature
+  // you control until end of turn, except it's an artifact in addition to its other types." O −2 antigo criava um Servo
+  // (escrito por palpite): saiu. Cópia até o fim do turno o motor não faz; fica para a mesa (parcial declarado).
+  { name: 'Saheeli, Sublime Artificer', loyalty: [],
     abilities: [{ kind: 'triggered', when: 'other-cast', filter: { noncreature: true },
-      effects: [{ do: 'token', amount: 1, token: { name: 'Servo', types: ['artifact', 'creature'], power: 1, toughness: 1 } }] }],
-    example: { action: 'loyalty:0', target: 'none', expect: { tokens: 1, loyalty: 3 } } },
+      effects: [{ do: 'token', amount: 1, token: { name: 'Servo', types: ['artifact', 'creature'], subtypes: ['Servo'], colors: [], power: 1, toughness: 1 } }] }],
+    covers: 'partial', note: 'o −2 (um artefato seu vira cópia de outro até o fim do turno) não é resolvido pelo motor',
+    example: { action: 'cast', target: 'none', expect: { loyalty: 5 } } },
   // S20 · cemitério e custos adicionais
   { name: 'Unearth', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: 3 }], cycling: { mana: '{2}' },
     example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
@@ -4078,27 +4082,28 @@ const RAW_SCRIPTS = [
     { label: 'Destruir uma permanente, se for azul', effects: [{ do: 'destroy', target: 'permanent', ifColor: 'U' }] }],
     example: { action: 'mode:1', target: 'enemy-creature', expect: { gone: true } } },
   // S10 · fichas (M12)
-  { name: 'Dragon Fodder', effects: [{ do: 'token', amount: 2, token: { name: 'Goblin', types: ['creature'], power: 1, toughness: 1 } }],
+  { name: 'Dragon Fodder', effects: [{ do: 'token', amount: 2, token: { name: 'Goblin', types: ['creature'], subtypes: ['Goblin'], colors: ['R'], power: 1, toughness: 1 } }],
     example: { target: 'none', expect: { tokens: 2 } } },
-  { name: "Krenko's Command", effects: [{ do: 'token', amount: 2, token: { name: 'Goblin', types: ['creature'], power: 1, toughness: 1 } }],
+  { name: "Krenko's Command", effects: [{ do: 'token', amount: 2, token: { name: 'Goblin', types: ['creature'], subtypes: ['Goblin'], colors: ['R'], power: 1, toughness: 1 } }],
     example: { target: 'none', expect: { tokens: 2 } } },
   { name: 'Forbidden Friendship', effects: [
-    { do: 'token', amount: 1, token: { name: 'Dinosaur', types: ['creature'], power: 1, toughness: 1, keywords: ['haste'] } },
-    { do: 'token', amount: 1, token: { name: 'Human Soldier', types: ['creature'], power: 1, toughness: 1 } }],
+    { do: 'token', amount: 1, token: { name: 'Dinosaur', types: ['creature'], subtypes: ['Dinosaur'], colors: ['R'], power: 1, toughness: 1, keywords: ['haste'] } },
+    { do: 'token', amount: 1, token: { name: 'Human Soldier', types: ['creature'], subtypes: ['Human', 'Soldier'], colors: ['W'], power: 1, toughness: 1 } }],
     example: { target: 'none', expect: { tokens: 2 } } },
   { name: 'Hard Evidence', effects: [
-    { do: 'token', amount: 1, token: { name: 'Crab', types: ['creature'], power: 0, toughness: 3 } },
-    { do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }],
+    { do: 'token', amount: 1, token: { name: 'Crab', types: ['creature'], subtypes: ['Crab'], colors: ['U'], power: 0, toughness: 3 } },
+    { do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }],
     example: { target: 'none', expect: { tokens: 2 } } },
   { name: 'Thraben Inspector', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
   { name: 'Novice Inspector', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
-  { name: 'Swan Song', effects: [{ do: 'counter', target: 'noncreature-spell' }, { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Bird', types: ['creature'], power: 2, toughness: 2, keywords: ['flying'] } }],
+  { name: 'Swan Song', effects: [{ do: 'counter', target: 'noncreature-spell' }, { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['U'], power: 2, toughness: 2, keywords: ['flying'] } }],
     covers: 'partial', note: 'na carta real só anula encantamento, instantânea ou feitiço',
     example: { target: 'enemy-instant', expect: { countered: true } } },
-  { name: 'Resculpt', effects: [{ do: 'exile', target: 'creature' }, { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Phyrexian Golem', types: ['creature'], power: 4, toughness: 4 } }],
-    covers: 'partial', note: 'na carta real também atinge artefato',
+  // Leva 111 · texto conferido em 30/09/2026 (Oracle do Forge): "Exile target artifact or creature. Its controller creates a 4/4
+  // blue and red Elemental creature token." A ficha antiga (Phyrexian Golem incolor) e o alvo só criatura eram palpite.
+  { name: 'Resculpt', effects: [{ do: 'exile', target: 'artifact-creature' }, { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Elemental', types: ['creature'], subtypes: ['Elemental'], colors: ['U', 'R'], power: 4, toughness: 4 } }],
     example: { target: 'enemy-creature', expect: { gone: true } } },
   // M9 · permanentes com habilidade
   { name: 'Elvish Visionary', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
@@ -6737,7 +6742,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 63;
+const ENGINE_VERSION = 64;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -7635,7 +7640,7 @@ function legalTargets(s, p, kind, selfOid, color) {
   const srcObj = selfOid ? s.objects[selfOid] : null;
   const perms = battlefield(s).filter(o => targetable(s, p, o, srcObj));
   const players = s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
-  if (['any', 'creature', 'planeswalker', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment'].includes(kind)) {
+  if (['any', 'creature', 'planeswalker', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature'].includes(kind)) {
     for (const o of perms) {
       const f = s.facts[o.name];
       if (kind === 'creature' && !isCreature(s, o)) continue;
@@ -7644,6 +7649,7 @@ function legalTargets(s, p, kind, selfOid, color) {
       if (kind === 'artifact' && !f.types.includes('artifact')) continue;
       if (kind === 'enchantment' && !f.types.includes('enchantment')) continue;
       if (kind === 'artifact-enchantment' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
+      if (kind === 'artifact-creature' && !f.types.includes('artifact') && !isCreature(s, o)) continue; // Leva 111 · Resculpt
       out.push({ oid: o.oid });
     }
   }
@@ -8342,6 +8348,10 @@ function createToken(s, def, controller, events) {
     const linha = (def.legendary ? 'Legendary ' : '') + (def.types || []).join(' ') + ((def.subtypes || []).length ? ' — ' + def.subtypes.join(' ') : '');
     s.facts[name] = cardFacts({ name, type_line: linha, power: def.power, toughness: def.toughness, keywords: def.keywords || [], colors: def.colors || [], oracle_text: '' });
     if (def.abilities) s.facts[name].script = { name, effects: [], abilities: def.abilities };
+  } else if (def.abilities && !((s.facts[name].script || {}).abilities || []).length) {
+    // Leva 111 · a mesa traz a carta da ficha (imagem e texto da Scryfall) e os fatos já existiam sem script:
+    // a ficha nascia sem habilidade (Blood sem "comprar", Clue, Food, Map, Treasure). A habilidade vem da definição.
+    s.facts[name] = { ...s.facts[name], script: { ...(s.facts[name].script || {}), name, effects: (s.facts[name].script || {}).effects || [], abilities: def.abilities } };
   }
   const oid = 't' + (s.nextToken++);
   s.objects[oid] = { oid, name, token: true, owner: controller, controller, zone: 'battlefield', tapped: false,
@@ -11195,7 +11205,7 @@ function descreveAlvo(chave) {
   if (!nome) return (each ? 'cada ' : '') + qual;
   return (each ? 'cada ' : (['player', 'opponent'].includes(nome) ? 'um ' : 'uma ')) + base[nome] + (qual && qual !== nome ? ' ' + qual : '');
 }
-const ALVO_PT = { any: 'qualquer alvo', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+const ALVO_PT = { any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
@@ -11909,6 +11919,12 @@ function createTableScreen({ store }) {
   const canAdjudicate = v => table.state.mode === 'assisted' && hasPriority(v); // S9: no motor completo o jogo não aceita controle manual
 
   /** B7 · duas melhores jogadas que ainda estão na mesa, com o motivo. */
+  /** Leva 111 · custo da habilidade por extenso no botão, incluindo descartar (Blood) e o resto do que se paga. */
+  function custoDaHabilidade(ab) {
+    const c = ab.cost || {};
+    return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
+      c.sacrifice ? 'sacrificar' : null, c.sacrificeOther ? 'sacrificar outra' : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+  }
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
     sheet(d.o.name, d.acoes.map(toButton), d.where);
@@ -11950,10 +11966,20 @@ function createTableScreen({ store }) {
       const ab = allAbilities[act.index || 0] || {};
       if (ab.loyalty != null) { legal.push(doBtn(ab.label || `${ab.loyalty > 0 ? '+' : ''}${ab.loyalty}`, act, { variant: 'primary' })); continue; }
       if (act.color) { legal.push(doBtn(`Gerar {${act.color}}`, act)); continue; }
-      const cost = [ab.cost && ab.cost.mana, ab.cost && ab.cost.tap ? '{T}' : null, ab.cost && ab.cost.sacrifice ? 'sacrificar' : null,
-        ab.cost && ab.cost.sacrificeOther ? 'sacrificar outra' : null, ab.cost && ab.cost.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      const cost = custoDaHabilidade(ab);
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
+    // Leva 111 · habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo
+    // (antes a folha ficava vazia e parecia que a ficha não tinha habilidade)
+    if (o.zone === 'battlefield' && o.controller === v) (f.script && f.script.abilities || []).forEach((ab, index) => {
+      if (ab.kind !== 'activated' || (ab.cost || {}).fromHand) return;
+      if (E.legalActions(s, v).some(x => x.t === 'activate' && x.oid === oid && (x.index || 0) === index)) return;
+      if ((ab.effects || []).some(e => e.do === 'add_mana') && E.legalActions(s, v).some(x => x.t === 'tap_mana' && x.oid === oid)) return;
+      let motivo = 'não dá agora';
+      try { E.apply(s, { t: 'activate', p: v, oid, index }); } catch (e) { motivo = T.explicaRecusa(e, { t: 'activate', oid }, s).motivo; }
+      const cost = custoDaHabilidade(ab);
+      legal.push({ label: `Ativar${cost ? ` (${cost})` : ''} — ${motivo.charAt(0).toLowerCase() + motivo.slice(1)}`, disabled: true });
+    });
     // mesa assistida: conjurar sem pagar quando o tempo é legal mas falta mana
     if (s.manaCheck && canAdjudicate(v) && (o.zone === 'hand' || o.zone === 'command') && !legal.some(b => /Conjurar/.test(b.label)) && !f.types.includes('land')) {
       let timingOk = false; try { E.apply(s, { t: 'cast', p: v, oid, free: true }); timingOk = true; } catch (e) { /* fora de hora */ }

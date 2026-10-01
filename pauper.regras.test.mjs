@@ -917,3 +917,89 @@ test('Leva 110 · "qualquer alvo" com a mesa cheia: os dois jogadores e todas as
   s = passaAte(act(s, { t: 'cast_madness', p: a, targets: [{ player: a }] }), x => !x.stack.length);
   assert.equal(s.players[a].life, 20 - 3, 'mirou em si mesmo');
 });
+
+// Leva 111 · relato do usuário (30/09/2026, foto do aparelho): a ficha de Sangue abria sem habilidade. A mesa traz a
+// carta da ficha (imagem e texto da Scryfall) e o motor já tinha os fatos dela sem script, então a ficha nascia sem
+// habilidade. Textos das fichas predefinidas (Oracle do Forge, tokenscripts, consulta de 30/09/2026):
+//   Treasure "{T}, Sacrifice this token: Add one mana of any color."   Clue "{2}, Sacrifice this token: Draw a card."
+//   Food "{2}, {T}, Sacrifice this token: You gain 3 life."   Blood "{1}, {T}, Discard a card, Sacrifice this token: Draw a card."
+//   Map "{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery."
+const FICHAS_DA_MESA = {
+  Treasure: card('Treasure', 'Token Artifact — Treasure', { oracle_text: '{T}, Sacrifice this token: Add one mana of any color.' }),
+  Clue: card('Clue', 'Token Artifact — Clue', { oracle_text: '{2}, Sacrifice this token: Draw a card.' }),
+  Food: card('Food', 'Token Artifact — Food', { oracle_text: '{2}, {T}, Sacrifice this token: You gain 3 life.' }),
+  Blood: card('Blood', 'Token Artifact — Blood', { oracle_text: '{1}, {T}, Discard a card, Sacrifice this token: Draw a card.' }),
+  Map: card('Map', 'Token Artifact — Map', { oracle_text: '{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.' }),
+  'Eldrazi Spawn': card('Eldrazi Spawn', 'Token Creature — Eldrazi Spawn', { pt: [0, 1], oracle_text: 'Sacrifice this token: Add {C}.' })
+};
+function jogoComFichas(seed = 1) {
+  let s = E.createGame({ format: 'livre', seed, mode: 'assisted', manaCheck: false, cards: { ...CARDS, ...FICHAS_DA_MESA }, players: [{ name: 'A', deck: DECK }, { name: 'B', deck: DECK }] });
+  for (let p = 0; p < 2; p++) s = E.apply(s, { t: 'keep', p, bottom: [] }).state;
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = E.apply(s, { t: 'pass', p: s.turn.priority }).state;
+  return s;
+}
+const fichas = (s, p, nome) => s.zones[p].battlefield.filter(o => s.objects[o].token && s.objects[o].name === nome);
+const ativa = (s, p, oid) => J(E.legalActions(s, p)).filter(x => x.t === 'activate' && x.oid === oid);
+
+test('Leva 111 · Blood com a carta da ficha na mesa: {1}, {T}, descartar e sacrificar compram uma carta', () => {
+  for (const s0 of [jogo(), jogoComFichas()]) {
+    let s = s0; const a = s.turn.active; let epi, lixo;
+    [s, epi] = poe(s, a, 'Voldaren Epicure', 'hand'); [s, lixo] = poe(s, a, 'Urso', 'hand');
+    s = passaAte(act(s, { t: 'cast', p: a, oid: epi }), x => !x.stack.length);
+    const [blood] = fichas(s, a, 'Blood');
+    const op = ativa(s, a, blood);
+    assert.ok(op.length, 'a ficha de Sangue oferece a habilidade (antes: nenhuma com a carta da ficha na mesa)');
+    const comUrso = op.find(x => J(x.pay || {}).discard && x.pay.discard.includes(lixo));
+    assert.ok(comUrso, 'o descarte é escolha do jogador');
+    const mao = s.zones[a].hand.length;
+    s = passaAte(act(s, comUrso), x => !x.stack.length);
+    assert.equal(s.objects[lixo].zone, 'graveyard'); assert.equal(fichas(s, a, 'Blood').length, 0, 'sacrificada');
+    assert.equal(s.zones[a].hand.length, mao - 1 + 1, 'descartou uma, comprou uma');
+  }
+});
+
+test('Leva 111 · Clue, Food, Map, Treasure e Eldrazi Spawn funcionam com a carta da ficha na mesa', () => {
+  let s = jogoComFichas(); const a = s.turn.active, d = 1 - a; let x;
+  // Clue (Thraben Inspector): {2}, sacrificar: compra
+  [s, x] = poe(s, a, 'Thraben Inspector', 'hand'); s = passaAte(act(s, { t: 'cast', p: a, oid: x }), y => !y.stack.length);
+  const [clue] = fichas(s, a, 'Clue'); const mao = s.zones[a].hand.length;
+  assert.equal(ativa(s, a, clue).length, 1, 'Clue ativa');
+  s = passaAte(act(s, ativa(s, a, clue)[0]), y => !y.stack.length);
+  assert.equal(s.zones[a].hand.length, mao + 1); assert.equal(fichas(s, a, 'Clue').length, 0);
+  // Eldrazi Spawn (Writhing Chrysalis, ao conjurar): sacrificar gera {C}
+  [s, x] = poe(s, a, 'Writhing Chrysalis', 'hand'); s = passaAte(act(s, { t: 'cast', p: a, oid: x }), y => !y.stack.length);
+  const spawns = fichas(s, a, 'Eldrazi Spawn'); assert.equal(spawns.length, 2);
+  const gera = J(E.legalActions(s, a)).filter(y => y.oid === spawns[0] && (y.t === 'activate' || y.t === 'tap_mana'));
+  assert.ok(gera.length, 'Spawn gera mana');
+  s = act(s, gera[0]); assert.equal(s.players[a].pool.C, 1); assert.equal(fichas(s, a, 'Eldrazi Spawn').length, 1, 'sacrificada para gerar');
+  // Treasure (An Offer You Can't Refuse): o controlador da mágica anulada cria dois; virar e sacrificar gera qualquer cor
+  s = passaAte(s, y => !y.stack.length);
+  let pedra, offer;
+  [s, pedra] = poe(s, a, 'Pedra', 'hand'); [s, offer] = poe(s, d, "An Offer You Can't Refuse", 'hand');
+  s = act(s, { t: 'cast', p: a, oid: pedra }); s = act(s, { t: 'pass', p: a });
+  s = passaAte(act(s, { t: 'cast', p: d, oid: offer, targets: [{ oid: pedra }] }), y => !y.stack.length);
+  const tesouros = fichas(s, a, 'Treasure'); assert.equal(tesouros.length, 2, 'dois Tesouros para quem teve a mágica anulada');
+  const usos = J(E.legalActions(s, a)).filter(y => y.oid === tesouros[0] && (y.t === 'activate' || y.t === 'tap_mana'));
+  assert.ok(usos.length >= 5, 'uma opção por cor');
+  assert.ok(usos.every(y => y.t === 'activate'), 'só gera sacrificando (nada de virar sem sacrificar pelo texto da carta)');
+  s = act(s, usos.find(y => y.color === 'R')); assert.equal(s.players[a].pool.R, 1); assert.equal(fichas(s, a, 'Treasure').length, 1);
+});
+
+test('Leva 111 · Food (Sorin) e Map (Fanatical Offering) com a carta da ficha na mesa', () => {
+  let s = jogoComFichas(); const a = s.turn.active; let sorin, fo, pedra, urso;
+  // Sorin já transformado (face de trás, planeswalker com 3 de lealdade): o +2 cria Comida
+  [s, sorin] = poe(s, a, 'Sorin of House Markov', 'battlefield', { name: 'Sorin, Ravenous Neonate', frontName: 'Sorin of House Markov', counters: { loyalty: 3 } });
+  const mais2 = J(E.legalActions(s, a)).find(y => y.t === 'activate' && y.oid === sorin && !y.targets);
+  assert.ok(mais2, 'Sorin +2 cria Comida');
+  s = passaAte(act(s, mais2), y => !y.stack.length);
+  const [food] = fichas(s, a, 'Food'); assert.ok(food, 'Comida criada');
+  const vida = s.players[a].life;
+  assert.equal(ativa(s, a, food).length, 1, 'Comida ativa');
+  s = passaAte(act(s, ativa(s, a, food)[0]), y => !y.stack.length);
+  assert.equal(s.players[a].life, vida + 3); assert.equal(fichas(s, a, 'Food').length, 0);
+  // Map: explorar com criatura sua, só na velocidade de feitiço
+  [s, fo] = poe(s, a, 'Fanatical Offering', 'hand'); [s, pedra] = poe(s, a, 'Pedra'); [s, urso] = poe(s, a, 'Urso');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: fo, pay: { sacrificeOther: pedra } }), y => !y.stack.length);
+  const [mapa] = fichas(s, a, 'Map'); assert.ok(mapa, 'Mapa criado');
+  const ops = ativa(s, a, mapa); assert.ok(ops.some(y => (y.targets || [])[0] && y.targets[0].oid === urso), 'Mapa mira criatura sua');
+});
