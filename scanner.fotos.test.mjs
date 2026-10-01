@@ -66,6 +66,16 @@ function recorte(img, r, escalaCarta = 1, modo = 'name') {
   return deps.png.sync.write(Object.assign(new deps.png({ width: t.w, height: t.h }), { data: Buffer.from(t.data.buffer, t.data.byteOffset, t.data.length) }));
 }
 
+/** Leva 112 · a faixa crua em 320 px de largura, como medeFaixa() no app (antes do realce). */
+function faixaCrua(img, r, alvo = 320) {
+  const w0 = Math.max(1, Math.round(r.w)), h0 = Math.max(1, Math.round(r.h)), w = alvo, h = Math.max(4, Math.round(alvo * h0 / w0));
+  const d = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const xx = Math.min(img.width - 1, Math.max(0, Math.round(r.x + x * w0 / w))), yy = Math.min(img.height - 1, Math.max(0, Math.round(r.y + y * h0 / h)));
+    const i = (yy * img.width + xx) * 4, o = (y * w + x) * 4; d[o] = img.data[i]; d[o + 1] = img.data[i + 1]; d[o + 2] = img.data[i + 2]; d[o + 3] = 255;
+  }
+  return [d, w, h];
+}
 /* ---------------- base de nomes: as esperadas no meio de muitas parecidas ---------------- */
 function baseDeNomes() {
   const rnd = (() => { let s = 11; return () => (s = (s * 1103515245 + 12345) >>> 0) / 4294967296; })();
@@ -96,6 +106,9 @@ async function mede() {
       await worker.setParameters(X.OCR_MODES.name);
       const nome = (await worker.recognize(recorte(img, X.faixaDaCarta(full, X.NAME_BAND), X.escalaOcr(full.h)))).data.text || '';
       const cand = X.matchName(index, nome);
+      // Leva 112 · a faixa passa pela mesma régua de nitidez do app antes do OCR
+      linha.nitidez = Math.round(X.nitidezDaFaixa(...faixaCrua(img, X.faixaDaCarta(full, X.NAME_BAND))));
+      if (linha.nitidez < X.LIMIARES_FAIXA.nitidezMin) linha.pulada = true;
       linha.lido = nome.trim(); linha.melhor = cand[0] ? `${cand[0].name} (${Math.round(cand[0].score * 100)}%)` : '—';
       linha.nomeOk = !!cand[0] && cand[0].name === f.nome && cand[0].score >= X.ACCEPT;
       if (linha.nomeOk) nomeOk++;
@@ -111,7 +124,7 @@ async function mede() {
       linhas.push(linha);
     }
   } finally { await worker.terminate(); }
-  return { linhas, n: manifest.fotos.length, nomeOk, edOk, detectadas };
+  return { linhas, n: manifest.fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length };
 }
 
 function relatorio(r) {
@@ -127,6 +140,8 @@ test('X10 · o scanner acerta o nome em ≥ 90% e a edição em ≥ 70% das foto
   const r = await mede();
   console.log(relatorio(r));
   assert.ok(r.nomeOk / r.n >= 0.9, `nome: ${r.nomeOk}/${r.n} (alvo ≥ 90%)\n${relatorio(r)}`);
+  // Leva 112 · a régua de nitidez não descarta foto que o OCR lê certo
+  assert.equal(r.puladas, 0, 'nenhuma foto legível descartada por nitidez: ' + JSON.stringify(r.linhas.map(l => [l.foto, l.nitidez])));
   assert.ok(r.edOk / r.n >= 0.7, `edição: ${r.edOk}/${r.n} (alvo ≥ 70%)\n${relatorio(r)}`);
 });
 

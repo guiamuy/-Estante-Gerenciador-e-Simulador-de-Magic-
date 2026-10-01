@@ -343,6 +343,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º ✅ | Scanner automático de verdade (leva 109) | E39 | 1 | ajuste fino depende do diagnóstico do aparelho |
 | 16º-a ✅ | Mesa e listas, cinco relatos com fotos do aparelho (leva 110) | E43 | 1 | — |
 | 16º-b ✅ | Habilidades das fichas (leva 111) | M12 | 1 | — |
+| 16º-c ✅ | Scanner de alto padrão (leva 112) | E39 | 1 | calibração fina depende do diagnóstico do aparelho |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3162,6 +3163,19 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
+
+**Leva 112 · Scanner de alto padrão** ✅ (pedido de 01/10/2026: leitura errada com a carta mal posicionada, câmera embaçada, às vezes não registra, às vezes registra duas vezes, tela que rola)
+- **Referências (01/10/2026):** ManaBox (guia oficial do scanner), Delver Lens, TCGplayer e o comparativo da Scrytics; boas práticas da TCG Stacked. O que todos fazem e entrou aqui: leitura só dentro da moldura, câmera ocupando a tela, confirmação visível com o nome, a mesma carta parada não soma de novo ("toque na tela para somar outra", como no ManaBox), foco por toque, revisão da pilha antes de salvar.
+- **Câmera:** pede a maior resolução que o aparelho der (4K → 1440p → 1080p) e foco, exposição e balanço de branco contínuos quando a câmera suporta; tocar na câmera sem carta lida pede foco. O diagnóstico mostra a resolução, o fps e o modo de foco reais.
+- **Porteiro (nunca registrar errado):** leitura exata precisa de 2 leituras seguidas iguais; aproximada, de 3; dois candidatos colados (diferença < 6 pontos) nunca entram; nome que alterna entre quadros nunca soma; a mesma carta só entra de novo depois de sair do quadro (3 leituras sem nome) **e** 2,5 s. Antes: exata entrava na primeira leitura e o "plano B" lia o quadro inteiro, que pegava nome de qualquer texto em volta.
+- **Plano B removido:** sem carta achada, a leitura vale só na faixa do nome da moldura. Carta achada fora da moldura não é lida ("Centralize a carta na moldura").
+- **Antes do OCR:** nitidez da faixa do nome (variância do laplaciano normalizada pelo contraste; texto nítido 47–123, a foto "borrada" do conjunto 4,8, limiar 3) e movimento entre quadros (limiar 12): quadro desfocado ou tremido não vai para o OCR e a dica diz o que fazer.
+- **Tela (S25, 360×780):** sem rolagem. Câmera ocupando o que sobra, estado ("Automático", com ponto pulsando), dica por cima da câmera, **"[nome] ✓"** grande por 1,6 s com vibração, linha do resultado (✓ nome · edição) e duas linhas de botões: Ler agora · Automático; Pilha · N · Desfazer · Digitar · Mais. Pilha, digitar, opções (edição, moldura) e diagnóstico abrem em folhas.
+- **Pilha:** miniatura em qualidade normal (antes: small, borrada), nome, edição, confiança, quantidade e conferência.
+- **Testes:** U porteiro (exata/aproximada, ambígua, alternando, parada, saiu e voltou, toque soma, cooldown), nitidez (nítida clara e escura passam; desfoque gaussiano fica de fora) e movimento; fotos X10: a régua de nitidez não descarta nenhuma foto legível (12/12 nome, 11/12 edição); e2e "leva 112" (sem rolagem em 360×780, nome alternando não registra, duas iguais registram com "[nome] ✓", parada não duplica, imagem normal na pilha, diagnóstico com nitidez/movimento e cópia com foco e limiares).
+- **Expectativas ajustadas com justificativa:** X7 (moldura começa visível; leitura dentro dela), X1/X2/X4 (porteiro: exata precisa de duas; a mesma carta só volta depois do intervalo; leitura fraca vira escolha), X9 e X3/X5 (pilha e lote em folha; linha do resultado sem o rótulo "Edição:"), O1/C11/U2 ("Pilha · N" no lugar de "Lote: N"; base de nomes em "Mais"). O teste da leva 109 (plano B) foi substituído pelo da leva 112. A câmera falsa dos testes passou a mostrar textura nítida (quadro liso é descartado como desfocado).
+- **Limite declarado:** "infalível" não existe em OCR de câmera; a garantia é de precisão (não registrar o incerto), ao custo de esperar 2–3 leituras. Limiares calibrados em fotos do repositório, não no aparelho: o diagnóstico copiado do celular calibra a próxima rodada.
+- **Portão:** 642 verdes (575 + 67 e2e). Motor inalterado (v64).
 
 **Leva 111 · Habilidades das fichas** ✅ (relato do usuário com foto, 30/09/2026: "não me deu a opção de usar a habilidade" do Sangue)
 - **Causa:** desde a E50 P3 a mesa traz a carta da ficha (imagem e texto da Scryfall) ao preparar a partida; o motor criava os fatos dela pela carta, sem script, e `createToken` só punha as habilidades quando os fatos ainda não existiam. Resultado: com rede, toda ficha nascia sem habilidade (Blood, Clue, Food, Map, Treasure, Eldrazi Spawn). Nos testes de motor, sem a carta da ficha, tudo passava.

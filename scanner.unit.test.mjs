@@ -510,3 +510,107 @@ test('Leva 109 · diário do scanner: guarda as últimas leituras, com tempo e d
   assert.match(txt, /carta · 280 ms · "Sol Ring" → Sol Ring 100% · Sol Ring \+1/);
   assert.match(txt, /quadro · 900 ms · "" → — · nada/);
 });
+
+// Leva 112 · o porteiro: nunca registrar errado; a mesma carta não entra duas vezes seguidas
+test('Leva 112 · porteiro: exata entra na 2ª leitura igual, aproximada na 3ª; nome trocado zera a contagem', () => {
+  let t = 0; const p = X.criaPorteiro({ agora: () => t });
+  const ex = n => [{ name: n, score: 1 }], ap = n => [{ name: n, score: 0.88 }];
+  assert.equal(p.voto(ex('Sol Ring')).aceito, null, 'uma leitura exata sozinha não entra (antes: entrava na hora)');
+  assert.equal(p.voto(ex('Sol Ring')).aceito, 'Sol Ring');
+  t += 5000; p.voto([]); p.voto([]); p.voto([]);
+  assert.equal(p.voto(ap('Counterspell')).aceito, null); assert.equal(p.voto(ap('Counterspell')).aceito, null);
+  assert.equal(p.voto(ap('Counterspell')).aceito, 'Counterspell', 'aproximada: três seguidas');
+  t += 5000; p.voto([]); p.voto([]); p.voto([]);
+  p.voto(ap('Island')); p.voto(ap('Islandwalk Ranger'));
+  assert.equal(p.voto(ap('Island')).aceito, null, 'nome que pula entre dois não acumula');
+});
+
+test('Leva 112 · porteiro: candidatos colados são ambíguos e nunca entram; leitura fraca não entra', () => {
+  const p = X.criaPorteiro({ agora: () => 0 });
+  const amb = [{ name: 'Soul Ring', score: 0.9 }, { name: 'Sol Ring', score: 0.87 }];
+  for (let i = 0; i < 6; i++) { const v = p.voto(amb); assert.equal(v.aceito, null); assert.equal(v.motivo, 'ambígua'); }
+  for (let i = 0; i < 6; i++) assert.equal(p.voto([{ name: 'Sol Ring', score: 0.7 }]).aceito, null, 'abaixo do aceite');
+});
+
+test('Leva 112 · porteiro: a mesma carta parada não entra de novo; sai do quadro e passa o tempo, entra; toque soma outra', () => {
+  let t = 0; const p = X.criaPorteiro({ agora: () => t });
+  const ex = [{ name: 'Sol Ring', score: 1 }];
+  p.voto(ex); assert.equal(p.voto(ex).aceito, 'Sol Ring');
+  for (let i = 0; i < 10; i++) { t += 100; assert.equal(p.voto(ex).aceito, null, 'carta parada: frações de segundo depois não repete'); }
+  for (let i = 0; i < 10; i++) { t += 2000; assert.equal(p.voto(ex).aceito, null, 'parada há muito tempo também não: precisa sair do quadro'); }
+  t = 100000; const base = t;
+  assert.equal(p.voto(ex).motivo, 'repetida');
+  // aceita de novo depois de sair e voltar (base do cooldown)
+  p.voto([]); p.voto([]); p.voto([]); p.voto(ex); assert.equal(p.voto(ex).aceito, 'Sol Ring');
+  p.voto([]); p.voto([]); p.voto([]);           // saiu do quadro
+  t = base + 100; p.voto(ex); assert.equal(p.voto(ex).aceito, null, 'voltou rápido demais (cooldown)');
+  t += 3000; p.voto([]); p.voto([]); p.voto([]); p.voto(ex);
+  assert.equal(p.voto(ex).aceito, 'Sol Ring', 'saiu, passou o tempo e voltou: é outra cópia');
+  assert.equal(p.maisUma(), 'Sol Ring', 'toque na tela: a mesma de novo, por vontade da pessoa');
+});
+
+test('Leva 112 · nitidez da faixa separa texto nítido de borrado, sem depender da luz; movimento mede a diferença', () => {
+  const w = 120, h = 30;
+  const faz = (borra, luz = 1) => { const d = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = ((Math.floor(x / 3) + Math.floor(y / 5)) % 2) ? 230 : 30;
+      if (borra) v = 130 + 100 * Math.sin(x / 6) * Math.cos(y / 6) * 0.4; const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = v * luz; d[i + 3] = 255; }
+    return d; };
+  const nitida = X.nitidezDaFaixa(faz(false), w, h), escura = X.nitidezDaFaixa(faz(false, 0.4), w, h), borrada = X.nitidezDaFaixa(faz(true), w, h);
+  assert.ok(nitida > X.LIMIARES_FAIXA.nitidezMin * 3, 'nítida: ' + nitida);
+  assert.ok(escura > X.LIMIARES_FAIXA.nitidezMin * 3, 'nítida no escuro também: ' + escura);
+  assert.ok(borrada < X.LIMIARES_FAIXA.nitidezMin, 'borrada: ' + borrada);
+  const a = new Uint8ClampedArray(100).fill(100), b = new Uint8ClampedArray(100).fill(130);
+  assert.equal(X.movimentoEntre(a, a), 0); assert.equal(X.movimentoEntre(a, b), 30); assert.equal(X.movimentoEntre(null, a), 255, 'sem quadro anterior conta como movimento');
+});
+
+// Leva 112 · o porteiro: nunca registrar errado, nunca repetir a carta parada, toque soma outra.
+test('Leva 112 · porteiro: exata precisa de 2 iguais, aproximada de 3; quadro sem nome zera a sequência', () => {
+  let t = 0; const P = X.criaPorteiro({ agora: () => t });
+  const exata = [{ name: 'Sol Ring', score: 1 }], aprox = [{ name: 'Counterspell', score: 0.86 }];
+  assert.equal(P.voto(exata).aceito, null, 'uma exata sozinha não basta (antes: entrava na hora)');
+  assert.equal(P.voto(exata).aceito, 'Sol Ring');
+  t += 5000; for (let i = 0; i < 3; i++) P.voto([]);
+  assert.equal(P.voto(aprox).aceito, null); assert.equal(P.voto(aprox).aceito, null);
+  assert.equal(P.voto([]).aceito, null, 'quadro vazio no meio');
+  assert.equal(P.voto(aprox).aceito, null); assert.equal(P.voto(aprox).aceito, null);
+  assert.equal(P.voto(aprox).aceito, 'Counterspell', 'três seguidas iguais');
+});
+
+test('Leva 112 · porteiro: leitura ambígua (dois nomes colados) nunca entra; nome alternando nunca soma', () => {
+  const P = X.criaPorteiro({ agora: () => 0 });
+  const amb = [{ name: 'Sol Ring', score: 0.88 }, { name: 'Soul Ring', score: 0.86 }];
+  for (let i = 0; i < 6; i++) assert.equal(P.voto(amb).motivo, 'ambígua');
+  const a = [{ name: 'Ponder', score: 0.9 }], b = [{ name: 'Preordain', score: 0.9 }];
+  for (let i = 0; i < 6; i++) assert.equal(P.voto(i % 2 ? a : b).aceito, null, 'carta mal posicionada lida de um jeito e de outro: nada');
+});
+
+test('Leva 112 · porteiro: a mesma carta parada não entra de novo; sai do quadro e passa o tempo, entra; toque soma na hora', () => {
+  let t = 0; const P = X.criaPorteiro({ agora: () => t });
+  const sol = [{ name: 'Sol Ring', score: 1 }];
+  P.voto(sol); assert.equal(P.voto(sol).aceito, 'Sol Ring');
+  for (let i = 0; i < 10; i++) { t += 300; assert.notEqual(P.voto(sol).aceito, 'Sol Ring', 'parada no quadro: não repete'); }
+  for (let i = 0; i < 3; i++) P.voto([]);  // saiu do quadro
+  t += 100; P.voto(sol); assert.equal(P.voto(sol).aceito, 'Sol Ring', 'trocou por outra cópia: entra');
+  assert.equal(P.maisUma(), 'Sol Ring', 'toque na tela soma outra');
+  // saiu e voltou rápido demais (dentro do cooldown): não repete, evita a mesma carta 2x em fração de segundo
+  for (let i = 0; i < 3; i++) P.voto([]);
+  P.voto(sol); assert.equal(P.voto(sol).aceito, null);
+});
+
+test('Leva 112 · nitidez da faixa separa texto nítido de borrado, sem depender da luz; movimento mede a diferença', () => {
+  const w = 120, h = 30;
+  const faixa = (borrada, escura) => { const d = new Uint8ClampedArray(w * h * 4); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = ((x >> 2) % 2 && y > 8 && y < 22) ? 20 : 230;
+    if (escura) v = v * 0.4; const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+    if (borrada) for (let k = 0; k < 3; k++) caixa(d, 4); // desfoque de câmera: três passadas de média 9×9 ≈ gaussiana
+    return d; };
+  const caixa = (d, r) => { const s = Float64Array.from({ length: w * h }, (_, p) => d[p * 4]); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let soma = 0, n = 0;
+    for (let yy = Math.max(0, y - r); yy <= Math.min(h - 1, y + r); yy++) for (let xx = Math.max(0, x - r); xx <= Math.min(w - 1, x + r); xx++) { soma += s[yy * w + xx]; n++; }
+    const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = soma / n; } };
+  const nit = X.nitidezDaFaixa(faixa(false, false), w, h), nitEscura = X.nitidezDaFaixa(faixa(false, true), w, h), bor = X.nitidezDaFaixa(faixa(true, false), w, h);
+  assert.ok(nit > X.LIMIARES_FAIXA.nitidezMin * 3, 'nítida passa com folga: ' + nit);
+  assert.ok(nitEscura > X.LIMIARES_FAIXA.nitidezMin * 3, 'nítida escura também: ' + nitEscura);
+  assert.ok(bor < X.LIMIARES_FAIXA.nitidezMin, 'borrada fica de fora: ' + bor);
+  const a = new Uint8ClampedArray(100).fill(100), b = new Uint8ClampedArray(100).fill(130);
+  assert.equal(X.movimentoEntre(a, a), 0); assert.equal(X.movimentoEntre(a, b), 30); assert.equal(X.movimentoEntre(null, a), 255);
+});

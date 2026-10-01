@@ -649,7 +649,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await pausaAuto(page);
   await page.evaluate(() => window.__ocrQueue.push('Sol Ring', ''));
   await page.click('#scan-read');
-  await page.waitForFunction(() => /Lote: 1/.test((document.querySelector('#scan-lot') || {}).innerText || ''));
+  await esperaPilha(page, 1);
   await page.waitForSelector('#scan-edition');
   assert.match(await page.innerText('#scan-edition'), /Sem internet: a cópia entra sem edição/);
 
@@ -937,7 +937,7 @@ test('e2e · C11 importar por lista: conferir, importar, pendências com sugest�
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));            // sem câmera: só a base de nomes interessa
   await page.goto(base + '#/scanner');
-  await page.waitForFunction(() => /Base: \d+ nomes/.test((document.querySelector('#scan-status') || {}).innerText || ''));
+  await page.waitForSelector('#scan[data-base="ready"]');
   await page.goto(base + '#/colecao');
   await page.waitForSelector('#col-import');
   await page.click('#col-import');
@@ -1100,7 +1100,11 @@ const FAKE_DEVICE = deny => `
   const gum = async () => {
     if (${deny}) { const e = new Error('Permission denied'); e.name = 'NotAllowedError'; throw e; }
     const c = document.createElement('canvas'); c.width = 640; c.height = 480;
-    const g = c.getContext('2d'); setInterval(() => { g.fillStyle = '#777'; g.fillRect(0, 0, 640, 480); }, 100);
+    // leva 112: quadro com textura nítida e parada (o scanner pula quadro liso/borrado antes do OCR); sem carta inteira
+    const g = c.getContext('2d'); const ruido = g.createImageData(640, 480); let s = 7;
+    for (let i = 0; i < ruido.data.length; i += 4) { s = (s * 1103515245 + 12345) >>> 0; const v = s & 0x100 ? 40 : 200; ruido.data[i] = ruido.data[i + 1] = ruido.data[i + 2] = v; ruido.data[i + 3] = 255; }
+    const pinta = () => g.putImageData(ruido, 0, 0);
+    pinta(); setInterval(pinta, 100);
     return c.captureStream(10);
   };
   if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = gum;
@@ -1142,41 +1146,49 @@ const FAKE_CARD_CAM = `
   else Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: gum } });
 `;
 
-test('e2e · X7 scanner acha a carta sozinho, sem moldura, e dispara a leitura', { skip }, async t => {
+// Leva 112 · a tela do scanner não rola: pilha, digitar, opções e diagnóstico abrem em folhas
+const contaPilha = page => page.evaluate(() => +((/(\d+)/.exec((document.querySelector('#scan-lot') || {}).innerText || '') || [])[1] || -1));
+const esperaPilha = (page, n, timeout = 12000) => page.waitForFunction(k => +((/(\d+)/.exec((document.querySelector('#scan-lot') || {}).innerText || '') || [])[1] || -1) === k, n, { timeout });
+async function abrePilha(page) { await page.click('#scan-lot'); await page.waitForSelector('#scan-pile'); }
+async function opcaoScanner(page, chip, fecha = true) { await page.click('#scan-more'); await page.click(`[data-${chip}]`); if (fecha && await page.locator('.ds-dialog').count()) await page.click('#ds-dialog-close'); }
+
+test('e2e · X7 scanner acha a carta dentro da moldura e lê sozinho; "[nome] ✓" aparece e a carta parada não entra duas vezes', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_CARD_CAM);
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
-  // a moldura começa escondida: ela virou ajuda opcional
-  assert.equal(await page.locator('.scan-frame').isVisible(), false, 'sem moldura obrigatória');
-  await page.click('[data-edition]');                     // este teste é só do nome
-  // Leva 109 · expectativa mudou: o automático começa ligado, sem toque
+  // Leva 112 · expectativa mudou: a moldura é a referência e começa visível (antes: escondida, leitura do quadro inteiro)
+  assert.equal(await page.locator('.scan-frame').isVisible(), true, 'moldura visível');
+  await opcaoScanner(page, 'edition');                     // este teste é só do nome
   await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
-  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring', 'Sol Ring'));
-  // o contorno aparece em cima da carta encontrada
-  await page.waitForFunction(() => {
-    const el = document.querySelector('#scan-outline');
-    return el && el.style.display === 'block' && parseFloat(el.style.width) > 20;
-  }, null, { timeout: 12000 });
-  // e a leitura acontece sozinha, sem ninguém tocar em "Ler agora"
-  await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-result').innerText), null, { timeout: 12000 });
-  await page.waitForFunction(() => /Lote: [1-9]/.test((document.querySelector('#scan-lot') || {}).innerText || ''), null, { timeout: 12000 });
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring'));
+  await page.waitForFunction(() => { const el = document.querySelector('#scan-outline'); return el && el.style.display === 'block' && parseFloat(el.style.width) > 20; }, null, { timeout: 12000 });
+  // a confirmação por cima da câmera: nome e ✓
+  await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 12000 });
+  assert.match(await page.innerText('#scan-ok'), /Sol Ring/);
+  assert.equal(await page.locator('#scan-ok svg').count(), 1, 'com o check desenhado');
+  await esperaPilha(page, 1);
+  // a carta continua parada no quadro e o leitor continua lendo "Sol Ring": não entra de novo
+  await page.waitForFunction(() => window.__ocrQueue.length === 0, null, { timeout: 12000 });
+  await page.waitForTimeout(600);
+  assert.equal(await contaPilha(page), 1, 'a mesma carta parada entra uma vez só');
+  // toque na câmera: soma outra cópia da última carta
+  await page.click('#scan-stage', { position: { x: 20, y: 60 } });
+  await esperaPilha(page, 2);
   await page.click('[data-auto]');
-  // X8 · a pilha aparece na própria tela, com a carta lida e a confiança
-  await page.waitForSelector('#scan-pile .scan-pile__card');
+  // a pilha abre por botão, com miniatura, confiança, quantidade e ações
+  await abrePilha(page);
   const cartao = page.locator('#scan-pile .scan-pile__card').first();
-  assert.match(await cartao.innerText(), /Sol Ring/, 'a carta lida está na pilha');
-  assert.match(await cartao.innerText(), /\d+%/, 'com a confiança da leitura');
-  assert.match(await page.innerText('#scan-pile'), /Na pilha: \d+ carta/, 'e o total');
-  // dá para ajustar a quantidade e tirar da pilha sem sair da câmera
-  // U2 parte 3 · expectativa mudou: +, − e × viraram ícones desenhados; o teste acha o botão pelo nome falado
+  assert.match(await cartao.innerText(), /Sol Ring/); assert.match(await cartao.innerText(), /\d+%/);
+  assert.match(await page.innerText('#scan-pile'), /Na pilha: 2 carta/);
   await cartao.locator('button[aria-label^="Uma a mais"]').first().click();
-  await page.waitForFunction(() => /Na pilha: 2 carta/.test(document.querySelector('#scan-pile').innerText));
-  await cartao.locator('button[aria-label^="Tirar"]').first().click();
+  await page.waitForFunction(() => /Na pilha: 3 carta/.test(document.querySelector('#scan-pile').innerText));
+  await page.locator('#scan-pile .scan-pile__card').first().locator('button[aria-label^="Tirar"]').click();
   await page.waitForFunction(() => !document.querySelector('#scan-pile .scan-pile__card'), null, { timeout: 4000 });
-  // a moldura volta quando o usuário quer
-  await page.click('[data-moldura]');
-  assert.equal(await page.locator('.scan-frame').isVisible(), true, 'a moldura é opcional, não proibida');
+  await page.click('#ds-dialog-close');
+  // a moldura pode ser escondida em "mais"
+  await opcaoScanner(page, 'moldura');
+  assert.equal(await page.locator('.scan-frame').isVisible(), false, 'moldura opcional');
   assert.deepEqual(errors, []);
 });
 
@@ -1186,99 +1198,103 @@ test('e2e · X9 leitura de confiança média fica "confira" e se resolve com um 
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
   await pausaAuto(page);
-  await page.click('[data-edition]');
-  // 87% de confiança: entra na pilha, mas marcada
+  await opcaoScanner(page, 'edition');
+  // 87% de confiança: "Ler agora" põe na pilha, mas marcada
   await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
   await page.click('#scan-read');
+  await esperaPilha(page, 1).catch(async e => { throw new Error('diario: ' + JSON.stringify(await page.evaluate(() => window.__scanDiario.lista().slice(0, 4)))); });
+  await abrePilha(page);
   await page.waitForSelector('#scan-pile [data-conferir]');
-  const cartao = page.locator('#scan-pile .scan-pile__card').first();
-  assert.match(await cartao.innerText(), /Confira/, 'a pilha avisa que a leitura precisa de conferência');
-  // o lote também avisa e o botão principal não esconde o que falta conferir
+  assert.match(await page.locator('#scan-pile .scan-pile__card').first().innerText(), /Confira/);
   await page.click('#scan-pile-commit');
   await page.waitForSelector('#scan-lot-aviso');
   assert.match(await page.innerText('#scan-lot-aviso'), /1 leitura\(s\) ainda não conferida/);
   assert.match(await page.innerText('#scan-commit'), /\(1 a conferir\)/);
-  assert.equal(await page.locator('#scan-lot-list [data-conferir]').count(), 1);
   await page.click('.ds-dialog button:has-text("Fechar")');
-  // "É essa" confirma na hora: marca some da pilha e do lote
+  await abrePilha(page);
   await page.click('#scan-pile [data-confirm]');
   await page.waitForFunction(() => !document.querySelector('#scan-pile [data-conferir]'));
-  assert.doesNotMatch(await page.innerText('#scan-pile'), /Confira/);
   await page.click('#scan-pile-commit');
   await page.waitForSelector('#scan-commit');
   assert.equal(await page.locator('#scan-lot-aviso').count(), 0, 'sem aviso quando tudo está conferido');
-  assert.doesNotMatch(await page.innerText('#scan-commit'), /a conferir/);
   await page.click('.ds-dialog button:has-text("Fechar")');
-  // leitura de confiança alta entra confirmada de cara
+  // confiança alta entra confirmada de cara
   await page.evaluate(() => window.__ocrQueue.push('Grizzly Bear'));
   await page.click('#scan-read');
-  await page.waitForFunction(() => /Grizzly Bear/.test(document.querySelector('#scan-pile').innerText));
-  assert.equal(await page.locator('#scan-pile [data-conferir]').count(), 0, '100% não pede conferência');
-  // e a segunda leitura média resolve pelo caminho "Corrigir", voltando para a pilha
+  await esperaPilha(page, 2);
+  // a segunda média resolve por "Corrigir", voltando para a pilha
   await page.evaluate(() => window.__ocrQueue.push('Sol Rimg'));
   await page.click('#scan-read');
-  await page.waitForSelector('#scan-pile [data-conferir]');
+  await esperaPilha(page, 3);
+  await abrePilha(page);
+  assert.equal(await page.locator('#scan-pile .scan-pile__card[data-name="Grizzly Bear"] [data-conferir]').count(), 0, '100% não pede conferência');
   await page.click('#scan-pile [data-fix]');
   await page.waitForSelector('#scan-fix-input');
   await page.fill('#scan-fix-input', 'Sol Ring');
   await page.click('#scan-fix-list button:has-text("Sol Ring")');
-  await page.waitForFunction(() => !document.querySelector('.ds-dialog') && !document.querySelector('#scan-pile [data-conferir]'));
+  await page.waitForSelector('#scan-pile');
+  await page.waitForFunction(() => !document.querySelector('#scan-pile [data-conferir]'));
   assert.deepEqual(errors, []);
 });
 
-test('e2e · X1/X2/X4 scanner: ler, leitura automática, candidatos, desfazer, corrigir e mandar para a coleção', { skip }, async t => {
+test('e2e · X1/X2/X4 scanner: ler, automático com porteiro, candidatos, desfazer, corrigir e mandar para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(false));
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
-  assert.match(await page.innerText('#scan-status'), /Base: \d+ nomes/);
+  await page.waitForSelector('#scan[data-base="ready"]');
   await pausaAuto(page);
-
-  await page.click('[data-edition]'); // este teste cobre só o nome; a edição tem teste próprio
+  await opcaoScanner(page, 'edition'); // só o nome; a edição tem teste próprio
   await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
   await page.click('#scan-read');
   await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-result').innerText));
-  await page.waitForFunction(() => { const el = document.querySelector('#scan-lot'); return el && /Lote: 1/.test(el.innerText); });
-
-  // automática: mesma carta parada soma uma vez; sumiu e voltou, soma de novo
-  // Leva 109 · sem carta achada no quadro cinza, o laço lê o quadro inteiro (plano B), a cada ~0,9 s
-  await page.evaluate(() => window.__ocrQueue.push('Island', 'Island', '', 'Island'));
+  await esperaPilha(page, 1);
+  // automático (sem carta achada, a leitura vale dentro da moldura): a exata precisa de duas seguidas;
+  // depois a mesma carta só entra de novo quando sai do quadro e passa o intervalo
+  await page.evaluate(() => window.__ocrQueue.push('Island', 'Island', 'Island', 'Island'));
   await page.click('[data-auto]');
-  await page.waitForFunction(() => /(\d+)/.exec(document.querySelector('#scan-lot').innerText)[1] === '3', null, { timeout: 15000 });
+  await esperaPilha(page, 2, 15000);
+  await page.waitForFunction(() => window.__ocrQueue.length === 0, null, { timeout: 12000 });
+  assert.equal(await contaPilha(page), 2, 'quatro leituras iguais da carta parada: entra uma vez');
+  await page.waitForTimeout(2600);   // passou o intervalo; a fila vazia é a carta fora do quadro
+  await page.evaluate(() => window.__ocrQueue.push('Island', 'Island'));
+  await esperaPilha(page, 3, 15000);
   await page.click('[data-auto]');
   await page.waitForTimeout(300);
-
-  await page.click('[data-candidate="Island"]');
-  await page.waitForFunction(() => /Lote: 4/.test(document.querySelector('#scan-lot').innerText));
   await page.click('#scan-undo');
-  await page.waitForFunction(() => /Lote: 3/.test(document.querySelector('#scan-lot').innerText));
-
-  await page.click('#scan-lot');
-  assert.match(await page.innerText('#scan-lot-list'), /Island[\s\S]*2/);
+  await esperaPilha(page, 2);
+  // leitura fraca (abaixo do aceite) não entra: vira escolha com um toque
+  await page.evaluate(() => window.__ocrQueue.push('Sxl Rxng'));
+  await page.click('#scan-read');
+  await page.waitForSelector('[data-candidate="Sol Ring"]');
+  assert.equal(await contaPilha(page), 2, 'leitura fraca não entra sozinha');
+  await page.click('#scan-lot'); await page.click('#scan-pile-commit');
+  await page.waitForSelector('#scan-lot-list');
   await page.locator('#scan-lot-list .col-print', { hasText: 'Sol Ring' }).locator('text=Corrigir').click();
   await page.fill('#scan-fix-input', 'Counterspel');
   await page.locator('#scan-fix-list button', { hasText: 'Counterspell' }).click();
   await page.waitForSelector('#scan-commit');
   assert.match(await page.innerText('#scan-lot-list'), /Counterspell/);
   await page.click('#scan-commit');
-  await page.waitForFunction(() => /Lote: 0/.test(document.querySelector('#scan-lot').innerText));
-
+  await esperaPilha(page, 0);
   await page.goto(base + '#/colecao');
   await page.waitForSelector('.col-row[data-name="Island"]');
-  assert.equal(await page.locator('.col-row[data-name="Island"] .col-row__n').innerText(), '2');
+  assert.equal(await page.locator('.col-row[data-name="Island"] .col-row__n').innerText(), '1');
   assert.equal(await page.locator('.col-row[data-name="Counterspell"] .col-row__n').innerText(), '1');
   assert.deepEqual(errors, []);
 });
 
-test('e2e · X1 câmera bloqueada: explica e deixa montar o lote digitando', { skip }, async t => {
+test('e2e · X1 câmera bloqueada: explica e deixa montar a pilha digitando', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));
   await page.goto(base + '#/scanner');
   await page.waitForFunction(() => { const el = document.querySelector('#scan-status'); return el && /câmera foi bloqueada/.test(el.innerText); });
   assert.equal(await page.locator('#scan-read').isDisabled(), true);
+  await page.waitForSelector('#scan[data-base="ready"]');
+  await page.click('#scan-manual-open');
   await page.fill('#scan-manual', 'Countrspell');
   await page.click('[data-manual="Counterspell"]');
-  await page.waitForFunction(() => { const el = document.querySelector('#scan-lot'); return el && /Lote: 1/.test(el.innerText); });
+  await esperaPilha(page, 1);
   assert.deepEqual(errors, []);
 });
 
@@ -1327,20 +1343,20 @@ test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e
   await page.evaluate(() => window.__ocrQueue.push('Counterspell', '267/303 U\nMH2 • EN'));
   await page.click('#scan-read');
   await page.waitForSelector('#scan-edition');
-  assert.match(await page.innerText('#scan-edition'), /Edição: MH2 #267 · Modern Horizons 2/);
+  assert.match(await page.innerText('#scan-edition'), /MH2 #267 · Modern Horizons 2/); // leva 112: a linha do resultado ficou só "✓ nome · edição", sem o rótulo
 
   await page.evaluate(() => window.__ocrQueue.push('Island', ''));
   await page.click('#scan-read');
   await page.waitForFunction(() => /não identificada/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
 
-  await page.click('#scan-lot');
+  await page.click('#scan-lot'); await page.click('#scan-pile-commit'); await page.waitForSelector('#scan-lot-list');
   assert.match(await page.innerText('#scan-lot-list'), /MH2 #267/);
   const opts = await page.$$eval('#scan-dest option', os => os.map(o => o.textContent));
   const azul = opts.findIndex(o => /Azul/.test(o));
   await page.selectOption('#scan-dest', { index: azul });
   await page.waitForSelector('[data-also]');
   await page.click('#scan-commit');
-  await page.waitForFunction(() => /Lote: 0/.test(document.querySelector('#scan-lot').innerText));
+  await esperaPilha(page, 0);
 
   await page.goto(base + '#/listas');
   await page.waitForSelector('#decks-list .ds-list__item');
@@ -2366,7 +2382,7 @@ test('e2e · HOMOLOGAÇÃO 4 · H7 desfazer a importação mantém o que você m
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));            // a base de nomes (baixada pelo scanner) dá as sugestões das pendências
   await page.goto(base + '#/scanner');
-  await page.waitForFunction(() => /Base: \d+ nomes/.test((document.querySelector('#scan-status') || {}).innerText || ''));
+  await page.waitForSelector('#scan[data-base="ready"]');
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import');
   await page.click('#col-import'); await page.waitForSelector('#col-import-text');
   await page.fill('#col-import-text', '2 Island');
@@ -2870,7 +2886,7 @@ test('e2e · U2 parte 3 cartas, scanner, preparar partida e mesa: ícones, rótu
   // scanner
   await page.goto(base + '#/scanner'); await page.waitForSelector('#scan-read');
   for (const id of ['#scan-read', '#scan-lot', '#scan-undo', '#scan-colecao']) await temIcone(id);
-  assert.match(await page.innerText('#scan-lot'), /Lote: 0/);
+  assert.match(await page.innerText('#scan-lot'), /Pilha · 0/);
   await audita('scanner');
   // lista pronta: marcas de cobertura desenhadas, com nome falado
   await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list');
@@ -3234,39 +3250,63 @@ test('e2e · leva 107 Duress mostra a mão inteira: terrenos e criaturas apagado
   assert.deepEqual(errors, []);
 });
 
-test('e2e · leva 109 scanner automático de verdade: liga sozinho, lê sem carta detectada (plano B), pilha na hora, edição depois, diagnóstico copiável', { skip }, async t => {
+// Leva 112 · scanner de alto padrão: tela sem rolagem num S25, leitura só dentro da moldura, porteiro (nada errado,
+// nada repetido), "[nome] ✓", miniatura nítida na pilha, diagnóstico com nitidez e movimento.
+test('e2e · leva 112 scanner: cabe sem rolar num S25, não registra leitura incerta nem repetida, confirma com nome e ✓, pilha nítida', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await page.addInitScript(FAKE_DEVICE(false));
+  await page.addInitScript(FAKE_CARD_CAM);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
-  // liga sozinho: nenhum toque em "Automático"
   await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
-  assert.match(await page.innerText('#scan-result'), /entra na pilha sozinha/);
-  // quadro cinza: o detector não acha carta; o plano B lê o quadro inteiro e a leitura exata entra na hora
-  await page.evaluate(() => window.__ocrQueue.push('Creature - Human\nCounterspell\n267/303 U'));
-  await page.waitForFunction(() => /Counterspell/.test(document.querySelector('#scan-pile').innerText), null, { timeout: 12000 });
-  // a pilha mostra a carta antes de a edição chegar; depois a edição aparece no resultado
-  await page.waitForSelector('#scan-edition', { timeout: 8000 });
-  // leitura aproximada precisa de duas seguidas iguais
-  await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®'));
-  await page.waitForTimeout(2200);
-  assert.doesNotMatch(await page.innerText('#scan-pile'), /Sol Ring/, 'uma leitura aproximada sozinha não entra');
-  await page.evaluate(() => window.__ocrQueue.push('S0l Rinq @®', 'Sol Rimg'));
-  await page.waitForFunction(() => /Sol Ring/.test(document.querySelector('#scan-pile').innerText), null, { timeout: 12000 });
-  // diagnóstico: as leituras com tempo, texto e decisão; copiar põe tudo na área de transferência
-  await page.click('[data-diag]');
+  // sem rolagem: a página inteira cabe na tela, com câmera, resultado e botões visíveis
+  const medida = await page.evaluate(() => {
+    const vis = id => { const r = document.querySelector(id).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight + 1 && r.height > 0; };
+    return { rola: document.documentElement.scrollHeight - innerHeight, palco: Math.round(document.querySelector('#scan-stage').getBoundingClientRect().height),
+      botoes: ['#scan-read', '#scan-lot', '#scan-undo', '#scan-manual-open', '#scan-more'].every(vis) };
+  });
+  assert.ok(medida.rola <= 1, 'a tela do scanner não rola: ' + JSON.stringify(medida));
+  assert.ok(medida.palco >= 380, 'a câmera ocupa a maior parte da tela: ' + JSON.stringify(medida));
+  assert.equal(medida.botoes, true, 'todos os botões à vista');
+  await auditaTela(page, 'scanner sem rolagem');
+  // leituras que alternam entre dois nomes (carta mal posicionada): nada entra
+  await page.evaluate(() => window.__ocrQueue.push('Counterspell', 'Sol Ring', 'Counterspell', 'Sol Ring'));
+  await page.waitForFunction(() => window.__ocrQueue.length === 0, null, { timeout: 12000 });
+  await page.waitForTimeout(400);
+  assert.equal(await contaPilha(page), 0, 'leitura que muda de nome a cada quadro não registra nada');
+  // a mesma leitura duas vezes seguidas: entra, com "[nome] ✓"
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring'));
+  await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 12000 });
+  assert.match(await page.innerText('#scan-ok'), /Sol Ring/);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-ok.png' });
+  await esperaPilha(page, 1);
+  // logo em seguida, mais leituras da mesma carta parada: não duplica
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring', 'Sol Ring'));
+  await page.waitForFunction(() => window.__ocrQueue.length === 0, null, { timeout: 12000 });
+  await page.waitForTimeout(400);
+  assert.equal(await contaPilha(page), 1, 'a mesma carta em fração de segundo não entra duas vezes');
+  await page.click('[data-auto]');
+  // a linha do resultado: ✓ e o nome
+  assert.match(await page.innerText('#scan-result'), /Sol Ring/);
+  // pilha: abre por botão e mostra a imagem grande (normal), não a miniatura borrada
+  await page.waitForFunction(() => !document.querySelector('#scan-edition-espera'), null, { timeout: 8000 });
+  await abrePilha(page);
+  const src = await page.getAttribute('#scan-pile .scan-pile__img', 'src');
+  assert.match(String(src), /\/normal\//, 'imagem em qualidade normal: ' + src);
+  await auditaTela(page, 'pilha do scanner');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-pilha.png' });
+  await page.click('#ds-dialog-close');
+  // diagnóstico (em "mais"): leituras com nitidez, movimento e decisão; copiar leva tudo
+  await opcaoScanner(page, 'diag', false);
   await page.waitForSelector('#scan-diag .scan-diag__linha');
   const diag = await page.innerText('#scan-diag');
-  assert.match(diag, /quadro/); assert.match(diag, /Counterspell \d+%/); assert.match(diag, /\+1/);
+  assert.match(diag, /nit \d+ · mov \d+/); assert.match(diag, /Sol Ring \+1/); assert.match(diag, /repetida|espera/);
   await page.click('#scan-diag-copiar');
   const copiado = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(copiado, /aparelho: /); assert.match(copiado, /Counterspell 100% · Counterspell \+1/);
-  await auditaTela(page, 'scanner com diagnóstico');
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-diag.png', fullPage: true });
-  // pausar para de ler
-  await page.click('[data-auto]');
-  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'false');
+  assert.match(copiado, /aparelho: /); assert.match(copiado, /foco: /); assert.match(copiado, /limiares: nitidez/);
+  await page.click('#ds-dialog-close');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner.png' });
   assert.deepEqual(errors, []);
 });
 
