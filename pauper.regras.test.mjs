@@ -900,3 +900,20 @@ test('Leva 108 · Birchlore virada para baixo não conta como Elfo no custo', ()
   const ops = E.legalActions(s, a).filter(x => x.t === 'activate' && x.oid === b1);
   assert.ok(!ops.some(x => (x.pay.tapOther || []).includes(b2)), 'a virada para baixo não serve');
 });
+
+test('Leva 110 · "qualquer alvo" com a mesa cheia: os dois jogadores e todas as criaturas continuam alvo (Fiery Temper pela insanidade, Lightning Bolt)', () => {
+  // achado do usuário no aparelho (30/09/2026): o Fiery Temper pela insanidade não oferecia mirar o oponente nem a si mesmo.
+  // Texto oficial (.listas/oficiais.json, 30/09/2026): "Fiery Temper deals 3 damage to any target."
+  let s = jogo(); const a = s.turn.active, d = 1 - a; let grab, temper;
+  const criaturas = [];
+  for (const q of [a, d]) for (const n of ['Urso', 'Urso', 'Urso', 'Gaivota', 'Gaivota', 'Gaivota']) { let o; [s, o] = poe(s, q, n); criaturas.push(o); }
+  [s, grab] = poe(s, a, 'Grab the Prize', 'hand'); [s, temper] = poe(s, a, 'Fiery Temper', 'hand');
+  s = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [temper] } });
+  assert.equal(s.pending && s.pending.kind, 'madness');
+  const alvos = J(E.legalActions(s, a)).filter(x => x.t === 'cast_madness').map(x => x.targets[0]);
+  assert.ok(alvos.some(x => x.player === d), 'o oponente é alvo (antes: cortado depois de 10 permanentes)');
+  assert.ok(alvos.some(x => x.player === a), 'você mesmo é alvo');
+  assert.equal(alvos.filter(x => x.oid != null).length, criaturas.length, 'todas as 12 criaturas são alvo');
+  s = passaAte(act(s, { t: 'cast_madness', p: a, targets: [{ player: a }] }), x => !x.stack.length);
+  assert.equal(s.players[a].life, 20 - 3, 'mirou em si mesmo');
+});

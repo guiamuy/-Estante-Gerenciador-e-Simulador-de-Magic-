@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
 import { CARDS, PAUPER_DECK, COMBAT_CARDS } from './fixtures.mjs';
 const { engine: E, table: T } = loadModules();
+const J = x => JSON.parse(JSON.stringify(x));
 
 const deck = { entries: PAUPER_DECK };
 const goldfish = (seed = 11, options) => T.createTable(T.buildSetup({ format: 'pauper', seed, cards: CARDS, seats: [{ name: 'Você', deck }, { name: 'Goldfish', dummy: true }] }), { options });
@@ -83,10 +84,11 @@ test('A7 · registro em pt-BR com separador de turno', () => {
   const land = pull(t, 'Island');
   t.act({ t: 'play_land', p: 0, oid: land });
   const L = t.lines.join('\n');
-  assert.match(L, /Você manteve 7 carta\(s\)/);
+// leva 110: registro reescrito (mão mantida, zonas com preposição, vida como "perdeu N (antes → depois)")
+  assert.match(L, /Você manteve a mão \(7 cartas\)/);
   assert.match(L, /— Turno 1 · /);
   assert.match(L, /Você jogou Island/);
-  assert.match(L, /Você moveu Island: grimório → mão/);
+  assert.match(L, /Você moveu Island do grimório para a mão/);
 });
 
 test('A7 · desfazer volta a última ação humana e não atravessa compra', () => {
@@ -313,12 +315,12 @@ test('A14 · ação recusada vira uma frase: o que tentou, por que não deu, o q
 
 test('A14 · registro vira linha do tempo por turno e fase; separadores somem; a mesa grava turno e passo de cada linha', () => {
   const entradas = [
-    { texto: 'Você manteve 7 carta(s)', turno: 0, passo: 'mulligan', ativo: 'Você' },
+    { texto: 'Você manteve a mão (7 cartas)', turno: 0, passo: 'mulligan', ativo: 'Você' },
     { texto: '— Turno 1 · Você —', turno: 1, passo: 'untap', ativo: 'Você' },
     { texto: 'Você jogou Island', turno: 1, passo: 'main1', ativo: 'Você' },
     { texto: 'Você conjurou Sky Pike', turno: 1, passo: 'main1', ativo: 'Você' },
     { texto: 'Você atacou com Sky Pike', turno: 1, passo: 'combat_attackers', ativo: 'Você' },
-    { texto: 'Bot: vida 20 → 18', turno: 1, passo: 'combat_damage', ativo: 'Você' },
+    { texto: 'Bot perdeu 2 de vida (20 → 18)', turno: 1, passo: 'combat_damage', ativo: 'Você' },
     { texto: '— Turno 2 · Bot —', turno: 2, passo: 'untap', ativo: 'Bot' },
     { texto: 'Bot jogou Mountain', turno: 2, passo: 'main1', ativo: 'Bot' }
   ];
@@ -479,4 +481,37 @@ test('E50 P2 · depois dos bloqueios: resumo por atacante, marcas "← bloqueado
   s.pending = null; s.turn.step = 'combat_damage';
   assert.equal(T.resumoDosBloqueios(s, 0), null, 'só no passo de bloqueadores');
   // a parada automática depois dos bloqueios (quem tem resposta para; quem não tem, não) é coberta no e2e "E50 janela"
+});
+
+test('Leva 110 · marca que cita outra carta vira ícone com o nome inteiro no rótulo (nada de nome dentro da carta)', () => {
+  const s = mesa([
+    { name: 'Sky Pike', attacking: 1 },
+    { name: 'Wall Guard', blocking: 'o0' },
+    { name: 'Sky Pike' },
+    { name: 'Wall Guard', attachedTo: 'o2' },
+    { name: 'Sky Pike', attachedTo: 'o2' }
+  ]);
+  s.objects.o0.blockedBy = ['o1'];
+  const icones = est => J(est.marcas.filter(m => m.icone).map(m => [m.k, m.icone, m.qtd || 1, m.rotulo]));
+  assert.deepEqual(icones(T.estadoDaCarta(s, s.objects.o0)), [['ataca', 'escudo', 1, 'Bloqueada por Wall Guard']]);
+  assert.deepEqual(icones(T.estadoDaCarta(s, s.objects.o1)), [['bloqueia', 'escudo', 1, 'Bloqueia Sky Pike']]);
+  assert.deepEqual(icones(T.estadoDaCarta(s, s.objects.o2)), [['encantada', 'anexo', 2, 'Com Wall Guard, Sky Pike']], 'duas anexadas: um selo com o número');
+  assert.deepEqual(icones(T.estadoDaCarta(s, s.objects.o3)), [['anexo', 'anexo', 1, 'Anexada a Sky Pike']]);
+  // toda marca que leva nome de carta tem ícone: o texto na carta nunca depende do tamanho do nome
+  for (const o of Object.values(s.objects)) for (const m of T.estadoDaCarta(s, o).marcas) if (/Sky Pike|Wall Guard/.test(m.texto)) assert.ok(m.icone, `${m.k}: "${m.texto}" sem ícone`);
+});
+
+test('Leva 110 · registro: ficha com o nome certo, pagar/recusar dizem o quê, alvo e bloqueio por extenso', () => {
+  const ficha = T.describe({ players: [{ name: 'Ana' }], objects: {}, zones: [] }, { t: 'noop', p: 0 }, [{ kind: 'effect', do: 'token', name: 'Goblin', target: 'Ana', amount: 1 }], { status: 'x', players: [{ name: 'Ana' }], turn: {} });
+  assert.deepEqual(J(ficha), ['Ana criou a ficha Goblin'], 'antes: "Goblin criou 1 ficha"');
+  const base = { players: [{ name: 'Ana', life: 20 }, { name: 'Bia', life: 20 }], objects: { m: { oid: 'm', name: 'Lightning Bolt' } }, zones: [], status: 'playing', turn: { number: 3 } };
+  const comPend = pending => ({ ...base, pending });
+  const linha = (a, antes) => J(T.describe(antes, a, [], base));
+  assert.deepEqual(linha({ t: 'pay', p: 1 }, comPend({ kind: 'may_pay', p: 1, cost: '{1}', target: 'm', name: 'Mana Leak' })), ['Bia pagou {1}: Lightning Bolt não foi anulada']);
+  assert.deepEqual(linha({ t: 'decline', p: 1 }, comPend({ kind: 'may_pay', p: 1, cost: '{1}', target: 'm', name: 'Mana Leak' })), ['Bia não pagou {1}: Lightning Bolt será anulada']);
+  assert.deepEqual(linha({ t: 'decline', p: 0 }, comPend({ kind: 'may_pay', p: 0, cost: null, name: 'Masked Vandal', then: [{}] })), ['Ana recusou o efeito de Masked Vandal'], 'antes: "deixou a mágica ser anulada" num efeito opcional');
+  assert.deepEqual(linha({ t: 'pick_done', p: 0 }, base), [], 'sem "terminou a escolha"');
+  const efeitos = [{ do: 'draw', name: 'Preordain', target: 'Ana', amount: 1 }, { do: 'counters', name: 'Urso', amount: 2 }, { do: 'pump', name: 'Rancor', target: 'Urso', power: 2, toughness: 0 }];
+  assert.deepEqual(J(efeitos.map(e => T.describe(base, { t: 'noop', p: 0 }, [{ kind: 'effect', ...e }], base)[0])),
+    ['Ana comprou 1 carta (Preordain)', 'Urso recebeu 2 marcadores +1/+1', 'Urso ganhou +2/+0 até o fim do turno (Rancor)']);
 });

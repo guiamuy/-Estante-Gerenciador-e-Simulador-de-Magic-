@@ -679,3 +679,18 @@ test('M13b · variante de parceria que o app não conhece: aviso para conferir, 
   assert.doesNotMatch(m, /^error:/m);
   assert.match(msgsPar(dupla('Variante Nova', 'Lenda Comum')), /^warning: .*não é conferida/m, 'com uma variante desconhecida, o app não afirma nada: avisa');
 });
+
+test('Leva 110 · cores da lista: deck principal pelas cores das cartas, Commander pela identidade do comandante, sem dado não chuta', () => {
+  const c = (name, colors, ci = colors, type_line = 'Instant') => [name.toLowerCase(), { name, colors, color_identity: ci, type_line }];
+  const cartas = new Map([c('Lightning Bolt', ['R']), c('Counterspell', ['U']), c('Island', [], ['U'], 'Basic Land — Island'), c('Duress', ['B']), c('Kediss', ['R'], ['R']), c('Malcolm', ['U'], ['U'])]);
+  const L = es => D.coresDaLista(es, cartas);
+  assert.equal(L([{ name: 'Counterspell', qty: 4, zone: 'main' }, { name: 'Lightning Bolt', qty: 4, zone: 'main' }, { name: 'Island', qty: 20, zone: 'main' }, { name: 'Duress', qty: 2, zone: 'side' }]), 'UR',
+    'na ordem WUBRG; terreno não pinta; a reserva não conta');
+  assert.equal(L([{ name: 'Malcolm', qty: 1, zone: 'commander' }, { name: 'Kediss', qty: 1, zone: 'commander' }, { name: 'Duress', qty: 1, zone: 'main' }]), 'UR', 'Commander: identidade dos comandantes');
+  assert.equal(L([{ name: 'Desconhecida', qty: 1, zone: 'commander' }]), null, 'comandante sem dado: nada');
+  assert.equal(L([{ name: 'Island', qty: 1, zone: 'main' }]), null, 'só terreno guardado: sem cor (não "incolor")');
+  assert.equal(L([{ name: 'Counterspell', qty: 4, zone: 'main' }, { name: 'Sem Dado', qty: 4, zone: 'main' }]), null, 'uma carta sem dado: não chuta a cor');
+});
+test('Leva 110 · cores da lista: nenhuma carta guardada não vira "incolor"', () => {
+  assert.equal(D.coresDaLista([{ name: 'Nada Guardado', qty: 4, zone: 'main' }], new Map()), null);
+});

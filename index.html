@@ -640,10 +640,30 @@ body {
 .deck-curve__bar { width: 100%; min-height: 2px; background: var(--accent); border-radius: var(--radius-1) var(--radius-1) 0 0; }
 .deck-curve__n, .deck-curve__cmc { font-size: var(--text-xs); color: var(--fg-muted); }
 .ds-list__item .ds-stack { min-width: 0; }
-.deck-item__texto { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); overflow-wrap: anywhere; }
-.deck-item__nome { overflow-wrap: anywhere; hyphens: auto; }
-.deck-item__lado { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); text-align: right; }
-.deck-item__lado .ds-text { white-space: nowrap; }
+/* Leva 110 · linha da lista: nome em cima, uma faixa de símbolos embaixo, posse como barra fina */
+.deck-item { align-items: center; gap: var(--space-3); }
+.deck-item__corpo { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); text-align: left; }
+.deck-item__nome { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.2; color: var(--fg); overflow-wrap: anywhere; hyphens: auto; }
+.deck-item__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--fg-muted); }
+.deck-item__meta .ds-pips { font-size: 17px; }
+.deck-item__formato { font-size: 11px; line-height: 1; letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-bold); color: var(--accent);
+  padding: 4px 7px; border: 1px solid var(--accent); border-radius: var(--radius-full); white-space: nowrap; }
+.deck-item__conta { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: var(--text-sm); }
+.deck-item__conta b { font-variant-numeric: tabular-nums; color: var(--fg); font-weight: var(--weight-bold); }
+.deck-item__reserva .ds-icon { opacity: .8; }
+.deck-item__posse { display: block; height: 3px; border-radius: var(--radius-full); background: var(--border); overflow: hidden; }
+.deck-item__posse-barra { display: block; height: 100%; background: var(--fg-muted); border-radius: inherit; }
+.deck-item__posse[data-completa="true"] .deck-item__posse-barra { background: var(--positive); }
+.deck-item__ja { flex: none; display: inline-grid; place-items: center; width: var(--tap-min); height: var(--tap-min); color: var(--positive); }
+.deck-item__add { flex: none; }
+/* Leva 110 · escolher a lista na preparação da partida: a mesma linha da estante, dentro de um botão */
+.deck-picker { display: block; width: 100%; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-1); color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: var(--shadow-1); }
+.deck-picker:active { transform: translateY(1px); box-shadow: none; }
+.deck-picker > .deck-item { display: flex; border-bottom: none; }
+.deck-picker__lista .deck-item { width: 100%; border: none; border-bottom: 1px solid var(--border); background: none; color: inherit; font: inherit; cursor: pointer; }
+.deck-picker__lista .deck-item[aria-checked="true"] { background: var(--accent-soft); }
+.deck-picker__lista .deck-item__ja { width: 24px; height: 24px; }
+.deck-picker__lista { max-height: 60vh; overflow-y: auto; }
 
 /* ===================== A0 · mesa =====================
    A mesa é o interior da estante: madeira escura ao fundo, a carta como
@@ -726,13 +746,21 @@ body {
 .tb-card--sm { width: var(--carta-pilha); }
 .tb-card--hand { width: var(--carta-mao); }
 /* A13 · nome e P/T sempre legíveis por cima da arte; anel diz o estado sem toque */
-.tb-card__label { position: absolute; left: 0; right: 0; top: 0; padding: 2px var(--space-1); font-size: 10px; line-height: 1.2; color: var(--fg); background: var(--scrim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.tb-card__label { position: absolute; left: 0; right: 0; top: 0; z-index: 1; padding: 2px var(--space-1); font-size: 10px; line-height: 1.2; color: var(--fg); background: var(--scrim); text-align: left; pointer-events: none;
+  border-radius: var(--radius-card) var(--radius-card) 0 0; overflow-wrap: normal; hyphens: auto;
+  /* Leva 110 · até duas linhas, nunca reticências no meio de um nome comum */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* virada: o nome continua na horizontal, colado à borda de cima da carta deitada (a face gira 90° e encolhe a .78) */
+.tb-card[data-tapped="true"] .tb-card__label { top: 22%; border-radius: 0; }
+.tb-card[data-selected="true"] .tb-card__label { transform: translateY(calc(var(--space-2) * -1)); }
+.tb-card:has(.tb-card__label) .tb-card__sick { top: 28%; z-index: 1; } /* o selo de enjoo desce para não cobrir o nome */
 .tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--scrim); border: 1px solid var(--border); }
 .tb-card[data-estado="ataca"] .tb-card__face { outline: 3px solid var(--negative); }
 .tb-card[data-estado="bloqueia"] .tb-card__face { outline: 3px solid var(--accent); }
 .tb-card[data-estado="alvo"] .tb-card__face { outline: 3px dashed var(--warning); }
 .tb-pill--estado { background: var(--bg-elev-3); color: var(--fg); border: 1px solid var(--border); }
-.tb-pill--qtd { background: var(--fg); color: var(--bg); }
+.tb-pill--qtd { background: var(--fg); color: var(--bg); display: inline-flex; align-items: center; gap: 3px; }
+.tb-pill__viradas { display: inline-flex; align-items: center; gap: 1px; opacity: .85; }
 @keyframes tb-entrou { from { opacity: 0; transform: translateY(var(--space-3)) scale(.96); } to { opacity: 1; transform: none; } }
 .tb-card--entrou { animation: tb-entrou var(--dur-2) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .tb-card--entrou { animation: none; } .tb-card, .tb-card__face { transition: none; } }
@@ -756,9 +784,18 @@ body {
 .tb-leque[data-tapped="true"] .tb-leque__camada { transform: rotate(90deg) scale(.78); }
 .tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
 .tb-card[data-selected="true"] .tb-card__face { outline: 3px solid var(--accent); transform: translateY(calc(var(--space-2) * -1)); }
-.tb-card__pills { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.tb-card__pills { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); display: flex; flex-wrap: wrap-reverse; justify-content: center; gap: 2px; align-items: center; width: calc(100% - 4px); pointer-events: none; }
 .tb-pill { font-size: var(--text-xs); line-height: 1.2; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); white-space: nowrap; font-weight: var(--weight-bold); }
 .tb-pill--neg { background: var(--negative); color: var(--negative-fg); }
+/* Leva 110 · marca que cita outra carta: selo redondo com ícone (e número). Nada de nome dentro da carta;
+   o nome inteiro aparece ao espiar a carta. Guarda: nenhuma pílula passa da largura da carta. */
+.tb-pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tb-pill--icone { display: inline-flex; align-items: center; justify-content: center; gap: 1px; min-width: 18px; height: 18px; padding: 0 3px; background: var(--bg-elev-1); color: var(--fg); border: 1px solid var(--border); box-shadow: var(--shadow-1); }
+.tb-pill--icone b { font-size: 10px; line-height: 1; }
+.tb-pill--icone[data-marca="ataca"] { color: var(--negative); border-color: var(--negative); }
+.tb-pill--icone[data-marca="bloqueia"] { color: var(--accent); border-color: var(--accent); }
+.tb-pill--icone[data-marca="alvo"] { color: var(--warning); border-color: var(--warning); }
+.tb-pill--icone[data-marca="anexo"], .tb-pill--icone[data-marca="encantada"] { color: var(--accent); }
 .tb-card__sick { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: var(--text-xs); line-height: 1.2; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--bg-elev-3); color: var(--fg-muted); border: 1px solid var(--border); }
 
 .tb-center { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -820,8 +857,24 @@ body {
 .tb-dock__bar .tb-banner:has(.tb-banner__actions > :nth-child(3)) { flex-wrap: wrap; }
 .tb-dock__bar .tb-banner:has(.tb-banner__actions > :nth-child(3)) .tb-banner__actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; }
 .tb-dock__bar .tb-banner__actions .ds-btn { padding: 0 var(--space-3); }
-.tb-dock[data-recolhida="true"] .tb-banner__text span { display: none; }
+.tb-dock[data-recolhida="true"] .tb-banner__text > span:not(.tb-momento):not(.tb-banner__mais) { display: none; } /* leva 110: o chip do momento fica */
 .tb-dock[data-recolhida="true"] .tb-iconbtn__rotulo { display: none; }
+/* Leva 110 · o momento na bandeja: ícone + palavra inteira, num chip; o texto completo abre no balão */
+.tb-dock__bar .tb-banner__text[data-compacto="true"] { flex: 0 1 auto; flex-direction: row; align-items: center; gap: var(--space-1); padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2); box-shadow: var(--shadow-1); }
+.tb-dock__bar .tb-banner__text[data-compacto="true"]:active { transform: translateY(1px); box-shadow: none; }
+.tb-dock__bar .tb-banner:has(.tb-banner__text[data-compacto="true"]) { flex-wrap: wrap; row-gap: var(--space-2); }
+.tb-dock__bar .tb-banner:has(.tb-banner__text[data-compacto="true"]) .tb-banner__actions { margin-left: auto; min-width: 0; flex-wrap: wrap; }
+.tb-banner__completo { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tb-momento { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: 1.15; }
+.tb-momento__rotulo { white-space: normal; overflow-wrap: normal; }
+.tb-momento__icone { flex: none; color: var(--fg-muted); }
+.tb-momento[data-tom="meu"] .tb-momento__icone { color: var(--accent); }
+.tb-momento[data-tom="decisao"], .tb-momento[data-tom="decisao"] .tb-momento__icone { color: var(--warning); }
+.tb-momento[data-tom="espera"] { color: var(--fg-muted); }
+.tb-momento__qtd { min-width: 18px; height: 18px; padding: 0 4px; border-radius: var(--radius-full); background: var(--warning); color: var(--bg); font-size: 11px; display: inline-grid; place-items: center; }
+.tb-banner__text[data-compacto="true"] .tb-banner__mais { display: inline-flex; position: static; transform: rotate(180deg); }
+.tb-banner__text[data-compacto="true"][aria-expanded="true"] .tb-banner__mais { transform: none; }
 .tb-dock__aviso { display: block; margin: var(--space-1) 0 0; font-size: var(--text-xs); color: var(--warning); }
 .tb-hand__toggle { flex: none; display: inline-flex; align-items: center; gap: 6px; min-width: var(--tap-min); min-height: var(--tap-min);
   padding: 0 var(--space-2) 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2);
@@ -848,6 +901,8 @@ body {
 .tb-zonegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: var(--space-2); }
 .tb-sheet__img { width: 100%; max-width: 240px; margin: 0 auto; display: block; border-radius: var(--radius-card); }
 .tb-sheet__actions { display: flex; flex-direction: column; gap: var(--space-2); }
+.tb-alvos__grupo { margin: var(--space-2) 0 0; text-transform: uppercase; letter-spacing: .06em; }
+.tb-alvos__estado { margin-left: var(--space-2); font-size: var(--text-xs); font-weight: var(--weight-regular); color: var(--fg-muted); }
 .tb-lifepad { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
 .tb-log { margin: 0; max-height: 55vh; overflow-y: auto; font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-3); }
 /* A14 · linha do tempo: turno, fase, linhas */
@@ -1487,6 +1542,17 @@ const ICONES = {
   pausa: '<rect x="6.5" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2"/>',
   virar: '<path d="M4.5 10a7.5 7.5 0 0 1 13.4-3.6L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M19.5 14a7.5 7.5 0 0 1-13.4 3.6L4 15.5"/><path d="M4 20v-4.5h4.5"/>',
   externo: '<path d="M13.5 4.5h6v6"/><path d="M19.5 4.5L11 13"/><path d="M17.5 13.5v4a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4"/>',
+  // Leva 110 · marcas da carta na mesa e etapas do turno
+  anexo: '<path d="M9.5 14.5l5-5"/><path d="M11 7.5l1.6-1.6a3.6 3.6 0 0 1 5.1 5.1L16.1 12.6"/><path d="M13 16.5l-1.6 1.6a3.6 3.6 0 0 1-5.1-5.1L7.9 11.4"/>',
+  alvo: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/>',
+  espada: '<path d="M14.5 4.5h5v5L10 19l-5-5z"/><path d="M7.5 16.5l-3 3M5 14l5 5"/>',
+  escudo: '<path d="M12 3.3l7 2.8v5.3c0 4.3-2.9 7.7-7 9.3-4.1-1.6-7-5-7-9.3V6.1z"/>',
+  comprar: '<rect x="6.5" y="3.5" width="11" height="15" rx="1.8"/><path d="M12 8v6.5M9.2 11.7L12 14.5l2.8-2.8"/><path d="M4.5 21h15"/>',
+  raio: '<path d="M13.5 3L5.5 13.5h6L10.5 21l8-10.5h-6z"/>',
+  fim: '<path d="M6 20.5V4"/><path d="M6 4.5h11l-2.5 4 2.5 4H6"/>',
+  // Leva 110 · lista: deck principal (maço de cartas) e reserva (carta tracejada ao lado)
+  baralho: '<rect x="7" y="3.5" width="11" height="15" rx="1.8"/><path d="M5 6.5v11.8a2.2 2.2 0 0 0 2.2 2.2h8.3"/>',
+  reserva: '<rect x="4" y="5" width="9.5" height="14" rx="1.6"/><rect x="14.5" y="7.5" width="6" height="9" rx="1.2" stroke-dasharray="2 1.6"/>',
   // prioridade com o outro: a mesa espera uma resposta
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
@@ -1496,8 +1562,8 @@ function Icone(nome, { tamanho = 20, classe = '' } = {}) {
   return el;
 }
 /** Botão só de ícone: o rótulo vira nome acessível e dica; `rotulo: true` mostra o texto ao lado. */
-function IconButton(icone, rotulo, { id, variant, onClick, rotulo: mostra = false, classe = '', disabled = false } = {}) {
-  return h('button', { class: ['ds-btn', 'ds-btn--icone', classe, variant ? `ds-btn--${variant}` : ''].filter(Boolean).join(' '), type: 'button', id, 'aria-label': rotulo, title: rotulo, onClick, disabled },
+function IconButton(icone, rotulo, { id, variant, onClick, rotulo: mostra = false, classe = '', disabled = false, dataset } = {}) {
+  return h('button', { class: ['ds-btn', 'ds-btn--icone', classe, variant ? `ds-btn--${variant}` : ''].filter(Boolean).join(' '), type: 'button', id, 'aria-label': rotulo, title: rotulo, onClick, disabled, ...(dataset ? { dataset } : {}) },
     Icone(icone), mostra ? h('span', { class: 'ds-btn__rotulo ' + (classe ? classe + '__rotulo' : '') }, rotulo) : null);
 }
 /** U2 · atalho da tela inicial: ícone grande sobre um rótulo de uma palavra, com detalhe opcional. */
@@ -2238,6 +2304,12 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     },
 
     async byName(name) { return (await this.byNames([name])).get(norm(name)) || null; },
+    /** Leva 110 · só o que já está guardado (mesmo vencido), sem rede: a estante pinta as cores sem esperar a Scryfall. */
+    async cached(names) {
+      const out = new Map();
+      for (const k of [...new Set(names.map(norm))].filter(Boolean)) { const rec = await readCache(k); if (rec && rec.card) out.set(k, rec.card); else if (BASIC_CARDS[k]) out.set(k, BASIC_CARDS[k]); }
+      return out;
+    },
     /** U12 · só o que já está no aparelho, sem nunca ir à rede (para contar e mostrar status). */
     async emCache(names) {
       const out = new Map();
@@ -4768,7 +4840,28 @@ function planCollectionImport(items, { existentes = new Set(), conhecidos = null
   return { novas, somam, pendentes, conferido: !!conhecidos, copias: { novas: copias(novas), somam: copias(somam), pendentes: copias(pendentes) } };
 }
 
-return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard,
+/** Leva 110 · cores da lista para a estante: Commander usa a identidade do comandante; os outros formatos,
+    as cores das cartas do deck principal (terrenos não têm cor). `cards` é Map(nome normalizado -> carta).
+    Devolve null quando falta o dado de qualquer carta que conta (ou só há terrenos guardados): melhor não
+    mostrar cor do que mostrar a cor errada ou "incolor" por engano. */
+function coresDaLista(entries, cards) {
+  const ORD = 'WUBRG', cor = new Set();
+  const cmd = entries.filter(e => e.zone === 'commander');
+  const base = cmd.length ? cmd : entries.filter(e => e.zone !== 'side');
+  let achadas = 0;
+  for (const e of base) {
+    const c = cards.get(norm(e.name));
+    if (!c) return null;
+    if (!cmd.length && /\bLand\b/.test(c.type_line || '') && !/\bCreature\b/.test(c.type_line || '')) continue;
+    achadas++;
+    const cs = cmd.length ? (c.color_identity || []) : (c.colors || (c.card_faces || []).flatMap(f => f.colors || []));
+    cs.forEach(x => cor.add(x));
+  }
+  if (!achadas) return null;
+  return [...ORD].filter(x => cor.has(x)).join('');
+}
+
+return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
   parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
@@ -5514,7 +5607,7 @@ const __m15 = (function () {
    ===================================================================== */
 const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta } = __m3;
 const { norm } = __m7;
-const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard } = __m14;
+const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
 const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
@@ -5524,6 +5617,28 @@ const q = () => new URLSearchParams((location.hash.split('?')[1]) || '');
 const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
 const FORMAT_OPTS = Object.entries(FORMATS).map(([value, label]) => ({ value, label }));
+
+/* ---------------- Leva 110 · linha de lista ----------------
+   Só o nome em palavras. O resto é desenho: cores em símbolos de mana, selo do formato,
+   deck principal e reserva em ícone com número, e a posse como uma barra fina. O nome
+   falado de cada peça diz tudo por extenso. */
+function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {} }) {
+  const conta = (icone, n, fala, classe) => h('span', { class: 'deck-item__conta ' + classe, role: 'img', 'aria-label': fala, title: fala }, Icone(icone, { tamanho: 16 }), h('b', {}, String(n)));
+  const corpo = [
+    h('span', { class: 'deck-item__nome' }, nome),
+    h('span', { class: 'deck-item__meta' },
+      cores != null ? ManaPips(cores) : null,
+      h('span', { class: 'deck-item__formato' }, FORMATS[formato] || formato),
+      conta('baralho', main, `${main} cartas no deck`, 'deck-item__main'),
+      side ? conta('reserva', side, `${side} na reserva`, 'deck-item__reserva') : null),
+    posse ? h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(posse.need), 'aria-valuenow': String(posse.have),
+      'aria-label': `tenho ${posse.have} de ${posse.need}`, title: `tenho ${posse.have} de ${posse.need}`, dataset: { completa: String(posse.have === posse.need) } },
+      h('span', { class: 'deck-item__posse-barra', style: { width: `${posse.need ? Math.round(posse.have / posse.need * 100) : 0}%` } })) : null
+  ];
+  return onClick
+    ? h('button', { class: 'ds-list__item deck-item', type: 'button', onClick, dataset }, h('span', { class: 'deck-item__corpo' }, ...corpo), fim || Icone('seguir', { tamanho: 18, classe: 'ds-list__seta' }))
+    : h(tag, { class: 'ds-list__item deck-item', dataset, ...attrs }, h('span', { class: 'deck-item__corpo' }, ...corpo), fim || null);
+}
 
 /* ---------------- /listas ---------------- */
 function createDecksHome({ decks, collection, files, cardRepo }) {
@@ -5543,24 +5658,15 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
       Row({ class: 'ds-row--wrap' },
         Button('Ver prontas', { variant: 'primary', icone: 'caixa', id: 'decks-starter-empty', onClick: () => go('/listas/prontas') }),
         Button('Nova lista', { icone: 'mais', onClick: () => go('/listas/editar') }))));
+    // Leva 110 · cores só do que já está guardado no aparelho (sem rede, sem espera)
+    let guardadas = new Map();
+    try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
     mount(list, h('div', { class: 'ds-list' }, ...all.map(d => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
       const reserva = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
-      const cmd = d.entries.filter(e => e.zone === 'commander').map(e => e.name).join(' + ');
-      // leva 100 · o nome ocupa o espaço que sobrar e quebra dentro dele; a coluna da direita tem largura própria e
-      // nunca é invadida (antes "Blue" de "Pauper Mono Blue Faeries" passava por cima do selo Pauper). A reserva
-      // desceu para a linha de apoio, à esquerda.
-      const main = need - reserva;
-      return h('button', { class: 'ds-list__item deck-item', type: 'button', onClick: () => go('/lista?id=' + d.id) },
-        h('div', { class: 'deck-item__texto' },
-          Text(d.name, { size: 'lg', display: true, attrs: { class: 'ds-text ds-text--lg ds-text--display deck-item__nome' } }),
-          cmd ? Text(cmd, { size: 'sm', tone: 'muted' }) : null,
-          reserva ? Text(`${main} cartas + ${reserva} na reserva`, { size: 'xs', tone: 'muted', attrs: { class: 'ds-text ds-text--xs ds-text--muted deck-item__reserva' } }) : null),
-        h('div', { class: 'deck-item__lado' },
-          Badge(FORMATS[d.format] || d.format, { tone: 'accent' }),
-          Text(`tenho ${have} de ${need}`, { size: 'xs', tone: have === need ? 'positive' : 'muted' })),
-        Icone('seguir', { tamanho: 18, classe: 'ds-list__seta' }));
+      return DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: need - reserva, side: reserva,
+        posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id } });
     })));
   }
   paint();
@@ -5582,13 +5688,13 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
 /* ---------------- A12 · /listas/prontas ---------------- */
 /** Listas que vêm com o app. Um toque põe a lista na estante; o texto passa
     pela mesma leitura de uma lista colada à mão. */
-function createStarterDecks({ decks }) {
+function createStarterDecks({ decks, cardRepo = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
-  const state = { format: 'all', minhas: [], busy: false, erro: null };
+  const state = { format: 'all', minhas: [], busy: false, erro: null, cartas: new Map() };
   const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander']];
 
   // E50 P5 · principal e reserva contados separados
-  const contagem = texto => { const es = parseDeckText(texto).entries; const side = es.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0); const main = es.reduce((n, e) => n + e.qty, 0) - side; return side ? `${main} cartas + ${side} na reserva` : `${main} cartas`; };
+  const contagem = texto => { const es = parseDeckText(texto).entries; const side = es.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0); const main = es.reduce((n, e) => n + e.qty, 0) - side; return { main, side, es }; };
   const jaTenho = nome => state.minhas.some(d => norm(d.name) === norm(nome));
 
   async function adicionar(item) {
@@ -5636,15 +5742,10 @@ function createStarterDecks({ decks }) {
       state.erro ? Note(state.erro, { tone: 'danger' }) : null,
       visiveis.length ? h('div', { class: 'ds-list', id: 'starter-list' }, ...visiveis.map(item => {
         const tenho = jaTenho(item.name);
-        return h('div', { class: 'ds-list__item' },
-          Stack({ style: { gap: 'var(--space-1)', textAlign: 'left' } },
-            Text(item.name, { size: 'lg', display: true }),
-            Text(contagem(item.text), { size: 'sm', tone: 'muted' })),
-          h('div', { class: 'ds-grow' }),
-          Stack({ style: { gap: 'var(--space-1)', alignItems: 'flex-end' } },
-            Badge(FORMATS[item.format] || item.format, { tone: 'accent' }),
-            tenho ? Text('já na sua estante', { size: 'xs', tone: 'positive' })
-              : Button('Adicionar', { icone: 'mais', dataset: { starterAdd: item.name }, onClick: () => adicionar(item) })));
+        const { main, side, es } = contagem(item.text);
+        return DeckLinha({ nome: item.name, formato: item.format, cores: coresDaLista(es, state.cartas), main, side,
+          fim: tenho ? h('span', { class: 'deck-item__ja', role: 'img', 'aria-label': 'Já na sua estante', title: 'Já na sua estante' }, Icone('marcar', { tamanho: 20 }))
+            : IconButton('mais', `Adicionar ${item.name}`, { variant: 'primary', classe: 'deck-item__add', dataset: { starterAdd: item.name }, onClick: () => adicionar(item) }) });
       })) : Empty('Nenhuma lista pronta neste formato.'),
       visiveis.length ? Row({ class: 'ds-row--wrap' },
         Button(state.format === 'all' ? 'Adicionar todas' : `Adicionar as ${visiveis.length} de ${FORMATS[state.format] || state.format}`,
@@ -5653,6 +5754,7 @@ function createStarterDecks({ decks }) {
 
   (async () => {
     try { state.minhas = await decks.list(); } catch (e) { state.erro = 'Não foi possível ler as suas listas neste aparelho.'; }
+    try { if (cardRepo && cardRepo.cached) state.cartas = await cardRepo.cached(STARTER_DECKS.flatMap(x => parseDeckText(x.text).entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
     paint();
   })();
   return root;
@@ -6618,7 +6720,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen };
+return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, DeckLinha };
 })();
 
 
@@ -6635,9 +6737,16 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 62;
+const ENGINE_VERSION = 63;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
+// Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
+// nada; com vários, os jogadores nunca saem (antes: "qualquer alvo" com 10 criaturas perdia os jogadores).
+function limitaAlvos(opts, quantos) {
+  if (quantos <= 1 || opts.length <= TARGET_LIMIT) return opts;
+  const jog = opts.filter(x => x.player != null);
+  return opts.filter(x => x.player == null).slice(0, Math.max(0, TARGET_LIMIT - jog.length)).concat(jog);
+}
 /** Leva 104 · teto de formas de pagar um custo com escolha (e de valores de X) oferecidas de uma vez. */
 const LIMITE_PAGAMENTOS = 24;
 const LIMITE_X = 20;
@@ -9410,7 +9519,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
         else {
           let combos = [[]];
           for (const eff of need) {
-            const opts = legalTargets(s, p, eff.target, s.pending.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)).slice(0, TARGET_LIMIT);
+            const opts = limitaAlvos(legalTargets(s, p, eff.target, s.pending.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length);
             if (!opts.length) { combos = []; break; }
             combos = addTarget(combos, opts);
           }
@@ -9441,7 +9550,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           if (!need.length) { out.push(base); continue; }
           let combos = [[]];
           for (const eff of need) {
-            const opts = legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)).slice(0, TARGET_LIMIT);
+            const opts = limitaAlvos(legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length);
             if (!opts.length) { combos = []; break; }
             combos = addTarget(combos, opts);
           }
@@ -9481,7 +9590,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (!need.length) return [base];
     let combos = [[]];
     for (const eff of need) {
-      const opts = legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)).slice(0, TARGET_LIMIT);
+      const opts = limitaAlvos(legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length);
       // S38 · "até N alvos": o último alvo pode ficar de fora
       if (!opts.length) { if (eff.upTo) continue; return []; }
       combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
@@ -9606,7 +9715,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (s.manaCheck && !canPay(s, p, bc)) continue;
     // Leva 104 · conceder com {X} (Nyxborn Hydra): X também é escolha de quem conjura
     const xs = valoresDeX(s, bc.x || 0, x => !s.manaCheck || canPay(s, p, bc, x * bc.x));
-    legalTargets(s, p, 'creature', oid).slice(0, TARGET_LIMIT).forEach(t => xs.forEach(x => out.push({ t: 'cast', p, oid, bestow: true, targets: [t], ...(x == null ? {} : { x }) })));
+    legalTargets(s, p, 'creature', oid).forEach(t => xs.forEach(x => out.push({ t: 'cast', p, oid, bestow: true, targets: [t], ...(x == null ? {} : { x }) })));
   }
   // S24 · presságio: conjura a face de trás, da mão
   for (const oid of s.zones[p].hand) {
@@ -9664,7 +9773,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       // S45 · a habilidade da mão pode pedir mais de um alvo, e o último pode ficar de fora
       let combos = [[]];
       for (const eff of need) {
-        const opts = legalTargets(s, p, eff.target, oid).slice(0, TARGET_LIMIT);
+        const opts = limitaAlvos(legalTargets(s, p, eff.target, oid), need.length);
         if (!opts.length) { if (eff.upTo) continue; return; }
         combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
       }
@@ -9692,7 +9801,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
       let combos = [[]];
       for (const eff of need) {
-        const opts = legalTargets(s, p, eff.target, o.oid).slice(0, TARGET_LIMIT);
+        const opts = limitaAlvos(legalTargets(s, p, eff.target, o.oid), need.length);
         if (!opts.length) { if (eff.upTo) continue; return; } // S45 · "até N alvos"
         combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
       }
@@ -10386,19 +10495,24 @@ const { h, Text, Button, Row, Badge, Icone } = __m3;
 function TableCard(card, opts = {}) {
   const est = opts.estado || null;
   const pills = [];
-  if (est) for (const m of est.marcas) pills.push(h('span', { class: 'tb-pill' + (m.k === 'dano' ? ' tb-pill--neg' : m.k === 'ataca' || m.k === 'bloqueia' || m.k === 'alvo' ? ' tb-pill--estado' : ''), dataset: { marca: m.k } }, m.texto));
+  // Leva 110 · marca com ícone: selo redondo com o desenho e, se houver mais de uma, o número; nada de nome na carta
+  if (est) for (const m of est.marcas) pills.push(m.icone
+    ? h('span', { class: 'tb-pill tb-pill--icone', dataset: { marca: m.k }, title: m.rotulo || m.texto }, Icone(m.icone, { tamanho: 12 }), m.qtd > 1 ? h('b', {}, String(m.qtd)) : null)
+    : h('span', { class: 'tb-pill' + (m.k === 'dano' ? ' tb-pill--neg' : m.k === 'ataca' || m.k === 'bloqueia' || m.k === 'alvo' ? ' tb-pill--estado' : ''), dataset: { marca: m.k } }, m.texto));
   else {
     for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' },
       k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}`));
     if (card.damage) pills.push(h('span', { class: 'tb-pill tb-pill--neg' }, `${card.damage} dano`));
   }
   for (const t of opts.tags || []) pills.push(h('span', { class: 'tb-pill tb-pill--tag' }, t));
-  if (opts.pilha && opts.pilha.total > 1) pills.push(h('span', { class: 'tb-pill tb-pill--qtd', dataset: { marca: 'pilha' } }, `×${opts.pilha.total}` + (opts.pilha.viradas && opts.pilha.viradas < opts.pilha.total ? ` · ${opts.pilha.viradas} virada(s)` : '')));
+  if (opts.pilha && opts.pilha.total > 1) pills.push(h('span', { class: 'tb-pill tb-pill--qtd', dataset: { marca: 'pilha' }, title: `${opts.pilha.total} cópias` + (opts.pilha.viradas && opts.pilha.viradas < opts.pilha.total ? `, ${opts.pilha.viradas} virada(s)` : '') }, `×${opts.pilha.total}`,
+    // Leva 110 · "· 2 virada(s)" não cabia na carta: vira o ícone de virar com o número
+    opts.pilha.viradas && opts.pilha.viradas < opts.pilha.total ? h('span', { class: 'tb-pill__viradas' }, Icone('virar', { tamanho: 10 }), String(opts.pilha.viradas)) : null));
   const sick = est ? est.sick : !!card.sick;
   const tapped = opts.pilha ? opts.pilha.viradas === opts.pilha.total && opts.pilha.total > 0 : !!card.tapped;
   const pt = est && est.pt ? `${est.pt.p}/${est.pt.t}` : null;
   const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? `${pt}` : null,
-    ...(est ? est.marcas.filter(m => m.k !== 'dano' && m.k !== 'marcador').map(m => m.texto) : [])].filter(Boolean).join(', ');
+    ...(est ? est.marcas.filter(m => m.k !== 'dano' && m.k !== 'marcador').map(m => m.rotulo || m.texto) : [])].filter(Boolean).join(', ');
   const el = h('button', {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
     'aria-label': fala,
@@ -10408,8 +10522,9 @@ function TableCard(card, opts = {}) {
   },
   h('span', { class: 'tb-card__face' },
     card.image ? h('img', { src: card.image, alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, card.name),
-    card.image && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
     pt ? h('span', { class: 'tb-card__pt', dataset: { pt } }, pt) : null),
+  // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
+  card.image && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
   sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
   // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
@@ -10565,21 +10680,26 @@ function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [
 /** O momento de prioridade: frase curta e ação primária sempre no mesmo lugar. */
 /** E50 P4 · o momento e a dica cabem numa linha só quando há espaço; cortados, viram um botão que abre um
     balão por cima da bandeja com o texto inteiro. `data-cortado` é medido depois de montar. */
-function PriorityBanner({ title, hint, actions, tone }) {
-  const texto = h('button', { class: 'tb-banner__text', type: 'button', 'aria-expanded': 'false', title: hint ? `${title} — ${hint}` : title },
-    h('strong', {}, title), hint ? h('span', {}, hint) : null, Icone('descer', { tamanho: 14, classe: 'tb-banner__mais' }));
+function PriorityBanner({ title, hint, actions, tone, momento }) {
+  // Leva 110 · com `momento`, a bandeja mostra só o ícone e a palavra do momento, sempre inteiros; título e dica
+  // ficam no texto falado e no balão (um toque). Sem `momento`, o comportamento antigo (texto cortado vira balão).
+  const chip = momento ? h('span', { class: 'tb-momento', dataset: { tom: momento.tom || 'normal' } }, Icone(momento.icone, { tamanho: 18, classe: 'tb-momento__icone' }),
+    h('span', { class: 'tb-momento__rotulo' }, momento.curto), momento.qtd > 1 ? h('b', { class: 'tb-momento__qtd' }, String(momento.qtd)) : null) : null;
+  const texto = h('button', { class: 'tb-banner__text', type: 'button', 'aria-expanded': 'false', title: hint ? `${title} — ${hint}` : title, dataset: momento ? { compacto: 'true' } : {} },
+    chip, h('strong', { class: momento ? 'tb-banner__completo' : '' }, title), hint ? h('span', { class: momento ? 'tb-banner__completo' : '' }, hint) : null, Icone('descer', { tamanho: 14, classe: 'tb-banner__mais' }));
   const balao = h('div', { class: 'tb-balao', role: 'note', hidden: true },
     h('div', { class: 'tb-balao__texto' }, h('strong', {}, title), hint ? h('p', {}, hint) : null),
     IconButton('fechar', 'Fechar', { variant: 'ghost', classe: 'tb-balao__fechar', onClick: () => abre(false) }));
   const banner = h('div', { class: 'tb-banner', dataset: { tone: tone || 'default' }, role: 'status', 'aria-live': 'polite' },
-    texto, h('div', { class: 'tb-banner__actions' }, ...(actions || [])), balao);
+    texto, h('div', { class: 'tb-banner__actions' }, ...(actions || []).filter(Boolean)), balao);
   const fora = e => { if (!balao.contains(e.target) && e.target !== texto && !texto.contains(e.target)) abre(false); };
   function abre(sim) {
     balao.hidden = !sim; texto.setAttribute('aria-expanded', String(sim)); banner.dataset.balao = String(sim);
     if (sim) setTimeout(() => document.addEventListener('pointerdown', fora, { once: true }), 0); else document.removeEventListener('pointerdown', fora);
   }
   texto.addEventListener('click', () => abre(balao.hidden));
-  const mede = () => { if (!texto.isConnected) return; const cortado = [...texto.querySelectorAll('strong, span')].some(el => el.scrollWidth > el.clientWidth + 1); texto.dataset.cortado = String(cortado); };
+  const mede = () => { if (!texto.isConnected) return; if (momento) { texto.dataset.cortado = 'false'; return; }
+    const cortado = [...texto.querySelectorAll('strong, span')].some(el => el.scrollWidth > el.clientWidth + 1); texto.dataset.cortado = String(cortado); };
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(mede);
   if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(() => { if (!texto.isConnected) return ro.disconnect(); mede(); }); ro.observe(texto); }
   return banner;
@@ -10624,6 +10744,10 @@ function buildSetup({ format, seed, seats, cards, manaCheck = false, mode = 'ass
 }
 
 function nameOf(s, oid) { const o = s.objects[oid]; return o ? o.name : '?'; }
+// Leva 110 · registro: zona com preposição certa e vida como "perdeu 2 (20 → 18)"
+const DE_ZONA = { library: 'do grimório', hand: 'da mão', battlefield: 'do campo', graveyard: 'do cemitério', exile: 'do exílio', command: 'da zona de comando', stack: 'da pilha' };
+const PARA_ZONA = { library: 'para o grimório', hand: 'para a mão', battlefield: 'para o campo', graveyard: 'para o cemitério', exile: 'para o exílio', command: 'para a zona de comando', stack: 'para a pilha' };
+function linhaDeVida(nome, antes, depois) { const d = depois - antes; return `${nome} ${d < 0 ? 'perdeu' : 'ganhou'} ${Math.abs(d)} de vida (${antes} → ${depois})`; }
 function who(s, p) { return s.players[p] ? s.players[p].name : '?'; }
 
 /** S4 · uma linha por efeito aplicado pelo script. */
@@ -10634,27 +10758,28 @@ function effectLine(ev) {
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t} (indestrutível)` : `${ev.name} destruiu ${t}`;
     case 'exile': return `${ev.name} exilou ${t}`;
-    case 'bounce': return `${ev.name} devolveu ${t} para a mão`;
+    case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
     case 'counter': return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : `${ev.name} anulou ${t}`;
-    case 'counters': return `${ev.name} recebeu ${n} marcador(es) +1/+1`;
-    case 'adapt': return n ? `${ev.name} adaptou: ${n} marcador(es) +1/+1` : `${ev.name} já tinha marcador: adaptar não fez nada`;
-    case 'return_chosen': return `${t} devolveu uma permanente para a mão com ${ev.name}`;
-    case 'draw': return `${t} comprou ${n} com ${ev.name}`;
+    case 'counters': return `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
+    case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
+    case 'return_chosen': return `${ev.name}: ${t} devolveu uma permanente à mão`;
+    case 'draw': return `${t} comprou ${plural(n, 'carta', 'cartas')} (${ev.name})`;
     case 'explore': return ev.failed ? `${ev.name}: nada para explorar` : ev.land ? `${ev.name}: ${ev.target || ''} explorou e achou ${ev.land} (foi para a mão)`.replace(': explorou', ' explorou')
       : `${ev.name}: ${ev.target || 'a criatura'} explorou, ganhou +1/+1${ev.top ? ` (${ev.top} no topo)` : ''}`;
-    case 'gain_per_revealed': return `${t} revelou cartas e ganhou ${n} de vida com ${ev.name}`;
-    case 'discard': return `${ev.name}: ${t} descarta ${n}`;
-    case 'token': return `${ev.name} criou ${n} ficha ${ev.name === t ? '' : ''}`.trim();
+    case 'gain_per_revealed': return `${t} ganhou ${n} de vida (${ev.name})`;
+    case 'discard': return `${t} descarta ${plural(n, 'carta', 'cartas')} (${ev.name})`;
+    // o evento da ficha traz o nome da ficha e quem a controla (antes: "Goblin criou 1 ficha")
+    case 'token': return `${t} criou a ficha ${ev.name}`;
     case 'attach': return `${ev.name} foi anexada a ${t}`;
     case 'fog': return `${ev.name}: nenhum dano de combate neste turno`;
     case 'no_prevention': return `${ev.name}: nenhum dano pode ser prevenido neste turno`;
     case 'prevent_color': return `${ev.name}: nenhum dano de fonte ${{ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' }[ev.target] || ev.target} neste turno`;
-    case 'gain': return `${t} ganhou ${n} de vida com ${ev.name}`;
-    case 'lose': return `${t} perdeu ${n} de vida com ${ev.name}`;
-    case 'pump': return `${t} recebeu ${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness} até o fim do turno`;
+    case 'gain': return `${t} ganhou ${n} de vida (${ev.name})`;
+    case 'lose': return `${t} perdeu ${n} de vida (${ev.name})`;
+    case 'pump': return `${t} ganhou ${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness} até o fim do turno (${ev.name})`;
     case 'tap': return `${ev.name} virou ${t}`;
     case 'untap': return `${ev.name} desvirou ${t}`;
-    default: return `${ev.name}: efeito aplicado`;
+    default: return `${ev.name} resolveu`;
   }
 }
 
@@ -10664,68 +10789,73 @@ function describe(before, a, events, after) {
   const P = who(before, a.p);
   switch (a.t) {
     case 'mulligan': L.push(`${P} fez mulligan`); break;
-    case 'keep': L.push(`${P} manteve ${before.zones[a.p].hand.length - (a.bottom || []).length} carta(s)`); break;
+    case 'keep': L.push(`${P} manteve a mão (${plural(before.zones[a.p].hand.length - (a.bottom || []).length, 'carta', 'cartas')})`); break;
     case 'play_land': L.push(`${P} jogou ${nameOf(before, a.oid)}`); break;
     case 'cast': {
       const o = before.objects[a.oid];
-      const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
+      const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', ');
       const extra = a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
-      L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` → ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` → ${alvo}` : ''));
+      // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
+      L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
       break;
     }
-    case 'move': L.push(`${P} moveu ${nameOf(before, a.oid)}: ${ZONE_PT[before.objects[a.oid].zone]} → ${ZONE_PT[a.to]}`); break;
+    case 'move': L.push(`${P} moveu ${nameOf(before, a.oid)} ${DE_ZONA[before.objects[a.oid].zone] || 'de ' + ZONE_PT[before.objects[a.oid].zone]} ${PARA_ZONA[a.to] || 'para ' + ZONE_PT[a.to]}`); break;
     case 'tap': L.push(`${P} ${after.objects[a.oid].tapped ? 'virou' : 'desvirou'} ${nameOf(before, a.oid)}`); break;
-    case 'life': L.push(`${who(before, a.target)}: vida ${before.players[a.target].life} → ${after.players[a.target].life}`); break;
-    case 'draw': L.push(`${who(before, a.target ?? a.p)} comprou ${a.n || 1}`); break;
-    case 'counter': L.push(`${P} ${(a.delta || 1) > 0 ? 'pôs' : 'tirou'} marcador em ${nameOf(before, a.oid)}`); break;
+    case 'life': L.push(linhaDeVida(who(before, a.target), before.players[a.target].life, after.players[a.target].life)); break;
+    case 'draw': L.push(`${who(before, a.target ?? a.p)} comprou ${plural(a.n || 1, 'carta', 'cartas')}`); break;
+    case 'counter': L.push(`${P} ${(a.delta || 1) > 0 ? 'pôs' : 'tirou'} um marcador ${(a.delta || 1) > 0 ? 'em' : 'de'} ${nameOf(before, a.oid)}`); break;
     case 'damage': L.push(`${nameOf(before, a.oid)} recebeu ${a.delta || 1} de dano`); break;
     case 'commander_damage': L.push(`${who(before, a.target)} recebeu ${a.delta || 1} de dano de comandante de ${nameOf(before, a.source)}`); break;
     case 'discard': L.push(`${P} descartou ${nameOf(before, a.oid)}`); break;
     case 'pick': L.push(`${P} escolheu ${nameOf(before, a.oid)}`); break;
-    case 'pick_target': L.push(`${P} escolheu o alvo do gatilho`); break;
+    case 'pick_target': { const op = ((before.pending || {}).options || [])[a.index]; const nome = op ? (op.player != null ? who(before, op.player) : nameOf(before, op.oid)) : null;
+      L.push(nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
     case 'transmute': L.push(`${P} transmutou ${nameOf(before, a.oid)}`); break;
     case 'cycle': L.push(`${P} ciclou ${nameOf(before, a.oid)}`); break;
     case 'ninjutsu': L.push(`${P} usou ninjutsu: ${nameOf(before, a.attacker)} voltou e ${nameOf(before, a.oid)} entrou atacando`); break;
     case 'cast_madness': L.push(`${P} conjurou ${nameOf(before, before.pending.oid)} por insanidade`); break;
     case 'decline_madness': L.push(`${P} deixou ${nameOf(before, before.pending.oid)} ir para o cemitério`); break;
-    case 'pay': L.push(`${P} pagou para a mágica não ser anulada`); break;
-    case 'decline': L.push(`${P} deixou a mágica ser anulada`); break;
-    case 'pick_done': L.push(`${P} terminou a escolha`); break;
+    // Leva 110 · "pagar" serve a dois casos: custo de "a menos que pague" e custo opcional de efeito
+    case 'pay': { const pd = before.pending || {}; const alvo = before.objects[pd.target];
+      L.push(pd.then ? `${P} pagou ${pd.cost || 'o custo'}: ${pd.name} faz efeito` : `${P} pagou ${pd.cost || 'o custo'}: ${alvo ? alvo.name : 'a mágica'} não foi anulada`); break; }
+    case 'decline': { const pd = before.pending || {}; const alvo = before.objects[pd.target];
+      L.push(pd.then ? `${P} recusou o efeito de ${pd.name}` : `${P} não pagou ${pd.cost || 'o custo'}: ${alvo ? alvo.name : 'a mágica'} será anulada`); break; }
+    case 'pick_done': break; // as escolhas já viraram linhas; "terminou a escolha" não registrava nada
     case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
     case 'choose_color': L.push(`${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break;
     case 'concede': L.push(`${P} desistiu`); break;
     case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o)).join(', ')}` : `${P} não atacou`); break;
-    case 'block': L.push(a.blocks.length ? `${P} bloqueou: ${a.blocks.map(([b, x]) => `${nameOf(before, b)} → ${nameOf(before, x)}`).join(', ')}` : `${P} não bloqueou`); break;
+    case 'block': L.push(a.blocks.length ? `${P} bloqueou ${a.blocks.map(([b, x]) => `${nameOf(before, x)} com ${nameOf(before, b)}`).join('; ')}` : `${P} não bloqueou`); break;
     case 'tap_mana': { const o = before.objects[a.oid]; const opt = (E.productions(before, o)[a.option || 0] || []).map(c => `{${c}}`).join(''); L.push(`${P} gerou ${opt} com ${o.name}`); break; }
     case 'companion': L.push(`${P} pôs o companheiro ${nameOf(before, a.oid)} na mão${a.free ? ' (sem pagar)' : ` ({${E.COMPANION_COST}})`}`); break;
     case 'activate': {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
-      L.push(`${P} ativou ${nameOf(before, a.oid)}${alvo ? ` → ${alvo}` : ''}`); break;
+      L.push(`${P} ativou ${nameOf(before, a.oid)}${alvo ? ` · alvo: ${alvo}` : ''}`); break;
     }
-    case 'order_trigger': L.push(`${P} escolheu a ordem dos gatilhos`); break;
-    case 'add_mana': L.push(`${P} ${(a.delta || 1) > 0 ? 'adicionou' : 'tirou'} {${a.color}} da reserva`); break;
+    case 'order_trigger': L.push(`${P} ordenou os gatilhos na pilha`); break;
+    case 'add_mana': L.push(`${P} ${(a.delta || 1) > 0 ? 'adicionou' : 'tirou'} {${a.color}} ${(a.delta || 1) > 0 ? 'à' : 'da'} reserva`); break;
     default: break;
   }
   if (a.t === 'cast' && a.free) L[L.length - 1] += ' (sem pagar)';
   // dano de combate e mortes que acontecem ao passar
   if (a.t === 'pass' || a.t === 'block' || a.t === 'attack') {
-    after.players.forEach((pl, i) => { const d = pl.life - before.players[i].life; if (d) L.push(`${pl.name}: vida ${before.players[i].life} → ${pl.life}`); });
+    after.players.forEach((pl, i) => { if (pl.life !== before.players[i].life) L.push(linhaDeVida(pl.name, before.players[i].life, pl.life)); });
     for (const o of Object.values(after.objects)) if (before.objects[o.oid] && before.objects[o.oid].zone === 'battlefield' && o.zone === 'graveyard' && !events.some(e => e.oid === o.oid)) L.push(`${o.name} morreu`);
   }
   for (const ev of events) {
     if (ev.kind === 'effect') L.push(effectLine(ev));
-    if (ev.kind === 'fizzled') L.push(`${ev.name} foi anulada: o alvo não estava mais lá`);
-    if (ev.kind === 'storm') L.push(`Tempestade: ${ev.name} copiou ${ev.amount} vez(es)`);
-    if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${ev.amount} carta(s))`);
-    if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} não teve alvo legal`);
+    if (ev.kind === 'fizzled') L.push(`${ev.name} não resolveu: alvo ilegal`);
+    if (ev.kind === 'storm') L.push(`Tempestade: ${plural(ev.amount, 'cópia', 'cópias')} de ${ev.name}`);
+    if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${plural(ev.amount, 'carta', 'cartas')})`);
+    if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} sem alvo legal: saiu da pilha`);
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
     if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${TRIGGER_PT[ev.when] || ev.when})`);
-    if (ev.kind === 'resolved' && !ev.scripted) L.push(`${ev.name} resolveu → ${ZONE_PT[ev.to]}`);
+    if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
     if (ev.kind === 'died') L.push(`${ev.name} morreu`);
-    if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu: ${REASON_PT[ev.reason] || ev.reason}`);
-    if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim de partida: empate' : `Fim de partida: ${who(after, ev.winner)} venceu`);
+    if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu a partida: ${REASON_PT[ev.reason] || ev.reason}`);
+    if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim da partida: empate' : `Fim da partida: ${who(after, ev.winner)} venceu`);
   }
   if (after.status === 'playing' && (before.status !== 'playing' || after.turn.number !== before.turn.number))
     L.push(`— Turno ${after.turn.number} · ${who(after, after.turn.active)} —`);
@@ -10777,8 +10907,10 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
   function fechaResumoDoBot() {
     if (!options.bot || !motivosDoBot.length) return;
     const nome = (match.state.players[options.bot.seat] || {}).name || 'Bot';
+    // Leva 110 · o resumo do turno do bot repetia as linhas dos eventos ("Conjurou X", "Baixou um terreno") e aparecia
+    // como mais um item da fase seguinte; fica só no texto corrido (mesa.lines), fora da linha do tempo
     const resumo = [`Resumo do turno ${turnoDoBot} · ${nome}`, ...__m25.resumoDoTurno(motivosDoBot).map(l => '  ' + l)];
-    lines.push(...resumo); anota(resumo, match.state);
+    lines.push(...resumo);
     motivosDoBot = [];
   }
 
@@ -10817,7 +10949,10 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           const j = robo.jogada(s, b);
           if (j && j.acao) {
             events.push(...record(j.acao));
-            lines.push(`${s.players[b].name}: ${j.motivo}`); anota([`${s.players[b].name}: ${j.motivo}`], s);   // H14
+            // Leva 110 · o registro guarda o motivo do bot só quando ele explica uma decisão (tem "porquê" depois dos
+            // dois-pontos) e não é passar a prioridade: "passei: nada melhorava" a cada passo e "conjurei X" repetindo
+            // a linha do evento enchiam o registro sem dizer nada
+            if (j.acao.t !== 'pass' && /: /.test(j.motivo)) { lines.push(`${s.players[b].name}: ${j.motivo}`); anota([`${s.players[b].name}: ${j.motivo}`], s); }   // H14
             turnoDoBot = s.turn.number; motivosDoBot.push(j.motivo);
             continue;
           }
@@ -10944,20 +11079,23 @@ function estadoDaCarta(s, o, plano = null) {
   if (criatura) { try { const st = E.stats(s, o); pt = { p: st.power, t: st.toughness }; } catch (e) { pt = null; } }
   const marcas = [];
   if (o.token) marcas.push({ k: 'ficha', texto: 'ficha' });
-  if (o.faceDown) marcas.push({ k: 'virada-baixo', texto: 'face para baixo' });
+  if (o.faceDown) marcas.push({ k: 'virada-baixo', texto: 'face para baixo', icone: 'virar', rotulo: 'Virada para baixo' });
   const alvoDe = (s.stack || []).filter(id => { const it = s.objects[id]; return it && (it.targets || []).some(t => t && t.oid === o.oid); }).map(id => s.objects[id].name);
   let anel = null;
   // E50 P2 · depois dos bloqueios, a carta diz com quem está travada ("← Wall Guard") ou que passou livre
+  // Leva 110 · marca que cita outra carta vira ícone na carta (o nome não cabe e quebrava o desenho);
+  // o nome inteiro fica no rótulo: espiar a carta e leitor de tela
   const bloqueadores = (o.blockedBy || []).filter(b => s.objects[b]);
-  if (o.attacking != null && bloqueadores.length) { marcas.push({ k: 'ataca', texto: `← ${s.objects[bloqueadores[0]].name.split(',')[0]}${bloqueadores.length > 1 ? ` +${bloqueadores.length - 1}` : ''}` }); anel = 'ataca'; }
-  else if (o.attacking != null && s.turn.step === 'combat_blockers' && !(s.pending && s.pending.kind === 'blockers')) { marcas.push({ k: 'ataca', texto: 'livre' }); anel = 'ataca'; }
-  else if (o.attacking != null) { marcas.push({ k: 'ataca', texto: 'ataca' }); anel = 'ataca'; }
-  else if (o.blocking != null && o.blocking !== false) { marcas.push({ k: 'bloqueia', texto: s.objects[o.blocking] ? `→ ${s.objects[o.blocking].name.split(',')[0]}` : 'bloqueia' }); anel = 'bloqueia'; }
-  if (alvoDe.length) { marcas.push({ k: 'alvo', texto: `alvo de ${alvoDe[0].split(',')[0]}` }); anel = anel || 'alvo'; }
-  if (o.attachedTo && s.objects[o.attachedTo]) marcas.push({ k: 'anexo', texto: `→ ${s.objects[o.attachedTo].name.split(',')[0]}` });
+  const nomes = ids => ids.map(x => s.objects[x].name).join(', ');
+  if (o.attacking != null && bloqueadores.length) { marcas.push({ k: 'ataca', texto: `← ${s.objects[bloqueadores[0]].name.split(',')[0]}${bloqueadores.length > 1 ? ` +${bloqueadores.length - 1}` : ''}`, icone: 'escudo', qtd: bloqueadores.length, rotulo: `Bloqueada por ${nomes(bloqueadores)}` }); anel = 'ataca'; }
+  else if (o.attacking != null && s.turn.step === 'combat_blockers' && !(s.pending && s.pending.kind === 'blockers')) { marcas.push({ k: 'ataca', texto: 'livre', rotulo: 'Sem bloqueio' }); anel = 'ataca'; }
+  else if (o.attacking != null) { marcas.push({ k: 'ataca', texto: 'ataca', icone: 'espada', rotulo: 'Atacando' }); anel = 'ataca'; }
+  else if (o.blocking != null && o.blocking !== false) { marcas.push({ k: 'bloqueia', texto: s.objects[o.blocking] ? `→ ${s.objects[o.blocking].name.split(',')[0]}` : 'bloqueia', icone: 'escudo', rotulo: s.objects[o.blocking] ? `Bloqueia ${s.objects[o.blocking].name}` : 'Bloqueando' }); anel = 'bloqueia'; }
+  if (alvoDe.length) { marcas.push({ k: 'alvo', texto: `alvo de ${alvoDe[0].split(',')[0]}`, icone: 'alvo', qtd: alvoDe.length, rotulo: `Alvo de ${alvoDe.join(', ')}` }); anel = anel || 'alvo'; }
+  if (o.attachedTo && s.objects[o.attachedTo]) marcas.push({ k: 'anexo', texto: `→ ${s.objects[o.attachedTo].name.split(',')[0]}`, icone: 'anexo', rotulo: `Anexada a ${s.objects[o.attachedTo].name}` });
   const anexos = s.zones.flatMap(z => z.battlefield).filter(x => s.objects[x].attachedTo === o.oid);
-  if (anexos.length) marcas.push({ k: 'encantada', texto: anexos.length === 1 ? `com ${s.objects[anexos[0]].name.split(',')[0]}` : `+${anexos.length} anexadas` });
-  if (plano && plano.blocks && plano.blocks.has(o.oid)) { const alvo = s.objects[plano.blocks.get(o.oid)]; marcas.push({ k: 'bloqueia', texto: `→ ${alvo ? alvo.name.split(',')[0] : '?'}` }); anel = 'bloqueia'; }
+  if (anexos.length) marcas.push({ k: 'encantada', texto: anexos.length === 1 ? `com ${s.objects[anexos[0]].name.split(',')[0]}` : `+${anexos.length} anexadas`, icone: 'anexo', qtd: anexos.length, rotulo: `Com ${nomes(anexos)}` });
+  if (plano && plano.blocks && plano.blocks.has(o.oid)) { const alvo = s.objects[plano.blocks.get(o.oid)]; marcas.push({ k: 'bloqueia', texto: `→ ${alvo ? alvo.name.split(',')[0] : '?'}`, icone: 'escudo', rotulo: alvo ? `Bloqueia ${alvo.name}` : 'Bloqueando' }); anel = 'bloqueia'; }
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
   for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}` }); }
   if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
@@ -10965,6 +11103,26 @@ function estadoDaCarta(s, o, plano = null) {
   try { impeto = impeto || !!E.hasKeyword(s, o, 'haste'); } catch (e) { impeto = impeto || (o.tempKeywords || []).includes('haste'); }   // H13
   const enjoo = !!o.sick && criatura && !impeto;
   return { pt, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
+}
+/** Leva 110 · o momento na bandeja da mão: um ícone e uma palavra (ou duas), sempre inteiros.
+    O texto completo (título e dica) fica no balão que abre ao toque. */
+const MOMENTO_PASSO = { untap: ['virar', 'Desvirar'], upkeep: ['sol', 'Manutenção'], draw: ['comprar', 'Compra'], main1: ['jogar', 'Principal 1'],
+  combat_begin: ['espada', 'Combate'], combat_attackers: ['espada', 'Ataque'], combat_blockers: ['escudo', 'Bloqueio'], combat_damage: ['raio', 'Dano'],
+  combat_end: ['espada', 'Combate'], main2: ['jogar', 'Principal 2'], end: ['lua', 'Final'], cleanup: ['lua', 'Limpeza'] };
+const MOMENTO_DECISAO = { attackers: ['espada', 'Atacar'], blockers: ['escudo', 'Bloquear'], discard: ['mao', 'Descartar'], madness: ['raio', 'Insanidade'],
+  may_pay: ['ampulheta', 'Decidir'], unless: ['ampulheta', 'Decidir'], pick: ['alvo', 'Escolher'], pick_target: ['alvo', 'Alvo'], choose_color: ['alvo', 'Cor'],
+  choose_type: ['alvo', 'Tipo'], choose_mode: ['alvo', 'Modo'], choose_pair: ['anexo', 'Emparelhar'], choose_dungeon: ['seguir', 'Masmorra'], choose_room: ['seguir', 'Sala'],
+  triggers: ['camadas', 'Gatilhos'], sacrifice: ['lixeira', 'Sacrificar'], commander_zone: ['voltar', 'Comandante'], free_cast: ['jogar', 'Conjurar'] };
+function momentoDaBandeja(s, v) {
+  const de = ([icone, curto], tom = 'normal') => ({ icone, curto, tom });
+  if (s.status === 'mulligan') return de(['mao', 'Mão inicial'], 'decisao');
+  if (s.status === 'over') return de(['fim', 'Fim'], 'normal');
+  const pd = s.pending;
+  if (pd && pd.p === v) return de(MOMENTO_DECISAO[pd.kind] || ['alvo', 'Decidir'], 'decisao');
+  if (pd || s.turn.priority !== v) return de(['ampulheta', 'Aguardando'], 'espera');
+  if ((s.stack || []).length) return { icone: 'camadas', curto: 'Pilha', qtd: s.stack.length, tom: 'decisao' };
+  const passo = MOMENTO_PASSO[s.turn.step] || ['jogar', s.turn.step];
+  return { ...de(passo, s.turn.active === v ? 'meu' : 'oponente') };
 }
 /** U7 · de quem é a vez, do ponto de vista de quem segura o aparelho (v).
     Turno e prioridade são coisas diferentes: no seu turno o oponente pode estar respondendo. */
@@ -11223,7 +11381,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -11242,7 +11400,7 @@ const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge
 const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja } = __m17;
 const { onLongPress } = __m20;
 const { norm } = __m7;
-const { FORMATS } = __m14;
+const { FORMATS, coresDaLista } = __m14;
 const { deckCoverage, dungeonByName, roomById } = __m23; // S57 · masmorra
 const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
@@ -11280,6 +11438,20 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     const contaDeck = d => { let main = 0, side = 0; for (const e of d.entries) { if (e.zone === 'side') side += e.qty; else main += e.qty; } return { main, side }; };
     const optsDe = lista => lista.map(d => { const c = contaDeck(d); return { value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format} · ${c.main} cartas${c.side ? ` (+${c.side} na reserva)` : ''}` }; });
     const opts = optsDe(all);
+    // Leva 110 · escolher a lista: a linha da estante (cores, formato, principal e reserva), não um <select> de texto
+    let guardadas = new Map();
+    try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
+    const linhaDe = (d, extra) => { const c = contaDeck(d); return __m15.DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: c.main, side: c.side, ...extra }); };
+    function seletor(id, rotulo, valor, aoEscolher) {
+      const d = byId(valor);
+      const botao = h('button', { class: 'deck-picker', id, type: 'button', 'aria-haspopup': 'dialog', 'aria-label': `${rotulo}: ${d ? d.name : 'nenhuma'}. Trocar`,
+        onClick: () => Dialog({ title: rotulo, body: h('div', { class: 'ds-list deck-picker__lista', role: 'radiogroup', 'aria-label': rotulo },
+          ...visiveis().map(x => linhaDe(x, { dataset: { deckId: x.id }, tag: 'button', attrs: { type: 'button', role: 'radio', 'aria-checked': String(x.id === valor), onClick: () => { closeDialog(); aoEscolher(x.id); } },
+            fim: x.id === valor ? h('span', { class: 'deck-item__ja', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 20 })) : h('span', { class: 'deck-item__ja' }) }))),
+          actions: [Button('Voltar', { onClick: closeDialog })] }) },
+        d ? linhaDe(d, { tag: 'span', fim: Icone('descer', { tamanho: 18, classe: 'ds-list__seta' }) }) : Text('Escolha uma lista', { tone: 'muted' }));
+      return ChipField(rotulo, botao);
+    }
     const mineField = h('div', {});
     const formatBox = h('div', { id: 'mesa-format' });
     function paintFormat() {
@@ -11300,7 +11472,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     function paintMine() {
       const lista = visiveis();
       mount(mineField, lista.length
-        ? Field('Sua lista', Select(optsDe(lista), { id: 'mesa-mine', value: state.mine, onChange: e => { state.mine = e.target.value; paintCoverage(); } }))
+        ? seletor('mesa-mine', 'Sua lista', state.mine, id => { state.mine = id; paintMine(); paintCoverage(); })
         : Note('Você não tem lista neste modo de jogo. Toque em "Listas prontas" para adicionar uma.', { tone: 'warning' }));
     }
     const covBox = h('div', { id: 'mesa-coverage' });
@@ -11371,13 +11543,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     const theirsField = h('div', {});
     const ehBot = () => state.opponent === 'shark';
     const paintOpponent = () => mount(theirsField, ehBot() ? Stack({},
-      Text('O Shark joga com a lista escolhida abaixo e diz no registro por que fez cada jogada.', { size: 'sm', tone: 'muted' }),
-      Field('Lista do bot', Select(optsDe(visiveis()), { id: 'mesa-bot-deck', value: state.theirs, onChange: e => { state.theirs = e.target.value; } })))
+      Text('O Shark joga com a lista escolhida abaixo e explica no registro as decisões que tomar.', { size: 'sm', tone: 'muted' }),
+      seletor('mesa-bot-deck', 'Lista do bot', state.theirs, id => { state.theirs = id; paintOpponent(); }))
       : state.opponent === 'hotseat' ? Stack({},
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
-      Field('Lista do oponente', Select(optsDe(visiveis()), { id: 'mesa-theirs', value: state.theirs, onChange: e => { state.theirs = e.target.value; } }))) : null);
+      seletor('mesa-theirs', 'Lista do oponente', state.theirs, id => { state.theirs = id; paintOpponent(); })) : null);
     // B5 · o bot só existe no motor completo (ADR-05): sem a lista 100% coberta o motor
     // não resolve tudo sozinho, e o bot decidiria no escuro. U10 · um bot só: o Shark.
     // U2 parte 3 · os três oponentes num segmentado com ícone; o nome longo fica no title e na nota abaixo
@@ -11669,6 +11841,28 @@ function createTableScreen({ store }) {
       h('div', { class: 'tb-sheet__actions', id: 'tb-escolha' }, ...opcoes.map((a, i) => Button(finais[i], { block: true, variant: 'primary', onClick: () => { closeDialog(); act(a); } })))),
       actions: [Button('Voltar', { onClick: closeDialog })] });
   }
+  /** Leva 110 · escolha de alvo fora da folha da carta (insanidade, conjurar de graça): todos os alvos,
+   *  jogadores primeiro, numa folha que rola. Antes o aviso mostrava só os três primeiros botões. */
+  function escolherAlvo(titulo, opcoes) {
+    const s = table.state;
+    if (opcoes.length === 1) return act(opcoes[0]);
+    const eu = table.viewer();
+    // grupos: jogadores, suas permanentes, as do oponente (12 "Grizzly Bear" sem dono não dizem nada)
+    const grupo = a => { const x = (a.targets || [])[0]; if (!x || x.player != null) return 0; const o = s.objects[x.oid]; return o && o.controller === eu ? 1 : 2; };
+    const ord = opcoes.map((a, i) => [a, i]).sort((x, y) => grupo(x[0]) - grupo(y[0]) || x[1] - y[1]).map(x => x[0]);
+    const nome = x => (x.player != null ? (x.player === eu ? 'Você' : s.players[x.player].name) : s.objects[x.oid].name);
+    const estado = x => { const o = x.oid != null && s.objects[x.oid]; if (!o) return null;
+      const p = [o.tapped ? 'virada' : null, o.damage ? `${o.damage} de dano` : null, (o.counters || {}).p1p1 ? `+${o.counters.p1p1}/+${o.counters.p1p1}` : null].filter(Boolean); return p.length ? p.join(' · ') : null; };
+    const botao = a => { const ts = a.targets || []; const st = ts.length === 1 ? estado(ts[0]) : null;
+      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); act(a); }, ...(st ? { title: st } : {}) }, ); };
+    const oponente = s.players.find((_, i) => i !== eu);
+    const TITULOS = ['Jogadores', 'Suas permanentes', `Permanentes de ${oponente ? oponente.name : 'oponente'}`];
+    const secoes = [0, 1, 2].map(g => ord.filter(a => grupo(a) === g)).map((lista, g) => lista.length ? Stack({ style: { gap: 'var(--space-2)' } },
+      h('p', { class: 'ds-text ds-text--xs ds-text--muted tb-alvos__grupo' }, TITULOS[g]),
+      ...lista.map(a => { const b = botao(a); const st = (a.targets || []).length === 1 ? estado(a.targets[0]) : null; if (st) b.append(h('span', { class: 'tb-alvos__estado' }, st)); return b; })) : null).filter(Boolean);
+    Dialog({ title: titulo, body: h('div', { class: 'tb-sheet__actions', id: 'tb-alvos' }, ...secoes),
+      actions: [Button('Voltar', { onClick: closeDialog })] });
+  }
   /** X: um seletor com − e +, o total em símbolos e a confirmação. Só valores pagáveis. */
   function escolherX(titulo, opcoes, xs) {
     const s = table.state, a0 = opcoes[0], o = s.objects[a0.oid], f = s.facts[o.name];
@@ -11799,7 +11993,7 @@ function createTableScreen({ store }) {
     const est = T.estadoDaCarta(s, o, plan);
     if (peekEl) peekEl.remove();
     peekEl = CardPeek({ name: o.name, image: imgOf(o.name, 'normal'), tipo: est.tipo, pt: est.pt, custo: d.costTxt || null, zona: T.ZONE_PT[o.zone] || null,
-      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.map(m => m.texto)], oracle: oracleOf(o.name),
+      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.map(m => m.rotulo || m.texto)], oracle: oracleOf(o.name),
       acoes: d.acoes.filter(a => !a.disabled) });
     simbolizar(peekEl); // U3
     document.body.appendChild(peekEl);
@@ -11887,6 +12081,10 @@ function createTableScreen({ store }) {
 
   function dock(s, v) {
     const pl = s.players[v];
+    // Leva 110 · na bandeja da mão o momento vira ícone + palavra; a escolha de cartas (Duress, olhar o topo) mostra
+    // o texto inteiro, porque ali a instrução é a tela toda
+    const compacto = !(s.pending && s.pending.kind === 'pick' && s.pending.p === v);
+    const PriorityBanner = o => __m17.PriorityBanner({ ...(compacto ? { momento: T.momentoDaBandeja(s, v) } : {}), ...o });
     let banner;
     if (s.status === 'over') {
       banner = PriorityBanner({ title: s.winner == null ? 'Empate' : `${s.players[s.winner].name} venceu`, hint: s.players.filter(x => x.lost).map(x => `${x.name}: ${x.lossReason}`).join(' · '), tone: 'accent',
@@ -11922,7 +12120,7 @@ function createTableScreen({ store }) {
       const carta = s.objects[s.pending.oid];
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_madness');
       banner = PriorityBanner({ title: `Insanidade: conjurar ${carta ? carta.name : 'a carta'} por ${s.pending.cost}?`, hint: 'Ela foi descartada e está no exílio esperando sua decisão.', tone: 'warning',
-        actions: [...opts.slice(0, 3).map((x, i) => Button(x.targets ? `Conjurar → ${x.targets.map(y => targetName(s, y)).join(' + ')}` : 'Conjurar', { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-madness', onClick: () => act(x) })),
+        actions: [opts.length ? Button(opts.length > 1 ? 'Conjurar…' : 'Conjurar', { variant: 'primary', id: 'tb-madness', onClick: () => escolherAlvo(`Conjurar ${carta ? carta.name : 'a carta'}`, opts) }) : null,
           Button('Deixar no cemitério', { id: 'tb-madness-no', onClick: () => act({ t: 'decline_madness', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'may_pay' && s.pending.p === v) {
       const alvo = s.objects[s.pending.target];
@@ -11952,8 +12150,9 @@ function createTableScreen({ store }) {
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_free');
       banner = PriorityBanner({ title: `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
         hint: opts.length ? 'Vale só para uma das cartas que você acabou de comprar.' : 'Nenhuma das compradas pode ser conjurada agora.',
-        actions: [...opts.slice(0, 4).map((x, i) => Button(`${nameOf(s, x.oid)}${x.targets ? ` → ${x.targets.map(y => targetName(s, y)).join(' + ')}` : ''}`,
-          { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-cast-free', onClick: () => act(x) })),
+        // Leva 110 · um botão por carta; os alvos abrem a folha completa
+        actions: [...[...new Set(opts.map(x => x.oid))].map((oid, i) => { const da = opts.filter(x => x.oid === oid);
+          return Button(da.length > 1 ? `${nameOf(s, oid)}…` : nameOf(s, oid), { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-cast-free', onClick: () => escolherAlvo(`Conjurar ${nameOf(s, oid)}`, da) }); }),
           Button('Não conjurar', { id: 'tb-decline-free', onClick: () => act({ t: 'decline_free', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'unless' && s.pending.p === v) {
       // S60 · "perde 2 a menos que descarte/sacrifique"
@@ -12015,7 +12214,7 @@ function createTableScreen({ store }) {
     } else if (s.turn.priority === v && !s.stack.length && T.resumoDosBloqueios(s, v)) {
       // E50 P2 · a janela depois dos bloqueios: quem bloqueou quem, e que este é o momento de responder
       const rb = T.resumoDosBloqueios(s, v);
-      banner = PriorityBanner({ title: rb.titulo, hint: `${rb.texto}. ${rb.dica}`, tone: 'warning',
+      banner = PriorityBanner({ title: rb.titulo, hint: `${rb.texto}. ${rb.dica}`, tone: 'warning', momento: { icone: 'escudo', curto: 'Bloqueios', tom: 'decisao' },
         actions: [Button(rb.atacante ? 'Ir ao dano' : 'Passar', { variant: 'primary', id: 'tb-pass', onClick: () => act({ t: 'pass', p: v }) })] });
     } else if (s.turn.priority === v) {
       const top = s.stack.length ? s.objects[s.stack[s.stack.length - 1]].name : null;
@@ -12083,8 +12282,7 @@ function createTableScreen({ store }) {
     const puxador = h('button', { class: 'tb-hand__toggle', id: 'tb-hand-toggle', type: 'button', 'aria-controls': 'tb-hand-body', 'aria-expanded': String(band.aberta),
       'aria-label': rotuloAria(band.aberta), title: 'Mão', disabled: band.forcada, onClick: () => alterna() },
       Icone('mao', { tamanho: 22, classe: 'tb-hand__icone' }),
-      h('span', { class: 'tb-hand__count' }, String(band.total)),
-      Icone('subir', { tamanho: 16, classe: 'tb-hand__chevron' }));
+      h('span', { class: 'tb-hand__count' }, String(band.total)));
     const grip = h('div', { class: 'tb-dock__grip', 'aria-hidden': 'true' }, h('span', {}));
     grip.addEventListener('click', () => alterna());
     const AVISO = { 'mão inicial': 'Decida a mão inicial', descarte: 'Escolha o que descartar' };
@@ -13527,7 +13725,7 @@ const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo }) },
-  { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks }) },
+  { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },

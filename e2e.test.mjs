@@ -48,6 +48,11 @@ const DB = Object.fromEntries([
   card('Forest', 'Basic Land — Forest', [], 0),
   // Leva 107 · texto oficial conferido em 30/09/2026 (Scryfall/.listas/oficiais.json)
   { ...card('Duress', 'Sorcery', ['B'], 1), mana_cost: '{B}', oracle_text: 'Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.' },
+  // Leva 110 · textos oficiais conferidos em 30/09/2026 (.listas/oficiais.json: Fiery Temper, Grab the Prize, Utopia Sprawl)
+  { ...card('Fiery Temper', 'Instant', ['R'], 3), mana_cost: '{1}{R}{R}', oracle_text: 'Fiery Temper deals 3 damage to any target.\nMadness {R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)' },
+  { ...card('Grab the Prize', 'Sorcery', ['R'], 2), mana_cost: '{1}{R}', oracle_text: "As an additional cost to cast this spell, discard a card.\nDraw two cards. If the discarded card wasn't a land card, Grab the Prize deals 2 damage to each opponent." },
+  { ...card('Utopia Sprawl', 'Enchantment — Aura', ['G'], 1), mana_cost: '{G}', oracle_text: 'Enchant Forest\nAs Utopia Sprawl enters the battlefield, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.' },
+  { ...card('Mountain', 'Basic Land — Mountain', [], 0), image_uris: { small: 'https://cards.scryfall.io/small/front/x/mountain.jpg', normal: 'https://cards.scryfall.io/normal/front/x/mountain.jpg' } },
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
@@ -147,6 +152,12 @@ async function createDeck(page, base, name, text, format = 'pauper') {
   await page.waitForSelector('.deck-summary');
 }
 const PAUPER = '20 Island\n4 Delver of Secrets\n4 Preordain\n4 Counterspell';
+// leva 110: a lista da partida se escolhe numa folha com as linhas da estante (antes era um <select> de texto)
+async function escolheLista(page, id, qual) {
+  await page.click('#' + id); await page.waitForSelector('.deck-picker__lista');
+  const alvo = typeof qual === 'string' ? page.locator(`.deck-picker__lista [data-deck-id="${qual}"]`) : page.locator('.deck-picker__lista .deck-item', { has: page.locator('.deck-item__nome', { hasText: qual }) });
+  await alvo.first().click(); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
+}
 const tapHand = async (page, name) => { await page.locator('.tb-hand .tb-card', { hasText: name }).first().click(); };
 const handCardByImgless = name => `.tb-hand .tb-card[aria-label^="${name}"]`;
 
@@ -342,7 +353,8 @@ test('e2e · C2/C9 coleção: somar, editar quantidade, remover, adicionar e fil
   // a lista reflete a coleção: Sol Ring voltou, Counterspell sobra
   await page.goto(base + '#/listas');
   await page.waitForSelector('#decks-list .ds-list__item');
-  assert.match(await page.innerText('#decks-list'), /tenho 33 de 33/);
+  // leva 110: a posse virou barra fina na linha da lista; o número por extenso fica no nome falado
+  assert.equal(await page.getAttribute('#decks-list .deck-item__posse', 'aria-label'), 'tenho 33 de 33');
   assert.deepEqual(errors, []);
 });
 
@@ -1426,7 +1438,8 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   await page.click('#tb-log');
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /Você atacou com Sky Pike/);
-  assert.match(log, /Goldfish: vida 20 → 18/);
+  // leva 110: registro reescrito — vida como "perdeu N (antes → depois)", bloqueio como "bloqueou X com Y", alvo como "· alvo:"
+  assert.match(log, /Goldfish perdeu 2 de vida \(20 → 18\)/);
   assert.match(log, /Você gerou|conjurou Sky Pike/);
   assert.deepEqual(errors, []);
 });
@@ -1474,8 +1487,8 @@ test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', {
   await page.click('#tb-reveal');
   await page.click('#tb-log');
   const log = await page.innerText('.ds-dialog');
-  assert.match(log, /bloqueou: Wall Guard → Sky Pike/);
-  assert.doesNotMatch(log, /vida 20 → 18/);
+  assert.match(log, /bloqueou Sky Pike com Wall Guard/);
+  assert.doesNotMatch(log, /\(20 → 18\)/);
   assert.deepEqual(errors, []);
 });
 
@@ -1510,7 +1523,7 @@ test('e2e · S4/S5 mágica com script resolve sozinha e o registro conta o efeit
   assert.equal(await page.locator('#tb-adj').count(), 0, 'com script não há adjudicação');
   await page.click('#tb-log');
   const log = await page.innerText('.ds-dialog');
-  assert.match(log, /conjurou Lightning Bolt → Goldfish/);
+  assert.match(log, /conjurou Lightning Bolt · alvo: Goldfish/);
   assert.match(log, /Lightning Bolt causou 3 de dano a Goldfish/);
   assert.deepEqual(errors, []);
 });
@@ -1521,12 +1534,11 @@ test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita a
   await createDeck(page, base, 'Coberta', '30 Island\n20 Lightning Bolt', 'livre');
   await page.goto(base + '#/mesa');
   await page.waitForSelector('#mesa-mode [data-mode="full"]');
-  const opts = await page.$$eval('#mesa-mine option', os => os.map(o => o.textContent));
-  await page.selectOption('#mesa-mine', { index: opts.findIndex(o => /Com carta manual/.test(o)) });
+  await escolheLista(page, 'mesa-mine', /Com carta manual/);
   await page.waitForFunction(() => /75% completo|% completo/.test(document.querySelector('#mesa-coverage').innerText));
   assert.equal(await page.locator('#mesa-mode [data-mode="full"]').isDisabled(), true, 'lista com carta manual não libera o motor completo');
 
-  await page.selectOption('#mesa-mine', { index: opts.findIndex(o => /Coberta/.test(o)) });
+  await escolheLista(page, 'mesa-mine', /^Coberta$/);
   await page.waitForFunction(() => /100% completo/.test(document.querySelector('#mesa-coverage').innerText));
   await page.click('#mesa-mode [data-mode="full"]');
   await page.fill('#mesa-seed', '4');
@@ -2023,7 +2035,7 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
   assert.ok(turnos.length >= 3, 'vários turnos');
   assert.match(turnos[0], /^Turno \d+ · (Ana|Bia)/);
   assert.match(turnos.join('\n'), /Principal 1/);
-  assert.match(turnos.join('\n'), /vida 20 → 19/);
+  assert.match(turnos.join('\n'), /\(20 → 19\)/);
   const ordem = await page.locator('#tb-timeline .tb-log__turn').evaluateAll(ts => Number(ts[0].dataset.turn) > Number(ts[1].dataset.turn));
   assert.ok(ordem, 'o mais recente vem primeiro');
   assert.doesNotMatch(await page.innerText('#tb-timeline'), /— Turno/, 'sem separadores soltos');
@@ -2083,7 +2095,8 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7, 'sete listas de Pauper');
 
   await page.click('[data-starter-add="Pauper Elves"]');
-  await page.waitForSelector('text=já na sua estante');
+  // leva 110: "já na sua estante" virou o ícone de marcado, com o mesmo nome falado
+  await page.waitForSelector('#starter-list [aria-label="Já na sua estante"]');
   assert.equal(await page.locator('[data-starter-add="Pauper Elves"]').count(), 0, 'não oferece adicionar de novo');
 
   await page.click('#starter-back');
@@ -2097,7 +2110,9 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   assert.match(await page.innerText('#mesa-format'), /Pauper/, 'o modo Pauper aparece na tela de jogar');
   await page.click('[data-table-format="pauper"]');
   await page.waitForSelector('#mesa-mine');
-  assert.match(await page.innerText('#mesa-mine'), /Pauper Elves/, 'a lista do modo escolhido é selecionável');
+  await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista');
+  assert.match(await page.innerText('.deck-picker__lista'), /Pauper Elves/, 'a lista do modo escolhido é selecionável');
+  await page.click('.ds-dialog >> text=Voltar');
 
   // S58 · lista pronta com todas as cartas escritas: 100% e motor completo liberado
   // mesmo sem a Scryfall responder (aqui ela não conhece nenhuma dessas cartas).
@@ -2111,10 +2126,10 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   await page.goto(base + '#/mesa');
   await page.click('[data-table-format="pauper"]');
   await page.waitForSelector('#mesa-mine');
-  const opt = await page.locator('#mesa-mine option').evaluateAll(os => os.map(o => ({ v: o.value, t: o.textContent })));
-  const boros = opt.find(o => /Boros Bully/.test(o.t));
-  assert.ok(boros, 'a lista adicionada aparece na tela de jogar: ' + JSON.stringify(opt));
-  await page.selectOption('#mesa-mine', boros.v);
+  await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista');
+  const opt = await page.$$eval('.deck-picker__lista .deck-item__nome', os => os.map(o => o.textContent));
+  assert.ok(opt.some(o => /Boros Bully/.test(o)), 'a lista adicionada aparece na tela de jogar: ' + JSON.stringify(opt));
+  await page.click('.deck-picker__lista >> text=Pauper Boros Bully'); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
   await page.waitForFunction(() => /100% completo/.test(document.querySelector('#mesa-coverage')?.innerText || ''), null, { timeout: 8000 });
   assert.match(await page.innerText('#mesa-engine-version'), /motor v\d+/, 'a tela mostra a versão do motor');
   assert.equal(await page.locator('[data-mode="full"]').isDisabled(), false, 'motor completo liberado');
@@ -2672,7 +2687,9 @@ test('e2e · E50 balão da bandeja: texto cortado marca, um toque abre o balão 
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '7'); await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep'); await page.waitForTimeout(400);
   const texto = page.locator('.tb-dock__bar .tb-banner__text');
-  assert.equal(await texto.getAttribute('data-cortado'), 'true', 'em 360 a dica da mão inicial não cabe');
+  // leva 110: a bandeja não corta mais o texto — mostra o momento em ícone + palavra inteira e o resto vai para o balão
+  assert.equal(await texto.getAttribute('data-compacto'), 'true', 'o momento em forma curta');
+  assert.equal(await page.innerText('.tb-dock__bar .tb-momento'), 'Mão inicial');
   assert.equal(await texto.getAttribute('aria-expanded'), 'false');
   assert.ok((await texto.boundingBox()).height >= 44, 'o texto é um alvo de toque');
   assert.equal(await page.locator('.tb-dock__bar .tb-banner__mais').isVisible(), true, 'indicador de que há mais');
@@ -2779,8 +2796,10 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   assert.equal(await page.locator('#tb-pass').innerText(), 'Ir ao dano');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/janela-bloqueios.png' }); await page.click('.tb-dock__bar .tb-banner__text'); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/janela-balao.png' }); await page.click('.tb-dock__bar .tb-banner__text'); }
   // marcas: o atacante mostra o bloqueador; o bloqueador mostra quem bloqueia
-  assert.match(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').first().getAttribute('aria-label'), /← Wall Guard/);
-  assert.match(await page.locator('.tb-side--opp .tb-card[aria-label*="Wall Guard"]').first().getAttribute('aria-label'), /→ Sky Pike/);
+  // leva 110: o nome falado virou frase ("Bloqueada por Wall Guard" no lugar de "← Wall Guard"); na carta fica só o ícone
+  assert.match(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').first().getAttribute('aria-label'), /Bloqueada por Wall Guard/);
+  assert.match(await page.locator('.tb-side--opp .tb-card[aria-label*="Wall Guard"]').first().getAttribute('aria-label'), /Bloqueia Sky Pike/);
+  assert.equal(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"] .tb-pill--icone[data-marca="ataca"] [data-icone="escudo"]').count(), 1, 'atacante bloqueado: selo do escudo');
   const vidaAntes = await page.innerText('#tb-life-opp');
   // resposta: Raio no bloqueador
   await handCard(page, 'Lightning Bolt').click();
@@ -2802,10 +2821,10 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   await reveal(page);
   await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
   const log = await page.innerText('.ds-dialog');
-  assert.match(log, /bloqueou: Wall Guard → Sky Pike/);
+  assert.match(log, /bloqueou Sky Pike com Wall Guard/);
   assert.match(log, /conjurou Lightning Bolt/);
   assert.match(log, /Wall Guard morreu/, 'o bloqueador morreu (3 do Raio + 2 de combate ≥ 4)');
-  assert.doesNotMatch(log, /vida 20 → 18/, 'o Sky Pike continuou bloqueado: nada passou');
+  assert.doesNotMatch(log, /\(20 → 18\)/, 'o Sky Pike continuou bloqueado: nada passou');
   assert.equal(await page.innerText('#tb-life-opp'), vidaAntes);
   assert.deepEqual(errors, []);
 });
@@ -2920,7 +2939,7 @@ test('e2e · E51 reserva nas listas já salvas: migração ao abrir, aviso com s
   assert.match(await page.innerText('#deck-counts'), /61 no deck · 15 na reserva/);
   // a partida carrega só o deck: 60 cartas da Elves
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
-  await page.selectOption('#mesa-mine', 'velha1');
+  await escolheLista(page, 'mesa-mine', 'velha1');
   assert.match(await page.innerText('#mesa-reserva'), /Reserva: 15 carta/);
   await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
   const n = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return Object.values(s.objects).filter(o => o.owner === 0 && !o.token && !o.ability).length; });
@@ -2987,8 +3006,12 @@ test('e2e · sem sobreposição: todas as listas prontas na estante, listas e pr
   }
   // a reserva de cada lista de Pauper aparece como 60 + 15
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
-  const reservas = await page.$$eval('#decks-list .deck-item__reserva', els => els.map(e => e.textContent));
-  assert.deepEqual(reservas, Array(7).fill('60 cartas + 15 na reserva'));
+  // leva 110: principal e reserva viraram ícone com número; o texto por extenso fica no nome falado
+  const contas = await page.$$eval('#decks-list .deck-item', els => els.map(e => [e.querySelector('.deck-item__main'), e.querySelector('.deck-item__reserva')].map(x => x && x.getAttribute('aria-label')).join(' + ')).filter(x => /reserva/.test(x)));
+  assert.deepEqual(contas, Array(7).fill('60 cartas no deck + 15 na reserva'));
+  // só o nome em palavras: o resto da linha é símbolo, selo do formato e número
+  const palavras = await page.$$eval('#decks-list .deck-item__meta', els => els.map(e => [...e.children].filter(x => !x.matches('.ds-pips')).map(x => x.innerText.trim()).join(' ')));
+  assert.ok(palavras.every(x => /^(PAUPER|COMMANDER) \d+( \d+)?$/.test(x)), 'meta sem frase: ' + JSON.stringify(palavras));
   assert.deepEqual(errors, []);
 });
 
@@ -3239,5 +3262,132 @@ test('e2e · leva 109 scanner automático de verdade: liga sozinho, lê sem cart
   // pausar para de ler
   await page.click('[data-auto]');
   await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'false');
+  assert.deepEqual(errors, []);
+});
+
+// Leva 110 · cinco ajustes de mesa e listas: alvo de qualquer coisa pela insanidade, selo de anexo no lugar do nome,
+// bandeja com o momento em ícone, linha da lista em símbolos.
+test('e2e · leva 110 Fiery Temper mira você e o oponente; Utopia Sprawl vira selo na Floresta; momento da bandeja em ícone', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Raiva', '12 Mountain\n12 Forest\n8 Fiery Temper\n8 Grab the Prize\n8 Utopia Sprawl\n12 Grizzly Bear', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  await page.waitForSelector('.tb-dock__bar .tb-momento');
+  // o momento: ícone + palavra inteira, sem reticências; o toque abre o texto completo
+  const mom = await page.evaluate(() => { const el = document.querySelector('.tb-dock__bar .tb-momento__rotulo'); return { txt: el.innerText, cabe: el.scrollWidth <= el.clientWidth + 1, icone: !!document.querySelector('.tb-dock__bar .tb-momento svg') }; });
+  assert.ok(mom.icone && mom.cabe && mom.txt.length > 2, 'momento inteiro: ' + JSON.stringify(mom));
+  await page.click('.tb-dock__bar .tb-banner__text');
+  await page.locator('.tb-dock__bar .tb-balao').waitFor({ state: 'visible' });
+  assert.ok((await page.innerText('.tb-dock__bar .tb-balao')).length > mom.txt.length, 'o balão traz o detalhe');
+  await page.click('.tb-dock__bar .tb-balao button[aria-label="Fechar"]');
+  await auditaTela(page, 'bandeja com o momento em ícone');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/bandeja-momento.png' });
+
+  // campo: Floresta com Utopia Sprawl anexada, três Ursos de cada lado (a mesa cheia); Fiery Temper na mão
+  const p = await page.evaluate(() => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority, o = 1 - p;
+    const de = (q, n) => Object.values(M.estado().objects).find(x => x.owner === q && x.name === n && x.zone === 'library');
+    const floresta = de(p, 'Forest'); M.act({ t: 'move', p, oid: floresta.oid, to: 'battlefield' });
+    M.act({ t: 'move', p, oid: de(p, 'Mountain').oid, to: 'battlefield' });
+    for (const q of [p, o]) for (let i = 0; i < 6; i++) M.act({ t: 'move', p, oid: de(q, 'Grizzly Bear').oid, to: 'battlefield' });
+    const aura = de(p, 'Utopia Sprawl'); M.act({ t: 'move', p, oid: aura.oid, to: 'hand' });
+    M.act({ t: 'cast', p, oid: aura.oid, targets: [{ oid: floresta.oid }], free: true });
+    return p;
+  });
+  for (let i = 0; i < 8 && await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.stack.length > 0 || !!s.pending; }); i++) {
+    await reveal(page);
+    if (await page.locator('.tb-banner .ds-btn:has-text("Verde")').count()) await page.click('.tb-banner .ds-btn:has-text("Verde")');
+    else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
+    else await page.evaluate(() => { const s = window.__estanteMesa.estado(); if (!s.pending) window.__estanteMesa.act({ t: 'pass', p: s.turn.priority }); });
+    await page.waitForTimeout(150);
+  }
+  await reveal(page);
+  const selo = await page.evaluate(() => {
+    const floresta = [...document.querySelectorAll('.tb-side--me .tb-card')].find(c => /Com Utopia Sprawl/.test(c.getAttribute('aria-label') || ''));
+    if (!floresta) return null;
+    const pill = floresta.querySelector('.tb-pill[data-marca="encantada"]'); const cb = floresta.getBoundingClientRect(), pb = pill.getBoundingClientRect();
+    return { icone: !!pill.querySelector('svg'), texto: pill.innerText.trim(), dentro: pb.left >= cb.left - 1 && pb.right <= cb.right + 1 };
+  });
+  assert.ok(selo, 'a Floresta fala "Com Utopia Sprawl"');
+  assert.deepEqual(selo, { icone: true, texto: '', dentro: true }, 'selo de anexo: ícone, sem nome, dentro da carta');
+  // toda pílula de toda carta cabe na carta
+  const fora = await page.evaluate(() => [...document.querySelectorAll('.tb-card')].flatMap(c => [...c.querySelectorAll('.tb-pill')].filter(x => { const a = c.getBoundingClientRect(), b = x.getBoundingClientRect(); return b.width > a.width + 1; }).map(x => x.textContent)));
+  assert.deepEqual(fora, [], 'nenhuma pílula passa da largura da carta');
+  // carta virada: o nome continua deitado na horizontal e inteiro (antes girava junto e saía "Razortrap Go…" de pé)
+  await page.evaluate(p => { const M = window.__estanteMesa, s = M.estado(); const m = s.zones[p].battlefield.find(o => s.objects[o].name === 'Mountain'); M.act({ t: 'tap', p, oid: m }); }, p);
+  await page.waitForSelector('.tb-side--me .tb-card[data-tapped="true"] .tb-card__label');
+  const rot = await page.evaluate(() => { const c = document.querySelector('.tb-side--me .tb-card[data-tapped="true"]'), l = c.querySelector('.tb-card__label'); const b = l.getBoundingClientRect();
+    return { deitado: b.width > b.height, inteiro: l.scrollHeight <= l.clientHeight + 1, dentro: l.closest('.tb-card__face') === null }; });
+  assert.deepEqual(rot, { deitado: true, inteiro: true, dentro: true }, 'nome da carta virada na horizontal');
+  if (process.env.SHOTS) { await page.click('#tb-hand-toggle'); await page.waitForTimeout(350);
+    await page.evaluate(() => document.querySelector('.tb-side--me .tb-card[data-tapped="true"]').scrollIntoView({ block: 'center' })); await page.waitForTimeout(150);
+    await page.screenshot({ path: process.env.SHOTS + '/carta-virada.png' }); await page.click('#tb-hand-toggle'); await page.waitForTimeout(300); }
+  await page.evaluate(p => { const M = window.__estanteMesa, s = M.estado(); const m = s.zones[p].battlefield.find(o => s.objects[o].name === 'Mountain'); M.act({ t: 'tap', p, oid: m }); }, p); // desvira: o {R} da insanidade sai dela
+  await auditaTela(page, 'Floresta com Utopia Sprawl');
+  if (process.env.SHOTS) { await page.click('#tb-hand-toggle'); await page.waitForTimeout(350);
+    await page.evaluate(() => { const c = [...document.querySelectorAll('.tb-side--me .tb-card')].find(x => /Com Utopia/.test(x.getAttribute('aria-label'))); c.scrollIntoView({ block: 'center' }); });
+    await page.waitForTimeout(150); await page.screenshot({ path: process.env.SHOTS + '/selo-anexo.png' }); await page.click('#tb-hand-toggle'); }
+  // recolhida, a bandeja continua mostrando o momento inteiro (antes da correção o chip ficava vazio)
+  await page.click('#tb-hand-toggle'); await page.waitForTimeout(300);
+  assert.ok((await page.innerText('.tb-dock__bar .tb-momento')).trim().length > 2, 'momento visível com a mão recolhida');
+  await page.click('#tb-hand-toggle'); await page.waitForTimeout(300);
+
+  // Fiery Temper descartado pelo Grab the Prize: a insanidade oferece todos os alvos, você e o oponente primeiro
+  await page.evaluate(p => {
+    const M = window.__estanteMesa, s = M.estado();
+    const de = n => Object.values(M.estado().objects).find(x => x.owner === p && x.name === n && x.zone === 'library');
+    const grab = de('Grab the Prize'), temper = de('Fiery Temper');
+    M.act({ t: 'move', p, oid: grab.oid, to: 'hand' }); M.act({ t: 'move', p, oid: temper.oid, to: 'hand' });
+    M.act({ t: 'cast', p, oid: grab.oid, pay: { discard: [temper.oid] }, free: true });
+  }, p);
+  await reveal(page);
+  await page.waitForSelector('#tb-madness', { timeout: 5000 }).catch(async () => assert.fail('sem insanidade: ' + JSON.stringify(await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { pd: s.pending, st: s.stack.map(o => s.objects[o].name), prio: s.turn.priority, banner: document.querySelector('.tb-banner') && document.querySelector('.tb-banner').textContent }; }))));
+  await page.click('#tb-madness');
+  await page.waitForSelector('#tb-alvos');
+  const alvos = await page.locator('#tb-alvos .ds-btn').allInnerTexts();
+  const outro = await page.evaluate(p => window.__estanteMesa.estado().players[1 - p].name, p);
+  assert.deepEqual(alvos.slice(0, 2).sort(), [outro, 'Você'].sort(), 'os dois jogadores, primeiro: ' + JSON.stringify(alvos));
+  assert.equal(alvos.filter(x => x === 'Grizzly Bear').length, 12, 'e as 12 criaturas');
+  await auditaTela(page, 'alvos da insanidade');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/alvos-insanidade.png' });
+  await page.locator('#tb-alvos .ds-btn', { hasText: outro }).click();
+  // conjurada pela insanidade, mirando o oponente: sai do exílio para a pilha
+  await page.waitForFunction(p => { const s = window.__estanteMesa.estado(); const ft = Object.values(s.objects).find(o => o.owner === p && o.name === 'Fiery Temper' && o.zone !== 'library');
+    return ft && ft.zone !== 'exile' && !(s.pending && s.pending.kind === 'madness'); }, p);
+  const ft = await page.evaluate(p => { const s = window.__estanteMesa.estado(); const o = Object.values(s.objects).find(o => o.owner === p && o.name === 'Fiery Temper' && o.zone !== 'library'); return { zona: o.zone, alvo: o.zone === 'stack' ? o.targets : null }; }, p);
+  assert.ok(ft.zona === 'stack' ? ft.alvo[0].player === 1 - p : ft.zona === 'graveyard', 'Fiery Temper conjurada: ' + JSON.stringify(ft));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 110 lista em símbolos: cores, formato, principal e reserva com número, só o nome em palavras', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Izzet Teste', '20 Island\n4 Counterspell\n4 Lightning Bolt\n\nSideboard\n2 Sky Pike', 'pauper');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item');
+  const linha = await page.evaluate(() => { const it = document.querySelector('#decks-list .deck-item');
+    return { cores: it.querySelector('.ds-pips') && it.querySelector('.ds-pips').getAttribute('aria-label'), formato: it.querySelector('.deck-item__formato').innerText,
+      main: it.querySelector('.deck-item__main').getAttribute('aria-label'), side: it.querySelector('.deck-item__reserva').getAttribute('aria-label'),
+      nome: it.querySelector('.deck-item__nome').innerText, meta: [...it.querySelector('.deck-item__meta').children].filter(x => !x.matches('.ds-pips')).map(x => x.innerText.trim()).join(' ') }; });
+  assert.deepEqual(linha, { cores: 'identidade: azul e vermelho', formato: 'PAUPER', main: '28 cartas no deck', side: '2 na reserva', nome: 'Izzet Teste', meta: 'PAUPER 28 2' });
+  await auditaTela(page, 'listas em símbolos');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/listas.png' });
+  // preparar partida: a lista escolhida aparece como a linha da estante, e trocar abre a folha com todas
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-mine .deck-item');
+  assert.equal(await page.locator('select#mesa-mine').count(), 0, 'sem <select> de texto');
+  assert.equal(await page.innerText('#mesa-mine .deck-item__nome'), 'Izzet Teste');
+  await auditaTela(page, 'preparar partida com a lista em símbolos');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/preparar.png' });
+  await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista [role="radio"][aria-checked="true"]');
+  await auditaTela(page, 'folha de escolher a lista');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/escolher-lista.png' });
+  await page.click('.ds-dialog >> text=Voltar');
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list .deck-item');
+  await auditaTela(page, 'listas prontas em símbolos');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/prontas.png' });
   assert.deepEqual(errors, []);
 });
