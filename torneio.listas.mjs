@@ -2,7 +2,7 @@
 // Uso: node torneio.listas.mjs <forte> <fraco> <rodadas> <semente>   ex.: node torneio.listas.mjs shark shark-v2 4 20000
 // Cada confronto entre as sete listas é jogado nos dois lados e nos dois assentos. Os dados das cartas vêm de
 // .listas/oficiais.json (texto oficial); cor, valor de mana e palavras-chave são derivados do texto.
-// Níveis: 'shark' (v4, informação justa; 'shark:N' muda o número de mundos), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
+// Níveis: 'shark' (atual; 'shark:N' muda o número de mundos), 'shark-v4' (informação justa, congelado), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
 import { readFileSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
 const { engine: E, bot: B, starter: ST, decks: D } = loadModules();
@@ -33,6 +33,8 @@ const listas = ST.STARTER_DECKS.filter(d => d.format === 'pauper').map(d => ({ n
 export { cartasReais, listas, partida };
 const cria = nivel => {
   if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
+  // leva 118 · 'y:tempo,terreno,cores,basePilha' = Shark v4 com as peças novas ligadas uma a uma
+  if (nivel.startsWith('y:')) return B.criaBot({ nivel: 'shark-v4', orcamentoMs: 250, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => [k, true])) });
   if (!nivel.startsWith('x:')) return B.criaBot({ nivel, orcamentoMs: 250 });
   const f = new Set(nivel.slice(2).split(',').filter(Boolean));
   const opts = { orcamentoMs: 250, agora: () => Date.now(), av: f.has('av3') ? B.avaliaV3 : B.avaliaV2, bloqueioForte: true, duplo: true, projeta: f.has('projeta'), corrida: f.has('corrida'), subconjuntos: f.has('sub'), valor: f.has('valor'), desdobra: f.has('desdobra') };
@@ -56,6 +58,7 @@ function partida(seed, n0, n1, d0, d1, max = 1500) {
 }
 if (process.argv[1] && process.argv[1].endsWith('torneio.listas.mjs')) {
 const [forte, fraco, rodadas, base] = [process.argv[2] || 'shark', process.argv[3] || 'shark-v2', +(process.argv[4] || 2), +(process.argv[5] || 100)];
+const porLista = {}; // leva 118 · vitórias e derrotas do forte por lista que ele pilotou
 let F = 0, R = 0, sem = 0, pior = 0; const ilegais = []; let k = 0;
 const t0 = Date.now();
 for (let a = 0; a < listas.length; a++) for (let b = a; b < listas.length; b++) for (let r = 0; r < rodadas; r++) for (const troca of [0, 1]) {
@@ -66,8 +69,11 @@ for (let a = 0; a < listas.length; a++) for (let b = a; b < listas.length; b++) 
   pior = Math.max(pior, g.pior);
   if (g.ilegal) ilegais.push(`${fd.name} × ${rd.name}: ${g.ilegal}`);
   if (g.v == null) { sem++; continue; }
-  if ((g.v === 0) === forteP0) F++; else R++;
+  const ganhou = (g.v === 0) === forteP0;
+  if (ganhou) F++; else R++;
+  const pd = (porLista[fd.name] = porLista[fd.name] || [0, 0]); pd[ganhou ? 0 : 1]++;
 }
 console.log(`${forte} × ${fraco} (listas Pauper): ${F}–${R} em ${F + R} decididas de ${k} · ${(100 * F / Math.max(1, F + R)).toFixed(0)}% · sem decisão ${sem} · pior jogada ${pior} ms · ${Math.round((Date.now() - t0) / 1000)} s`);
+console.log('por lista do forte: ' + Object.entries(porLista).map(([n, [v, d]]) => `${n.replace('Pauper ', '')} ${v}–${d}`).join(' · '));
 console.log('ilegais', ilegais.length, [...new Set(ilegais.map(x => x.split(': ').slice(1).join(': ')))].slice(0, 8));
 }

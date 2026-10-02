@@ -351,7 +351,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-f ✅ | Shark v3: mulligan e decisão medida em torneio (leva 115) | B | 1 | — |
 | 16º-g 🟡 | Scanner por contorno e linha do nome, medido em fotos reais (leva 116) | E39 | 1 | teste no aparelho; fotos do próprio usuário (X10) |
 | 16º-h ✅ | Shark com informação justa: decide sem ver a mão do oponente (leva 117) | B8 | 1 | — |
-| 16º-i | Shark profissional: B9 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
+| 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
+| 16º-j | Shark profissional: B9, B10 e B12 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2400,6 +2401,28 @@ anterior congelada). Ordem revista a cada leva pela leitura de partidas narradas
 | B18 | Melhor de três: troca de reserva por confronto | não usa a reserva |
 | B19 | Leitura do oponente e blefe | não aprende com o que o oponente segura |
 | B20 | Pesos afinados por torneio automático | avaliação calibrada no olho |
+
+**B11 · Sequenciamento do turno** ✅ (leva 118, 02/10/2026) — passou à frente da B9 porque a partida narrada (Jund
+Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
+- **Erros de jogo eliminados:**
+  - gastava a mana na manutenção, antes de comprar e baixar terreno → agora espera a fase principal;
+  - baixava o terreno que entra virado tendo o desvirado e mágica para conjurar → escolhe pelo que o terreno
+    permite jogar neste turno; se nada depende dele, baixa o virado e guarda o outro;
+  - baixava terreno sem a cor que a mão pedia → desempata pela cor que destrava cartas da mão;
+  - sacrificava fichas à toa com a própria mágica na pilha, e respondia pouco a mágica do oponente → a nota de
+    "passar" com a pilha cheia passou a ser a de depois de a pilha resolver (antes era tirada com a pilha parada).
+- **Medição (sete listas Pauper, 224 partidas, contra o `shark-v4` congelado):** as quatro peças juntas = **57% em
+  221 decididas (125–96)**, na borda da margem de ±7. Isoladas ficaram no ruído: manutenção + terreno 49% em 221;
+  pilha 52% em 221. Zero ações ilegais. Pior decisão sem concorrência: 270–350 ms em cinco partidas, 1126 ms em uma.
+- **Tentado e retirado:** plano de duas jogadas na fase principal (escolher a primeira jogada pela melhor dupla):
+  50% em 218 e pior tempo. Não repetir sem mudar a abordagem.
+- **Aprendizado de método:** 224 partidas só enxergam ganho de 7 pontos para cima e custam 50–70 min. Peça pequena
+  não aparece sozinha; a medição por peça precisa de amostra maior ou de partidas mais rápidas (ver B14).
+- **Erros vistos na partida narrada e ainda abertos:** segura remoção com o oponente batendo; não baixa criatura que
+  troca um por um; descarta por mão cheia.
+- **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
+  fazendo o erro), P.
+- **Depende de:** B8.
 
 ### C · Coleção
 

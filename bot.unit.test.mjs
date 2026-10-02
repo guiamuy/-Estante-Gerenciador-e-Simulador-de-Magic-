@@ -663,3 +663,64 @@ test('Leva 117 · o Shark atual é o de informação justa; o v3 fica congelado 
   const j = B.criaBot({ nivel: 'shark' }).jogada(s, p);
   assert.ok(E.legalActions(s, p).some(a => B.chaveAcao(a) === B.chaveAcao(j.acao)));
 });
+
+// Leva 118 · sequência do turno. Posições tiradas da partida narrada Jund Wildfire × Rakdos Madness (02/10/2026):
+// o v4 gastava a mana na manutenção e baixava o terreno virado tendo o desvirado e mágica para conjurar.
+/** Mesa com a lista Jund Wildfire para o jogador 0, no passo pedido, com a mão e o campo montados à mão. */
+async function mesaJund({ passo, campo = [], mao = [] }) {
+  let s = await partidaReal(5, 1, 9);
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); const z = s.zones[0];
+  for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
+  const tira = (nome, para) => { const oid = z.library.find(o => s.objects[o].name === nome); assert.ok(oid, 'a lista tem ' + nome);
+    z.library.splice(z.library.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false }); return oid; };
+  const ids = {};
+  for (const n of campo) ids[n] = tira(n, 'battlefield');
+  for (const n of mao) ids[n] = tira(n, 'hand');
+  Object.assign(s.turn, { active: 0, priority: 0, step: passo });
+  s.players[0].landPlayed = false; s.stack = []; s.pending = null;
+  return { s, ids };
+}
+const shark = nivel => B.criaBot({ nivel, agora: relogioParado });
+
+test('Leva 118 · na manutenção do próprio turno o Shark não gasta mana por conta própria; na fase principal, sim', async () => {
+  const { s, ids } = await mesaJund({ passo: 'upkeep', campo: ['Forest', 'Swamp', 'Mountain', 'Evolution Witness'] });
+  const antes = shark('shark-v4').jogada(s, 0);
+  assert.deepEqual([antes.acao.t, antes.acao.oid], ['activate', ids['Evolution Witness']], 'v4: adaptava na manutenção, antes de comprar e baixar terreno');
+  const agora = shark('shark').jogada(s, 0);
+  assert.equal(agora.acao.t, 'pass');
+  assert.match(agora.motivo, /espero a fase principal/);
+  const principal = J(s); principal.turn.step = 'main1';
+  assert.deepEqual([shark('shark').jogada(principal, 0).acao.t, shark('shark').jogada(principal, 0).acao.oid], ['activate', ids['Evolution Witness']], 'na fase principal ele usa a mana');
+});
+
+test('Leva 118 · terreno: baixa o desvirado quando ele paga uma jogada agora; senão baixa o que entra virado e guarda o outro', async () => {
+  const comJogada = await mesaJund({ passo: 'main1', campo: ['Swamp'], mao: ['Mountain', 'Drossforge Bridge', 'Krark-Clan Shaman'] });
+  const semJogada = await mesaJund({ passo: 'main1', campo: ['Swamp'], mao: ['Mountain', 'Drossforge Bridge', 'Writhing Chrysalis'] });
+  const a = shark('shark').jogada(comJogada.s, 0), b = shark('shark').jogada(semJogada.s, 0);
+  assert.deepEqual([a.acao.t, a.acao.oid], ['play_land', comJogada.ids.Mountain], 'a Montanha desvirada paga o Krark-Clan Shaman neste turno');
+  assert.deepEqual([b.acao.t, b.acao.oid], ['play_land', semJogada.ids['Drossforge Bridge']], 'nada para conjurar: a ponte entra virada sem custo e a Montanha fica para depois');
+  const va = shark('shark-v4').jogada(comJogada.s, 0), vb = shark('shark-v4').jogada(semJogada.s, 0);
+  assert.equal(comJogada.s.objects[va.acao.oid].name, semJogada.s.objects[vb.acao.oid].name, 'v4: escolhia sempre o mesmo terreno, sem olhar a mão');
+});
+
+test('Leva 118 · terreno: entre dois que não mudam o turno, baixa o que dá a cor que a mão pede', async () => {
+  const { s } = await mesaJund({ passo: 'main1', campo: ['Swamp', 'Drossforge Bridge'], mao: ['Drossforge Bridge', 'Slagwoods Bridge', 'Evolution Witness'] });
+  const j = shark('shark').jogada(s, 0);
+  assert.equal(j.acao.t, 'play_land');
+  assert.equal(s.objects[j.acao.oid].name, 'Slagwoods Bridge', 'a mão tem carta verde e nenhuma fonte de verde em campo');
+  assert.equal(s.objects[shark('shark-v4').jogada(s, 0).acao.oid].name, 'Drossforge Bridge', 'v4: baixava a ponte que não destrava nada');
+});
+
+test('Leva 118 · passar com a pilha cheia vale o que a pilha resolve: o Shark não sacrifica as fichas à toa com a própria mágica na pilha', async () => {
+  let { s, ids } = await mesaJund({ passo: 'main1', campo: ['Swamp', 'Mountain', 'Forest', 'Forest'], mao: ['Writhing Chrysalis'] });
+  s.players[0].landPlayed = true;
+  s = act(s, E.legalActions(s, 0).find(a => a.t === 'cast' && a.oid === ids['Writhing Chrysalis']));
+  for (let i = 0; i < 6 && (s.stack.length > 1 || s.turn.priority !== 0) && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.stack.length, 1, 'a Chrysalis está na pilha');
+  const fichas = s.zones[0].battlefield.filter(o => s.objects[o].name === 'Eldrazi Spawn');
+  assert.equal(fichas.length, 2, 'as duas fichas já entraram');
+  assert.equal(shark('shark-v4').jogada(s, 0).acao.t, 'activate', 'v4: sacrificava a ficha — a nota de usar a habilidade incluía a Chrysalis resolvendo, a de passar não');
+  assert.equal(shark('shark').jogada(s, 0).acao.t, 'pass');
+});
