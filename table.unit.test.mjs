@@ -562,3 +562,19 @@ test('Leva 114 · quem começa: a escolha entra no setup e o embaralhamento da s
   assert.equal(a0.turn.active, 0); assert.equal(a1.turn.active, 1);
   assert.deepEqual(J(a1.zones[0].hand.map(o => a1.objects[o].name)), J(livre.zones[0].hand.map(o => livre.objects[o].name)), 'mesma mão com a mesma semente');
 });
+
+test('Leva 115 · na mesa, o Shark faz mulligan de mão sem terreno, manda cartas para o fundo e diz por quê no registro', () => {
+  // deck com 2 terrenos em 60: a mão inicial quase certamente vem sem terreno
+  const semTerreno = [{ name: 'Island', qty: 2, zone: 'main' }, { name: 'Counterspell', qty: 58, zone: 'main' }];
+  const setup = T.buildSetup({ format: 'livre', seed: 21, cards: CARDS, seats: [{ name: 'Você', deck: { entries: PAUPER_DECK } }, { name: 'Shark', deck: { entries: semTerreno } }], mode: 'full' });
+  const mesa = T.createTable(setup, { options: { autoPass: true, bot: { nivel: 'shark', seat: 1 } } });
+  mesa.act({ t: 'keep', p: 0, bottom: [] });
+  const s = mesa.state, bot = s.players[1];
+  assert.equal(bot.kept, true, 'o Shark decidiu a mão sozinho');
+  assert.ok(bot.mulligans >= 1 && bot.mulligans <= 3, 'fez mulligan e parou até o terceiro: ' + bot.mulligans);
+  const naMao = Object.values(s.objects).filter(o => o.owner === 1 && o.zone === 'hand').length, comprou = s.turn.active === 1 && s.turn.number > 1 ? 1 : 0;
+  assert.ok(naMao <= 7 - bot.mulligans + 1, `mão com ${naMao} depois de ${bot.mulligans} mulligan(s)`);
+  assert.match(mesa.lines.join('\n'), /Shark fez mulligan/);
+  assert.match(mesa.lines.join('\n'), /Shark: mulligan: mão sem terreno/);
+  void comprou;
+});

@@ -346,6 +346,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-c ✅ | Scanner de alto padrão (leva 112) | E39 | 1 | calibração fina depende do diagnóstico do aparelho |
 | 16º-d ✅ | Modo único (motor completo), cores do deck principal, coleção reordenada (leva 113) | E43 | 1 | — |
 | 16º-e ✅ | Melhor de 3 com trocas da reserva (leva 114) | E51 | 1 | — |
+| 16º-f ✅ | Shark v3: mulligan e decisão medida em torneio (leva 115) | B | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3165,6 +3166,26 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
+
+**Leva 115 · Shark v3: mulligan e decisões medidas em torneio** ✅ (pedido de 01/10/2026: "jogar como profissional, saber fazer mulligan")
+- **Medida (01/10/2026), v3 contra o v2 congelado (`shark-v2`), assentos e lados trocados, sem ação ilegal:**
+  - listas Pauper de verdade (as sete do app, todos os confrontos): **65%** em 221 partidas decididas de 224 (`node torneio.listas.mjs shark shark-v2 4 20000`);
+  - decks de teste do portão: 57% em 160 partidas; no portão ficam 60 partidas de semente fixa (60%, piso 52%).
+  - Por peça, nas listas de verdade: sem a simulação das escolhas o v3 ficava em 57%; a simulação das escolhas levou a 65%. Nos decks de teste, mulligan, corrida e formações de ataque sozinhos ficaram dentro do ruído (48–49% contra 48% do espelho); a nota sem bônus temporário com o combate projetado deu +8 pontos.
+- **O que mudou no jeito de jogar:**
+  - **mulligan (London):** mão sem terreno, com um só (em 6 ou 7 cartas), só de terreno, com seis ou mais, ou de 7 cartas com 2 ou 5 terrenos e nada barato não fica; a cada mulligan ele escolhe o fundo (terreno acima do ideal primeiro, depois a mágica mais cara); no terceiro mulligan fica com o que vier. O motivo vai para o registro.
+  - **cartas com escolha** (Winding Way, Lead the Stampede, modos, "pague ou não"): a simulação faz as escolhas até o fim antes de dar a nota. Antes a nota saía com a mágica parada no meio, e o bot nunca conjurava essas cartas (ficavam a partida inteira na mão) ou encerrava a escolha sem pegar nada.
+  - **truque de combate:** bônus "até o fim do turno" não conta na nota parada; jogada feita no meio do combate é medida depois do dano.
+  - **mana que ia sobrar:** na segunda fase principal ele conjura o que não piora a posição (compra que troca carta por carta); instantâneas ficam para o turno do oponente.
+  - **corrida:** não ataca deixando o contra-ataque que mata; mais formações de ataque (só evasivos, todos menos um, pares).
+- **Declarado:**
+  - "sempre a melhor decisão" não é garantido: é um jogador de uma jogada à frente (mais a resposta do oponente e o combate), com orçamento de 400 ms por decisão. Não planeja vários turnos, não blefa, não joga em volta de anulação.
+  - O Shark não troca cartas com a reserva na melhor de 3.
+  - Achado, não corrigido nesta leva: ao simular a resposta do oponente, o bot usa as ações legais dele, que dependem da mão dele; o cabeçalho do módulo diz que ele não vê a mão. Corrigir muda a força do bot e pede torneio próprio (próximo item do épico B).
+  - O mulligan não olha cor (terreno que não paga a mágica conta como terreno).
+- **Testes:** U mulligan (10 mãos, fundo, terceiro mulligan, ação legal, v2 mantém), corrida, bônus temporário, mana que ia sobrar (v3 conjura, v2 passava, na primeira principal espera), Winding Way (v3 conjura e pega as cartas; v2 deixava na mão); mesa: o Shark faz mulligan sozinho e explica no registro; torneio v3 × v2 (60 partidas) e quatro partidas com listas de verdade sem ação ilegal. O teste U11 passou a medir `shark-v2` × `shark-v1`.
+- **Novo no repositório:** `torneio.listas.mjs` (torneio com as listas Pauper, fora do portão; aceita ligar as peças do v3 uma a uma).
+- **Portão:** 658 verdes (587 + 71 e2e); o arquivo de torneio leva ~5 min. Motor v64 inalterado.
 
 **Leva 114 · Melhor de 3 com trocas da reserva** ✅ (pedido de 01/10/2026)
 - **Regras seguidas** (Comprehensive Rules 100.2a e 100.4a, regras de torneio 3.15; conferidas em 01/10/2026): deck construído com no mínimo 60 cartas e reserva com no máximo 15 depois das trocas; as trocas não precisam ser uma por uma; a lista volta ao original numa série nova; quem perdeu a partida anterior escolhe quem começa. Formato livre: mínimo = o menor entre 60 e o tamanho original do deck.

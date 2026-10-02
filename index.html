@@ -10074,9 +10074,11 @@ const __m25 = (function () {
    A base dos dois bots (B3 amador, B4 profissional). Tudo aqui é puro:
    a mesma posição dá sempre a mesma nota, e simular uma jogada nunca
    muda o estado recebido (ADR-04).
-   O bot enxerga só o que a mesa mostra: campo, cemitérios, exílio, vida
-   e o TAMANHO da mão do oponente — nunca o conteúdo da mão nem grimório.
-   A diferença entre os níveis é profundidade e critério, não informação.
+   A AVALIAÇÃO enxerga só o que a mesa mostra: campo, cemitérios, exílio, vida
+   e o TAMANHO da mão do oponente. Ressalva (achada na leva 115, ainda aberta):
+   ao simular a resposta do oponente, o profissional usa as ações legais dele,
+   que dependem da mão dele — isso é informação que um jogador não teria.
+   A diferença entre os níveis é profundidade e critério.
    ===================================================================== */
 const E = __m16;
 
@@ -10213,9 +10215,25 @@ function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now()
 const LIMIAR_RESPOSTA = 12;
 
 /** Passa a prioridade no estado simulado até a pilha esvaziar ou aparecer uma decisão. */
-function resolveSimulado(s, max = 8) {
+function resolveSimulado(s, max = 8, quem = null, av = null) {
   let cur = s;
-  for (let i = 0; i < max && cur.stack.length && !cur.pending && cur.status === 'playing'; i++) {
+  // Leva 115 · v3: com `quem`, as escolhas que a própria mágica pede a esse jogador (tipo de criatura, modo, quais
+  // cartas pegar, pagar ou não) são feitas na simulação, uma a uma, pela melhor nota imediata. Sem isso a nota era
+  // tirada com a mágica parada no meio — e toda carta "com escolha" parecia só gastar uma carta da mão.
+  if (quem != null) max = 14;
+  for (let i = 0; i < max && cur.status === 'playing'; i++) {
+    if (cur.pending) {
+      if (quem == null || cur.pending.p !== quem || cur.pending.kind === 'attackers' || cur.pending.kind === 'blockers') break;
+      let melhor = null, nota = -Infinity;
+      for (const a of E.legalActions(cur, quem).filter(x => x.t !== 'concede').slice(0, 14)) {
+        const r = simula(cur, a); if (!r) continue;
+        const n = (av || avalia)(r.estado, quem).nota;
+        if (n > nota) { nota = n; melhor = r.estado; }
+      }
+      if (!melhor) break;
+      cur = melhor; continue;
+    }
+    if (!cur.stack.length) break;
     const r = simula(cur, { t: 'pass', p: cur.turn.priority });
     if (!r) break;
     cur = r.estado;
@@ -10347,21 +10365,23 @@ const RESOLVE = ['cast', 'activate', 'cast_madness', 'cast_free'];
 function notaComResposta(s, p, opts = {}) {
   const av = opts.av || avalia;
   const d = oponenteDe(s, p);
+  // Leva 115 · v3: no meio do combate a nota é a de depois do dano (truque de combate só vale pelo que causa)
+  const medir = st => av(opts.projeta ? projetaCombate(st) : st, p).nota;
   if (s.status !== 'playing' || s.players[d].lost) return av(s, p).nota;
   const delas = E.legalActions(s, d).filter(a => a.t !== 'concede');
-  if (!delas.length) return av(s, p).nota;
+  if (!delas.length) return medir(s);
   const barato = [];
   for (const a of delas) {
     const r = simula(s, a);
     if (!r) continue;
     barato.push({ a, n: av(r.estado, p).nota, r });
   }
-  if (!barato.length) return av(s, p).nota;
+  if (!barato.length) return medir(s);
   barato.sort((x, y) => x.n - y.n || (chaveAcao(x.a) < chaveAcao(y.a) ? -1 : 1)); // pior para mim primeiro
-  let pior = av(s, p).nota;
-  for (const { a, r } of barato.slice(0, RESPOSTAS_CONSIDERADAS)) {
-    const depois = RESOLVE.includes(a.t) ? resolveSimulado(r.estado) : r.estado;
-    const n = av(depois, p).nota;
+  let pior = medir(s);
+  for (const { a, r } of barato.slice(0, opts.projeta ? 6 : RESPOSTAS_CONSIDERADAS)) {
+    const depois = RESOLVE.includes(a.t) ? resolveSimulado(r.estado, 8, opts.desdobra ? d : null, av) : r.estado;
+    const n = medir(depois);
     if (n < pior) pior = n; // o oponente escolhe o que é pior para mim
   }
   return pior;
@@ -10425,7 +10445,8 @@ function notaDoAtaque(s, p, atacantes, opts = {}) {
     if (cur.turn.step === 'main2' || cur.turn.step === 'end' || cur.turn.step === 'cleanup') break;
     const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) break; cur = rp.estado;
   }
-  return (opts.av || avalia)(cur, p).nota;
+  // Leva 115 · v3: atacar e ficar sem bloqueador para o contra-ataque que mata não é ataque bom
+  return (opts.av || avalia)(cur, p).nota - (opts.corrida ? riscoDeVolta(cur, p) : 0);
 }
 
 /** B4 · ataque escolhido pelo resultado do combate, não por regra de bolso. */
@@ -10441,6 +10462,12 @@ function decideAtaqueProfissional(s, p, opts = {}) {
   junta(doAmador);             // o que o amador faria
   junta(podem);                // ataque total
   for (const oid of podem) junta([oid]); // uma criatura de cada vez
+  if (opts.subconjuntos) {
+    // Leva 115 · v3: mais formações — só quem tem evasão, todas menos uma (alguém fica para bloquear) e pares
+    junta(podem.filter(oid => EVASAO.some(k => E.hasKeyword(s, s.objects[oid], k))));
+    if (podem.length <= 7) for (const fica of podem) junta(podem.filter(x => x !== fica));
+    if (podem.length <= 5) for (let i = 0; i < podem.length; i++) for (let j = i + 1; j < podem.length; j++) junta([podem[i], podem[j]]);
+  }
   const r = escolhe(conjuntos.map(c => ({ t: 'attack', p, attackers: c })),
     a => { const n = notaDoAtaque(s, p, a.attackers, opts); return n == null ? -Infinity : n; }, opts);
   const lista = (r.acao || { attackers: obrigadas }).attackers;
@@ -10476,12 +10503,24 @@ function jogadaProfissional(s, p, opts = {}) {
   const r = escolhe(candidatas, a => {
     const sim = simula(s, a);
     if (!sim) return -Infinity;
-    const depois = RESOLVE.includes(a.t) ? resolveSimulado(sim.estado) : sim.estado;
+    // v3: escolha em andamento (pegar cartas, modo, tipo) também é levada até o fim antes de dar a nota
+    const emEscolha = opts.desdobra && sim.estado.pending && sim.estado.pending.p === p;
+    const depois = RESOLVE.includes(a.t) || emEscolha ? resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av) : sim.estado;
     return notaComResposta(depois, p, opts) - pedagio(a);
   }, opts);
   if (!r.acao) return { acao: { t: 'pass', p }, motivo: 'passei: nenhuma jogada legal serviu' };
   const ganho = r.nota - base;
-  if (!minhaDecisao && ganho <= 0) return { acao: { t: 'pass', p }, motivo: 'passei: contando a resposta do oponente, nada melhorava' };
+  if (!minhaDecisao && ganho <= 0) {
+    // Leva 115 · v3: mana parada no fim do turno é desperdício. Na segunda fase principal, com a pilha vazia, ele
+    // conjura o que não piora a posição (a compra que troca uma carta por outra, a permanente de efeito lento);
+    // instantâneas ficam na mão, para o turno do oponente.
+    if (opts.valor && s.turn.active === p && s.turn.step === 'main2' && !s.stack.length) {
+      const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a));
+      const v = escolhe(lentas, a => { const sim = simula(s, a); if (!sim) return -Infinity; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }, opts);
+      if (v.acao && v.nota - base >= -1.5) return { acao: v.acao, motivo: `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };
+    }
+    return { acao: { t: 'pass', p }, motivo: 'passei: contando a resposta do oponente, nada melhorava' };
+  }
   return { acao: r.acao, motivo: motivoDe(s, p, r.acao, ganho), ganho };
 }
 
@@ -10553,6 +10592,80 @@ function avaliaV2(s, p) {
   return { nota: Object.values(parcelas).reduce((a, b) => a + b, 0), parcelas };
 }
 
+/* ---------------- Leva 115 · Shark v3 ----------------
+   O v2 fica congelado como referência ('shark-v2'). O v3 acrescenta o que um jogador experiente faz e o v2 não:
+   - mulligan (London): mão sem terreno, com um só ou só de terreno não fica; a cada mulligan ele escolhe o que
+     mandar para o fundo (terreno sobrando primeiro, depois a mágica mais cara);
+   - truque de combate vale pelo que causa: bônus "até o fim do turno" não conta na nota parada, e toda jogada
+     feita no meio do combate é medida depois do dano;
+   - corrida: não ataca com tudo se o contra-ataque do oponente mata no turno seguinte;
+   - mais formações de ataque: só os evasivos, todos menos um, pares. */
+function avaliaV3(s, p) {
+  const base = avaliaV2(s, p);
+  if (base.parcelas.vitoria) return base;
+  const d = oponenteDe(s, p);
+  const temp = q => criaturasDe(s, q).reduce((n, c) => n + (c.pump ? (c.pump.p || 0) * PESOS.poder + (c.pump.t || 0) * PESOS.resistencia : 0), 0);
+  const parcelas = { ...base.parcelas, temporario: -(temp(p) - temp(d)) };
+  return { nota: Object.values(parcelas).reduce((a, b) => a + b, 0), parcelas };
+}
+/** Leva o combate em curso até o fim (dano incluído), com os dois passando e o defensor bloqueando pela regra
+    de bolso. Fora do combate devolve o próprio estado. */
+function projetaCombate(s, max = 24) {
+  let cur = s;
+  for (let i = 0; i < max && cur.status === 'playing' && String(cur.turn.step).startsWith('combat'); i++) {
+    let r = null;
+    if (cur.pending && cur.pending.kind === 'blockers') r = simula(cur, decideBloqueio(cur, cur.pending.p).acao);
+    else if (cur.pending) break;
+    else r = simula(cur, { t: 'pass', p: cur.turn.priority });
+    if (!r) break;
+    cur = r.estado;
+  }
+  return cur;
+}
+/** Quanto pesa o contra-ataque do oponente no turno dele, do jeito que a mesa ficou: 400 se o dano que passa pelos
+    meus bloqueadores desvirados mata; senão 0. Conta voar/alcance; cada bloqueador segura um atacante. */
+function riscoDeVolta(s, p) {
+  if (s.status !== 'playing') return 0;
+  const d = oponenteDe(s, p);
+  const atacantes = criaturasDe(s, d).filter(c => !E.hasKeyword(s, c, 'defender')).map(c => ({ c, poder: Math.max(0, E.stats(s, c).power), voa: E.hasKeyword(s, c, 'flying') }))
+    .filter(x => x.poder > 0).sort((a, b) => b.poder - a.poder);
+  const livres = criaturasDe(s, p).filter(c => !c.tapped).map(c => ({ voa: E.hasKeyword(s, c, 'flying') || E.hasKeyword(s, c, 'reach'), usado: false }));
+  let passa = 0;
+  for (const a of atacantes) {
+    const b = livres.find(x => !x.usado && (!a.voa || x.voa));
+    if (b) b.usado = true; else passa += a.poder;
+  }
+  return passa >= s.players[p].life ? 400 : 0;
+}
+/** Mulligan (London): devolve { acao, motivo }. Vê só a própria mão. */
+function decideMulligan(s, p) {
+  const pl = s.players[p], m = pl.mulligans || 0;
+  const mao = s.zones[p].hand.map(oid => s.objects[oid]);
+  const terreno = o => ehTerreno(s, o);
+  const custo = o => { const c = s.facts[o.name].cost || {}; return (c.generic || 0) + Object.values(c.colored || {}).reduce((a, b) => a + b, 0) + (c.hybrid || []).length; };
+  const fica = Math.max(0, mao.length - m);
+  // o que vai para o fundo: terreno acima do ideal primeiro; depois a mágica mais cara; nunca abaixo de 2 terrenos
+  const ideal = fica >= 7 ? 3 : fica >= 5 ? 3 : 2;
+  const resto = mao.slice(); const fundo = [];
+  for (let i = 0; i < m; i++) {
+    const terrenos = resto.filter(terreno), magicas = resto.filter(o => !terreno(o)).sort((a, b) => custo(b) - custo(a) || (a.oid < b.oid ? -1 : 1));
+    const sai = terrenos.length > ideal || !magicas.length ? terrenos[terrenos.length - 1] : magicas[0];
+    fundo.push(sai.oid); resto.splice(resto.indexOf(sai), 1);
+  }
+  const terrenos = resto.filter(terreno).length, magicas = resto.length - terrenos;
+  const baratas = resto.filter(o => !terreno(o) && custo(o) <= 2).length;
+  const manter = motivo => ({ acao: { t: 'keep', p, bottom: fundo }, motivo });
+  if (m >= 3) return manter(`mantive com ${resto.length}: outro mulligan custa mais do que a mão ruim`);
+  const mull = motivo => ({ acao: { t: 'mulligan', p }, motivo });
+  if (terrenos === 0) return mull('mulligan: mão sem terreno');
+  if (magicas === 0) return mull('mulligan: mão só de terreno');
+  if (terrenos === 1 && resto.length >= 6) return mull('mulligan: um terreno só');
+  if (terrenos >= 6) return mull(`mulligan: ${terrenos} terrenos e quase nada para jogar`);
+  if (terrenos === 5 && resto.length === 7 && baratas === 0) return mull('mulligan: cinco terrenos e nada barato para jogar');
+  if (terrenos === 2 && resto.length === 7 && baratas === 0) return mull('mulligan: dois terrenos e nada que eles paguem');
+  return manter(`mantive: ${terrenos} terreno(s) e ${magicas} mágica(s)` + (m ? `, ${m} para o fundo` : ''));
+}
+
 /** U10 · a mesa tem um bot só: o Shark (o profissional). O amador continua aqui como
     sparring do torneio de aferição, sem aparecer para o usuário. */
 const NOME_DO_BOT = 'Shark';
@@ -10560,12 +10673,17 @@ const NOME_DO_BOT = 'Shark';
 const nivelDaMesa = () => 'profissional';
 /** Bot pronto para jogar. Padrão: o Shark. */
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now() } = {}) {
-  // U11 · 'profissional' e 'shark' são o Shark atual (v2); 'shark-v1' é a versão anterior, só para o torneio
-  const v1 = nivel === 'shark-v1';
-  const profissional = v1 || nivel === 'profissional' || nivel === 'shark';
-  const extra = v1 ? {} : { av: avaliaV2, bloqueioForte: true, duplo: true };
+  // Leva 115 · 'profissional' e 'shark' são o Shark atual (v3); 'shark-v2' e 'shark-v1' são as versões
+  // anteriores, congeladas, só para o torneio
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2';
+  const profissional = v1 || v2 || nivel === 'profissional' || nivel === 'shark';
+  const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }
+    : { av: avaliaV3, bloqueioForte: true, duplo: true, projeta: true, corrida: true, subconjuntos: true, valor: true, desdobra: true };
+  const v3 = profissional && !v1 && !v2;
   return {
     nivel,
+    /** Mão inicial: o v3 decide; os anteriores mantêm sempre (como antes). */
+    mulligan(s, p) { return v3 ? decideMulligan(s, p) : { acao: { t: 'keep', p, bottom: s.zones[p].hand.slice(0, s.players[p].mulligans || 0) }, motivo: 'mantive' }; },
     jogada(s, p) {
       return profissional ? jogadaProfissional(s, p, { orcamentoMs, agora, ...extra })
         : jogadaAmador(s, p, { orcamentoMs, agora });
@@ -10573,7 +10691,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
   };
 }
 
-return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, simula, escolhe, chaveAcao, fontesDeMana,
+return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
   notaComResposta, notaDoAtaque, resumoDoTurno, dicas, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
@@ -11044,7 +11162,13 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
         const vez = s.status === 'mulligan' ? !s.players[b].kept
           : s.pending ? s.pending.p === b : s.turn.priority === b;
         if (vez) {
-          if (s.status === 'mulligan') { events.push(...record({ t: 'keep', p: b, bottom: [] })); continue; }
+          if (s.status === 'mulligan') {
+            // Leva 115 · o Shark decide a mão inicial (mulligan de verdade) e diz por quê no registro
+            const m = robo.mulligan ? robo.mulligan(s, b) : { acao: { t: 'keep', p: b, bottom: [] }, motivo: '' };
+            events.push(...record(m.acao));
+            if (m.acao.t === 'mulligan' && m.motivo) { lines.push(`${s.players[b].name}: ${m.motivo}`); anota([`${s.players[b].name}: ${m.motivo}`], s); }
+            continue;
+          }
           const j = robo.jogada(s, b);
           if (j && j.acao) {
             events.push(...record(j.acao));

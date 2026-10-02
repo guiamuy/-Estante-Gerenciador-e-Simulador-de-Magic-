@@ -438,3 +438,111 @@ test('B7 · as dicas mostram as melhores jogadas que ainda estão na mesa', () =
   vazio = esvaziaMao(vazio, b);
   assert.deepEqual(J(B.dicas(vazio, b)), [], 'mão vazia e sem habilidade: nenhuma dica');
 });
+
+// Leva 115 · Shark v3: mulligan, truque de combate pelo resultado, corrida.
+/** Estado na mão inicial, com a mão do jogador p trocada por `nomes` (as cartas vêm do grimório dele). */
+function maoInicial(nomes, { p = 0, mulligans = 0 } = {}) {
+  let s = J(E.createGame({ format: 'livre', seed: 5, mode: 'full', manaCheck: true, cards: { ...CARDS, Gigante: { ...CARDS.Gigante, mana_cost: '{4}{W}', cmc: 5 } }, scripts: SCRIPTS, players: [{ name: 'A', deck: DECK }, { name: 'B', deck: DECK }] }));
+  const z = s.zones[p];
+  for (const oid of z.hand) { s.objects[oid].zone = 'library'; z.library.push(oid); }
+  z.hand = [];
+  for (const n of nomes) { const oid = z.library.find(o => s.objects[o].name === n); z.library.splice(z.library.indexOf(oid), 1); z.hand.push(oid); s.objects[oid].zone = 'hand'; }
+  s.players[p].mulligans = mulligans;
+  return s;
+}
+const F = 'Floresta', U = 'Urso', G = 'Gigante';
+
+test('Leva 115 · mulligan: sem terreno, um terreno, só terreno ou seis terrenos não fica; mão jogável fica', () => {
+  const decide = nomes => J(B.decideMulligan(maoInicial(nomes), 0));
+  assert.equal(decide([U, U, U, U, G, G, G]).acao.t, 'mulligan', 'sem terreno');
+  assert.match(decide([U, U, U, U, G, G, G]).motivo, /sem terreno/);
+  assert.equal(decide([F, U, U, U, U, G, G]).acao.t, 'mulligan', 'um terreno');
+  assert.equal(decide([F, F, F, F, F, F, F]).acao.t, 'mulligan', 'só terreno');
+  assert.equal(decide([F, F, F, F, F, F, U]).acao.t, 'mulligan', 'seis terrenos');
+  assert.equal(decide([F, F, G, G, G, G, G]).acao.t, 'mulligan', 'dois terrenos e nada que eles paguem');
+  assert.deepEqual([decide([F, F, U, U, U, G, G]).acao.t, decide([F, F, F, U, U, G, G]).acao.t, decide([F, F, F, F, U, U, G]).acao.t, decide([F, F, F, F, F, U, U]).acao.t], ['keep', 'keep', 'keep', 'keep']);
+});
+
+test('Leva 115 · mulligan: escolhe o que vai para o fundo (terreno sobrando, depois a mágica mais cara) e para no terceiro', () => {
+  // um mulligan feito, sete cartas na mão: uma vai para o fundo
+  let s = maoInicial([F, F, F, F, F, U, U], { mulligans: 1 });
+  let d = B.decideMulligan(s, 0);
+  assert.equal(d.acao.t, 'keep'); assert.equal(d.acao.bottom.length, 1);
+  assert.equal(s.objects[d.acao.bottom[0]].name, F, 'cinco terrenos: um deles desce');
+  s = maoInicial([F, F, U, U, U, G, G], { mulligans: 1 });
+  d = B.decideMulligan(s, 0);
+  assert.equal(s.objects[d.acao.bottom[0]].name, G, 'dois terrenos: desce a mágica mais cara, não o terreno');
+  assert.doesNotThrow(() => E.apply(s, d.acao), 'a ação é legal para o motor');
+  // três mulligans feitos: fica com o que vier, mesmo ruim, e manda três para o fundo
+  s = maoInicial([U, U, U, U, G, G, G], { mulligans: 3 });
+  d = B.decideMulligan(s, 0);
+  assert.equal(d.acao.t, 'keep'); assert.equal(d.acao.bottom.length, 3);
+  assert.equal(B.criaBot({ nivel: 'shark-v2' }).mulligan(maoInicial([U, U, U, U, G, G, G]), 0).acao.t, 'keep', 'a versão anterior continua mantendo sempre');
+  assert.equal(B.criaBot({ nivel: 'shark' }).mulligan(maoInicial([U, U, U, U, G, G, G]), 0).acao.t, 'mulligan');
+});
+
+test('Leva 115 · corrida: o contra-ataque que mata pesa; com bloqueador desvirado para cada atacante, não', () => {
+  let s = mesa(); const a = s.turn.active, d = 1 - a; let x;
+  [s] = poe(s, d, 'Gigante'); [s] = poe(s, d, 'Gigante');
+  s = J(s); s.players[a].life = 9;
+  assert.equal(B.riscoDeVolta(s, a), 400, 'dois 5/5 do outro lado, 9 de vida e ninguém para bloquear');
+  [s, x] = poe(s, a, 'Urso');
+  assert.equal(B.riscoDeVolta(s, a), 0, 'um bloqueador segura um Gigante: passam 5, não morro');
+  s = J(s); s.objects[x].tapped = true;
+  assert.equal(B.riscoDeVolta(s, a), 400, 'o bloqueador virado (atacou) não segura ninguém');
+});
+
+test('Leva 115 · bônus até o fim do turno não conta na nota parada (v3); a v2 contava', () => {
+  let s = mesa(); const a = s.turn.active; let u;
+  [s, u] = poe(s, a, 'Urso');
+  const antes2 = B.avaliaV2(s, a).nota, antes3 = B.avaliaV3(s, a).nota;
+  s = J(s); s.objects[u].pump = { p: 3, t: 3 };
+  assert.ok(B.avaliaV2(s, a).nota > antes2, 'v2: +3/+3 temporário parecia ganho permanente');
+  assert.equal(B.avaliaV3(s, a).nota, antes3, 'v3: só vale pelo que causar no combate');
+});
+
+test('Leva 115 · mana que ia sobrar: na segunda fase principal o v3 conjura a compra que troca uma carta por outra; o v2 passava', () => {
+  const cards = { ...CARDS, Troca: { name: 'Troca', type_line: 'Sorcery', mana_cost: '{1}', cmc: 1, colors: ['G'], keywords: [], oracle_text: 'Draw a card.' } };
+  const scripts = { Troca: { name: 'Troca', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } } };
+  const deck = [{ name: 'Floresta', qty: 30, zone: 'main' }, { name: 'Troca', qty: 30, zone: 'main' }];
+  let s = E.createGame({ format: 'livre', seed: 3, mode: 'full', manaCheck: true, cards, scripts, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); const a = s.turn.active, z = s.zones[a];
+  for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
+  const tira = (nome, para) => { const oid = z.library.find(o => s.objects[o].name === nome); z.library.splice(z.library.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false }); return oid; };
+  tira('Floresta', 'battlefield'); tira('Floresta', 'battlefield'); const x = tira('Troca', 'hand');
+  s.turn.step = 'main2'; s.turn.priority = a; s.players[a].landPlayed = true;
+  const v3 = B.criaBot({ nivel: 'shark' }).jogada(s, a), v2 = B.criaBot({ nivel: 'shark-v2' }).jogada(s, a);
+  assert.equal(v2.acao.t, 'pass', 'v2: comprar uma carta gastando uma carta não melhora a nota, então passava');
+  assert.deepEqual([v3.acao.t, v3.acao.oid], ['cast', x]);
+  assert.match(v3.motivo, /a mana ia sobrar/);
+  // na primeira fase principal ele ainda espera (pode precisar da mana no combate)
+  const cedo = J(s); cedo.turn.step = 'main1';
+  assert.equal(B.criaBot({ nivel: 'shark' }).jogada(cedo, a).acao.t, 'pass');
+});
+
+test('Leva 115 · carta com escolha (Winding Way): o v3 enxerga o que ela rende e conjura; o v2 via só a carta saindo da mão', async () => {
+  const { cartasReais, listas } = await import('./torneio.listas.mjs');
+  const CR = cartasReais(), elfos = listas.find(l => /Elves/.test(l.name));
+  const cards = {}; for (const e of elfos.entries) cards[e.name] = CR[e.name];
+  let s = E.createGame({ format: 'pauper', seed: 31, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: elfos.entries }, { name: 'B', deck: elfos.entries }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); const a = s.turn.active, z = s.zones[a];
+  const tira = (nome, para) => { const de = z.library.some(o => s.objects[o].name === nome) ? z.library : z.hand; const oid = de.find(o => s.objects[o].name === nome); de.splice(de.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false }); return oid; };
+  for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
+  tira('Forest', 'battlefield'); tira('Forest', 'battlefield'); const ww = tira('Winding Way', 'hand');
+  // o topo do grimório com quatro criaturas: a carta rende
+  const criaturas = z.library.filter(o => s.facts[s.objects[o].name].types.includes('creature')).slice(0, 4);
+  z.library = [...criaturas, ...z.library.filter(o => !criaturas.includes(o))];
+  s.players[a].landPlayed = true;
+  const v3 = B.criaBot({ nivel: 'shark' }).jogada(s, a), v2 = B.criaBot({ nivel: 'shark-v2' }).jogada(s, a);
+  assert.deepEqual([v3.acao.t, v3.acao.oid], ['cast', ww], 'v3 conjura Winding Way');
+  assert.notEqual(v2.acao.oid, ww, 'v2 deixava na mão');
+  // e, na hora de escolher, pega as cartas em vez de encerrar sem pegar nada
+  let t = act(s, v3.acao);
+  for (let i = 0; i < 12 && !(t.pending && t.pending.kind === 'pick'); i++) { const j = t.pending ? B.criaBot({ nivel: 'shark' }).jogada(t, t.pending.p) : { acao: { t: 'pass', p: t.turn.priority } }; t = act(t, j.acao); }
+  assert.equal(t.pending && t.pending.kind, 'pick');
+  assert.equal(B.criaBot({ nivel: 'shark' }).jogada(t, a).acao.t, 'pick', 'pega carta (antes: encerrava a escolha vazia)');
+});

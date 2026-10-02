@@ -55,7 +55,8 @@ function partida({ seed, nivel0, nivel1, maxAcoes = 1200, deck0 = DECK, deck1 = 
       ? s.players.findIndex(pl => !pl.kept)
       : s.pending ? s.pending.p : s.turn.priority;
     if (quem < 0) break;
-    if (s.status === 'mulligan') { s = E.apply(s, { t: 'keep', p: quem, bottom: [] }).state; continue; }
+    // leva 115: quem sabe decidir a mão inicial decide (o Shark v3); os outros mantêm, como antes
+    if (s.status === 'mulligan') { const m = jogadores[quem].mulligan ? jogadores[quem].mulligan(s, quem) : { acao: { t: 'keep', p: quem, bottom: [] } }; s = E.apply(s, m.acao).state; continue; }
     const tj = Date.now();
     const j = jogadores[quem].jogada(s, quem);
     pior = Math.max(pior, Date.now() - tj);
@@ -134,7 +135,8 @@ test('B6 · a mesma semente dá sempre a mesma partida', () => {
 // ~3× mais lento, a média de poucos ms por jogada continua longe do limite).
 test('U11 · o Shark v2 ganha do Shark v1 em pelo menos 60% das partidas decididas, sem ação ilegal e rápido', () => {
   const partidas = 40;
-  const r = serie({ nivelForte: 'shark', nivelFraco: 'shark-v1', partidas, base: 7000, misto: true });
+  // leva 115: 'shark' passou a ser o v3; a referência desta medida é o v2 congelado
+  const r = serie({ nivelForte: 'shark-v2', nivelFraco: 'shark-v1', partidas, base: 7000, misto: true });
   console.log(relatorio('Shark v2 × Shark v1', r, partidas));
   assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
   assert.equal(r.decididas >= partidas * 0.8, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
@@ -148,5 +150,28 @@ test('U11 · v1 e v2 só diferem por critério: a avaliação v2 é determiníst
   assert.deepEqual(B.avaliaV2(s, 0), B.avaliaV2(s, 0));
   const t = JSON.parse(JSON.stringify(s)); t.players[1].lost = true; t.status = 'over'; t.winner = 0;
   assert.equal(B.avaliaV2(t, 0).parcelas.vitoria, B.PESOS.vitoria);
-  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1');
+  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1'); assert.equal(B.criaBot({ nivel: 'shark-v2' }).nivel, 'shark-v2');
+});
+
+// Leva 115 · o Shark atual (v3) contra o v2 congelado. Medido em 01/10/2026: 57% em 160 partidas com estes decks de
+// teste e 65% em 221 partidas com as sete listas Pauper de verdade (node torneio.listas.mjs shark shark-v2 4 20000).
+// Aqui o piso é 52% em 60 partidas de semente fixa (o portão precisa caber no tempo): a medida larga é a de cima.
+test('Leva 115 · o Shark v3 ganha do Shark v2 em mais da metade das partidas decididas, sem ação ilegal e rápido', () => {
+  const partidas = 60;
+  const r = serie({ nivelForte: 'shark', nivelFraco: 'shark-v2', partidas, base: 9000, misto: true });
+  console.log(relatorio('Shark v3 × Shark v2', r, partidas));
+  assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
+  assert.equal(r.decididas >= partidas * 0.9, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
+  assert.equal(r.taxa >= 0.52, true, `o v3 ganhou ${(r.taxa * 100).toFixed(0)}% das decididas`);
+  assert.equal(r.pior < 1500, true, `pior jogada ${r.pior} ms`);
+});
+
+// Leva 115 · com cartas de verdade: o Shark joga as listas Pauper do app (escolhas, gatilhos, fichas, insanidade)
+// sem nunca propor ação ilegal e sem travar a partida.
+test('Leva 115 · o Shark joga as listas Pauper de verdade sem ação ilegal e as partidas terminam', { timeout: 300000 }, async () => {
+  const { listas, partida: real } = await import('./torneio.listas.mjs');
+  assert.equal(listas.length, 7);
+  const jogos = [[0, 1], [2, 3], [4, 5], [6, 0]].map(([a, b], i) => real(31000 + i * 17, 'shark', 'shark-v2', listas[a], listas[b], 1500));
+  assert.deepEqual(jogos.map(g => g.ilegal).filter(Boolean), [], 'nenhuma ação ilegal');
+  assert.ok(jogos.filter(g => g.v != null).length >= 3, 'as partidas terminam: ' + JSON.stringify(jogos.map(g => [g.v, g.turnos])));
 });
