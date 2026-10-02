@@ -3535,3 +3535,102 @@ test('e2e · leva 113 coleção: painel primeiro, depois as visões; adicionar c
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/colecao.png', fullPage: true });
   assert.deepEqual(errors, []);
 });
+
+// Leva 114 · melhor de 3: placar, trocas com a reserva entre as partidas, quem perdeu escolhe quem começa.
+test('e2e · leva 114 melhor de 3: placar da série, troca visual com a reserva dentro dos limites, próxima partida com o deck trocado, série fecha em 2', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Azul de série', '20 Island\n40 Counterspell\n\nSideboard\n4 Lightning Bolt\n11 Sky Pike', 'pauper');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start:not([disabled])');
+  assert.equal(await page.getAttribute('[data-serie="1"]', 'aria-pressed'), 'true', 'partida única é o padrão');
+  await page.click('[data-serie="3"]');
+  await auditaTela(page, 'preparar partida com série');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-serie');
+  assert.match(await page.innerText('#tb-serie'), /J1\s*0–0/);
+  const desiste = async () => { await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); };
+  await desiste();
+  await page.waitForSelector('#tb-serie-next');
+  assert.match(await page.textContent('.tb-banner'), /Goldfish venceu a partida 1/);
+  assert.match(await page.innerText('#tb-serie'), /0–1/);
+  assert.equal(await page.locator('#tb-new').count(), 0, 'série em disputa: o caminho é a próxima partida');
+  await page.reload(); await page.waitForSelector('#tb-serie-next');
+  assert.match(await page.innerText('#tb-serie'), /0–1/, 'recarregar não soma outra vitória');
+  await page.click('#tb-serie-next');
+  // a tela de trocas
+  await page.waitForSelector('#troca');
+  assert.match(await page.innerText('h1'), /Partida 2 de 3/);
+  assert.match(await page.innerText('#serie-placar'), /Você 0–1 Goldfish/);
+  assert.equal(await page.innerText('#troca-deck-n b'), '60'); assert.equal(await page.innerText('#troca-reserva-n b'), '15');
+  // tira um Counterspell: 59 no deck e 16 na reserva, não pode começar
+  await page.click('.troca-grade[data-zona="main"] .troca-carta[data-nome="Counterspell"]');
+  assert.equal(await page.innerText('#troca-deck-n b'), '59');
+  assert.equal(await page.locator('#serie-start').isDisabled(), true);
+  assert.match(await page.innerText('#troca-erro'), /pelo menos 60 cartas \(tem 59\).*no máximo 15 cartas \(tem 16\)/);
+  // põe dois Raios: 61 e 14 valem (não precisa ser uma por uma)
+  await page.click('.troca-grade[data-zona="side"] .troca-carta[data-nome="Lightning Bolt"]');
+  await page.click('.troca-grade[data-zona="side"] .troca-carta[data-nome="Lightning Bolt"]');
+  assert.equal(await page.innerText('#troca-deck-n b'), '61'); assert.equal(await page.innerText('#troca-reserva-n b'), '14');
+  assert.equal(await page.locator('#troca-erro').count(), 0);
+  assert.match(await page.innerText('#troca-diff'), /Entram\s*\+2 Lightning Bolt\s*Saem\s*−1 Counterspell/i);
+  assert.equal(await page.locator('.troca-grade[data-zona="main"] .troca-carta[data-nome="Lightning Bolt"][data-nova]').count(), 1, 'a carta que entrou fica marcada');
+  await auditaTela(page, 'trocas com a reserva');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/trocas.png', fullPage: true });
+  // voltar ao original e refazer
+  await page.click('#troca-original');
+  assert.equal(await page.innerText('#troca-deck-n b'), '60'); assert.match(await page.innerText('#troca-diff'), /Sem trocas/);
+  await page.click('.troca-grade[data-zona="main"] .troca-carta[data-nome="Counterspell"]');
+  await page.click('.troca-grade[data-zona="side"] .troca-carta[data-nome="Lightning Bolt"]');
+  // quem perdeu (você) escolhe quem começa
+  assert.equal(await page.getAttribute('#serie-primeiro [data-primeiro="0"]', 'aria-pressed'), 'true');
+  await page.click('#serie-start');
+  await page.waitForSelector('#tb-keep');
+  const jogo2 = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const meus = Object.values(s.objects).filter(o => o.owner === 0);
+    return { total: meus.length, raios: meus.filter(o => o.name === 'Lightning Bolt').length, contras: meus.filter(o => o.name === 'Counterspell').length, comeca: s.turn.active }; });
+  assert.deepEqual(jogo2, { total: 60, raios: 1, contras: 39, comeca: 0 }, 'a partida 2 usa o deck trocado e começa por quem foi escolhido');
+  assert.match(await page.innerText('#tb-serie'), /J2\s*0–1/);
+  await page.click('#tb-keep'); await desiste();
+  await page.waitForSelector('#tb-new');
+  assert.match(await page.textContent('.tb-banner'), /Goldfish venceu a série por 2–0/);
+  assert.equal(await page.locator('#tb-serie-next').count(), 0);
+  // a lista salva não muda: as trocas valem só para a série
+  await page.click('#tb-new'); await page.waitForSelector('#mesa-start');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item');
+  assert.equal(await page.getAttribute('#decks-list .deck-item__main', 'aria-label'), '60 cartas no deck');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 114 melhor de 3 a dois: cada jogador troca a reserva sem o outro ver, e quem perdeu escolhe quem começa', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Azul de série', '20 Island\n40 Counterspell\n\nSideboard\n4 Lightning Bolt\n11 Sky Pike', 'pauper');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start:not([disabled])');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('[data-serie="3"]');
+  await page.waitForSelector('#mesa-start:not([disabled])');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  // quem tem a prioridade desiste: o outro vence a partida 1
+  const perdeu = await page.evaluate(() => { const M = window.__estanteMesa, p = M.estado().turn.priority; M.act({ t: 'concede', p }); return p; });
+  await reveal(page);
+  await page.waitForSelector('#tb-serie-next'); await page.click('#tb-serie-next');
+  await page.waitForSelector('#serie-entrega');
+  assert.match(await page.innerText('#serie-entrega'), /Sou Ana/);
+  assert.equal(await page.locator('#troca').count(), 0, 'as cartas só aparecem depois de receber o aparelho');
+  await page.click('#serie-entrega'); await page.waitForSelector('#troca');
+  await page.click('.troca-grade[data-zona="main"] .troca-carta[data-nome="Counterspell"]');
+  await page.click('.troca-grade[data-zona="side"] .troca-carta[data-nome="Sky Pike"]');
+  await page.click('#serie-confirma');
+  await page.waitForSelector('#serie-entrega');
+  assert.match(await page.innerText('#serie-entrega'), /Sou Bia/);
+  await page.click('#serie-entrega'); await page.waitForSelector('#troca');
+  assert.match(await page.innerText('#troca-diff'), /Sem trocas/, 'a Bia não vê as trocas da Ana');
+  assert.equal(await page.getAttribute(`#serie-primeiro [data-primeiro="${perdeu}"]`, 'aria-pressed'), 'true', 'quem perdeu começa por padrão');
+  await page.click(`#serie-primeiro [data-primeiro="${1 - perdeu}"]`);
+  await page.click('#serie-start'); await page.waitForSelector('#tb-keep, #tb-reveal');
+  const j2 = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const de = p => Object.values(s.objects).filter(o => o.owner === p && o.name === 'Sky Pike').length; return { ana: de(0), bia: de(1), comeca: s.turn.active }; });
+  assert.deepEqual(j2, { ana: 1, bia: 0, comeca: 1 - perdeu });
+  assert.deepEqual(errors, []);
+});

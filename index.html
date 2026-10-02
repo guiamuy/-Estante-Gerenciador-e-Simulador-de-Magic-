@@ -656,6 +656,43 @@ body {
 .deck-item__posse[data-completa="true"] .deck-item__posse-barra { background: var(--positive); }
 .deck-item__ja { flex: none; display: inline-grid; place-items: center; width: var(--tap-min); height: var(--tap-min); color: var(--positive); }
 .deck-item__add { flex: none; }
+/* Leva 114 · série: placar na mesa e a tela de trocas com a reserva */
+.tb-serie { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-full); border: 1px solid var(--accent); color: var(--accent); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tb-serie b { font-weight: var(--weight-bold); }
+.troca { gap: var(--space-3); }
+.troca-barra { position: sticky; top: 58px; z-index: var(--z-sticky); display: flex; align-items: stretch; gap: var(--space-2); padding: var(--space-2); border-radius: var(--radius-2); background: var(--scrim); backdrop-filter: blur(10px); border: 1px solid var(--border); box-shadow: var(--shadow-1); }
+.troca-medidor { flex: 1 1 0; display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: var(--space-2); padding: var(--space-1) var(--space-3); border-radius: var(--radius-1); border: 1px solid var(--border); background: var(--bg-elev-1); }
+.troca-medidor__rotulo { font-size: var(--text-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); grid-column: 1 / -1; }
+.troca-medidor b { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-2xl); line-height: 1; font-variant-numeric: tabular-nums; color: var(--positive); }
+.troca-medidor__limite { font-size: var(--text-xs); color: var(--fg-muted); }
+.troca-medidor[data-ok="false"] { border-color: var(--warning); }
+.troca-medidor[data-ok="false"] b { color: var(--warning); }
+.troca-diff { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: var(--tap-min); }
+.troca-diff__rotulo { font-size: var(--text-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); }
+.troca-diff__vazio { font-size: var(--text-sm); color: var(--fg-muted); }
+.troca-chip { font-size: var(--text-sm); padding: 2px 10px; border-radius: var(--radius-full); border: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.troca-chip--entra { color: var(--positive); border-color: var(--positive); }
+.troca-chip--sai { color: var(--fg-muted); }
+.troca-titulo { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) 0 0; font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); }
+.troca-titulo span:last-child { margin-left: auto; font-family: var(--font-ui); font-size: var(--text-sm); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.troca-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--space-2); }
+.troca-grade[data-zona="side"] { padding: var(--space-2); border-radius: var(--radius-2); border: 1px dashed var(--border-strong); background: var(--bg-elev-1); }
+.troca-vazio { grid-column: 1 / -1; font-size: var(--text-sm); color: var(--fg-muted); padding: var(--space-2) 0; }
+.troca-carta { position: relative; padding: 0; border: none; background: none; aspect-ratio: 488 / 680; min-height: var(--tap-min); border-radius: var(--radius-card); cursor: pointer; color: inherit; font: inherit;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform var(--dur-1) var(--ease-out); }
+.troca-carta:active { transform: scale(.96); }
+.troca-carta:disabled { cursor: default; opacity: .7; }
+.troca-carta__img, .troca-carta__semimg { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-card); background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--shadow-1); }
+.troca-carta__semimg { padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.15; overflow-wrap: anywhere; }
+.troca-carta__qtd { position: absolute; right: 3px; bottom: 3px; padding: 0 6px; border-radius: var(--radius-full); background: var(--fg); color: var(--bg); font-size: var(--text-xs); font-weight: var(--weight-bold); line-height: 1.5; font-variant-numeric: tabular-nums; }
+.troca-carta__nova { position: absolute; left: 3px; top: 3px; padding: 0 6px; border-radius: var(--radius-full); background: var(--positive); color: var(--positive-fg); font-size: var(--text-xs); font-weight: var(--weight-bold); line-height: 1.5; }
+.troca-carta[data-nova] .troca-carta__img, .troca-carta[data-nova] .troca-carta__semimg { outline: 2px solid var(--positive); outline-offset: -1px; }
+.troca-carta.is-chegou { animation: troca-chegou 420ms var(--ease-out); }
+@keyframes troca-chegou { 0% { transform: scale(.82); opacity: .4; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: none; } }
+.troca-rodape { position: sticky; bottom: 0; z-index: var(--z-sticky); display: flex; flex-direction: column; gap: var(--space-2); margin: 0 calc(var(--space-4) * -1); padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  background: var(--scrim); backdrop-filter: blur(10px); border-top: 2px solid var(--shelf-edge); }
+.troca-rodape .ds-btn--primary { flex: 1; }
+@media (prefers-reduced-motion: reduce) { .troca-carta.is-chegou { animation: none; } .troca-carta { transition: none; } }
 /* Leva 110 · escolher a lista na preparação da partida: a mesma linha da estante, dentro de um botão */
 .deck-picker { display: block; width: 100%; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-1); color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: var(--shadow-1); }
 .deck-picker:active { transform: translateY(1px); box-shadow: none; }
@@ -7064,7 +7101,10 @@ function createGame(setup) {
     }
     shuffle(s, z.library);
   });
-  s.turn.active = Math.floor(nextRand(s) * s.players.length);
+  // Leva 114 · melhor de 3: quem perdeu a partida anterior escolhe quem começa (setup.first); o sorteio continua
+  // sendo feito para a semente gerar o mesmo embaralhamento com ou sem a escolha
+  const sorteado = Math.floor(nextRand(s) * s.players.length);
+  s.turn.active = Number.isInteger(setup.first) && setup.first >= 0 && setup.first < s.players.length ? setup.first : sorteado;
   s.turn.priority = s.turn.active;
   s.players.forEach((_, pi) => draw(s, pi, rules.hand));
   return s;
@@ -10795,9 +10835,9 @@ const REASON_PT = { 'vida': 'vida zerada', 'grimório vazio': 'comprou com o gri
 
 /** Monta o setup do motor a partir de listas salvas.
     seats = [{ name, deck?, dummy? }]; cards = { nome: carta completa }. */
-function buildSetup({ format, seed, seats, cards, manaCheck = false, mode = 'assisted' }) {
+function buildSetup({ format, seed, seats, cards, manaCheck = false, mode = 'assisted', first = null }) {
   return {
-    format, seed: seed >>> 0, mode, cards, manaCheck: mode === 'full' ? true : manaCheck,
+    format, seed: seed >>> 0, mode, cards, manaCheck: mode === 'full' ? true : manaCheck, ...(first != null ? { first } : {}),
     players: seats.map(st => st.dummy ? { name: st.name || 'Goldfish', deck: [], dummy: true } : { name: st.name, deck: st.deck.entries })
   };
 }
@@ -11163,6 +11203,69 @@ function estadoDaCarta(s, o, plano = null) {
   const enjoo = !!o.sick && criatura && !impeto;
   return { pt, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
 }
+/* ---------------- Leva 114 · série (melhor de 3) e troca com a reserva ----------------
+   Regras (Comprehensive Rules 100.2a, 100.4a e regras de torneio 3.15, conferidas em 01/10/2026): deck construído
+   tem no mínimo 60 cartas e a reserva no máximo 15; entre as partidas de uma série o jogador troca cartas entre
+   deck e reserva, sem precisar ser uma por uma, desde que os dois limites continuem valendo; antes de uma série
+   nova, deck e reserva voltam ao original. Quem perdeu a partida anterior escolhe quem começa. Commander não tem
+   reserva. Tudo aqui é puro: a tela só desenha. */
+const SERIE_KEY = 'match.serie';
+const contaZona = (entries, zona) => entries.filter(e => (zona === 'side') === (e.zone === 'side')).reduce((n, e) => n + e.qty, 0);
+function limitesDaTroca(formato, original) {
+  const main = contaZona(original, 'main'), side = contaZona(original, 'side');
+  return { minDeck: formato === 'livre' ? Math.min(60, main) : 60, maxReserva: formato === 'livre' ? Math.max(15, side) : 15 };
+}
+function novaSerie({ melhorDe = 3, formato, assentos, semente = 1, opcoes = {} }) {
+  return { melhorDe, formato, semente: semente >>> 0, opcoes, jogo: 1, registrado: 0, vitorias: assentos.map(() => 0), empates: 0, ultimoPerdedor: null, primeiro: null,
+    assentos: assentos.map(a => ({ name: a.name, dummy: !!a.dummy, bot: !!a.bot, deckId: a.deckId || null, original: (a.entries || []).map(e => ({ ...e })), atual: (a.entries || []).map(e => ({ ...e })) })) };
+}
+/** Quem levou a série: índice do assento, 'empate' ou null (ainda em disputa). */
+function resultadoDaSerie(serie) {
+  const precisa = Math.ceil(serie.melhorDe / 2);
+  const lider = serie.vitorias.findIndex(v => v >= precisa);
+  if (lider >= 0) return lider;
+  if (serie.registrado < serie.melhorDe) return null;
+  const max = Math.max(...serie.vitorias), quem = serie.vitorias.map((v, i) => v === max ? i : -1).filter(i => i >= 0);
+  return quem.length === 1 ? quem[0] : 'empate';
+}
+/** Registra o fim da partida atual uma vez só (a tela pinta várias vezes). winner: índice ou null (empate). */
+function registraJogo(serie, winner) {
+  if (serie.registrado >= serie.jogo) return serie;
+  const vitorias = serie.vitorias.slice(); let empates = serie.empates;
+  if (winner == null) empates++; else vitorias[winner]++;
+  const perdedor = winner == null ? null : serie.assentos.findIndex((_, i) => i !== winner);
+  return { ...serie, vitorias, empates, registrado: serie.jogo, ultimoPerdedor: perdedor };
+}
+/** Passa uma cópia de `nome` do deck para a reserva (de: 'main') ou de volta (de: 'side'). Não muta. */
+function moveNaTroca(entries, nome, de) {
+  const para = de === 'side' ? 'main' : 'side';
+  const ehDe = e => e.name === nome && (de === 'side' ? e.zone === 'side' : e.zone === 'main');
+  const origem = entries.find(ehDe);
+  if (!origem) return entries;
+  let out = entries.map(e => e === origem ? { ...e, qty: e.qty - 1 } : { ...e }).filter(e => e.qty > 0);
+  const destino = out.find(e => e.name === nome && e.zone === para);
+  if (destino) destino.qty++; else out.push({ name: nome, qty: 1, zone: para });
+  return out;
+}
+function validaTroca(entries, formato, original) {
+  const L = limitesDaTroca(formato, original);
+  const deck = contaZona(entries, 'main'), reserva = contaZona(entries, 'side');
+  const erros = [];
+  if (deck < L.minDeck) erros.push(`O deck precisa de pelo menos ${L.minDeck} cartas (tem ${deck}).`);
+  if (reserva > L.maxReserva) erros.push(`A reserva aceita no máximo ${L.maxReserva} cartas (tem ${reserva}).`);
+  return { ok: !erros.length, erros, deck, reserva, ...L };
+}
+/** O que mudou em relação ao original: cartas que entraram no deck e as que saíram. */
+function diffDaTroca(entries, original) {
+  const noDeck = es => { const m = new Map(); for (const e of es) if (e.zone !== 'side') m.set(e.name, (m.get(e.name) || 0) + e.qty); return m; };
+  const a = noDeck(original), b = noDeck(entries), entram = [], saem = [];
+  for (const nome of new Set([...a.keys(), ...b.keys()])) { const d = (b.get(nome) || 0) - (a.get(nome) || 0); if (d > 0) entram.push({ name: nome, qty: d }); if (d < 0) saem.push({ name: nome, qty: -d }); }
+  const porNome = (x, y) => x.name.localeCompare(y.name);
+  return { entram: entram.sort(porNome), saem: saem.sort(porNome) };
+}
+/** Próxima partida da série: avança o número do jogo e guarda quem começa. */
+function proximoJogo(serie, primeiro) { return { ...serie, jogo: serie.jogo + 1, primeiro }; }
+
 /** Leva 110 · o momento na bandeja da mão: um ícone e uma palavra (ou duas), sempre inteiros.
     O texto completo (título e dica) fica no balão que abre ao toque. */
 const MOMENTO_PASSO = { untap: ['virar', 'Desvirar'], upkeep: ['sol', 'Manutenção'], draw: ['comprar', 'Compra'], main1: ['jogar', 'Principal 1'],
@@ -11440,7 +11543,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { SAVE_KEY, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -11479,7 +11582,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
   // DEV: a mesa assistida continua no motor para os testes de mesa (ajuste manual de estado); só aparece com
   // window.__MESA_DEV, que o app publicado nunca liga.
   const DEV = typeof window !== 'undefined' && !!window.__MESA_DEV;
-  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, mode: DEV ? 'assisted' : 'full', coverage: 0, coberturaDele: 100, faltamDele: [], busy: false };
+  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, mode: DEV ? 'assisted' : 'full', melhorDe: 1, coverage: 0, coberturaDele: 100, faltamDele: [], busy: false };
 
   (async () => {
     const all = await decks.list();
@@ -11563,7 +11666,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
       const lista6 = xs => `${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}`;
       const bloqueio = cv.pct < 100 ? (() => { const n = Note(`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. Escolha outra lista ou troque essas cartas.`, 'warning'); n.id = 'mesa-bloqueio'; return n; })() : null;
       mount(covBox, Stack({ style: { gap: 'var(--space-1)' } },
-        reserva ? Text(`Reserva: ${reserva} carta(s) ficam de fora da partida.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-reserva' } }) : null,
+        reserva ? Text(`Reserva: ${reserva} carta(s) ficam de fora da partida. Na melhor de 3, você troca entre as partidas.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-reserva' } }) : null,
         DEV || !bloqueio ? Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · ${cv.parcial + cv.manual} carta(s) sem regra completa` : ''), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }) : null,
         DEV && faltam.length ? Text(`Fica com você: ${lista6(faltam)}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
         DEV ? null : bloqueio,
@@ -11662,6 +11765,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
           : null);
     }
     paintChips(); paintOpponent();
+    // Leva 114 · partida única ou melhor de 3
+    const serieChips = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Série', id: 'mesa-serie' });
+    const paintSerie = () => mount(serieChips, ...[[1, 'Partida única'], [3, 'Melhor de 3']].map(([n, label]) => {
+      const c = Chip(label, { pressed: state.melhorDe === n, dataset: { serie: String(n) } });
+      c.addEventListener('click', () => { state.melhorDe = n; paintSerie(); });
+      return c; }));
+    paintSerie();
 
     async function start() {
       if (state.busy) return;
@@ -11695,6 +11805,10 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }),
           { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null } });
         await store.set(T.SAVE_KEY, table.serialize());
+        // Leva 114 · série: melhor de 3 guarda as listas (deck e reserva) de cada assento; partida única não guarda nada
+        if (state.melhorDe > 1) await store.set(T.SERIE_KEY, T.novaSerie({ melhorDe: state.melhorDe, formato: format, semente: state.seed, opcoes: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null, mode: state.mode, manaCheck: state.mana },
+          assentos: seats.map((st, i) => ({ name: st.name, dummy: !!st.dummy, bot: comBot && i === 1, deckId: st.deck && st.deck.id, entries: st.deck ? st.deck.entries : [] })) }));
+        else await store.remove(T.SERIE_KEY);
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
         go('/partida');
       } catch (e) {
@@ -11712,13 +11826,14 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         Text(`${saved.setup.players.map(p => p.name).join(' × ')} · ${FORMATS[saved.setup.format] || saved.setup.format} · ${saved.log.length} ações`, { size: 'sm', tone: 'muted' }),
         Row({ class: 'ds-row--wrap' },
           Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', icone: 'jogar', onClick: () => go('/partida') }),
-          Button('Descartar', { variant: 'danger', icone: 'lixeira', onClick: async () => { await store.remove(T.SAVE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
+          Button('Descartar', { variant: 'danger', icone: 'lixeira', onClick: async () => { await store.remove(T.SAVE_KEY); await store.remove(T.SERIE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
         ChipField('Formato', formatBox),
         mineField,
         covBox,
         ChipField('Oponente', oppChips), oppNota,
         theirsField, bloqueioDele,
+        ChipField('Série', serieChips, 'Na melhor de 3, entre as partidas você troca cartas do deck com a reserva. Vence quem ganhar duas.'),
         DEV ? ChipField('Modo (teste)', modeBox) : null,
         DEV ? ChipField('Mana (teste)', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
           c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })()) : null,
@@ -11819,8 +11934,17 @@ function createTableScreen({ store }) {
         Button('Preparar partida', { variant: 'primary', onClick: async () => { await store.remove(T.SAVE_KEY); go('/mesa'); } })));
     }
     shownViewer = table.viewer();
+    try { serie = await store.get(T.SERIE_KEY); } catch (e) { serie = null; }
     paint();
   })();
+  /** Leva 114 · fim de partida numa série: registra uma vez e guarda. */
+  let serie = null;
+  function fechaJogoDaSerie(s) {
+    if (!serie || serie.registrado >= serie.jogo) return;
+    serie = T.registraJogo(serie, s.winner);
+    store.set(T.SERIE_KEY, serie).catch(() => {});
+  }
+  const placar = () => serie && serie.melhorDe > 1 ? `${serie.vitorias[0]}–${serie.vitorias[1]}` : '';
 
   /* ---- M7 · mana na tela ---- */
   const targetName = (s, x) => x.player != null ? s.players[x.player].name : s.objects[x.oid].name;
@@ -12193,8 +12317,16 @@ function createTableScreen({ store }) {
     const PriorityBanner = o => __m17.PriorityBanner({ ...(compacto ? { momento: T.momentoDaBandeja(s, v) } : {}), ...o });
     let banner;
     if (s.status === 'over') {
-      banner = PriorityBanner({ title: s.winner == null ? 'Empate' : `${s.players[s.winner].name} venceu`, hint: s.players.filter(x => x.lost).map(x => `${x.name}: ${x.lossReason}`).join(' · '), tone: 'accent',
-        actions: [Button('Nova partida', { variant: 'primary', id: 'tb-new', onClick: async () => { await store.remove(T.SAVE_KEY); go('/mesa'); } }), Button('Registro', { onClick: openLog })] });
+      // Leva 114 · numa série, o fim da partida leva às trocas com a reserva; a série fecha com duas vitórias
+      fechaJogoDaSerie(s);
+      const emSerie = serie && serie.melhorDe > 1, fim = emSerie ? T.resultadoDaSerie(serie) : 0;
+      const motivo = s.players.filter(x => x.lost).map(x => `${x.name}: ${x.lossReason}`).join(' · ');
+      const titulo = s.winner == null ? 'Empate' : `${s.players[s.winner].name} venceu`;
+      const nova = Button(emSerie ? 'Nova série' : 'Nova partida', { variant: emSerie && fim == null ? undefined : 'primary', id: 'tb-new', onClick: async () => { await store.remove(T.SAVE_KEY); await store.remove(T.SERIE_KEY); go('/mesa'); } });
+      banner = PriorityBanner({ title: !emSerie ? titulo : fim == null ? `${titulo} a partida ${serie.jogo}` : fim === 'empate' ? `Série empatada em ${placar()}` : `${s.players[fim].name} venceu a série por ${serie.vitorias[fim]}–${serie.vitorias[1 - fim]}`,
+        hint: emSerie ? `Série melhor de ${serie.melhorDe}: ${s.players[0].name} ${placar()} ${s.players[1].name}.${motivo ? ' ' + motivo : ''}` : motivo, tone: 'accent',
+        ...(emSerie ? { momento: { icone: 'fim', curto: `Série ${placar()}`, tom: 'normal' } } : {}),
+        actions: [emSerie && fim == null ? Button('Próxima partida', { variant: 'primary', id: 'tb-serie-next', icone: 'seguir', onClick: () => go('/serie') }) : null, emSerie && fim == null ? null : nova, Button('Registro', { onClick: openLog })] });
     } else if (s.status === 'mulligan') {
       const need = pl.mulligans;
       banner = need && bottomPick.size <= need ? PriorityBanner({ title: `Escolha ${need} carta(s) para o fundo`, hint: `${bottomPick.size} de ${need} escolhida(s). Toque nas cartas da mão.`,
@@ -12413,6 +12545,7 @@ function createTableScreen({ store }) {
   function paint() {
     const s = table.state;
     const v = table.viewer();
+    if (s.status === 'over') fechaJogoDaSerie(s); // antes de desenhar o placar
     // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
     if (table.humans().length > 1 && v !== shownViewer && s.status !== 'over') { handoff = true; shownViewer = v; }
     if (handoff) {
@@ -12438,6 +12571,9 @@ function createTableScreen({ store }) {
     mount(root,
       h('header', { class: 'tb-top ds-wrap' },
         vezBox(s, v),
+        // Leva 114 · placar da série, sempre à vista
+        serie && serie.melhorDe > 1 ? h('span', { class: 'tb-serie', id: 'tb-serie', role: 'status', 'aria-label': `Partida ${serie.jogo} de ${serie.melhorDe}. ${s.players[0].name} ${serie.vitorias[0]}, ${s.players[1].name} ${serie.vitorias[1]}` },
+          h('b', {}, `J${serie.jogo}`), h('span', {}, placar())) : null,
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
@@ -12458,7 +12594,119 @@ function createTableScreen({ store }) {
   return root;
 }
 
-return { createTableSetup, createTableScreen };
+/* ---------------- Leva 114 · entre as partidas da série: trocas com a reserva ----------------
+   Uma tela por jogador humano que tem reserva: deck em cima, reserva embaixo, um toque passa uma cópia de um lado
+   para o outro; a barra do topo diz se os limites do formato valem e o que entrou e saiu. Segurar a carta mostra
+   a carta inteira. O Shark não troca cartas (declarado no ROADMAP). */
+function createSeriesScreen({ store }) {
+  const root = Stack(pad(), Row({}, Spinner()));
+  (async () => {
+    let serie = null, salvo = null;
+    try { serie = await store.get(T.SERIE_KEY); salvo = await store.get(T.SAVE_KEY); } catch (e) { /* cai no vazio */ }
+    if (!serie || !salvo || serie.melhorDe < 2 || serie.registrado < serie.jogo || T.resultadoDaSerie(serie) != null) {
+      return mount(root, Text('Série', { size: '2xl', display: true, as: 'h1' }),
+        Empty('Não há série esperando a próxima partida.', Button('Preparar partida', { variant: 'primary', icone: 'jogar', onClick: () => go('/mesa') })));
+    }
+    const cartas = salvo.setup.cards || {};
+    const img = nome => { const c = cartas[nome]; if (!c) return ''; const u = c.image_uris || ((c.card_faces || [])[0] || {}).image_uris || {}; return u.normal || u.small || ''; };
+    const humanos = serie.assentos.map((a, i) => ({ a, i })).filter(x => !x.a.dummy && !x.a.bot);
+    const comReserva = humanos.filter(x => x.a.original.some(e => e.zone === 'side'));
+    const st = { passo: 0, entrada: serie.assentos.map(a => a.atual.map(e => ({ ...e }))), primeiro: null, busy: false, entregue: comReserva.length < 2 };
+    // quem perdeu escolhe quem começa; empate: sorteio pela semente
+    const perdedor = serie.ultimoPerdedor != null ? serie.ultimoPerdedor : (serie.semente + serie.jogo) % serie.assentos.length;
+    const perdedorHumano = !serie.assentos[perdedor].dummy && !serie.assentos[perdedor].bot;
+    st.primeiro = perdedor; // perder e começar é a escolha padrão (e a do Shark)
+    const ordem = nome => { const c = cartas[nome] || {}; const terreno = /\bLand\b/.test(c.type_line || '') ? 1 : 0; return [terreno, c.cmc || 0, nome]; };
+    const cmp = (x, y) => { const a = ordem(x.name), b = ordem(y.name); return a[0] - b[0] || a[1] - b[1] || a[2].localeCompare(b[2]); };
+
+    function carta(e, de, seat) {
+      const orig = serie.assentos[seat].original;
+      const noDeckOrig = orig.filter(x => x.name === e.name && x.zone !== 'side').reduce((n, x) => n + x.qty, 0);
+      const noDeckAgora = serie.assentos[seat].atual.filter(x => x.name === e.name && x.zone !== 'side').reduce((n, x) => n + x.qty, 0);
+      const delta = noDeckAgora - noDeckOrig; // > 0: entrou no deck; < 0: saiu
+      const marca = de === 'main' && delta > 0 ? `+${delta}` : de === 'side' && delta < 0 ? `+${-delta}` : '';
+      const fixa = e.zone === 'commander' || e.zone === 'companion';
+      const src = img(e.name);
+      const b = h('button', { class: 'troca-carta', type: 'button', disabled: fixa, dataset: { nome: e.name, de, ...(marca ? { nova: '1' } : {}) },
+        'aria-label': `${e.name}, ${e.qty} ${de === 'main' ? 'no deck' : 'na reserva'}. Toque para mandar uma para ${de === 'main' ? 'a reserva' : 'o deck'}.`,
+        onClick: () => { if (fixa) return; serie.assentos[seat].atual = T.moveNaTroca(serie.assentos[seat].atual, e.name, de); paint(e.name, de === 'main' ? 'side' : 'main'); } },
+        src ? h('img', { class: 'troca-carta__img', src, alt: '', loading: 'lazy', onError: ev => { ev.target.replaceWith(h('span', { class: 'troca-carta__semimg' }, e.name)); } }) : h('span', { class: 'troca-carta__semimg' }, e.name),
+        h('span', { class: 'troca-carta__qtd' }, `×${e.qty}`),
+        marca ? h('span', { class: 'troca-carta__nova', title: 'Veio do outro lado nesta série' }, marca) : null);
+      if (cartas[e.name]) onLongPress(b, { start: () => __m12.openCardViewer(cartas[e.name]), end: () => {} });
+      return b;
+    }
+    function painel(seat, destaque) {
+      const a = serie.assentos[seat];
+      const v = T.validaTroca(a.atual, serie.formato, a.original);
+      const d = T.diffDaTroca(a.atual, a.original);
+      const deck = a.atual.filter(e => e.zone !== 'side').slice().sort(cmp), reserva = a.atual.filter(e => e.zone === 'side').slice().sort(cmp);
+      const medidor = (rotulo, n, limite, ok, id) => h('div', { class: 'troca-medidor', id, dataset: { ok: String(ok) } }, h('span', { class: 'troca-medidor__rotulo' }, rotulo), h('b', {}, String(n)), h('span', { class: 'troca-medidor__limite' }, limite));
+      const chips = (lista, sinal, classe) => lista.map(x => h('span', { class: 'troca-chip ' + classe }, `${sinal}${x.qty} ${x.name}`));
+      const mudou = d.entram.length || d.saem.length;
+      const grade = (lista, de, vazio) => h('div', { class: 'troca-grade', dataset: { zona: de } }, ...(lista.length ? lista.map(e => { const el = carta(e, de, seat); if (destaque && destaque.nome === e.name && destaque.para === de) el.classList.add('is-chegou'); return el; }) : [h('span', { class: 'troca-vazio' }, vazio)]));
+      return Stack({ class: 'troca', id: 'troca', dataset: { ok: String(v.ok) } },
+        h('div', { class: 'troca-barra', id: 'troca-barra' },
+          medidor('Deck', v.deck, `mín. ${v.minDeck}`, v.deck >= v.minDeck, 'troca-deck-n'),
+          medidor('Reserva', v.reserva, `máx. ${v.maxReserva}`, v.reserva <= v.maxReserva, 'troca-reserva-n'),
+          IconButton('desfazer', 'Voltar à lista original', { id: 'troca-original', variant: 'ghost', disabled: !mudou, onClick: () => { a.atual = a.original.map(e => ({ ...e })); paint(); } })),
+        v.ok ? null : (() => { const n = Note(v.erros.join(' '), 'warning'); n.id = 'troca-erro'; return n; })(),
+        h('div', { class: 'troca-diff', id: 'troca-diff', 'aria-live': 'polite' },
+          mudou ? [h('span', { class: 'troca-diff__rotulo' }, 'Entram'), ...chips(d.entram, '+', 'troca-chip--entra'), h('span', { class: 'troca-diff__rotulo' }, 'Saem'), ...chips(d.saem, '−', 'troca-chip--sai')]
+            : h('span', { class: 'troca-diff__vazio' }, 'Sem trocas. Toque numa carta para passar uma cópia para o outro lado; segure para ver a carta.')),
+        h('h2', { class: 'troca-titulo' }, Icone('baralho', { tamanho: 18 }), 'Deck', h('span', {}, String(v.deck))),
+        grade(deck, 'main', 'Deck vazio.'),
+        h('h2', { class: 'troca-titulo' }, Icone('reserva', { tamanho: 18 }), 'Reserva', h('span', {}, String(v.reserva))),
+        grade(reserva, 'side', 'Reserva vazia.'));
+    }
+    async function comecar() {
+      if (st.busy) return; st.busy = true;
+      try {
+        const o = serie.opcoes || {};
+        const seats = serie.assentos.map(a => a.dummy ? { name: a.name, dummy: true } : { name: a.name, deck: { entries: a.atual } });
+        const proxima = T.proximoJogo(serie, st.primeiro);
+        const table = T.createTable(T.buildSetup({ format: serie.formato, seed: (serie.semente + proxima.jogo * 7919) >>> 0, seats, cards: cartas, manaCheck: o.manaCheck !== false, mode: o.mode || 'full', first: st.primeiro }),
+          { options: { autoPass: o.autoPass !== false, bot: o.bot || null } });
+        await store.set(T.SAVE_KEY, table.serialize());
+        await store.set(T.SERIE_KEY, proxima);
+        go('/partida');
+      } catch (e) { toast('Não foi possível começar a partida: ' + (e.message || e)); st.busy = false; }
+    }
+    function paint(nome, para) {
+      const atual = comReserva[st.passo] || null;
+      const placar = `${serie.assentos[0].name} ${serie.vitorias[0]}–${serie.vitorias[1]} ${serie.assentos[1].name}`;
+      const cab = [Row({ class: 'troca-cab' }, Stack({ style: { gap: '2px', minWidth: '0' } },
+        Text(`Partida ${serie.jogo + 1} de ${serie.melhorDe}`, { size: '2xl', display: true, as: 'h1' }),
+        Text(placar, { size: 'sm', tone: 'muted', attrs: { id: 'serie-placar' } })))];
+      // a dois: cada um troca sem o outro ver
+      if (atual && !st.entregue) {
+        return mount(root, ...cab, Surface({ class: 'ds-surface--pad' }, Stack({},
+          Text(`Vez de ${atual.a.name} mexer na reserva`, { size: 'lg', display: true, as: 'h2' }),
+          Text('Passe o aparelho. O outro jogador não vê as trocas.', { size: 'sm', tone: 'muted' }),
+          Row({}, Button(`Sou ${atual.a.name}`, { variant: 'primary', id: 'serie-entrega', onClick: () => { st.entregue = true; paint(); } })))));
+      }
+      const ultimo = !atual || st.passo >= comReserva.length - 1;
+      const valido = !atual || T.validaTroca(atual.a.atual, serie.formato, atual.a.original).ok;
+      const quem = perdedorHumano
+        ? ChipField('Quem começa', h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Quem começa', id: 'serie-primeiro' }, ...serie.assentos.map((a, i) => {
+          const c = Chip(a.name, { pressed: st.primeiro === i, dataset: { primeiro: String(i) } }); c.addEventListener('click', () => { st.primeiro = i; paint(); }); return c; })),
+          `${serie.assentos[perdedor].name} ${serie.ultimoPerdedor != null ? 'perdeu a partida anterior e' : 'foi sorteado e'} escolhe quem começa.`)
+        : Text(`${serie.assentos[perdedor].name} perdeu a partida anterior e escolheu começar.`, { size: 'sm', tone: 'muted', attrs: { id: 'serie-primeiro' } });
+      mount(root, ...cab,
+        atual ? (comReserva.length > 1 ? Text(`Trocas de ${atual.a.name}`, { size: 'lg', display: true, as: 'h2' }) : null) : null,
+        atual ? painel(atual.i, nome ? { nome, para } : null) : Note('Nenhuma lista tem reserva: não há o que trocar.', 'info'),
+        h('div', { class: 'troca-rodape' },
+          ultimo ? quem : null,
+          Row({}, ultimo
+            ? Button(`Começar a partida ${serie.jogo + 1}`, { variant: 'primary', id: 'serie-start', icone: 'jogar', disabled: !valido, onClick: comecar })
+            : Button('Confirmar trocas', { variant: 'primary', id: 'serie-confirma', disabled: !valido, onClick: () => { st.passo++; st.entregue = false; paint(); window.scrollTo(0, 0); } }))));
+    }
+    paint();
+  })();
+  return root;
+}
+
+return { createTableSetup, createTableScreen, createSeriesScreen };
 })();
 
 
@@ -13880,7 +14128,7 @@ const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
 const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen } = __m15;
-const { createTableSetup, createTableScreen } = __m19;
+const { createTableSetup, createTableScreen, createSeriesScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
 const { createOfflineKeeper } = __m26;
@@ -13915,6 +14163,7 @@ const ROUTES = [
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
+  { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];

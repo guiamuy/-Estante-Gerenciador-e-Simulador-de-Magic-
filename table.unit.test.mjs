@@ -515,3 +515,50 @@ test('Leva 110 · registro: ficha com o nome certo, pagar/recusar dizem o quê, 
   assert.deepEqual(J(efeitos.map(e => T.describe(base, { t: 'noop', p: 0 }, [{ kind: 'effect', ...e }], base)[0])),
     ['Ana comprou 1 carta (Preordain)', 'Urso recebeu 2 marcadores +1/+1', 'Urso ganhou +2/+0 até o fim do turno (Rancor)']);
 });
+
+// Leva 114 · série e troca com a reserva
+const LISTA = [{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Counterspell', qty: 40, zone: 'main' }, { name: 'Hydroblast', qty: 4, zone: 'side' }, { name: 'Dispel', qty: 11, zone: 'side' }];
+test('Leva 114 · série melhor de 3: fecha com duas vitórias, registra cada partida uma vez, empate não conta vitória', () => {
+  let s = T.novaSerie({ melhorDe: 3, formato: 'pauper', assentos: [{ name: 'Você', entries: LISTA }, { name: 'Shark', entries: LISTA, bot: true }] });
+  assert.equal(T.resultadoDaSerie(s), null);
+  s = T.registraJogo(s, 0); s = T.registraJogo(s, 0);
+  assert.deepEqual(J(s.vitorias), [1, 0], 'pintar a tela de novo não soma outra vitória');
+  assert.equal(s.ultimoPerdedor, 1);
+  s = T.registraJogo(T.proximoJogo(s, 1), 1);
+  assert.deepEqual(J(s.vitorias), [1, 1]); assert.equal(T.resultadoDaSerie(s), null); assert.equal(s.primeiro, 1);
+  s = T.registraJogo(T.proximoJogo(s, 0), 0);
+  assert.equal(T.resultadoDaSerie(s), 0, '2 a 1');
+  let e = T.novaSerie({ melhorDe: 3, formato: 'pauper', assentos: [{ name: 'A', entries: LISTA }, { name: 'B', entries: LISTA }] });
+  e = T.registraJogo(e, null); e = T.registraJogo(T.proximoJogo(e, 0), 0); assert.equal(T.resultadoDaSerie(e), null, 'empate e uma vitória: ainda há a terceira');
+  e = T.registraJogo(T.proximoJogo(e, 0), null); assert.equal(T.resultadoDaSerie(e), 0, 'três partidas jogadas: quem tem mais vitórias leva');
+  const unica = T.registraJogo(T.novaSerie({ melhorDe: 1, formato: 'pauper', assentos: [{ name: 'A', entries: LISTA }, { name: 'B', entries: LISTA }] }), 1);
+  assert.equal(T.resultadoDaSerie(unica), 1);
+});
+
+test('Leva 114 · troca com a reserva: uma cópia por toque, sem mutar, limites do formato (60 no deck, 15 na reserva) e o que mudou', () => {
+  let es = T.moveNaTroca(LISTA, 'Counterspell', 'main');
+  assert.equal(LISTA[1].qty, 40, 'a lista original não muda');
+  let v = T.validaTroca(es, 'pauper', LISTA);
+  assert.deepEqual([v.deck, v.reserva, v.ok], [59, 16, false]);
+  assert.deepEqual(J(v.erros), ['O deck precisa de pelo menos 60 cartas (tem 59).', 'A reserva aceita no máximo 15 cartas (tem 16).']);
+  es = T.moveNaTroca(es, 'Hydroblast', 'side');
+  v = T.validaTroca(es, 'pauper', LISTA); assert.equal(v.ok, true);
+  assert.deepEqual(J(T.diffDaTroca(es, LISTA)), { entram: [{ name: 'Hydroblast', qty: 1 }], saem: [{ name: 'Counterspell', qty: 1 }] });
+  // não precisa ser uma por uma: 61 no deck e 14 na reserva vale
+  es = T.moveNaTroca(es, 'Dispel', 'side');
+  assert.equal(T.validaTroca(es, 'pauper', LISTA).ok, true, '61 + 14');
+  // desfazer um a um volta ao original
+  es = T.moveNaTroca(T.moveNaTroca(T.moveNaTroca(es, 'Dispel', 'main'), 'Hydroblast', 'main'), 'Counterspell', 'side');
+  assert.deepEqual(J(T.diffDaTroca(es, LISTA)), { entram: [], saem: [] });
+  assert.equal(T.moveNaTroca(LISTA, 'Não Existe', 'main'), LISTA, 'carta que não está lá: nada muda');
+  // formato livre com deck menor: o mínimo é o tamanho original
+  const pequena = [{ name: 'Island', qty: 30, zone: 'main' }, { name: 'Dispel', qty: 2, zone: 'side' }];
+  assert.deepEqual([T.limitesDaTroca('livre', pequena).minDeck, T.limitesDaTroca('livre', pequena).maxReserva], [30, 15]);
+});
+
+test('Leva 114 · quem começa: a escolha entra no setup e o embaralhamento da semente não muda', () => {
+  const base = { format: 'pauper', seed: 9, cards: CARDS, seats: [{ name: 'A', deck }, { name: 'B', deck }] };
+  const livre = E.createGame(T.buildSetup(base)), a0 = E.createGame(T.buildSetup({ ...base, first: 0 })), a1 = E.createGame(T.buildSetup({ ...base, first: 1 }));
+  assert.equal(a0.turn.active, 0); assert.equal(a1.turn.active, 1);
+  assert.deepEqual(J(a1.zones[0].hand.map(o => a1.objects[o].name)), J(livre.zones[0].hand.map(o => livre.objects[o].name)), 'mesma mão com a mesma semente');
+});

@@ -345,6 +345,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-b ✅ | Habilidades das fichas (leva 111) | M12 | 1 | — |
 | 16º-c ✅ | Scanner de alto padrão (leva 112) | E39 | 1 | calibração fina depende do diagnóstico do aparelho |
 | 16º-d ✅ | Modo único (motor completo), cores do deck principal, coleção reordenada (leva 113) | E43 | 1 | — |
+| 16º-e ✅ | Melhor de 3 com trocas da reserva (leva 114) | E51 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3164,6 +3165,19 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
+
+**Leva 114 · Melhor de 3 com trocas da reserva** ✅ (pedido de 01/10/2026)
+- **Regras seguidas** (Comprehensive Rules 100.2a e 100.4a, regras de torneio 3.15; conferidas em 01/10/2026): deck construído com no mínimo 60 cartas e reserva com no máximo 15 depois das trocas; as trocas não precisam ser uma por uma; a lista volta ao original numa série nova; quem perdeu a partida anterior escolhe quem começa. Formato livre: mínimo = o menor entre 60 e o tamanho original do deck.
+- **Preparar partida:** "Partida única" (padrão) ou "Melhor de 3".
+- **Na mesa:** placar da série no topo ("J2 0–1"); ao fim da partida, "Próxima partida"; a série fecha em duas vitórias (ou, com empates, em três partidas: leva quem tem mais vitórias, ou empate). Recarregar a página não conta a partida duas vezes.
+- **Tela de trocas (`#/serie`):** deck em cima, reserva embaixo, cartas com imagem e quantidade; um toque passa uma cópia para o outro lado, com animação; segurar abre a carta inteira; a barra fixa mostra Deck e Reserva contra os limites, em verde ou aviso; "Entram / Saem" resume as trocas; "voltar à lista original" desfaz tudo; o botão de começar fica desligado enquanto os limites não valem, com o motivo escrito. Comandante e companheiro não entram em troca.
+- **A dois:** cada jogador troca na sua vez, depois de "Sou [nome]"; um não vê as trocas do outro.
+- **Quem começa:** quem perdeu escolhe (padrão: ele mesmo); se foi o Shark, ele começa. `setup.first` no motor; o sorteio continua sendo consumido, então a mesma semente embaralha igual.
+- **A lista salva não muda:** as trocas valem só dentro da série.
+- **Declarado:** o Shark não troca cartas com a reserva (joga as três com a lista principal). Commander não tem reserva: a série pula as trocas.
+- **Testes:** U série (2 vitórias, registro único, empates, partida única), troca (uma cópia por toque, sem mutar, limites, 61+14 vale, diff, formato livre), quem começa (semente igual); e2e "leva 114" (placar, recarregar, limites e motivo, diff, marca da carta que entrou, voltar ao original, deck trocado na partida 2, série 2–0, lista intacta) e "a dois" (entrega do aparelho, trocas secretas, escolha de quem começa).
+- **Motor v64 inalterado** (partidas-referência idênticas, sem regravar).
+- **Portão:** 649 verdes (578 + 71 e2e).
 
 **Leva 113 · Modo único, cores do deck principal e coleção reordenada** ✅ (pedido de 01/10/2026)
 - **Jogar tem um modo só: o motor completo.** Saíram "Mesa assistida / Motor completo" e "Cobrar mana". Lista que o motor não resolve 100% não joga: o botão fica desligado e o aviso diz quantas e quais cartas faltam. Vale também para a lista do oponente (Shark ou a dois). O filtro de listas passou a se chamar "Formato".
