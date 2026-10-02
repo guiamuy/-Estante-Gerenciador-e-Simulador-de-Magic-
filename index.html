@@ -10088,9 +10088,16 @@ const __m25 = (function () {
    a mesma posição dá sempre a mesma nota, e simular uma jogada nunca
    muda o estado recebido (ADR-04).
    A AVALIAÇÃO enxerga só o que a mesa mostra: campo, cemitérios, exílio, vida
-   e o TAMANHO da mão do oponente. Ressalva (achada na leva 115, ainda aberta):
-   ao simular a resposta do oponente, o profissional usa as ações legais dele,
-   que dependem da mão dele — isso é informação que um jogador não teria.
+   e o TAMANHO da mão do oponente.
+   INFORMAÇÃO JUSTA (leva 117): o Shark atual decide sobre MUNDOS POSSÍVEIS, não
+   sobre o estado real — ver `visaoDe`. Ele conhece as duas listas, a própria mão
+   e o que a partida mostrou; não conhece a mão do oponente nem a ordem de nenhum
+   grimório. As versões congeladas ('shark-v3' para trás) ainda simulam sobre o
+   estado real e ficam só como régua de torneio.
+   LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
+   de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
+   não olha cores; não troca reserva na melhor de três; esquece o que a vidência
+   mostrou do próprio topo.
    A diferença entre os níveis é profundidade e critério.
    ===================================================================== */
 const E = __m16;
@@ -10495,16 +10502,21 @@ function jogadaProfissional(s, p, opts = {}) {
   const pend = s.pending;
   const minhaDecisao = !!(pend && pend.p === p);
   if (minhaDecisao && pend.kind === 'commander_zone') return { acao: { t: 'commander_zone', p, yes: true }, motivo: 'meu comandante volta para a zona de comando' };
-  if (minhaDecisao && pend.kind === 'attackers') return decideAtaqueProfissional(s, p, opts);
-  if (minhaDecisao && pend.kind === 'blockers') return decideBloqueioProfissional(s, p, opts);
+  if (minhaDecisao && pend.kind === 'attackers') return decideAtaqueProfissional(opts.mundos && opts.mundos[0] || s, p, opts);
+  if (minhaDecisao && pend.kind === 'blockers') return decideBloqueioProfissional(opts.mundos && opts.mundos[0] || s, p, opts);
   const acoes = E.legalActions(s, p).filter(a => a.t !== 'concede');
   if (!acoes.length) return null;
+  // Leva 117 · informação justa: com `opts.mundos`, toda simulação roda sobre mundos possíveis (mão do oponente e
+  // grimórios sorteados do que não foi visto) e a nota é a média entre eles. Sem `mundos` (versões congeladas), roda
+  // sobre o estado real, como antes.
+  const W = opts.mundos && opts.mundos.length ? opts.mundos : [s];
+  const media = f => { let soma = 0, n = 0; for (const w of W) { const v = f(w); if (v == null) continue; soma += v; n++; } return n ? soma / n : -Infinity; };
   const terrenos = acoes.filter(a => a.t === 'play_land');
   if (terrenos.length) {
-    const melhor = escolhe(terrenos, a => { const n = notaDepois(s, p, a, opts); return n == null ? -Infinity : n; }, opts).acao;
+    const melhor = escolhe(terrenos, a => { const n = notaDepois(W[0], p, a, opts); return n == null ? -Infinity : n; }, opts).acao;
     return { acao: melhor, motivo: motivoDe(s, p, melhor, 0) };
   }
-  const base = notaComResposta(s, p, opts); // passar também sofre a resposta do outro
+  const base = media(w => notaComResposta(w, p, opts)); // passar também sofre a resposta do outro
   // Disciplina de instantânea: no meu turno, fora do combate, guardar a mágica
   // rápida costuma valer mais do que usá-la agora. O profissional só gasta se o
   // ganho for grande; o amador gasta assim que melhora um pouco.
@@ -10513,14 +10525,15 @@ function jogadaProfissional(s, p, opts = {}) {
   const pedagio = a => (s.turn.active === p && foraDoCombate && ehInstantanea(a) ? LIMIAR_RESPOSTA : 0);
   const candidatas = minhaDecisao ? acoes : acoes.filter(a => a.t !== 'pass');
   if (!candidatas.length) return { acao: { t: 'pass', p }, motivo: motivoDe(s, p, { t: 'pass', p }, 0) };
-  const r = escolhe(candidatas, a => {
-    const sim = simula(s, a);
-    if (!sim) return -Infinity;
+  const notaNoMundo = (w, a) => {
+    const sim = simula(w, a);
+    if (!sim) return null;
     // v3: escolha em andamento (pegar cartas, modo, tipo) também é levada até o fim antes de dar a nota
     const emEscolha = opts.desdobra && sim.estado.pending && sim.estado.pending.p === p;
     const depois = RESOLVE.includes(a.t) || emEscolha ? resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av) : sim.estado;
-    return notaComResposta(depois, p, opts) - pedagio(a);
-  }, opts);
+    return notaComResposta(depois, p, opts);
+  };
+  const r = escolhe(candidatas, a => media(w => notaNoMundo(w, a)) - pedagio(a), opts);
   if (!r.acao) return { acao: { t: 'pass', p }, motivo: 'passei: nenhuma jogada legal serviu' };
   const ganho = r.nota - base;
   if (!minhaDecisao && ganho <= 0) {
@@ -10529,7 +10542,7 @@ function jogadaProfissional(s, p, opts = {}) {
     // instantâneas ficam na mão, para o turno do oponente.
     if (opts.valor && s.turn.active === p && s.turn.step === 'main2' && !s.stack.length) {
       const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a));
-      const v = escolhe(lentas, a => { const sim = simula(s, a); if (!sim) return -Infinity; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }, opts);
+      const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }), opts);
       if (v.acao && v.nota - base >= -1.5) return { acao: v.acao, motivo: `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };
     }
     return { acao: { t: 'pass', p }, motivo: 'passei: contando a resposta do oponente, nada melhorava' };
@@ -10679,34 +10692,107 @@ function decideMulligan(s, p) {
   return manter(`mantive: ${terrenos} terreno(s) e ${magicas} mágica(s)` + (m ? `, ${m} para o fundo` : ''));
 }
 
+/* ---------------- Leva 117 · informação justa ----------------
+   O que o Shark sabe: as duas listas, a própria mão, tudo que está em zona pública e o que a partida mostrou.
+   O que ele não sabe: quais cartas estão na mão do oponente e a ordem dos dois grimórios.
+   `visaoDe` devolve um MUNDO POSSÍVEL: as cartas que ele não viu (mão do oponente + grimório do oponente) são
+   embaralhadas entre si e redistribuídas, o próprio grimório é embaralhado e a semente da partida é trocada. O
+   sorteio sai de um gerador próprio, alimentado só por informação pública — então duas posições iguais em tudo que
+   a mesa mostra dão exatamente os mesmos mundos, seja qual for a mão real do oponente. */
+function geradorDe(semente) {
+  let x = semente >>> 0;
+  return () => { let t = (x = (x + 0x6D2B79F5) >>> 0); t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const numDoOid = oid => parseInt(String(oid).replace(/\D/g, ''), 10) || 0;
+/** Número tirado só do que a mesa mostra: turno, passo, vidas, pilha, campo e o tamanho das zonas fechadas. */
+function sementePublica(s) {
+  const partes = [s.turn.number, s.turn.step, s.turn.active, s.turn.priority, s.stack.join(','), s.pending ? s.pending.kind + ':' + s.pending.p : ''];
+  s.players.forEach((pl, i) => {
+    const z = s.zones[i];
+    partes.push(pl.life, z.hand.length, z.library.length, z.graveyard.join(','), (z.exile || []).join(','),
+      z.battlefield.map(oid => oid + (s.objects[oid].tapped ? 't' : '')).join(','));
+  });
+  const txt = partes.join('|');
+  let h = 2166136261;
+  for (let i = 0; i < txt.length; i++) { h ^= txt.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+/** Cartas que a decisão em curso ou a pilha citam pelo nome ficam onde estão: quem decide já as viu. */
+function citadas(s) {
+  const txt = JSON.stringify([s.pending || null, s.stack.map(oid => s.objects[oid])]);
+  return new Set(txt.match(/"o\d+"/g) ? txt.match(/"o\d+"/g).map(x => x.slice(1, -1)) : []);
+}
+/** Mundo possível número `k` para o jogador `p`. `conhecidas` são as cartas do oponente que `p` sabe que estão na
+    mão dele (voltaram do campo, foram mostradas). Não muda o estado recebido. */
+function visaoDe(s, p, k = 0, conhecidas = null) {
+  const rnd = geradorDe((sementePublica(s) ^ Math.imul(k + 1, 0x9E3779B1)) >>> 0);
+  const embaralha = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+  const fixas = citadas(s);
+  const objects = { ...s.objects };
+  const zones = Array.isArray(s.zones) ? s.zones.slice() : { ...s.zones };
+  const poe = (oid, zona) => { if (objects[oid].zone !== zona) objects[oid] = { ...objects[oid], zone: zona }; };
+  s.players.forEach((pl, q) => {
+    const z = s.zones[q];
+    const mao = z.hand.slice(), grim = z.library.slice();
+    const livreGrim = grim.map((oid, i) => fixas.has(oid) ? -1 : i).filter(i => i >= 0);
+    if (q === p) {
+      // meu grimório: sei o que tem, não sei a ordem
+      const cartas = embaralha(livreGrim.map(i => grim[i]).sort((a, b) => numDoOid(a) - numDoOid(b)));
+      livreGrim.forEach((i, n) => { grim[i] = cartas[n]; });
+    } else {
+      // oponente: mão e grimório são um monte só de cartas que não vi
+      const livreMao = mao.map((oid, i) => fixas.has(oid) || (conhecidas && conhecidas.has(oid)) ? -1 : i).filter(i => i >= 0);
+      const monte = embaralha([...livreMao.map(i => mao[i]), ...livreGrim.map(i => grim[i])].sort((a, b) => numDoOid(a) - numDoOid(b)));
+      livreMao.forEach((i, n) => { mao[i] = monte[n]; poe(monte[n], 'hand'); });
+      livreGrim.forEach((i, n) => { grim[i] = monte[livreMao.length + n]; poe(monte[livreMao.length + n], 'library'); });
+    }
+    zones[q] = { ...z, hand: mao, library: grim };
+  });
+  return { ...s, objects, zones, rng: Math.floor(rnd() * 4294967296) >>> 0 };
+}
+/** Memória do que a partida mostrou: carta do oponente vista em zona aberta (ou numa decisão minha) e que agora
+    está na mão dele é carta que eu sei que ele tem. Voltou para o grimório, esqueço. */
+function atualizaMemoria(vistas, s, p) {
+  const d = oponenteDe(s, p), z = s.zones[d];
+  for (const oid of [...z.battlefield, ...z.graveyard, ...(z.exile || []), ...s.stack]) if (s.objects[oid] && s.objects[oid].owner === d) vistas.add(oid);
+  if (s.pending && s.pending.p === p) for (const oid of citadas(s)) if (s.objects[oid] && s.objects[oid].owner === d) vistas.add(oid);
+  for (const oid of z.library) vistas.delete(oid);
+  return new Set(z.hand.filter(oid => vistas.has(oid)));
+}
+const MUNDOS = 3; // quantos mundos possíveis entram na média de cada decisão
+
 /** U10 · a mesa tem um bot só: o Shark (o profissional). O amador continua aqui como
     sparring do torneio de aferição, sem aparecer para o usuário. */
 const NOME_DO_BOT = 'Shark';
 /** Qualquer nível vindo da mesa (inclusive os antigos "amador" e "profissional") vira o Shark. */
 const nivelDaMesa = () => 'profissional';
 /** Bot pronto para jogar. Padrão: o Shark. */
-function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now() } = {}) {
-  // Leva 115 · 'profissional' e 'shark' são o Shark atual (v3); 'shark-v2' e 'shark-v1' são as versões
-  // anteriores, congeladas, só para o torneio
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2';
-  const profissional = v1 || v2 || nivel === 'profissional' || nivel === 'shark';
+function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0 } = {}) {
+  // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
+  // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3';
+  const atual = nivel === 'profissional' || nivel === 'shark';
+  const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }
     : { av: avaliaV3, bloqueioForte: true, duplo: true, projeta: true, corrida: true, subconjuntos: true, valor: true, desdobra: true };
-  const v3 = profissional && !v1 && !v2;
+  const vistas = new Set();
   return {
     nivel,
-    /** Mão inicial: o v3 decide; os anteriores mantêm sempre (como antes). */
-    mulligan(s, p) { return v3 ? decideMulligan(s, p) : { acao: { t: 'keep', p, bottom: s.zones[p].hand.slice(0, s.players[p].mulligans || 0) }, motivo: 'mantive' }; },
+    /** Mão inicial: do v3 em diante o bot decide; os anteriores mantêm sempre (como antes). */
+    mulligan(s, p) { return v3 || atual ? decideMulligan(s, p) : { acao: { t: 'keep', p, bottom: s.zones[p].hand.slice(0, s.players[p].mulligans || 0) }, motivo: 'mantive' }; },
     jogada(s, p) {
-      return profissional ? jogadaProfissional(s, p, { orcamentoMs, agora, ...extra })
-        : jogadaAmador(s, p, { orcamentoMs, agora });
+      if (!profissional) return jogadaAmador(s, p, { orcamentoMs, agora });
+      if (!atual || s.status !== 'playing') return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra });
+      const sei = atualizaMemoria(vistas, s, p);
+      const mundos = []; for (let k = 0; k < (mundosN || MUNDOS); k++) mundos.push(visaoDe(s, p, k, sei));
+      return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, mundos });
     }
   };
 }
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */

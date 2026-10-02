@@ -150,16 +150,20 @@ test('U11 · v1 e v2 só diferem por critério: a avaliação v2 é determiníst
   assert.deepEqual(B.avaliaV2(s, 0), B.avaliaV2(s, 0));
   const t = JSON.parse(JSON.stringify(s)); t.players[1].lost = true; t.status = 'over'; t.winner = 0;
   assert.equal(B.avaliaV2(t, 0).parcelas.vitoria, B.PESOS.vitoria);
-  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1'); assert.equal(B.criaBot({ nivel: 'shark-v2' }).nivel, 'shark-v2');
+  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1'); assert.equal(B.criaBot({ nivel: 'shark-v2' }).nivel, 'shark-v2'); assert.equal(B.criaBot({ nivel: 'shark-v3' }).nivel, 'shark-v3');
 });
 
 // Leva 115 · o Shark atual (v3) contra o v2 congelado. Medido em 01/10/2026: 57% em 160 partidas com estes decks de
 // teste e 65% em 221 partidas com as sete listas Pauper de verdade (node torneio.listas.mjs shark shark-v2 4 20000).
 // Aqui o piso é 52% em 60 partidas de semente fixa (o portão precisa caber no tempo): a medida larga é a de cima.
-test('Leva 115 · o Shark v3 ganha do Shark v2 em mais da metade das partidas decididas, sem ação ilegal e rápido', () => {
+// Leva 117 · 'shark' passou a ser o v4: o v3 com informação justa (decide sobre mundos possíveis, sem ver a mão do
+// oponente nem a ordem dos grimórios). Medido em 02/10/2026 nas sete listas Pauper, 224 partidas cada:
+// v4 × v2 = 64% em 222 decididas (o v3, que espiava, fazia 65%); v4 × v3 congelado = 46% em 220 (dentro da margem
+// de ±7: parar de espiar não custou força mensurável). O piso de 52% contra o v2 continua valendo.
+test('Leva 115/117 · o Shark atual ganha do Shark v2 em mais da metade das partidas decididas, sem ação ilegal e rápido', () => {
   const partidas = 60;
   const r = serie({ nivelForte: 'shark', nivelFraco: 'shark-v2', partidas, base: 9000, misto: true });
-  console.log(relatorio('Shark v3 × Shark v2', r, partidas));
+  console.log(relatorio('Shark atual × Shark v2', r, partidas));
   assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
   assert.equal(r.decididas >= partidas * 0.9, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
   assert.equal(r.taxa >= 0.52, true, `o v3 ganhou ${(r.taxa * 100).toFixed(0)}% das decididas`);

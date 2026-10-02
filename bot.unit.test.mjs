@@ -546,3 +546,120 @@ test('Leva 115 · carta com escolha (Winding Way): o v3 enxerga o que ela rende 
   assert.equal(t.pending && t.pending.kind, 'pick');
   assert.equal(B.criaBot({ nivel: 'shark' }).jogada(t, a).acao.t, 'pick', 'pega carta (antes: encerrava a escolha vazia)');
 });
+
+// Leva 117 · informação justa: o Shark decide sobre mundos possíveis, nunca sobre a mão real do oponente.
+/** A mesma posição em tudo que a mesa mostra, com outra mão para o oponente de p (cartas do grimório dele) e outra
+    ordem nos dois grimórios. Cartas citadas pela decisão em curso ou pela pilha ficam onde estão. */
+function outraMao(s, p, sal) {
+  const c = J(s), d = 1 - p;
+  let x = sal >>> 0; const rnd = () => { x = (Math.imul(x, 1664525) + 1013904223) >>> 0; return x / 4294967296; };
+  const mistura = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const cit = new Set((JSON.stringify([c.pending, c.stack.map(o => c.objects[o])]).match(/"o\d+"/g) || []).map(q => q.slice(1, -1)));
+  const livres = lista => lista.map((o, i) => cit.has(o) ? -1 : i).filter(i => i >= 0);
+  const zd = c.zones[d], lm = livres(zd.hand), lg = livres(zd.library);
+  const monte = mistura([...lm.map(i => zd.hand[i]), ...lg.map(i => zd.library[i])]);
+  lm.forEach((i, n) => { zd.hand[i] = monte[n]; c.objects[monte[n]].zone = 'hand'; });
+  lg.forEach((i, n) => { zd.library[i] = monte[lm.length + n]; c.objects[monte[lm.length + n]].zone = 'library'; });
+  const zp = c.zones[p], lp = livres(zp.library), meu = mistura(lp.map(i => zp.library[i])); lp.forEach((i, n) => { zp.library[i] = meu[n]; });
+  c.rng = (c.rng ^ sal) >>> 0;
+  return c;
+}
+const nomesDe = (s, lista) => lista.map(o => s.objects[o].name).sort();
+const relogioParado = () => 0; // sem corte por tempo: a decisão não pode depender da máquina
+
+async function partidaReal(a, b, seed) {
+  const { cartasReais, listas } = await import('./torneio.listas.mjs');
+  const CR = cartasReais(), d0 = listas[a], d1 = listas[b];
+  const cards = {}; for (const e of [...d0.entries, ...d1.entries]) if (CR[e.name]) cards[e.name] = CR[e.name];
+  return E.createGame({ format: 'pauper', seed, mode: 'full', manaCheck: true, cards, players: [{ name: 'P0', deck: d0.entries }, { name: 'P1', deck: d1.entries }] });
+}
+/** Joga a partida com o v3 congelado e chama `visita(s, quem, i)` antes de cada decisão. */
+function percorre(s, passos, visita) {
+  const bots = [B.criaBot({ nivel: 'shark-v3', agora: relogioParado }), B.criaBot({ nivel: 'shark-v3', agora: relogioParado })];
+  for (let i = 0; i < passos && s.status !== 'over'; i++) {
+    const q = s.status === 'mulligan' ? s.players.findIndex(pl => !pl.kept) : s.pending ? s.pending.p : s.turn.priority;
+    if (s.status === 'mulligan') { s = act(s, bots[q].mulligan(s, q).acao); continue; }
+    if (visita(s, q, i) === false) break;
+    const j = bots[q].jogada(s, q); if (!j) break; s = act(s, j.acao);
+  }
+  return s;
+}
+
+test('Leva 117 · mundo possível: o que a mesa mostra fica igual; a mão do oponente e os grimórios são sorteados do que não foi visto', async () => {
+  let s = await partidaReal(0, 3, 77);
+  s = percorre(s, 40, () => true);
+  const p = 0, d = 1, antes = JSON.stringify(s);
+  const w = B.visaoDe(s, p, 0);
+  assert.equal(JSON.stringify(s), antes, 'não muda o estado recebido');
+  assert.deepEqual(w.zones[p].hand, s.zones[p].hand, 'minha mão é minha');
+  for (const q of [0, 1]) for (const z of ['battlefield', 'graveyard', 'exile']) assert.deepEqual(w.zones[q][z], s.zones[q][z], `${z} é público`);
+  assert.deepEqual(w.stack, s.stack);
+  assert.equal(w.zones[d].hand.length, s.zones[d].hand.length, 'o tamanho da mão dele é público');
+  assert.equal(w.zones[d].library.length, s.zones[d].library.length);
+  assert.deepEqual(nomesDe(w, [...w.zones[d].hand, ...w.zones[d].library]), nomesDe(s, [...s.zones[d].hand, ...s.zones[d].library]), 'as cartas dele que eu não vi são as mesmas, só não sei onde estão');
+  assert.deepEqual(nomesDe(w, w.zones[p].library), nomesDe(s, s.zones[p].library), 'sei o que resta no meu grimório');
+  assert.notDeepEqual(w.zones[p].library, s.zones[p].library, 'mas não a ordem');
+  assert.notEqual(w.rng, s.rng, 'nem a semente da partida');
+  for (const oid of w.zones[d].hand) assert.equal(w.objects[oid].zone, 'hand');
+  for (const oid of w.zones[d].library) assert.equal(w.objects[oid].zone, 'library');
+  assert.deepEqual(E.invariants ? E.invariants(w) : [], E.invariants ? E.invariants(s) : [], 'o mundo sorteado é um estado válido');
+  // a trava: duas posições iguais no que é público dão exatamente os mesmos mundos
+  for (const k of [0, 1, 2]) for (const sal of [5, 99]) assert.equal(JSON.stringify(B.visaoDe(outraMao(s, p, sal), p, k)), JSON.stringify(B.visaoDe(s, p, k)));
+  assert.notDeepEqual(B.visaoDe(s, p, 1).zones[d].hand, B.visaoDe(s, p, 0).zones[d].hand, 'cada mundo é um sorteio diferente');
+  assert.equal(B.sementePublica(outraMao(s, p, 7)), B.sementePublica(s));
+});
+
+test('Leva 117 · o que a partida mostrou fica sabido: carta vista em campo que voltou para a mão não é sorteada; voltou ao grimório, esquece', async () => {
+  let s = J(percorre(await partidaReal(0, 3, 77), 60, () => true));
+  const p = 0, d = 1, z = s.zones[d];
+  const vistas = new Set();
+  assert.equal(B.atualizaMemoria(vistas, s, p).size, 0, 'nada na mão dele foi visto ainda');
+  const emCampo = z.battlefield[0];
+  assert.ok(emCampo, 'o oponente tem carta em campo');
+  B.atualizaMemoria(vistas, s, p);
+  // a carta volta para a mão dele
+  z.battlefield.splice(0, 1); z.hand.push(emCampo); s.objects[emCampo].zone = 'hand';
+  const sei = B.atualizaMemoria(vistas, s, p);
+  assert.deepEqual([...sei], [emCampo]);
+  for (const k of [0, 1, 2, 3]) assert.ok(B.visaoDe(s, p, k, sei).zones[d].hand.includes(emCampo), 'em todo mundo possível ela está na mão dele');
+  assert.ok([0, 1, 2, 3, 4, 5].some(k => !B.visaoDe(s, p, k).zones[d].hand.includes(emCampo)), 'sem a memória, ela seria sorteada');
+  // embaralhada de volta no grimório: deixa de ser sabida
+  z.hand.pop(); z.library.push(emCampo); s.objects[emCampo].zone = 'library';
+  assert.equal(B.atualizaMemoria(vistas, s, p).size, 0);
+  // cartas que a decisão em curso mostra ficam no lugar
+  const t = J(s); const topo = t.zones[p].library[0];
+  t.pending = { kind: 'pick', p, from: [topo], picked: [], min: 0, max: 1 };
+  for (const k of [0, 1, 2]) assert.equal(B.visaoDe(t, p, k).zones[p].library[0], topo);
+});
+
+// O teste que falhava antes da leva 117: trocar só a mão do oponente mudava a jogada do Shark. Medido em 02/10/2026
+// com esta sonda em 7 partidas das listas Pauper: v3 mudou a jogada em 4 de 227 decisões; o Shark atual, em 0 de 227.
+test('Leva 117 · não vazamento: com outra mão para o oponente (mesma mesa), o Shark faz a mesma jogada; o v3 congelado mudava', { timeout: 280000 }, async () => {
+  let s0 = await partidaReal(3, 6, 503);
+  let alvo = null;
+  const diferentes = [], total = [];
+  percorre(s0, 100, (s, q, i) => {
+    if (i === 50) alvo = { s, q };
+    if (!s.pending && s.zones[1 - q].hand.length && E.legalActions(s, q).length > 3 && i % 2 === 1) {
+      const a = B.criaBot({ nivel: 'shark', agora: relogioParado }).jogada(s, q);
+      for (const sal of [11, 12]) { const b = B.criaBot({ nivel: 'shark', agora: relogioParado }).jogada(outraMao(s, q, sal + i), q); total.push(i); if (JSON.stringify(a.acao) !== JSON.stringify(b.acao)) diferentes.push(i); }
+    }
+    return true;
+  });
+  assert.ok(total.length >= 6, 'a sonda passou por decisões de verdade: ' + total.length);
+  assert.deepEqual(diferentes, [], 'o Shark não muda de jogada com a mão do oponente trocada');
+  assert.ok(alvo, 'chegou à posição em que o v3 vazava');
+  const joga = (nivel, st) => JSON.stringify(B.criaBot({ nivel, agora: relogioParado }).jogada(st, alvo.q).acao);
+  const variantes = [127, 1, 2, 3, 4, 5, 6, 7].map(sal => outraMao(alvo.s, alvo.q, sal));
+  assert.ok(variantes.some(v => joga('shark-v3', v) !== joga('shark-v3', alvo.s)), 'v3 congelado: a jogada dependia da mão do oponente');
+  for (const v of variantes) assert.equal(joga('shark', v), joga('shark', alvo.s));
+});
+
+test('Leva 117 · o Shark atual é o de informação justa; o v3 fica congelado como régua', () => {
+  for (const n of ['shark', 'profissional', 'shark-v3', 'shark-v2', 'shark-v1']) assert.equal(B.criaBot({ nivel: n }).nivel, n);
+  assert.equal(B.MUNDOS >= 2, true, 'mais de um mundo: uma mão sorteada só seria palpite');
+  // só joga o que é legal na posição real
+  const s = mesa(11); const p = s.turn.priority;
+  const j = B.criaBot({ nivel: 'shark' }).jogada(s, p);
+  assert.ok(E.legalActions(s, p).some(a => B.chaveAcao(a) === B.chaveAcao(j.acao)));
+});

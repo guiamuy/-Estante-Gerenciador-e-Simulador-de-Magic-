@@ -2,7 +2,7 @@
 // Uso: node torneio.listas.mjs <forte> <fraco> <rodadas> <semente>   ex.: node torneio.listas.mjs shark shark-v2 4 20000
 // Cada confronto entre as sete listas é jogado nos dois lados e nos dois assentos. Os dados das cartas vêm de
 // .listas/oficiais.json (texto oficial); cor, valor de mana e palavras-chave são derivados do texto.
-// Níveis: 'shark' (v3), 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
+// Níveis: 'shark' (v4, informação justa; 'shark:N' muda o número de mundos), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
 import { readFileSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
 const { engine: E, bot: B, starter: ST, decks: D } = loadModules();
@@ -32,6 +32,7 @@ const CARTAS = cartasReais(new URL('.', import.meta.url).pathname.replace(/\/$/,
 const listas = ST.STARTER_DECKS.filter(d => d.format === 'pauper').map(d => ({ name: d.name, entries: D.parseDeckText(d.text).entries.filter(e => e.zone !== 'side') }));
 export { cartasReais, listas, partida };
 const cria = nivel => {
+  if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
   if (!nivel.startsWith('x:')) return B.criaBot({ nivel, orcamentoMs: 250 });
   const f = new Set(nivel.slice(2).split(',').filter(Boolean));
   const opts = { orcamentoMs: 250, agora: () => Date.now(), av: f.has('av3') ? B.avaliaV3 : B.avaliaV2, bloqueioForte: true, duplo: true, projeta: f.has('projeta'), corrida: f.has('corrida'), subconjuntos: f.has('sub'), valor: f.has('valor'), desdobra: f.has('desdobra') };

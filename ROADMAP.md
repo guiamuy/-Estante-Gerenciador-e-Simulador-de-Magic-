@@ -350,6 +350,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-e ✅ | Melhor de 3 com trocas da reserva (leva 114) | E51 | 1 | — |
 | 16º-f ✅ | Shark v3: mulligan e decisão medida em torneio (leva 115) | B | 1 | — |
 | 16º-g 🟡 | Scanner por contorno e linha do nome, medido em fotos reais (leva 116) | E39 | 1 | teste no aparelho; fotos do próprio usuário (X10) |
+| 16º-h ✅ | Shark com informação justa: decide sem ver a mão do oponente (leva 117) | B8 | 1 | — |
+| 16º-i | Shark profissional: B9 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2355,6 +2357,49 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** B4.
 - **Fora:** análise pós-partida completa; a leitura do que passou batido no turno inteiro (a dica é do
   momento, que é onde ela muda a sua jogada).
+
+**B8 · Informação justa** ✅ (leva 117, 02/10/2026)
+- **Valor:** o Shark vira adversário honesto: ganhar espiando a mão não treina ninguém.
+- **Regra:** ele conhece as duas listas, a própria mão, tudo que está em zona aberta e o que a partida mostrou.
+  Não conhece as cartas da mão do oponente nem a ordem de nenhum grimório.
+- **Entregue:**
+  - toda decisão do Shark passa a ser tomada sobre **mundos possíveis** (`visaoDe`): as cartas do oponente que ele
+    não viu (mão + grimório) são sorteadas entre si, o próprio grimório é embaralhado e a semente da partida é
+    trocada; a nota de cada jogada é a média de 3 mundos;
+  - o sorteio usa só informação pública, então a mesma mesa dá sempre os mesmos mundos;
+  - **memória do que foi mostrado**: carta do oponente vista em zona aberta que voltou para a mão dele continua
+    sabida; voltou ao grimório, é esquecida; carta citada pela decisão em curso fica onde está;
+  - o v3 fica congelado como `shark-v3` (régua de torneio; ele simula sobre o estado real).
+- **Medição (sete listas Pauper, 224 partidas cada):** atual × v2 = **64% em 222 decididas** (o v3 fazia 65%);
+  atual × v3 congelado = **46% em 220** (dentro da margem de ±7). Parar de espiar não custou força mensurável.
+  Sonda de vazamento em 7 partidas: o v3 mudava a jogada em 4 de 227 decisões ao trocar a mão do oponente; o
+  atual, em 0 de 227. Zero ações ilegais. Pior decisão 1249 ms com dois torneios em paralelo e orçamento de 250 ms.
+- **Simplificações declaradas:** o Shark esquece o que a vidência mostrou do próprio topo; a memória do que foi
+  revelado se perde se a partida for restaurada; o número de mundos (3) não foi afinado — fica para a B14; a dica
+  "O que eu poderia fazer?" do jogador humano ainda simula sobre o estado real (só afeta a contagem de cartas).
+- **Testes:** U (mundo possível preserva o que é público e os tamanhos; mesma mesa, mesmos mundos; memória de
+  revelações; não vazamento em partida real, com a posição em que o v3 vazava; só joga ação legal), P (torneio).
+- **Depende de:** B6.
+
+**Roteiro do Shark profissional (B9–B20)** — pedido em 02/10/2026: tornar o bot o adversário mais difícil possível,
+conhecendo os dois baralhos e as estratégias de cada um, sem conhecer a mão do jogador. Uma leva por história; cada
+técnica entra atrás de opção e só fica se pagar em torneio com listas reais (≥ 200 partidas decididas, versão
+anterior congelada). Ordem revista a cada leva pela leitura de partidas narradas.
+
+| # | História | Erro de jogo que elimina |
+|---|---|---|
+| B9 | Conhecer os baralhos: perfil derivado das duas listas e contagem do que resta | joga sem saber o que o oponente pode ter nem o que pode comprar |
+| B10 | Mulligan com cores, curva e primeiro/depois | mantém mão sem cor ou sem jogada |
+| B11 | Sequenciamento do turno | desperdiça mana, baixa o terreno errado |
+| B12 | Papel e corrida | defende quando devia atacar, e o contrário |
+| B13 | Jogar em volta (anulação, truque, varredura) | ataca para dentro do truque, estende para a varredura |
+| B14 | Busca com mãos sorteadas e número de mundos afinado | avalia a resposta do oponente por poucas mãos |
+| B15 | Plano de dois ou três turnos | não vê o letal em dois turnos nem monta combo |
+| B16 | Combate profissional | trocas ruins, truque próprio mal usado |
+| B17 | Remoção e anulação como recurso | gasta a resposta na ameaça errada |
+| B18 | Melhor de três: troca de reserva por confronto | não usa a reserva |
+| B19 | Leitura do oponente e blefe | não aprende com o que o oponente segura |
+| B20 | Pesos afinados por torneio automático | avaliação calibrada no olho |
 
 ### C · Coleção
 
