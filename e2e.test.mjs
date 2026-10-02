@@ -65,6 +65,12 @@ async function open(t, { dev = true } = {}) {
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
   const ctx = await browser.newContext({ viewport: { width: +(process.env.SHOT_W || 390), height: process.env.SHOT_W === '360' ? 780 : 844 }, serviceWorkers: 'block',
     ...(process.env.SHOT_TEMA ? { colorScheme: process.env.SHOT_TEMA } : {}) });
+  // Leva 116 · as imagens dos dados de teste (cards.scryfall.io/.../x/sol.jpg) não existem. Aqui o host é inalcançável
+  // (net::ERR_, que o teste ignora como ambiente); no GitHub Actions a internet responde 404 e o console acusa
+  // "Failed to load resource: 404" — o portão do CI ficou vermelho da O2 (28/09) em diante por isso, com o portão
+  // local verde. O padrão passa a ser o mesmo nos dois lugares: o CDN de imagens fica fora do ar, salvo quando o
+  // próprio teste o simula (rota da página, que tem precedência sobre a do contexto).
+  await ctx.route(/^https:\/\/[^/]*\bscryfall\.io\//, r => r.abort('internetdisconnected'));
   const page = await ctx.newPage();
   // leva 113: o app publicado só tem o motor completo. Os testes de mesa montam o estado à mão (mover carta, conjurar
   // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
