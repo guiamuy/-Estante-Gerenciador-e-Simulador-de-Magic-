@@ -4903,7 +4903,7 @@ function coresDaLista(entries, cards) {
     if (!c) return null;
     if (!cmd.length && /\bLand\b/.test(c.type_line || '') && !/\bCreature\b/.test(c.type_line || '')) continue;
     achadas++;
-    const cs = cmd.length ? (c.color_identity || []) : (c.colors || (c.card_faces || []).flatMap(f => f.colors || []));
+    const cs = cmd.length ? (c.color_identity || []) : (c.colors || ((c.card_faces || [])[0] || {}).colors || []); // dupla face: a cor é a da frente
     cs.forEach(x => cor.add(x));
   }
   if (!achadas) return null;
@@ -6026,7 +6026,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
           // U2 parte 3 · selos com ícone desenhado no lugar de ✓ ◐ ✎
           Badge([Icone('marcar', { tamanho: 14 }), ` ${cv.completo}`], { tone: 'positive' }), cv.parcial ? Badge([Icone('meia', { tamanho: 14 }), ` ${cv.parcial}`]) : null, cv.manual ? Badge([Icone('editar', { tamanho: 14 }), ` ${cv.manual}`]) : null),
-        Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela pode jogar no modo motor completo.' : `Na mesa assistida, você aplica o efeito de ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
+        Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela está pronta para jogar.' : `Esta lista ainda não joga: o motor não resolve ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
           { size: 'sm', tone: 'muted' }),
         cv.worst.length ? Button('Copiar sem script', { id: 'deck-copy-missing', icone: 'copiar', title: 'Copiar as cartas que o motor ainda não resolve', onClick: async () => {
           const txt = cv.worst.map(n => `1 ${n}`).join('\n');
@@ -6745,26 +6745,31 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const filterIn = Input({ id: 'col-filter', placeholder: 'Nome ou texto da carta', value: state.filter, onInput: e => { state.filter = e.target.value; paint(); } });
   filterBtn = Button('Filtros', { id: 'col-filters', icone: 'filtro', onClick: openFilters }); paintFilterBtn();
 
+  const secaoAdicionar = Surface({ class: 'ds-surface--pad ds-surface--shelf', id: 'col-adicionar' }, Stack({},
+    Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
+    h('div', { class: 'col-acoes' },
+      // U2 · quatro ações em grade de duas colunas, cada uma com ícone
+      Button('Colar lista', { id: 'col-import', icone: 'importar', title: 'Importar uma lista de cartas', onClick: () => openImportList() }),
+      Button('Abrir CSV', { id: 'col-csv-import', icone: 'planilha', title: 'Importar CSV (ManaBox e outros)', onClick: () => csvInput.click() }),
+      Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
+      Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() })),
+    csvInput, listInput));
   load();
   return Stack(pad(),
     Row({ class: 'col-topo' }, Stack({ style: { gap: 'var(--space-1)', minWidth: '0' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
       IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }),
+      // Leva 113 · adicionar carta foi para o fim da página: o atalho leva até lá
+      IconButton('mais', 'Adicionar carta (fim da página)', { id: 'col-ir-adicionar', onClick: () => { secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
       Button('Escanear', { variant: 'primary', id: 'col-scan', icone: 'scanner', onClick: () => go('/scanner') })),
-    care,
-    Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
-      Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
-      h('div', { class: 'col-acoes' },
-        // U2 · quatro ações em grade de duas colunas, cada uma com ícone
-        Button('Colar lista', { id: 'col-import', icone: 'importar', title: 'Importar uma lista de cartas', onClick: () => openImportList() }),
-        Button('Abrir CSV', { id: 'col-csv-import', icone: 'planilha', title: 'Importar CSV (ManaBox e outros)', onClick: () => csvInput.click() }),
-        Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
-        Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() })),
-      csvInput, listInput)),
+    // Leva 113 · ordem pedida: painel primeiro, depois filtro e visões da coleção; adicionar carta e backup no fim
+    dashboard,
     undoBar, pendingBox,
     Row({ class: 'ds-row--wrap' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn),
-    dashboard, toolbar, viewsRow, countLine, listEl, selectionBar);
+    toolbar, viewsRow, countLine, listEl, selectionBar,
+    secaoAdicionar,
+    care);
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -11470,7 +11475,11 @@ const randomSeed = () => {
 /* ---------------- A2 · preparar partida ---------------- */
 function createTableSetup({ decks, cardRepo, store, keeper = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
-  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, mode: 'assisted', coverage: 0, busy: false };
+  // Leva 113 · um modo só: o motor completo. Lista que o motor não resolve 100% não joga, e a tela diz por quê.
+  // DEV: a mesa assistida continua no motor para os testes de mesa (ajuste manual de estado); só aparece com
+  // window.__MESA_DEV, que o app publicado nunca liga.
+  const DEV = typeof window !== 'undefined' && !!window.__MESA_DEV;
+  const state = { mine: null, opponent: 'goldfish', theirs: null, me: 'Você', them: 'Oponente', seed: randomSeed(), stopAll: false, mana: true, mode: DEV ? 'assisted' : 'full', coverage: 0, coberturaDele: 100, faltamDele: [], busy: false };
 
   (async () => {
     const all = await decks.list();
@@ -11510,7 +11519,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     const formatBox = h('div', { id: 'mesa-format' });
     function paintFormat() {
       mount(formatBox, Row({ class: 'ds-row--wrap' },
-        ...[['all', 'Todos os modos'], ...FORMAT_KEYS.map(k => [k, FORMATS[k] || k])].map(([k, label]) => {
+        ...[['all', 'Todos'], ...FORMAT_KEYS.map(k => [k, FORMATS[k] || k])].map(([k, label]) => {
           const c = Chip(label, { pressed: state.format === k, dataset: { tableFormat: k } });
           c.addEventListener('click', () => {
             if (state.format === k) return;
@@ -11518,7 +11527,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
             const lista = visiveis();
             if (!lista.some(d => d.id === state.mine)) state.mine = (lista[0] || all[0]).id;
             if (!lista.some(d => d.id === state.theirs)) state.theirs = (lista[0] || all[0]).id;
-            paintFormat(); paintMine(); paintOpponent(); paintCoverage();
+            paintFormat(); paintMine(); paintOpponent(); paintCoverage(); confereOponente();
           });
           return c;
         })));
@@ -11527,7 +11536,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
       const lista = visiveis();
       mount(mineField, lista.length
         ? seletor('mesa-mine', 'Sua lista', state.mine, id => { state.mine = id; paintMine(); paintCoverage(); })
-        : Note('Você não tem lista neste modo de jogo. Toque em "Listas prontas" para adicionar uma.', { tone: 'warning' }));
+        : Note('Você não tem lista neste formato. Toque em "Listas prontas" para adicionar uma.', { tone: 'warning' }));
     }
     const covBox = h('div', { id: 'mesa-coverage' });
     const modeBox = h('div', { id: 'mesa-mode' });
@@ -11551,10 +11560,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
       try { guardadas = await cardRepo.pinned(nomes); } catch (e) { /* sem armazenamento: some o aviso */ }
       const prontaOffline = guardadas >= nomes.length;
       const reserva = contaDeck(d).side;
+      const lista6 = xs => `${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}`;
+      const bloqueio = cv.pct < 100 ? (() => { const n = Note(`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. Escolha outra lista ou troque essas cartas.`, 'warning'); n.id = 'mesa-bloqueio'; return n; })() : null;
       mount(covBox, Stack({ style: { gap: 'var(--space-1)' } },
-        reserva ? Text(`Reserva: ${reserva} carta(s) ficam de fora da partida. Trocas entre jogos entram depois.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-reserva' } }) : null,
-        Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · você aplica o efeito de ${cv.parcial + cv.manual} carta(s) na mesa` : ' · nada a adjudicar'), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }),
-        faltam.length ? Text(`Fica com você: ${faltam.slice(0, 6).join(', ')}${faltam.length > 6 ? ` e mais ${faltam.length - 6}` : ''}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
+        reserva ? Text(`Reserva: ${reserva} carta(s) ficam de fora da partida.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-reserva' } }) : null,
+        DEV || !bloqueio ? Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · ${cv.parcial + cv.manual} carta(s) sem regra completa` : ''), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }) : null,
+        DEV && faltam.length ? Text(`Fica com você: ${lista6(faltam)}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
+        DEV ? null : bloqueio,
         prontaOffline
           ? Text('Guardada para jogar sem internet.', { size: 'sm', tone: 'positive', attrs: { id: 'mesa-offline-ok' } })
           : Row({ class: 'ds-row--wrap' },
@@ -11563,6 +11575,29 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         Text(`motor v${E.ENGINE_VERSION}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-engine-version' } })));
       paintMode();
       paintChips();
+      paintStart();
+    }
+    /** Leva 113 · a lista do oponente (Shark ou a dois) também precisa estar 100%: o motor joga pelos dois. */
+    let covDeleRun = 0;
+    async function confereOponente() {
+      const run = ++covDeleRun;
+      const d = state.opponent === 'goldfish' ? null : byId(state.theirs);
+      if (!d) { state.coberturaDele = 100; state.faltamDele = []; return paintStart(); }
+      let cards = new Map();
+      try { cards = await cardRepo.byNames(d.entries.map(e => e.name)); } catch (e) { /* sem rede */ }
+      if (run !== covDeleRun) return;
+      const cv = deckCoverage(d.entries.map(e => ({ ...e, key: norm(e.name) })), cards);
+      state.coberturaDele = cv.pct; state.faltamDele = [...new Set(cv.pending.map(x => x.name))];
+      paintStart();
+    }
+    const bloqueioDele = h('div', { id: 'mesa-bloqueio-oponente' });
+    let startBtn = null;
+    function paintStart() {
+      if (!startBtn) return;
+      const ok = DEV || (state.coverage === 100 && state.coberturaDele === 100);
+      startBtn.disabled = !ok || state.busy;
+      const xs = state.faltamDele;
+      mount(bloqueioDele, !DEV && state.coberturaDele < 100 ? Note(`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
     }
     /** S64 · busca o que falta e guarda tudo, sem prazo de validade. */
     async function guardar(nomes) {
@@ -11580,6 +11615,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     }
     // S9 · motor completo só entra com a lista 100% coberta
     function paintMode() {
+      if (!DEV) return;
       const full = state.coverage === 100;
       if (!full) state.mode = 'assisted';
       mount(modeBox, Row({ class: 'ds-row--wrap' },
@@ -11598,12 +11634,12 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     const ehBot = () => state.opponent === 'shark';
     const paintOpponent = () => mount(theirsField, ehBot() ? Stack({},
       Text('O Shark joga com a lista escolhida abaixo e explica no registro as decisões que tomar.', { size: 'sm', tone: 'muted' }),
-      seletor('mesa-bot-deck', 'Lista do bot', state.theirs, id => { state.theirs = id; paintOpponent(); }))
+      seletor('mesa-bot-deck', 'Lista do bot', state.theirs, id => { state.theirs = id; paintOpponent(); confereOponente(); }))
       : state.opponent === 'hotseat' ? Stack({},
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
-      seletor('mesa-theirs', 'Lista do oponente', state.theirs, id => { state.theirs = id; paintOpponent(); })) : null);
+      seletor('mesa-theirs', 'Lista do oponente', state.theirs, id => { state.theirs = id; paintOpponent(); confereOponente(); })) : null);
     // B5 · o bot só existe no motor completo (ADR-05): sem a lista 100% coberta o motor
     // não resolve tudo sozinho, e o bot decidiria no escuro. U10 · um bot só: o Shark.
     // U2 parte 3 · os três oponentes num segmentado com ícone; o nome longo fica no title e na nota abaixo
@@ -11611,13 +11647,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
     const oppChips = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Oponente' });
     const oppNota = h('div', { id: 'mesa-opponent-note' });
     function paintChips() {
-      const travado = state.coverage !== 100;
+      const travado = DEV && state.coverage !== 100;
       if (travado && ehBot()) { state.opponent = 'goldfish'; paintOpponent(); }
       mount(oppChips, ...OPONENTES.map(([k, label, icone, longo]) => {
         const bloqueado = travado && k === 'shark';
         const c = Chip(label, { icone, pressed: state.opponent === k, dataset: { opponent: k } }); c.title = longo; c.setAttribute('aria-label', longo);
         if (bloqueado) { c.disabled = true; c.title = 'O Shark precisa da lista 100% coberta pelo motor'; }
-        else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); });
+        else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); confereOponente(); });
         return c;
       }));
       mount(oppNota, travado
@@ -11649,7 +11685,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         // S64 · sem os dados da carta o motor não tem tipo, custo nem força: no motor
         // completo isso daria partida errada em silêncio, então ele não começa assim
         if (state.mode === 'full' && unknown) {
-          toast(`Faltam os dados de ${unknown} carta(s). Toque em "Guardar para jogar sem internet" com rede, ou jogue na mesa assistida.`, 5000);
+          toast(`Faltam os dados de ${unknown} carta(s). Conecte à internet e toque em "Baixar cartas".`, 5000);
           return;
         }
         // as cartas já vieram da rede agora: guarda para a próxima partida, mesmo sem internet
@@ -11663,11 +11699,12 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
         go('/partida');
       } catch (e) {
         toast('Não foi possível preparar a partida: ' + (e.message || e));
-      } finally { state.busy = false; startBtn.disabled = false; startBtn.querySelector('.ds-btn__rotulo').textContent = 'Começar partida'; }
+      } finally { state.busy = false; startBtn.querySelector('.ds-btn__rotulo').textContent = 'Começar partida'; paintStart(); }
     }
-    const startBtn = Button('Começar partida', { variant: 'primary', id: 'mesa-start', icone: 'jogar', onClick: start });
+    startBtn = Button('Começar partida', { variant: 'primary', id: 'mesa-start', icone: 'jogar', onClick: start });
+    paintStart();
 
-    paintFormat(); paintMine(); paintCoverage();
+    paintFormat(); paintMine(); paintCoverage(); confereOponente();
     mount(root,
       Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
       saved ? Surface({ class: 'ds-surface--pad', id: 'mesa-saved' }, Stack({},
@@ -11677,15 +11714,14 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
           Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', icone: 'jogar', onClick: () => go('/partida') }),
           Button('Descartar', { variant: 'danger', icone: 'lixeira', onClick: async () => { await store.remove(T.SAVE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
-        ChipField('Modo de jogo', formatBox),
+        ChipField('Formato', formatBox),
         mineField,
         covBox,
         ChipField('Oponente', oppChips), oppNota,
-        theirsField,
-        ChipField('Modo', modeBox),
-        ChipField('Mana', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
-          c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })(),
-          'Ligado, conjurar toca seus terrenos sozinho e só oferece o que dá para pagar. Cartas que o motor não entende podem ser conjuradas sem pagar.'),
+        theirsField, bloqueioDele,
+        DEV ? ChipField('Modo (teste)', modeBox) : null,
+        DEV ? ChipField('Mana (teste)', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
+          c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })()) : null,
         ChipField('Paradas', (() => { const c = Chip('Parar sempre', { icone: 'pausa', pressed: false, dataset: { stopall: '1' } }); c.setAttribute('aria-label', 'Parar em todos os passos');
           c.addEventListener('click', () => { state.stopAll = !state.stopAll; c.setAttribute('aria-pressed', String(state.stopAll)); }); return c; })(),
           'Ligado, a mesa para em todos os passos. Desligado, passa sozinha onde não há decisão, como no Arena.'),
@@ -13886,7 +13922,7 @@ const ROUTES = [
 function renderHome() {
   const el = h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-6)' } },
     Text('Plataforma de Magic', { size: '2xl', display: true, as: 'h1' }),
-    Text('Monte listas, marque o que já tem e jogue na mesa assistida: o motor cuida de turno, pilha e vida.', { tone: 'muted' }),
+    Text('Monte listas, marque o que já tem e jogue: o motor cuida das regras, do turno, da pilha e da vida.', { tone: 'muted' }),
     h('div', { style: { height: 'var(--space-5)' } }),
     // U2 · atalhos com ícone e uma palavra; o detalhe diz o que tem lá dentro
     h('nav', { class: 'ds-atalhos', id: 'home-atalhos', 'aria-label': 'Atalhos' },

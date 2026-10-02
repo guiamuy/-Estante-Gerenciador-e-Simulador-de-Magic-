@@ -344,6 +344,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-a ✅ | Mesa e listas, cinco relatos com fotos do aparelho (leva 110) | E43 | 1 | — |
 | 16º-b ✅ | Habilidades das fichas (leva 111) | M12 | 1 | — |
 | 16º-c ✅ | Scanner de alto padrão (leva 112) | E39 | 1 | calibração fina depende do diagnóstico do aparelho |
+| 16º-d ✅ | Modo único (motor completo), cores do deck principal, coleção reordenada (leva 113) | E43 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3163,6 +3164,15 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
+
+**Leva 113 · Modo único, cores do deck principal e coleção reordenada** ✅ (pedido de 01/10/2026)
+- **Jogar tem um modo só: o motor completo.** Saíram "Mesa assistida / Motor completo" e "Cobrar mana". Lista que o motor não resolve 100% não joga: o botão fica desligado e o aviso diz quantas e quais cartas faltam. Vale também para a lista do oponente (Shark ou a dois). O filtro de listas passou a se chamar "Formato".
+- **Consequência declarada:** as duas listas prontas de Commander (e qualquer lista com carta parcial ou manual) deixam de jogar até o motor cobri-las; as sete de Pauper estão em 100%. É o caminho da E36 · S67+.
+- **Mesa assistida:** continua no motor (ADR-04 não muda) e nos testes de mesa, que montam o estado à mão; só aparece com `window.__MESA_DEV`, que o app publicado não liga. Partida assistida já salva continua abrindo.
+- **Cores na escolha de lista:** só o deck principal conta (a reserva nunca entrou; teste novo com vermelho só na reserva). Carta de dupla face conta a cor da frente (antes: as duas faces).
+- **Coleção:** painel primeiro; depois filtro, visões (lista, galeria, densa, pilhas) e a lista; adicionar carta (com colar lista, CSV, exportar, selecionar) e o aviso de backup no fim. Atalho "+" no topo leva ao campo de adicionar.
+- **Testes:** e2e "leva 113 modo único" (sem controles de modo, bloqueio com o nome da carta, bloqueio pela lista do oponente, cor da reserva fora, mesa sem ajuste manual) e "leva 113 coleção" (ordem na página, atalho). Os e2e de mesa existentes rodam com `__MESA_DEV`.
+- **Portão:** 644 verdes (575 + 69 e2e). Motor v64.
 
 **Leva 112 · Scanner de alto padrão** ✅ (pedido de 01/10/2026: leitura errada com a carta mal posicionada, câmera embaçada, às vezes não registra, às vezes registra duas vezes, tela que rola)
 - **Referências (01/10/2026):** ManaBox (guia oficial do scanner), Delver Lens, TCGplayer e o comparativo da Scrytics; boas práticas da TCG Stacked. O que todos fazem e entrou aqui: leitura só dentro da moldura, câmera ocupando a tela, confirmação visível com o nome, a mesma carta parada não soma de novo ("toque na tela para somar outra", como no ManaBox), foco por toque, revisão da pilha antes de salvar.

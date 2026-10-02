@@ -59,13 +59,17 @@ const DB = Object.fromEntries([
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
-async function open(t) {
+async function open(t, { dev = true } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
   const ctx = await browser.newContext({ viewport: { width: +(process.env.SHOT_W || 390), height: process.env.SHOT_W === '360' ? 780 : 844 }, serviceWorkers: 'block',
     ...(process.env.SHOT_TEMA ? { colorScheme: process.env.SHOT_TEMA } : {}) });
   const page = await ctx.newPage();
+  // leva 113: o app publicado só tem o motor completo. Os testes de mesa montam o estado à mão (mover carta, conjurar
+  // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
+  // único (leva 113 em diante) abrem com { dev: false }.
+  if (dev) await page.addInitScript(() => { window.__MESA_DEV = true; });
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   // recurso de rede que não carrega (imagem sem internet, host fora do alcance) é ambiente, não erro do app
@@ -3473,5 +3477,61 @@ test('e2e · leva 111 ficha de Sangue: sem mana a habilidade aparece apagada com
   for (let i = 0; i < 6 && await page.evaluate(() => window.__estanteMesa.estado().stack.length > 0); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(150); }
   const fim = await page.evaluate(p => { const s = window.__estanteMesa.estado(); return { sangue: s.zones[p].battlefield.filter(o => s.objects[o].name === 'Blood').length, mao: s.zones[p].hand.length, cemiterio: s.zones[p].graveyard.length }; }, p);
   assert.deepEqual(fim, { sangue: 0, mao, cemiterio: 1 }, 'descartou uma, comprou uma, a ficha sumiu');
+  assert.deepEqual(errors, []);
+});
+
+// Leva 113 · um modo só (motor completo), cores só do deck principal, coleção com o painel primeiro.
+test('e2e · leva 113 modo único: lista 100% joga no motor completo; lista com carta sem regra não joga e a tela diz qual; cores só do deck principal', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell\n\nSideboard\n4 Lightning Bolt', 'livre');
+  await createDeck(page, base, 'Com carta sem regra', '30 Island\n10 Mystery Ritual\n20 Counterspell', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  // sem escolha de modo nem de mana: só existe o motor completo
+  assert.equal(await page.locator('[data-mode]').count(), 0, 'sem "Mesa assistida / Motor completo"');
+  assert.equal(await page.locator('[data-mana]').count(), 0, 'sem "Cobrar mana"');
+  await escolheLista(page, 'mesa-mine', /Com carta sem regra/);
+  await page.waitForSelector('#mesa-bloqueio');
+  assert.match(await page.innerText('#mesa-bloqueio'), /Esta lista ainda não joga\. O motor não resolve 1 carta\(s\) dela: Mystery Ritual/);
+  assert.equal(await page.locator('#mesa-start').isDisabled(), true, 'não dá para começar');
+  await auditaTela(page, 'preparar partida com lista bloqueada');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mesa-bloqueio.png' });
+  // a dois: a lista do oponente também precisa estar 100%
+  await escolheLista(page, 'mesa-mine', /^Coberta$/);
+  await page.waitForFunction(() => !document.querySelector('#mesa-bloqueio') && !document.querySelector('#mesa-start').disabled);
+  await page.click('[data-opponent="hotseat"]');
+  await escolheLista(page, 'mesa-theirs', /Com carta sem regra/);
+  await page.waitForFunction(() => /lista do oponente ainda não joga/.test(document.querySelector('#mesa-bloqueio-oponente').innerText));
+  assert.equal(await page.locator('#mesa-start').isDisabled(), true);
+  await page.click('[data-opponent="goldfish"]');
+  await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled);
+  // cores: a lista "Coberta" tem vermelho só na reserva; aparece só o azul
+  assert.equal(await page.getAttribute('#mesa-mine .ds-pips', 'aria-label'), 'identidade: azul', 'a cor da reserva não entra');
+  // começa no motor completo: sem ajuste manual
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep');
+  await page.waitForSelector('.tb-hand .tb-card');
+  await page.locator('.tb-hand .tb-card').first().click(); await page.waitForSelector('.ds-dialog');
+  assert.doesNotMatch(await page.innerText('.ds-dialog'), /ajuste manual|Mover para/, 'sem controles da mesa assistida');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 113 coleção: painel primeiro, depois as visões; adicionar carta e backup no fim', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-add');
+  await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  const ordem = await page.evaluate(() => { const y = sel => { const el = document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().top + scrollY) : null; };
+    return { painel: y('#col-dashboard'), filtro: y('#col-filter'), visoes: y('#col-views'), lista: y('.col-row'), adicionar: y('#col-adicionar'), backup: y('#col-backup') }; });
+  assert.ok(ordem.painel < ordem.filtro && ordem.filtro < ordem.lista, 'painel antes do filtro e da lista: ' + JSON.stringify(ordem));
+  assert.ok(ordem.lista < ordem.adicionar, 'adicionar carta depois da lista: ' + JSON.stringify(ordem));
+  assert.ok(ordem.backup == null || ordem.backup > ordem.adicionar, 'aviso de backup no fim: ' + JSON.stringify(ordem));
+  assert.ok(ordem.backup != null, 'com carta e sem backup, o aviso aparece');
+  // o atalho do topo leva até o campo
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.click('#col-ir-adicionar');
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add');
+  await auditaTela(page, 'coleção reordenada');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/colecao.png', fullPage: true });
   assert.deepEqual(errors, []);
 });
