@@ -1339,7 +1339,10 @@ test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e
   await page.click('#deck-save');
   await page.waitForSelector('.deck-summary');
 
-  await page.addInitScript(FAKE_DEVICE(false));
+  // X11 · expectativa ajustada: a linha de coleção só vai para o leitor quando existe um bloco de texto sobre a borda
+  // escura da carta (antes: qualquer faixa ia, inclusive o quadro de ruído da câmera falsa). A câmera deste teste
+  // passa a mostrar a foto de uma carta.
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg')).toString('base64')));
   await page.goto(base + '#/scanner');
   await page.reload();
   await page.waitForSelector('#scan-read:not([disabled])');
@@ -3305,13 +3308,122 @@ test('e2e · leva 112 scanner: cabe sem rolar num S25, não registra leitura inc
   await opcaoScanner(page, 'diag', false);
   await page.waitForSelector('#scan-diag .scan-diag__linha');
   const diag = await page.innerText('#scan-diag');
-  assert.match(diag, /nit \d+ · mov \d+/); assert.match(diag, /Sol Ring \+1/); assert.match(diag, /repetida|espera/);
+  // X11 · expectativa ajustada: a nitidez passou a ser medida na linha do nome já retificada (valores de 0,1 a 30) e
+  // aparece com uma casa decimal (antes: inteiro, medida na faixa crua)
+  assert.match(diag, /nit [\d.]+ · mov \d+/); assert.match(diag, /Sol Ring \+1/); assert.match(diag, /repetida|espera/);
   await page.click('#scan-diag-copiar');
   const copiado = await page.evaluate(() => navigator.clipboard.readText());
   assert.match(copiado, /aparelho: /); assert.match(copiado, /foco: /); assert.match(copiado, /limiares: nitidez/);
   await page.click('#ds-dialog-close');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner.png' });
   assert.deepEqual(errors, []);
+});
+
+// X11 · o caminho inteiro no navegador com uma foto de carta inclinada sobre um playmat: câmera (falsa, mostrando a
+// foto) → contorno de quatro cantos → pedaço do vídeo → linha do nome retificada. O leitor falso guarda a imagem que
+// recebeu; o OCR de verdade (tesseract.js, no Node) confere que ali está o nome, e depois a linha de coleção.
+const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false) => `
+  window.__ocrQueue = []; window.__ocrImgs = []; window.__canvases = 0;
+  const criar = document.createElement.bind(document);
+  document.createElement = function (tag, ...r) { if (String(tag).toLowerCase() === 'canvas') window.__canvases++; return criar(tag, ...r); };
+  window.Tesseract = { createWorker: async () => {
+    try { const c = await caches.open('estante-ocr-v1'); await c.put('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', new Response('')); await c.put('https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz', new Response('')); } catch (e) {}
+    return { setParameters: async () => {}, terminate: async () => {},
+      recognize: async alvo => { try { if (window.__ocrImgs.length < 12) window.__ocrImgs.push(alvo.toDataURL('image/png')); } catch (e) {} return { data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }; } };
+  } };
+  const gum = async () => {
+    const img = new Image(); img.src = ${JSON.stringify(dataUrl)}; await img.decode();
+    const c = criar('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext('2d');
+    if (${deCabecaParaBaixo}) { g.translate(c.width, c.height); g.rotate(Math.PI); }
+    const pinta = () => g.drawImage(img, 0, 0);
+    pinta(); setInterval(pinta, 100);
+    return c.captureStream(10);
+  };
+  if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = gum;
+  else Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: gum } });
+`;
+test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o leitor recebe a linha do nome limpa, a edição sai da mesma carta e nenhuma leitura cria canvas novo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64')));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  // duas leituras iguais (porteiro) e, depois do aceite, a linha de coleção
+  await page.evaluate(() => { window.__ocrImgs.length = 0; window.__ocrQueue.push('Counterspell', 'Counterspell', '267/330 U\nMH2 • EN'); });
+  await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 15000 }).catch(async e => { throw new Error('diario: ' + JSON.stringify(await page.evaluate(() => window.__scanDiario.lista().slice(0, 4)))); });
+  assert.match(await page.innerText('#scan-ok'), /Counterspell/);
+  // o contorno é um quadrilátero desenhado sobre a carta (inclinada 12°): quatro pontos, e não um retângulo reto
+  const pts = await page.evaluate(() => { const p = document.querySelector('#scan-outline polygon'); return p ? p.getAttribute('points').split(' ').map(q => q.split(',').map(Number)) : null; });
+  assert.equal(pts && pts.length, 4, 'polígono de quatro cantos');
+  const incl = Math.abs(Math.atan2(pts[1][1] - pts[0][1], pts[1][0] - pts[0][0]) * 180 / Math.PI);
+  assert.ok(incl > 8 && incl < 16, 'o lado de cima acompanha a inclinação da carta: ' + incl.toFixed(1) + '°');
+  await auditaTela(page, 'scanner com contorno');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-contorno.png' });
+  await page.waitForSelector('#scan-edition', { timeout: 10000 });
+  assert.match(await page.innerText('#scan-edition'), /MH2 #267/);
+  // o diário diz por onde leu e quanto custou (sem o OCR de verdade, é só detector + preparo)
+  const diario = await page.evaluate(() => window.__scanDiario.lista());
+  const pelaCarta = diario.filter(x => x.via === 'carta');
+  assert.ok(pelaCarta.length >= 2, 'leu pelo contorno: ' + JSON.stringify(diario.slice(0, 3)));
+  assert.ok(Math.min(...pelaCarta.map(x => x.ms)) < 250, 'detector + preparo em menos de 250 ms: ' + pelaCarta.map(x => x.ms));
+  // a carta continua no quadro e o laço continua lendo: nenhum canvas novo por leitura
+  const antes = await page.evaluate(() => window.__canvases);
+  await page.evaluate(() => window.__ocrQueue.push('Counterspell', 'Counterspell', 'Counterspell', 'Counterspell', 'Counterspell'));
+  await page.waitForFunction(() => window.__ocrQueue.length === 0, null, { timeout: 12000 });
+  assert.equal(await page.evaluate(() => window.__canvases) - antes, 0, 'cinco leituras, zero canvas novo');
+  assert.equal(await contaPilha(page), 1, 'e a carta parada não entra de novo');
+  await page.click('[data-auto]');
+  assert.deepEqual(errors, []);
+  // OCR de verdade sobre o que o leitor recebeu no navegador
+  let T = null, langPath = null;
+  try { const { createRequire } = await import('node:module'); const req = createRequire(import.meta.url); T = req('tesseract.js'); langPath = join(req.resolve('@tesseract.js-data/eng/package.json'), '..', '4.0.0'); } catch (e) { return; }
+  const imgs = (await page.evaluate(() => window.__ocrImgs)).map(u => Buffer.from(u.split(',')[1], 'base64'));
+  assert.ok(imgs.length >= 3, 'o leitor recebeu nome, nome e linha de coleção');
+  const worker = await T.createWorker('eng', 1, { langPath, gzip: true, cacheMethod: 'none' });
+  try {
+    await worker.setParameters({ tessedit_pageseg_mode: '7' });
+    const nome = (await worker.recognize(imgs[0])).data.text;
+    assert.match(nome, /Counterspell/, 'a linha que saiu do navegador tem o nome legível: "' + nome.trim() + '"');
+    await worker.setParameters({ tessedit_pageseg_mode: '6' });
+    const col = (await worker.recognize(imgs[2])).data.text;
+    assert.match(col, /267/, 'número de coleção legível: "' + col.trim() + '"'); assert.match(col, /MH2/, 'edição legível: "' + col.trim() + '"');
+  } finally { await worker.terminate(); }
+});
+
+// X11 · carta de cabeça para baixo: depois de três leituras sem nome o scanner vira a carta e MANTÉM virada pelas
+// leituras seguintes (o porteiro precisa de leituras seguidas iguais; virar só uma em cada três nunca aceitaria).
+test('e2e · X11 carta de cabeça para baixo: depois de três leituras sem nome, o leitor passa a receber a linha do nome do lado certo, três vezes seguidas', { skip }, async t => {
+  let T = null, langPath = null;
+  try { const { createRequire } = await import('node:module'); const req = createRequire(import.meta.url); T = req('tesseract.js'); langPath = join(req.resolve('@tesseract.js-data/eng/package.json'), '..', '4.0.0'); } catch (e) { return t.skip('OCR de teste não instalado'); }
+  const { page, errors, base } = await open(t);
+  const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64'), true));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  // o leitor falso nunca devolve nome: cada passada lê pelo contorno e, sem nome, pela moldura (duas imagens)
+  await page.evaluate(() => { window.__ocrImgs.length = 0; });
+  await page.waitForFunction(() => window.__ocrImgs.length >= 12, null, { timeout: 20000 });
+  await page.click('[data-auto]');
+  const diario = await page.evaluate(() => window.__scanDiario.lista());
+  assert.ok(diario.some(x => x.via === 'carta' || x.via === 'moldura'), 'houve leituras: ' + JSON.stringify(diario.slice(0, 3)));
+  assert.deepEqual(errors, []);
+  const imgs = (await page.evaluate(() => window.__ocrImgs)).map(u => Buffer.from(u.split(',')[1], 'base64'));
+  const worker = await T.createWorker('eng', 1, { langPath, gzip: true, cacheMethod: 'none' });
+  try {
+    await worker.setParameters({ tessedit_pageseg_mode: '7' });
+    const le = async i => (await worker.recognize(imgs[i])).data.text.trim();
+    const lidas = []; for (let i = 0; i < imgs.length; i++) lidas.push(/Counterspell/.test(await le(i)) ? 'S' : '-');
+    // cada passada dá duas imagens (contorno, depois moldura). Em pé, nenhuma tem o nome ("--"); virada, a do
+    // contorno tem ("S-"). Três passadas viradas seguidas = "S-S-S", que é o que o porteiro precisa para aceitar
+    const padrao = lidas.join('');
+    assert.match(padrao, /--/, 'com a carta suposta em pé o nome não aparece: ' + padrao);
+    assert.match(padrao, /S-S-S/, 'virada, o nome aparece em três passadas seguidas: ' + padrao);
+  } finally { await worker.terminate(); }
 });
 
 // Leva 110 · cinco ajustes de mesa e listas: alvo de qualquer coisa pela insanidade, selo de anexo no lugar do nome,

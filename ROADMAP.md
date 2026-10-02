@@ -109,6 +109,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X8 pilha de leitura na tela | 🟡 |
 | X · Scanner | X9 validação ágil: confira com um toque | 🟡 |
 | X · Scanner | X10 acerto medido no portão (fotos sintéticas; reais pendentes) | 🟡 |
+| X · Scanner | X11 leitura por contorno: quatro cantos, carta retificada, linha do nome (leva 116) | 🟡 |
+| X · Scanner | X12 reconhecimento pela arte (impressão digital da imagem) | ○ |
 | C · Coleção | C10 exportar por lista (três formatos, seleção manual) | 🟡 |
 | C · Coleção | C11 importar por lista com conferência, pendências e desfazer | 🟡 |
 | O · Offline | O1 o que é seu fica no aparelho: guardião, painel e portão offline | 🟡 |
@@ -347,6 +349,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-d ✅ | Modo único (motor completo), cores do deck principal, coleção reordenada (leva 113) | E43 | 1 | — |
 | 16º-e ✅ | Melhor de 3 com trocas da reserva (leva 114) | E51 | 1 | — |
 | 16º-f ✅ | Shark v3: mulligan e decisão medida em torneio (leva 115) | B | 1 | — |
+| 16º-g 🟡 | Scanner por contorno e linha do nome, medido em fotos reais (leva 116) | E39 | 1 | teste no aparelho; fotos do próprio usuário (X10) |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -441,7 +444,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E33aj ✅ | S66 (leva 58) | Partida guiada: a corrente de interações dos Elfos, passo a passo |
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15 (leva 79) · A16 (leva 80) — épico completo, aguardando teste no aparelho | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
-| E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) | Scanner sem moldura, pilha de leitura, validação ágil e acerto medido |
+| E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) · X11 🟡 (leva 116) · X12 ○ | Scanner sem moldura, pilha de leitura, validação ágil, acerto medido e leitura por contorno |
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
@@ -2758,7 +2761,7 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** X8.
 - **Fora:** aprender com as correções (subir a nota de um nome que o usuário confirmou várias vezes).
 
-**X10 · Medir o acerto com fotos reais** 🟡 (parcial: conjunto sintético; fotos reais pendentes)
+**X10 · Medir o acerto com fotos reais** 🟡 (parcial: conjunto sintético; fotos reais pendentes — desde a leva 116 o portão mede o caminho da X11 e o conjunto tem 27 fotos)
 - **Valor:** fechar a pendência declarada em X2 e X3: hoje o portão mede a correspondência, não o OCR.
 - **Aceite:**
   - conjunto de fotos reais de cartas no repositório (variando luz, ângulo, acabamento e idioma);
@@ -2802,6 +2805,110 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
   falsa continua achando a carta e lendo).
 - **Depende de:** X7, X9.
 - **Fora:** conjunto com centenas de fotos; corrigir perspectiva; aprender com correções.
+
+**X11 · Leitura por contorno: quatro cantos, carta retificada e linha do nome** 🟡 (leva 116; aguardando teste no aparelho)
+- **Valor:** o scanner lê a carta onde ela estiver no quadro, inclinada ou em perspectiva, sobre papel, playmat
+  ou pano escuro, com protetor ou em cima de uma pilha. Pedido de 01/10/2026: "não está reconhecendo nenhuma carta".
+- **Diagnóstico medido (01/10/2026), antes de mexer:** 11 fotos reais de carta tiradas com celular (repositórios
+  públicos `hj3yoo/mtg_card_detector` e `tmikonen/magic_card_detector`) passaram pelo caminho exato do app
+  publicado (leva 112). **Acerto: 3 de 11**, e só nas fotos em que a carta foi alinhada à mão na moldura; nas 6 em
+  que o detector achou a carta sozinho, a leitura veio vazia ou lixo. Duas causas:
+  1. o detector (perfis de borda, retângulo reto) prende em retângulos errados — moldura interna, sombra, outra
+     carta, protetor — e não tolera mais de ~3,5° de inclinação; a faixa do nome sai do lugar errado;
+  2. o tratamento da faixa (`realcaTexto` + `limpaBordas`) recebia borda preta, barra do título e começo da arte
+     juntos: em carta de verdade o "fundo" não fica branco, o preenchimento a partir da margem engole o texto e o
+     OCR devolve vazio.
+  Terceira causa, não medida aqui (só existe no aparelho) e corrigida por construção: a cada leitura o app criava
+  um canvas do tamanho do vídeo inteiro (4K = 33 MB), várias vezes por segundo. Em celular isso esgota a memória
+  de canvas e as cópias passam a vir em branco — o sintoma é exatamente "não lê nada".
+- **Aceite:**
+  - a carta é achada por quatro cantos (não por retângulo reto), com inclinação e perspectiva, em qualquer lugar do quadro;
+  - o leitor recebe só a linha do nome: retificada, localizada dentro da faixa do topo, binarizada e sem as linhas da barra;
+  - sem contorno (carta na mão, mesa da cor da borda), o mesmo caminho vale a partir da moldura guia;
+  - nenhuma leitura copia o quadro inteiro nem cria canvas novo;
+  - o portão mede o caminho novo em fotos com desenho de carta de verdade e cena de uso real, e o caminho
+    antigo fica abaixo do alvo nesse conjunto.
+- **Entregue (leva 116):**
+  - **contorno:** retas do quadro por transformada de Hough sobre as bordas (quadro em 320 px), quadrilátero de
+    proporção 63×88 com as quatro bordas apoiadas; entre os válidos ganha o mais apoiado, mais próximo da
+    proporção, maior (a arte tem quase a proporção da carta, deitada) e com o lado mais fraco mais forte (numa
+    pilha, só a carta de cima tem as quatro bordas à vista). `achaQuadrilatero` — 7 ms por quadro no Node;
+  - **retificação:** homografia dos quatro cantos; do vídeo sai só o pedaço que tem o nome, na resolução cheia
+    (`recorteDaFaixa` → `camera.capture(regiao, { canvas })`), e ele é endireitado em 800 px de largura;
+  - **linha do nome:** a faixa é generosa (−3% a 19% da carta) porque o quadrilátero pode ser a borda de fora, a
+    moldura de dentro ou um protetor; dentro dela a linha é **achada** (traços verticais entre duas faixas calmas),
+    não suposta (`linhaDoNome`). Só essa linha é binarizada (fundo local, polaridade automática) e limpa
+    (`binarizaLinha`, `limpaLinha`); `preparaNome` junta tudo e é a mesma função no app e no portão;
+  - **linha de coleção:** o mesmo caminho no canto de baixo, só sobre a borda escura (`preparaColecao`);
+  - **nome:** o OCR também arrasta lixo no **começo** da linha (a curva da barra vira "l", "fi", "ol"); a
+    correspondência tenta de novo sem as palavrinhas de até 2 letras da frente;
+  - **laço:** contorno primeiro; sem leitura, a moldura guia na mesma passada. Depois de três leituras sem nome
+    com o contorno achado, a carta é lida de cabeça para baixo e **continua** virada enquanto a leitura der nome
+    (o porteiro precisa de leituras seguidas). Contorno pequeno demais não é lido, mas não impede a moldura guia
+    ("Aproxime a carta" só aparece se ela também não ler). Carta em movimento não vai para o OCR. A régua de
+    nitidez passou a medir a linha retificada. O porteiro (leva 112) não mudou;
+  - **edição:** os cantos são conferidos de novo no quadro do momento do aceite (o nome foi lido uma ou mais
+    passadas antes); sem bloco de texto sobre borda escura (carta de borda branca), nada vai para o leitor;
+  - **câmera:** 1440p primeiro (antes 4K), depois 1080p; três canvas reaproveitados (quadro pequeno, pedaço do
+    vídeo, linha pronta);
+  - **tela:** o contorno é o quadrilátero desenhado sobre a carta (SVG); com a carta achada, a moldura guia sai da
+    frente; a dica, com a carta achada e sem nome, fala de leitura ("aproxime e tire o reflexo"), não de
+    enquadramento; o diagnóstico mostra a versão do leitor.
+- **Medido depois (01/10/2026):**
+
+  | Conjunto | Antes (leva 112) | Depois (leva 116) |
+  |---|---|---|
+  | 11 fotos reais de celular (nome) | 3 | **7** |
+  | — as 7 de moldura moderna | 3 | 6 |
+  | — as 4 de moldura antiga (Alpha, 1993) | 0 | 1 |
+  | 27 fotos do portão (nome) | 20 (74%, abaixo do alvo de 90%) | **27 (100%)** |
+  | 27 fotos do portão (edição) | 16 | 22 |
+
+  As fotos reais não entram no repositório: `hj3yoo/mtg_card_detector` não tem licença. O conjunto do portão
+  ganhou 15 fotos sintéticas de estilo `real` (`fotos/gerar.mjs`): carta com borda preta, barra do título, custo
+  de mana, arte, regras e linha de coleção em duas linhas, em papel pautado, playmat, pano preto, pilha,
+  protetor com reflexo, sombra de mão, inclinação de até 14° e perspectiva.
+- **Parcial, e o que falta:**
+  - **não testado em aparelho real** nesta leva; a calibração (nitidez mínima, distância) saiu de fotos de 720p;
+  - **moldura antiga** (nome claro com sombra sobre fundo texturizado, cartas até 2003): o OCR não lê. Uma de
+    quatro. É o caso que o reconhecimento pela arte (X12) resolve;
+  - carta com perspectiva forte e pequena no quadro (foto tirada de longe e de lado) não lê;
+  - pilha sobre fundo escuro: o contorno pode cair numa carta de baixo; a moldura guia resolve;
+  - edição em 22 de 27: texto de ~7 px e desfoque continuam fora, como em X10.
+- **Testes:** U (cantos de carta reta, inclinada, fora do centro e clara em fundo claro; arte e meia carta não
+  ganham; quadrado, quadro liso e carta cortada não são carta; ruído; menos de 25 ms; homografia e retificação;
+  linha do nome entre faixas calmas; binarização nas duas polaridades; limpeza que preserva letra e não apaga
+  fundo texturizado; nitidez e deslocamento; recorte da faixa; lixo no começo do nome; linha de coleção só
+  sobre a borda escura; câmera sem canvas novo), fotos (27, nome ≥ 90%, edição ≥ 70%, pelo caminho do app),
+  I headless (foto de carta inclinada 12° num playmat: contorno de quatro cantos na tela; a imagem que o leitor
+  recebeu no navegador é lida pelo Tesseract de verdade, nome e linha de coleção; cinco leituras, zero canvas novo;
+  a mesma foto de cabeça para baixo: três passadas seguidas com o nome do lado certo).
+- **Revisão independente do código (01/10/2026), antes do portão final:** uma leitura sem contexto da implementação
+  apontou 12 itens; os que mudavam comportamento foram corrigidos e viraram teste: carta de cabeça para baixo
+  nunca seria aceita (virava uma leitura em cada três; o porteiro precisa de seguidas), preenchimento do contorno
+  ficaria preto opaco em navegador sem `color-mix`, contorno "longe" travava a moldura guia, recorte com palco sem
+  tamanho derrubava "Ler agora", linha de coleção lida de uma tira qualquer em carta de borda branca, contorno
+  parado na tela com o automático pausado, deslocamento falso quando a ordem dos cantos gira.
+- **Expectativas ajustadas com justificativa:** diagnóstico da leva 112 (nitidez com uma casa decimal: a medida
+  mudou de faixa crua para linha retificada); X3/X5 (a câmera falsa mostra a foto de uma carta: a linha de coleção
+  só vai para o leitor quando há texto sobre a borda escura, e o quadro de ruído não tem).
+- **Depende de:** X7, X10.
+- **Fora:** reconhecimento pela arte (X12); cartas de dupla face pelo verso; idiomas além do inglês.
+
+**X12 · Reconhecimento pela arte (impressão digital da imagem)** ○
+- **Valor:** identificar a carta e a **edição** sem depender do OCR: moldura antiga, foil, nome coberto, carta em
+  outro idioma. É como ManaBox e Delver Lens resolvem o que o texto não resolve.
+- **Aceite:**
+  - a carta retificada (X11) vira uma impressão digital perceptual de 256 bits da arte;
+  - a base de impressões (uma por arte, ~35 mil) é gerada fora do app a partir das imagens da Scryfall e baixada
+    sob demanda como a base de nomes, com tamanho medido (estimativa: ~1,2 MB) e uso offline;
+  - nome por OCR e nome por arte se confirmam; quando discordam, a leitura fica "confira";
+  - a edição sai da arte quando a linha de coleção não lê.
+- **Testes:** U (impressão estável a luz, inclinação e reflexo; busca em 35 mil em menos de 50 ms), fotos.
+- **Depende de:** X11. **Decisão pendente do usuário:** quem gera a base — um fluxo do GitHub Actions neste
+  repositório, que baixa as imagens da Scryfall uma vez por semana e publica o arquivo no Pages (recomendado), ou
+  geração no aparelho a partir das cartas da própria coleção (sem custo de infraestrutura, cobre só o que já se tem).
+- **Fora:** rede neural no aparelho.
 
 ### O · Offline de verdade (E42)
 
@@ -3167,6 +3274,13 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
 
+**Leva 116 · Scanner por contorno e linha do nome** 🟡 (pedido de 01/10/2026: "não está reconhecendo nenhuma carta")
+- **Medido antes de mexer:** o caminho publicado acertava 3 de 11 fotos reais de celular, só com a carta alinhada à mão na moldura. Causas, correção, medida depois e limites: história **X11**.
+- **Entregue:** contorno da carta por quatro cantos (inclinação e perspectiva), carta retificada, linha do nome achada e binarizada, linha de coleção pelo mesmo caminho, lixo no começo do nome tolerado, câmera sem canvas novo por leitura (1440p), contorno desenhado sobre a carta, dicas coerentes com o que foi achado. Fotos reais: 3 → 7 de 11. Portão (27 fotos): nome 20 → 27, edição 16 → 22.
+- **Erro meu registrado:** as levas 109 e 112 foram entregues como "pronto" com o portão medindo só fotos sintéticas de carta desenhada sem borda preta, sem arte e sem cena. O conjunto passava em 12/12 enquanto o app falhava na carta de verdade. O conjunto agora tem 15 fotos com desenho de carta real e cena de uso, em que o caminho antigo fica em 74%.
+- **Limite declarado:** não testado em aparelho real nesta leva. Moldura antiga (até 2003) fica para a X12.
+- **Portão:** 672 verdes (599 + 73 e2e), rodado depois de integrar com a leva 115 (Shark v3), que entrou na `main` durante esta leva. Motor inalterado (v64), partidas-referência idênticas.
+
 **Leva 115 · Shark v3: mulligan e decisões medidas em torneio** ✅ (pedido de 01/10/2026: "jogar como profissional, saber fazer mulligan")
 - **Medida (01/10/2026), v3 contra o v2 congelado (`shark-v2`), assentos e lados trocados, sem ação ilegal:**
   - listas Pauper de verdade (as sete do app, todos os confrontos): **65%** em 221 partidas decididas de 224 (`node torneio.listas.mjs shark shark-v2 4 20000`);
@@ -3186,7 +3300,6 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U mulligan (10 mãos, fundo, terceiro mulligan, ação legal, v2 mantém), corrida, bônus temporário, mana que ia sobrar (v3 conjura, v2 passava, na primeira principal espera), Winding Way (v3 conjura e pega as cartas; v2 deixava na mão); mesa: o Shark faz mulligan sozinho e explica no registro; torneio v3 × v2 (60 partidas) e quatro partidas com listas de verdade sem ação ilegal. O teste U11 passou a medir `shark-v2` × `shark-v1`.
 - **Novo no repositório:** `torneio.listas.mjs` (torneio com as listas Pauper, fora do portão; aceita ligar as peças do v3 uma a uma).
 - **Portão:** 658 verdes (587 + 71 e2e); o arquivo de torneio leva ~5 min. Motor v64 inalterado.
-
 **Leva 114 · Melhor de 3 com trocas da reserva** ✅ (pedido de 01/10/2026)
 - **Regras seguidas** (Comprehensive Rules 100.2a e 100.4a, regras de torneio 3.15; conferidas em 01/10/2026): deck construído com no mínimo 60 cartas e reserva com no máximo 15 depois das trocas; as trocas não precisam ser uma por uma; a lista volta ao original numa série nova; quem perdeu a partida anterior escolhe quem começa. Formato livre: mínimo = o menor entre 60 e o tamanho original do deck.
 - **Preparar partida:** "Partida única" (padrão) ou "Melhor de 3".

@@ -1,5 +1,5 @@
 {
-  "_leia": "X10 · conjunto de medição do scanner. Cada foto diz o que o leitor deveria encontrar. origem: 'sintetica' = gerada por fotos/gerar.mjs (código de edição e número são ilustrativos); 'real' = foto de celular de uma carta de verdade. Para acrescentar uma real: copie o arquivo para esta pasta e adicione uma linha com nome, set e numero. impressoes: as impressões que a Scryfall devolveria para a carta (sintéticas: a esperada e duas outras); a edição conta como certa quando resolvePrinting escolhe a esperada, como o app faz.",
+  "_leia": "X10 · conjunto de medição do scanner. Cada foto diz o que o leitor deveria encontrar. origem: 'sintetica' = gerada por fotos/gerar.mjs (código de edição e número são ilustrativos); 'real' = foto de celular de uma carta de verdade. Para acrescentar uma real: copie o arquivo para esta pasta e adicione uma linha com nome, set e numero. impressoes: as impressões que a Scryfall devolveria para a carta (sintéticas: a esperada e duas outras); a edição conta como certa quando resolvePrinting escolhe a esperada, como o app faz. X11 · estilo: 'real' = carta sintética com o desenho de uma carta de verdade (borda preta, barra do título, custo de mana, arte, regras, linha de coleção em duas linhas) em cena de uso real: papel pautado, playmat, pano preto, pilha, protetor, sombra, inclinação e perspectiva. moldura (opcional, frações do quadro): onde a pessoa enquadraria a carta, usada quando o contorno não é achado; nas sintéticas sai da posição em que a carta foi desenhada.",
   "nomesExtras": [
     "Soul Ring",
     "Sol Talisman",
@@ -9,7 +9,23 @@
     "Brainstorm",
     "Ponder",
     "Arcane Signet",
-    "Fire // Ice"
+    "Fire // Ice",
+    "Muddle the Mixture",
+    "Fact or Fiction",
+    "Bishop of Rebirth",
+    "Thraben Doomsayer",
+    "Kor Skyclimber",
+    "Mulldrifter Elder",
+    "Ghostly Prison",
+    "Snuff Out the Light",
+    "Castle Down",
+    "Galvanic Bombardment",
+    "Chasm Drake",
+    "Faithless Salvaging",
+    "Gitaxian Raptor",
+    "Armory Guard",
+    "Burning Sands",
+    "Utopia Vow"
   ],
   "fotos": [
     {
@@ -320,6 +336,513 @@
         {
           "set": "plci",
           "number": "62"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-gitaxian-papel.jpg",
+      "nome": "Gitaxian Probe",
+      "set": "nph",
+      "numero": "35",
+      "cor": "azul",
+      "mana": [
+        "U"
+      ],
+      "tipo": "Sorcery",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "papel",
+      "rot": -6,
+      "alturaCarta": 0.5,
+      "sombra": true,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "nph",
+          "number": "35"
+        },
+        {
+          "set": "cmm",
+          "number": "146"
+        },
+        {
+          "set": "plst",
+          "number": "42"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-chasm-playmat.jpg",
+      "nome": "Chasm Skulker",
+      "set": "m15",
+      "numero": "46",
+      "cor": "azul",
+      "mana": [
+        "2",
+        "U"
+      ],
+      "tipo": "Creature — Squid Horror",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "playmat",
+      "rot": 3,
+      "alturaCarta": 0.56,
+      "protetor": true,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "m15",
+          "number": "46"
+        },
+        {
+          "set": "cmm",
+          "number": "157"
+        },
+        {
+          "set": "plst",
+          "number": "53"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-faithless-pilha.jpg",
+      "nome": "Faithless Looting",
+      "set": "dka",
+      "numero": "87",
+      "cor": "vermelho",
+      "mana": [
+        "R"
+      ],
+      "tipo": "Sorcery",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "playmat",
+      "rot": -2,
+      "alturaCarta": 0.55,
+      "cy": 0.56,
+      "pilha": 2,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "dka",
+          "number": "87"
+        },
+        {
+          "set": "cmm",
+          "number": "198"
+        },
+        {
+          "set": "plst",
+          "number": "94"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-burning-inclinada.jpg",
+      "nome": "Burning Sun's Avatar",
+      "set": "rix",
+      "numero": "135",
+      "cor": "vermelho",
+      "mana": [
+        "3",
+        "R",
+        "R",
+        "R"
+      ],
+      "tipo": "Creature — Dinosaur Avatar",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "mesa",
+      "rot": 14,
+      "alturaCarta": 0.55,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "rix",
+          "number": "135"
+        },
+        {
+          "set": "cmm",
+          "number": "246"
+        },
+        {
+          "set": "plst",
+          "number": "142"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-armory-toploader.jpg",
+      "nome": "Armory of Iroas",
+      "set": "jou",
+      "numero": "158",
+      "cor": "artefato",
+      "mana": [
+        "2"
+      ],
+      "tipo": "Artifact — Equipment",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "branco",
+      "rot": 1,
+      "alturaCarta": 0.6,
+      "protetor": true,
+      "reflexo": true,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "jou",
+          "number": "158"
+        },
+        {
+          "set": "cmm",
+          "number": "269"
+        },
+        {
+          "set": "plst",
+          "number": "165"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-thraben-perspectiva.jpg",
+      "nome": "Thraben Inspector",
+      "set": "soi",
+      "numero": "44",
+      "cor": "branco",
+      "mana": [
+        "W"
+      ],
+      "tipo": "Creature — Human Soldier",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "mesa",
+      "rotX": 20,
+      "rot": -3,
+      "alturaCarta": 0.58,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "soi",
+          "number": "44"
+        },
+        {
+          "set": "cmm",
+          "number": "155"
+        },
+        {
+          "set": "plst",
+          "number": "51"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-kor-pano-preto.jpg",
+      "nome": "Kor Skyfisher",
+      "set": "zen",
+      "numero": "23",
+      "cor": "branco",
+      "mana": [
+        "1",
+        "W"
+      ],
+      "tipo": "Creature — Kor Soldier",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "preto",
+      "rot": -4,
+      "alturaCarta": 0.6,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "zen",
+          "number": "23"
+        },
+        {
+          "set": "cmm",
+          "number": "134"
+        },
+        {
+          "set": "plst",
+          "number": "30"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-mulldrifter-escura.jpg",
+      "nome": "Mulldrifter",
+      "set": "lrw",
+      "numero": "78",
+      "cor": "azul",
+      "mana": [
+        "4",
+        "U"
+      ],
+      "tipo": "Creature — Elemental",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "mesa",
+      "rot": 5,
+      "alturaCarta": 0.6,
+      "brilho": 0.45,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "lrw",
+          "number": "78"
+        },
+        {
+          "set": "cmm",
+          "number": "189"
+        },
+        {
+          "set": "plst",
+          "number": "85"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-ghostly-reflexo.jpg",
+      "nome": "Ghostly Flicker",
+      "set": "avr",
+      "numero": "57",
+      "cor": "azul",
+      "mana": [
+        "2",
+        "U"
+      ],
+      "tipo": "Instant",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "playmat",
+      "rot": -9,
+      "alturaCarta": 0.6,
+      "reflexo": true,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "avr",
+          "number": "57"
+        },
+        {
+          "set": "cmm",
+          "number": "168"
+        },
+        {
+          "set": "plst",
+          "number": "64"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-snuff-pequena.jpg",
+      "nome": "Snuff Out",
+      "set": "mmq",
+      "numero": "161",
+      "cor": "preto",
+      "mana": [
+        "3",
+        "B"
+      ],
+      "tipo": "Instant",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "papel",
+      "rot": 4,
+      "alturaCarta": 0.4,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "mmq",
+          "number": "161"
+        },
+        {
+          "set": "cmm",
+          "number": "272"
+        },
+        {
+          "set": "plst",
+          "number": "168"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-cast-down-canto.jpg",
+      "nome": "Cast Down",
+      "set": "dom",
+      "numero": "81",
+      "cor": "preto",
+      "mana": [
+        "1",
+        "B"
+      ],
+      "tipo": "Instant",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "mesa",
+      "rot": 8,
+      "alturaCarta": 0.48,
+      "cx": 0.4,
+      "cy": 0.4,
+      "sombra": true,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "dom",
+          "number": "81"
+        },
+        {
+          "set": "cmm",
+          "number": "192"
+        },
+        {
+          "set": "plst",
+          "number": "88"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-galvanic-deitado.jpg",
+      "nome": "Galvanic Blast",
+      "set": "som",
+      "numero": "91",
+      "cor": "vermelho",
+      "mana": [
+        "R"
+      ],
+      "tipo": "Instant",
+      "largura": 1920,
+      "altura": 1080,
+      "fundo": "playmat",
+      "rot": -11,
+      "alturaCarta": 0.8,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "som",
+          "number": "91"
+        },
+        {
+          "set": "cmm",
+          "number": "202"
+        },
+        {
+          "set": "plst",
+          "number": "98"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-killian-nome-longo.jpg",
+      "nome": "Killian, Ink Duelist",
+      "set": "stx",
+      "numero": "197",
+      "cor": "ouro",
+      "mana": [
+        "W",
+        "B"
+      ],
+      "tipo": "Legendary Creature — Human Warlock",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "preto",
+      "rot": 6,
+      "rotY": -14,
+      "alturaCarta": 0.6,
+      "protetor": true,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "stx",
+          "number": "197"
+        },
+        {
+          "set": "cmm",
+          "number": "308"
+        },
+        {
+          "set": "plst",
+          "number": "204"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-utopia-borrada.jpg",
+      "nome": "Utopia Sprawl",
+      "set": "dis",
+      "numero": "99",
+      "cor": "verde",
+      "mana": [
+        "G"
+      ],
+      "tipo": "Enchantment — Aura",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "papel",
+      "rot": -3,
+      "alturaCarta": 0.6,
+      "borrao": 1.6,
+      "origem": "sintetica",
+      "estilo": "real",
+      "impressoes": [
+        {
+          "set": "dis",
+          "number": "99"
+        },
+        {
+          "set": "cmm",
+          "number": "210"
+        },
+        {
+          "set": "plst",
+          "number": "106"
+        }
+      ]
+    },
+    {
+      "arquivo": "real-counterspell-playmat.jpg",
+      "nome": "Counterspell",
+      "set": "mh2",
+      "numero": "267",
+      "cor": "azul",
+      "mana": [
+        "U",
+        "U"
+      ],
+      "tipo": "Instant",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "playmat",
+      "rot": 12,
+      "alturaCarta": 0.56,
+      "origem": "sintetica",
+      "estilo": "real",
+      "regras": "Counter target spell.",
+      "impressoes": [
+        {
+          "set": "mh2",
+          "number": "267"
+        },
+        {
+          "set": "cmm",
+          "number": "81"
+        },
+        {
+          "set": "dmr",
+          "number": "45"
         }
       ]
     }

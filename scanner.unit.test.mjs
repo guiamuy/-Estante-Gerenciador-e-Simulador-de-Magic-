@@ -614,3 +614,192 @@ test('Leva 112 · nitidez da faixa separa texto nítido de borrado, sem depender
   const a = new Uint8ClampedArray(100).fill(100), b = new Uint8ClampedArray(100).fill(130);
   assert.equal(X.movimentoEntre(a, a), 0); assert.equal(X.movimentoEntre(a, b), 30); assert.equal(X.movimentoEntre(null, a), 255);
 });
+
+/* ---------------- X11 · contorno da carta, retificação e linha do nome ---------------- */
+/** Quadro em tons de cinza com uma "carta" (retângulo 63×88 girado) e, dentro dela, a caixa da arte. */
+function quadroComCarta({ w = 240, h = 320, cx = 0.5, cy = 0.5, alt = 0.6, rot = 0, fundo = 60, carta = 200, arte = true, ruido = 0 } = {}) {
+  const g = new Uint8ClampedArray(w * h).fill(fundo);
+  const H = h * alt, W = H * 63 / 88, c = Math.cos(rot * Math.PI / 180), s = Math.sin(rot * Math.PI / 180);
+  let seed = 5; const rnd = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const dx = x - w * cx, dy = y - h * cy, u = (dx * c + dy * s) / W + 0.5, v = (-dx * s + dy * c) / H + 0.5;
+    let p = fundo;
+    if (u >= 0 && u <= 1 && v >= 0 && v <= 1) { p = carta; if (arte && u > 0.08 && u < 0.92 && v > 0.12 && v < 0.55) p = 110; }
+    g[y * w + x] = Math.max(0, Math.min(255, p + (ruido ? (rnd() - 0.5) * ruido : 0)));
+  }
+  const canto = (u, v) => ({ x: cx + ((u - 0.5) * W * c - (v - 0.5) * H * s) / w, y: cy + ((u - 0.5) * W * s + (v - 0.5) * H * c) / h });
+  return { g, w, h, cantos: [canto(0, 0), canto(1, 0), canto(1, 1), canto(0, 1)] };
+}
+const distCantos = (a, b) => Math.max(...a.map((p, i) => Math.hypot(p.x - b[i].x, p.y - b[i].y)));
+
+test('X11 · contorno: acha os quatro cantos da carta reta, inclinada e fora do centro, na ordem TE, TD, BD, BE', () => {
+  for (const o of [{ rot: 0 }, { rot: 14 }, { rot: -11 }, { rot: 8, cx: 0.42, cy: 0.44, alt: 0.5 }, { rot: -6, fundo: 215, carta: 40 }]) {
+    const q = quadroComCarta(o), r = X.achaQuadrilatero(q.g, q.w, q.h);
+    assert.ok(r, 'achou: ' + JSON.stringify(o));
+    assert.ok(distCantos(r.cantos, q.cantos) < 0.025, `cantos no lugar (${JSON.stringify(o)}): erro ${distCantos(r.cantos, q.cantos).toFixed(3)}`);
+    assert.ok(Math.abs(r.proporcao - 63 / 88) < 0.05);
+  }
+});
+
+test('X11 · contorno: a caixa da arte e meia carta não ganham da carta inteira; quadrado e quadro vazio não são carta', () => {
+  const q = quadroComCarta({ rot: 5 }), r = X.achaQuadrilatero(q.g, q.w, q.h);
+  assert.ok(r.area > 0.2, 'a carta inteira, não a arte: área ' + r.area.toFixed(2));
+  const vazio = new Uint8ClampedArray(240 * 320).fill(90);
+  assert.equal(X.achaQuadrilatero(vazio, 240, 320), null, 'quadro liso');
+  const quad = new Uint8ClampedArray(240 * 320).fill(50);
+  for (let y = 100; y < 220; y++) for (let x = 60; x < 180; x++) quad[y * 240 + x] = 210;
+  assert.equal(X.achaQuadrilatero(quad, 240, 320), null, 'objeto quadrado');
+  // carta cortada pela borda do quadro: sem as quatro bordas, não é contorno
+  const cortada = quadroComCarta({ cy: 0.12, arte: false });
+  assert.equal(X.achaQuadrilatero(cortada.g, cortada.w, cortada.h), null, 'carta cortada');
+});
+
+test('X11 · contorno: com ruído de câmera continua achando, e custa menos de 25 ms por quadro', () => {
+  const q = quadroComCarta({ rot: 9, ruido: 30 });
+  assert.ok(distCantos(X.achaQuadrilatero(q.g, q.w, q.h).cantos, q.cantos) < 0.03);
+  const t0 = performance.now(); for (let i = 0; i < 20; i++) X.achaQuadrilatero(q.g, q.w, q.h);
+  const ms = (performance.now() - t0) / 20;
+  assert.ok(ms < 25, `detector lento: ${ms.toFixed(1)} ms`);
+});
+
+test('X11 · homografia e retificação: endireitam uma carta inclinada e levam cada canto ao seu lugar', () => {
+  const cantos = [{ x: 30, y: 20 }, { x: 150, y: 40 }, { x: 140, y: 190 }, { x: 15, y: 170 }];
+  const H = X.homografia(cantos);
+  [[0, 0, 0], [1, 0, 1], [1, 1, 2], [0, 1, 3]].forEach(([u, v, i]) => { const p = H(u, v); assert.ok(Math.hypot(p.x - cantos[i].x, p.y - cantos[i].y) < 1e-6); });
+  // imagem: metade de cima da "carta" (no espaço da carta) clara, metade de baixo escura; fora, cinza
+  const w = 180, h = 210, src = new Uint8ClampedArray(w * h * 4).fill(128);
+  const inv = (x, y) => { let u = 0.5, v = 0.5; for (let k = 0; k < 30; k++) { const p = H(u, v), a = H(u + 1e-3, v), b = H(u, v + 1e-3); const j11 = (a.x - p.x) / 1e-3, j21 = (a.y - p.y) / 1e-3, j12 = (b.x - p.x) / 1e-3, j22 = (b.y - p.y) / 1e-3, det = j11 * j22 - j12 * j21; const ex = x - p.x, ey = y - p.y; u += (j22 * ex - j12 * ey) / det; v += (-j21 * ex + j11 * ey) / det; } return [u, v]; };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const [u, v] = inv(x, y); if (u >= 0 && u <= 1 && v >= 0 && v <= 1) { const c = v < 0.5 ? 230 : 30; src[(y * w + x) * 4] = src[(y * w + x) * 4 + 1] = src[(y * w + x) * 4 + 2] = c; } }
+  const r = X.retifica(src, w, h, cantos, 60, 80);
+  assert.ok(r.data[(10 * 60 + 30) * 4] > 200, 'topo claro'); assert.ok(r.data[(70 * 60 + 30) * 4] < 60, 'base escura');
+  assert.ok(r.data[(20 * 60 + 3) * 4] > 200 && r.data[(20 * 60 + 56) * 4] > 200, 'de borda a borda, sem o cinza de fora');
+  // faixa da carta que passa da borda (y negativo) sai do lado de fora, sem estourar
+  const f = X.cantosDaFaixa(cantos, { x: 0, y: -0.1, w: 1, h: 0.2 });
+  assert.ok(f[0].y < cantos[0].y && f[3].y > cantos[0].y);
+});
+
+/** Faixa RGBA com uma barra de título (clara), "texto" escuro nela, linhas da moldura e arte embaixo. */
+function faixaComTitulo({ w = 400, h = 140, y0 = 50, y1 = 78, claroNoEscuro = false, arte = true } = {}) {
+  const d = new Uint8ClampedArray(w * h * 4);
+  const fundo = claroNoEscuro ? 40 : 215, tinta = claroNoEscuro ? 230 : 25;
+  const set = (x, y, v) => { const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; };
+  let seed = 3; const rnd = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let v = y < 20 ? 15 : fundo;                                       // borda preta em cima, depois a barra
+    if (y === 38 || y === 92) v = 20;                                  // linhas da barra do título, de lado a lado
+    if (arte && y > 96) v = 60 + ((x * 7 + y * 13) % 97) + rnd() * 40;  // arte: detalhe em todo lugar
+    set(x, y, v);
+  }
+  for (let k = 0; k < 14; k++) for (let y = y0; y < y1; y++) for (let x = 30 + k * 16; x < 30 + k * 16 + 6; x++) set(x, y, tinta);  // "letras": traços verticais
+  return { d, w, h };
+}
+test('X11 · linha do nome: acha o texto entre as linhas calmas da barra, e não a arte nem a borda', () => {
+  const f = faixaComTitulo(), L = X.linhaDoNome(f.d, f.w, f.h);
+  assert.ok(L.y0 >= 40 && L.y0 <= 54 && L.y1 >= 74 && L.y1 <= 90, `linha em ${L.y0}–${L.y1} (texto em 50–78)`);
+  assert.ok(L.nota > 0);
+  // a mesma barra em outra altura da faixa: a linha acompanha
+  const g = faixaComTitulo({ y0: 60, y1: 86 }), L2 = X.linhaDoNome(g.d, g.w, g.h);
+  assert.ok(L2.y0 >= 50 && L2.y1 <= 92 && L2.y1 >= 82);
+});
+
+test('X11 · binarizar a linha: texto escuro em fundo claro e texto claro em fundo escuro viram preto no branco', () => {
+  for (const claroNoEscuro of [false, true]) {
+    const f = faixaComTitulo({ claroNoEscuro, arte: false }), L = X.linhaDoNome(f.d, f.w, f.h);
+    const b = X.binarizaLinha(L.cinza, f.w, f.h, L.y0, L.y1);
+    assert.equal(b.claro, claroNoEscuro, 'polaridade');
+    const px = (x, y) => b.data[(y * b.w + x) * 4], meio = Math.round(b.h / 2);
+    assert.ok(px(33, meio) < 80, 'traço da letra fica escuro: ' + px(33, meio));
+    assert.ok(px(42, meio) > 200, 'entre as letras fica branco: ' + px(42, meio));
+    assert.ok(px(300, meio) > 200, 'fundo liso fica branco');
+  }
+});
+
+test('X11 · limpar a linha: apaga o que encosta na margem, preserva as letras, e não apaga nada se o fundo é texturizado', () => {
+  const w = 120, h = 40, d = new Uint8ClampedArray(w * h * 4).fill(255);
+  const set = (x, y, v) => { const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; };
+  for (let x = 0; x < w; x++) set(x, 2, 0);                       // linha da moldura de lado a lado
+  for (let y = 0; y < 30; y++) set(4, y, 0);                      // a curva da barra, colada na margem
+  for (let y = 12; y < 28; y++) for (let x = 40; x < 46; x++) set(x, y, 0);   // uma letra solta
+  X.limpaLinha(d, w, h);
+  assert.equal(d[(2 * w + 60) * 4], 255); assert.equal(d[(15 * w + 4) * 4], 255); assert.equal(d[(20 * w + 42) * 4], 0);
+  const t = new Uint8ClampedArray(w * h * 4);
+  for (let p = 0; p < w * h; p++) t[p * 4] = t[p * 4 + 1] = t[p * 4 + 2] = (p % 3 === 0 ? 255 : 0);  // quase tudo escuro e ligado à margem
+  const antes = t.slice(); X.limpaLinha(t, w, h);
+  assert.deepEqual([...t.slice(0, 400)], [...antes.slice(0, 400)], 'fundo texturizado fica como está');
+});
+
+test('X11 · nitidez da linha separa texto nítido de desfocado; deslocamento mede quanto a carta andou', () => {
+  const f = faixaComTitulo({ arte: false }), L = X.linhaDoNome(f.d, f.w, f.h);
+  const nitida = X.nitidezDaLinha(L.cinza, f.w, L.y0, L.y1);
+  const borr = new Float32Array(L.cinza.length);
+  for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) { let s = 0, n = 0; for (let k = -6; k <= 6; k++) { const xx = x + k; if (xx >= 0 && xx < f.w) { s += L.cinza[y * f.w + xx]; n++; } } borr[y * f.w + x] = s / n; }
+  const desfocada = X.nitidezDaLinha(borr, f.w, L.y0, L.y1);
+  assert.ok(nitida > X.LIMIARES_LINHA.nitidezMin * 4, 'nítida: ' + nitida.toFixed(2));
+  assert.ok(desfocada < nitida / 10, `desfocada ${desfocada.toFixed(2)} × nítida ${nitida.toFixed(2)}`);
+  const a = [{ x: 0.2, y: 0.2 }, { x: 0.8, y: 0.2 }, { x: 0.8, y: 0.9 }, { x: 0.2, y: 0.9 }];
+  assert.equal(X.deslocamento(a, a), 0);
+  assert.ok(Math.abs(X.deslocamento(a, a.map(p => ({ x: p.x + 0.06, y: p.y }))) - 0.06) < 1e-9);
+  assert.equal(X.deslocamento(a, null), 1);
+  // a ordem dos cantos pode girar entre quadros (carta deitada): a mesma carta não "andou"
+  assert.equal(X.deslocamento(a, [a[1], a[2], a[3], a[0]]), 0);
+});
+
+test('X11 · recorte da faixa: a caixa contém a faixa inteira, com folga, e os cantos vêm nas coordenadas dela', () => {
+  const cantos = [{ x: 0.3, y: 0.25 }, { x: 0.72, y: 0.3 }, { x: 0.68, y: 0.85 }, { x: 0.25, y: 0.8 }];
+  const r = X.recorteDaFaixa(cantos, X.FAIXA_NOME, 1080, 1920);
+  const f = X.cantosDaFaixa(cantos.map(p => ({ x: p.x * 1080, y: p.y * 1920 })), X.FAIXA_NOME);
+  for (const p of f) {
+    assert.ok(p.x >= r.regiao.x * 1080 && p.x <= (r.regiao.x + r.regiao.w) * 1080, 'x dentro');
+    assert.ok(p.y >= r.regiao.y * 1920 && p.y <= (r.regiao.y + r.regiao.h) * 1920, 'y dentro');
+  }
+  assert.ok(Math.abs(r.cantos[0].x + r.regiao.x * 1080 - 0.3 * 1080) < 1 && Math.abs(r.cantos[0].y + r.regiao.y * 1920 - 0.25 * 1920) < 1);
+  assert.ok(r.w * r.h < 1080 * 1920 * 0.2, 'só um pedaço do quadro é copiado, não o quadro inteiro');
+  assert.equal(X.recorteDaFaixa([{ x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5 }], X.FAIXA_NOME, 1080, 1920, 0), null, 'carta degenerada');
+  assert.equal(X.recorteDaFaixa([{ x: NaN, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }], X.FAIXA_NOME, 1080, 1920), null, 'cantos sem número (palco sem tamanho) não viram recorte');
+  assert.ok(Math.abs(X.alturaDaCarta(cantos, 1080, 1920) - 1056) < 12);
+});
+
+test('X11 · lixo no começo da linha (a curva da barra lida como letra) não atrapalha o nome', () => {
+  const idx = X.buildIndex([...REAL, 'Armory of Iroas', 'Chasm Skulker', 'Gitaxian Probe', 'Go for the Throat', 'Ox of Agonas', ...DECOYS.slice(0, 3000)]);
+  const m = t => X.matchName(idx, t)[0] || {};
+  assert.equal(m('HL Chasm Skulker').name, 'Chasm Skulker'); assert.equal(m('HL Chasm Skulker').score, 1);
+  assert.equal(m('fl Armory of lroas').name, 'Armory of Iroas'); assert.ok(m('fl Armory of lroas').score >= X.ACCEPT);
+  assert.equal(m('ol Gitaxian Probe L').name, 'Gitaxian Probe'); assert.ok(m('ol Gitaxian Probe L').score >= X.ACCEPT);
+  // nome que começa de verdade com palavra curta continua exato
+  assert.equal(m('Go for the Throat').score, 1); assert.equal(m('Ox of Agonas').score, 1);
+  // e continua rápido
+  const t0 = performance.now(); for (let i = 0; i < 10; i++) X.matchName(INDEX, 'fl Counterspel1 oo');
+  assert.ok((performance.now() - t0) / 10 < 100, 'casar contra 30 mil nomes em menos de 100 ms');
+});
+
+test('X11 · a linha de coleção só é procurada sobre a borda escura (textura da moldura não engana)', () => {
+  const w = 400, h = 160, d = new Uint8ClampedArray(w * h * 4);
+  const set = (x, y, v) => { const i = (y * w + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; };
+  // moldura clara com uma faixa listrada (textura) entre duas faixas lisas; embaixo, a borda preta
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, y >= 60 ? 14 : y >= 16 && y < 52 ? ((x + y) % 8 < 4 ? 40 : 240) : 200);
+  for (let k = 0; k < 10; k++) for (let y = 84; y < 118; y++) for (let x = 30 + k * 14; x < 30 + k * 14 + 5; x++) set(x, y, 235);   // texto claro na borda
+  const semPeso = X.linhaDoNome(d, w, h, { altMin: 0.15, altMax: 0.3 });
+  const comPeso = X.linhaDoNome(d, w, h, { altMin: 0.15, altMax: 0.3, sobreEscuro: true });
+  assert.ok(semPeso.y1 <= 60, 'sem a regra, a textura da moldura ganha: ' + semPeso.y0 + '–' + semPeso.y1);
+  assert.ok(comPeso.y0 >= 70 && comPeso.y1 <= 132, 'com a regra, o bloco fica sobre a borda preta: ' + comPeso.y0 + '–' + comPeso.y1);
+  // carta de borda branca (nenhuma linha sobre fundo escuro): não há bloco, e nada vai para o OCR
+  const branca = new Uint8ClampedArray(300 * 200 * 4).fill(230);
+  assert.equal(X.preparaColecao(branca, 300, 200, [{ x: 20, y: 10 }, { x: 150, y: 10 }, { x: 150, y: 190 }, { x: 20, y: 190 }]), null);
+});
+
+test('X11 · câmera: copiar com redução e com canvas reaproveitado não cria canvas novo a cada leitura', async () => {
+  let criados = 0; const desenhos = [];
+  const canvas = () => { criados++; return { width: 0, height: 0, getContext: () => ({ drawImage: (...a) => desenhos.push(a) }) }; };
+  const doc = { createElement: tag => (tag === 'canvas' ? canvas() : {}) };
+  const video = { videoWidth: 2560, videoHeight: 1440, play: async () => {} };
+  const nav = { mediaDevices: { getUserMedia: async () => ({ getVideoTracks: () => [], getTracks: () => [] }) } };
+  const camera = P.webCamera(nav, doc);
+  await camera.start(video);
+  const meu = doc.createElement('canvas'); criados = 0;
+  for (let i = 0; i < 5; i++) { const c = camera.capture(null, { maxLado: 320, canvas: meu }); assert.equal(c, meu); }
+  assert.equal(criados, 0, 'nenhum canvas novo em cinco leituras');
+  assert.equal(meu.width, 320); assert.equal(meu.height, 180);
+  const pedaco = camera.capture({ x: 0.25, y: 0.5, w: 0.5, h: 0.1 });
+  assert.equal(pedaco.width, 1280); assert.equal(pedaco.height, 144);
+  assert.deepEqual(desenhos.at(-1).slice(1), [640, 720, 1280, 144, 0, 0, 1280, 144]);
+});

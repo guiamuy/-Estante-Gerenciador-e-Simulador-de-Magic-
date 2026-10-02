@@ -1,8 +1,8 @@
-// X10 · acerto do scanner medido em fotos: o caminho inteiro do app, fora do navegador.
-// Achar a carta (detectaCarta) → recortar a faixa do nome e a linha de coleção
-// (NAME_BAND / COLLECTOR_BAND, faixaDaCarta) → tratar como o app (trataFaixa,
-// escalaOcr, OCR_ALTURA_MIN) → OCR de verdade (tesseract.js, mesmos OCR_MODES) → casar com
-// a base de nomes (matchName / ACCEPT) e ler a edição (parseCollectorLine).
+// X10/X11 · acerto do scanner medido em fotos: o caminho inteiro do app, fora do navegador.
+// Quadro em 320 px → achaQuadrilatero (quatro cantos) → recorteDaFaixa (o pedaço do quadro com o nome)
+// → preparaNome (retifica, acha a linha do nome, binariza, limpa) → OCR de verdade (tesseract.js, modo
+// "linha") → matchName. Sem contorno, vale a moldura guia, como no app. A edição sai da carta retificada
+// (preparaColecao → OCR em bloco, modo "colecao" → parseCollectorLine → resolvePrinting).
 // Alvos: nome ≥ 90%, edição ≥ 70%. Falhas saem no relatório, uma por foto.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,9 +27,9 @@ function decodifica(arquivo) {
   if (/\.png$/i.test(arquivo)) { const p = deps.png.sync.read(buf); return { data: p.data, width: p.width, height: p.height }; }
   return deps.jpeg.decode(buf, { useTArray: true, formatAsRGBA: true });
 }
-/** Tons de cinza reduzidos, como quadroCinza() faz no app (80 px de largura). */
-function cinzaReduzido(img, alvo = 80) {
-  const w = alvo, h = Math.max(8, Math.round(alvo * (img.height / img.width)));
+/** Tons de cinza com o lado maior em 320 px, como quadroPequeno() faz no app. */
+function cinzaReduzido(img, lado = 320) {
+  const e = lado / Math.max(img.width, img.height), w = Math.max(1, Math.round(img.width * e)), h = Math.max(1, Math.round(img.height * e));
   const g = new Uint8ClampedArray(w * h);
   const sx = img.width / w, sy = img.height / h;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -42,40 +42,46 @@ function cinzaReduzido(img, alvo = 80) {
   }
   return { cinza: g, w, h };
 }
-/** Recorte de uma região (coordenadas do quadro), ampliado até OCR_ALTURA_MIN e realçado como no app. */
-function recorte(img, r, escalaCarta = 1, modo = 'name') {
-  const x0 = Math.max(0, Math.round(r.x)), y0 = Math.max(0, Math.round(r.y));
-  const w0 = Math.min(img.width - x0, Math.round(r.w)), h0 = Math.min(img.height - y0, Math.round(r.h));
-  const escala = Math.max(escalaCarta, X.OCR_ALTURA_MIN / Math.max(1, h0));
-  const w = Math.round(w0 * escala), h = Math.round(h0 * escala);
-  const out = Buffer.alloc(w * h * 4);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    // bilinear: o app amplia com drawImage, que também interpola
-    const fx = x0 + x / escala, fy = y0 + y / escala;
-    const xa = Math.min(img.width - 1, Math.floor(fx)), ya = Math.min(img.height - 1, Math.floor(fy));
-    const xb = Math.min(img.width - 1, xa + 1), yb = Math.min(img.height - 1, ya + 1);
-    const tx = fx - xa, ty = fy - ya;
-    for (let c = 0; c < 3; c++) {
-      const a = img.data[(ya * img.width + xa) * 4 + c], b = img.data[(ya * img.width + xb) * 4 + c];
-      const cc = img.data[(yb * img.width + xa) * 4 + c], d = img.data[(yb * img.width + xb) * 4 + c];
-      out[(y * w + x) * 4 + c] = (a * (1 - tx) + b * tx) * (1 - ty) + (cc * (1 - tx) + d * tx) * ty;
-    }
-    out[(y * w + x) * 4 + 3] = 255;
-  }
-  const t = X.trataFaixa(out, w, h, modo);
-  return deps.png.sync.write(Object.assign(new deps.png({ width: t.w, height: t.h }), { data: Buffer.from(t.data.buffer, t.data.byteOffset, t.data.length) }));
+/** O pedaço do quadro que o app copia do vídeo (camera.capture de uma região), em RGBA. */
+function pedaco(img, rec) {
+  const x0 = Math.round(rec.regiao.x * img.width), y0 = Math.round(rec.regiao.y * img.height);
+  const d = new Uint8ClampedArray(rec.w * rec.h * 4);
+  for (let y = 0; y < rec.h; y++) d.set(img.data.subarray(((y0 + y) * img.width + x0) * 4, ((y0 + y) * img.width + x0 + rec.w) * 4), y * rec.w * 4);
+  return d;
+}
+const paraPng = t => deps.png.sync.write(Object.assign(new deps.png({ width: t.w, height: t.h }), { data: Buffer.from(t.data.buffer, t.data.byteOffset, t.data.length) }));
+/** A moldura guia para a foto: onde a pessoa teria posto a carta. Vem do manifest (`moldura`, em frações do
+    quadro) ou, nas sintéticas, da posição em que a carta foi desenhada, com um erro de enquadramento fixo. */
+function molduraDaFoto(f) {
+  if (f.moldura) return f.moldura;
+  if (f.alturaCarta == null && f.cx == null && f.origem !== 'sintetica') return null;
+  const h = (f.alturaCarta || 0.7) * 1.05, w = h * f.altura * (63 / 88) / f.largura;
+  return { x: (f.cx || 0.5) - w / 2 + 0.012, y: (f.cy || 0.5) - h / 2 - 0.012, w, h };
+}
+const cantosDe = r => [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
+/** Uma leitura do nome por um caminho (contorno ou moldura), exatamente como lerUmaVez() no app. */
+async function leNome(worker, index, img, cantosFr) {
+  const rec = X.recorteDaFaixa(cantosFr, X.FAIXA_NOME, img.width, img.height);
+  if (!rec) return null;
+  const pr = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos);
+  if (!pr) return null;
+  if (process.env.FOTOS_DEBUG) (await import('node:fs')).writeFileSync(join(process.env.FOTOS_DEBUG, 'nome-' + nomeDebug + '-' + Math.round(cantosFr[0].x * 1000) + '.png'), paraPng(pr));
+  await worker.setParameters(X.OCR_MODES.linha);
+  const texto = (await worker.recognize(paraPng(pr))).data.text || '';
+  return { texto, found: X.matchName(index, texto), nitidez: pr.nitidez };
+}
+/** A linha de coleção, como identify() no app: preparaColecao (retifica, acha o bloco, binariza) e OCR em bloco. */
+let nomeDebug = '';
+async function leColecao(worker, img, cantosFr) {
+  const rec = X.recorteDaFaixa(cantosFr, X.FAIXA_COLECAO, img.width, img.height);
+  if (!rec) return '';
+  const pr = X.preparaColecao(pedaco(img, rec), rec.w, rec.h, rec.cantos, X.larguraColecao(X.alturaDaCarta(cantosFr, img.width, img.height)));
+  if (!pr) return '';
+  if (process.env.FOTOS_DEBUG) (await import('node:fs')).writeFileSync(join(process.env.FOTOS_DEBUG, 'col-' + nomeDebug + '.png'), paraPng(pr));
+  await worker.setParameters(X.OCR_MODES.colecao);
+  return (await worker.recognize(paraPng(pr))).data.text || '';
 }
 
-/** Leva 112 · a faixa crua em 320 px de largura, como medeFaixa() no app (antes do realce). */
-function faixaCrua(img, r, alvo = 320) {
-  const w0 = Math.max(1, Math.round(r.w)), h0 = Math.max(1, Math.round(r.h)), w = alvo, h = Math.max(4, Math.round(alvo * h0 / w0));
-  const d = new Uint8ClampedArray(w * h * 4);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const xx = Math.min(img.width - 1, Math.max(0, Math.round(r.x + x * w0 / w))), yy = Math.min(img.height - 1, Math.max(0, Math.round(r.y + y * h0 / h)));
-    const i = (yy * img.width + xx) * 4, o = (y * w + x) * 4; d[o] = img.data[i]; d[o + 1] = img.data[i + 1]; d[o + 2] = img.data[i + 2]; d[o + 3] = 255;
-  }
-  return [d, w, h];
-}
 /* ---------------- base de nomes: as esperadas no meio de muitas parecidas ---------------- */
 function baseDeNomes() {
   const rnd = (() => { let s = 11; return () => (s = (s * 1103515245 + 12345) >>> 0) / 4294967296; })();
@@ -87,33 +93,41 @@ function baseDeNomes() {
 }
 
 /* ---------------- a medição ---------------- */
-async function mede() {
+async function mede(fotos = manifest.fotos) {
   const index = X.buildIndex(baseDeNomes());
   const worker = await deps.tesseract.createWorker('eng', 1, { langPath: deps.langPath, gzip: true, cacheMethod: 'none' });
   const linhas = [];
   let nomeOk = 0, edOk = 0, detectadas = 0;
+  const nota = r => (r && r.found[0] ? r.found[0].score : 0);
   try {
-    for (const f of manifest.fotos) {
+    for (const f of fotos) {
       const arquivo = join(dir, f.arquivo);
       const linha = { foto: f.arquivo, esperado: f.nome };
       if (!existsSync(arquivo)) { linha.erro = 'arquivo ausente'; linhas.push(linha); continue; }
       const img = decodifica(arquivo);
-      const { carta } = X.detectaEmEscalas(X.ESCALAS_DETECTOR.map(alvo => cinzaReduzido(img, alvo)));
-      if (!carta) { linha.erro = 'carta não encontrada no quadro'; linhas.push(linha); continue; }
-      detectadas++;
-      // detectaCarta devolve frações do quadro: vira pixels da foto inteira
-      const full = { x: carta.x * img.width, y: carta.y * img.height, w: carta.w * img.width, h: carta.h * img.height };
-      await worker.setParameters(X.OCR_MODES.name);
-      const nome = (await worker.recognize(recorte(img, X.faixaDaCarta(full, X.NAME_BAND), X.escalaOcr(full.h)))).data.text || '';
-      const cand = X.matchName(index, nome);
-      // Leva 112 · a faixa passa pela mesma régua de nitidez do app antes do OCR
-      linha.nitidez = Math.round(X.nitidezDaFaixa(...faixaCrua(img, X.faixaDaCarta(full, X.NAME_BAND))));
-      if (linha.nitidez < X.LIMIARES_FAIXA.nitidezMin) linha.pulada = true;
-      linha.lido = nome.trim(); linha.melhor = cand[0] ? `${cand[0].name} (${Math.round(cand[0].score * 100)}%)` : '—';
-      linha.nomeOk = !!cand[0] && cand[0].name === f.nome && cand[0].score >= X.ACCEPT;
+      const q = cinzaReduzido(img);
+      const quad = X.achaQuadrilatero(q.cinza, q.w, q.h);
+      const moldura = molduraDaFoto(f);
+      if (quad) detectadas++;
+      // como no app: o contorno primeiro; sem leitura, a moldura guia
+      nomeDebug = f.arquivo.replace(/\.\w+$/, '');
+      const caminhos = [...(quad ? [['carta', quad.cantos]] : []), ...(moldura ? [['moldura', cantosDe(moldura)]] : [])];
+      if (!caminhos.length) { linha.erro = 'carta não encontrada no quadro e foto sem moldura'; linhas.push(linha); continue; }
+      let melhor = null;
+      for (const [nome, cantos] of caminhos) {
+        const r = await leNome(worker, index, img, cantos);
+        if (r && (!melhor || nota(r) > nota(melhor))) melhor = { ...r, caminho: nome, cantos };
+        if (nota(r) >= X.ACCEPT) break;
+      }
+      if (!melhor) { linha.erro = 'sem linha de nome'; linhas.push(linha); continue; }
+      const cand = melhor.found;
+      linha.caminho = melhor.caminho; linha.nitidez = Math.round(melhor.nitidez * 10) / 10;
+      if (melhor.nitidez < X.LIMIARES_LINHA.nitidezMin) linha.pulada = true;
+      linha.lido = melhor.texto.trim(); linha.melhor = cand[0] ? `${cand[0].name} (${Math.round(cand[0].score * 100)}%)` : '—';
+      linha.nomeOk = !!cand[0] && cand[0].name === f.nome && cand[0].score >= X.ACCEPT && !linha.pulada;
       if (linha.nomeOk) nomeOk++;
-      await worker.setParameters(X.OCR_MODES.collector);
-      const col = (await worker.recognize(recorte(img, X.faixaDaCarta(full, X.COLLECTOR_BAND), X.escalaOcr(full.h), 'collector'))).data.text || '';
+      nomeDebug = f.arquivo.replace(/\.\w+$/, '');
+      const col = await leColecao(worker, img, melhor.cantos);
       const p = X.parseCollectorLine(col);
       // como no app: a leitura é casada com as impressões conhecidas da carta (identify → resolvePrinting)
       const res = X.resolvePrinting(f.impressoes || [], p);
@@ -124,14 +138,14 @@ async function mede() {
       linhas.push(linha);
     }
   } finally { await worker.terminate(); }
-  return { linhas, n: manifest.fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length };
+  return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length };
 }
 
 function relatorio(r) {
   const falhas = r.linhas.filter(l => l.erro || !l.nomeOk || !l.edOk);
-  const cab = `X10 · ${r.n} foto(s): carta achada em ${r.detectadas}, nome ${r.nomeOk}/${r.n}, edição ${r.edOk}/${r.n}`;
+  const cab = `X10 · ${r.n} foto(s): contorno achado em ${r.detectadas}, nome ${r.nomeOk}/${r.n}, edição ${r.edOk}/${r.n}`;
   const corpo = falhas.map(l => l.erro ? `  ✗ ${l.foto}: ${l.erro}` :
-    `  ${l.nomeOk ? '·' : '✗'} ${l.foto}: nome lido "${l.lido}" → ${l.melhor} (esperado ${l.esperado})${l.edOk ? '' : ` · edição lida "${l.colecao}" → ${l.edicao}`}`);
+    `  ${l.nomeOk ? '·' : '✗'} ${l.foto} [${l.caminho}, nitidez ${l.nitidez}]: nome lido "${l.lido}" → ${l.melhor} (esperado ${l.esperado})${l.edOk ? '' : ` · edição lida "${l.colecao}" → ${l.edicao}`}`);
   return [cab, ...corpo].join('\n');
 }
 

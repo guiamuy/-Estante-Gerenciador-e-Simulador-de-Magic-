@@ -1125,11 +1125,14 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-pile__card:has(.scan-pile__conferir) { border-color: var(--warning); }
 .scan-pile__conferir { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-1); }
 .scan-pile__conferir .ds-btn { min-height: 44px; }
-.scan-outline {
-  position: absolute; border: 2px solid var(--accent); border-radius: var(--radius-card);
-  box-shadow: 0 0 0 100vmax var(--overlay); transition: all var(--dur-1) var(--ease-out); pointer-events: none;
-}
-.scan-outline[data-pronto="true"] { border-color: var(--positive); }
+/* X11 · o contorno é o quadrilátero da carta achada (com inclinação e perspectiva), desenhado em SVG */
+.scan-outline { position: absolute; z-index: 1; pointer-events: none; color: var(--accent); }
+.scan-outline svg { display: block; overflow: visible; }
+.scan-outline polygon { fill: currentColor; fill-opacity: .1; stroke: currentColor; stroke-width: 3; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.scan-outline[data-pronto="true"] { color: var(--positive); }
+.scan-frame, .scan-frame__band { transition: border-color var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out); }
+.scan-stage.tem-contorno .scan-frame { border-color: transparent; }
+.scan-stage.tem-contorno .scan-frame__band { opacity: 0; }
 .scan-hint {
   position: absolute; left: 50%; bottom: var(--space-3); transform: translateX(-50%); z-index: 2;
   max-width: 90%; text-align: center; padding: var(--space-1) var(--space-3);
@@ -1316,7 +1319,9 @@ function webCamera(nav, doc) {
       if (!this.available()) throw new Error('camera-unavailable');
       // Leva 112 · a maior resolução que o aparelho der (o nome da carta é texto pequeno): tenta 4K, depois
       // 1440p, depois 1080p; o navegador escolhe o mais próximo que a câmera tem
-      const tentativas = [{ width: { ideal: 3840 }, height: { ideal: 2160 } }, { width: { ideal: 2560 }, height: { ideal: 1440 } }, { width: { ideal: 1920 }, height: { ideal: 1080 } }, {}];
+      // X11 · 1440p primeiro: o nome fica com mais de 30 px de altura com a carta na moldura, e o vídeo pesa
+      // menos da metade do 4K (que caía de quadros e esquentava). Sem isso, 1080p; depois, o que houver.
+      const tentativas = [{ width: { ideal: 2560 }, height: { ideal: 1440 } }, { width: { ideal: 1920 }, height: { ideal: 1080 } }, {}];
       let erro = null;
       for (const res of tentativas) {
         try { stream = await nav.mediaDevices.getUserMedia({ video: { facingMode: opts.facing || 'environment', ...res }, audio: false }); erro = null; break; }
@@ -1351,15 +1356,23 @@ function webCamera(nav, doc) {
       let s = {}; try { s = track && track.getSettings ? track.getSettings() : {}; } catch (e) { s = {}; }
       return { width: s.width || (video && video.videoWidth) || 0, height: s.height || (video && video.videoHeight) || 0, fps: s.frameRate || 0, foco: s.focusMode || '?', rotulo: track && track.label || '' };
     },
-    /** Recorta uma região relativa (0..1) do quadro e devolve um canvas. */
-    capture(region) {
+    /** Recorta uma região relativa (0..1) do quadro e devolve um canvas.
+        X11 · opts.maxLado reduz na própria cópia (o detector olha o quadro em 320 px); opts.canvas reaproveita
+        o mesmo canvas a cada leitura. Antes o scanner criava um canvas do tamanho do vídeo inteiro (4K, 33 MB)
+        várias vezes por segundo: em celular isso estoura a memória de canvas e as cópias passam a vir em branco. */
+    capture(region, opts = {}) {
       if (!video) throw new Error('camera-not-started');
       const r = region || { x: 0, y: 0, w: 1, h: 1 };
       const sw = video.videoWidth, sh = video.videoHeight;
-      const c = doc.createElement('canvas');
-      c.width = Math.max(1, Math.round(sw * r.w));
-      c.height = Math.max(1, Math.round(sh * r.h));
-      c.getContext('2d').drawImage(video, Math.round(sw * r.x), Math.round(sh * r.y), c.width, c.height, 0, 0, c.width, c.height);
+      const cw = Math.max(1, Math.round(sw * r.w)), ch = Math.max(1, Math.round(sh * r.h));
+      const e = opts.maxLado && Math.max(cw, ch) > opts.maxLado ? opts.maxLado / Math.max(cw, ch) : 1;
+      const ow = Math.max(1, Math.round(cw * e)), oh = Math.max(1, Math.round(ch * e));
+      const c = opts.canvas || doc.createElement('canvas');
+      if (c.width !== ow) c.width = ow;
+      if (c.height !== oh) c.height = oh;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      if (e < 1) { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; }   // 8:1 em bilinear simples serrilha as bordas
+      ctx.drawImage(video, Math.round(sw * r.x), Math.round(sh * r.y), cw, ch, 0, 0, ow, oh);
       return c;
     },
     stop() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; video = null; }
@@ -1425,7 +1438,7 @@ function createPlatform(env = {}) {
     persistence: env.persistence || webPersistence(nav)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -12859,14 +12872,15 @@ const simple = s => norm(s).replace(/[^a-z ,'\-]/g, ' ').replace(/\s+/g, ' ').tr
 
 let LEV_ROW = new Int32Array(64), LEV_PREV = new Int32Array(64);
 function lev(a, b, limit) {
-  if (Math.abs(a.length - b.length) > limit) return limit + 1;
+  const { abs } = Math;
+  if (abs(a.length - b.length) > limit) return limit + 1;
   if (LEV_ROW.length <= b.length) { LEV_ROW = new Int32Array(b.length + 1); LEV_PREV = new Int32Array(b.length + 1); }
   let prev = LEV_PREV, cur = LEV_ROW;
   for (let j = 0; j <= b.length; j++) prev[j] = j;
   for (let i = 1; i <= a.length; i++) {
     cur[0] = i; let best = i; const ca = a.charCodeAt(i - 1);
     for (let j = 1; j <= b.length; j++) {
-      const v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca === b.charCodeAt(j - 1) ? 0 : 1));
+      const x = prev[j] + 1, y = cur[j - 1] + 1, z = prev[j - 1] + (ca === b.charCodeAt(j - 1) ? 0 : 1), v = x < y ? (x < z ? x : z) : (y < z ? y : z);
       cur[j] = v; if (v < best) best = v;
     }
     if (best > limit) return limit + 1;
@@ -12890,9 +12904,18 @@ function buildIndex(names) {
 /** Melhores nomes para um texto de OCR, com nota de 0 a 1. O OCR costuma
     arrastar lixo do custo de mana no fim da linha: compara também o prefixo. */
 function matchName(index, text, { limit = 3 } = {}) {
-  const q = cleanOcr(text);
-  if (q.length < 3) return [];
+  const q0 = cleanOcr(text);
+  if (q0.length < 3) return [];
+  // X11 · o OCR também arrasta lixo no COMEÇO da linha (a curva da barra do título vira "l", "fi", "ol"):
+  // tenta de novo sem as palavrinhas de até 2 letras da frente e fica com a melhor nota de cada nome
+  const semFrente = q0.replace(/^(?:[a-z,'\-]{1,2} )+(?=[a-z,'\-]{3})/, '');
   const best = new Map();
+  for (const q of semFrente !== q0 && semFrente.length >= 3 ? [q0, semFrente] : [q0]) matchInto(best, index, q);
+  return [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
+    .sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
+}
+function matchInto(best, index, q) {
+  const { floor, min, max } = Math;
   const qb = bigrams(q);
   for (const e of index) {
     const len = e.key.length;
@@ -12900,15 +12923,13 @@ function matchName(index, text, { limit = 3 } = {}) {
     // filtro barato antes da distância de edição: bigramas em comum
     let common = 0; for (const g of e.bg) if (qb.has(g)) common++;
     if (common < e.bg.length * 0.4) continue;
-    const maxEdits = Math.floor(len * (1 - SUGGEST)) + 1;
+    const maxEdits = floor(len * (1 - SUGGEST)) + 1;
     const full = lev(q, e.key, maxEdits);
     const pre = q.length > len ? lev(q.slice(0, len), e.key, maxEdits) : maxEdits + 1;
-    const d = Math.min(full, pre + 0.5);
-    const score = 1 - d / Math.max(len, 1);
+    const d = min(full, pre + 0.5);
+    const score = 1 - d / max(len, 1);
     if (score >= SUGGEST && (!best.has(e.name) || best.get(e.name) < score)) best.set(e.name, score);
   }
-  return [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
-    .sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
 }
 
 /** Leva 109 · texto esparso do quadro inteiro (várias linhas): casa cada linha e devolve os melhores
@@ -13485,13 +13506,350 @@ const OCR_MODES = {
   name: { tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
   // Leva 109 · plano B: texto esparso no quadro inteiro, quando o detector não acha a carta
   frame: { tessedit_pageseg_mode: '11', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
-  collector: { tessedit_pageseg_mode: '6', tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•*. ' }
+  collector: { tessedit_pageseg_mode: '6', tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•*. ' },
+  // X11 · a linha do nome já chega recortada, binarizada e limpa (preparaNome): uma linha só, sem tratamento
+  linha: { tessedit_pageseg_mode: '7', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ,'-" },
+  colecao: { tessedit_pageseg_mode: '6', tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/•*. ' }
 };
 /** Recorte de uma faixa da carta (frações) em coordenadas do quadro. */
 function faixaDaCarta(carta, B) { return { x: carta.x + carta.w * B.x, y: carta.y + carta.h * B.y, w: carta.w * B.w, h: carta.h * B.h }; }
 
+/* =====================================================================
+   X11 · LEITURA POR CONTORNO: QUATRO CANTOS, CARTA RETIFICADA, LINHA DO NOME
+   Medido em 01/10/2026 em 11 fotos reais de celular: o caminho anterior (retângulo por
+   perfis de borda + faixa fixa + realce) acertava 3; nas 6 em que o detector "achava" a
+   carta sozinho, o OCR recebia a faixa errada ou apagada. O caminho novo:
+   1. acha as retas do quadro (Hough sobre as bordas) e o quadrilátero de proporção 63×88
+      com as quatro bordas apoiadas — tolera inclinação e perspectiva;
+   2. retifica uma faixa generosa do topo da carta (homografia);
+   3. acha dentro dela a linha do nome (traços verticais entre duas faixas calmas);
+   4. binariza só essa linha (fundo local, polaridade automática) e limpa o que encosta
+      na borda. É isso que o OCR recebe.
+   Tudo função pura: o portão mede exatamente o que o app faz.
+   ===================================================================== */
+const HOUGH_TETAS = 180;
+const HOUGH_COS = new Float64Array(HOUGH_TETAS), HOUGH_SIN = new Float64Array(HOUGH_TETAS);
+for (let t = 0; t < HOUGH_TETAS; t++) { HOUGH_COS[t] = Math.cos(t * Math.PI / 180); HOUGH_SIN[t] = Math.sin(t * Math.PI / 180); }
+const anguloEntre = (a, b) => { const d = Math.abs(a - b) % 180; return d > 90 ? 180 - d : d; };
+
+/** Retas mais fortes do quadro (tons de cinza): { t (graus da normal), rho, v (votos) } e o mapa de bordas. */
+function retasDoQuadro(g, w, h, { fracao = 0.10, minimo = 30, quantas = 26 } = {}) {
+  const { abs, atan2, ceil, hypot, max, min, round } = Math;
+  const n = w * h, b = new Float32Array(n), gx = new Float32Array(n), gy = new Float32Array(n), mag = new Float32Array(n);
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = y * w + x;
+    b[i] = (g[i - w - 1] + g[i - w] + g[i - w + 1] + g[i - 1] + g[i] + g[i + 1] + g[i + w - 1] + g[i + w] + g[i + w + 1]) / 9;
+  }
+  const hist = new Uint32Array(1025);
+  for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) {
+    const i = y * w + x;
+    const sx = (b[i - w + 1] + 2 * b[i + 1] + b[i + w + 1]) - (b[i - w - 1] + 2 * b[i - 1] + b[i + w - 1]);
+    const sy = (b[i + w - 1] + 2 * b[i + w] + b[i + w + 1]) - (b[i - w - 1] + 2 * b[i - w] + b[i - w + 1]);
+    gx[i] = sx; gy[i] = sy; mag[i] = abs(sx) + abs(sy); hist[min(1024, mag[i] | 0)]++;
+  }
+  let acc = 0, lim = 1024; for (let v = 1024; v >= 0; v--) { acc += hist[v]; if (acc >= n * fracao) { lim = v; break; } }
+  lim = max(minimo, lim);
+  const D = ceil(hypot(w, h)), R = 2 * D + 1, A = new Float32Array(HOUGH_TETAS * R), borda = new Uint8Array(n);
+  for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) {
+    const i = y * w + x; if (mag[i] < lim) continue;
+    // afinamento: só o máximo local na direção do gradiente vota
+    const horizontal = abs(gx[i]) > abs(gy[i]);
+    if (mag[i] < mag[horizontal ? i - 1 : i - w] || mag[i] < mag[horizontal ? i + 1 : i + w]) continue;
+    borda[i] = 1;
+    // a direção do gradiente só delimita a janela (±12°): quem decide o ângulo da reta é o alinhamento dos
+    // pontos. Em borda serrilhada ou com pouca luz o gradiente local erra alguns graus
+    let t0 = round(atan2(gy[i], gx[i]) * 180 / Math.PI); t0 = ((t0 % 180) + 180) % 180;
+    for (let dt = -12; dt <= 12; dt++) { const t = (t0 + dt + 180) % 180; A[t * R + round(x * HOUGH_COS[t] + y * HOUGH_SIN[t]) + D] += 1; }
+  }
+  const cand = [], minVotos = min(w, h) * 0.12;
+  for (let t = 0; t < HOUGH_TETAS; t++) for (let r = 1; r < R - 1; r++) {
+    const v = A[t * R + r] + 0.5 * (A[t * R + r - 1] + A[t * R + r + 1]);
+    if (v >= minVotos) cand.push({ t, rho: r - D, v });
+  }
+  cand.sort((p, q) => q.v - p.v);
+  const retas = [], perto = max(3, min(w, h) * 0.02);
+  for (const c of cand) {
+    let repetida = false;
+    for (const o of retas) {
+      let dt = abs(c.t - o.t), rho = c.rho;
+      if (dt > 90) { dt = 180 - dt; rho = -rho; }
+      if (dt <= 7 && abs(rho - o.rho) <= perto + dt * 1.5) { repetida = true; break; }
+    }
+    if (!repetida) { retas.push(c); if (retas.length >= quantas) break; }
+  }
+  return { retas, borda, limiar: lim };
+}
+/** Quanto de cada reta tem borda embaixo, como soma acumulada ao longo dela (consulta de trecho em O(1)). */
+function apoioDasRetas(retas, borda, w, h) {
+  const { ceil, hypot, round } = Math;
+  const D = ceil(hypot(w, h));
+  for (const r of retas) {
+    const c = HOUGH_COS[r.t], s = HOUGH_SIN[r.t], P = new Uint16Array(2 * D + 2);
+    for (let k = -D; k <= D; k++) {
+      let tem = 0;
+      for (let o = -2; o <= 2 && !tem; o++) {
+        const x = round((r.rho + o) * c - k * s), y = round((r.rho + o) * s + k * c);
+        if (x >= 0 && y >= 0 && x < w && y < h && borda[y * w + x]) tem = 1;
+      }
+      P[k + D + 1] = P[k + D] + tem;
+    }
+    r.P = P; r.D = D;
+  }
+}
+function apoioDoTrecho(r, p, q) {
+  const { max, min, round } = Math;
+  const c = HOUGH_COS[r.t], s = HOUGH_SIN[r.t];
+  let ka = -p.x * s + p.y * c, kb = -q.x * s + q.y * c; if (ka > kb) { const t = ka; ka = kb; kb = t; }
+  const folga = (kb - ka) * 0.08;   // os cantos da carta são arredondados
+  const a = max(-r.D, round(ka + folga)), b = min(r.D, round(kb - folga));
+  return b - a < 4 ? 0 : (r.P[b + r.D + 1] - r.P[a + r.D]) / (b - a + 1);
+}
+function cruzaRetas(a, b) {
+  const det = HOUGH_COS[a.t] * HOUGH_SIN[b.t] - HOUGH_SIN[a.t] * HOUGH_COS[b.t];
+  if (Math.abs(det) < 1e-6) return null;
+  return { x: (a.rho * HOUGH_SIN[b.t] - b.rho * HOUGH_SIN[a.t]) / det, y: (HOUGH_COS[a.t] * b.rho - HOUGH_COS[b.t] * a.rho) / det };
+}
+/** Cantos na ordem topo-esquerda, topo-direita, baixo-direita, baixo-esquerda. O topo é o lado curto
+    mais alto no quadro (carta deitada: o da esquerda). Carta de cabeça para baixo não é decidida aqui. */
+function ordenaCantos(c) {
+  const lado = (u, v) => Math.hypot(u.x - v.x, u.y - v.y);
+  let q = c.slice(), area2 = 0;
+  for (let i = 0; i < 4; i++) { const a = q[i], b = q[(i + 1) % 4]; area2 += a.x * b.y - b.x * a.y; }
+  if (area2 < 0) q = [q[0], q[3], q[2], q[1]];
+  const curto01 = lado(q[0], q[1]) + lado(q[2], q[3]) <= lado(q[1], q[2]) + lado(q[3], q[0]);
+  const cands = curto01 ? [0, 2] : [1, 3];
+  const meio = i => ({ x: (q[i].x + q[(i + 1) % 4].x) / 2, y: (q[i].y + q[(i + 1) % 4].y) / 2 });
+  const m0 = meio(cands[0]), m1 = meio(cands[1]);
+  const emPe = Math.abs(m0.y - m1.y) >= Math.abs(m0.x - m1.x);
+  const topo = emPe ? (m0.y <= m1.y ? cands[0] : cands[1]) : (m0.x <= m1.x ? cands[0] : cands[1]);
+  return [q[topo], q[(topo + 1) % 4], q[(topo + 2) % 4], q[(topo + 3) % 4]];
+}
+const QUAD = { tolProporcao: 0.11, areaMin: 0.05, apoioMin: 0.45, apoioMedio: 0.62, paralelas: 9, perpendicular: 78, ladosIguais: 0.22 };
+/** A carta no quadro: { cantos: [4 × {x,y}] em frações do quadro, apoio, proporcao, area } ou null.
+    Entre os quadriláteros válidos ganha o de bordas mais apoiadas, proporção mais próxima de 63×88,
+    maior, e que contém o centro do quadro (a pessoa aponta para a carta). */
+function achaQuadrilatero(g, w, h, opts = {}) {
+  const { abs, hypot, max, min, sign, sqrt } = Math;
+  if (!g || w < 16 || h < 16) return null;
+  const o = { ...QUAD, ...opts };
+  const { retas, borda } = retasDoQuadro(g, w, h);
+  apoioDasRetas(retas, borda, w, h);
+  const pares = [];
+  for (let i = 0; i < retas.length; i++) for (let j = i + 1; j < retas.length; j++) if (anguloEntre(retas[i].t, retas[j].t) <= o.paralelas) pares.push([retas[i], retas[j]]);
+  const mx = w * 0.04, my = h * 0.04, cx = w / 2, cy = h / 2;
+  let melhor = null;
+  for (let a = 0; a < pares.length; a++) for (let b = a + 1; b < pares.length; b++) {
+    const [p1, p2] = pares[a], [q1, q2] = pares[b];
+    if (anguloEntre(p1.t, q1.t) < o.perpendicular) continue;
+    const c = [cruzaRetas(p1, q1), cruzaRetas(p1, q2), cruzaRetas(p2, q2), cruzaRetas(p2, q1)];
+    if (c.some(v => !v || v.x < -mx || v.y < -my || v.x > w + mx || v.y > h + my)) continue;
+    const lado = (u, v) => hypot(u.x - v.x, u.y - v.y);
+    const s = [lado(c[0], c[1]), lado(c[1], c[2]), lado(c[2], c[3]), lado(c[3], c[0])];
+    const A = (s[0] + s[2]) / 2, B = (s[1] + s[3]) / 2;
+    if (abs(s[0] - s[2]) > o.ladosIguais * A || abs(s[1] - s[3]) > o.ladosIguais * B) continue;
+    const proporcao = min(A, B) / max(A, B), erro = abs(proporcao - PROPORCAO_CARTA) / PROPORCAO_CARTA;
+    if (erro > o.tolProporcao) continue;
+    const area = A * B / (w * h); if (area < o.areaMin) continue;
+    // lados 0-1 e 2-3 correm sobre p1 e p2; 1-2 e 3-0 sobre q2 e q1
+    const ap = [apoioDoTrecho(p1, c[0], c[1]), apoioDoTrecho(q2, c[1], c[2]), apoioDoTrecho(p2, c[2], c[3]), apoioDoTrecho(q1, c[3], c[0])];
+    const menor = min(ap[0], ap[1], ap[2], ap[3]), medio = (ap[0] + ap[1] + ap[2] + ap[3]) / 4;
+    if (menor < o.apoioMin || medio < o.apoioMedio) continue;
+    let sinal = 0, centro = true;
+    for (let i = 0; i < 4 && centro; i++) { const u = c[i], v = c[(i + 1) % 4]; const z = (v.x - u.x) * (cy - u.y) - (v.y - u.y) * (cx - u.x); if (z !== 0) { if (!sinal) sinal = sign(z); else if (sign(z) !== sinal) centro = false; } }
+    // a área pesa: a arte, a caixa de texto e meia carta também dão retângulos bem apoiados, mas menores que a carta
+    // e o lado mais fraco pesa: numa pilha, só a carta de cima tem as quatro bordas inteiras à vista
+    const nota = 0.6 * medio + 0.4 * menor - 1.5 * erro + 0.8 * sqrt(area) + (centro ? 0.15 : 0);
+    if (o.candidatos) o.candidatos.push({ nota, apoio: medio, menor, proporcao, area, centro, c });
+    if (!melhor || nota > melhor.nota) melhor = { c, nota, apoio: medio, proporcao, area };
+  }
+  if (!melhor) return null;
+  return { cantos: ordenaCantos(melhor.c).map(p => ({ x: p.x / w, y: p.y / h })), apoio: melhor.apoio, proporcao: melhor.proporcao, area: melhor.area };
+}
+/** Homografia do quadrado unitário para quatro cantos (TE, TD, BD, BE): devolve (u, v) → { x, y }.
+    Os coeficientes ficam em `.k` para quem precisa aplicar pixel a pixel sem criar objetos. */
+function homografia(c) {
+  const [p0, p1, p2, p3] = c;
+  const dx1 = p1.x - p2.x, dx2 = p3.x - p2.x, dx3 = p0.x - p1.x + p2.x - p3.x;
+  const dy1 = p1.y - p2.y, dy2 = p3.y - p2.y, dy3 = p0.y - p1.y + p2.y - p3.y;
+  const den = dx1 * dy2 - dx2 * dy1 || 1e-9;
+  const g = (dx3 * dy2 - dx2 * dy3) / den, hh = (dx1 * dy3 - dx3 * dy1) / den;
+  const a = p1.x - p0.x + g * p1.x, b = p3.x - p0.x + hh * p3.x, d = p1.y - p0.y + g * p1.y, e = p3.y - p0.y + hh * p3.y;
+  const H = (u, v) => { const z = g * u + hh * v + 1; return { x: (a * u + b * v + p0.x) / z, y: (d * u + e * v + p0.y) / z }; };
+  H.k = [a, b, p0.x, d, e, p0.y, g, hh];
+  return H;
+}
+/** Os quatro cantos de uma faixa da carta (frações da carta; pode passar da borda), nas coordenadas dos cantos. */
+function cantosDaFaixa(cantos, F) {
+  const H = homografia(cantos);
+  return [H(F.x, F.y), H(F.x + F.w, F.y), H(F.x + F.w, F.y + F.h), H(F.x, F.y + F.h)];
+}
+/** Recorta e endireita o quadrilátero `cantos` (pixels de `src`, RGBA) num retângulo larg × alt. */
+function retifica(src, sw, sh, cantos, larg, alt) {
+  const [a, b, c, d, e, f, g, hh] = homografia(cantos).k;
+  const out = new Uint8ClampedArray(larg * alt * 4), linha = sw * 4, maxX = sw - 1.001, maxY = sh - 1.001;
+  for (let y = 0; y < alt; y++) {
+    const v = (y + 0.5) / alt;
+    for (let x = 0; x < larg; x++) {
+      const u = (x + 0.5) / larg, z = g * u + hh * v + 1;
+      let fx = (a * u + b * v + c) / z, fy = (d * u + e * v + f) / z;
+      if (fx < 0) fx = 0; else if (fx > maxX) fx = maxX;
+      if (fy < 0) fy = 0; else if (fy > maxY) fy = maxY;
+      const xa = fx | 0, ya = fy | 0, tx = fx - xa, ty = fy - ya, i = (ya * sw + xa) * 4, o = (y * larg + x) * 4;
+      const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
+      out[o] = src[i] * w00 + src[i + 4] * w10 + src[i + linha] * w01 + src[i + linha + 4] * w11;
+      out[o + 1] = src[i + 1] * w00 + src[i + 5] * w10 + src[i + linha + 1] * w01 + src[i + linha + 5] * w11;
+      out[o + 2] = src[i + 2] * w00 + src[i + 6] * w10 + src[i + linha + 2] * w01 + src[i + linha + 6] * w11;
+      out[o + 3] = 255;
+    }
+  }
+  return { data: out, w: larg, h: alt };
+}
+/** Faixa do topo da carta que vai para a busca da linha do nome. Generosa de propósito: o quadrilátero
+    achado pode ser a borda de fora, a moldura de dentro ou um protetor; a moldura guia pode estar torta.
+    O nome fica entre 4,5% e 10,5% da carta: a linha é achada dentro da faixa, não suposta. */
+const FAIXA_NOME = { x: 0.0, y: -0.03, w: 0.86, h: 0.22 };
+const LARGURA_NOME = 800;                       // largura da faixa retificada: o nome fica com ~30 px de altura
+const ALTURA_NOME = { min: 0.022, max: 0.055 }; // altura da linha do nome, em frações da altura da carta
+/** Linha de texto dentro da faixa (RGBA): a sequência de linhas com mais traços verticais, cercada em
+    cima e embaixo por linhas calmas (a barra do título). Devolve { y0, y1, nota, cinza }. */
+function linhaDoNome(d, w, h, { altMin = ALTURA_NOME.min / FAIXA_NOME.h, altMax = ALTURA_NOME.max / FAIXA_NOME.h, sobreEscuro = false } = {}) {
+  const { abs, max, round, sqrt } = Math;
+  const g = new Float32Array(w * h);
+  for (let i = 0, j = 0; j < w * h; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  const S = new Float64Array(h + 1);
+  // sobreEscuro (linha de coleção): só contam as linhas em que o fundo é a borda preta; a textura da moldura
+  // e a beira da caixa de texto também têm traços, mas sobre fundo claro
+  let corte = 0;
+  if (sobreEscuro) { const hist = new Uint32Array(256); for (let j = 0; j < w * h; j++) hist[g[j] | 0]++; let acc = 0, p10 = 0, p90 = 255; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= w * h * 0.1) { p10 = v; break; } } acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= w * h * 0.1) { p90 = v; break; } } corte = (p10 + p90) / 2; }
+  for (let y = 0; y < h; y++) {
+    let s = 0, escuros = 0;
+    for (let x = 2; x < w - 2; x++) { s += abs(g[y * w + x + 1] - g[y * w + x - 1]); if (g[y * w + x] < corte) escuros++; }
+    const peso = sobreEscuro ? max(0, (escuros / (w - 4) - 0.5) * 2) : 1;
+    S[y + 1] = S[y] + s / w * peso;
+  }
+  const media = (a, b) => (S[b] - S[a]) / max(1, b - a);
+  let melhor = null;
+  const passo = max(1, round(h * 0.015));
+  for (let a = max(4, round(h * altMin)); a <= round(h * altMax); a += passo) {
+    const m = max(2, round(a * 0.3));
+    for (let y0 = 0; y0 + a <= h; y0++) {
+      const dentroM = media(y0, y0 + a);
+      // quem encosta na borda da faixa não tem "calma" daquele lado: conta como igual ao de dentro
+      const cima = y0 - m >= 0 ? media(y0 - m, y0) : dentroM, baixo = y0 + a + m <= h ? media(y0 + a, y0 + a + m) : dentroM;
+      const nota = (dentroM - max(cima, baixo)) * sqrt(a);
+      if (!melhor || nota > melhor.nota) melhor = { y0, y1: y0 + a, nota, energia: dentroM };
+    }
+  }
+  return melhor ? { ...melhor, cinza: g } : null;
+}
+/** Binariza a linha achada: subtrai o fundo local, decide a polaridade pela assimetria (cauda para o claro
+    = texto claro em fundo escuro) e devolve texto preto em branco (RGBA), com respiro em cima e embaixo. */
+function binarizaLinha(g, w, h, y0, y1, { margem = 0.35, inverte = false } = {}) {
+  const { max, min, round, sqrt } = Math;
+  const a = y1 - y0, m = round(a * margem), ya = max(0, y0 - m), yb = min(h, y1 + m), hh = yb - ya;
+  const r = max(6, round(a * 0.6)), W1 = w + 1, I = new Float64Array(W1 * (hh + 1));
+  for (let y = 1; y <= hh; y++) { let l = 0; for (let x = 1; x <= w; x++) { l += g[(ya + y - 1) * w + x - 1]; I[y * W1 + x] = I[(y - 1) * W1 + x] + l; } }
+  const dif = new Float32Array(w * hh); let s2 = 0, s3 = 0;
+  for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+    const x0 = max(0, x - r), yy0 = max(0, y - r), x1 = min(w, x + r + 1), yy1 = min(hh, y + r + 1);
+    const fundo = (I[yy1 * W1 + x1] - I[yy0 * W1 + x1] - I[yy1 * W1 + x0] + I[yy0 * W1 + x0]) / ((x1 - x0) * (yy1 - yy0));
+    const v = g[(ya + y) * w + x] - fundo; dif[y * w + x] = v; s2 += v * v; s3 += v * v * v;
+  }
+  const desvio = sqrt(s2 / (w * hh)) || 1, claro = (s3 > 0) !== inverte;
+  const out = new Uint8ClampedArray(w * hh * 4);
+  for (let j = 0; j < w * hh; j++) {
+    const v = (claro ? -dif[j] : dif[j]) / desvio;
+    out[j * 4] = out[j * 4 + 1] = out[j * 4 + 2] = max(0, min(255, 295 + v * 110)); out[j * 4 + 3] = 255;
+  }
+  return { data: out, w, h: hh, claro, contraste: desvio };
+}
+/** Apaga o que é escuro e encosta na borda do recorte (as linhas e curvas da barra do título). Quando
+    isso seria quase tudo (fundo texturizado de carta antiga ou foil), não apaga nada. */
+function limpaLinha(d, w, h, limiar = 120) {
+  const escuro = new Uint8Array(w * h);
+  for (let p = 0; p < w * h; p++) escuro[p] = d[p * 4] < limiar ? 1 : 0;
+  const fila = new Int32Array(w * h); let ini = 0, fim = 0;
+  const visita = p => { if (escuro[p] === 1) { escuro[p] = 2; fila[fim++] = p; } };
+  for (let x = 0; x < w; x++) { visita(x); visita((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { visita(y * w); visita(y * w + w - 1); }
+  while (ini < fim) { const p = fila[ini++], x = p % w, y = (p - x) / w; if (x > 0) visita(p - 1); if (x < w - 1) visita(p + 1); if (y > 0) visita(p - w); if (y < h - 1) visita(p + w); }
+  if (fim > w * h * 0.10) return d;
+  for (let p = 0; p < w * h; p++) if (escuro[p] === 2) d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 255;
+  return d;
+}
+/** Nitidez da linha do nome (cinza, linhas y0..y1): variância do laplaciano sobre o contraste ao quadrado. */
+function nitidezDaLinha(g, w, y0, y1) {
+  const { max } = Math;
+  let mn = 255, mx = 0, s = 0, s2 = 0, n = 0;
+  for (let y = y0 + 1; y < y1 - 1; y++) for (let x = 1; x < w - 1; x++) {
+    const i = y * w + x, v = g[i]; if (v < mn) mn = v; if (v > mx) mx = v;
+    const l = 4 * v - g[i - 1] - g[i + 1] - g[i - w] - g[i + w]; s += l; s2 += l * l; n++;
+  }
+  if (!n) return 0;
+  const m = s / n; return (s2 / n - m * m) / max(1, mx - mn) ** 2 * 1000;
+}
+/** O caminho inteiro da imagem até o que o OCR lê. `src` é RGBA de qualquer recorte do quadro e `cantos`
+    são os quatro cantos da CARTA (ou da moldura guia) em pixels de `src`. Devolve a linha do nome pronta
+    ({ data, w, h }), mais o que o diagnóstico mostra. null quando não há linha de texto na faixa. */
+function preparaNome(src, sw, sh, cantos, { inverte = false, largura = LARGURA_NOME } = {}) {
+  const alt = Math.max(8, Math.round(largura * (FAIXA_NOME.h / FAIXA_NOME.w) / PROPORCAO_CARTA));
+  const faixa = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_NOME), largura, alt);
+  const L = linhaDoNome(faixa.data, faixa.w, faixa.h);
+  if (!L || !(L.nota > 0)) return null;
+  const nit = nitidezDaLinha(L.cinza, faixa.w, L.y0, L.y1);
+  const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { inverte });
+  limpaLinha(bin.data, bin.w, bin.h);
+  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, nitidez: nit, linha: { y0: L.y0 / faixa.h, y1: L.y1 / faixa.h, nota: L.nota } };
+}
+/** Caixa (em frações do quadro) que contém uma faixa da carta, com folga: é o pedaço do vídeo que o app
+    copia na resolução cheia. Devolve também os cantos da CARTA em pixels desse pedaço. */
+function recorteDaFaixa(cantosFr, F, vw, vh, folga = 4) {
+  const px = cantosFr.map(p => ({ x: p.x * vw, y: p.y * vh }));
+  const f = cantosDaFaixa(px, F);
+  const x0 = Math.max(0, Math.floor(Math.min(...f.map(p => p.x)) - folga)), y0 = Math.max(0, Math.floor(Math.min(...f.map(p => p.y)) - folga));
+  const x1 = Math.min(vw, Math.ceil(Math.max(...f.map(p => p.x)) + folga)), y1 = Math.min(vh, Math.ceil(Math.max(...f.map(p => p.y)) + folga));
+  if (!(x1 - x0 >= 8) || !(y1 - y0 >= 4)) return null;   // também barra NaN (palco sem tamanho)
+  return { regiao: { x: x0 / vw, y: y0 / vh, w: (x1 - x0) / vw, h: (y1 - y0) / vh }, w: x1 - x0, h: y1 - y0, cantos: px.map(p => ({ x: p.x - x0, y: p.y - y0 })) };
+}
+/** Linha de coleção na carta retificada (canto de baixo, à esquerda). Passa da borda de propósito: o
+    quadrilátero achado pode ser a moldura de dentro, e aí o texto fica abaixo dele. */
+const FAIXA_COLECAO = { x: -0.02, y: 0.90, w: 0.56, h: 0.17 };
+const ALTURA_COLECAO = { min: 0.024, max: 0.052 };   // as duas linhas juntas, em frações da altura da carta
+/** O mesmo caminho do nome para a linha de coleção: retifica o canto de baixo, acha o bloco de duas linhas
+    miúdas, binariza (texto claro sobre a borda preta vira preto no branco) e limpa as bordas. */
+function preparaColecao(src, sw, sh, cantos, largura = 700) {
+  const alt = Math.max(8, Math.round(largura * (FAIXA_COLECAO.h / FAIXA_COLECAO.w) / PROPORCAO_CARTA));
+  const faixa = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_COLECAO), largura, alt);
+  const L = linhaDoNome(faixa.data, faixa.w, faixa.h, { altMin: ALTURA_COLECAO.min / FAIXA_COLECAO.h, altMax: ALTURA_COLECAO.max / FAIXA_COLECAO.h, sobreEscuro: true });
+  if (!L || !(L.nota > 0)) return null;   // carta de borda branca ou sem borda: não se lê uma tira qualquer
+  const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { margem: 0.25 });
+  limpaLinha(bin.data, bin.w, bin.h);
+  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro };
+}
+/** Largura da faixa de coleção retificada: o texto miúdo (1,6% da carta) fica com uns 25 px de altura. */
+function larguraColecao(alturaCartaPx) { return Math.max(400, Math.min(1400, Math.round(FAIXA_COLECAO.w * alturaCartaPx * PROPORCAO_CARTA * escalaOcr(alturaCartaPx)))); }
+/** Altura da carta (em pixels do quadro) a partir dos cantos em frações. */
+function alturaDaCarta(cantosFr, vw, vh) {
+  const d = (a, b) => Math.hypot((a.x - b.x) * vw, (a.y - b.y) * vh);
+  return (d(cantosFr[0], cantosFr[3]) + d(cantosFr[1], cantosFr[2])) / 2;
+}
+/** Quanto os cantos andaram entre duas leituras (fração do quadro): a carta ainda está sendo posicionada? */
+function deslocamento(a, b) {
+  if (!a || !b) return 1;
+  let menor = Infinity;
+  for (let r = 0; r < 4; r++) {
+    let m = 0; for (let i = 0; i < 4; i++) { const q = b[(i + r) % 4]; m = Math.max(m, Math.hypot(a[i].x - q.x, a[i].y - q.y)); }
+    if (m < menor) menor = m;
+  }
+  return menor;
+}
+/* Calibrado nas fotos reais de 01/10/2026 (cartas de 470 a 1150 px de altura): linha legível fica entre 0,9 e 28;
+   a mesma foto desfocada (caixa de 2 px, duas passadas), que o OCR já não lê, cai para 0,1. O limiar corta só isso. */
+const LIMIARES_LINHA = { nitidezMin: 0.3, deslocamentoMax: 0.05, alturaMin: 0.30 };
+
 return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
-  detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr };
+  detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
 })();
 
 
@@ -13504,7 +13862,8 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, criaDetector, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr, ESCALAS_DETECTOR, criaPorteiro, PORTEIRO, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, realcaTexto } = __m21;
+const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, criaDiario, realcaTexto,
+  achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, brilho } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 // Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros e o teto do plano B
@@ -13530,6 +13889,7 @@ function createOcr(win = window, doc = document) {
   }
   /** Tons de cinza, contraste e ampliação: o nome é texto pequeno sobre arte. */
   function prepare(canvas, escala = 1, modo = 'name') {
+    if (modo === 'linha' || modo === 'colecao') return canvas;   // X11 · já vem recortada, binarizada e no tamanho certo (preparaNome / preparaColecao)
     const scale = Math.max(escala || 1, OCR_ALTURA_MIN / Math.max(1, canvas.height));
     const c = doc.createElement('canvas'); c.width = Math.round(canvas.width * scale); c.height = Math.round(canvas.height * scale);
     const ctx = c.getContext('2d'); ctx.drawImage(canvas, 0, 0, c.width, c.height);
@@ -13575,8 +13935,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
      Nada rola na tela principal: num S25 (360×780) câmera, aviso e botões cabem sem rolagem. */
   const lot = createLot({ store });
   const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, alive: true, edition: true, ocrReady: false,
-    moldura: true, carta: null, diag: false, faixaAnterior: null, pilhaAberta: false };
-  const detector = criaDetector();
+    moldura: true, cantosAntes: null, falhas: 0, invertida: false, aceitoEm: 0, diag: false, pilhaAberta: false };
   const porteiro = criaPorteiro();
   const diario = criaDiario();
   if (typeof window !== 'undefined') window.__scanDiario = diario; // o mesmo que "Copiar diagnóstico" mostra
@@ -13623,58 +13982,56 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     }
   }
 
-  /* ---- geometria ---- */
-  /** Região (0..1 do quadro) de uma faixa da carta: a carta achada ou, sem ela, a moldura guia. */
-  function bandRegion(B) {
-    const c = state.carta;
-    if (c) return faixaDaCarta(c, B);
-    // Leva 112 · a geometria vem da própria moldura na tela (ela cabe em altura ou em largura, conforme o palco)
+  /* ---- geometria (X11) ---- */
+  /** A moldura guia em frações do quadro da câmera (o vídeo aparece com object-fit: cover). */
+  function molduraNoQuadro() {
     const vr = stage.getBoundingClientRect(), fr = frame.getBoundingClientRect();
     let fx = fr.left - vr.left, fy = fr.top - vr.top, fw = fr.width, fh = fr.height;
     if (!(fw > 0 && fh > 0)) { fh = vr.height * 0.86; fw = fh * 63 / 88; fx = (vr.width - fw) / 2; fy = (vr.height - fh) / 2; } // moldura escondida: a mesma conta
-    const band = { x: fx + fw * B.x, y: fy + fh * B.y, w: fw * B.w, h: fh * B.h };
-    return coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, band);
+    return coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, { x: fx, y: fy, w: fw, h: fh });
   }
-  /** A carta achada está dentro da moldura (com folga)? Fora dela a leitura não vale: a pessoa ainda está posicionando. */
-  function dentroDaMoldura(carta) {
-    if (!carta || !state.moldura) return true;
-    const m = bandRegion({ x: 0, y: 0, w: 1, h: 1 }), folga = 0.06;
-    return carta.x >= m.x - folga && carta.y >= m.y - folga && carta.x + carta.w <= m.x + m.w + folga && carta.y + carta.h <= m.y + m.h + folga;
+  const cantosDe = r => [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
+  // três canvas reaproveitados: o quadro pequeno do detector, o pedaço do vídeo com o nome e a linha pronta
+  const telas = { pequeno: document.createElement('canvas'), faixa: document.createElement('canvas'), linha: document.createElement('canvas') };
+  function pixels(regiao, opts) {
+    const c = camera.capture(regiao, opts);
+    return { d: c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height };
   }
-  function recorte(quadro, r) {
-    const c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round(quadro.width * r.w)); c.height = Math.max(1, Math.round(quadro.height * r.h));
-    c.getContext('2d').drawImage(quadro, Math.round(quadro.width * r.x), Math.round(quadro.height * r.y), c.width, c.height, 0, 0, c.width, c.height);
+  /** O quadro inteiro em 320 px, em tons de cinza: é o que o detector olha. */
+  function quadroPequeno() {
+    const p = pixels(null, { maxLado: 320, canvas: telas.pequeno });
+    const g = new Uint8ClampedArray(p.w * p.h);
+    for (let i = 0, j = 0; j < g.length; i += 4, j++) g[j] = 0.299 * p.d[i] + 0.587 * p.d[i + 1] + 0.114 * p.d[i + 2];
+    return { cinza: g, w: p.w, h: p.h };
+  }
+  /** A linha do nome pronta para o OCR, a partir dos cantos da carta (ou da moldura), em frações do quadro.
+      Do vídeo sai só o pedaço que tem o nome, na resolução cheia. */
+  function linhaPronta(cantosFr) {
+    const rec = recorteDaFaixa(cantosFr, FAIXA_NOME, video.videoWidth, video.videoHeight);
+    if (!rec) return null;
+    const p = pixels(rec.regiao, { canvas: telas.faixa });
+    const kx = p.w / rec.w, ky = p.h / rec.h;
+    const pr = preparaNome(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })));
+    if (!pr) return null;
+    return { tela: paraCanvas(pr, telas.linha), nitidez: pr.nitidez, claro: pr.claro };
+  }
+  function paraCanvas(t, c = document.createElement('canvas')) {
+    c.width = t.w; c.height = t.h;
+    const ctx = c.getContext('2d'), img = ctx.createImageData(t.w, t.h); img.data.set(t.data); ctx.putImageData(img, 0, 0);
     return c;
   }
-  function quadroCinza(quadro, alvo = 80) {
-    const w = alvo, hh = Math.max(8, Math.round(alvo * (quadro.height / Math.max(1, quadro.width))));
-    const small = document.createElement('canvas'); small.width = w; small.height = hh;
-    const ctx = small.getContext('2d'); ctx.drawImage(quadro, 0, 0, w, hh);
-    const d = ctx.getImageData(0, 0, w, hh).data;
-    const g = new Uint8ClampedArray(w * hh);
-    for (let i = 0, j = 0; i < d.length; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    return { cinza: g, w, h: hh };
-  }
-  /** Leva 112 · a faixa do nome em 320 px: nitidez e movimento antes de gastar o OCR. */
-  function medeFaixa(faixa) {
-    const w = 320, hh = Math.max(4, Math.round(w * faixa.height / Math.max(1, faixa.width)));
-    const c = document.createElement('canvas'); c.width = w; c.height = hh;
-    const ctx = c.getContext('2d'); ctx.drawImage(faixa, 0, 0, w, hh);
-    let d; try { d = ctx.getImageData(0, 0, w, hh).data; } catch (e) { return { nitidez: 999, movimento: 0 }; }
-    const g = new Uint8ClampedArray(w * hh); for (let i = 0, j = 0; i < d.length; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    const mov = movimentoEntre(state.faixaAnterior, g); state.faixaAnterior = g;
-    return { nitidez: nitidezDaFaixa(d, w, hh), movimento: mov };
-  }
-  function pintaOlho(r, texto) {
-    if (!r || !r.carta) contorno.style.display = 'none';
-    else {
-      const vr = stage.getBoundingClientRect();
-      const px = screenRect(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, r.carta);
-      Object.assign(contorno.style, { display: 'block', left: px.x + 'px', top: px.y + 'px', width: px.w + 'px', height: px.h + 'px' });
-      contorno.dataset.pronto = String(!!r.pronto);
-    }
-    dicaTexto(texto != null ? texto : (r && r.motivo) || '');
+  /** O contorno da carta achada, desenhado em cima dela (quatro cantos, com a inclinação que ela tiver). */
+  function pintaContorno(quad, pronto = false) {
+    stage.classList.toggle('tem-contorno', !!quad);   // com a carta achada, a moldura guia sai da frente
+    if (!quad) { contorno.style.display = 'none'; return; }
+    const vr = stage.getBoundingClientRect(), vw = video.videoWidth || vr.width, vh = video.videoHeight || vr.height;
+    const pts = quad.cantos.map(c => screenRect(vr.width, vr.height, vw, vh, { x: c.x, y: c.y, w: 0, h: 0 }));
+    const x0 = Math.min(...pts.map(q => q.x)), y0 = Math.min(...pts.map(q => q.y));
+    const W = Math.max(1, Math.max(...pts.map(q => q.x)) - x0), H = Math.max(1, Math.max(...pts.map(q => q.y)) - y0);
+    Object.assign(contorno.style, { display: 'block', left: x0 + 'px', top: y0 + 'px', width: W + 'px', height: H + 'px' });
+    contorno.dataset.pronto = String(!!pronto);
+    // só números: nada do que vem de fora entra neste desenho
+    contorno.innerHTML = `<svg viewBox="0 0 ${W.toFixed(1)} ${H.toFixed(1)}" width="100%" height="100%" aria-hidden="true"><polygon points="${pts.map(q => `${(q.x - x0).toFixed(1)},${(q.y - y0).toFixed(1)}`).join(' ')}"/></svg>`;
   }
   function dicaTexto(s) { mount(dica, s ? Text(s, { size: 'sm' }) : null); }
 
@@ -13694,12 +14051,25 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!printsCache.has(name)) { try { printsCache.set(name, await scryfall.search(`!"${name}"`, { unique: 'prints', order: 'released' })); } catch (e) { return []; } }
     return printsCache.get(name) || [];
   }
-  async function identify(name, quadro, carta) {
+  async function identify(name, cantosLidos, peloContorno) {
     if (!state.edition) return { exact: null, candidates: [], parsed: null };
     let parsed = { number: '', set: '', lang: '' };
-    const reg = carta ? faixaDaCarta(carta, COLLECTOR_BAND) : bandRegion(COLLECTOR_BAND);
-    const altura = carta ? carta.h * quadro.height : bandRegion({ x: 0, y: 0, w: 1, h: 1 }).h * quadro.height;
-    try { parsed = parseCollectorLine(await ocr.read(recorte(quadro, reg), 'collector', escalaOcr(altura))); } catch (e) { /* segue sem edição */ }
+    try {
+      const vw = video.videoWidth, vh = video.videoHeight;
+      // o nome foi lido uma ou mais passadas atrás: os cantos são conferidos de novo no quadro de agora
+      let cantosFr = cantosLidos;
+      if (peloContorno) {
+        const q = quadroPequeno(), novo = achaQuadrilatero(q.cinza, q.w, q.h);
+        if (novo) { const c = state.invertida ? viraCantos(novo.cantos) : novo.cantos; if (deslocamento(c, cantosLidos) < 0.15) cantosFr = c; }
+      }
+      const rec = recorteDaFaixa(cantosFr, FAIXA_COLECAO, vw, vh);
+      if (!rec) throw new Error('sem-recorte');
+      // canvas próprio: esta leitura corre em segundo plano, enquanto o laço já lê a próxima carta
+      const p = pixels(rec.regiao, {});
+      const kx = p.w / rec.w, ky = p.h / rec.h;
+      const pr = preparaColecao(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), larguraColecao(alturaDaCarta(cantosFr, vw, vh)));
+      if (pr) parsed = parseCollectorLine(await ocr.read(paraCanvas(pr), 'colecao', 1));
+    } catch (e) { /* segue sem edição */ }
     const list = await prints(name);
     if (list.length) return { ...resolvePrinting(list, parsed), parsed };
     return { exact: parsed.set && parsed.number ? { set: parsed.set, number: parsed.number, verified: false } : null, candidates: [], parsed };
@@ -13707,37 +14077,64 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   /* ---- a leitura ---- */
   const dormir = ms => new Promise(r => setTimeout(r, ms));
-  const DICAS = { desfocada: 'Desfocado: afaste um pouco e segure firme.', tremida: 'Segure firme.', fora: 'Centralize a carta na moldura.', ambigua: 'Duas cartas parecidas: aproxime a câmera do nome.', espera: 'Lendo… segure assim.', repetida: 'Já na pilha. Toque na tela para somar outra.', fraca: 'Nome pouco legível: aproxime e tire o reflexo.', nada: 'Enquadre a carta na moldura.' };
-  /** Uma leitura: captura, acha a carta, confere nitidez e movimento, lê a faixa do nome e casa com a base. */
+  const DICAS = { desfocada: 'Desfocado: afaste um pouco e segure firme.', tremida: 'Segure firme.', longe: 'Aproxime a carta.', escuro: 'Está escuro: procure mais luz.', ambigua: 'Duas cartas parecidas: aproxime a câmera do nome.', espera: 'Lendo… segure assim.', repetida: 'Já na pilha. Toque na tela para somar outra.', fraca: 'Nome pouco legível: aproxime e tire o reflexo.', nada: 'Enquadre a carta na moldura.' };
+  /** X11 · uma leitura: acha os quatro cantos da carta em qualquer lugar do quadro, endireita o topo dela, acha a
+      linha do nome, lê e casa com a base. Sem contorno (carta na mão, protetor, mesa da cor da borda), o mesmo
+      caminho vale a partir da moldura guia. Quando o contorno não dá leitura, a moldura é tentada na mesma passada. */
+  const viraCantos = c => [c[2], c[3], c[0], c[1]];
   async function lerUmaVez(via) {
-    const quadro = camera.capture();
-    let r = null, carta = null;
-    try { r = detector.quadro(ESCALAS_DETECTOR.map(alvo => quadroCinza(quadro, alvo))); carta = r.carta || null; } catch (e) { r = null; }
-    if (carta && !dentroDaMoldura(carta)) { state.carta = null; pintaOlho({ carta, pronto: false }, DICAS.fora); return { pulou: 'fora', quadro, ms: 0 }; }
-    state.carta = carta; pintaOlho(r, null);
+    const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
+    if (!vw || !vh) { dicaTexto(DICAS.nada); return { pulou: 'nada', ms: 0, nitidez: 0, movimento: 0 }; }
     const t0 = performance.now();
-    const regiao = bandRegion(NAME_BAND);
-    const faixa = recorte(quadro, regiao);
-    const m = medeFaixa(faixa);
-    if (m.nitidez < LIMIARES_FAIXA.nitidezMin) { dicaTexto(DICAS.desfocada); return { pulou: 'desfocada', quadro, ms: 0, ...m }; }
-    if (via !== 'manual' && m.movimento > LIMIARES_FAIXA.movimentoMax) { dicaTexto(DICAS.tremida); return { pulou: 'tremida', quadro, ms: 0, ...m }; }
-    const altura = carta ? carta.h * quadro.height : regiao.h / NAME_BAND.h * quadro.height;
-    const texto = await ocr.read(faixa, 'name', escalaOcr(altura));
-    const found = names.match(texto);
-    return { quadro, carta, texto, found, ms: Math.round(performance.now() - t0), caminho: carta ? 'carta' : 'moldura', ...m };
+    let quad = null, luz = 128;
+    try { const q = quadroPequeno(); luz = brilho(q.cinza, q.w, q.h, null); quad = achaQuadrilatero(q.cinza, q.w, q.h); } catch (e) { quad = null; }
+    const mov = quad && state.cantosAntes ? deslocamento(quad.cantos, state.cantosAntes) : 0;
+    state.cantosAntes = quad ? quad.cantos : null;
+    if (!quad) state.invertida = false;   // carta nova no quadro: volta a supor que está em pé
+    pintaContorno(quad);
+    // contorno pequeno demais para ler (carta longe, ou um objeto com cara de carta fora da área que a tela mostra):
+    // não serve para a leitura, mas não impede a moldura guia
+    const longe = !!quad && alturaDaCarta(quad.cantos, vw, vh) < LIMIARES_LINHA.alturaMin * Math.max(vw, vh);
+    const base = { luz, movimento: mov * 100, contorno: !!quad && !longe, longe };
+    if (via !== 'manual' && quad && !longe && mov > LIMIARES_LINHA.deslocamentoMax) { dicaTexto(DICAS.tremida); return { pulou: 'tremida', ms: 0, nitidez: 0, ...base }; }
+    const caminhos = [];
+    if (quad && !longe) caminhos.push({ nome: 'carta', cantos: state.invertida ? viraCantos(quad.cantos) : quad.cantos });
+    caminhos.push({ nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) });
+    let melhor = null, desfocada = null;
+    const nota = r => (r && r.found[0] ? r.found[0].score : 0);
+    for (const c of caminhos) {
+      const L = linhaPronta(c.cantos);
+      if (!L) continue;
+      if (via !== 'manual' && L.nitidez < LIMIARES_LINHA.nitidezMin) { if (desfocada == null) desfocada = L.nitidez; continue; }
+      const texto = await ocr.read(L.tela, 'linha');
+      const r = { caminho: c.nome, cantos: c.cantos, texto, found: names.match(texto), nitidez: L.nitidez };
+      if (!melhor || nota(r) > nota(melhor)) melhor = r;
+      if (nota(r) >= ACCEPT) break;
+    }
+    if (!melhor) {
+      const qual = desfocada != null ? 'desfocada' : longe ? 'longe' : 'nada';
+      dicaTexto(DICAS[qual]);
+      return { pulou: qual, ms: 0, nitidez: desfocada || 0, ...base };
+    }
+    // carta de cabeça para baixo: depois de três leituras sem nome com o contorno achado, vira a carta e MANTÉM
+    // virada enquanto estiver lendo (o porteiro precisa de leituras seguidas iguais); três falhas viradas, desvira
+    if (nota(melhor) >= ACCEPT) state.falhas = 0;
+    else { state.falhas++; if (quad && !longe && state.falhas % 3 === 0) state.invertida = !state.invertida; }
+    if (quad && !longe && melhor.caminho === 'carta' && nota(melhor) >= ACCEPT && (state.auto || via === 'manual')) pintaContorno(quad, true);
+    return { ...melhor, ms: Math.round(performance.now() - t0), ...base };
   }
   /** Aceite: entra na pilha na hora; edição e miniatura chegam depois. */
   async function aceita(name, leitura) {
     const best = (leitura.found || []).find(x => x.name === name) || leitura.found[0] || { score: 1 };
     const meta = { score: best.score, alternativas: (leitura.found || []).filter(x => x.name !== name).slice(0, 3).map(x => x.name) };
     const key = await lot.add(name, 1, null, meta);
-    announce(name);
-    state.last = { text: leitura.texto, found: leitura.found || [], key, printing: null, candidates: [], pendente: !!leitura.quadro };
+    announce(name); state.aceitoEm = Date.now();
+    state.last = { text: leitura.texto, found: leitura.found || [], key, printing: null, candidates: [], pendente: !!leitura.cantos };
     paintResult(); paintDock();
-    if (!leitura.quadro) return key;
+    if (!leitura.cantos) return key;
     (async () => {
       try {
-        const ed = await identify(name, leitura.quadro, leitura.carta);
+        const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta');
         const img = await miniatura(name, ed.exact);
         const nova = await lot.enrich(key, { printing: ed.exact, img });
         if (state.last && state.last.key === key) state.last = { ...state.last, key: nova || key, printing: ed.exact, candidates: ed.candidates || [], pendente: false };
@@ -13756,7 +14153,10 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       let decisao = v.motivo;
       if (v.aceito) { await aceita(v.aceito, L); decisao = `${v.aceito} +1`; dicaTexto(''); }
       else {
-        dicaTexto(DICAS[v.motivo === 'ambígua' ? 'ambigua' : v.motivo] || '');
+        const semNome = v.motivo === 'nada' || v.motivo === 'fraca';
+        // com a carta achada e sem nome, o problema é a leitura (reflexo, distância), não o enquadramento
+        // enquanto o "[nome] ✓" está na tela, uma leitura vazia não troca a confirmação por uma bronca
+        if (!(semNome && Date.now() - (state.aceitoEm || 0) < 1600)) dicaTexto(semNome && L.luz < 45 ? DICAS.escuro : semNome && L.longe ? DICAS.longe : semNome && L.contorno ? DICAS.fraca : DICAS[v.motivo === 'ambígua' ? 'ambigua' : v.motivo] || '');
         if ((v.motivo === 'ambígua' || v.motivo === 'fraca') && L.found.length) { state.last = { text: L.texto, found: L.found, key: null, printing: null, candidates: [], pendente: false }; paintResult(); }
       }
       diario.anota({ via: L.caminho, texto: L.texto, melhor: L.found[0] || null, ms: L.ms, decisao, nitidez: L.nitidez, movimento: L.movimento });
@@ -13779,8 +14179,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       else { state.last = { text: L.texto, found: L.found, key: null, printing: null, candidates: [], pendente: false }; dicaTexto(ambigua ? DICAS.ambigua : L.found.length ? DICAS.fraca : DICAS.nada); decisao = ambigua ? 'ambígua' : 'fraca'; }
       diario.anota({ via: L.caminho, texto: L.texto, melhor: best || null, ms: L.ms, decisao, nitidez: L.nitidez, movimento: L.movimento });
       state.engine = 'ready';
-    } catch (e) { state.engine = 'failed'; toast('Não foi possível ler agora. Tente de novo com mais luz.'); diario.anota({ via: 'erro', texto: String(e && e.message || e), melhor: null, ms: 0, decisao: 'falhou' }); }
-    finally { state.busy = false; paintResult(); paintDock(); paintStatus(); marca(); }
+    } catch (e) { if (/ocr-indisponivel/.test(String(e && e.message || e))) state.engine = 'failed'; toast('Não foi possível ler agora. Tente de novo com mais luz.'); diario.anota({ via: 'erro', texto: String(e && e.message || e), melhor: null, ms: 0, decisao: 'falhou' }); }
+    finally {
+      state.busy = false; paintResult(); paintDock(); paintStatus(); marca();
+      // com o automático pausado ninguém redesenha o contorno: ele some sozinho em vez de ficar parado no lugar antigo
+      if (!state.auto) setTimeout(() => { if (!state.auto) pintaContorno(null); }, 1500);
+    }
   }
   let okTimer = null;
   /** "[nome] ✓" por cima da câmera, vibração curta, flash no palco. */
@@ -13801,8 +14205,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function setAuto(on) {
     const antes = state.auto;
     state.auto = on;
-    if (on) { porteiro.zera(); detector.rearmar(); state.faixaAnterior = null; if (!antes) laco(); }
-    else { contorno.style.display = 'none'; dicaTexto(''); state.carta = null; }
+    if (on) { porteiro.zera(); state.cantosAntes = null; state.falhas = 0; state.invertida = false; if (!antes) laco(); }
+    else { pintaContorno(null); dicaTexto(''); state.cantosAntes = null; }
     paintDock(); paintEstado(); if (!state.last) paintResult();
   }
   function ligaSePronto() { if (!state.auto && state.alive && state.camera === 'on' && state.base === 'ready' && state.engine === 'ready') setAuto(true); }
@@ -13811,7 +14215,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `nitidez ≥ ${LIMIARES_FAIXA.nitidezMin}, movimento ≤ ${LIMIARES_FAIXA.movimentoMax}` };
+    return { leitor_versao: 'X11 (contorno + linha do nome)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `nitidez ≥ ${LIMIARES_LINHA.nitidezMin}, movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';
@@ -13996,7 +14400,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const linha = x => h('div', { class: 'scan-diag__linha' },
         Badge(x.via, { tone: x.via === 'carta' || x.via === 'moldura' ? 'positive' : x.via === 'erro' ? 'danger' : undefined }),
         Text(`${x.ms} ms`, { size: 'xs', tone: 'muted' }),
-        x.nitidez != null ? Text(`nit ${Math.round(x.nitidez)} · mov ${Math.round(x.movimento || 0)}`, { size: 'xs', tone: 'muted' }) : null,
+        x.nitidez != null ? Text(`nit ${(+x.nitidez).toFixed(1)} · mov ${Math.round(x.movimento || 0)}`, { size: 'xs', tone: 'muted' }) : null,
         Text(`"${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 40) || '—'}"`, { size: 'xs' }),
         Text(x.melhor ? `→ ${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '→ —', { size: 'xs', tone: 'muted' }),
         Text(x.decisao, { size: 'xs' }));
