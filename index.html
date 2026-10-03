@@ -394,6 +394,9 @@ a { color: var(--accent); }
 .online-entrar .ds-field { flex: 1 1 160px; min-width: 0; }
 .online-entrar .ds-input { font-family: var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
 .tb-online { display: inline-grid; place-items: center; width: var(--tap-min); height: var(--tap-min); color: var(--accent); }
+.tb-online[data-ligado="false"] { color: var(--warning); animation: tb-online-pulso 1.2s ease-in-out infinite; }
+@keyframes tb-online-pulso { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
 .perfil-conta__texto { gap: 0; min-width: 0; }
 .perfil-conta__texto > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -6017,6 +6020,66 @@ function transporteLocal({ storage, canal = null, nome = 'estante.online', agora
   };
 }
 
+/* ---------- transporte Firebase: Realtime Database por REST + fluxo de eventos, sem SDK ---------- */
+/** `url` é a raiz do banco (https://<projeto>-default-rtdb.firebaseio.com). Leituras e escritas por REST
+    (`GET/PUT/PATCH/POST/DELETE <caminho>.json`); `ouvir` abre um EventSource no caminho e mantém uma réplica local
+    aplicando os eventos `put` e `patch` que o Firebase manda (o primeiro `put` traz o nó inteiro; ao reconectar,
+    o Firebase manda tudo de novo). `fetch` e `EventSource` entram por injeção para os testes rodarem sem rede. */
+function transporteFirebase({ url, fetch: fetchFn = null, EventSource: ES = null, agora = () => Date.now() }) {
+  const base = String(url || '').replace(/\/+$/, '');
+  const f = (...a) => (fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null))(...a);
+  const Fonte = ES || (typeof EventSource !== 'undefined' ? EventSource : null);
+  const endereco = caminho => `${base}/${String(caminho).replace(/^\/+|\/+$/g, '')}.json`;
+  let ligado = true; const aoLigar = new Set();
+  const marca = sim => { if (ligado !== sim) { ligado = sim; for (const cb of aoLigar) cb(ligado); } };
+  async function pede(metodo, caminho, corpo) {
+    let r;
+    try { r = await f(endereco(caminho), { method: metodo, headers: corpo !== undefined ? { 'Content-Type': 'application/json' } : {}, body: corpo !== undefined ? JSON.stringify(corpo) : undefined }); }
+    catch (e) { marca(false); throw new Error('sem-rede'); }
+    if (!r.ok) throw Object.assign(new Error('api'), { status: r.status });
+    marca(true);
+    const t = await r.text(); return t ? JSON.parse(t) : null;
+  }
+  /** Aplica um evento do fluxo na réplica: path relativo ao nó ouvido ('/' = o nó inteiro). */
+  function aplica(replica, tipo, path, data) {
+    const seg = String(path || '/').split('/').filter(Boolean);
+    if (!seg.length) return tipo === 'patch' ? { ...(replica || {}), ...(data || {}) } : (data === undefined ? null : data);
+    const raiz = replica && typeof replica === 'object' ? { ...replica } : {};
+    let o = raiz;
+    for (const k of seg.slice(0, -1)) { o[k] = o[k] && typeof o[k] === 'object' ? { ...o[k] } : {}; o = o[k]; }
+    const ult = seg[seg.length - 1];
+    if (tipo === 'patch') o[ult] = { ...(o[ult] && typeof o[ult] === 'object' ? o[ult] : {}), ...(data || {}) };
+    else if (data === null || data === undefined) delete o[ult]; else o[ult] = data;
+    return raiz;
+  }
+  return {
+    kind: 'firebase',
+    async ler(caminho) { return pede('GET', caminho); },
+    async escrever(caminho, valor) { await pede('PUT', caminho, valor); },
+    async atualizar(caminho, patch) { await pede('PATCH', caminho, patch || {}); },
+    async empurrar(caminho, valor) { const r = await pede('POST', caminho, valor); return r && r.name; },
+    async apagar(caminho) { await pede('DELETE', caminho); },
+    ouvir(caminho, cb) {
+      if (!Fonte) { pede('GET', caminho).then(v => cb(v)).catch(() => cb(null)); return () => {}; }
+      let replica = null, fonte = null, parado = false;
+      const avisa = () => { if (!parado) cb(replica === undefined ? null : replica); };
+      const abre = () => {
+        fonte = new Fonte(endereco(caminho));
+        fonte.addEventListener('put', e => { try { const { path, data } = JSON.parse(e.data); replica = aplica(replica, 'put', path, data); } catch (err) { /* evento ilegível */ } marca(true); avisa(); });
+        fonte.addEventListener('patch', e => { try { const { path, data } = JSON.parse(e.data); replica = aplica(replica, 'patch', path, data); } catch (err) { /* evento ilegível */ } avisa(); });
+        fonte.addEventListener('open', () => marca(true));
+        fonte.addEventListener('error', () => { marca(false); /* o EventSource reconecta sozinho; ao voltar, o Firebase manda o nó inteiro de novo */ });
+        fonte.addEventListener('cancel', () => { marca(false); try { fonte.close(); } catch (e) { /* já fechou */ } if (!parado) setTimeout(abre, 2000); });
+      };
+      abre();
+      return () => { parado = true; try { fonte && fonte.close(); } catch (e) { /* já fechou */ } };
+    },
+    ligado() { return ligado; },
+    aoMudarLigacao(cb) { aoLigar.add(cb); return () => aoLigar.delete(cb); },
+    _aplica: aplica
+  };
+}
+
 /* ---------- a sala ---------- */
 /** Dados da sala em `salas/<codigo>`:
     { criadaEm, estado: 'esperando' | 'pronta' | 'jogando' | 'encerrada', formato,
@@ -6054,6 +6117,8 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
     async enviarAcao(codigo, acao) { return transporte.empurrar(`${caminho(codigo)}/acoes`, acao); },
     async encerrar(codigo, motivo) { await transporte.atualizar(caminho(codigo), { estado: 'encerrada', fim: { motivo, em: agora() } }); },
     async marcarPresenca(codigo, assento) { await transporte.atualizar(`${caminho(codigo)}/presenca`, { [assento]: agora() }); },
+    /** Apaga a sala (depois do fim, pelo anfitrião). Transporte sem `apagar` só a marca encerrada. */
+    async apagar(codigo) { if (transporte.apagar) await transporte.apagar(caminho(codigo)); else await transporte.escrever(caminho(codigo), null); },
     /** Ouve a sala inteira; devolve `parar`. cb recebe { sala, acoes (ordenadas) }. */
     ouvir(codigo, cb) { return transporte.ouvir(caminho(codigo), sala => cb(sala ? { sala, acoes: ordenadas(sala.acoes) } : null)); },
     ordenadas
@@ -6156,7 +6221,7 @@ function mesaOnline(sinc, online) {
   return api;
 }
 
-return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, createSala, criaSincronizador, mesaOnline, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
+return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
 })();
 
 const __m27 = (function () {
@@ -13225,7 +13290,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     function painelOnline() {
       const modos = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Sala', id: 'online-modo' },
         ...[['criar', 'Criar sala', 'mais'], ['entrar', 'Entrar', 'seguir']].map(([k, rotulo, icone]) => { const c = Chip(rotulo, { icone, pressed: on.modo === k, dataset: { onlineModo: k } }); c.disabled = on.esperando; c.addEventListener('click', () => { on.modo = k; on.erro = null; paintOpponent(); }); return c; }));
-      const aviso = Text(`Sem servidor configurado, a sala funciona entre ${online.descricao}. O outro jogador precisa do app aberto. As duas listas são enviadas para a sala; a mão fica escondida na tela, mas a partida é de confiança entre vocês.`, { size: 'sm', tone: 'muted' });
+      const aviso = Text((online.modo === 'firebase' ? 'A sala vive na internet: ' + online.descricao + '. ' : `Sem servidor configurado, a sala funciona entre ${online.descricao}. `) + 'O outro jogador precisa do app aberto. As duas listas são enviadas para a sala; a mão fica escondida na tela, mas a partida é de confiança entre vocês.', { size: 'sm', tone: 'muted' });
       const erro = on.erro ? Note(on.erro, 'negative') : null;
       if (on.esperando && on.codigo) {
         return Stack({}, aviso,
@@ -13481,6 +13546,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
           } });
         table = __m30.mesaOnline(sinc, o);
         sinc.ligar();
+        const pararLigacao = online.transporte.aoMudarLigacao(() => { if (root.isConnected) paint(); else pararLigacao(); });
+        // o anfitrião apaga a sala um minuto depois do fim (o convidado já recebeu a última ação)
+        const vigiaFim = setInterval(() => { if (!root.isConnected) return clearInterval(vigiaFim); if (table.state.status === 'over' && o.assento === 0) { clearInterval(vigiaFim); setTimeout(() => online.sala.apagar(o.codigo).catch(() => {}), 60000); } }, 2000);
         pararPresenca = setInterval(() => { if (!root.isConnected) { clearInterval(pararPresenca); sinc.parar(); return; } online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {}); }, 15000);
       } else table = T.restoreTable(data);
     }
@@ -14335,7 +14403,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
-          sinc ? h('span', { class: 'tb-online', id: 'tb-online', role: 'img', 'aria-label': 'Partida online', title: `Partida online · sala ${table.online.codigo}` }, Icone('globo', { tamanho: 18 })) : null,
+          sinc ? h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(online.transporte.ligado()) }, 'aria-label': online.transporte.ligado() ? 'Partida online, conectada' : 'Partida online, reconectando', title: `Partida online · sala ${table.online.codigo}` + (online.transporte.ligado() ? '' : ' · reconectando…') }, Icone('globo', { tamanho: 18 })) : null,
           IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
           IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
@@ -16503,11 +16571,15 @@ const GOOGLE_CLIENT_ID = '';
    (transporte local), o que basta para testar; para dois celulares é preciso o Firebase (leva 133). */
 const FIREBASE_DB_URL = '';
 const online = (() => {
+  // leva 134 · com a URL do Firebase (ou window.__FIREBASE_DB_URL nos testes) a sala vive no banco: dois celulares.
+  // Sem ela, transporte local: duas abas deste aparelho.
+  const urlFirebase = (typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL;
   const temStorage = typeof localStorage !== 'undefined';
   const canal = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('estante.online') : null;
-  const transporte = temStorage ? __m30.transporteLocal({ storage: localStorage, canal }) : __m30.transporteMemoria();
+  const transporte = urlFirebase ? __m30.transporteFirebase({ url: urlFirebase })
+    : temStorage ? __m30.transporteLocal({ storage: localStorage, canal }) : __m30.transporteMemoria();
   const sala = __m30.createSala({ transporte });
-  return { transporte, sala, modo: FIREBASE_DB_URL ? 'firebase' : 'local', descricao: FIREBASE_DB_URL ? 'Firebase' : 'duas abas deste aparelho' };
+  return { transporte, sala, modo: urlFirebase ? 'firebase' : 'local', descricao: urlFirebase ? 'dois aparelhos, pela internet' : 'duas abas deste aparelho' };
 })();
 const conta = __m29.createConta({
   clientId: (typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID,

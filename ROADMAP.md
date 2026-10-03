@@ -382,7 +382,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
 | 16º-q ✅ | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1, leva 128) | E47 | 1 | — |
 | 16º-r ✅ | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2, leva 129) | E47 | 1 | **OAuth Client ID do usuário** para ligar na publicação |
-| 16º-s 🟡 | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) — parte 1 na leva 130 (sala, transporte, sincronização), parte 2 na leva 133 (telas; joga entre duas abas) | E48 | 4 | **projeto Firebase do usuário** (leva 133) |
+| 16º-s 🟡 | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) — parte 1 na leva 130 (sala, transporte, sincronização), parte 2 na leva 133 (telas; joga entre duas abas), parte 3 na leva 134 (Firebase REST + eventos) | E48 | 4 | **URL do Realtime Database** em `FIREBASE_DB_URL` para dois celulares |
 | 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
 | 16º-u | Roadmap completo de design: auditoria de todas as telas, crítica e plano de elevação (temas, acento, verso, superfície da mesa, densidade, fonte) | U | 1 | capturas do aparelho para a auditoria final |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
@@ -4033,6 +4033,24 @@ conversa paralela à do Shark e à da revisão carta a carta)
   - **Pendência vista no caminho:** no Playwright, a captura de tela da aba do anfitrião trava depois de a mesa
     abrir (JS ocioso a 96%, fps baixo na aba; o convidado captura normal). Não afeta o teste nem o app; fica para
     a leva 133 investigar (composição/animação).
+- **Leva 134 · parte 3 — transporte Firebase (dois celulares pela internet), atrás de `FIREBASE_DB_URL`:**
+  - `transporteFirebase({ url })`: Realtime Database por **REST** (`GET/PUT/PATCH/POST/DELETE <caminho>.json`;
+    `POST` dá a chave cronológica do servidor) e **fluxo de eventos** (`EventSource` no nó da sala; réplica local
+    aplica `put`/`patch` com caminho relativo; ao reconectar o Firebase manda o nó inteiro de novo). Sem SDK, sem
+    build, nada para guardar offline. `fetch` e `EventSource` injetáveis.
+  - `ligado()`/`aoMudarLigacao`: o globo da mesa fica âmbar e pulsa (sem movimento com `prefers-reduced-motion`)
+    enquanto reconecta; a tela de preparar diz "A sala vive na internet". O anfitrião apaga a sala um minuto
+    depois do fim.
+  - **Como ligar (usuário):** console.firebase.google.com → projeto → Realtime Database → criar (modo de teste) →
+    copiar a URL `https://<projeto>-default-rtdb.firebaseio.com` em `FIREBASE_DB_URL`. Regras recomendadas:
+    `{"rules":{"salas":{"$codigo":{".read":true,".write":true,".validate":"$codigo.matches(/^ESTA-[A-HJ-NP-Z2-9]{4}$/)"}}}}`.
+    **Limite declarado:** sem autenticação — qualquer um com a URL pode ler/escrever em `salas`; só o código de 4
+    letras protege a sala; não serve para desconhecidos. Autenticação anônima do Firebase fica para depois, se o
+    usuário quiser.
+  - **Testes:** U (`firebase.unit.test.mjs`, 5: REST completo e URL com barra; fluxo de eventos com put inteiro,
+    put parcial, patch em filho novo e parar; queda e volta refazem a réplica; sem rede com nome; a sala inteira
+    por cima do Firebase; `aplica()`); e2e "Leva 134" com banco falso por rota nas duas abas e EventSource de
+    sondagem: criar por PUT, entrar, keeps por POST, mesas iguais, indicador conectado.
 - **Valor:** dois celulares, cada um com o app, uma partida.
 - **Aceite:** criar sala com código de 6 letras, entrar pelo código, cada aparelho aplica as ações do outro no mesmo motor; reconexão retoma pelo registro; mão do oponente escondida na tela (a sincronização é por ações, então o estado completo está nos dois aparelhos — declarado como limite de confiança entre amigos); sem rede a tela diz que a partida online precisa de internet.
 - **Testes:** U (protocolo de sala e reconciliação de ações); e2e com dois contextos de navegador e transporte simulado; O1 (mensagem sem rede).

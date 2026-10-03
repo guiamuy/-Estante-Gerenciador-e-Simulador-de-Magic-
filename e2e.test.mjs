@@ -4962,3 +4962,62 @@ test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra 
   assert.equal(await A.evaluate(c => JSON.parse(localStorage.getItem('estante.online:salas/' + c)).estado, codigo), 'encerrada');
   assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
 });
+
+/* ---------------- Leva 134 · partida online pelo Firebase (REST falso no teste; fluxo de eventos por sondagem) ---------------- */
+test('e2e · Leva 134 partida online com Firebase configurado: sala no banco por REST, duas abas convergem pelos eventos, indicador de ligação', { skip }, async t => {
+  const { page: A, errors, base } = await open(t, { dev: false });
+  // banco falso em memória, servido por rota nas duas abas: GET/PUT/PATCH/POST/DELETE em <caminho>.json
+  const banco = { dados: {}, chamadas: [] }; let n = 0;
+  const desce = (o, seg) => { for (const k of seg) { if (!o || typeof o !== 'object' || !(k in o)) return null; o = o[k]; } return o === undefined ? null : o; };
+  const poe = (seg, v) => { if (!seg.length) { banco.dados = v || {}; return; } let o = banco.dados; for (const k of seg.slice(0, -1)) { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; o = o[k]; } if (v === null) delete o[seg[seg.length - 1]]; else o[seg[seg.length - 1]] = v; };
+  const rota = async r => {
+    const req = r.request(); const m = req.url().match(/^https:\/\/teste\.firebaseio\.com\/(.*)\.json$/); const seg = m[1].split('/').filter(Boolean); const metodo = req.method();
+    banco.chamadas.push(metodo + ' /' + seg.join('/'));
+    const corpo = req.postData() ? JSON.parse(req.postData()) : undefined;
+    const ok = v => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: v === null || v === undefined ? 'null' : JSON.stringify(v) });
+    if (metodo === 'OPTIONS') return r.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET,PUT,PATCH,POST,DELETE', 'access-control-allow-headers': 'content-type' } });
+    if (metodo === 'GET') return ok(desce(banco.dados, seg));
+    if (metodo === 'PUT') { poe(seg, corpo); return ok(corpo); }
+    if (metodo === 'PATCH') { for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v); return ok(corpo); }
+    if (metodo === 'POST') { const chave = '-N' + String(++n).padStart(6, '0'); poe([...seg, chave], corpo); return ok({ name: chave }); }
+    if (metodo === 'DELETE') { poe(seg, null); return ok(null); }
+    return r.fulfill({ status: 405 });
+  };
+  // EventSource de teste: sonda o nó por GET a cada 250 ms e emite "put" do nó inteiro quando muda (o Firebase real
+  // manda os eventos; a réplica do app trata os dois do mesmo jeito)
+  const init = () => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.EventSource = class {
+      constructor(url) { this.url = url; this.ouv = {}; this.ultimo = undefined; this.timer = setInterval(() => this.sonda(), 250); setTimeout(() => this.sonda(), 0); }
+      addEventListener(t, f) { (this.ouv[t] = this.ouv[t] || []).push(f); }
+      async sonda() { try { const r = await fetch(this.url); const txt = await r.text(); if (txt !== this.ultimo) { this.ultimo = txt; (this.ouv.open || []).forEach(f => f({})); (this.ouv.put || []).forEach(f => f({ data: JSON.stringify({ path: '/', data: JSON.parse(txt || 'null') }) })); } } catch (e) { (this.ouv.error || []).forEach(f => f({})); } }
+      close() { clearInterval(this.timer); }
+    };
+  };
+  await A.route('https://teste.firebaseio.com/**', rota); await A.addInitScript(init); await A.addInitScript(() => { window.__MTG_TEST = true; });
+  await A.setViewportSize({ width: 360, height: 780 });
+  await createDeck(A, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  await A.goto(base + '#/mesa'); await A.reload(); await A.waitForSelector('[data-opponent="online"]'); await A.click('[data-opponent="online"]');
+  await A.waitForSelector('#online-criar'); assert.match(await A.innerText('.tb, main'), /A sala vive na internet/, 'a tela diz que a sala está na internet');
+  await A.waitForFunction(() => !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await A.click('#online-criar'); await A.waitForSelector('#online-codigo');
+  const codigo = (await A.innerText('#online-codigo')).trim();
+  assert.ok(banco.chamadas.some(c => c === 'PUT /salas/' + codigo), 'a sala foi criada no banco por PUT: ' + banco.chamadas.slice(0, 4));
+  const B = await A.context().newPage(); const errosB = [];
+  B.on('pageerror', e => errosB.push(String(e))); B.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errosB.push(m.text()); });
+  await B.route('https://teste.firebaseio.com/**', rota); await B.addInitScript(init); await B.addInitScript(() => { window.__MTG_TEST = true; });
+  await B.setViewportSize({ width: 360, height: 780 });
+  await B.goto(base + '#/mesa'); await B.waitForSelector('[data-opponent="online"]'); await B.click('[data-opponent="online"]'); await B.click('[data-online-modo="entrar"]');
+  await B.waitForSelector('#online-codigo-input'); await B.fill('#online-codigo-input', codigo); await B.waitForFunction(() => !document.querySelector('#online-entrar').disabled, null, { timeout: 10000 }); await B.click('#online-entrar');
+  await A.waitForSelector('#tb-keep', { timeout: 25000 }); await B.waitForSelector('#tb-keep', { timeout: 25000 });
+  const estado = p => p.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  assert.equal(await A.getAttribute('#tb-online', 'data-ligado'), 'true', 'indicador: conectado');
+  await A.click('#tb-keep'); await B.waitForFunction(() => window.__estanteMesa.estado().players[0].kept === true, null, { timeout: 15000 });
+  await B.click('#tb-keep'); await A.waitForFunction(() => window.__estanteMesa.estado().status === 'playing', null, { timeout: 15000 });
+  await B.waitForFunction(() => window.__estanteMesa.estado().status === 'playing', null, { timeout: 15000 }); await A.waitForTimeout(300);
+  assert.equal(await estado(A), await estado(B), 'mesas iguais pelo Firebase');
+  assert.ok(banco.chamadas.some(c => c === 'POST /salas/' + codigo + '/acoes'), 'ações empurradas por POST');
+  assert.equal(Object.keys(desce(banco.dados, ['salas', codigo, 'acoes'])).length, 2, 'dois keeps na sala');
+  await auditaTela(A, 'mesa online (firebase)');
+  assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
+});
