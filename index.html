@@ -3466,43 +3466,10 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
       : Note(`<b>Ambiente sem acesso à Scryfall (${env.label}).</b> ${env.reason} ${env.fix}`, 'warning'))
     : null;
 
-  const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden', id: 'local-file' });
-  fileInput.addEventListener('change', async e => {
-    const f = e.target.files && e.target.files[0];
-    if (!f || !local || !files) return;
-    try {
-      const txt = await files.readText(f);
-      const r = await local.importJson(txt, normalizeCard);
-      toast(`${r.added} carta(s) nova(s) · base local com ${r.total}`);
-      refreshLocalCount();
-    } catch (err) {
-      toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Formato de arquivo não reconhecido');
-    } finally { e.target.value = ''; }
-  });
-
-  const localPanel = Surface({ class: 'ds-surface--pad', id: 'local-panel' },
-    Stack({},
-      Row({}, Text('Base local de cartas', { size: 'sm', caps: true, as: 'h2' }),
-        h('div', { class: 'ds-grow' }),
-        Badge(h('span', {}, h('span', { id: 'local-count' }, '0'), ' cartas'))),
-      Text('Funciona sem rede. A busca online alimenta esta base automaticamente; você também pode importar um arquivo.', { size: 'sm', tone: 'muted' }),
-      Row({ class: 'ds-row--wrap' },
-        Button('Importar cartas', { id: 'local-import', icone: 'importar', onClick: () => fileInput.click() }),
-        Button('Exportar base', { id: 'local-export', icone: 'exportar', onClick: async () => {
-          if (!local || !files) return;
-          files.save('estante-cartas.json', await local.exportJson(), 'application/json');
-          toast('Base exportada');
-        } }),
-        Button('Limpar base', { variant: 'danger', id: 'local-clear', icone: 'lixeira', onClick: async () => {
-          if (!local) return; await local.clear(); refreshLocalCount(); toast('Base local limpa');
-        } })),
-      fileInput));
-
+  // D5 · a base local de cartas saiu daqui para Perfil › Dados (`painelBaseLocal`); a tela abre direto na busca
   const root = Stack({ class: 'ds-wrap', id: 'cards-screen', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
     Text('Cartas', { size: '2xl', display: true, as: 'h1' }),
-    Text('Busca por nome com "contém", filtrável por cor, tipo, raridade e formato.', { tone: 'muted' }),
     envWarning,
-    localPanel,
     Surface({ class: 'ds-surface--pad ds-surface--shelf' },
       Stack({},
         Field('Nome', input, { hint: 'Enter para buscar.' }),
@@ -3525,6 +3492,44 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
 
   refreshLocalCount();
   return root;
+}
+
+/* ---------------- D5 (design) · base local de cartas, em Perfil › Dados ---------------- */
+/** Painel da base local: contagem, importar, exportar e limpar. Mesmos ids de quando morava na tela Cartas. */
+function painelBaseLocal({ local, files }) {
+  const count = h('span', { id: 'local-count' }, '0');
+  const atualiza = async () => { try { count.textContent = String(await local.count()); } catch (e) { /* sem base: fica 0 */ } };
+  const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden', id: 'local-file' });
+  fileInput.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f || !local || !files) return;
+    try {
+      const r = await local.importJson(await files.readText(f), normalizeCard);
+      toast(`${r.added} carta(s) nova(s) · base local com ${r.total}`);
+      atualiza();
+    } catch (err) {
+      toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Formato de arquivo não reconhecido');
+    } finally { e.target.value = ''; }
+  });
+  const box = Surface({ class: 'ds-surface--pad', id: 'local-panel' },
+    Stack({},
+      Row({}, Text('Base local de cartas', { size: 'sm', as: 'h2', display: true }),
+        h('div', { class: 'ds-grow' }),
+        Badge(h('span', {}, count, ' cartas'))),
+      Text('Funciona sem rede. A busca online alimenta esta base sozinha; você também pode importar um arquivo.', { size: 'sm', tone: 'muted' }),
+      Row({ class: 'ds-row--wrap' },
+        Button('Importar cartas', { id: 'local-import', icone: 'importar', onClick: () => fileInput.click() }),
+        Button('Exportar base', { id: 'local-export', icone: 'exportar', onClick: async () => {
+          if (!local || !files) return;
+          files.save('estante-cartas.json', await local.exportJson(), 'application/json');
+          toast('Base exportada');
+        } }),
+        Button('Limpar base', { variant: 'danger', id: 'local-clear', icone: 'lixeira', onClick: () => Dialog({ title: 'Limpar a base local?',
+          body: Text('As cartas guardadas para a busca sem internet somem deste aparelho. Listas e coleção não mudam; a busca online volta a preencher a base.', { tone: 'muted' }),
+          actions: [Button('Cancelar', { onClick: closeDialog }), Button('Limpar', { variant: 'danger', id: 'local-clear-confirm', onClick: async () => { closeDialog(); if (!local) return; await local.clear(); atualiza(); toast('Base local limpa'); } })] }) })),
+      fileInput));
+  atualiza();
+  return box;
 }
 
 /* ---------------- D5 · visualizador ---------------- */
@@ -3589,7 +3594,7 @@ function openCardViewer(card, extra = [], { quantidade = null } = {}) {
 
   return Dialog({ title: card.name, body, actions });
 }
-return { createCardsScreen, openCardViewer };
+return { createCardsScreen, openCardViewer, painelBaseLocal };
 })();
 
 /* ==== src/engine/scripts.js ==== */
@@ -6833,20 +6838,15 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
       Button('Prontas', { id: 'deck-starter', icone: 'caixa', title: 'Listas prontas', onClick: () => go('/listas/prontas') }),
       Button('Nova', { variant: 'primary', id: 'deck-new', icone: 'mais', title: 'Nova lista', onClick: () => go('/listas/editar') })),
     list,
-    Surface({ class: 'ds-surface--pad', id: 'decks-backup' }, Stack({},
-      Text('Backup', { size: 'sm', as: 'h2', display: true }),
-      Text('Listas e coleção ficam guardadas neste aparelho. Exporte um backup para levar para outro aparelho ou não perder nada ao limpar o navegador.', { size: 'sm', tone: 'muted' }),
-      Row({ class: 'ds-row--wrap' },
-        Button('Exportar', { icone: 'exportar', id: 'decks-backup-export', title: 'Exportar backup', onClick: async () => { if (backup) await backup.exportar(); else files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
-        Button('Restaurar', { icone: 'importar', id: 'decks-backup-restore', title: 'Restaurar backup', onClick: () => fileInput.click() })),
-      fileInput)));
+    // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
+    fileInput);
   paint();
   return root;
 }
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -6941,13 +6941,32 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     const r = await fetch(url, { mode: 'cors' }); if (!r.ok) throw new Error('api');
     return reduzFoto(await r.blob());
   }
+  /** D5 · espaço usado pelo app e proteção contra limpeza do navegador (o mesmo que o painel da tela inicial mostra). */
+  function secaoEspaco() {
+    if (!dados || !dados.espaco) return null;
+    const linha = Text('Conferindo…', { size: 'sm', tone: 'muted', attrs: { id: 'perfil-espaco-texto' } });
+    const acao = h('div', {});
+    const box = Surface({ class: 'ds-surface--pad', id: 'perfil-espaco' }, Stack({}, Text('Espaço no aparelho', { size: 'sm', as: 'h2', display: true }), linha, acao));
+    const pinta = async () => {
+      let e = null; try { e = await dados.espaco(); } catch (err) { e = null; }
+      const partes = [];
+      if (e && e.texto) partes.push(`Espaço usado: ${e.texto.texto}`);
+      partes.push(e && e.protecao === 'protegido' ? 'protegido contra limpeza do navegador' : e && e.protecao === 'vulneravel' ? 'o navegador pode apagar se faltar espaço' : 'o navegador não informa o espaço');
+      linha.textContent = partes.join(' · ');
+      linha.classList.toggle('ds-text--negative', !!(e && e.texto && e.texto.apertado));
+      acao.replaceChildren(e && e.protecao === 'vulneravel' && dados.proteger ? Button('Proteger armazenamento', { id: 'perfil-espaco-proteger', icone: 'proteger', onClick: async () => {
+        const r = await dados.proteger(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Instale o app e mantenha backups em dia.', 3600); pinta(); } }) : h('span'));
+    };
+    pinta();
+    return box;
+  }
   function secaoConta() {
     if (!conta) return null;
     const semId = !conta.disponivel();
     const c = st.conta, oc = st.contaOcupada;
     const cabeca = Text('Conta Google', { size: 'sm', as: 'h2', display: true });
     if (semId) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
-      Note(__m29.MOTIVO['sem-client-id'] + ' Até lá, o backup por arquivo abaixo guarda tudo.', 'warning'),
+      Note(__m29.MOTIVO['sem-client-id'] + ' Até lá, o backup por arquivo acima guarda tudo.', 'warning'),
       Row({}, Button('Entrar', { icone: 'externo', id: 'conta-entrar', disabled: true, title: __m29.MOTIVO['sem-client-id'] }))));
     if (!c) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
       Text('Entre para guardar o backup na pasta privada do app no seu Google Drive e trazer nome e foto da conta. Precisa de internet.', { size: 'sm', tone: 'muted' }),
@@ -7022,14 +7041,18 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar })),
         fotoInput)),
       secaoAparencia(),
-      secaoConta(),
-      Surface({ class: 'ds-surface--pad' }, Stack({},
+      // D5 · Dados: tudo que é administração num lugar só — backup por arquivo, conta (nuvem), base local de cartas, espaço
+      Text('Dados', { size: 'lg', display: true, as: 'h2', attrs: { id: 'perfil-dados' } }),
+      Surface({ class: 'ds-surface--pad', id: 'perfil-backup' }, Stack({},
         Text('Backup completo', { size: 'sm', as: 'h2', display: true }),
         Text('Listas, coleção, perfil e preferências num arquivo. Guarde fora do aparelho para não perder nada ao trocar de celular ou limpar o navegador.', { size: 'sm', tone: 'muted' }),
         Row({ class: 'ds-row--wrap' },
           Button('Exportar', { icone: 'exportar', id: 'perfil-backup-export', title: 'Exportar backup completo', onClick: async () => { await backup.exportar(); toast('Backup exportado'); } }),
           Button('Restaurar', { icone: 'importar', id: 'perfil-backup-restore', title: 'Restaurar backup', onClick: () => backupInput.click() })),
         backupInput)),
+      secaoConta(),
+      dados && dados.baseLocal ? dados.baseLocal() : null,
+      secaoEspaco(),
       // D4b · a apresentação de primeira abertura pode ser revista daqui
       apresentacao ? Row({ style: { justifyContent: 'center' } }, Button('Rever apresentação', { variant: 'ghost', icone: 'seguir', id: 'perfil-apresentacao', onClick: apresentacao })) : null);
   }
@@ -17387,7 +17410,11 @@ const ROUTES = [
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, apresentacao: () => mostraApresentacao() }) },
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, apresentacao: () => mostraApresentacao(),
+    // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
+    dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
+      espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),
+      proteger: () => platform.persistence.request() } }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];

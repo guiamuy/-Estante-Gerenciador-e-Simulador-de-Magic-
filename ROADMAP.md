@@ -401,6 +401,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ae ✅ | D4a estados vazios de Listas e Coleção: cartão de primeiro uso com ícone, título, frase, um primário e um secundário; o resto em "Mais" (leva 142) | D | 1 | — |
 | 16º-af ✅ | D4b apresentação de 3 passos na primeira abertura, pulável, uma vez só, "Rever apresentação" no Perfil (leva 145) | D | 1 | — |
 | 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
+| 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4389,6 +4390,24 @@ na primeira abertura, pulável (não como "Ajuda" escondida).
   contexto, inclusive nas abas da partida online); só `open(t, { apresentacao: true })` a vê.
 - **Fora:** apresentação por tela (dicas no primeiro uso da mesa ou do scanner); vídeo ou animação; pedir o nome
   dentro da apresentação (o Perfil está a um toque).
+
+**D5 · Dados e administração num lugar só** ✅ (leva 150, 03/10/2026)
+- **Entregue:** seção **Dados** no Perfil, nesta ordem: **Backup completo** (arquivo), **Conta Google** (nuvem,
+  atrás do Client ID), **Base local de cartas** (contagem, Importar, Exportar e Limpar — agora com confirmação) e
+  **Espaço no aparelho** (espaço usado e proteção contra limpeza, com "Proteger armazenamento" quando vulnerável; o
+  mesmo que o painel da tela inicial mostra). **Listas** perdeu o cartão de backup (a estante vazia continua
+  oferecendo "Restaurar backup" em Mais). **Cartas** abre direto na busca: o cartão "Base local" e a frase de
+  apresentação saíram; `painelBaseLocal` é um componente do módulo de cartas, com os mesmos ids de antes.
+- **Nome da tela:** continua "Perfil" (avatar na barra). Renomear para "Ajustes" fica para quando a tela tiver
+  mais ajustes do que perfil — hoje são três grupos (Perfil, Aparência, Dados) e o avatar é o caminho natural.
+- **Medido (360×780, sem rede):** Cartas, campo de busca de 578 px para 230 px do topo; tela de 1090 px para 780 (sem
+  rolagem com o aviso de rede). Listas com listas: de 2 cartões para 1.
+- **Testes:** e2e "D5" (Cartas sem painel e campo no alto; busca alimenta a base; Listas sem backup; Perfil › Dados
+  com os quatro blocos na ordem, contagem viva, ícones, Limpar pede confirmação, `auditaTela`). Expectativas
+  mudadas com motivo: U2 parte 2 (Listas sem backup), U2 parte 3 (base local fora de Cartas), Leva 128 (backup só no
+  Perfil), D4a (sem asserção sobre o backup em Listas).
+- **Fora:** "Apagar tudo" (limpar listas, coleção e perfil de uma vez) — ação destrutiva que pede desenho próprio
+  com desfazer; renomear Perfil → Ajustes; cache de imagens como item de Dados (entra se o espaço apertar).
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.

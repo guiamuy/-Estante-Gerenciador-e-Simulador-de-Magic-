@@ -2650,7 +2650,7 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   await page.waitForFunction(() => !document.querySelector('[data-starter-add="Pauper Elves"]'));
   // listas: Prontas e Nova na linha do título, com ícone; item com seta
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
-  await temIcone('#deck-starter'); await temIcone('#deck-new'); await temIcone('#decks-backup-export'); await temIcone('#decks-backup-restore');
+  await temIcone('#deck-starter'); await temIcone('#deck-new'); // D5 · o backup saiu de Listas (vive em Perfil › Dados)
   await mesmaLinha('main h1', '#deck-new', 'Nova na linha do título');
   assert.equal(await page.locator('#decks-list .ds-list__item .ds-list__seta svg').count(), 1);
   await audita('listas');
@@ -2928,7 +2928,8 @@ test('e2e · U2 parte 3 cartas, scanner, preparar partida e mesa: ícones, rótu
   const temIcone = async sel => assert.ok(await page.locator(`${sel} svg`).count() >= 1, `${sel} com ícone`);
   // busca de cartas: ações com ícone, cores em símbolo com nome falado
   await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-q');
-  for (const id of ['#local-import', '#local-export', '#local-clear', '#cards-search', '#cards-clear']) await temIcone(id);
+  for (const id of ['#cards-search', '#cards-clear']) await temIcone(id);
+  assert.equal(await page.locator('#local-panel').count(), 0, 'D5 · a base local saiu de Cartas: a tela abre na busca');
   assert.deepEqual(await page.$$eval('#cards-colors [data-color]', cs => cs.map(c => [c.dataset.color, c.getAttribute('aria-label'), !!c.querySelector('.ds-sym')])),
     [['W', 'Branco', true], ['U', 'Azul', true], ['B', 'Preto', true], ['R', 'Vermelho', true], ['G', 'Verde', true]]);
   await page.click('#cards-colors [data-color="U"]'); assert.equal(await page.getAttribute('#cards-colors [data-color="U"]', 'aria-pressed'), 'true');
@@ -4662,10 +4663,9 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   await page.waitForFunction(() => document.querySelector('#perfil-nome').value === 'Guilherme');
   assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto');
   assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), dados.prefs['ui.theme'], 'o tema volta com o backup');
-  // a tela de listas usa o mesmo backup completo
-  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-backup-export');
-  const [d2] = await Promise.all([page.waitForEvent('download'), page.click('#decks-backup-export')]);
-  assert.equal(JSON.parse(await (await d2.createReadStream()).toArray().then(p => Buffer.concat(p).toString('utf8'))).version, 3);
+  // D5 (leva 150) · expectativa mudou: o backup vive só em Perfil › Dados; Listas fica com o uso
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list');
+  assert.equal(await page.locator('#decks-backup-export').count(), 0, 'Listas sem seção de backup');
   assert.deepEqual(errors, []);
 });
 
@@ -5658,7 +5658,7 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   assert.equal(await page.locator('#decks-vazio .ds-empty__icone svg').count(), 1);
   assert.match(await page.innerText('#decks-vazio'), /Nenhuma lista ainda/);
   assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
-  assert.equal(await page.locator('#deck-new').isVisible(), false); assert.equal(await page.locator('#decks-backup').isVisible(), false);
+  assert.equal(await page.locator('#deck-new').isVisible(), false);
   assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), 'listas vazia cabe sem rolagem');
   await page.click('#decks-mais'); await page.waitForSelector('.ds-dialog #decks-backup-restore-folha');
   await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
@@ -5666,7 +5666,7 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   // com uma lista, o título recupera Prontas e Nova e o backup volta
   await createDeck(page, base, 'Delver', PAUPER);
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
-  assert.equal(await page.locator('#deck-new').isVisible(), true); assert.equal(await page.locator('#decks-backup').isVisible(), true);
+  assert.equal(await page.locator('#deck-new').isVisible(), true);
   // Coleção vazia: Escanear e Colar lista; CSV, Pelo nome e Buscar discretos; filtro e seção de adicionar escondidos
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
   assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
@@ -5879,5 +5879,33 @@ test('e2e · leva 149 perfil: enquadrar a foto arrastando e aproximando; sem o t
   await page.reload(); await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
   assert.deepEqual(await corDoAvatar(), { esq: 'vermelho', dir: 'vermelho', w: 192, h: 192 });
   await emTodasAsMedidas(page, 'perfil sem "Na mesa"');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  // Cartas: a busca é a primeira superfície; nada de administração
+  await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-q');
+  assert.equal(await page.locator('#local-panel').count(), 0);
+  const q = await page.locator('#cards-q').boundingBox(); assert.ok(q.y < 300, `campo de busca no alto (${Math.round(q.y)} px)`);
+  // a busca online alimenta a base local
+  await page.fill('#cards-q', 'sol'); await page.click('#cards-search'); await page.waitForSelector('#cards-results .ds-card, #cards-results [data-name]', { timeout: 8000 }).catch(() => {});
+  // Listas: sem seção de backup, com e sem listas
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
+  assert.equal(await page.locator('#decks-backup-export').count(), 0);
+  // Perfil › Dados: backup, conta, base local (com a contagem da busca) e espaço
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-dados');
+  for (const id of ['#perfil-backup', '#perfil-conta', '#local-panel', '#perfil-espaco']) assert.equal(await page.locator(id).count(), 1, id);
+  const ordem = await page.$$eval('#perfil-dados ~ *', els => els.map(e => e.id).filter(Boolean));
+  assert.deepEqual(ordem.slice(0, 4), ['perfil-backup', 'perfil-conta', 'local-panel', 'perfil-espaco'], 'ordem: backup, conta, base local, espaço');
+  await page.waitForFunction(() => Number((document.querySelector('#local-count') || {}).textContent) >= 1, null, { timeout: 8000 });
+  await page.waitForFunction(() => /Espaço usado|navegador/.test((document.querySelector('#perfil-espaco-texto') || {}).textContent || ''));
+  for (const id of ['#local-import', '#local-export', '#local-clear', '#perfil-backup-export', '#perfil-backup-restore']) assert.ok(await page.locator(`${id} svg`).count() >= 1, `${id} com ícone`);
+  // limpar a base pede confirmação
+  await page.click('#local-clear'); await page.waitForSelector('#local-clear-confirm'); await page.click('#local-clear-confirm');
+  await page.waitForFunction(() => (document.querySelector('#local-count') || {}).textContent === '0');
+  await auditaTela(page, 'perfil com Dados');
   assert.deepEqual(errors, []);
 });
