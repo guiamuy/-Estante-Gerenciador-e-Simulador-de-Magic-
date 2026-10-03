@@ -4636,3 +4636,75 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   assert.equal(JSON.parse(await (await d2.createReadStream()).toArray().then(p => Buffer.concat(p).toString('utf8'))).version, 3);
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- Leva 129 · conta Google (atrás do Client ID) ---------------- */
+test('e2e · Leva 129 conta Google: sem Client ID a seção explica e fica apagada; com ID (falso) entra, usa nome e foto na mesa, envia e baixa o backup, sai', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // 1 · sem Client ID (o publicado hoje): botão apagado com o motivo, e o backup por arquivo continua sendo o caminho
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-conta');
+  assert.equal(await page.locator('#conta-entrar').isDisabled(), true);
+  assert.match(await page.innerText('#perfil-conta'), /Client ID/);
+  assert.match(await page.innerText('#perfil-conta'), /backup por arquivo/);
+  await auditaTela(page, 'perfil sem conta');
+  // 2 · com Client ID e um Google falso injetado pelo teste: a seção liga
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  const nuvem = { arquivo: null, pedidos: [] };
+  await page.route('https://www.googleapis.com/**', async r => {
+    const url = r.request().url(), m = r.request().method(); nuvem.pedidos.push(m + ' ' + url.replace('https://www.googleapis.com', '').slice(0, 60));
+    if (!/Bearer tok-e2e/.test(r.request().headers().authorization || '')) return r.fulfill({ status: 401, json: {} });
+    if (url.includes('/oauth2/v3/userinfo')) return r.fulfill({ json: { name: 'Gui da Conta', email: 'gui@example.com', picture: 'https://lh3.googleusercontent.com/a/foto' } });
+    if (url.includes('/drive/v3/files?spaces=appDataFolder')) return r.fulfill({ json: { files: nuvem.arquivo ? [{ id: 'f1', modifiedTime: '2026-10-02T12:00:00Z' }] : [] } });
+    if (url.includes('/upload/drive/v3/files')) { nuvem.arquivo = r.request().postData().split('\r\n\r\n')[2].split('\r\n--')[0]; return r.fulfill({ json: { id: 'f1' } }); }
+    if (/\/drive\/v3\/files\/f1\?alt=media/.test(url)) return r.fulfill({ status: 200, contentType: 'application/json', body: nuvem.arquivo });
+    return r.fulfill({ status: 404, json: {} });
+  });
+  await page.route('https://lh3.googleusercontent.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__googleLog = [];
+    window.__GOOGLE_FALSO = { accounts: { oauth2: {
+      initTokenClient: cfg => ({ requestAccessToken: o => { window.__googleLog.push(['pede', o.prompt]); setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0); } }),
+      revoke: (tk, cb) => { window.__googleLog.push(['revoga', tk]); cb && cb(); } } } };
+  });
+  await page.reload(); await page.waitForSelector('#conta-entrar:not([disabled])'); // a página recarrega para o Client ID de teste valer
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'a conta não cria um segundo primário');
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]');
+  assert.equal(await page.innerText('#conta-nome'), 'Gui da Conta'); assert.equal(await page.innerText('#conta-email'), 'gui@example.com');
+  assert.match(await page.innerText('#conta-backup-quando'), /nunca/);
+  assert.deepEqual(await page.evaluate(() => window.__googleLog[0]), ['pede', 'consent']);
+  await auditaTela(page, 'perfil com conta (escuro)');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'perfil com conta (claro)');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 3 · "Usar na mesa": nome e foto da conta viram o perfil (foto reduzida como a da galeria) e a barra atualiza
+  await page.click('#conta-usar'); await page.waitForFunction(() => document.querySelector('#perfil-nome') && document.querySelector('#perfil-nome').value === 'Gui da Conta');
+  await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
+  assert.equal(await page.$eval('.perfil-avatar img', i => i.naturalWidth), 192);
+  assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto');
+  // 4 · enviar o backup: o arquivo da nuvem é o backup v3 com o perfil; a hora do envio aparece
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-enviar');
+  await page.evaluate(() => { const t = document.querySelector('#ds-toast'); if (t) t.dataset.open = 'false'; }); // o aviso "Lista criada" ainda estava aberto
+  await page.click('#conta-enviar'); await page.waitForFunction(() => /nuvem/.test(document.querySelector('#ds-toast')?.textContent || ''));
+  assert.match(await page.innerText('#ds-toast'), /enviado para a nuvem/);
+  const enviado = JSON.parse(nuvem.arquivo); assert.equal(enviado.version, 3); assert.equal(enviado.perfil.nome, 'Gui da Conta'); assert.equal(enviado.decks.length, 1);
+  await page.waitForFunction(() => !/nunca/.test(document.querySelector('#conta-backup-quando').textContent));
+  assert.equal(nuvem.pedidos.some(p => p.startsWith('POST /upload/drive/v3/files?uploadType=multipart')), true, 'primeiro envio cria o arquivo na pasta do app');
+  await page.click('#conta-enviar'); await page.waitForTimeout(300);
+  assert.equal(nuvem.pedidos.some(p => p.startsWith('PATCH /upload/drive/v3/files/f1')), true, 'segundo envio substitui');
+  assert.equal(await page.evaluate(() => window.__googleLog.filter(x => x[0] === 'pede').length), 1, 'o token é reusado: um pedido só');
+  // 5 · aparelho limpo + baixar da nuvem traz lista e perfil de volta
+  await page.evaluate(() => indexedDB.databases().then(ds => Promise.all(ds.map(d => new Promise(r => { const q = indexedDB.deleteDatabase(d.name); q.onsuccess = q.onerror = q.onblocked = r; })))));
+  await page.reload(); await page.waitForSelector('#conta-entrar:not([disabled])'); await page.click('#conta-entrar'); await page.waitForSelector('#conta-baixar');
+  await page.click('#conta-baixar'); await page.waitForFunction(() => document.querySelector('#perfil-nome') && document.querySelector('#perfil-nome').value === 'Gui da Conta');
+  await page.goto(base + '#/listas'); await page.waitForSelector('.deck-summary, #decks-list .ds-list__item, [data-deck]'); assert.match(await page.innerText('#decks-list'), /Delver/);
+  // 6 · sair: revoga, apaga a conta do aparelho; o perfil local fica
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-sair'); await page.click('#conta-sair');
+  await page.waitForSelector('#conta-entrar:not([disabled])');
+  assert.deepEqual(await page.evaluate(() => window.__googleLog.at(-1)), ['revoga', 'tok-e2e']);
+  assert.equal(await page.inputValue('#perfil-nome'), 'Gui da Conta', 'sair da conta não apaga o perfil local');
+  // 7 · sem internet, entrar explica em vez de falhar em silêncio
+  await page.context().setOffline(true); await page.click('#conta-entrar'); await page.waitForSelector('#ds-toast[data-open="true"]');
+  assert.match(await page.innerText('#ds-toast'), /Sem internet/); await page.context().setOffline(false);
+  assert.deepEqual(errors, []);
+});

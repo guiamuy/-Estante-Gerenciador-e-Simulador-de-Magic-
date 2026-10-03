@@ -378,7 +378,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
 | 16º-q ✅ | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1, leva 128) | E47 | 1 | — |
-| 16º-r | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2) | E47 | 1 | **OAuth Client ID do usuário** |
+| 16º-r ✅ | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2, leva 129) | E47 | 1 | **OAuth Client ID do usuário** para ligar na publicação |
 | 16º-s | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) | E48 | 4 | **projeto Firebase do usuário** |
 | 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
 | 16º-u | Roadmap completo de design: auditoria de todas as telas, crítica e plano de elevação (temas, acento, verso, superfície da mesa, densidade, fonte) | U | 1 | capturas do aparelho para a auditoria final |
@@ -388,7 +388,7 @@ Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem t
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
 
 **Duas decisões que só o usuário toma, e que eu preciso antes de U13 e U14:**
-1. **Conta com Google (U13).** Dá para fazer sem servidor: Google Identity Services para entrar e a pasta
+1. **Conta com Google (U13) — código pronto desde a leva 129; falta só o Client ID.** Dá para fazer sem servidor: Google Identity Services para entrar e a pasta
    privada do app no Google Drive (`appDataFolder`) para o backup, tudo direto do navegador. Mas exige um
    projeto no Google Cloud com um OAuth Client ID criado por você e a origem do GitHub Pages autorizada.
    Sem esse ID o login não abre. Alternativa sem Google: perfil local (nome e avatar) e backup por arquivo,
@@ -3637,6 +3637,33 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
 
+**Leva 129 · U13 fase 2 · Conta Google e backup na nuvem, atrás do Client ID** ✅ (03/10/2026; trilha geral)
+- **Valor:** entrar com a conta Google, trazer nome e foto para a mesa e guardar o backup completo na pasta privada
+  do app no Google Drive — sem servidor próprio. Tudo pronto e testado; liga quando o Client ID for colado.
+- **Como liga:** constante `GOOGLE_CLIENT_ID` no app (comentário diz o quê e onde). Vazia, a seção "Conta Google"
+  aparece com o motivo e o botão apagado; o backup por arquivo segue sendo o caminho.
+- **Desenho (seção na tela Perfil, entre o perfil e o backup):** sem conta — uma frase e **Entrar**; conectada —
+  avatar da conta, nome e e-mail numa linha, **Usar na mesa** (nome e foto da conta viram o perfil, com a foto
+  recortada e reduzida como a da galeria), "Backup na nuvem · último envio: dd/mm hh:mm", **Enviar**, **Baixar**
+  e **Sair** (fantasma). Nenhum primário novo: Salvar continua o único. Erros viram frase: sem internet, recusado,
+  sessão expirada, Google não carregou, API.
+- **Modelo (`src/data/conta.js`, `__m29`):** Google Identity Services (token de acesso só na memória, nunca no
+  store; pedido silencioso quando expira), escopos `drive.appdata openid email profile` (nunca o Drive inteiro),
+  `userinfo` para nome/e-mail/foto, Drive v3 em `appDataFolder` (procura o arquivo, cria com `POST multipart` ou
+  substitui com `PATCH`; baixa com `alt=media`). `google` e `fetch` injetáveis; em testes `window.__GOOGLE_CLIENT_ID`
+  e `window.__GOOGLE_FALSO`. `backup.texto()` e `backup.restaurar(texto)` compartilhados com o arquivo.
+- **Offline declarado:** entrar, enviar e baixar precisam de internet por natureza e dizem isso; o resto do perfil
+  continua local.
+- **Testes:** U (`conta.unit.test.mjs`, 5: sem ID tudo recusa com motivo; entrar guarda nome/e-mail/foto e não
+  guarda token; recusa e falta de rede; criar → substituir → baixar e reuso do token, pedido silencioso ao
+  expirar; 401 derruba o token); e2e "Leva 129" (sem ID: apagado e explicado; com ID falso: entra, um primário só,
+  usar na mesa com foto 192 px e barra atualizada, enviar cria e depois substitui, aparelho limpo + baixar traz
+  lista e perfil, sair revoga e mantém o perfil local, sem internet explica; `auditaTela` nos dois temas).
+- **Capturas:** perfil sem ID e conectado (escuro).
+- **Fora:** backup automático na nuvem (agendado); conta em vários aparelhos ao mesmo tempo com fusão; avatar da
+  conta nas mensagens (U15).
+- **Portão:** pelo `npm run publicar` (número na mensagem de publicação).
+
 **Leva 128 · U13 fase 1 · Perfil local** ✅ (02/10/2026; trilha "tudo que não é bot")
 - **Valor:** seu nome e sua foto na mesa e no jogo a dois, e um backup que leva tudo (listas, coleção, perfil e
   preferências) — sem conta, sem servidor. A conta Google (fase 2) entra por cima deste modelo.
@@ -3913,7 +3940,7 @@ conversa paralela à do Shark e à da revisão carta a carta)
 - **Expectativa alterada:** o teste O1 "lista não aquece miniatura" afirmava o comportamento antigo; agora afirma as duas, a pequena primeiro. O motivo está escrito no teste.
 - **Fora:** imagens da coleção em tamanho grande (continua só a miniatura, que é o que a tela da coleção usa).
 
-**U13 · Conta e perfil** 🟡 (fase 1 entregue na leva 128; fase 2 com Google aguarda o Client ID, ver §6)
+**U13 · Conta e perfil** ✅ (fase 1 na leva 128; fase 2 na leva 129, pronta atrás de `GOOGLE_CLIENT_ID`, ver §6)
 - **Valor:** nome e avatar seus na mesa e no chat; backup fora do aparelho.
 - **Aceite (fase 1, sem Google):** tela Perfil com nome e avatar (foto da galeria ou ícone), guardados localmente, usados na mesa e no hot-seat; exportar/importar backup completo (listas, coleção, preferências) por arquivo.
 - **Aceite (fase 2, com Google):** entrar com Google (Identity Services), uma conta por Gmail, backup automático na pasta privada do app no Drive; restauração em aparelho novo.

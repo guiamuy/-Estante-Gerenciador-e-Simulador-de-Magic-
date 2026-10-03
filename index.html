@@ -386,6 +386,9 @@ a { color: var(--accent); }
 .perfil-cabeca { display: flex; align-items: center; gap: var(--space-4); }
 .perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }
 .perfil-foto { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.perfil-conta__quem { align-items: center; gap: var(--space-3); }
+.perfil-conta__texto { gap: 0; min-width: 0; }
+.perfil-conta__texto > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------------- campos ---------------- */
 .ds-field { display: block; }
@@ -5779,6 +5782,125 @@ function createPerfil({ store, agora = () => Date.now() }) {
 return { createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY };
 })();
 
+/* ==== src/data/conta.js ==== */
+const __m29 = (function () {
+/* =====================================================================
+   Leva 129 · U13 (fase 2) · CONTA GOOGLE E BACKUP NA NUVEM
+   Entrar com Google Identity Services (token de acesso, só na memória) e
+   guardar/ler o backup completo na pasta privada do app no Google Drive
+   (appDataFolder). Sem Client ID configurado nada aqui liga: a tela diz
+   o motivo. O que fica no aparelho é só nome, e-mail e foto da conta.
+   `google` e `fetch` entram por injeção: os testes rodam sem rede.
+   ===================================================================== */
+const KEY = 'conta';
+const ESCOPOS = 'https://www.googleapis.com/auth/drive.appdata openid email profile';
+const GSI = 'https://accounts.google.com/gsi/client';
+const ARQUIVO = 'estante-backup.json';
+const API = 'https://www.googleapis.com';
+
+function createConta({ clientId = '', store, fetch: fetchFn = null, google: googleFn = null, carregaScript = null, agora = () => Date.now() }) {
+  let token = null, expira = 0;
+  const erro = (codigo, extra = {}) => Object.assign(new Error(codigo), extra);
+  const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  const google = async () => {
+    if (googleFn) return typeof googleFn === 'function' ? googleFn() : googleFn;
+    if (typeof window !== 'undefined' && window.google && window.google.accounts) return window.google;
+    if (!carregaScript) throw erro('sem-google');
+    await carregaScript(GSI);
+    if (!(typeof window !== 'undefined' && window.google && window.google.accounts)) throw erro('sem-google');
+    return window.google;
+  };
+  const f = (...a) => (fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null))(...a);
+  const auth = () => ({ Authorization: 'Bearer ' + token });
+  async function pedeToken({ silencioso = false } = {}) {
+    if (token && agora() < expira - 30000) return token;
+    const g = await google();
+    return new Promise((res, rej) => {
+      const cliente = g.accounts.oauth2.initTokenClient({ client_id: clientId, scope: ESCOPOS, callback: r => {
+        if (!r || r.error || !r.access_token) return rej(erro('recusado', { detalhe: r && r.error }));
+        token = r.access_token; expira = agora() + (Number(r.expires_in) || 3600) * 1000; res(token);
+      }, error_callback: e => rej(erro('recusado', { detalhe: e && e.type })) });
+      cliente.requestAccessToken({ prompt: silencioso ? '' : 'consent' });
+    });
+  }
+  async function json(url, init = {}) {
+    if (!temRede()) throw erro('sem-rede');
+    let r; try { r = await f(url, init); } catch (e) { throw erro('sem-rede'); }
+    if (r.status === 401) { token = null; throw erro('expirado'); }
+    if (!r.ok) throw erro('api', { status: r.status });
+    return r.status === 204 ? null : r.json();
+  }
+  async function acha() {
+    const q = encodeURIComponent(`name='${ARQUIVO}' and 'appDataFolder' in parents and trashed=false`);
+    const r = await json(`${API}/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id,modifiedTime,size)`, { headers: auth() });
+    return (r && r.files && r.files[0]) || null;
+  }
+  return {
+    ARQUIVO, ESCOPOS,
+    /** Há Client ID? Sem ele a conta não existe na interface. */
+    disponivel() { return !!clientId; },
+    async get() { let c = null; try { c = await store.get(KEY); } catch (e) { c = null; } return c && c.email ? { nome: String(c.nome || ''), email: String(c.email), foto: typeof c.foto === 'string' && /^https:\/\//.test(c.foto) ? c.foto : null, entradaEm: c.entradaEm || 0, backupEm: c.backupEm || 0 } : null; },
+    /** Abre o consentimento do Google e guarda nome, e-mail e foto. */
+    async entrar() {
+      if (!clientId) throw erro('sem-client-id');
+      if (!temRede()) throw erro('sem-rede');
+      await pedeToken();
+      const u = await json(`${API}/oauth2/v3/userinfo`, { headers: auth() });
+      const c = { nome: u.name || '', email: u.email || '', foto: u.picture || null, entradaEm: agora(), backupEm: ((await this.get()) || {}).backupEm || 0 };
+      await store.set(KEY, c);
+      return this.get();
+    },
+    /** Sai: revoga o token e apaga os dados da conta no aparelho. */
+    async sair() {
+      const t = token; token = null; expira = 0;
+      try { if (t) { const g = await google(); g.accounts.oauth2.revoke(t, () => {}); } } catch (e) { /* já saiu do app; o Google decide o resto */ }
+      try { await store.remove(KEY); } catch (e) { /* sem store */ }
+    },
+    /** Envia o backup (texto JSON) para a pasta privada do app; cria ou substitui. */
+    async enviarBackup(texto) {
+      if (!clientId) throw erro('sem-client-id');
+      await pedeToken({ silencioso: true });
+      const existente = await acha();
+      const limite = 'estante' + agora().toString(36);
+      const corpo = `--${limite}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(existente ? {} : { name: ARQUIVO, parents: ['appDataFolder'] })}\r\n--${limite}\r\nContent-Type: application/json\r\n\r\n${texto}\r\n--${limite}--`;
+      const url = existente ? `${API}/upload/drive/v3/files/${existente.id}?uploadType=multipart` : `${API}/upload/drive/v3/files?uploadType=multipart`;
+      const r = await json(url, { method: existente ? 'PATCH' : 'POST', headers: { ...auth(), 'Content-Type': `multipart/related; boundary=${limite}` }, body: corpo });
+      const c = (await this.get()) || {}; await store.set(KEY, { ...c, backupEm: agora() });
+      return { id: r && r.id, substituiu: !!existente };
+    },
+    /** Lê o backup da pasta privada; null quando não há. */
+    async baixarBackup() {
+      if (!clientId) throw erro('sem-client-id');
+      await pedeToken({ silencioso: true });
+      const existente = await acha();
+      if (!existente) return null;
+      if (!temRede()) throw erro('sem-rede');
+      let r; try { r = await f(`${API}/drive/v3/files/${existente.id}?alt=media`, { headers: auth() }); } catch (e) { throw erro('sem-rede'); }
+      if (r.status === 401) { token = null; throw erro('expirado'); }
+      if (!r.ok) throw erro('api', { status: r.status });
+      return { texto: await r.text(), modificadoEm: existente.modifiedTime || null };
+    },
+    /** Só para testes e diagnóstico: o token atual existe? */
+    autenticado() { return !!token && agora() < expira; }
+  };
+}
+/** Carrega um script externo uma vez (GIS). Rejeita sem rede ou se o navegador bloquear. */
+function carregaScriptWeb(src) {
+  return new Promise((res, rej) => {
+    const doc = typeof document !== 'undefined' ? document : null; if (!doc) return rej(new Error('sem-google'));
+    const ja = doc.querySelector(`script[src="${src}"]`); if (ja && ja.dataset.pronto === 'true') return res();
+    const el = ja || doc.createElement('script'); el.src = src; el.async = true;
+    el.addEventListener('load', () => { el.dataset.pronto = 'true'; res(); }, { once: true });
+    el.addEventListener('error', () => rej(new Error('sem-google')), { once: true });
+    if (!ja) doc.head.appendChild(el);
+  });
+}
+/** Frase de interface para cada erro da conta. */
+const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.' };
+const motivoDe = e => MOTIVO[e && e.message] || MOTIVO.api;
+return { createConta, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
+})();
+
 const __m27 = (function () {
 /* =====================================================================
    C12 · MOTOR DE FILTRO DA COLEÇÃO
@@ -6132,9 +6254,9 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, haptics = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
-  const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false };
+  const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
   const fotoInput = h('input', { type: 'file', accept: 'image/*', class: 'ds-hidden', id: 'perfil-foto-arquivo' });
   const backupInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden', id: 'perfil-backup-arquivo' });
@@ -6159,8 +6281,52 @@ function createPerfilScreen({ perfil, backup, haptics = null }) {
     catch (err) { toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Não é um backup da Estante'); }
   });
 
-  async function salvar() {
-    if (!mudou() || st.ocupado) return;
+  /* ---- Leva 129 · conta Google: entrar, usar nome e foto da conta, backup na nuvem, sair ---- */
+  const quando = ms => { if (!ms) return 'nunca'; const d = new Date(ms); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  async function acaoDaConta(fn, { ocupa = true } = {}) {
+    if (st.contaOcupada) return;
+    st.contaOcupada = ocupa; paint();
+    try { await fn(); } catch (e) { toast(__m29.motivoDe(e)); }
+    finally { st.contaOcupada = false; try { st.conta = await conta.get(); } catch (e) { st.conta = null; } paint(); }
+  }
+  /** Foto da conta: baixa, recorta e reduz como a da galeria. */
+  async function fotoDaConta(url) {
+    const r = await fetch(url, { mode: 'cors' }); if (!r.ok) throw new Error('api');
+    return reduzFoto(await r.blob());
+  }
+  function secaoConta() {
+    if (!conta) return null;
+    const semId = !conta.disponivel();
+    const c = st.conta, oc = st.contaOcupada;
+    const cabeca = Text('Conta Google', { size: 'sm', as: 'h2', display: true });
+    if (semId) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
+      Note(__m29.MOTIVO['sem-client-id'] + ' Até lá, o backup por arquivo abaixo guarda tudo.', 'warning'),
+      Row({}, Button('Entrar', { icone: 'externo', id: 'conta-entrar', disabled: true, title: __m29.MOTIVO['sem-client-id'] }))));
+    if (!c) return Surface({ class: 'ds-surface--pad', id: 'perfil-conta' }, Stack({}, cabeca,
+      Text('Entre para guardar o backup na pasta privada do app no seu Google Drive e trazer nome e foto da conta. Precisa de internet.', { size: 'sm', tone: 'muted' }),
+      Row({}, Button('Entrar', { icone: 'externo', id: 'conta-entrar', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.entrar(); toast('Conta conectada'); }) }))));
+    return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true' } }, Stack({}, cabeca,
+      Row({ class: 'perfil-conta__quem' },
+        Avatar({ nome: c.nome, avatar: c.foto }, { tamanho: 40 }),
+        Stack({ class: 'ds-grow perfil-conta__texto' }, h('b', { class: 'ds-text ds-text--md', id: 'conta-nome' }, c.nome || c.email), Text(c.email, { size: 'sm', tone: 'muted', attrs: { id: 'conta-email' } }))),
+      Row({ class: 'ds-row--wrap' },
+        Button('Usar na mesa', { icone: 'pessoa', id: 'conta-usar', title: 'Usar o nome e a foto da conta no perfil', disabled: oc, onClick: () => acaoDaConta(async () => {
+          st.nome = c.nome || st.nome;
+          if (c.foto) { try { st.avatar = await fotoDaConta(c.foto); } catch (e) { toast('A foto da conta não pôde ser baixada; o nome entrou.'); } }
+          await salvar(true);
+        }) })),
+      Text(`Backup na nuvem · último envio: ${quando(c.backupEm)}`, { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } }),
+      Row({ class: 'ds-row--wrap' },
+        Button('Enviar', { icone: 'subir', id: 'conta-enviar', title: 'Enviar o backup completo para a nuvem', disabled: oc, onClick: () => acaoDaConta(async () => { const r = await conta.enviarBackup(await backup.texto()); toast(r.substituiu ? 'Backup na nuvem atualizado' : 'Backup enviado para a nuvem'); }) }),
+        Button('Baixar', { icone: 'descer', id: 'conta-baixar', title: 'Restaurar o backup guardado na nuvem', disabled: oc, onClick: () => acaoDaConta(async () => {
+          const b = await conta.baixarBackup(); if (!b) return toast('Não há backup na nuvem ainda');
+          toast(await backup.restaurar(b.texto)); await carrega();
+        }) }),
+        Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); }) }))));
+  }
+
+  async function salvar(forca = false) {
+    if ((!mudou() && !forca) || st.ocupado) return;
     st.ocupado = true; paint();
     try { st.salvo = await perfil.set({ nome: st.nome, avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.vibrate(8); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); }
     catch (err) { toast('Não foi possível salvar o perfil'); }
@@ -6186,6 +6352,7 @@ function createPerfilScreen({ perfil, backup, haptics = null }) {
           Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar }),
           Text(st.nome ? `Na mesa: ${__m28.limpaNome(st.nome)}` : 'Sem nome, a mesa diz "Você".', { size: 'sm', tone: 'muted' })),
         fotoInput)),
+      secaoConta(),
       Surface({ class: 'ds-surface--pad' }, Stack({},
         Text('Backup completo', { size: 'sm', as: 'h2', display: true }),
         Text('Listas, coleção, perfil e preferências num arquivo. Guarde fora do aparelho para não perder nada ao trocar de celular ou limpar o navegador.', { size: 'sm', tone: 'muted' }),
@@ -6197,6 +6364,7 @@ function createPerfilScreen({ perfil, backup, haptics = null }) {
   async function carrega() {
     try { st.salvo = await perfil.get(); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; st.erro = null; }
     catch (e) { st.erro = e; }
+    if (conta) { try { st.conta = await conta.get(); } catch (e) { st.conta = null; } }
     paint();
   }
   carrega();
@@ -15762,14 +15930,23 @@ const decks = createDeckStore({ store: platform.store });
 const collection = createCollection({ store: platform.store });
 // Leva 128 · perfil local e backup completo (listas + coleção + perfil + preferências), usado pelas telas Perfil e Listas
 const perfil = __m28.createPerfil({ store: platform.store });
+/* Leva 129 · CONTA GOOGLE — cole aqui o Client ID OAuth (tipo "Aplicativo da Web") do seu projeto no Google Cloud,
+   com a origem https://guiamuy.github.io autorizada e a API do Google Drive ativada. Vazio = a seção da conta
+   aparece apagada com o motivo. Em testes, window.__GOOGLE_CLIENT_ID e window.__GOOGLE_FALSO substituem o real. */
+const GOOGLE_CLIENT_ID = '';
+const conta = __m29.createConta({
+  clientId: (typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID,
+  store: platform.store,
+  google: typeof window !== 'undefined' && window.__GOOGLE_FALSO ? () => window.__GOOGLE_FALSO : null,
+  carregaScript: __m29.carregaScriptWeb
+});
 const backup = {
-  async exportar() {
-    const texto = await decks.exportAll(collection, { perfil: await perfil.get(), prefs: await perfil.exportaPreferencias() });
-    platform.files.save('estante-backup.json', texto, 'application/json');
-  },
-  /** Restaura o arquivo e devolve a frase para o aviso. Aceita o backup v2 (só listas e coleção). */
+  /** O texto do backup completo (v3). */
+  async texto() { return decks.exportAll(collection, { perfil: await perfil.get(), prefs: await perfil.exportaPreferencias() }); },
+  async exportar() { platform.files.save('estante-backup.json', await this.texto(), 'application/json'); },
+  /** Restaura o arquivo (ou um texto já lido) e devolve a frase para o aviso. Aceita o backup v2 (só listas e coleção). */
   async restaurar(file) {
-    const r = await decks.importAll(await platform.files.readText(file), collection);
+    const r = await decks.importAll(typeof file === 'string' ? file : await platform.files.readText(file), collection);
     const m = await __m24.migraReservas(decks, null);
     let extra = '';
     if (r.perfil) { await perfil.set({ nome: r.perfil.nome, avatar: r.perfil.avatar }); document.dispatchEvent(new CustomEvent('estante:perfil')); extra += ' · perfil'; }
@@ -15801,7 +15978,7 @@ const ROUTES = [
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, haptics: platform.haptics }) },
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
