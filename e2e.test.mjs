@@ -4559,3 +4559,80 @@ test('e2e · Leva 125 · Rakdos: alvo de gatilho sem botão "principal", escolha
   assert.deepEqual([...feitos].sort(), ['Bojuka Bog', 'Cast', 'Rakdos Carnarium', 'Spellbomb'], 'as quatro decisões foram exercitadas');
   assert.deepEqual(M.errors, []);
 });
+
+/* ---------------- Leva 128 · perfil local ---------------- */
+test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchido, backup completo vai e volta, telas limpas nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  // barra: sem perfil, o círculo apagado com o ícone de pessoa; alvo de 44 px; fica nos 66 px livres entre o logo e "Jogar"
+  const nav = page.locator('#nav-perfil');
+  assert.equal(await nav.getAttribute('aria-label'), 'Perfil');
+  assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'vazio');
+  const nb = await nav.boundingBox(); assert.ok(nb.height >= 44 && nb.width >= 44, JSON.stringify(nb));
+  const jogar = await page.locator('#nav-play').boundingBox(); assert.ok(nb.x + nb.width <= jogar.x, 'o avatar não encosta em "Jogar"');
+  // tela do perfil: Salvar só liga quando algo muda; foto da galeria entra reduzida; nome limitado
+  await nav.click(); await page.waitForSelector('#perfil-nome');
+  assert.equal(await page.locator('#perfil-salvar').isDisabled(), true, 'nada mudou ainda');
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário na tela');
+  await page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64') });
+  await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
+  const foto = await page.$eval('.perfil-avatar img', i => ({ src: i.src.slice(0, 22), w: i.naturalWidth, h: i.naturalHeight }));
+  assert.equal(foto.src, 'data:image/jpeg;base64'); assert.equal(foto.w, 192); assert.equal(foto.h, 192, 'quadrado central reduzido a 192 px');
+  await page.fill('#perfil-nome', 'Guilherme'); 
+  assert.equal(await page.locator('#perfil-salvar').isDisabled(), false);
+  await page.click('#perfil-salvar'); await page.waitForSelector('#ds-toast[data-open="true"]');
+  assert.match(await page.innerText('#ds-toast'), /Perfil salvo/);
+  assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto', 'a barra atualiza sem recarregar');
+  assert.equal(await nav.getAttribute('aria-label'), 'Perfil de Guilherme');
+  assert.equal(await page.getAttribute('#nav-perfil', 'aria-current'), 'page', 'o avatar marca a tela atual');
+  await auditaTela(page, 'perfil (escuro)');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'perfil (claro)');
+  for (const w of [384, 390, 412]) { await page.setViewportSize({ width: w, height: w === 390 ? 844 : w === 384 ? 832 : 891 }); await auditaTela(page, 'perfil ' + w); }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // recarrega: o perfil persiste no aparelho
+  await page.reload(); await page.waitForSelector('#perfil-nome'); assert.equal(await page.inputValue('#perfil-nome'), 'Guilherme');
+  assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto');
+  // remover a foto: a inicial entra no lugar; salvar de novo
+  await page.click('#perfil-foto-remover'); await page.waitForSelector('.perfil-avatar[data-tipo="inicial"]');
+  assert.equal(await page.innerText('.perfil-avatar'), 'G');
+  await page.click('#perfil-salvar'); await page.waitForTimeout(200);
+  assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'inicial');
+  // mesa: o seu nome é o do perfil (contador de vida) e o hot-seat já vem com ele
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.click('[data-opponent="hotseat"]'); assert.equal(await page.inputValue('#mesa-me'), 'Guilherme', 'hot-seat preenchido com o nome do perfil');
+  await page.click('[data-opponent="goldfish"]'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass'); await page.waitForTimeout(300);
+  assert.match(await page.innerText('.tb-side--me'), /Guilherme/, 'o contador de vida mostra o nome do perfil');
+  assert.doesNotMatch(await page.innerText('.tb-side--me .tb-life, .tb-side--me'), /\bVocê\b.*Grimório/s, 'não sobra "Você" no assento');
+  // foto do perfil no círculo da faixa de vez quando o turno é seu
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
+  await page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64') });
+  await page.waitForSelector('.perfil-avatar[data-tipo="foto"]'); await page.click('#perfil-salvar'); await page.waitForTimeout(200);
+  await page.goto(base + '#/partida'); await page.waitForSelector('#tb-vez'); await page.waitForTimeout(400);
+  const vez = await page.$eval('#tb-vez', el => ({ papel: el.dataset.papel, foto: el.querySelector('.tb-vez__avatar').dataset.foto, img: !!el.querySelector('.tb-vez__avatar img') }));
+  if (vez.papel === 'eu') assert.ok(vez.foto === 'true' && vez.img, 'minha vez: a foto no círculo ' + JSON.stringify(vez));
+  else assert.ok(vez.foto === 'false' && !vez.img, 'vez do outro: sem a minha foto ' + JSON.stringify(vez));
+  await auditaTela(page, 'mesa com perfil');
+  // backup completo: o arquivo leva perfil e preferências; restaurar num aparelho limpo traz tudo de volta
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await page.click('#theme-toggle'); await page.waitForTimeout(100); // grava a preferência de tema
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-backup-export');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#perfil-backup-export')]);
+  const texto = await (await download.createReadStream()).toArray().then(parts => Buffer.concat(parts).toString('utf8'));
+  const dados = JSON.parse(texto);
+  assert.equal(dados.version, 3); assert.equal(dados.perfil.nome, 'Guilherme'); assert.match(dados.perfil.avatar, /^data:image\/jpeg/); assert.ok('ui.theme' in dados.prefs); assert.equal(dados.decks.length, 1);
+  await page.evaluate(() => indexedDB.databases().then(ds => Promise.all(ds.map(d => new Promise(r => { const q = indexedDB.deleteDatabase(d.name); q.onsuccess = q.onerror = q.onblocked = r; })))));
+  await page.reload(); await page.waitForSelector('#perfil-nome'); assert.equal(await page.inputValue('#perfil-nome'), '', 'aparelho limpo');
+  await page.setInputFiles('#perfil-backup-arquivo', { name: 'estante-backup.json', mimeType: 'application/json', buffer: Buffer.from(texto) });
+  await page.waitForSelector('#ds-toast[data-open="true"]'); assert.match(await page.innerText('#ds-toast'), /1 lista\(s\) restaurada\(s\).*perfil.*preferências/);
+  await page.waitForFunction(() => document.querySelector('#perfil-nome').value === 'Guilherme');
+  assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), dados.prefs['ui.theme'], 'o tema volta com o backup');
+  // a tela de listas usa o mesmo backup completo
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-backup-export');
+  const [d2] = await Promise.all([page.waitForEvent('download'), page.click('#decks-backup-export')]);
+  assert.equal(JSON.parse(await (await d2.createReadStream()).toArray().then(p => Buffer.concat(p).toString('utf8'))).version, 3);
+  assert.deepEqual(errors, []);
+});

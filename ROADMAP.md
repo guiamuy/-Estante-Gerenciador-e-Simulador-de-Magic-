@@ -377,7 +377,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
 | 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
-| 16º-q | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1) | E47 | 1 | — |
+| 16º-q ✅ | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1, leva 128) | E47 | 1 | — |
 | 16º-r | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2) | E47 | 1 | **OAuth Client ID do usuário** |
 | 16º-s | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) | E48 | 4 | **projeto Firebase do usuário** |
 | 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
@@ -3637,6 +3637,32 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
 
+**Leva 128 · U13 fase 1 · Perfil local** ✅ (02/10/2026; trilha "tudo que não é bot")
+- **Valor:** seu nome e sua foto na mesa e no jogo a dois, e um backup que leva tudo (listas, coleção, perfil e
+  preferências) — sem conta, sem servidor. A conta Google (fase 2) entra por cima deste modelo.
+- **Desenho:** círculo de 36 px (toque de 44) ao lado do logo na barra, nos 66 px livres medidos em 360 — foto,
+  inicial ou o ícone de pessoa apagado; toque abre `#/perfil` e o círculo marca a tela atual. Tela Perfil: avatar
+  de 96 px, "Escolher/Trocar foto" e "Remover foto" (ícones, fantasma), campo Nome (até 24), **Salvar** (único
+  primário, só liga quando algo mudou), linha "Na mesa: <nome>"; abaixo, Backup completo com Exportar e Restaurar.
+  A foto da galeria é recortada no quadrado central e reduzida a 192 px (JPEG ~8 KB) antes de guardar.
+- **Mesa:** o assento "Você" passa a ter o nome do perfil (contador de vida, registro); no jogo a dois o campo
+  "Seu nome" já vem preenchido; a foto entra no círculo da faixa de vez quando o turno é seu.
+- **Backup v3:** `decks.exportAll(collection, { perfil, prefs })` e `importAll` devolve os extras; o serviço
+  `backup` do app aplica perfil e preferências (tema, mão recolhida, visões e preferências da coleção, reserva à
+  vista) e reaplica o tema na hora. O v2 continua abrindo. A tela Listas passa a usar o mesmo backup completo.
+- **Módulos:** `src/data/perfil.js` (`__m28`: `createPerfil`, `limpaNome`, `inicialDe`, `avatarValido`,
+  `quadradoCentral`, `PREFERENCIAS`); `Avatar` em `__m3`; ícones novos `pessoa` e `camera`; evento
+  `estante:perfil` atualiza a barra sem recarregar.
+- **Estados:** vazio (ícone de pessoa, "Sem nome, a mesa diz 'Você'"), erro de leitura do store (nota negativa),
+  imagem ilegível (aviso), backup inválido (aviso). Tudo offline.
+- **Testes:** U (`perfil.unit.test.mjs`, 5: nome/inicial/avatar válido, recorte, guardar e remover sem lançar,
+  preferências, backup v3 e v2); e2e "Leva 128" (barra vazia → foto → inicial, alvo de 44 px sem encostar em
+  "Jogar", um primário, foto 192×192, persistência após recarga, hot-seat preenchido, nome no contador de vida,
+  foto na faixa de vez, exportar → apagar o banco → restaurar traz perfil, tema e lista; Listas exporta v3;
+  `auditaTela` em perfil nos dois temas e nas quatro medidas e na mesa com perfil).
+- **Fora:** conta Google e backup no Drive (fase 2, leva seguinte); avatar nas mensagens (U15); recorte manual.
+- **Portão:** rodado pelo `npm run publicar` (Q12) sobre a árvore somada às levas 123 e 124 das outras trilhas; número final na mensagem do commit de publicação. Antes dele, `npm test` local: 724 de 725, com a única falha (rolagem lateral em 320 px pelo avatar na barra) corrigida e os três e2e afetados reconferidos.
+
 **Leva 123 · U16 · Dívidas do design system pagas, com guarda-corpos** ✅ (02/10/2026; trilha "tudo que não é bot",
 conversa paralela à do Shark e à da revisão carta a carta)
 - **Medido antes de mexer:** 5 tokens usados e nunca definidos (`--font-body`, `--surface`, `--surface-2`, `--line`,
@@ -3887,7 +3913,7 @@ conversa paralela à do Shark e à da revisão carta a carta)
 - **Expectativa alterada:** o teste O1 "lista não aquece miniatura" afirmava o comportamento antigo; agora afirma as duas, a pequena primeiro. O motivo está escrito no teste.
 - **Fora:** imagens da coleção em tamanho grande (continua só a miniatura, que é o que a tela da coleção usa).
 
-**U13 · Conta e perfil** ○ (decisão pendente, ver §6)
+**U13 · Conta e perfil** 🟡 (fase 1 entregue na leva 128; fase 2 com Google aguarda o Client ID, ver §6)
 - **Valor:** nome e avatar seus na mesa e no chat; backup fora do aparelho.
 - **Aceite (fase 1, sem Google):** tela Perfil com nome e avatar (foto da galeria ou ícone), guardados localmente, usados na mesa e no hot-seat; exportar/importar backup completo (listas, coleção, preferências) por arquivo.
 - **Aceite (fase 2, com Google):** entrar com Google (Identity Services), uma conta por Gmail, backup automático na pasta privada do app no Drive; restauração em aparelho novo.

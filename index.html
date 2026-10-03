@@ -373,6 +373,20 @@ a { color: var(--accent); }
 /* U2 · tema: os dois ícones moram no botão; o atributo escolhe qual aparece (sem trocar o conteúdo) */
 [data-icone-tema="lua"] .ds-icon[data-icone="sol"], [data-icone-tema="sol"] .ds-icon[data-icone="lua"] { display: none; }
 
+/* ---------------- leva 128 · avatar ---------------- */
+.ds-avatar { --avatar: 36px; flex: none; width: var(--avatar); height: var(--avatar); border-radius: var(--radius-full); overflow: hidden; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border-strong); box-shadow: var(--shadow-1); }
+.ds-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ds-avatar__inicial { font-family: var(--font-display); font-weight: var(--weight-bold); font-size: calc(var(--avatar) * 0.5); line-height: 1; }
+.ds-avatar[data-tipo="vazio"] { color: var(--fg-muted); background: var(--bg-elev-2); }
+.ds-nav--perfil { min-width: var(--tap-min); padding: 0 var(--space-1); }
+/* abaixo da faixa estreita suportada (360) a barra não tem os 44 px do avatar: ele sai e o perfil segue por #/perfil */
+@media (max-width: 339px) { .ds-nav--perfil { display: none; } }
+.ds-nav--perfil[aria-current="page"] .ds-avatar { border-color: var(--accent); }
+.perfil-cabeca { display: flex; align-items: center; gap: var(--space-4); }
+.perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }
+.perfil-foto { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+
 /* ---------------- campos ---------------- */
 .ds-field { display: block; }
 .ds-field__label { display: block; font-size: var(--text-sm); color: var(--fg-muted); margin-bottom: var(--space-1); }
@@ -768,7 +782,8 @@ body {
 @media (prefers-reduced-motion: reduce) { .tb-vez-pop { animation: none; } .tb-vez__btn:active:not(:disabled) { transform: none; } }
 .tb-vez[data-papel="oponente"] { background: var(--player-opp); color: var(--player-opp-fg); }
 .tb-vez[data-papel="mulligan"], .tb-vez[data-papel="fim"] { background: var(--bg-elev-2); color: var(--fg); border: 1px solid var(--border); }
-.tb-vez__avatar { flex: none; width: 34px; height: 34px; border-radius: var(--radius-full); display: grid; place-items: center;
+.tb-vez__avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-full); display: block; }   /* leva 128 · foto do perfil */
+.tb-vez__avatar { flex: none; width: 34px; height: 34px; border-radius: var(--radius-full); display: grid; place-items: center; overflow: hidden;
   background: var(--bg-elev-1); color: var(--fg); font-family: var(--font-display); font-size: var(--text-md); }
 .tb-vez__rotulo { font-size: var(--text-md); }
 /* Leva 121 · sem escala: a faixa agora é um botão e precisa medir 44 px também durante a entrada */
@@ -1815,6 +1830,8 @@ const ICONES = {
   // instalar: aparelho recebendo o app
   instalar: '<rect x="6.5" y="2.8" width="11" height="18.4" rx="2.2"/><path d="M12 7v7.2M9 11.4l3 3 3-3"/>',
   baixar: '<path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19.5h14"/>',
+  pessoa: '<circle cx="12" cy="8" r="3.75"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+  camera: '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H8l1.3-2h5.4L16 7h2.5A1.5 1.5 0 0 1 20 8.5V17a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17z"/><circle cx="12" cy="12.5" r="3.25"/>',
   atualizar: '<path d="M20 12a8 8 0 0 1-13.7 5.6"/><path d="M4 12a8 8 0 0 1 13.7-5.6"/><path d="M17.5 3v3.5H14"/><path d="M6.5 21v-3.5H10"/>',
   proteger: '<path d="M12 3.3l7 2.8v5.3c0 4.3-2.9 7.7-7 9.3-4.1-1.6-7-5-7-9.3V6.1z"/><path d="M9 12l2.1 2.1L15.2 10"/>',
   conferir: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4.5v4.2h-4.2"/>',
@@ -1882,6 +1899,13 @@ function Atalho(rotulo, { icone, id, variant, onClick, detalhe } = {}) {
 function NavBotao(rotulo, { icone, id, onClick, rota, ariaLabel } = {}) {
   return h('button', { class: 'ds-nav', type: 'button', id, onClick, 'aria-label': ariaLabel || null, dataset: rota ? { rota } : undefined },
     Icone(icone, { tamanho: 22 }), h('span', { class: 'ds-nav__rotulo' }, rotulo));
+}
+
+/** Leva 128 · avatar redondo: foto, inicial do nome ou o ícone de pessoa quando não há perfil. `tamanho` em px CSS. */
+function Avatar(perfil, { tamanho = 36, classe = '' } = {}) {
+  const p = perfil || {}; const ini = p.nome ? String(p.nome).trim()[0].toUpperCase() : '';
+  return h('span', { class: ('ds-avatar ' + classe).trim(), style: { '--avatar': tamanho + 'px' }, dataset: { tipo: p.avatar ? 'foto' : ini ? 'inicial' : 'vazio' }, 'aria-hidden': 'true' },
+    p.avatar ? h('img', { src: p.avatar, alt: '', draggable: 'false' }) : ini ? h('span', { class: 'ds-avatar__inicial' }, ini) : Icone('pessoa', { tamanho: Math.round(tamanho * 0.55) }));
 }
 
 /* ---------------- campos ---------------- */
@@ -2166,7 +2190,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   clearTimeout(toastTimer);
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
-return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, reservaDoca, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
+return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
   analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
 })();
 
@@ -4678,9 +4702,11 @@ function createDeckStore({ store, now = () => Date.now() }) {
       return true;
     },
     /** Backup completo: listas + coleção. O dado mora no aparelho. */
-    async exportAll(collection) {
+    /** Leva 128 · `extras` ({ perfil, prefs }) entram no arquivo como estão; sem eles o arquivo é o v2 de sempre. */
+    async exportAll(collection, extras = null) {
       await store.set('backup.last', now());
-      return JSON.stringify({ kind: 'estante.backup', version: 2, decks: await this.list(), owned: await collection.all(), ownedNames: await collection.names(), items: await collection.items() }, null, 1);
+      const base = { kind: 'estante.backup', version: extras ? 3 : 2, decks: await this.list(), owned: await collection.all(), ownedNames: await collection.names(), items: await collection.items() };
+      return JSON.stringify(extras ? { ...base, ...extras } : base, null, 1);
     },
     async lastBackup() { return (await store.get('backup.last')) || 0; },
     async importAll(text, collection) {
@@ -4693,7 +4719,8 @@ function createDeckStore({ store, now = () => Date.now() }) {
       (data.decks || []).forEach(d => d && d.id && cur.add(d.id));
       await store.set(IDS, [...cur]);
       if (Array.isArray(data.items)) await collection.mergeItems(data.items); else if (data.owned) await collection.merge(data.owned, data.ownedNames || {});
-      return { decks: n };
+      // leva 128 · perfil e preferências voltam para quem chamou aplicar (o modelo de listas não os conhece)
+      return { decks: n, perfil: data.perfil && typeof data.perfil === 'object' ? data.perfil : null, prefs: data.prefs && typeof data.prefs === 'object' ? data.prefs : null };
     }
   };
 }
@@ -5705,6 +5732,53 @@ return { STARTER_DECKS, migraReserva, sugereReserva, reservaMisturada, migraRese
 })();
 
 /* ==== src/data/filter.js ==== */
+/* ==== src/data/perfil.js ==== */
+const __m28 = (function () {
+/* =====================================================================
+   Leva 128 · U13 (fase 1) · PERFIL LOCAL
+   Nome e avatar de quem usa o aparelho, guardados aqui mesmo. Usados na
+   barra, na mesa e no hot-seat; a conta Google (fase 2) entra por cima
+   deste modelo sem trocar o formato.
+   ===================================================================== */
+const KEY = 'perfil';
+const NOME_MAX = 24;
+/** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
+const AVATAR_PX = 192;
+/** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
+const PREFERENCIAS = ['ui.theme', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista'];
+
+function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
+function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
+const avatarValido = a => typeof a === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(a) && a.length < 400000;
+/** Recorte quadrado central de uma imagem w×h: a maior área quadrada, centrada. */
+function quadradoCentral(w, h) { const lado = Math.max(1, Math.min(w, h)); return { sx: Math.max(0, Math.floor((w - lado) / 2)), sy: Math.max(0, Math.floor((h - lado) / 2)), lado }; }
+
+function createPerfil({ store, agora = () => Date.now() }) {
+  return {
+    NOME_MAX, AVATAR_PX,
+    async get() {
+      let p = null; try { p = await store.get(KEY); } catch (e) { p = null; }
+      p = p || {};
+      return { nome: limpaNome(p.nome), avatar: avatarValido(p.avatar) ? p.avatar : null, atualizadoEm: p.atualizadoEm || 0 };
+    },
+    /** Guarda nome e/ou avatar. `avatar: null` remove a foto. */
+    async set(patch = {}) {
+      const atual = await this.get();
+      const novo = { ...atual, atualizadoEm: agora() };
+      if (patch.nome !== undefined) novo.nome = limpaNome(patch.nome);
+      if (patch.avatar !== undefined) novo.avatar = avatarValido(patch.avatar) ? patch.avatar : null;
+      await store.set(KEY, novo);
+      return novo;
+    },
+    /** Nome para a mesa: o do perfil ou o padrão da tela. */
+    async nomeNaMesa(padrao = 'Você') { return (await this.get()).nome || padrao; },
+    async exportaPreferencias() { const out = {}; for (const k of PREFERENCIAS) { let v; try { v = await store.get(k); } catch (e) { v = undefined; } if (v !== undefined && v !== null) out[k] = v; } return out; },
+    async importaPreferencias(prefs) { let n = 0; for (const k of PREFERENCIAS) if (prefs && prefs[k] !== undefined && prefs[k] !== null) { await store.set(k, prefs[k]); n++; } return n; }
+  };
+}
+return { createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY };
+})();
+
 const __m27 = (function () {
 /* =====================================================================
    C12 · MOTOR DE FILTRO DA COLEÇÃO
@@ -5975,7 +6049,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
@@ -6011,12 +6085,13 @@ function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, data
 }
 
 /* ---------------- /listas ---------------- */
-function createDecksHome({ decks, collection, files, cardRepo }) {
+function createDecksHome({ decks, collection, files, cardRepo, backup = null }) {
   const list = h('div', { id: 'decks-list' }, Row({}, Spinner()));
   const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden' });
   fileInput.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
-    try { const r = await decks.importAll(await files.readText(f), collection); const m = await __m24.migraReservas(decks, null); toast(`${r.decks} lista(s) restaurada(s)` + (m.length ? ` · reserva separada em ${m.length}` : '')); paint(); }
+    // leva 128 · com o serviço de backup (listas + coleção + perfil + preferências) o arquivo completo volta inteiro
+    try { if (backup) toast(await backup.restaurar(f)); else { const r = await decks.importAll(await files.readText(f), collection); const m = await __m24.migraReservas(decks, null); toast(`${r.decks} lista(s) restaurada(s)` + (m.length ? ` · reserva separada em ${m.length}` : '')); } paint(); }
     catch (err) { toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Não é um backup da Estante'); }
     finally { e.target.value = ''; }
   });
@@ -6050,9 +6125,82 @@ function createDecksHome({ decks, collection, files, cardRepo }) {
       Text('Backup', { size: 'sm', as: 'h2', display: true }),
       Text('Listas e coleção ficam guardadas neste aparelho. Exporte um backup para levar para outro aparelho ou não perder nada ao limpar o navegador.', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' },
-        Button('Exportar', { icone: 'exportar', id: 'decks-backup-export', title: 'Exportar backup', onClick: async () => { files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
+        Button('Exportar', { icone: 'exportar', id: 'decks-backup-export', title: 'Exportar backup', onClick: async () => { if (backup) await backup.exportar(); else files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
         Button('Restaurar', { icone: 'importar', id: 'decks-backup-restore', title: 'Restaurar backup', onClick: () => fileInput.click() })),
       fileInput)));
+}
+
+/* ---------------- Leva 128 · /perfil ---------------- */
+/** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
+function createPerfilScreen({ perfil, backup, haptics = null }) {
+  const root = Stack(pad(), Row({}, Spinner()));
+  const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false };
+  const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
+  const fotoInput = h('input', { type: 'file', accept: 'image/*', class: 'ds-hidden', id: 'perfil-foto-arquivo' });
+  const backupInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden', id: 'perfil-backup-arquivo' });
+
+  /** Reduz a foto a um quadrado de AVATAR_PX, recortando o centro; devolve data URL JPEG. */
+  async function reduzFoto(file) {
+    const bmp = await createImageBitmap(file);
+    const { sx, sy, lado } = __m28.quadradoCentral(bmp.width, bmp.height);
+    const c = document.createElement('canvas'); c.width = c.height = perfil.AVATAR_PX;
+    c.getContext('2d').drawImage(bmp, sx, sy, lado, lado, 0, 0, c.width, c.height);
+    if (bmp.close) bmp.close();
+    return c.toDataURL('image/jpeg', 0.84);
+  }
+  fotoInput.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { st.avatar = await reduzFoto(f); paint(); }
+    catch (err) { toast('Não deu para ler a imagem'); }
+  });
+  backupInput.addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { toast(await backup.restaurar(f)); await carrega(); }
+    catch (err) { toast(err.message === 'arquivo-invalido' ? 'Arquivo não é JSON válido' : 'Não é um backup da Estante'); }
+  });
+
+  async function salvar() {
+    if (!mudou() || st.ocupado) return;
+    st.ocupado = true; paint();
+    try { st.salvo = await perfil.set({ nome: st.nome, avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.vibrate(8); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); }
+    catch (err) { toast('Não foi possível salvar o perfil'); }
+    finally { st.ocupado = false; paint(); }
+  }
+
+  function paint() {
+    if (st.erro) return mount(root, Text('Perfil', { size: '2xl', display: true, as: 'h1' }), Note('Não foi possível ler o perfil guardado neste aparelho.', 'negative'));
+    const previa = { nome: st.nome, avatar: st.avatar };
+    mount(root,
+      Text('Perfil', { size: '2xl', display: true, as: 'h1' }),
+      Text('Como você aparece na mesa e, mais adiante, para quem joga com você.', { tone: 'muted' }),
+      Surface({ class: 'ds-surface--pad' }, Stack({},
+        h('div', { class: 'perfil-cabeca' },
+          h('div', { class: 'perfil-foto' },
+            Avatar(previa, { tamanho: 96, classe: 'perfil-avatar' }),
+            Row({ class: 'ds-row--wrap' },
+              IconButton('camera', st.avatar ? 'Trocar foto' : 'Escolher foto', { id: 'perfil-foto', variant: 'ghost', onClick: () => fotoInput.click() }),
+              st.avatar ? IconButton('lixeira', 'Remover foto', { id: 'perfil-foto-remover', variant: 'ghost', onClick: () => { st.avatar = null; paint(); } }) : null)),
+          Field('Nome', Input({ id: 'perfil-nome', value: st.nome, maxlength: String(perfil.NOME_MAX), placeholder: 'Como você aparece na mesa', autocomplete: 'nickname',
+            onInput: e => { st.nome = e.target.value; const b = root.querySelector('#perfil-salvar'); if (b) b.disabled = !mudou() || st.ocupado; } }))),
+        Row({ class: 'ds-row--wrap' },
+          Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar }),
+          Text(st.nome ? `Na mesa: ${__m28.limpaNome(st.nome)}` : 'Sem nome, a mesa diz "Você".', { size: 'sm', tone: 'muted' })),
+        fotoInput)),
+      Surface({ class: 'ds-surface--pad' }, Stack({},
+        Text('Backup completo', { size: 'sm', as: 'h2', display: true }),
+        Text('Listas, coleção, perfil e preferências num arquivo. Guarde fora do aparelho para não perder nada ao trocar de celular ou limpar o navegador.', { size: 'sm', tone: 'muted' }),
+        Row({ class: 'ds-row--wrap' },
+          Button('Exportar', { icone: 'exportar', id: 'perfil-backup-export', title: 'Exportar backup completo', onClick: async () => { await backup.exportar(); toast('Backup exportado'); } }),
+          Button('Restaurar', { icone: 'importar', id: 'perfil-backup-restore', title: 'Restaurar backup', onClick: () => backupInput.click() })),
+        backupInput)));
+  }
+  async function carrega() {
+    try { st.salvo = await perfil.get(); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; st.erro = null; }
+    catch (e) { st.erro = e; }
+    paint();
+  }
+  carrega();
+  return root;
 }
 
 /* ---------------- A12 · /listas/prontas ---------------- */
@@ -7095,7 +7243,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, DeckLinha };
+return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, DeckLinha };
 })();
 
 
@@ -12253,7 +12401,7 @@ const randomSeed = () => {
 };
 
 /* ---------------- A2 · preparar partida ---------------- */
-function createTableSetup({ decks, cardRepo, store, keeper = null }) {
+function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   // Leva 113 · um modo só: o motor completo. Lista que o motor não resolve 100% não joga, e a tela diz por quê.
   // DEV: a mesa assistida continua no motor para os testes de mesa (ajuste manual de estado); só aparece com
@@ -12264,6 +12412,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
   (async () => {
     const all = await decks.list();
     const saved = await store.get(T.SAVE_KEY);
+    // Leva 128 · o nome do perfil é o seu nome na mesa e já vem preenchido no jogo a dois
+    if (perfil) { try { const p = await perfil.get(); if (p.nome) { state.me = p.nome; state.meuNome = p.nome; } } catch (e) { /* sem perfil: "Você" */ } }
     if (!all.length) {
       return mount(root, Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
         Empty('Para jogar você precisa de uma lista na estante. As listas prontas já vêm com o app.',
@@ -12466,7 +12616,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
           if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c && !cards[t.name]) cards[t.name] = c; } }
         } catch (e) { /* sem ficha guardada: a mesa mostra o nome */ }
         const format = mine.format === 'livre' ? 'livre' : mine.format;
-        const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : 'Você', deck: mine },
+        const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : (state.meuNome || 'Você'), deck: mine },
           comBot ? { name: __m25.NOME_DO_BOT, deck: theirs }
             : theirs ? { name: state.them.trim() || 'Jogador 2', deck: theirs } : { name: 'Goldfish', dummy: true }];
         // S64 · sem os dados da carta o motor não tem tipo, custo nem força: no motor
@@ -12525,8 +12675,11 @@ function createTableSetup({ decks, cardRepo, store, keeper = null }) {
 }
 
 /* ---------------- A1–A9 · a mesa ---------------- */
-function createTableScreen({ store }) {
+function createTableScreen({ store, perfil = null }) {
   const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
+  // Leva 128 · a foto do perfil entra no círculo da faixa de vez quando o turno é seu
+  let meuAvatar = null;
+  if (perfil) perfil.get().then(p => { if (p.avatar) { meuAvatar = p.avatar; if (table) paint(); } }).catch(() => {});
   let table = null, adjudicating = null, bottomPick = new Set(), shownViewer = null, handoff = false;
   // U6 · mão recolhida: preferência guardada no aparelho, vale para as próximas partidas também
   // U7 · faixa de quem joga: anima só quando o turno troca.
@@ -12556,13 +12709,14 @@ function createTableScreen({ store }) {
     const papel = vz.fase !== 'jogo' ? vz.fase : vz.meuTurno ? 'eu' : 'oponente';
     const temDetalhe = anima && vz.detalhes.length > 0;
     const miolo = () => [
-      h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true' }, vz.icone ? Icone(vz.icone, { tamanho: 20 }) : vz.inicial),
+      h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true', dataset: { foto: String(!!(meuAvatar && papel === 'eu')) } },
+        meuAvatar && papel === 'eu' ? h('img', { src: meuAvatar, alt: '', draggable: 'false' }) : vz.icone ? Icone(vz.icone, { tamanho: 20 }) : vz.inicial),
       h('span', { class: 'tb-vez__rotulo' }, vz.rotulo)];
     if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, h('span', { class: 'tb-vez__btn' }, ...miolo()));
     if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
     vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
     vezEl.dataset.papel = papel; vezEl.dataset.turno = String(vz.turno);
-    const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}`;
+    const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}|${!!(meuAvatar && papel === 'eu')}`;
     vezEl.dataset.serie = String(vz.detalhes.some(d => d.k === 'serie'));
     if (vezEl.dataset.assinatura !== assinatura) {
       vezEl.dataset.assinatura = assinatura;
@@ -15582,7 +15736,7 @@ const __m13 = (function () {
 const { createPlatform, descreveEspaco } = __m0;
 const { createTheme } = __m1;
 const { createRouter } = __m2;
-const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note, Icone, Atalho, NavBotao, AvisoRede } = __m3;
+const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note, Icone, Atalho, NavBotao, AvisoRede, Avatar } = __m3;
 const { renderDS } = __m5;
 const { logoLockup, installFavicon } = __m4;
 const { createScryfall } = __m6;
@@ -15593,7 +15747,7 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen } = __m15;
+const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen } = __m15;
 const { createTableSetup, createTableScreen, createSeriesScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
@@ -15606,6 +15760,23 @@ const localIndex = createLocalIndex({ store: platform.store });
 const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
 const decks = createDeckStore({ store: platform.store });
 const collection = createCollection({ store: platform.store });
+// Leva 128 · perfil local e backup completo (listas + coleção + perfil + preferências), usado pelas telas Perfil e Listas
+const perfil = __m28.createPerfil({ store: platform.store });
+const backup = {
+  async exportar() {
+    const texto = await decks.exportAll(collection, { perfil: await perfil.get(), prefs: await perfil.exportaPreferencias() });
+    platform.files.save('estante-backup.json', texto, 'application/json');
+  },
+  /** Restaura o arquivo e devolve a frase para o aviso. Aceita o backup v2 (só listas e coleção). */
+  async restaurar(file) {
+    const r = await decks.importAll(await platform.files.readText(file), collection);
+    const m = await __m24.migraReservas(decks, null);
+    let extra = '';
+    if (r.perfil) { await perfil.set({ nome: r.perfil.nome, avatar: r.perfil.avatar }); document.dispatchEvent(new CustomEvent('estante:perfil')); extra += ' · perfil'; }
+    if (r.prefs) { const n = await perfil.importaPreferencias(r.prefs); if (n) { extra += ' · preferências'; await theme.init(); } }
+    return `${r.decks} lista(s) restaurada(s)` + (m.length ? ` · reserva separada em ${m.length}` : '') + extra;
+  }
+};
 const names = createNameIndex({ store: platform.store, scryfall });
 const ocr = createOcr();
 const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
@@ -15621,15 +15792,16 @@ const installer = createInstaller({ window: typeof window !== 'undefined' ? wind
 const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
-  { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo }) },
+  { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup }) },
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
-  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper }) },
-  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store }) },
+  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil }) },
+  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, haptics: platform.haptics }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
@@ -15726,6 +15898,7 @@ function appBar() {
   return h('header', { class: 'ds-appbar' },
     h('div', { class: 'ds-appbar__inner ds-wrap' },
       h('a', { class: 'ds-appbar__brand', href: '#/', html: logoLockup(30) }),
+      perfilBotao(),
       h('div', { class: 'ds-grow' }),
       // U2 · destinos com ícone e legenda de uma palavra; o destino atual fica marcado
       NavBotao('Jogar', { icone: 'jogar', id: 'nav-play', rota: '/mesa /partida', onClick: () => { location.hash = '#/mesa'; } }),
@@ -15734,6 +15907,14 @@ function appBar() {
       installButton(),
       offlineChip(),
       temaBotao()));
+}
+/** Leva 128 · avatar na barra: foto ou inicial do perfil; sem perfil, o ícone de pessoa apagado. Toque abre o perfil. */
+function perfilBotao() {
+  const b = h('a', { class: 'ds-nav ds-nav--perfil', href: '#/perfil', id: 'nav-perfil', 'aria-label': 'Perfil', title: 'Perfil', dataset: { rota: '/perfil' } }, Avatar(null, { tamanho: 36 }));
+  const pinta = async () => { let p = null; try { p = await perfil.get(); } catch (e) { p = null; } b.replaceChildren(Avatar(p, { tamanho: 36 })); b.setAttribute('aria-label', p && p.nome ? `Perfil de ${p.nome}` : 'Perfil'); };
+  pinta();
+  document.addEventListener('estante:perfil', pinta);
+  return b;
 }
 /** U1 · o botão nasce com o ícone do tema já aplicado (antes nascia sempre ☾, mesmo no claro). */
 function temaBotao() {
