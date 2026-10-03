@@ -1366,6 +1366,13 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
      encostava em "Cemitério": nesse caso os contadores ganham a linha de baixo inteira */
   .tb-side__head:has(.tb-chips > :nth-child(4)) { flex-wrap: wrap; }
   .tb-chips:has(> :nth-child(4)) { flex: 1 1 100%; }
+  /* Com fonte de sistema larga ou nome comprido (partida online), o contador de vida crescia e "Grimório" passava por cima
+     de "Cemitério". O nome encolhe com reticências, a vida fica com até metade da linha e o rótulo do contador de zona é
+     cortado dentro dele em vez de vazar. */
+  .tb-life { flex: 0 1 auto; min-width: 0; max-width: 50%; }
+  .tb-life__who { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tb-life__who small { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .tb-chip { overflow: hidden; }
 }
 @media (min-width: 400px) {
   :root { --carta-campo: 92px; --carta-mao: 110px; --carta-pilha: 60px; }
@@ -7962,7 +7969,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 68;
+const ENGINE_VERSION = 69;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -9805,7 +9812,10 @@ function flushTriggers(s, events) {
     const mine = s.queued.filter(q => q.controller === p);
     if (!mine.length) continue;
     // Leva 106 · cópias de tempestade da mesma mágica são iguais: não há ordem a escolher
-    const soCopias = mine.every(q => q.copia && q.source === mine[0].source);
+    // v69 · gatilhos idênticos da mesma fonte (Lunarch Veteran com dois Pássaros entrando juntos) também não têm ordem a
+    // escolher: antes a mesa perguntava "qual entra primeiro" entre duas opções iguais
+    const cara = q => JSON.stringify([q.source, q.when, q.effects || null, q.modes || null, q.value ?? null, q.mayPay || null, !!q.optional, q.condition || null, q.cost || null]);
+    const soCopias = mine.every(q => q.copia && q.source === mine[0].source) || mine.every(q => cara(q) === cara(mine[0]));
     if (mine.length > 1 && !soCopias) { s.pending = { kind: 'triggers', p }; return; }
     if (soCopias && mine.length > 1) { for (const q of mine) { if (s.pending) break; putTriggerOnStack(s, q, events); } continue; }
     if (!putTriggerOnStack(s, mine[0], events)) continue;
@@ -14274,6 +14284,13 @@ function createTableScreen({ store, perfil = null, online = null }) {
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
       c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? 'sacrificar outra' : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
   }
+  /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
+  function custoDoLampejo(fb) {
+    fb = fb || {}; if (fb.mana) return fb.mana;
+    const t = fb.tapOther; if (!t) return 'sem custo';
+    const COR = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' }, n = t.amount || 1;
+    return n === 1 ? `virar uma criatura${t.color ? ' ' + COR[t.color] : ''}` : `virar ${n} criaturas${t.color ? ' ' + COR[t.color] + 's' : ''}`;
+  }
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
     sheet(d.o.name, d.acoes.map(toButton), d.where);
@@ -14308,7 +14325,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${(f.script.flashback || {}).mana || ''}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
@@ -14335,7 +14352,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
       const temCast = E.legalActions(s, v).some(a => a.oid === oid && a.t === 'cast');
       if (o.zone === 'hand' && f.types.includes('land') && !legal.some(b => b.label === 'Jogar terreno')) { const m = tenta({ t: 'play_land', p: v, oid }); if (m) legal.unshift({ label: `Jogar terreno — ${m}`, disabled: true }); }
       else if (o.zone === 'hand' && !f.types.includes('land') && !temCast) { const m = tenta({ t: 'cast', p: v, oid }); if (m) legal.unshift({ label: `Conjurar${costTxt ? ' · ' + costPago : ''} — ${m}`, disabled: true }); }
-      else if (o.zone === 'graveyard' && f.script && f.script.flashback && !temCast) { const m = tenta({ t: 'cast', p: v, oid, flashback: true }); if (m) legal.unshift({ label: `Lampejo do passado · ${f.script.flashback.mana || ''} — ${m}`, disabled: true }); }
+      else if (o.zone === 'graveyard' && f.script && f.script.flashback && !temCast) { const m = tenta({ t: 'cast', p: v, oid, flashback: true }); if (m) legal.unshift({ label: `Lampejo do passado · ${custoDoLampejo(f.script.flashback)} — ${m}`, disabled: true }); }
     }
     // Leva 122 · fonte de "qualquer combinação de cores" (Axebane Guardian): um botão só, que abre a divisão por cor.
     // Antes eram cinco botões de uma cor só ("Gerar {G}{G}{G}{G}"), e misturar cores não era possível.
@@ -14357,8 +14374,10 @@ function createTableScreen({ store, perfil = null, online = null }) {
       legal.push(doBtn(`Ciclar · ${(f.script.cycling || {}).mana || ''}`, cy));
     // S18: ninjutsu, trocando um atacante sem bloqueio
     for (const nj of E.legalActions(s, v).filter(x => x.t === 'ninjutsu' && x.oid === oid))
-      legal.push(doBtn(`Ninjutsu · ${(f.script.ninjutsu || {}).mana || ''} → devolve ${s.objects[nj.attacker].name}`, nj, { variant: 'primary' })); // Leva 131 · diz o custo e o que acontece com o atacante
+      legal.push(doBtn(`${nj.sneak ? 'Esgueirar-se' : 'Ninjutsu'} · ${((nj.sneak ? f.script.sneak : f.script.ninjutsu) || {}).mana || ''} → devolve ${s.objects[nj.attacker].name}`, nj, { variant: 'primary' })); // R6 · esgueirar-se (Leonardo) saía como "Ninjutsu · " sem custo // Leva 131 · diz o custo e o que acontece com o atacante
     // Leva 131 · ninjutsu que existe e não dá agora aparece apagado com o motivo (como tramar, leva 121)
+    if (f.script && f.script.sneak && o.owner === v && o.zone === 'hand' && s.status === 'playing' && !legal.some(b => /^Esgueirar-se/.test(b.label)))
+      legal.push({ label: `Esgueirar-se · ${f.script.sneak.mana || ''} — ${E.legalActions({ ...s, manaCheck: false }, v).some(x => x.t === 'ninjutsu' && x.oid === oid) ? 'mana insuficiente' : 'só nos bloqueadores, com um atacante seu sem bloqueio'}`, disabled: true });
     if (f.script && f.script.ninjutsu && o.owner === v && o.zone === 'hand' && s.status === 'playing' && !legal.some(b => /^Ninjutsu/.test(b.label)))
       legal.push({ label: `Ninjutsu · ${f.script.ninjutsu.mana || ''} — ${E.legalActions({ ...s, manaCheck: false }, v).some(x => x.t === 'ninjutsu' && x.oid === oid) ? 'mana insuficiente' : 'só no combate, com um atacante seu sem bloqueio'}`, disabled: true });
     // M9: habilidades ativadas, com o custo e o alvo no rótulo
@@ -14372,7 +14391,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
       const soMana = (ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana' && Array.isArray(e.symbols));
       if (soMana) { const c0 = custoDaHabilidade(ab); legal.push(doBtn(`Gerar ${ab.effects.flatMap(e => e.symbols).map(x => `{${x}}`).join('')}${c0 ? ` (${c0})` : ''}`, act)); continue; }
       const cost = custoDaHabilidade(ab);
-      legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
+      // R6 · ficha não tem texto na folha: o botão diz o que a habilidade faz ("Ativar ({2}, sacrificar): compra 1 carta")
+      const oQueFaz = o.token && !act.targets ? T.descreveEfeitos(ab.effects) : '';
+      legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
     // Leva 111 · habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo
     // (antes a folha ficava vazia e parecia que a ficha não tinha habilidade)
@@ -14680,7 +14701,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
           Button(ONDE[s.pending.from] || 'Deixar onde está', { id: 'tb-cmd-stay', onClick: () => act({ t: 'commander_zone', p: v, yes: false }) })] });
     } else if (s.pending && s.pending.kind === 'choose_color' && s.pending.p === v) {
       const alvo = s.objects[s.pending.oid];
-      banner = PriorityBanner({ title: `Escolha uma cor para ${alvo ? alvo.name : 'a permanente'}`, hint: 'A carta pede uma cor ao entrar no campo.',
+      banner = PriorityBanner({ title: `Escolha uma cor para ${alvo ? alvo.name : 'a permanente'}`,
+        // R6 · mágica que pede a cor ao resolver (Prismatic Strands) não "entra no campo"
+        hint: alvo && ['instant', 'sorcery'].some(k => ((s.facts[alvo.name] || {}).types || []).includes(k)) ? 'A mágica vale para a cor que você escolher agora.' : 'A carta pede uma cor ao entrar no campo.',
         actions: [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']].map(([c, label]) =>
           Button(label, { dataset: { color: c }, onClick: () => act({ t: 'choose_color', p: v, color: c }) })) });
     } else if (s.pending && s.pending.kind === 'triggers' && s.pending.p === v) {
@@ -14773,15 +14796,18 @@ function createTableScreen({ store, perfil = null, online = null }) {
       // iguais viram uma carta só com ×N (nove Florestas e Planícies em fila na Sheltering Landscape).
       const pegaveis = new Set([...E.legalActions(s, v).filter(a => a.t === 'pick').map(a => a.oid), ...pk.picked]);
       const todas = pk.mostrar ? [...pk.from, ...pk.mostrar.filter(x => !pk.from.includes(x))] : pk.from;
-      const juntar = pk.label === 'vasculhar' && pk.max === 1;
-      const copias = {}; if (juntar) for (const oid of todas) { const n = s.objects[oid].name; copias[n] = (copias[n] || 0) + 1; }
+      // R6 · e ao devolver UMA permanente (Boros Garrison, Kor Skyfisher): iguais no mesmo estado viram uma carta só
+      const juntar = ['vasculhar', 'devolver para a mão'].includes(pk.label) && pk.max === 1;
+      const presoEm = new Set(s.zones.flatMap(z => z.battlefield).map(x => s.objects[x].attachedTo).filter(Boolean));
+      const chaveDe = oid => { const o = s.objects[oid]; return o.zone !== 'battlefield' ? o.name : (o.attachedTo || presoEm.has(oid) || Object.keys(o.counters || {}).length || o.token && false) ? oid : `${o.name}|${!!o.tapped}`; };
+      const copias = {}; if (juntar) for (const oid of todas) { const n = chaveDe(oid); copias[n] = (copias[n] || 0) + 1; }
       const vistasNaBusca = new Set();
-      const cards = todas.filter(oid => { if (!juntar) return true; const n = s.objects[oid].name; if (vistasNaBusca.has(n)) return false; vistasNaBusca.add(n); return true; }).map(oid => {
+      const cards = todas.filter(oid => { if (!juntar) return true; const n = chaveDe(oid); if (vistasNaBusca.has(n)) return false; vistasNaBusca.add(n); return true; }).map(oid => {
         const o = s.objects[oid];
         const serve = pk.from.includes(oid) && pegaveis.has(oid);
         // Leva 125 · na fileira de escolha a carta aparece em pé: terreno virado saía girado e menor que os outros
         const c = TableCard({ ...o, tapped: false, image: imgOf(o.name, 'normal'), images: imagensOf(o.name) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
-          ...(juntar && copias[o.name] > 1 ? { pilha: { total: copias[o.name], viradas: 0 } } : {}),
+          ...(juntar && copias[chaveDe(oid)] > 1 ? { pilha: { total: copias[chaveDe(oid)], viradas: 0 } } : {}), ...(juntar && o.zone === 'battlefield' && o.tapped ? { tags: ['virada'] } : {}),
           onClick: () => { if (serve && !pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
         if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, ${pk.mostrar && !pk.from.includes(oid) ? 'revelada, ' : ''}não pode ser escolhida`); }
         return c;

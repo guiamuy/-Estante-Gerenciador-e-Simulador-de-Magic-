@@ -3964,10 +3964,12 @@ const OFICIAIS_121 = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais.jso
 // .listas/oficiais.json guarda só o texto: as linhas que são só palavras-chave ("Defender", "Flying, haste") viram o campo.
 const PALAVRAS_121 = ['Flying', 'Reach', 'Trample', 'Deathtouch', 'Lifelink', 'Vigilance', 'Haste', 'First strike', 'Double strike', 'Menace', 'Defender', 'Indestructible', 'Flash', 'Hexproof', 'Shroud', 'Changeling'];
 const palavrasDoTexto = texto => [...new Set(String(texto || '').split('\n').flatMap(l => { const ps = l.replace(/\s*\(.*\)\s*$/, '').split(/,\s*/).map(x => x.trim()); return ps.every(x => PALAVRAS_121.some(k => k.toLowerCase() === x.toLowerCase())) ? ps.map(x => PALAVRAS_121.find(k => k.toLowerCase() === x.toLowerCase())) : []; }))];
-function comOficiais(page, nomes, { imagens = false } = {}) {
+function comOficiais(page, nomes, { imagens = false, cores = false } = {}) {
+  // R6 · `cores`: a cor da carta sai do custo de mana (Battle Screech vira criaturas BRANCAS); sem a opção fica incolor, como antes
+  const corDe = c => (cores ? [...new Set([...String(c.mana_cost || '').matchAll(/\{([WUBRG])\}/g)].map(m => m[1]))] : []);
   const BASICOS = { Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' };
   const extra = Object.fromEntries(nomes.map(n => { const c = BASICOS[n] ? { name: n, type_line: `Basic Land — ${n}`, oracle_text: `({T}: Add {${BASICOS[n]}}.)` } : OFICIAIS_121.find(x => x.name === n); assert.ok(c, 'texto oficial de ' + n);
-    return [n.toLowerCase(), { object: 'card', id: n, name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', oracle_text: c.oracle_text || '', colors: [], color_identity: [], cmc: 2, keywords: palavrasDoTexto(c.oracle_text), ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}),
+    return [n.toLowerCase(), { object: 'card', id: n, name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', oracle_text: c.oracle_text || '', colors: corDe(c), color_identity: [], cmc: 2, keywords: palavrasDoTexto(c.oracle_text), ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}),
       ...(imagens ? { image_uris: Object.fromEntries(['small', 'normal', 'large'].map(t => [t, `https://cards.scryfall.io/${t}/front/x/${encodeURIComponent(n)}.png`])) } : {}) }]; }));
   return page.route('https://api.scryfall.com/cards/collection', async r => {
     const ids = JSON.parse(r.request().postData()).identifiers; const acha = i => extra[i.name.toLowerCase()] || DB[i.name.toLowerCase()];
@@ -4381,10 +4383,10 @@ test('e2e · Leva 123 diálogo prende o foco e devolve a quem abriu; aviso com a
 });
 
 /* ---------------- Leva 125 · R2 · Rakdos Madness carta a carta: decisões legíveis ---------------- */
-const comLista125 = async (t, texto, nomes, semente) => {
+const comLista125 = async (t, texto, nomes, semente, opcoes = {}) => {
   const { page, errors, base } = await open(t, { dev: false });
   await page.addInitScript(() => { window.__MTG_TEST = true; });
-  await comOficiais(page, nomes);
+  await comOficiais(page, nomes, opcoes);
   await page.setViewportSize({ width: 360, height: 780 });
   await createDeck(page, base, 'R2', texto, 'livre');
   await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', semente);
@@ -5127,6 +5129,101 @@ test('e2e · R5 · Bogles: Armadillo Cloak e Spirit Link ganham a vida dos dois 
   await page.locator('#tb-pick-cards .tb-card[aria-label^="Plains"]').click(); await page.waitForTimeout(200); e = await M.resolve();
   if (e.pend === 'pick') { await page.click('#tb-pick-done'); await page.waitForTimeout(200); e = await M.est(); }
   assert.equal(e.campo.filter(n => n === 'Plains').length, planicies + 1); assert.ok(!e.campo.includes('Sheltering Landscape') || e.cemiterio.includes('Sheltering Landscape'), 'a Landscape foi sacrificada');
+  assert.deepEqual(M.errors, []);
+});
+
+// ---- R6 · Boros Bully pela tela (360×780, modo único) ----
+const terraR6 = async M => { for (const n of ['Plains', 'Mountain']) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) return n; } return null; };
+/** Resolve o que estiver aberto com a primeira ação legal (ordem de gatilhos, escolhas) e passa a pilha. */
+const segueR6 = async (M, parar = () => false) => { let e; for (let i = 0; i < 30; i++) { e = await M.est(); if (parar(e)) return e;
+  if (e.pend) { const l = await M.legal("a.t!=='concede'"); await M.act(l.find(a => a.t === 'pick_done') || l[0]); } else if (e.pilha) { await M.page.click('#tb-pass', { timeout: 3000 }).catch(() => {}); await M.page.waitForTimeout(120); } else return e; }
+  return M.est(); };
+
+test('e2e · R6 · Boros: gatilhos iguais não perguntam a ordem (Lunarch Veteran com dois Pássaros); o lampejo da Battle Screech diz o custo e vira as criaturas tocadas; Squadron Hawk com a Veteran pergunta a ordem uma vez', { skip }, async t => {
+  const M = await comLista125(t, '12 Plains\n6 Mountain\n12 Lunarch Veteran\n10 Battle Screech\n10 Squadron Hawk\n10 Prismatic Strands', ['Plains', 'Mountain', 'Lunarch Veteran', 'Battle Screech', 'Squadron Hawk', 'Prismatic Strands'], '2', { cores: true });
+  const { page } = M; let e;
+  for (let i = 0; i < 24; i++) { await terraR6(M); e = await M.est();
+    const v = await M.oid('Lunarch Veteran'); if (v && !e.campo.includes('Lunarch Veteran')) { const c = await M.legal(`a.t==='cast' && a.oid==='${v}'`); if (c.length) { await M.act(c[0]); await segueR6(M); } }
+    e = await M.est(); if (e.campo.includes('Lunarch Veteran') && e.campo.filter(n => n === 'Plains').length >= 3 && e.campo.filter(n => ['Plains', 'Mountain'].includes(n)).length >= 5 && e.mao.includes('Battle Screech') && e.mao.includes('Squadron Hawk')) { await M.proximo(); await terraR6(M); break; }
+    await M.proximo(); }
+  e = await M.est(); assert.ok(e.campo.includes('Lunarch Veteran') && e.mao.includes('Battle Screech') && e.mao.includes('Squadron Hawk'), 'mesa pronta: ' + JSON.stringify(e));
+  const veteranas = e.campo.filter(n => n === 'Lunarch Veteran').length; assert.equal(veteranas, 1);
+  // Battle Screech: dois Pássaros entram juntos, a Veteran dispara duas vezes com o mesmo efeito — sem pergunta de ordem
+  let vida = (await mesa136(page)).vida;
+  await page.locator('#tb-hand .tb-card[aria-label^="Battle Screech"]').first().click(); await naFolha(page, /^Conjurar/);
+  e = await M.resolve();
+  assert.equal(e.pend, null, 'gatilhos idênticos não pedem ordem (antes: "Ordem dos gatilhos" com duas opções iguais)');
+  assert.equal(e.campo.filter(n => n === 'Bird').length, 2); assert.equal((await mesa136(page)).vida, vida + 2);
+  // lampejo do passado pelo cemitério: o custo por extenso e a escolha tocando nas cartas
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog');
+  await page.locator('.ds-dialog .tb-card[aria-label^="Battle Screech"]').first().click(); await page.waitForTimeout(300);
+  let f = await page.locator('.ds-dialog .tb-sheet__actions button').evaluateAll(bs => bs.map(b => [b.innerText.replace(/\s+/g, ' ').trim(), b.disabled]));
+  assert.deepEqual(f, [['Lampejo do passado · virar 3 criaturas brancas', false]], 'o custo aparece por extenso (antes: "Lampejo do passado · " vazio)');
+  await auditaTela(page, 'folha do lampejo da Battle Screech');
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForTimeout(300);
+  if (await page.locator('#tb-escolha').count()) { // mais de três criaturas brancas: toca nas três
+    assert.equal(await page.innerText('#tb-escolha-pergunta'), 'Quais criaturas viram para pagar? Toque nas cartas: 0 de 3.');
+    await auditaTela(page, 'virar três criaturas brancas');
+    for (let i = 0; i < 6 && await page.locator('#tb-escolha').count(); i++) { await page.locator('#tb-escolha .tb-card').nth(i % await page.locator('#tb-escolha .tb-card').count()).click(); await page.waitForTimeout(200); } }
+  e = await M.resolve();
+  assert.equal(e.pend, null); assert.equal(e.campo.filter(n => n === 'Bird').length, 4); assert.ok(e.exilio.includes('Battle Screech'), 'conjurada pelo lampejo, vai para o exílio');
+  assert.equal((await mesa136(page)).viradas.filter(n => ['Bird', 'Lunarch Veteran'].includes(n)).length, 3, 'três criaturas brancas viradas');
+  // Squadron Hawk com a Veteran em campo: dois gatilhos DIFERENTES — uma pergunta de ordem, e a busca segue
+  await M.proximo(); await terraR6(M);
+  await page.locator('#tb-hand .tb-card[aria-label^="Squadron Hawk"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+  assert.equal(e.pend, 'triggers');
+  assert.deepEqual((await page.locator('.tb-banner__actions button').allInnerTexts()).sort(), ['Lunarch Veteran', 'Squadron Hawk']);
+  await page.locator('.tb-banner__actions button', { hasText: 'Lunarch Veteran' }).click(); await page.waitForTimeout(200);
+  e = await M.resolve(); assert.equal(e.pend, 'pick', 'uma escolha de ordem só; a busca da Hawk abre em seguida');
+  assert.equal(await M.decisao(), 'Squadron Hawk · Vasculhar o grimório | 0 de até 3 escolhida(s) · o resto fica onde está');
+  await auditaTela(page, 'busca da Squadron Hawk');
+  const mao = e.mao.length; for (let i = 0; i < 3; i++) { const l = await M.legal("a.t==='pick'"); if (!l.length) break; await M.act(l[0]); }
+  e = await segueR6(M); assert.equal(e.mao.length, mao + 3, 'três Squadron Hawk para a mão');
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · R6 · Boros: Boros Garrison e Kor Skyfisher mostram iguais juntas ao devolver; a Pista diz o que faz; esgueirar-se aparece na folha; Prismatic Strands pergunta a cor como mágica', { skip }, async t => {
+  const M = await comLista125(t, '10 Plains\n5 Mountain\n5 Boros Garrison\n8 Thraben Inspector\n8 Kor Skyfisher\n8 Prismatic Strands\n8 Martyr of Sands\n8 Leonardo, Big Brother', ['Plains', 'Mountain', 'Boros Garrison', 'Thraben Inspector', 'Kor Skyfisher', 'Prismatic Strands', 'Martyr of Sands', 'Leonardo, Big Brother'], '8', { cores: true });
+  const { page } = M; let e;
+  for (let i = 0; i < 24; i++) { await terraR6(M);
+    for (const n of ['Thraben Inspector', 'Martyr of Sands']) { const v = await M.oid(n); if (v && !(await M.est()).campo.includes(n)) { const c = await M.legal(`a.t==='cast' && a.oid==='${v}'`); if (c.length) { await M.act(c[0]); await segueR6(M); } } }
+    e = await M.est(); if (e.campo.includes('Thraben Inspector') && e.campo.includes('Martyr of Sands') && e.campo.filter(n => ['Plains', 'Mountain'].includes(n)).length >= 4 && ['Boros Garrison', 'Kor Skyfisher', 'Prismatic Strands', 'Leonardo, Big Brother'].every(n => e.mao.includes(n))) { await M.proximo(); break; }
+    await M.proximo(); }
+  e = await M.est(); assert.ok(['Boros Garrison', 'Kor Skyfisher', 'Prismatic Strands', 'Leonardo, Big Brother'].every(n => e.mao.includes(n)), 'mesa pronta: ' + JSON.stringify(e));
+  const rotulos = () => page.locator('#tb-pick-cards .tb-card').evaluateAll(cs => cs.map(c => c.getAttribute('aria-label')));
+  // Boros Garrison: entra, e a escolha do terreno que volta mostra iguais juntas
+  let f = await folha131(page, 'Boros Garrison'); assert.deepEqual(f.map(b => b.txt), ['Jogar terreno']); await naFolha(page, /Jogar terreno/);
+  e = await M.resolve(); assert.equal(e.pend, 'pick');
+  assert.equal(await M.decisao(), 'Boros Garrison · Escolha o que volta para a mão | Toque na carta.');
+  let cartas = await rotulos();
+  assert.equal(new Set(cartas).size, cartas.length, 'uma carta por terreno diferente (antes: nove terrenos em fila): ' + cartas.join(' | '));
+  assert.ok(cartas.some(c => /^Plains, \d cópias$/.test(c)) && cartas.includes('Boros Garrison'));
+  await auditaTela(page, 'terreno que volta com a Boros Garrison');
+  const planicies = e.campo.filter(n => n === 'Plains').length;
+  await page.locator('#tb-pick-cards .tb-card[aria-label^="Plains"]').first().click(); await page.waitForTimeout(200); e = await segueR6(M);
+  assert.equal(e.campo.filter(n => n === 'Plains').length, planicies - 1); assert.ok(e.campo.includes('Boros Garrison'));
+  // a Pista (ficha) não tem texto na folha: o botão diz o que ela faz
+  f = await folha131(page, 'Clue', '.tb-side'); assert.deepEqual(f.map(b => b.txt), ['Ativar ({2}, sacrificar): compra 1 carta']); await fecha136(page);
+  // Leonardo: esgueirar-se apagado com o motivo fora do combate
+  f = await folha131(page, 'Leonardo, Big Brother');
+  assert.deepEqual(f.map(b => [b.txt.replace(/ — mana insuficiente$/, ''), b.apagado]).slice(-1), [['Esgueirar-se · {W} — só nos bloqueadores, com um atacante seu sem bloqueio', true]]);
+  assert.match(f[0].txt, /^Conjurar · \{2\}\{W\}/);
+  await auditaTela(page, 'folha do Leonardo'); await fecha136(page);
+  // Prismatic Strands: a cor é pedida ao resolver, com a frase de mágica
+  await page.locator('#tb-hand .tb-card[aria-label^="Prismatic Strands"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+  assert.equal(e.pend, 'choose_color');
+  assert.equal(await M.decisao(), 'Escolha uma cor para Prismatic Strands | A mágica vale para a cor que você escolher agora.');
+  await auditaTela(page, 'cor da Prismatic Strands');
+  await page.locator('.tb-banner__actions button', { hasText: 'Preto' }).click(); await page.waitForTimeout(200); e = await segueR6(M);
+  assert.equal(e.pend, null); assert.ok(e.cemiterio.includes('Prismatic Strands'));
+  // Kor Skyfisher: devolve uma permanente; iguais no mesmo estado juntas
+  if ((await M.legal(`a.t==='cast' && a.oid==='${await M.oid('Kor Skyfisher')}'`)).length) {
+    await page.locator('#tb-hand .tb-card[aria-label^="Kor Skyfisher"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+    assert.equal(e.pend, 'pick'); assert.equal(await M.decisao(), 'Kor Skyfisher · Escolha o que volta para a mão | Toque na carta.');
+    cartas = await rotulos(); assert.ok(cartas.some(c => /^Kor Skyfisher/.test(c)), 'pode devolver ela mesma');
+    assert.ok(cartas.length < e.campo.length, 'terrenos iguais vêm juntos: ' + cartas.join(' | '));
+    await auditaTela(page, 'permanente que volta com a Kor Skyfisher');
+  }
   assert.deepEqual(M.errors, []);
 });
 

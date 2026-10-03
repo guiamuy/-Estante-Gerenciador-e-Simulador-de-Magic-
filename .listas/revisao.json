@@ -2531,7 +2531,7 @@
    }
   },
   "Lunarch Veteran": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2539,10 +2539,25 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/102032",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: 1 de vida quando outra criatura entra sob o seu controle; perturbar {1}{W} volta como Luminous Phantom 1/1 voando. O texto do verso não está em .listas/oficiais.json: o que o script faz no verso (ganhar vida quando outra criatura sua sai; exílio no lugar do cemitério) não foi conferido contra fonte nesta revisão."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido: dois gatilhos iguais dela (dois Pássaros entrando) não perguntam mais a ordem."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Lunarch Veteran",
+    "boros.regras: gatilhos idênticos",
+    "e2e: R6 · Boros: gatilhos iguais"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2561,7 +2576,7 @@
    }
   },
   "Squadron Hawk": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2569,10 +2584,24 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/14134",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: voar; pode buscar até três Squadron Hawk."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: com a Veteran em campo a mesa pergunta a ordem uma vez e a busca abre em seguida."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Squadron Hawk",
+    "e2e: R6 · Boros: gatilhos iguais"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2588,7 +2617,7 @@
    }
   },
   "Novice Inspector": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2596,10 +2625,23 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/151249",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: investiga (Pista: {2}, sacrificar: compre)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido: a Pista não tem texto na folha; o botão passou a dizer \"Ativar ({2}, sacrificar): compra 1 carta\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Squadron Hawk"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2616,7 +2658,7 @@
    }
   },
   "Thraben Inspector": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2624,10 +2666,24 @@
     "fonte": "https://grimoria.app/cards/thraben-inspector",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: investiga."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido junto com a Novice Inspector (botão da Pista)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Squadron Hawk",
+    "e2e: R6 · Boros: Boros Garrison e Kor Skyfisher"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2644,7 +2700,7 @@
    }
   },
   "Kor Skyfisher": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2652,10 +2708,24 @@
     "fonte": "https://aetherhub.com/Card/J21/Kor-Skyfisher/100",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: voar; devolve uma permanente sua (pode ser ela mesma), obrigatório."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido: a escolha mostrava cada terreno em fila; iguais no mesmo estado vêm juntas."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Kor Skyfisher",
+    "e2e: R6 · Boros: Boros Garrison e Kor Skyfisher"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2671,7 +2741,7 @@
    }
   },
   "Raffine's Informant": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2679,10 +2749,23 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/110684",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: conspira — compra, descarta, marcador se a carta descartada não for terreno."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e aviso de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Kor Skyfisher"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2698,7 +2781,7 @@
    }
   },
   "Leonardo, Big Brother": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2706,10 +2789,24 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/l/leonardo_big_brother.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: +1/+0 por outra criatura sua; esgueirar-se {W} só nos bloqueadores, devolvendo atacante sem bloqueio; passa pela pilha e entra virado e atacando."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido: o botão saía como \"Ninjutsu · \" sem custo; agora \"Esgueirar-se · {W} → devolve <atacante>\", e apagado com o motivo fora do combate."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Leonardo",
+    "e2e: R6 · Boros: Boros Garrison e Kor Skyfisher"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2723,7 +2820,7 @@
    }
   },
   "Prismatic Strands": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2731,10 +2828,24 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/11898",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: cor escolhida na resolução; previne todo o dano de fontes dessa cor no turno; lampejo do passado virando uma criatura branca."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido: o aviso da cor dizia \"ao entrar no campo\" (é mágica); o lampejo mostra o custo por extenso."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Prismatic Strands",
+    "e2e: R6 · Boros: Boros Garrison e Kor Skyfisher"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2751,7 +2862,7 @@
    }
   },
   "Rally the Peasants": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2759,10 +2870,23 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/14119",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: +2/+0 nas suas criaturas até o fim do turno; lampejo {2}{R}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e aviso de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Rally the Peasants"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2778,7 +2902,7 @@
    }
   },
   "Thraben Charm": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2786,10 +2910,23 @@
     "fonte": "https://scryfall.com/card/mh3/45/thraben-charm",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: dano igual ao dobro das suas criaturas; destruir encantamento; exilar o cemitério de um ou dos dois jogadores."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e aviso de decisão); sem teste de tela próprio. A folha junta alvos repetidos (leva 125)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Thraben Charm"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2807,7 +2944,7 @@
    }
   },
   "Battle Screech": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2815,10 +2952,24 @@
     "fonte": "https://mtg.wtf/card/jud/3/Battle-Screech ; https://aetherhub.com/Card/CMM/Battle-Screech/17",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: duas fichas de Pássaro 1/1 brancas voando; lampejo virando três criaturas brancas (as fichas servem)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido: o botão do lampejo saía com o custo vazio; agora \"virar 3 criaturas brancas\", e a escolha é tocando nas cartas."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Battle Screech",
+    "e2e: R6 · Boros: gatilhos iguais"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2834,7 +2985,7 @@
    }
   },
   "Perilous Landscape": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2842,10 +2993,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/p/perilous_landscape.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: {T}: {C}; {T}, sacrificar: busca Ilha, Montanha ou Planície básica virada; ciclar {U}{R}{W}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido pelo mesmo caminho da Sheltering Landscape (leva 139)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: terrenos"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2861,7 +3025,7 @@
    }
   },
   "Boros Garrison": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2869,10 +3033,24 @@
     "fonte": "https://scryfall.com/card/clu/231/boros-garrison",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: entra virada, devolve um terreno seu, gera {R}{W}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "corrigido: a escolha do terreno que volta mostrava nove terrenos em fila; agora iguais juntos, com a virada marcada."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: terrenos",
+    "e2e: R6 · Boros: Boros Garrison e Kor Skyfisher"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2890,7 +3068,7 @@
    }
   },
   "Wind-Scarred Crag": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2898,10 +3076,23 @@
     "fonte": "https://scryfall.com/card/fdn/271/wind-scarred-crag",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: entra virada, 1 de vida, {R} ou {W}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: sem decisão."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: terrenos"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2919,7 +3110,7 @@
    }
   },
   "Dust to Dust": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2927,10 +3118,23 @@
     "fonte": "https://mtg.wtf/card/drk/5/Dust-to-Dust",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: exige dois artefatos diferentes."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e aviso de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Dust to Dust"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2944,7 +3148,7 @@
    }
   },
   "Electrickery": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2952,10 +3156,23 @@
     "fonte": "https://mtg.wtf/card/rtr/93/Electrickery",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: 1 de dano em criatura que você não controla; sobrecarga {1}{R} em todas elas."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e aviso de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Dust to Dust"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2971,7 +3188,7 @@
    }
   },
   "Hallow": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -2979,10 +3196,23 @@
     "fonte": "https://scryfall.com/card/dst/4/hallow",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: previne o dano da mágica alvo e você ganha essa vida."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e aviso de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Hallow"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2996,7 +3226,7 @@
    }
   },
   "Martyr of Sands": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Boros Bully"
    ],
@@ -3004,10 +3234,23 @@
     "fonte": "https://scryfall.com/card/uma/25/martyr-of-sands",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: {1}, revelar X cartas brancas, sacrificar: 3X de vida."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 144,
+    "obs": "conferido: a mesa pergunta quantas revela (um botão por quantidade; não diz quanta vida cada uma dá)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "boros.regras: Hallow"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
