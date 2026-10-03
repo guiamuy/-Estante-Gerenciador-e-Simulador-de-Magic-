@@ -400,6 +400,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ad ✅ | D3 Início que lembra de você: "Olá, Nome", cartão Continuar (partida, última lista, pilha do scanner), painel offline em uma linha (leva 141) | D | 1 | — |
 | 16º-ae ✅ | D4a estados vazios de Listas e Coleção: cartão de primeiro uso com ícone, título, frase, um primário e um secundário; o resto em "Mais" (leva 142) | D | 1 | — |
 | 16º-af ✅ | D4b apresentação de 3 passos na primeira abertura, pulável, uma vez só, "Rever apresentação" no Perfil (leva 145) | D | 1 | — |
+| 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4228,6 +4229,18 @@ conversa paralela à do Shark e à da revisão carta a carta)
   recusado); e2e "Leva 137" (duas abas: selo 0 → 2, frase rápida e texto com HTML chegam como texto, aviso com
   nome e mensagem, abrir zera, resposta chega na folha aberta; `auditaTela` nas duas abas).
 - **Fora:** "digitando…"; histórico fora da sala; avatar nos balões (quando o perfil da conta estiver na sala).
+**U17 · Blocos expansíveis da coleção, formato obrigatório em Jogar e enquadrar a foto** ✅ (leva 149, pedido de 03/10/2026)
+- **Valor:** a coleção mostra o que cada bloco é de relance e deixa a lista subir; a partida sempre tem formato; a foto do perfil fica como o usuário quer.
+- **Entregue:**
+  - **Componente `Expansivel` (F5, no `/ds`):** o cabeçalho inteiro é o botão (60 px, largura toda): selo com o ícone do conceito, título em serifada, resumo opcional e seta que gira. `aria-expanded`; entrada do corpo em 180 ms, sem movimento com `prefers-reduced-motion`. Ícones novos: `painel` (barras) e `cartaMais` (carta com sinal de mais). Componente `Range` (controle deslizante, alvo de 44 px).
+  - **Coleção:** Painel e **Adicionar carta** são blocos expansíveis, nesta ordem, antes do filtro (a leva 113 tinha levado "adicionar" para o fim; este pedido traz de volta para cima). Aberto/fechado lembrado por aparelho (`prefs.adicionar`, `prefs.painel`). Fechado, o painel resume "N cartas · N cópias". Com os dois fechados a lista sobe mais de 300 px em 360×780. O "+" do topo abre o bloco e foca o campo.
+  - **Divergência declarada:** dentro de "Adicionar carta" ficam só as ações que põem carta na coleção (nome, Colar lista, Abrir CSV). **Exportar** e **Selecionar** agem sobre a lista e ficaram depois dela (`#col-acoes-lista`), para não sumirem quando o bloco fecha.
+  - **Jogar:** saiu o chip "Todos". Os chips são os formatos que têm lista; começa ligado o formato da primeira lista da estante; tocar no ligado não desliga. As listas oferecidas são só as do formato.
+  - **Perfil:** escolher a foto abre "Enquadrar foto": palco quadrado com a foto, círculo de latão mostrando o que vira o avatar, arrastar posiciona (segue o dedo, para na borda), pinça/roda/barra/botões aproximam até 4×, setas movem, "Usar foto" confirma, Cancelar/X/Esc não troca. O recorte é do modelo puro (`perfil.enquadra`, `enquadraZoom`, `enquadraMove`): nunca sobra faixa vazia. Saiu o texto "Na mesa: nome".
+- **Testes:** U `perfil.unit` (+2: recorte sempre dentro da foto, com propriedade em 400 combinações; arrastar e aproximar com ponto fixo); e2e "leva 149" ×3: blocos (ícone, 44 px, ordem, lembrar, resumo, altura fechada ≤ 64 px, catálogo), formato (sem "Todos", sempre um ligado, listas do formato), enquadrar (central por padrão, arrasto até o canto, barra, roda, teclado, cancelar, salvar e recarregar, cor do avatar medida em pixel). `auditaTela` nas quatro medidas e nos dois temas em cada tela.
+- **Sem rede:** tudo local; nada novo para o guardião.
+- **Fora:** reenquadrar uma foto já salva (só a versão reduzida de 192 px é guardada); lembrar o último formato escolhido em Jogar; a foto da conta Google continua entrando pelo recorte central.
+
 - **Depende de:** U14.
 
 ### D · Design de patamar (E53, pedido de 03/10/2026)

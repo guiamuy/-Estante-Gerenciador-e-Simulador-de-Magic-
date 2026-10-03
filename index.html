@@ -449,6 +449,36 @@ a { color: var(--accent); }
 .perfil-cabeca { display: flex; align-items: center; gap: var(--space-4); }
 .perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }
 .perfil-foto { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+/* leva 149 · enquadrar a foto: palco quadrado, a foto segue o dedo, o círculo mostra o que fica */
+.perfil-enquadre { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.perfil-enquadre__palco { position: relative; width: min(100%, calc(var(--space-8) * 4.5)); aspect-ratio: 1; border-radius: var(--radius-3); overflow: hidden;
+  background: var(--bg-elev-2); border: 1px solid var(--border); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.perfil-enquadre__palco[data-arrastando="true"] { cursor: grabbing; }
+.perfil-enquadre__tela { display: block; width: 100%; height: 100%; }
+.perfil-enquadre__mascara { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle closest-side, transparent calc(100% - 1px), var(--overlay) 100%); }
+.perfil-enquadre__mascara::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-full); border: 2px solid var(--accent); box-shadow: var(--shadow-1); }
+.perfil-enquadre__zoom { display: flex; align-items: center; gap: var(--space-1); width: min(100%, calc(var(--space-8) * 4.5)); }
+.perfil-enquadre__zoom .ds-range { flex: 1 1 auto; min-width: 0; }
+/* leva 149 · controle deslizante do design system */
+.ds-range { -webkit-appearance: none; appearance: none; width: 100%; min-height: var(--tap-min); margin: 0; background: transparent; cursor: pointer; }
+.ds-range::-webkit-slider-runnable-track { height: var(--space-1); border-radius: var(--radius-full); background: var(--border-strong); }
+.ds-range::-moz-range-track { height: var(--space-1); border-radius: var(--radius-full); background: var(--border-strong); }
+.ds-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: var(--space-5); height: var(--space-5); margin-top: calc((var(--space-1) - var(--space-5)) / 2);
+  border-radius: var(--radius-full); background: var(--accent); border: 2px solid var(--bg-elev-1); box-shadow: var(--shadow-1); }
+.ds-range::-moz-range-thumb { width: var(--space-5); height: var(--space-5); border-radius: var(--radius-full); background: var(--accent); border: 2px solid var(--bg-elev-1); box-shadow: var(--shadow-1); }
+/* leva 149 · bloco expansível: o cabeçalho inteiro é o botão (selo com o ícone do conceito, título, seta) */
+.ds-expansivel { overflow: hidden; }
+.ds-expansivel__cabeca { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: calc(var(--tap-min) + var(--space-4)); padding: var(--space-2) var(--space-4);
+  background: none; border: 0; color: var(--fg); font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.ds-expansivel__selo { flex: none; display: grid; place-items: center; width: calc(var(--space-6) + var(--space-1)); height: calc(var(--space-6) + var(--space-1)); border-radius: var(--radius-2);
+  background: var(--accent-soft); color: var(--accent); }
+.ds-expansivel__titulo { flex: 0 1 auto; min-width: 0; font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--lh-lg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-expansivel__resumo { flex: 1 1 0; min-width: 0; text-align: right; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-expansivel__seta { flex: none; margin-left: auto; color: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out); }
+.ds-expansivel[data-aberto="true"] .ds-expansivel__seta { transform: rotate(180deg); }
+.ds-expansivel__corpo { padding: var(--space-1) var(--space-4) var(--space-4); animation: ds-expansivel-entra var(--dur-2) var(--ease-out); }
+@keyframes ds-expansivel-entra { from { opacity: 0; transform: translateY(calc(var(--space-1) * -1)); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
 .perfil-conta__quem { align-items: center; gap: var(--space-3); }
 /* D2 · amostra de cor nos botões de acento */
 .aparencia__cor { width: 14px; height: 14px; border-radius: var(--radius-full); flex: none; border: 1px solid var(--border-strong); }
@@ -1158,6 +1188,7 @@ body {
 .col-root[data-vazia="true"] :is(#col-search, #col-ir-adicionar, #col-scan, .col-filtro) { display: none; }
 .col-root[data-vazia="true"] #col-adicionar:not([data-aberta="true"]) { display: none; }
 .col-root[data-vazia="true"] #col-adicionar .col-acoes { display: none; }
+.col-root[data-vazia="true"] #col-acoes-lista { display: none; } /* leva 149 · exportar e selecionar só com carta na coleção */
 .col-root[data-vazia="true"] > div:empty { display: none; }
 .col-acoes .ds-btn { justify-content: flex-start; font-size: var(--text-sm); padding: 0 var(--space-3); white-space: nowrap; min-width: 0; }
 .col-row__remover { color: var(--fg-muted); }
@@ -2037,6 +2068,9 @@ const ICONES = {
   // Leva 121 · tramar (plot): carta guardada com marcador; terreno: serra, para "sacrificar um terreno"
   tramar: '<rect x="5.5" y="3.5" width="13" height="17" rx="1.8"/><path d="M9.5 3.5v8l2.5-1.9 2.5 1.9v-8"/>',
   terreno: '<path d="M2.5 19.5l6.5-11 3.6 6 2.4-3.5 6.5 8.5z"/><path d="M7.2 11.6l1.8 1.5 1.6-1.2"/>',
+  // Leva 149 · blocos da coleção: painel (barras sobre a base) e adicionar carta (carta com o sinal de mais)
+  painel: '<path d="M4 20h16"/><rect x="5.5" y="11" width="3.5" height="6" rx="1"/><rect x="10.25" y="5" width="3.5" height="12" rx="1"/><rect x="15" y="8.5" width="3.5" height="8.5" rx="1"/>',
+  cartaMais: '<path d="M15.5 11V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h4.2"/><path d="M17 14v6.5M13.75 17.25h6.5"/>',
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
 function Icone(nome, { tamanho = 20, classe = '' } = {}) {
@@ -2232,6 +2266,22 @@ function AnelProgresso(pct, { tamanho = 64, id, rotulo = 'guardado' } = {}) {
 const TOM = t => { const x = t && typeof t === 'object' ? t.tone : t; return x === 'danger' ? 'negative' : (x || ''); };
 const Note = (content, tone) => h('div', { class: ['ds-note', TOM(tone) ? `ds-note--${TOM(tone)}` : ''].filter(Boolean).join(' '), html: content });
 const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-label': 'carregando' });
+/** Leva 149 · bloco que abre e fecha. O cabeçalho inteiro é o botão: selo com o ícone do conceito, título, resumo
+    opcional (o que o bloco guarda quando está fechado) e a seta. Quem usa guarda o estado e redesenha. */
+function Expansivel({ titulo, icone, aberto = true, onToggle, id, toggleId, resumo = '' } = {}, ...conteudo) {
+  const corpoId = (id || toggleId || 'ds-expansivel') + '-corpo';
+  const cabeca = h('button', { class: 'ds-expansivel__cabeca', type: 'button', id: toggleId, 'aria-expanded': String(!!aberto), title: aberto ? 'Recolher' : 'Mostrar', onClick: onToggle },
+    h('span', { class: 'ds-expansivel__selo' }, Icone(icone, { tamanho: 20 })),
+    h('span', { class: 'ds-expansivel__titulo' }, titulo),
+    resumo ? h('span', { class: 'ds-expansivel__resumo' }, resumo) : null,
+    Icone('descer', { tamanho: 20, classe: 'ds-expansivel__seta' }));
+  if (aberto) cabeca.setAttribute('aria-controls', corpoId);
+  return h('section', { class: 'ds-surface ds-expansivel', id, dataset: { aberto: String(!!aberto) } }, cabeca,
+    aberto ? h('div', { class: 'ds-expansivel__corpo ds-stack', id: corpoId }, ...conteudo) : null);
+}
+/** Leva 149 · controle deslizante (zoom, intensidade): alvo de 44 px, trilho e botão por token. */
+const Range = ({ id, min = 0, max = 100, step = 1, value = 0, rotulo, onInput } = {}) =>
+  h('input', { class: 'ds-range', type: 'range', id, min: String(min), max: String(max), step: String(step), value: String(value), 'aria-label': rotulo, onInput });
 
 /* ---------------- carta ---------------- */
 /* ---------------- leva 102 · imagem de carta em alta qualidade ----------------
@@ -2356,7 +2406,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -2481,6 +2531,16 @@ function renderDS() {
       h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Exemplo de segmentado' },
         Chip('Lista', { icone: 'linhas', pressed: true }), Chip('Galeria', { icone: 'colecao' }), Chip('Densa', { icone: 'densa' }), Chip('Pilhas', { icone: 'pilhas' })),
       Row({ class: 'ds-row--wrap' }, Chip('Marcar', { icone: 'marcar' }), __m3.IconButton('lixeira', 'Excluir', { variant: 'ghost', classe: 'ds-btn--perigo' }))),
+
+    // Leva 149 · bloco expansível e controle deslizante
+    Section('Expansível', ...(() => {
+      const caixa = h('div', { id: 'ds-expansivel' }); let aberto = true;
+      const pinta = () => caixa.replaceChildren(
+        __m3.Expansivel({ titulo: 'Painel', icone: 'painel', aberto, toggleId: 'ds-expansivel-toggle', resumo: aberto ? '' : '2 cartas · 2 cópias', onToggle: () => { aberto = !aberto; pinta(); } },
+          Text('O conteúdo aparece abaixo do cabeçalho. Fechado, o resumo diz o que o bloco guarda.', { size: 'sm', tone: 'muted' })));
+      pinta();
+      return [caixa, __m3.Expansivel({ titulo: 'Adicionar carta', icone: 'cartaMais', aberto: false }), __m3.Range({ id: 'ds-range', min: 100, max: 400, value: 180, rotulo: 'Exemplo de controle deslizante' })];
+    })()),
 
     Section('Marca',
       h('div', { class: 'ds-row ds-row--wrap', id: 'ds-brand', style: { gap: 'var(--space-5)' } },
@@ -5036,7 +5096,7 @@ function createCollection({ store }) {
       await persist(); return list.length;
     },
     /** C13 · visão, agrupamento e ordenação lembrados por aparelho. */
-    async prefs() { return { visao: 'lista', agrupar: '', ordenar: 'nome', painel: true, ...((await store.get(PREFS)) || {}) }; },
+    async prefs() { return { visao: 'lista', agrupar: '', ordenar: 'nome', painel: true, adicionar: true, ...((await store.get(PREFS)) || {}) }; },
     async savePrefs(p) { const cur = await api.prefs(); await store.set(PREFS, { ...cur, ...p }); },
     /** C12b · visões salvas: nome + filtro, por aparelho. */
     async views() { return ((await store.get(VIEWS)) || []).map(v => ({ ...v })); },
@@ -5961,7 +6021,28 @@ function createPerfil({ store, agora = () => Date.now() }) {
     async importaPreferencias(prefs) { let n = 0; for (const k of PREFERENCIAS) if (prefs && prefs[k] !== undefined && prefs[k] !== null) { await store.set(k, prefs[k]); n++; } return n; }
   };
 }
-return { createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY };
+/** Leva 149 · enquadramento escolhido pelo usuário. zoom 1 = o maior quadrado que cabe na foto; cx, cy = centro do
+    recorte em pixels da foto. Devolve o quadrado de origem, sempre inteiro dentro da foto (sem faixa vazia). */
+const ZOOM_MAX = 4;
+function enquadra(w, h, { zoom = 1, cx, cy } = {}) {
+  const z = Math.min(ZOOM_MAX, Math.max(1, Number(zoom) || 1));
+  const lado = Math.max(1, Math.min(w, h)) / z, meio = lado / 2;
+  const lim = (v, max) => Math.min(Math.max(Number.isFinite(v) ? v : max / 2, meio), Math.max(meio, max - meio));
+  const x = lim(cx, w), y = lim(cy, h);
+  return { sx: x - meio, sy: y - meio, lado, zoom: z, cx: x, cy: y };
+}
+/** Aproxima ou afasta mantendo parado o ponto da foto que está sob (fx, fy) do palco (0 a 1): o dedo não escorrega. */
+function enquadraZoom(w, h, q, zoom, fx = 0.5, fy = 0.5) {
+  const px = q.sx + fx * q.lado, py = q.sy + fy * q.lado;
+  const lado = enquadra(w, h, { zoom }).lado;
+  return enquadra(w, h, { zoom, cx: px + (0.5 - fx) * lado, cy: py + (0.5 - fy) * lado });
+}
+/** Arrasta: (dx, dy) em pixels de tela num palco de `palco` pixels; a foto acompanha o dedo. */
+function enquadraMove(w, h, q, dx, dy, palco) {
+  const k = q.lado / Math.max(1, palco);
+  return enquadra(w, h, { zoom: q.zoom, cx: q.cx - dx * k, cy: q.cy - dy * k });
+}
+return { createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, enquadra, enquadraZoom, enquadraMove, ZOOM_MAX, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY };
 })();
 
 /* ==== src/data/conta.js ==== */
@@ -6674,7 +6755,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
@@ -6783,9 +6864,64 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
   }
   fotoInput.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-    try { st.avatar = await reduzFoto(f); paint(); }
+    try { abrirEnquadre(await createImageBitmap(f)); }
     catch (err) { toast('Não deu para ler a imagem'); }
   });
+  /** Leva 149 · enquadrar a foto antes de usar: arrastar posiciona, pinça, roda do mouse ou a barra aproximam.
+      O círculo mostra exatamente o que vira o avatar; a conta do recorte é do modelo puro (__m28.enquadra). */
+  function abrirEnquadre(bmp) {
+    const W = bmp.width, H = bmp.height, PX = 576;
+    let q = __m28.enquadra(W, H), quadro = 0;
+    const tela = h('canvas', { class: 'perfil-enquadre__tela' }); tela.width = tela.height = PX;
+    const ctx = tela.getContext('2d');
+    const palco = h('div', { class: 'perfil-enquadre__palco', id: 'perfil-foto-palco', tabindex: '0', role: 'img', 'aria-label': 'Sua foto. Arraste para posicionar; as setas movem a foto.' },
+      tela, h('span', { class: 'perfil-enquadre__mascara', 'aria-hidden': 'true' }));
+    const barra = __m3.Range({ id: 'perfil-foto-zoom', min: 100, max: __m28.ZOOM_MAX * 100, value: 100, rotulo: 'Aproximar a foto', onInput: e => zoom(Number(e.target.value) / 100) });
+    const desenha = () => {
+      quadro = 0;
+      ctx.drawImage(bmp, q.sx, q.sy, q.lado, q.lado, 0, 0, PX, PX);
+      barra.value = String(Math.round(q.zoom * 100));
+      palco.dataset.zoom = q.zoom.toFixed(2); palco.dataset.cx = String(Math.round(q.cx)); palco.dataset.cy = String(Math.round(q.cy));
+    };
+    const pede = () => { if (!quadro) quadro = requestAnimationFrame(desenha); };
+    const lado = () => palco.getBoundingClientRect().width || 1;
+    const move = (dx, dy) => { q = __m28.enquadraMove(W, H, q, dx, dy, lado()); pede(); };
+    const zoom = (z, fx, fy) => { q = __m28.enquadraZoom(W, H, q, z, fx, fy); pede(); };
+    const fracao = (x, y) => { const r = palco.getBoundingClientRect(); return [(x - r.left) / (r.width || 1), (y - r.top) / (r.height || 1)]; };
+    const dedos = new Map();
+    const meioE = () => { const [a, b] = [...dedos.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; };
+    palco.addEventListener('pointerdown', e => { try { palco.setPointerCapture(e.pointerId); } catch (err) { /* ponteiro já solto */ } dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); palco.dataset.arrastando = 'true'; });
+    palco.addEventListener('pointermove', e => {
+      const ant = dedos.get(e.pointerId); if (!ant) return;
+      if (dedos.size === 1) { dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); return move(e.clientX - ant.x, e.clientY - ant.y); }
+      const a = meioE(); dedos.set(e.pointerId, { x: e.clientX, y: e.clientY }); const b = meioE();
+      const [fx, fy] = fracao(b.x, b.y);
+      q = __m28.enquadraMove(W, H, __m28.enquadraZoom(W, H, q, q.zoom * (b.d / a.d), fx, fy), b.x - a.x, b.y - a.y, lado()); pede();
+    });
+    const solta = e => { dedos.delete(e.pointerId); if (!dedos.size) palco.dataset.arrastando = 'false'; };
+    palco.addEventListener('pointerup', solta); palco.addEventListener('pointercancel', solta);
+    palco.addEventListener('wheel', e => { e.preventDefault(); const [fx, fy] = fracao(e.clientX, e.clientY); zoom(q.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12), fx, fy); }, { passive: false });
+    palco.addEventListener('keydown', e => {
+      const passo = { ArrowLeft: [-16, 0], ArrowRight: [16, 0], ArrowUp: [0, -16], ArrowDown: [0, 16] }[e.key];
+      if (passo) { e.preventDefault(); move(passo[0], passo[1]); }
+      else if (e.key === '+' || e.key === '=') zoom(q.zoom + 0.25); else if (e.key === '-') zoom(q.zoom - 0.25);
+    });
+    const usar = () => {
+      const c = document.createElement('canvas'); c.width = c.height = perfil.AVATAR_PX;
+      c.getContext('2d').drawImage(bmp, q.sx, q.sy, q.lado, q.lado, 0, 0, c.width, c.height);
+      st.avatar = c.toDataURL('image/jpeg', 0.84);
+      if (bmp.close) bmp.close();
+      closeDialog(); paint();
+    };
+    Dialog({ title: 'Enquadrar foto',
+      body: h('div', { class: 'perfil-enquadre' }, palco,
+        h('div', { class: 'perfil-enquadre__zoom' },
+          IconButton('menos', 'Afastar', { id: 'perfil-foto-menos', variant: 'ghost', onClick: () => zoom(q.zoom - 0.25) }), barra,
+          IconButton('mais', 'Aproximar', { id: 'perfil-foto-mais', variant: 'ghost', onClick: () => zoom(q.zoom + 0.25) })),
+        Text('Arraste para posicionar. Pince ou use a barra para aproximar.', { size: 'xs', tone: 'muted' })),
+      actions: [Button('Cancelar', { variant: 'ghost', onClick: closeDialog }), Button('Usar foto', { variant: 'primary', icone: 'marcar', id: 'perfil-foto-usar', onClick: usar })] });
+    desenha();
+  }
   backupInput.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
     try { toast(await backup.restaurar(f)); await carrega(); }
@@ -6883,8 +7019,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           Field('Nome', Input({ id: 'perfil-nome', value: st.nome, maxlength: String(perfil.NOME_MAX), placeholder: 'Como você aparece na mesa', autocomplete: 'nickname',
             onInput: e => { st.nome = e.target.value; const b = root.querySelector('#perfil-salvar'); if (b) b.disabled = !mudou() || st.ocupado; } }))),
         Row({ class: 'ds-row--wrap' },
-          Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar }),
-          Text(st.nome ? `Na mesa: ${__m28.limpaNome(st.nome)}` : 'Sem nome, a mesa diz "Você".', { size: 'sm', tone: 'muted' })),
+          Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar })),
         fotoInput)),
       secaoAparencia(),
       secaoConta(),
@@ -7313,7 +7448,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // C13 · visão (lista/galeria/densa/pilhas), agrupamento e ordenação lembrados; pilha aberta; quantas linhas já desenhadas
     visao: 'lista', agrupar: '', ordenar: 'nome', pilhaAberta: null, limite: 120,
     // C14 · painel aberto ou fechado (lembrado), lista escolhida em "o que falta para montar"
-    painel: true, montar: '', decksAll: [],
+    painel: true, adicionar: true, montar: '', decksAll: [],
     // C10 · seleção manual por nome, para exportar um recorte
     selecting: false, selected: new Set(), exportFormat: 'simples',
     // C11 · pendências da importação por lista e a última importação (para desfazer)
@@ -7349,7 +7484,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     state.pending = await collection.pending();
     state.views = await collection.views();
     const prefs = await collection.prefs();
-    state.visao = prefs.visao; state.agrupar = prefs.agrupar; state.ordenar = prefs.ordenar; state.painel = prefs.painel !== false;
+    state.visao = prefs.visao; state.agrupar = prefs.agrupar; state.ordenar = prefs.ordenar; state.painel = prefs.painel !== false; if ((prefs.adicionar !== false) !== state.adicionar) { state.adicionar = prefs.adicionar !== false; paintAdd(); } // leva 149 · só redesenha se mudou: o campo não pisca sob o dedo
     const all = await decks.list();
     state.decksAll = all;
     state.usedIn = new Map();
@@ -7674,13 +7809,12 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     return h('div', { class: 'col-dash__chart', dataset: { chart: 'montar' } }, Text('O que falta para montar', { size: 'sm', tone: 'muted' }), sel, corpo);
   }
   function paintDashboard(r) {
-    const cabeca = Row({ class: 'ds-row--wrap' }, Text('Painel', { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
-      Button(state.painel ? 'Recolher' : 'Mostrar', { variant: 'ghost', icone: state.painel ? 'subir' : 'descer', id: 'col-dash-toggle', onClick: () => lembra({ painel: !state.painel }) }));
-    if (!state.painel) return mount(dashboard, Surface({ class: 'ds-surface--pad' }, cabeca));
-    const res = FL.resumoColecao(r.itens, state.cards);
+    // Leva 149 · bloco expansível com ícone; fechado, o cabeçalho resume o recorte (cartas e cópias)
+    const res = FL.resumoColecao((r && r.itens) || [], state.cards);
+    const bloco = { titulo: 'Painel', icone: 'painel', aberto: state.painel, id: 'col-dash-bloco', toggleId: 'col-dash-toggle', onToggle: () => lembra({ painel: !state.painel }) };
+    if (!state.painel) return mount(dashboard, Expansivel({ ...bloco, resumo: `${res.cartas} cartas · ${res.copias} cópias` }));
     const tile = (n, rot, id) => h('div', { class: 'col-dash__tile', id }, Text(String(n), { size: '2xl', display: true }), Text(rot, { size: 'xs', tone: 'muted' }));
-    mount(dashboard, Surface({ class: 'ds-surface--pad' }, Stack({},
-      cabeca,
+    mount(dashboard, Expansivel(bloco, Stack({},
       FL.filtroVazio(state.filtro) ? null : Text(`Números do recorte atual (${FL.descreveFiltro(state.filtro)}). Toque numa barra ligada para desligar.`, { size: 'xs', tone: 'muted' }),
       h('div', { class: 'col-dash__tiles' }, tile(res.cartas, 'cartas', 'col-dash-cartas'), tile(res.copias, 'cópias', 'col-dash-copias'), tile(res.edicoes, 'edições', 'col-dash-edicoes')),
       res.semDados ? Text(`${res.semDados} carta(s) sem dados guardados ficam fora das distribuições.`, { size: 'xs', tone: 'subtle' }) : null,
@@ -7691,7 +7825,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
   /* ---- C13 · visões, agrupar, ordenar ---- */
   const toolbar = h('div', { id: 'col-toolbar' });
-  async function lembra(p) { Object.assign(state, p); state.limite = 120; state.pilhaAberta = null; paint(); try { await collection.savePrefs({ visao: state.visao, agrupar: state.agrupar, ordenar: state.ordenar, painel: state.painel }); } catch (e) { /* sem armazenamento: só nesta sessão */ } }
+  async function lembra(p) { Object.assign(state, p); state.limite = 120; state.pilhaAberta = null; paint(); try { await collection.savePrefs({ visao: state.visao, agrupar: state.agrupar, ordenar: state.ordenar, painel: state.painel, adicionar: state.adicionar }); } catch (e) { /* sem armazenamento: só nesta sessão */ } }
   function paintToolbar() {
     const visoes = [['lista', 'Lista', 'linhas'], ['galeria', 'Galeria', 'colecao'], ['densa', 'Densa', 'densa'], ['pilhas', 'Pilhas', 'pilhas']];
     mount(toolbar, Row({ class: 'ds-row--wrap' },
@@ -7825,7 +7959,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
         Row({ class: 'ds-row--wrap' }, Button('Escanear', { variant: 'primary', icone: 'scanner', id: 'col-scan-vazio', onClick: () => go('/scanner') }), importBtn),
         // D4 · as outras portas ficam discretas: CSV, digitar o nome (abre a seção no lugar) e a busca
         h('div', { class: 'ds-empty__mais' }, csvBtn,
-          Button('Pelo nome', { variant: 'ghost', icone: 'editar', id: 'col-pelo-nome', onClick: () => { secaoAdicionar.dataset.aberta = 'true'; secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
+          Button('Pelo nome', { variant: 'ghost', icone: 'editar', id: 'col-pelo-nome', onClick: () => { secaoAdicionar.dataset.aberta = 'true'; paintAdd(); secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
           Button('Buscar', { variant: 'ghost', icone: 'buscar', id: 'col-buscar-vazio', onClick: () => go('/cartas') }))),
       { icone: 'colecao', titulo: 'Sua coleção está vazia', hero: true, id: 'col-vazio' })); }
     // C12 · o motor de filtro decide o recorte; a ordenação vem depois
@@ -7930,37 +8064,50 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   // D4 · "Colar lista" e "Abrir CSV" são os mesmos botões nos dois estados: na coleção vazia moram no cartão de primeiro uso
   const importBtn = Button('Colar lista', { id: 'col-import', icone: 'importar', title: 'Importar uma lista de cartas', onClick: () => openImportList() });
   const csvBtn = Button('Abrir CSV', { id: 'col-csv-import', icone: 'planilha', title: 'Importar CSV (ManaBox e outros)', onClick: () => csvInput.click() });
-  const colAcoes = h('div', { class: 'col-acoes' },
-      // U2 · quatro ações em grade de duas colunas, cada uma com ícone
-      importBtn, csvBtn,
-      Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
-      Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() }));
-  const secaoAdicionar = Surface({ class: 'ds-surface--pad ds-surface--shelf', id: 'col-adicionar' }, Stack({},
-    Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
-    colAcoes,
-    csvInput, listInput));
+  // Leva 149 · adicionar carta volta para cima, logo abaixo do painel, como bloco expansível lembrado por aparelho.
+  // Dentro dele fica o que põe carta na coleção (nome, colar lista, CSV); exportar e selecionar agem sobre a lista
+  // e ficam depois dela.
+  const colAcoes = h('div', { class: 'col-acoes' }, importBtn, csvBtn);
+  const secaoAdicionar = h('div', { id: 'col-adicionar' });
+  function abreAdicionar(aberto, { foco = false } = {}) {
+    if (state.adicionar !== aberto) { state.adicionar = aberto; paintAdd(); collection.savePrefs({ adicionar: aberto }).catch(() => { /* sem armazenamento: só nesta sessão */ }); }
+    if (aberto && foco) addIn.focus({ preventScroll: true });
+  }
+  function paintAdd() {
+    // D4 + leva 149 · na coleção vazia, "Pelo nome" mostra o bloco já aberto, sem mexer na preferência guardada
+    const aberto = state.adicionar || secaoAdicionar.dataset.aberta === 'true';
+    mount(secaoAdicionar, Expansivel({ titulo: 'Adicionar carta', icone: 'cartaMais', aberto, id: 'col-add-bloco', toggleId: 'col-add-toggle', onToggle: () => { delete secaoAdicionar.dataset.aberta; if (state.adicionar === !aberto) paintAdd(); else abreAdicionar(!aberto, { foco: true }); } },
+      Field('Nome da carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
+      colAcoes));
+  }
+  paintAdd();
+  const acoesLista = h('div', { class: 'col-acoes', id: 'col-acoes-lista' },
+    Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
+    Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() }),
+    csvInput, listInput);
   let root = null;
   /** D4 · coleção vazia: título e cartão de primeiro uso; botões do título, filtro e seção de adicionar saem (voltam com a primeira carta ou por "Pelo nome"). */
   function pintaVazia(vazia) {
     if (root) root.dataset.vazia = String(vazia);
     csvBtn.classList.toggle('ds-btn--ghost', vazia);
-    if (!vazia) { if (importBtn.parentElement !== colAcoes) colAcoes.prepend(importBtn, csvBtn); delete secaoAdicionar.dataset.aberta; }
+    if (!vazia) { if (importBtn.parentElement !== colAcoes) colAcoes.prepend(importBtn, csvBtn); if (secaoAdicionar.dataset.aberta) { delete secaoAdicionar.dataset.aberta; paintAdd(); } }
   }
   load();
   root = Stack({ ...pad(), class: 'ds-wrap col-root' },
     Row({ class: 'col-topo' }, Stack({ style: { gap: 'var(--space-1)', minWidth: '0' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
       IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }),
-      // Leva 113 · adicionar carta foi para o fim da página: o atalho leva até lá
-      IconButton('mais', 'Adicionar carta (fim da página)', { id: 'col-ir-adicionar', onClick: () => { secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
+      // Leva 149 · o atalho abre o bloco de adicionar (logo abaixo do painel) e põe o foco no campo
+      IconButton('mais', 'Adicionar carta', { id: 'col-ir-adicionar', onClick: () => { abreAdicionar(true); secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
       Button('Escanear', { variant: 'primary', id: 'col-scan', icone: 'scanner', onClick: () => go('/scanner') })),
-    // Leva 113 · ordem pedida: painel primeiro, depois filtro e visões da coleção; adicionar carta e backup no fim
+    // Leva 149 · ordem pedida: painel, adicionar carta, depois filtro e visões da coleção; ações da lista e backup no fim
     dashboard,
+    secaoAdicionar,
     undoBar, pendingBox,
     Row({ class: 'ds-row--wrap col-filtro' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn),
     toolbar, viewsRow, countLine, listEl, selectionBar,
-    secaoAdicionar,
+    acoesLista,
     care);
   return root;
 }
@@ -13532,9 +13679,10 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     state.mine = all[0].id; state.theirs = all[0].id;
     const byId = id => all.find(d => d.id === id);
     // A12 · modo de jogo: filtra as listas pelo formato, e o formato da partida vem da sua lista
-    const FORMAT_KEYS = ['pauper', 'commander', 'livre'].filter(k => all.some(d => d.format === k));
-    state.format = 'all';
-    const visiveis = () => all.filter(d => state.format === 'all' || d.format === state.format);
+    // Leva 149 · sem "Todos": a partida sempre tem um formato. Começa no formato da primeira lista da estante.
+    const FORMAT_KEYS = [...new Set(['pauper', 'commander', 'livre', ...all.map(d => d.format)])].filter(k => all.some(d => d.format === k));
+    state.format = all[0].format;
+    const visiveis = () => all.filter(d => d.format === state.format);
     // E50 P5 · o rótulo diz quantas cartas entram no grimório; a reserva fica de fora e é dita à parte
     const contaDeck = d => { let main = 0, side = 0; for (const e of d.entries) { if (e.zone === 'side') side += e.qty; else main += e.qty; } return { main, side }; };
     const optsDe = lista => lista.map(d => { const c = contaDeck(d); return { value: d.id, label: `${d.name} · ${FORMATS[d.format] || d.format} · ${c.main} cartas${c.side ? ` (+${c.side} na reserva)` : ''}` }; });
@@ -13557,7 +13705,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     const formatBox = h('div', { id: 'mesa-format' });
     function paintFormat() {
       mount(formatBox, Row({ class: 'ds-row--wrap' },
-        ...[['all', 'Todos'], ...FORMAT_KEYS.map(k => [k, FORMATS[k] || k])].map(([k, label]) => {
+        ...FORMAT_KEYS.map(k => [k, FORMATS[k] || k]).map(([k, label]) => {
           const c = Chip(label, { pressed: state.format === k, dataset: { tableFormat: k } });
           c.addEventListener('click', () => {
             if (state.format === k) return;

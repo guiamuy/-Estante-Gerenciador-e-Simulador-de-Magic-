@@ -2440,6 +2440,10 @@ test('e2e · HOMOLOGAÇÃO 4 · H7 desfazer a importação mantém o que você m
   await page.fill('#col-import-text', '3 Island\n1 Counterspel\n1 Xyzzy');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run');
   await page.dblclick('#col-import-run');                                       // H8 · toque duplo
+  // leva 149 · com "Adicionar carta" acima da lista, o segundo toque do toque duplo cai no seletor de visão (antes caía
+  // numa área sem efeito). A garantia da H8 é a mesma (não importa duas vezes); a leitura volta para a visão em lista.
+  await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' }); await page.click('[data-visao="lista"]');
+  await page.waitForSelector('.col-row[data-name="Island"]');
   await page.waitForFunction(() => /5/.test(document.querySelector('.col-row[data-name="Island"] .col-row__n').innerText));
   await page.waitForTimeout(300);
   assert.equal(await page.innerText('.col-row[data-name="Island"] .col-row__n'), '5', 'somou uma vez só');
@@ -3838,15 +3842,16 @@ test('e2e · leva 113 modo único: lista 100% joga no motor completo; lista com 
   assert.deepEqual(errors, []);
 });
 
-test('e2e · leva 113 coleção: painel primeiro, depois as visões; adicionar carta e backup no fim', { skip }, async t => {
+test('e2e · leva 113/134 coleção: painel primeiro, adicionar carta logo abaixo, depois as visões; backup no fim', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio, #col-add');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio'); // U17 · o campo vem antes na página e fica escondido na coleção vazia: espera o cartão
   await digitaCarta(page, 'Sol Ring'); await page.click('#col-add-btn');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
   const ordem = await page.evaluate(() => { const y = sel => { const el = document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().top + scrollY) : null; };
     return { painel: y('#col-dashboard'), filtro: y('#col-filter'), visoes: y('#col-views'), lista: y('.col-row'), adicionar: y('#col-adicionar'), backup: y('#col-backup') }; });
   assert.ok(ordem.painel < ordem.filtro && ordem.filtro < ordem.lista, 'painel antes do filtro e da lista: ' + JSON.stringify(ordem));
-  assert.ok(ordem.lista < ordem.adicionar, 'adicionar carta depois da lista: ' + JSON.stringify(ordem));
+  // leva 149 · adicionar carta voltou para cima, logo abaixo do painel
+  assert.ok(ordem.painel < ordem.adicionar && ordem.adicionar < ordem.filtro, 'adicionar carta entre o painel e o filtro: ' + JSON.stringify(ordem));
   assert.ok(ordem.backup == null || ordem.backup > ordem.adicionar, 'aviso de backup no fim: ' + JSON.stringify(ordem));
   assert.ok(ordem.backup != null, 'com carta e sem backup, o aviso aparece');
   // o atalho do topo leva até o campo
@@ -4602,6 +4607,7 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   assert.equal(await page.locator('#perfil-salvar').isDisabled(), true, 'nada mudou ainda');
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário na tela');
   await page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64') });
+  await page.click('#perfil-foto-usar'); // leva 149 · a foto passa pelo enquadramento antes de entrar
   await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
   const foto = await page.$eval('.perfil-avatar img', i => ({ src: i.src.slice(0, 22), w: i.naturalWidth, h: i.naturalHeight }));
   assert.equal(foto.src, 'data:image/jpeg;base64'); assert.equal(foto.w, 192); assert.equal(foto.h, 192, 'quadrado central reduzido a 192 px');
@@ -4635,6 +4641,7 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   // foto do perfil no círculo da faixa de vez quando o turno é seu
   await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
   await page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64') });
+  await page.click('#perfil-foto-usar'); // leva 149 · a foto passa pelo enquadramento antes de entrar
   await page.waitForSelector('.perfil-avatar[data-tipo="foto"]'); await page.click('#perfil-salvar'); await page.waitForTimeout(200);
   await page.goto(base + '#/partida'); await page.waitForSelector('#tb-vez'); await page.waitForTimeout(400);
   const vez = await page.$eval('#tb-vez', el => ({ papel: el.dataset.papel, foto: el.querySelector('.tb-vez__avatar').dataset.foto, img: !!el.querySelector('.tb-vez__avatar img') }));
@@ -5711,5 +5718,166 @@ test('e2e · D4b apresentação de primeira abertura: três passos com Pular, ap
   await page.click('#apresentacao-proximo'); await page.click('#apresentacao-proximo'); await page.waitForSelector('#apresentacao-perfil');
   await page.click('#apresentacao-perfil'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
   assert.match(page.url(), /#\/perfil$/);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- Leva 149 · blocos expansíveis da coleção, formato obrigatório em Jogar, enquadrar a foto ---------------- */
+const MEDIDAS_149 = [[360, 780], [384, 832], [390, 844], [412, 891]];
+async function emTodasAsMedidas(page, nome) {
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
+    for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `${nome} ${w} ${tema}`); }
+  }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+}
+
+test('e2e · leva 149 coleção: painel e adicionar carta são blocos expansíveis com ícone; fechar fica lembrado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  // D4 + leva 149 · coleção vazia: "Pelo nome" mostra o bloco já aberto, sem as ações de importar (elas moram no cartão)
+  assert.equal(await page.locator('#col-add-bloco').isVisible(), false, 'vazia, o bloco de adicionar não aparece');
+  assert.equal(await page.locator('#col-acoes-lista').isVisible(), false, 'vazia, exportar e selecionar não aparecem');
+  await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add');
+  assert.equal(await page.getAttribute('#col-add-toggle', 'aria-expanded'), 'true');
+  await auditaTela(page, 'coleção vazia com adicionar aberto');
+  await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  // cada bloco: cabeçalho-botão de pelo menos 44 px na largura toda, com o ícone do conceito e a seta
+  for (const [toggle, icone, titulo] of [['#col-dash-toggle', 'painel', 'Painel'], ['#col-add-toggle', 'cartaMais', 'Adicionar carta']]) {
+    const c = await page.$eval(toggle, el => ({ h: el.getBoundingClientRect().height, w: el.getBoundingClientRect().width, pai: el.parentElement.getBoundingClientRect().width, aberto: el.getAttribute('aria-expanded'),
+      icones: [...el.querySelectorAll('.ds-icon')].map(i => i.dataset.icone), svg: el.querySelectorAll('svg').length, titulo: el.querySelector('.ds-expansivel__titulo').textContent, texto: el.textContent }));
+    assert.ok(c.h >= 44, toggle + ' alto o bastante: ' + c.h); assert.ok(c.w >= c.pai - 2, toggle + ' ocupa a largura do bloco');
+    assert.deepEqual(c.icones, [icone, 'descer']); assert.equal(c.svg, 2, 'ícones desenhados, nada de emoji');
+    assert.equal(c.titulo, titulo); assert.equal(c.aberto, 'true', 'abertos por padrão');
+    assert.doesNotMatch(c.texto, /\p{Extended_Pictographic}/u, 'sem emoji no cabeçalho');
+  }
+  // ordem: painel, adicionar carta, filtro, lista; exportar e selecionar depois da lista
+  const y = sel => page.$eval(sel, el => Math.round(el.getBoundingClientRect().top + scrollY));
+  const ordem = { painel: await y('#col-dash-bloco'), adicionar: await y('#col-add-bloco'), filtro: await y('#col-filter'), lista: await y('.col-row'), acoes: await y('#col-acoes-lista') };
+  assert.ok(ordem.painel < ordem.adicionar && ordem.adicionar < ordem.filtro && ordem.filtro < ordem.lista && ordem.lista < ordem.acoes, JSON.stringify(ordem));
+  for (const id of ['#col-import', '#col-csv-import']) assert.equal(await page.locator('#col-add-bloco ' + id).count(), 1, id + ' dentro de adicionar carta');
+  for (const id of ['#col-export', '#col-select']) assert.equal(await page.locator('#col-acoes-lista ' + id).count(), 1, id + ' junto da lista');
+  await emTodasAsMedidas(page, 'coleção com os dois blocos abertos');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/colecao-140-abertos.png', fullPage: true });
+  // fechar os dois: sobra o cabeçalho; o painel fechado resume o recorte; a lista sobe
+  const antes = await y('.col-row');
+  await page.click('#col-add-toggle'); await page.waitForFunction(() => !document.querySelector('#col-add'));
+  await page.click('#col-dash-toggle'); await page.waitForFunction(() => !document.querySelector('#col-dash-cartas'));
+  assert.equal(await page.getAttribute('#col-add-toggle', 'aria-expanded'), 'false');
+  assert.match(await page.innerText('#col-dash-toggle'), /1 cartas · 1 cópias/, 'fechado, o painel diz os números');
+  const depois = await y('.col-row');
+  assert.ok(antes - depois > 300, `a lista sobe com os blocos fechados: ${antes} → ${depois}`);
+  for (const id of ['#col-dash-bloco', '#col-add-bloco']) { const hh = await page.$eval(id, el => el.getBoundingClientRect().height); assert.ok(hh <= 64, id + ' fechado ocupa só o cabeçalho: ' + hh); }
+  await emTodasAsMedidas(page, 'coleção com os dois blocos fechados');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/colecao-140-fechados.png', fullPage: true });
+  // lembrado por aparelho
+  await page.goto(base + '#/listas'); await page.goto(base + '#/colecao'); await page.waitForSelector('#col-add-toggle');
+  await page.waitForFunction(() => document.querySelector('#col-add-toggle').getAttribute('aria-expanded') === 'false');
+  assert.equal(await page.locator('#col-add').count(), 0, 'adicionar carta continua fechado');
+  assert.equal(await page.locator('#col-dash-cartas').count(), 0, 'painel continua fechado');
+  // o atalho "+" do topo abre o bloco e põe o foco no campo; abrir pelo cabeçalho também foca
+  await page.click('#col-ir-adicionar');
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add');
+  assert.equal(await page.getAttribute('#col-add-toggle', 'aria-expanded'), 'true');
+  await page.click('#col-add-toggle'); await page.click('#col-add-toggle');
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add');
+  await page.fill('#col-add', 'Counterspell'); await page.keyboard.press('Enter'); await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  // catálogo do design system: o componente e os ícones novos estão lá, nos dois temas
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-expansivel-toggle');
+  for (const n of ['painel', 'cartaMais']) assert.equal(await page.locator(`#ds-icones [data-icone="${n}"]`).count(), 1, 'ícone no catálogo: ' + n);
+  await page.click('#ds-expansivel-toggle'); assert.equal(await page.getAttribute('#ds-expansivel-toggle', 'aria-expanded'), 'false');
+  assert.ok((await page.$eval('#ds-range', el => el.getBoundingClientRect().height)) >= 44);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 149 Jogar: não existe "Todos"; sempre há um formato escolhido e as listas são só as dele', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await createDeck(page, base, 'Mesa de Comandante', PAUPER, 'commander');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-format .ds-chip');
+  const chips = () => page.$$eval('#mesa-format .ds-chip', els => els.map(el => ({ k: el.dataset.tableFormat, texto: el.textContent.trim(), ligado: el.getAttribute('aria-pressed') })));
+  let c = await chips();
+  assert.deepEqual(c.map(x => x.k), ['pauper', 'commander'], 'só os formatos que têm lista');
+  assert.ok(!c.some(x => /todos/i.test(x.texto) || x.k === 'all'), 'sem a opção "Todos"');
+  assert.equal(c.filter(x => x.ligado === 'true').length, 1, 'um formato já vem escolhido');
+  const inicial = c.find(x => x.ligado === 'true').k;
+  const doFormato = async k => { await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista'); const f = await page.$$eval('.deck-picker__lista .ds-badge, .deck-picker__lista [data-deck-id]', els => els.filter(e => e.dataset.deckId).length); const txt = await page.innerText('.deck-picker__lista'); await page.keyboard.press('Escape'); return { f, txt }; };
+  let l = await doFormato(inicial);
+  assert.equal(l.f, 1, 'só a lista do formato escolhido aparece para escolher');
+  // tocar no formato ligado não desliga: não há estado "sem formato"
+  await page.click(`[data-table-format="${inicial}"]`);
+  c = await chips(); assert.equal(c.find(x => x.k === inicial).ligado, 'true');
+  // trocar de formato troca a lista
+  const outro = inicial === 'pauper' ? 'commander' : 'pauper';
+  await page.click(`[data-table-format="${outro}"]`);
+  c = await chips(); assert.deepEqual(c.filter(x => x.ligado === 'true').map(x => x.k), [outro]);
+  l = await doFormato(outro); assert.equal(l.f, 1);
+  assert.match(l.txt, outro === 'pauper' ? /Delver/ : /Mesa de Comandante/);
+  await emTodasAsMedidas(page, 'jogar sem "Todos"');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 149 perfil: enquadrar a foto arrastando e aproximando; sem o texto "Na mesa"', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
+  await page.fill('#perfil-nome', 'Guilherme');
+  assert.doesNotMatch(await page.innerText('main, body'), /Na mesa:/, 'o texto "Na mesa: nome" saiu');
+  // foto 64×48 (paisagem): metade esquerda vermelha, metade direita azul, feita na hora
+  const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 64; c.height = 48; const x = c.getContext('2d'); x.fillStyle = '#c00'; x.fillRect(0, 0, 32, 48); x.fillStyle = '#00c'; x.fillRect(32, 0, 32, 48); return c.toDataURL('image/png').split(',')[1]; });
+  const sobe = () => page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  const corDoAvatar = () => page.$eval('.perfil-avatar img', async img => { await img.decode(); const c = document.createElement('canvas'); c.width = c.height = 8; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 8, 8);
+    const p = (px, py) => { const d = x.getImageData(px, py, 1, 1).data; return d[0] > d[2] ? 'vermelho' : 'azul'; }; return { esq: p(1, 4), dir: p(6, 4), w: img.naturalWidth, h: img.naturalHeight }; });
+  await sobe(); await page.waitForSelector('#perfil-foto-palco');
+  assert.equal(await page.locator('.perfil-avatar[data-tipo="foto"]').count(), 0, 'a foto só entra depois de confirmar');
+  const palco = await page.locator('#perfil-foto-palco').boundingBox();
+  assert.ok(Math.abs(palco.width - palco.height) < 1 && palco.width >= 240, 'palco quadrado e grande: ' + JSON.stringify(palco));
+  assert.ok(palco.x >= 0 && palco.x + palco.width <= 360, 'cabe na tela');
+  const q = () => page.$eval('#perfil-foto-palco', el => ({ zoom: +el.dataset.zoom, cx: +el.dataset.cx, cy: +el.dataset.cy }));
+  await page.waitForFunction(() => document.querySelector('#perfil-foto-palco').dataset.zoom);
+  assert.deepEqual(await q(), { zoom: 1, cx: 32, cy: 24 }, 'começa no recorte central');
+  await emTodasAsMedidas(page, 'enquadrar foto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/perfil-140-enquadrar.png' });
+  // sem ajuste, "Usar foto" dá o quadrado central: vermelho à esquerda, azul à direita
+  await page.click('#perfil-foto-usar'); await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
+  assert.deepEqual(await corDoAvatar(), { esq: 'vermelho', dir: 'azul', w: 192, h: 192 });
+  // arrastar para a direita mostra o lado esquerdo da foto: o avatar fica todo vermelho
+  await sobe(); await page.waitForSelector('#perfil-foto-palco'); await page.waitForFunction(() => document.querySelector('#perfil-foto-palco').dataset.zoom);
+  const b = await page.locator('#perfil-foto-palco').boundingBox(); const mx = b.x + b.width / 2, my = b.y + b.height / 2;
+  // aproximar: barra, botões e roda do mouse
+  await page.click('#perfil-foto-mais'); await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.zoom === 1.25);
+  assert.equal(await page.inputValue('#perfil-foto-zoom'), '125', 'a barra acompanha');
+  await page.fill('#perfil-foto-zoom', '200').catch(async () => { await page.$eval('#perfil-foto-zoom', el => { el.value = '200'; el.dispatchEvent(new Event('input', { bubbles: true })); }); });
+  await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.zoom === 2);
+  await page.mouse.move(mx, my); await page.mouse.wheel(0, -120);
+  await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.zoom > 2);
+  await page.$eval('#perfil-foto-zoom', el => { el.value = '200'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.zoom === 2);
+  // arrastar: a foto segue o ponteiro e para na borda
+  await page.mouse.move(mx, my); await page.mouse.down();
+  assert.equal(await page.getAttribute('#perfil-foto-palco', 'data-arrastando'), 'true', 'retorno imediato ao pegar');
+  await page.mouse.move(mx + 40, my, { steps: 4 });
+  await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.cx < 32);
+  await page.mouse.move(mx + 900, my + 900, { steps: 6 }); await page.mouse.up();
+  await page.waitForFunction(() => document.querySelector('#perfil-foto-palco').dataset.arrastando === 'false');
+  await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.cx === 12 && +document.querySelector('#perfil-foto-palco').dataset.cy === 12);
+  assert.deepEqual(await q(), { zoom: 2, cx: 12, cy: 12 }, 'encosta no canto e não passa');
+  // teclado: as setas movem
+  await page.focus('#perfil-foto-palco'); await page.keyboard.press('ArrowLeft');
+  await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.cx > 12);
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => +document.querySelector('#perfil-foto-palco').dataset.cx === 12);
+  await page.click('#perfil-foto-usar'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
+  assert.deepEqual(await corDoAvatar(), { esq: 'vermelho', dir: 'vermelho', w: 192, h: 192 }, 'o recorte é o que o círculo mostrava');
+  // cancelar não troca a foto
+  const antes = await page.$eval('.perfil-avatar img', i => i.src);
+  await sobe(); await page.waitForSelector('#perfil-foto-palco'); await page.keyboard.press('Escape');
+  assert.equal(await page.$eval('.perfil-avatar img', i => i.src), antes);
+  // salvar guarda a foto enquadrada
+  await page.click('#perfil-salvar'); await page.waitForSelector('#ds-toast[data-open="true"]');
+  await page.reload(); await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
+  assert.deepEqual(await corDoAvatar(), { esq: 'vermelho', dir: 'vermelho', w: 192, h: 192 });
+  await emTodasAsMedidas(page, 'perfil sem "Na mesa"');
   assert.deepEqual(errors, []);
 });
