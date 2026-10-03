@@ -139,8 +139,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R0 sonda de alcance e registro por carta · Highway Robbery revisada (leva 121) | 🟡 |
 | R · Revisão carta a carta | R1 Axebane Guardian: mana em qualquer combinação de cores — **as sete listas Pauper em 100%** (leva 122) | 🟡 |
 | R · Revisão carta a carta | R2 Rakdos Madness carta a carta: 21 cartas revisadas, pagamento sem toque à toa, decisões legíveis (leva 125, **motor v65**) | 🟡 |
-| R · Revisão carta a carta | R3 Mono Blue Faeries, carta a carta | ▶ |
-| R · Revisão carta a carta | R4–R8 as outras cinco listas Pauper, carta a carta · R9 homologação independente | ○ |
+| R · Revisão carta a carta | R3 Mono Blue Faeries carta a carta: 17 cartas revisadas, alvo sem ambiguidade e pelo toque na carta, Sewer-veillance Cam pela regra (leva 131, **motor v66**) | 🟡 |
+| R · Revisão carta a carta | R4 Elves, carta a carta | ▶ |
+| R · Revisão carta a carta | R5–R8 as outras quatro listas Pauper, carta a carta · R9 homologação independente | ○ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
@@ -375,6 +376,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
 | 16º-n 🟡 | Rakdos Madness carta a carta: pagamento automático sem virar terreno à toa (motor v65), decisões escritas na bandeja, escolha tocando na carta (leva 125) | R2 | 1 | teste no aparelho; partidas salvas da v64 não abrem |
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
+| 16º-x 🟡 | Mono Blue Faeries carta a carta: escolha de alvo sem nome repetido e tocando na carta, Sewer-veillance Cam pela regra (motor v66), ninjutsu e desconto escritos na folha (leva 131) | R3 | 1 | teste no aparelho; partidas salvas da v65 não abrem |
 | 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
 | 16º-q ✅ | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1, leva 128) | E47 | 1 | — |
@@ -2320,7 +2322,26 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Sem rede:** tudo local.
 - **Fora:** o Shark não foi medido em torneio depois da correção do pagamento (ele só ganha: deixa de desperdiçar mana com listas de duas cores); a prévia de ataque e bloqueio continua no balão; partida guiada da lista pela tela fica para a homologação (R9).
 
-**R3 a R8 · As outras seis listas Pauper, carta a carta** ▶ (R3 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (16: ninjutsu, anular com condição, modos por cor) · R4 Elves (23: mana de criatura, metamorfose, contagem do campo) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
+**R3 · Mono Blue Faeries, carta a carta** 🟡 (leva 131, **motor v66**; falta o teste no aparelho)
+- **Valor:** cada carta da lista faz o que o texto oficial diz e a tela deixa escolher o alvo certo sem adivinhar. É a lista que mais mira coisas (anulações, gatilhos com alvo, auras), então o ganho principal é a escolha de alvo, que vale para todas as listas.
+- **Aceite:** as 17 cartas com ficha `revisada` em `.listas/revisao.json` (texto de `.listas/oficiais.json`, consultas de 30/09/2026); regra conferida com a lista real; as jogadas-chave feitas pela tela em 360×780 com `auditaTela`.
+- **Regra corrigida (muda resultado de partida):** **Sewer-veillance Cam** — "you may tap or untap target creature". A criatura é **alvo**, escolhido quando o gatilho vai à pilha; virar, desvirar ou nada é escolha da **resolução** (primitiva nova `tap_or_untap`). Antes a mesa perguntava "virar ou desvirar" antes do alvo, perguntava mesmo sem criatura em campo e eram três toques. As outras 16 cartas estavam certas no motor.
+- **Tela corrigida:**
+  - **Alvo de gatilho:** só os seis primeiros alvos tinham botão (o sétimo não podia ser escolhido) e cópias iguais repetiam o nome. Agora um botão por alvo diferente, "Mais alvos" abre a lista por dono quando passa de quatro, as cartas que podem ser alvo ficam marcadas na mesa e **tocar na carta escolhe**.
+  - **Mesmo nome dos dois lados (espelho):** "→ Faerie Seer" era um botão só e mirava a primeira. Agora "Faerie Seer (você)" e "Faerie Seer (oponente)"; do mesmo dono, "(virada)"/"(desvirada)" quando isso separa.
+  - **Alvo sem efeito:** Hydroblast sem nada vermelho oferecia em dourado "Destruir… → Island". O alvo em que "se for vermelha" não faz nada sai da frente e fica num botão discreto que abre a lista (o motor continua aceitando, como manda o texto).
+  - **Muitos alvos na folha:** mais de quatro alvos para a mesma ação viram um botão "· N alvos" que abre a lista por dono.
+  - **Ninjutsu:** "Ninjutsu · {U} → devolve Faerie Seer"; fora do combate aparece apagado com o motivo.
+  - **Custo cobrado:** Of One Mind com o desconto valendo dizia {2}{U}; agora "Conjurar · {U} (com desconto)" (vale para afinidade também).
+  - **Condição no aviso:** o gatilho do Moon-Circuit Hacker dizia "descarta 1 carta" no turno em que ele entra; agora "(só se ela não entrou neste turno)".
+  - **Textos:** "Scry" virou "Vidência"; Relic of Progenitus mostra "Ativar ({1}, exilar esta)".
+- **Expectativas alteradas (com motivo):** e2e "Leva 121 · gatilho com modos" esperava o modo antes do alvo e os botões "Virar uma criatura"/"Desvirar uma criatura": passou a esperar alvo, depois Virar, Desvirar e Nada (regra acima). Um e2e antigo conferia a palavra "Scry" no aviso: passou a conferir "Vidência" (texto de interface em português).
+- **Testes:** `faeries.regras` (12: 9 de regra com a lista real, 3 do modelo da tela — rótulos de alvo, alvo sem efeito e folha enxuta, condição no aviso); e2e Leva 131 (5: vidência/alvo/Cam, ninjutsu, Hydroblast/Relic/Sprite, desconto/Miscreant/Intruder, Counterspell/Dispel/Cryoshatter).
+- **Versão e goldens:** **motor v66**. O gatilho da Cam passa por outra sequência de decisões, então um registro antigo com a carta daria outro estado. Os quatro goldens foram regravados **só pela versão** (uma linha em cada; nenhum usa a Cam). **Partida salva na v65 não abre.**
+- **Cobertura de tela declarada:** Blue Elemental Blast, Steel Sabotage, Annul e Ninja of the Deep Hours não têm teste de tela próprio: usam o mesmo caminho de Counterspell/Hydroblast e do Moon-Circuit Hacker. A habilidade {2}{U} da Harrier Strix também não. Contra o Goldfish não há mágica do oponente na pilha: as anulações foram feitas pela tela em mágicas próprias e, contra o oponente, nos testes de regra.
+- **Fora:** gatilho que sai da pilha por falta de alvo não avisa na tela (só no registro); o Shark escolhe o primeiro alvo e "Virar" no gatilho da Cam sem olhar de quem é a criatura (trilha bot); a condição no aviso cobre só "não entrou neste turno" (as outras duas condições do dicionário ficam para a lista que as usa); partida guiada inteira da lista fica para a homologação (R9).
+
+**R4 a R8 · As outras cinco listas Pauper, carta a carta** ▶ (R4 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (feita, leva 131) · R4 Elves (23: mana de criatura, metamorfose, contagem do campo) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
 - **Aceite de cada uma:** todas as cartas da lista com ficha `revisada` ou com a pendência escrita; uma partida guiada da lista pela tela (as jogadas-chave do baralho) no e2e; captura das decisões novas; a sonda R0 com mais uma semente para a lista.
 - **Estimativa:** 7 a 8 levas. Apoio: a auditoria de texto fez 111 cartas numa leva (105), mas sem tela; mecânica nova rendeu de 4 a 6 cartas por leva; aqui o motor já está auditado e o trabalho é de tela, com 17 a 24 cartas por lista e muita mecânica repetida entre listas (14 auras, 8 lampejos, 7 modais).
 

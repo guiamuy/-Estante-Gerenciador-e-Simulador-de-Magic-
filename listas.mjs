@@ -13,7 +13,9 @@ export const palavrasDoTexto = t => [...new Set(String(t || '').split('\n').flat
   return ps.every(x => PALAVRAS.some(k => k.toLowerCase() === x.toLowerCase())) ? ps.map(x => PALAVRAS.find(k => k.toLowerCase() === x.toLowerCase())) : []; }))];
 const cores = c => [...new Set((c || '').match(/[WUBRG]/g) || [])];
 export const CARDS = {};
-for (const c of oficiais) CARDS[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost || '', cmc: 2, keywords: palavrasDoTexto(c.oracle_text), oracle_text: c.oracle_text || '', colors: cores(c.mana_cost), ...(c.power != null ? { power: String(c.power), toughness: String(c.toughness) } : {}) };
+/** Valor de mana a partir do custo impresso ({2}{U}{U} = 4; {X} conta 0), como a Scryfall manda em `cmc`. */
+export const valorDeMana = custo => [...String(custo || '').matchAll(/\{([^}]+)\}/g)].reduce((n, [, x]) => n + (/^\d+$/.test(x) ? +x : x === 'X' ? 0 : 1), 0);
+for (const c of oficiais) CARDS[c.name] = { name: c.name, type_line: c.type_line, mana_cost: c.mana_cost || '', cmc: valorDeMana(c.mana_cost), keywords: palavrasDoTexto(c.oracle_text), oracle_text: c.oracle_text || '', colors: cores(c.mana_cost), ...(c.power != null ? { power: String(c.power), toughness: String(c.toughness) } : {}) };
 for (const [n, k] of Object.entries({ Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' })) CARDS[n] = { name: n, type_line: `Basic Land — ${n}`, mana_cost: '', cmc: 0, keywords: [], oracle_text: `({T}: Add {${k}}.)`, colors: [] };
 export const deck = nome => Object.entries(decks[nome]).map(([name, qty]) => ({ name, qty, zone: 'main' }));
 export const act = (s, a) => E.apply(s, a).state;
@@ -27,6 +29,8 @@ export function passaAte(s, fim, max = 400) {
   return s;
 }
 export const resolve = s => passaAte(s, x => !x.stack.length || !!x.pending);
+/** Resolve só o topo da pilha (os dois passam uma vez): para olhar o gatilho que a mágica deixou na pilha. */
+export const resolveUm = s => { const topo = s.stack[s.stack.length - 1]; return passaAte(s, x => !x.stack.includes(topo) || !!x.pending); };
 /** Partida no modo único, parada na primeira fase principal do jogador A (a lista em teste). `terrenos`: nomes postos em campo para o jogador A. */
 export function jogo({ lista, oponente = 'Pauper Mono Blue Faeries', seed = 1, terrenos = [], terrenosDoOponente = [] } = {}) {
   let s = E.createGame({ format: 'livre', seed, mode: 'full', cards: CARDS, players: [{ name: 'A', deck: deck(lista) }, { name: 'B', deck: deck(oponente) }] });

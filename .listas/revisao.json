@@ -2,7 +2,7 @@
  "sobre": "Épico R (ROADMAP): ficha de revisão por carta. status: pendente · em-revisao · revisada. motor/tela/bot: null (não conferido) ou { ok, leva, obs }. Gerado e mantido por .listas/revisar.mjs.",
  "cartas": {
   "Brinebarrow Intruder": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -10,10 +10,24 @@
     "fonte": "https://casualplaneswalker.com/card/brinebarrow-intruder/faq",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: lampejo; -2/-0 até o fim do turno só em criatura de oponente; sem alvo, o gatilho sai da pilha."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: sem criatura do oponente a mesa não pergunta nada; com alvo, usa a escolha de alvo do gatilho (mesmo aviso da Harrier Strix)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Brinebarrow Intruder",
+    "e2e: Leva 131 · Faeries: Of One Mind mostra o custo"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -29,7 +43,7 @@
    }
   },
   "Faerie Miscreant": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -37,10 +51,24 @@
     "fonte": "https://scryfall.com/card/ori/57/faerie-miscreant",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: voar; compra só com outra Faerie Miscreant sua em campo, conferido ao entrar e ao resolver (603.4)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: nenhuma pergunta; a compra aparece na mão."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Faerie Miscreant",
+    "e2e: Leva 131 · Faeries: Of One Mind mostra o custo"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -56,7 +84,7 @@
    }
   },
   "Faerie Seer": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -64,10 +92,24 @@
     "fonte": "https://casualplaneswalker.com/card/faerie-seer/faq",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: voar; vidência 2 ao entrar."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "corrigido: o aviso dizia \"Scry\"; agora \"Vidência: escolha o que fica no topo\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Faerie Seer vidência 2",
+    "e2e: Leva 131 · Faeries: vidência em português"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -83,7 +125,7 @@
    }
   },
   "Moon-Circuit Hacker": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -91,10 +133,24 @@
     "fonte": "https://casualplaneswalker.com/card/moon-circuit-hacker/faq",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: ninjutsu {U} só depois dos bloqueios, com atacante seu sem bloqueio; entra virado e atacando; ao causar dano de combate a jogador pode comprar e só descarta se não entrou neste turno."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "corrigido: a folha diz \"Ninjutsu · {U} → devolve <atacante>\" e, fora do combate, mostra o ninjutsu apagado com o motivo; o aviso do gatilho dizia \"descarta 1 carta\" no turno em que ela entrou e agora diz a condição."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: ninjutsu",
+    "e2e: Leva 131 · Faeries: ninjutsu aparece na folha"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -113,7 +169,7 @@
    }
   },
   "Ninja of the Deep Hours": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -121,10 +177,24 @@
     "fonte": "https://casualplaneswalker.com/card/ninja-of-the-deep-hours/",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: ninjutsu {1}{U}; ao causar dano de combate a jogador, pode comprar."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido pelo mesmo caminho de tela do Moon-Circuit Hacker (folha com ninjutsu e aviso do gatilho opcional); a folha apagada com o motivo foi vista no e2e."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: ninjutsu",
+    "e2e: Leva 131 · Faeries: ninjutsu aparece na folha"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -142,7 +212,7 @@
    }
   },
   "Spellstutter Sprite": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -150,10 +220,24 @@
     "fonte": "https://scryfall.com/card/lrw/89/spellstutter-sprite",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: lampejo, voar; anula mágica com valor de mana até o número de Fadas suas, contado ao mirar e de novo ao resolver; sem mágica elegível o gatilho sai."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: entra em resposta pela folha; com um alvo só a mesa não pergunta; com vários, aviso de alvo sem nome repetido. A carta de teste da tela usa valor de mana 2 (dado do teste), por isso o e2e usa duas Fadas."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Spellstutter Sprite",
+    "e2e: Leva 131 · Faeries: Hydroblast sem nada vermelho"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -169,7 +253,7 @@
    }
   },
   "Harrier Strix": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -177,10 +261,24 @@
     "fonte": "https://scryfall.com/card/otj/52/harrier-strix",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: voar; ao entrar vira a permanente alvo (qualquer permanente, inclusive suas); {2}{U}: compra uma, descarta uma."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "corrigido: o aviso de alvo cortava no sexto botão (o sétimo alvo não podia ser escolhido) e repetia \"Island\" quatro vezes; agora um botão por alvo diferente, \"Mais alvos\" quando passa de quatro, e tocar na carta na mesa escolhe. A habilidade {2}{U} não tem teste de tela próprio (caminho de ativar + descarte já coberto na leva 125)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Faerie Seer vidência 2; Harrier Strix",
+    "e2e: Leva 131 · Faeries: vidência em português"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -198,7 +296,7 @@
    }
   },
   "Counterspell": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries",
     "Commander Malcolm Kediss"
@@ -207,10 +305,24 @@
     "fonte": "https://scryfall.com/card/5ed/77/counterspell",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: anula qualquer mágica."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: a folha diz \"Conjurar → <mágica> · {U}{U}\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: as anulações da lista",
+    "e2e: Leva 131 · Faeries: Counterspell diz qual mágica"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -224,7 +336,7 @@
    }
   },
   "Dispel": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries",
     "Commander Malcolm Kediss"
@@ -233,10 +345,24 @@
     "fonte": "https://scryfall.com/card/rtr/36/dispel",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: só mágica instantânea é alvo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: sem instantânea na pilha a folha mostra \"Conjurar · {U} — sem alvo válido agora\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: as anulações da lista",
+    "e2e: Leva 131 · Faeries: Counterspell diz qual mágica"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -250,7 +376,7 @@
    }
   },
   "Of One Mind": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -258,10 +384,24 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/o/of_one_mind.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: custa {2} a menos com uma criatura Humano e outra não Humano suas (duas criaturas diferentes); compra duas."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "corrigido: o botão dizia {2}{U} mesmo com o desconto valendo; agora \"Conjurar · {U} (com desconto)\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Of One Mind",
+    "e2e: Leva 131 · Faeries: Of One Mind mostra o custo"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -277,7 +417,7 @@
    }
   },
   "Cryoshatter": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -285,10 +425,25 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/c/cryoshatter.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: encantar criatura; -5/-0; destrói a criatura quando ela vira ou leva dano."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: folha \"Conjurar → <criatura> · {U}\"; em espelho, criaturas de mesmo nome dizem de quem são (antes eram um botão só, que mirava a primeira)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Of One Mind custa {U}",
+    "faeries.regras: alvos com o mesmo nome",
+    "e2e: Leva 131 · Faeries: Counterspell diz qual mágica"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -307,7 +462,7 @@
    }
   },
   "Sewer-veillance Cam": {
-   "status": "em-revisao",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -316,18 +471,23 @@
     "consulta": "2026-09-30"
    },
    "motor": {
-    "ok": null,
-    "obs": "gatilho com modos existe desde a S56; falta a ficha frase a frase (a ordem modo → alvo → \"may\" pede três toques; conferir se \"may\" pode ser a terceira opção da mesma pergunta)"
+    "ok": true,
+    "leva": 131,
+    "obs": "corrigido: \"you may tap or untap target creature\" — a criatura é alvo, escolhido quando o gatilho vai à pilha; virar, desvirar ou nada é escolha da resolução (primitiva tap_or_untap). Antes o modo vinha antes do alvo, a pergunta aparecia mesmo sem criatura em campo e eram três toques. Sai do campo: mesmo gatilho. {3}{U}, sacrificar: compra duas."
    },
    "tela": {
     "ok": true,
-    "leva": 122,
-    "obs": "corrigido: a escolha do modo não tinha aviso e a partida parava em Aguardando; agora a bandeja pergunta com um botão por modo."
+    "leva": 131,
+    "obs": "corrigido: a bandeja pergunta \"O que fazer com X? Ela está virada/desvirada.\" com Virar, Desvirar e Nada na mesma linha; o alvo pode ser tocado na mesa."
    },
-   "bot": null,
+   "bot": {
+    "ok": null,
+    "obs": "o Shark escolhe o primeiro alvo e \"Virar\" sem olhar de quem é a criatura (trilha bot)"
+   },
    "testes": [
-    "e2e: Leva 121 · gatilho com modos",
-    "tela.acoes.unit"
+    "faeries.regras: Sewer-veillance Cam",
+    "e2e: Leva 131 · Faeries: vidência em português",
+    "e2e: Leva 121 · gatilho com modos"
    ],
    "notas": [],
    "tracos": {
@@ -336,8 +496,7 @@
     "mecanicas": [],
     "efeitos": [
      "draw",
-     "tap",
-     "untap"
+     "tap_or_untap"
     ],
     "gatilhos": [
      "etb",
@@ -347,7 +506,7 @@
    }
   },
   "Hydroblast": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries",
     "Pauper Elves"
@@ -356,10 +515,25 @@
     "fonte": "https://scryfall.com/card/5ed/94/hydroblast",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: \"se for vermelha\" é conferido na resolução; o alvo pode ser qualquer mágica ou permanente (texto oficial), sem efeito se não for vermelha."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "corrigido: sem nada vermelho a folha oferecia em dourado \"Destruir… → Island\" (a própria Ilha); agora alvo sem efeito sai da frente e fica num botão discreto que abre a lista."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: as anulações da lista",
+    "faeries.regras: folha: alvo em que \"se for vermelha\"",
+    "e2e: Leva 131 · Faeries: Hydroblast sem nada vermelho"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -376,7 +550,7 @@
    }
   },
   "Steel Sabotage": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -384,10 +558,23 @@
     "fonte": "https://scryfall.com/card/mbs/33/steel-sabotage",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: anula mágica de artefato ou devolve artefato à mão do dono."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido pelo mesmo caminho de tela (folha \"modo → alvo\"); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: as anulações da lista"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -404,7 +591,7 @@
    }
   },
   "Annul": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -412,10 +599,23 @@
     "fonte": "https://scryfall.com/card/usg/59/annul",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: só mágica de artefato ou de encantamento é alvo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido pelo mesmo caminho de tela do Counterspell; sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: as anulações da lista"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -429,7 +629,7 @@
    }
   },
   "Blue Elemental Blast": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -437,10 +637,23 @@
     "fonte": "https://scryfall.com/card/a25/43/blue-elemental-blast",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: só mágica vermelha ou permanente vermelha é alvo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido pelo mesmo caminho de tela do Counterspell/Hydroblast (folha \"modo → alvo\"); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: as anulações da lista"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -457,7 +670,7 @@
    }
   },
   "Relic of Progenitus": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Mono Blue Faeries"
    ],
@@ -465,10 +678,24 @@
     "fonte": "https://scryfall.com/card/ala/218/relic-of-progenitus",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 131,
+    "obs": "conferido: {T}: o jogador alvo escolhe e exila uma carta do próprio cemitério; {1}, exilar a relíquia: exila todos os cemitérios e compra."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 131,
+    "obs": "corrigido: a folha mostrava \"Ativar ({1})\" sem dizer que a relíquia é exilada; agora \"Ativar ({1}, exilar esta)\". Alvo por jogador: \"→ Você\" e \"→ <oponente>\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "faeries.regras: Relic of Progenitus",
+    "e2e: Leva 131 · Faeries: Hydroblast sem nada vermelho"
+   ],
    "notas": [],
    "tracos": {
     "script": true,

@@ -1285,6 +1285,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .tb-troca .ds-chip:disabled { opacity: .45; }
 .tb-troca .tb-row { padding-top: var(--space-3); }
 .tb-modo__lista { display: flex; flex-direction: column; gap: var(--space-2); }
+.tb-modo__linha { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--space-2); }
 /* Leva 104 · seletor de X */
 .tb-x { align-items: stretch; }
 .tb-x__linha { justify-content: center; align-items: center; gap: var(--space-4); }
@@ -3400,6 +3401,9 @@ const EFFECTS = {
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   tap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent', 'permanent-opponent-controls'] },
   untap: { fields: [], targets: ['self-source', 'enchanted', 'creature', 'permanent'] },
+  // Leva 131 · "tap or untap target creature" (Sewer-veillance Cam): o alvo é da pilha, virar ou desvirar se escolhe na resolução;
+  // com `optional` ("you may"), recusar é a terceira saída da mesma pergunta
+  tap_or_untap: { fields: [], targets: ['creature', 'permanent'] },
   exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all'] },
   // S37 · o oponente revela a mão e você escolhe o que ele descarta
   discard_chosen: { fields: ['amount'], targets: ['opponent', 'player'] },
@@ -3724,6 +3728,7 @@ function effectErrors(effects, label, opcional) {
     if (!spec) return errs.push(`efeito ${i + 1}: "${e.do}" desconhecido`);
     for (const f of spec.fields) errs.push(...valueErrors(e[f], `${label} ${i + 1} (${e.do}): ${f}`));
     if (e.do === 'token') errs.push(...tokenErrors(e.token, `${label} ${i + 1}`));
+    if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
     if (['search', 'look'].includes(e.do)) {
       if (e.to && !PICK_DESTS.includes(e.to)) errs.push(`${label} ${i + 1}: destino "${e.to}" desconhecido`);
       if (e.rest && !PICK_DESTS.includes(e.rest)) errs.push(`${label} ${i + 1}: resto "${e.rest}" desconhecido`);
@@ -3937,13 +3942,13 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { handDelta: 1 } } },
   { name: 'Tuktuk Rubblefort', grantsAll: { keywords: ['haste'] },
     example: { target: 'none', expect: { tappedOnEntry: false } } },
+  // Leva 131 · R3 · texto (Forge, 30/09/2026): "When this artifact enters or leaves the battlefield, you may tap or untap
+  // target creature." Antes o gatilho tinha dois modos escolhidos ANTES de ir à pilha e antes do alvo, e um "fazer?" no
+  // fim (três perguntas, e a primeira aparecia mesmo sem criatura em campo). Pelo texto: o alvo é escolhido ao pôr o
+  // gatilho na pilha (sem criatura, o gatilho sai), e virar, desvirar ou nada é uma decisão só, na resolução.
   { name: 'Sewer-veillance Cam', abilities: [
-    { kind: 'triggered', when: 'etb', optional: true, modes: [
-      { label: 'Virar uma criatura', effects: [{ do: 'tap', target: 'creature' }] },
-      { label: 'Desvirar uma criatura', effects: [{ do: 'untap', target: 'creature' }] }] },
-    { kind: 'triggered', when: 'leaves-battlefield', optional: true, modes: [
-      { label: 'Virar uma criatura', effects: [{ do: 'tap', target: 'creature' }] },
-      { label: 'Desvirar uma criatura', effects: [{ do: 'untap', target: 'creature' }] }] },
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'tap_or_untap', target: 'creature', optional: true }] },
+    { kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'tap_or_untap', target: 'creature', optional: true }] },
     { kind: 'activated', cost: { mana: '{3}{U}', sacrifice: true }, effects: [{ do: 'draw', amount: 2 }] }],
     example: { action: 'activate:0', target: 'none', expect: { handDelta: 2 } } },
   { name: 'Secret Door',
@@ -7641,7 +7646,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 65;
+const ENGINE_VERSION = 66;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -9110,6 +9115,12 @@ function applyEffect(s, src, eff, tgt, events) {
       const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && !alvo.tapped) { alvo.tapped = true; noteEnchantedEvent(s, alvo); } note({}); break;
     }
+    case 'tap_or_untap': { // Leva 131 · escolha na resolução; alvo fora do campo: nada (608.2b)
+      if (!obj || obj.zone !== 'battlefield') { note({ amount: 0 }); break; }
+      s.pending = { kind: 'choose_mode', p: ctrl, name: src.name, options: ['Virar', 'Desvirar'], naResolucao: { oid: obj.oid }, optional: !!eff.optional };
+      events.push({ kind: 'choice', what: 'virar ou desvirar', name: src.name, amount: 1 });
+      break;
+    }
     case 'untap': { const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj; if (alvo) alvo.tapped = false; note({}); break; }
     default: break;
   }
@@ -10088,6 +10099,20 @@ const HANDLERS = {
   choose_mode(s, a, ev) { // S56 · escolhe o modo do gatilho e segue
     if (!s.pending || s.pending.kind !== 'choose_mode' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando escolha');
     const pk = s.pending;
+    if (pk.naResolucao) { // Leva 131 · virar ou desvirar o alvo, decidido na resolução; recusar só quando o texto diz "may"
+      if (a.decline && !pk.optional) throw new RuleError('escolha', 'esta escolha não pode ser recusada');
+      if (!a.decline && ![0, 1].includes(a.index)) throw new RuleError('escolha', 'modo inválido');
+      const alvo = s.objects[pk.naResolucao.oid];
+      s.pending = null;
+      if (!a.decline && alvo && alvo.zone === 'battlefield') {
+        if (a.index === 0) { if (!alvo.tapped) { alvo.tapped = true; noteEnchantedEvent(s, alvo); } }
+        else alvo.tapped = false;
+        ev.push({ kind: 'effect', do: a.index === 0 ? 'tap' : 'untap', name: pk.name, target: alvo.name });
+      }
+      stateBased(s, ev);
+      if (!s.pending) resumeEffects(s, ev);
+      return;
+    }
     const modo = (pk.trigger.modes || [])[a.index || 0];
     if (!modo) throw new RuleError('escolha', 'modo inválido');
     s.pending = null;
@@ -10499,7 +10524,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
     }
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
-    if (k === 'choose_mode') (s.pending.options || []).forEach((label, index) => out.push({ t: 'choose_mode', p, index, label })); // S56
+    if (k === 'choose_mode') { (s.pending.options || []).forEach((label, index) => out.push({ t: 'choose_mode', p, index, label })); // S56
+      if (s.pending.naResolucao && s.pending.optional) out.push({ t: 'choose_mode', p, decline: true }); } // Leva 131 · "you may"
     // S61 · conjurar sem pagar: uma opção por carta, com os alvos possíveis
     if (k === 'free_cast') {
       out.push({ t: 'decline_free', p });
@@ -10927,7 +10953,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -12109,6 +12135,9 @@ function describe(before, a, events, after) {
     case 'pick_done': break; // as escolhas já viraram linhas; "terminou a escolha" não registrava nada
     case 'commander_zone': { const o = before.objects[a.oid || (before.pending || {}).oid]; const onde = { graveyard: 'no cemitério', exile: 'no exílio', hand: 'na mão', library: 'no grimório' }[(before.pending || {}).from] || 'onde caiu';
       L.push(a.yes ? `${P} levou ${o ? o.name : 'o comandante'} para a zona de comando` : `${P} deixou ${o ? o.name : 'o comandante'} ${onde}`); break; }
+    // Leva 131 · escolha de modo: o que foi escolhido, ou que preferiu não fazer
+    case 'choose_mode': { const pd = before.pending || {}; const alvo = pd.naResolucao && before.objects[pd.naResolucao.oid] ? before.objects[pd.naResolucao.oid].name : null;
+      L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
     case 'choose_color': L.push(`${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break;
     case 'concede': L.push(`${P} desistiu`); break;
     case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o)).join(', ')}` : `${P} não atacou`); break;
@@ -12353,6 +12382,52 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
   return api;
 }
 
+/** Leva 131 · nome de cada alvo sem ambiguidade. Dois alvos com o mesmo nome ganham o que os separa: de quem é
+    (espelho: a minha Faerie Seer e a do oponente) e, do mesmo dono, se está virada. Puro. */
+function rotulosDeAlvos(s, v, alvos) {
+  const ob = x => (x && x.oid != null ? s.objects[x.oid] : null);
+  const base = alvos.map(x => (x.player != null ? s.players[x.player].name : ob(x).name));
+  return alvos.map((x, i) => {
+    const o = ob(x); if (!o) return base[i];
+    const iguais = alvos.filter((y, j) => j !== i && base[j] === base[i] && ob(y)).map(ob);
+    const partes = [];
+    if (iguais.some(y => y.controller !== o.controller)) partes.push(o.controller === v ? 'você' : s.players[o.controller].name);
+    if (iguais.some(y => y.controller === o.controller && !!y.tapped !== !!o.tapped)) partes.push(o.tapped ? 'virada' : 'desvirada');
+    return partes.length ? `${base[i]} (${partes.join(', ')})` : base[i];
+  });
+}
+/** Leva 131 · o efeito condicionado à cor ("destrua a permanente alvo se ela for vermelha") não faz nada neste alvo? */
+function alvoSemEfeito(s, efeitos, alvos) {
+  const cond = (efeitos || []).filter(e => e && e.ifColor);
+  if (cond.length !== 1 || (alvos || []).length !== 1 || alvos[0].oid == null) return false;
+  const o = s.objects[alvos[0].oid]; const cores = (o && s.facts[o.name] && s.facts[o.name].colors) || [];
+  return !cores.includes(cond[0].ifColor);
+}
+
+/** Leva 131 · botões "ação → alvo" da folha. (1) Alvo em que o efeito não faz nada ("se for vermelha" numa carta que
+    não é) sai da frente: vira um botão só, discreto, que abre a lista. (2) Mais de quatro alvos para a mesma ação
+    viram um botão que abre a lista por dono (antes a folha era uma coluna de botões dourados que não cabia na tela).
+    Puro: devolve descrições; quem tem `alvos` abre a lista com essas ações. `opcoes` guarda tudo o que o botão alcança. */
+const LIMITE_DE_ALVOS = 4;
+function enxugaAlvos(s, lista, efeitosDe = () => []) {
+  const prefixo = d => d.label.split(' → ')[0];
+  const comAlvo = d => !d.disabled && d.action && (d.action.targets || []).length && d.label.includes(' → ') && !d.abre;
+  const chave = d => d.action.t + '|' + prefixo(d);
+  const grupos = new Map();
+  for (const d of lista) if (comAlvo(d)) { if (!grupos.has(chave(d))) grupos.set(chave(d), []); grupos.get(chave(d)).push(d); }
+  const out = [], feitos = new Set();
+  for (const d of lista) {
+    if (!comAlvo(d)) { out.push(d); continue; }
+    const k = chave(d); if (feitos.has(k)) continue; feitos.add(k);
+    const todos = grupos.get(k), tudo = ds => ds.flatMap(x => x.opcoes || [x.action]), uma = ds => ds.map(x => x.action);
+    const inuteis = todos.filter(x => alvoSemEfeito(s, efeitosDe(x), x.action.targets)), uteis = todos.filter(x => !inuteis.includes(x));
+    if (uteis.length > LIMITE_DE_ALVOS) out.push({ label: `${prefixo(d)} · ${uteis.length} alvos`, variant: d.variant, titulo: prefixo(d), opcoes: tudo(uteis), alvos: uma(uteis) });
+    else out.push(...uteis);
+    if (inuteis.length) out.push({ label: `${prefixo(d)} — sem efeito nos alvos de agora`, semEfeito: true, variant: 'ghost', titulo: `${prefixo(d)} (sem efeito)`, opcoes: tudo(inuteis), alvos: uma(inuteis) });
+  }
+  return out;
+}
+
 /** Reabre uma partida salva. Lança se o motor mudou de versão. */
 function restoreTable(data) {
   if (!data || data.kind !== 'estante.match') throw new Error('formato-desconhecido');
@@ -12592,6 +12667,7 @@ function descreveEfeito(e) {
     case 'look': return `olha as ${n} cartas de cima`;
     case 'untap': return `desvira ${alvo || 'uma permanente'}`;
     case 'tap': return `vira ${alvo || 'uma permanente'}`;
+    case 'tap_or_untap': return `${e.optional ? 'pode virar ou desvirar' : 'vira ou desvira'} ${alvo || 'uma criatura'}`; // Leva 131
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
     case 'counters': return `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
@@ -12614,7 +12690,9 @@ function descreveEfeito(e) {
     default: return String(e.do).replace(/_/g, ' ');
   }
 }
-const descreveEfeitos = effects => (effects || []).map(descreveEfeito).filter(Boolean).join('; ');
+// Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
+const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno' };
+const descreveEfeitos = effects => (effects || []).map(e => { const f = descreveEfeito(e); return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,
     a posição no script decide. Sem correspondência segura, devolve o texto inteiro. */
@@ -12749,7 +12827,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -13224,6 +13302,11 @@ function createTableScreen({ store, perfil = null }) {
     if (s.pending && s.pending.kind === 'sacrifice' && s.pending.p === v && (s.pending.options || []).includes(oid)) {
       act({ t: 'sacrifice', p: v, oid }); return true;
     }
+    // Leva 131 · escolhendo o alvo de um gatilho, tocar na carta na mesa escolhe
+    if (s.pending && s.pending.kind === 'pick_target' && s.pending.p === v) {
+      const index = (s.pending.options || []).findIndex(x => x.oid === oid);
+      if (index >= 0) { act({ t: 'pick_target', p: v, index }); return true; }
+    }
     if (!plan.eligible.has(oid)) return false;
     if (s.pending.kind === 'attackers') { plan.attack.has(oid) ? plan.attack.delete(oid) : plan.attack.add(oid); paint(); return true; }
     const attackers = s.combat.attackers.filter(a => s.objects[a].zone === 'battlefield' && E.canBlock(s, oid, a));
@@ -13277,6 +13360,8 @@ function createTableScreen({ store, perfil = null }) {
     }
     return out.map(d => (d.opcoes && d.opcoes.length > 1 ? d : (d.opcoes ? (({ opcoes, ...resto }) => resto)(d) : d)));
   }
+  /** Leva 131 · a folha enxuga os botões "ação → alvo" (regra em T.enxugaAlvos) e abre a lista por dono quando precisa. */
+  const enxugaAlvos = (lista, efeitosDe) => T.enxugaAlvos(table.state, lista, efeitosDe).map(d => d.alvos ? { ...d, abre: () => escolherAlvo(d.titulo, d.alvos, { sempre: !!d.semEfeito }) } : d);
   function escolher(titulo, opcoes) {
     const s = table.state;
     const xs = [...new Set(opcoes.map(a => a.x).filter(x => x != null))].sort((p, q) => p - q);
@@ -13321,9 +13406,9 @@ function createTableScreen({ store, perfil = null }) {
   }
   /** Leva 110 · escolha de alvo fora da folha da carta (insanidade, conjurar de graça): todos os alvos,
    *  jogadores primeiro, numa folha que rola. Antes o aviso mostrava só os três primeiros botões. */
-  function escolherAlvo(titulo, opcoes) {
+  function escolherAlvo(titulo, opcoes, { sempre = false, acao = a => a } = {}) {
     const s = table.state;
-    if (opcoes.length === 1) return act(opcoes[0]);
+    if (opcoes.length === 1 && !sempre) return act(acao(opcoes[0]));
     const eu = table.viewer();
     // grupos: jogadores, suas permanentes, as do oponente (12 "Grizzly Bear" sem dono não dizem nada)
     const grupo = a => { const x = (a.targets || [])[0]; if (!x || x.player != null) return 0; const o = s.objects[x.oid]; return o && o.controller === eu ? 1 : 2; };
@@ -13332,7 +13417,7 @@ function createTableScreen({ store, perfil = null }) {
     const estado = x => { const o = x.oid != null && s.objects[x.oid]; if (!o) return null;
       const p = [o.tapped ? 'virada' : null, o.damage ? `${o.damage} de dano` : null, (o.counters || {}).p1p1 ? `+${o.counters.p1p1}/+${o.counters.p1p1}` : null].filter(Boolean); return p.length ? p.join(' · ') : null; };
     const botao = a => { const ts = a.targets || []; const st = ts.length === 1 ? estado(ts[0]) : null;
-      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); act(a); }, ...(st ? { title: st } : {}) }, ); };
+      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); act(acao(a)); }, ...(st ? { title: st } : {}) }, ); };
     const oponente = s.players.find((_, i) => i !== eu);
     const TITULOS = ['Jogadores', 'Suas permanentes', `Permanentes de ${oponente ? oponente.name : 'oponente'}`];
     const secoes = [0, 1, 2].map(g => ord.filter(a => grupo(a) === g)).map((lista, g) => lista.length ? Stack({ style: { gap: 'var(--space-2)' } },
@@ -13420,7 +13505,7 @@ function createTableScreen({ store, perfil = null }) {
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.sacrificeOther ? 'sacrificar outra' : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.sacrificeOther ? 'sacrificar outra' : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
   }
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
@@ -13433,10 +13518,19 @@ function createTableScreen({ store, perfil = null }) {
     // A3: primeiro as ações de regra que o motor oferece para este objeto
     const f = s.facts[o.name];
     const costTxt = f.cost ? costLabel(f.cost, o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) : '';
+    // Leva 131 · o botão mostra o que vai ser cobrado: afinidade e desconto por condição (Of One Mind com um Humano e um
+    // não Humano custa {U}; o botão dizia {2}{U}). O custo impresso continua na linha da carta.
+    const desconto = f.cost && ['hand', 'command'].includes(o.zone) && o.owner === v ? E.affinityDiscount(s, v, o) : 0;
+    const costPago = desconto ? (costLabel(f.cost, (o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) - desconto) || '{0}') + ' (com desconto)' : costTxt;
     // Leva 125 · dois alvos do mesmo efeito ("1 de dano a cada uma de até duas criaturas") vinham nas duas ordens
     // (A + B e B + A): a folha mostra a combinação uma vez só. O motor continua aceitando as duas.
     const efeitosDe = a => ((f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].effects : (f.script && f.script.effects) || []).filter(e => __m23.isTargeted(e));
     const simetrica = a => { const es = efeitosDe(a).map(e => JSON.stringify(e)); return es.length > 1 && es.every(x => x === es[0]); };
+    // Leva 131 · alvos com o mesmo nome dizem de quem são (espelho) e se estão virados
+    const chaveAlvo = x => (x.player != null ? 'p' + x.player : 'o' + x.oid);
+    const alvosDaCarta = [...new Map(E.legalActions(s, v).filter(a => a.oid === oid).flatMap(a => a.targets || []).map(x => [chaveAlvo(x), x])).values()];
+    const rotulos = T.rotulosDeAlvos(s, v, alvosDaCarta);
+    const targetName = (_, x) => { const i = alvosDaCarta.findIndex(y => chaveAlvo(y) === chaveAlvo(x)); return i >= 0 ? rotulos[i] : (x.player != null ? s.players[x.player].name : s.objects[x.oid].name); };
     const vistas = new Set();
     const semRepetir = a => { if (a.t !== 'cast' || !(a.targets || []).length || !simetrica(a)) return true;
       const k = JSON.stringify({ ...a, targets: a.targets.map(x => JSON.stringify(x)).sort() }); if (vistas.has(k)) return false; vistas.add(k); return true; };
@@ -13449,7 +13543,7 @@ function createTableScreen({ store, perfil = null }) {
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${(f.script.flashback || {}).mana || ''}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
-          + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costTxt}` : ''), a, { variant: 'primary' })
+          + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
     // Leva 121 · plot que existe e não dá agora aparece apagado com o motivo (como as habilidades, leva 111)
@@ -13473,7 +13567,7 @@ function createTableScreen({ store, perfil = null }) {
         const m = T.explicaRecusa(e, acao, s).motivo; return m.charAt(0).toLowerCase() + m.slice(1); } };
       const temCast = E.legalActions(s, v).some(a => a.oid === oid && a.t === 'cast');
       if (o.zone === 'hand' && f.types.includes('land') && !legal.some(b => b.label === 'Jogar terreno')) { const m = tenta({ t: 'play_land', p: v, oid }); if (m) legal.unshift({ label: `Jogar terreno — ${m}`, disabled: true }); }
-      else if (o.zone === 'hand' && !f.types.includes('land') && !temCast) { const m = tenta({ t: 'cast', p: v, oid }); if (m) legal.unshift({ label: `Conjurar${costTxt ? ' · ' + costTxt : ''} — ${m}`, disabled: true }); }
+      else if (o.zone === 'hand' && !f.types.includes('land') && !temCast) { const m = tenta({ t: 'cast', p: v, oid }); if (m) legal.unshift({ label: `Conjurar${costTxt ? ' · ' + costPago : ''} — ${m}`, disabled: true }); }
       else if (o.zone === 'graveyard' && f.script && f.script.flashback && !temCast) { const m = tenta({ t: 'cast', p: v, oid, flashback: true }); if (m) legal.unshift({ label: `Lampejo do passado · ${f.script.flashback.mana || ''} — ${m}`, disabled: true }); }
     }
     // Leva 122 · fonte de "qualquer combinação de cores" (Axebane Guardian): um botão só, que abre a divisão por cor.
@@ -13496,7 +13590,10 @@ function createTableScreen({ store, perfil = null }) {
       legal.push(doBtn(`Ciclar · ${(f.script.cycling || {}).mana || ''}`, cy));
     // S18: ninjutsu, trocando um atacante sem bloqueio
     for (const nj of E.legalActions(s, v).filter(x => x.t === 'ninjutsu' && x.oid === oid))
-      legal.push(doBtn(`Ninjutsu → troca por ${s.objects[nj.attacker].name}`, nj, { variant: 'primary' }));
+      legal.push(doBtn(`Ninjutsu · ${(f.script.ninjutsu || {}).mana || ''} → devolve ${s.objects[nj.attacker].name}`, nj, { variant: 'primary' })); // Leva 131 · diz o custo e o que acontece com o atacante
+    // Leva 131 · ninjutsu que existe e não dá agora aparece apagado com o motivo (como tramar, leva 121)
+    if (f.script && f.script.ninjutsu && o.owner === v && o.zone === 'hand' && s.status === 'playing' && !legal.some(b => /^Ninjutsu/.test(b.label)))
+      legal.push({ label: `Ninjutsu · ${f.script.ninjutsu.mana || ''} — ${E.legalActions({ ...s, manaCheck: false }, v).some(x => x.t === 'ninjutsu' && x.oid === oid) ? 'mana insuficiente' : 'só no combate, com um atacante seu sem bloqueio'}`, disabled: true });
     // M9: habilidades ativadas, com o custo e o alvo no rótulo
     const allAbilities = [...((f.script && f.script.abilities) || []).filter(x => x.kind === 'activated'),
       ...((f.script && f.script.loyalty) || []).map(x => ({ loyalty: x.cost, label: x.label }))];
@@ -13543,7 +13640,7 @@ function createTableScreen({ store, perfil = null }) {
     const where = h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `${s.players[o.owner].name} · ${T.ZONE_PT[o.zone] || 'companheiro (fora do jogo)'}${o.tapped ? ' · virada' : ''}${costTxt ? ' · ' + costTxt : ''}`
       + (st ? ` · ${st.power}/${st.toughness}` : '') + (anexos.length ? ` · ${anexos.join(', ')}` : '')
       + (o.attachedTo && s.objects[o.attachedTo] ? ` · anexada a ${s.objects[o.attachedTo].name}` : ''));
-    return { o, acoes: [...agrupaEscolhas(legal), ...direct], where, st, anexos, costTxt };
+    return { o, acoes: [...enxugaAlvos(agrupaEscolhas(legal), d => efeitosDe(d.action || {})), ...direct], where, st, anexos, costTxt };
   }
 
   /* ---- A15 · espiar: segurar mostra a carta grande com texto e ações; soltar fecha ---- */
@@ -13602,14 +13699,15 @@ function createTableScreen({ store, perfil = null }) {
   // A13 · quem entrou no campo desde a última pintura ganha o movimento curto
   let vistos = new Set();
   const entrou = oid => !vistos.has(oid);
+  const alvoPendente = (s, oid) => !!(s.pending && s.pending.kind === 'pick_target' && s.pending.p === table.viewer() && (s.pending.options || []).some(x => x.oid === oid)); // Leva 131
   const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name), images: imagensOf(s.objects[oid].name) },
-    { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid), ...comPeek(oid) }));
+    { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid) || alvoPendente(s, oid), ...comPeek(oid) }));
   /** U5 · iguais em leque: tocar age na primeira desvirada (ou na primeira, se todas viradas).
       No combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque. */
   const separaNoCombate = oid => plan.eligible.has(oid) || plan.attack.has(oid) || plan.blocks.has(oid) || [...plan.blocks.values()].includes(oid);
   const landPiles = (s, ids, onClick) => T.agrupaLeque(s, ids, { separa: separaNoCombate }).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
-    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name), images: imagensOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo), ...comPeek(alvo) });
+    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name), images: imagensOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo) || alvoPendente(s, alvo), ...comPeek(alvo) });
   });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
 
@@ -13768,14 +13866,23 @@ function createTableScreen({ store, perfil = null }) {
           Button('Não emparelhar', { id: 'tb-choose-pair-no', onClick: () => act({ t: 'choose_pair', p: v, decline: true }) })] });
     } else if (s.pending && s.pending.kind === 'pick_target' && s.pending.p === v) {
       const fazO = T.descreveEfeitos((s.pending.trigger || {}).effects); // Leva 125 · o que o gatilho vai fazer no alvo
-      banner = PriorityBanner({ title: `${s.pending.name}: escolha o alvo`, hint: fazO ? `O gatilho faz: ${fazO}.` : 'Escolha onde o efeito vai.', tone: 'warning',
-        actions: s.pending.options.slice(0, 6).map((o, index) =>
-          // Leva 125 · nenhum alvo vem como "o principal": com o Bojuka Bog o botão dourado era "Você" (exilar o próprio cemitério)
-          Button(targetName(s, o), { id: index ? undefined : 'tb-pick-target', dataset: { alvo: String(index) }, onClick: () => act({ t: 'pick_target', p: v, index }) })) });
+      banner = PriorityBanner({ title: `${s.pending.name}: escolha o alvo`, hint: (fazO ? `O gatilho faz: ${fazO}.` : 'Escolha onde o efeito vai.') + (s.pending.options.some(x => x.oid != null && s.objects[x.oid].zone === 'battlefield') ? ' Toque na carta ou escolha aqui.' : ''), tone: 'warning',
+        // Leva 125 · nenhum alvo vem como "o principal": com o Bojuka Bog o botão dourado era "Você" (exilar o próprio cemitério)
+        // Leva 131 · antes só os seis primeiros alvos tinham botão (o sétimo não podia ser escolhido) e cópias iguais
+        // repetiam o mesmo nome. Agora: um botão por alvo diferente, dizendo de quem é quando o nome repete; passou de
+        // quatro, o resto fica em "Mais alvos"; e tocar na carta na mesa também escolhe.
+        actions: (() => {
+          const ops = s.pending.options, rot = T.rotulosDeAlvos(s, v, ops), vistos = new Set();
+          const unicos = ops.map((o, index) => ({ o, index, r: rot[index] })).filter(x => !vistos.has(x.r) && vistos.add(x.r));
+          const botao = x => Button(x.r, { id: x.index ? undefined : 'tb-pick-target', dataset: { alvo: String(x.index) }, onClick: () => act({ t: 'pick_target', p: v, index: x.index }) });
+          if (unicos.length <= T.LIMITE_DE_ALVOS) return unicos.map(botao);
+          return [...unicos.slice(0, T.LIMITE_DE_ALVOS - 1).map(botao), Button('Mais alvos', { id: 'tb-pick-target-mais', variant: 'ghost',
+            onClick: () => escolherAlvo(`${s.pending.name}: escolha o alvo`, unicos.map(x => ({ t: 'pick_target', p: v, index: x.index, targets: [x.o] })), { acao: a => ({ t: a.t, p: a.p, index: a.index }) }) })];
+        })() });
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Scry: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
+      const LABEL = { 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';
@@ -13831,11 +13938,16 @@ function createTableScreen({ store, perfil = null }) {
 
     if (s.pending && s.pending.kind === 'choose_mode' && s.pending.p === v) {
       const pk = s.pending;
+      // Leva 131 · escolha feita na resolução (virar ou desvirar um alvo já escolhido): o título diz o alvo, e "you may"
+      // vira o botão "Nada" na mesma pergunta (antes: modo, depois alvo, depois "fazer?", três perguntas)
+      const alvoPk = pk.naResolucao && s.objects[pk.naResolucao.oid] ? s.objects[pk.naResolucao.oid] : null;
       return h('div', { class: 'tb-dock tb-troca', id: 'tb-modo', role: 'group', 'aria-label': `${pk.name}: escolha o que o gatilho faz` },
         h('div', { class: 'tb-troca__cab' }, Icone('alvo', { tamanho: 20, classe: 'tb-troca__icone' }),
-          h('div', { class: 'tb-troca__texto' }, h('strong', { lang: 'en' }, pk.name), h('span', {}, 'O que o gatilho faz?'))),
-        h('div', { class: 'tb-modo__lista' }, ...(pk.options || []).map((rot, index) =>
-          Button(rot, { block: true, variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-mode', dataset: { modo: String(index) }, onClick: () => act({ t: 'choose_mode', p: v, index }) }))));
+          h('div', { class: 'tb-troca__texto' }, h('strong', { lang: 'en' }, pk.name),
+            h('span', { id: 'tb-modo-pergunta' }, alvoPk ? `O que fazer com ${alvoPk.name}${alvoPk.controller === v ? '' : ` de ${s.players[alvoPk.controller].name}`}? Ela está ${alvoPk.tapped ? 'virada' : 'desvirada'}.` : 'O que o gatilho faz?'))),
+        h('div', { class: pk.naResolucao ? 'tb-modo__linha' : 'tb-modo__lista' }, ...(pk.options || []).map((rot, index) =>
+          Button(rot, { block: !pk.naResolucao, variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-mode', dataset: { modo: String(index) }, onClick: () => act({ t: 'choose_mode', p: v, index }) })),
+          pk.naResolucao && pk.optional ? Button('Nada', { variant: 'ghost', id: 'tb-choose-mode-no', onClick: () => act({ t: 'choose_mode', p: v, decline: true }) }) : null));
     }
     // Leva 121 · "descarte uma carta OU sacrifique um terreno" (Highway Robbery): duas pilhas separadas por um segmentado,
     // a carta escolhida destacada e dois botões de uma palavra. Antes era uma fileira só, misturando a mão com os

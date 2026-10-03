@@ -258,7 +258,7 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
   if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
   // S14: o Preordain tem script e abre a escolha do scry
   await page.waitForSelector('#tb-pick-cards');
-  assert.match(await page.innerText('.tb-banner'), /Scry/);
+  assert.match(await page.innerText('.tb-banner'), /Vidência/); // Leva 131 · o aviso dizia "Scry"; texto de interface é em português
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mesa-2.png' });
   await page.locator('#tb-pick-cards .tb-card').first().click();
   await page.click('#tb-pick-done');
@@ -4167,11 +4167,15 @@ test('e2e · Leva 121 · gatilho com modos (Sewer-veillance Cam): a mesa pergunt
   await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(200); await meuPrincipal121(page);
   await jogaTerreno121(page, 'Island');
   await page.locator('#tb-hand .tb-card[aria-label^="Sewer-veillance Cam"]').first().click(); await naFolha(page, /^Conjurar/);
-  let e; for (let i = 0; i < 20; i++) { e = await estado121(page); if (e.pend === 'choose_mode') break; if (await page.locator('#tb-pass').count()) await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
-  assert.equal(e.pend, 'choose_mode', 'o gatilho de entrada pede o modo');
+  // Leva 131 · expectativa mudou com a regra: "you may tap or untap target creature" — a criatura é alvo (escolhido quando o
+  // gatilho vai à pilha) e virar, desvirar ou nada se decide na resolução. Antes o modo era perguntado antes do alvo.
+  let e; for (let i = 0; i < 30; i++) { e = await estado121(page); if (e.pend === 'choose_mode') break;
+    if (e.pend === 'pick_target') await page.click('#tb-pick-target'); else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
+  assert.equal(e.pend, 'choose_mode', 'na resolução, o gatilho pergunta o que fazer com a criatura');
   await page.waitForSelector('#tb-modo');
   assert.doesNotMatch((await page.innerText('.tb-dock')).replace(/\s+/g, ' '), /Aguardando/, 'a mesa não fica esperando ninguém');
-  assert.deepEqual(await page.locator('#tb-modo .tb-modo__lista button').allInnerTexts(), ['Virar uma criatura', 'Desvirar uma criatura']);
+  assert.deepEqual(await page.locator('#tb-modo button').allInnerTexts(), ['Virar', 'Desvirar', 'Nada']);
+  assert.match(await page.innerText('#tb-modo-pergunta'), /O que fazer com Faerie Seer\? Ela está (des)?virada\./);
   assert.match(await page.innerText('#tb-modo'), /Sewer-veillance Cam/, 'diz de qual carta é o gatilho');
   await auditaTela(page, 'escolha de modo do gatilho');
   await page.click('#tb-choose-mode'); await page.waitForTimeout(200);
@@ -4707,4 +4711,181 @@ test('e2e · Leva 129 conta Google: sem Client ID a seção explica e fica apaga
   await page.context().setOffline(true); await page.click('#conta-entrar'); await page.waitForSelector('#ds-toast[data-open="true"]');
   assert.match(await page.innerText('#ds-toast'), /Sem internet/); await page.context().setOffline(false);
   assert.deepEqual(errors, []);
+});
+
+// ---- Leva 131 · R3 · Mono Blue Faeries pela tela (360×780, modo único) ----
+const dock131 = async page => (await page.locator('.tb-dock').innerText()).replace(/\s*\n+\s*/g, ' | ');
+const folha131 = async (page, nome, onde = '#tb-hand') => { await page.locator(`${onde} .tb-card[aria-label^="${nome}"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250);
+  return page.locator('.ds-dialog .tb-sheet__actions button').evaluateAll(bs => bs.map(b => ({ txt: b.innerText.replace(/\s+/g, ' ').trim(), apagado: b.disabled, cls: b.className }))); };
+const terrenoEAte131 = async (M, pronto) => { let e; for (let i = 0; i < 14; i++) { const o = await M.oid('Island'); if (o) await M.act({ t: 'play_land', p: 0, oid: o }); e = await M.est(); if (pronto(e)) return e; await M.proximo(); } assert.fail('a mão não chegou ao ponto do teste: ' + JSON.stringify(e)); };
+const ilhas131 = e => e.campo.filter(x => x === 'Island').length;
+
+test('e2e · Leva 131 · Faeries: vidência em português; alvo do gatilho sem nome repetido e pelo toque na carta; Cam pergunta virar, desvirar ou nada na resolução', { skip }, async t => {
+  const M = await comLista125(t, '24 Island\n12 Faerie Seer\n12 Sewer-veillance Cam\n12 Harrier Strix', ['Island', 'Faerie Seer', 'Sewer-veillance Cam', 'Harrier Strix'], '5');
+  const { page } = M;
+  const conjura = async n => { await page.locator(`#tb-hand .tb-card[aria-label^="${n}"]`).first().click(); await naFolha(page, /^Conjurar/); return M.resolve(); };
+  const virada = nome => page.evaluate(nome => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.filter(o => s.objects[o].name === nome).map(o => !!s.objects[o].tapped); }, nome);
+  await terrenoEAte131(M, e => e.mao.includes('Faerie Seer'));
+  let e = await conjura('Faerie Seer');
+  assert.equal(e.pend, 'pick');
+  assert.match(await M.decisao(), /^Faerie Seer · Vidência: escolha o que fica no topo \| 0 de até 2 escolhida\(s\) · o resto vai para o fundo$/);
+  await auditaTela(page, 'vidência da Faerie Seer');
+  await page.click('#tb-pick-done'); await page.waitForTimeout(150);
+  await terrenoEAte131(M, e => ilhas131(e) >= 4 && e.mao.includes('Harrier Strix') && e.mao.includes('Sewer-veillance Cam') && e.campo.includes('Faerie Seer'));
+  // Harrier Strix: "tap target permanent" com 4 Ilhas, a Seer e a própria Strix em campo
+  e = await conjura('Harrier Strix');
+  assert.equal(e.pend, 'pick_target');
+  assert.match(await M.decisao(), /^Harrier Strix: escolha o alvo \| O gatilho faz: vira uma permanente\. Toque na carta ou escolha aqui\.$/);
+  const botoes = await page.locator('.tb-banner__actions button').allInnerTexts();
+  assert.equal(new Set(botoes).size, botoes.length, 'nenhum botão repetido: ' + botoes.join(' | '));
+  assert.deepEqual(botoes.slice().sort(), ['Faerie Seer', 'Harrier Strix', 'Island (desvirada)', 'Island (virada)'], 'cópias iguais viram um botão; o que separa as Ilhas é estar virada');
+  assert.ok(await page.locator('.tb-side .tb-card[aria-label^="Faerie Seer"][data-eligible="true"]').count(), 'a carta que pode ser alvo fica marcada na mesa');
+  await auditaTela(page, 'alvo do gatilho da Harrier Strix');
+  // tocar na carta na mesa escolhe o alvo
+  await page.locator('.tb-side .tb-card[aria-label^="Faerie Seer"]').first().click(); await page.waitForTimeout(200);
+  e = await M.resolve();
+  assert.equal(e.pend, null); assert.deepEqual(await virada('Faerie Seer'), [true], 'a Faerie Seer tocada na mesa foi virada');
+  // Sewer-veillance Cam: alvo ao pôr na pilha; a escolha vem na resolução, com o estado da criatura escrito
+  e = await conjura('Sewer-veillance Cam');
+  assert.equal(e.pend, 'pick_target');
+  assert.match(await M.decisao(), /pode virar ou desvirar uma criatura/);
+  await page.locator('.tb-banner__actions button', { hasText: 'Faerie Seer' }).click(); await page.waitForTimeout(150);
+  e = await M.resolve();
+  assert.equal(e.pend, 'choose_mode');
+  assert.equal(await page.innerText('#tb-modo-pergunta'), 'O que fazer com Faerie Seer? Ela está virada.');
+  assert.deepEqual(await page.locator('#tb-modo button').allInnerTexts(), ['Virar', 'Desvirar', 'Nada']);
+  await auditaTela(page, 'virar, desvirar ou nada');
+  await page.locator('#tb-modo button', { hasText: 'Desvirar' }).click(); await page.waitForTimeout(200);
+  assert.deepEqual(await virada('Faerie Seer'), [false], 'desvirou');
+  assert.equal((await M.est()).pend, null);
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 131 · Faeries: ninjutsu aparece na folha com o custo, apagado com o motivo fora do combate; o aviso do gatilho diz quando não há descarte', { skip }, async t => {
+  const M = await comLista125(t, '24 Island\n14 Faerie Seer\n11 Ninja of the Deep Hours\n11 Moon-Circuit Hacker', ['Island', 'Faerie Seer', 'Ninja of the Deep Hours', 'Moon-Circuit Hacker'], '5');
+  const { page } = M;
+  await terrenoEAte131(M, e => e.mao.includes('Faerie Seer'));
+  await page.locator('#tb-hand .tb-card[aria-label^="Faerie Seer"]').first().click(); await naFolha(page, /^Conjurar/); await M.resolve();
+  await page.click('#tb-pick-done'); await page.waitForTimeout(150);
+  await M.proximo();
+  await terrenoEAte131(M, e => ilhas131(e) >= 3 && e.mao.includes('Moon-Circuit Hacker') && e.campo.includes('Faerie Seer'));
+  // na fase principal: conjurar normalmente, e o ninjutsu apagado dizendo quando dá
+  let f = await folha131(page, 'Moon-Circuit Hacker');
+  assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Conjurar · {1}{U}', false], ['Ninjutsu · {U} — só no combate, com um atacante seu sem bloqueio', true]]);
+  await auditaTela(page, 'folha do ninja na fase principal');
+  await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+  // ataca com a Faerie Seer; o Goldfish não bloqueia
+  for (let i = 0; i < 10; i++) { const e = await M.est(); if (e.pend === 'attackers') break; await page.click('#tb-pass'); await page.waitForTimeout(200); }
+  await page.locator('.tb-card[aria-label^="Faerie Seer"]').first().click(); await page.waitForTimeout(150);
+  await page.click('#tb-attack'); await page.waitForTimeout(300);
+  let e = await M.est(); assert.equal(e.passo, 'combat_blockers');
+  f = await folha131(page, 'Moon-Circuit Hacker');
+  assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Conjurar · {1}{U} — só na sua fase principal, com a pilha vazia', true], ['Ninjutsu · {U} → devolve Faerie Seer', false]]);
+  await naFolha(page, /^Ninjutsu/);
+  e = await M.est();
+  assert.ok(e.campo.includes('Moon-Circuit Hacker') && !e.campo.includes('Faerie Seer') && e.mao.includes('Faerie Seer'), 'a Seer voltou para a mão e o ninja entrou');
+  assert.match(await dock131(page), /Moon-Circuit Hacker: sem bloqueio/);
+  await auditaTela(page, 'ninja em campo, atacando');
+  for (let i = 0; i < 8; i++) { e = await M.est(); if (e.pend) break; await page.click('#tb-pass'); await page.waitForTimeout(200); }
+  assert.equal(e.pend, 'may_pay');
+  assert.match(await M.decisao(), /^Moon-Circuit Hacker: fazer o efeito\? \| Se aceitar: compra 1 carta; descarta 1 carta \(só se ela não entrou neste turno\)\./);
+  await auditaTela(page, 'gatilho opcional do ninja');
+  const antes = e.mao.length;
+  await page.locator('.tb-banner__actions button', { hasText: /^Fazer$/ }).click(); await page.waitForTimeout(200);
+  e = await M.resolve();
+  assert.equal(e.pend, null, 'entrou neste turno: compra e não descarta'); assert.equal(e.mao.length, antes + 1);
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 131 · Faeries: Hydroblast sem nada vermelho não oferece destruir a própria Ilha; Relic diz o custo inteiro; a Sprite anula a mágica na pilha', { skip }, async t => {
+  const M = await comLista125(t, '20 Island\n14 Spellstutter Sprite\n13 Relic of Progenitus\n13 Hydroblast', ['Island', 'Spellstutter Sprite', 'Relic of Progenitus', 'Hydroblast'], '5');
+  const { page } = M;
+  await terrenoEAte131(M, e => ilhas131(e) >= 2 && e.mao.includes('Hydroblast') && e.mao.includes('Spellstutter Sprite'));
+  // nada vermelho na mesa: nenhum botão dourado; o que sobra é discreto e diz que não faz nada
+  let f = await folha131(page, 'Hydroblast');
+  assert.deepEqual(f.map(b => b.txt), ['Destruir uma permanente, se for vermelha — sem efeito nos alvos de agora']);
+  assert.doesNotMatch(f[0].cls, /primary/, 'não é a ação em destaque');
+  await auditaTela(page, 'folha do Hydroblast sem alvo vermelho');
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForSelector('#tb-alvos');
+  assert.match(await page.innerText('.ds-dialog'), /sem efeito/); assert.match(await page.innerText('#tb-alvos'), /Suas permanentes/i);
+  assert.equal((await M.est()).pilha, 0, 'abrir a lista não conjura nada');
+  await auditaTela(page, 'lista de alvos sem efeito');
+  await page.locator('.ds-dialog button', { hasText: 'Voltar' }).click(); await page.waitForTimeout(150);
+  // primeira Sprite em campo (sem mágica na pilha o gatilho não tem alvo e sai)
+  await page.locator('#tb-hand .tb-card[aria-label^="Spellstutter"]').first().click(); await naFolha(page, /^Conjurar/);
+  let e = await M.resolve(); assert.equal(e.pend, null); assert.ok(e.campo.includes('Spellstutter Sprite'));
+  await M.proximo();
+  await terrenoEAte131(M, e => ilhas131(e) >= 4 && e.mao.includes('Relic of Progenitus') && e.mao.includes('Spellstutter Sprite') && e.mao.filter(n => n === 'Relic of Progenitus').length >= 2);
+  // Relic na pilha; a segunda Sprite entra em resposta (duas Fadas: anula valor de mana até 2)
+  await page.locator('#tb-hand .tb-card[aria-label^="Relic"]').first().click(); await naFolha(page, /^Conjurar/);
+  assert.equal((await M.est()).pilha, 1);
+  await page.locator('#tb-hand .tb-card[aria-label^="Spellstutter"]').first().click(); await naFolha(page, /^Conjurar/);
+  e = await M.resolve();
+  if (e.pend === 'pick_target') { await page.click('#tb-pick-target'); e = await M.resolve(); }
+  assert.ok(e.cemiterio.includes('Relic of Progenitus') && !e.campo.includes('Relic of Progenitus'), 'a Relic foi anulada');
+  // segunda Relic entra; a folha diz os dois custos por inteiro
+  await M.proximo(); await terrenoEAte131(M, e => e.mao.includes('Relic of Progenitus'));
+  await page.locator('#tb-hand .tb-card[aria-label^="Relic"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+  assert.ok(e.campo.includes('Relic of Progenitus'));
+  f = await folha131(page, 'Relic of Progenitus', '.tb-side');
+  const nomes = await page.evaluate(() => window.__estanteMesa.estado().players.map(p => p.name));
+  assert.deepEqual(f.map(b => b.txt), [`Ativar ({T}) → ${nomes[0]}`, `Ativar ({T}) → ${nomes[1]}`, 'Ativar ({1}, exilar esta)']);
+  await auditaTela(page, 'folha da Relic of Progenitus');
+  await naFolha(page, /exilar esta/); e = await M.resolve();
+  assert.ok(e.exilio.includes('Relic of Progenitus') && !e.cemiterio.length, 'a Relic se exila, exila os cemitérios e compra');
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 131 · Faeries: Of One Mind mostra o custo com desconto; a segunda Faerie Miscreant compra; Brinebarrow Intruder sem alvo não pergunta nada', { skip }, async t => {
+  const M = await comLista125(t, '22 Island\n13 Brinebarrow Intruder\n12 Faerie Miscreant\n13 Of One Mind', ['Island', 'Brinebarrow Intruder', 'Faerie Miscreant', 'Of One Mind'], '5');
+  const { page } = M;
+  const conjura = async n => { await page.locator(`#tb-hand .tb-card[aria-label^="${n}"]`).first().click(); await naFolha(page, /^Conjurar/); return M.resolve(); };
+  await terrenoEAte131(M, e => ilhas131(e) >= 4 && e.mao.includes('Brinebarrow Intruder') && e.mao.includes('Of One Mind') && e.mao.filter(n => n === 'Faerie Miscreant').length >= 2);
+  let f = await folha131(page, 'Of One Mind');
+  assert.deepEqual(f.map(b => b.txt), ['Conjurar · {2}{U}'], 'sem criaturas: custo impresso');
+  await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+  // Intruder: sem criatura do oponente, o gatilho não tem alvo e a mesa não pergunta nada
+  let e = await conjura('Brinebarrow Intruder'); assert.equal(e.pend, null); assert.ok(e.campo.includes('Brinebarrow Intruder'));
+  // primeira Miscreant: não compra; segunda: compra uma
+  let mao = e.mao.length; e = await conjura('Faerie Miscreant'); assert.equal(e.mao.length, mao - 1, 'a primeira Miscreant não compra');
+  f = await folha131(page, 'Of One Mind');
+  assert.deepEqual(f.map(b => b.txt), ['Conjurar · {U} (com desconto)'], 'um Humano (Intruder) e um não Humano (Miscreant): {2} a menos');
+  await auditaTela(page, 'folha de Of One Mind com desconto');
+  await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+  mao = e.mao.length; e = await conjura('Faerie Miscreant'); assert.equal(e.mao.length, mao, 'a segunda Miscreant sai da mão e compra uma');
+  const desviradas = (await M.desvirados()).length;
+  mao = e.mao.length; e = await conjura('Of One Mind');
+  assert.equal(e.mao.length, mao + 1, 'compra duas'); assert.equal((await M.desvirados()).length, desviradas - 1, 'pagou só {U}');
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 131 · Faeries: Counterspell diz qual mágica anula, Dispel diz que não tem alvo, e Cryoshatter destrói a criatura quando ela vira', { skip }, async t => {
+  const M = await comLista125(t, '22 Island\n12 Faerie Seer\n9 Counterspell\n8 Dispel\n9 Cryoshatter', ['Island', 'Faerie Seer', 'Counterspell', 'Dispel', 'Cryoshatter'], '5');
+  const { page } = M;
+  await terrenoEAte131(M, e => ilhas131(e) >= 4 && ['Faerie Seer', 'Counterspell', 'Dispel', 'Cryoshatter'].every(n => e.mao.includes(n)) && e.mao.filter(n => n === 'Faerie Seer').length >= 2);
+  await page.locator('#tb-hand .tb-card[aria-label^="Faerie Seer"]').first().click(); await naFolha(page, /^Conjurar/);
+  assert.equal((await M.est()).pilha, 1);
+  // com a Faerie Seer (criatura) na pilha: Dispel só anula instantânea
+  let f = await folha131(page, 'Dispel');
+  assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Conjurar · {U} — sem alvo válido agora', true]]);
+  await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+  f = await folha131(page, 'Counterspell');
+  assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Conjurar → Faerie Seer · {U}{U}', false]]);
+  await auditaTela(page, 'folha do Counterspell com a mágica na pilha');
+  await naFolha(page, /^Conjurar/); let e = await M.resolve();
+  assert.ok(e.cemiterio.includes('Faerie Seer') && e.cemiterio.includes('Counterspell') && !e.campo.includes('Faerie Seer'), 'a Seer foi anulada');
+  // outra Seer entra; Cryoshatter nela; ao atacar ela vira e é destruída
+  await page.locator('#tb-hand .tb-card[aria-label^="Faerie Seer"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+  if (e.pend === 'pick') { await page.click('#tb-pick-done'); await page.waitForTimeout(150); }
+  f = await folha131(page, 'Cryoshatter');
+  assert.deepEqual(f.map(b => b.txt), ['Conjurar → Faerie Seer · {U}']);
+  await naFolha(page, /^Conjurar/); e = await M.resolve();
+  assert.ok(e.campo.includes('Cryoshatter'));
+  await M.proximo();
+  for (let i = 0; i < 10; i++) { e = await M.est(); if (e.pend === 'attackers') break; await page.click('#tb-pass'); await page.waitForTimeout(200); }
+  await page.locator('.tb-side .tb-card[aria-label^="Faerie Seer"]').first().click(); await page.waitForTimeout(150);
+  await page.click('#tb-attack'); await page.waitForTimeout(300);
+  for (let i = 0; i < 10; i++) { e = await M.est(); if (!e.campo.includes('Faerie Seer') || e.passo === 'main2') break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(200); }
+  assert.ok(e.cemiterio.filter(n => n === 'Faerie Seer').length >= 2 && e.cemiterio.includes('Cryoshatter'), 'virou para atacar: Cryoshatter destrói a criatura e vai junto para o cemitério');
+  assert.deepEqual(M.errors, []);
 });
