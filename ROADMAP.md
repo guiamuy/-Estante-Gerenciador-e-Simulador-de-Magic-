@@ -379,7 +379,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
 | 16º-q ✅ | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1, leva 128) | E47 | 1 | — |
 | 16º-r ✅ | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2, leva 129) | E47 | 1 | **OAuth Client ID do usuário** para ligar na publicação |
-| 16º-s | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) | E48 | 4 | **projeto Firebase do usuário** |
+| 16º-s 🟡 | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) — parte 1 na leva 130 (sala, transporte, sincronização) | E48 | 4 | **projeto Firebase do usuário** (leva 132) |
 | 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
 | 16º-u | Roadmap completo de design: auditoria de todas as telas, crítica e plano de elevação (temas, acento, verso, superfície da mesa, densidade, fonte) | U | 1 | capturas do aparelho para a auditoria final |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
@@ -3947,7 +3947,27 @@ conversa paralela à do Shark e à da revisão carta a carta)
 - **Testes:** U (modelo de perfil, backup completo ida e volta); e2e (perfil aparece na mesa); fase 2 com o Google simulado.
 - **Depende de:** Client ID do usuário para a fase 2.
 
-**U14 · Partida online 1x1** ○ (decisão pendente, ver §6)
+**U14 · Partida online 1x1** 🟡 (parte 1 na leva 130; transporte Firebase atrás de `FIREBASE_DB_URL`, ver §6)
+- **Leva 130 · parte 1 — sala, transporte e sincronização (módulo puro `src/online/sala.js`, `__m30`):**
+  - código de sala `ESTA-XXXX` (alfabeto sem 0/O/1/I), digitado de qualquer jeito e normalizado;
+  - contrato de transporte (`ler`, `escrever`, `atualizar`, `empurrar`, `ouvir`, `ligado`) com dois adaptadores:
+    **memória** (testes, avisos assíncronos como numa rede) e **local** (storage + canal: duas abas do mesmo
+    aparelho e os testes de navegador). O Firebase (REST + eventos, sem SDK) é a leva 132;
+  - sala: criar (sorteia outro código se o sorteado existir), entrar (erros com nome: `codigo-invalido`,
+    `sala-inexistente`, `sala-cheia`, `sala-velha` após 6 h, `formato-diferente`), publicar o setup do anfitrião
+    (semente, as duas listas e as cartas — os dois lados montam a mesma mesa), ações empurradas em ordem, presença,
+    encerrar;
+  - **sincronizador**: cada aparelho só age pelo próprio assento; aplica a ação local na hora e manda para a sala;
+    a lista da sala é a verdade: quem chega depois (ou volta de uma queda) alcança aplicando em ordem; se os dois
+    agiram "ao mesmo tempo", a ordem da sala vence e a mesa é reconstruída do zero — ação que ficou ilegal nessa
+    ordem é ignorada e contada, e quem a fez vê a mesa voltar; jogada que não chegou à sala (sem rede) é desfeita na
+    hora e a tela é avisada (`nao-enviada`).
+  - **Limite declarado:** confiança entre os dois aparelhos (cada um tem o estado inteiro na memória, como no jogo
+    a dois no mesmo celular); a tela esconde a mão do oponente, mas não há servidor que a esconda de quem abrir o
+    console. Para jogar com amigos é o suficiente; para desconhecidos não é, e isso fica escrito na tela.
+  - **Testes (U, `online.unit.test.mjs`, 8):** código; transporte em memória (ordem, ouvir, sem rede); transporte
+    local entre duas "abas"; sala inteira; duas mesas convergem (estado idêntico a cada ação); terceiro aparelho
+    alcança e queda + volta reconstrói; corrida de duas ações; sem rede a jogada é desfeita.
 - **Valor:** dois celulares, cada um com o app, uma partida.
 - **Aceite:** criar sala com código de 6 letras, entrar pelo código, cada aparelho aplica as ações do outro no mesmo motor; reconexão retoma pelo registro; mão do oponente escondida na tela (a sincronização é por ações, então o estado completo está nos dois aparelhos — declarado como limite de confiança entre amigos); sem rede a tela diz que a partida online precisa de internet.
 - **Testes:** U (protocolo de sala e reconciliação de ações); e2e com dois contextos de navegador e transporte simulado; O1 (mensagem sem rede).

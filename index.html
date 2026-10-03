@@ -5901,6 +5901,219 @@ const motivoDe = e => MOTIVO[e && e.message] || MOTIVO.api;
 return { createConta, carregaScriptWeb, motivoDe, MOTIVO, KEY, ARQUIVO };
 })();
 
+/* ==== src/online/sala.js ==== */
+const __m30 = (function () {
+/* =====================================================================
+   Leva 130 · U14 · PARTIDA ONLINE 1x1 — SALA, TRANSPORTE E SINCRONIZAÇÃO
+   O motor é determinístico e joga por registro de ações. Jogar online é:
+   os dois aparelhos montam a MESMA mesa (setup do anfitrião: semente, as
+   duas listas e as cartas) e trocam só as ações humanas, na ordem em que
+   a sala as recebeu. A lista de ações da sala é a verdade; o que cada
+   aparelho aplica localmente antes de a sala confirmar é só para não
+   esperar a rede. Divergiu? Reconstrói a mesa do zero pela lista da sala.
+
+   TRANSPORTE (contrato, qualquer adaptador):
+     ler(caminho) → valor | null
+     escrever(caminho, valor)             substitui o nó inteiro
+     atualizar(caminho, patch)            mescla chaves de primeiro nível
+     empurrar(caminho, valor) → chave     acrescenta com chave crescente
+     ouvir(caminho, cb) → parar           cb(valor inteiro) agora e a cada mudança
+     ligado() · aoMudarLigacao(cb) → parar
+   Adaptadores: memória (testes), local (storage + canal: duas abas no mesmo
+   aparelho, e os testes de navegador), Firebase (leva 132, REST + eventos).
+   ===================================================================== */
+const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem 0/O, 1/I
+const PREFIXO = 'ESTA-';
+const RAIZ = 'salas';
+const VALIDADE_MS = 6 * 3600 * 1000; // sala parada há mais que isso é lixo
+
+/** Código de sala legível: ESTA-XXXX. `aleatorio` entre 0 e 1. */
+function gerarCodigo(aleatorio = Math.random) { let c = PREFIXO; for (let i = 0; i < 4; i++) c += ALFABETO[Math.floor(aleatorio() * ALFABETO.length) % ALFABETO.length]; return c; }
+/** Normaliza o que a pessoa digitou: maiúsculas, sem espaço, prefixo opcional, 0→O e 1→I desfeitos para o alfabeto. */
+function normalizaCodigo(txt) {
+  let t = String(txt || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (t.startsWith('ESTA')) t = t.slice(4);
+  t = t.replace(/0/g, 'O').replace(/1/g, 'I').replace(/O/g, 'Q').replace(/I/g, 'L'); // O e I não existem no alfabeto: vira o mais parecido
+  return t.length === 4 && [...t].every(ch => ALFABETO.includes(ch)) ? PREFIXO + t : null;
+}
+
+/* ---------- transporte em memória: um processo, vários "aparelhos" ---------- */
+function transporteMemoria({ agora = () => Date.now() } = {}) {
+  const dados = new Map(); const ouvintes = new Map(); let seq = 0; let ligado = true; const aoLigar = new Set();
+  const clone = v => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
+  // o aviso chega depois (microtarefa), como numa rede: quem escreve não vê o outro lado reagir no meio da própria chamada
+  const avisa = caminho => { Promise.resolve().then(() => { for (const [c, set] of ouvintes) if (caminho === c || caminho.startsWith(c + '/') || c.startsWith(caminho + '/')) for (const cb of set) cb(leNo(c)); }); };
+  const leNo = caminho => {
+    if (dados.has(caminho)) return clone(dados.get(caminho));
+    const filhos = {}; let tem = false;
+    for (const [k, v] of dados) if (k.startsWith(caminho + '/')) { const resto = k.slice(caminho.length + 1).split('/')[0]; tem = true; filhos[resto] = leNo(caminho + '/' + resto); }
+    return tem ? filhos : null;
+  };
+  const apaga = caminho => { for (const k of [...dados.keys()]) if (k === caminho || k.startsWith(caminho + '/')) dados.delete(k); };
+  const grava = (caminho, valor) => {
+    apaga(caminho);
+    // objeto vazio não ocupa nó: `acoes: {}` nasce vazio e os filhos empurrados depois são lidos como filhos
+    if (valor && typeof valor === 'object' && !Array.isArray(valor)) { for (const [k, v] of Object.entries(valor)) grava(caminho + '/' + k, v); }
+    else if (valor !== null && valor !== undefined) dados.set(caminho, clone(valor));
+  };
+  const t = {
+    kind: 'memoria',
+    async ler(caminho) { if (!ligado) throw new Error('sem-rede'); return leNo(caminho); },
+    async escrever(caminho, valor) { if (!ligado) throw new Error('sem-rede'); grava(caminho, valor); avisa(caminho); },
+    async atualizar(caminho, patch) { if (!ligado) throw new Error('sem-rede'); for (const [k, v] of Object.entries(patch || {})) grava(caminho + '/' + k, v); avisa(caminho); },
+    async empurrar(caminho, valor) { if (!ligado) throw new Error('sem-rede'); const chave = String(agora()).padStart(14, '0') + '-' + String(++seq).padStart(6, '0'); grava(caminho + '/' + chave, valor); avisa(caminho); return chave; },
+    ouvir(caminho, cb) { if (!ouvintes.has(caminho)) ouvintes.set(caminho, new Set()); ouvintes.get(caminho).add(cb); Promise.resolve().then(() => { if (ouvintes.get(caminho)?.has(cb)) cb(leNo(caminho)); }); return () => { ouvintes.get(caminho)?.delete(cb); }; },
+    ligado() { return ligado; },
+    aoMudarLigacao(cb) { aoLigar.add(cb); return () => aoLigar.delete(cb); },
+    /** Só para testes: derruba ou volta a "rede"; ao voltar, todo ouvinte relê. */
+    _rede(sim) { ligado = !!sim; for (const cb of aoLigar) cb(ligado); if (ligado) for (const [c, set] of ouvintes) for (const cb of set) cb(leNo(c)); },
+    _dados: () => Object.fromEntries(dados)
+  };
+  return t;
+}
+
+/* ---------- transporte local: duas abas do mesmo aparelho (storage + canal) ---------- */
+function transporteLocal({ storage, canal = null, nome = 'estante.online', agora = () => Date.now() } = {}) {
+  const CH = nome + ':'; const ouvintes = new Map();
+  const lePlano = () => { const o = {}; for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.startsWith(CH)) { try { o[k.slice(CH.length)] = JSON.parse(storage.getItem(k)); } catch (e) { /* lixo */ } } } return o; };
+  const leNo = caminho => {
+    const plano = lePlano();
+    if (caminho in plano) return plano[caminho];
+    const filhos = {}; let tem = false;
+    for (const k of Object.keys(plano)) if (k.startsWith(caminho + '/')) { tem = true; const resto = k.slice(caminho.length + 1).split('/')[0]; filhos[resto] = leNo(caminho + '/' + resto); }
+    return tem ? filhos : null;
+  };
+  const apaga = caminho => { for (const k of Object.keys(lePlano())) if (k === caminho || k.startsWith(caminho + '/')) storage.removeItem(CH + k); };
+  const grava = (caminho, valor) => {
+    apaga(caminho);
+    if (valor && typeof valor === 'object' && !Array.isArray(valor)) { for (const [k, v] of Object.entries(valor)) grava(caminho + '/' + k, v); }
+    else if (valor !== null && valor !== undefined) storage.setItem(CH + caminho, JSON.stringify(valor));
+  };
+  const avisa = caminho => { for (const [c, set] of ouvintes) if (caminho === c || caminho.startsWith(c + '/') || c.startsWith(caminho + '/')) for (const cb of set) cb(leNo(c)); };
+  const anuncia = caminho => { avisa(caminho); try { canal && canal.postMessage({ caminho }); } catch (e) { /* sem canal */ } };
+  if (canal) canal.addEventListener('message', e => { if (e && e.data && e.data.caminho) avisa(e.data.caminho); });
+  // outra aba escreveu (evento storage): avisa quem ouve o caminho
+  if (typeof addEventListener === 'function') addEventListener('storage', e => { if (e && e.key && e.key.startsWith(CH)) avisa(e.key.slice(CH.length)); });
+  let seq = 0;
+  return {
+    kind: 'local',
+    async ler(caminho) { return leNo(caminho); },
+    async escrever(caminho, valor) { grava(caminho, valor); anuncia(caminho); },
+    async atualizar(caminho, patch) { for (const [k, v] of Object.entries(patch || {})) grava(caminho + '/' + k, v); anuncia(caminho); },
+    async empurrar(caminho, valor) { const chave = String(agora()).padStart(14, '0') + '-' + Math.random().toString(36).slice(2, 6) + String(++seq).padStart(4, '0'); grava(caminho + '/' + chave, valor); anuncia(caminho); return chave; },
+    ouvir(caminho, cb) { if (!ouvintes.has(caminho)) ouvintes.set(caminho, new Set()); ouvintes.get(caminho).add(cb); Promise.resolve().then(() => { if (ouvintes.get(caminho)?.has(cb)) cb(leNo(caminho)); }); return () => { ouvintes.get(caminho)?.delete(cb); }; },
+    ligado() { return true },
+    aoMudarLigacao() { return () => {}; }
+  };
+}
+
+/* ---------- a sala ---------- */
+/** Dados da sala em `salas/<codigo>`:
+    { criadaEm, estado: 'esperando' | 'pronta' | 'jogando' | 'encerrada', formato,
+      anfitriao: { nome, avatar?, deck }, convidado: { nome, avatar?, deck } | null,
+      setup (quando pronta), acoes: { <chave>: { antes, p, action, de } }, presenca: { 0: ms, 1: ms }, fim: { motivo } } */
+function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.random }) {
+  const caminho = codigo => `${RAIZ}/${codigo}`;
+  const ordenadas = acoes => Object.entries(acoes || {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([chave, v]) => ({ chave, ...v }));
+  return {
+    gerarCodigo: () => gerarCodigo(aleatorio), normalizaCodigo,
+    /** Anfitrião: cria a sala com a própria lista e espera o convidado. Tenta outro código se o sorteado já existir. */
+    async criar({ nome, avatar = null, deck, formato }) {
+      for (let tent = 0; tent < 8; tent++) {
+        const codigo = gerarCodigo(aleatorio);
+        if (await transporte.ler(caminho(codigo))) continue;
+        await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, anfitriao: { nome, avatar, deck }, convidado: null, acoes: {}, presenca: { 0: agora() } });
+        return codigo;
+      }
+      throw new Error('sem-codigo-livre');
+    },
+    /** Convidado: entra com a própria lista. Erros: sala-inexistente, sala-cheia, sala-velha, formato-diferente. */
+    async entrar(codigoDigitado, { nome, avatar = null, deck, formato }) {
+      const codigo = normalizaCodigo(codigoDigitado); if (!codigo) throw new Error('codigo-invalido');
+      const sala = await transporte.ler(caminho(codigo));
+      if (!sala) throw new Error('sala-inexistente');
+      if (agora() - (sala.criadaEm || 0) > VALIDADE_MS || sala.estado === 'encerrada') throw new Error('sala-velha');
+      if (sala.convidado) throw new Error('sala-cheia');
+      if (sala.formato && formato && sala.formato !== formato) throw new Error('formato-diferente');
+      await transporte.atualizar(caminho(codigo), { convidado: { nome, avatar, deck }, estado: 'pronta', presenca: { ...(sala.presenca || {}), 1: agora() } });
+      return codigo;
+    },
+    async ler(codigo) { return transporte.ler(caminho(codigo)); },
+    /** Anfitrião publica o setup montado (semente, listas, cartas): a partida começa nos dois lados. */
+    async publicarSetup(codigo, setup) { await transporte.atualizar(caminho(codigo), { setup, estado: 'jogando' }); },
+    async enviarAcao(codigo, acao) { return transporte.empurrar(`${caminho(codigo)}/acoes`, acao); },
+    async encerrar(codigo, motivo) { await transporte.atualizar(caminho(codigo), { estado: 'encerrada', fim: { motivo, em: agora() } }); },
+    async marcarPresenca(codigo, assento) { await transporte.atualizar(`${caminho(codigo)}/presenca`, { [assento]: agora() }); },
+    /** Ouve a sala inteira; devolve `parar`. cb recebe { sala, acoes (ordenadas) }. */
+    ouvir(codigo, cb) { return transporte.ouvir(caminho(codigo), sala => cb(sala ? { sala, acoes: ordenadas(sala.acoes) } : null)); },
+    ordenadas
+  };
+}
+
+/* ---------- sincronizador: liga uma mesa local à lista de ações da sala ---------- */
+/** `criaMesa(setup)` monta a mesa (createTable sem bot, sem desfazer). `assento` é quem joga neste aparelho.
+    Devolve { mesa, agir(action), receber({ acoes }), parar, estado() }. `aoMudar(mesa, motivo)` avisa a tela. */
+function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = () => {}, aoErro = () => {} }) {
+  let mesa = criaMesa(setup);
+  let aplicadas = []; // chaves das ações da sala já refletidas na mesa, na ordem
+  let pendentes = []; // ações minhas aplicadas localmente e ainda não vistas na sala: { antes, action }
+  let ultimas = []; // a última lista de ações que a sala mostrou
+  let reconstrucoes = 0, ignoradas = 0, parar = () => {};
+  const assinatura = a => JSON.stringify([a.antes, a.p, a.action]);
+  /** Refaz a mesa do zero na ordem da sala. `antes` é só pista: a ordem da sala manda; ação que ficou ilegal
+      nessa ordem (os dois agiram "ao mesmo tempo") é ignorada e contada — quem a fez vê a mesa voltar. */
+  function reconstruir(acoes) {
+    mesa = criaMesa(setup); aplicadas = []; pendentes = []; reconstrucoes++;
+    for (const a of acoes) {
+      try { mesa.act(a.action); } catch (e) { ignoradas++; aoErro(Object.assign(new Error('acao-ignorada'), { acao: a })); }
+      aplicadas.push(a.chave);
+    }
+    aoMudar(mesa, 'reconstruida');
+  }
+  function receber(dados) {
+    if (!dados) return;
+    const acoes = dados.acoes || []; ultimas = acoes;
+    // a sala tem menos do que já apliquei, ou numa ordem diferente: a sala manda
+    for (let i = 0; i < aplicadas.length; i++) if (!acoes[i] || acoes[i].chave !== aplicadas[i]) return reconstruir(acoes);
+    let mudou = false;
+    for (const a of acoes.slice(aplicadas.length)) {
+      const minha = pendentes.findIndex(p => assinatura(p) === assinatura(a));
+      if (minha >= 0) { pendentes.splice(minha, 1); aplicadas.push(a.chave); continue; } // já está na mesa
+      if (pendentes.length || mesa.log.length !== a.antes) return reconstruir(acoes); // alguém agiu antes de mim: refaz na ordem da sala
+      mesa.act(a.action); aplicadas.push(a.chave); mudou = true;
+    }
+    if (mudou) aoMudar(mesa, 'remota');
+  }
+  return {
+    get mesa() { return mesa; },
+    assento,
+    /** Minha ação: aplica já, manda para a sala. Ação de outro assento é recusada. */
+    async agir(action) {
+      if (action.p !== assento) throw new Error('nao-e-seu-assento');
+      const antes = mesa.log.length;
+      const eventos = mesa.act(action);
+      pendentes.push({ antes, p: assento, action });
+      aoMudar(mesa, 'local');
+      const minha = pendentes[pendentes.length - 1];
+      try { await sala.enviarAcao(codigo, { antes, p: assento, action, de: assento }); }
+      catch (e) {
+        // não chegou à sala: a mesa volta ao que a sala tem (a jogada não valeu) e a tela é avisada
+        pendentes = pendentes.filter(x => x !== minha);
+        reconstruir(ultimas);
+        aoErro(Object.assign(new Error('nao-enviada'), { causa: e }));
+      }
+      return eventos;
+    },
+    receber,
+    ligar() { parar = sala.ouvir(codigo, receber); return parar; },
+    parar() { parar(); },
+    estado() { return { aplicadas: aplicadas.length, pendentes: pendentes.length, reconstrucoes, ignoradas }; }
+  };
+}
+
+return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, createSala, criaSincronizador, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
+})();
+
 const __m27 = (function () {
 /* =====================================================================
    C12 · MOTOR DE FILTRO DA COLEÇÃO
