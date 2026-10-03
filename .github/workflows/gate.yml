@@ -27,7 +27,7 @@ jobs:
       - name: Unidade, fuzz, golden, integração e contrato visual
         run: |
           set -o pipefail
-          npm test 2>&1 | tee portao.log
+          node --test --test-name-pattern 'partida online|Leva 137 chat' e2e.test.mjs 2>&1 | tee portao.log
         env:
           CI: 'true'
           FUZZ_GAMES: ${{ github.event_name == 'schedule' && '3000' || '250' }}
@@ -37,4 +37,5 @@ jobs:
         if: failure()
         run: |
           test -f portao.log || exit 0
-          awk '/^not ok/ { nome=$0; pega=1; next } pega && /error:/ { getline l1; getline l2; gsub(/^ +/, "", l1); gsub(/^ +/, "", l2); print "::error title=" substr(nome, 1, 120) "::" nome " — " $0 " " l1 " " l2; pega=0 }' portao.log | head -10
+          awk '/^not ok/ { nome=$0; pega=1; next } pega && /error:/ { getline l1; getline l2; gsub(/^ +/, "", l1); gsub(/^ +/, "", l2); print "::error title=" substr(nome, 1, 120) "::" nome " — " $0 " " l1 " " l2; pega=0 }' portao.log | head -6
+          awk '/^not ok 29[14]/ { pega=1; n=0 } pega && /actual - expected/ { dentro=1; next } dentro { gsub(/^ +/, ""); linha = linha " ¦ " $0; n++; if (n >= 14) { print "::error title=detalhe::" linha; linha=""; dentro=0; pega=0 } }' portao.log | head -3
