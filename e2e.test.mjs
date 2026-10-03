@@ -5231,6 +5231,51 @@ test('e2e · R6 · Boros: Boros Garrison e Kor Skyfisher mostram iguais juntas a
   assert.deepEqual(M.errors, []);
 });
 
+// ---- R7 · Jund Wildfire pela tela (360×780, modo único) ----
+const terraR7 = async M => { for (const n of ['Swamp', 'Forest', 'Mountain', 'Drossforge Bridge']) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) return n; } return null; };
+
+test('e2e · R7 · Jund: o custo de sacrificar diz o quê; Fanatical Offering escolhe o sacrifício com iguais juntas; Cleansing Wildfire na própria Ponte busca o terreno; o Mapa diz o que faz', { skip }, async t => {
+  const M = await comLista125(t, '8 Swamp\n4 Forest\n4 Mountain\n6 Drossforge Bridge\n8 Ichor Wellspring\n6 Fanatical Offering\n6 Cleansing Wildfire\n6 Krark-Clan Shaman\n6 Troublemaker Ouphe\n6 Evolution Witness', ['Swamp', 'Forest', 'Mountain', 'Drossforge Bridge', 'Ichor Wellspring', 'Fanatical Offering', 'Cleansing Wildfire', 'Krark-Clan Shaman', 'Troublemaker Ouphe', 'Evolution Witness'], '4', { cores: true });
+  const { page } = M; let e;
+  for (let i = 0; i < 24; i++) { await terraR7(M);
+    for (const n of ['Ichor Wellspring', 'Krark-Clan Shaman', 'Evolution Witness']) { const v = await M.oid(n); if (v && (await M.est()).campo.filter(x => x === n).length < (n === 'Ichor Wellspring' ? 2 : 1)) { const c = await M.legal(`a.t==='cast' && a.oid==='${v}'`); if (c.length) { await M.act(c[0]); await segueR6(M); } } }
+    e = await M.est(); if (['Krark-Clan Shaman', 'Evolution Witness', 'Drossforge Bridge'].every(n => e.campo.includes(n)) && e.campo.filter(n => n === 'Ichor Wellspring').length >= 2 && e.campo.filter(n => ['Swamp', 'Forest', 'Mountain', 'Drossforge Bridge'].includes(n)).length >= 5 && ['Fanatical Offering', 'Cleansing Wildfire'].every(n => e.mao.includes(n))) { await M.proximo(); await terraR7(M); break; }
+    await M.proximo(); }
+  e = await M.est(); assert.ok(['Fanatical Offering', 'Cleansing Wildfire'].every(n => e.mao.includes(n)) && e.campo.filter(n => n === 'Ichor Wellspring').length >= 2, 'mesa pronta: ' + JSON.stringify(e));
+  // os custos dizem o que se sacrifica; adaptar diz adaptar
+  let f = await folha131(page, 'Krark-Clan Shaman', '.tb-side'); assert.deepEqual(f.map(b => b.txt), ['Ativar (sacrificar um artefato)'], 'antes: "Ativar (sacrificar outra)"'); await fecha136(page);
+  f = await folha131(page, 'Evolution Witness', '.tb-side'); assert.match(f[0].txt, /^(Adaptar 2 \(\{1\}\{G\}\)|Ativar \(\{1\}\{G\}\) — .+)$/); await fecha136(page);
+  f = await folha131(page, 'Drossforge Bridge', '.tb-side'); if (f.length) assert.deepEqual(f.map(b => b.txt), ['Gerar {B}', 'Gerar {R}']); await fecha136(page);
+  // Fanatical Offering: o sacrifício é escolhido tocando na carta; as duas Ichor Wellspring vêm juntas
+  let mao = e.mao.length;
+  f = await folha131(page, 'Fanatical Offering'); assert.deepEqual(f.map(b => b.txt), ['Conjurar · {1}{B}']);
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForSelector('#tb-escolha');
+  assert.equal(await page.innerText('#tb-escolha-pergunta'), 'O que você sacrifica para pagar? Toque na carta.');
+  const opcoes = await grade136(page);
+  assert.equal(new Set(opcoes).size, opcoes.length, 'nenhuma carta repetida: ' + opcoes.join(' | '));
+  assert.ok(opcoes.some(c => /^Sacrificar Ichor Wellspring, \d cópias iguais$/.test(c)), 'iguais juntas (antes: uma carta para cada Wellspring)');
+  await auditaTela(page, 'sacrifício da Fanatical Offering');
+  await page.locator('#tb-escolha [data-escolha="Ichor Wellspring"]').first().click(); await page.waitForTimeout(300); e = await segueR6(M);
+  assert.equal(e.mao.length, mao - 1 + 2 + 1, 'duas da Offering e uma da Wellspring que morreu'); assert.ok(e.campo.includes('Map'));
+  f = await folha131(page, 'Map', '.tb-side');
+  assert.match(f[0].txt, /^Ativar \(\{1\}, \{T\}, sacrificar\)(: .+)?( → .+| — .+)$/, 'o Mapa (ficha) diz o que faz: ' + f[0].txt);
+  await auditaTela(page, 'folha do Mapa'); await fecha136(page);
+  // Cleansing Wildfire na própria Ponte: ela fica (indestrutível) e a busca abre, com iguais juntas
+  await M.proximo(); await terraR7(M); e = await M.est();
+  const terrenos = e.campo.filter(n => ['Swamp', 'Forest', 'Mountain', 'Drossforge Bridge'].includes(n)).length;
+  f = await folha131(page, 'Cleansing Wildfire');
+  assert.ok(f.some(b => /^Conjurar → Drossforge Bridge( \(.+\))? · \{1\}\{R\}$/.test(b.txt)), f.map(b => b.txt).join(' | '));
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: 'Drossforge Bridge' }).first().click(); await page.waitForTimeout(300); e = await M.resolve();
+  assert.equal(e.pend, 'pick'); assert.ok(e.campo.includes('Drossforge Bridge'), 'a Ponte é indestrutível');
+  assert.match(await M.decisao(), /^Cleansing Wildfire · Vasculhar o grimório \| /);
+  const achadas = await page.locator('#tb-pick-cards .tb-card').evaluateAll(cs => cs.map(c => c.getAttribute('aria-label').replace(/, \d+ cópias/, '')));
+  assert.equal(new Set(achadas).size, achadas.length, 'uma carta por terreno básico: ' + achadas.join(' | ')); assert.ok(achadas.every(n => ['Swamp', 'Forest', 'Mountain'].includes(n)));
+  await auditaTela(page, 'busca da Cleansing Wildfire');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200); e = await segueR6(M);
+  assert.equal(e.campo.filter(n => ['Swamp', 'Forest', 'Mountain', 'Drossforge Bridge'].includes(n)).length, terrenos + 1, 'um terreno a mais, e a Ponte continua');
+  assert.deepEqual(M.errors, []);
+});
+
 /* ---------------- Leva 133 · partida online entre duas abas (transporte local) ---------------- */
 test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra aba, as duas mesas convergem, sem desfazer, desistir encerra', { skip }, async t => {
   const { page: A, errors, base } = await open(t, { dev: false });

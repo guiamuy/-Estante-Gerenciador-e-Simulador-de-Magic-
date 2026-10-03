@@ -3862,6 +3862,7 @@ function validateScript(sc) {
     for (const f of ['perPower', 'perToughness']) if (self[f] != null && !Number.isInteger(self[f])) errs.push(`bônus próprio: ${f} precisa ser inteiro`);
     if ((self.perPower != null || self.perToughness != null) && !PER_COUNTS.includes(self.per)) errs.push(`bônus próprio: contagem "${self.per}" desconhecida`);
     if (self.ward != null && (typeof self.ward !== 'string' || !self.ward.trim())) errs.push('bônus próprio: vigilância precisa de um custo de mana');
+    if (self.devoid != null && self.devoid !== true) errs.push('bônus próprio: devoid só vale como true');
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
@@ -4423,7 +4424,7 @@ const RAW_SCRIPTS = [
   // S23 · gatilhos de conjuração e mana de qualquer cor (textos conferidos na Scryfall)
   { name: 'Kitchen Imp', madness: { mana: '{B}' }, self: {},
     example: { action: 'madness', target: 'none', expect: { attached: false } } },
-  { name: 'Writhing Chrysalis', abilities: [{ kind: 'triggered', when: 'cast-self', effects: [
+  { name: 'Writhing Chrysalis', self: { devoid: true }, abilities: [{ kind: 'triggered', when: 'cast-self', effects: [
     { do: 'token', amount: 2, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1,
       abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] },
     { kind: 'triggered', when: 'other-sacrificed', filter: { subtype: 'Eldrazi' }, effects: [{ do: 'counters', amount: 1, target: 'self-source' }] }],
@@ -4514,6 +4515,9 @@ const RAW_SCRIPTS = [
   // Sem script, as duas dependiam do texto buscado na rede para gerar mana; sem internet caíam para manual.
   { name: 'Llanowar Elves', produces: [['G']], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Elvish Mystic', produces: [['G']], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // R7 · texto oficial (Scryfall MRD 286, consulta de 30/09/2026 em .listas/oficiais.json): "{T}: Add {B}." Era a última carta das listas
+  // Pauper sem script (coberta só pelo texto buscado).
+  { name: 'Vault of Whispers', produces: [['B']], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Overgrown Battlement', produces: [{ symbol: 'G', per: 'defenders-you-control' }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // Leva 106 · texto (Forge, 30/09/2026): "{T}: Add X mana in any combination of colors, where X is the number of
@@ -8194,6 +8198,7 @@ function createGame(setup) {
     if (sc.grants) f.script.grants = sc.grants;
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
+    if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
     if (sc.self && Array.isArray(sc.self.keywords)) { for (const k of sc.self.keywords) if (!f.kw.includes(k)) f.kw.push(k); if (f.kw.includes('flash')) f.flash = true; }
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
@@ -14218,7 +14223,8 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const grupos = new Map();
     for (const a of opcoes) { const oid = [].concat(a.pay[campo])[0], o = s.objects[oid];
       // Leva 136 · terrenos iguais no campo (qual Floresta volta para a mão) agrupam por nome e por estarem virados ou não
-      const terrenoLiso = o.zone === 'battlefield' && s.facts[o.name].types.includes('land') && !s.zones.some(z => z.battlefield.some(x => s.objects[x].attachedTo === oid)) && !Object.keys(o.counters || {}).length;
+      // R7 · vale para qualquer permanente igual e sem nada em cima (duas Ichor Wellspring para sacrificar), não só terreno
+      const terrenoLiso = o.zone === 'battlefield' && !o.attachedTo && !o.damage && !(s.facts[o.name].types.includes('creature') && o.sick) && !s.zones.some(z => z.battlefield.some(x => s.objects[x].attachedTo === oid)) && !Object.keys(o.counters || {}).length;
       const chave = ['hand', 'graveyard'].includes(o.zone) ? `${o.zone}|${o.name}` : terrenoLiso ? `campo|${o.name}|${!!o.tapped}` : oid;
       if (!grupos.has(chave)) grupos.set(chave, { o, oid, acao: a, ids: new Set() }); grupos.get(chave).ids.add(oid); }
     for (const g of grupos.values()) g.total = g.ids.size; // Leva 136 · conta cartas, não ações (o mesmo terreno aparecia uma vez por alvo)
@@ -14365,10 +14371,16 @@ function createTableScreen({ store, perfil = null, online = null }) {
 
   /** B7 · duas melhores jogadas que ainda estão na mesa, com o motivo. */
   /** Leva 111 · custo da habilidade por extenso no botão, incluindo descartar (Blood) e o resto do que se paga. */
+  function sacrificioPorExtenso(spec) { // R7 · "sacrificar um artefato", "sacrificar artefato ou criatura": antes saía "sacrificar outra" para todos
+    const PT = { artifact: 'artefato', creature: 'criatura', land: 'terreno', enchantment: 'encantamento' };
+    const ts = ((spec && spec.types) || []).map(x => PT[x]).filter(Boolean);
+    if (!ts.length) return 'sacrificar outra';
+    return ts.length === 1 ? `sacrificar ${ts[0] === 'criatura' ? 'uma' : 'um'} ${ts[0]}` : `sacrificar ${ts.slice(0, -1).join(', ')} ou ${ts[ts.length - 1]}`;
+  }
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? 'sacrificar outra' : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {
@@ -14477,8 +14489,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
       const soMana = (ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana' && Array.isArray(e.symbols));
       if (soMana) { const c0 = custoDaHabilidade(ab); legal.push(doBtn(`Gerar ${ab.effects.flatMap(e => e.symbols).map(x => `{${x}}`).join('')}${c0 ? ` (${c0})` : ''}`, act)); continue; }
       const cost = custoDaHabilidade(ab);
+      if (ab.adapt != null && !act.targets) { legal.push(doBtn(`Adaptar ${ab.adapt}${cost ? ` (${cost})` : ''}`, act, { variant: 'primary' })); continue; } // R7 · dizia só "Ativar ({1}{G})"
       // R6 · ficha não tem texto na folha: o botão diz o que a habilidade faz ("Ativar ({2}, sacrificar): compra 1 carta")
-      const oQueFaz = o.token && !act.targets ? T.descreveEfeitos(ab.effects) : '';
+      const oQueFaz = o.token ? T.descreveEfeitos(ab.effects) : '';
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
     // Leva 111 · habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo

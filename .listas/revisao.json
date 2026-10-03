@@ -3984,7 +3984,7 @@
    }
   },
   "Refurbished Familiar": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -3992,10 +3992,23 @@
     "fonte": "https://scryfall.com/card/mh3/105/refurbished-familiar",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: afinidade com artefatos (terreno artefato conta), voar; cada oponente descarta e, se não puder, você compra."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: o botão mostra o custo com desconto (leva 131)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Refurbished Familiar"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4014,7 +4027,7 @@
    }
   },
   "Writhing Chrysalis": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4022,10 +4035,23 @@
     "fonte": "https://mtg.wtf/card/mh3/208/Writhing-Chrysalis",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "corrigido: o script declara \"desprovida de cor\" (incolor mesmo se o dado da carta vier com cor). Ao conjurar cria duas Eldrazi Spawn; marcador ao sacrificar outro Eldrazi; alcance."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: a ficha mostra \"Gerar {C} (sacrificar)\" (leva 139)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Writhing Chrysalis"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4044,7 +4070,7 @@
    }
   },
   "Gixian Infiltrator": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4052,10 +4078,23 @@
     "fonte": "https://scryfall.com/card/bro/98/gixian-infiltrator",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: marcador quando você sacrifica outra permanente."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: sem decisão."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Gixian Infiltrator"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4071,7 +4110,7 @@
    }
   },
   "Krark-Clan Shaman": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4079,10 +4118,24 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/41120",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: sacrificar um artefato (sem {T}): 1 de dano em cada criatura sem voar, ela inclusive."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "corrigido: o botão dizia \"Ativar (sacrificar outra)\"; agora \"Ativar (sacrificar um artefato)\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Gixian Infiltrator",
+    "e2e: R7 · Jund: o custo de sacrificar diz o quê"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4096,7 +4149,7 @@
    }
   },
   "Evolution Witness": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4104,10 +4157,24 @@
     "fonte": "https://scryfall.com/card/mh3/424/evolution-witness",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: adaptar 2 por {1}{G}; ao receber marcadores devolve uma permanente do seu cemitério."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "corrigido: o botão dizia \"Ativar ({1}{G})\"; agora \"Adaptar 2 ({1}{G})\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Evolution Witness",
+    "e2e: R7 · Jund: o custo de sacrificar diz o quê"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4123,7 +4190,7 @@
    }
   },
   "Fanatical Offering": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4131,10 +4198,24 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/f/fanatical_offering.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: sacrificar artefato ou criatura é custo adicional; compra duas; cria um Mapa."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "corrigido: na escolha do sacrifício, permanentes iguais vêm juntas; o Mapa (ficha) diz o que faz."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Fanatical Offering",
+    "e2e: R7 · Jund: o custo de sacrificar diz o quê"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4152,7 +4233,7 @@
    }
   },
   "Cast Down": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4160,10 +4241,23 @@
     "fonte": "https://scryfall.com/card/dom/81/cast-down",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: não mira criatura lendária."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: remoções"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4177,7 +4271,7 @@
    }
   },
   "Eviscerator's Insight": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4185,10 +4279,23 @@
     "fonte": "https://scryfall.com/card/mh3/93/eviscerators-insight",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: custo adicional de sacrificar; compra duas; lampejo {4}{B} pede o sacrifício de novo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Fanatical Offering"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4205,7 +4312,7 @@
    }
   },
   "Terminate": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4213,10 +4320,23 @@
     "fonte": "https://www.mtg.wtf/card/mm3/194/Terminate ; https://www.hareruyamtg.com/en/products/detail/81903",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: destrói a criatura alvo (\"não pode ser regenerada\" não tem efeito no motor: não há regeneração nas listas)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: remoções"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4230,7 +4350,7 @@
    }
   },
   "Cleansing Wildfire": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4238,10 +4358,24 @@
     "fonte": "https://scryfall.com/card/znr/137/cleansing-wildfire",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: destrói o terreno alvo; o controlador pode buscar um básico virado; compra. Na própria Ponte (indestrutível) a Ponte fica e a busca acontece."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: alvo na folha por nome; a busca mostra uma carta por terreno básico."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Cleansing Wildfire",
+    "e2e: R7 · Jund: o custo de sacrificar diz o quê"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4257,7 +4391,7 @@
    }
   },
   "Ichor Wellspring": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4265,10 +4399,24 @@
     "fonte": "https://scryfall.com/card/c21/245/ichor-wellspring",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: compra ao entrar e ao ir do campo para o cemitério."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido no e2e (sacrificada para a Offering)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Ichor Wellspring",
+    "e2e: R7 · Jund: o custo de sacrificar diz o quê"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4285,7 +4433,7 @@
    }
   },
   "Lembas": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4293,10 +4441,23 @@
     "fonte": "https://scryfall.com/card/ltr/243/lembas",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: vidência 1 e compra; {2}, {T}, sacrificar: 3 de vida; volta embaralhada para o grimório."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Ichor Wellspring"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4316,7 +4477,7 @@
    }
   },
   "Makeshift Munitions": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4324,10 +4485,23 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/91140 ; https://www.hareruyamtg.com/en/products/detail/87497",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: {1}, sacrificar artefato ou criatura: 1 de dano em qualquer alvo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Makeshift Munitions"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4341,7 +4515,7 @@
    }
   },
   "Drossforge Bridge": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4349,10 +4523,24 @@
     "fonte": "https://scryfall.com/card/mh2/246/drossforge-bridge",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: terreno artefato, entra virada, indestrutível, {B} ou {R}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: folha \"Gerar {B}\" e \"Gerar {R}\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Cleansing Wildfire",
+    "e2e: R7 · Jund: o custo de sacrificar diz o quê"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4366,7 +4554,7 @@
    }
   },
   "Slagwoods Bridge": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4374,10 +4562,23 @@
     "fonte": "https://facetofacegames.com/en-eu/products/slagwoods-bridge-256-modern-horizons-2-foil ; https://playgroup.gg/cards/slagwoods-bridge?pod=duel",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: entra virada, {R} ou {G}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo mesmo caminho da Drossforge Bridge."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Cleansing Wildfire"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4391,7 +4592,7 @@
    }
   },
   "Twisted Landscape": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4399,10 +4600,23 @@
     "fonte": "https://scryfall.com/card/mh3/232/twisted-landscape (confirmado tambem em mh3/521)",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: busca Pântano, Montanha ou Floresta básica virada."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo mesmo caminho da Sheltering Landscape (leva 139)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Twisted Landscape"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4418,7 +4632,7 @@
    }
   },
   "Vault of Whispers": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4426,21 +4640,37 @@
     "fonte": "https://scryfall.com/card/mrd/286/vault-of-whispers ; https://www.hareruyamtg.com",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "corrigido: ganhou script ({T}: {B}); era a última carta das listas Pauper coberta só pelo texto buscado."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: folha \"Gerar {B}\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Makeshift Munitions"
+   ],
    "notas": [],
    "tracos": {
-    "script": false,
-    "mecanicas": [],
+    "script": true,
+    "cobertura": "completo",
+    "mecanicas": [
+     "produces"
+    ],
     "efeitos": [],
     "gatilhos": [],
     "ativadas": 0
    }
   },
   "Weather the Storm": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4448,10 +4678,23 @@
     "fonte": "https://scryfall.com/card/mh1/191/weather-the-storm",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: 3 de vida e uma cópia por mágica conjurada antes no turno."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio. A contagem da tempestade não aparece antes de conjurar."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Twisted Landscape"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4467,7 +4710,7 @@
    }
   },
   "Troublemaker Ouphe": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4475,10 +4718,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/t/troublemaker_ouphe.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: barganha opcional; barganhada, exila artefato ou encantamento do oponente."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio. A folha pergunta o que sacrificar na barganha, com a opção de não pagar."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: Troublemaker Ouphe"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4496,7 +4752,7 @@
    }
   },
   "Breath Weapon": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4504,10 +4760,23 @@
     "fonte": "https://scryfall.com/card/clb/165/breath-weapon",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: 2 de dano em cada criatura que não é Dragão, as suas inclusive."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: remoções"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -4521,7 +4790,7 @@
    }
   },
   "Ancient Grudge": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Jund Wildfire"
    ],
@@ -4529,10 +4798,23 @@
     "fonte": "https://scryfall.com/card/sld/98",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido: destrói artefato; lampejo {G}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 148,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e escolha do sacrifício tocando na carta); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "jund.regras: remoções"
+   ],
    "notas": [],
    "tracos": {
     "script": true,

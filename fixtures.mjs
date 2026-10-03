@@ -73,7 +73,7 @@ export const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prod
   "Sentinel's Eyes": 'Enchantment — Aura', 'Spirit Link': 'Enchantment — Aura', 'Lifelink': 'Enchantment — Aura',
   'Angelic Gift': 'Enchantment — Aura', 'Flickering Ward': 'Enchantment — Aura', 'Skullclamp': 'Artifact — Equipment',
   'Utopia Sprawl': 'Enchantment — Aura', 'Abundant Growth': 'Enchantment — Aura', 'Armadillo Cloak': 'Enchantment — Aura',
-  'Benevolent Blessing': 'Enchantment — Aura', 'Silhana Ledgewalker': 'Creature — Elf Rogue', 'Gladecover Scout': 'Creature — Elf Scout', 'Slippery Bogle': 'Creature — Beast', 'Aura Gnarlid': 'Creature — Beast',
+  'Benevolent Blessing': 'Enchantment — Aura', 'Silhana Ledgewalker': 'Creature — Elf Rogue', 'Vault of Whispers': 'Artifact Land', 'Gladecover Scout': 'Creature — Elf Scout', 'Slippery Bogle': 'Creature — Beast', 'Aura Gnarlid': 'Creature — Beast',
   'Thraben Inspector': 'Creature — Human Soldier', 'Novice Inspector': 'Creature — Human Detective', 'Squadron Hawk': 'Creature — Bird',
   'Kor Skyfisher': 'Creature — Kor Soldier', 'Zulaport Cutthroat': 'Creature — Human Rogue', 'Cruel Celebrant': 'Creature — Vampire',
   'Corpse Knight': 'Creature — Zombie Knight', 'Elvish Vanguard': 'Creature — Elf Warrior', 'Bojuka Bog': 'Land',

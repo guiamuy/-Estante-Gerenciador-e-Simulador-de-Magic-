@@ -143,8 +143,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R4 Elves carta a carta: 23 cartas revisadas, colher provas alcançável, Winding Way sem pergunta, pagar custo tocando nas cartas, Elves 100% sem rede (leva 136, **motor v67**) | 🟡 |
 | R · Revisão carta a carta | R5 GW Bogles carta a carta: 23 cartas revisadas, gatilhos simultâneos corrigidos, Aura ao lado de quem a carrega (leva 139, **motor v68**) | 🟡 |
 | R · Revisão carta a carta | R6 Boros Bully carta a carta: 23 cartas revisadas, gatilhos iguais sem pergunta, lampejo com custo por extenso; contadores de zona não se sobrepõem com fonte larga (leva 144, **motor v69**) | 🟡 |
-| R · Revisão carta a carta | R7 Jund Wildfire, carta a carta | ▶ |
-| R · Revisão carta a carta | R8 Walls Combo, carta a carta · R9 homologação independente | ○ |
+| R · Revisão carta a carta | R7 Jund Wildfire carta a carta: 23 cartas revisadas, custos de sacrifício por extenso, as sete listas Pauper 100% sem rede (leva 148, motor v69 sem mudança) | 🟡 |
+| R · Revisão carta a carta | R8 Walls Combo, carta a carta | ▶ |
+| R · Revisão carta a carta | R9 homologação independente | ○ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
@@ -382,6 +383,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
 | 16º-n 🟡 | Rakdos Madness carta a carta: pagamento automático sem virar terreno à toa (motor v65), decisões escritas na bandeja, escolha tocando na carta (leva 125) | R2 | 1 | teste no aparelho; partidas salvas da v64 não abrem |
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
+| 16º-r7 🟡 | Jund Wildfire carta a carta: custos de sacrifício e adaptar por extenso, permanentes iguais juntas na escolha, Vault of Whispers com script (leva 148) | R7 | 1 | teste no aparelho |
 | 16º-r6 🟡 | Boros Bully carta a carta: gatilhos idênticos não pedem ordem (motor v69), lampejo e esgueirar-se com o custo escrito, iguais juntas ao devolver; conserto do portão do CI (sobreposição com fonte larga) e anotação dos testes que falham (leva 144) | R6 · Q | 1 | teste no aparelho; partidas salvas da v68 não abrem |
 | 16º-ab 🟡 | GW Bogles carta a carta: dois gatilhos seus ao mesmo tempo mantêm alvo, valor e "você pode" (motor v68); Aura ao lado de quem a carrega; alvos iguais dizem a força (leva 139) | R5 | 1 | teste no aparelho; partidas salvas da v67 não abrem |
 | 16º-z 🟡 | Elves carta a carta: colher provas na folha (não era alcançável), Winding Way entrega as cartas sem pergunta (motor v67), custo de várias cartas tocando nelas, Llanowar Elves e Elvish Mystic com script (leva 136) | R4 | 1 | teste no aparelho; partidas salvas da v66 não abrem |
@@ -2409,7 +2411,21 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Cobertura declarada:** o verso da Lunarch Veteran (Luminous Phantom) não tem texto oficial em `.listas/oficiais.json`; o que o script faz no verso não foi conferido contra fonte nesta revisão. Sem teste de tela próprio: Novice Inspector, Raffine's Informant, Rally the Peasants, Thraben Charm, Perilous Landscape, Wind-Scarred Crag, Dust to Dust, Electrickery, Hallow e Martyr of Sands.
 - **Fora:** Martyr of Sands pergunta quantas cartas revela com um botão por quantidade, sem dizer a vida de cada uma; a busca da Squadron Hawk mostra as cópias em fila (são até três toques). O teste `e2e · X11 scanner` continua instável (trilha scanner). O Shark com esta lista não foi revisado (trilha bot).
 
-**R7 e R8 · As outras duas listas Pauper, carta a carta** ▶ (R7 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (feita, leva 131) · R4 Elves (feita, leva 136) · R5 GW Bogles (feita, leva 139) · R6 Boros Bully (feita, leva 144) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
+**R7 · Jund Wildfire, carta a carta** 🟡 (leva 148, motor v69 sem mudança; falta o teste no aparelho)
+- **Valor:** o baralho de sacrifício joga dizendo o que cada custo pede; a jogada central (Cleansing Wildfire na própria Ponte) está conferida de ponta a ponta.
+- **Aceite:** as 23 cartas com ficha `revisada` (texto de `.listas/oficiais.json`, consultas de 30/09/2026); regra conferida com a lista real; jogadas-chave pela tela em 360×780 com `auditaTela`.
+- **Motor:** as 23 cartas estavam certas na regra; nenhuma mudança de resultado, **versão do motor mantida (v69)** e partidas salvas continuam abrindo. Dois reforços de dado: Writhing Chrysalis declara "desprovida de cor" no script (fica incolor mesmo se o dado da carta vier com cor) e **Vault of Whispers ganhou script** ({T}: {B}).
+- **Sem rede:** com a Vault, **as sete listas Pauper medem 100% sem rede** (`node .listas/medir.mjs`). Fecha a pendência aberta na leva 48.
+- **Tela corrigida:**
+  - **Custo de sacrificar:** "Ativar (sacrificar outra)" virou "Ativar (sacrificar um artefato)" (Krark-Clan Shaman) e "sacrificar artefato ou criatura" (Makeshift Munitions).
+  - **Adaptar:** Evolution Witness mostra "Adaptar 2 ({1}{G})" no lugar de "Ativar ({1}{G})".
+  - **Escolha do sacrifício:** permanentes iguais e sem nada em cima vêm juntas (duas Ichor Wellspring eram duas cartas).
+  - **Fichas com alvo:** o Mapa diz o que faz no botão.
+- **Testes:** `jund.regras` (11, com a lista real); e2e R7 (1: custos, sacrifício da Fanatical Offering, Mapa, Cleansing Wildfire na Ponte com a busca).
+- **Cobertura de tela declarada:** sem teste de tela próprio — Refurbished Familiar, Writhing Chrysalis, Gixian Infiltrator, Cast Down, Eviscerator's Insight, Terminate, Lembas, Makeshift Munitions, Slagwoods Bridge, Twisted Landscape, Vault of Whispers, Weather the Storm, Troublemaker Ouphe, Breath Weapon e Ancient Grudge; têm teste de regra e usam caminhos de tela já testados.
+- **Fora:** Weather the Storm não mostra quantas cópias fará antes de conjurar; "não pode ser regenerada" (Terminate) não existe no motor porque nenhuma lista regenera. O Shark com esta lista não foi revisado (trilha bot).
+
+**R8 · Walls Combo, carta a carta** ▶ (a próxima; 8 das 24 cartas já revisadas por serem compartilhadas) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (feita, leva 131) · R4 Elves (feita, leva 136) · R5 GW Bogles (feita, leva 139) · R6 Boros Bully (feita, leva 144) · R7 Jund Wildfire (feita, leva 148) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
 - **Aceite de cada uma:** todas as cartas da lista com ficha `revisada` ou com a pendência escrita; uma partida guiada da lista pela tela (as jogadas-chave do baralho) no e2e; captura das decisões novas; a sonda R0 com mais uma semente para a lista.
 - **Estimativa:** 7 a 8 levas. Apoio: a auditoria de texto fez 111 cartas numa leva (105), mas sem tela; mecânica nova rendeu de 4 a 6 cartas por leva; aqui o motor já está auditado e o trabalho é de tela, com 17 a 24 cartas por lista e muita mecânica repetida entre listas (14 auras, 8 lampejos, 7 modais).
 
