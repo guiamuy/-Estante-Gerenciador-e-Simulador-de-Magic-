@@ -832,3 +832,58 @@ test('Leva 132 · rolagem: joga até o começo do meu próximo turno, não muda 
   for (let i = 0; i < 110 && cur.status === 'playing' && cur.turn.number < fim; i++) cur = act(cur, B.politicaRapida(cur) || { t: 'pass', p: cur.turn.priority });
   assert.ok(cur.status !== 'playing' || (cur.turn.number === fim && cur.turn.active === 0), 'chegou ao meu próximo turno');
 });
+
+// Leva 143 · usar todas as mecânicas, inclusive as dos terrenos. O primeiro caso é o que o usuário viu na mesa
+// (03/10/2026): o Shark preso à mana incolor do terreno que podia ser sacrificado para buscar um básico.
+const FLORESTAS = n => Array(n).fill('Forest');
+test('Leva 143 · terreno que busca básico: com mágica presa na mão por falta de cor, o Shark estoura o terreno e busca a cor certa', async () => {
+  let { s, ids } = await monta(5, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ['Twisted Landscape', 'Swamp', 'Swamp'], mao: ['Evolution Witness'] } });
+  assert.notEqual(shark('shark-v6').jogada(s, 0).acao.oid, ids[0]['Twisted Landscape'], 'v6: ficava com a mana incolor e a criatura verde na mão');
+  const j = shark('shark').jogada(s, 0);
+  assert.deepEqual([j.acao.t, j.acao.oid], ['activate', ids[0]['Twisted Landscape']]);
+  s = act(s, j.acao);
+  const bot = shark('shark');
+  for (let i = 0; i < 8 && (s.pending || s.stack.length); i++) s = act(s, s.pending ? bot.jogada(s, s.pending.p).acao : { t: 'pass', p: s.turn.priority });
+  assert.ok(s.zones[0].battlefield.some(o => s.objects[o].name === 'Forest'), 'buscou a Floresta, que é a cor que faltava');
+  // sem carta presa, ele não troca o terreno à toa
+  const livre = await monta(5, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ['Twisted Landscape', 'Swamp', 'Swamp'], mao: ['Cast Down'] } });
+  assert.notEqual(shark('shark').jogada(livre.s, 0).acao.t, 'activate');
+});
+
+test('Leva 143 · a avaliação enxerga a mágica presa por falta de cor e o terreno sobrando na mão', async () => {
+  const { s } = await monta(5, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ['Swamp', 'Swamp', 'Swamp', 'Drossforge Bridge', 'Vault of Whispers'], mao: ['Evolution Witness', 'Cast Down', 'Forest', 'Mountain'] } });
+  const a = B.avaliaV4(s, 0), b = B.avaliaV3(s, 0);
+  assert.equal(a.parcelas.presas, -3, 'uma carta verde sem fonte de verde');
+  assert.equal(a.parcelas.sobra, -4, 'cinco terrenos em campo: os dois da mão sobram');
+  assert.equal(a.nota, b.nota - 7);
+  const fim = J(s); fim.players[1].lost = true; fim.status = 'over'; fim.winner = 0;
+  assert.equal(B.avaliaV4(fim, 0).nota, B.avaliaV3(fim, 0).nota);
+});
+
+test('Leva 143 · mana que pede um gesto: o Shark vira a Saruli Caretaker (e outra criatura) para pagar a mágica que a Floresta sozinha não paga', async () => {
+  let { s, ids } = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ['Forest', 'Saruli Caretaker', 'Drift of Phantasms'], mao: ['Overgrown Battlement'] } });
+  assert.ok(!E.legalActions(s, 0).some(a => a.t === 'cast'), 'o pagamento automático não alcança: só uma Floresta');
+  assert.equal(shark('shark-v6').jogada(s, 0).acao.t, 'pass', 'v6: passava com a mágica na mão');
+  const bot = shark('shark');
+  const j1 = bot.jogada(s, 0);
+  assert.deepEqual([j1.acao.t, j1.acao.oid], ['activate', ids[0]['Saruli Caretaker']]);
+  assert.match(j1.motivo, /abri mana para conjurar Overgrown Battlement/);
+  s = act(s, j1.acao);
+  const j2 = bot.jogada(s, 0);
+  assert.deepEqual([j2.acao.t, j2.acao.oid], ['cast', ids[0]['Overgrown Battlement']], 'a segunda ação do plano sai da memória do bot');
+  s = act(s, j2.acao);
+  assert.ok(s.stack.length === 1 || s.zones[0].battlefield.includes(ids[0]['Overgrown Battlement']));
+});
+
+test('Leva 143 · o relógio corta o fim da fila, não a melhor jogada: com muitas candidatas, o dano que fecha a partida é achado mesmo com pouco tempo', async () => {
+  const { s, ids } = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1',
+    p0: { campo: [...FLORESTAS(8), 'Valakut Invoker', 'Saruli Caretaker', 'Saruli Caretaker', 'Drift of Phantasms', 'Overgrown Battlement', 'Sagu Wildling', 'Tinder Wall'] },
+    p1: { campo: ['Plains', 'Thraben Inspector', 'Squadron Hawk'] } });
+  s.players[1].life = 3;
+  const relogio = () => { let n = 0; return () => n++; };
+  const curto = nivel => B.criaBot({ nivel, orcamentoMs: 30, agora: relogio() }).jogada(s, 0); // relógio de mentira: cada consulta vale 1 ms
+  const novo = curto('shark');
+  assert.deepEqual([novo.acao.t, novo.acao.oid, (novo.acao.targets[0] || {}).player], ['activate', ids[0]['Valakut Invoker'], 1], '3 de dano no oponente com 3 de vida');
+  const velho = curto('shark-v6');
+  assert.ok(!(velho.acao.t === 'activate' && (velho.acao.targets || [])[0] && velho.acao.targets[0].player === 1), 'v6: as candidatas eram lidas em ordem alfabética e o alvo "jogador" ficava depois do corte');
+});

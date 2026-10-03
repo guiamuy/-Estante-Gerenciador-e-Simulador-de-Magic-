@@ -150,7 +150,7 @@ test('U11 · v1 e v2 só diferem por critério: a avaliação v2 é determiníst
   assert.deepEqual(B.avaliaV2(s, 0), B.avaliaV2(s, 0));
   const t = JSON.parse(JSON.stringify(s)); t.players[1].lost = true; t.status = 'over'; t.winner = 0;
   assert.equal(B.avaliaV2(t, 0).parcelas.vitoria, B.PESOS.vitoria);
-  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1'); assert.equal(B.criaBot({ nivel: 'shark-v2' }).nivel, 'shark-v2'); assert.equal(B.criaBot({ nivel: 'shark-v3' }).nivel, 'shark-v3'); assert.equal(B.criaBot({ nivel: 'shark-v4' }).nivel, 'shark-v4'); assert.equal(B.criaBot({ nivel: 'shark-v5' }).nivel, 'shark-v5');
+  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1'); assert.equal(B.criaBot({ nivel: 'shark-v2' }).nivel, 'shark-v2'); assert.equal(B.criaBot({ nivel: 'shark-v3' }).nivel, 'shark-v3'); assert.equal(B.criaBot({ nivel: 'shark-v4' }).nivel, 'shark-v4'); assert.equal(B.criaBot({ nivel: 'shark-v5' }).nivel, 'shark-v5'); assert.equal(B.criaBot({ nivel: 'shark-v6' }).nivel, 'shark-v6');
 });
 
 // Leva 115 · o Shark atual (v3) contra o v2 congelado. Medido em 01/10/2026: 57% em 160 partidas com estes decks de

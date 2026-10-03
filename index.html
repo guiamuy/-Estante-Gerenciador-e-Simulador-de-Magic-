@@ -1361,6 +1361,11 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
   .tb-chips { flex: 1 1 0; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
   .tb-chip { flex-direction: column-reverse; justify-content: center; gap: 0; padding: 2px var(--space-1); border-radius: var(--radius-2); line-height: 1.1; font-size: var(--text-2xs); white-space: nowrap; min-width: 0; }
   .tb-chip b { font-size: var(--text-md); }
+  /* leva 143 (trilha bot, com autorização do usuário: o portão do main estava vermelho desde a leva 137) · com quatro
+     contadores (a mão do oponente aparece na partida online) eles não cabem ao lado da vida em 360 px e "Grimório"
+     encostava em "Cemitério": nesse caso os contadores ganham a linha de baixo inteira */
+  .tb-side__head:has(.tb-chips > :nth-child(4)) { flex-wrap: wrap; }
+  .tb-chips:has(> :nth-child(4)) { flex: 1 1 100%; }
 }
 @media (min-width: 400px) {
   :root { --carta-campo: 92px; --carta-mao: 110px; --carta-pilha: 60px; }
@@ -11301,6 +11306,10 @@ const __m25 = (function () {
    RECURSOS (leva 119): permanente que só custa sair da mão entra com a mana que ia sobrar (segunda fase principal;
    com lampejo, no passo final do oponente); descarte pela carta que menos faz falta; não vira terreno por conta
    própria; a leitura das respostas do oponente respeita o relógio. 'shark-v5' é o Shark da leva 118, congelado.
+   TODAS AS MECÂNICAS (leva 143): a avaliação (avaliaV4) enxerga a mágica presa por falta de cor e o terreno sobrando
+   na mão — é o que faz estourar o terreno que busca básico e ciclar; as candidatas são ordenadas por uma leitura
+   barata antes do corte do relógio; e ele abre mana com habilidades de custo próprio para pagar uma jogada (plano
+   de mana, com as próximas ações na memória do bot). 'shark-v6' é o Shark da leva 119, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -11418,8 +11427,8 @@ const chaveAcao = a => [a.t, a.oid || '', a.index != null ? a.index : '', a.p,
 /** B2 · escolhe a melhor candidata com orçamento de tempo.
     `nota(acao)` devolve um número; empate fica com a primeira em ordem estável.
     O relógio entra por parâmetro para o teste não depender da máquina. */
-function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now() } = {}) {
-  const lista = [...candidatas].sort((a, b) => chaveAcao(a) < chaveAcao(b) ? -1 : chaveAcao(a) > chaveAcao(b) ? 1 : 0);
+function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now(), jaOrdenadas = false } = {}) {
+  const lista = jaOrdenadas ? [...candidatas] : [...candidatas].sort((a, b) => chaveAcao(a) < chaveAcao(b) ? -1 : chaveAcao(a) > chaveAcao(b) ? 1 : 0);
   const inicio = agora();
   let melhor = null, melhorNota = -Infinity, vistas = 0, cortou = false;
   for (const a of lista) {
@@ -11878,7 +11887,36 @@ function jogadaProfissional(s, p, opts = {}) {
     return notaComResposta(depois, p, opts) - custoDescarte;
   };
   const notasJog = [];
-  const r = escolhe(candidatas, a => { const n = media(w => notaNoMundo(w, a)) - pedagio(a); notasJog.push({ a, n }); return n; }, opts);
+  // Leva 143 · com muitas candidatas, uma leitura barata (um mundo, sem a resposta do oponente) põe as melhores na
+  // frente; o relógio corta o fim da fila, não o que a ordem alfabética deixou por último.
+  let fila = candidatas, optsFila = opts;
+  if (opts.ordena && candidatas.length > 6) {
+    const avR = opts.av || avalia;
+    // cópias iguais dão a mesma jogada: fica uma de cada (mesma carta, mesma habilidade, mesmos alvos pelo nome)
+    const nomeDe = oid => { const o = s.objects[oid]; return o ? o.name + (o.tapped ? '*' : '') + (o.sick ? '~' : '') + JSON.stringify(o.counters || '') + (o.attachedTo ? '@' : '') : oid; };
+    const igual = a => [a.t, a.oid ? nomeDe(a.oid) : '', a.index != null ? a.index : '', (a.targets || []).map(x => x.oid ? nomeDe(x.oid) : 'p' + x.player).join('+'), a.mode != null ? a.mode : '', a.x != null ? a.x : '', a.alt || '', JSON.stringify(a.tapOther || a.sacrifice || a.pay || '')].join('|');
+    const unicas = []; const jaVi = new Set();
+    for (const a of [...candidatas].sort((x, y) => chaveAcao(x) < chaveAcao(y) ? -1 : 1)) { const k = igual(a); if (!jaVi.has(k)) { jaVi.add(k); unicas.push(a); } }
+    const t0 = opts.agora ? opts.agora() : 0, teto = (opts.orcamentoMs || 400) / 2;
+    const rapida = unicas.map((a, i) => {
+      if (i > 6 && opts.agora && opts.agora() - t0 > teto) return { a, k: chaveAcao(a), n: -Infinity }; // sem tempo: vai para o fim da fila
+      const x = simula(W[0], a); return { a, k: chaveAcao(a), n: x ? avR(RESOLVE.includes(a.t) ? resolveSimulado(x.estado) : x.estado, p).nota : -Infinity };
+    });
+    rapida.sort((x, y) => y.n - x.n || (x.k < y.k ? -1 : x.k > y.k ? 1 : 0));
+    // o tempo da leitura barata sai do orçamento da decisão (sobra pelo menos 40% para a leitura completa)
+    const gasto = opts.agora ? opts.agora() - t0 : 0;
+    fila = rapida.map(x => x.a); optsFila = { ...opts, jaOrdenadas: true, orcamentoMs: Math.max((opts.orcamentoMs || 400) * 0.4, (opts.orcamentoMs || 400) - gasto) };
+  }
+  const r = escolhe(fila, a => { const n = media(w => notaNoMundo(w, a)) - pedagio(a); notasJog.push({ a, n }); return n; }, optsFila);
+  // Leva 143 · mana que pede um gesto: se abrir mana com habilidades permite uma jogada melhor que tudo o que já dava
+  // para fazer, começa o plano; as próximas ações dele ficam na memória do bot (ver criaBot).
+  if (opts.manaPlano && !minhaDecisao && s.turn.active === p && !s.stack.length && (s.turn.step === 'main1' || s.turn.step === 'main2')) {
+    const plano = opts.limite && opts.agora() > opts.limite ? null : planoDeMana(W[0], p, opts);
+    if (plano && plano.nota > Math.max(base, r.acao ? r.nota : -Infinity) + 0.5) {
+      const alvo = plano.caminho[plano.caminho.length - 1];
+      return { acao: plano.caminho[0], plano: plano.caminho.slice(1), motivo: `abri mana para ${motivoDe(s, p, alvo, 1).replace(/^conjurei /, 'conjurar ').replace(/^usei /, 'usar ')}`, ganho: plano.nota - base };
+    }
+  }
   // Leva 132 · na minha fase principal, as duas melhores jogadas e "passar" são jogadas até o meu próximo turno
   if (opts.rolaJogada && r.acao && !minhaDecisao && s.turn.active === p && !s.stack.length && (s.turn.step === 'main1' || s.turn.step === 'main2')) {
     const passar = { a: { t: 'pass', p }, n: base, fixa: true };
@@ -12135,13 +12173,83 @@ const NOME_DO_BOT = 'Shark';
 /** Qualquer nível vindo da mesa (inclusive os antigos "amador" e "profissional") vira o Shark. */
 const nivelDaMesa = () => 'profissional';
 /** Bot pronto para jogar. Padrão: o Shark. */
+/* ---------------- Leva 143 · usar todas as mecânicas ----------------
+   Auditoria de uso (auditoria.uso.mjs, 28 partidas das sete listas): 16 de 40 habilidades nunca eram usadas, e o
+   terreno que busca básico era estourado 2 vezes em 382 chances. Três causas, três consertos:
+   1. AVALIAÇÃO CEGA PARA O QUE DESTRAVA: trocar um terreno incolor por um básico da cor certa, ou ciclar o terreno
+      que sobra, não mudava a nota. `avaliaV4` conta a mágica presa na mão por falta de cor e o terreno sobrando.
+   2. CORTE POR ORDEM ALFABÉTICA: com muitas jogadas e o relógio curto, as candidatas eram lidas pela ordem da chave e
+      as últimas (alvo "jogador", por exemplo) nem eram vistas. Agora uma leitura barata ordena antes do corte.
+   3. MANA QUE PEDE UM GESTO: habilidade que gera mana com custo próprio (virar outra criatura, sacrificar, pagar {G})
+      não entra no pagamento automático. O Shark agora procura o plano "abro esta mana → conjuro aquilo" e o segue. */
+/** Cores que as minhas permanentes em campo sabem produzir. */
+function coresEmCampo(s, p) {
+  const tenho = new Set();
+  for (const oid of s.zones[p].battlefield) {
+    const f = s.facts[s.objects[oid].name];
+    const txt = JSON.stringify([f.produces || [], (f.script || {}).produces || [], ((f.script || {}).abilities || []).map(ab => (ab.effects || []).filter(e => e.do === 'add_mana'))]);
+    if (/anyColor/.test(txt)) 'WUBRG'.split('').forEach(c => tenho.add(c));
+    for (const m of txt.match(/"[WUBRG]"/g) || []) tenho.add(m[1]);
+  }
+  return tenho;
+}
+function avaliaV4(s, p) {
+  const base = avaliaV3(s, p);
+  if (base.parcelas.vitoria) return base;
+  const tenho = coresEmCampo(s, p);
+  let presas = 0, terrenosNaMao = 0;
+  for (const oid of s.zones[p].hand) {
+    const f = s.facts[s.objects[oid].name] || {};
+    if ((f.types || []).includes('land')) { terrenosNaMao++; continue; }
+    if (!Object.keys((f.cost || {}).colored || {}).every(c => tenho.has(c))) presas++;
+  }
+  const emCampo = s.zones[p].battlefield.filter(x => ehTerreno(s, s.objects[x])).length;
+  const sobra = Math.max(0, terrenosNaMao - Math.max(0, 5 - emCampo));
+  const parcelas = { ...base.parcelas, presas: -3 * presas, sobra: -2 * sobra };
+  return { nota: base.nota + parcelas.presas + parcelas.sobra, parcelas };
+}
+const manaNaReserva = (s, p) => Object.values(s.players[p].pool || {}).reduce((a, b) => a + b, 0);
+/** Plano "abro mana com habilidades → faço uma jogada que antes não dava". Busca curta (até 3 habilidades de mana
+    em sequência, 40 simulações) sobre um mundo possível. Devolve { nota, caminho: [ações] } ou null. */
+function planoDeMana(w, p, opts) {
+  const av = opts.av || avalia;
+  const antes = new Set(E.legalActions(w, p).filter(a => RESOLVE.includes(a.t)).map(chaveAcao));
+  let sims = 0, melhor = null;
+  const busca = (st, caminho) => {
+    const la = E.legalActions(st, p);
+    const vistos = new Set();
+    const manas = [];
+    const semTempo = () => opts.limite && opts.agora() > opts.limite;
+    for (const a of la) {
+      if (a.t !== 'activate' || sims >= 40 || semTempo()) continue;
+      const k = (st.objects[a.oid] || {}).name + '#' + a.index + '#' + (a.targets || []).length;
+      if (vistos.has(k)) continue; vistos.add(k);
+      sims++; const r = simula(st, a);
+      if (r && !r.estado.pending && r.estado.stack.length === st.stack.length && manaNaReserva(r.estado, p) > manaNaReserva(st, p)) manas.push({ a, d: r.estado });
+    }
+    if (caminho.length) {
+      for (const a of la) {
+        if (sims >= 40 || semTempo()) break;
+        if (!RESOLVE.includes(a.t) || antes.has(chaveAcao(a)) || manas.some(m => m.a === a)) continue;
+        sims++; const r = simula(st, a); if (!r) continue;
+        if (manaNaReserva(r.estado, p) > manaNaReserva(st, p) && r.estado.stack.length === st.stack.length) continue; // outra habilidade de mana
+        const n = notaComResposta(resolveSimulado(r.estado, 8, opts.desdobra ? p : null, opts.av), p, opts);
+        if (!melhor || n > melhor.nota) melhor = { nota: n, caminho: [...caminho, a] };
+      }
+    }
+    if (caminho.length < 3) for (const m of manas) if (sims < 40) busca(m.d, [...caminho, m.a]);
+  };
+  busca(w, []);
+  return melhor;
+}
+
 /** Leva 126 · avaliador com multiplicadores por parcela (vida, vidaDele, poder, resistencia, criaturas, outras, mao,
     mana, marcadores, volta, evasao, perigo, temporario). Sem multiplicador, a parcela vale o que vale na avaliaV3. */
-function avaliadorCom(mult) {
+function avaliadorCom(mult, de = avaliaV3) {
   const ks = Object.keys(mult || {});
-  if (!ks.length) return avaliaV3;
+  if (!ks.length) return de;
   return (s, p) => {
-    const base = avaliaV3(s, p);
+    const base = de(s, p);
     if (base.parcelas.vitoria) return base;
     let nota = base.nota;
     for (const k of ks) if (base.parcelas[k]) nota += base.parcelas[k] * (mult[k] - 1);
@@ -12152,13 +12260,15 @@ function avaliadorCom(mult) {
 const NOVO5 = { tempo: true, terreno: true, cores: true, basePilha: true }; // leva 118, congelado como 'shark-v5'
 const NOVO6 = { ...NOVO5, semToque: true, recursos: true, relogio: true }; // leva 119, congelado como 'shark-v6'
 const PESOS_ATUAIS = {}; // multiplicadores promovidos por torneio (leva 126)
-const NOVO = { ...NOVO6 };
+const NOVO = { ...NOVO6, av4: true, ordena: true, manaPlano: true }; // leva 143
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
   const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6';
   const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || !!extraOpts || !!pesos;
-  const avAtual = v4 || v5 || v6 ? null : avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) });
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : NOVO), ...(extraOpts || {}) };
+  const avAtual = ligadas.av4 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av4 ? avaliaV4 : avaliaV3) : null;
+  let plano = []; // leva 143 · ações que faltam do plano de mana em curso
   const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }
     : { av: avaliaV3, bloqueioForte: true, duplo: true, projeta: true, corrida: true, subconjuntos: true, valor: true, desdobra: true };
@@ -12171,15 +12281,24 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
       if (!profissional) return jogadaAmador(s, p, { orcamentoMs, agora });
       if (!atual || s.status !== 'playing') return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra });
       const sei = atualizaMemoria(vistas, s, p);
+      if (plano.length) {
+        // segue o plano de mana enquanto a próxima ação dele continuar legal; qualquer surpresa, esquece e pensa de novo
+        const prox = plano.shift(), k = chaveAcao(prox);
+        const igual = !s.pending && E.legalActions(s, p).find(a => chaveAcao(a) === k);
+        if (igual) return { acao: igual, motivo: plano.length ? 'segui o plano: mais mana' : motivoDe(s, p, igual, 1) };
+        plano = [];
+      }
       const mundos = []; for (let k = 0; k < (mundosN || MUNDOS); k++) mundos.push(visaoDe(s, p, k, sei));
-      return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : NOVO), ...(avAtual ? { av: avAtual } : {}), ...(extraOpts || {}), mundos });
+      const j = jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...ligadas, ...(avAtual ? { av: avAtual } : {}), mundos });
+      if (j && j.plano) plano = j.plano.slice();
+      return j;
     }
   };
 }
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */

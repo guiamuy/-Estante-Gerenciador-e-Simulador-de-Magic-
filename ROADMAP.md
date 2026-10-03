@@ -371,6 +371,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
+| 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -2630,6 +2631,40 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
+
+**B21 · O Shark usa todas as mecânicas das cartas, inclusive as dos terrenos** ✅ (leva 143, 03/10/2026)
+- **Origem:** o usuário viu o Shark travado numa partida, preso à mana incolor de um terreno que podia ser sacrificado
+  para buscar um terreno básico, sem estourá-lo.
+- **Auditoria de uso (`node auditoria.uso.mjs shark 28 500`):** em 28 partidas das sete listas, conta para cada
+  habilidade quantas decisões a tiveram disponível e quantas vezes foi usada. **Antes: 16 de 40 nunca usadas**; o
+  terreno que busca básico era estourado 2 vezes em 382 chances (Perilous Landscape) e 4 em 191 (Twisted Landscape).
+- **Três causas, três consertos:**
+  - a avaliação não via o que destrava → `avaliaV4` conta a mágica presa na mão por falta de cor (−3 cada) e o
+    terreno sobrando na mão (−2 cada, com cinco ou mais em campo). É o que faz estourar o terreno e buscar a cor certa,
+    e ciclar o terreno que sobra;
+  - com muitas jogadas possíveis e o relógio curto, as candidatas eram lidas em ordem alfabética e as últimas (alvo
+    "jogador") nem eram vistas → uma leitura barata ordena antes do corte, e cópias iguais contam uma vez;
+  - mana que pede um gesto (virar outra criatura, sacrificar, pagar {G}) não entra no pagamento automático → o Shark
+    procura o plano "abro esta mana → faço aquela jogada" (até 3 habilidades em sequência) e guarda as próximas ações.
+- **Depois (mesma auditoria):** Saruli Caretaker 0 → 14 usos · Valakut Invoker 0 → 11 · Bloodrite Invoker 0 → 4 ·
+  Jaspera Sentinel 0 → 3 · Harrier Strix 0 → 1 · Sheltering Landscape (reciclar) 0 → 1 · Twisted Landscape 4/191 → 6/54 ·
+  Perilous Landscape 2/382 → 4/134 (menos chances porque o terreno sai da mesa mais cedo).
+- **Ainda nunca usadas, declaradas:** Tinder Wall (sacrificar por {R}{R}: quase nunca compensa perder o bloqueador),
+  Orochi Leafcaller (só troca a cor da mana), Birchlore Rangers (desvirar a metamorfose), Prismatic Strands por lampejo,
+  Winding Way no modo "terreno", Thraben Charm no terceiro modo, Highway Robbery tramada, Drift of Phantasms
+  (transmutar), Secret Door e Freed from the Real. As quatro últimas são peças do plano do Walls Combo: ficam para a B9.
+- **Medição de força (sete listas Pauper, contra o `shark-v6`):** duas medições de 224 partidas: 56% (125–97) e 52%
+  (116–108); juntas **54% em 446 decididas (241–205)**, margem de ±5: **ganho de força não demonstrado.** A segunda
+  foi depois dos limites de tempo. Pilotando Walls Combo: 23–39 (era 15–43 na leva 132). Pilotando Mono Blue Faeries:
+  26–38 (era 35–29): **possível regressão, não investigada.** Zero ações ilegais.
+- **Tempo (seis partidas de mesa grande, orçamento de 250 ms, sem concorrência):** p50 24 ms · p95 330 ms · p99 449 ms ·
+  pior 572 ms. Antes dos limites desta leva o p95 era 937 ms.
+- **Portão do `main` consertado nesta leva (autorizado pelo usuário, tela de outra trilha):** desde a leva 137 quatro
+  testes da partida online falhavam com "Grimório" por cima de "Cemitério" (quatro contadores ao lado da vida não cabem
+  em 360 px). Com quatro contadores, eles passam a ocupar a linha de baixo inteira. Só CSS, na faixa até 399 px.
+- **Testes:** U (o caso do usuário, com o v6 errando; avaliação das presas e da sobra; plano de mana com a Saruli
+  Caretaker, em duas chamadas; o dano que fecha a partida achado com relógio curto, com o v6 errando).
+- **Depende de:** B17.
 
 **B15 · Olhar o turno seguinte** ✅ (leva 132, 03/10/2026) — fechada com resultado negativo; **o Shark não mudou de jogo.**
 - **Pergunta:** simular o resto do turno e o turno inteiro do oponente (em vez de um lance) deixa o Shark mais forte?
