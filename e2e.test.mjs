@@ -233,7 +233,9 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
   for (let i = 0; i < 6 && !(await page.innerText('.tb-banner')).includes('Principal 1'); i++) await page.click('#tb-pass');
   assert.match(await page.innerText('.tb-banner'), /Principal 1/);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'mesa sem rolagem lateral');
-  const tiny = await page.$$eval('.tb button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44).map(b => b.id || b.getAttribute('aria-label') || b.textContent.trim()));
+  // Leva 120 · a faixa de turno virou botão e entra animada (translateY): no meio da animação o retângulo mede
+  // 43.999996 px por arredondamento de subpixel. Mesma tolerância da auditoria geral (auditaTela: 43,5), não um alvo menor.
+  const tiny = await page.$$eval('.tb button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 43.5).map(b => b.id || b.getAttribute('aria-label') || b.textContent.trim()));
   assert.deepEqual(tiny, [], 'alvos de toque da mesa');
 
   // A3: jogar terreno pela folha de ações, que só oferece o que é legal
@@ -1740,7 +1742,7 @@ test('e2e · U7 de quem é a vez: faixa na cor do jogador, lado ativo aceso, pri
   await page.waitForSelector('#tb-handoff');
   q = await quem();
   assert.match(await page.innerText('#tb-handoff'), new RegExp(q.prio));
-  assert.match(await page.innerText('#tb-vez-cortina'), q.ativo === q.prio ? /Seu turno/ : new RegExp(`Turno de ${q.ativo}`));
+  assert.match(await page.innerText('#tb-vez-cortina'), q.ativo === q.prio ? /Seu turno/ : new RegExp(`Turno ${q.ativo}`)); // Leva 120 · "Turno Bia", sem o "de"
   await reveal(page);
   await page.waitForSelector('#tb-vez');
   assert.equal(await page.getAttribute('#tb-vez', 'data-papel'), 'eu', 'agora é o turno de quem pegou o aparelho');
@@ -1771,16 +1773,22 @@ test('e2e · U7 de quem é a vez: faixa na cor do jogador, lado ativo aceso, pri
   assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending.kind), 'blockers', 'o defensor precisa decidir');
   await reveal(page);
   await page.waitForSelector('#tb-vez[data-papel="oponente"]');
-  assert.match(await page.innerText('#tb-vez'), new RegExp(`Turno de ${atacante.nome}`));
-  assert.match(await page.innerText('#tb-vez-prio'), /você responde/, 'prioridade separada do turno');
+  // Leva 120 · expectativa ajustada com justificativa: a faixa diz só "Turno Ana"; a prioridade saiu do selo empilhado
+  // (cortava no aparelho) e mora no balão que abre a um toque
+  assert.equal(await page.innerText('#tb-vez .tb-vez__rotulo'), `Turno ${atacante.nome}`);
+  assert.equal(await page.locator('#tb-vez-prio').count(), 0, 'sem selo empilhado na faixa');
+  await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-vez-pop:not([hidden])');
+  assert.equal(await page.innerText('#tb-vez-pop dd[data-k="prioridade"]'), 'Você', 'quem decide agora aparece nos detalhes');
+  assert.equal(await page.innerText('#tb-vez-pop dd[data-k="joga"]'), atacante.nome);
+  await page.click('#tb-vez-fechar'); await page.waitForSelector('#tb-vez-pop', { state: 'hidden' });
   assert.notEqual(await page.$eval('#tb-vez', el => getComputedStyle(el).backgroundColor), corEu, 'cor do oponente é outra');
   assert.equal(await page.getAttribute('.tb-side--opp', 'data-ativo'), 'true', 'o lado de quem joga acende');
   assert.equal(await page.getAttribute('.tb-side--me', 'data-ativo'), 'false');
   assert.notEqual(await page.$eval('.tb-side--opp', el => getComputedStyle(el).borderTopColor), bordaEu, 'borda na cor do oponente');
   // U2 · com o selo de prioridade, a faixa divide a linha com as ferramentas e nada fica cortado, mesmo em 360
   await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(350);
-  const corte = await page.evaluate(() => [...document.querySelectorAll('#tb-vez .tb-vez__rotulo, #tb-vez-prio')].map(e => e.scrollWidth - e.clientWidth));
-  assert.deepEqual(corte, [0, 0], 'rótulo e selo inteiros');
+  const corte = await page.evaluate(() => [...document.querySelectorAll('#tb-vez .tb-vez__rotulo')].map(e => e.scrollWidth - e.clientWidth));
+  assert.deepEqual(corte, [0], 'rótulo inteiro');
   const [fx, fr] = [await page.locator('#tb-vez').boundingBox(), await page.locator('#tb-concede').boundingBox()];
   assert.ok(fr.y < fx.y + fx.height && fr.y + fr.height > fx.y, 'ferramentas na linha da faixa');
   if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/vez-oponente.png' }); }
@@ -3763,16 +3771,18 @@ test('e2e · leva 114 melhor de 3: placar da série, troca visual com a reserva 
   await auditaTela(page, 'preparar partida com série');
   await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
-  await page.waitForSelector('#tb-serie');
-  assert.match(await page.innerText('#tb-serie'), /J1\s*0–0/);
+  // Leva 120 · expectativa ajustada com justificativa: o placar saiu da linha da faixa (em 360 px ele espremia a faixa e
+  // cortava "Turno de Shark") e virou o primeiro detalhe do balão, a um toque. Continua a um gesto, em qualquer fase.
+  const placarDaSerie = async () => { await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-serie'); const txt = await page.innerText('#tb-serie'); await page.click('#tb-vez-fechar'); await page.waitForSelector('#tb-vez-pop', { state: 'hidden' }); return txt; };
+  assert.match(await placarDaSerie(), /Partida 1 de 3 · Você 0–0 Goldfish/);
   const desiste = async () => { await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); };
   await desiste();
   await page.waitForSelector('#tb-serie-next');
   assert.match(await page.textContent('.tb-banner'), /Goldfish venceu a partida 1/);
-  assert.match(await page.innerText('#tb-serie'), /0–1/);
+  assert.match(await placarDaSerie(), /Você 0–1 Goldfish/);
   assert.equal(await page.locator('#tb-new').count(), 0, 'série em disputa: o caminho é a próxima partida');
   await page.reload(); await page.waitForSelector('#tb-serie-next');
-  assert.match(await page.innerText('#tb-serie'), /0–1/, 'recarregar não soma outra vitória');
+  assert.match(await placarDaSerie(), /Você 0–1 Goldfish/, 'recarregar não soma outra vitória');
   await page.click('#tb-serie-next');
   // a tela de trocas
   await page.waitForSelector('#troca');
@@ -3805,7 +3815,7 @@ test('e2e · leva 114 melhor de 3: placar da série, troca visual com a reserva 
   const jogo2 = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const meus = Object.values(s.objects).filter(o => o.owner === 0);
     return { total: meus.length, raios: meus.filter(o => o.name === 'Lightning Bolt').length, contras: meus.filter(o => o.name === 'Counterspell').length, comeca: s.turn.active }; });
   assert.deepEqual(jogo2, { total: 60, raios: 1, contras: 39, comeca: 0 }, 'a partida 2 usa o deck trocado e começa por quem foi escolhido');
-  assert.match(await page.innerText('#tb-serie'), /J2\s*0–1/);
+  assert.match(await placarDaSerie(), /Partida 2 de 3 · Você 0–1 Goldfish/); // Leva 120 · o placar está no balão da faixa
   await page.click('#tb-keep'); await desiste();
   await page.waitForSelector('#tb-new');
   assert.match(await page.textContent('.tb-banner'), /Goldfish venceu a série por 2–0/);
@@ -3849,4 +3859,266 @@ test('e2e · leva 114 melhor de 3 a dois: cada jogador troca a reserva sem o out
   const j2 = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const de = p => Object.values(s.objects).filter(o => o.owner === p && o.name === 'Sky Pike').length; return { ana: de(0), bia: de(1), comeca: s.turn.active }; });
   assert.deepEqual(j2, { ana: 1, bia: 0, comeca: 1 - perdeu });
   assert.deepEqual(errors, []);
+});
+
+
+/* ---------------- Leva 120 · faixa de turno, Highway Robbery (tramar e escolha) e gatilho com modos ---------------- */
+// textos oficiais de .listas/oficiais.json (consulta em 30/09/2026): Highway Robbery (Scryfall OTJ 129), Sewer-veillance Cam, Faerie Seer
+const EMOJI_120 = /[\p{Extended_Pictographic}☀-➿\u{1F300}-\u{1FAFF}]/u;
+const OFICIAIS_120 = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais.json'), 'utf8')).cartas;
+function comOficiais(page, nomes) {
+  const BASICOS = { Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' };
+  const extra = Object.fromEntries(nomes.map(n => { const c = BASICOS[n] ? { name: n, type_line: `Basic Land — ${n}`, oracle_text: `({T}: Add {${BASICOS[n]}}.)` } : OFICIAIS_120.find(x => x.name === n); assert.ok(c, 'texto oficial de ' + n);
+    return [n.toLowerCase(), { object: 'card', id: n, name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', oracle_text: c.oracle_text || '', colors: [], color_identity: [], cmc: 2, keywords: [], ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}) }]; }));
+  return page.route('https://api.scryfall.com/cards/collection', async r => {
+    const ids = JSON.parse(r.request().postData()).identifiers; const acha = i => extra[i.name.toLowerCase()] || DB[i.name.toLowerCase()];
+    return r.fulfill({ json: { data: ids.map(acha).filter(Boolean), not_found: ids.filter(i => !acha(i)) } });
+  });
+}
+const estado120 = page => page.evaluate(() => { const s = window.__estanteMesa.estado(); return { turno: s.turn.number, ativo: s.turn.active, passo: s.turn.step, prio: s.turn.priority, pend: s.pending && s.pending.kind, pilha: s.stack.length,
+  mao: s.zones[0].hand.map(o => s.objects[o].name), campo: s.zones[0].battlefield.map(o => s.objects[o].name), cemiterio: s.zones[0].graveyard.map(o => s.objects[o].name), exilio: s.zones[0].exile.map(o => s.objects[o].name) }; });
+async function meuPrincipal120(page) {
+  for (let i = 0; i < 120; i++) {
+    const e = await estado120(page);
+    if (e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) return;
+    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; }
+    for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; }
+    await page.waitForTimeout(60);
+  }
+  assert.fail('não chegou à minha fase principal');
+}
+const naFolha = async (page, re) => { await page.locator('.ds-dialog button', { hasText: re }).first().click(); await page.waitForTimeout(200); };
+const jogaTerreno120 = async (page, nome) => { await page.locator(`#tb-hand .tb-card[aria-label^="${nome}"]`).first().click(); await naFolha(page, /Jogar terreno/); };
+
+test('e2e · Leva 120 · faixa de turno: ícone + duas palavras, nunca cortada, e os detalhes só num balão que fecha fácil', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Highway Robbery']);
+  await createDeck(page, base, 'Robbery', '24 Mountain\n16 Highway Robbery\n20 Lightning Bolt');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.click('[data-serie="3"]');       // melhor de 3: o placar divide a linha com a faixa
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  assert.equal(await page.getAttribute('#tb-vez', 'data-serie'), 'true', 'em série, o placar é um detalhe da faixa');
+  await page.click('#tb-keep'); await page.waitForTimeout(400);
+  await meuPrincipal120(page);
+  await jogaTerreno120(page, 'Mountain');
+  // anda até o turno do Shark com a prioridade comigo (tenho raio e montanha: a mesa para)
+  for (let i = 0; i < 60; i++) { const e = await estado120(page); if (e.ativo === 1 && e.prio === 0) break; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    for (const id of ['#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); }
+  await page.waitForSelector('#tb-vez[data-papel="oponente"]');
+  assert.equal((await page.innerText('#tb-vez')).trim(), 'Turno Shark', 'só o rótulo, em duas palavras: nenhum outro texto na faixa');
+  assert.equal(await page.locator('#tb-vez .tb-vez__avatar [data-icone="tubarao"]').count(), 1, 'a barbatana do design system no lugar da inicial');
+  assert.equal(EMOJI_120.test(await page.innerText('#tb-vez')), false);
+  for (const [w, hgt] of [[320, 700], [360, 780], [384, 832], [390, 844], [412, 891]]) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(350);
+    const m = await page.evaluate(() => { const r = document.querySelector('#tb-vez .tb-vez__rotulo'), f = document.querySelector('#tb-vez'), a = document.querySelector('.tb-top__actions'), sr = null;
+      const b = f.getBoundingClientRect(), ab = a.getBoundingClientRect(), rb = r.getBoundingClientRect(), sb = sr ? sr.getBoundingClientRect() : null;
+      return { corte: r.scrollWidth - r.clientWidth, dentro: rb.right <= b.right && rb.left >= b.left, direita: b.right, altura: b.height, acoesX: ab.left, serieX: sb ? sb.left : null, serieR: sb ? sb.right : null, mesmaLinha: Math.abs((b.top + b.height / 2) - (ab.top + ab.height / 2)) < 4, tela: window.innerWidth, doc: document.documentElement.scrollWidth }; });
+    assert.equal(m.corte, 0, `${w}: rótulo inteiro`); assert.ok(m.dentro, `${w}: rótulo dentro da faixa`);
+    assert.ok(m.altura >= 44, `${w}: faixa com 44 px`); assert.ok(m.doc <= m.tela, `${w}: sem rolagem lateral`);
+    // 320 px fica abaixo da faixa estreita suportada (360): ali as ferramentas podem descer, mas o rótulo segue inteiro
+    if (w >= 360) assert.ok(m.direita <= m.acoesX, `${w}: faixa não invade as ferramentas`);
+    if (w >= 360) assert.ok(m.mesmaLinha, `${w}: ferramentas na linha da faixa (nada desce de linha, o campo não perde altura)`);
+  }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300);
+  // detalhes: fechado por padrão; abre no toque; fecha no X, no toque fora, no Esc e tocando a faixa de novo
+  const pop = page.locator('#tb-vez-pop');
+  assert.equal(await pop.isVisible(), false, 'detalhes escondidos até tocar');
+  await page.click('#tb-vez-btn'); await pop.waitFor({ state: 'visible' });
+  assert.equal(await page.getAttribute('#tb-vez-btn', 'aria-expanded'), 'true');
+  assert.deepEqual(await page.locator('#tb-vez-pop dt').allInnerTexts(), ['Série', 'Turno', 'Etapa', 'Joga', 'Prioridade']);
+  assert.equal(await page.innerText('#tb-serie'), 'Partida 1 de 3 · Você 0–0 Shark', 'o placar da série é o primeiro detalhe');
+  assert.equal(await page.innerText('#tb-vez-pop dd[data-k="joga"]'), 'Shark');
+  assert.equal(await page.innerText('#tb-vez-pop dd[data-k="prioridade"]'), 'Você');
+  await page.waitForTimeout(250);                                   // o balão entra com animação
+  const pb = await pop.boundingBox(); assert.ok(pb.x >= 0 && pb.x + pb.width <= 360, 'balão cabe na tela');
+  const fx = await page.locator('#tb-vez-fechar').boundingBox(); assert.ok(fx.width >= 44 && fx.height >= 44, 'X com 44 px');
+  await auditaTela(page, 'faixa de turno com o balão aberto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/120-vez-balao.png' });
+  await page.click('#tb-vez-fechar'); await pop.waitFor({ state: 'hidden' });
+  assert.equal(await page.getAttribute('#tb-vez-btn', 'aria-expanded'), 'false');
+  await page.click('#tb-vez-btn'); await pop.waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape'); await pop.waitFor({ state: 'hidden' });
+  await page.click('#tb-vez-btn'); await pop.waitFor({ state: 'visible' });
+  await page.mouse.click(180, 600); await pop.waitFor({ state: 'hidden' });           // toque fora
+  await page.click('#tb-vez-btn'); await pop.waitFor({ state: 'visible' });
+  await page.click('#tb-vez-btn'); await pop.waitFor({ state: 'hidden' });            // a própria faixa fecha
+  await auditaTela(page, 'faixa de turno');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · Leva 120 · Highway Robbery: tramar pela folha, a tramada à vista na bandeja, conjurar sem pagar e a escolha entre descartar e sacrificar', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Highway Robbery']);
+  await createDeck(page, base, 'Robbery', '24 Mountain\n16 Highway Robbery\n20 Lightning Bolt');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal120(page);
+  await jogaTerreno120(page, 'Mountain');
+  // com uma montanha só: o plot existe e aparece apagado com o motivo (antes não aparecia de jeito nenhum)
+  const robbery = page.locator('#tb-hand .tb-card[aria-label^="Highway Robbery"]:not(.tb-card--tramada)').first();
+  await robbery.click(); await page.waitForSelector('.ds-dialog');
+  const apagado = page.locator('.ds-dialog button', { hasText: /^Tramar/ });
+  assert.equal(await apagado.count(), 1, 'Tramar aparece na folha'); assert.equal(await apagado.isDisabled(), true);
+  assert.match(await apagado.innerText(), /Tramar · \{?1\}?.*—/, 'com o custo e o motivo');
+  await naFolha(page, /^Fechar$/);
+  await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(200); await meuPrincipal120(page);
+  await jogaTerreno120(page, 'Mountain');
+  // com duas montanhas: conjurar e tramar lado a lado
+  await robbery.click(); await page.waitForSelector('.ds-dialog');
+  assert.equal(await page.locator('.ds-dialog button', { hasText: /^Conjurar/ }).isEnabled(), true);
+  assert.equal(await page.locator('.ds-dialog button', { hasText: /^Tramar/ }).isEnabled(), true, 'a mesa oferece o plot');
+  await auditaTela(page, 'folha da Highway Robbery');
+  const antes = await estado120(page);
+  await naFolha(page, /^Tramar/);
+  let e = await estado120(page);
+  assert.deepEqual(e.exilio, ['Highway Robbery'], 'tramada: exilada da mão'); assert.equal(e.mao.length, antes.mao.length - 1);
+  // a tramada fica à vista, primeira da fileira, com selo; no mesmo turno não conjura e diz por quê
+  const tramada = page.locator('#tb-hand .tb-card--tramada');
+  assert.equal(await tramada.count(), 1); assert.equal(await tramada.getAttribute('data-pronta'), 'false');
+  assert.equal(await page.locator('#tb-hand .tb-card').first().evaluate(c => c.classList.contains('tb-card--tramada')), true, 'primeira da fileira');
+  assert.equal(await tramada.locator('[data-marca="tramada"] svg').count(), 1, 'selo com ícone, sem emoji');
+  assert.match(await tramada.getAttribute('aria-label'), /Tramada: conjure a partir do próximo turno/);
+  await tramada.click(); await page.waitForSelector('.ds-dialog');
+  const cedo = page.locator('.ds-dialog button', { hasText: /^Conjurar sem pagar/ });
+  assert.equal(await cedo.isDisabled(), true); assert.match(await cedo.innerText(), /só a partir do próximo turno/);
+  await naFolha(page, /^Fechar$/);
+  await auditaTela(page, 'bandeja com carta tramada');
+  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  assert.match(await page.innerText('#tb-timeline'), /Você tramou Highway Robbery/, 'o registro conta');
+  await page.locator('.ds-dialog button', { hasText: /^Fechar$/ }).first().click(); await page.waitForTimeout(150);
+  // turno seguinte: conjura sem pagar mana (as montanhas continuam desviradas)
+  await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(200); await meuPrincipal120(page);
+  assert.equal(await tramada.getAttribute('data-pronta'), 'true');
+  await tramada.click(); await naFolha(page, /^Conjurar sem pagar$/);
+  for (let i = 0; i < 20; i++) { e = await estado120(page); if (e.pend === 'pick') break; if (await page.locator('#tb-pass').count()) await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
+  assert.equal(e.pend, 'pick', 'na resolução, a escolha');
+  assert.equal(await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.filter(o => s.objects[o].tapped).length; }), 0, 'do plot não paga mana');
+  // a escolha: duas pilhas separadas, dois botões de uma palavra, e nada decidido sem um toque explícito
+  await page.waitForSelector('#tb-troca');
+  const chips = await page.locator('#tb-troca-modo .ds-chip').evaluateAll(cs => cs.map(c => [c.dataset.troca, c.getAttribute('aria-pressed'), c.innerText.replace(/\s+/g, ' ').trim()]));
+  assert.deepEqual(chips, [['mao', 'true', `Descartar · ${e.mao.length}`], ['terreno', 'false', `Sacrificar · ${e.campo.length}`]]);
+  assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), e.mao.length, 'na aba de descarte, só a mão');
+  assert.equal(await page.locator('#tb-troca-ok').isDisabled(), true, 'sem carta escolhida não confirma');
+  assert.deepEqual([await page.innerText('#tb-troca-nao'), await page.innerText('#tb-troca-ok')], ['Não pagar', 'Descartar']);
+  assert.match(await page.innerText('#tb-troca-dica'), /Entregue uma carta para comprar 2/);
+  await auditaTela(page, 'escolha da Highway Robbery (descartar)');
+  await page.click('[data-troca="terreno"]'); await page.waitForTimeout(120);
+  assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), e.campo.length, 'na aba de sacrifício, só os terrenos em campo');
+  assert.equal(await page.innerText('#tb-troca-ok'), 'Sacrificar');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(120);
+  assert.equal(await page.locator('#tb-pick-cards .tb-card[data-selected="true"]').count(), 1);
+  assert.match(await page.innerText('#tb-troca-dica'), /Sacrificar Mountain e comprar 2/, 'a frase diz o que vai acontecer');
+  assert.equal((await estado120(page)).pend, 'pick', 'tocar na carta só marca: nada foi feito ainda');
+  // a carta marcada cabe inteira na fileira (subia e era cortada pela borda)
+  const marcada = await page.evaluate(() => { const c = document.querySelector('#tb-pick-cards .tb-card[data-selected="true"] .tb-card__face').getBoundingClientRect(), r = document.querySelector('#tb-pick-cards .tb-row').getBoundingClientRect(); return c.top >= r.top - 1; });
+  assert.ok(marcada, 'carta marcada inteira');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(120);
+  assert.equal(await page.locator('#tb-troca-ok').isDisabled(), true, 'tocar de novo desmarca');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(120);
+  await auditaTela(page, 'escolha da Highway Robbery (sacrificar)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/120-troca.png' });
+  await page.click('#tb-troca-ok'); await page.waitForTimeout(250);
+  const depois = await estado120(page);
+  assert.equal(depois.pend, null); assert.equal(depois.campo.length, e.campo.length - 1, 'um terreno a menos');
+  assert.equal(depois.mao.length, e.mao.length + 2, 'duas cartas a mais'); assert.ok(depois.cemiterio.includes('Mountain') && depois.cemiterio.includes('Highway Robbery'));
+  // "Não pagar": conjura outra pela mão e recusa; nada sai, nada entra
+  await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(200); await meuPrincipal120(page);
+  await jogaTerreno120(page, 'Mountain');
+  await robbery.click(); await naFolha(page, /^Conjurar/);
+  for (let i = 0; i < 20; i++) { e = await estado120(page); if (e.pend === 'pick') break; if (await page.locator('#tb-pass').count()) await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
+  await page.waitForSelector('#tb-troca');
+  const maoAntes = e.mao.length, campoAntes = e.campo.length;
+  await page.click('#tb-troca-nao'); await page.waitForTimeout(250);
+  e = await estado120(page);
+  assert.equal(e.pend, null); assert.equal(e.mao.length, maoAntes, 'recusou: não comprou'); assert.equal(e.campo.length, campoAntes, 'e não sacrificou');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · Leva 120 · gatilho com modos (Sewer-veillance Cam): a mesa pergunta virar ou desvirar em vez de ficar esperando', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Sewer-veillance Cam', 'Faerie Seer']);
+  await createDeck(page, base, 'Cam', '20 Island\n20 Sewer-veillance Cam\n20 Faerie Seer');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '5');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal120(page);
+  await jogaTerreno120(page, 'Island');
+  await page.locator('#tb-hand .tb-card[aria-label^="Faerie Seer"]').first().click(); await naFolha(page, /^Conjurar/);
+  for (let i = 0; i < 20; i++) { const e = await estado120(page); if (e.pend === 'pick') { if (await page.locator('#tb-pick-done').count()) await page.click('#tb-pick-done'); } else if (!e.pilha && e.campo.includes('Faerie Seer')) break; else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
+  await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(200); await meuPrincipal120(page);
+  await jogaTerreno120(page, 'Island');
+  await page.locator('#tb-hand .tb-card[aria-label^="Sewer-veillance Cam"]').first().click(); await naFolha(page, /^Conjurar/);
+  let e; for (let i = 0; i < 20; i++) { e = await estado120(page); if (e.pend === 'choose_mode') break; if (await page.locator('#tb-pass').count()) await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
+  assert.equal(e.pend, 'choose_mode', 'o gatilho de entrada pede o modo');
+  await page.waitForSelector('#tb-modo');
+  assert.doesNotMatch((await page.innerText('.tb-dock')).replace(/\s+/g, ' '), /Aguardando/, 'a mesa não fica esperando ninguém');
+  assert.deepEqual(await page.locator('#tb-modo .tb-modo__lista button').allInnerTexts(), ['Virar uma criatura', 'Desvirar uma criatura']);
+  assert.match(await page.innerText('#tb-modo'), /Sewer-veillance Cam/, 'diz de qual carta é o gatilho');
+  await auditaTela(page, 'escolha de modo do gatilho');
+  await page.click('#tb-choose-mode'); await page.waitForTimeout(200);
+  assert.notEqual((await estado120(page)).pend, 'choose_mode', 'escolhido o modo, a partida segue');
+  assert.deepEqual(errors, []);
+});
+
+
+/* ---------------- Leva 120 · R0 · sonda de alcance: toda ação legal de carta tem botão, com as listas reais ---------------- */
+// Joga cada lista Pauper de .listas/decks.json pela tela publicada, em modo único, com ações sorteadas por semente.
+// A cada estado confere: (1) toda ação de carta que legalActions devolve está na folha da carta (acoesDe), sem perder
+// variante (virada para baixo, tramada, modo, alvo, pagamento); (2) decisão pendente de quem vê a tela nunca cai em
+// "Aguardando". É o guarda-corpo da classe de defeito desta leva: motor oferece, tela não desenha.
+test('e2e · Leva 120 · R0 sonda de alcance: nas listas Pauper reais, toda ação legal de carta tem botão e nenhuma decisão fica sem aviso', { skip }, async t => {
+  const decks = JSON.parse(readFileSync(join(ROOT, '.listas', 'decks.json'), 'utf8'));
+  const PASSOS = +(process.env.SONDA_PASSOS || 260), SEMENTES = (process.env.SONDA_SEMENTES || '3').split(',');
+  const jogaram = [], travadas = [], achados = [];
+  for (const [nome, cartas] of Object.entries(decks).filter(([n]) => /^Pauper/.test(n))) {
+    for (const semente of SEMENTES) {
+      const { page, errors, base } = await open(t, { dev: false });
+      await page.addInitScript(() => { window.__MTG_TEST = true; });
+      await comOficiais(page, Object.keys(cartas));
+      await createDeck(page, base, nome, Object.entries(cartas).map(([n, q]) => `${q} ${n}`).join('\n'), 'livre');
+      await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', semente);
+      await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 5000 }).catch(() => {});
+      if (await page.locator('#mesa-start').isDisabled()) { travadas.push(nome); await page.context().browser().close(); break; }
+      await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(250);
+      const r = await page.evaluate(async ({ PASSOS, semente }) => {
+        const M = window.__estanteMesa; let x = (+semente * 2654435761) >>> 0; const rnd = n => { x = (x * 1664525 + 1013904223) >>> 0; return x % n; };
+        const norm = a => JSON.stringify(Object.keys(a).sort().reduce((o, k) => (o[k] = a[k], o), {}));
+        const DE_CARTA = ['cast', 'play_land', 'plot', 'unmorph', 'cycle', 'transmute', 'ninjutsu', 'activate', 'companion'];
+        const AJUSTE = ['concede', 'move', 'tap', 'counter', 'damage', 'life', 'draw'];
+        const faltas = {}, presos = {}, vistos = {}; let n = 0;
+        for (; n < PASSOS; n++) {
+          const s = M.estado(); if (!s || s.status === 'over') break;
+          const v = M.quemVe(), legais = M.legais(); if (!legais.length) break;
+          if (!s.pending) {
+            const porOid = new Map();
+            for (const a of legais) if (a.oid != null && DE_CARTA.includes(a.t)) porOid.set(a.oid, [...(porOid.get(a.oid) || []), a]);
+            for (const [oid, as] of porOid) { const tela = new Set(M.acoesDe(oid).map(norm));
+              for (const a of as) { vistos[a.t] = (vistos[a.t] || 0) + 1; if (!tela.has(norm(a))) faltas[`${s.objects[oid].name} · ${a.t} [${s.objects[oid].zone}]`] = norm(a); } }
+          } else if (s.pending.p === v) {
+            vistos['pendente:' + s.pending.kind] = (vistos['pendente:' + s.pending.kind] || 0) + 1;
+            await new Promise(ok => setTimeout(ok, 0));
+            const doca = document.querySelector('.tb-dock'); if (!doca || /Aguardando/.test(doca.innerText)) presos[`${s.pending.kind} · ${s.pending.name || s.pending.source || ''}`] = 1;
+          }
+          const uteis = legais.filter(a => a.t !== 'pass' && !AJUSTE.includes(a.t)), todas = legais.filter(a => !AJUSTE.includes(a.t));
+          const a = (uteis.length && rnd(4) ? uteis : todas)[rnd((uteis.length && rnd(4) ? uteis : todas).length)] || legais[0];
+          try { M.act(a); } catch (e) { faltas['recusada · ' + a.t] = String(e).slice(0, 100); }
+        }
+        return { n, faltas, presos, vistos };
+      }, { PASSOS, semente });
+      jogaram.push(`${nome}#${semente}`);
+      for (const [k, v] of Object.entries(r.faltas)) achados.push(`${nome}: sem botão → ${k} ${v}`);
+      for (const k of Object.keys(r.presos)) achados.push(`${nome}: decisão sem aviso → ${k}`);
+      assert.ok(r.n >= 20, `${nome}: a partida andou (${r.n} ações)`);
+      assert.deepEqual(errors, [], `${nome}: sem erro de console`);
+      await page.context().browser().close();
+    }
+  }
+  assert.deepEqual(achados, [], 'ações legais sem botão ou decisões sem aviso');
+  // Walls Combo não joga enquanto a Axebane Guardian for parcial (história R1). Quando ela fechar, esta linha muda e a sonda cobre as sete.
+  assert.deepEqual(travadas, ['Pauper Walls Combo'], 'listas Pauper que ainda não jogam');
+  assert.equal(jogaram.length, 6 * SEMENTES.length, 'as outras seis jogaram');
 });

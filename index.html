@@ -709,11 +709,14 @@ body {
 .tb-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); }
 .tb-top__actions { display: flex; gap: 2px; margin-left: auto; }
 /* U2 · ferramentas da mesa ao lado da faixa de vez (antes ocupavam uma linha inteira) */
-.tb-top > .tb-vez { flex: 1 1 0; min-width: 0; }
-.tb-top > .tb-top__actions { order: 2; margin-left: 0; }
+.tb-top { position: relative; }
+/* Leva 120 · a faixa abraça o próprio conteúdo (ícone + duas palavras): não estica nem encolhe, então nunca corta */
+.tb-top > .tb-vez { flex: 0 0 auto; max-width: 100%; }
+.tb-top > .tb-top__actions { margin-left: auto; }
+.tb-top > .tb-top__actions { order: 2; }
 .tb-top > .tb-steps { order: 3; flex-basis: 100%; }
 .tb-top__actions .ds-btn { color: var(--fg-muted); }
-.tb-vez__rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-vez__rotulo { white-space: nowrap; }
 .tb-steps { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .tb-steps__head { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-muted); }
 .tb-steps__head strong { color: var(--fg); font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-md); }
@@ -737,16 +740,30 @@ body {
 .tb-side { transition: border-color 300ms var(--ease-out), box-shadow 300ms var(--ease-out); }
 .tb-side[data-ativo="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), 0 0 20px var(--accent-soft); }
 .tb-side--opp[data-ativo="true"] { border-color: var(--player-opp); box-shadow: 0 0 0 2px var(--player-opp-soft), 0 0 20px var(--player-opp-soft); }
-.tb-vez { flex: 1 1 100%; display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
+.tb-vez { flex: 1 1 100%; display: flex; align-items: stretch; min-height: var(--tap-min);
   border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-bold); box-shadow: var(--shadow-1); }
+.tb-vez__btn { flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
+  border: 0; border-radius: inherit; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.tb-vez__btn:disabled { cursor: default; }
+.tb-vez__btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.tb-vez__btn:active:not(:disabled) { transform: scale(.98); }
+/* Leva 120 · detalhes do turno: balão que só abre a um toque na faixa e fecha no X, no toque fora, no Esc ou tocando a faixa de novo */
+.tb-vez-pop { position: absolute; left: var(--space-4); top: calc(100% - var(--space-1)); z-index: var(--z-overlay); width: min(300px, calc(100% - var(--space-6)));
+  display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-1) var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-2); background: var(--bg-elev-2); color: var(--fg); box-shadow: var(--shadow-3); animation: ds-rise var(--dur-2) var(--ease-out); }
+.tb-vez-pop[hidden] { display: none; }
+.tb-vez-pop__lista { flex: 1 1 auto; min-width: 0; margin: var(--space-2) 0 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-md); line-height: var(--lh-md); }
+.tb-vez-pop__lista dt { color: var(--fg-muted); font-weight: var(--weight-regular); }
+.tb-vez-pop__lista dd { margin: 0; font-weight: var(--weight-medium); overflow-wrap: anywhere; }
+.tb-vez-pop__lista dd[data-meu="true"] { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .tb-vez-pop { animation: none; } .tb-vez__btn:active:not(:disabled) { transform: none; } }
 .tb-vez[data-papel="oponente"] { background: var(--player-opp); color: var(--player-opp-fg); }
 .tb-vez[data-papel="mulligan"], .tb-vez[data-papel="fim"] { background: var(--bg-elev-2); color: var(--fg); border: 1px solid var(--border); }
 .tb-vez__avatar { flex: none; width: 34px; height: 34px; border-radius: var(--radius-full); display: grid; place-items: center;
   background: var(--bg-elev-1); color: var(--fg); font-family: var(--font-display); font-size: var(--text-md); }
 .tb-vez__rotulo { font-size: var(--text-md); }
-.tb-vez__texto { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; line-height: 1.2; }
-.tb-vez__prio { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 1px var(--space-2) 1px 6px; border-radius: var(--radius-full); background: var(--bg-elev-1); color: var(--fg); font-size: var(--text-xs); font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@keyframes tb-vez-troca { from { opacity: .2; transform: translateY(-8px) scale(.98); } to { opacity: 1; transform: none; } }
+/* Leva 120 · sem escala: a faixa agora é um botão e precisa medir 44 px também durante a entrada */
+@keyframes tb-vez-troca { from { opacity: .2; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 .tb-vez--troca { animation: tb-vez-troca 300ms var(--ease-out); }
 .tb-handoff .tb-vez { flex: none; width: min(100%, 360px); }
 @media (prefers-reduced-motion: reduce) { .tb-vez--troca { animation: none; } .tb-side { transition: none; } }
@@ -1214,6 +1231,21 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
   .tb-top { padding-top: var(--space-2); }
 }/* Leva 107 · carta revelada que não pode ser escolhida (Duress) */
 .tb-card--fora { opacity: .45; filter: saturate(.4); }
+/* Leva 120 · carta tramada na bandeja: contorno tracejado (está no exílio, não na mão); apagada até poder ser conjurada */
+.tb-card--tramada .tb-card__face { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.tb-card--tramada[data-pronta="false"] .tb-card__face { opacity: .6; }
+.tb-pill--icone[data-marca="tramada"] { color: var(--accent); border-color: var(--accent); }
+/* Leva 120 · "descartar ou sacrificar": cabeçalho, segmentado, fileira e dois botões */
+.tb-troca { display: flex; flex-direction: column; gap: var(--space-2); }
+.tb-troca__cab { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.tb-troca__icone { flex: none; color: var(--warning); }
+.tb-troca__texto { display: flex; flex-direction: column; min-width: 0; line-height: var(--lh-sm); }
+.tb-troca__texto strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); color: var(--warning); }
+.tb-troca__texto span { font-size: var(--text-sm); color: var(--fg); overflow-wrap: anywhere; }
+.tb-troca__acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.tb-troca .ds-chip:disabled { opacity: .45; }
+.tb-troca .tb-row { padding-top: var(--space-3); }
+.tb-modo__lista { display: flex; flex-direction: column; gap: var(--space-2); }
 /* Leva 104 · seletor de X */
 .tb-x { align-items: stretch; }
 .tb-x__linha { justify-content: center; align-items: center; gap: var(--space-4); }
@@ -1786,6 +1818,9 @@ const ICONES = {
   baralho: '<rect x="7" y="3.5" width="11" height="15" rx="1.8"/><path d="M5 6.5v11.8a2.2 2.2 0 0 0 2.2 2.2h8.3"/>',
   reserva: '<rect x="4" y="5" width="9.5" height="14" rx="1.6"/><rect x="14.5" y="7.5" width="6" height="9" rx="1.2" stroke-dasharray="2 1.6"/>',
   // prioridade com o outro: a mesa espera uma resposta
+  // Leva 120 · tramar (plot): carta guardada com marcador; terreno: serra, para "sacrificar um terreno"
+  tramar: '<rect x="5.5" y="3.5" width="13" height="17" rx="1.8"/><path d="M9.5 3.5v8l2.5-1.9 2.5 1.9v-8"/>',
+  terreno: '<path d="M2.5 19.5l6.5-11 3.6 6 2.4-3.5 6.5 8.5z"/><path d="M7.2 11.6l1.8 1.5 1.6-1.2"/>',
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
 function Icone(nome, { tamanho = 20, classe = '' } = {}) {
@@ -11331,7 +11366,9 @@ function describe(before, a, events, after) {
     case 'cast': {
       const o = before.objects[a.oid];
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', ');
-      const extra = a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
+      // Leva 120 · carta conjurada virada para baixo não diz o nome (708.2: é informação oculta)
+      if (a.faceDown) { L.push(`${P} conjurou uma criatura virada para baixo`); break; }
+      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
       // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
       L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
@@ -11348,6 +11385,8 @@ function describe(before, a, events, after) {
     case 'pick': L.push(`${P} escolheu ${nameOf(before, a.oid)}`); break;
     case 'pick_target': { const op = ((before.pending || {}).options || [])[a.index]; const nome = op ? (op.player != null ? who(before, op.player) : nameOf(before, op.oid)) : null;
       L.push(nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
+    case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 120
+    case 'unmorph': L.push(`${P} virou ${nameOf(after, a.oid)} para cima`); break; // Leva 120
     case 'transmute': L.push(`${P} transmutou ${nameOf(before, a.oid)}`); break;
     case 'cycle': L.push(`${P} ciclou ${nameOf(before, a.oid)}`); break;
     case 'ninjutsu': L.push(`${P} usou ninjutsu: ${nameOf(before, a.attacker)} voltou e ${nameOf(before, a.oid)} entrou atacando`); break;
@@ -11623,6 +11662,8 @@ function estadoDaCarta(s, o, plano = null) {
   const marcas = [];
   if (o.token) marcas.push({ k: 'ficha', texto: 'ficha' });
   if (o.faceDown) marcas.push({ k: 'virada-baixo', texto: 'face para baixo', icone: 'virar', rotulo: 'Virada para baixo' });
+  // Leva 120 · carta tramada (plot, 702.170): fica no exílio, à vista, e diz se já pode ser conjurada
+  if (o.zone === 'exile' && o.plotted != null) marcas.push({ k: 'tramada', texto: 'tramada', icone: 'tramar', rotulo: o.plotted < ((s.turn || {}).number || 0) ? 'Tramada: conjure sem pagar' : 'Tramada: conjure a partir do próximo turno' });
   const alvoDe = (s.stack || []).filter(id => { const it = s.objects[id]; return it && (it.targets || []).some(t => t && t.oid === o.oid); }).map(id => s.objects[id].name);
   let anel = null;
   // E50 P2 · depois dos bloqueios, a carta diz com quem está travada ("← Wall Guard") ou que passou livre
@@ -11732,23 +11773,35 @@ function momentoDaBandeja(s, v) {
 }
 /** U7 · de quem é a vez, do ponto de vista de quem segura o aparelho (v).
     Turno e prioridade são coisas diferentes: no seu turno o oponente pode estar respondendo. */
-function vezDaMesa(s, v) {
+function vezDaMesa(s, v, { bot = null, serie = null } = {}) {
   const nome = i => ((s.players || [])[i] || {}).name || `Jogador ${i + 1}`;
-  if (s.status === 'mulligan') return { fase: 'mulligan', turnoDe: null, meuTurno: false, rotulo: 'Mão inicial', inicial: '', /* U2 · a tela desenha o ícone da mão; nada de emoji */ prioridadeDe: null, minhaPrioridade: false, prioridadeRotulo: null, turno: 0 };
+  // Leva 120 · o placar da série saiu da linha da faixa (em 360 px, faixa + placar + ferramentas não cabem: era o placar
+  // que espremia a faixa e cortava o texto). Ele é o primeiro detalhe do balão, em qualquer fase da partida.
+  const daSerie = serie && serie.melhorDe > 1 ? [{ k: 'serie', rotulo: 'Série', valor: `Partida ${serie.jogo} de ${serie.melhorDe} · ${nome(0)} ${serie.vitorias[0]}–${serie.vitorias[1]} ${nome(1)}` }] : [];
+  if (s.status === 'mulligan') return { fase: 'mulligan', turnoDe: null, meuTurno: false, rotulo: 'Mão inicial', inicial: '', /* U2 · a tela desenha o ícone da mão; nada de emoji */ prioridadeDe: null, minhaPrioridade: false, prioridadeRotulo: null, turno: 0, icone: 'mao', detalhes: daSerie };
   if (s.status === 'over') {
     const w = s.winner;
     return { fase: 'fim', turnoDe: w, meuTurno: w === v, rotulo: w == null ? 'Empate' : w === v ? 'Você venceu' : `${nome(w)} venceu`, inicial: w == null ? '=' : nome(w).slice(0, 1).toUpperCase(),
-      prioridadeDe: null, minhaPrioridade: false, prioridadeRotulo: null, turno: (s.turn || {}).number || 0 };
+      prioridadeDe: null, minhaPrioridade: false, prioridadeRotulo: null, turno: (s.turn || {}).number || 0, icone: w != null && w === bot ? 'tubarao' : null, detalhes: daSerie };
   }
   const a = s.turn.active, p = s.pending ? s.pending.p : s.turn.priority;
   const meu = a === v, minha = p === v;
   return {
     fase: 'jogo', turnoDe: a, meuTurno: meu, turno: s.turn.number || 0,
-    rotulo: meu ? 'Seu turno' : `Turno de ${nome(a)}`,
+    // Leva 120 · a faixa diz só de quem é o turno, em duas palavras ("Turno Shark"), com o ícone de quem joga: o bot é a
+    // barbatana. Antes era "Turno de Shark" com o selo "você responde" empilhado, e no aparelho o texto saía cortado.
+    // Tudo o mais (número do turno, etapa, prioridade) vai em `detalhes`, que a tela só mostra num balão, a um toque.
+    rotulo: meu ? 'Seu turno' : `Turno ${nome(a)}`,
     inicial: nome(a).slice(0, 1).toUpperCase(),
+    icone: a === bot ? 'tubarao' : null,
     prioridadeDe: p, minhaPrioridade: minha,
     // só fala da prioridade quando ela não está com quem tem o turno (é aí que confunde)
-    prioridadeRotulo: p === a ? null : minha ? 'você responde' : `${nome(p)} responde`
+    prioridadeRotulo: p === a ? null : minha ? 'você responde' : `${nome(p)} responde`,
+    detalhes: [...daSerie,
+      { k: 'turno', rotulo: 'Turno', valor: String(s.turn.number || 0) },
+      { k: 'etapa', rotulo: 'Etapa', valor: (E.STEP_PT || {})[s.turn.step] || '—' },
+      { k: 'joga', rotulo: 'Joga', valor: meu ? 'Você' : nome(a) },
+      { k: 'prioridade', rotulo: s.pending ? 'Decide' : 'Prioridade', valor: minha ? 'Você' : nome(p) }]
   };
 }
 /** U6 · a bandeja da mão: recolhida só quando a pessoa pediu e a mão não é necessária agora.
@@ -11910,7 +11963,7 @@ function explicaPilha(s, { oracleDe = () => '' } = {}) {
   return { itens, prioridade: pr ? pr.name : null, vazia: !itens.length };
 }
 /** Ação recusada explicada em uma frase: o que você tentou + por que não deu + o que fazer. */
-const ACAO_PT = { play_land: 'jogar o terreno', cast: 'conjurar', activate: 'ativar a habilidade', attack: 'declarar o ataque', block: 'declarar bloqueadores', pass: 'passar', tap_mana: 'virar para mana', draw: 'comprar', mulligan: 'fazer mulligan', keep: 'manter a mão', concede: 'desistir' };
+const ACAO_PT = { plot: 'tramar', unmorph: 'virar para cima', play_land: 'jogar o terreno', cast: 'conjurar', activate: 'ativar a habilidade', attack: 'declarar o ataque', block: 'declarar bloqueadores', pass: 'passar', tap_mana: 'virar para mana', draw: 'comprar', mulligan: 'fazer mulligan', keep: 'manter a mão', concede: 'desistir' };
 const DICA_PT = { prioridade: 'Espere a sua vez de agir: quem tem a prioridade aparece na pilha.', tempo: 'Veja em que fase a mesa está no trilho do topo.', mana: 'Vire mais terrenos ou escolha outra carta.', custo: 'Pague o custo pedido antes.', alvo: 'Escolha outro alvo.', tipo: 'Use o botão certo para este tipo de carta.' };
 function explicaRecusa(erro, action, s) {
   const codigo = (erro && erro.code) || '';
@@ -12299,24 +12352,45 @@ function createTableScreen({ store }) {
   // U7 · faixa de quem joga: anima só quando o turno troca.
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
   // anuncia a troca (region viva recriada a cada pintura não é lida).
-  let ultimoTurno = null, vezEl = null;
+  let ultimoTurno = null, vezEl = null, vezPop = null, vezAberto = false;
+  let trocaPor = null; // Leva 120 · escolha em montagem de "descartar ou sacrificar": { chave, modo, oid }
+  // Leva 120 · a faixa mostra só o ícone de quem joga e "Turno Shark" / "Seu turno". Número do turno, etapa e
+  // prioridade ficam num balão que abre a um toque e fecha no X, no toque fora, no Esc ou tocando a faixa de novo.
+  const foraDaVez = e => { if (vezPop && !vezPop.contains(e.target) && !(vezEl && vezEl.contains(e.target))) abreVez(false); };
+  const escDaVez = e => { if (e.key === 'Escape') abreVez(false); };
+  function abreVez(sim) {
+    vezAberto = !!sim;
+    if (vezPop) vezPop.hidden = !vezAberto;
+    const btn = vezEl && vezEl.querySelector('.tb-vez__btn'); if (btn) btn.setAttribute('aria-expanded', String(vezAberto));
+    document.removeEventListener('pointerdown', foraDaVez, true); document.removeEventListener('keydown', escDaVez);
+    if (vezAberto) { document.addEventListener('pointerdown', foraDaVez, true); document.addEventListener('keydown', escDaVez); }
+  }
   function vezBox(s, v, { anima = true } = {}) {
-    const vz = T.vezDaMesa(s, v);
+    const vz = T.vezDaMesa(s, v, { bot: table.options && table.options.bot ? table.options.bot.seat : null, serie: anima ? serie : null });
     const troca = anima && ultimoTurno !== null && vz.turno !== ultimoTurno;
     if (anima) ultimoTurno = vz.turno;
     const papel = vz.fase !== 'jogo' ? vz.fase : vz.meuTurno ? 'eu' : 'oponente';
-    const filhos = [
-      h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true' }, vz.fase === 'mulligan' ? Icone('mao', { tamanho: 20 }) : vz.inicial),
-      // U2 · rótulo e selo de prioridade empilhados: a faixa divide a linha com as ferramentas sem cortar o nome
-      h('span', { class: 'tb-vez__texto' },
-        h('span', { class: 'tb-vez__rotulo' }, vz.rotulo),
-        vz.prioridadeRotulo ? h('span', { class: 'tb-vez__prio', id: anima ? 'tb-vez-prio' : null, dataset: { minha: String(vz.minhaPrioridade) } },
-          Icone('ampulheta', { tamanho: 13 }), vz.prioridadeRotulo) : null)];
-    if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, ...filhos);
+    const temDetalhe = anima && vz.detalhes.length > 0;
+    const miolo = () => [
+      h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true' }, vz.icone ? Icone(vz.icone, { tamanho: 20 }) : vz.inicial),
+      h('span', { class: 'tb-vez__rotulo' }, vz.rotulo)];
+    if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, h('span', { class: 'tb-vez__btn' }, ...miolo()));
     if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
     vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
     vezEl.dataset.papel = papel; vezEl.dataset.turno = String(vz.turno);
-    if (vezEl.textContent !== filhos.map(f => f.textContent).join('')) vezEl.replaceChildren(...filhos);
+    const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}`;
+    vezEl.dataset.serie = String(vz.detalhes.some(d => d.k === 'serie'));
+    if (vezEl.dataset.assinatura !== assinatura) {
+      vezEl.dataset.assinatura = assinatura;
+      vezEl.replaceChildren(h('button', { class: 'tb-vez__btn', type: 'button', id: 'tb-vez-btn', disabled: !temDetalhe, 'aria-expanded': String(vezAberto && temDetalhe),
+        'aria-controls': 'tb-vez-pop', title: temDetalhe ? 'Detalhes do turno' : null, onClick: () => abreVez(!vezAberto) }, ...miolo()));
+    }
+    if (!temDetalhe && vezAberto) abreVez(false);
+    if (!vezPop) vezPop = h('div', { class: 'tb-vez-pop', id: 'tb-vez-pop', role: 'dialog', 'aria-label': 'Detalhes do turno', hidden: true, dataset: { sobrepoe: 'true' } });
+    vezPop.replaceChildren(
+      h('dl', { class: 'tb-vez-pop__lista' }, ...vz.detalhes.flatMap(d => [h('dt', {}, d.rotulo), h('dd', { id: d.k === 'serie' ? 'tb-serie' : null, dataset: { k: d.k, meu: String(d.valor === 'Você') } }, d.valor)])),
+      IconButton('fechar', 'Fechar', { variant: 'ghost', id: 'tb-vez-fechar', onClick: () => abreVez(false) }));
+    vezPop.hidden = !vezAberto;
     return vezEl;
   }
   const MAO_KEY = 'mesa.maoRecolhida';
@@ -12344,7 +12418,9 @@ function createTableScreen({ store }) {
   // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
-  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state };
+  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state,
+    // Leva 120 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
+    acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer() };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function recusaBox() {
     if (!recusa) return null;
@@ -12586,9 +12662,23 @@ function createTableScreen({ store }) {
     const costTxt = f.cost ? costLabel(f.cost, o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) : '';
     const legal = E.legalActions(s, v).filter(a => a.oid === oid).map(a =>
       a.t === 'play_land' ? doBtn('Jogar terreno', a, { variant: 'primary' })
+        // Leva 120 · ações que o motor oferecia e a folha não desenhava: tramar (plot), conjurar a tramada, metamorfose
+        : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
+        : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
+        : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
+        : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${(f.script.flashback || {}).mana || ''}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '') + (s.manaCheck && costTxt ? ` · ${costTxt}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
+    // Leva 120 · plot que existe e não dá agora aparece apagado com o motivo (como as habilidades, leva 111)
+    const pl = f.script && f.script.plot;
+    if (pl && o.owner === v && o.zone === 'hand' && !legal.some(b => /^Tramar/.test(b.label))) {
+      let motivo = 'não dá agora';
+      try { E.apply(s, { t: 'plot', p: v, oid }); } catch (e) { motivo = T.explicaRecusa(e, { t: 'plot', oid }, s).motivo; }
+      legal.push({ label: `Tramar · ${pl.mana} — ${motivo.charAt(0).toLowerCase() + motivo.slice(1)}`, disabled: true });
+    }
+    if (pl && o.owner === v && o.zone === 'exile' && o.plotted != null && !legal.length)
+      legal.push({ label: o.plotted >= s.turn.number ? 'Conjurar sem pagar — só a partir do próximo turno' : 'Conjurar sem pagar — só no seu turno, na fase principal, com a pilha vazia', disabled: true });
     // M7: mana da fonte, uma opção por cor que ela gera
     if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
       E.productions(s, o).forEach((opt, k) => legal.push(doBtn(`Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k })));
@@ -12679,7 +12769,8 @@ function createTableScreen({ store }) {
     const s = table.state;
     const ids = s.zones[p][zone];
     Dialog({ title: `${label} de ${s.players[p].name}`, body: ids.length
-      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid) })))
+      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
+        ...(zone === 'exile' && s.objects[oid].plotted != null ? { estado: T.estadoDaCarta(s, s.objects[oid]) } : {}) })))
       : Empty('Vazio.'), actions: [Button('Fechar', { onClick: closeDialog })] });
   }
 
@@ -12850,6 +12941,12 @@ function createTableScreen({ store }) {
       banner = PriorityBanner({ title: `Sacrificar: escolha ${tipos}`, hint: 'Toque na permanente no campo, ou use os botões.', tone: 'warning',
         actions: (s.pending.options || []).slice(0, 6).map((oid, index) =>
           Button(nameOf(s, oid), { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-sacrifice', onClick: () => act({ t: 'sacrifice', p: v, oid }) })) });
+    } else if (s.pending && s.pending.kind === 'choose_mode' && s.pending.p === v) {
+      // Leva 120 · gatilho com modos (Sewer-veillance Cam: virar OU desvirar). O motor pedia a escolha desde a S56 e a
+      // tela não tinha aviso para ela: a partida parava em "Aguardando". Achado pelo guarda-corpo tela.acoes.
+      // Os modos vêm do script e podem ser frases ("Desvirar uma criatura"): dois botões lado a lado estouravam a largura
+      // em 390 px. A bandeja inteira vira a pergunta, com um botão por linha (desenhada mais abaixo, em #tb-modo).
+      banner = PriorityBanner({ title: `${s.pending.name}: o que o gatilho faz?`, tone: 'warning', actions: [] });
     } else if (s.pending && s.pending.kind === 'choose_dungeon' && s.pending.p === v) {
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
@@ -12918,6 +13015,47 @@ function createTableScreen({ store }) {
       banner = PriorityBanner({ title: `Aguardando ${s.players[s.turn.priority].name}`, actions: [] });
     }
 
+    if (s.pending && s.pending.kind === 'choose_mode' && s.pending.p === v) {
+      const pk = s.pending;
+      return h('div', { class: 'tb-dock tb-troca', id: 'tb-modo', role: 'group', 'aria-label': `${pk.name}: escolha o que o gatilho faz` },
+        h('div', { class: 'tb-troca__cab' }, Icone('alvo', { tamanho: 20, classe: 'tb-troca__icone' }),
+          h('div', { class: 'tb-troca__texto' }, h('strong', { lang: 'en' }, pk.name), h('span', {}, 'O que o gatilho faz?'))),
+        h('div', { class: 'tb-modo__lista' }, ...(pk.options || []).map((rot, index) =>
+          Button(rot, { block: true, variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-mode', dataset: { modo: String(index) }, onClick: () => act({ t: 'choose_mode', p: v, index }) }))));
+    }
+    // Leva 120 · "descarte uma carta OU sacrifique um terreno" (Highway Robbery): duas pilhas separadas por um segmentado,
+    // a carta escolhida destacada e dois botões de uma palavra. Antes era uma fileira só, misturando a mão com os
+    // terrenos em campo (duas Mountain iguais, uma de cada lugar), e "Confirmar" sem nada escolhido era o jeito de recusar.
+    if (s.pending && s.pending.kind === 'pick' && s.pending.p === v && s.pending.to === 'descarta-ou-sacrifica') {
+      const pk = s.pending, chave = `${pk.source}|${pk.from.join(',')}`;
+      const grupos = { mao: pk.from.filter(oid => s.objects[oid].zone === 'hand'), terreno: pk.from.filter(oid => s.objects[oid].zone !== 'hand') };
+      if (!trocaPor || trocaPor.chave !== chave) trocaPor = { chave, modo: grupos.mao.length ? 'mao' : 'terreno', oid: null };
+      const modo = trocaPor.modo, verbo = modo === 'mao' ? 'Descartar' : 'Sacrificar';
+      const n = (pk.depois || {}).draw || 0;
+      const seg = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'O que você entrega', id: 'tb-troca-modo' },
+        ...[['mao', 'Descartar', 'mao'], ['terreno', 'Sacrificar', 'terreno']].map(([k, rot, ic]) => {
+          const c = Chip(`${rot} · ${grupos[k].length}`, { icone: ic, pressed: modo === k, dataset: { troca: k } });
+          if (!grupos[k].length) c.disabled = true;
+          c.addEventListener('click', () => { trocaPor = { chave, modo: k, oid: null }; paint(); });
+          return c;
+        }));
+      const cards = grupos[modo].map(oid => {
+        const o = s.objects[oid];
+        return TableCard({ ...o, tapped: false, image: imgOf(o.name, 'normal') }, { size: 'hand', selected: trocaPor.oid === oid, ...comPeek(oid),
+          onClick: () => { trocaPor = { chave, modo, oid: trocaPor.oid === oid ? null : oid }; paint(); } });
+      });
+      const escolhida = trocaPor.oid != null ? s.objects[trocaPor.oid] : null;
+      return h('div', { class: 'tb-dock tb-troca', id: 'tb-troca', role: 'group', 'aria-label': `${pk.source}: ${verbo.toLowerCase()} para comprar ${n}` },
+        h('div', { class: 'tb-troca__cab' },
+          Icone('comprar', { tamanho: 20, classe: 'tb-troca__icone' }),
+          h('div', { class: 'tb-troca__texto' }, h('strong', { lang: 'en' }, pk.source),
+            h('span', { id: 'tb-troca-dica' }, escolhida ? `${verbo} ${escolhida.name} e comprar ${n}` : `Entregue uma carta para comprar ${n}`))),
+        seg,
+        h('div', { class: 'tb-hand', id: 'tb-pick-cards' }, cards.length ? h('div', { class: 'tb-row' }, ...cards) : h('span', { class: 'tb-zone__empty' }, modo === 'mao' ? 'mão vazia' : 'nenhum terreno')),
+        h('div', { class: 'tb-troca__acoes' },
+          Button('Não pagar', { id: 'tb-troca-nao', onClick: () => { trocaPor = null; act({ t: 'pick_done', p: v }); } }),
+          Button(verbo, { variant: 'primary', id: 'tb-troca-ok', disabled: !escolhida, onClick: () => { const oid = trocaPor.oid; trocaPor = null; act({ t: 'pick', p: v, oid }); } })));
+    }
     // S13/S14 · durante uma escolha, a faixa de baixo mostra as cartas reveladas
     if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
@@ -12940,6 +13078,12 @@ function createTableScreen({ store }) {
         openObject(oid);
       }
     }));
+    // Leva 120 · cartas tramadas (plot) ficam no exílio, mas é da bandeja que se conjura: aparecem antes da mão, com o selo
+    const tramadas = s.zones[v].exile.filter(oid => s.objects[oid].plotted != null && s.objects[oid].owner === v).map(oid => {
+      const c = TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal') }, { size: 'hand', estado: T.estadoDaCarta(s, s.objects[oid]), ...comPeek(oid), onClick: () => openObject(oid) });
+      c.classList.add('tb-card--tramada'); c.dataset.pronta = String(s.objects[oid].plotted < s.turn.number); return c;
+    });
+    hand.unshift(...tramadas); // primeiro: com a mão cheia, no fim da fileira elas ficavam fora da tela
     // U6b · bandeja em três camadas: puxador na borda de cima (toque ou arrasto), uma linha com a mão,
     // o momento e as ações, e as cartas. Recolhida, sobra só a linha: a mesa ganha a altura da mão e da dica.
     // leva 102 · bug: quem tinha recolhido a mão numa partida anterior começava o 1º turno sem ver as cartas (a mão
@@ -13014,10 +13158,8 @@ function createTableScreen({ store }) {
 
     mount(root,
       h('header', { class: 'tb-top ds-wrap' },
-        vezBox(s, v),
-        // Leva 114 · placar da série, sempre à vista
-        serie && serie.melhorDe > 1 ? h('span', { class: 'tb-serie', id: 'tb-serie', role: 'status', 'aria-label': `Partida ${serie.jogo} de ${serie.melhorDe}. ${s.players[0].name} ${serie.vitorias[0]}, ${s.players[1].name} ${serie.vitorias[1]}` },
-          h('b', {}, `J${serie.jogo}`), h('span', {}, placar())) : null,
+        vezBox(s, v), vezPop,
+        // Leva 120 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação

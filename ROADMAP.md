@@ -134,6 +134,11 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | S · Scripts | S57 masmorra: aventurar-se, escolher a sala e completar | 🟡 |
 | S · Scripts | S56 terrenos das listas, medição honesta e gatilho com modos | 🟡 |
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
+| U · Patamar de produto | U7b faixa de turno em duas palavras com balão de detalhes (leva 120) | 🟡 |
+| R · Revisão carta a carta | R0 sonda de alcance e registro por carta · Highway Robbery revisada (leva 120) | 🟡 |
+| R · Revisão carta a carta | R1 Axebane Guardian (mana em qualquer combinação) — fecha a Walls Combo | ▶ |
+| R · Revisão carta a carta | R2–R8 as sete listas Pauper, carta a carta · R9 homologação independente | ○ |
+| R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -358,6 +363,9 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
 | 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
+| 16º-l 🟡 | Faixa de turno, Highway Robbery (tramar e escolha), gatilho com modos e sonda de alcance (leva 120) | U7b · R0 | 1 | teste no aparelho |
+| 16º-m ▶ | Revisão carta a carta das listas Pauper (R1–R9) | R | 8 a 10 | uma leva por lista; homologação independente no fim |
+| 16º-n | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2204,6 +2212,65 @@ Falta montar as outras três masmorras para o Walls Combo fechar, e depois o Com
 - **Depende de:** S1, M10.
 - **Fora:** "escolha dois", descartar carta do oponente com escolha (Duress) e "você pode pagar".
 
+### R · Revisão carta a carta (pedido em 02/10/2026)
+
+**Por que existe.** As listas Pauper já foram auditadas contra o texto oficial (levas 105 a 108) e seis das sete
+medem 100% em `medir.mjs`. Mesmo assim, no aparelho, a Highway Robbery não podia ser tramada. A causa não estava na
+regra: o motor oferecia `plot` e a tela não desenhava o botão. A leva 120 achou mais dois casos da mesma classe
+(`unmorph` e a escolha de modo do gatilho da Sewer-veillance Cam, que parava a partida em "Aguardando"). A medição de
+cobertura conta o que o motor **resolve**; não conta o que o jogador **alcança** pela tela. Este épico fecha essa
+distância, carta por carta.
+
+**Número de partida (02/10/2026, `node .listas/revisar.mjs`).** 296 cartas únicas não básicas nas nove listas: 138 nas
+sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 delas também em listas Pauper (98 cópias manuais e 21 parciais, por
+`medir.mjs`). Das 138 Pauper, só 21 aparecem em algum teste que passa pela tela de verdade. Revisadas até aqui: 1.
+
+**Método (os cinco passos do pedido, com o que cada um produz).**
+
+1. **Ler a carta.** Texto Oracle e rulings em `.listas/oficiais.json`, com fonte e data. Sem texto confiável, a carta fica manual.
+2. **Entender as mecânicas.** Ficha de leitura frase a frase (tipo da frase, mira ou escolhe, quem decide, "may", o que conta e de quem, quando confere, duração, zona, pilha, dano ou perda de vida) e as 28 armadilhas do protocolo.
+3. **Motor.** Primeiro conferir se já está certo (sonda no motor com a carta em jogo). Só o que divergir vira correção, pela **classe** (regra numerada), com teste que falha antes. Carta que depende de estrutura que o motor não tem fica declarada, não aproximada.
+4. **Experiência.** Jogar a carta pela tela publicada em 360×780: cada ação que ela gera tem botão com rótulo próprio; cada decisão tem aviso, mostra as opções separadas por origem, diz o que vai acontecer e tem recusa explícita quando o texto diz "may"; a informação que a carta cria (tramada, exilada, marcador, modo escolhido) fica à vista; o registro conta. Só o que não estiver nesse nível é redesenhado, com captura antes e depois e `auditaTela`.
+5. **Registrar e avançar.** Ficha em `.listas/revisao.json` (`status`, `leitura`, `motor`, `tela`, `bot`, `testes`, `notas`). `revisada` exige os quatro passos e um teste de tela apontado.
+
+**Guarda-corpos do épico (valem para toda carta, revisada ou não).**
+- `tela.acoes.unit`: todo tipo de ação que `legalActions` devolve é tratado pela tela da mesa. Tipo novo no motor sem botão derruba o portão.
+- `e2e · R0 sonda de alcance`: joga as listas Pauper reais pela tela, com ações sorteadas por semente; a cada estado, toda ação legal de carta está na folha da carta e nenhuma decisão de quem vê a tela cai em "Aguardando".
+
+**R0 · Sonda de alcance, registro por carta e a primeira carta** 🟡 (leva 120, 02/10/2026)
+- **Valor:** o que o motor oferece, a mesa mostra; e existe um quadro dizendo, por lista, quantas cartas já foram revistas de ponta a ponta.
+- **Entregue:** os dois guarda-corpos acima; `.listas/revisao.json` com 296 fichas e `.listas/revisar.mjs` (quadro e sincronização); `window.__estanteMesa.acoesDe/legais/quemVe` só sob `__MTG_TEST`.
+- **Highway Robbery (revisada).** Motor conferido sem correção: escolha na resolução, plot como ação especial fora da pilha, conjurar só em turno posterior e no tempo de feitiço, insanidade da carta descartada decidida depois das duas compras, resolução em branco sem mão e sem terreno. Tela corrigida: botão **Tramar · {1}{R}** na folha (apagado com o motivo quando não dá); a tramada aparece primeiro na bandeja com contorno tracejado e selo, e diz se já pode ser conjurada; **Conjurar sem pagar**; a escolha virou duas pilhas num segmentado (**Descartar · N** / **Sacrificar · N**), carta marcada, frase com o que vai acontecer e dois botões (**Não pagar** / **Descartar** ou **Sacrificar**); o registro conta "tramou".
+- **Achados da classe "motor oferece, tela não desenha":** `plot`, `unmorph` (Birchlore Rangers não virava para cima e "Conjurar virada para baixo" se fundia com "Conjurar") e `choose_mode` (Sewer-veillance Cam). Os três corrigidos. Carta conjurada virada para baixo deixou de ter o nome escrito no registro (708.2).
+- **Testes:** `tela.acoes.unit` (3), `pauper.regras` Leva 120 (insanidade, em branco, limites do plot), `e2e` Leva 120 (Highway Robbery ponta a ponta com `auditaTela` em quatro telas; gatilho com modos; sonda R0, que falha sem o botão de tramar — conferido por mutação).
+- **Versão e goldens:** motor continua v64. Nenhuma regra mudou; só tela, modelo de apresentação e registro. Goldens intactos, sem regravar.
+- **Sem rede:** tudo local; os dois ícones novos (`tramar`, `terreno`) são SVG no arquivo.
+- **Fora / parcial declarado:** Sewer-veillance Cam fica **em revisão** (modo → alvo → "fazer?" são três perguntas; falta a ficha e decidir se "não fazer" entra como terceira opção da primeira). Birchlore Rangers ganhou os botões, mas a ficha completa fica para a lista dos Elfos. O Shark não foi revisto para plot.
+
+**R1 · Axebane Guardian: mana em qualquer combinação de cores** ▶
+- **Valor:** a Walls Combo volta a jogar; as sete listas Pauper em 100% de verdade.
+- **Classe:** 605/106 produção de mana com escolha por unidade ("X mana in any combination of colors"); hoje o script gera X de uma cor só.
+- **Cartas:** Axebane Guardian (4 cópias, Walls Combo). Conferir no mesmo caminho: Overgrown Battlement, Jaspera Sentinel, Utopia Sprawl, Birchlore Rangers e todo `add_mana`/`produces` com `anyColor`.
+- **Aceite:** o pagamento automático (`planTaps`) usa a combinação que paga o custo; ao gerar mana solta, a mesa pergunta a divisão; `medir.mjs` dá 100% com e sem rede; a sonda R0 passa a exigir as sete listas.
+- **Risco:** mexe em `productions`/`planTaps`, caminho de toda mágica. Goldens têm de sair idênticos.
+- **Estimativa:** 1 leva.
+
+**R2 a R8 · As sete listas Pauper, carta a carta** ○ — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R2 Rakdos Madness (20 pendentes: insanidade, lampejo, custos adicionais, Sangue) · R3 Mono Blue Faeries (16: ninjutsu, anular com condição, modos por cor) · R4 Elves (23: mana de criatura, metamorfose, contagem do campo) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
+- **Aceite de cada uma:** todas as cartas da lista com ficha `revisada` ou com a pendência escrita; uma partida guiada da lista pela tela (as jogadas-chave do baralho) no e2e; captura das decisões novas; a sonda R0 com mais uma semente para a lista.
+- **Estimativa:** 7 a 8 levas. Apoio: a auditoria de texto fez 111 cartas numa leva (105), mas sem tela; mecânica nova rendeu de 4 a 6 cartas por leva; aqui o motor já está auditado e o trabalho é de tela, com 17 a 24 cartas por lista e muita mecânica repetida entre listas (14 auras, 8 lampejos, 7 modais).
+
+**R9 · Homologação independente das Pauper** ○ — leitura por revisor sem acesso ao raciocínio das levas R1–R8 (texto oficial + app publicado), como na leva 108. Cada divergência vira teste antes da correção. 1 leva. Antes dela, teste no aparelho.
+
+**R10 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
+- **R10 · Plano do lote:** texto oficial das 105 cartas sem texto conferido, ficha de leitura e triagem em três baldes (só script · primitiva nova · lacuna estrutural), com a matriz primitiva × cartas. Sem isso a ordem é palpite. 1 leva.
+- **R11 · Balde A e B**, na ordem que mais destrava por leva (terrenos de duas cores e pedras de mana primeiro: Command Tower, Exotic Orchard e Sol Ring estão nas duas listas). 6 a 10 levas.
+- **R12 · Estruturas** que as listas exigem, cada uma com a regra numerada inteira e fuzz: camadas de efeito contínuo (613), efeitos de substituição (614), cópia de mágica e de permanente (707), troca de controle, regra de lenda, ataque a planeswalker, mais de um alvo por gatilho. A decisão de construir ou deixar a carta manual é tomada por estrutura, com a contagem de cartas que cada uma destrava. 5 a 8 levas.
+- **R13 · Tela e partida guiada** de cada lista de Commander, e homologação independente. 2 a 3 levas.
+
+**R14 · Mapa das regras não contempladas** ○ — depois das nove listas: percorrer as Comprehensive Rules por seção (100 a 800) e o glossário de palavras-chave (702), marcando cada uma como coberta, parcial ou ausente, com o tamanho em levas e as cartas mais jogadas que dependem dela. Vira a fila seguinte, uma regra por leva, inteira. 1 leva para o mapa; a execução é fila aberta.
+
+**Total estimado:** 8 a 10 levas até o fim das Pauper; 14 a 22 para as Commander; o mapa em mais 1. A recomendação de testar no aparelho a cada três levas continua valendo.
+
 ### B · Bot adversário
 
 **B1 · Política aleatória legal** ✅
@@ -3257,6 +3324,16 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Fora:** regra de jogo do companheiro (M14).
 
 ### U · Patamar de produto (E43–E49, pedidos em 29/09/2026)
+
+
+**U7b · Faixa de turno em duas palavras, com balão de detalhes** 🟡 (leva 120, 02/10/2026) — relato do usuário: "Turno de Shark" aparecia cortado.
+- **Causa:** a faixa dividia a linha com o placar da série e as três ferramentas e encolhia com reticências; o selo "você responde" empilhado piorava. Em 360 px, faixa + placar + ferramentas não cabem numa linha.
+- **Entregue:** a faixa mostra só o ícone de quem joga (a barbatana do design system para o Shark, a inicial para pessoas) e duas palavras: **Turno Shark** / **Seu turno**. Ela abraça o conteúdo e não encolhe. Um toque abre um balão com Série (se houver), Turno, Etapa, Joga e Prioridade (ou "Decide", quando há decisão pendente); fecha no X, no toque fora, no Esc ou tocando a faixa de novo.
+- **Pixels (360×780):** a faixa foi de 184 px para 129 px de largura ("Seu turno"); o topo continua com 84 px e o campo começa no mesmo ponto (y = 142): nenhum pixel de campo perdido.
+- **Divergência registrada (leva 114):** o placar da série deixou de ficar sempre à vista no topo; virou a primeira linha do balão, a um toque. A tela de fim de partida e a de trocas continuam mostrando o placar.
+- **Testes:** `vez.unit` (rótulo, ícone, detalhes, série em qualquer fase); e2e em 320, 360, 384, 390 e 412 px com série ligada: rótulo inteiro, dentro da faixa, ferramentas na mesma linha a partir de 360; as quatro formas de fechar; `auditaTela` com o balão aberto. Expectativas antigas ("Turno de X", selo `#tb-vez-prio`, `#tb-serie` no topo) ajustadas com a justificativa escrita em cada teste.
+- **Sem rede:** tudo local.
+- **Intermitência corrigida no portão:** como a faixa virou botão, o teste antigo do goldfish passou a medi-la, e no meio da animação de entrada (translateY fracionário) o retângulo dá 43,999996 px. A asserção passou a usar a mesma tolerância da auditoria geral (43,5 px); o alvo real continua 44.
 
 **U1 · Tema em dois estados** ✅ (leva 82)
 - **Entregue:** o botão da barra alterna só entre escuro e claro. O estado "automático", que no aparelho do usuário era igual ao escuro, deixou de existir como opção. Na primeira abertura o app segue a preferência do sistema e, a partir do primeiro toque, guarda a escolha.

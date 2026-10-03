@@ -403,6 +403,45 @@ test('Leva 105/107 · Highway Robbery (também do plot) pergunta na resolução:
   assert.equal(s.zones[a].hand.length, antes - 1, 'só a mágica saiu da mão (antes: o descarte já tinha sido pago)');
 });
 
+// Leva 120 · revisão carta a carta (épico R), Highway Robbery. Texto oficial (Scryfall OTJ 129, consulta 30/09/2026):
+// "You may discard a card or sacrifice a land. If you do, draw two cards. / Plot {1}{R}". Três regras sem teste até aqui:
+// a carta descartada com insanidade (702.35) vai para o exílio e pede a decisão DEPOIS das duas compras; sem mão e sem
+// terreno a mágica resolve sem perguntar nada; a tramada não é conjurada no turno em que foi tramada nem fora do tempo de feitiço.
+test('Leva 120 · Highway Robbery: descarte com insanidade compra duas e depois oferece a insanidade; sem nada a entregar, resolve em branco; plot só em turno posterior', () => {
+  let s = jogo(); const a = s.turn.active; let hr, ft;
+  [s, hr] = poe(s, a, 'Highway Robbery', 'hand'); [s, ft] = poe(s, a, 'Fiery Temper', 'hand');
+  s = passaAte(act(s, { t: 'cast', p: a, oid: hr }), x => !!x.pending);
+  assert.equal(s.pending.kind, 'pick');
+  const mao = s.zones[a].hand.length;
+  s = act(s, { t: 'pick', p: a, oid: ft });
+  assert.equal(s.zones[a].hand.length, mao - 1 + 2, 'descartou uma e comprou duas');
+  assert.equal(s.objects[ft].zone, 'exile', 'insanidade: a descartada vai para o exílio, não para o cemitério');
+  assert.equal(s.pending && s.pending.kind, 'madness', 'e a decisão de conjurar por insanidade vem depois das compras');
+  assert.ok(E.legalActions(s, a).some(x => x.t === 'cast_madness'), 'a mesa oferece conjurar');
+  s = act(s, { t: 'decline_madness', p: a });
+  assert.equal(s.objects[ft].zone, 'graveyard', 'recusada, vai para o cemitério');
+  // sem mão e sem terreno: nada a escolher, nada comprado
+  let s2 = jogo(3); const b = s2.turn.active; let hr2;
+  [s2, hr2] = poe(s2, b, 'Highway Robbery', 'hand');
+  s2 = J(s2); for (const oid of s2.zones[b].hand.filter(o => o !== hr2)) { s2.zones[b].hand.splice(s2.zones[b].hand.indexOf(oid), 1); s2.zones[b].library.push(oid); s2.objects[oid].zone = 'library'; }
+  for (const oid of s2.zones[b].battlefield.slice()) { s2.zones[b].battlefield.splice(s2.zones[b].battlefield.indexOf(oid), 1); s2.zones[b].library.push(oid); s2.objects[oid].zone = 'library'; }
+  s2 = passaAte(act(s2, { t: 'cast', p: b, oid: hr2 }), x => !x.stack.length);
+  assert.equal(s2.pending, null, 'sem carta e sem terreno: não pergunta'); assert.equal(s2.zones[b].hand.length, 0, 'e não compra');
+  assert.equal(s2.objects[hr2].zone, 'graveyard');
+  // plot: no mesmo turno não conjura; no turno do oponente também não (só como feitiço)
+  let s3 = jogo(5); const c = s3.turn.active; let hr3;
+  [s3, hr3] = poe(s3, c, 'Highway Robbery', 'hand');
+  s3 = act(s3, { t: 'plot', p: c, oid: hr3 });
+  assert.equal(s3.objects[hr3].zone, 'exile'); assert.equal(s3.stack.length, 0, 'tramar é ação especial: não usa a pilha (702.170)');
+  assert.equal(E.legalActions(s3, c).some(x => x.t === 'cast' && x.oid === hr3), false, 'no turno em que tramou, não conjura');
+  assert.throws(() => E.apply(s3, { t: 'cast', p: c, oid: hr3, plotted: true }), /plot/);
+  const t0 = s3.turn.number;
+  s3 = passaAte(s3, x => x.turn.number === t0 + 1 && x.turn.priority === c && !x.pending);
+  assert.equal(E.legalActions(s3, c).some(x => x.t === 'cast' && x.oid === hr3), false, 'no turno do oponente, com prioridade, também não: só no tempo de feitiço');
+  s3 = passaAte(s3, x => x.turn.number > t0 + 1 && x.turn.active === c && x.turn.step === 'main1' && !x.stack.length && !x.pending);
+  assert.equal(E.legalActions(s3, c).filter(x => x.t === 'cast' && x.oid === hr3 && x.plotted).length, 1, 'no seu turno seguinte, na fase principal, conjura sem pagar');
+});
+
 test('Leva 105 · fichas com cor e tipo do texto oficial: pássaros brancos da Battle Screech pagam o lampejo; Clue, Blood e Map têm subtipo', () => {
   let s = jogo(); const a = s.turn.active; let bs;
   [s, bs] = poe(s, a, 'Battle Screech', 'hand');
