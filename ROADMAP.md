@@ -136,8 +136,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | A · Mesa | A13 o goldfish resolve a escolha em vez de desistir | ✅ |
 | U · Patamar de produto | U7b faixa de turno em duas palavras com balão de detalhes (leva 120) | 🟡 |
 | R · Revisão carta a carta | R0 sonda de alcance e registro por carta · Highway Robbery revisada (leva 120) | 🟡 |
-| R · Revisão carta a carta | R1 Axebane Guardian (mana em qualquer combinação) — fecha a Walls Combo | ▶ |
-| R · Revisão carta a carta | R2–R8 as sete listas Pauper, carta a carta · R9 homologação independente | ○ |
+| R · Revisão carta a carta | R1 Axebane Guardian: mana em qualquer combinação de cores — **as sete listas Pauper em 100%** (leva 121) | 🟡 |
+| R · Revisão carta a carta | R2 Rakdos Madness, carta a carta | ▶ |
+| R · Revisão carta a carta | R3–R8 as outras seis listas Pauper, carta a carta · R9 homologação independente | ○ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -364,8 +365,9 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
 | 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 | 16º-l 🟡 | Faixa de turno, Highway Robbery (tramar e escolha), gatilho com modos e sonda de alcance (leva 120) | U7b · R0 | 1 | teste no aparelho |
-| 16º-m ▶ | Revisão carta a carta das listas Pauper (R1–R9) | R | 8 a 10 | uma leva por lista; homologação independente no fim |
-| 16º-n | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
+| 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 121) | R1 | 1 | teste no aparelho |
+| 16º-n ▶ | Revisão carta a carta das listas Pauper (R2–R9) | R | 7 a 9 | uma leva por lista; homologação independente no fim |
+| 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2245,17 +2247,23 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Testes:** `tela.acoes.unit` (3), `pauper.regras` Leva 120 (insanidade, em branco, limites do plot), `e2e` Leva 120 (Highway Robbery ponta a ponta com `auditaTela` em quatro telas; gatilho com modos; sonda R0, que falha sem o botão de tramar — conferido por mutação).
 - **Versão e goldens:** motor continua v64. Nenhuma regra mudou; só tela, modelo de apresentação e registro. Goldens intactos, sem regravar.
 - **Sem rede:** tudo local; os dois ícones novos (`tramar`, `terreno`) são SVG no arquivo.
+- **Ajuste depois das fotos do aparelho (02/10/2026):** as fotos confirmaram os três relatos. Um ponto novo: com a imagem da carta carregada, a folha passa da altura da tela e os botões ficavam depois do texto, abaixo da dobra; "Tramar" nasceria escondido. As ações da carta passaram a vir logo abaixo da imagem, antes do texto (vale para a folha de toda carta). Teste: e2e "folha da carta com a imagem carregada".
 - **Fora / parcial declarado:** Sewer-veillance Cam fica **em revisão** (modo → alvo → "fazer?" são três perguntas; falta a ficha e decidir se "não fazer" entra como terceira opção da primeira). Birchlore Rangers ganhou os botões, mas a ficha completa fica para a lista dos Elfos. O Shark não foi revisto para plot.
 
-**R1 · Axebane Guardian: mana em qualquer combinação de cores** ▶
-- **Valor:** a Walls Combo volta a jogar; as sete listas Pauper em 100% de verdade.
-- **Classe:** 605/106 produção de mana com escolha por unidade ("X mana in any combination of colors"); hoje o script gera X de uma cor só.
-- **Cartas:** Axebane Guardian (4 cópias, Walls Combo). Conferir no mesmo caminho: Overgrown Battlement, Jaspera Sentinel, Utopia Sprawl, Birchlore Rangers e todo `add_mana`/`produces` com `anyColor`.
-- **Aceite:** o pagamento automático (`planTaps`) usa a combinação que paga o custo; ao gerar mana solta, a mesa pergunta a divisão; `medir.mjs` dá 100% com e sem rede; a sonda R0 passa a exigir as sete listas.
-- **Risco:** mexe em `productions`/`planTaps`, caminho de toda mágica. Goldens têm de sair idênticos.
-- **Estimativa:** 1 leva.
+**R1 · Axebane Guardian: mana em qualquer combinação de cores** 🟡 (leva 121, 02/10/2026)
+- **Valor:** a Walls Combo volta a jogar; as sete listas Pauper medem 100% em `medir.mjs`, com e sem texto buscado para esta lista.
+- **Classe:** produção de mana com cor escolhida por unidade (106.1, 605). Texto oficial em `.listas/oficiais.json` (Oracle do Forge, 30/09/2026) e ruling de 01/10/2012: é habilidade de mana; contagem e cores definidas na resolução, que é imediata.
+- **Cartas:** Axebane Guardian (4 cópias, Walls Combo) é a única das nove listas com "any combination of colors" (busca no texto oficial, não pelo nome). No mesmo caminho e conferidas pelo portão: Overgrown Battlement, Priest of Titania, Jaspera Sentinel, Utopia Sprawl e todo `produces`.
+- **Entregue:** campo `combination: true` em `produces` (só com `anyColor`; o validador recusa o resto). O pagamento automático (`planTaps`) monta a divisão que paga o custo: só as cores que o custo pede, até a quantidade pedida, e o resto numa cor de enchimento — sem enumerar as C(X+4,4) combinações. Gerar à mão: `tap_mana` com `mana: [...]`, recusada se a quantidade não bater com a contagem do momento, se houver incolor ou se a fonte não tiver combinação. `legalActions` marca a ação com `combo: X`.
+- **Tela:** a folha da Axebane tem um botão só, **Gerar N manas** (antes: cinco botões de uma cor). Ele abre a divisão: cinco cores, um toque soma uma mana, **Completar** enche o resto com a última cor (tudo de uma cor = dois toques), tocar numa mana escolhida a tira, **Gerar** só acende com as N. O registro diz o que foi gerado.
+- **Decisões do jogador:** a divisão é sempre dele quando gera à mão. No pagamento de uma mágica o motor escolhe uma divisão que paga, como já faz com qual terreno virar; quem quiser outra, gera à mão antes.
+- **Testes:** `pauper.regras` Leva 121 (três cores num toque, custo com genérico, X insuficiente, divisão à mão, três recusas, contagem na hora) — falha na versão anterior; e2e Leva 121 (folha, divisão, `auditaTela` vazia e completa, reserva e registro); a sonda R0 passou a exigir as sete listas.
+- **Versão e goldens:** motor continua v64, sem regravar: os quatro goldens saíram idênticos. Justificativa para não subir a versão: nenhuma partida publicada podia ter Axebane em campo (a Walls Combo não iniciava desde o modo único, leva 113), então nenhum registro salvo muda de resultado; partidas salvas das outras listas continuam abrindo.
+- **Sem rede:** tudo local.
+- **Parcial declarado / Fora:** o Shark paga com a combinação certa (usa o mesmo `planTaps`), mas não gera mana solta em combinação; não foi medido em torneio com a Walls Combo. A ficha frase a frase das outras 23 cartas da lista fica para a R8.
+- **Achado para as próximas:** três listas dependem do texto buscado para medir 100% sem rede (GW Bogles 89%, Jund Wildfire 97%, Elves 92%: Gladecover Scout, Slippery Bogle, Vault of Whispers, Llanowar Elves, Elvish Mystic). Entram na revisão das respectivas listas, pela conduta offline.
 
-**R2 a R8 · As sete listas Pauper, carta a carta** ○ — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R2 Rakdos Madness (20 pendentes: insanidade, lampejo, custos adicionais, Sangue) · R3 Mono Blue Faeries (16: ninjutsu, anular com condição, modos por cor) · R4 Elves (23: mana de criatura, metamorfose, contagem do campo) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
+**R2 a R8 · As sete listas Pauper, carta a carta** ▶ (R2 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R2 Rakdos Madness (20 pendentes: insanidade, lampejo, custos adicionais, Sangue) · R3 Mono Blue Faeries (16: ninjutsu, anular com condição, modos por cor) · R4 Elves (23: mana de criatura, metamorfose, contagem do campo) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
 - **Aceite de cada uma:** todas as cartas da lista com ficha `revisada` ou com a pendência escrita; uma partida guiada da lista pela tela (as jogadas-chave do baralho) no e2e; captura das decisões novas; a sonda R0 com mais uma semente para a lista.
 - **Estimativa:** 7 a 8 levas. Apoio: a auditoria de texto fez 111 cartas numa leva (105), mas sem tela; mecânica nova rendeu de 4 a 6 cartas por leva; aqui o motor já está auditado e o trabalho é de tela, com 17 a 24 cartas por lista e muita mecânica repetida entre listas (14 auras, 8 lampejos, 7 modais).
 
@@ -2496,27 +2504,6 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
-
-**B17 · Usar os recursos** 🟡 (leva 119, 02/10/2026) — parte entregue; "guardar a resposta para a ameaça certa" depende da B9.
-- **Erros de jogo eliminados** (partida narrada Mono Blue Faeries × Boros Bully):
-  - ficava a partida inteira com permanente barata na mão e mana parada → permanente que só custa sair da mão entra
-    na segunda fase principal; a que tem lampejo entra no passo final do oponente;
-  - descartava a anulação tendo terreno sobrando → o descarte escolhe a carta que menos faz falta;
-  - **regressão da leva 118**: virava terrenos à toa quando o oponente conjurava (a nota de passar era medida depois
-    da pilha e a de virar terreno, antes) → virar terreno por conta própria deixou de ser candidata e toda jogada é
-    medida depois da pilha;
-  - decisão de vários segundos em mesa grande → a leitura das respostas do oponente passou a respeitar o relógio.
-- **Medição (sete listas Pauper, 448 partidas em duas fatias, contra o `shark-v5` congelado):** **54% em 443 decididas
-  (238–205)**, dentro da margem de ±5. As fatias deram 59% e 49%. **Ganho de força não demonstrado.** Fica pelo que
-  corrige na mesa, não por força. Medido antes do limite de relógio entrar.
-- **Tempo (cinco partidas, sem concorrência, orçamento de 250 ms):** p50 15 ms, p95 271 ms, p99 343 ms, pior 557 ms.
-  O v5 passava de 700 ms em 29 decisões das mesmas partidas; no torneio houve decisão de 12,9 s.
-- **Erros vistos nas partidas narradas e ainda abertos:** Bogles segura auras e bloqueia com a criatura encantada;
-  recusa o "compre e descarte" opcional; ataca com tudo estando para morrer no contra-ataque de voadoras; baixa a
-  permanente só na segunda fase principal, mesmo quando ela ajudaria no combate.
-- **Ferramenta:** `FATIA=i/n node torneio.listas.mjs ...` divide o torneio entre os núcleos.
-- **Testes:** U (toque de terreno com o v5 errando, mana sobrando no meu turno e no passo final do oponente, descarte).
-- **Depende de:** B11.
 
 ### C · Coleção
 

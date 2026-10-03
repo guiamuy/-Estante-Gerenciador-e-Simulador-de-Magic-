@@ -1250,6 +1250,10 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .tb-x { align-items: stretch; }
 .tb-x__linha { justify-content: center; align-items: center; gap: var(--space-4); }
 .tb-x__valor { min-width: 3ch; text-align: center; font-family: var(--font-display); font-size: var(--text-3xl); font-variant-numeric: tabular-nums; line-height: 1; color: var(--fg); }
+.tb-mana__cores { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); }
+.tb-mana__cor { min-height: 52px; padding: 0; font-size: var(--text-2xl); }
+.tb-mana__escolhidas { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; min-height: var(--tap-min); }
+.tb-mana__uma { width: var(--tap-min); min-height: var(--tap-min); padding: 0; font-size: var(--text-xl); }
 .tb-x__total { margin: 0; text-align: center; color: var(--fg-muted); font-size: var(--text-md); min-height: 1.5em; }
 </style>
 </head>
@@ -3567,6 +3571,8 @@ function validateScript(sc) {
     if (Array.isArray(opt)) continue;
     if (!opt || (!opt.symbol && !opt.anyColor)) errs.push('produces: opção sem símbolo');
     else if (opt.per && !PER_COUNTS.includes(opt.per)) errs.push(`produces: contagem "${opt.per}" desconhecida`);
+    // Leva 121 · "em qualquer combinação de cores" só faz sentido para mana de qualquer cor
+    if (opt && opt.combination != null && (opt.combination !== true || !opt.anyColor)) errs.push('produces: "combination" só vale como true, junto de anyColor');
   }
   const self = sc && sc.self;
   if (self) {
@@ -4218,10 +4224,11 @@ const RAW_SCRIPTS = [
   { name: 'Overgrown Battlement', produces: [{ symbol: 'G', per: 'defenders-you-control' }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // Leva 106 · texto (Forge, 30/09/2026): "{T}: Add X mana in any combination of colors, where X is the number of
-  // creatures with defender you control." A mesa oferece X de UMA cor por vez; a mistura de cores não entra (com X = 5
-  // seriam 126 combinações por toque). Declarado parcial.
-  { name: 'Axebane Guardian', produces: [{ anyColor: true, per: 'defenders-you-control' }],
-    covers: 'partial', note: 'gera X de uma cor só por toque; "qualquer combinação de cores" ainda não entra',
+  // creatures with defender you control."
+  // Leva 121 · R1 · `combination`: cada uma das X manas tem a cor que o jogador quiser. As combinações não são
+  // enumeradas (com X = 5 seriam 126 por toque): o pagamento automático monta a que paga o custo, e gerar à mão leva a
+  // divisão na própria ação (`tap_mana` com `mana`). Deixou de ser parcial.
+  { name: 'Axebane Guardian', produces: [{ anyColor: true, per: 'defenders-you-control', combination: true }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // Texto conferido em 29/09/2026 (Card Kingdom e TappedOut; Scryfall recusou a consulta): "{T}: Target creature gets
   // +X/+X until end of turn, where X is the number of Elves on the battlefield." — Elfos de TODOS os jogadores.
@@ -7501,6 +7508,33 @@ function grantedToAll(s, o, k) {
 }
 const evasionOf = (s, o) => ((s.facts[o.name].script || {}).self || {}).evasion;
 
+/** Leva 121 · "X mana in any combination of colors" (Axebane Guardian): quantas manas de cor livre a fonte gera agora.
+ *  0 para quem não tem essa produção. A contagem é feita na hora (habilidade de mana resolve na ativação, 605.3). */
+function comboDe(s, o) {
+  const spec = ((((s.facts[o.name] || {}).script) || {}).produces || []).find(x => x && !Array.isArray(x) && x.combination && x.anyColor);
+  if (!spec) return 0;
+  return Math.max(0, spec.per ? countFor(s, o, spec.per) : (spec.amount || 1));
+}
+const CORES_DE_MANA = ['W', 'U', 'B', 'R', 'G'];
+/** Combinações de n manas que podem importar para pagar `cost`: até o que o custo pede de cada cor (símbolos coloridos
+ *  e híbridos), e o resto numa cor de enchimento, que paga genérico. Evita enumerar as C(n+4,4) combinações. */
+function combinacoesUteis(n, cost) {
+  const teto = {};
+  for (const [c, q] of Object.entries(cost.colored || {})) if (CORES_DE_MANA.includes(c)) teto[c] = (teto[c] || 0) + q;
+  for (const grupo of cost.hybrid || []) for (const opt of grupo) if (CORES_DE_MANA.includes(opt)) teto[opt] = (teto[opt] || 0) + 1;
+  const cores = CORES_DE_MANA.filter(c => teto[c] > 0);
+  const enche = cores[0] || 'G';
+  const out = [], vistos = new Set();
+  (function monta(i, mana) {
+    if (i === cores.length) {
+      const m = mana.concat(Array(n - mana.length).fill(enche)); const k = m.slice().sort().join('');
+      if (!vistos.has(k)) { vistos.add(k); out.push(m); }
+      return;
+    }
+    for (let q = Math.min(teto[cores[i]], n - mana.length); q >= 0; q--) monta(i + 1, mana.concat(Array(q).fill(cores[i])));
+  })(0, []);
+  return out;
+}
 function sources(s, p) {
   return battlefield(s).filter(o => o.controller === p && !o.tapped && productions(s, o).length &&
     !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste')));
@@ -7516,7 +7550,14 @@ function planTaps(s, p, cost, extra) {
     if (payFrom(pool, cost, extra)) { found = taps; return; }
     if (i === src.length) return;
     const o = src[i];
-    productions(s, o).forEach((opt, k) => {
+    const n = comboDe(s, o);
+    // Leva 121 · fonte de combinação livre: o plano leva a divisão junto ([oid, 0, mana])
+    if (n > 0) combinacoesUteis(n, cost).forEach(mana => {
+      if (found) return;
+      const P = { ...pool }; mana.forEach(c => { P[c]++; });
+      dfs(i + 1, P, taps.concat([[o.oid, 0, mana]]));
+    });
+    else productions(s, o).forEach((opt, k) => {
       if (found) return;
       const P = { ...pool }; opt.forEach(c => { P[c]++; });
       dfs(i + 1, P, taps.concat([[o.oid, k]]));
@@ -7525,8 +7566,16 @@ function planTaps(s, p, cost, extra) {
   })(0, { ...pl.pool }, []);
   return found;
 }
-function tapForMana(s, oid, option) {
-  const o = s.objects[oid]; const opt = productions(s, o)[option];
+function tapForMana(s, oid, option, mana) {
+  const o = s.objects[oid];
+  let opt = productions(s, o)[option];
+  if (mana != null) { // Leva 121 · divisão escolhida de "qualquer combinação de cores"
+    const n = comboDe(s, o);
+    if (!n) throw new RuleError('mana', 'essa fonte não gera mana em combinação de cores');
+    if (!Array.isArray(mana) || mana.length !== n) throw new RuleError('mana', `essa fonte gera ${n} manas agora: escolha a cor de cada uma`);
+    if (mana.some(c => !CORES_DE_MANA.includes(c))) throw new RuleError('mana', 'cada mana precisa de uma cor: branco, azul, preto, vermelho ou verde');
+    opt = mana.slice();
+  }
   if (!o.tapped) noteEnchantedEvent(s, o);
   if (!opt) throw new RuleError('mana', 'essa fonte não produz essa mana');
   o.tapped = true; opt.forEach(c => { s.players[o.controller].pool[c]++; });
@@ -7535,7 +7584,7 @@ function tapForMana(s, oid, option) {
 function payCost(s, p, cost, extra = 0) {
   const taps = planTaps(s, p, cost, extra);
   if (!taps) throw new RuleError('mana', 'mana insuficiente');
-  taps.forEach(([oid, k]) => tapForMana(s, oid, k));
+  taps.forEach(([oid, k, mana]) => tapForMana(s, oid, k, mana));
   const r = payFrom(s.players[p].pool, cost, extra);
   s.players[p].pool = r.pool; s.players[p].life -= r.life;
 }
@@ -9295,7 +9344,7 @@ const HANDLERS = {
     const o = s.objects[a.oid];
     if (!o || o.zone !== 'battlefield' || o.controller !== a.p || o.tapped) throw new RuleError('objeto', 'fonte indisponível');
     if (!sources(s, a.p).includes(o)) throw new RuleError('mana', 'essa permanente não gera mana agora');
-    tapForMana(s, a.oid, a.option || 0);
+    tapForMana(s, a.oid, a.option || 0, a.mana);
   },
   /** M6 · declaração de atacantes (ação de turno, não usa a pilha). */
   attack(s, a) {
@@ -10048,7 +10097,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
   }
   if (canSorcery && !s.players[p].companionUsed)
     for (const oid of s.zones[p].companion) if (!s.manaCheck || canPay(s, p, { generic: COMPANION_COST, colored: {}, hybrid: [], x: 0 })) out.push({ t: 'companion', p, oid });
-  for (const o of sources(s, p)) out.push({ t: 'tap_mana', p, oid: o.oid, option: 0 });
+  // Leva 121 · `combo` diz à mesa que esta fonte gera N manas de cor livre: ela pode mandar a divisão em `mana`
+  for (const o of sources(s, p)) { const n = comboDe(s, o); out.push({ t: 'tap_mana', p, oid: o.oid, option: 0, ...(n > 1 ? { combo: n } : {}) }); }
   // S37 · habilidades ativadas a partir da mão (descartar esta carta: ...)
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid];
@@ -10247,7 +10297,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
+return { ENGINE_VERSION, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -11404,7 +11454,7 @@ function describe(before, a, events, after) {
     case 'concede': L.push(`${P} desistiu`); break;
     case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o)).join(', ')}` : `${P} não atacou`); break;
     case 'block': L.push(a.blocks.length ? `${P} bloqueou ${a.blocks.map(([b, x]) => `${nameOf(before, x)} com ${nameOf(before, b)}`).join('; ')}` : `${P} não bloqueou`); break;
-    case 'tap_mana': { const o = before.objects[a.oid]; const opt = (E.productions(before, o)[a.option || 0] || []).map(c => `{${c}}`).join(''); L.push(`${P} gerou ${opt} com ${o.name}`); break; }
+    case 'tap_mana': { const o = before.objects[a.oid]; const opt = (a.mana || E.productions(before, o)[a.option || 0] || []).map(c => `{${c}}`).join(''); /* Leva 121 · divisão escolhida */ L.push(`${P} gerou ${opt} com ${o.name}`); break; }
     case 'companion': L.push(`${P} pôs o companheiro ${nameOf(before, a.oid)} na mão${a.free ? ' (sem pagar)' : ` ({${E.COMPANION_COST}})`}`); break;
     case 'activate': {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
@@ -12519,14 +12569,16 @@ function createTableScreen({ store }) {
     Dialog({ title: name, body: Stack({},
       img ? h('img', { src: img, alt: name, class: 'tb-sheet__img', onError: e => { e.target.remove(); } }) : null, // Q10 · sem imagem: a folha fica só com o texto
       extra || null,
-      oracleOf(name) ? h('p', { class: 'tb-adj__oracle' }, oracleOf(name)) : null,
-      buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null),
+      // Leva 120 · as ações vêm antes do texto: com a imagem carregada a folha passa da altura da tela (360×780) e os
+      // botões ficavam abaixo da dobra. "Tramar" nasceria escondido atrás de uma rolagem (foto do aparelho, 02/10/2026).
+      buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null,
+      oracleOf(name) ? h('p', { class: 'tb-adj__oracle' }, oracleOf(name)) : null),
       actions: [Button('Fechar', { onClick: closeDialog })] });
   }
   // A15 · as ações de uma carta são descritas uma vez e viram botão (folha) ou chip (espiar)
   const doBtn = (label, action, opts = {}) => ({ label, action, variant: opts.variant });
   const toButton = d => d.disabled ? Button(d.label, { block: true, disabled: true }) : Button(d.label, { block: true, variant: d.variant,
-    onClick: () => { closeDialog(); if (d.opcoes) escolher(d.label, d.opcoes); else act(d.action); } });
+    onClick: () => { closeDialog(); if (d.abre) d.abre(); else if (d.opcoes) escolher(d.label, d.opcoes); else act(d.action); } });
 
   /* ---- Leva 104 · escolhas de quem paga: valor de X e o que vira, sacrifica, descarta ou volta ---- */
   const nomesDe = (s, lista) => {
@@ -12598,6 +12650,35 @@ function createTableScreen({ store }) {
       actions: [Button('Voltar', { onClick: closeDialog })] });
   }
   /** X: um seletor com − e +, o total em símbolos e a confirmação. Só valores pagáveis. */
+  /** Leva 121 · divisão de N manas em qualquer combinação de cores. Um toque numa cor soma uma mana; "Completar" enche o
+   *  resto com a última cor tocada (tudo de uma cor = dois toques); tocar numa mana escolhida a tira. Só gera com as N. */
+  function dividirMana(oid, n) {
+    const s = table.state, v = table.viewer(), o = s.objects[oid]; if (!o) return;
+    const NOME = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' };
+    const mana = [];
+    const conta = h('p', { class: 'tb-x__total', id: 'tb-mana-conta', 'aria-live': 'polite' });
+    const escolhidas = h('div', { class: 'tb-mana__escolhidas', id: 'tb-mana-escolhidas', role: 'group', 'aria-label': 'Manas escolhidas' });
+    const cores = ['W', 'U', 'B', 'R', 'G'].map(c => { const b = h('button', { class: 'ds-btn tb-mana__cor', type: 'button', 'aria-label': `Somar uma mana ${NOME[c]}`, dataset: { cor: c },
+      onClick: () => { if (mana.length < n) { mana.push(c); pinta(); } } }, Simbolo(c, { tamanho: 24 })); return b; });
+    const completa = Button('Completar', { id: 'tb-mana-completar', onClick: () => { const c = mana[mana.length - 1]; while (c && mana.length < n) mana.push(c); pinta(); } });
+    const gera = Button('Gerar', { variant: 'primary', id: 'tb-mana-ok', onClick: () => { closeDialog(); act({ t: 'tap_mana', p: v, oid, mana: mana.slice() }); } });
+    function pinta() {
+      conta.textContent = mana.length === n ? `${n} de ${n}: pronto para gerar` : `${mana.length} de ${n} · toque nas cores`;
+      escolhidas.replaceChildren(...(mana.length ? mana.map((c, i) => h('button', { class: 'ds-btn ds-btn--ghost tb-mana__uma', type: 'button', 'aria-label': `Tirar esta mana ${NOME[c]}`, dataset: { cor: c },
+        onClick: () => { mana.splice(i, 1); pinta(); } }, Simbolo(c, { tamanho: 22 }))) : [h('span', { class: 'tb-zone__empty' }, 'nenhuma mana escolhida')]));
+      cores.forEach(b => { b.disabled = mana.length >= n; });
+      completa.disabled = !mana.length || mana.length >= n;
+      completa.textContent = 'Completar'; if (mana.length && mana.length < n) completa.setAttribute('aria-label', `Completar com mana ${NOME[mana[mana.length - 1]]}`);
+      gera.disabled = mana.length !== n;
+    }
+    pinta();
+    Dialog({ title: o.name, body: Stack({ class: 'tb-x' },
+      h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-mana-pergunta' }, `Gera ${n} manas, cada uma na cor que você quiser.`),
+      h('div', { class: 'tb-mana__cores', id: 'tb-mana-cores', role: 'group', 'aria-label': 'Cores' }, ...cores),
+      conta, escolhidas,
+      h('div', { class: 'tb-troca__acoes' }, completa, gera)),
+      actions: [Button('Voltar', { onClick: closeDialog })] });
+  }
   function escolherX(titulo, opcoes, xs) {
     const s = table.state, a0 = opcoes[0], o = s.objects[a0.oid], f = s.facts[o.name];
     const base = a0.bestow ? E.parseCost(((f.script || {}).bestow || {}).mana || '') : f.cost;
@@ -12680,7 +12761,11 @@ function createTableScreen({ store }) {
     if (pl && o.owner === v && o.zone === 'exile' && o.plotted != null && !legal.length)
       legal.push({ label: o.plotted >= s.turn.number ? 'Conjurar sem pagar — só a partir do próximo turno' : 'Conjurar sem pagar — só no seu turno, na fase principal, com a pilha vazia', disabled: true });
     // M7: mana da fonte, uma opção por cor que ela gera
-    if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
+    // Leva 121 · fonte de "qualquer combinação de cores" (Axebane Guardian): um botão só, que abre a divisão por cor.
+    // Antes eram cinco botões de uma cor só ("Gerar {G}{G}{G}{G}"), e misturar cores não era possível.
+    const comCombo = E.legalActions(s, v).find(a => a.t === 'tap_mana' && a.oid === oid && a.combo > 1);
+    if (o.zone === 'battlefield' && comCombo) legal.push({ label: `Gerar ${comCombo.combo} manas`, variant: 'primary', abre: () => dividirMana(oid, comCombo.combo) });
+    else if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
       E.productions(s, o).forEach((opt, k) => legal.push(doBtn(`Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k })));
     // S24: faces duplas
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))

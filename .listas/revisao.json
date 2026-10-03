@@ -2201,7 +2201,7 @@
    }
   },
   "Axebane Guardian": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -2209,21 +2209,50 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/a/axebane_guardian.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 121,
+    "obs": "corrigido: gerava X de uma cor só (parcial). Agora combinação livre: pagamento automático monta a divisão; tap_mana aceita mana:[...] validada."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 121,
+    "obs": "um botão \"Gerar N manas\" abre a divisão por cor (cinco cores, Completar, tirar uma, Gerar só com as N)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "paga com a combinação certa pelo planTaps; não gera mana solta em combinação; sem torneio com a Walls Combo"
+   },
+   "testes": [
+    "pauper.regras: Leva 121 · Axebane Guardian",
+    "e2e: Leva 121 · Axebane Guardian",
+    "e2e: R0 sonda de alcance (sete listas)"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
-    "cobertura": "partial",
+    "cobertura": "completo",
     "mecanicas": [
      "produces"
     ],
     "efeitos": [],
     "gatilhos": [],
     "ativadas": 0
-   }
+   },
+   "leitura": [
+    {
+     "frase": "Defender",
+     "tipo": "palavra-chave"
+    },
+    {
+     "frase": "{T}: Add X mana in any combination of colors, where X is the number of creatures with defender you control.",
+     "tipo": "habilidade de mana (605): não usa a pilha",
+     "mira": "sem alvo",
+     "decide": "controlador escolhe a cor de cada mana",
+     "conta": "criaturas com defensor que VOCÊ controla, na resolução (imediata)",
+     "zona": "campo"
+    }
+   ]
   },
   "Drift of Phantasms": {
    "status": "pendente",

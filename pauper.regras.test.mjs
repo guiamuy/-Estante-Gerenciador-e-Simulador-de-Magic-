@@ -3,10 +3,12 @@
 // Elfos dele; o texto diz "Elves on the battlefield" (de todos).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
 import { PERM_TYPES } from './fixtures.mjs';
 const { engine: E, scripts: S } = loadModules();
 const J = x => JSON.parse(JSON.stringify(x));
+const COLORS_SUM = pool => Object.values(pool).reduce((n, v) => n + v, 0);
 
 const card = (name, type_line, extra = {}) => ({ name, type_line, mana_cost: extra.mana_cost || '', cmc: extra.cmc || 0, keywords: extra.keywords || [], oracle_text: extra.oracle_text || '',
   colors: extra.colors || [], ...(extra.pt ? { power: String(extra.pt[0]), toughness: String(extra.pt[1]) } : {}) });
@@ -21,6 +23,9 @@ for (const sc of S.RAW_SCRIPTS) CARDS[sc.name] = CARDS[sc.name] || card(sc.name,
 CARDS['Llanowar Elves'] = card('Llanowar Elves', 'Creature — Elf Druid', { pt: [1, 1], oracle_text: '{T}: Add {G}.' });
 for (const n of ['Electrickery', 'End the Festivities', 'Alms of the Vein']) CARDS[n].type_line = 'Instant';
 CARDS['Fanatical Offering'].type_line = 'Instant';
+// Leva 121 · defensores com o texto oficial (.listas/oficiais.json): a contagem "creatures with defender" lê a palavra-chave
+for (const o of JSON.parse(readFileSync(new URL('./.listas/oficiais.json', import.meta.url), 'utf8')).cartas.filter(c => ['Axebane Guardian', 'Overgrown Battlement'].includes(c.name)))
+  CARDS[o.name] = card(o.name, o.type_line, { mana_cost: o.mana_cost, oracle_text: o.oracle_text, keywords: ['Defender'], pt: [+o.power, +o.toughness], colors: ['G'] });
 const NOMES = Object.keys(CARDS);
 const DECK = NOMES.filter(n => !['Island', 'Forest', 'Plains'].includes(n)).map(name => ({ name, qty: 3, zone: 'main' })).concat([{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Forest', qty: 6, zone: 'main' }, { name: 'Plains', qty: 6, zone: 'main' }]);
 
@@ -1041,4 +1046,48 @@ test('Leva 111 · Food (Sorin) e Map (Fanatical Offering) com a carta da ficha n
   s = passaAte(act(s, { t: 'cast', p: a, oid: fo, pay: { sacrificeOther: pedra } }), y => !y.stack.length);
   const [mapa] = fichas(s, a, 'Map'); assert.ok(mapa, 'Mapa criado');
   const ops = ativa(s, a, mapa); assert.ok(ops.some(y => (y.targets || [])[0] && y.targets[0].oid === urso), 'Mapa mira criatura sua');
+});
+
+
+// Leva 121 · R1 · Axebane Guardian. Texto oficial (.listas/oficiais.json, Oracle do Forge, consulta 30/09/2026):
+// "Defender / {T}: Add X mana in any combination of colors, where X is the number of creatures with defender you control."
+// Ruling de 01/10/2012: é habilidade de mana; a contagem e as cores são definidas quando a habilidade resolve.
+// Antes o script gerava X de UMA cor só (parcial declarado) e a Walls Combo não jogava.
+test('Leva 121 · Axebane Guardian: X mana em qualquer combinação de cores (106/605), contado na hora', () => {
+  let s = jogo(); const a = s.turn.active; let ax, b1, b2;
+  [s, ax] = poe(s, a, 'Axebane Guardian'); [s, b1] = poe(s, a, 'Overgrown Battlement'); [s, b2] = poe(s, a, 'Overgrown Battlement');
+  s = J(s); s.manaCheck = true;
+  for (const oid of s.zones[a].battlefield) if (![ax].includes(oid)) s.objects[oid].tapped = true;   // só a Axebane paga
+  assert.equal(E.comboDe(s, s.objects[ax]), 3, 'três criaturas com defensor: X = 3');
+  const custo = E.parseCost('{W}{U}{B}');
+  const plano = E.planTaps(s, a, custo, 0);
+  assert.ok(plano, 'três cores diferentes saem de um toque só (antes: X de uma cor só, impagável)');
+  assert.equal(plano.length, 1); assert.equal(plano[0][0], ax);
+  assert.deepEqual(J(plano[0][2]).sort(), ['B', 'U', 'W'], 'o pagamento automático escolhe a combinação que paga');
+  // custo com genérico: as cores pedidas e o resto em qualquer cor
+  const p2 = E.planTaps(s, a, E.parseCost('{1}{R}{R}'), 0);
+  assert.equal(J(p2[0][2]).filter(c => c === 'R').length >= 2, true); assert.equal(p2[0][2].length, 3);
+  // quatro manas não saem de três defensores
+  assert.equal(E.planTaps(s, a, E.parseCost('{W}{U}{B}{R}'), 0), null);
+  // gerar à mão, escolhendo a divisão
+  let t = act(s, { t: 'tap_mana', p: a, oid: ax, mana: ['R', 'R', 'G'] });
+  assert.equal(t.objects[ax].tapped, true);
+  assert.deepEqual([t.players[a].pool.R, t.players[a].pool.G, t.players[a].pool.W], [2, 1, 0]);
+  // divisões inválidas: quantidade errada, incolor, e fonte que não tem combinação
+  assert.throws(() => E.apply(s, { t: 'tap_mana', p: a, oid: ax, mana: ['R', 'R'] }), /3 manas/);
+  assert.throws(() => E.apply(s, { t: 'tap_mana', p: a, oid: ax, mana: ['R', 'R', 'C'] }), /cor/);
+  let s2 = J(s); s2.objects[b1].tapped = false; s2.objects[b1].sick = false;
+  assert.throws(() => E.apply(s2, { t: 'tap_mana', p: a, oid: b1, mana: ['R', 'R', 'R'] }), /combina/);
+  // a opção de uma cor só continua valendo (é uma das combinações) e é o que legalActions lista
+  const legal = E.legalActions(s, a).find(x => x.t === 'tap_mana' && x.oid === ax);
+  assert.equal(legal.combo, 3, 'a ação diz quantas manas a mesa pode dividir');
+  t = act(s, legal); assert.equal(COLORS_SUM(t.players[a].pool), 3);
+  // contado na hora: um defensor a menos, X = 2
+  let s3 = J(s); s3.zones[a].battlefield.splice(s3.zones[a].battlefield.indexOf(b2), 1); s3.zones[a].graveyard.push(b2); s3.objects[b2].zone = 'graveyard';
+  assert.equal(E.comboDe(s3, s3.objects[ax]), 2);
+  assert.throws(() => E.apply(s3, { t: 'tap_mana', p: a, oid: ax, mana: ['R', 'R', 'G'] }), /2 manas/);
+  // quem não tem combinação continua como antes
+  assert.equal(E.comboDe(s, s.objects[b1]), 0);
+  // cobertura: a carta deixou de ser parcial
+  assert.equal(S.SCRIPTS['Axebane Guardian'].covers, undefined);
 });

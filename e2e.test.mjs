@@ -3866,10 +3866,15 @@ test('e2e · leva 114 melhor de 3 a dois: cada jogador troca a reserva sem o out
 // textos oficiais de .listas/oficiais.json (consulta em 30/09/2026): Highway Robbery (Scryfall OTJ 129), Sewer-veillance Cam, Faerie Seer
 const EMOJI_120 = /[\p{Extended_Pictographic}☀-➿\u{1F300}-\u{1FAFF}]/u;
 const OFICIAIS_120 = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais.json'), 'utf8')).cartas;
-function comOficiais(page, nomes) {
+// A Scryfall manda as palavras-chave num campo próprio (`keywords`), e é dele que o motor lê defensor, voar etc.
+// .listas/oficiais.json guarda só o texto: as linhas que são só palavras-chave ("Defender", "Flying, haste") viram o campo.
+const PALAVRAS_120 = ['Flying', 'Reach', 'Trample', 'Deathtouch', 'Lifelink', 'Vigilance', 'Haste', 'First strike', 'Double strike', 'Menace', 'Defender', 'Indestructible', 'Flash', 'Hexproof', 'Shroud', 'Changeling'];
+const palavrasDoTexto = texto => [...new Set(String(texto || '').split('\n').flatMap(l => { const ps = l.replace(/\s*\(.*\)\s*$/, '').split(/,\s*/).map(x => x.trim()); return ps.every(x => PALAVRAS_120.some(k => k.toLowerCase() === x.toLowerCase())) ? ps.map(x => PALAVRAS_120.find(k => k.toLowerCase() === x.toLowerCase())) : []; }))];
+function comOficiais(page, nomes, { imagens = false } = {}) {
   const BASICOS = { Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' };
   const extra = Object.fromEntries(nomes.map(n => { const c = BASICOS[n] ? { name: n, type_line: `Basic Land — ${n}`, oracle_text: `({T}: Add {${BASICOS[n]}}.)` } : OFICIAIS_120.find(x => x.name === n); assert.ok(c, 'texto oficial de ' + n);
-    return [n.toLowerCase(), { object: 'card', id: n, name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', oracle_text: c.oracle_text || '', colors: [], color_identity: [], cmc: 2, keywords: [], ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}) }]; }));
+    return [n.toLowerCase(), { object: 'card', id: n, name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', oracle_text: c.oracle_text || '', colors: [], color_identity: [], cmc: 2, keywords: palavrasDoTexto(c.oracle_text), ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}),
+      ...(imagens ? { image_uris: Object.fromEntries(['small', 'normal', 'large'].map(t => [t, `https://cards.scryfall.io/${t}/front/x/${encodeURIComponent(n)}.png`])) } : {}) }]; }));
   return page.route('https://api.scryfall.com/cards/collection', async r => {
     const ids = JSON.parse(r.request().postData()).identifiers; const acha = i => extra[i.name.toLowerCase()] || DB[i.name.toLowerCase()];
     return r.fulfill({ json: { data: ids.map(acha).filter(Boolean), not_found: ids.filter(i => !acha(i)) } });
@@ -4038,6 +4043,37 @@ test('e2e · Leva 120 · Highway Robbery: tramar pela folha, a tramada à vista 
   assert.deepEqual(errors, []);
 });
 
+test('e2e · Leva 120 · folha da carta com a imagem carregada: Conjurar e Tramar aparecem sem rolar (foto do aparelho, 02/10/2026)', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  // os outros testes deixam o CDN de imagens fora do ar; aqui a carta tem imagem, na proporção real (488×680), que é o
+  // que faz a folha passar da altura da tela no aparelho
+  const { PNG } = await import('pngjs'); const png = new PNG({ width: 488, height: 680 }); png.data.fill(120);
+  const carta = PNG.sync.write(png);
+  await page.route(/^https:\/\/cards\.scryfall\.io\//, r => r.fulfill({ status: 200, contentType: 'image/png', body: carta, headers: { 'access-control-allow-origin': '*' } }));
+  await comOficiais(page, ['Highway Robbery', 'Mountain', 'Lightning Bolt'], { imagens: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Robbery', '24 Mountain\n16 Highway Robbery\n20 Lightning Bolt');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal120(page); await jogaTerreno120(page, 'Mountain');
+  await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(200); await meuPrincipal120(page); await jogaTerreno120(page, 'Mountain');
+  await page.locator('#tb-hand .tb-card[aria-label^="Highway Robbery"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img');
+  await page.waitForFunction(() => { const i = document.querySelector('.ds-dialog .tb-sheet__img'); return i && i.complete && i.naturalHeight > 0; });
+  await page.waitForTimeout(300);
+  const m = await page.evaluate(() => { const d = document.querySelector('.ds-dialog'), db = d.getBoundingClientRect();
+    return { rolagem: d.scrollTop, imagem: Math.round(d.querySelector('.tb-sheet__img').getBoundingClientRect().height), fundo: Math.min(db.bottom, innerHeight),
+      botoes: [...d.querySelectorAll('.tb-sheet__actions button')].map(b => ({ txt: b.textContent.trim().split(' ')[0], base: b.getBoundingClientRect().bottom })),
+      texto: d.querySelector('.tb-adj__oracle').getBoundingClientRect().top }; });
+  assert.ok(m.imagem >= 300, 'a imagem carregou no tamanho de carta: ' + m.imagem);
+  assert.equal(m.rolagem, 0, 'folha aberta, sem rolar');
+  assert.deepEqual(m.botoes.map(b => b.txt), ['Conjurar', 'Tramar']);
+  for (const b of m.botoes) assert.ok(b.base <= m.fundo, `${b.txt} inteiro na tela sem rolar (${Math.round(b.base)} ≤ ${Math.round(m.fundo)})`);
+  assert.ok(m.texto >= m.botoes[1].base, 'o texto da carta vem depois das ações');
+  await auditaTela(page, 'folha da carta com imagem');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · Leva 120 · gatilho com modos (Sewer-veillance Cam): a mesa pergunta virar ou desvirar em vez de ficar esperando', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await page.addInitScript(() => { window.__MTG_TEST = true; });
@@ -4118,7 +4154,76 @@ test('e2e · Leva 120 · R0 sonda de alcance: nas listas Pauper reais, toda aç�
     }
   }
   assert.deepEqual(achados, [], 'ações legais sem botão ou decisões sem aviso');
-  // Walls Combo não joga enquanto a Axebane Guardian for parcial (história R1). Quando ela fechar, esta linha muda e a sonda cobre as sete.
-  assert.deepEqual(travadas, ['Pauper Walls Combo'], 'listas Pauper que ainda não jogam');
-  assert.equal(jogaram.length, 6 * SEMENTES.length, 'as outras seis jogaram');
+  // Leva 121 · expectativa ajustada com justificativa: a Axebane Guardian fechou (R1), a Walls Combo joga e a sonda cobre as sete
+  assert.deepEqual(travadas, [], 'nenhuma lista Pauper travada');
+  assert.equal(jogaram.length, 7 * SEMENTES.length, 'as sete jogaram');
+});
+
+
+/* ---------------- Leva 121 · R1 · Axebane Guardian: mana em qualquer combinação de cores ---------------- */
+test('e2e · Leva 121 · Axebane Guardian: um botão abre a divisão por cor, só gera com todas escolhidas, e o pagamento automático mistura cores sozinho', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Axebane Guardian', 'Overgrown Battlement', 'Forest', 'Lightning Bolt', 'Counterspell'].filter(n => n === 'Forest' || OFICIAIS_120.some(c => c.name === n)));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Muros', '20 Forest\n16 Axebane Guardian\n16 Overgrown Battlement\n8 Lightning Bolt', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal120(page);
+  // monta a mesa pelo motor (o que se testa aqui é a tela da divisão): Axebane e dois Battlements em campo, sem enjoo
+  const ids = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(); const acha = (n, q) => Object.values(s.objects).filter(o => o.owner === 0 && o.name === n && ['library', 'hand'].includes(o.zone)).slice(0, q).map(o => o.oid);
+    return { ax: acha('Axebane Guardian', 1)[0], muros: acha('Overgrown Battlement', 2), raio: acha('Lightning Bolt', 1)[0] }; });
+  // modo único não tem "mover carta": joga de verdade, turno a turno
+  const naMao = n => page.evaluate(n => { const s = window.__estanteMesa.estado(); return s.zones[0].hand.filter(o => s.objects[o].name === n); }, n);
+  const campo = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.map(o => s.objects[o].name); });
+  const act = a => page.evaluate(a => { try { window.__estanteMesa.act(a); return true; } catch (e) { return String(e); } }, a);
+  const pronta = () => page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(); if (s.turn.active !== 0 || s.turn.step !== 'main1' || s.stack.length || s.pending) return false;
+    const ax = s.zones[0].battlefield.map(o => s.objects[o]).find(o => o.name === 'Axebane Guardian' && !o.sick && !o.tapped);
+    return !!ax && (M.legais().find(a => a.t === 'tap_mana' && a.oid === ax.oid) || {}).combo >= 2; });
+  for (let turno = 0; turno < 20 && !(await pronta()); turno++) {
+    const f = await naMao('Forest'); if (f.length) await act({ t: 'play_land', p: 0, oid: f[0] });
+    for (const nome of ['Axebane Guardian', 'Overgrown Battlement']) for (const oid of await naMao(nome)) {
+      if (nome === 'Axebane Guardian' && (await campo()).includes(nome)) break;
+      const legal = await page.evaluate(oid => window.__estanteMesa.legais().find(a => a.t === 'cast' && a.oid === oid) || null, oid);
+      if (!legal) continue;
+      await act(legal); for (let i = 0; i < 12; i++) { const e = await estado120(page); if (!e.pilha) break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(80); }
+    }
+    if (await pronta()) break;
+    await page.locator('#tb-pass-turn').click().catch(() => {}); await page.waitForTimeout(150); await meuPrincipal120(page);
+  }
+  assert.ok(await pronta(), 'Axebane desvirada e sem enjoo, com outro defensor em campo: ' + JSON.stringify(await campo()));
+  const x = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(); const ax = s.zones[0].battlefield.map(o => s.objects[o]).find(o => o.name === 'Axebane Guardian'); return { oid: ax.oid, n: M.legais().find(a => a.t === 'tap_mana' && a.oid === ax.oid).combo }; });
+  assert.ok(x.n >= 2, 'Axebane em campo com pelo menos mais um defensor: X = ' + x.n);
+  // a folha: um botão só, com o número
+  await page.locator(`.tb-side--me .tb-card[data-oid="${x.oid}"]`).first().click(); await page.waitForSelector('.ds-dialog');
+  const botoes = await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts();
+  assert.deepEqual(botoes.filter(b => /^Gerar/.test(b)), [`Gerar ${x.n} manas`], 'um botão, não cinco de uma cor só');
+  await naFolha(page, /^Gerar \d+ manas$/);
+  // a divisão
+  await page.waitForSelector('#tb-mana-cores');
+  assert.equal(await page.locator('#tb-mana-cores button').count(), 5);
+  assert.deepEqual(await page.locator('#tb-mana-cores button').evaluateAll(bs => bs.map(b => b.getAttribute('aria-label'))), ['branca', 'azul', 'preta', 'vermelha', 'verde'].map(c => `Somar uma mana ${c}`));
+  assert.equal(await page.locator('#tb-mana-ok').isDisabled(), true, 'sem todas as manas escolhidas não gera');
+  assert.equal(await page.locator('#tb-mana-completar').isDisabled(), true);
+  assert.match(await page.innerText('#tb-mana-conta'), new RegExp(`0 de ${x.n}`));
+  await auditaTela(page, 'divisão de mana, vazia');
+  await page.click('#tb-mana-cores [data-cor="R"]');
+  assert.match(await page.innerText('#tb-mana-conta'), new RegExp(`1 de ${x.n}`));
+  assert.equal(await page.locator('#tb-mana-ok').isDisabled(), x.n !== 1);
+  // tirar uma mana escolhida e pôr outra
+  await page.locator('#tb-mana-escolhidas [data-cor="R"]').first().click();
+  assert.equal(await page.locator('#tb-mana-escolhidas button').count(), 0, 'tocar na mana escolhida tira');
+  await page.click('#tb-mana-cores [data-cor="U"]'); await page.click('#tb-mana-completar');
+  assert.equal(await page.locator('#tb-mana-escolhidas [data-cor="U"]').count(), x.n, 'Completar enche com a última cor');
+  assert.equal(await page.locator('#tb-mana-cores [data-cor="R"]').isDisabled(), true, 'cheio: não soma mais');
+  await page.locator('#tb-mana-escolhidas [data-cor="U"]').first().click(); await page.click('#tb-mana-cores [data-cor="R"]');
+  assert.equal(await page.locator('#tb-mana-ok').isEnabled(), true);
+  await auditaTela(page, 'divisão de mana, completa');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/121-divisao.png' });
+  await page.click('#tb-mana-ok'); await page.waitForTimeout(200);
+  const pool = await page.evaluate(() => window.__estanteMesa.estado().players[0].pool);
+  assert.equal(pool.R, 1); assert.equal(pool.U, x.n - 1); assert.equal(pool.G, 0, 'gerou exatamente a divisão escolhida');
+  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  assert.match((await page.innerText('#tb-timeline')).replace(/\s+/g, ' '), /Você gerou .*com Axebane Guardian/, 'o registro diz o que foi gerado');
+  assert.deepEqual(errors, []);
 });
