@@ -23,7 +23,7 @@ for (const sc of S.RAW_SCRIPTS) CARDS[sc.name] = CARDS[sc.name] || card(sc.name,
 CARDS['Llanowar Elves'] = card('Llanowar Elves', 'Creature — Elf Druid', { pt: [1, 1], oracle_text: '{T}: Add {G}.' });
 for (const n of ['Electrickery', 'End the Festivities', 'Alms of the Vein']) CARDS[n].type_line = 'Instant';
 CARDS['Fanatical Offering'].type_line = 'Instant';
-// Leva 121 · defensores com o texto oficial (.listas/oficiais.json): a contagem "creatures with defender" lê a palavra-chave
+// Leva 122 · defensores com o texto oficial (.listas/oficiais.json): a contagem "creatures with defender" lê a palavra-chave
 for (const o of JSON.parse(readFileSync(new URL('./.listas/oficiais.json', import.meta.url), 'utf8')).cartas.filter(c => ['Axebane Guardian', 'Overgrown Battlement'].includes(c.name)))
   CARDS[o.name] = card(o.name, o.type_line, { mana_cost: o.mana_cost, oracle_text: o.oracle_text, keywords: ['Defender'], pt: [+o.power, +o.toughness], colors: ['G'] });
 const NOMES = Object.keys(CARDS);
@@ -408,11 +408,11 @@ test('Leva 105/107 · Highway Robbery (também do plot) pergunta na resolução:
   assert.equal(s.zones[a].hand.length, antes - 1, 'só a mágica saiu da mão (antes: o descarte já tinha sido pago)');
 });
 
-// Leva 120 · revisão carta a carta (épico R), Highway Robbery. Texto oficial (Scryfall OTJ 129, consulta 30/09/2026):
+// Leva 121 · revisão carta a carta (épico R), Highway Robbery. Texto oficial (Scryfall OTJ 129, consulta 30/09/2026):
 // "You may discard a card or sacrifice a land. If you do, draw two cards. / Plot {1}{R}". Três regras sem teste até aqui:
 // a carta descartada com insanidade (702.35) vai para o exílio e pede a decisão DEPOIS das duas compras; sem mão e sem
 // terreno a mágica resolve sem perguntar nada; a tramada não é conjurada no turno em que foi tramada nem fora do tempo de feitiço.
-test('Leva 120 · Highway Robbery: descarte com insanidade compra duas e depois oferece a insanidade; sem nada a entregar, resolve em branco; plot só em turno posterior', () => {
+test('Leva 121 · Highway Robbery: descarte com insanidade compra duas e depois oferece a insanidade; sem nada a entregar, resolve em branco; plot só em turno posterior', () => {
   let s = jogo(); const a = s.turn.active; let hr, ft;
   [s, hr] = poe(s, a, 'Highway Robbery', 'hand'); [s, ft] = poe(s, a, 'Fiery Temper', 'hand');
   s = passaAte(act(s, { t: 'cast', p: a, oid: hr }), x => !!x.pending);
@@ -1049,11 +1049,11 @@ test('Leva 111 · Food (Sorin) e Map (Fanatical Offering) com a carta da ficha n
 });
 
 
-// Leva 121 · R1 · Axebane Guardian. Texto oficial (.listas/oficiais.json, Oracle do Forge, consulta 30/09/2026):
+// Leva 122 · R1 · Axebane Guardian. Texto oficial (.listas/oficiais.json, Oracle do Forge, consulta 30/09/2026):
 // "Defender / {T}: Add X mana in any combination of colors, where X is the number of creatures with defender you control."
 // Ruling de 01/10/2012: é habilidade de mana; a contagem e as cores são definidas quando a habilidade resolve.
 // Antes o script gerava X de UMA cor só (parcial declarado) e a Walls Combo não jogava.
-test('Leva 121 · Axebane Guardian: X mana em qualquer combinação de cores (106/605), contado na hora', () => {
+test('Leva 122 · Axebane Guardian: X mana em qualquer combinação de cores (106/605), contado na hora', () => {
   let s = jogo(); const a = s.turn.active; let ax, b1, b2;
   [s, ax] = poe(s, a, 'Axebane Guardian'); [s, b1] = poe(s, a, 'Overgrown Battlement'); [s, b2] = poe(s, a, 'Overgrown Battlement');
   s = J(s); s.manaCheck = true;

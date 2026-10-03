@@ -710,7 +710,7 @@ body {
 .tb-top__actions { display: flex; gap: 2px; margin-left: auto; }
 /* U2 · ferramentas da mesa ao lado da faixa de vez (antes ocupavam uma linha inteira) */
 .tb-top { position: relative; }
-/* Leva 120 · a faixa abraça o próprio conteúdo (ícone + duas palavras): não estica nem encolhe, então nunca corta */
+/* Leva 121 · a faixa abraça o próprio conteúdo (ícone + duas palavras): não estica nem encolhe, então nunca corta */
 .tb-top > .tb-vez { flex: 0 0 auto; max-width: 100%; }
 .tb-top > .tb-top__actions { margin-left: auto; }
 .tb-top > .tb-top__actions { order: 2; }
@@ -747,7 +747,7 @@ body {
 .tb-vez__btn:disabled { cursor: default; }
 .tb-vez__btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 .tb-vez__btn:active:not(:disabled) { transform: scale(.98); }
-/* Leva 120 · detalhes do turno: balão que só abre a um toque na faixa e fecha no X, no toque fora, no Esc ou tocando a faixa de novo */
+/* Leva 121 · detalhes do turno: balão que só abre a um toque na faixa e fecha no X, no toque fora, no Esc ou tocando a faixa de novo */
 .tb-vez-pop { position: absolute; left: var(--space-4); top: calc(100% - var(--space-1)); z-index: var(--z-overlay); width: min(300px, calc(100% - var(--space-6)));
   display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-1) var(--space-3) var(--space-4);
   border: 1px solid var(--border-strong); border-radius: var(--radius-2); background: var(--bg-elev-2); color: var(--fg); box-shadow: var(--shadow-3); animation: ds-rise var(--dur-2) var(--ease-out); }
@@ -762,7 +762,7 @@ body {
 .tb-vez__avatar { flex: none; width: 34px; height: 34px; border-radius: var(--radius-full); display: grid; place-items: center;
   background: var(--bg-elev-1); color: var(--fg); font-family: var(--font-display); font-size: var(--text-md); }
 .tb-vez__rotulo { font-size: var(--text-md); }
-/* Leva 120 · sem escala: a faixa agora é um botão e precisa medir 44 px também durante a entrada */
+/* Leva 121 · sem escala: a faixa agora é um botão e precisa medir 44 px também durante a entrada */
 @keyframes tb-vez-troca { from { opacity: .2; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 .tb-vez--troca { animation: tb-vez-troca 300ms var(--ease-out); }
 .tb-handoff .tb-vez { flex: none; width: min(100%, 360px); }
@@ -1231,11 +1231,11 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
   .tb-top { padding-top: var(--space-2); }
 }/* Leva 107 · carta revelada que não pode ser escolhida (Duress) */
 .tb-card--fora { opacity: .45; filter: saturate(.4); }
-/* Leva 120 · carta tramada na bandeja: contorno tracejado (está no exílio, não na mão); apagada até poder ser conjurada */
+/* Leva 121 · carta tramada na bandeja: contorno tracejado (está no exílio, não na mão); apagada até poder ser conjurada */
 .tb-card--tramada .tb-card__face { outline: 2px dashed var(--accent); outline-offset: -2px; }
 .tb-card--tramada[data-pronta="false"] .tb-card__face { opacity: .6; }
 .tb-pill--icone[data-marca="tramada"] { color: var(--accent); border-color: var(--accent); }
-/* Leva 120 · "descartar ou sacrificar": cabeçalho, segmentado, fileira e dois botões */
+/* Leva 121 · "descartar ou sacrificar": cabeçalho, segmentado, fileira e dois botões */
 .tb-troca { display: flex; flex-direction: column; gap: var(--space-2); }
 .tb-troca__cab { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .tb-troca__icone { flex: none; color: var(--warning); }
@@ -1822,7 +1822,7 @@ const ICONES = {
   baralho: '<rect x="7" y="3.5" width="11" height="15" rx="1.8"/><path d="M5 6.5v11.8a2.2 2.2 0 0 0 2.2 2.2h8.3"/>',
   reserva: '<rect x="4" y="5" width="9.5" height="14" rx="1.6"/><rect x="14.5" y="7.5" width="6" height="9" rx="1.2" stroke-dasharray="2 1.6"/>',
   // prioridade com o outro: a mesa espera uma resposta
-  // Leva 120 · tramar (plot): carta guardada com marcador; terreno: serra, para "sacrificar um terreno"
+  // Leva 121 · tramar (plot): carta guardada com marcador; terreno: serra, para "sacrificar um terreno"
   tramar: '<rect x="5.5" y="3.5" width="13" height="17" rx="1.8"/><path d="M9.5 3.5v8l2.5-1.9 2.5 1.9v-8"/>',
   terreno: '<path d="M2.5 19.5l6.5-11 3.6 6 2.4-3.5 6.5 8.5z"/><path d="M7.2 11.6l1.8 1.5 1.6-1.2"/>',
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
@@ -3571,7 +3571,7 @@ function validateScript(sc) {
     if (Array.isArray(opt)) continue;
     if (!opt || (!opt.symbol && !opt.anyColor)) errs.push('produces: opção sem símbolo');
     else if (opt.per && !PER_COUNTS.includes(opt.per)) errs.push(`produces: contagem "${opt.per}" desconhecida`);
-    // Leva 121 · "em qualquer combinação de cores" só faz sentido para mana de qualquer cor
+    // Leva 122 · "em qualquer combinação de cores" só faz sentido para mana de qualquer cor
     if (opt && opt.combination != null && (opt.combination !== true || !opt.anyColor)) errs.push('produces: "combination" só vale como true, junto de anyColor');
   }
   const self = sc && sc.self;
@@ -4225,7 +4225,7 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // Leva 106 · texto (Forge, 30/09/2026): "{T}: Add X mana in any combination of colors, where X is the number of
   // creatures with defender you control."
-  // Leva 121 · R1 · `combination`: cada uma das X manas tem a cor que o jogador quiser. As combinações não são
+  // Leva 122 · R1 · `combination`: cada uma das X manas tem a cor que o jogador quiser. As combinações não são
   // enumeradas (com X = 5 seriam 126 por toque): o pagamento automático monta a que paga o custo, e gerar à mão leva a
   // divisão na própria ação (`tap_mana` com `mana`). Deixou de ser parcial.
   { name: 'Axebane Guardian', produces: [{ anyColor: true, per: 'defenders-you-control', combination: true }],
@@ -7508,7 +7508,7 @@ function grantedToAll(s, o, k) {
 }
 const evasionOf = (s, o) => ((s.facts[o.name].script || {}).self || {}).evasion;
 
-/** Leva 121 · "X mana in any combination of colors" (Axebane Guardian): quantas manas de cor livre a fonte gera agora.
+/** Leva 122 · "X mana in any combination of colors" (Axebane Guardian): quantas manas de cor livre a fonte gera agora.
  *  0 para quem não tem essa produção. A contagem é feita na hora (habilidade de mana resolve na ativação, 605.3). */
 function comboDe(s, o) {
   const spec = ((((s.facts[o.name] || {}).script) || {}).produces || []).find(x => x && !Array.isArray(x) && x.combination && x.anyColor);
@@ -7551,7 +7551,7 @@ function planTaps(s, p, cost, extra) {
     if (i === src.length) return;
     const o = src[i];
     const n = comboDe(s, o);
-    // Leva 121 · fonte de combinação livre: o plano leva a divisão junto ([oid, 0, mana])
+    // Leva 122 · fonte de combinação livre: o plano leva a divisão junto ([oid, 0, mana])
     if (n > 0) combinacoesUteis(n, cost).forEach(mana => {
       if (found) return;
       const P = { ...pool }; mana.forEach(c => { P[c]++; });
@@ -7569,7 +7569,7 @@ function planTaps(s, p, cost, extra) {
 function tapForMana(s, oid, option, mana) {
   const o = s.objects[oid];
   let opt = productions(s, o)[option];
-  if (mana != null) { // Leva 121 · divisão escolhida de "qualquer combinação de cores"
+  if (mana != null) { // Leva 122 · divisão escolhida de "qualquer combinação de cores"
     const n = comboDe(s, o);
     if (!n) throw new RuleError('mana', 'essa fonte não gera mana em combinação de cores');
     if (!Array.isArray(mana) || mana.length !== n) throw new RuleError('mana', `essa fonte gera ${n} manas agora: escolha a cor de cada uma`);
@@ -10097,7 +10097,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   }
   if (canSorcery && !s.players[p].companionUsed)
     for (const oid of s.zones[p].companion) if (!s.manaCheck || canPay(s, p, { generic: COMPANION_COST, colored: {}, hybrid: [], x: 0 })) out.push({ t: 'companion', p, oid });
-  // Leva 121 · `combo` diz à mesa que esta fonte gera N manas de cor livre: ela pode mandar a divisão em `mana`
+  // Leva 122 · `combo` diz à mesa que esta fonte gera N manas de cor livre: ela pode mandar a divisão em `mana`
   for (const o of sources(s, p)) { const n = comboDe(s, o); out.push({ t: 'tap_mana', p, oid: o.oid, option: 0, ...(n > 1 ? { combo: n } : {}) }); }
   // S37 · habilidades ativadas a partir da mão (descartar esta carta: ...)
   for (const oid of s.zones[p].hand) {
@@ -11416,7 +11416,7 @@ function describe(before, a, events, after) {
     case 'cast': {
       const o = before.objects[a.oid];
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', ');
-      // Leva 120 · carta conjurada virada para baixo não diz o nome (708.2: é informação oculta)
+      // Leva 121 · carta conjurada virada para baixo não diz o nome (708.2: é informação oculta)
       if (a.faceDown) { L.push(`${P} conjurou uma criatura virada para baixo`); break; }
       const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
@@ -11435,8 +11435,8 @@ function describe(before, a, events, after) {
     case 'pick': L.push(`${P} escolheu ${nameOf(before, a.oid)}`); break;
     case 'pick_target': { const op = ((before.pending || {}).options || [])[a.index]; const nome = op ? (op.player != null ? who(before, op.player) : nameOf(before, op.oid)) : null;
       L.push(nome ? `${P} escolheu ${nome} como alvo de ${(before.pending || {}).name || 'o gatilho'}` : `${P} escolheu o alvo de ${(before.pending || {}).name || 'o gatilho'}`); break; }
-    case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 120
-    case 'unmorph': L.push(`${P} virou ${nameOf(after, a.oid)} para cima`); break; // Leva 120
+    case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 121
+    case 'unmorph': L.push(`${P} virou ${nameOf(after, a.oid)} para cima`); break; // Leva 121
     case 'transmute': L.push(`${P} transmutou ${nameOf(before, a.oid)}`); break;
     case 'cycle': L.push(`${P} ciclou ${nameOf(before, a.oid)}`); break;
     case 'ninjutsu': L.push(`${P} usou ninjutsu: ${nameOf(before, a.attacker)} voltou e ${nameOf(before, a.oid)} entrou atacando`); break;
@@ -11454,7 +11454,7 @@ function describe(before, a, events, after) {
     case 'concede': L.push(`${P} desistiu`); break;
     case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o)).join(', ')}` : `${P} não atacou`); break;
     case 'block': L.push(a.blocks.length ? `${P} bloqueou ${a.blocks.map(([b, x]) => `${nameOf(before, x)} com ${nameOf(before, b)}`).join('; ')}` : `${P} não bloqueou`); break;
-    case 'tap_mana': { const o = before.objects[a.oid]; const opt = (a.mana || E.productions(before, o)[a.option || 0] || []).map(c => `{${c}}`).join(''); /* Leva 121 · divisão escolhida */ L.push(`${P} gerou ${opt} com ${o.name}`); break; }
+    case 'tap_mana': { const o = before.objects[a.oid]; const opt = (a.mana || E.productions(before, o)[a.option || 0] || []).map(c => `{${c}}`).join(''); /* Leva 122 · divisão escolhida */ L.push(`${P} gerou ${opt} com ${o.name}`); break; }
     case 'companion': L.push(`${P} pôs o companheiro ${nameOf(before, a.oid)} na mão${a.free ? ' (sem pagar)' : ` ({${E.COMPANION_COST}})`}`); break;
     case 'activate': {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(' + ');
@@ -11712,7 +11712,7 @@ function estadoDaCarta(s, o, plano = null) {
   const marcas = [];
   if (o.token) marcas.push({ k: 'ficha', texto: 'ficha' });
   if (o.faceDown) marcas.push({ k: 'virada-baixo', texto: 'face para baixo', icone: 'virar', rotulo: 'Virada para baixo' });
-  // Leva 120 · carta tramada (plot, 702.170): fica no exílio, à vista, e diz se já pode ser conjurada
+  // Leva 121 · carta tramada (plot, 702.170): fica no exílio, à vista, e diz se já pode ser conjurada
   if (o.zone === 'exile' && o.plotted != null) marcas.push({ k: 'tramada', texto: 'tramada', icone: 'tramar', rotulo: o.plotted < ((s.turn || {}).number || 0) ? 'Tramada: conjure sem pagar' : 'Tramada: conjure a partir do próximo turno' });
   const alvoDe = (s.stack || []).filter(id => { const it = s.objects[id]; return it && (it.targets || []).some(t => t && t.oid === o.oid); }).map(id => s.objects[id].name);
   let anel = null;
@@ -11825,7 +11825,7 @@ function momentoDaBandeja(s, v) {
     Turno e prioridade são coisas diferentes: no seu turno o oponente pode estar respondendo. */
 function vezDaMesa(s, v, { bot = null, serie = null } = {}) {
   const nome = i => ((s.players || [])[i] || {}).name || `Jogador ${i + 1}`;
-  // Leva 120 · o placar da série saiu da linha da faixa (em 360 px, faixa + placar + ferramentas não cabem: era o placar
+  // Leva 121 · o placar da série saiu da linha da faixa (em 360 px, faixa + placar + ferramentas não cabem: era o placar
   // que espremia a faixa e cortava o texto). Ele é o primeiro detalhe do balão, em qualquer fase da partida.
   const daSerie = serie && serie.melhorDe > 1 ? [{ k: 'serie', rotulo: 'Série', valor: `Partida ${serie.jogo} de ${serie.melhorDe} · ${nome(0)} ${serie.vitorias[0]}–${serie.vitorias[1]} ${nome(1)}` }] : [];
   if (s.status === 'mulligan') return { fase: 'mulligan', turnoDe: null, meuTurno: false, rotulo: 'Mão inicial', inicial: '', /* U2 · a tela desenha o ícone da mão; nada de emoji */ prioridadeDe: null, minhaPrioridade: false, prioridadeRotulo: null, turno: 0, icone: 'mao', detalhes: daSerie };
@@ -11838,7 +11838,7 @@ function vezDaMesa(s, v, { bot = null, serie = null } = {}) {
   const meu = a === v, minha = p === v;
   return {
     fase: 'jogo', turnoDe: a, meuTurno: meu, turno: s.turn.number || 0,
-    // Leva 120 · a faixa diz só de quem é o turno, em duas palavras ("Turno Shark"), com o ícone de quem joga: o bot é a
+    // Leva 121 · a faixa diz só de quem é o turno, em duas palavras ("Turno Shark"), com o ícone de quem joga: o bot é a
     // barbatana. Antes era "Turno de Shark" com o selo "você responde" empilhado, e no aparelho o texto saía cortado.
     // Tudo o mais (número do turno, etapa, prioridade) vai em `detalhes`, que a tela só mostra num balão, a um toque.
     rotulo: meu ? 'Seu turno' : `Turno ${nome(a)}`,
@@ -12403,8 +12403,8 @@ function createTableScreen({ store }) {
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
   // anuncia a troca (region viva recriada a cada pintura não é lida).
   let ultimoTurno = null, vezEl = null, vezPop = null, vezAberto = false;
-  let trocaPor = null; // Leva 120 · escolha em montagem de "descartar ou sacrificar": { chave, modo, oid }
-  // Leva 120 · a faixa mostra só o ícone de quem joga e "Turno Shark" / "Seu turno". Número do turno, etapa e
+  let trocaPor = null; // Leva 121 · escolha em montagem de "descartar ou sacrificar": { chave, modo, oid }
+  // Leva 121 · a faixa mostra só o ícone de quem joga e "Turno Shark" / "Seu turno". Número do turno, etapa e
   // prioridade ficam num balão que abre a um toque e fecha no X, no toque fora, no Esc ou tocando a faixa de novo.
   const foraDaVez = e => { if (vezPop && !vezPop.contains(e.target) && !(vezEl && vezEl.contains(e.target))) abreVez(false); };
   const escDaVez = e => { if (e.key === 'Escape') abreVez(false); };
@@ -12469,7 +12469,7 @@ function createTableScreen({ store }) {
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state,
-    // Leva 120 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
+    // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer() };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function recusaBox() {
@@ -12569,7 +12569,7 @@ function createTableScreen({ store }) {
     Dialog({ title: name, body: Stack({},
       img ? h('img', { src: img, alt: name, class: 'tb-sheet__img', onError: e => { e.target.remove(); } }) : null, // Q10 · sem imagem: a folha fica só com o texto
       extra || null,
-      // Leva 120 · as ações vêm antes do texto: com a imagem carregada a folha passa da altura da tela (360×780) e os
+      // Leva 121 · as ações vêm antes do texto: com a imagem carregada a folha passa da altura da tela (360×780) e os
       // botões ficavam abaixo da dobra. "Tramar" nasceria escondido atrás de uma rolagem (foto do aparelho, 02/10/2026).
       buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null,
       oracleOf(name) ? h('p', { class: 'tb-adj__oracle' }, oracleOf(name)) : null),
@@ -12650,7 +12650,7 @@ function createTableScreen({ store }) {
       actions: [Button('Voltar', { onClick: closeDialog })] });
   }
   /** X: um seletor com − e +, o total em símbolos e a confirmação. Só valores pagáveis. */
-  /** Leva 121 · divisão de N manas em qualquer combinação de cores. Um toque numa cor soma uma mana; "Completar" enche o
+  /** Leva 122 · divisão de N manas em qualquer combinação de cores. Um toque numa cor soma uma mana; "Completar" enche o
    *  resto com a última cor tocada (tudo de uma cor = dois toques); tocar numa mana escolhida a tira. Só gera com as N. */
   function dividirMana(oid, n) {
     const s = table.state, v = table.viewer(), o = s.objects[oid]; if (!o) return;
@@ -12743,7 +12743,7 @@ function createTableScreen({ store }) {
     const costTxt = f.cost ? costLabel(f.cost, o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) : '';
     const legal = E.legalActions(s, v).filter(a => a.oid === oid).map(a =>
       a.t === 'play_land' ? doBtn('Jogar terreno', a, { variant: 'primary' })
-        // Leva 120 · ações que o motor oferecia e a folha não desenhava: tramar (plot), conjurar a tramada, metamorfose
+        // Leva 121 · ações que o motor oferecia e a folha não desenhava: tramar (plot), conjurar a tramada, metamorfose
         : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
@@ -12751,7 +12751,7 @@ function createTableScreen({ store }) {
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${(f.script.flashback || {}).mana || ''}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '') + (s.manaCheck && costTxt ? ` · ${costTxt}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
-    // Leva 120 · plot que existe e não dá agora aparece apagado com o motivo (como as habilidades, leva 111)
+    // Leva 121 · plot que existe e não dá agora aparece apagado com o motivo (como as habilidades, leva 111)
     const pl = f.script && f.script.plot;
     if (pl && o.owner === v && o.zone === 'hand' && !legal.some(b => /^Tramar/.test(b.label))) {
       let motivo = 'não dá agora';
@@ -12761,7 +12761,7 @@ function createTableScreen({ store }) {
     if (pl && o.owner === v && o.zone === 'exile' && o.plotted != null && !legal.length)
       legal.push({ label: o.plotted >= s.turn.number ? 'Conjurar sem pagar — só a partir do próximo turno' : 'Conjurar sem pagar — só no seu turno, na fase principal, com a pilha vazia', disabled: true });
     // M7: mana da fonte, uma opção por cor que ela gera
-    // Leva 121 · fonte de "qualquer combinação de cores" (Axebane Guardian): um botão só, que abre a divisão por cor.
+    // Leva 122 · fonte de "qualquer combinação de cores" (Axebane Guardian): um botão só, que abre a divisão por cor.
     // Antes eram cinco botões de uma cor só ("Gerar {G}{G}{G}{G}"), e misturar cores não era possível.
     const comCombo = E.legalActions(s, v).find(a => a.t === 'tap_mana' && a.oid === oid && a.combo > 1);
     if (o.zone === 'battlefield' && comCombo) legal.push({ label: `Gerar ${comCombo.combo} manas`, variant: 'primary', abre: () => dividirMana(oid, comCombo.combo) });
@@ -13027,7 +13027,7 @@ function createTableScreen({ store }) {
         actions: (s.pending.options || []).slice(0, 6).map((oid, index) =>
           Button(nameOf(s, oid), { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-sacrifice', onClick: () => act({ t: 'sacrifice', p: v, oid }) })) });
     } else if (s.pending && s.pending.kind === 'choose_mode' && s.pending.p === v) {
-      // Leva 120 · gatilho com modos (Sewer-veillance Cam: virar OU desvirar). O motor pedia a escolha desde a S56 e a
+      // Leva 121 · gatilho com modos (Sewer-veillance Cam: virar OU desvirar). O motor pedia a escolha desde a S56 e a
       // tela não tinha aviso para ela: a partida parava em "Aguardando". Achado pelo guarda-corpo tela.acoes.
       // Os modos vêm do script e podem ser frases ("Desvirar uma criatura"): dois botões lado a lado estouravam a largura
       // em 390 px. A bandeja inteira vira a pergunta, com um botão por linha (desenhada mais abaixo, em #tb-modo).
@@ -13108,7 +13108,7 @@ function createTableScreen({ store }) {
         h('div', { class: 'tb-modo__lista' }, ...(pk.options || []).map((rot, index) =>
           Button(rot, { block: true, variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-mode', dataset: { modo: String(index) }, onClick: () => act({ t: 'choose_mode', p: v, index }) }))));
     }
-    // Leva 120 · "descarte uma carta OU sacrifique um terreno" (Highway Robbery): duas pilhas separadas por um segmentado,
+    // Leva 121 · "descarte uma carta OU sacrifique um terreno" (Highway Robbery): duas pilhas separadas por um segmentado,
     // a carta escolhida destacada e dois botões de uma palavra. Antes era uma fileira só, misturando a mão com os
     // terrenos em campo (duas Mountain iguais, uma de cada lugar), e "Confirmar" sem nada escolhido era o jeito de recusar.
     if (s.pending && s.pending.kind === 'pick' && s.pending.p === v && s.pending.to === 'descarta-ou-sacrifica') {
@@ -13163,7 +13163,7 @@ function createTableScreen({ store }) {
         openObject(oid);
       }
     }));
-    // Leva 120 · cartas tramadas (plot) ficam no exílio, mas é da bandeja que se conjura: aparecem antes da mão, com o selo
+    // Leva 121 · cartas tramadas (plot) ficam no exílio, mas é da bandeja que se conjura: aparecem antes da mão, com o selo
     const tramadas = s.zones[v].exile.filter(oid => s.objects[oid].plotted != null && s.objects[oid].owner === v).map(oid => {
       const c = TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal') }, { size: 'hand', estado: T.estadoDaCarta(s, s.objects[oid]), ...comPeek(oid), onClick: () => openObject(oid) });
       c.classList.add('tb-card--tramada'); c.dataset.pronta = String(s.objects[oid].plotted < s.turn.number); return c;
@@ -13244,7 +13244,7 @@ function createTableScreen({ store }) {
     mount(root,
       h('header', { class: 'tb-top ds-wrap' },
         vezBox(s, v), vezPop,
-        // Leva 120 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
+        // Leva 121 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
