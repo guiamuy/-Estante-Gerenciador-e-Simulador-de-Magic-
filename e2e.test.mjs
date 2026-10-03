@@ -4227,3 +4227,57 @@ test('e2e · Leva 122 · Axebane Guardian: um botão abre a divisão por cor, s�
   assert.match((await page.innerText('#tb-timeline')).replace(/\s+/g, ' '), /Você gerou .*com Axebane Guardian/, 'o registro diz o que foi gerado');
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- Leva 123 · dívidas do design system ---------------- */
+test('e2e · Leva 123 diálogo prende o foco e devolve a quem abriu; aviso com ação acima da bandeja; carta da mesa com srcset', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  // 1 · foco: abre a folha da carta pelo teclado, Tab circula só dentro, Esc devolve o foco ao botão que abriu
+  const slot = page.locator('.deck-slot .ds-card').first();
+  assert.equal(await slot.evaluate(el => el.tagName), 'BUTTON', 'a carta da lista é um botão: recebe foco e abre pelo teclado');
+  await slot.focus(); await page.keyboard.press('Enter'); await page.waitForSelector('.ds-dialog');
+  const dentro = async () => page.evaluate(() => !!document.activeElement.closest('#ds-overlay'));
+  for (let i = 0; i < 12; i++) { await page.keyboard.press('Tab'); assert.ok(await dentro(), `Tab ${i + 1} saiu do diálogo`); }
+  for (let i = 0; i < 4; i++) { await page.keyboard.press('Shift+Tab'); assert.ok(await dentro(), `Shift+Tab ${i + 1} saiu do diálogo`); }
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.ok(await page.evaluate(() => document.activeElement.classList.contains('ds-card') && !!document.activeElement.closest('.deck-slot')), 'o foco voltou para a carta da lista que abriu o diálogo');
+  // 2 · aviso com ação (o de "nova versão"): fica até ser tocado, botão de 44px, dentro da tela e acima da bandeja da mesa
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } })); // o CDN responde: a mesa usa o srcset
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass'); await page.waitForTimeout(300);
+  await page.evaluate(() => { window.__toastClicado = 0; __m3.toast('Nova versão pronta', 0, { acao: { rotulo: 'Atualizar', icone: 'atualizar', onClick: () => { window.__toastClicado++; } } }); });
+  await page.waitForTimeout(250);
+  const av = await page.$eval('#ds-toast', el => { const r = el.getBoundingClientRect(); const b = el.querySelector('.ds-toast__acao').getBoundingClientRect();
+    const dock = document.querySelector('.tb-dock').getBoundingClientRect(); return { open: el.dataset.open, texto: el.textContent, b: b.height, dentro: r.left >= 0 && r.right <= innerWidth, acima: r.bottom <= dock.top + 1, svg: !!el.querySelector('svg'), linhas: Math.round(el.querySelector('.ds-toast__texto').getBoundingClientRect().height / 18), dockEmbaixo: Math.abs(dock.bottom - innerHeight) <= 1 }; });
+  assert.equal(av.open, 'true'); assert.match(av.texto, /Nova versão pronta/); assert.match(av.texto, /Atualizar/);
+  assert.ok(av.b >= 44 && av.dentro && av.acima && av.svg, JSON.stringify(av));
+  assert.ok(av.linhas <= 1, 'o texto do aviso fica numa linha: ' + JSON.stringify(av));
+  assert.ok(av.dockEmbaixo, 'a bandeja fica colada embaixo mesmo com o campo curto: ' + JSON.stringify(av));
+  await page.waitForTimeout(2600); assert.equal(await page.getAttribute('#ds-toast', 'data-open'), 'true', 'com ms = 0 o aviso não some sozinho');
+  await page.click('.ds-toast__acao');
+  assert.equal(await page.evaluate(() => window.__toastClicado), 1); assert.equal(await page.getAttribute('#ds-toast', 'data-open'), 'false');
+  // 3 · carta com imagem na mesa leva srcset e sizes (nítida em tela 3×); se o CDN falha, cai no src simples;
+  //     carta sem imagem continua em texto
+  await drawUntil(page, 'Delver of Secrets');
+  const img = await page.$eval('.tb-hand .tb-card[aria-label^="Delver of Secrets"] img', async i => { let ok = true; try { await i.decode(); } catch (e) { ok = false; } return { srcset: i.getAttribute('srcset') || '', sizes: i.getAttribute('sizes'), ok, w: i.naturalWidth }; });
+  assert.match(img.srcset, /small\/front\/x\/delver\.png 146w/); assert.match(img.srcset, /normal\/front\/x\/delver\.png 488w/); assert.equal(img.sizes, '110px'); assert.ok(img.ok, 'a imagem decodifica: ' + JSON.stringify(img));
+  await page.unroute('https://**.scryfall.io/**');
+  // CDN fora do ar: o srcset sai e o src simples fica (o mesmo caminho que a mesa já tinha)
+  const caiu = await page.evaluate(() => new Promise(res => { const el = __m17.TableCard({ name: 'x', image: 'https://cards.scryfall.io/normal/front/x/nada.png', images: { small: 'https://cards.scryfall.io/small/front/x/nada.png', normal: 'https://cards.scryfall.io/normal/front/x/nada.png' } }, { size: 'hand' });
+    document.body.appendChild(el); const i = el.querySelector('img'); i.addEventListener('error', () => setTimeout(() => res({ srcset: i.getAttribute('srcset'), src: i.getAttribute('src') }), 0), { once: false }); }));
+  assert.equal(caiu.srcset, null); assert.match(caiu.src, /normal\/front\/x\/nada\.png/);
+  assert.equal(await page.locator('.tb-hand .tb-card[aria-label^="Island"] img').count(), 0, 'Island sem imagem nos dados de teste: vira texto');
+  await auditaTela(page, 'mesa com aviso (leva 123)');
+  // 4 · no scanner e nas trocas o aviso também sobe acima da doca de botões (antes cobria "Digitar" e "Opções")
+  await page.goto(base + '#/scanner'); await page.waitForSelector('.scan-dock-wrap'); await page.waitForTimeout(400);
+  await page.evaluate(() => __m3.toast('23 carta(s) não reconhecida(s) entram como mágica genérica', 0));
+  await page.waitForTimeout(250);
+  const sc = await page.evaluate(() => { const t = document.querySelector('#ds-toast').getBoundingClientRect(); const d = document.querySelector('.scan-dock-wrap').getBoundingClientRect(); return { t: [t.top, t.bottom], d: [d.top, d.bottom], doca: getComputedStyle(document.documentElement).getPropertyValue('--doca-h') }; });
+  assert.ok(sc.t[1] <= sc.d[0] + 1, 'aviso acima da doca do scanner: ' + JSON.stringify(sc));
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(100);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim()), '', 'fora da tela com doca, a reserva some');
+  assert.deepEqual(errors, []);
+});

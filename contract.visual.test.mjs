@@ -124,3 +124,65 @@ test('A16 · cartão de resumo do turno só com tokens', () => {
   assert.ok(bloco.includes('.tb-resumo {'));
   assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(bloco), 'sem cor literal');
 });
+
+/* ---------------- leva 123 · guarda-corpos do design system ---------------- */
+const script = HTML.slice(HTML.indexOf('</style>'));
+
+test('Leva 123 · todo token referenciado em CSS existe (definido no CSS ou atribuído pelo JS)', () => {
+  // Antes: --font-body, --surface, --surface-2, --line e --muted eram usados e nunca definidos; a regra inteira
+  // sumia na tela (sem borda, sem fundo) e ninguém via. Tokens atribuídos pelo JS (--i, --atras, --doca-h, --anel)
+  // contam como definidos quando aparecem entre aspas no script.
+  const definidos = new Set([...css.matchAll(/(--[a-zA-Z0-9-]+)\s*:/g)].map(m => m[1]));
+  const peloJs = new Set([...script.matchAll(/['"`](--[a-zA-Z0-9-]+)['"`]/g)].map(m => m[1]));
+  const usados = [...new Set([...css.matchAll(/var\((--[a-zA-Z0-9-]+)/g)].map(m => m[1]))];
+  const faltam = usados.filter(t => !definidos.has(t) && !peloJs.has(t));
+  assert.deepEqual(faltam, [], 'tokens usados em CSS e nunca definidos');
+});
+
+test('leva 123 · :hover só dentro de @media (hover: hover) — no celular, hover gruda depois do toque', () => {
+  const fora = componentCss.split('\n').filter(l => /:hover/.test(l) && !/@media \(hover: hover\)/.test(l) && !l.trim().startsWith('/*'));
+  assert.equal(fora.map(l => l.trim().slice(0, 80)).join('\n'), '');
+});
+
+test('leva 123 · z-index de camada vem dos tokens; literal só para ordem local (≤ 5)', () => {
+  const ruins = componentCss.split('\n').filter(l => { const m = l.match(/z-index:\s*(\d+)/); return m && Number(m[1]) > 5; });
+  assert.equal(ruins.map(l => l.trim().slice(0, 80)).join('\n'), '');
+});
+
+test('leva 123 · áreas seguras do aparelho: barra do topo, diálogo, aviso e bandeja respeitam o recorte', () => {
+  for (const [sel, inset] of [['.ds-appbar {', 'safe-area-inset-top'], ['.ds-overlay {', 'safe-area-inset-top'], ['.ds-overlay {', 'safe-area-inset-bottom'],
+    ['.ds-toast {', 'safe-area-inset-bottom'], ['.tb-dock {', 'safe-area-inset-bottom']]) {
+    const i = componentCss.search(new RegExp('^' + sel.replace(/[.{]/g, '\\$&'), 'm')); assert.ok(i >= 0, sel); // a regra no começo da linha, não um seletor composto
+    assert.match(componentCss.slice(i, componentCss.indexOf('}', i)), new RegExp(inset), `${sel} sem ${inset}`);
+  }
+  assert.match(HTML, /viewport-fit=cover/);
+});
+
+test('leva 123 · todo tom pedido a Badge e Note no código tem regra CSS', () => {
+  // Antes: Badge({ tone: 'warning' }) gerava .ds-badge--warning sem CSS, e Note(x, { tone: 'danger' }) gerava
+  // "ds-note--[object Object]". O tom 'danger' é apelido de 'negative' e 'info' é o tom padrão (sem classe).
+  const tons = new Set([...script.matchAll(/(?:Badge|Note)\([^()\n]*(?:\([^()\n]*\)[^()\n]*)*\{ tone: '([a-z]+)'/g)].map(m => m[1])
+    .concat([...script.matchAll(/Note\([^()\n]*(?:\([^()\n]*\)[^()\n]*)*, '([a-z]+)'\)/g)].map(m => m[1])));
+  assert.ok(tons.has('warning') && tons.has('danger'), 'a varredura acha os tons de verdade: ' + [...tons].join(','));
+  const alias = { danger: 'negative', info: '' };
+  for (const t of tons) {
+    const real = t in alias ? alias[t] : t; if (!real) continue;
+    assert.ok(componentCss.includes(`.ds-badge--${real}`) || componentCss.includes(`.ds-note--${real}`), `tom "${t}" sem CSS`);
+  }
+  assert.ok(componentCss.includes('.ds-badge--warning'));
+});
+
+test('leva 123 · botão de ícone tem uma regra só (as duas grafias), diálogo e aviso só com tokens', () => {
+  assert.equal((componentCss.match(/^\.ds-btn--icon(e)? \{/gm) || []).length, 0, 'regra separada por grafia');
+  assert.match(componentCss, /\.ds-btn--icon, \.ds-btn--icone \{/);
+  for (const sel of ['.ds-toast__acao {', '.ds-toast[data-acao="true"] {']) {
+    const i = componentCss.indexOf(sel); assert.ok(i >= 0, sel);
+    assert.doesNotMatch(componentCss.slice(i, componentCss.indexOf('}', i)), /#[0-9a-f]{3,8}\b|\d+px(?! ?var)|\b\d+ms\b/i, sel);
+  }
+});
+
+for (const [name, theme] of [['escuro', DARK], ['claro', LIGHT]]) {
+  test(`leva 123 · aviso (warning) legível sobre o fundo e a superfície no tema ${name}`, () => {
+    for (const bg of ['--bg', '--bg-elev-1']) assert.ok(ratio(theme['--warning'], theme[bg]) >= 4.5, `${bg}: ${ratio(theme['--warning'], theme[bg]).toFixed(2)}`);
+  });
+}

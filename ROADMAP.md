@@ -368,6 +368,12 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
 | 16º-n ▶ | Revisão carta a carta das listas Pauper (R2–R9) | R | 7 a 9 | uma leva por lista; homologação independente no fim |
 | 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
+| 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
+| 16º-q | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1) | E47 | 1 | — |
+| 16º-r | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2) | E47 | 1 | **OAuth Client ID do usuário** |
+| 16º-s | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) | E48 | 4 | **projeto Firebase do usuário** |
+| 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
+| 16º-u | Roadmap completo de design: auditoria de todas as telas, crítica e plano de elevação (temas, acento, verso, superfície da mesa, densidade, fonte) | U | 1 | capturas do aparelho para a auditoria final |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -3522,6 +3528,50 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
+
+**Leva 123 · U16 · Dívidas do design system pagas, com guarda-corpos** ✅ (02/10/2026; trilha "tudo que não é bot",
+conversa paralela à do Shark e à da revisão carta a carta)
+- **Medido antes de mexer:** 5 tokens usados e nunca definidos (`--font-body`, `--surface`, `--surface-2`, `--line`,
+  `--muted`: a regra inteira sumia — pilha do scanner sem fundo e sem borda, visor da carta sem fundo); `Badge`
+  com tom `warning` sem CSS; `Note(x, { tone })` gerava classe `ds-note--[object Object]` (erro da coleção e aviso da
+  mesa sem cor); 5 regras `:hover` fora de `@media (hover: hover)` (no celular o hover gruda depois do toque);
+  `.ds-btn--icon`/`--icone` em duas regras; diálogo sem armadilha de foco e sem devolver o foco; carta da lista
+  era `<div>` (sem foco, sem teclado); `safe-area-inset` só na bandeja; sem aviso depois do deploy (o app servido
+  pelo worker antigo até a próxima abertura, sem dizer nada); imagem da mesa por `src` simples (84 px numa tela 3×
+  pedia a `normal`, mas sem `srcset` o navegador não escolhe); `navigator.vibrate` chamado direto em 4 lugares;
+  **a bandeja da mesa parava no meio da tela quando o campo era curto (começo da partida) e o aviso flutuante caía
+  por cima da mão; no scanner e nas trocas o aviso cobria os botões de baixo.**
+- **Entregue:**
+  - tokens corrigidos para os do design system (`--font-ui`, `--bg-elev-1/2`, `--border`, `--fg-muted`);
+  - `Note` e `Badge` aceitam o tom em texto ou objeto; `danger` é apelido de `negative`; `.ds-badge--warning`
+    criado; `--warning` do tema claro escurecido (#8a6410 → #7a580d) para passar AA sobre o fundo (3,9 → 4,8);
+  - hover só com mouse; uma regra para o botão de ícone; `.tb-peek` na camada `--z-modal` em vez de `60`;
+  - diálogo: Tab e Shift+Tab circulam dentro, Esc fecha, o foco volta para quem abriu; a carta da lista virou
+    `<button>` (`CardFace(…, { botao: true })`) e abre pelo teclado;
+  - áreas seguras no topo da barra, no diálogo e no aviso;
+  - **aviso de nova versão**: o registro do worker observa `updatefound`; quando o worker novo termina de instalar
+    com a página ainda servida pelo antigo, aparece "Nova versão pronta · Atualizar" (ícone novo `atualizar`),
+    que fica até ser tocado e só recarrega no toque — nunca no meio de uma partida; `toast(msg, 0, { acao })`;
+  - mesa: `TableCard` leva `srcset` + `sizes` (60/110/92 px por tamanho) quando a carta tem o objeto de imagens;
+    se o CDN falha, cai no `src` simples (caminho que já existia);
+  - vibração pela camada de plataforma: `haptics.vibrate(ms)` no contrato F2, instância padrão `__m0.haptics`;
+  - **`reservaDoca(el)`** em `__m3`: toda doca inferior (bandeja da mesa, botões do scanner, rodapé das trocas)
+    reserva a própria altura em `--doca-h`; o aviso sobe acima dela e a reserva some ao sair da tela;
+  - mesa com `min-height` da tela e bandeja colada embaixo também com o campo curto (`.tb:has(.tb-dock)`).
+- **Guarda-corpos novos (contrato visual, 7):** todo `var(--x)` do CSS existe (definido no CSS ou atribuído pelo
+  JS); `:hover` só dentro de `@media (hover: hover)`; `z-index` literal só ≤ 5 (ordem local), camada é token;
+  áreas seguras na barra, diálogo, aviso e bandeja; todo tom pedido a `Badge`/`Note` no código tem CSS; botão de
+  ícone com uma regra e aviso só com tokens; `--warning` AA sobre fundo e superfície nos dois temas.
+- **Testes:** U (`ds.unit.test.mjs`, 3: contrato de vibração sem lançar; aviso de versão uma vez só, silencioso na
+  primeira instalação e imediato com worker já esperando; tons de Note/Badge); e2e "Leva 119" (foco preso e
+  devolvido com 12 Tabs e 4 Shift+Tabs; aviso com ação de 44 px acima da bandeja, texto numa linha, bandeja
+  colada embaixo; carta da mão com `srcset` quando o CDN responde e queda para o `src` quando falha; aviso acima
+  da doca do scanner; reserva zerada fora da tela; `auditaTela` na mesa com aviso). `_load.mjs` expõe `pwa: __m11`.
+- **Capturas:** mesa 360×780 escuro e claro antes/depois (antes: aviso sobre as cartas da mão, bandeja no meio da
+  tela; depois: bandeja embaixo, aviso acima). Scanner antes/depois (antes: aviso sobre "Digitar").
+- **Fora (dívidas que ficam medidas, sem guarda-corpo de contagem):** 14 `font-size` e 8 durações em literal nos
+  componentes; sem aviso de atualização quando o worker é bloqueado (file://, origem insegura).
+- **Portão:** 719 verdes (`npm test` completo sobre a árvore rebaseada com as levas 119 a 122 das outras trilhas: unidade, fuzz, golden, torneio, fotos e 74 e2e), motor v64 sem mudança. O e2e pegou um parêntese meu errado no rodapé das trocas (leva 114) antes de publicar.
 
 **Leva 120 · X13 câmera no máximo e cronômetro de leitura** 🟡 (pedido de 02/10/2026; primeiro passo do épico E52 "Scanner de referência")
 - **Plano do épico:** três frentes na ordem pedida — imagem (X13, X15), velocidade (X14, X15), experiência (X16 a X18) — com orçamentos medidos. Seção "X · Scanner de referência (E52)".

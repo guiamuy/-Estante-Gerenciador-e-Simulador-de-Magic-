@@ -148,7 +148,7 @@
   --positive-fg: #f1f8f4;
   --negative: #92381f;
   --negative-fg: #fdf2ee;
-  --warning: #8a6410;
+  --warning: #7a580d;   /* leva 123 · era #8a6410 (3,9:1 sobre o fundo); agora AA sobre fundo e superfície */
   --overlay: rgba(46, 35, 18, .5);
   --scrim: rgba(246, 238, 218, .95);
   --grain-1: rgba(90, 62, 22, .035);
@@ -187,7 +187,7 @@
     --positive-fg: #f1f8f4;
     --negative: #92381f;
     --negative-fg: #fdf2ee;
-    --warning: #8a6410;
+    --warning: #7a580d;   /* leva 123 · era #8a6410 (3,9:1 sobre o fundo); agora AA sobre fundo e superfície */
     --overlay: rgba(46, 35, 18, .5);
     --scrim: rgba(246, 238, 218, .95);
     --grain-1: rgba(90, 62, 22, .035);
@@ -284,10 +284,9 @@ a { color: var(--accent); }
 @media (hover: hover) { .ds-btn--ghost:hover { background-color: var(--bg-elev-2); color: var(--fg); border-color: transparent; } }
 .ds-btn--ghost:active:not([disabled]) { background-color: var(--bg-elev-2); color: var(--fg); box-shadow: none; }
 .ds-btn--danger { color: var(--negative); border-color: var(--border); }
-.ds-btn--danger:hover { background: var(--negative); color: var(--negative-fg); border-color: var(--negative); }
+@media (hover: hover) { .ds-btn--danger:hover { background: var(--negative); color: var(--negative-fg); border-color: var(--negative); } }
 .ds-btn--block { width: 100%; }
-.ds-btn--icon { width: var(--tap-min); padding: 0; }
-.ds-btn--icone { width: var(--tap-min); padding: 0; flex: none; }
+.ds-btn--icon, .ds-btn--icone { width: var(--tap-min); padding: 0; flex: none; }   /* leva 123 · duas grafias, uma regra */
 .ds-btn .ds-icon { flex: none; }
 .ds-btn__rotulo { min-width: 0; }
 .ds-btn:has(> .ds-icon + .ds-btn__rotulo) { padding-left: var(--space-3); }
@@ -401,6 +400,7 @@ a { color: var(--accent); }
 .ds-badge--positive { color: var(--positive); border-color: var(--positive); }
 .ds-badge--negative { color: var(--negative); border-color: var(--negative); }
 .ds-badge--accent { color: var(--accent); border-color: var(--accent); }
+.ds-badge--warning { color: var(--warning); border-color: var(--warning); }   /* leva 123 · tom que existia só na chamada */
 .ds-badge--solid { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
 
 .ds-chip {
@@ -410,7 +410,7 @@ a { color: var(--accent); }
   background: transparent; color: var(--fg-muted); font-size: var(--text-sm);
   transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
-.ds-chip:hover { border-color: var(--border-strong); color: var(--fg); }
+@media (hover: hover) { .ds-chip:hover { border-color: var(--border-strong); color: var(--fg); } }
 .ds-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
 /* U3 · chip de cor: só o símbolo, redondo, com anel quando marcado */
 .ds-chip--simbolo { width: var(--tap-min); padding: 0; justify-content: center; font-size: 24px; border-radius: var(--radius-full); }
@@ -438,7 +438,7 @@ a { color: var(--accent); }
 .ds-sym { display: inline-block; width: 1.08em; height: 1.08em; vertical-align: middle; top: -.08em; margin: 0 .05em; position: relative; flex: none; line-height: 0; }
 .ds-sym svg { display: inline-block; vertical-align: top; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 0 var(--mana-ring)); }
 /* números e X/Y/Z: desenhados por CSS (fora do texto lido e copiado) */
-.ds-sym--num::after { content: attr(data-num); position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-body);
+.ds-sym--num::after { content: attr(data-num); position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-ui);
   font-weight: 800; font-size: .7em; line-height: 1; letter-spacing: -.02em; color: var(--mana-ink-dark); pointer-events: none;
   padding-top: .09em; /* dígitos não têm descendente: sem isto o número fica alto no círculo */ }
 .ds-sym--num2::after { font-size: .56em; letter-spacing: -.05em; }
@@ -454,7 +454,7 @@ a { color: var(--accent); }
 .ds-pips { display: inline-flex; align-items: center; gap: 1px; font-size: 16px; line-height: 1; }
 .ds-card__nome { line-height: 1.2; }
 .ds-card__custo { font-size: 15px; line-height: 1; white-space: nowrap; }
-.ds-card__tipo { font-family: var(--font-body); font-size: var(--text-xs); color: var(--fg-muted); line-height: 1.2; }
+.ds-card__tipo { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--fg-muted); line-height: 1.2; }
 
 /* ---------------- pip de mana ---------------- */
 .ds-pip {
@@ -476,7 +476,7 @@ a { color: var(--accent); }
   border-bottom: 2px solid transparent;
   transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
-.ds-tab:hover { color: var(--fg); }
+@media (hover: hover) { .ds-tab:hover { color: var(--fg); } }
 .ds-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: var(--weight-medium); }
 
 /* ---------------- lista ---------------- */
@@ -488,7 +488,7 @@ a { color: var(--accent); }
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .ds-list__item:last-child { border-bottom: none; }
-.ds-list__item:hover { background: var(--accent-soft); }
+@media (hover: hover) { .ds-list__item:hover { background: var(--accent-soft); } }
 .ds-list__group {
   position: sticky; top: 0; z-index: var(--z-sticky);
   background: var(--bg-elev-3); color: var(--accent);
@@ -501,7 +501,8 @@ a { color: var(--accent); }
 .ds-overlay {
   position: fixed; inset: 0; z-index: var(--z-modal);
   background: var(--overlay); backdrop-filter: blur(3px);
-  display: none; align-items: center; justify-content: center; padding: var(--space-4);
+  display: none; align-items: center; justify-content: center;
+  padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   animation: ds-fade var(--dur-2) var(--ease-out);
 }
 .ds-overlay[data-open="true"] { display: flex; }
@@ -523,7 +524,7 @@ a { color: var(--accent); }
 
 /* ---------------- toast ---------------- */
 .ds-toast {
-  position: fixed; left: 50%; bottom: calc(var(--space-5) + var(--doca-h, 0px)); z-index: var(--z-toast); max-width: calc(100vw - 2 * var(--space-4)); /* U6b · acima da bandeja da mesa */
+  position: fixed; left: 50%; bottom: calc(var(--space-5) + var(--doca-h, 0px) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-toast); max-width: calc(100vw - 2 * var(--space-4)); /* U6b · acima da bandeja da mesa */
   transform: translateX(-50%) translateY(10px);
   background: var(--fg); color: var(--bg);
   padding: var(--space-2) var(--space-4); border-radius: var(--radius-2);
@@ -532,6 +533,10 @@ a { color: var(--accent); }
   transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 .ds-toast[data-open="true"] { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* leva 123 · aviso com ação ("Nova versão pronta · Atualizar"): o botão herda a cor invertida do aviso */
+.ds-toast[data-acao="true"] { display: flex; align-items: center; gap: var(--space-3); pointer-events: auto; padding-right: var(--space-2); width: max-content; }
+.ds-toast__texto { flex: 1 1 auto; }
+.ds-toast__acao { color: inherit; border-color: transparent; background: transparent; box-shadow: none; min-height: var(--tap-min); padding: 0 var(--space-3); font-weight: var(--weight-bold); }
 
 /* ---------------- estados ---------------- */
 .ds-empty {
@@ -560,7 +565,7 @@ a { color: var(--accent); }
   box-shadow: var(--shadow-1);
   transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
-.ds-card:hover { box-shadow: var(--shadow-2); }
+@media (hover: hover) { .ds-card:hover { box-shadow: var(--shadow-2); } }
 .ds-card img { width: 100%; height: 100%; object-fit: cover; }
 .ds-card__fallback {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1);
@@ -572,7 +577,7 @@ a { color: var(--accent); }
 
 /* ---------------- barra de aplicação ---------------- */
 .ds-appbar {
-  position: sticky; top: 0; z-index: var(--z-sticky);
+  position: sticky; top: 0; z-index: var(--z-sticky); padding-top: env(safe-area-inset-top, 0px);   /* leva 123 · recorte da câmera */
   background: var(--scrim); backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border); box-shadow: var(--shadow-1);
 }
@@ -706,6 +711,10 @@ body {
    A mesa é o interior da estante: madeira escura ao fundo, a carta como
    única cor viva. O banner de prioridade é o único elemento em destaque. */
 .tb { padding-bottom: var(--space-4); }
+/* leva 123 · a mesa ocupa a altura da tela e a bandeja fica colada embaixo também quando o campo é curto (começo
+   da partida): antes a bandeja parava no meio da tela e o aviso flutuante caía por cima da mão */
+.tb:has(.tb-dock) { display: flex; flex-direction: column; min-height: calc(100dvh - 58px - env(safe-area-inset-top, 0px)); padding-bottom: 0; }
+.tb:has(.tb-dock) > .tb-dock { margin-top: auto; }
 .tb-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); }
 .tb-top__actions { display: flex; gap: 2px; margin-left: auto; }
 /* U2 · ferramentas da mesa ao lado da faixa de vez (antes ocupavam uma linha inteira) */
@@ -966,8 +975,8 @@ body {
 .tb-log__phasehead { font-size: var(--text-xs); color: var(--fg-muted); padding-top: 2px; }
 .tb-log__lines { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: 2px; }
 /* A15 · espiar a carta: sobreposição que só existe enquanto o dedo segura */
-.tb-peek { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--overlay); pointer-events: none; }
-.tb-peek__card { display: grid; grid-template-columns: minmax(120px, 42%) 1fr; gap: var(--space-3); width: min(100%, 560px); max-height: 92vh; overflow: hidden; padding: var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
+.tb-peek { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--overlay); pointer-events: none; }
+.tb-peek__card { display: grid; grid-template-columns: minmax(120px, 42%) 1fr; gap: var(--space-3); width: min(100%, 560px); max-height: 92vh; overflow: hidden; padding: var(--space-3); background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
 .tb-peek__img { width: 100%; border-radius: var(--radius-card); display: block; }
 .tb-peek__semimagem { display: grid; place-items: center; aspect-ratio: 63 / 88; background: var(--bg-elev-3); border-radius: var(--radius-card); padding: var(--space-2); text-align: center; }
 .tb-peek__body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; overflow: hidden; }
@@ -1047,7 +1056,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .col-dense__meta { grid-area: meta; font-size: var(--text-xs); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-dense__qty { grid-area: qty; font-family: var(--font-display); font-size: var(--text-lg); color: var(--accent); min-width: 2ch; text-align: right; }
 .col-pile { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-3); align-items: center; width: 100%; min-height: var(--tap-min);
-  padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--surface); color: inherit; text-align: left; font: inherit; }
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-1); color: inherit; text-align: left; font: inherit; }
 .col-pile__stack { position: relative; height: 96px; }
 .col-pile__card { position: absolute; left: calc(var(--i) * 10px); top: calc(var(--i) * 3px); width: 56px; aspect-ratio: 63 / 88; border-radius: var(--radius-1); overflow: hidden; background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: 0 1px 3px var(--overlay); }
 .col-pile__card img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1132,9 +1141,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-pile__head > :first-child { flex: 1; }
 .scan-pile__lista { display: flex; flex-direction: column; gap: var(--space-2); }
 .scan-pile__card { display: grid; grid-template-columns: 64px 1fr; gap: var(--space-2) var(--space-3); align-items: start;
-  padding: var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-2); }
-.scan-pile__img { width: 64px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: var(--radius-1); background: var(--surface-2); grid-row: span 2; }
-.scan-pile__img--vazia { display: flex; align-items: center; justify-content: center; font-size: var(--text-xl); color: var(--muted); }
+  padding: var(--space-2); background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2); }
+.scan-pile__img { width: 64px; aspect-ratio: 63 / 88; object-fit: cover; border-radius: var(--radius-1); background: var(--bg-elev-2); grid-row: span 2; }
+.scan-pile__img--vazia { display: flex; align-items: center; justify-content: center; font-size: var(--text-xl); color: var(--fg-muted); }
 .scan-pile__body { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .scan-pile__head .ds-btn { flex: none; }
 .scan-pile__qty { display: flex; align-items: center; gap: var(--space-1); grid-column: 2; }
@@ -1153,7 +1162,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-hint {
   position: absolute; left: 50%; bottom: var(--space-3); transform: translateX(-50%); z-index: 2;
   max-width: 90%; text-align: center; padding: var(--space-1) var(--space-3);
-  background: var(--surface); border-radius: var(--radius-2); box-shadow: var(--shadow-1); pointer-events: none;
+  background: var(--bg-elev-1); border-radius: var(--radius-2); box-shadow: var(--shadow-1); pointer-events: none;
 }
 .scan-hint:empty { display: none; }
 .scan-stage.is-pulse .scan-frame { animation: scan-ok var(--dur-3) var(--ease-out); }
@@ -1163,7 +1172,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 @keyframes scan-ok-palco { 30% { opacity: 1; box-shadow: inset 0 0 0 6px var(--positive); } 100% { opacity: 0; box-shadow: inset 0 0 0 0 var(--positive); } }
 .scan-diag { display: flex; flex-direction: column; gap: var(--space-2); }
 .scan-diag__lista { display: flex; flex-direction: column; gap: var(--space-1); }
-.scan-diag__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) 0; border-bottom: 1px solid var(--line); }
+.scan-diag__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-1) 0; border-bottom: 1px solid var(--border); }
 /* a linha do resultado: nome com ✓ e a edição, uma linha; candidatos em chips quando a leitura é incerta */
 .scan-result { min-height: var(--tap-min); display: flex; flex-direction: column; gap: var(--space-1); justify-content: center; }
 .scan-result__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: var(--tap-min); }
@@ -1271,11 +1280,23 @@ const __m0 = (function () {
 /** Contrato que todo adaptador precisa cumprir. Verificado nos testes. */
 const PLATFORM_CONTRACT = {
   store: ['get', 'set', 'remove', 'keys'],
+  haptics: ['vibrate'],
   camera: ['available', 'start', 'capture', 'stop'],
   files: ['save', 'readText'],
   share: ['available', 'text', 'copy'],
   persistence: ['status', 'request', 'estimate']
 };
+
+/* ---------------- leva 123 · Vibração ----------------
+   Retorno tátil curto (toque duplo, espiar, carta lida). Nunca lança; sem suporte, não faz nada. */
+function webHaptics(nav) {
+  return {
+    /** Vibra por `ms` milissegundos. Devolve true quando o aparelho aceitou o pedido. */
+    vibrate(ms) { try { return !!(nav && typeof nav.vibrate === 'function' && nav.vibrate(ms)); } catch (e) { return false; } }
+  };
+}
+/** Instância padrão para módulos que não recebem a plataforma (gestos, mesa, scanner). */
+const haptics = webHaptics(typeof navigator !== 'undefined' ? navigator : null);
 
 /* ---------------- C5 · Persistência ----------------
    Pede ao navegador para não apagar os dados do app sob pressão de espaço. */
@@ -1609,10 +1630,11 @@ function createPlatform(env = {}) {
     camera: env.camera || webCamera(nav, doc),
     files: env.files || webFiles(doc, G('URL'), G('Blob'), G('FileReader')),
     share: env.share || webShare(nav),
-    persistence: env.persistence || webPersistence(nav)
+    persistence: env.persistence || webPersistence(nav),
+    haptics: env.haptics || webHaptics(nav)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -1781,6 +1803,7 @@ const ICONES = {
   // instalar: aparelho recebendo o app
   instalar: '<rect x="6.5" y="2.8" width="11" height="18.4" rx="2.2"/><path d="M12 7v7.2M9 11.4l3 3 3-3"/>',
   baixar: '<path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19.5h14"/>',
+  atualizar: '<path d="M20 12a8 8 0 0 1-13.7 5.6"/><path d="M4 12a8 8 0 0 1 13.7-5.6"/><path d="M17.5 3v3.5H14"/><path d="M6.5 21v-3.5H10"/>',
   proteger: '<path d="M12 3.3l7 2.8v5.3c0 4.3-2.9 7.7-7 9.3-4.1-1.6-7-5-7-9.3V6.1z"/><path d="M9 12l2.1 2.1L15.2 10"/>',
   conferir: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4.5v4.2h-4.2"/>',
   mais: '<path d="M12 5v14M5 12h14"/>',
@@ -1864,7 +1887,7 @@ function Select(options, opts = {}) {
 }
 
 /* ---------------- indicadores ---------------- */
-const Badge = (label, opts = {}) => h('span', { class: ['ds-badge', opts.tone ? `ds-badge--${opts.tone}` : ''].filter(Boolean).join(' ') }, label);
+const Badge = (label, opts = {}) => h('span', { class: ['ds-badge', TOM(opts.tone) ? `ds-badge--${TOM(opts.tone)}` : ''].filter(Boolean).join(' ') }, label);
 function Chip(label, opts = {}) {
   // U2 · `icone` põe o ícone do app antes do rótulo
   return h('button', { class: 'ds-chip' + (opts.icone ? ' ds-chip--icone' : ''), type: 'button', id: opts.id || null, 'aria-pressed': String(!!opts.pressed), onClick: opts.onClick, dataset: opts.dataset },
@@ -2006,7 +2029,9 @@ function AnelProgresso(pct, { tamanho = 64, id, rotulo = 'guardado' } = {}) {
   if (v >= 100) el.querySelector('.ds-anel__num').appendChild(Icone('marcar', { tamanho: Math.round(tamanho * .38) }));
   return el;
 }
-const Note = (content, tone) => h('div', { class: ['ds-note', tone ? `ds-note--${tone}` : ''].filter(Boolean).join(' '), html: content });
+/** leva 123 · o tom pode vir como texto ('warning') ou objeto ({ tone }); 'danger' é apelido de 'negative'. */
+const TOM = t => { const x = t && typeof t === 'object' ? t.tone : t; return x === 'danger' ? 'negative' : (x || ''); };
+const Note = (content, tone) => h('div', { class: ['ds-note', TOM(tone) ? `ds-note--${TOM(tone)}` : ''].filter(Boolean).join(' '), html: content });
 const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-label': 'carregando' });
 
 /* ---------------- carta ---------------- */
@@ -2048,8 +2073,11 @@ function CardFace(card, opts = {}) {
   // leva 102 · com o conjunto de tamanhos (`imagens`), a carta sai nítida em qualquer tela; só com uma url, como antes
   const img = card && card.imagens ? ImagemCarta(card.imagens, { alt: card.name || '', sizes: opts.sizes || '(max-width: 400px) 31vw, 160px', onFalha: troca })
     : card && card.image ? h('img', { src: card.image, alt: card.name || '', loading: 'lazy', onError: e => troca(e.target) }) : null;
-  return h(opts.onClick ? 'button' : 'div', {
-    class: 'ds-card', type: opts.onClick ? 'button' : null,
+  // leva 123 · `botao: true` faz a carta ser um <button> mesmo quando o toque é ligado depois (onTaps): assim ela
+  // recebe foco e abre pelo teclado, e o diálogo que ela abre devolve o foco a ela ao fechar.
+  const botao = !!(opts.onClick || opts.botao);
+  return h(botao ? 'button' : 'div', {
+    class: 'ds-card', type: botao ? 'button' : null,
     'aria-label': card?.name || 'carta', onClick: opts.onClick, dataset: opts.dataset
   }, img || fallback());
 }
@@ -2057,13 +2085,27 @@ const CardGrid = (...kids) => h('div', { class: 'ds-cardgrid' }, ...kids.flat(9)
 
 /* ---------------- sobreposições ---------------- */
 let overlayEl = null;
+/** leva 123 · controles que recebem foco dentro do diálogo, na ordem do documento. */
+const FOCAVEIS = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let abriuDe = null; // quem tinha o foco antes do diálogo abrir; recebe o foco de volta ao fechar
 function Dialog({ title, body, actions }) {
   if (!overlayEl) {
     overlayEl = h('div', { class: 'ds-overlay', id: 'ds-overlay', role: 'dialog', 'aria-modal': 'true' });
     document.body.appendChild(overlayEl);
     overlayEl.addEventListener('click', e => { if (e.target === overlayEl) closeDialog(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDialog(); });
+    document.addEventListener('keydown', e => {
+      if (overlayEl.dataset.open !== 'true') return;
+      if (e.key === 'Escape') { closeDialog(); return; }
+      // leva 123 · Tab e Shift+Tab circulam dentro do diálogo; o foco nunca escapa para a tela de trás
+      if (e.key !== 'Tab') return;
+      const itens = [...overlayEl.querySelectorAll(FOCAVEIS)].filter(el => el.offsetParent !== null);
+      if (!itens.length) { e.preventDefault(); return; }
+      const i = itens.indexOf(document.activeElement);
+      const prox = e.shiftKey ? (i <= 0 ? itens[itens.length - 1] : itens[i - 1]) : (i < 0 || i === itens.length - 1 ? itens[0] : itens[i + 1]);
+      e.preventDefault(); prox.focus();
+    });
   }
+  if (overlayEl.dataset.open !== 'true') abriuDe = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
   // E50 · cabeçalho fixo com o X: fecha sem rolar até o fim (as folhas de carta são longas no celular)
   const dlg = h('div', { class: 'ds-dialog' },
     h('div', { class: 'ds-dialog__head' },
@@ -2081,17 +2123,38 @@ function Dialog({ title, body, actions }) {
   dlg.addEventListener('scroll', () => { head.dataset.rolou = String(dlg.scrollTop > 4); }, { passive: true });
   return dlg;
 }
-function closeDialog() { if (overlayEl) { overlayEl.dataset.open = 'false'; clear(overlayEl); } }
+function closeDialog() {
+  if (!overlayEl || overlayEl.dataset.open !== 'true') return;
+  overlayEl.dataset.open = 'false'; clear(overlayEl);
+  // leva 123 · o foco volta para quem abriu, se ainda estiver na tela
+  const de = abriuDe; abriuDe = null;
+  if (de && de.isConnected && typeof de.focus === 'function') { try { de.focus(); } catch (e) { /* elemento sem foco */ } }
+}
 
 let toastEl = null, toastTimer = null;
-function toast(message, ms = 2400) {
-  if (!toastEl) { toastEl = h('div', { class: 'ds-toast', id: 'ds-toast', role: 'status', 'aria-live': 'polite' }); document.body.appendChild(toastEl); }
-  toastEl.textContent = message;
-  toastEl.dataset.open = 'true';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
+/** leva 123 · toda doca inferior (bandeja da mesa, botões do scanner, rodapé das trocas) reserva a própria altura em
+    `--doca-h`, e o aviso flutuante sobe para ficar acima dela em vez de cobri-la. Vale enquanto a doca estiver na tela. */
+function reservaDoca(el) {
+  if (typeof ResizeObserver === 'undefined' || !el) return el;
+  const ro = new ResizeObserver(() => {
+    if (!el.isConnected) { ro.disconnect(); document.documentElement.style.removeProperty('--doca-h'); return; }
+    document.documentElement.style.setProperty('--doca-h', `${Math.round(el.getBoundingClientRect().height)}px`);
+  });
+  ro.observe(el);
+  return el;
 }
-return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
+/** Aviso curto. Leva 123 · com `acao` ({ rotulo, icone, onClick }) vira aviso com botão e, com ms = 0, fica até ser tocado. */
+function toast(message, ms = 2400, { acao = null } = {}) {
+  if (!toastEl) { toastEl = h('div', { class: 'ds-toast', id: 'ds-toast', role: 'status', 'aria-live': 'polite' }); document.body.appendChild(toastEl); }
+  clear(toastEl);
+  toastEl.appendChild(h('span', { class: 'ds-toast__texto' }, message));
+  if (acao) toastEl.appendChild(h('button', { class: 'ds-btn ds-btn--ghost ds-toast__acao', type: 'button', onClick: () => { toastEl.dataset.open = 'false'; acao.onClick && acao.onClick(); } },
+    acao.icone ? Icone(acao.icone, { tamanho: 18 }) : null, h('span', {}, acao.rotulo)));
+  toastEl.dataset.open = 'true'; toastEl.dataset.acao = String(!!acao);
+  clearTimeout(toastTimer);
+  if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
+}
+return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, reservaDoca, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
   analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso };
 })();
 
@@ -2938,17 +3001,33 @@ function createInstaller({ window: win = globalThis, navigator: nav }) {
 }
 
 /** Registra o worker. Em file:// nem tenta: não é suportado e polui o console. */
-async function registerServiceWorker({ navigator: nav, location: loc, path = './sw.js' }) {
+async function registerServiceWorker({ navigator: nav, location: loc, path = './sw.js', onNovaVersao = null }) {
   if (!nav || !nav.serviceWorker) return { ok: false, reason: 'sem-suporte' };
   if (loc && loc.protocol === 'file:') return { ok: false, reason: 'arquivo-local' };
   const secure = !loc || loc.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(loc.hostname || '');
   if (!secure) return { ok: false, reason: 'origem-insegura' };
   try {
     const reg = await nav.serviceWorker.register(path, { scope: './' });
+    observaAtualizacao(reg, nav, onNovaVersao);
     return { ok: true, reg };
   } catch (e) { return { ok: false, reason: 'falha-no-registro', error: e }; }
 }
-return { createInstaller, registerServiceWorker };
+/** Leva 123 · avisa uma vez quando um worker novo terminou de instalar com a página ainda servida pelo antigo
+    (depois de um deploy). Na primeira instalação não há o que avisar. Testado com um registro falso. */
+function observaAtualizacao(reg, nav, onNovaVersao) {
+  if (!reg || !onNovaVersao || typeof reg.addEventListener !== 'function') return;
+  let avisou = false;
+  const vigia = w => {
+    if (!w || typeof w.addEventListener !== 'function') return;
+    w.addEventListener('statechange', () => {
+      if (!avisou && w.state === 'installed' && nav.serviceWorker.controller) { avisou = true; onNovaVersao(reg); }
+    });
+  };
+  if (reg.waiting && nav.serviceWorker.controller) { avisou = true; onNovaVersao(reg); return; }
+  vigia(reg.installing);
+  reg.addEventListener('updatefound', () => vigia(reg.installing));
+}
+return { createInstaller, registerServiceWorker, observaAtualizacao };
 })();
 
 /* ==== src/ui/gestures.js ==== */
@@ -2970,7 +3049,7 @@ function onTaps(el, { single, double, delay = DOUBLE_MS }) {
 function pulse(el) {
   if (!el) return;
   el.classList.remove('is-pulse'); void el.offsetWidth; el.classList.add('is-pulse');
-  try { navigator.vibrate && navigator.vibrate(12); } catch (e) { /* sem vibração */ }
+  __m0.haptics.vibrate(12); // leva 123 · pela camada de plataforma
 }
 /* A15 · TOQUE LONGO
    Segurar abre (espiar a carta); soltar fecha. O clique que o navegador dispara
@@ -6224,7 +6303,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
           const lacking = have < e.qty;
           const cov = coverage(c || { name: e.name }, undefined, e.name); // S58 · nome da lista vale para achar o script
-          const face = CardFace({ name: e.name, image: img(c), mana_cost: c && c.mana_cost, type_line: c && c.type_line });
+          const face = CardFace({ name: e.name, image: img(c), mana_cost: c && c.mana_cost, type_line: c && c.type_line }, { botao: true });
           const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level } }, face,
             h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}`, role: 'img', 'aria-label': `Motor: ${COVERAGE_PT[cov.level]}` }, Icone(COVERAGE_ICONE[cov.level], { tamanho: 14 })),
             e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
@@ -11108,7 +11187,17 @@ const __m17 = (function () {
    Mesmas regras do F5: fábricas sem framework, só tokens, alvo de toque
    de 44px. Documentados no catálogo /ds.
    ===================================================================== */
-const { h, Text, Button, Row, Badge, Icone } = __m3;
+const { h, Text, Button, Row, Badge, Icone, srcsetDaCarta } = __m3;
+/** leva 123 · largura em CSS px com que a carta aparece, por tamanho; o navegador multiplica pela densidade e escolhe a fonte. */
+const SIZES_DA_MESA = { sm: '60px', hand: '110px', campo: '92px' };
+/** <img> da carta na mesa: com `card.images` (o objeto da Scryfall) leva srcset; sem ele, só o src. Se o srcset falhar, cai no src. */
+function imgDaMesa(card, size) {
+  const im = card.images && typeof card.images === 'object' ? card.images : null;
+  const img = h('img', { src: card.image, alt: '', loading: 'lazy', decoding: 'async',
+    srcset: im ? srcsetDaCarta(im) || null : null, sizes: im ? (SIZES_DA_MESA[size] || SIZES_DA_MESA.campo) : null });
+  if (im) img.addEventListener('error', () => { if (img.hasAttribute('srcset')) { img.removeAttribute('srcset'); img.removeAttribute('sizes'); img.src = card.image; } }, { once: true });
+  return img;
+}
 
 /** Carta na mesa. Virada gira 90°; enjoo aparece como selo; marcadores e dano como pílulas. */
 /* A13 · a carta diz tudo sem toque: nome sempre legível, P/T da criatura, anel de estado
@@ -11143,7 +11232,7 @@ function TableCard(card, opts = {}) {
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' },
-    card.image ? h('img', { src: card.image, alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, card.name),
+    card.image ? imgDaMesa(card, opts.size) : h('span', { class: 'tb-card__name' }, card.name),
     pt ? h('span', { class: 'tb-card__pt', dataset: { pt } }, pt) : null),
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
   card.image && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
@@ -11155,7 +11244,7 @@ function TableCard(card, opts = {}) {
   const atras = opts.pilha ? Math.min(LEQUE_MAX, opts.pilha.total - 1) : 0;
   if (atras <= 0) return el;
   const camadas = Array.from({ length: atras }, (_, i) => h('span', { class: 'tb-leque__camada', 'aria-hidden': 'true', style: { '--i': String(i + 1), zIndex: String(atras - i) } },
-    card.image ? h('img', { src: card.image, alt: '', loading: 'lazy' }) : null));
+    card.image ? imgDaMesa(card, opts.size) : null));
   return h('span', { class: 'tb-leque', dataset: { leque: String(opts.pilha.total), tapped: String(tapped) }, style: { '--atras': String(atras) } }, el, ...camadas);
 }
 const LEQUE_MAX = 3;
@@ -12451,6 +12540,8 @@ function createTableScreen({ store }) {
   const card = name => (table.setup.cards || {})[name] || null;
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
+  /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */
+  const imagensOf = name => { const c = card(name); if (!c) return null; return c.images || (c.faces && c.faces[0] && c.faces[0].images) || null; };
   const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
 
   // A16 · resumo do turno que acabou: aparece no começo do turno seguinte, some com um toque ou no próximo resumo
@@ -12470,7 +12561,7 @@ function createTableScreen({ store }) {
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state,
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
-    acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer() };
+    acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function recusaBox() {
     if (!recusa) return null;
@@ -12846,7 +12937,7 @@ function createTableScreen({ store }) {
       acoes: d.acoes.filter(a => !a.disabled) });
     simbolizar(peekEl); // U3
     document.body.appendChild(peekEl);
-    try { navigator.vibrate && navigator.vibrate(8); } catch (e) { /* sem vibração */ }
+    __m0.haptics.vibrate(8);
   }
   const comPeek = oid => ({ onPeek: aberto => peek(oid, aberto) });
 
@@ -12854,7 +12945,7 @@ function createTableScreen({ store }) {
     const s = table.state;
     const ids = s.zones[p][zone];
     Dialog({ title: `${label} de ${s.players[p].name}`, body: ids.length
-      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
+      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name), images: imagensOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
         ...(zone === 'exile' && s.objects[oid].plotted != null ? { estado: T.estadoDaCarta(s, s.objects[oid]) } : {}) })))
       : Empty('Vazio.'), actions: [Button('Fechar', { onClick: closeDialog })] });
   }
@@ -12887,14 +12978,14 @@ function createTableScreen({ store }) {
   // A13 · quem entrou no campo desde a última pintura ganha o movimento curto
   let vistos = new Set();
   const entrou = oid => !vistos.has(oid);
-  const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name) },
+  const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name), images: imagensOf(s.objects[oid].name) },
     { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid), ...comPeek(oid) }));
   /** U5 · iguais em leque: tocar age na primeira desvirada (ou na primeira, se todas viradas).
       No combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque. */
   const separaNoCombate = oid => plan.eligible.has(oid) || plan.attack.has(oid) || plan.blocks.has(oid) || [...plan.blocks.values()].includes(oid);
   const landPiles = (s, ids, onClick) => T.agrupaLeque(s, ids, { separa: separaNoCombate }).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
-    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo), ...comPeek(alvo) });
+    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name), images: imagensOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo), ...comPeek(alvo) });
   });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
 
@@ -13148,14 +13239,14 @@ function createTableScreen({ store }) {
       const cards = (pk.mostrar ? [...pk.from, ...pk.mostrar.filter(x => !pk.from.includes(x))] : pk.from).map(oid => {
         const o = s.objects[oid];
         const serve = pk.from.includes(oid);
-        const c = TableCard({ ...o, image: imgOf(o.name, 'normal') }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
+        const c = TableCard({ ...o, image: imgOf(o.name, 'normal'), images: imagensOf(o.name) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
           onClick: () => { if (serve && !pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
         if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, revelada, não pode ser escolhida`); }
         return c;
       });
       return h('div', { class: 'tb-dock' }, banner, h('div', { class: 'tb-hand', id: 'tb-pick-cards' }, h('div', { class: 'tb-row' }, ...cards)));
     }
-    const hand = s.zones[v].hand.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal') }, {
+    const hand = s.zones[v].hand.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal'), images: imagensOf(s.objects[oid].name) }, {
       size: 'hand', selected: bottomPick.has(oid), ...comPeek(oid),
       onClick: () => {
         if (s.status === 'mulligan' && pl.mulligans) { bottomPick.has(oid) ? bottomPick.delete(oid) : bottomPick.size < pl.mulligans && bottomPick.add(oid); return paint(); }
@@ -13188,7 +13279,7 @@ function createTableScreen({ store }) {
       maoRecolhida = recolher != null ? recolher : !maoRecolhida;
       store.set(MAO_KEY, maoRecolhida).catch(() => {});
       aplica(!maoRecolhida);
-      try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
+      __m0.haptics.vibrate(8);
     };
     const puxador = h('button', { class: 'tb-hand__toggle', id: 'tb-hand-toggle', type: 'button', 'aria-controls': 'tb-hand-body', 'aria-expanded': String(band.aberta),
       'aria-label': rotuloAria(band.aberta), title: 'Mão', disabled: band.forcada, onClick: () => alterna() },
@@ -13202,12 +13293,7 @@ function createTableScreen({ store }) {
     bandeja.append(h('div', { class: 'tb-hand__body', id: 'tb-hand-body' },
       h('div', { class: 'tb-hand__inner' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia'))));
     doca.append(...[grip, barra, aviso, bandeja].filter(Boolean));
-    // o aviso flutuante (toast) sobe para ficar acima da bandeja, em vez de cobri-la
-    if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(() => { if (!doca.isConnected) { ro.disconnect(); document.documentElement.style.removeProperty('--doca-h'); return; }
-        document.documentElement.style.setProperty('--doca-h', `${Math.round(doca.getBoundingClientRect().height)}px`); });
-      ro.observe(doca);
-    }
+    __m3.reservaDoca(doca); // o aviso flutuante (toast) sobe para ficar acima da bandeja, em vez de cobri-la
     // arrasto na borda de cima (puxador e linha de ações): para baixo recolhe, para cima abre
     const zona = h('div', { class: 'tb-dock__zona', 'aria-hidden': 'true' });
     doca.prepend(zona);
@@ -13366,11 +13452,11 @@ function createSeriesScreen({ store }) {
       mount(root, ...cab,
         atual ? (comReserva.length > 1 ? Text(`Trocas de ${atual.a.name}`, { size: 'lg', display: true, as: 'h2' }) : null) : null,
         atual ? painel(atual.i, nome ? { nome, para } : null) : Note('Nenhuma lista tem reserva: não há o que trocar.', 'info'),
-        h('div', { class: 'troca-rodape' },
+        __m3.reservaDoca(h('div', { class: 'troca-rodape' },   // leva 123 · o aviso flutuante sobe acima do rodapé
           ultimo ? quem : null,
           Row({}, ultimo
             ? Button(`Começar a partida ${serie.jogo + 1}`, { variant: 'primary', id: 'serie-start', icone: 'jogar', disabled: !valido, onClick: comecar })
-            : Button('Confirmar trocas', { variant: 'primary', id: 'serie-confirma', disabled: !valido, onClick: () => { st.passo++; st.entregue = false; paint(); window.scrollTo(0, 0); } }))));
+            : Button('Confirmar trocas', { variant: 'primary', id: 'serie-confirma', disabled: !valido, onClick: () => { st.passo++; st.entregue = false; paint(); window.scrollTo(0, 0); } })))));
     }
     paint();
   })();
@@ -14425,7 +14511,7 @@ const __m22 = (function () {
    Câmera pela camada F2; OCR no aparelho (Tesseract, carregado só quando
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
-const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede } = __m3;
+const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, criaDiario, criaCronometro, realcaTexto,
   achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, brilho } = __m21;
 const { pulse } = __m20;
@@ -14778,7 +14864,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     mount(okBox, h('span', { class: 'scan-ok__nome' }, name), Icone('marcar', { tamanho: 26, classe: 'scan-ok__check' }));
     okBox.hidden = false; okBox.classList.remove('is-on'); void okBox.offsetWidth; okBox.classList.add('is-on');
     clearTimeout(okTimer); okTimer = setTimeout(() => { okBox.hidden = true; }, 1600);
-    try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) { /* sem vibração */ }
+    __m0.haptics.vibrate(30);
   }
   /** Toque na câmera: soma outra cópia da última carta (ManaBox faz igual); sem última, pede foco. */
   stage.addEventListener('click', async e => {
@@ -15064,7 +15150,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   paintResult(); boot();
   mount(root,
     Row({ class: 'scan-head' }, Text('Scanner', { size: 'xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }), Button('Coleção', { icone: 'colecao', id: 'scan-colecao', onClick: () => go('/colecao') })),
-    status, stage, result, h('div', { class: 'scan-dock-wrap' }, dock));
+    status, stage, result, reservaDoca(h('div', { class: 'scan-dock-wrap' }, dock))); // leva 123 · o aviso não cobre os botões
   return root;
 }
 
@@ -15472,7 +15558,9 @@ async function boot(root) {
   installFavicon(document);
   registerServiceWorker({
     navigator: typeof navigator !== 'undefined' ? navigator : null,
-    location: typeof location !== 'undefined' ? location : null
+    location: typeof location !== 'undefined' ? location : null,
+    // leva 123 · depois de um deploy, a tela avisa e oferece recarregar; nunca recarrega sozinha no meio de uma partida
+    onNovaVersao: () => toast('Nova versão pronta', 0, { acao: { rotulo: 'Atualizar', icone: 'atualizar', onClick: () => location.reload() } })
   });
   await theme.init();
   detectEnvironment({
