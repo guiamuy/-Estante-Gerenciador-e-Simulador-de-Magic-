@@ -887,3 +887,70 @@ test('Leva 143 · o relógio corta o fim da fila, não a melhor jogada: com muit
   const velho = curto('shark-v6');
   assert.ok(!(velho.acao.t === 'activate' && (velho.acao.targets || [])[0] && velho.acao.targets[0].player === 1), 'v6: as candidatas eram lidas em ordem alfabética e o alvo "jogador" ficava depois do corte');
 });
+
+// B9 · o plano de cada baralho, começando pelo Walls Combo (o que o Shark pilotava pior: 23–39 na leva 143).
+// Partida narrada Walls Combo × Boros Bully (03/10/2026): devolvia as Florestas para a mão com a Quirion Ranger até
+// ficar sem terreno em campo, nunca conjurava a Freed from the Real e não sabia fechar o combo.
+const MURO = { campo: [...FLORESTAS(3), 'Axebane Guardian', 'Saruli Caretaker', 'Overgrown Battlement', 'Valakut Invoker'] };
+test('B9 · perfil: o Shark reconhece o Walls Combo pela própria lista; as outras listas não têm perfil de combo', async () => {
+  const walls = await monta(4, 3, {});
+  assert.equal(B.perfilDe(walls.s, 0).id, 'walls-combo');
+  assert.equal(B.perfilDe(walls.s, 1), null, 'Boros Bully');
+  for (const pf of B.PERFIS) assert.ok(pf.exige.length && pf.combo.motor && pf.combo.desvira && pf.combo.finalizadores.length);
+});
+
+test('B9 · terreno na mão vale menos que terreno em campo: a Quirion Ranger não devolve a Floresta à toa', async () => {
+  const { s, ids } = await monta(4, 3, { ativo: 1, vez: 0, passo: 'main1', p0: { campo: ['Forest', 'Quirion Ranger', 'Overgrown Battlement'] } });
+  s.objects[ids[0]['Overgrown Battlement']].tapped = true;
+  const velho = shark('shark-v7').jogada(s, 0);
+  assert.deepEqual([velho.acao.t, velho.acao.oid], ['activate', ids[0]['Quirion Ranger']], 'v7: Floresta na mão valia mais que em campo, e ele ia ficando sem terreno');
+  assert.equal(shark('shark').jogada(s, 0).acao.t, 'pass');
+});
+
+test('B9 · montar o combo: com o motor e o finalizador em campo, a Freed from the Real vai no Axebane Guardian', async () => {
+  const { s, ids } = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { ...MURO, mao: ['Freed from the Real'] } });
+  const j = shark('shark').jogada(s, 0);
+  assert.deepEqual([j.acao.t, j.acao.oid, j.acao.targets[0].oid], ['cast', ids[0]['Freed from the Real'], ids[0]['Axebane Guardian']]);
+  const v = shark('shark-v7').jogada(s, 0);
+  assert.ok(!(v.acao.t === 'cast' && v.acao.oid === ids[0]['Freed from the Real'] && v.acao.targets[0].oid === ids[0]['Axebane Guardian']), 'v7 não sabia que essa aura é a peça do combo');
+});
+
+test('B9 · fechar o combo: mana infinita (Axebane Guardian + Freed from the Real) e Valakut Invoker no oponente até a partida acabar, no mesmo turno', async () => {
+  let { s, ids } = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { ...MURO, mao: ['Freed from the Real'] } });
+  const bot = shark('shark');
+  let minhas = 0, ilegais = 0;
+  for (let i = 0; i < 400 && s.status === 'playing' && s.turn.active === 0; i++) {
+    const q = s.pending ? s.pending.p : s.turn.priority;
+    const j = q === 0 ? bot.jogada(s, 0) : { acao: { t: 'pass', p: 1 } }; // o oponente não responde
+    if (q === 0) { minhas++; if (j.acao.t === 'pass' && !s.stack.length) break; }
+    try { s = act(s, j.acao); } catch (e) { ilegais++; break; }
+  }
+  assert.equal(ilegais, 0, 'toda ação do combo é aceita pelo motor');
+  assert.equal(s.status, 'over'); assert.equal(s.winner, 0);
+  assert.ok(s.players[1].life <= 0, 'vida do oponente: ' + s.players[1].life);
+  assert.ok(minhas < 300, 'fechou em ' + minhas + ' ações');
+});
+
+test('B9 · o combo não começa sem finalizador em campo nem com menos de dois defensores, e não roda no turno do oponente', async () => {
+  const semFim = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: [...FLORESTAS(3), 'Axebane Guardian', 'Saruli Caretaker', 'Freed from the Real'] } });
+  const liga = m => { const a = m.s.objects[m.ids[0]['Freed from the Real']]; a.attachedTo = m.ids[0]['Axebane Guardian']; return m; };
+  const pf = B.perfilDe(semFim.s, 0);
+  assert.equal(B.passoDoCombo(liga(semFim).s, 0, pf), null, 'sem Invoker em campo não há onde gastar');
+  const um = liga(await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: [...FLORESTAS(3), 'Axebane Guardian', 'Valakut Invoker', 'Freed from the Real'] } }));
+  assert.equal(B.passoDoCombo(um.s, 0, pf), null, 'um defensor só: o laço não rende');
+  const pronto = liga(await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: [...MURO.campo, 'Freed from the Real'] } }));
+  assert.equal(B.passoDoCombo(pronto.s, 0, pf).acao.t, 'tap_mana');
+  const dele = J(pronto.s); dele.turn.active = 1;
+  assert.equal(B.passoDoCombo(dele, 0, pf), null);
+  assert.equal(B.passoDoCombo(pronto.s, 0, null), null, 'baralho sem perfil');
+});
+
+test('B9 · buscar a peça que falta: com o motor e o finalizador em campo, o Shark transmuta a Drift of Phantasms e pega a Freed from the Real', async () => {
+  let { s, ids } = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { ...MURO, mao: ['Drift of Phantasms'] } });
+  const bot = shark('shark');
+  const j = bot.jogada(s, 0);
+  assert.deepEqual([j.acao.t, j.acao.oid], ['transmute', ids[0]['Drift of Phantasms']], j.motivo);
+  s = act(s, j.acao);
+  for (let i = 0; i < 10 && (s.pending || s.stack.length); i++) s = act(s, s.pending ? bot.jogada(s, s.pending.p).acao : { t: 'pass', p: s.turn.priority });
+  assert.ok(s.zones[0].hand.some(o => s.objects[o].name === 'Freed from the Real'), 'mão: ' + s.zones[0].hand.map(o => s.objects[o].name));
+});

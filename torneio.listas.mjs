@@ -36,7 +36,7 @@ export { cartasReais, listas, partida };
 const ORC = +(process.env.ORC || 250), MUNDOSN = +(process.env.MUNDOS || 0);
 const cria = nivel => {
   if (nivel.startsWith('p:')) return B.criaBot({ nivel: 'shark', orcamentoMs: ORC, mundos: MUNDOSN, pesos: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(x => { const [k, v] = x.split('='); return [k, +v]; })) });
-  if (['shark', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
+  if (['shark', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
   if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
   // leva 132 · 'y:rolaAtaque,rolaJogada' = Shark v6 com as peças novas ligadas uma a uma
   if (nivel.startsWith('y:')) return B.criaBot({ nivel: 'shark-v6', orcamentoMs: ORC, mundos: MUNDOSN, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => [k, true])) });
@@ -63,6 +63,26 @@ function partida(seed, n0, n1, d0, d1, max = 1500) {
 }
 if (process.argv[1] && process.argv[1].endsWith('torneio.listas.mjs')) {
 const [forte, fraco, rodadas, base] = [process.argv[2] || 'shark', process.argv[3] || 'shark-v2', +(process.argv[4] || 2), +(process.argv[5] || 100)];
+// B9 · PILOTO=<índice da lista>: mede um baralho só. Cada partida é jogada duas vezes com a mesma semente e o mesmo
+// oponente (o nível fraco, com cada uma das outras listas): uma com o forte pilotando a lista, outra com o fraco.
+// O que muda é só o piloto; a sorte do embaralhamento é a mesma nos dois lados da comparação.
+if (process.env.PILOTO != null) {
+  const li = +process.env.PILOTO, FAT = process.env.FATIA ? process.env.FATIA.split('/').map(Number) : null;
+  let vf = 0, vr = 0, n = 0, soF = 0, soR = 0, k = 0, piorP = 0; const t0p = Date.now(); const il = [];
+  for (let b = 0; b < listas.length; b++) if (b !== li) for (let r = 0; r < rodadas; r++) for (const assento of [0, 1]) {
+    const kk = k++; if (FAT && (kk % FAT[1]) !== FAT[0]) continue;
+    const seed = base + kk * 17;
+    const joga = nivel => assento === 0 ? partida(seed, nivel, fraco, listas[li], listas[b]) : partida(seed, fraco, nivel, listas[b], listas[li]);
+    const gf = joga(forte), gr = joga(fraco);
+    for (const g of [gf, gr]) { if (g.ilegal) il.push(g.ilegal); }
+    piorP = Math.max(piorP, gf.pior);
+    const wf = gf.v === assento, wr = gr.v === assento;
+    n++; if (wf) vf++; if (wr) vr++; if (wf && !wr) soF++; if (wr && !wf) soR++;
+  }
+  console.log(`piloto ${listas[li].name}: ${forte} venceu ${vf} de ${n} (${(100 * vf / n).toFixed(0)}%) · ${fraco} venceu ${vr} de ${n} (${(100 * vr / n).toFixed(0)}%) · só o novo ganhou ${soF} · só o antigo ganhou ${soR} · pior jogada do novo ${piorP} ms · ${Math.round((Date.now() - t0p) / 1000)} s`);
+  console.log('ilegais', il.length, [...new Set(il)].slice(0, 5));
+  process.exit(0);
+}
 const porLista = {}; // leva 118 · vitórias e derrotas do forte por lista que ele pilotou
 let F = 0, R = 0, sem = 0, pior = 0, jogadas = 0; const ilegais = []; let k = 0;
 const t0 = Date.now();

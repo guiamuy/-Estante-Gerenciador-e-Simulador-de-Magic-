@@ -11331,6 +11331,9 @@ const __m25 = (function () {
    na mão — é o que faz estourar o terreno que busca básico e ciclar; as candidatas são ordenadas por uma leitura
    barata antes do corte do relógio; e ele abre mana com habilidades de custo próprio para pagar uma jogada (plano
    de mana, com as próximas ações na memória do bot). 'shark-v6' é o Shark da leva 119, congelado.
+   PLANO DO BARALHO (B9): perfis em PERFIS (dado, não código por carta). Com perfil, a avaliação conta as peças do
+   combo e o motor já com a carta que o desvira, e `passoDoCombo` executa a mana infinita até fechar a partida. Hoje
+   só o Walls Combo tem perfil. Terreno na mão vale menos que terreno em campo. 'shark-v7' é o Shark da leva 143.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -11964,7 +11967,7 @@ function jogadaProfissional(s, p, opts = {}) {
       const meu = s.turn.active === p;
       const permanente = a => { const f = s.facts[(s.objects[a.oid] || {}).name] || { types: [] }; return !f.types.includes('instant') && !f.types.includes('sorcery'); };
       const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a) && (meu || permanente(a)));
-      const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }) - (permanente(a) ? 0 : 3), opts);
+      const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }) - (permanente(a) ? 0 : opts.plano ? 1.5 : 3), opts); // B9 · com o terreno na mão valendo menos, a compra que troca uma carta por um terreno lê −2,5: continua valendo a pena com mana sobrando
       if (v.acao && v.nota - base >= -4.5) return { acao: v.acao, motivo: `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };
     } else
     if (opts.valor && s.turn.active === p && s.turn.step === 'main2' && !s.stack.length) {
@@ -12264,6 +12267,70 @@ function planoDeMana(w, p, opts) {
   return melhor;
 }
 
+/* ---------------- B9 · o plano de cada baralho ----------------
+   O Shark conhece as duas listas. Para os baralhos de combinação isso não basta: é preciso saber QUAIS cartas formam
+   o plano. Perfil é dado, não código por carta: quem reconhece o baralho (cartas exigidas), o motor de mana, a carta
+   que o desvira e os finalizadores. O código abaixo é genérico para "mana infinita: fonte de várias manas + desvirar".
+   Texto das cartas: .listas/oficiais.json (conferido em 03/10/2026). */
+const PERFIS = [
+  { id: 'walls-combo', nome: 'Walls Combo', exige: ['Axebane Guardian', 'Freed from the Real'],
+    combo: { motor: 'Axebane Guardian', desvira: 'Freed from the Real', indice: 1, cor: 'U', finalizadores: ['Valakut Invoker', 'Bloodrite Invoker'], custo: 8 } }
+];
+/** Perfil do baralho de `p`, pelas cartas que ele tem na partida (todas as zonas: é a lista dele). */
+function perfilDe(s, p) {
+  const nomes = new Set(); for (const o of Object.values(s.objects)) if (o.owner === p && !o.token && !o.ability) nomes.add(o.name);
+  return PERFIS.find(pf => pf.exige.every(n => nomes.has(n))) || null;
+}
+const meusEm = (s, p, zona) => s.zones[p][zona].map(oid => s.objects[oid]);
+/** A avaliação com o plano: terreno na mão vale menos que terreno em campo (devolver a Floresta para a mão não é
+    ganho), cada peça do plano que tenho (mão ou campo) conta, e o motor já com a carta que o desvira conta muito. */
+function avaliadorDoPlano(de, perfil, eu) {
+  return (s, p) => {
+    const base = de(s, p);
+    if (base.parcelas.vitoria) return base;
+    let extra = 0;
+    for (const oid of s.zones[p].hand) if (ehTerreno(s, s.objects[oid])) extra -= 2.5;
+    if (perfil && p === eu) {
+      const c = perfil.combo, campo = meusEm(s, p, 'battlefield'), tenho = new Set([...campo, ...meusEm(s, p, 'hand')].map(o => o.name));
+      extra += 15 * ((tenho.has(c.motor) ? 1 : 0) + (tenho.has(c.desvira) ? 1 : 0) + (c.finalizadores.some(n => tenho.has(n)) ? 1 : 0));
+      if (campo.some(o => o.name === c.desvira && o.attachedTo && s.objects[o.attachedTo] && s.objects[o.attachedTo].name === c.motor && s.objects[o.attachedTo].controller === p)) extra += 40;
+    }
+    return { nota: base.nota + extra, parcelas: { ...base.parcelas, plano: extra } };
+  };
+}
+/** Um passo do combo de mana infinita, ou null quando ele não está montado. Regras simples, uma ação por chamada:
+    finaliza no oponente quando a reserva paga (sobrando uma mana para desvirar), vira o motor para a cor que desvira,
+    desvira o motor, e deixa a própria habilidade resolver. Não usa nada que a mesa não mostre. */
+function passoDoCombo(s, p, perfil) {
+  if (!perfil || s.status !== 'playing' || s.pending || s.turn.active !== p || s.turn.priority !== p) return null;
+  if (s.turn.step !== 'main1' && s.turn.step !== 'main2') return null;
+  const c = perfil.combo, d = oponenteDe(s, p), campo = meusEm(s, p, 'battlefield');
+  const aura = campo.find(o => o.name === c.desvira && o.attachedTo && s.objects[o.attachedTo] && s.objects[o.attachedTo].name === c.motor && s.objects[o.attachedTo].controller === p);
+  if (!aura) return null;
+  const motor = s.objects[aura.attachedTo];
+  if (s.stack.length) {
+    const topo = s.objects[s.stack[s.stack.length - 1]];
+    return s.stack.length === 1 && topo && topo.ability && topo.source === aura.oid && topo.controller === p ? { acao: { t: 'pass', p }, motivo: 'passei a prioridade' } : null;
+  }
+  const defensores = campo.filter(o => ehCriatura(s, o) && E.hasKeyword(s, o, 'defender')).length;
+  if (defensores < 2 || !campo.some(o => c.finalizadores.includes(o.name))) return null; // o laço precisa render e ter onde gastar
+  const la = E.legalActions(s, p);
+  const reserva = manaNaReserva(s, p);
+  const fim = la.find(a => a.t === 'activate' && c.finalizadores.includes((s.objects[a.oid] || {}).name) && (a.targets || []).some(x => x.player === d));
+  if (fim && reserva >= c.custo + (motor.tapped ? 1 : 0)) return { acao: fim, motivo: `combo: mana infinita com ${c.motor} e ${c.desvira}, ${s.objects[fim.oid].name} no oponente` };
+  if (!motor.tapped) {
+    const vira = la.find(a => a.t === 'tap_mana' && a.oid === motor.oid && a.combo >= 2);
+    if (!vira) return null;
+    const acao = { t: 'tap_mana', p, oid: motor.oid, mana: Array(vira.combo).fill(c.cor) };
+    return simula(s, acao) ? { acao, motivo: 'segui o combo' } : null;
+  }
+  const desvira = la.find(a => a.t === 'activate' && a.oid === aura.oid && a.index === c.indice);
+  if (desvira) return { acao: desvira, motivo: 'segui o combo' };
+  // motor virado e sem a cor para desvirar: uma habilidade de mana que dê essa cor destrava o laço
+  const abre = la.find(a => a.t === 'activate' && a.color === c.cor && a.oid !== aura.oid);
+  return abre ? { acao: abre, motivo: 'segui o combo' } : null;
+}
+
 /** Leva 126 · avaliador com multiplicadores por parcela (vida, vidaDele, poder, resistencia, criaturas, outras, mao,
     mana, marcadores, volta, evasao, perigo, temporario). Sem multiplicador, a parcela vale o que vale na avaliaV3. */
 function avaliadorCom(mult, de = avaliaV3) {
@@ -12281,13 +12348,15 @@ function avaliadorCom(mult, de = avaliaV3) {
 const NOVO5 = { tempo: true, terreno: true, cores: true, basePilha: true }; // leva 118, congelado como 'shark-v5'
 const NOVO6 = { ...NOVO5, semToque: true, recursos: true, relogio: true }; // leva 119, congelado como 'shark-v6'
 const PESOS_ATUAIS = {}; // multiplicadores promovidos por torneio (leva 126)
-const NOVO = { ...NOVO6, av4: true, ordena: true, manaPlano: true }; // leva 143
+const NOVO7 = { ...NOVO6, av4: true, ordena: true, manaPlano: true }; // leva 143, congelado como 'shark-v7'
+const NOVO = { ...NOVO7, plano: true }; // B9 · plano do baralho
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : NOVO), ...(extraOpts || {}) };
+  let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
   const profissional = v1 || v2 || v3 || atual;
@@ -12309,8 +12378,14 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
         if (igual) return { acao: igual, motivo: plano.length ? 'segui o plano: mais mana' : motivoDe(s, p, igual, 1) };
         plano = [];
       }
+      if (ligadas.plano) {
+        if (perfil === undefined) { perfil = perfilDe(s, p); avPlano = avaliadorDoPlano(avAtual || avaliaV3, perfil, p); }
+        if (s.turn.number !== turnoCombo) { turnoCombo = s.turn.number; passosCombo = 0; }
+        const passo = passosCombo < 400 ? passoDoCombo(s, p, perfil) : null;
+        if (passo) { passosCombo++; return passo; }
+      }
       const mundos = []; for (let k = 0; k < (mundosN || MUNDOS); k++) mundos.push(visaoDe(s, p, k, sei));
-      const j = jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...ligadas, ...(avAtual ? { av: avAtual } : {}), mundos });
+      const j = jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...ligadas, ...(avPlano ? { av: avPlano } : avAtual ? { av: avAtual } : {}), mundos });
       if (j && j.plano) plano = j.plano.slice();
       return j;
     }
@@ -12319,7 +12394,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */

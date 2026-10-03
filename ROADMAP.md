@@ -372,6 +372,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
+| 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
@@ -2649,6 +2650,34 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
+
+**B9 · Conhecer os baralhos: o plano de cada um** 🟡 (leva 147, 03/10/2026) — primeiro perfil: Walls Combo.
+- **Por que este primeiro:** era a lista que o Shark pilotava pior (23–39 na leva 143; 15–43 antes).
+- **Partida narrada (Walls Combo × Boros Bully):** devolvia as Florestas para a mão com a Quirion Ranger até ficar
+  sem terreno em campo; nunca conjurava a Freed from the Real; com mana de sobra, não sabia fechar a partida.
+- **Entregue:**
+  - `PERFIS` (dado): o baralho é reconhecido pelas próprias cartas; o perfil diz o motor de mana (Axebane Guardian), a
+    carta que o desvira (Freed from the Real, {U}), os finalizadores (Valakut Invoker, Bloodrite Invoker) e o custo;
+  - a avaliação, com perfil, conta as peças do combo que ele tem (mão ou campo) e, muito, o motor já com a aura: ele
+    passa a conjurar a Freed no Axebane, a transmutar a Drift of Phantasms para buscar a peça que falta e a escolher
+    as peças nas buscas;
+  - `passoDoCombo`: com o combo montado, dois ou mais defensores e um finalizador em campo, executa a mana infinita
+    (vira o motor para azul, desvira, repete) e usa o finalizador no oponente até a partida acabar, no mesmo turno;
+  - para todos os baralhos: terreno na mão vale menos que terreno em campo (fim da Floresta devolvida à toa).
+- **Medição por piloto (`PILOTO=4 node torneio.listas.mjs shark shark-v7 8 110000`):** 96 pares de partidas, mesma
+  semente e mesmo oponente (`shark-v7` com cada uma das outras seis listas), só o piloto do Walls muda.
+  **Novo venceu 32 de 96 (33%); o v7 venceu 17 de 96 (18%).** Só o novo ganhou em 17 pares; só o antigo em 2
+  (teste de sinais: p < 0,001). **Ganho demonstrado.** Zero ações ilegais.
+- **Sem regressão nas outras listas:** torneio geral contra o v7, 222 decididas: 50% (112–110).
+- **Tempo (seis partidas de mesa grande, 250 ms, sem concorrência):** p50 25 ms · p95 341 ms · p99 424 ms · pior 780 ms.
+- **Ainda aberto no Walls (da partida narrada depois da mudança):** segura Lead the Stampede e o segundo Invoker com
+  mana sobrando; ataca com o Valakut Invoker (peça do combo); não bloqueia voadoras e perde a corrida para elas; o
+  oponente responder ao combo (matar o motor em resposta) não é previsto. 33% ainda é baixo.
+- **Falta:** perfil das outras listas (Elves é a próxima: 27–37), mulligan pelo perfil, reserva pelo perfil.
+- **Testes:** U (perfil reconhecido; Quirion Ranger com o v7 errando; Freed no Axebane com o v7 errando; combo até o
+  fim da partida sem ação ilegal; não começa sem finalizador, com um defensor só ou no turno do oponente; transmutar
+  e buscar a Freed).
+- **Depende de:** B21.
 
 **B21 · O Shark usa todas as mecânicas das cartas, inclusive as dos terrenos** ✅ (leva 143, 03/10/2026)
 - **Origem:** o usuário viu o Shark travado numa partida, preso à mana incolor de um terreno que podia ser sacrificado
