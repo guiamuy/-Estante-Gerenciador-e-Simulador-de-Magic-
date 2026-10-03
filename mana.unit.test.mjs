@@ -1,4 +1,4 @@
-// Leva 124 · R2 (Rakdos Madness) · pagamento automático com duas cores, sobre a lista real e o texto oficial
+// Leva 125 · R2 (Rakdos Madness) · pagamento automático com duas cores, sobre a lista real e o texto oficial
 // (.listas/decks.json e .listas/oficiais.json). Achado jogando a lista pela tela: Faithless Looting ({R}) virou dois
 // Swamp e uma Mountain e deixou {B}{B} flutuando. `planTaps` devolvia a primeira solução da busca, que vira toda fonte
 // anterior à que resolve. Só aparece com duas cores: as listas mono e os baralhos de teste não acusavam.
@@ -9,7 +9,7 @@ import { E, J, act, poe, jogo as jogoDaLista } from './listas.mjs';
 const jogo = (seed = 1) => jogoDaLista({ lista: 'Pauper Rakdos Madness', seed });
 const nomes = (s, plano) => J(plano).map(([oid]) => s.objects[oid].name).sort();
 
-test('Leva 124 · pagamento automático não vira fonte além do necessário (três Mountain e um Swamp)', () => {
+test('Leva 125 · pagamento automático não vira fonte além do necessário (três Mountain e um Swamp)', () => {
   let s = jogo(); const a = s.turn.active; let sw, m1, m2, m3;
   [s, sw] = poe(s, a, 'Swamp'); [s, m1] = poe(s, a, 'Mountain'); [s, m2] = poe(s, a, 'Mountain'); [s, m3] = poe(s, a, 'Mountain');
   assert.deepEqual(nomes(s, E.planTaps(s, a, E.parseCost('{B}'), 0)), ['Swamp'], '{B}: só o Swamp (antes: as três Mountain e o Swamp)');
@@ -28,7 +28,7 @@ test('Leva 124 · pagamento automático não vira fonte além do necessário (tr
   assert.equal(Object.values(J(t.players[a].pool)).reduce((x, y) => x + y, 0), 0, 'nenhuma mana flutuando');
 });
 
-test('Leva 124 · o plano guarda a fonte flexível: com Mountain e Jagged Barrens ({B} ou {R}), {R} vira a Mountain', () => {
+test('Leva 125 · o plano guarda a fonte flexível: com Mountain e Jagged Barrens ({B} ou {R}), {R} vira a Mountain', () => {
   let s = jogo(3); const a = s.turn.active; let jb, mt, sw;
   [s, jb] = poe(s, a, 'Jagged Barrens'); [s, mt] = poe(s, a, 'Mountain');
   assert.deepEqual(J(E.planTaps(s, a, E.parseCost('{R}'), 0)).map(x => x[0]), [mt], '{R}: a Mountain, não o terreno de duas cores');
@@ -40,7 +40,7 @@ test('Leva 124 · o plano guarda a fonte flexível: com Mountain e Jagged Barren
   assert.deepEqual(J(E.planTaps(s, a, E.parseCost('{1}{B}'), 0)).map(x => x[0]).sort(), [mt, sw].sort(), '{1}{B}: Swamp e Mountain; o flexível fica');
 });
 
-test('Leva 124 · mana que já está na reserva é usada antes de virar qualquer coisa', () => {
+test('Leva 125 · mana que já está na reserva é usada antes de virar qualquer coisa', () => {
   let s = jogo(5); const a = s.turn.active; let m1, m2;
   [s, m1] = poe(s, a, 'Mountain'); [s, m2] = poe(s, a, 'Mountain');
   s = act(s, { t: 'tap_mana', p: a, oid: m1, option: 0 });

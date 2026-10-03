@@ -1688,7 +1688,7 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   await page.click('#tb-pass-turn');
   await page.waitForFunction(() => document.querySelector('#tb-hand') && document.querySelector('#tb-hand').dataset.forcada === 'true', null, { timeout: 5000 });
   assert.equal(await page.getAttribute('#tb-hand', 'data-recolhida'), 'false');
-  // Leva 124 · expectativa ajustada com justificativa: com decisão pendente, a bandeja escreve a pergunta inteira no
+  // Leva 125 · expectativa ajustada com justificativa: com decisão pendente, a bandeja escreve a pergunta inteira no
   // cabeçalho de decisão; o aviso curto "Escolha o que descartar" diria a mesma coisa duas vezes e saiu nesse estado
   assert.match((await page.innerText('#tb-decisao')).replace(/\s+/g, ' '), /^Descarte \d+ cartas? Limpeza: mão acima de 7 cartas/);
   assert.equal(await page.locator('#tb-hand-aviso').count(), 0);
@@ -3183,7 +3183,7 @@ test('e2e · leva 104 escolhas de quem paga: Jaspera vira a criatura escolhida, 
   await gerar.nth(4).click();
   await page.waitForSelector('#tb-escolha');
   assert.match(await page.innerText('#tb-escolha-pergunta'), /Qual criatura vira para pagar/);
-  // Leva 124 · expectativa ajustada com justificativa: a escolha de UMA carta deixou de ser uma lista de botões com o
+  // Leva 125 · expectativa ajustada com justificativa: a escolha de UMA carta deixou de ser uma lista de botões com o
   // nome e passou a mostrar as cartas (toque na carta); o nome falado de cada uma continua "Virar <carta>"
   const opcoes = await page.locator('#tb-escolha .tb-card').evaluateAll(cs => cs.map(c => c.getAttribute('aria-label')));
   assert.deepEqual(opcoes.slice().sort(), ['Virar Elvish Visionary', 'Virar Grizzly Bear']);
@@ -3703,7 +3703,7 @@ test('e2e · leva 111 ficha de Sangue: sem mana a habilidade aparece apagada com
   const mao = await page.evaluate(p => window.__estanteMesa.estado().zones[p].hand.length, p);
   await ficha.click(); await page.waitForSelector('.ds-dialog');
   await page.click('.ds-dialog .ds-btn:has-text("Ativar ({1}, {T}, descartar uma carta, sacrificar)")');
-  if (await page.locator('#tb-escolha').count()) { await page.locator('#tb-escolha .tb-card').first().click(); } // Leva 124 · a carta do custo se escolhe tocando nela
+  if (await page.locator('#tb-escolha').count()) { await page.locator('#tb-escolha .tb-card').first().click(); } // Leva 125 · a carta do custo se escolhe tocando nela
   for (let i = 0; i < 6 && await page.evaluate(() => window.__estanteMesa.estado().stack.length > 0); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(150); }
   const fim = await page.evaluate(p => { const s = window.__estanteMesa.estado(); return { sangue: s.zones[p].battlefield.filter(o => s.objects[o].name === 'Blood').length, mao: s.zones[p].hand.length, cemiterio: s.zones[p].graveyard.length }; }, p);
   assert.deepEqual(fim, { sangue: 0, mao, cemiterio: 1 }, 'descartou uma, comprou uma, a ficha sumiu');
@@ -4288,8 +4288,8 @@ test('e2e · Leva 123 diálogo prende o foco e devolve a quem abriu; aviso com a
   assert.deepEqual(errors, []);
 });
 
-/* ---------------- Leva 124 · R2 · Rakdos Madness carta a carta: decisões legíveis ---------------- */
-const comLista124 = async (t, texto, nomes, semente) => {
+/* ---------------- Leva 125 · R2 · Rakdos Madness carta a carta: decisões legíveis ---------------- */
+const comLista125 = async (t, texto, nomes, semente) => {
   const { page, errors, base } = await open(t, { dev: false });
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await comOficiais(page, nomes);
@@ -4313,8 +4313,8 @@ const comLista124 = async (t, texto, nomes, semente) => {
   return M;
 };
 
-test('e2e · Leva 124 · Rakdos: carta que não pode ser jogada diz por quê, e o pagamento vira só o que precisa', { skip }, async t => {
-  const M = await comLista124(t, '10 Mountain\n10 Swamp\n14 Faithless Looting\n10 Fiery Temper\n8 Kitchen Imp\n8 Grab the Prize', ['Mountain', 'Swamp', 'Faithless Looting', 'Fiery Temper', 'Kitchen Imp', 'Grab the Prize'], '3');
+test('e2e · Leva 125 · Rakdos: carta que não pode ser jogada diz por quê, e o pagamento vira só o que precisa', { skip }, async t => {
+  const M = await comLista125(t, '10 Mountain\n10 Swamp\n14 Faithless Looting\n10 Fiery Temper\n8 Kitchen Imp\n8 Grab the Prize', ['Mountain', 'Swamp', 'Faithless Looting', 'Fiery Temper', 'Kitchen Imp', 'Grab the Prize'], '3');
   const { page } = M;
   // sem terreno em campo: a folha de uma mágica diz "mana insuficiente" (antes vinha só com "Fechar")
   let e = await M.est();
@@ -4343,8 +4343,8 @@ test('e2e · Leva 124 · Rakdos: carta que não pode ser jogada diz por quê, e 
   assert.deepEqual(M.errors, []);
 });
 
-test('e2e · Leva 124 · Rakdos: a pergunta de cada decisão fica escrita na bandeja (descarte por efeito, insanidade, lampejo pelo cemitério)', { skip }, async t => {
-  const M = await comLista124(t, '12 Mountain\n8 Swamp\n14 Faithless Looting\n8 Fiery Temper\n8 Kitchen Imp\n10 Grab the Prize', ['Mountain', 'Swamp', 'Faithless Looting', 'Fiery Temper', 'Kitchen Imp', 'Grab the Prize'], '5');
+test('e2e · Leva 125 · Rakdos: a pergunta de cada decisão fica escrita na bandeja (descarte por efeito, insanidade, lampejo pelo cemitério)', { skip }, async t => {
+  const M = await comLista125(t, '12 Mountain\n8 Swamp\n14 Faithless Looting\n8 Fiery Temper\n8 Kitchen Imp\n10 Grab the Prize', ['Mountain', 'Swamp', 'Faithless Looting', 'Fiery Temper', 'Kitchen Imp', 'Grab the Prize'], '5');
   const { page } = M; let e;
   await M.terreno();
   for (let i = 0; i < 14; i++) { e = await M.est(); const d = await M.desvirados(); if (d.filter(n => n === 'Mountain').length >= 2 && d.includes('Swamp') && e.mao.includes('Faithless Looting') && e.mao.includes('Kitchen Imp')) break; await M.proximo(); await M.terreno(); }
@@ -4365,7 +4365,7 @@ test('e2e · Leva 124 · Rakdos: a pergunta de cada decisão fica escrita na ban
   assert.deepEqual(await page.locator('.tb-dock .tb-banner__actions button').allInnerTexts(), ['Conjurar', 'Cemitério'], 'dois botões de uma palavra');
   assert.equal(await page.locator('#tb-madness').isEnabled(), true);
   await auditaTela(page, 'insanidade');
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/124-insanidade.png' });
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/125-insanidade.png' });
   await page.click('#tb-madness'); await page.waitForTimeout(250);
   e = await M.est(); assert.ok(e.pilha >= 1, 'Kitchen Imp na pilha por insanidade');
   // segundo descarte da mesma Looting continua dizendo a fonte
@@ -4403,8 +4403,8 @@ test('e2e · Leva 124 · Rakdos: a pergunta de cada decisão fica escrita na ban
   assert.deepEqual(M.errors, []);
 });
 
-test('e2e · Leva 124 · Rakdos: escolher a carta do custo é tocar na carta (cópias iguais juntas), e a insanidade sem mana explica', { skip }, async t => {
-  const M = await comLista124(t, '14 Mountain\n6 Swamp\n16 Grab the Prize\n12 Kitchen Imp\n12 Fiery Temper', ['Mountain', 'Swamp', 'Grab the Prize', 'Kitchen Imp', 'Fiery Temper'], '7');
+test('e2e · Leva 125 · Rakdos: escolher a carta do custo é tocar na carta (cópias iguais juntas), e a insanidade sem mana explica', { skip }, async t => {
+  const M = await comLista125(t, '14 Mountain\n6 Swamp\n16 Grab the Prize\n12 Kitchen Imp\n12 Fiery Temper', ['Mountain', 'Swamp', 'Grab the Prize', 'Kitchen Imp', 'Fiery Temper'], '7');
   const { page } = M; let e;
   await M.terreno();
   // só Mountain em campo, duas, e Kitchen Imp na mão: Grab the Prize paga {1}{R} e a insanidade {B} do Imp não tem como ser paga
@@ -4419,7 +4419,7 @@ test('e2e · Leva 124 · Rakdos: escolher a carta do custo é tocar na carta (c�
   if (outras > 1) assert.match(await page.locator('#tb-escolha [data-escolha="Grab the Prize"]').innerText(), new RegExp(`×${outras}`), 'cópias iguais numa pilha só');
   assert.equal(await page.locator('#tb-escolha .ds-btn').count(), 0, 'cartas, não uma lista de botões');
   await auditaTela(page, 'escolha da carta do custo');
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/124-escolha-carta.png' });
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/125-escolha-carta.png' });
   await page.locator('#tb-escolha [data-escolha="Kitchen Imp"]').click(); await page.waitForTimeout(250);
   e = await M.est(); assert.equal(e.pend, 'madness'); assert.ok(e.pilha >= 1, 'Grab the Prize na pilha, custo pago');
   assert.match(await M.decisao(), /^Kitchen Imp: insanidade \{B\} \| Sem mana para pagar \{B\} agora: ela vai para o cemitério\.$/);
@@ -4430,8 +4430,8 @@ test('e2e · Leva 124 · Rakdos: escolher a carta do custo é tocar na carta (c�
   assert.deepEqual(M.errors, []);
 });
 
-test('e2e · Leva 124 · Rakdos: alvo de gatilho sem botão "principal", escolha do Carnarium e pagamento da Nihil Spellbomb dizem o que fazem', { skip }, async t => {
-  const M = await comLista124(t, '8 Mountain\n6 Swamp\n8 Rakdos Carnarium\n8 Bojuka Bog\n12 Nihil Spellbomb\n8 Voldaren Epicure\n10 Cast into the Fire', ['Mountain', 'Swamp', 'Rakdos Carnarium', 'Bojuka Bog', 'Nihil Spellbomb', 'Voldaren Epicure', 'Cast into the Fire'], '8');
+test('e2e · Leva 125 · Rakdos: alvo de gatilho sem botão "principal", escolha do Carnarium e pagamento da Nihil Spellbomb dizem o que fazem', { skip }, async t => {
+  const M = await comLista125(t, '8 Mountain\n6 Swamp\n8 Rakdos Carnarium\n8 Bojuka Bog\n12 Nihil Spellbomb\n8 Voldaren Epicure\n10 Cast into the Fire', ['Mountain', 'Swamp', 'Rakdos Carnarium', 'Bojuka Bog', 'Nihil Spellbomb', 'Voldaren Epicure', 'Cast into the Fire'], '8');
   const { page } = M; let e; const feitos = new Set();
   const limpa = async () => { for (let i = 0; i < 8; i++) { e = await M.est(); if (!e.pend && !e.pilha) return; if (e.pend === 'pick_target') await M.act({ t: 'pick_target', p: 0, index: 1 }); else if (e.pend === 'pick') await M.act({ t: 'pick', p: 0, oid: await page.evaluate(() => window.__estanteMesa.estado().pending.from[0]) }); else if (e.pend === 'may_pay') await M.act({ t: 'decline', p: 0 }); else await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); } };
   for (let turno = 0; turno < 22 && feitos.size < 4; turno++) {

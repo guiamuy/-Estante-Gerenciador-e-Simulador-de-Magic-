@@ -972,7 +972,7 @@ body {
 @media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron, .tb-dock, .tb-hand__toggle { transition: none; } }
 
 .tb-handoff { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); text-align: center; padding: var(--space-5); }
-/* Leva 124 · a coluna tinha 64 px de mínimo e a carta, 76 a 92: as cartas do cemitério ficavam umas por cima das outras */
+/* Leva 125 · a coluna tinha 64 px de mínimo e a carta, 76 a 92: as cartas do cemitério ficavam umas por cima das outras */
 .tb-zonegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--carta-campo), 1fr)); gap: var(--space-3) var(--space-2); justify-items: center; align-items: end; }
 .tb-sheet__img { width: 100%; max-width: 240px; margin: 0 auto; display: block; border-radius: var(--radius-card); }
 .tb-sheet__actions { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -7655,7 +7655,7 @@ function planTaps(s, p, cost, extra) {
     });
     dfs(i + 1, pool, taps);
   })(0, { ...pl.pool }, []);
-  // Leva 124 · a busca devolve a primeira solução, que vira toda fonte anterior à que resolve: pagar {B} com três
+  // Leva 125 · a busca devolve a primeira solução, que vira toda fonte anterior à que resolve: pagar {B} com três
   // Mountain e um Swamp virava os quatro. O plano é enxugado: tira-se cada toque que não faz falta, do mais flexível
   // (mais opções de cor, que vale guardar) para o menos, e fica só o que o custo exige (601.2g: paga-se o custo, nada mais).
   if (found && found.length > 1) {
@@ -8318,7 +8318,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const who = eff.target === 'each-opponent' ? s.players.findIndex((pl, i) => i !== ctrl && !pl.lost) : playerOf();
       if (who < 0) { note({ amount: 0 }); break; }
       const n = Math.min(eff.amount, s.zones[who].hand.length);
-      if (n > 0) s.pending = { kind: 'discard', p: who, n, reason: 'effect', source: src.name }; // Leva 124 · a mesa diz de qual carta é o descarte
+      if (n > 0) s.pending = { kind: 'discard', p: who, n, reason: 'effect', source: src.name }; // Leva 125 · a mesa diz de qual carta é o descarte
       note({ amount: n }); break;
     }
     case 'connive': { // S40 · conluio: compra uma, descarta uma, e marcador se não foi terreno
@@ -11348,7 +11348,7 @@ function LifeCounter({ name, life, active, sub, onClick, id }) {
 }
 
 /** Contagem de zona (grimório, cemitério…) que abre a zona. */
-// Leva 124 · `jogaveis`: quantas cartas da zona têm ação agora (lampejo do passado no cemitério, carta jogável do exílio)
+// Leva 125 · `jogaveis`: quantas cartas da zona têm ação agora (lampejo do passado no cemitério, carta jogável do exílio)
 const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: 'tb-chip', type: 'button', onClick, id, dataset: jogaveis ? { jogaveis: String(jogaveis) } : {},
   ...(jogaveis ? { 'aria-label': `${label}: ${n}, ${jogaveis === 1 ? 'uma carta pode ser jogada' : jogaveis + ' cartas podem ser jogadas'} agora` } : {}) },
   label, h('b', {}, String(n)), jogaveis ? h('span', { class: 'tb-chip__ponto', 'aria-hidden': 'true' }) : null);
@@ -12517,7 +12517,7 @@ function createTableScreen({ store }) {
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
   // anuncia a troca (region viva recriada a cada pintura não é lida).
   let ultimoTurno = null, vezEl = null, vezPop = null, vezAberto = false;
-  /** Leva 124 · com a pergunta escrita no cabeçalho de decisão, o botão de texto do aviso (palavra do momento + balão) vira
+  /** Leva 125 · com a pergunta escrita no cabeçalho de decisão, o botão de texto do aviso (palavra do momento + balão) vira
    *  um trecho só de texto, fora da vista e fora do foco: o conteúdo continua no documento, sem alvo de toque invisível. */
   const semBotaoDeTexto = banner => { const tx = banner.querySelector('.tb-banner__text'); if (tx) { const sp = h('span', { class: 'tb-banner__text', 'aria-hidden': 'true' }); sp.append(...tx.childNodes); tx.replaceWith(sp); } return banner; };
   const jogaveisEm = ids => { const st = table.state, quem = table.viewer(); const set = new Set(ids); return new Set(E.legalActions(st, quem).filter(a => a.oid != null && set.has(a.oid)).map(a => a.oid)).size; };
@@ -12735,7 +12735,7 @@ function createTableScreen({ store }) {
     // uma pergunta só quando todas as opções pagam do mesmo jeito; senão, "como você paga?"
     const unico = campos.length === 1 && opcoes.every(a => a.pay && a.pay[campos[0][0]] != null) ? campos[0] : null;
     const qtd = unico ? [].concat(opcoes[0].pay[unico[0]]).length : 0;
-    // Leva 124 · quando a escolha é UMA carta (descartar, sacrificar, virar, devolver, exilar), a pergunta mostra as
+    // Leva 125 · quando a escolha é UMA carta (descartar, sacrificar, virar, devolver, exilar), a pergunta mostra as
     // cartas, não uma lista de botões dourados com o nome: cópias iguais da mão ou do cemitério viram uma carta só com ×N.
     if (unico && qtd === 1 && unico[0] !== 'revelar' && opcoes.every(a => s.objects[[].concat(a.pay[unico[0]])[0]])) return escolherCarta(titulo, unico, opcoes);
     const pergunta = unico ? unico[1] : () => 'Como você paga o custo?';
@@ -12882,7 +12882,7 @@ function createTableScreen({ store }) {
     // A3: primeiro as ações de regra que o motor oferece para este objeto
     const f = s.facts[o.name];
     const costTxt = f.cost ? costLabel(f.cost, o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) : '';
-    // Leva 124 · dois alvos do mesmo efeito ("1 de dano a cada uma de até duas criaturas") vinham nas duas ordens
+    // Leva 125 · dois alvos do mesmo efeito ("1 de dano a cada uma de até duas criaturas") vinham nas duas ordens
     // (A + B e B + A): a folha mostra a combinação uma vez só. O motor continua aceitando as duas.
     const efeitosDe = a => ((f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].effects : (f.script && f.script.effects) || []).filter(e => __m23.isTargeted(e));
     const simetrica = a => { const es = efeitosDe(a).map(e => JSON.stringify(e)); return es.length > 1 && es.every(x => x === es[0]); };
@@ -12897,7 +12897,7 @@ function createTableScreen({ store }) {
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${(f.script.flashback || {}).mana || ''}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
-          // Leva 124 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
+          // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costTxt}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
@@ -12911,7 +12911,7 @@ function createTableScreen({ store }) {
     if (pl && o.owner === v && o.zone === 'exile' && o.plotted != null && !legal.length)
       legal.push({ label: o.plotted >= s.turn.number ? 'Conjurar sem pagar — só a partir do próximo turno' : 'Conjurar sem pagar — só no seu turno, na fase principal, com a pilha vazia', disabled: true });
     // M7: mana da fonte, uma opção por cor que ela gera
-    // Leva 124 · no motor completo, a carta que não pode ser jogada agora diz por quê (antes a folha vinha só com
+    // Leva 125 · no motor completo, a carta que não pode ser jogada agora diz por quê (antes a folha vinha só com
     // "Fechar"): conjurar da mão, jogar terreno e lampejo do passado no cemitério.
     if (s.status === 'playing' && s.mode !== 'assisted' && o.owner === v && !o.faceDown) {
       // o motor confere o alvo antes da mana: se sem cobrar mana a carta seria jogável, o motivo é a mana
@@ -13142,7 +13142,7 @@ function createTableScreen({ store }) {
     } else if (s.pending && s.pending.kind === 'madness' && s.pending.p === v) {
       const carta = s.objects[s.pending.oid];
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_madness');
-      // Leva 124 · a pergunta fica à vista (cabeçalho de decisão): qual carta, por quanto, e o que acontece se recusar.
+      // Leva 125 · a pergunta fica à vista (cabeçalho de decisão): qual carta, por quanto, e o que acontece se recusar.
       // Sem mana para a insanidade, "Conjurar" aparece apagado e a frase diz por quê (antes o botão só sumia).
       banner = PriorityBanner({ title: `${carta ? carta.name : 'Carta descartada'}: insanidade ${s.pending.cost}`, tone: 'warning',
         hint: opts.length ? `Conjure agora por ${s.pending.cost} ou deixe ir para o cemitério.` : `Sem mana para pagar ${s.pending.cost} agora: ela vai para o cemitério.`,
@@ -13157,7 +13157,7 @@ function createTableScreen({ store }) {
         : s.pending.cost ? `${s.pending.name}: pagar ${s.pending.cost}?`
         : `${s.pending.name}: fazer o efeito?`;
       const pagamentos = E.legalActions(s, v).filter(x => x.t === 'pay');
-      // Leva 124 · a dica diz o que o efeito faz (antes: "o gatilho não faz nada", sem dizer o que se ganhava pagando)
+      // Leva 125 · a dica diz o que o efeito faz (antes: "o gatilho não faz nada", sem dizer o que se ganhava pagando)
       const oQueFaz = efeito ? T.descreveEfeitos((s.pending.then || {}).effects) : '';
       banner = PriorityBanner({ title: titulo, hint: efeito ? (oQueFaz ? `Se ${s.pending.cost ? 'pagar' : 'aceitar'}: ${oQueFaz}. Recusando, nada acontece.` : 'Se você recusar, o gatilho não faz nada.') : `${s.pending.name} está na pilha.`, tone: 'warning',
         actions: [Button(extra ? 'Exilar' : s.pending.cost ? `Pagar ${s.pending.cost}` : 'Fazer', { variant: 'primary', id: 'tb-pay',
@@ -13216,17 +13216,17 @@ function createTableScreen({ store }) {
           Button(nameOf(s, oid), { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-pair', onClick: () => act({ t: 'choose_pair', p: v, index, oid }) })),
           Button('Não emparelhar', { id: 'tb-choose-pair-no', onClick: () => act({ t: 'choose_pair', p: v, decline: true }) })] });
     } else if (s.pending && s.pending.kind === 'pick_target' && s.pending.p === v) {
-      const fazO = T.descreveEfeitos((s.pending.trigger || {}).effects); // Leva 124 · o que o gatilho vai fazer no alvo
+      const fazO = T.descreveEfeitos((s.pending.trigger || {}).effects); // Leva 125 · o que o gatilho vai fazer no alvo
       banner = PriorityBanner({ title: `${s.pending.name}: escolha o alvo`, hint: fazO ? `O gatilho faz: ${fazO}.` : 'Escolha onde o efeito vai.', tone: 'warning',
         actions: s.pending.options.slice(0, 6).map((o, index) =>
-          // Leva 124 · nenhum alvo vem como "o principal": com o Bojuka Bog o botão dourado era "Você" (exilar o próprio cemitério)
+          // Leva 125 · nenhum alvo vem como "o principal": com o Bojuka Bog o botão dourado era "Você" (exilar o próprio cemitério)
           Button(targetName(s, o), { id: index ? undefined : 'tb-pick-target', dataset: { alvo: String(index) }, onClick: () => act({ t: 'pick_target', p: v, index }) })) });
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
       const LABEL = { 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Scry: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
-      // Leva 124 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
+      // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';
       banner = PriorityBanner({ title: pk.source ? `${pk.source} · ${tituloPk}` : tituloPk, tone: 'warning',
         hint: pk.max > 1 ? `${pk.picked.length} de até ${pk.max} escolhida(s) · o resto ${REST[pk.rest] || ''}` : pk.min ? 'Toque na carta.' : `Toque na carta, ou confirme sem escolher · o resto ${REST[pk.rest] || ''}`,
@@ -13248,7 +13248,7 @@ function createTableScreen({ store }) {
       banner = PriorityBanner({ title: 'Ordem dos gatilhos', hint: 'Escolha qual entra primeiro na pilha (o último escolhido resolve primeiro).',
         actions: mine.map((q, i) => Button(q.name, { variant: i ? undefined : 'primary', id: i ? undefined : 'tb-trigger', onClick: () => act({ t: 'order_trigger', p: v, index: i }) })) });
     } else if (s.pending && s.pending.kind === 'discard') {
-      // Leva 124 · o descarte por efeito dizia "Mão acima de 7 na limpeza" (errado: era a Faithless Looting pedindo)
+      // Leva 125 · o descarte por efeito dizia "Mão acima de 7 na limpeza" (errado: era a Faithless Looting pedindo)
       const nd = s.pending.n, porEfeito = s.pending.reason === 'effect';
       banner = PriorityBanner({ tone: 'warning', actions: [],
         title: porEfeito ? `${s.pending.source || 'Efeito'}: descarte ${nd} ${nd === 1 ? 'carta' : 'cartas'}` : `Descarte ${nd} ${nd === 1 ? 'carta' : 'cartas'}`,
@@ -13326,7 +13326,7 @@ function createTableScreen({ store }) {
       const cards = (pk.mostrar ? [...pk.from, ...pk.mostrar.filter(x => !pk.from.includes(x))] : pk.from).map(oid => {
         const o = s.objects[oid];
         const serve = pk.from.includes(oid);
-        // Leva 124 · na fileira de escolha a carta aparece em pé: terreno virado saía girado e menor que os outros
+        // Leva 125 · na fileira de escolha a carta aparece em pé: terreno virado saía girado e menor que os outros
         const c = TableCard({ ...o, tapped: false, image: imgOf(o.name, 'normal'), images: imagensOf(o.name) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
           onClick: () => { if (serve && !pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
         if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, revelada, não pode ser escolhida`); }
@@ -13381,7 +13381,7 @@ function createTableScreen({ store }) {
     grip.addEventListener('click', () => alterna());
     const AVISO = { 'mão inicial': 'Decida a mão inicial', descarte: 'Escolha o que descartar' };
     const aviso = band.forcada ? h('span', { class: 'tb-dock__aviso', id: 'tb-hand-aviso', role: 'status' }, AVISO[band.motivo] || `Mão aberta: ${band.motivo}`) : null;
-    // Leva 124 · decisão pendente de quem vê a tela: o título e a dica do aviso ficam escritos acima da linha de ações.
+    // Leva 125 · decisão pendente de quem vê a tela: o título e a dica do aviso ficam escritos acima da linha de ações.
     // Antes a bandeja mostrava só uma palavra ("Alvo", "Decidir", "Insanidade") e a pergunta ficava atrás de um balão.
     // Ataque e bloqueio ficam de fora: a decisão deles é feita no campo e a prévia continua no balão.
     const pdMeu = s.status === 'playing' && s.pending && s.pending.p === v && !['attackers', 'blockers'].includes(s.pending.kind);

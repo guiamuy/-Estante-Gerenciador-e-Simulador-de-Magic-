@@ -1,4 +1,4 @@
-// Leva 124 · R2 · Rakdos Madness carta a carta: o que o texto oficial diz e o motor precisa fazer, com a lista real
+// Leva 125 · R2 · Rakdos Madness carta a carta: o que o texto oficial diz e o motor precisa fazer, com a lista real
 // (.listas/decks.json), o texto de .listas/oficiais.json (consulta 30/09/2026; Dark Withering e Smash to Smithereens
 // reconferidas em mtg.wtf em 02/10/2026) e o modo único. A revisão não achou regra errada nestas cartas: estes testes
 // fixam o que foi conferido. O que a revisão achou de errado no motor (pagamento que vira terreno demais) está em mana.unit.
@@ -11,12 +11,12 @@ const zona = (s, oid) => s.objects[oid].zone;
 const vida = s => J(s.players.map(p => p.life));
 const descartaTudoQuePedir = (s, p, prefere = []) => { for (let i = 0; i < 6 && s.pending && s.pending.kind === 'discard'; i++) s = act(s, { t: 'discard', p, oid: prefere.find(o => s.zones[p].hand.includes(o)) || s.zones[p].hand[0] }); return s; };
 
-test('Leva 124 · Dark Withering custa {4}{B}{B} no arquivo de textos oficiais (estava {B}, o custo de insanidade)', () => {
+test('Leva 125 · Dark Withering custa {4}{B}{B} no arquivo de textos oficiais (estava {B}, o custo de insanidade)', () => {
   const dw = oficiais.find(c => c.name === 'Dark Withering');
   assert.equal(dw.mana_cost, '{4}{B}{B}'); assert.match(dw.oracle_text, /Madness \{B\}/);
 });
 
-test('Leva 124 · Sneaky Snacker: volta virada na terceira compra do turno; a que foi descartada depois da terceira compra não volta', () => {
+test('Leva 125 · Sneaky Snacker: volta virada na terceira compra do turno; a que foi descartada depois da terceira compra não volta', () => {
   let s = jogo(); const a = s.turn.active; let noCemiterio, naMao, fl;
   s = limpaMao(s, a); [s, noCemiterio] = poe(s, a, 'Sneaky Snacker', 'graveyard'); [s, fl] = poe(s, a, 'Faithless Looting', 'hand'); [s, naMao] = poe(s, a, 'Sneaky Snacker', 'hand');
   s = J(s); s.players[a].drawnThisTurn = 1;                       // já comprou a do turno
@@ -33,7 +33,7 @@ test('Leva 124 · Sneaky Snacker: volta virada na terceira compra do turno; a qu
   assert.equal(temPalavra(s, noCemiterio, 'flying'), true);
 });
 
-test('Leva 124 · Faithless Looting: compra duas, descarta duas, e o lampejo do passado custa {2}{R} e exila a carta', () => {
+test('Leva 125 · Faithless Looting: compra duas, descarta duas, e o lampejo do passado custa {2}{R} e exila a carta', () => {
   let s = jogo(2); const a = s.turn.active; let fl;
   s = limpaMao(s, a); [s, fl] = poe(s, a, 'Faithless Looting', 'graveyard');
   const ofertas = legais(s, a, x => x.t === 'cast' && x.oid === fl);
@@ -45,7 +45,7 @@ test('Leva 124 · Faithless Looting: compra duas, descarta duas, e o lampejo do 
   assert.equal(zona(s, fl), 'exile', 'conjurada pelo lampejo, vai para o exílio'); assert.equal(s.zones[a].hand.length, 0);
 });
 
-test('Leva 124 · Faithless Looting descartando duas cartas de insanidade: cada uma é decidida, e as duas vão para a pilha', () => {
+test('Leva 125 · Faithless Looting descartando duas cartas de insanidade: cada uma é decidida, e as duas vão para a pilha', () => {
   let s = jogo(3); const a = s.turn.active; let fl, ft, ki;
   s = limpaMao(s, a); [s, fl] = poe(s, a, 'Faithless Looting', 'hand'); [s, ft] = poe(s, a, 'Fiery Temper', 'hand'); [s, ki] = poe(s, a, 'Kitchen Imp', 'hand');
   s = resolve(conjura(s, a, fl));
@@ -63,7 +63,7 @@ test('Leva 124 · Faithless Looting descartando duas cartas de insanidade: cada 
   assert.equal(zona(s, ft), 'graveyard');
 });
 
-test('Leva 124 · Kitchen Imp: insanidade {B} no turno do oponente, descartado como custo da ficha de Sangue; voa e tem ímpeto', () => {
+test('Leva 125 · Kitchen Imp: insanidade {B} no turno do oponente, descartado como custo da ficha de Sangue; voa e tem ímpeto', () => {
   let s = jogo(4); const a = s.turn.active; let ep, ki;
   [s, ep] = poe(s, a, 'Voldaren Epicure', 'hand');
   s = resolve(conjura(s, a, ep)); s = resolve(s);
@@ -87,7 +87,7 @@ test('Leva 124 · Kitchen Imp: insanidade {B} no turno do oponente, descartado c
   assert.equal(s.zones[a].hand.length, 1, 'e a ficha de Sangue comprou a carta');
 });
 
-test('Leva 124 · insanidade vale no descarte da limpeza; sem mana, a única saída é o cemitério', () => {
+test('Leva 125 · insanidade vale no descarte da limpeza; sem mana, a única saída é o cemitério', () => {
   let s = jogo(5); const a = s.turn.active; let ft;
   s = limpaMao(s, a); [s, ft] = poe(s, a, 'Fiery Temper', 'hand');
   for (let i = 0; i < 7; i++) [s] = poe(s, a, i % 2 ? 'Lightning Bolt' : 'Kitchen Imp', 'hand');
@@ -100,7 +100,7 @@ test('Leva 124 · insanidade vale no descarte da limpeza; sem mana, a única sa�
   s = act(s, { t: 'decline_madness', p: a }); assert.equal(zona(s, ft), 'graveyard');
 });
 
-test("Leva 124 · Vampire's Kiss mira qualquer jogador; Alms of the Vein só o oponente; as duas tiram vida (não é dano) e dão vida", () => {
+test("Leva 125 · Vampire's Kiss mira qualquer jogador; Alms of the Vein só o oponente; as duas tiram vida (não é dano) e dão vida", () => {
   let s = jogo(6); const a = s.turn.active; let vk, av;
   [s, vk] = poe(s, a, "Vampire's Kiss", 'hand'); [s, av] = poe(s, a, 'Alms of the Vein', 'hand');
   assert.deepEqual(alvosDe(s, legais(s, a, x => x.t === 'cast' && x.oid === vk)), ['jogador A', 'jogador B']);
@@ -111,7 +111,7 @@ test("Leva 124 · Vampire's Kiss mira qualquer jogador; Alms of the Vein só o o
   assert.deepEqual(vida(s), [25, 15]);
 });
 
-test('Leva 124 · End the Festivities: 1 de dano no oponente e em cada criatura dele, nenhuma das minhas; não tem alvo', () => {
+test('Leva 125 · End the Festivities: 1 de dano no oponente e em cada criatura dele, nenhuma das minhas; não tem alvo', () => {
   let s = jogo(7); const a = s.turn.active; let ef, c1, c2, minha;
   [s, ef] = poe(s, a, 'End the Festivities', 'hand'); [s, c1] = poe(s, 1 - a, 'Faerie Seer'); [s, c2] = poe(s, 1 - a, 'Spellstutter Sprite'); [s, minha] = poe(s, a, 'Voldaren Epicure');
   const ofertas = legais(s, a, x => x.t === 'cast' && x.oid === ef);
@@ -120,7 +120,7 @@ test('Leva 124 · End the Festivities: 1 de dano no oponente e em cada criatura 
   assert.equal(vida(s)[1 - a], 19); assert.equal(zona(s, c1), 'graveyard'); assert.equal(zona(s, c2), 'graveyard'); assert.equal(zona(s, minha), 'battlefield');
 });
 
-test('Leva 124 · terrenos da lista: Jagged Barrens, Bojuka Bog, Razortrap Gorge e Rakdos Carnarium', () => {
+test('Leva 125 · terrenos da lista: Jagged Barrens, Bojuka Bog, Razortrap Gorge e Rakdos Carnarium', () => {
   const joga = (s, a, nome) => { let oid; [s, oid] = poe(s, a, nome, 'hand'); s = J(s); s.players[a].landsPlayed = 0; return [act(s, { t: 'play_land', p: a, oid }), oid]; };
   let s = jogo(8); const a = s.turn.active; let jb, bog, cr;
   [s, jb] = joga(s, a, 'Jagged Barrens');
@@ -142,7 +142,7 @@ test('Leva 124 · terrenos da lista: Jagged Barrens, Bojuka Bog, Razortrap Gorge
   assert.equal(zona(so, cr2), 'hand', 'sem outro terreno, volta para a mão (ruling)'); assert.equal(so.pending, null);
 });
 
-test('Leva 124 · Nihil Spellbomb: exila o cemitério de qualquer jogador; indo do campo para o cemitério, pagar {B} compra uma carta', () => {
+test('Leva 125 · Nihil Spellbomb: exila o cemitério de qualquer jogador; indo do campo para o cemitério, pagar {B} compra uma carta', () => {
   let s = jogo(9); const a = s.turn.active; let nb;
   [s, nb] = poe(s, a, 'Nihil Spellbomb'); [s] = poe(s, 1 - a, 'Counterspell', 'graveyard');
   const ativa = legais(s, a, x => x.t === 'activate' && x.oid === nb);
@@ -156,7 +156,7 @@ test('Leva 124 · Nihil Spellbomb: exila o cemitério de qualquer jogador; indo 
   assert.equal(s.zones[a].hand.length, mao + 1); assert.equal(s.zones[1 - a].graveyard.length, 0);
 });
 
-test('Leva 124 · Red Elemental Blast só mira azul; Cast into the Fire aceita zero, um ou dois alvos diferentes; Smash to Smithereens fere o controlador e não faz nada se o artefato sumir; Dark Withering não mira criatura preta', () => {
+test('Leva 125 · Red Elemental Blast só mira azul; Cast into the Fire aceita zero, um ou dois alvos diferentes; Smash to Smithereens fere o controlador e não faz nada se o artefato sumir; Dark Withering não mira criatura preta', () => {
   let s = jogo(10); const a = s.turn.active, b = 1 - a; let reb, cif, sm, dw, azul1, azul2, reliquia, preta;
   [s, azul1] = poe(s, b, 'Faerie Seer'); [s, azul2] = poe(s, b, 'Spellstutter Sprite'); [s, reliquia] = poe(s, b, 'Relic of Progenitus'); [s, preta] = poe(s, a, 'Kitchen Imp');
   [s, reb] = poe(s, a, 'Red Elemental Blast', 'hand'); [s, cif] = poe(s, a, 'Cast into the Fire', 'hand'); [s, sm] = poe(s, a, 'Smash to Smithereens', 'hand'); [s, dw] = poe(s, a, 'Dark Withering', 'hand');
@@ -175,7 +175,7 @@ test('Leva 124 · Red Elemental Blast só mira azul; Cast into the Fire aceita z
   assert.equal(J(s.facts['Dark Withering'].cost).generic, 4);
 });
 
-test('Leva 124 · Grab the Prize: sem outra carta na mão não conjura; descartando terreno não causa dano; descartando outra coisa, 2 em cada oponente', () => {
+test('Leva 125 · Grab the Prize: sem outra carta na mão não conjura; descartando terreno não causa dano; descartando outra coisa, 2 em cada oponente', () => {
   let s = jogo(11); const a = s.turn.active; let g1, g2, mt, bolt;
   s = limpaMao(s, a); [s, g1] = poe(s, a, 'Grab the Prize', 'hand');
   assert.equal(legais(s, a, x => x.t === 'cast' && x.oid === g1).length, 0, 'custo adicional impagável');

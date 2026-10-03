@@ -137,7 +137,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | U · Patamar de produto | U7b faixa de turno em duas palavras com balão de detalhes (leva 121) | 🟡 |
 | R · Revisão carta a carta | R0 sonda de alcance e registro por carta · Highway Robbery revisada (leva 121) | 🟡 |
 | R · Revisão carta a carta | R1 Axebane Guardian: mana em qualquer combinação de cores — **as sete listas Pauper em 100%** (leva 122) | 🟡 |
-| R · Revisão carta a carta | R2 Rakdos Madness carta a carta: 21 cartas revisadas, pagamento sem toque à toa, decisões legíveis (leva 124, **motor v65**) | 🟡 |
+| R · Revisão carta a carta | R2 Rakdos Madness carta a carta: 21 cartas revisadas, pagamento sem toque à toa, decisões legíveis (leva 125, **motor v65**) | 🟡 |
 | R · Revisão carta a carta | R3 Mono Blue Faeries, carta a carta | ▶ |
 | R · Revisão carta a carta | R4–R8 as outras cinco listas Pauper, carta a carta · R9 homologação independente | ○ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -370,7 +370,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 | 16º-l 🟡 | Faixa de turno, Highway Robbery (tramar e escolha), gatilho com modos e sonda de alcance (leva 121) | U7b · R0 | 1 | teste no aparelho |
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
-| 16º-n 🟡 | Rakdos Madness carta a carta: pagamento automático sem virar terreno à toa (motor v65), decisões escritas na bandeja, escolha tocando na carta (leva 124) | R2 | 1 | teste no aparelho; partidas salvas da v64 não abrem |
+| 16º-n 🟡 | Rakdos Madness carta a carta: pagamento automático sem virar terreno à toa (motor v65), decisões escritas na bandeja, escolha tocando na carta (leva 125) | R2 | 1 | teste no aparelho; partidas salvas da v64 não abrem |
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
 | 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
@@ -2292,7 +2292,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Parcial declarado / Fora:** o Shark paga com a combinação certa (usa o mesmo `planTaps`), mas não gera mana solta em combinação; não foi medido em torneio com a Walls Combo. A ficha frase a frase das outras 23 cartas da lista fica para a R8.
 - **Achado para as próximas:** três listas dependem do texto buscado para medir 100% sem rede (GW Bogles 89%, Jund Wildfire 97%, Elves 92%: Gladecover Scout, Slippery Bogle, Vault of Whispers, Llanowar Elves, Elvish Mystic). Entram na revisão das respectivas listas, pela conduta offline.
 
-**R2 · Rakdos Madness, carta a carta** 🟡 (leva 124, 02/10/2026)
+**R2 · Rakdos Madness, carta a carta** 🟡 (leva 125, 02/10/2026)
 - **Valor:** a lista de duas cores deixa de desperdiçar terreno a cada mágica, e toda decisão das cartas dela diz o que está sendo perguntado.
 - **Método:** as 21 cartas não básicas lidas contra o texto oficial, sondadas no motor com a lista real em modo único e jogadas pela tela em 360×780 com imagem de carta. Fichas em `.listas/revisao.json` (21 de 21 revisadas).
 - **Achado de regra (classe: pagamento, 601.2g/h).** `planTaps` devolvia a primeira solução da busca, que vira toda fonte anterior à que resolve: com três Mountain e um Swamp, pagar {B} virava os quatro e a mana sobrando evaporava. Só acontece com duas cores, e por isso nem as listas mono nem os baralhos de teste acusavam. O plano agora é enxugado: sai cada toque que não faz falta, do mais flexível (mais opções de cor) para o menos. Vale para o jogador e para o Shark, que usa o mesmo plano.
@@ -2311,8 +2311,9 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Pixels (360×780):** o cabeçalho de decisão custa de 50 a 70 px de altura da bandeja só enquanto há decisão pendente; fora disso a bandeja não mudou. Em troca, a palavra do momento e o balão dela saem nesse estado, e os botões da decisão cabem numa linha (antes quebravam em duas).
 - **Divergência registrada (leva 110):** aquela leva pôs o texto das decisões num balão para dar espaço à mesa. Para decisões pendentes isso escondia a pergunta; o momento de rotina (fase, pilha, aguardando) continua compacto.
 - **Simplificação declarada:** a insanidade é decidida no momento do descarte, não como gatilho que vai à pilha e pode ser respondido antes da decisão (702.35a). Com a Faithless Looting, cada carta descartada é decidida antes do descarte seguinte; as duas mágicas chegam à pilha, na ordem dos descartes. O oponente responde às mágicas, não ao gatilho. Entra no mapa de regras (R14).
-- **Testes:** `mana.unit` (3: plano mínimo, fonte flexível guardada, reserva usada antes) — os dois primeiros falham na v64; `rakdos.regras` (12, com a lista real e o texto oficial); e2e Leva 124 (4: motivo e pagamento, decisões escritas com descarte, insanidade e lampejo, escolha tocando na carta, alvo de gatilho/Carnarium/Spellbomb/alvos sem repetição), todos com `auditaTela`. Apoio novo `listas.mjs` (partidas de teste com as listas reais), que as próximas listas reutilizam.
+- **Testes:** `mana.unit` (3: plano mínimo, fonte flexível guardada, reserva usada antes) — os dois primeiros falham na v64; `rakdos.regras` (12, com a lista real e o texto oficial); e2e Leva 125 (4: motivo e pagamento, decisões escritas com descarte, insanidade e lampejo, escolha tocando na carta, alvo de gatilho/Carnarium/Spellbomb/alvos sem repetição), todos com `auditaTela`. Apoio novo `listas.mjs` (partidas de teste com as listas reais), que as próximas listas reutilizam.
 - **Versão e goldens:** **motor v65**. A regra de pagamento muda o resultado de partidas com duas cores, então registros antigos dariam outro estado. Os quatro goldens foram regravados **só pela versão**: com a regra nova e a versão antiga eles passavam sem regravar, e log, status e turno saíram idênticos, conferidos um a um. **Partida salva na v64 não abre** (a tela oferece começar outra).
+- **Publicação (erros desta trilha, corrigidos):** a leva saiu primeiro como "124" sem o rodapé `Trilha: motor`, no mesmo minuto em que a trilha de infra publicou a Q12 como leva 124; a guarda de agregação acusou no CI e a leva foi renumerada para 125 no commit seguinte. A mesma guarda mostrou que o commit da leva 122 desta trilha, ao recompor a tabela de ordem à mão, tinha apagado a história B17 do bot (restaurada pela Q12). Desde a Q12 esta trilha publica só por `npm run publicar`.
 - **Sem rede:** tudo local.
 - **Fora:** o Shark não foi medido em torneio depois da correção do pagamento (ele só ganha: deixa de desperdiçar mana com listas de duas cores); a prévia de ataque e bloqueio continua no balão; partida guiada da lista pela tela fica para a homologação (R9).
 
