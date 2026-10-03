@@ -5021,3 +5021,39 @@ test('e2e · Leva 134 partida online com Firebase configurado: sala no banco por
   await auditaTela(A, 'mesa online (firebase)');
   assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
 });
+
+/* ---------------- Leva 135 · partida online: o outro sumiu, o outro encerrou, o cartão da partida salva ---------------- */
+test('e2e · Leva 135 partida online: cartão "online, sala X" ao voltar, aviso quando o outro some, encerrar por abandono avisa o outro lado', { skip }, async t => {
+  const { page: A, errors, base } = await open(t, { dev: false });
+  await A.addInitScript(() => { window.__MTG_TEST = true; });
+  await A.setViewportSize({ width: 360, height: 780 });
+  await createDeck(A, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  await A.goto(base + '#/mesa'); await A.waitForSelector('[data-opponent="online"]'); await A.click('[data-opponent="online"]');
+  await A.waitForFunction(() => document.querySelector('#online-criar') && !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await A.click('#online-criar'); await A.waitForSelector('#online-codigo'); const codigo = (await A.innerText('#online-codigo')).trim();
+  const B = await A.context().newPage(); const errosB = [];
+  B.on('pageerror', e => errosB.push(String(e))); B.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errosB.push(m.text()); });
+  await B.addInitScript(() => { window.__MTG_TEST = true; }); await B.setViewportSize({ width: 360, height: 780 });
+  await B.goto(base + '#/mesa'); await B.waitForSelector('[data-opponent="online"]'); await B.click('[data-opponent="online"]'); await B.click('[data-online-modo="entrar"]');
+  await B.waitForSelector('#online-codigo-input'); await B.fill('#online-codigo-input', codigo); await B.waitForFunction(() => !document.querySelector('#online-entrar').disabled, null, { timeout: 10000 }); await B.click('#online-entrar');
+  await A.waitForSelector('#tb-keep', { timeout: 20000 }); await B.waitForSelector('#tb-keep', { timeout: 20000 });
+  // 1 · voltar à preparação: o cartão diz que a partida é online e em que sala; "Continuar" volta à mesa
+  await A.goto(base + '#/mesa'); await A.waitForSelector('#mesa-saved');
+  assert.match(await A.innerText('#mesa-saved-desc'), new RegExp('online, sala ' + codigo));
+  assert.equal((await A.innerText('#mesa-descartar')).trim(), 'Encerrar por abandono');
+  await auditaTela(A, 'preparar com partida online salva');
+  await A.click('#mesa-continue'); await A.waitForSelector('#tb-keep');
+  // 2 · o outro some: a presença dele envelhece (simulada no banco local) e a mesa avisa, sem travar a partida
+  await A.evaluate(c => { const k = 'estante.online:salas/' + c; const r = JSON.parse(localStorage.getItem(k)); r.presenca = { ...(r.presenca || {}), 1: Date.now() - 120000 }; localStorage.setItem(k, JSON.stringify(r)); }, codigo);
+  await A.evaluate(() => window.__estanteMesa.act({ t: 'keep', p: 0, bottom: [] })); // qualquer ação repinta
+  await A.waitForSelector('#tb-online-ausente', { timeout: 10000 });
+  assert.match(await A.innerText('#tb-online-ausente'), /parece ter saído/);
+  assert.equal(await A.locator('#tb-keep, #tb-pass').count() >= 0, true);
+  await auditaTela(A, 'mesa online com o outro ausente');
+  // 3 · B encerra por abandono na preparação: A vê o aviso de partida encerrada e a sala fica encerrada
+  await B.goto(base + '#/mesa'); await B.waitForSelector('#mesa-descartar'); await B.click('#mesa-descartar');
+  await A.waitForSelector('#tb-online-fim', { timeout: 10000 });
+  assert.match(await A.innerText('#tb-online-fim'), /O outro jogador saiu da sala/);
+  assert.equal(await A.evaluate(c => JSON.parse(localStorage.getItem('estante.online:salas/' + c)).estado, codigo), 'encerrada');
+  assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
+});

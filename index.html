@@ -6128,7 +6128,7 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
 /* ---------- sincronizador: liga uma mesa local à lista de ações da sala ---------- */
 /** `criaMesa(setup)` monta a mesa (createTable sem bot, sem desfazer). `assento` é quem joga neste aparelho.
     Devolve { mesa, agir(action), receber({ acoes }), parar, estado() }. `aoMudar(mesa, motivo)` avisa a tela. */
-function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = () => {}, aoErro = () => {} }) {
+function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = () => {}, aoErro = () => {}, aoSala = () => {} }) {
   let mesa = criaMesa(setup);
   let aplicadas = []; // chaves das ações da sala já refletidas na mesa, na ordem
   let pendentes = []; // ações minhas aplicadas localmente e ainda não vistas na sala: { antes, action }
@@ -6145,8 +6145,10 @@ function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = (
     }
     aoMudar(mesa, 'reconstruida');
   }
+  let salaVista = null; // último retrato da sala (presença, estado, fim)
   function receber(dados) {
     if (!dados) return;
+    salaVista = dados.sala || null; aoSala(salaVista);
     const acoes = dados.acoes || []; ultimas = acoes;
     // a sala tem menos do que já apliquei, ou numa ordem diferente: a sala manda
     for (let i = 0; i < aplicadas.length; i++) if (!acoes[i] || acoes[i].chave !== aplicadas[i]) return reconstruir(acoes);
@@ -6185,7 +6187,8 @@ function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = (
     receber,
     ligar() { parar = sala.ouvir(codigo, receber); return parar; },
     parar() { parar(); },
-    estado() { return { aplicadas: aplicadas.length, pendentes: pendentes.length, reconstrucoes, ignoradas }; }
+    estado() { return { aplicadas: aplicadas.length, pendentes: pendentes.length, reconstrucoes, ignoradas }; },
+    sala() { return salaVista; }
   };
 }
 
@@ -13392,10 +13395,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
       saved ? Surface({ class: 'ds-surface--pad', id: 'mesa-saved' }, Stack({},
         Text('Partida em andamento', { size: 'lg', display: true, as: 'h2' }),
-        Text(`${saved.setup.players.map(p => p.name).join(' × ')} · ${FORMATS[saved.setup.format] || saved.setup.format} · ${saved.log.length} ações`, { size: 'sm', tone: 'muted' }),
+        Text(`${saved.setup.players.map(p => p.name).join(' × ')} · ${FORMATS[saved.setup.format] || saved.setup.format} · ${saved.log.length} ações` + (saved.options && saved.options.online ? ` · online, sala ${saved.options.online.codigo}` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'mesa-saved-desc' } }),
         Row({ class: 'ds-row--wrap' },
           Button('Continuar partida', { variant: 'primary', id: 'mesa-continue', icone: 'jogar', onClick: () => go('/partida') }),
-          Button('Descartar', { variant: 'danger', icone: 'lixeira', onClick: async () => { await store.remove(T.SAVE_KEY); await store.remove(T.SERIE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
+          // leva 135 · partida online descartada: a sala é encerrada "por abandono", e o outro lado vê o aviso
+          Button(saved.options && saved.options.online ? 'Encerrar por abandono' : 'Descartar', { variant: 'danger', icone: 'lixeira', id: 'mesa-descartar', onClick: async () => {
+            if (saved.options && saved.options.online && online) { try { await online.sala.encerrar(saved.options.online.codigo, 'abandonou'); } catch (e) { /* sala já foi */ } }
+            await store.remove(T.SAVE_KEY); await store.remove(T.SERIE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
       Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
         ChipField('Formato', formatBox),
         mineField,
@@ -13507,6 +13513,25 @@ function createTableScreen({ store, perfil = null, online = null }) {
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  /** Leva 135 · estado do outro aparelho: ausente há mais de 45 s, ou sala encerrada por ele. */
+  const AUSENTE_MS = 45000;
+  function onlineBox() {
+    if (!sinc) return null;
+    const sl = sinc.sala(); if (!sl) return null;
+    const s = table.state, outro = 1 - table.online.assento;
+    if (sl.estado === 'encerrada' && s.status !== 'over') {
+      const n = Note(`<b>Partida encerrada.</b> ${sl.fim && sl.fim.motivo === 'abandonou' ? 'O outro jogador saiu da sala.' : 'A sala foi fechada do outro lado.'} Você pode voltar para preparar outra partida.`, 'warning');
+      n.id = 'tb-online-fim'; return n;
+    }
+    if (s.status !== 'over' && online.transporte.ligado()) {
+      const visto = (sl.presenca || {})[outro] || 0;
+      if (visto && Date.now() - visto > AUSENTE_MS) {
+        const n = Note(`<b>${esc(s.players[outro].name)} parece ter saído.</b> Sem sinal há ${Math.round((Date.now() - visto) / 60000) || 1} min. A partida fica guardada; se ${esc(s.players[outro].name)} voltar, continua daqui. Para encerrar, use Desistir ou "Encerrar por abandono" na preparação.`, 'warning');
+        n.id = 'tb-online-ausente'; return n;
+      }
+    }
+    return null;
+  }
   function recusaBox() {
     if (!recusa) return null;
     const n = Note(`<b>${esc(recusa.titulo)}.</b> ${esc(recusa.motivo)}.${recusa.dica ? ' ' + esc(recusa.dica) : ''}`, 'warning');
@@ -13540,6 +13565,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
         sinc = __m30.criaSincronizador({ sala: online.sala, codigo: o.codigo, setup: data.setup, assento: o.assento,
           criaMesa: setup => T.createTable(setup, { options: { autoPass: true } }),
           aoMudar: (m, motivo) => { if (motivo !== 'local') { adjudicating = null; save(); paint(); } },
+          aoSala: () => { if (root.isConnected) paint(); },
           aoErro: e => {
             if (e.message === 'nao-enviada') toast('Sem conexão: a jogada não valeu. Tente de novo.', 3600);
             else if (e.message === 'acao-ignorada' && e.acao && e.acao.de === o.assento) toast('O outro jogador agiu antes: sua jogada não valeu.', 3600);
@@ -13549,7 +13575,8 @@ function createTableScreen({ store, perfil = null, online = null }) {
         const pararLigacao = online.transporte.aoMudarLigacao(() => { if (root.isConnected) paint(); else pararLigacao(); });
         // o anfitrião apaga a sala um minuto depois do fim (o convidado já recebeu a última ação)
         const vigiaFim = setInterval(() => { if (!root.isConnected) return clearInterval(vigiaFim); if (table.state.status === 'over' && o.assento === 0) { clearInterval(vigiaFim); setTimeout(() => online.sala.apagar(o.codigo).catch(() => {}), 60000); } }, 2000);
-        pararPresenca = setInterval(() => { if (!root.isConnected) { clearInterval(pararPresenca); sinc.parar(); return; } online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {}); }, 15000);
+        pararPresenca = setInterval(() => { if (!root.isConnected) { clearInterval(pararPresenca); sinc.parar(); return; } online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {}); if (table.state.status !== 'over') paint(); }, 15000);
+        online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {});
       } else table = T.restoreTable(data);
     }
     catch (e) {
@@ -14410,7 +14437,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); if (sinc) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
         opp != null ? side(s, opp, false) : null,
-        h('div', { class: 'tb-center' }, painelPilha, recusaBox(), resumoBox(), adj),
+        h('div', { class: 'tb-center' }, painelPilha, onlineBox(), recusaBox(), resumoBox(), adj),
         side(s, v, true)),
       dock(s, v));
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
