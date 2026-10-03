@@ -1310,51 +1310,189 @@ function idbStore(idb, name = 'mtg', store = 'kv') {
 }
 
 /* ---------------- Camera ---------------- */
-function webCamera(nav, doc) {
-  let stream = null, video = null;
+/* X13 · a escada de resolução: do maior formato que a câmera declara (até 4K) para baixo.
+   Função pura: recebe as capacidades da trilha (getCapabilities) e devolve os pedidos, do maior para o menor.
+   O teto é 3840×2160: acima disso (a área inteira do sensor, 12 MP ou mais em vídeo) o aparelho esquenta e cada
+   cópia de quadro custa mais do que a resolução devolve — o nome é lido em 800 px e a edição já ganha no 4K. */
+const DEGRAUS_PADRAO = [[3840, 2160], [2560, 1440], [1920, 1080], [1280, 720]];
+function degrausDeResolucao(cap) {
+  const mw = cap && cap.width && cap.width.max, mh = cap && cap.height && cap.height.max;
+  if (!mw || !mh) return [];
+  const longo = Math.max(mw, mh), curto = Math.min(mw, mh), out = [];
+  for (const [w, h] of DEGRAUS_PADRAO) if (w <= longo && h <= curto) out.push({ width: w, height: h });
+  return out;
+}
+/** X13 · quadros por segundo que o vídeo entrega de fato, contados por requestVideoFrameCallback: espera o primeiro
+    quadro (a câmera acabou de ser reconfigurada) e conta os seguintes por `ms`. Devolve null quando o navegador não
+    tem como contar (vale o que a trilha declara) e NaN quando não chegou quadro (aba escondida, vídeo parado):
+    nesse caso ninguém decide nada com a medida. */
+function medeFpsDoVideo(video, ms = 900, doc = (typeof document !== 'undefined' ? document : null)) {
+  return new Promise(res => {
+    if (!video || typeof video.requestVideoFrameCallback !== 'function') return res(null);
+    if (doc && doc.hidden) return res(NaN);
+    let primeiro = null, ultimo = null, n = 0, fim = false;
+    const acaba = () => { if (fim) return; fim = true; res(n >= 3 && ultimo > primeiro ? (n - 1) * 1000 / (ultimo - primeiro) : NaN); };
+    const cb = agora => { if (fim) return; n++; if (primeiro == null) primeiro = agora; ultimo = agora; if (agora - primeiro >= ms) acaba(); else video.requestVideoFrameCallback(cb); };
+    video.requestVideoFrameCallback(cb); setTimeout(acaba, ms + 1200);
+  });
+}
+const FPS_MINIMO = 15;                    // abaixo disso a imagem arrasta: a mão treme mais do que a resolução ajuda
+const PASSOS_DE_ZOOM = [1, 1.5, 2, 3];
+function webCamera(nav, doc, deps = {}) {
+  const medeFps = deps.medeFps || medeFpsDoVideo;
+  let stream = null, video = null, geracao = 0;
+  /* Dois conjuntos de pedidos à trilha. `basico` é formato (largura, altura, quadros por segundo); `avancado` é o
+     que a câmera faz com a imagem (foco, exposição, branco, zoom, lanterna, ponto de interesse).
+     No Chrome, um pedido que traz qualquer chave de imagem é tratado SÓ como pedido de imagem: largura e altura no
+     mesmo pedido são ignoradas. Por isso o formato vai num pedido só dele, e o de imagem vai depois, repetindo o
+     formato (o Chrome ignora; um navegador que troque o conjunto inteiro mantém os dois). */
+  let basico = {}, avancado = {}, medida = { fps: null, degrau: null, tentativas: [] }, lenteId = null;
+  const trilha = () => (stream && stream.getVideoTracks && stream.getVideoTracks()[0]) || null;
+  const caps = () => { const t = trilha(); try { return t && t.getCapabilities ? t.getCapabilities() : {}; } catch (e) { return {}; } };
+  const sets = () => { const t = trilha(); try { return t && t.getSettings ? t.getSettings() : {}; } catch (e) { return {}; } };
+  const suporta = k => { try { return !!(nav.mediaDevices.getSupportedConstraints && nav.mediaDevices.getSupportedConstraints()[k]); } catch (e) { return false; } };
+  const temAvancado = () => Object.keys(avancado).length > 0;
+  const aplicaImagem = async () => {
+    const t = trilha(); if (!t || !t.applyConstraints) return false;
+    if (temAvancado()) await t.applyConstraints({ ...basico, advanced: [{ ...avancado }] });
+    return true;
+  };
+  const aplicaFormato = async () => {
+    const t = trilha(); if (!t || !t.applyConstraints) return false;
+    if (Object.keys(basico).length) await t.applyConstraints({ ...basico });
+    if (temAvancado()) await t.applyConstraints({ ...basico, advanced: [{ ...avancado }] });
+    return true;
+  };
+  /** Muda chaves de `avancado` e aplica; se a câmera recusar, desfaz só as chaves que este pedido mexeu. */
+  const mudaImagem = async (novas, remove = []) => {
+    const antes = {}; for (const k of [...Object.keys(novas), ...remove]) antes[k] = avancado[k];
+    avancado = { ...avancado, ...novas }; for (const k of remove) delete avancado[k];
+    try { return await aplicaImagem(); }
+    catch (e) { for (const [k, v] of Object.entries(antes)) { if (v === undefined) delete avancado[k]; else avancado[k] = v; } return false; }
+  };
+  const abre = async (opts) => {
+    // X11 · 1440p primeiro; a subida até o máximo da câmera vem depois, com o vídeo já na tela (melhorar)
+    const tentativas = [{ width: { ideal: 2560 }, height: { ideal: 1440 } }, { width: { ideal: 1920 }, height: { ideal: 1080 } }, {}];
+    const quais = opts.lente ? [{ deviceId: { exact: opts.lente } }, ...(opts.soEssa ? [] : [{ facingMode: opts.facing || 'environment' }])] : [{ facingMode: opts.facing || 'environment' }];
+    let erro = null;
+    for (const qual of quais) for (const res of tentativas) {
+      try { stream = await nav.mediaDevices.getUserMedia({ video: { ...qual, ...res }, audio: false }); lenteId = qual.deviceId ? opts.lente : null; basico = { ...res }; return; }
+      catch (e) { erro = e; if (!/overconstrained|constraint|notfound|notreadable/i.test(String(e && (e.name || e.message)))) throw e; }
+    }
+    throw erro;
+  };
   return {
     kind: 'web',
     available() { return !!(nav && nav.mediaDevices && nav.mediaDevices.getUserMedia); },
     async start(el, opts = {}) {
       if (!this.available()) throw new Error('camera-unavailable');
-      // Leva 112 · a maior resolução que o aparelho der (o nome da carta é texto pequeno): tenta 4K, depois
-      // 1440p, depois 1080p; o navegador escolhe o mais próximo que a câmera tem
-      // X11 · 1440p primeiro: o nome fica com mais de 30 px de altura com a carta na moldura, e o vídeo pesa
-      // menos da metade do 4K (que caía de quadros e esquentava). Sem isso, 1080p; depois, o que houver.
-      const tentativas = [{ width: { ideal: 2560 }, height: { ideal: 1440 } }, { width: { ideal: 1920 }, height: { ideal: 1080 } }, {}];
-      let erro = null;
-      for (const res of tentativas) {
-        try { stream = await nav.mediaDevices.getUserMedia({ video: { facingMode: opts.facing || 'environment', ...res }, audio: false }); erro = null; break; }
-        catch (e) { erro = e; if (!/overconstrained|constraint/i.test(String(e && (e.name || e.message)))) throw e; }
-      }
-      if (erro) throw erro;
+      basico = {}; avancado = {}; medida = { fps: null, degrau: null, tentativas: [] };
+      await abre(opts);
       video = el; video.srcObject = stream;
       if (video.play) await video.play();
       // foco, exposição e branco contínuos quando a câmera souber (Android Chrome): é o que tira o "embaçado"
       await this.ajustar({ focusMode: 'continuous', exposureMode: 'continuous', whiteBalanceMode: 'continuous' });
       return { width: video.videoWidth, height: video.videoHeight };
     },
+    /** X13 · sobe até a maior resolução (teto 4K) que a câmera entrega sem cair de FPS_MINIMO quadros por segundo.
+        Roda com o vídeo já na tela (a leitura não espera). Cada degrau acima do atual é pedido e conferido: só
+        vale se a trilha passou a entregar mais pixels DE FATO e se a contagem de quadros não arrasta. Se nenhum
+        servir, volta ao formato em que estava. Trocar de lente, parar a câmera ou chamar de novo cancela esta subida. */
+    async melhorar() {
+      const t = trilha(); if (!t || !t.applyConstraints) return medida;
+      const g = ++geracao, vale = () => g === geracao && trilha() === t;
+      const m = medida;
+      const s0 = sets(), w0 = s0.width || (video && video.videoWidth) || 0, h0 = s0.height || (video && video.videoHeight) || 0, area = w0 * h0;
+      const volta = w0 && h0 ? { width: { ideal: Math.max(w0, h0) }, height: { ideal: Math.min(w0, h0) }, frameRate: { ideal: 30 } } : { ...basico };
+      let mexeu = false;
+      for (const d of degrausDeResolucao(caps())) {
+        if (d.width * d.height <= area) break;                 // daqui para baixo não é melhora
+        const reg = { pedido: `${d.width}×${d.height}`, fps: null, ok: false, medindo: true };
+        m.tentativas.push(reg);
+        try {
+          basico = { width: { ideal: d.width }, height: { ideal: d.height }, frameRate: { ideal: 30 } };
+          mexeu = true;
+          if (!(await aplicaFormato()) || !vale()) { reg.medindo = false; reg.erro = 'cancelada'; return m; }
+          const fps = await medeFps(video);
+          if (!vale()) { reg.medindo = false; reg.erro = 'cancelada'; return m; }
+          reg.medindo = false; reg.fps = fps;
+          const s = sets(), entregue = (s.width || (video && video.videoWidth) || 0) * (s.height || (video && video.videoHeight) || 0);
+          reg.entregue = s.width && s.height ? `${Math.max(s.width, s.height)}×${Math.min(s.width, s.height)}` : '?';
+          if (Number.isNaN(fps)) { reg.erro = 'sem quadros para medir'; break; }      // aba escondida: não decide nada agora
+          if (!(entregue > area)) { reg.erro = 'a câmera não mudou'; continue; }
+          const real = fps == null ? (s.frameRate || FPS_MINIMO) : fps;
+          if (real >= FPS_MINIMO) { reg.ok = true; m.fps = real; m.degrau = reg.entregue; return m; }
+        } catch (e) { reg.medindo = false; reg.erro = String(e && (e.name || e.message) || e).slice(0, 40); }
+      }
+      // nenhum degrau acima serviu: volta ao formato em que estava
+      if (mexeu && vale()) { basico = volta; try { await aplicaFormato(); } catch (e) { /* fica como a câmera deixou */ } }
+      return m;
+    },
     /** Leva 112 · aplica o que a câmera suportar e ignora o resto, sem derrubar o vídeo. */
     async ajustar(desejado) {
-      const track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
-      if (!track || !track.applyConstraints) return false;
-      let cap = {}; try { cap = track.getCapabilities ? track.getCapabilities() : {}; } catch (e) { cap = {}; }
-      const ok = {};
+      const t = trilha();
+      if (!t || !t.applyConstraints) return false;
+      const cap = caps(), ok = {};
       for (const [k, v] of Object.entries(desejado)) { const c = cap[k]; if (Array.isArray(c) ? c.includes(v) : c != null) ok[k] = v; }
       if (!Object.keys(ok).length) return false;
-      try { await track.applyConstraints({ advanced: [ok] }); return true; } catch (e) { return false; }
+      return mudaImagem(ok);
     },
-    /** Leva 112 · toque na tela: um foco único e volta ao contínuo (quando a câmera souber). */
-    async focar() {
-      const feito = await this.ajustar({ focusMode: 'single-shot' });
-      if (feito) setTimeout(() => this.ajustar({ focusMode: 'continuous' }), 1500);
+    /** Toque na tela: um foco único e volta ao contínuo. X13 · com o ponto tocado (frações do quadro como a pessoa
+        o vê), o foco e a exposição são medidos ali, quando o navegador aceita pontos de interesse. O ponto vale só
+        para este foco: depois de 1,5 s sai, e a medição volta a ser do quadro todo.
+        No Chrome do Android o ponto é aplicado nas coordenadas do sensor, que é deitado: com o vídeo em pé, o
+        ponto é girado (x, y) → (y, 1 − x). A CONFERIR NO APARELHO: tocar numa área clara e ver a exposição ceder. */
+    async focar(ponto) {
+      const cap = caps(), unico = Array.isArray(cap.focusMode) && cap.focusMode.includes('single-shot');
+      const novas = {};
+      if (ponto && suporta('pointsOfInterest')) {
+        const x = Math.min(1, Math.max(0, ponto.x)), y = Math.min(1, Math.max(0, ponto.y));
+        const emPe = video && video.videoHeight > video.videoWidth;
+        novas.pointsOfInterest = [emPe ? { x: y, y: 1 - x } : { x, y }];
+      }
+      if (unico) novas.focusMode = 'single-shot';
+      if (!Object.keys(novas).length) return false;
+      const t = trilha(), feito = await mudaImagem(novas);
+      if (feito) setTimeout(() => { if (t && trilha() === t) mudaImagem(Array.isArray(caps().focusMode) && caps().focusMode.includes('continuous') ? { focusMode: 'continuous' } : {}, ['pointsOfInterest']); }, 1500);
       return feito;
     },
-    /** Leva 112 · o que a câmera está entregando de fato, para o diagnóstico. */
+    /** X13 · lanterna do aparelho (quando a câmera tem). Devolve o estado em que ficou. */
+    async lanterna(ligada) {
+      if (!caps().torch) return false;
+      return (await mudaImagem({ torch: !!ligada })) ? !!ligada : !!avancado.torch;
+    },
+    /** X13 · zoom da câmera, preso ao que ela aceita. Com o zoom, a carta enche o quadro com o aparelho mais longe,
+        onde a lente consegue focar. Devolve o valor aplicado (1 quando não há zoom). */
+    async zoom(valor) {
+      const z = caps().zoom; if (!z || !(z.max > z.min)) return 1;
+      const passo = z.step || 0.1, v = Math.min(z.max, Math.max(z.min, Math.round((z.min + Math.round((valor - z.min) / passo) * passo) * 1000) / 1000));
+      return (await mudaImagem({ zoom: v })) ? v : (avancado.zoom || z.min || 1);
+    },
+    /** X13 · os passos de zoom que cabem nesta câmera (vazio quando ela não tem zoom). */
+    zooms() { const z = caps().zoom; return z && z.max > z.min ? PASSOS_DE_ZOOM.filter(v => v >= z.min - 1e-6 && v <= z.max + 1e-6) : []; },
+    /** X13 · as câmeras traseiras do aparelho (principal, grande-angular, tele), para trocar de lente. */
+    async lentes() {
+      try {
+        const todos = (await nav.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+        const tras = todos.filter(d => /back|rear|traseira|environment/i.test(d.label || ''));
+        return (tras.length ? tras : todos).map(d => ({ id: d.deviceId, rotulo: d.label || 'Câmera' }));
+      } catch (e) { return []; }
+    },
+    /** X13 · troca para outra câmera traseira mantendo o vídeo na mesma tela. Só abre a lente pedida: se ela não
+        abrir, lança, e quem chamou decide (a tela reabre a anterior). */
+    async trocarLente(id) {
+      const el = video; if (!el) throw new Error('camera-not-started');
+      this.stop();
+      return this.start(el, { lente: id, soEssa: true });
+    },
+    /** O que a câmera está entregando de fato, para o diagnóstico e para a tela decidir o que mostrar. */
     info() {
-      const track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
-      let s = {}; try { s = track && track.getSettings ? track.getSettings() : {}; } catch (e) { s = {}; }
-      return { width: s.width || (video && video.videoWidth) || 0, height: s.height || (video && video.videoHeight) || 0, fps: s.frameRate || 0, foco: s.focusMode || '?', rotulo: track && track.label || '' };
+      const t = trilha(), s = sets(), c = caps();
+      return { width: s.width || (video && video.videoWidth) || 0, height: s.height || (video && video.videoHeight) || 0, fps: medida.fps || s.frameRate || 0, foco: s.focusMode || '?', rotulo: t && t.label || '',
+        maximo: c.width && c.height && c.width.max ? `${Math.max(c.width.max, c.height.max)}×${Math.min(c.width.max, c.height.max)}` : '?',
+        subida: medida.tentativas.map(x => `${x.pedido}${x.medindo ? ' …' : x.ok ? ' ✓' : x.erro ? ' ✗ ' + x.erro : ` ✗ ${x.fps == null ? '?' : Math.round(x.fps)} qps`}`).join(', ') || '—',
+        zoom: s.zoom || avancado.zoom || 1, lanterna: !!(avancado.torch), lente: lenteId || s.deviceId || '',
+        pode: { zoom: this.zooms().length > 1, lanterna: !!c.torch, ponto: suporta('pointsOfInterest') } };
     },
     /** Recorta uma região relativa (0..1) do quadro e devolve um canvas.
         X11 · opts.maxLado reduz na própria cópia (o detector olha o quadro em 320 px); opts.canvas reaproveita
@@ -1438,7 +1576,7 @@ function createPlatform(env = {}) {
     persistence: env.persistence || webPersistence(nav)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -13186,6 +13324,34 @@ function movimentoEntre(a, b) {
   return s / a.length;
 }
 const LIMIARES_FAIXA = { nitidezMin: 3, movimentoMax: 12 };
+/** X13 · cronômetro do scanner: quanto leva da carta aparecer até entrar na pilha. Duas medidas por aceite:
+    - `confirmacao`: do começo da primeira leitura que deu este nome até o aceite (o custo do leitor e do porteiro);
+    - `desdeEntrada`: desde que a carta apareceu num quadro que estava vazio (só vale se o quadro esvaziou antes:
+      trocando a carta sem tirar a de baixo, o tempo incluiria a mão da pessoa).
+    Função pura, com relógio injetável. É a linha de base para a história de velocidade (X14). */
+function criaCronometro({ agora = () => Date.now(), maximo = 30 } = {}) {
+  let entrou = null, vazioAntes = true, vazios = 2, voto = null, hist = [];
+  const mediana = xs => { const v = xs.filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) / 2)] : null; };
+  return {
+    /** A cada passada: havia carta no quadro (contorno achado ou nome lido)? */
+    quadro(temCarta, t = agora()) {
+      // uma passada sem contorno no meio (borrão da mão pousando a carta) não é "saiu do quadro": precisa de duas
+      if (!temCarta) { vazios++; if (vazios >= 2) { entrou = null; vazioAntes = true; } }
+      else { vazios = 0; if (entrou == null) entrou = t; }
+    },
+    /** A cada leitura: o melhor nome lido (ou null) e quando a passada começou. */
+    leitura(nome, inicio = agora()) { if (!nome) voto = null; else if (!voto || voto.nome !== nome) voto = { nome, t: inicio }; },
+    /** No aceite: devolve as duas medidas e guarda no histórico. */
+    aceite(nome, t = agora()) {
+      const r = { nome, confirmacao: voto && voto.nome === nome ? t - voto.t : null, desdeEntrada: entrou != null && vazioAntes ? t - entrou : null };
+      hist = [r, ...hist].slice(0, maximo);
+      voto = null; entrou = null; vazioAntes = false;
+      return r;
+    },
+    lista() { return hist.slice(); },
+    resumo() { return { n: hist.length, confirmacao: mediana(hist.map(x => x.confirmacao)), desdeEntrada: mediana(hist.map(x => x.desdeEntrada)), nEntrada: hist.filter(x => x.desdeEntrada != null).length }; }
+  };
+}
 /** Leva 109 · diário das últimas leituras, para a pessoa copiar e mandar o que o aparelho leu. */
 function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
   let itens = [];
@@ -13194,7 +13360,9 @@ function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
     lista() { return itens.slice(); },
     texto(info = {}) {
       const cab = Object.entries(info).map(([k, v]) => `${k}: ${v}`).join('\n');
-      const linhas = itens.map(x => `${x.via} · ${x.ms} ms · "${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 60)}" → ${x.melhor ? `${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '—'} · ${x.decisao}`);
+      // X13 · cada linha traz o tempo por etapa (detector, preparo, leitor, casamento) e, no aceite, o tempo até aceitar
+      const etapas = x => x.tempos ? ` [det ${x.tempos.det} · prep ${x.tempos.prep} · ocr ${x.tempos.ocr} · casa ${x.tempos.casa}]` : '';
+      const linhas = itens.map(x => `${x.via} · ${x.ms} ms${etapas(x)} · "${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 60)}" → ${x.melhor ? `${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '—'} · ${x.decisao}${x.ateAceitar != null ? ` · até aceitar ${x.ateAceitar} ms` : ''}`);
       return [cab, ...linhas].filter(Boolean).join('\n');
     }
   };
@@ -14016,7 +14184,7 @@ function deslocamento(a, b) {
    a mesma foto desfocada (caixa de 2 px, duas passadas), que o OCR já não lê, cai para 0,1. O limiar corta só isso. */
 const LIMIARES_LINHA = { nitidezMin: 0.3, deslocamentoMax: 0.05, alturaMin: 0.30 };
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
 })();
@@ -14031,7 +14199,7 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, criaDiario, realcaTexto,
+const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, criaDiario, criaCronometro, realcaTexto,
   achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, brilho } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -14107,6 +14275,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     moldura: true, cantosAntes: null, falhas: 0, invertida: false, aceitoEm: 0, diag: false, pilhaAberta: false };
   const porteiro = criaPorteiro();
   const diario = criaDiario();
+  const cronometro = criaCronometro();
   if (typeof window !== 'undefined') window.__scanDiario = diario; // o mesmo que "Copiar diagnóstico" mostra
   const online = () => !env || env.online !== false;
   const printsCache = new Map();
@@ -14141,7 +14310,15 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     paintStatus(); marca();
     if (!camera.available()) { state.camera = 'unavailable'; paintStatus(); paintDock(); marca(); return; }
     state.camera = 'starting'; paintStatus(); marca();
-    try { await camera.start(video, { facing: 'environment' }); if (!state.alive) return camera.stop(); state.camera = 'on'; }
+    try {
+      // X13 · abre na lente que a pessoa escolheu da última vez (se ainda existir) e, com o vídeo já na tela,
+      // sobe até a maior resolução que a câmera entrega sem arrastar
+      const lente = await store.get('scanner.lente');
+      await camera.start(video, { facing: 'environment', ...(lente ? { lente } : {}) });
+      if (!state.alive) return camera.stop();
+      state.camera = 'on';
+      aplicaZoomGuardado().then(() => camera.melhorar && camera.melhorar()).catch(() => {});
+    }
     catch (e) { state.camera = /denied|notallowed|permission/i.test(String(e && (e.name || e.message))) ? 'denied' : 'unavailable'; }
     paintStatus(); paintDock(); paintEstado(); marca();
     if (state.camera === 'on') {
@@ -14256,7 +14433,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!vw || !vh) { dicaTexto(DICAS.nada); return { pulou: 'nada', ms: 0, nitidez: 0, movimento: 0 }; }
     const t0 = performance.now();
     let quad = null, luz = 128;
+    const tempos = { det: 0, prep: 0, ocr: 0, casa: 0 }, relogio = () => performance.now();
     try { const q = quadroPequeno(); luz = brilho(q.cinza, q.w, q.h, null); quad = achaQuadrilatero(q.cinza, q.w, q.h); } catch (e) { quad = null; }
+    tempos.det = Math.round(relogio() - t0);
     const mov = quad && state.cantosAntes ? deslocamento(quad.cantos, state.cantosAntes) : 0;
     state.cantosAntes = quad ? quad.cantos : null;
     if (!quad) state.invertida = false;   // carta nova no quadro: volta a supor que está em pé
@@ -14264,7 +14443,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     // contorno pequeno demais para ler (carta longe, ou um objeto com cara de carta fora da área que a tela mostra):
     // não serve para a leitura, mas não impede a moldura guia
     const longe = !!quad && alturaDaCarta(quad.cantos, vw, vh) < LIMIARES_LINHA.alturaMin * Math.max(vw, vh);
-    const base = { luz, movimento: mov * 100, contorno: !!quad && !longe, longe };
+    const base = { luz, movimento: mov * 100, contorno: !!quad && !longe, longe, tempos, inicio: Date.now() - Math.round(relogio() - t0) };
     if (via !== 'manual' && quad && !longe && mov > LIMIARES_LINHA.deslocamentoMax) { dicaTexto(DICAS.tremida); return { pulou: 'tremida', ms: 0, nitidez: 0, ...base }; }
     const caminhos = [];
     if (quad && !longe) caminhos.push({ nome: 'carta', cantos: state.invertida ? viraCantos(quad.cantos) : quad.cantos });
@@ -14272,11 +14451,16 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     let melhor = null, desfocada = null;
     const nota = r => (r && r.found[0] ? r.found[0].score : 0);
     for (const c of caminhos) {
+      let ta = relogio();
       const L = linhaPronta(c.cantos);
+      tempos.prep += Math.round(relogio() - ta);
       if (!L) continue;
       if (via !== 'manual' && L.nitidez < LIMIARES_LINHA.nitidezMin) { if (desfocada == null) desfocada = L.nitidez; continue; }
+      ta = relogio();
       const texto = await ocr.read(L.tela, 'linha');
+      tempos.ocr += Math.round(relogio() - ta); ta = relogio();
       const r = { caminho: c.nome, cantos: c.cantos, texto, found: names.match(texto), nitidez: L.nitidez };
+      tempos.casa += Math.round(relogio() - ta);
       if (!melhor || nota(r) > nota(melhor)) melhor = r;
       if (nota(r) >= ACCEPT) break;
     }
@@ -14317,10 +14501,15 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     state.busy = true;
     try {
       const L = await lerUmaVez('auto');
-      if (L.pulou) { diario.anota({ via: L.pulou, texto: '', melhor: null, ms: 0, decisao: 'pulou', nitidez: L.nitidez, movimento: L.movimento }); return; }
+      // X13 · o cronômetro vê toda passada: carta no quadro é contorno achado ou nome lido
+      const lido = !L.pulou && L.found[0] && L.found[0].score >= ACCEPT ? L.found[0].name : null;
+      cronometro.quadro(!!(L.contorno || L.longe || lido), L.inicio);
+      if (L.pulou) { if (L.pulou !== 'tremida' && L.pulou !== 'desfocada') cronometro.leitura(null); diario.anota({ via: L.pulou, texto: '', melhor: null, ms: 0, decisao: 'pulou', nitidez: L.nitidez, movimento: L.movimento, tempos: L.tempos }); return; }
       const v = porteiro.voto(L.found);
-      let decisao = v.motivo;
-      if (v.aceito) { await aceita(v.aceito, L); decisao = `${v.aceito} +1`; dicaTexto(''); }
+      // carta já aceita e ainda no quadro: o tempo dela não é tempo de leitura
+      cronometro.leitura(v.motivo === 'repetida' ? null : lido, L.inicio);
+      let decisao = v.motivo, ateAceitar = null;
+      if (v.aceito) { const c = cronometro.aceite(v.aceito); ateAceitar = c.desdeEntrada != null ? c.desdeEntrada : c.confirmacao; await aceita(v.aceito, L); decisao = `${v.aceito} +1`; dicaTexto(''); }
       else {
         const semNome = v.motivo === 'nada' || v.motivo === 'fraca';
         // com a carta achada e sem nome, o problema é a leitura (reflexo, distância), não o enquadramento
@@ -14328,7 +14517,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         if (!(semNome && Date.now() - (state.aceitoEm || 0) < 1600)) dicaTexto(semNome && L.luz < 45 ? DICAS.escuro : semNome && L.longe ? DICAS.longe : semNome && L.contorno ? DICAS.fraca : DICAS[v.motivo === 'ambígua' ? 'ambigua' : v.motivo] || '');
         if ((v.motivo === 'ambígua' || v.motivo === 'fraca') && L.found.length) { state.last = { text: L.texto, found: L.found, key: null, printing: null, candidates: [], pendente: false }; paintResult(); }
       }
-      diario.anota({ via: L.caminho, texto: L.texto, melhor: L.found[0] || null, ms: L.ms, decisao, nitidez: L.nitidez, movimento: L.movimento });
+      diario.anota({ via: L.caminho, texto: L.texto, melhor: L.found[0] || null, ms: L.ms, decisao, nitidez: L.nitidez, movimento: L.movimento, tempos: L.tempos, ateAceitar });
     } catch (e) { diario.anota({ via: 'erro', texto: String(e && e.message || e), melhor: null, ms: 0, decisao: 'falhou' }); }
     finally { state.busy = false; }
   }
@@ -14369,8 +14558,17 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (e.target.closest('button')) return;
     const nome = porteiro.ultimo || (state.last && state.last.key && state.last.found[0] && state.last.found[0].name);
     if (nome && state.auto) { porteiro.maisUma(); await aceita(nome, { found: state.last ? state.last.found : [], texto: '' }); return; }
-    if (camera.focar) camera.focar();
+    // X13 · o foco (e a exposição) vão para o ponto tocado, em frações do quadro da câmera
+    if (camera.focar) {
+      const vr = stage.getBoundingClientRect();
+      const r = coverRegion(vr.width, vr.height, video.videoWidth || vr.width, video.videoHeight || vr.height, { x: e.clientX - vr.left, y: e.clientY - vr.top, w: 0, h: 0 });
+      camera.focar(Number.isFinite(r.x) && Number.isFinite(r.y) ? { x: r.x, y: r.y } : undefined);
+    }
   });
+  /** X13 · o zoom escolhido da última vez volta sozinho (depois da subida de resolução, que troca as restrições). */
+  async function aplicaZoomGuardado() {
+    try { const z = await store.get('scanner.zoom'); if (z && z !== 1 && camera.zoom) await camera.zoom(z); } catch (e) { /* segue em 1× */ }
+  }
   function setAuto(on) {
     const antes = state.auto;
     state.auto = on;
@@ -14384,7 +14582,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'X11 (contorno + linha do nome)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `nitidez ≥ ${LIMIARES_LINHA.nitidezMin}, movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'X13 (câmera no máximo + cronômetro)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `nitidez ≥ ${LIMIARES_LINHA.nitidezMin}, movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';
@@ -14433,7 +14631,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         Button(`Pilha · ${n}`, { id: 'scan-lot', icone: 'pilhas', onClick: openPile }),
         IconButton('desfazer', 'Desfazer a última leitura', { id: 'scan-undo', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } }),
         IconButton('editar', 'Digitar o nome da carta', { id: 'scan-manual-open', onClick: openManual }),
-        IconButton('filtro', 'Mais opções', { id: 'scan-more', onClick: openMore })));
+        IconButton('filtro', 'Mais opções', { id: 'scan-more', onClick: () => { openMore().catch(() => {}); } })));
   }
 
   /* ---- pilha (abre por botão: a tela principal não rola) ---- */
@@ -14549,15 +14747,64 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     Dialog({ title: 'Digitar o nome', body: Stack({}, Field('Carta', manualIn), suggest, state.base !== 'ready' ? Text('A base de nomes ainda não está no aparelho.', { size: 'sm', tone: 'muted' }) : null), actions: [Button('Fechar', { onClick: closeDialog })] });
     setTimeout(() => manualIn.focus(), 50);
   }
-  function openMore() {
+  async function openMore() {
     const info = names.info();
     const edChip = Chip('Edição', { pressed: state.edition, dataset: { edition: '1' } });
     edChip.addEventListener('click', () => { state.edition = !state.edition; edChip.setAttribute('aria-pressed', String(state.edition)); });
     const molduraChip = Chip('Moldura', { pressed: state.moldura, dataset: { moldura: '1' } });
     molduraChip.addEventListener('click', () => { state.moldura = !state.moldura; frame.style.display = state.moldura ? '' : 'none'; molduraChip.setAttribute('aria-pressed', String(state.moldura)); });
     const diagChip = Chip('Diagnóstico', { dataset: { diag: '1' }, onClick: () => { closeDialog(); openDiag(); } });
+    // X13 · controles da câmera: só aparece o que este aparelho tem
+    const cam = state.camera === 'on' && camera.info ? camera.info() : {}, pode = cam.pode || {};
+    const controles = [];
+    if (pode.lanterna) {
+      const c = Chip('Lanterna', { pressed: !!cam.lanterna, dataset: { lanterna: '1' } });
+      c.addEventListener('click', async () => { const on = await camera.lanterna(c.getAttribute('aria-pressed') !== 'true'); c.setAttribute('aria-pressed', String(on)); });
+      controles.push(c);
+    }
+    if (pode.zoom) {
+      const passos = camera.zooms(), rotulo = z => `Zoom ${String(Math.round(z * 10) / 10).replace('.', ',')}×`;
+      const perto = z => passos.reduce((a, b) => Math.abs(b - z) < Math.abs(a - z) ? b : a, passos[0]);
+      let atual = perto(cam.zoom || 1);
+      const c = Chip(rotulo(atual), { dataset: { zoom: '1' } });
+      c.addEventListener('click', async () => {
+        const proximo = passos[(passos.indexOf(atual) + 1) % passos.length];
+        atual = perto(await camera.zoom(proximo)); await store.set('scanner.zoom', atual);
+        c.textContent = rotulo(atual);
+      });
+      controles.push(c);
+    }
+    const lentes = state.camera === 'on' && camera.lentes ? await camera.lentes() : [];
+    if (!state.alive) return;
+    if (lentes.length > 1) {
+      const idx = () => Math.max(0, lentes.findIndex(l => l.id === (camera.info().lente || '')));
+      const rotulo = () => `Lente ${idx() + 1} de ${lentes.length}`;
+      const c = Chip(rotulo(), { dataset: { lente: '1' } });
+      c.addEventListener('click', async () => {
+        const anterior = lentes[idx()], proxima = lentes[(idx() + 1) % lentes.length];
+        c.disabled = true;
+        try {
+          await camera.trocarLente(proxima.id);
+          if (!state.alive) return camera.stop();
+          await store.set('scanner.lente', proxima.id);
+          toast(proxima.rotulo.slice(0, 40), 1400);
+        } catch (e) {
+          // a lente não abriu: a anterior volta; se nem ela abrir, a tela diz que está sem câmera
+          try { await camera.start(video, { lente: anterior.id }); toast('Não deu para abrir essa lente.', 1800); }
+          catch (e2) { state.camera = 'unavailable'; setAuto(false); paintStatus(); paintDock(); paintEstado(); marca(); closeDialog(); return; }
+          if (!state.alive) return camera.stop();
+        }
+        // lente nova, câmera nova: o zoom guardado volta, a resolução sobe de novo e a folha mostra o que ESTA lente tem
+        await aplicaZoomGuardado();
+        if (camera.melhorar) camera.melhorar().catch(() => {});
+        if (state.alive) { closeDialog(); openMore().catch(() => {}); }
+      });
+      controles.push(c);
+    }
     Dialog({ title: 'Scanner', body: Stack({},
-      Text('Ler a edição pela linha de coleção da carta; moldura guia na câmera; diagnóstico do que o aparelho leu.', { size: 'sm', tone: 'muted' }),
+      controles.length ? Text('Câmera', { size: 'sm', tone: 'muted' }) : null,
+      controles.length ? Row({ class: 'ds-row--wrap', id: 'scan-camera-controles' }, ...controles) : null,
+      Text('Leitura', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' }, edChip, molduraChip, diagChip),
       Text((info && state.base === 'ready' ? `Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB` : 'Base de nomes: ainda não baixada') + (state.ocrReady ? ' · leitor disponível offline' : ''), { size: 'xs', tone: 'subtle', attrs: { id: 'scan-base' } })),
       actions: [Button('Fechar', { onClick: closeDialog })] });
@@ -14569,15 +14816,17 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const linha = x => h('div', { class: 'scan-diag__linha' },
         Badge(x.via, { tone: x.via === 'carta' || x.via === 'moldura' ? 'positive' : x.via === 'erro' ? 'danger' : undefined }),
         Text(`${x.ms} ms`, { size: 'xs', tone: 'muted' }),
+        x.tempos && x.ms ? Text(`det ${x.tempos.det} · prep ${x.tempos.prep} · ocr ${x.tempos.ocr} · casa ${x.tempos.casa}`, { size: 'xs', tone: 'muted' }) : null,
         x.nitidez != null ? Text(`nit ${(+x.nitidez).toFixed(1)} · mov ${Math.round(x.movimento || 0)}`, { size: 'xs', tone: 'muted' }) : null,
         Text(`"${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 40) || '—'}"`, { size: 'xs' }),
         Text(x.melhor ? `→ ${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '→ —', { size: 'xs', tone: 'muted' }),
-        Text(x.decisao, { size: 'xs' }));
+        Text(x.decisao + (x.ateAceitar != null ? ` · ${x.ateAceitar} ms até aceitar` : ''), { size: 'xs' }));
       const i = infoAparelho();
       mount(box, Stack({},
-        Row({ class: 'ds-row--wrap' }, Text(`Câmera ${i.video} · foco ${i.foco} · leitor ${i.leitor} · ${i.automatico}`, { size: 'xs', tone: 'muted' }),
+        Row({ class: 'ds-row--wrap' }, Text(`Câmera ${i.video} (máximo ${i.camera_maximo}; subida: ${i.subida}) · zoom ${i.zoom} · foco ${i.foco} · leitor ${i.leitor} · ${i.automatico}`, { size: 'xs', tone: 'muted', attrs: { id: 'scan-diag-camera' } }),
           h('div', { class: 'ds-grow' }),
           Button('Copiar', { id: 'scan-diag-copiar', icone: 'copiar', onClick: async () => { try { await navigator.clipboard.writeText(diario.texto(i)); toast('Diagnóstico copiado', 1400); } catch (e) { toast('Não deu para copiar: selecione o texto', 1400); } } })),
+        Text(`Até aceitar: ${i.ate_aceitar}`, { size: 'xs', tone: 'muted', attrs: { id: 'scan-diag-tempo' } }),
         itens.length ? h('div', { class: 'scan-diag__lista' }, ...itens.slice(0, 12).map(linha)) : Text('Nenhuma leitura ainda. Aponte a câmera para uma carta.', { size: 'xs', tone: 'muted' })));
     };
     pinta();

@@ -3328,7 +3328,7 @@ test('e2e · leva 112 scanner: cabe sem rolar num S25, não registra leitura inc
 // X11 · o caminho inteiro no navegador com uma foto de carta inclinada sobre um playmat: câmera (falsa, mostrando a
 // foto) → contorno de quatro cantos → pedaço do vídeo → linha do nome retificada. O leitor falso guarda a imagem que
 // recebeu; o OCR de verdade (tesseract.js, no Node) confere que ali está o nome, e depois a linha de coleção.
-const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false) => `
+const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false, qps = 10) => `
   window.__ocrQueue = []; window.__ocrImgs = []; window.__canvases = 0;
   const criar = document.createElement.bind(document);
   document.createElement = function (tag, ...r) { if (String(tag).toLowerCase() === 'canvas') window.__canvases++; return criar(tag, ...r); };
@@ -3343,8 +3343,8 @@ const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false) => `
     const g = c.getContext('2d');
     if (${deCabecaParaBaixo}) { g.translate(c.width, c.height); g.rotate(Math.PI); }
     const pinta = () => g.drawImage(img, 0, 0);
-    pinta(); setInterval(pinta, 100);
-    return c.captureStream(10);
+    pinta(); setInterval(pinta, ${Math.round(1000 / qps)});
+    return c.captureStream(${qps});
   };
   if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = gum;
   else Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: gum } });
@@ -3382,6 +3382,10 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   assert.equal(await page.evaluate(() => window.__canvases) - antes, 0, 'cinco leituras, zero canvas novo');
   assert.equal(await contaPilha(page), 1, 'e a carta parada não entra de novo');
   await page.click('[data-auto]');
+  // X13 · esta câmera não declara zoom nem lanterna: "mais" não mostra controle que não funciona
+  await page.click('#scan-more'); await page.waitForSelector('[data-diag]');
+  assert.equal(await page.locator('[data-lanterna], [data-zoom]').count(), 0);
+  await page.click('#ds-dialog-close');
   assert.deepEqual(errors, []);
   // OCR de verdade sobre o que o leitor recebeu no navegador
   let T = null, langPath = null;
@@ -3430,6 +3434,100 @@ test('e2e · X11 carta de cabeça para baixo: depois de três leituras sem nome,
     assert.match(padrao, /--/, 'com a carta suposta em pé o nome não aparece: ' + padrao);
     assert.match(padrao, /S-S-S/, 'virada, o nome aparece em três passadas seguidas: ' + padrao);
   } finally { await worker.terminate(); }
+});
+
+// X13 · câmera com capacidades declaradas (resolução máxima, zoom, lanterna, pontos de interesse, duas lentes): a trilha
+// falsa registra tudo o que o app lhe pede. O vídeo falso roda a 30 quadros por segundo para a subida de resolução
+// passar pela régua de fluidez de verdade (requestVideoFrameCallback no navegador).
+const CAMERA_COM_CAPACIDADES = `
+  window.__pedidos = []; window.__aberturas = [];
+  {
+    const gumFoto = navigator.mediaDevices.getUserMedia;
+    const cap = { width: { min: 1, max: 3840 }, height: { min: 1, max: 2160 }, zoom: { min: 1, max: 4, step: 0.1 }, torch: true, focusMode: ['continuous', 'single-shot'] };
+    navigator.mediaDevices.getUserMedia = async c => {
+      window.__aberturas.push(JSON.parse(JSON.stringify(c.video)));
+      const st = await gumFoto(c); const t = st.getVideoTracks()[0];
+      const real = t.getSettings.bind(t); let extra = {};
+      t.getCapabilities = () => cap;
+      t.getSettings = () => ({ ...real(), ...extra, deviceId: (c.video.deviceId && c.video.deviceId.exact) || 'cam-a' });
+      // como o Chrome: pedido com chave de imagem é só de imagem (largura e altura ali são ignoradas); pedido só de
+      // formato muda o formato (aqui, o que a trilha declara em getSettings; o vídeo falso continua do mesmo tamanho)
+      t.applyConstraints = async k => {
+        window.__pedidos.push(JSON.parse(JSON.stringify(k)));
+        if (k.advanced && k.advanced.length) { for (const a of k.advanced) extra = { ...extra, ...a }; return; }
+        if (k.width) extra = { ...extra, width: k.height.ideal, height: k.width.ideal };   // vídeo em pé
+      };
+      return st;
+    };
+    navigator.mediaDevices.getSupportedConstraints = () => ({ pointsOfInterest: true, zoom: true, torch: true });
+    navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'videoinput', deviceId: 'cam-a', label: 'camera2 0, facing back' }, { kind: 'videoinput', deviceId: 'cam-b', label: 'camera2 2, facing back' }, { kind: 'videoinput', deviceId: 'cam-f', label: 'camera2 1, facing front' }];
+  }
+`;
+test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volta ao reabrir, foco no ponto tocado, troca de lente e tempo até aceitar no diagnóstico', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64'), false, 30));
+  await page.addInitScript(CAMERA_COM_CAPACIDADES);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  // a subida de resolução acontece com o vídeo já na tela: o maior degrau é pedido junto com o foco contínuo
+  await page.waitForFunction(() => window.__pedidos.some(p => p.width && p.width.ideal === 3840), null, { timeout: 8000 });
+  const subida = await page.evaluate(() => window.__pedidos.filter(p => p.width && p.width.ideal === 3840));
+  assert.equal(subida[0].height.ideal, 2160); assert.equal(subida[0].advanced, undefined, 'o formato vai num pedido só dele (no Chrome, junto do foco ele seria ignorado)');
+  assert.equal(subida[1].advanced[0].focusMode, 'continuous', 'e o foco contínuo é pedido de novo em seguida');
+  // uma carta entra, para o cronômetro ter o que medir
+  await page.evaluate(() => window.__ocrQueue.push('Counterspell', 'Counterspell', ''));
+  await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 15000 });
+  await page.click('[data-auto]');
+  await page.waitForTimeout(1700);   // o contorno parado some sozinho com o automático pausado
+  // toque na câmera sem leitura automática: foco no ponto tocado
+  await page.click('#scan-stage', { position: { x: 90, y: 120 } });
+  await page.waitForFunction(() => window.__pedidos.some(p => p.advanced && p.advanced[0].pointsOfInterest), null, { timeout: 4000 });
+  const ponto = await page.evaluate(() => window.__pedidos.find(p => p.advanced && p.advanced[0].pointsOfInterest).advanced[0].pointsOfInterest[0]);
+  // toque no alto, à esquerda, com o vídeo em pé: nas coordenadas do sensor (deitado) vira x pequeno e y grande
+  assert.ok(ponto.x > 0 && ponto.x < 0.5 && ponto.y > 0.5 && ponto.y < 1, 'o ponto vai em frações do quadro, girado para o sensor: ' + JSON.stringify(ponto));
+  // controles da câmera em "mais": só o que o aparelho tem
+  await page.click('#scan-more');
+  await page.waitForSelector('#scan-camera-controles');
+  await auditaTela(page, 'opções do scanner com controles da câmera');
+  await page.click('[data-lanterna]');
+  await page.waitForFunction(() => document.querySelector('[data-lanterna]').getAttribute('aria-pressed') === 'true');
+  assert.equal(await page.evaluate(() => window.__pedidos.at(-1).advanced[0].torch), true);
+  assert.match(await page.innerText('[data-zoom]'), /Zoom 1×/);
+  await page.click('[data-zoom]');
+  await page.waitForFunction(() => /Zoom 1,5×/.test(document.querySelector('[data-zoom]').innerText));
+  const z = await page.evaluate(() => window.__pedidos.at(-1).advanced[0]);
+  assert.equal(z.zoom, 1.5); assert.equal(z.torch, true, 'o zoom não desliga a lanterna');
+  assert.match(await page.innerText('[data-lente]'), /Lente 1 de 2/);
+  await page.click('[data-lente]');
+  await page.waitForFunction(() => /Lente 2 de 2/.test(document.querySelector('[data-lente]').innerText), null, { timeout: 6000 });
+  assert.deepEqual(await page.evaluate(() => window.__aberturas.at(-1).deviceId), { exact: 'cam-b' });
+  // diagnóstico: câmera, máximo declarado e tempo até aceitar
+  await page.click('[data-diag]');
+  await page.waitForSelector('#scan-diag .scan-diag__linha');
+  // a lente nova sobe a resolução de novo e recebe o zoom guardado
+  await page.waitForFunction(() => /máximo 3840×2160; subida: 3840×2160 ✓\) · zoom 1\.5×/.test(document.querySelector('#scan-diag-camera').innerText), null, { timeout: 8000 });
+  assert.match(await page.innerText('#scan-diag-tempo'), /Até aceitar: .*confirmação \d+ ms \(1 carta/);
+  assert.match(await page.innerText('#scan-diag'), /det \d+ · prep \d+ · ocr \d+ · casa \d+/);
+  assert.match(await page.innerText('#scan-diag'), /Counterspell \+1 · \d+ ms até aceitar/);
+  // a medida que o épico E52 acompanha: custo do detector e do preparo no navegador (o leitor aqui é falso)
+  const etapas = (await page.evaluate(() => window.__scanDiario.lista())).filter(x => x.via === 'carta' && x.tempos);
+  const med = k => { const v = etapas.map(x => x.tempos[k]).sort((a, b) => a - b); return v[Math.floor((v.length - 1) / 2)]; };
+  console.log(`X13 · navegador de teste, ${etapas.length} leituras pelo contorno: detector ${med('det')} ms · preparo ${med('prep')} ms (medianas)`);
+  assert.ok(med('det') + med('prep') < 150, 'detector + preparo dentro do orçamento folgado do portão');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.click('#scan-diag-copiar');
+  const copiado = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(copiado, /leitor_versao: X13/); assert.match(copiado, /subida: 3840×2160 ✓/); assert.match(copiado, /ate_aceitar: .*confirmação \d+ ms/); assert.match(copiado, /zoom: 1\.5×/);
+  await page.click('#ds-dialog-close');
+  // reabrir o scanner: a lente e o zoom escolhidos voltam sozinhos
+  await page.reload();
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForFunction(() => window.__aberturas.length && window.__pedidos.some(p => p.advanced && p.advanced[0].zoom === 1.5), null, { timeout: 10000 });
+  assert.deepEqual(await page.evaluate(() => window.__aberturas[0].deviceId), { exact: 'cam-b' }, 'abre na lente guardada');
+  assert.deepEqual(errors, []);
 });
 
 // Leva 110 · cinco ajustes de mesa e listas: alvo de qualquer coisa pela insanidade, selo de anexo no lugar do nome,

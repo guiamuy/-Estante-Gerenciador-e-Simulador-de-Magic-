@@ -111,6 +111,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X10 acerto medido no portão (fotos sintéticas; reais pendentes) | 🟡 |
 | X · Scanner | X11 leitura por contorno: quatro cantos, carta retificada, linha do nome (leva 116) | 🟡 |
 | X · Scanner | X12 reconhecimento pela arte (impressão digital da imagem) | ○ |
+| X · Scanner | X13 câmera no máximo e cronômetro de leitura (leva 120) | 🟡 |
+| X · Scanner | X14 resposta imediata · X15 melhor quadro e edição em resolução cheia | ▶ |
+| X · Scanner | X16 tela nova do scanner · X17 pilha e conferência visuais · X18 sessão de catalogação | ○ |
 | C · Coleção | C10 exportar por lista (três formatos, seleção manual) | 🟡 |
 | C · Coleção | C11 importar por lista com conferência, pendências e desfazer | 🟡 |
 | O · Offline | O1 o que é seu fica no aparelho: guardião, painel e portão offline | 🟡 |
@@ -353,6 +356,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-h ✅ | Shark com informação justa: decide sem ver a mão do oponente (leva 117) | B8 | 1 | — |
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
+| 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
 | 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -449,6 +453,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15 (leva 79) · A16 (leva 80) — épico completo, aguardando teste no aparelho | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) · X11 🟡 (leva 116) · X12 ○ | Scanner sem moldura, pilha de leitura, validação ágil, acerto medido e leitura por contorno |
+| E52 🟡 | X13 🟡 (leva 120) · X14 ▶ · X15 · X16 · X17 · X18 | Scanner de referência: imagem no máximo da câmera, resposta imediata e experiência de outro patamar |
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
@@ -3000,6 +3005,96 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   geração no aparelho a partir das cartas da própria coleção (sem custo de infraestrutura, cobre só o que já se tem).
 - **Fora:** rede neural no aparelho.
 
+### X · Scanner de referência (E52, pedido de 02/10/2026)
+
+Retorno do usuário depois da leva 116, no aparelho: "o scanner ficou muito bom, está acertando as cartas e está mais
+rápido". Pedido, **nesta ordem**: (1) o máximo da qualidade de imagem que a câmera entrega; (2) o menor tempo de
+resposta até identificar a carta; (3) a experiência de uso em outro patamar — sofisticada, minimalista, fluida e visual.
+
+**O que foi medido antes de planejar (02/10/2026, Node 22 em servidor, 27 fotos do portão):**
+
+| Etapa de uma passada | Tempo | Leitura |
+|---|---|---|
+| Detector (contorno, quadro em 320 px) | 7 ms | barato |
+| Preparo (retificar, achar e binarizar a linha) | 12 ms | barato |
+| OCR da linha do nome (Tesseract, 800 px) | 46 ms | o maior, e pouco sensível ao modelo (`best_int` 47 ms, completo 46 ms) e à largura (600 px: 37 ms; 400 px: 35 ms, mesmo acerto) |
+| Casar com 34 mil nomes | 7 a 17 ms | barato; leitura exata pode ser O(1) |
+
+Uma passada custa cerca de 75 ms no servidor (num celular, 3 a 5 vezes mais). **O tempo até aceitar não é dominado pelo
+OCR, e sim pela regra:** o porteiro exige duas leituras exatas seguidas, com 120 ms de respiro entre elas, e a primeira
+passada de uma carta que chega costuma ser descartada por movimento. São de 2 a 3 passadas onde uma bastaria. É aí que a
+X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida em 800 px); o que ganha com mais resolução
+é a **edição** (texto de 1,6% da carta) e a carta longe. Para o nome, o que pesa é foco, zoom e luz.
+
+**Orçamentos do épico** (a X13 mede; as seguintes cobram):
+
+| Medida | Hoje | Meta |
+|---|---|---|
+| Tempo até aceitar no aparelho, mediana, carta entrando no quadro | desconhecido (a X13 passou a medir) | ≤ 600 ms |
+| Passadas até aceitar uma leitura exata pelo contorno | 2 a 3 | 1 |
+| Detector + preparo no navegador de teste | ~55 ms | ≤ 40 ms |
+| Edição certa no conjunto do portão | 22 de 27 | ≥ 25 de 27 |
+| Toques para escanear e guardar um lote | abrir pilha → lote → destino → adicionar | 1 depois do lote lido |
+
+| Ordem | História | Frente | Levas |
+|---|---|---|---|
+| 1º 🟡 | **X13** câmera no máximo e cronômetro | imagem | 1 (leva 120) |
+| 2º | **X14** resposta imediata | velocidade | 1 |
+| 3º | **X15** melhor quadro e edição em resolução cheia | imagem e velocidade | 1 |
+| 4º | **X16** tela nova do scanner | experiência | 1 a 2 |
+| 5º | **X17** pilha e conferência visuais | experiência | 1 |
+| 6º | **X18** sessão de catalogação | experiência | 1 |
+| à parte | **X12** reconhecimento pela arte · **X10** fotos reais | decisão e insumo do usuário | 2 |
+
+**X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
+- **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.
+- **Aceite:**
+  - a câmera sobe até a maior resolução que declara (teto 4K) sem cair de 15 quadros por segundo, com o vídeo já na tela; um degrau só vale se a câmera passou a entregar mais pixels de fato; se o maior arrasta, fica o de baixo; se nenhum serve, volta ao formato de antes;
+  - foco, exposição e branco contínuos seguem valendo a cada novo pedido (zoom, lanterna, resolução);
+  - toque na câmera foca e mede a luz no ponto tocado, quando o navegador aceita;
+  - lanterna, zoom (1×, 1,5×, 2×, 3×, dentro do que a câmera aceita) e troca de lente traseira, cada um só quando o aparelho tem; zoom e lente escolhidos voltam ao reabrir;
+  - o diagnóstico mostra resolução, máximo declarado, a subida degrau a degrau, zoom, lanterna, lente, o tempo por etapa de cada leitura (detector, preparo, leitor, casamento) e o **tempo até aceitar** (mediana).
+- **Entregue (leva 120):** tudo acima. Na camada de plataforma (`webCamera`): `melhorar`, `zoom`, `zooms`, `lanterna`, `lentes`, `trocarLente`, `focar(ponto)`; `degrausDeResolucao` e `medeFpsDoVideo` (conta quadros por `requestVideoFrameCallback`). No scanner: `criaCronometro` (confirmação: da primeira leitura do nome até o aceite; desde a entrada: só quando o quadro estava vazio antes). Os controles ficam em "Mais", como chips; a X16 leva para a tela.
+- **Revisão independente do código, antes do portão (02/10/2026), contra o código-fonte do Chromium:** a primeira versão desta história **não subia a resolução no Chrome do Android e dizia que tinha subido**. No Chrome, um pedido à câmera que traz qualquer chave de imagem (foco, zoom, lanterna) é tratado só como pedido de imagem: largura e altura no mesmo pedido são ignoradas. Corrigido antes de publicar: o formato vai num pedido só dele, e o degrau só é aceito se a trilha passou a entregar mais pixels. Outros achados corrigidos: a volta ao formato de antes não voltava; subida não cancelava ao trocar de lente ou parar a câmera; lente que não abria caía calada na padrão e ficava guardada; ponto de foco ficava pesando a medição pelo resto da sessão e não era girado para o sensor com o celular em pé; contagem de quadros começava antes do primeiro quadro e reprovava formato bom; cronômetro inflava com carta repetida. O teto da escada ficou em 4K (a área inteira do sensor em vídeo esquenta e não devolve leitura).
+- **Sem rede:** nada aqui usa rede.
+- **Limites declarados:** não testado em aparelho real. O comportamento do Chrome veio da leitura do código-fonte, não de um aparelho; o do Safari do iPhone não foi conferido (lá os controles não devem aparecer: a câmera não os declara). **A conferir no aparelho:** (1) a linha "subida" do diagnóstico mostra um degrau com ✓ e a resolução da câmera muda; (2) tocar numa área clara faz a exposição ceder ali (o giro do ponto para o sensor é a parte menos certa). A lente padrão continua sendo a que o navegador escolhe para "traseira"; a troca é manual.
+- **Testes:** U, com câmera falsa que se comporta como o Chrome (escada com teto 4K; subida com régua de fluidez e pedido só de formato; volta ao formato de antes; câmera que finge aceitar; câmera que recusa; aba escondida; cancelamento ao parar; contagem de quadros que espera o primeiro; zoom preso e sem resto de ponto flutuante; lanterna recusada não contamina o pedido seguinte; foco no ponto num pedido só, girado com o vídeo em pé, e o ponto saindo depois; lentes, lente que não abre, lente guardada que sumiu; cronômetro; diário com etapas), I headless (câmera falsa com capacidades a 30 quadros por segundo: pedido de 3840×2160 só de formato e o foco logo depois, lanterna, zoom que volta ao reabrir, foco no ponto tocado em frações do quadro, troca de lente, diagnóstico com máximo, subida e tempo até aceitar; câmera sem capacidades não mostra controle).
+- **Depende de:** X11.
+- **Fora:** escolher sozinho a melhor lente; zoom automático de enquadramento (X15); foto em resolução cheia para a edição (X15).
+
+**X14 · Resposta imediata** ▶
+- **Valor:** a carta entra na pilha na primeira leitura boa, sem esperar a segunda.
+- **Aceite:**
+  - leitura **exata** (nome idêntico a um da base), pelo contorno, com nome de 5 letras ou mais e linha nítida: aceita na primeira passada. Nome curto, leitura aproximada e leitura pela moldura continuam precisando de 2 e 3 leituras;
+  - a próxima passada começa no próximo quadro do vídeo (sem os 120 ms de respiro) enquanto há carta no quadro; sem carta, o laço desacelera para poupar bateria;
+  - nome exato é achado por consulta direta, sem percorrer a base;
+  - a linha do nome vai para o leitor em 600 px;
+  - a edição é lida por um segundo leitor, sem segurar a leitura da carta seguinte; o leitor é aquecido ao abrir;
+  - carta que chega não perde a primeira passada para a régua de movimento.
+- **Testes:** U (porteiro: exata longa pelo contorno entra na 1ª; curta, aproximada e pela moldura não; nada entra errado nos casos da leva 112), fotos (27 fotos sem perda de acerto em 600 px), I headless (uma leitura basta; mediana "até aceitar" abaixo do orçamento com leitor falso; edição não atrasa a carta seguinte).
+- **Depende de:** X13 (a medida). **Risco:** aceitar na primeira leitura é a troca de segurança por velocidade; a salvaguarda é a identidade exata com a base e o desfazer de um toque.
+- **Fora:** leitor mais rápido que o Tesseract.
+
+**X15 · Melhor quadro e edição em resolução cheia** ○
+- **Valor:** a edição acerta mais e a carta pode ficar mais longe.
+- **Aceite:** entre os quadros recentes, vai para o leitor o mais nítido; depois do aceite, a linha de coleção é lida de uma foto em resolução cheia do sensor (`takePhoto`) quando o aparelho tem; zoom automático que enquadra a carta pequena; foco reapontado para a linha do nome quando ela sai desfocada.
+- **Testes:** U, fotos (edição ≥ 25 de 27), I headless. **Depende de:** X14. **Risco:** `takePhoto` pausa o vídeo em alguns aparelhos; entra com chave e medida.
+
+**X16 · Tela nova do scanner** ○
+- **Valor:** a câmera é a tela; o resto aparece quando é preciso.
+- **Aceite:** câmera de borda a borda; controles por ícone sobre ela (lanterna, zoom, lente, pausar); estados desenhados (procurando, carta achada, lendo, entrou) com movimento curto; a carta lida "voa" para a pilha; dica só quando há o que corrigir; sem rolagem em 360×780; contraste AA sobre o vídeo; `prefers-reduced-motion` respeitado.
+- **Testes:** I e V (capturas 360 e 390, claro e escuro; auditoria de sobreposição; alvos de 44 px). **Depende de:** X13.
+
+**X17 · Pilha e conferência visuais** ○
+- **Valor:** conferir o lote olhando para as cartas, não para uma lista.
+- **Aceite:** faixa de miniaturas com a arte na base da câmera, a mais recente em destaque; toque abre a carta grande com edição e alternativas; arrastar remove, com desfazer; "confira" resolvido na própria miniatura; guardar o lote em um toque para o último destino.
+- **Testes:** U, I, V. **Depende de:** X16.
+
+**X18 · Sessão de catalogação** ○
+- **Valor:** catalogar uma caixa inteira com ritmo.
+- **Aceite:** contador da sessão e ritmo (cartas por minuto); som e vibração opcionais; tela não apaga durante a sessão; resumo ao fim (quantas, quantas a conferir, tempo); primeira vez com uma tela de instrução.
+- **Testes:** U, I. **Depende de:** X17.
+
 ### O · Offline de verdade (E42)
 
 Pedido do usuário em 28/09/2026: "tornar o funcionamento de tudo da aplicação mesmo offline (tirando os
@@ -3363,6 +3458,14 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Testes:** U (casamento por linha, votos, `enrich` sem perder quantidade/confiança e fundindo edição igual, diário), e2e "leva 109" (liga sozinho, plano B no quadro cinza, aproximada só com duas seguidas, edição depois, diagnóstico copiado). Expectativas alteradas com justificativa: X7, X9, X1/X2/X4, X3/X5 e O1 (o automático começa ligado; leituras manuais pausam antes).
 - **Limite declarado:** não testado em aparelho real nesta leva. O que falta ajustar sai do diagnóstico copiado do celular (tempo por leitura, texto que o OCR devolve, caminho carta/quadro).
 - **Portão:** 623 verdes (559 + 64 e2e).
+
+**Leva 120 · X13 câmera no máximo e cronômetro de leitura** 🟡 (pedido de 02/10/2026; primeiro passo do épico E52 "Scanner de referência")
+- **Plano do épico:** três frentes na ordem pedida — imagem (X13, X15), velocidade (X14, X15), experiência (X16 a X18) — com orçamentos medidos. Seção "X · Scanner de referência (E52)".
+- **Medido antes de planejar:** uma passada custa ~75 ms no servidor (detector 7, preparo 12, OCR 46, casamento 7 a 17). O tempo até aceitar é dominado pela regra das duas leituras e pelo respiro de 120 ms, não pelo OCR; modelo e largura da linha mudam pouco.
+- **Entregue:** a câmera sobe até a maior resolução (teto 4K) que entrega sem arrastar; foco no ponto tocado; lanterna, zoom e troca de lente quando o aparelho tem, com zoom e lente lembrados; diagnóstico com tempo por etapa e tempo até aceitar. Detalhes e limites: história **X13**.
+- **Erro meu, pego pela revisão independente antes de publicar:** a primeira versão não subia a resolução no Chrome e dizia que tinha subido (pedido de formato misturado com pedido de foco é ignorado). Corrigido e coberto por teste com câmera falsa que se comporta como o Chrome.
+- **Limite declarado:** não testado em aparelho real.
+- **Portão:** 694 verdes (620 + 74 e2e), rodado depois de integrar com a leva 119 (Shark). Motor v64 inalterado.
 
 **Leva 116 · Scanner por contorno e linha do nome** 🟡 (pedido de 01/10/2026: "não está reconhecendo nenhuma carta")
 - **Medido antes de mexer:** o caminho publicado acertava 3 de 11 fotos reais de celular, só com a carta alinhada à mão na moldura. Causas, correção, medida depois e limites: história **X11**.

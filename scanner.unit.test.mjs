@@ -803,3 +803,202 @@ test('X11 · câmera: copiar com redução e com canvas reaproveitado não cria 
   assert.equal(pedaco.width, 1280); assert.equal(pedaco.height, 144);
   assert.deepEqual(desenhos.at(-1).slice(1), [640, 720, 1280, 144, 0, 0, 1280, 144]);
 });
+
+/* ---------------- X13 · câmera no máximo e cronômetro ---------------- */
+const DE_IMAGEM = ['focusMode', 'exposureMode', 'whiteBalanceMode', 'zoom', 'torch', 'pointsOfInterest'];
+/** Câmera falsa que se comporta como o Chrome: pedido que traz chave de imagem é tratado SÓ como pedido de imagem
+    (largura e altura no mesmo pedido são ignoradas); pedido só de formato muda o formato. Registra o que lhe pedem. */
+function cameraFalsa({ cap = {}, inicio = { width: 1920, height: 1080 }, fpsPorPedido = () => 30, rejeita = () => false, surda = false, suportados = {}, dispositivos = [], emPe = false } = {}) {
+  const pedidos = [], abertas = [];
+  let ajustes = { ...inicio, frameRate: 30 };
+  const trilha = () => ({
+    label: 'camera2 0, facing back', stop() {},
+    getCapabilities: () => cap, getSettings: () => ({ ...ajustes }),
+    applyConstraints: async c => {
+      pedidos.push(JSON.parse(JSON.stringify(c)));
+      if (rejeita(c)) { const e = new Error('nao da'); e.name = 'OverconstrainedError'; throw e; }
+      const imagem = (c.advanced || []).some(a => Object.keys(a).some(k => DE_IMAGEM.includes(k)));
+      if (imagem) { for (const a of c.advanced) ajustes = { ...ajustes, ...a }; return; }
+      if (c.width && !surda) ajustes = { ...ajustes, width: c.width.ideal, height: c.height.ideal };
+    }
+  });
+  const nav = { mediaDevices: {
+    getUserMedia: async c => { abertas.push(JSON.parse(JSON.stringify(c.video))); if (c.video.deviceId && c.video.deviceId.exact === 'sumiu') { const e = new Error('x'); e.name = 'OverconstrainedError'; throw e; } const t = trilha(); return { getVideoTracks: () => [t], getTracks: () => [t] }; },
+    getSupportedConstraints: () => suportados, enumerateDevices: async () => dispositivos } };
+  const doc = { createElement: () => ({ width: 0, height: 0, getContext: () => ({ drawImage() {} }) }) };
+  const video = emPe ? { videoWidth: 1080, videoHeight: 1920, play: async () => {} } : { videoWidth: 1920, videoHeight: 1080, play: async () => {} };
+  let medidor = async () => fpsPorPedido(ajustes);
+  const camera = P.webCamera(nav, doc, { medeFps: v => medidor(v) });
+  return { camera, video, pedidos, abertas, ajustes: () => ajustes, medidor: f => { medidor = f; } };
+}
+const soFormato = p => p.width && !p.advanced;
+
+test('X13 · escada de resolução: do maior formato declarado (teto 4K) para baixo; sem capacidade, nada', () => {
+  const lista = c => JSON.parse(JSON.stringify(P.degrausDeResolucao(c))).map(d => d.width + 'x' + d.height);
+  assert.deepEqual(lista({ width: { max: 4000 }, height: { max: 3000 } }), ['3840x2160', '2560x1440', '1920x1080', '1280x720'], 'acima de 4K não entra');
+  // retrato: a câmera declara a altura maior que a largura; a escada é a mesma
+  assert.deepEqual(lista({ width: { max: 2160 }, height: { max: 3840 } }).slice(0, 2), ['3840x2160', '2560x1440']);
+  assert.deepEqual(lista({ width: { max: 1920 }, height: { max: 1080 } }), ['1920x1080', '1280x720']);
+  assert.equal(P.degrausDeResolucao({}).length, 0);
+  assert.equal(P.degrausDeResolucao(null).length, 0);
+});
+
+test('X13 · câmera sobe até a maior resolução que não arrasta: 4K a 8 qps é recusado, 1440p a 24 fica; o formato vai num pedido só dele', async () => {
+  const f = cameraFalsa({ cap: { width: { max: 4000 }, height: { max: 3000 }, focusMode: ['continuous', 'single-shot'] }, fpsPorPedido: a => (a.width * a.height > 8e6 ? 8 : 24) });
+  await f.camera.start(f.video);
+  const m = await f.camera.melhorar();
+  assert.equal(m.degrau, '2560×1440'); assert.equal(m.fps, 24);
+  assert.equal(m.tentativas.map(t => t.pedido + (t.ok ? ' ok' : ' não')).join(', '), '3840×2160 não, 2560×1440 ok');
+  assert.equal(f.ajustes().width, 2560, 'a câmera mudou de fato');
+  // no Chrome, largura e altura no mesmo pedido do foco são ignoradas: precisa existir o pedido só de formato
+  assert.ok(f.pedidos.some(p => soFormato(p) && p.width.ideal === 2560), 'pedido só de formato');
+  // e o foco contínuo pedido na abertura continua valendo depois
+  assert.equal(f.ajustes().focusMode, 'continuous');
+  assert.equal(f.pedidos.at(-1).advanced[0].focusMode, 'continuous');
+  const i = f.camera.info();
+  assert.equal(i.maximo, '4000×3000'); assert.match(i.subida, /3840×2160 ✗ 8 qps, 2560×1440 ✓/);
+});
+
+test('X13 · câmera: nada serve → volta ao formato de antes; câmera que finge aceitar não conta como subida; recusa, aba escondida e câmera sem capacidades não derrubam o vídeo', async () => {
+  const lenta = cameraFalsa({ cap: { width: { max: 3840 }, height: { max: 2160 } }, inicio: { width: 2560, height: 1440 }, fpsPorPedido: a => (a.width > 2560 ? 9 : 30) });
+  await lenta.camera.start(lenta.video);
+  const m = await lenta.camera.melhorar();
+  assert.equal(m.degrau, null, 'ficou como estava');
+  assert.equal(lenta.ajustes().width, 2560, 'o formato de antes foi pedido de volta');
+  assert.equal(lenta.pedidos.filter(soFormato).at(-1).width.ideal, 2560);
+  // aceita o pedido e não muda nada (o defeito que o pedido misturado causava no Chrome): não é subida
+  const surda = cameraFalsa({ cap: { width: { max: 3840 }, height: { max: 2160 } }, surda: true });
+  await surda.camera.start(surda.video);
+  const s = await surda.camera.melhorar();
+  assert.equal(s.degrau, null); assert.match(surda.camera.info().subida, /3840×2160 ✗ a câmera não mudou/);
+  const teimosa = cameraFalsa({ cap: { width: { max: 3840 }, height: { max: 2160 } }, rejeita: c => !!c.width && c.width.ideal > 1920 });
+  await teimosa.camera.start(teimosa.video);
+  const r = await teimosa.camera.melhorar();
+  assert.equal(r.degrau, null); assert.match(r.tentativas[0].erro, /Overconstrained/);
+  // aba escondida: não chegou quadro para contar; ninguém decide nada e o formato volta
+  const escondida = cameraFalsa({ cap: { width: { max: 3840 }, height: { max: 2160 } }, fpsPorPedido: () => NaN });
+  await escondida.camera.start(escondida.video);
+  const e = await escondida.camera.melhorar();
+  assert.equal(e.degrau, null); assert.equal(e.tentativas.length, 1); assert.match(e.tentativas[0].erro, /sem quadros/);
+  assert.equal(escondida.ajustes().width, 1920);
+  const muda = cameraFalsa({ cap: {} });
+  await muda.camera.start(muda.video);
+  assert.equal((await muda.camera.melhorar()).tentativas.length, 0);
+  assert.equal(muda.pedidos.length, 0, 'câmera sem capacidades declaradas: nenhum pedido');
+  // sem jeito de contar quadros (navegador sem requestVideoFrameCallback), vale o que a trilha declara
+  assert.equal(await P.medeFpsDoVideo({}), null);
+  assert.ok(Number.isNaN(await P.medeFpsDoVideo({ requestVideoFrameCallback() {} }, 50, { hidden: true })), 'aba escondida não mede');
+});
+
+test('X13 · câmera: parar ou trocar de lente no meio da subida cancela a subida (não marca degrau em câmera parada)', async () => {
+  const f = cameraFalsa({ cap: { width: { max: 3840 }, height: { max: 2160 } } });
+  await f.camera.start(f.video);
+  let solta; f.medidor(() => new Promise(r => { solta = r; }));
+  const subindo = f.camera.melhorar();
+  await new Promise(r => setTimeout(r, 10));
+  f.camera.stop();
+  solta(30);
+  const m = await subindo;
+  assert.equal(m.degrau, null); assert.equal(m.tentativas[0].ok, false); assert.equal(m.tentativas[0].erro, 'cancelada');
+});
+
+test('X13 · contagem de quadros: espera o primeiro quadro e mede o intervalo entre os seguintes', async () => {
+  // vídeo falso que entrega um quadro a cada 40 ms (25 por segundo), com o primeiro atrasado 200 ms (câmera reconfigurando)
+  let t = 0; const video = { requestVideoFrameCallback(cb) { const atraso = t === 0 ? 200 : 40; t += atraso; setTimeout(() => cb(t), 1); } };
+  const fps = await P.medeFpsDoVideo(video, 400, { hidden: false });
+  assert.ok(Math.abs(fps - 25) < 0.5, 'o atraso do primeiro quadro não entra na conta: ' + fps);
+  // vídeo parado: nenhum quadro chega
+  assert.ok(Number.isNaN(await P.medeFpsDoVideo({ requestVideoFrameCallback() {} }, 20, { hidden: false })));
+});
+
+test('X13 · zoom preso ao que a câmera aceita, lanterna só quando existe, e um pedido não desfaz o outro', async () => {
+  const f = cameraFalsa({ cap: { zoom: { min: 1, max: 2.5, step: 0.1 }, torch: true, focusMode: ['continuous'] } });
+  await f.camera.start(f.video);
+  assert.deepEqual([...f.camera.zooms()], [1, 1.5, 2]);
+  assert.equal(await f.camera.zoom(1.5), 1.5, 'sem resto de ponto flutuante');
+  assert.equal(await f.camera.zoom(9), 2.5, 'acima do máximo fica no máximo');
+  assert.equal(await f.camera.lanterna(true), true);
+  const ult = f.pedidos.at(-1).advanced[0];
+  assert.deepEqual([ult.zoom, ult.torch, ult.focusMode], [2.5, true, 'continuous'], 'zoom, lanterna e foco no mesmo pedido');
+  const i = f.camera.info();
+  assert.equal(i.pode.zoom, true); assert.equal(i.pode.lanterna, true); assert.equal(i.lanterna, true); assert.equal(i.zoom, 2.5);
+  // câmera que recusa a lanterna: o zoom que já valia continua valendo
+  const g = cameraFalsa({ cap: { zoom: { min: 1, max: 4, step: 0.1 }, torch: true }, rejeita: c => (c.advanced || []).some(a => a.torch) });
+  await g.camera.start(g.video);
+  await g.camera.zoom(2);
+  assert.equal(await g.camera.lanterna(true), false);
+  assert.equal(await g.camera.zoom(3), 3);
+  assert.equal(g.pedidos.at(-1).advanced[0].torch, undefined, 'a lanterna recusada não fica no pedido seguinte');
+  const simples = cameraFalsa({ cap: {} });
+  await simples.camera.start(simples.video);
+  assert.equal(await simples.camera.zoom(2), 1); assert.equal(await simples.camera.lanterna(true), false);
+  assert.equal(simples.camera.zooms().length, 0); assert.equal(simples.camera.info().pode.zoom, false);
+});
+
+test('X13 · foco no ponto tocado: um pedido só, ponto girado com o vídeo em pé, e o ponto sai depois do foco', async () => {
+  const f = cameraFalsa({ cap: { focusMode: ['continuous', 'single-shot'] }, suportados: { pointsOfInterest: true } });
+  await f.camera.start(f.video);
+  const antes = f.pedidos.length;
+  assert.equal(await f.camera.focar({ x: 0.3, y: 1.4 }), true);
+  assert.equal(f.pedidos.length, antes + 1, 'ponto e foco único no mesmo pedido');
+  assert.deepEqual(f.pedidos.at(-1).advanced[0].pointsOfInterest, [{ x: 0.3, y: 1 }], 'vídeo deitado: ponto como tocado, preso ao quadro');
+  assert.equal(f.pedidos.at(-1).advanced[0].focusMode, 'single-shot');
+  await new Promise(r => setTimeout(r, 1600));
+  const depois = f.pedidos.at(-1).advanced[0];
+  assert.equal(depois.focusMode, 'continuous'); assert.equal(depois.pointsOfInterest, undefined, 'o ponto não fica pesando o foco pelo resto da sessão');
+  // vídeo em pé (celular na vertical): o sensor é deitado, o ponto é girado
+  const p = cameraFalsa({ cap: { focusMode: ['continuous', 'single-shot'] }, suportados: { pointsOfInterest: true }, emPe: true });
+  await p.camera.start(p.video);
+  await p.camera.focar({ x: 0.2, y: 0.7 });
+  const pt = p.pedidos.at(-1).advanced[0].pointsOfInterest[0];
+  assert.ok(Math.abs(pt.x - 0.7) < 1e-9 && Math.abs(pt.y - 0.8) < 1e-9, JSON.stringify(pt));
+  // sem pontos de interesse: foco único comum
+  const g = cameraFalsa({ cap: { focusMode: ['continuous', 'single-shot'] } });
+  await g.camera.start(g.video);
+  await g.camera.focar({ x: 0.5, y: 0.5 });
+  assert.equal(g.pedidos.some(q => q.advanced && q.advanced[0].pointsOfInterest), false);
+});
+
+test('X13 · lentes: lista as traseiras e troca pela escolhida; lente que não abre lança (sem cair calada na padrão); lente guardada que sumiu, ao abrir, cai na padrão', async () => {
+  const dispositivos = [{ kind: 'videoinput', deviceId: 'a', label: 'camera2 0, facing back' }, { kind: 'videoinput', deviceId: 'b', label: 'camera2 2, facing back' }, { kind: 'videoinput', deviceId: 'c', label: 'camera2 1, facing front' }, { kind: 'audioinput', deviceId: 'm', label: 'mic' }];
+  const f = cameraFalsa({ dispositivos });
+  await f.camera.start(f.video);
+  assert.deepEqual((await f.camera.lentes()).map(l => l.id), ['a', 'b']);
+  await f.camera.trocarLente('b');
+  assert.deepEqual(f.abertas.at(-1).deviceId, { exact: 'b' });
+  assert.equal(f.camera.info().lente, 'b');
+  await assert.rejects(() => f.camera.trocarLente('sumiu'));
+  assert.ok(f.abertas.every(a => !(a.facingMode && f.abertas.indexOf(a) > 1)), 'nenhuma abertura pela câmera padrão depois da troca que falhou');
+  const g = cameraFalsa({ dispositivos });
+  await g.camera.start(g.video, { lente: 'sumiu' });
+  assert.equal(g.abertas.at(-1).facingMode, 'environment', 'sem a lente guardada, abre a traseira padrão');
+});
+
+test('X13 · cronômetro: mede da primeira leitura do nome até o aceite, e desde a entrada só quando o quadro estava vazio', () => {
+  let t = 1000; const c = X.criaCronometro({ agora: () => t });
+  c.quadro(false);
+  t = 1100; c.quadro(true, 1100); c.leitura(null, 1100);          // carta entrou, leitura sem nome
+  t = 1400; c.quadro(true, 1400); c.leitura('Sol Ring', 1400);    // primeira leitura com o nome
+  t = 1600; c.quadro(false);                                      // uma passada borrada no meio não é "saiu do quadro"
+  t = 1800; c.quadro(true, 1800); c.leitura('Sol Ring', 1800);    // segunda: o porteiro aceita em 2000
+  t = 2000;
+  assert.deepEqual(JSON.parse(JSON.stringify(c.aceite('Sol Ring'))), { nome: 'Sol Ring', confirmacao: 600, desdeEntrada: 900 });
+  // a próxima carta entra sem o quadro esvaziar (pilha na mão): "desde a entrada" incluiria a mão da pessoa, então não vale
+  t = 2500; c.quadro(true, 2500); c.leitura('Island', 2500);
+  t = 2900;
+  assert.deepEqual(JSON.parse(JSON.stringify(c.aceite('Island'))), { nome: 'Island', confirmacao: 400, desdeEntrada: null });
+  // carta já aceita e parada: a tela manda leitura(null), e o tempo dela não entra em medida nenhuma
+  t = 3000; c.quadro(true, 3000); c.leitura(null, 3000);
+  // quadro vazio de verdade (duas passadas) e carta nova; nome que muda no meio zera a confirmação
+  t = 6000; c.quadro(false); c.quadro(false); c.quadro(true, 6000); c.leitura('Counterspell', 6000); t = 6200; c.leitura('Ponder', 6200); t = 6300;
+  assert.deepEqual(JSON.parse(JSON.stringify(c.aceite('Ponder'))), { nome: 'Ponder', confirmacao: 100, desdeEntrada: 300 });
+  assert.deepEqual(JSON.parse(JSON.stringify(c.resumo())), { n: 3, confirmacao: 400, desdeEntrada: 300, nEntrada: 2 });
+  assert.equal(X.criaCronometro().resumo().n, 0);
+});
+
+test('X13 · diário: a linha copiada traz o tempo por etapa e o tempo até aceitar', () => {
+  const d = X.criaDiario({ agora: () => 0 });
+  d.anota({ via: 'carta', texto: 'Sol Ring', melhor: { name: 'Sol Ring', score: 1 }, ms: 210, decisao: 'Sol Ring +1', tempos: { det: 12, prep: 30, ocr: 160, casa: 8 }, ateAceitar: 640 });
+  const txt = d.texto({ aparelho: 'x' });
+  assert.match(txt, /carta · 210 ms \[det 12 · prep 30 · ocr 160 · casa 8\]/); assert.match(txt, /até aceitar 640 ms/);
+});
