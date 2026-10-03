@@ -5,7 +5,10 @@ import { loadModules } from './_load.mjs';
 const { platform: F2, pwa: W1, components: F5 } = loadModules();
 
 test('leva 123 · vibração faz parte do contrato da plataforma e nunca lança', () => {
-  assert.deepEqual(JSON.parse(JSON.stringify(F2.PLATFORM_CONTRACT.haptics)), ['vibrate']);
+  // D2 · a vibração ganhou liga/desliga (Ajustes › Aparência): o contrato cresceu de propósito
+  assert.deepEqual(JSON.parse(JSON.stringify(F2.PLATFORM_CONTRACT.haptics)), ['vibrate', 'ligar', 'ligada']);
+  const h = F2.webHaptics({ vibrate: () => true }); assert.equal(h.ligada(), true); assert.equal(h.vibrate(5), true);
+  assert.equal(h.ligar(false), false); assert.equal(h.vibrate(5), false, 'desligada, não vibra nem chama o aparelho'); h.ligar(true); assert.equal(h.vibrate(5), true);
   const chamadas = [];
   const p = F2.createPlatform({ window: {}, indexedDB: null, document: null, navigator: { vibrate: ms => { chamadas.push(ms); return true; } } });
   assert.equal(p.haptics.vibrate(12), true); assert.deepEqual(chamadas, [12]);

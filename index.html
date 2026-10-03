@@ -216,6 +216,25 @@
   }
 }
 
+/* ---------------- D2 · acento escolhido (Ajustes › Aparência) ----------------
+   Latão é o padrão (os tokens acima). Cada acento define o quarteto de acento nos dois temas, com AA sobre o fundo
+   e sobre a superfície e com o texto do botão legível sobre ele (conferido no contrato visual). As amostras
+   (`--acento-*`) desenham os botões de escolha. */
+:root {
+  --acento-latao: #cfa851; --acento-cobre: #d9925f; --acento-prata: #c9c9c1; --acento-jade: #7fc9a4;
+}
+:root[data-theme="light"] {
+  --acento-latao: #7a5a17; --acento-cobre: #7f441c; --acento-prata: #555a61; --acento-jade: #1b6547;
+}
+:root[data-acento="cobre"] { --accent: #d9925f; --accent-hover: #e6a677; --accent-fg: #18120a; --accent-soft: rgba(217, 146, 95, .16); }
+:root[data-acento="prata"] { --accent: #c9c9c1; --accent-hover: #dcdcd4; --accent-fg: #18120a; --accent-soft: rgba(201, 201, 193, .16); }
+:root[data-acento="jade"] { --accent: #7fc9a4; --accent-hover: #9adcbb; --accent-fg: #18120a; --accent-soft: rgba(127, 201, 164, .16); }
+:root[data-theme="light"][data-acento="cobre"] { --accent: #7f441c; --accent-hover: #6b3917; --accent-fg: #fdf8ea; --accent-soft: rgba(127, 68, 28, .15); }
+:root[data-theme="light"][data-acento="prata"] { --accent: #555a61; --accent-hover: #474b52; --accent-fg: #fdf8ea; --accent-soft: rgba(85, 90, 97, .15); }
+:root[data-theme="light"][data-acento="jade"] { --accent: #1b6547; --accent-hover: #175539; --accent-fg: #fdf8ea; --accent-soft: rgba(27, 101, 71, .15); }
+/* D2 · menos movimento por escolha (além do que o sistema pede): tudo instantâneo */
+:root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+
 /* =====================================================================
    F5 · BASE + COMPONENTES
    Toda propriedade visual sai de token. Nenhum literal de cor aqui.
@@ -403,6 +422,13 @@ a { color: var(--accent); }
 .perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }
 .perfil-foto { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
 .perfil-conta__quem { align-items: center; gap: var(--space-3); }
+/* D2 · amostra de cor nos botões de acento */
+.aparencia__cor { width: 14px; height: 14px; border-radius: var(--radius-full); flex: none; border: 1px solid var(--border-strong); }
+.aparencia__cor[data-acento="latao"] { background: var(--acento-latao); }
+.aparencia__cor[data-acento="cobre"] { background: var(--acento-cobre); }
+.aparencia__cor[data-acento="prata"] { background: var(--acento-prata); }
+.aparencia__cor[data-acento="jade"] { background: var(--acento-jade); }
+.ds-chip .aparencia__cor { margin-right: var(--space-1); }
 /* leva 133 · partida online */
 .online-sala__linha { align-items: center; gap: var(--space-2); }
 .online-sala__codigo { font-family: var(--font-display); font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: .08em; color: var(--accent); user-select: all; }
@@ -1355,7 +1381,7 @@ const __m0 = (function () {
 /** Contrato que todo adaptador precisa cumprir. Verificado nos testes. */
 const PLATFORM_CONTRACT = {
   store: ['get', 'set', 'remove', 'keys'],
-  haptics: ['vibrate'],
+  haptics: ['vibrate', 'ligar', 'ligada'],
   camera: ['available', 'start', 'capture', 'stop'],
   files: ['save', 'readText'],
   share: ['available', 'text', 'copy'],
@@ -1365,9 +1391,12 @@ const PLATFORM_CONTRACT = {
 /* ---------------- leva 123 · Vibração ----------------
    Retorno tátil curto (toque duplo, espiar, carta lida). Nunca lança; sem suporte, não faz nada. */
 function webHaptics(nav) {
+  let ligado = true; // D2 · a pessoa pode desligar em Ajustes › Aparência
   return {
-    /** Vibra por `ms` milissegundos. Devolve true quando o aparelho aceitou o pedido. */
-    vibrate(ms) { try { return !!(nav && typeof nav.vibrate === 'function' && nav.vibrate(ms)); } catch (e) { return false; } }
+    /** Vibra por `ms` milissegundos. Devolve true quando o aparelho aceitou o pedido (e a vibração está ligada). */
+    vibrate(ms) { if (!ligado) return false; try { return !!(nav && typeof nav.vibrate === 'function' && nav.vibrate(ms)); } catch (e) { return false; } },
+    ligar(sim) { ligado = !!sim; return ligado; },
+    ligada() { return ligado; }
   };
 }
 /** Instância padrão para módulos que não recebem a plataforma (gestos, mesa, scanner). */
@@ -1729,7 +1758,7 @@ const doSistema = (win = typeof window !== 'undefined' ? window : null) =>
 /** Resolve o valor guardado: "auto" (versões antigas) e lixo viram o tema do sistema. */
 const resolve = (saved, win) => THEMES.some(t => t.id === saved) ? saved : doSistema(win);
 
-function createTheme(store, win, doc = (typeof document !== 'undefined' ? document : {})) {
+function createTheme(store, win, doc = (typeof document !== 'undefined' ? document : {}), opts = {}) {
   let current = 'dark';
   const apply = id => {
     current = resolve(id, win);
@@ -1746,21 +1775,25 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   };
   // D1 · aparência além do tema: escala de texto e densidade, por atributo no <html>, guardadas no aparelho
   const APAR = 'ui.aparencia';
-  let aparencia = { escala: 'media', densidade: 'confortavel' };
-  const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'];
+  let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true };
+  const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'], ACENTOS = ['latao', 'cobre', 'prata', 'jade'], MOVIMENTOS = ['sistema', 'reduzido'];
   const aplicaAparencia = a => {
-    aparencia = { escala: ESCALAS.includes(a && a.escala) ? a.escala : 'media', densidade: DENSIDADES.includes(a && a.densidade) ? a.densidade : 'confortavel' };
+    aparencia = { escala: ESCALAS.includes(a && a.escala) ? a.escala : 'media', densidade: DENSIDADES.includes(a && a.densidade) ? a.densidade : 'confortavel',
+      acento: ACENTOS.includes(a && a.acento) ? a.acento : 'latao', movimento: MOVIMENTOS.includes(a && a.movimento) ? a.movimento : 'sistema', vibracao: !(a && a.vibracao === false) };
     const root = doc.documentElement;
     if (root && root.setAttribute) {
       if (aparencia.escala === 'media') root.removeAttribute('data-escala'); else root.setAttribute('data-escala', aparencia.escala);
       if (aparencia.densidade === 'confortavel') root.removeAttribute('data-densidade'); else root.setAttribute('data-densidade', aparencia.densidade);
+      if (aparencia.acento === 'latao') root.removeAttribute('data-acento'); else root.setAttribute('data-acento', aparencia.acento);
+      if (aparencia.movimento === 'sistema') root.removeAttribute('data-movimento'); else root.setAttribute('data-movimento', aparencia.movimento);
     }
+    if (opts.aoAparencia) opts.aoAparencia({ ...aparencia });
     return aparencia;
   };
   return {
     get current() { return current; },
     get aparencia() { return { ...aparencia }; },
-    ESCALAS, DENSIDADES,
+    ESCALAS, DENSIDADES, ACENTOS, MOVIMENTOS,
     async init() {
       let saved = null; try { saved = await store.get(KEY); } catch (e) {}
       try { aplicaAparencia(await store.get(APAR)); } catch (e) { aplicaAparencia(null); }
@@ -6662,7 +6695,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -6741,6 +6774,29 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null }) {
     finally { st.ocupado = false; paint(); }
   }
 
+  /* ---- D2 · Aparência: tema, acento, densidade, texto, movimento, vibração — aplica na hora e guarda ---- */
+  function secaoAparencia() {
+    if (!theme) return null;
+    const a = theme.aparencia;
+    const muda = patch => theme.setAparencia(patch).then(() => paint());
+    const seg = (rotulo, id, itens, atual, ao) => h('div', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, rotulo),
+      h('div', { class: 'ds-segmentado' + (itens.length >= 4 ? ' ds-segmentado--grade' : ''), role: 'group', 'aria-label': rotulo, id },
+        ...itens.map(([k, nome, icone]) => Chip(nome, { icone, pressed: atual === k, dataset: { [id.replace('aparencia-', '')]: k }, onClick: () => ao(k) }))));
+    const temaAtual = theme.current;
+    return Surface({ class: 'ds-surface--pad', id: 'perfil-aparencia' }, Stack({},
+      Text('Aparência', { size: 'sm', as: 'h2', display: true }),
+      seg('Tema', 'aparencia-tema', [['dark', 'Escuro', 'lua'], ['light', 'Claro', 'sol']], temaAtual, k => { if (k !== theme.current) theme.cycle().then(() => paint()); }),
+      h('div', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Cor de destaque'),
+        h('div', { class: 'ds-segmentado ds-segmentado--grade', role: 'group', 'aria-label': 'Cor de destaque', id: 'aparencia-acento' },
+          ...[['latao', 'Latão'], ['cobre', 'Cobre'], ['prata', 'Prata'], ['jade', 'Jade']].map(([k, nome]) => { const c = Chip(nome, { pressed: a.acento === k, dataset: { acento: k }, onClick: () => muda({ acento: k }) }); c.prepend(h('span', { class: 'aparencia__cor', dataset: { acento: k }, 'aria-hidden': 'true' })); return c; }))),
+      seg('Tamanho do texto', 'aparencia-escala', [['pequena', 'Menor'], ['media', 'Normal'], ['grande', 'Maior']], a.escala, k => muda({ escala: k })),
+      seg('Densidade', 'aparencia-densidade', [['confortavel', 'Confortável'], ['compacta', 'Compacta']], a.densidade, k => muda({ densidade: k })),
+      Row({ class: 'ds-row--wrap' },
+        // os dois alternam a partir do estado atual do tema, não do desenho: dois toques rápidos não se perdem
+        Chip('Menos movimento', { icone: 'pausa', pressed: a.movimento === 'reduzido', dataset: { movimento: '1' }, onClick: () => muda({ movimento: theme.aparencia.movimento === 'reduzido' ? 'sistema' : 'reduzido' }) }),
+        Chip('Vibração', { icone: 'raio', pressed: a.vibracao, dataset: { vibracao: '1' }, onClick: () => muda({ vibracao: !theme.aparencia.vibracao }) })),
+      Text('Vale neste aparelho e vai junto no backup completo.', { size: 'sm', tone: 'muted' })));
+  }
   function paint() {
     if (st.erro) return mount(root, Text('Perfil', { size: '2xl', display: true, as: 'h1' }), Note('Não foi possível ler o perfil guardado neste aparelho.', 'negative'));
     const previa = { nome: st.nome, avatar: st.avatar };
@@ -6760,6 +6816,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null }) {
           Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar }),
           Text(st.nome ? `Na mesa: ${__m28.limpaNome(st.nome)}` : 'Sem nome, a mesa diz "Você".', { size: 'sm', tone: 'muted' })),
         fotoInput)),
+      secaoAparencia(),
       secaoConta(),
       Surface({ class: 'ds-surface--pad' }, Stack({},
         Text('Backup completo', { size: 'sm', as: 'h2', display: true }),
@@ -16802,7 +16859,7 @@ const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
 const { createOfflineKeeper } = __m26;
 const platform = createPlatform();
-const theme = createTheme(platform.store);
+const theme = createTheme(platform.store, undefined, undefined, { aoAparencia: a => { __m0.haptics.ligar(a.vibracao); platform.haptics.ligar(a.vibracao); } });
 const scryfall = createScryfall({});
 const images = createImageCache({ caches: typeof caches !== 'undefined' ? caches : null, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
 const localIndex = createLocalIndex({ store: platform.store });
@@ -16874,7 +16931,7 @@ const ROUTES = [
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics }) },
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];

@@ -390,6 +390,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-t ✅ | Chat na partida online (U15, leva 137) | E49 | 1 | — |
 | 16º-u ✅ | Roadmap completo de design (épico E53 · D1–D12) escrito a partir da auditoria de 13 telas (leva 137); execução sequencial a partir da D1 | D | 12 | capturas do aparelho depois de D2 e D6 |
 | 16º-aa ✅ | D1 fundamentos: escala de texto e densidade por tokens, literais zerados, aviso que não atravessa telas (leva 138) | D | 1 | — |
+| 16º-ac ✅ | D2 Ajustes e Aparência: tema, cor de destaque (4 acentos AA), texto, densidade, movimento, vibração (leva 140) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4195,6 +4196,27 @@ para cada promessa (pixels de campo, contraste, sobreposição, nomes falados).
   `auditaTela` em grande e em compacta, preferência sobrevive à recarga, aviso some ao trocar de tela e o com ação
   fica).
 - **Fora:** a interface de Ajustes (D2); escala por tela.
+
+**D2 · Ajustes e Aparência** ✅ (leva 140, 03/10/2026)
+- **Entregue:** seção **Aparência** na tela Perfil: Tema (Escuro · Claro, segmentado com lua e sol), **Cor de
+  destaque** (Latão · Cobre · Prata · Jade, chips com amostra), Tamanho do texto (Menor · Normal · Maior),
+  Densidade (Confortável · Compacta), Menos movimento e Vibração (chips liga/desliga). Tudo aplica na hora,
+  vale neste aparelho (`ui.aparencia`) e vai no backup completo.
+- **Acentos por token:** `:root[data-acento=…]` redefine o quarteto `--accent/--accent-hover/--accent-fg/
+  --accent-soft` nos dois temas, com AA sobre fundo e superfície e texto do botão legível (contrato visual
+  confere os três acentos novos × dois temas); amostras `--acento-*` por tema. **Menos movimento** por escolha
+  zera animações e transições (`:root[data-movimento="reduzido"]`), além do que o sistema já pede. **Vibração**
+  liga/desliga pela camada de plataforma (`haptics.ligar`), inclusive a instância padrão usada pela mesa,
+  gestos e scanner.
+- **Correção no caminho:** os dois chips de liga/desliga passaram a alternar a partir do estado atual do tema,
+  não do desenho, para dois toques rápidos não se perderem.
+- **Testes:** U (`theme.unit`: acento, movimento e vibração com validação e aviso a quem ouve; `ds.unit`:
+  vibração desligada não chama o aparelho); contrato visual (AA dos acentos, amostras nos dois temas); e2e "D2"
+  (cada controle muda o `<html>` e o app na hora — o primário fica com o acento novo —, persiste após recarga, a
+  vibração desligada não vibra, o backup leva a aparência; `auditaTela` em escuro padrão, jade+grande+compacta e
+  claro). Expectativas da D1 e da leva 123 estendidas com o motivo no teste (aparência com cinco campos; contrato
+  da vibração com liga/desliga).
+- **Fora:** acento por tela; cor do oponente (D7); nome "Ajustes" como tela própria (fica em Perfil até D5).
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.

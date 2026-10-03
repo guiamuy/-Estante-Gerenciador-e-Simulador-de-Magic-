@@ -58,12 +58,13 @@ test('D1 · escala e densidade: atributos no <html>, valores inválidos caem no 
   const doc = { documentElement: d.root, querySelectorAll: () => [] };
   const th = T.createTheme(store, janela('dark'), doc);
   await th.init();
-  assert.deepEqual(JSON.parse(JSON.stringify(th.aparencia)), { escala: 'media', densidade: 'confortavel' });
+  // D2 · a aparência ganhou acento, movimento e vibração (expectativa estendida de propósito)
+  assert.deepEqual(JSON.parse(JSON.stringify(th.aparencia)), { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true });
   assert.equal('data-escala' in d.root.attrs, false, 'padrão não marca o <html>');
   await th.setAparencia({ escala: 'grande' });
   assert.equal(d.root.attrs['data-escala'], 'grande'); assert.equal('data-densidade' in d.root.attrs, false);
   await th.setAparencia({ densidade: 'compacta' });
-  assert.deepEqual(JSON.parse(JSON.stringify(await store.get('ui.aparencia'))), { escala: 'grande', densidade: 'compacta' });
+  assert.deepEqual(JSON.parse(JSON.stringify(await store.get('ui.aparencia'))), { escala: 'grande', densidade: 'compacta', acento: 'latao', movimento: 'sistema', vibracao: true });
   await th.setAparencia({ escala: 'enorme' });
   assert.equal('data-escala' in d.root.attrs, false, 'valor desconhecido volta ao padrão');
   assert.equal(d.root.attrs['data-densidade'], 'compacta');
@@ -71,4 +72,18 @@ test('D1 · escala e densidade: atributos no <html>, valores inválidos caem no 
   const d2 = documento(); const th2 = T.createTheme(store, janela('dark'), { documentElement: d2.root, querySelectorAll: () => [] });
   await th2.init(); assert.equal(d2.root.attrs['data-densidade'], 'compacta'); assert.equal('data-escala' in d2.root.attrs, false);
   assert.deepEqual(JSON.parse(JSON.stringify([th.ESCALAS, th.DENSIDADES])), [['pequena', 'media', 'grande'], ['confortavel', 'compacta']]);
+});
+
+test('D2 · acento, movimento e vibração: atributos, validação, e quem ouve a aparência recebe a vibração', async () => {
+  const store = P.memoryStore(); const d = documento(); const ouvidas = [];
+  const th = T.createTheme(store, janela('dark'), { documentElement: d.root, querySelectorAll: () => [] }, { aoAparencia: a => ouvidas.push(a.vibracao) });
+  await th.init();
+  assert.deepEqual(JSON.parse(JSON.stringify([th.ACENTOS, th.MOVIMENTOS])), [['latao', 'cobre', 'prata', 'jade'], ['sistema', 'reduzido']]);
+  await th.setAparencia({ acento: 'jade', movimento: 'reduzido', vibracao: false });
+  assert.equal(d.root.attrs['data-acento'], 'jade'); assert.equal(d.root.attrs['data-movimento'], 'reduzido');
+  assert.equal(ouvidas.at(-1), false, 'quem ouve soube que a vibração desligou');
+  await th.setAparencia({ acento: 'neon', movimento: 'nenhum' });
+  assert.equal('data-acento' in d.root.attrs, false, 'acento desconhecido volta ao latão'); assert.equal('data-movimento' in d.root.attrs, false);
+  assert.equal(th.aparencia.vibracao, false, 'o que não veio no patch não muda');
+  await th.setAparencia({ vibracao: true }); assert.equal(ouvidas.at(-1), true);
 });

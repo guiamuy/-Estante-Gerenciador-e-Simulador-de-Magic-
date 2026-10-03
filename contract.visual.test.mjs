@@ -205,3 +205,22 @@ test('D1 · escala de texto e densidade são tokens multiplicadores aplicados po
   assert.match(css, /:root\[data-escala="grande"\] \{ --escala-texto: 1\.12; \}/);
   assert.match(css, /:root\[data-densidade="compacta"\] \{ --densidade: \.85; \}/);
 });
+
+/* ---------------- D2 · acentos: AA nos dois temas ---------------- */
+test('D2 · cada acento (latão, cobre, prata, jade) tem AA sobre o fundo e a superfície, e o texto do botão legível sobre ele, nos dois temas', () => {
+  const bloco = sel => { const i = css.indexOf(sel); assert.ok(i >= 0, sel); return vars(css.slice(i, css.indexOf('}', i))); };
+  for (const acento of ['cobre', 'prata', 'jade']) {
+    const escuro = { ...DARK, ...bloco(`:root[data-acento="${acento}"] {`) };
+    const claro = { ...LIGHT, ...bloco(`:root[data-theme="light"][data-acento="${acento}"] {`) };
+    for (const [nome, t] of [['escuro', escuro], ['claro', claro]]) {
+      for (const bg of ['--bg', '--bg-elev-1']) assert.ok(ratio(t['--accent'], t[bg]) >= 4.5, `${acento} ${nome}: acento sobre ${bg} = ${ratio(t['--accent'], t[bg]).toFixed(2)}`);
+      assert.ok(ratio(t['--accent-fg'], t['--accent']) >= 4.5, `${acento} ${nome}: texto sobre o acento`);
+      assert.ok(ratio(t['--accent-hover'], t['--bg']) >= 4.5, `${acento} ${nome}: hover sobre o fundo`);
+    }
+  }
+  // as amostras existem nos dois temas e a de latão é o acento padrão
+  assert.equal(DARK['--acento-latao'] || bloco(':root {\n  --acento-latao')['--acento-latao'], undefined === DARK['--acento-latao'] ? bloco(':root {\n  --acento-latao')['--acento-latao'] : DARK['--acento-latao']);
+  const amostrasEscuro = bloco(':root {\n  --acento-latao'), amostrasClaro = bloco(':root[data-theme="light"] {\n  --acento-latao');
+  assert.equal(amostrasEscuro['--acento-latao'], DARK['--accent']); assert.equal(amostrasClaro['--acento-latao'], LIGHT['--accent']);
+  for (const k of ['cobre', 'prata', 'jade']) { assert.ok(amostrasEscuro['--acento-' + k]); assert.ok(amostrasClaro['--acento-' + k]); }
+});

@@ -5369,3 +5369,55 @@ test('e2e · D1 escala grande e densidade compacta mudam a mesa inteira pelos to
   assert.equal(await page.getAttribute('#ds-toast', 'data-open'), 'true', 'o aviso com ação continua');
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- D2 · Ajustes › Aparência no Perfil ---------------- */
+test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e vibração mudam na hora, persistem e cabem em 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-aparencia');
+  const html = () => page.evaluate(() => ['data-theme', 'data-acento', 'data-escala', 'data-densidade', 'data-movimento'].map(a => document.documentElement.getAttribute(a)));
+  const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  assert.deepEqual((await html()).slice(1), [null, null, null, null]); // o tema inicial vem do sistema; os demais, padrão
+  await page.click('#perfil-aparencia [data-tema="dark"]'); await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark');
+  const latao = await accent();
+  await auditaTela(page, 'aparência (escuro, padrão)');
+  // cor de destaque: o chip muda o acento do app inteiro na hora (botão primário, barra)
+  await page.click('#aparencia-acento [data-acento="jade"]'); await page.waitForFunction(() => document.documentElement.getAttribute('data-acento') === 'jade');
+  const jade = await accent(); assert.notEqual(jade, latao);
+  await page.waitForTimeout(150);
+  const corDoPrimario = await page.evaluate(() => getComputedStyle(document.querySelector('#perfil-salvar')).borderTopColor);
+  const corDoAcento = await page.evaluate(() => { const s = document.createElement('span'); s.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent'); document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; });
+  assert.equal(corDoPrimario, corDoAcento, 'o primário usa o acento novo');
+  assert.equal(await page.getAttribute('#aparencia-acento [data-acento="jade"]', 'aria-pressed'), 'true');
+  // texto maior, compacta, menos movimento, vibração desligada
+  const toca = async (sel, pronto) => { await page.click(sel); await page.waitForFunction(pronto, null, { timeout: 5000 }); };
+  await toca('#perfil-aparencia [data-escala="grande"]', () => document.documentElement.getAttribute('data-escala') === 'grande' && document.querySelector('#perfil-aparencia [data-escala="grande"]').getAttribute('aria-pressed') === 'true');
+  await toca('#perfil-aparencia [data-densidade="compacta"]', () => document.querySelector('#perfil-aparencia [data-densidade="compacta"]').getAttribute('aria-pressed') === 'true');
+  await toca('#perfil-aparencia [data-movimento]', () => document.querySelector('#perfil-aparencia [data-movimento]').getAttribute('aria-pressed') === 'true');
+  await toca('#perfil-aparencia [data-vibracao]', () => document.querySelector('#perfil-aparencia [data-vibracao]').getAttribute('aria-pressed') === 'false');
+  assert.deepEqual(await html(), ['dark', 'jade', 'grande', 'compacta', 'reduzido']);
+  assert.equal(await page.evaluate(() => __m0.haptics.vibrate(5)), false, 'vibração desligada: a instância padrão não vibra');
+  assert.equal(await page.getAttribute('#perfil-aparencia [data-vibracao]', 'aria-pressed'), 'false');
+  await auditaTela(page, 'aparência (jade, grande, compacta)');
+  // tema pelo segmentado, e tudo persiste depois de recarregar
+  await page.click('#perfil-aparencia [data-tema="light"]'); await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light');
+  await auditaTela(page, 'aparência (claro, jade)');
+  await page.reload(); await page.waitForSelector('#perfil-aparencia');
+  assert.deepEqual(await html(), ['light', 'jade', 'grande', 'compacta', 'reduzido']);
+  assert.equal(await page.evaluate(() => __m0.haptics.ligada()), false, 'a vibração continua desligada depois de recarregar');
+  // o backup completo leva a aparência
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#perfil-backup-export')]);
+  const dados = JSON.parse(await (await download.createReadStream()).toArray().then(p => Buffer.concat(p).toString('utf8')));
+  assert.deepEqual(dados.prefs['ui.aparencia'], { escala: 'grande', densidade: 'compacta', acento: 'jade', movimento: 'reduzido', vibracao: false });
+  // de volta ao padrão
+  const toque = async (sel, pronto) => { await page.click(sel); await page.waitForFunction(pronto, null, { timeout: 5000 }); };
+  await toque('#aparencia-acento [data-acento="latao"]', () => !document.documentElement.getAttribute('data-acento'));
+  await toque('#perfil-aparencia [data-escala="media"]', () => !document.documentElement.getAttribute('data-escala'));
+  await toque('#perfil-aparencia [data-densidade="confortavel"]', () => !document.documentElement.getAttribute('data-densidade'));
+  await toque('#perfil-aparencia [data-movimento]', () => !document.documentElement.getAttribute('data-movimento') && document.querySelector('#perfil-aparencia [data-movimento]').getAttribute('aria-pressed') === 'false');
+  await toque('#perfil-aparencia [data-vibracao]', () => document.querySelector('#perfil-aparencia [data-vibracao]').getAttribute('aria-pressed') === 'true');
+  await toque('#perfil-aparencia [data-tema="dark"]', () => document.documentElement.getAttribute('data-theme') === 'dark');
+  assert.deepEqual(await html(), ['dark', null, null, null, null]);
+  assert.deepEqual(errors, []);
+});
