@@ -150,7 +150,7 @@ test('U11 · v1 e v2 só diferem por critério: a avaliação v2 é determiníst
   assert.deepEqual(B.avaliaV2(s, 0), B.avaliaV2(s, 0));
   const t = JSON.parse(JSON.stringify(s)); t.players[1].lost = true; t.status = 'over'; t.winner = 0;
   assert.equal(B.avaliaV2(t, 0).parcelas.vitoria, B.PESOS.vitoria);
-  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1'); assert.equal(B.criaBot({ nivel: 'shark-v2' }).nivel, 'shark-v2'); assert.equal(B.criaBot({ nivel: 'shark-v3' }).nivel, 'shark-v3'); assert.equal(B.criaBot({ nivel: 'shark-v4' }).nivel, 'shark-v4');
+  assert.equal(B.criaBot({ nivel: 'shark' }).nivel, 'shark'); assert.equal(B.criaBot({ nivel: 'shark-v1' }).nivel, 'shark-v1'); assert.equal(B.criaBot({ nivel: 'shark-v2' }).nivel, 'shark-v2'); assert.equal(B.criaBot({ nivel: 'shark-v3' }).nivel, 'shark-v3'); assert.equal(B.criaBot({ nivel: 'shark-v4' }).nivel, 'shark-v4'); assert.equal(B.criaBot({ nivel: 'shark-v5' }).nivel, 'shark-v5');
 });
 
 // Leva 115 · o Shark atual (v3) contra o v2 congelado. Medido em 01/10/2026: 57% em 160 partidas com estes decks de
@@ -165,6 +165,10 @@ test('U11 · v1 e v2 só diferem por critério: a avaliação v2 é determiníst
 // Medido em 02/10/2026, sete listas Pauper, 224 partidas: atual × v4 = 57% em 221 decididas (125–96), na borda da
 // margem de ±7. Peças isoladas ficaram no ruído: manutenção+terreno 49%; pilha 52%; o plano de duas jogadas (50%,
 // e mais lento) foi retirado.
+// Leva 119 · usar os recursos (permanente entra com a mana que ia sobrar, descarte pela carta que menos faz falta),
+// correção do toque de terreno à toa (regressão da 118) e relógio na leitura das respostas. O v5 fica congelado
+// ('shark-v5'). Medido em 02/10/2026, sete listas Pauper, 448 partidas em duas fatias: atual × v5 = 54% em 443
+// decididas (238–205; fatias 59% e 49%), dentro da margem de ±5: ganho de força NÃO demonstrado.
 test('Leva 115/117 · o Shark atual ganha do Shark v2 em mais da metade das partidas decididas, sem ação ilegal e rápido', () => {
   const partidas = 60;
   const r = serie({ nivelForte: 'shark', nivelFraco: 'shark-v2', partidas, base: 9000, misto: true });

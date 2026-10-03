@@ -2,7 +2,7 @@
 // Uso: node torneio.listas.mjs <forte> <fraco> <rodadas> <semente>   ex.: node torneio.listas.mjs shark shark-v2 4 20000
 // Cada confronto entre as sete listas é jogado nos dois lados e nos dois assentos. Os dados das cartas vêm de
 // .listas/oficiais.json (texto oficial); cor, valor de mana e palavras-chave são derivados do texto.
-// Níveis: 'shark' (atual; 'shark:N' muda o número de mundos), 'shark-v4' (informação justa, congelado), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
+// Níveis: 'shark' (atual; 'shark:N' muda o número de mundos), 'shark-v5' e 'shark-v4' (congelados), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
 import { readFileSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
 const { engine: E, bot: B, starter: ST, decks: D } = loadModules();
@@ -59,21 +59,24 @@ function partida(seed, n0, n1, d0, d1, max = 1500) {
 if (process.argv[1] && process.argv[1].endsWith('torneio.listas.mjs')) {
 const [forte, fraco, rodadas, base] = [process.argv[2] || 'shark', process.argv[3] || 'shark-v2', +(process.argv[4] || 2), +(process.argv[5] || 100)];
 const porLista = {}; // leva 118 · vitórias e derrotas do forte por lista que ele pilotou
-let F = 0, R = 0, sem = 0, pior = 0; const ilegais = []; let k = 0;
+let F = 0, R = 0, sem = 0, pior = 0, jogadas = 0; const ilegais = []; let k = 0;
 const t0 = Date.now();
+const FATIA = process.env.FATIA ? process.env.FATIA.split('/').map(Number) : null;
 for (let a = 0; a < listas.length; a++) for (let b = a; b < listas.length; b++) for (let r = 0; r < rodadas; r++) for (const troca of [0, 1]) {
+  // leva 119 · FATIA=i/n joga só uma fatia das partidas (para dividir o torneio entre os núcleos da máquina)
+  if (FATIA && (k % FATIA[1]) !== FATIA[0]) { k++; continue; }
   // os dois lados de cada confronto e os dois assentos
   const fd = troca ? listas[b] : listas[a], rd = troca ? listas[a] : listas[b];
   const forteP0 = (r + troca) % 2 === 0;
   const g = partida(base + (k++) * 17, forteP0 ? forte : fraco, forteP0 ? fraco : forte, forteP0 ? fd : rd, forteP0 ? rd : fd);
   pior = Math.max(pior, g.pior);
   if (g.ilegal) ilegais.push(`${fd.name} × ${rd.name}: ${g.ilegal}`);
-  if (g.v == null) { sem++; continue; }
+  jogadas++; if (g.v == null) { sem++; continue; }
   const ganhou = (g.v === 0) === forteP0;
   if (ganhou) F++; else R++;
   const pd = (porLista[fd.name] = porLista[fd.name] || [0, 0]); pd[ganhou ? 0 : 1]++;
 }
-console.log(`${forte} × ${fraco} (listas Pauper): ${F}–${R} em ${F + R} decididas de ${k} · ${(100 * F / Math.max(1, F + R)).toFixed(0)}% · sem decisão ${sem} · pior jogada ${pior} ms · ${Math.round((Date.now() - t0) / 1000)} s`);
+console.log(`${forte} × ${fraco} (listas Pauper): ${F}–${R} em ${F + R} decididas de ${jogadas} · ${(100 * F / Math.max(1, F + R)).toFixed(0)}% · sem decisão ${sem} · pior jogada ${pior} ms · ${Math.round((Date.now() - t0) / 1000)} s`);
 console.log('por lista do forte: ' + Object.entries(porLista).map(([n, [v, d]]) => `${n.replace('Pauper ', '')} ${v}–${d}`).join(' · '));
 console.log('ilegais', ilegais.length, [...new Set(ilegais.map(x => x.split(': ').slice(1).join(': ')))].slice(0, 8));
 }

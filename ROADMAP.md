@@ -352,7 +352,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-g 🟡 | Scanner por contorno e linha do nome, medido em fotos reais (leva 116) | E39 | 1 | teste no aparelho; fotos do próprio usuário (X10) |
 | 16º-h ✅ | Shark com informação justa: decide sem ver a mão do oponente (leva 117) | B8 | 1 | — |
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
-| 16º-j | Shark profissional: B9, B10 e B12 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
+| 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
+| 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2423,6 +2424,27 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
+
+**B17 · Usar os recursos** 🟡 (leva 119, 02/10/2026) — parte entregue; "guardar a resposta para a ameaça certa" depende da B9.
+- **Erros de jogo eliminados** (partida narrada Mono Blue Faeries × Boros Bully):
+  - ficava a partida inteira com permanente barata na mão e mana parada → permanente que só custa sair da mão entra
+    na segunda fase principal; a que tem lampejo entra no passo final do oponente;
+  - descartava a anulação tendo terreno sobrando → o descarte escolhe a carta que menos faz falta;
+  - **regressão da leva 118**: virava terrenos à toa quando o oponente conjurava (a nota de passar era medida depois
+    da pilha e a de virar terreno, antes) → virar terreno por conta própria deixou de ser candidata e toda jogada é
+    medida depois da pilha;
+  - decisão de vários segundos em mesa grande → a leitura das respostas do oponente passou a respeitar o relógio.
+- **Medição (sete listas Pauper, 448 partidas em duas fatias, contra o `shark-v5` congelado):** **54% em 443 decididas
+  (238–205)**, dentro da margem de ±5. As fatias deram 59% e 49%. **Ganho de força não demonstrado.** Fica pelo que
+  corrige na mesa, não por força. Medido antes do limite de relógio entrar.
+- **Tempo (cinco partidas, sem concorrência, orçamento de 250 ms):** p50 15 ms, p95 271 ms, p99 343 ms, pior 557 ms.
+  O v5 passava de 700 ms em 29 decisões das mesmas partidas; no torneio houve decisão de 12,9 s.
+- **Erros vistos nas partidas narradas e ainda abertos:** Bogles segura auras e bloqueia com a criatura encantada;
+  recusa o "compre e descarte" opcional; ataca com tudo estando para morrer no contra-ataque de voadoras; baixa a
+  permanente só na segunda fase principal, mesmo quando ela ajudaria no combate.
+- **Ferramenta:** `FATIA=i/n node torneio.listas.mjs ...` divide o torneio entre os núcleos.
+- **Testes:** U (toque de terreno com o v5 errando, mana sobrando no meu turno e no passo final do oponente, descarte).
+- **Depende de:** B11.
 
 ### C · Coleção
 

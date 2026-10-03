@@ -724,3 +724,59 @@ test('Leva 118 · passar com a pilha cheia vale o que a pilha resolve: o Shark n
   assert.equal(shark('shark-v4').jogada(s, 0).acao.t, 'activate', 'v4: sacrificava a ficha — a nota de usar a habilidade incluía a Chrysalis resolvendo, a de passar não');
   assert.equal(shark('shark').jogada(s, 0).acao.t, 'pass');
 });
+
+// Leva 119 · usar os recursos. Posições da partida narrada Mono Blue Faeries × Boros Bully (02/10/2026): o Shark
+// ficou a partida inteira com duas Sewer-veillance Cam na mão e seis Ilhas paradas, descartou Counterspell tendo
+// terreno sobrando e (regressão da leva 118) virava Ilhas à toa quando o oponente conjurava.
+/** Mesa entre duas listas reais, com mão e campo dos dois montados à mão. `ativo` é de quem é o turno; a prioridade é de `vez`. */
+async function monta(a, b, { ativo = 0, vez = 0, passo = 'main1', p0 = {}, p1 = {} }) {
+  let s = await partidaReal(a, b, 9);
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); const ids = [{}, {}];
+  [p0, p1].forEach((cfg, p) => {
+    const z = s.zones[p];
+    for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
+    const tira = (nome, para) => { const oid = z.library.find(o => s.objects[o].name === nome); assert.ok(oid, 'a lista tem ' + nome);
+      z.library.splice(z.library.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false }); return oid; };
+    for (const n of cfg.campo || []) ids[p][n] = tira(n, 'battlefield');
+    for (const n of cfg.mao || []) ids[p][n] = tira(n, 'hand');
+    s.players[p].landPlayed = p === ativo;
+  });
+  Object.assign(s.turn, { active: ativo, priority: vez, step: passo });
+  s.stack = []; s.pending = null;
+  return { s, ids };
+}
+const ILHAS = n => Array(n).fill('Island');
+
+test('Leva 119 · o Shark não vira terreno à toa quando o oponente conjura (regressão da leva 118, presente no v5)', async () => {
+  let { s, ids } = await monta(0, 3, { ativo: 1, vez: 1, p0: { campo: ILHAS(2), mao: ['Island'] }, p1: { campo: ['Plains'], mao: ['Thraben Inspector'] } });
+  s.players[1].landPlayed = true;
+  s = act(s, E.legalActions(s, 1).find(a => a.t === 'cast' && a.oid === ids[1]['Thraben Inspector']));
+  if (s.turn.priority === 1) s = act(s, { t: 'pass', p: 1 });
+  assert.equal(s.stack.length, 1); assert.equal(s.turn.priority, 0, 'a vez de responder é do Shark');
+  assert.equal(shark('shark-v5').jogada(s, 0).acao.t, 'tap_mana', 'v5: virava a Ilha e perdia a mana');
+  assert.equal(shark('shark').jogada(s, 0).acao.t, 'pass');
+});
+
+test('Leva 119 · mana sobrando: a permanente que só custa sair da mão entra na segunda fase principal, e a com lampejo no passo final do oponente', async () => {
+  const meu = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main2', p0: { campo: ILHAS(3), mao: ['Sewer-veillance Cam'] } });
+  assert.equal(shark('shark-v5').jogada(meu.s, 0).acao.t, 'pass', 'v5: a carta ficava na mão a partida inteira');
+  const j = shark('shark').jogada(meu.s, 0);
+  assert.deepEqual([j.acao.t, j.acao.oid], ['cast', meu.ids[0]['Sewer-veillance Cam']]);
+  assert.match(j.motivo, /a mana ia sobrar/);
+  const dele = await monta(0, 3, { ativo: 1, vez: 0, passo: 'end', p0: { campo: ILHAS(3), mao: ['Sewer-veillance Cam'] } });
+  const k = shark('shark').jogada(dele.s, 0);
+  assert.deepEqual([k.acao.t, k.acao.oid], ['cast', dele.ids[0]['Sewer-veillance Cam']], 'lampejo: entra no fim do turno do oponente, com a mana que sobrou');
+  // no meio do turno do oponente ele ainda guarda a mana
+  const antes = J(dele.s); antes.turn.step = 'main1';
+  assert.equal(shark('shark').jogada(antes, 0).acao.t, 'pass');
+});
+
+test('Leva 119 · descarte: com terreno sobrando, vai o terreno, não a anulação', async () => {
+  const { s, ids } = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main2', p0: { campo: ILHAS(6), mao: ['Counterspell', 'Island'] } });
+  s.pending = { kind: 'discard', p: 0, n: 1, reason: 'effect' };
+  const j = shark('shark').jogada(s, 0);
+  assert.deepEqual([j.acao.t, j.acao.oid], ['discard', ids[0].Island]);
+  assert.equal(B.criaBot({ nivel: 'shark-v5' }).nivel, 'shark-v5');
+});

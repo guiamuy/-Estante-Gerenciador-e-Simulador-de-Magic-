@@ -10097,6 +10097,9 @@ const __m25 = (function () {
    SEQUÊNCIA DO TURNO (leva 118): não gasta mana antes da fase principal do próprio turno; escolhe o terreno pela
    jogada seguinte e pela cor que a mão pede; passar com a pilha cheia vale o que a pilha resolve. 'shark-v4' é o
    Shark de informação justa sem isso, congelado.
+   RECURSOS (leva 119): permanente que só custa sair da mão entra com a mana que ia sobrar (segunda fase principal;
+   com lampejo, no passo final do oponente); descarte pela carta que menos faz falta; não vira terreno por conta
+   própria; a leitura das respostas do oponente respeita o relógio. 'shark-v5' é o Shark da leva 118, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -10395,6 +10398,8 @@ function notaComResposta(s, p, opts = {}) {
   if (!delas.length) return medir(s);
   const barato = [];
   for (const a of delas) {
+    // Leva 119 · mesa grande: a leitura das respostas também respeita o relógio (antes só as candidatas respeitavam)
+    if (opts.limite && barato.length >= 6 && opts.agora() > opts.limite) break;
     const r = simula(s, a);
     if (!r) continue;
     barato.push({ a, n: av(r.estado, p).nota, r });
@@ -10519,9 +10524,24 @@ function coresPagas(s, p) {
   return n;
 }
 
+/** Leva 119 · quanto uma carta da mão faz falta (para escolher o descarte): terreno sobrando vale pouco, mágica
+    que as minhas cores pagam vale mais, e mais ainda se já cabe na mana que tenho. */
+function valorNaMao(s, p, oid) {
+  const o = s.objects[oid]; if (!o) return 0;
+  const f = s.facts[o.name] || {};
+  const terrenos = s.zones[p].battlefield.filter(x => ehTerreno(s, s.objects[x])).length;
+  if ((f.types || []).includes('land')) return terrenos >= 5 ? 0 : terrenos >= 3 ? 2 : 5;
+  const c = f.cost || {};
+  const cmc = (c.generic || 0) + Object.values(c.colored || {}).reduce((a, b) => a + b, 0) + (c.hybrid || []).length;
+  const tenho = new Set();
+  for (const x of s.zones[p].battlefield) for (const m of JSON.stringify([s.facts[s.objects[x].name].produces || [], ((s.facts[s.objects[x].name].script || {}).produces) || []]).match(/"[WUBRG]"/g) || []) tenho.add(m[1]);
+  return 3 + (Object.keys(c.colored || {}).every(k => tenho.has(k)) ? 1 : 0) + (cmc <= terrenos + 1 ? 1 : 0);
+}
+
 /** B4 · jogada do profissional. */
 function jogadaProfissional(s, p, opts = {}) {
   if (s.status !== 'playing' || s.players[p].lost) return null;
+  if (opts.relogio && opts.agora && !opts.limite) opts = { ...opts, limite: opts.agora() + (opts.orcamentoMs || 400) * 2 };
   const pend = s.pending;
   const minhaDecisao = !!(pend && pend.p === p);
   if (minhaDecisao && pend.kind === 'commander_zone') return { acao: { t: 'commander_zone', p, yes: true }, motivo: 'meu comandante volta para a zona de comando' };
@@ -10568,15 +10588,20 @@ function jogadaProfissional(s, p, opts = {}) {
   const ehInstantanea = a => a.t === 'cast' && (s.facts[(s.objects[a.oid] || {}).name] || { types: [] }).types.includes('instant');
   const foraDoCombate = !String(s.turn.step).startsWith('combat');
   const pedagio = a => (s.turn.active === p && foraDoCombate && ehInstantanea(a) ? LIMIAR_RESPOSTA : 0);
-  const candidatas = minhaDecisao ? acoes : acoes.filter(a => a.t !== 'pass');
+  // Leva 119 · virar terreno por conta própria não é jogada: o pagamento é automático ao conjurar. Com a nota de
+  // passar medida depois da pilha (leva 118), virar terreno parecia "ganhar" a diferença e o Shark gastava a mana à toa.
+  const candidatas = minhaDecisao ? acoes : acoes.filter(a => a.t !== 'pass' && !(opts.semToque && a.t === 'tap_mana'));
   if (!candidatas.length) return { acao: { t: 'pass', p }, motivo: motivoDe(s, p, { t: 'pass', p }, 0) };
   const notaNoMundo = (w, a) => {
     const sim = simula(w, a);
     if (!sim) return null;
     // v3: escolha em andamento (pegar cartas, modo, tipo) também é levada até o fim antes de dar a nota
     const emEscolha = opts.desdobra && sim.estado.pending && sim.estado.pending.p === p;
-    const depois = RESOLVE.includes(a.t) || emEscolha ? resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av) : sim.estado;
-    return notaComResposta(depois, p, opts);
+    const pilha = opts.semToque && sim.estado.stack.length > 0; // toda jogada é medida depois da pilha, como o passar
+    const depois = RESOLVE.includes(a.t) || emEscolha || pilha ? resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av) : sim.estado;
+    // Leva 119 · descarte: entre cartas que dão a mesma mesa, vai embora a que menos faz falta
+    const custoDescarte = opts.recursos && a.t === 'discard' && a.oid ? valorNaMao(s, p, a.oid) * 0.5 : 0;
+    return notaComResposta(depois, p, opts) - custoDescarte;
   };
   const r = escolhe(candidatas, a => media(w => notaNoMundo(w, a)) - pedagio(a), opts);
   if (!r.acao) return { acao: { t: 'pass', p }, motivo: 'passei: nenhuma jogada legal serviu' };
@@ -10585,6 +10610,16 @@ function jogadaProfissional(s, p, opts = {}) {
     // Leva 115 · v3: mana parada no fim do turno é desperdício. Na segunda fase principal, com a pilha vazia, ele
     // conjura o que não piora a posição (a compra que troca uma carta por outra, a permanente de efeito lento);
     // instantâneas ficam na mão, para o turno do oponente.
+    // Leva 119 · usar os recursos: carta parada na mão e mana desvirada no fim do turno não fazem nada. Permanente
+    // que só "custa a carta sair da mão" entra em campo na segunda fase principal; e no passo final do oponente,
+    // com a mana que sobrou, entra a permanente com lampejo.
+    if (opts.recursos && !s.stack.length && ((s.turn.active === p && s.turn.step === 'main2') || (s.turn.active !== p && s.turn.step === 'end'))) {
+      const meu = s.turn.active === p;
+      const permanente = a => { const f = s.facts[(s.objects[a.oid] || {}).name] || { types: [] }; return !f.types.includes('instant') && !f.types.includes('sorcery'); };
+      const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a) && (meu || permanente(a)));
+      const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }) - (permanente(a) ? 0 : 3), opts);
+      if (v.acao && v.nota - base >= -4.5) return { acao: v.acao, motivo: `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };
+    } else
     if (opts.valor && s.turn.active === p && s.turn.step === 'main2' && !s.stack.length) {
       const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a));
       const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }), opts);
@@ -10813,12 +10848,13 @@ const NOME_DO_BOT = 'Shark';
 const nivelDaMesa = () => 'profissional';
 /** Bot pronto para jogar. Padrão: o Shark. */
 /** Leva 118 · o que o Shark atual liga além do v4 (cada peça só entra aqui depois de pagar em torneio). */
-const NOVO = { tempo: true, terreno: true, cores: true, basePilha: true };
+const NOVO5 = { tempo: true, terreno: true, cores: true, basePilha: true }; // leva 118, congelado como 'shark-v5'
+const NOVO = { ...NOVO5, semToque: true, recursos: true, relogio: true };
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || !!extraOpts;
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || !!extraOpts;
   const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }
     : { av: avaliaV3, bloqueioForte: true, duplo: true, projeta: true, corrida: true, subconjuntos: true, valor: true, desdobra: true };
@@ -10832,7 +10868,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
       if (!atual || s.status !== 'playing') return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra });
       const sei = atualizaMemoria(vistas, s, p);
       const mundos = []; for (let k = 0; k < (mundosN || MUNDOS); k++) mundos.push(visaoDe(s, p, k, sei));
-      return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...(v4 ? {} : NOVO), ...(extraOpts || {}), mundos });
+      return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...(v4 ? {} : v5 ? NOVO5 : NOVO), ...(extraOpts || {}), mundos });
     }
   };
 }
