@@ -396,7 +396,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ac ✅ | D2 Ajustes e Aparência: tema, cor de destaque (4 acentos AA), texto, densidade, movimento, vibração (leva 140) | D | 1 | — |
 | 16º-ad ✅ | D3 Início que lembra de você: "Olá, Nome", cartão Continuar (partida, última lista, pilha do scanner), painel offline em uma linha (leva 141) | D | 1 | — |
 | 16º-ae ✅ | D4a estados vazios de Listas e Coleção: cartão de primeiro uso com ícone, título, frase, um primário e um secundário; o resto em "Mais" (leva 142) | D | 1 | — |
-| 16º-af ▶ | D4b onboarding de 3 passos na primeira abertura, pulável; vazio de Cartas sai com a base local para Ajustes › Dados (D5) | D | 1 | — |
+| 16º-af ✅ | D4b apresentação de 3 passos na primeira abertura, pulável, uma vez só, "Rever apresentação" no Perfil (leva 145) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4316,12 +4316,27 @@ pilha de avisos e fica com a D8.
   `#decks-new-empty` (o Nova do título não existe na estante vazia). Contrato visual verde.
 - **Fora:** vazios de Cartas (D5) e Scanner (D8); vazio da busca de cartas sem rede já tinha ícone (U4).
 
+**D4b · Apresentação de primeira abertura** ✅ (leva 145, 03/10/2026) — decisão tomada com a opção recomendada:
+na primeira abertura, pulável (não como "Ajuda" escondida).
+- **Entregue:** folha **"Bem-vindo à Estante"** com três passos, um por vez — *Tudo fica no aparelho*
+  (listas e coleção guardadas, sem internet, backup), *Jogue com regras de verdade* (Shark, sozinho ou a dois,
+  motor cuida de turno, pilha e vida), *Do seu jeito* (nome, foto, tema, acento, texto no Perfil) — ícone grande
+  no acento, pontos de progresso com nome falado ("Passo 1 de 3"), **Pular** desde o primeiro passo, **Próximo**,
+  e no último **Abrir perfil** ou **Começar**. Aparece **uma vez só** por aparelho (`ui.apresentacao`); fechar de
+  qualquer jeito (X, Escape, toque fora) conta como vista — a marca é gravada ao abrir, por isso não insiste. O Perfil ganhou
+  **Rever apresentação**. Abre depois de a tela de trás estar pintada, e o foco volta para ela ao fechar.
+- **Testes:** e2e "D4b" (três passos, um primário por passo, Pular visível, `auditaTela`, Começar devolve a tela,
+  não volta ao recarregar, Escape também marca como vista em contexto limpo, Rever no Perfil, Abrir perfil leva ao
+  perfil). O harness `open()` passa a pular a apresentação em todos os testes (gancho `__SEM_APRESENTACAO` no
+  contexto, inclusive nas abas da partida online); só `open(t, { apresentacao: true })` a vê.
+- **Fora:** apresentação por tela (dicas no primeiro uso da mesa ou do scanner); vídeo ou animação; pedir o nome
+  dentro da apresentação (o Perfil está a um toque).
+
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.
 
-**Depende do usuário:** capturas do aparelho depois da D2 e da D6 (as duas que mais mexem na tela que ele usa); a
-decisão de onde entra o onboarding (primeira abertura ou "Ajuda" no Perfil) fica em D4 com opção recomendada
-(primeira abertura, pulável).
+**Depende do usuário:** capturas do aparelho depois da D2 e da D6 (as duas que mais mexem na tela que ele usa). A
+decisão do onboarding foi tomada na D4b com a opção recomendada (primeira abertura, pulável; "Rever" no Perfil).
 
 ### P · Plataforma
 

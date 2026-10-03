@@ -59,7 +59,7 @@ const DB = Object.fromEntries([
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
-async function open(t, { dev = true } = {}) {
+async function open(t, { dev = true, apresentacao = false } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
@@ -71,6 +71,9 @@ async function open(t, { dev = true } = {}) {
   // local verde. O padrão passa a ser o mesmo nos dois lugares: o CDN de imagens fica fora do ar, salvo quando o
   // próprio teste o simula (rota da página, que tem precedência sobre a do contexto).
   await ctx.route(/^https:\/\/[^/]*\bscryfall\.io\//, r => r.abort('internetdisconnected'));
+  // D4b (leva 145) · a apresentação de primeira abertura só aparece no teste que a pede: os outros (e as abas que abrem
+  // a partir do mesmo contexto, como as da partida online) começam direto na tela
+  if (!apresentacao) await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; });
   const page = await ctx.newPage();
   // leva 113: o app publicado só tem o motor completo. Os testes de mesa montam o estado à mão (mover carta, conjurar
   // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
@@ -3134,6 +3137,7 @@ test('e2e · leva 102 mão aberta no 1º turno mesmo com a bandeja recolhida da 
 test('e2e · leva 102 coleção com imagens nítidas e visor da carta: grande, texto embaixo, X no topo, atalho para impressões', { skip }, async t => {
   const { page, errors, base } = await open(t);
   const ctx = await page.context().browser().newContext({ viewport: { width: 360, height: 780 }, deviceScaleFactor: 3, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; }); // D4b · contexto novo: pula a apresentação como o harness faz
   const p3 = await ctx.newPage(); t.after(() => ctx.close());
   const erros3 = []; p3.on('pageerror', e => erros3.push(String(e)));
   const pedidas = [];
@@ -5627,5 +5631,40 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   assert.equal(await page.locator('#col-scan').isVisible(), true); assert.equal(await page.locator('#col-filter').isVisible(), true);
   assert.equal(await page.locator('#col-adicionar .col-acoes #col-import').count(), 1, 'Colar lista voltou para a grade de ações');
   assert.equal(await page.locator('#col-csv-import').evaluate(el => el.classList.contains('ds-btn--ghost')), false);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · D4b apresentação de primeira abertura: três passos com Pular, aparece uma vez só, "Começar" devolve o foco à tela e o Perfil deixa rever', { skip }, async t => {
+  const { page, errors, base } = await open(t, { apresentacao: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#apresentacao[data-passo="1"]');
+  assert.match(await page.innerText('#apresentacao-titulo'), /Tudo fica no aparelho/);
+  assert.equal(await page.getAttribute('.apresentacao__pontos', 'aria-label'), 'Passo 1 de 3');
+  assert.equal(await page.locator('#apresentacao-pular').isVisible(), true, 'dá para pular desde o primeiro passo');
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary').count(), 1, 'um primário por passo');
+  await auditaTela(page, 'apresentação passo 1');
+  await page.click('#apresentacao-proximo'); await page.waitForSelector('#apresentacao[data-passo="2"]');
+  assert.match(await page.innerText('#apresentacao-titulo'), /regras de verdade/);
+  await page.click('#apresentacao-proximo'); await page.waitForSelector('#apresentacao[data-passo="3"]');
+  assert.equal(await page.locator('#apresentacao-pular').count(), 0, 'no último passo, Começar e Abrir perfil');
+  assert.equal(await page.locator('#apresentacao-perfil').isVisible(), true);
+  await page.click('#apresentacao-comecar'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
+  assert.equal(await page.locator('#home-atalhos').isVisible(), true);
+  // uma vez só: recarregar não mostra de novo
+  await page.reload(); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(600);
+  assert.equal(await page.locator('#ds-overlay[data-open="true"]').count(), 0, 'não volta na segunda abertura');
+  assert.equal(await page.locator('#apresentacao').count(), 0);
+  // Pular também marca como vista (em outro contexto limpo)
+  const B = await page.context().browser().newContext({ viewport: { width: 360, height: 780 }, serviceWorkers: 'block' });
+  const p2 = await B.newPage(); await p2.goto(base + '#/listas'); await p2.waitForSelector('#apresentacao-pular'); await p2.keyboard.press('Escape'); // fechar de qualquer jeito conta como vista
+  await p2.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' }); await p2.waitForTimeout(300); await p2.reload(); await p2.waitForSelector('#decks-vazio'); await p2.waitForTimeout(600);
+  assert.equal(await p2.locator('#apresentacao').count(), 0, 'pulou: não insiste');
+  await B.close();
+  // Perfil: rever apresentação, e "Abrir perfil" do último passo leva ao perfil
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apresentacao'); await page.click('#perfil-apresentacao');
+  await page.waitForSelector('#apresentacao[data-passo="1"]');
+  await page.click('#apresentacao-proximo'); await page.click('#apresentacao-proximo'); await page.waitForSelector('#apresentacao-perfil');
+  await page.click('#apresentacao-perfil'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
+  assert.match(page.url(), /#\/perfil$/);
   assert.deepEqual(errors, []);
 });

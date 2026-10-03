@@ -631,6 +631,15 @@ a { color: var(--accent); }
 .ds-dialog__title { font-family: var(--font-display); font-size: var(--text-xl); margin: 0; flex: 1 1 auto; min-width: 0; padding-top: 6px; }
 .ds-dialog__fechar { flex: none; margin-top: -2px; }
 .ds-dialog__actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; margin-top: var(--space-4); }
+/* D4b · apresentação de primeira abertura: um passo por vez, ícone grande, pontos de progresso, sempre dá para pular */
+.apresentacao { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-3); padding: var(--space-2) 0; }
+.apresentacao__icone { width: 88px; height: 88px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.apresentacao__titulo { margin: 0; color: var(--fg); }
+.apresentacao__texto { margin: 0; color: var(--fg-muted); max-width: 32ch; }
+.apresentacao__pontos { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
+.apresentacao__ponto { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--bg-elev-3); }
+.apresentacao__ponto[data-atual="true"] { background: var(--accent); }
+.apresentacao-acoes { justify-content: space-between; }
 @keyframes ds-fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes ds-rise { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: none } }
 
@@ -6752,7 +6761,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -6881,7 +6890,9 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Row({ class: 'ds-row--wrap' },
           Button('Exportar', { icone: 'exportar', id: 'perfil-backup-export', title: 'Exportar backup completo', onClick: async () => { await backup.exportar(); toast('Backup exportado'); } }),
           Button('Restaurar', { icone: 'importar', id: 'perfil-backup-restore', title: 'Restaurar backup', onClick: () => backupInput.click() })),
-        backupInput)));
+        backupInput)),
+      // D4b · a apresentação de primeira abertura pode ser revista daqui
+      apresentacao ? Row({ style: { justifyContent: 'center' } }, Button('Rever apresentação', { variant: 'ghost', icone: 'seguir', id: 'perfil-apresentacao', onClick: apresentacao })) : null);
   }
   async function carrega() {
     try { st.salvo = await perfil.get(); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; st.erro = null; }
@@ -17140,11 +17151,50 @@ const ROUTES = [
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme }) },
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, apresentacao: () => mostraApresentacao() }) },
   { path: '/ds', title: 'Design system', render: renderDS },
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
 
+/* D4b · apresentação de primeira abertura: três passos, pulável, uma vez só (chave `ui.apresentacao` no aparelho).
+   Testes pulam pelo gancho `window.__SEM_APRESENTACAO`; "Rever apresentação" no Perfil abre de novo. */
+const APRESENTACAO_KEY = 'ui.apresentacao';
+const PASSOS_APRESENTACAO = [
+  { icone: 'proteger', titulo: 'Tudo fica no aparelho', texto: 'Listas e coleção ficam guardadas aqui, funcionam sem internet e saem num backup quando você quiser.' },
+  { icone: 'jogar', titulo: 'Jogue com regras de verdade', texto: 'Contra o Shark, sozinho ou a dois. O motor cuida do turno, da pilha e da vida.' },
+  { icone: 'pessoa', titulo: 'Do seu jeito', texto: 'Nome e foto na mesa, tema, cor de destaque e tamanho do texto ficam no Perfil.' }
+];
+function mostraApresentacao({ aoFechar } = {}) {
+  let i = 0, fechada = false;
+  // a marca de "vista" é gravada ao abrir (não ao fechar): fechar de qualquer jeito — X, Escape, toque fora, até fechar a
+  // aba no meio — conta como vista, e a gravação não disputa com uma recarga logo depois
+  platform.store.set(APRESENTACAO_KEY, { vista: true, em: Date.now() }).catch(() => {});
+  const marca = () => { if (fechada) return; fechada = true; if (aoFechar) aoFechar(); };
+  const fecha = (destino) => { __m3.closeDialog(); marca(); if (destino) location.hash = destino; };
+  const pinta = () => {
+    const p = PASSOS_APRESENTACAO[i], ultimo = i === PASSOS_APRESENTACAO.length - 1;
+    const corpo = h('div', { class: 'apresentacao', id: 'apresentacao', dataset: { passo: String(i + 1) } },
+      h('span', { class: 'apresentacao__icone' }, Icone(p.icone, { tamanho: 40 })),
+      Text(p.titulo, { size: 'xl', display: true, as: 'h3', attrs: { class: 'ds-text ds-text--xl ds-text--display apresentacao__titulo', id: 'apresentacao-titulo' } }),
+      Text(p.texto, { attrs: { class: 'ds-text ds-text--md apresentacao__texto' } }),
+      h('div', { class: 'apresentacao__pontos', role: 'img', 'aria-label': `Passo ${i + 1} de ${PASSOS_APRESENTACAO.length}` },
+        ...PASSOS_APRESENTACAO.map((_, k) => h('span', { class: 'apresentacao__ponto', dataset: { atual: String(k === i) } }))));
+    const acoes = ultimo
+      ? [Button('Abrir perfil', { icone: 'pessoa', id: 'apresentacao-perfil', onClick: () => fecha('#/perfil') }), Button('Começar', { variant: 'primary', icone: 'seguir', id: 'apresentacao-comecar', onClick: () => fecha() })]
+      : [Button('Pular', { variant: 'ghost', id: 'apresentacao-pular', onClick: () => fecha() }), Button('Próximo', { variant: 'primary', icone: 'seguir', id: 'apresentacao-proximo', onClick: () => { i++; pinta(); } })];
+    __m3.Dialog({ title: 'Bem-vindo à Estante', body: corpo, actions: acoes });
+    const box = document.querySelector('.ds-dialog__actions'); if (box) box.classList.add('apresentacao-acoes');
+  };
+  pinta();
+  // fechar pelo X, por Escape ou tocando fora também conta como vista: a apresentação não insiste
+  const ov = document.getElementById('ds-overlay');
+  if (ov && typeof MutationObserver !== 'undefined') { const mo = new MutationObserver(() => { if (ov.dataset.open !== 'true') { marca(); mo.disconnect(); } }); mo.observe(ov, { attributes: true, attributeFilter: ['data-open'] }); }
+}
+/** Primeira abertura de verdade: sem a marca no aparelho e fora dos testes que pedem para pular. */
+async function primeiraAbertura() {
+  if (typeof window !== 'undefined' && window.__SEM_APRESENTACAO) return false;
+  try { return !(await platform.store.get(APRESENTACAO_KEY)); } catch (e) { return false; }
+}
 /** D3 · nome do perfil em memória: a tela inicial cumprimenta sem esperar o armazenamento (o botão da barra mantém). */
 let nomeDoPerfil = null;
 function renderHome() {
@@ -17370,6 +17420,7 @@ async function boot(root) {
     if (feitas.length) { toast(feitas.length === 1 ? `Reserva separada em ${feitas[0]}` : `Reserva separada em ${feitas.length} listas`, 3600); }
   } catch (e) { /* sem armazenamento: a lista continua como estava */ }
   router.start();
+  if (await primeiraAbertura()) mostraApresentacao();
   // O1 · manutenção silenciosa: com rede, guarda o que ainda não está guardado
   // Q10 · uma passada por vez (o guardião garante), e também ao voltar para o app (o celular suspende a aba e
   // perde o evento "online"); no máximo uma a cada 10 minutos por esse caminho
