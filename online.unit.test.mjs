@@ -140,3 +140,23 @@ test('Leva 130 · sem rede, a jogada não valeu: a mesa volta ao que a sala tem 
   await A.agir({ t: 'keep', p: 0, bottom: [] }); await tique();
   mesmoEstado(A, B);
 });
+
+/* ---------------- Leva 137 · U15 · chat da partida ---------------- */
+test('Leva 137 · mensagens: limpeza e limite, ordem pela chave, "minha", não lidas desde a última leitura, envio pela sala', async () => {
+  assert.equal(O.limpaMensagem('  oi\n  tudo   bem? '), 'oi tudo bem?');
+  assert.equal(O.limpaMensagem('x'.repeat(500)).length, O.MENSAGEM_MAX);
+  assert.equal(O.limpaMensagem(null), '');
+  assert.deepEqual(J(O.FRASES), ['Boa!', 'GG', 'Um minuto', 'Sua vez']);
+  const sala = { mensagens: { '2-b': { de: 1, texto: 'gg', em: 20 }, '1-a': { de: 0, texto: ' boa! ', em: 10 }, '3-c': { de: 1, texto: '   ', em: 30 } } };
+  const ms = O.mensagensDe(sala, 0);
+  assert.deepEqual(J(ms.map(m => [m.chave, m.texto, m.minha])), [['1-a', 'boa!', true], ['2-b', 'gg', false]], 'ordem pela chave; a vazia some');
+  assert.equal(O.naoLidas(ms, 0, 0), 1); assert.equal(O.naoLidas(ms, 0, 20), 0); assert.equal(O.naoLidas(ms, 1, 0), 1, 'para o outro assento, a minha é a não lida');
+  assert.deepEqual(J(O.mensagensDe(null, 0)), []);
+  let t0 = 7000; const tr = O.transporteMemoria({ agora: () => t0++ }); const s = O.createSala({ transporte: tr, agora: () => t0, aleatorio: () => 0.1 });
+  const codigo = await s.criar({ nome: 'Ana', deck: [], formato: 'pauper' });
+  await s.enviarMensagem(codigo, { de: 0, texto: 'Boa!' }); await s.enviarMensagem(codigo, { de: 1, texto: '<b>x</b>' });
+  await assert.rejects(s.enviarMensagem(codigo, { de: 0, texto: '   ' }), /mensagem-vazia/);
+  const vistos = []; s.ouvir(codigo, d => vistos.push(d)); await tique();
+  const lidas = O.mensagensDe(vistos.at(-1).sala, 1);
+  assert.deepEqual(J(lidas.map(m => [m.de, m.texto, m.minha])), [[0, 'Boa!', false], [1, '<b>x</b>', true]], 'o texto é guardado como texto; a tela nunca o interpreta como HTML');
+});

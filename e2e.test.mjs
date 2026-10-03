@@ -5197,3 +5197,46 @@ test('e2e · Leva 135 partida online: cartão "online, sala X" ao voltar, aviso 
   assert.equal(await A.evaluate(c => JSON.parse(localStorage.getItem('estante.online:salas/' + c)).estado, codigo), 'encerrada');
   assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
 });
+
+/* ---------------- Leva 137 · chat na partida online ---------------- */
+test('e2e · Leva 137 chat: botão com selo de novas, frase rápida e texto chegam do outro lado, aviso com a mensagem, texto nunca vira HTML', { skip }, async t => {
+  const { page: A, errors, base } = await open(t, { dev: false });
+  await A.addInitScript(() => { window.__MTG_TEST = true; }); await A.setViewportSize({ width: 360, height: 780 });
+  await createDeck(A, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  await A.goto(base + '#/mesa'); await A.waitForSelector('[data-opponent="online"]'); await A.click('[data-opponent="online"]');
+  await A.waitForFunction(() => document.querySelector('#online-criar') && !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await A.click('#online-criar'); await A.waitForSelector('#online-codigo'); const codigo = (await A.innerText('#online-codigo')).trim();
+  const B = await A.context().newPage(); const errosB = [];
+  B.on('pageerror', e => errosB.push(String(e))); B.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errosB.push(m.text()); });
+  await B.addInitScript(() => { window.__MTG_TEST = true; }); await B.setViewportSize({ width: 360, height: 780 });
+  await B.goto(base + '#/mesa'); await B.waitForSelector('[data-opponent="online"]'); await B.click('[data-opponent="online"]'); await B.click('[data-online-modo="entrar"]');
+  await B.waitForSelector('#online-codigo-input'); await B.fill('#online-codigo-input', codigo); await B.waitForFunction(() => !document.querySelector('#online-entrar').disabled, null, { timeout: 10000 }); await B.click('#online-entrar');
+  await A.waitForSelector('#tb-chat', { timeout: 20000 }); await B.waitForSelector('#tb-chat', { timeout: 20000 });
+  // sem mensagem: botão sem selo; não existe no jogo local (goldfish) — só online
+  assert.equal(await A.getAttribute('#tb-chat', 'data-novas'), '0');
+  const ab = await A.locator('#tb-chat').boundingBox(); assert.ok(ab.width >= 44 && ab.height >= 44);
+  // A abre a conversa, manda uma frase rápida e um texto com HTML
+  await A.click('#tb-chat'); await A.waitForSelector('#tb-chat-lista');
+  assert.match(await A.innerText('#tb-chat-lista'), /Nenhuma mensagem ainda/);
+  await A.click('[data-frase="Boa!"]'); await A.waitForSelector('#tb-chat-lista .tb-chat__msg--minha');
+  await A.fill('#tb-chat-campo', '<b>oi</b> & tal'); await A.press('#tb-chat-campo', 'Enter');
+  await A.waitForFunction(() => document.querySelectorAll('#tb-chat-lista .tb-chat__msg').length === 2);
+  assert.equal(await A.locator('#tb-chat-lista b').count(), 0, 'HTML digitado vira texto');
+  assert.match(await A.innerText('#tb-chat-lista'), /<b>oi<\/b> & tal/);
+  assert.equal(await A.inputValue('#tb-chat-campo'), '', 'o campo limpa depois de enviar');
+  await auditaTela(A, 'conversa aberta');
+  // B, com a folha fechada: selo "2", aviso com o nome e a mensagem, vibração tentada
+  await B.waitForFunction(() => document.querySelector('#tb-chat') && document.querySelector('#tb-chat').dataset.novas === '2', null, { timeout: 10000 });
+  assert.match(await B.getAttribute('#tb-chat', 'aria-label'), /Conversa, 2 nova/);
+  assert.match(await B.innerText('#ds-toast'), /<b>oi<\/b> & tal/);
+  // B abre: lê tudo, o selo zera; responde e A (folha aberta) vê chegar na hora
+  await B.click('#tb-chat'); await B.waitForSelector('#tb-chat-lista .tb-chat__msg');
+  assert.equal(await B.locator('#tb-chat-lista .tb-chat__msg').count(), 2);
+  assert.equal(await B.locator('#tb-chat-lista .tb-chat__msg--minha').count(), 0, 'as duas são do outro');
+  await B.keyboard.press('Escape'); await B.waitForFunction(() => document.querySelector('#tb-chat').dataset.novas === '0', null, { timeout: 5000 });
+  await B.click('#tb-chat'); await B.waitForSelector('#tb-chat-campo'); await B.fill('#tb-chat-campo', 'GG'); await B.click('#tb-chat-enviar');
+  await A.waitForFunction(() => document.querySelectorAll('#tb-chat-lista .tb-chat__msg').length === 3, null, { timeout: 10000 });
+  assert.equal(await A.getAttribute('#tb-chat', 'data-novas'), '0', 'com a folha aberta, a mensagem já conta como lida');
+  await auditaTela(B, 'conversa com mensagens dos dois');
+  assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
+});

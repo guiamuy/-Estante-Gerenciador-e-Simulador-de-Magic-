@@ -385,8 +385,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-q ✅ | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1, leva 128) | E47 | 1 | — |
 | 16º-r ✅ | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2, leva 129) | E47 | 1 | **OAuth Client ID do usuário** para ligar na publicação |
 | 16º-s 🟡 | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) — parte 1 na leva 130 (sala, transporte, sincronização), parte 2 na leva 133 (telas; joga entre duas abas), parte 3 na leva 134 (Firebase REST + eventos), parte 4 na leva 135 (ausência e encerramento) | E48 | 4 | **URL do Realtime Database** em `FIREBASE_DB_URL` para dois celulares |
-| 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
-| 16º-u | Roadmap completo de design: auditoria de todas as telas, crítica e plano de elevação (temas, acento, verso, superfície da mesa, densidade, fonte) | U | 1 | capturas do aparelho para a auditoria final |
+| 16º-t ✅ | Chat na partida online (U15, leva 137) | E49 | 1 | — |
+| 16º-u ✅ | Roadmap completo de design (épico E53 · D1–D12) escrito a partir da auditoria de 13 telas (leva 137); execução sequencial a partir da D1 | D | 12 | capturas do aparelho depois de D2 e D6 |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4090,11 +4090,78 @@ conversa paralela à do Shark e à da revisão carta a carta)
 - **Testes:** U (protocolo de sala e reconciliação de ações); e2e com dois contextos de navegador e transporte simulado; O1 (mensagem sem rede).
 - **Depende de:** U13 (nome/avatar), decisão de transporte.
 
-**U15 · Chat na partida online** ○
-- **Valor:** falar com o adversário sem sair da mesa.
-- **Aceite:** ícone discreto com contador de não lidas; painel deslizante; balões, hora, "digitando…"; mesmo transporte da partida; frases rápidas ("boa", "gg").
-- **Testes:** U (modelo de mensagens); e2e com dois contextos.
+**U15 · Chat na partida online** ✅ (leva 137)
+- **Entregue:** botão **Conversa** nas ferramentas da mesa (só online) com selo de novas e o **ponto de ligação**
+  dentro dele (verde conectado, âmbar pulsando ao reconectar — o globo separado saiu: cinco ícones não cabiam na
+  linha da faixa em 360 px e empurravam o campo); folha "Conversa" (diálogo com X, foco preso): balões com hora,
+  os meus à direita em latão, os do outro à esquerda; quatro frases rápidas (Boa!, GG, Um minuto, Sua vez); campo
+  de 200 caracteres com Enter ou botão. Mensagem nova com a folha fechada vira aviso curto "Nome: texto" e
+  vibração; com a folha aberta já conta como lida. O texto é guardado e desenhado como texto: HTML digitado
+  nunca é interpretado.
+- **Nomes online:** sem perfil, o anfitrião é "Jogador 1" e o convidado "Jogador 2" (antes os dois assentos
+  apareciam como "Você" na mesa do outro).
+- **Modelo (puro, em `__m30`):** `limpaMensagem`, `mensagensDe(sala, assento)`, `naoLidas(ms, assento, lidoAte)`,
+  `FRASES`, `MENSAGEM_MAX`; `sala.enviarMensagem` empurra em `mensagens/` pelo mesmo transporte da partida.
+- **Testes:** U (`online.unit`: limpeza e limite, ordem, "minha", não lidas, envio e leitura pela sala, vazio
+  recusado); e2e "Leva 137" (duas abas: selo 0 → 2, frase rápida e texto com HTML chegam como texto, aviso com
+  nome e mensagem, abrir zera, resposta chega na folha aberta; `auditaTela` nas duas abas).
+- **Fora:** "digitando…"; histórico fora da sala; avatar nos balões (quando o perfil da conta estiver na sala).
 - **Depende de:** U14.
+
+### D · Design de patamar (E53, pedido de 03/10/2026)
+
+**Pedido:** "roadmap completo de revisão e aprimoramento de design para elevar o patamar da aplicação, com os
+conceitos mais sofisticados e refinados de UX/UI, foco profundo em experiência e em customização visual".
+
+**Auditoria de 03/10/2026 (13 telas, 360×780, escuro e claro, capturas no Playwright; o aparelho do usuário é o
+Galaxy S, 360×780 a 3×).** O que a Estante já tem de bom e deve ser preservado: identidade própria (nogueira, papel
+e latão; serifa de livro nos títulos), ícones flat de um só traço, alvos de 44 px em toda parte, auditoria de
+sobreposição e de rolagem lateral no portão, offline desenhado em todas as telas, mesa com três camadas de leitura.
+O que puxa o patamar para baixo, em ordem de impacto no uso:
+
+| # | Problema | Onde | Evidência |
+|---|---|---|---|
+| 1 | **Estados vazios que gritam**: Coleção vazia mostra 6 botões (Escanear, Filtros, Importar lista, Importar CSV, +, Colar lista, Abrir CSV) e três parágrafos; Cartas abre com "Base local de cartas" (3 botões, um deles vermelho) antes do campo de busca | Coleção, Cartas, Scanner | captura 06, 07, 08 |
+| 2 | **Primeiro contato sem rumo**: o início diz "Plataforma de Magic", não lembra a partida em andamento nem a última lista, e o painel offline ("0% · Sem internet · falta preparar 2 itens") é a segunda coisa que se lê | Início | captura 01 |
+| 3 | **Avisos empilhados**: o scanner mostra três notas (base de nomes, câmera, leitor) antes da moldura — 200 px de aviso numa tela de 780; a Lista repete "sem conexão" acima do cartão do motor | Scanner, Lista | captura 08, 04 |
+| 4 | **Mesa com zonas vazias ocupando campo**: "Terrenos nenhum / Permanentes nenhuma" em duas linhas por lado (≈ 60 px cada) e chips "Cemitério 0 · Exílio 0" com o mesmo peso de "Grimório 52" | Mesa | captura 10, 11 |
+| 5 | **Aviso flutuante que não sai**: o toast de uma tela ("Pauper Elves está na sua estante") continua na tela seguinte por cima do conteúdo | todas | capturas 02–05 |
+| 6 | **Backup em dois lugares** (Listas e Perfil) e "Base local" em Cartas: ajustes e dados espalhados pelas telas de uso | Listas, Cartas, Perfil | captura 02, 07, 12 |
+| 7 | **Nenhuma personalização além do tema**: acento, densidade, tamanho de texto, superfície da mesa, verso de carta, cor do oponente, vibração — tudo fixo | app inteiro | — |
+| 8 | **Literais fora dos tokens**: 14 `font-size`, 8 durações e 5 raios em px/ms nos componentes; sem escala de densidade | CSS | contrato visual (leva 123) |
+| 9 | **Movimento sem sistema**: entradas de carta, troca de turno, folhas e avisos com durações próprias; só parte respeita `prefers-reduced-motion` | mesa, diálogos | CSS |
+| 10 | **Acessibilidade sem medição automática**: contraste medido só nos pares listados; sem varredura de nomes, foco e papéis no headless | portão | contrato visual |
+
+**Princípios que o épico aplica (os "conceitos sofisticados", em termos verificáveis):** hierarquia por um
+primário por tela; progressive disclosure (o raro vai para folhas e para Ajustes); estados vazios com uma frase, um
+primário e um secundário; conteúdo antes de administração (busca antes de "base local"); feedback no lugar da ação
+(não só toast); densidade e tipografia por escala (tokens), não por tela; movimento com propósito e duração por
+token; personalização por tokens (um ajuste muda o app inteiro) guardada no aparelho e no backup; medição no portão
+para cada promessa (pixels de campo, contraste, sobreposição, nomes falados).
+
+**Ordem de execução (uma leva por história, estimativa 1,5–2,5 h cada com portão e publicação):**
+
+| Ordem | História | Entrega em uma frase | Mede |
+|---|---|---|---|
+| D1 | Fundamentos: escala e densidade | Tokens `--escala-texto` (3 passos) e `--densidade` (2 passos) aplicados a texto, espaço e alvos; literais restantes viram tokens; toast fecha ao trocar de tela | contrato visual: zero literal; e2e: a escala muda a mesa inteira |
+| D2 | Ajustes e Aparência | Tela **Ajustes** (em Perfil): tema, acento (latão · cobre · prata · jade), densidade, tamanho do texto, movimento reduzido, vibração; tudo por aparelho e no backup v3 | AA nos dois temas × quatro acentos; e2e troca e persiste |
+| D3 | Início que lembra de você | Cabeçalho "Olá, Nome"; cartão **Continuar** (partida em andamento com placar/sala, última lista, última leitura do scanner); painel offline vira uma linha com anel e abre em folha | pixels: o primeiro atalho sobe ≥ 80 px; `auditaTela` |
+| D4 | Estados vazios e primeiro uso | Coleção, Listas, Cartas e Scanner vazios: ícone grande do DS, uma frase, um primário e um secundário; o resto vai para a folha "Mais"; onboarding de 3 passos na primeira abertura, pulável | e2e conta ≤ 2 botões visíveis no vazio |
+| D5 | Dados e administração num lugar só | Backup (arquivo e nuvem), base local de cartas, espaço usado, limpar dados: tudo em Ajustes › Dados; Listas e Cartas ficam só com uso | e2e: Listas sem seção de backup; Cartas abre na busca |
+| D6 | Mesa: relance | Zonas vazias colapsam numa linha, zeros apagados, "Terrenos/Permanentes" só quando há; registro e resumo em folha; medir campo ganho em 360×780 | pixels de campo antes/depois (meta ≥ 60 px no início da partida) |
+| D7 | Mesa: superfície e verso (personalização) | Superfície (nogueira, feltro, pedra, papel) e verso de carta (3 desenhos próprios, sem marca), cor do oponente (azul · rubi · ametista) com par de contraste; no catálogo `/ds` | contrato visual dos novos tokens nos dois temas; e2e troca e persiste |
+| D8 | Avisos e retorno no lugar | Notas de estado empilhadas viram uma linha de ícones com folha de detalhe (scanner, lista, cartas); confirmação de ação perto do botão (marca ✓ por 1,2 s) antes do toast | pixels no scanner (≥ 120 px devolvidos à moldura) |
+| D9 | Coleção e cartas: ver e trabalhar | Busca em primeiro lugar; filtros em folha inferior com contagem ao vivo; linha densa com símbolos; galeria com sombra e canto por token; seleção múltipla com barra de ações | `auditaTela` nas três visões; e2e de filtro em folha |
+| D10 | Movimento com sistema | Catálogo de movimentos (entrar, sair, trocar turno, folha, aviso) por tokens `--dur-*` e `--ease-*`, cada um com regra de movimento reduzido; vibração mapeada por evento | contrato visual: nenhuma animação sem regra de reduced motion |
+| D11 | Acessibilidade medida | Varredura automática no headless (nomes, papéis, foco visível, contraste de tudo que é texto) em todas as telas e nos dois temas; correções | teste novo no portão com zero achados |
+| D12 | Guia visual vivo | `/ds` completo: tokens (inclusive escala, densidade, acentos, superfícies), componentes com estados, capturas de referência das telas; checklist de design por leva | o portão confere que todo componente usado está no catálogo |
+
+**Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
+decks, sugestão de cartas, ranking, marketplace.
+
+**Depende do usuário:** capturas do aparelho depois da D2 e da D6 (as duas que mais mexem na tela que ele usa); a
+decisão de onde entra o onboarding (primeira abertura ou "Ajuda" no Perfil) fica em D4 com opção recomendada
+(primeira abertura, pulável).
 
 ### P · Plataforma
 

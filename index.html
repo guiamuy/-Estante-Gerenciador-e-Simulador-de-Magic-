@@ -393,8 +393,19 @@ a { color: var(--accent); }
 .online-entrar { align-items: flex-end; }
 .online-entrar .ds-field { flex: 1 1 160px; min-width: 0; }
 .online-entrar .ds-input { font-family: var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
-.tb-online { display: inline-grid; place-items: center; width: var(--tap-min); height: var(--tap-min); color: var(--accent); }
-.tb-online[data-ligado="false"] { color: var(--warning); animation: tb-online-pulso 1.2s ease-in-out infinite; }
+.tb-online { position: absolute; left: 6px; bottom: 6px; width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--positive); box-shadow: 0 0 0 2px var(--bg-elev-1); }
+/* leva 137 · conversa da partida online */
+#tb-chat { position: relative; }
+#tb-chat .ds-btn__conta { position: absolute; top: 2px; right: 2px; }
+.tb-chat { gap: var(--space-3); }
+.tb-chat__lista { display: flex; flex-direction: column; gap: var(--space-2); max-height: 40vh; min-height: 120px; overflow: auto; padding: var(--space-1); }
+.tb-chat__msg { align-self: flex-start; max-width: 85%; display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-3); border-bottom-left-radius: var(--radius-1); background: var(--bg-elev-2); border: 1px solid var(--border); }
+.tb-chat__msg--minha { align-self: flex-end; background: var(--accent-soft); border-color: var(--accent); border-bottom-left-radius: var(--radius-3); border-bottom-right-radius: var(--radius-1); }
+.tb-chat__texto { font-size: var(--text-md); line-height: var(--lh-md); overflow-wrap: anywhere; }
+.tb-chat__hora { font-size: var(--text-xs); color: var(--fg-muted); align-self: flex-end; font-variant-numeric: tabular-nums; }
+.tb-chat__linha { align-items: stretch; gap: var(--space-2); }
+.tb-chat__linha .ds-input { flex: 1 1 auto; min-width: 0; }
+.tb-online[data-ligado="false"] { background: var(--warning); animation: tb-online-pulso 1.2s ease-in-out infinite; }
 @keyframes tb-online-pulso { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
 .perfil-conta__texto { gap: 0; min-width: 0; }
@@ -1879,6 +1890,7 @@ const ICONES = {
   meia: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16z" fill="currentColor"/>',
   pausa: '<rect x="6.5" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2"/>',
   virar: '<path d="M4.5 10a7.5 7.5 0 0 1 13.4-3.6L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M19.5 14a7.5 7.5 0 0 1-13.4 3.6L4 15.5"/><path d="M4 20v-4.5h4.5"/>',
+  conversa: '<path d="M4.5 6.5A2 2 0 0 1 6.5 4.5h11a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4.2 3.2a.5.5 0 0 1-.8-.4V15.5a2 2 0 0 1-.5-1.3z"/><path d="M8.5 9h7"/><path d="M8.5 12h4.5"/>',
   globo: '<circle cx="12" cy="12" r="8.25"/><path d="M3.75 12h16.5"/><path d="M12 3.75c2.6 2.6 3.9 5.35 3.9 8.25S14.6 17.65 12 20.25c-2.6-2.6-3.9-5.35-3.9-8.25S9.4 6.35 12 3.75z"/>',
   externo: '<path d="M13.5 4.5h6v6"/><path d="M19.5 4.5L11 13"/><path d="M17.5 13.5v4a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4"/>',
   // Leva 110 · marcas da carta na mesa e etapas do turno
@@ -6124,6 +6136,8 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
     async enviarAcao(codigo, acao) { return transporte.empurrar(`${caminho(codigo)}/acoes`, acao); },
     async encerrar(codigo, motivo) { await transporte.atualizar(caminho(codigo), { estado: 'encerrada', fim: { motivo, em: agora() } }); },
     async marcarPresenca(codigo, assento) { await transporte.atualizar(`${caminho(codigo)}/presenca`, { [assento]: agora() }); },
+    /** Leva 137 · chat: a mensagem entra na sala, em ordem, com quem e quando. */
+    async enviarMensagem(codigo, { de, texto }) { const t = limpaMensagem(texto); if (!t) throw new Error('mensagem-vazia'); return transporte.empurrar(`${caminho(codigo)}/mensagens`, { de, texto: t, em: agora() }); },
     /** Apaga a sala (depois do fim, pelo anfitrião). Transporte sem `apagar` só a marca encerrada. */
     async apagar(codigo) { if (transporte.apagar) await transporte.apagar(caminho(codigo)); else await transporte.escrever(caminho(codigo), null); },
     /** Ouve a sala inteira; devolve `parar`. cb recebe { sala, acoes (ordenadas) }. */
@@ -6131,6 +6145,19 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
     ordenadas
   };
 }
+
+/* ---------- Leva 137 · U15 · chat da partida: modelo puro ---------- */
+const MENSAGEM_MAX = 200;
+const FRASES = ['Boa!', 'GG', 'Um minuto', 'Sua vez'];
+/** Limpa o texto digitado: espaços, quebras e tamanho. Vazio → ''. */
+function limpaMensagem(t) { return String(t || '').replace(/\s+/g, ' ').trim().slice(0, MENSAGEM_MAX); }
+/** Mensagens da sala em ordem, com `minha` marcado. */
+function mensagensDe(sala, assento) {
+  return Object.entries((sala && sala.mensagens) || {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([chave, m]) => ({ chave, de: m.de, texto: limpaMensagem(m.texto), em: m.em || 0, minha: m.de === assento })).filter(m => m.texto);
+}
+/** Quantas do outro chegaram depois da última leitura (`lidoAte` = `em` da última lida). */
+function naoLidas(mensagens, assento, lidoAte = 0) { return mensagens.filter(m => m.de !== assento && m.em > lidoAte).length; }
 
 /* ---------- sincronizador: liga uma mesa local à lista de ações da sala ---------- */
 /** `criaMesa(setup)` monta a mesa (createTable sem bot, sem desfazer). `assento` é quem joga neste aparelho.
@@ -6231,7 +6258,7 @@ function mesaOnline(sinc, online) {
   return api;
 }
 
-return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
+return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, transporteFirebase, createSala, criaSincronizador, mesaOnline, limpaMensagem, mensagensDe, naoLidas, MENSAGEM_MAX, FRASES, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
 })();
 
 const __m27 = (function () {
@@ -13243,7 +13270,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     /* ---- Leva 133 · partida online: criar sala ou entrar com código; a sala monta a mesa nos dois aparelhos ---- */
     const on = { modo: 'criar', codigo: null, digitado: '', esperando: false, erro: null, parar: null, publiquei: false };
     const ERROS_SALA = { 'codigo-invalido': 'Código incompleto: são 4 letras ou números depois de ESTA-.', 'sala-inexistente': 'Não há sala com esse código.', 'sala-cheia': 'Essa sala já tem dois jogadores.', 'sala-velha': 'Essa sala já acabou.', 'formato-diferente': 'A sala é de outro formato.', 'sem-codigo-livre': 'Não consegui sortear um código. Tente de novo.' };
-    const meuNome = () => state.meuNome || state.me.trim() || 'Jogador';
+    const meuNome = (papel = 'criar') => state.meuNome || (state.me.trim() && state.me.trim() !== 'Você' ? state.me.trim() : '') || (papel === 'criar' ? 'Jogador 1' : 'Jogador 2');
     const cobertaOnline = () => DEV || state.coverage === 100; // online é motor completo: a lista precisa jogar sozinha
     async function cartasDe(entries) {
       const names = [...new Set(entries.map(e => e.name))];
@@ -13290,7 +13317,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const mine = byId(state.mine); if (!mine || on.esperando) return;
       on.erro = null; on.esperando = true; paintOpponent();
       try {
-        on.codigo = await online.sala.entrar(on.digitado, { nome: meuNome(), deck: mine.entries, formato: mine.format });
+        on.codigo = await online.sala.entrar(on.digitado, { nome: meuNome('entrar'), deck: mine.entries, formato: mine.format });
         on.parar = online.sala.ouvir(on.codigo, async d => {
           if (!d || !d.sala) return;
           if (d.sala.estado === 'encerrada') { on.erro = 'O anfitrião fechou a sala.'; on.esperando = false; on.codigo = null; if (on.parar) { on.parar(); on.parar = null; } return paintOpponent(); }
@@ -13446,6 +13473,44 @@ function createTableScreen({ store, perfil = null, online = null }) {
   if (perfil) perfil.get().then(p => { if (p.avatar) { meuAvatar = p.avatar; if (table) paint(); } }).catch(() => {});
   let table = null, adjudicating = null, bottomPick = new Set(), shownViewer = null, handoff = false;
   let sinc = null, pararPresenca = null; // leva 133 · partida online
+  // Leva 137 · chat: lido até (hora da última mensagem lida), folha aberta, última chave anunciada
+  const chat = { lidoAte: 0, aberto: null, anunciada: null };
+  function mensagens() { return sinc ? __m30.mensagensDe(sinc.sala(), table.online.assento) : []; }
+  function pintaChat() {
+    const btn = root.querySelector('#tb-chat'); const ms = mensagens(); const n = __m30.naoLidas(ms, table.online.assento, chat.lidoAte);
+    if (btn) { let conta = btn.querySelector('.ds-btn__conta'); if (!conta) { conta = h('span', { class: 'ds-btn__conta' }); btn.appendChild(conta); } conta.textContent = n ? String(n) : ''; conta.hidden = !n; btn.setAttribute('aria-label', n ? `Conversa, ${n} nova(s)` : 'Conversa'); btn.dataset.novas = String(n); }
+    if (chat.aberto) pintaFolhaChat(ms);
+    // mensagem nova com a folha fechada: aviso curto e vibração, uma vez por mensagem
+    const ult = ms.filter(m => !m.minha).at(-1);
+    if (ult && !chat.aberto && ult.em > chat.lidoAte && chat.anunciada !== ult.chave) { chat.anunciada = ult.chave; toast(`${table.state.players[ult.de].name}: ${ult.texto.length > 60 ? ult.texto.slice(0, 57) + '…' : ult.texto}`, 3200); __m0.haptics.vibrate(8); }
+    if (chat.aberto) { const ultTodas = ms.at(-1); if (ultTodas) chat.lidoAte = Math.max(chat.lidoAte, ultTodas.em); }
+  }
+  function pintaFolhaChat(ms) {
+    const lista = chat.aberto.querySelector('#tb-chat-lista'); if (!lista) return;
+    mount(lista, ms.length ? ms.map(m => h('div', { class: 'tb-chat__msg' + (m.minha ? ' tb-chat__msg--minha' : ''), dataset: { de: String(m.de) } },
+      h('span', { class: 'tb-chat__texto' }, m.texto),
+      h('span', { class: 'tb-chat__hora' }, new Date(m.em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))))
+      : Text('Nenhuma mensagem ainda. Uma frase rápida ou escreva abaixo.', { size: 'sm', tone: 'muted' }));
+    lista.scrollTop = lista.scrollHeight;
+  }
+  async function enviarMensagem(texto) {
+    const t = __m30.limpaMensagem(texto); if (!t) return;
+    try { await online.sala.enviarMensagem(table.online.codigo, { de: table.online.assento, texto: t }); }
+    catch (e) { toast('Sem conexão: a mensagem não foi enviada', 3000); }
+  }
+  function abreChat() {
+    const lista = h('div', { class: 'tb-chat__lista', id: 'tb-chat-lista', role: 'log', 'aria-live': 'polite' });
+    const campo = Input({ id: 'tb-chat-campo', placeholder: 'Escreva…' }); campo.maxLength = __m30.MENSAGEM_MAX; campo.autocomplete = 'off'; campo.setAttribute('aria-label', 'Mensagem');
+    const manda = async () => { const t = campo.value; campo.value = ''; campo.focus(); await enviarMensagem(t); };
+    campo.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); manda(); } });
+    const corpo = Stack({ class: 'tb-chat' }, lista,
+      Row({ class: 'ds-row--wrap tb-chat__frases' }, ...__m30.FRASES.map(f => Chip(f, { dataset: { frase: f }, onClick: () => enviarMensagem(f) }))),
+      Row({ class: 'tb-chat__linha' }, campo, IconButton('seguir', 'Enviar', { id: 'tb-chat-enviar', variant: 'primary', onClick: manda })));
+    chat.aberto = Dialog({ title: 'Conversa', body: corpo });
+    pintaChat();
+    // fechar devolve o estado e repinta o selo
+    const vigia = setInterval(() => { if (!chat.aberto || !chat.aberto.isConnected) { clearInterval(vigia); chat.aberto = null; pintaChat(); } }, 300);
+  }
   // U6 · mão recolhida: preferência guardada no aparelho, vale para as próximas partidas também
   // U7 · faixa de quem joga: anima só quando o turno troca.
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
@@ -13582,7 +13647,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
         sinc = __m30.criaSincronizador({ sala: online.sala, codigo: o.codigo, setup: data.setup, assento: o.assento,
           criaMesa: setup => T.createTable(setup, { options: { autoPass: true } }),
           aoMudar: (m, motivo) => { if (motivo !== 'local') { adjudicating = null; save(); paint(); } },
-          aoSala: () => { if (root.isConnected) paint(); },
+          aoSala: () => { if (root.isConnected) { paint(); pintaChat(); } },
           aoErro: e => {
             if (e.message === 'nao-enviada') toast('Sem conexão: a jogada não valeu. Tente de novo.', 3600);
             else if (e.message === 'acao-ignorada' && e.acao && e.acao.de === o.assento) toast('O outro jogador agiu antes: sua jogada não valeu.', 3600);
@@ -14495,7 +14560,10 @@ function createTableScreen({ store, perfil = null, online = null }) {
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
-          sinc ? h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(online.transporte.ligado()) }, 'aria-label': online.transporte.ligado() ? 'Partida online, conectada' : 'Partida online, reconectando', title: `Partida online · sala ${table.online.codigo}` + (online.transporte.ligado() ? '' : ' · reconectando…') }, Icone('globo', { tamanho: 18 })) : null,
+          // leva 137 · conversa com o ponto de ligação dentro (cinco ícones não cabiam na linha da faixa em 360 px)
+          sinc ? (() => { const b = IconButton('conversa', 'Conversa', { id: 'tb-chat', variant: 'ghost', onClick: abreChat }); const lig = online.transporte.ligado();
+            b.appendChild(h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(lig) }, 'aria-label': lig ? 'Partida online, conectada' : 'Partida online, reconectando' }));
+            b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
           IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
           IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
@@ -14506,6 +14574,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
         side(s, v, true)),
       dock(s, v));
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
+    if (sinc) pintaChat(); // leva 137 · selo de mensagens novas
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
     vistos = new Set(s.zones.flatMap(z => z.battlefield));
   }
