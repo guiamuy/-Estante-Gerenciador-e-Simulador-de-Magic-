@@ -387,6 +387,13 @@ a { color: var(--accent); }
 .perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }
 .perfil-foto { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
 .perfil-conta__quem { align-items: center; gap: var(--space-3); }
+/* leva 133 · partida online */
+.online-sala__linha { align-items: center; gap: var(--space-2); }
+.online-sala__codigo { font-family: var(--font-display); font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: .08em; color: var(--accent); user-select: all; }
+.online-entrar { align-items: flex-end; }
+.online-entrar .ds-field { flex: 1 1 160px; min-width: 0; }
+.online-entrar .ds-input { font-family: var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+.tb-online { display: inline-grid; place-items: center; width: var(--tap-min); height: var(--tap-min); color: var(--accent); }
 .perfil-conta__texto { gap: 0; min-width: 0; }
 .perfil-conta__texto > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -440,6 +447,10 @@ a { color: var(--accent); }
 /* U2 · controle segmentado: escolhas exclusivas numa pílula só, partes iguais, cabe em 360 */
 .ds-segmentado { display: flex; flex: 1 1 100%; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--bg-elev-1); }
 .ds-segmentado .ds-chip { flex: 1 1 0; min-width: 0; padding: 0 var(--space-1); gap: 4px; border-color: transparent; }
+/* leva 133 · quatro opções COM rótulo não cabem em 360 px numa linha (as visões da coleção, só ícone, cabem):
+   quem precisa pede a grade 2×2 com `ds-segmentado--grade` */
+.ds-segmentado--grade { display: grid; grid-template-columns: 1fr 1fr; border-radius: var(--radius-3); }
+.ds-segmentado--grade .ds-chip { border-radius: var(--radius-2); }
 .ds-segmentado .ds-chip__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ds-btn--voltar { margin-left: calc(-1 * var(--space-2)); padding-left: var(--space-2); }
 .ds-chip--icone .ds-icon { flex: none; }
@@ -1865,6 +1876,7 @@ const ICONES = {
   meia: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16z" fill="currentColor"/>',
   pausa: '<rect x="6.5" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2"/>',
   virar: '<path d="M4.5 10a7.5 7.5 0 0 1 13.4-3.6L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M19.5 14a7.5 7.5 0 0 1-13.4 3.6L4 15.5"/><path d="M4 20v-4.5h4.5"/>',
+  globo: '<circle cx="12" cy="12" r="8.25"/><path d="M3.75 12h16.5"/><path d="M12 3.75c2.6 2.6 3.9 5.35 3.9 8.25S14.6 17.65 12 20.25c-2.6-2.6-3.9-5.35-3.9-8.25S9.4 6.35 12 3.75z"/>',
   externo: '<path d="M13.5 4.5h6v6"/><path d="M19.5 4.5L11 13"/><path d="M17.5 13.5v4a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4"/>',
   // Leva 110 · marcas da carta na mesa e etapas do turno
   anexo: '<path d="M9.5 14.5l5-5"/><path d="M11 7.5l1.6-1.6a3.6 3.6 0 0 1 5.1 5.1L16.1 12.6"/><path d="M13 16.5l-1.6 1.6a3.6 3.6 0 0 1-5.1-5.1L7.9 11.4"/>',
@@ -5978,36 +5990,29 @@ function transporteMemoria({ agora = () => Date.now() } = {}) {
 }
 
 /* ---------- transporte local: duas abas do mesmo aparelho (storage + canal) ---------- */
+/** Cada sala é UM registro JSON no storage (`<nome>:salas/<codigo>`): uma escrita, um evento, sem explodir o setup
+    (centenas de cartas) em milhares de chaves. Caminhos abaixo da sala são resolvidos dentro do registro. */
 function transporteLocal({ storage, canal = null, nome = 'estante.online', agora = () => Date.now() } = {}) {
-  const CH = nome + ':'; const ouvintes = new Map();
-  const lePlano = () => { const o = {}; for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.startsWith(CH)) { try { o[k.slice(CH.length)] = JSON.parse(storage.getItem(k)); } catch (e) { /* lixo */ } } } return o; };
-  const leNo = caminho => {
-    const plano = lePlano();
-    if (caminho in plano) return plano[caminho];
-    const filhos = {}; let tem = false;
-    for (const k of Object.keys(plano)) if (k.startsWith(caminho + '/')) { tem = true; const resto = k.slice(caminho.length + 1).split('/')[0]; filhos[resto] = leNo(caminho + '/' + resto); }
-    return tem ? filhos : null;
-  };
-  const apaga = caminho => { for (const k of Object.keys(lePlano())) if (k === caminho || k.startsWith(caminho + '/')) storage.removeItem(CH + k); };
-  const grava = (caminho, valor) => {
-    apaga(caminho);
-    if (valor && typeof valor === 'object' && !Array.isArray(valor)) { for (const [k, v] of Object.entries(valor)) grava(caminho + '/' + k, v); }
-    else if (valor !== null && valor !== undefined) storage.setItem(CH + caminho, JSON.stringify(valor));
-  };
-  const avisa = caminho => { for (const [c, set] of ouvintes) if (caminho === c || caminho.startsWith(c + '/') || c.startsWith(caminho + '/')) for (const cb of set) cb(leNo(c)); };
-  const anuncia = caminho => { avisa(caminho); try { canal && canal.postMessage({ caminho }); } catch (e) { /* sem canal */ } };
-  if (canal) canal.addEventListener('message', e => { if (e && e.data && e.data.caminho) avisa(e.data.caminho); });
-  // outra aba escreveu (evento storage): avisa quem ouve o caminho
+  const CH = nome + ':'; const ouvintes = new Map(); let seq = 0;
+  const parte = caminho => { const seg = String(caminho).split('/').filter(Boolean); return { chave: CH + seg.slice(0, 2).join('/'), raiz: seg.slice(0, 2).join('/'), dentro: seg.slice(2) }; };
+  const leRegistro = chave => { try { const t = storage.getItem(chave); return t ? JSON.parse(t) : null; } catch (e) { return null; } };
+  const gravaRegistro = (chave, v) => { if (v === null || v === undefined) storage.removeItem(chave); else storage.setItem(chave, JSON.stringify(v)); };
+  const desce = (obj, dentro) => { let o = obj; for (const k of dentro) { if (!o || typeof o !== 'object' || !(k in o)) return null; o = o[k]; } return o === undefined ? null : o; };
+  const poe = (obj, dentro, valor) => { if (!dentro.length) return valor; const raiz = obj && typeof obj === 'object' ? obj : {}; let o = raiz; for (const k of dentro.slice(0, -1)) { if (!o[k] || typeof o[k] !== 'object') o[k] = {}; o = o[k]; } const ult = dentro[dentro.length - 1]; if (valor === null || valor === undefined) delete o[ult]; else o[ult] = valor; return raiz; };
+  const leNo = caminho => { const { chave, dentro } = parte(caminho); return desce(leRegistro(chave), dentro); };
+  const avisa = raiz => { for (const [c, set] of ouvintes) if (parte(c).raiz === raiz) for (const cb of set) cb(leNo(c)); };
+  const anuncia = raiz => { avisa(raiz); try { canal && canal.postMessage({ raiz }); } catch (e) { /* sem canal */ } };
+  if (canal) canal.addEventListener('message', e => { if (e && e.data && e.data.raiz) avisa(e.data.raiz); });
+  // outra aba escreveu (evento storage): avisa quem ouve aquela sala
   if (typeof addEventListener === 'function') addEventListener('storage', e => { if (e && e.key && e.key.startsWith(CH)) avisa(e.key.slice(CH.length)); });
-  let seq = 0;
   return {
     kind: 'local',
     async ler(caminho) { return leNo(caminho); },
-    async escrever(caminho, valor) { grava(caminho, valor); anuncia(caminho); },
-    async atualizar(caminho, patch) { for (const [k, v] of Object.entries(patch || {})) grava(caminho + '/' + k, v); anuncia(caminho); },
-    async empurrar(caminho, valor) { const chave = String(agora()).padStart(14, '0') + '-' + Math.random().toString(36).slice(2, 6) + String(++seq).padStart(4, '0'); grava(caminho + '/' + chave, valor); anuncia(caminho); return chave; },
+    async escrever(caminho, valor) { const { chave, raiz, dentro } = parte(caminho); gravaRegistro(chave, poe(leRegistro(chave), dentro, valor === undefined ? null : JSON.parse(JSON.stringify(valor)))); anuncia(raiz); },
+    async atualizar(caminho, patch) { const { chave, raiz, dentro } = parte(caminho); let reg = leRegistro(chave); for (const [k, v] of Object.entries(patch || {})) reg = poe(reg, [...dentro, k], v === undefined ? null : JSON.parse(JSON.stringify(v))); gravaRegistro(chave, reg); anuncia(raiz); },
+    async empurrar(caminho, valor) { const { chave, raiz, dentro } = parte(caminho); const k = String(agora()).padStart(14, '0') + '-' + Math.random().toString(36).slice(2, 6) + String(++seq).padStart(4, '0'); gravaRegistro(chave, poe(leRegistro(chave), [...dentro, k], JSON.parse(JSON.stringify(valor)))); anuncia(raiz); return k; },
     ouvir(caminho, cb) { if (!ouvintes.has(caminho)) ouvintes.set(caminho, new Set()); ouvintes.get(caminho).add(cb); Promise.resolve().then(() => { if (ouvintes.get(caminho)?.has(cb)) cb(leNo(caminho)); }); return () => { ouvintes.get(caminho)?.delete(cb); }; },
-    ligado() { return true },
+    ligado() { return true; },
     aoMudarLigacao() { return () => {}; }
   };
 }
@@ -6063,7 +6068,7 @@ function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = (
   let aplicadas = []; // chaves das ações da sala já refletidas na mesa, na ordem
   let pendentes = []; // ações minhas aplicadas localmente e ainda não vistas na sala: { antes, action }
   let ultimas = []; // a última lista de ações que a sala mostrou
-  let reconstrucoes = 0, ignoradas = 0, parar = () => {};
+  let reconstrucoes = 0, ignoradas = 0, parar = () => {}, ultimoEnvio = Promise.resolve();
   const assinatura = a => JSON.stringify([a.antes, a.p, a.action]);
   /** Refaz a mesa do zero na ordem da sala. `antes` é só pista: a ordem da sala manda; ação que ficou ilegal
       nessa ordem (os dois agiram "ao mesmo tempo") é ignorada e contada — quem a fez vê a mesa voltar. */
@@ -6092,23 +6097,26 @@ function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = (
   return {
     get mesa() { return mesa; },
     assento,
-    /** Minha ação: aplica já, manda para a sala. Ação de outro assento é recusada. */
-    async agir(action) {
+    /** Minha ação, na hora: aplica na mesa (lança se for ilegal, como a mesa) e manda para a sala em segundo plano.
+        Ação de outro assento é recusada. Devolve os eventos da mesa; o envio fica em `ultimoEnvio`. */
+    agirAgora(action) {
       if (action.p !== assento) throw new Error('nao-e-seu-assento');
       const antes = mesa.log.length;
       const eventos = mesa.act(action);
-      pendentes.push({ antes, p: assento, action });
+      const minha = { antes, p: assento, action };
+      pendentes.push(minha);
       aoMudar(mesa, 'local');
-      const minha = pendentes[pendentes.length - 1];
-      try { await sala.enviarAcao(codigo, { antes, p: assento, action, de: assento }); }
-      catch (e) {
+      ultimoEnvio = sala.enviarAcao(codigo, { antes, p: assento, action, de: assento }).catch(e => {
         // não chegou à sala: a mesa volta ao que a sala tem (a jogada não valeu) e a tela é avisada
         pendentes = pendentes.filter(x => x !== minha);
         reconstruir(ultimas);
         aoErro(Object.assign(new Error('nao-enviada'), { causa: e }));
-      }
+      });
       return eventos;
     },
+    /** Igual a agirAgora, esperando o envio terminar. */
+    async agir(action) { const ev = this.agirAgora(action); await ultimoEnvio; return ev; },
+    ultimoEnvio() { return ultimoEnvio; },
     receber,
     ligar() { parar = sala.ouvir(codigo, receber); return parar; },
     parar() { parar(); },
@@ -6116,7 +6124,39 @@ function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = (
   };
 }
 
-return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, createSala, criaSincronizador, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
+/** Leva 133 · a mesa como a tela a conhece, por cima do sincronizador: quem vê é sempre o meu assento (sem
+    cortina de troca de aparelho), não há desfazer, e toda ação minha vai para a sala. */
+function mesaOnline(sinc, online) {
+  const m = () => sinc.mesa;
+  const api = {
+    get state() { return m().state; }, get log() { return m().log; }, get lines() { return m().lines; },
+    get entradas() { return m().entradas; }, get resumos() { return m().resumos; },
+    get setup() { return m().setup; }, get options() { return { ...m().options, online }; },
+    online,
+    act: action => sinc.agirAgora(action),
+    viewer: () => sinc.assento,
+    humans: () => [sinc.assento],
+    canUndo: () => false,
+    undo: () => false,
+    passUntil(p, stop) {
+      const events = [];
+      for (let guard = 0; guard < 400; guard++) {
+        const s = m().state;
+        if (s.status !== 'playing' || s.pending || s.turn.priority !== p) break;
+        const stackBefore = s.stack.length;
+        events.push(...api.act({ t: 'pass', p }));
+        const n = m().state;
+        if (n.stack.length > stackBefore || n.pending || n.status !== 'playing' || n.stack.length) break;
+        if (stop && stop(n)) break;
+      }
+      return events;
+    },
+    serialize() { return { ...m().serialize(), options: { ...m().options, online } }; }
+  };
+  return api;
+}
+
+return { gerarCodigo, normalizaCodigo, transporteMemoria, transporteLocal, createSala, criaSincronizador, mesaOnline, ALFABETO, PREFIXO, RAIZ, VALIDADE_MS };
 })();
 
 const __m27 = (function () {
@@ -12947,7 +12987,7 @@ const randomSeed = () => {
 };
 
 /* ---------------- A2 · preparar partida ---------------- */
-function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null }) {
+function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null, online = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   // Leva 113 · um modo só: o motor completo. Lista que o motor não resolve 100% não joga, e a tela diz por quê.
   // DEV: a mesa assistida continua no motor para os testes de mesa (ajuste manual de estado); só aparece com
@@ -13072,6 +13112,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       if (!startBtn) return;
       const ok = DEV || (state.coverage === 100 && state.coberturaDele === 100);
       startBtn.disabled = !ok || state.busy;
+      startBtn.classList.toggle('ds-hidden', state.opponent === 'online'); // leva 133 · online começa pela sala
       const xs = state.faltamDele;
       mount(bloqueioDele, !DEV && state.coberturaDele < 100 ? Note(`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
     }
@@ -13115,12 +13156,102 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
-      seletor('mesa-theirs', 'Lista do oponente', state.theirs, id => { state.theirs = id; paintOpponent(); confereOponente(); })) : null);
+      seletor('mesa-theirs', 'Lista do oponente', state.theirs, id => { state.theirs = id; paintOpponent(); confereOponente(); }))
+      : state.opponent === 'online' ? painelOnline() : null);
+    /* ---- Leva 133 · partida online: criar sala ou entrar com código; a sala monta a mesa nos dois aparelhos ---- */
+    const on = { modo: 'criar', codigo: null, digitado: '', esperando: false, erro: null, parar: null, publiquei: false };
+    const ERROS_SALA = { 'codigo-invalido': 'Código incompleto: são 4 letras ou números depois de ESTA-.', 'sala-inexistente': 'Não há sala com esse código.', 'sala-cheia': 'Essa sala já tem dois jogadores.', 'sala-velha': 'Essa sala já acabou.', 'formato-diferente': 'A sala é de outro formato.', 'sem-codigo-livre': 'Não consegui sortear um código. Tente de novo.' };
+    const meuNome = () => state.meuNome || state.me.trim() || 'Jogador';
+    const cobertaOnline = () => DEV || state.coverage === 100; // online é motor completo: a lista precisa jogar sozinha
+    async function cartasDe(entries) {
+      const names = [...new Set(entries.map(e => e.name))];
+      const found = await cardRepo.byNames(names);
+      const cards = {}; for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; }
+      try { const defs = __m23.fichasDasCartas(names); if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c) cards[c.name] = c; } } } catch (e) { /* sem ficha guardada */ }
+      return cards;
+    }
+    async function guardarEIr(setup, assento, codigo) {
+      const mesa = T.createTable(setup, { options: { autoPass: true } });
+      await store.set(T.SAVE_KEY, { ...mesa.serialize(), options: { autoPass: true, bot: null, online: { codigo, assento, modo: online.modo } } });
+      // duas abas do mesmo aparelho dividem o store: o assento desta aba fica na sessão dela
+      try { sessionStorage.setItem('estante.online.assento', JSON.stringify({ codigo, assento })); } catch (e) { /* sem sessão */ }
+      await store.remove(T.SERIE_KEY);
+      if (on.parar) { on.parar(); on.parar = null; }
+      go('/partida');
+    }
+    async function criarSala() {
+      const mine = byId(state.mine); if (!mine || on.esperando) return;
+      on.erro = null; on.esperando = true; paintOpponent();
+      try {
+        on.codigo = await online.sala.criar({ nome: meuNome(), deck: mine.entries, formato: mine.format });
+        on.parar = online.sala.ouvir(on.codigo, async d => {
+          if (!d || !d.sala) return;
+          if (d.sala.estado === 'encerrada') { on.erro = 'O outro jogador saiu da sala.'; on.esperando = false; on.codigo = null; if (on.parar) { on.parar(); on.parar = null; } return paintOpponent(); }
+          if (d.sala.convidado && !on.publiquei) {
+            on.publiquei = true;
+            try {
+              const theirs = { entries: d.sala.convidado.deck, format: mine.format, name: 'Lista de ' + d.sala.convidado.nome };
+              const cards = await cartasDe([...mine.entries, ...theirs.entries]);
+              const cv = deckCoverage(theirs.entries.map(e => ({ ...e, key: norm(e.name) })), new Map(Object.entries(cards).map(([n, c]) => [norm(n), c])));
+              if (!DEV && cv.pct < 100) { await online.sala.encerrar(on.codigo, 'lista-do-convidado'); throw new Error(`a lista de ${d.sala.convidado.nome} tem ${cv.pending.length} carta(s) que o motor não resolve`); }
+              const seats = [{ name: meuNome(), deck: mine }, { name: d.sala.convidado.nome || 'Oponente', deck: theirs }];
+              const setup = T.buildSetup({ format: mine.format, seed: state.seed, seats, cards, manaCheck: true, mode: 'full' });
+              await online.sala.publicarSetup(on.codigo, setup);
+              await guardarEIr(setup, 0, on.codigo);
+            } catch (e) { on.publiquei = false; on.erro = 'Não foi possível preparar a mesa: ' + (e.message || e); paintOpponent(); }
+          }
+        });
+      } catch (e) { on.erro = ERROS_SALA[e.message] || 'Não foi possível criar a sala.'; on.esperando = false; }
+      paintOpponent();
+    }
+    async function entrarSala() {
+      const mine = byId(state.mine); if (!mine || on.esperando) return;
+      on.erro = null; on.esperando = true; paintOpponent();
+      try {
+        on.codigo = await online.sala.entrar(on.digitado, { nome: meuNome(), deck: mine.entries, formato: mine.format });
+        on.parar = online.sala.ouvir(on.codigo, async d => {
+          if (!d || !d.sala) return;
+          if (d.sala.estado === 'encerrada') { on.erro = 'O anfitrião fechou a sala.'; on.esperando = false; on.codigo = null; if (on.parar) { on.parar(); on.parar = null; } return paintOpponent(); }
+          if (d.sala.setup && !on.publiquei) { on.publiquei = true; await guardarEIr(d.sala.setup, 1, on.codigo); }
+        });
+      } catch (e) { on.erro = ERROS_SALA[e.message] || 'Não foi possível entrar na sala.'; on.esperando = false; }
+      paintOpponent();
+    }
+    async function cancelarSala() {
+      if (on.parar) { on.parar(); on.parar = null; }
+      if (on.codigo && on.modo === 'criar') { try { await online.sala.encerrar(on.codigo, 'cancelou'); } catch (e) { /* sala já foi */ } }
+      on.codigo = null; on.esperando = false; on.publiquei = false; on.erro = null; paintOpponent();
+    }
+    function painelOnline() {
+      const modos = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Sala', id: 'online-modo' },
+        ...[['criar', 'Criar sala', 'mais'], ['entrar', 'Entrar', 'seguir']].map(([k, rotulo, icone]) => { const c = Chip(rotulo, { icone, pressed: on.modo === k, dataset: { onlineModo: k } }); c.disabled = on.esperando; c.addEventListener('click', () => { on.modo = k; on.erro = null; paintOpponent(); }); return c; }));
+      const aviso = Text(`Sem servidor configurado, a sala funciona entre ${online.descricao}. O outro jogador precisa do app aberto. As duas listas são enviadas para a sala; a mão fica escondida na tela, mas a partida é de confiança entre vocês.`, { size: 'sm', tone: 'muted' });
+      const erro = on.erro ? Note(on.erro, 'negative') : null;
+      if (on.esperando && on.codigo) {
+        return Stack({}, aviso,
+          Surface({ class: 'ds-surface--pad online-sala', id: 'online-sala' }, Stack({},
+            Text(on.modo === 'criar' ? 'Sua sala' : 'Na sala', { size: 'sm', tone: 'muted' }),
+            Row({ class: 'online-sala__linha' },
+              h('span', { class: 'online-sala__codigo', id: 'online-codigo', lang: 'en' }, on.codigo),
+              on.modo === 'criar' ? IconButton('copiar', 'Copiar código', { id: 'online-copiar', variant: 'ghost', onClick: async () => { try { await navigator.clipboard.writeText(on.codigo); toast('Código copiado'); } catch (e) { toast(on.codigo, 4000); } } }) : null),
+            Row({}, Spinner(), Text(on.modo === 'criar' ? 'Esperando o outro jogador entrar com o código…' : 'Esperando o anfitrião preparar a mesa…', { size: 'sm', tone: 'muted', attrs: { id: 'online-espera' } })),
+            Row({}, Button('Cancelar', { icone: 'fechar', id: 'online-cancelar', onClick: cancelarSala })))), erro);
+      }
+      return Stack({}, aviso, modos,
+        on.modo === 'criar'
+          ? Row({ class: 'ds-row--wrap' }, Button('Criar sala', { variant: 'primary', id: 'online-criar', icone: 'mais', disabled: on.esperando || !state.mine || !cobertaOnline(), title: cobertaOnline() ? null : 'A sala precisa de uma lista 100% coberta pelo motor', onClick: criarSala }))
+          : Row({ class: 'ds-row--wrap online-entrar' },
+            Field('Código da sala', Input({ id: 'online-codigo-input', value: on.digitado, placeholder: 'ESTA-XXXX', autocapitalize: 'characters', autocomplete: 'off', spellcheck: 'false', maxlength: '9',
+              onInput: e => { on.digitado = e.target.value.toUpperCase(); e.target.value = on.digitado; const b = root.querySelector('#online-entrar'); if (b) b.disabled = !__m30.normalizaCodigo(on.digitado); } })),
+            Button('Entrar', { variant: 'primary', id: 'online-entrar', icone: 'seguir', disabled: !__m30.normalizaCodigo(on.digitado) || !cobertaOnline(), title: cobertaOnline() ? null : 'A sala precisa de uma lista 100% coberta pelo motor', onClick: entrarSala })),
+        erro);
+    }
     // B5 · o bot só existe no motor completo (ADR-05): sem a lista 100% coberta o motor
     // não resolve tudo sozinho, e o bot decidiria no escuro. U10 · um bot só: o Shark.
     // U2 parte 3 · os três oponentes num segmentado com ícone; o nome longo fica no title e na nota abaixo
-    const OPONENTES = [['goldfish', 'Goldfish', 'peixe', 'Goldfish: sem oponente, só você joga'], ['shark', 'Shark', 'tubarao', 'Shark: o bot'], ['hotseat', 'A dois', 'pessoas', 'Outra pessoa neste aparelho']];
-    const oppChips = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Oponente' });
+    const OPONENTES = [['goldfish', 'Goldfish', 'peixe', 'Goldfish: sem oponente, só você joga'], ['shark', 'Shark', 'tubarao', 'Shark: o bot'], ['hotseat', 'A dois', 'pessoas', 'Outra pessoa neste aparelho'],
+      ...(online ? [['online', 'Online', 'globo', 'Outra pessoa, em outro aparelho']] : [])];
+    const oppChips = h('div', { class: 'ds-segmentado' + (OPONENTES.length >= 4 ? ' ds-segmentado--grade' : ''), role: 'group', 'aria-label': 'Oponente' });
     const oppNota = h('div', { id: 'mesa-opponent-note' });
     function paintChips() {
       const travado = DEV && state.coverage !== 100;
@@ -13129,7 +13260,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         const bloqueado = travado && k === 'shark';
         const c = Chip(label, { icone, pressed: state.opponent === k, dataset: { opponent: k } }); c.title = longo; c.setAttribute('aria-label', longo);
         if (bloqueado) { c.disabled = true; c.title = 'O Shark precisa da lista 100% coberta pelo motor'; }
-        else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); confereOponente(); });
+        else c.addEventListener('click', () => { state.opponent = k; paintChips(); paintOpponent(); confereOponente(); paintStart(); });
         return c;
       }));
       mount(oppNota, travado
@@ -13216,17 +13347,20 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         Field('Semente', Input({ id: 'mesa-seed', value: String(state.seed), inputmode: 'numeric', onInput: e => { state.seed = parseInt(e.target.value, 10) || 0; } }),
           { hint: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
         Row({}, startBtn))));
+    // leva 133 · saiu da tela esperando alguém: para de ouvir (a sala continua e pode ser cancelada ao voltar)
+    const vigia = setInterval(() => { if (!root.isConnected) { clearInterval(vigia); if (on.parar) { on.parar(); on.parar = null; } } }, 1000);
   })();
   return root;
 }
 
 /* ---------------- A1–A9 · a mesa ---------------- */
-function createTableScreen({ store, perfil = null }) {
+function createTableScreen({ store, perfil = null, online = null }) {
   const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
   // Leva 128 · a foto do perfil entra no círculo da faixa de vez quando o turno é seu
   let meuAvatar = null;
   if (perfil) perfil.get().then(p => { if (p.avatar) { meuAvatar = p.avatar; if (table) paint(); } }).catch(() => {});
   let table = null, adjudicating = null, bottomPick = new Set(), shownViewer = null, handoff = false;
+  let sinc = null, pararPresenca = null; // leva 133 · partida online
   // U6 · mão recolhida: preferência guardada no aparelho, vale para as próximas partidas também
   // U7 · faixa de quem joga: anima só quando o turno troca.
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
@@ -13332,7 +13466,24 @@ function createTableScreen({ store, perfil = null }) {
     const data = await store.get(T.SAVE_KEY);
     if (!data) return mount(root, Stack(pad(), Text('Mesa', { size: '2xl', display: true, as: 'h1' }),
       Empty('Nenhuma partida em andamento.', Button('Preparar partida', { variant: 'primary', onClick: () => go('/mesa') }))));
-    try { table = T.restoreTable(data); }
+    try {
+      if (data.options && data.options.online && online) {
+        // Leva 133 · partida online: a lista de ações da sala é a verdade; a mesa salva é só o setup e o assento
+        const o = { ...data.options.online };
+        try { const meu = JSON.parse(sessionStorage.getItem('estante.online.assento') || 'null'); if (meu && meu.codigo === o.codigo) o.assento = meu.assento; } catch (e) { /* fica o do store */ }
+        if (data.engine !== E.ENGINE_VERSION) throw new Error('versao-do-motor');
+        sinc = __m30.criaSincronizador({ sala: online.sala, codigo: o.codigo, setup: data.setup, assento: o.assento,
+          criaMesa: setup => T.createTable(setup, { options: { autoPass: true } }),
+          aoMudar: (m, motivo) => { if (motivo !== 'local') { adjudicating = null; save(); paint(); } },
+          aoErro: e => {
+            if (e.message === 'nao-enviada') toast('Sem conexão: a jogada não valeu. Tente de novo.', 3600);
+            else if (e.message === 'acao-ignorada' && e.acao && e.acao.de === o.assento) toast('O outro jogador agiu antes: sua jogada não valeu.', 3600);
+          } });
+        table = __m30.mesaOnline(sinc, o);
+        sinc.ligar();
+        pararPresenca = setInterval(() => { if (!root.isConnected) { clearInterval(pararPresenca); sinc.parar(); return; } online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {}); }, 15000);
+      } else table = T.restoreTable(data);
+    }
     catch (e) {
       return mount(root, Stack(pad(), Note(e.message === 'versao-do-motor'
         ? '<b>Esta partida foi salva por outra versão do motor.</b> Ela não pode ser retomada com segurança. Comece uma nova.'
@@ -14184,10 +14335,11 @@ function createTableScreen({ store, perfil = null }) {
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step] }),
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
-          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
+          sinc ? h('span', { class: 'tb-online', id: 'tb-online', role: 'img', 'aria-label': 'Partida online', title: `Partida online · sala ${table.online.codigo}` }, Icone('globo', { tamanho: 18 })) : null,
+          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
           IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
-            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); } })] }) }))),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); if (sinc) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
         opp != null ? side(s, opp, false) : null,
         h('div', { class: 'tb-center' }, painelPilha, recusaBox(), resumoBox(), adj),
@@ -16346,6 +16498,17 @@ const perfil = __m28.createPerfil({ store: platform.store });
    com a origem https://guiamuy.github.io autorizada e a API do Google Drive ativada. Vazio = a seção da conta
    aparece apagada com o motivo. Em testes, window.__GOOGLE_CLIENT_ID e window.__GOOGLE_FALSO substituem o real. */
 const GOOGLE_CLIENT_ID = '';
+/* Leva 133 · PARTIDA ONLINE — cole aqui a URL do seu Realtime Database do Firebase
+   (https://<projeto>-default-rtdb.firebaseio.com). Vazia, a sala funciona só entre duas abas deste aparelho
+   (transporte local), o que basta para testar; para dois celulares é preciso o Firebase (leva 133). */
+const FIREBASE_DB_URL = '';
+const online = (() => {
+  const temStorage = typeof localStorage !== 'undefined';
+  const canal = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('estante.online') : null;
+  const transporte = temStorage ? __m30.transporteLocal({ storage: localStorage, canal }) : __m30.transporteMemoria();
+  const sala = __m30.createSala({ transporte });
+  return { transporte, sala, modo: FIREBASE_DB_URL ? 'firebase' : 'local', descricao: FIREBASE_DB_URL ? 'Firebase' : 'duas abas deste aparelho' };
+})();
 const conta = __m29.createConta({
   clientId: (typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID,
   store: platform.store,
@@ -16387,8 +16550,8 @@ const ROUTES = [
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
-  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil }) },
-  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil }) },
+  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
+  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
   { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics }) },
   { path: '/ds', title: 'Design system', render: renderDS },

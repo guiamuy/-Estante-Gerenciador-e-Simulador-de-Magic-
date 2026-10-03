@@ -181,7 +181,8 @@ test('e2e · B4/U10 jogar contra o Shark: três oponentes, um bot só, e a jogad
   await page.fill('#mesa-seed', '9');
   // U10 · Goldfish, Shark e outra pessoa; o amador não aparece mais
   await page.waitForSelector('[data-opponent="shark"]');
-  assert.deepEqual(await page.locator('[data-opponent]').evaluateAll(cs => cs.map(c => c.dataset.opponent)), ['goldfish', 'shark', 'hotseat']);
+  // Leva 133 · expectativa mudou de propósito: a partida online é o quarto oponente
+  assert.deepEqual(await page.locator('[data-opponent]').evaluateAll(cs => cs.map(c => c.dataset.opponent)), ['goldfish', 'shark', 'hotseat', 'online']);
   assert.doesNotMatch(await page.innerText('body'), /amador|profissional/i, 'nenhum nível antigo na tela');
   await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-opponent="shark"]');
@@ -2933,8 +2934,11 @@ test('e2e · U2 parte 3 cartas, scanner, preparar partida e mesa: ícones, rótu
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
   await temIcone('#mesa-start');
   const oponentes = await page.$$eval('.ds-segmentado [data-opponent]', cs => cs.map(c => ({ k: c.dataset.opponent, rot: c.querySelector('.ds-chip__rotulo').textContent, svg: !!c.querySelector('svg'), nome: c.getAttribute('aria-label'), y: Math.round(c.getBoundingClientRect().y), dir: Math.round(c.getBoundingClientRect().right) })));
-  assert.deepEqual(oponentes.map(o => [o.k, o.rot]), [['goldfish', 'Goldfish'], ['shark', 'Shark'], ['hotseat', 'A dois']]);
-  assert.ok(oponentes.every(o => o.svg && o.y === oponentes[0].y && o.dir <= 360), 'três oponentes numa linha, com ícone');
+  // Leva 133 · expectativa mudou de propósito: com o quarto oponente (Online) os chips não cabem numa linha de 360 px
+  // (padrão aprendido na U2); o segmentado vira grade 2×2 e nenhum rótulo é cortado
+  assert.deepEqual(oponentes.map(o => [o.k, o.rot]), [['goldfish', 'Goldfish'], ['shark', 'Shark'], ['hotseat', 'A dois'], ['online', 'Online']]);
+  assert.ok(oponentes.every(o => o.svg && o.dir <= 360), 'quatro oponentes dentro da tela, com ícone');
+  assert.equal(new Set(oponentes.map(o => o.y)).size, 2, 'duas linhas de dois');
   assert.equal(oponentes[2].nome, 'Outra pessoa neste aparelho', 'nome falado completo');
   assert.equal(await page.getAttribute('[data-stopall]', 'aria-label'), 'Parar em todos os passos');
   await page.click('[data-opponent="hotseat"]'); await page.waitForSelector('#mesa-them');
@@ -4888,4 +4892,73 @@ test('e2e · Leva 131 · Faeries: Counterspell diz qual mágica anula, Dispel di
   for (let i = 0; i < 10; i++) { e = await M.est(); if (!e.campo.includes('Faerie Seer') || e.passo === 'main2') break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(200); }
   assert.ok(e.cemiterio.filter(n => n === 'Faerie Seer').length >= 2 && e.cemiterio.includes('Cryoshatter'), 'virou para atacar: Cryoshatter destrói a criatura e vai junto para o cemitério');
   assert.deepEqual(M.errors, []);
+});
+
+/* ---------------- Leva 133 · partida online entre duas abas (transporte local) ---------------- */
+test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra aba, as duas mesas convergem, sem desfazer, desistir encerra', { skip }, async t => {
+  const { page: A, errors, base } = await open(t, { dev: false });
+  await A.addInitScript(() => { window.__MTG_TEST = true; });
+  await A.setViewportSize({ width: 360, height: 780 });
+  // lista 100% coberta (o modo online usa o motor completo)
+  await createDeck(A, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  // 1 · anfitrião: quarto oponente "Online", criar sala, código legível, "Começar partida" some
+  await A.goto(base + '#/mesa'); await A.waitForSelector('[data-opponent="online"]');
+  // quatro oponentes: o segmentado vira grade 2×2 e nenhum rótulo é cortado
+  const chips = await A.$$eval('[data-opponent] .ds-chip__rotulo', es => es.map(e => [e.scrollWidth - e.clientWidth, Math.round(e.closest('.ds-chip').getBoundingClientRect().top)]));
+  assert.deepEqual(chips.map(c => c[0]), [0, 0, 0, 0], 'rótulos inteiros em 360 px');
+  assert.equal(new Set(chips.map(c => c[1])).size, 2, 'duas linhas de chips');
+  await A.click('[data-opponent="online"]'); await A.waitForSelector('#online-criar');
+  await A.waitForFunction(() => !document.querySelector('#online-criar').disabled, null, { timeout: 10000 }); // cobertura conferida
+  assert.equal(await A.locator('#mesa-start').isVisible(), false, 'online começa pela sala, não pelo botão da mesa');
+  assert.equal(await A.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Criar sala');
+  await auditaTela(A, 'preparar online (criar)');
+  await A.click('#online-criar'); await A.waitForSelector('#online-codigo');
+  const codigo = (await A.innerText('#online-codigo')).trim();
+  assert.match(codigo, /^ESTA-[A-HJ-NP-Z2-9]{4}$/);
+  assert.match(await A.innerText('#online-espera'), /Esperando o outro jogador/);
+  await auditaTela(A, 'sala criada (escuro)');
+  await A.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(A, 'sala criada (claro)');
+  await A.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 2 · convidado, em outra aba do mesmo aparelho: entra com o código digitado de qualquer jeito
+  const B = await A.context().newPage(); const errosB = [];
+  B.on('pageerror', e => errosB.push(String(e))); B.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errosB.push(m.text()); });
+  await B.addInitScript(() => { window.__MTG_TEST = true; });
+  await B.setViewportSize({ width: 360, height: 780 });
+  await B.goto(base + '#/mesa'); await B.waitForSelector('[data-opponent="online"]'); await B.click('[data-opponent="online"]');
+  await B.click('[data-online-modo="entrar"]'); await B.waitForSelector('#online-codigo-input');
+  await B.waitForFunction(() => document.querySelector('#online-codigo-input'), null, { timeout: 5000 });
+  assert.equal(await B.locator('#online-entrar').isDisabled(), true, 'sem código completo não entra');
+  await B.fill('#online-codigo-input', 'ESTA-ZZZZ'); await B.click('#online-entrar');
+  await B.waitForSelector('.ds-note--negative'); assert.match(await B.innerText('.ds-note--negative'), /Não há sala/);
+  await B.fill('#online-codigo-input', codigo.slice(5).toLowerCase()); await B.click('#online-entrar');
+  // 3 · os dois chegam à mesa; cada um vê só o próprio assento, sem cortina
+  await A.waitForSelector('#tb-keep', { timeout: 20000 }); await B.waitForSelector('#tb-keep', { timeout: 20000 });
+  assert.equal(await A.locator('#tb-handoff').count(), 0); assert.equal(await B.locator('#tb-handoff').count(), 0);
+  const estado = p => p.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  const quemVe = p => p.evaluate(() => window.__estanteMesa.quemVe());
+  assert.equal(await quemVe(A), 0); assert.equal(await quemVe(B), 1);
+  assert.equal(await A.locator('#tb-online').count(), 1, 'indicador de partida online'); assert.equal(await A.locator('#tb-undo').isDisabled(), true, 'online não desfaz');
+  await A.click('#tb-keep');
+  await B.waitForFunction(() => window.__estanteMesa.estado().players[0].kept === true, null, { timeout: 10000 });
+  assert.equal(await estado(A), await estado(B), 'depois do keep do anfitrião, as mesas são iguais');
+  await B.click('#tb-keep');
+  await A.waitForFunction(() => window.__estanteMesa.estado().status === 'playing', null, { timeout: 10000 });
+  await B.waitForFunction(() => window.__estanteMesa.estado().status === 'playing', null, { timeout: 10000 });
+  assert.equal(await estado(A), await estado(B), 'partida começada igual nos dois lados');
+  // quem tem a prioridade passa; o outro recebe
+  for (let i = 0; i < 3; i++) {
+    const s = JSON.parse(await estado(A)); if (s.status !== 'playing' || s.pending) break;
+    const dono = s.turn.priority === 0 ? A : B, outro = dono === A ? B : A; const antes = s.turn.step + s.turn.number + s.turn.priority;
+    await dono.click('#tb-pass');
+    await outro.waitForFunction(a => { const s = window.__estanteMesa.estado(); return s.turn.step + s.turn.number + s.turn.priority !== a; }, antes, { timeout: 10000 });
+    await A.waitForTimeout(150);
+    assert.equal(await estado(A), await estado(B), `passo ${i + 1}: mesas iguais`);
+  }
+  await auditaTela(A, 'mesa online');
+  // 4 · desistir no anfitrião: os dois veem o fim e a sala encerra
+  await A.click('#tb-concede'); await A.waitForSelector('.ds-dialog'); await A.click('.ds-dialog .ds-btn--danger');
+  await B.waitForFunction(() => window.__estanteMesa.estado().status === 'over', null, { timeout: 10000 });
+  assert.equal(JSON.parse(await estado(B)).winner, 1, 'o convidado venceu');
+  assert.equal(await A.evaluate(c => JSON.parse(localStorage.getItem('estante.online:salas/' + c)).estado, codigo), 'encerrada');
+  assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
 });

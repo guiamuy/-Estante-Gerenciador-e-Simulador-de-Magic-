@@ -382,7 +382,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
 | 16º-q ✅ | Perfil local: nome, avatar e backup completo por arquivo (U13 fase 1, leva 128) | E47 | 1 | — |
 | 16º-r ✅ | Entrar com Google e backup no Drive, pronto atrás de uma constante (U13 fase 2, leva 129) | E47 | 1 | **OAuth Client ID do usuário** para ligar na publicação |
-| 16º-s 🟡 | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) — parte 1 na leva 130 (sala, transporte, sincronização) | E48 | 4 | **projeto Firebase do usuário** (leva 132) |
+| 16º-s 🟡 | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) — parte 1 na leva 130 (sala, transporte, sincronização), parte 2 na leva 133 (telas; joga entre duas abas) | E48 | 4 | **projeto Firebase do usuário** (leva 133) |
 | 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
 | 16º-u | Roadmap completo de design: auditoria de todas as telas, crítica e plano de elevação (temas, acento, verso, superfície da mesa, densidade, fonte) | U | 1 | capturas do aparelho para a auditoria final |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
@@ -4009,6 +4009,30 @@ conversa paralela à do Shark e à da revisão carta a carta)
   - **Testes (U, `online.unit.test.mjs`, 8):** código; transporte em memória (ordem, ouvir, sem rede); transporte
     local entre duas "abas"; sala inteira; duas mesas convergem (estado idêntico a cada ação); terceiro aparelho
     alcança e queda + volta reconstrói; corrida de duas ações; sem rede a jogada é desfeita.
+- **Leva 133 · parte 2 — telas (criar sala, entrar, mesa online):**
+  - preparar partida ganha o quarto oponente **Online** (ícone globo); com quatro opções o segmentado vira grade
+    2×2 (os rótulos não cabiam numa linha de 360 px — padrão aprendido na U2); "Começar partida" some no modo
+    online: o painel tem os próprios primários;
+  - **Criar sala**: cartão com o código `ESTA-XXXX` em serifa grande, copiar, "Esperando o outro jogador…",
+    Cancelar (encerra a sala); quando o convidado entra, o anfitrião busca as cartas das duas listas, confere que
+    a lista do convidado também joga 100% (senão encerra e diz quantas cartas faltam), publica o setup e os dois
+    vão para a mesa;
+  - **Entrar**: campo do código (maiúsculas, prefixo opcional) + Entrar, erros em frase (sala inexistente, cheia,
+    velha, formato diferente); "Esperando o anfitrião preparar a mesa…";
+  - **mesa online**: `mesaOnline(sinc)` por cima do sincronizador — quem vê é sempre o meu assento (sem cortina),
+    sem desfazer (botão apagado com o motivo), ícone de globo nas ferramentas com o código no title, presença a
+    cada 15 s; ação que não chegou à sala ou que o outro atropelou vira aviso de uma linha; desistir encerra a
+    sala. O assento desta aba fica em `sessionStorage` (duas abas dividem o store);
+  - **sem Firebase configurado** (`FIREBASE_DB_URL` vazia) o transporte é o local: a sala funciona entre duas abas
+    deste aparelho — dá para testar tudo hoje; a tela diz isso e diz que a partida é de confiança entre os dois.
+  - **Testes:** e2e "Leva 133" com duas abas do mesmo contexto: criar, código legível, entrar com código errado e
+    certo (digitado em minúsculas, sem prefixo), os dois chegam à mesa sem cortina, cada um vê o próprio assento,
+    estados idênticos depois de cada keep e de três passes, indicador online e desfazer apagado, desistir
+    encerra e o outro vence, `auditaTela` nas telas novas nos dois temas. Expectativas B4/U10 e U2 parte 3
+    ajustadas (quatro oponentes em duas linhas), com o motivo nos testes.
+  - **Pendência vista no caminho:** no Playwright, a captura de tela da aba do anfitrião trava depois de a mesa
+    abrir (JS ocioso a 96%, fps baixo na aba; o convidado captura normal). Não afeta o teste nem o app; fica para
+    a leva 133 investigar (composição/animação).
 - **Valor:** dois celulares, cada um com o app, uma partida.
 - **Aceite:** criar sala com código de 6 letras, entrar pelo código, cada aparelho aplica as ações do outro no mesmo motor; reconexão retoma pelo registro; mão do oponente escondida na tela (a sincronização é por ações, então o estado completo está nos dois aparelhos — declarado como limite de confiança entre amigos); sem rede a tela diz que a partida online precisa de internet.
 - **Testes:** U (protocolo de sala e reconciliação de ações); e2e com dois contextos de navegador e transporte simulado; O1 (mensagem sem rede).
