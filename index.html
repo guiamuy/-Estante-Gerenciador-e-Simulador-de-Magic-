@@ -11356,6 +11356,72 @@ function notaDoAtaque(s, p, atacantes, opts = {}) {
   return (opts.av || avalia)(cur, p).nota - (opts.corrida ? riscoDeVolta(cur, p) : 0);
 }
 
+/* ---------------- Leva 132 · olhar o turno seguinte ----------------
+   O Shark decidia olhando um lance: a jogada, a resposta do oponente e o combate em curso. Aqui ele joga a posição
+   para a frente — o resto do turno e o turno inteiro do oponente — com uma política rápida para os dois lados, e
+   dá a nota no começo do próprio turno seguinte. Roda sobre mundos possíveis (informação justa).
+   DESLIGADO NO SHARK ATUAL: medido contra o v6 em 224 partidas, ficou no ruído (53% no ataque, 53% em ataque +
+   jogada) e deixa a decisão mais lenta. As opções `rolaAtaque` e `rolaJogada` ficam só para o torneio. */
+/** Jogada da política rápida para quem tem a vez: terreno, a permanente/feitiço sem alvo mais caro que dá para
+    pagar, ataque e bloqueio pela regra de bolso, e passar. Barata de propósito: uma ou duas consultas ao motor. */
+function politicaRapida(s) {
+  const q = s.pending ? s.pending.p : s.turn.priority;
+  if (s.pending) {
+    if (s.pending.kind === 'attackers') return decideAtaque(s, q).acao;
+    if (s.pending.kind === 'blockers') return decideBloqueio(s, q).acao;
+    return E.legalActions(s, q).find(a => a.t !== 'concede') || null;
+  }
+  if (s.turn.active === q && !s.stack.length && (s.turn.step === 'main1' || s.turn.step === 'main2')) {
+    const la = E.legalActions(s, q);
+    const terreno = la.find(a => a.t === 'play_land');
+    if (terreno) return terreno;
+    let melhor = null, caro = -1;
+    for (const a of la) {
+      if (a.t !== 'cast' || (a.targets && a.targets.length) || a.x != null) continue;
+      const f = s.facts[(s.objects[a.oid] || {}).name]; if (!f || (f.types || []).includes('instant')) continue;
+      const c = f.cost || {}, cmc = (c.generic || 0) + Object.values(c.colored || {}).reduce((x, y) => x + y, 0) + (c.hybrid || []).length;
+      if (cmc > caro) { caro = cmc; melhor = a; }
+    }
+    if (melhor) return melhor;
+  }
+  return { t: 'pass', p: q };
+}
+/** Joga a posição para a frente até o começo do próximo turno de `p` (ou o fim da partida) e devolve a nota. */
+function rola(s, p, opts = {}, max = 110) {
+  let cur = s;
+  const fim = s.turn.number + (s.turn.active === p ? 2 : 1);
+  for (let i = 0; i < max && cur.status === 'playing' && cur.turn.number < fim; i++) {
+    const a = politicaRapida(cur);
+    let r = a ? simula(cur, a) : null;
+    if (!r && !cur.pending) r = simula(cur, { t: 'pass', p: cur.turn.priority });
+    if (!r) break;
+    cur = r.estado;
+  }
+  return (opts.av || avalia)(cur, p).nota;
+}
+/** Reordena as melhores opções pelo que elas rendem um turno à frente. `opcoes` = [{ a, n }] já com a nota de um
+    lance; `aplica(w, a)` devolve o estado depois da opção. Devolve a opção vencedora (ou null sem tempo). */
+function melhorAFrente(opcoes, p, opts, aplica, quantas = 3) {
+  const W = (opts.mundos && opts.mundos.length ? opts.mundos : []).slice(0, 2);
+  if (!W.length) return null;
+  const topo = opcoes.filter(x => x.n > -Infinity).sort((x, y) => y.n - x.n).slice(0, quantas);
+  for (const x of opcoes) if (x.fixa && !topo.includes(x)) topo.push(x);
+  if (topo.length < 2) return null;
+  let melhor = null;
+  for (const x of topo) {
+    let soma = 0, n = 0;
+    for (const w of W) {
+      if (opts.limite && opts.agora() > opts.limite && melhor) return null; // sem tempo: fica a decisão de um lance
+      const d = aplica(w, x.a); if (!d) continue;
+      soma += rola(d, p, opts); n++;
+    }
+    if (!n) continue;
+    const nota = soma / n;
+    if (!melhor || nota > melhor.nota + 1e-9) melhor = { a: x.a, nota };
+  }
+  return melhor;
+}
+
 /** B4 · ataque escolhido pelo resultado do combate, não por regra de bolso. */
 function decideAtaqueProfissional(s, p, opts = {}) {
   const podem = E.eligibleAttackers(s, p);
@@ -11375,8 +11441,15 @@ function decideAtaqueProfissional(s, p, opts = {}) {
     if (podem.length <= 7) for (const fica of podem) junta(podem.filter(x => x !== fica));
     if (podem.length <= 5) for (let i = 0; i < podem.length; i++) for (let j = i + 1; j < podem.length; j++) junta([podem[i], podem[j]]);
   }
+  const notasAtq = [];
   const r = escolhe(conjuntos.map(c => ({ t: 'attack', p, attackers: c })),
-    a => { const n = notaDoAtaque(s, p, a.attackers, opts); return n == null ? -Infinity : n; }, opts);
+    a => { const n = notaDoAtaque(s, p, a.attackers, opts); const v = n == null ? -Infinity : n; notasAtq.push({ a, n: v, fixa: a.attackers.length === obrigadas.length }); return v; }, opts);
+  // Leva 132 · as três melhores formações (e "não atacar") são jogadas até o meu próximo turno: o contra-ataque do
+  // oponente entra na conta pelo que ele causa, não só quando mata.
+  if (opts.rolaAtaque && r.acao) {
+    const m = melhorAFrente(notasAtq, p, opts, (w, a) => { const x = simula(w, a); return x ? x.estado : null; });
+    if (m) r.acao = m.a;
+  }
   const lista = (r.acao || { attackers: obrigadas }).attackers;
   const motivo = !lista.length ? 'não ataquei: depois do bloqueio provável, atacar me deixa pior'
     : `ataquei com ${lista.length}: contei o bloqueio provável e o dano compensa`;
@@ -11482,7 +11555,21 @@ function jogadaProfissional(s, p, opts = {}) {
     const custoDescarte = opts.recursos && a.t === 'discard' && a.oid ? valorNaMao(s, p, a.oid) * 0.5 : 0;
     return notaComResposta(depois, p, opts) - custoDescarte;
   };
-  const r = escolhe(candidatas, a => media(w => notaNoMundo(w, a)) - pedagio(a), opts);
+  const notasJog = [];
+  const r = escolhe(candidatas, a => { const n = media(w => notaNoMundo(w, a)) - pedagio(a); notasJog.push({ a, n }); return n; }, opts);
+  // Leva 132 · na minha fase principal, as duas melhores jogadas e "passar" são jogadas até o meu próximo turno
+  if (opts.rolaJogada && r.acao && !minhaDecisao && s.turn.active === p && !s.stack.length && (s.turn.step === 'main1' || s.turn.step === 'main2')) {
+    const passar = { a: { t: 'pass', p }, n: base, fixa: true };
+    const m = melhorAFrente([...notasJog, passar], p, opts, (w, a) => {
+      const x = simula(w, a); if (!x) return null;
+      return a.t === 'pass' ? x.estado : resolveSimulado(x.estado, 8, opts.desdobra ? p : null, opts.av);
+    }, 2);
+    if (m) {
+      if (m.a.t === 'pass') return { acao: m.a, motivo: 'passei: um turno à frente, esperar rende mais' };
+      const ganhoF = (notasJog.find(x => x.a === m.a) || { n: base }).n - base;
+      return { acao: m.a, motivo: motivoDe(s, p, m.a, ganhoF), ganho: ganhoF };
+    }
+  }
   if (!r.acao) return { acao: { t: 'pass', p }, motivo: 'passei: nenhuma jogada legal serviu' };
   const ganho = r.nota - base;
   if (!minhaDecisao && ganho <= 0) {
@@ -11770,7 +11857,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */

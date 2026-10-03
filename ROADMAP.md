@@ -369,6 +369,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
+| 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
 | 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
@@ -2581,6 +2582,25 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   troca um por um; descarta por mão cheia.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
+- **Depende de:** B8.
+
+**B15 · Olhar o turno seguinte** ✅ (leva 132, 03/10/2026) — fechada com resultado negativo; **o Shark não mudou de jogo.**
+- **Pergunta:** simular o resto do turno e o turno inteiro do oponente (em vez de um lance) deixa o Shark mais forte?
+- **Entregue (desligado):** política rápida para os dois lados (`politicaRapida`), rolagem até o próprio turno seguinte
+  (`rola`), e duas opções de torneio: `rolaAtaque` (as três melhores formações de ataque e "não atacar" são roladas) e
+  `rolaJogada` (as duas melhores jogadas da fase principal e "passar"). Tudo sobre mundos possíveis.
+- **Medição (sete listas Pauper, 224 partidas cada, contra o `shark-v6`):** só ataque = **53% em 222** (117–105);
+  ataque + jogada = **53% em 220** (117–103). Margem de ±7: **ruído.** Pior decisão 1,7–2,0 s (dois torneios em
+  paralelo). Zero ações ilegais. Não foi promovido.
+- **Achado que muda o roteiro:** nas quatro últimas medições o resultado depende muito mais do baralho que o Shark
+  pilota do que da técnica testada. Vitórias do Shark por lista pilotada (somando os dois torneios desta leva):
+  Rakdos Madness 50–14 · GW Bogles 40–24 · Mono Blue Faeries 35–29 · Jund Wildfire 34–30 · Boros Bully 32–32 ·
+  Elves 28–36 · **Walls Combo 15–43**. Ele não sabe pilotar os baralhos de combinação. É aí que há ganho grande e
+  mensurável: o plano de cada baralho (B9), começando por Walls Combo e Elves.
+- **Mudança de método a partir daqui:** medir por baralho pilotado, com as mesmas sementes e o mesmo oponente
+  (só o piloto muda), em vez da média das sete listas.
+- **Testes:** U (política rápida: terreno, permanente mais cara, passar; rolagem: para no meu próximo turno, não muda
+  o estado, é determinística).
 - **Depende de:** B8.
 
 **B20 · Pesos da avaliação por torneio** ✅ (leva 126, 03/10/2026) — fechada com resultado negativo.

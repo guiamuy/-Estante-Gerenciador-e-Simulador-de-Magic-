@@ -796,3 +796,29 @@ test('Leva 126 · multiplicador de parcela: muda só a parcela pedida, não muda
   assert.equal(B.avaliadorCom({ mao: 0.1 })(fim, 0).nota, B.avaliaV3(fim, 0).nota, 'vitória vale o mesmo com qualquer peso');
   assert.equal(B.criaBot({ nivel: 'shark-v6' }).nivel, 'shark-v6');
 });
+
+// Leva 132 · olhar o turno seguinte: política rápida e rolagem até o próprio turno seguinte.
+test('Leva 132 · política rápida: baixa terreno, conjura a permanente sem alvo mais cara que dá para pagar, e passa quando não há o que fazer', async () => {
+  const { s, ids } = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(4), mao: ['Island', 'Sewer-veillance Cam', 'Ninja of the Deep Hours', 'Counterspell'] } });
+  s.players[0].landPlayed = false;
+  const a = B.politicaRapida(s);
+  assert.equal(a.t, 'play_land');
+  let t = act(s, a);
+  const b = B.politicaRapida(t);
+  assert.deepEqual([b.t, b.oid], ['cast', ids[0]['Ninja of the Deep Hours']], 'a mais cara primeiro; a anulação (instantânea, com alvo) fica na mão');
+  const vazio = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(2), mao: ['Counterspell'] } });
+  assert.equal(B.politicaRapida(vazio.s).t, 'pass');
+});
+
+test('Leva 132 · rolagem: joga até o começo do meu próximo turno, não muda o estado recebido e dá sempre a mesma nota', async () => {
+  const { s } = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: [...ILHAS(3), 'Spellstutter Sprite'], mao: ['Island'] }, p1: { campo: ['Plains', 'Plains', 'Thraben Inspector'], mao: ['Squadron Hawk'] } });
+  const antes = JSON.stringify(s);
+  const n1 = B.rola(s, 0, { av: B.avaliaV3 }), n2 = B.rola(s, 0, { av: B.avaliaV3 });
+  assert.equal(JSON.stringify(s), antes);
+  assert.equal(n1, n2);
+  assert.notEqual(n1, B.avaliaV3(s, 0).nota, 'a nota é a de um turno à frente, não a de agora');
+  // a rolagem para: o estado de chegada é o começo do meu turno seguinte (ou a partida acabou)
+  let cur = s; const fim = s.turn.number + 2;
+  for (let i = 0; i < 110 && cur.status === 'playing' && cur.turn.number < fim; i++) cur = act(cur, B.politicaRapida(cur) || { t: 'pass', p: cur.turn.priority });
+  assert.ok(cur.status !== 'playing' || (cur.turn.number === fim && cur.turn.active === 0), 'chegou ao meu próximo turno');
+});
