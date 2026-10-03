@@ -367,6 +367,14 @@ a { color: var(--accent); }
 .ds-aviso-rede .ds-icon { flex: none; color: var(--warning); }
 .ds-empty--icone { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); }
 .ds-empty__icone { width: 72px; height: 72px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--bg-elev-2); color: var(--fg-subtle); }
+/* D4 · estado vazio de primeiro uso: ícone grande no acento, título, uma frase, um primário e um secundário; o resto em "Mais" */
+.ds-empty.ds-empty--hero { border: 0; background: var(--bg-elev-1); box-shadow: var(--shadow-1); padding: var(--space-7) var(--space-4) var(--space-5); gap: var(--space-3); }
+.ds-empty--hero .ds-empty__icone { width: 88px; height: 88px; color: var(--accent); background: var(--accent-soft); }
+.ds-empty__titulo { color: var(--fg); margin: 0; }
+.ds-empty--hero .ds-text--muted { max-width: 30ch; }
+.ds-empty__acoes { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; margin-top: var(--space-2); }
+.ds-empty__acoes .ds-row { justify-content: center; }
+.ds-empty__mais { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1); }
 /* chip da barra: um ponto que pulsa devagar enquanto a internet não volta */
 #nav-offline { position: relative; }
 #nav-offline::before { content: ''; position: absolute; top: 5px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); box-shadow: 0 0 0 0 var(--warning); animation: ds-pulso-rede 2.4s var(--ease-out) infinite; }
@@ -1136,6 +1144,12 @@ body {
 .col-topo { flex-wrap: nowrap; align-items: flex-start; }
 .col-topo > .ds-btn { flex: none; }
 .col-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+/* D4 · vazio de primeiro uso: Listas e Coleção escondem o que repetiria o cartão (botões do título, filtro, backup, adicionar) */
+.decks-home[data-vazia="true"] :is(#deck-starter, #deck-new, #decks-backup) { display: none; }
+.col-root[data-vazia="true"] :is(#col-search, #col-ir-adicionar, #col-scan, .col-filtro) { display: none; }
+.col-root[data-vazia="true"] #col-adicionar:not([data-aberta="true"]) { display: none; }
+.col-root[data-vazia="true"] #col-adicionar .col-acoes { display: none; }
+.col-root[data-vazia="true"] > div:empty { display: none; }
 .col-acoes .ds-btn { justify-content: flex-start; font-size: var(--text-sm); padding: 0 var(--space-3); white-space: nowrap; min-width: 0; }
 .col-row__remover { color: var(--fg-muted); }
 .col-add .ds-input { flex: 1; min-width: 0; }
@@ -2178,8 +2192,11 @@ const ListGroup = label => h('div', { class: 'ds-list__group' }, label);
 
 /* ---------------- estados ---------------- */
 /** U4 · estado vazio pode ter um ícone grande (ex.: sem internet), como uma pequena ilustração. */
-const Empty = (message, action, { icone } = {}) => h('div', { class: 'ds-empty' + (icone ? ' ds-empty--icone' : '') },
-  icone ? h('span', { class: 'ds-empty__icone' }, Icone(icone, { tamanho: 36 })) : null, Text(message, { tone: 'muted' }), action || null);
+/** D4 · `titulo` põe uma linha de destaque acima da frase; `hero` é o estado vazio de primeiro uso (ícone grande, superfície, sem tracejado). */
+const Empty = (message, action, { icone, titulo, hero, id } = {}) => h('div', { class: 'ds-empty' + (icone ? ' ds-empty--icone' : '') + (hero ? ' ds-empty--hero' : ''), id: id || null },
+  icone ? h('span', { class: 'ds-empty__icone' }, Icone(icone, { tamanho: hero ? 40 : 36 })) : null,
+  titulo ? Text(titulo, { size: 'xl', display: true, as: 'h2', attrs: { class: 'ds-text ds-text--xl ds-text--display ds-empty__titulo' } }) : null,
+  Text(message, { tone: 'muted' }), action || null);
 /** U4 · aviso de rede numa linha: ícone da nuvem cortada + frase curta. Para avisos longos, `Note` continua. */
 const AvisoRede = (texto, { id } = {}) => h('div', { class: 'ds-aviso-rede', role: 'status', id: id || null }, Icone('semRede', { tamanho: 18 }), h('span', {}, texto));
 /** U4 · anel de progresso (0–100) com o número no centro. */
@@ -6682,10 +6699,18 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
   async function paint() {
     const all = await decks.list();
     const owned = await collection.all();
-    if (!all.length) return mount(list, Empty('Nenhuma lista ainda. Comece por uma lista pronta ou cole uma lista exportada do Moxfield, Archidekt ou Arena.',
-      Row({ class: 'ds-row--wrap' },
-        Button('Ver prontas', { variant: 'primary', icone: 'caixa', id: 'decks-starter-empty', onClick: () => go('/listas/prontas') }),
-        Button('Nova lista', { icone: 'mais', onClick: () => go('/listas/editar') }))));
+    // D4 · vazio de primeiro uso: os botões do título e o cartão de backup saem (repetiriam o que o cartão oferece);
+    // "Restaurar backup" fica na folha "Mais", que é o que quem chega de outro aparelho procura
+    root.dataset.vazia = String(!all.length);
+    if (!all.length) return mount(list, Empty('Comece por uma lista pronta ou cole uma lista do Moxfield, Archidekt ou Arena.',
+      h('div', { class: 'ds-empty__acoes' },
+        Row({ class: 'ds-row--wrap' },
+          Button('Ver prontas', { variant: 'primary', icone: 'caixa', id: 'decks-starter-empty', onClick: () => go('/listas/prontas') }),
+          Button('Nova lista', { icone: 'mais', id: 'decks-new-empty', onClick: () => go('/listas/editar') })),
+        Button('Mais', { variant: 'ghost', icone: 'linhas', id: 'decks-mais', onClick: () => Dialog({ title: 'Mais', body: Stack({},
+          Button('Restaurar backup', { icone: 'importar', id: 'decks-backup-restore-folha', onClick: () => { closeDialog(); fileInput.click(); } }),
+          Text('Um backup da Estante traz listas, coleção, perfil e preferências de outro aparelho.', { size: 'sm', tone: 'muted' })) }) })),
+      { icone: 'listas', titulo: 'Nenhuma lista ainda', hero: true, id: 'decks-vazio' }));
     // Leva 110 · cores só do que já está guardado no aparelho (sem rede, sem espera)
     let guardadas = new Map();
     try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
@@ -6697,20 +6722,20 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
         posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id } });
     })));
   }
-  paint();
-
-  return Stack(pad(),
+  const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
     Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
       Button('Prontas', { id: 'deck-starter', icone: 'caixa', title: 'Listas prontas', onClick: () => go('/listas/prontas') }),
       Button('Nova', { variant: 'primary', id: 'deck-new', icone: 'mais', title: 'Nova lista', onClick: () => go('/listas/editar') })),
     list,
-    Surface({ class: 'ds-surface--pad' }, Stack({},
+    Surface({ class: 'ds-surface--pad', id: 'decks-backup' }, Stack({},
       Text('Backup', { size: 'sm', as: 'h2', display: true }),
       Text('Listas e coleção ficam guardadas neste aparelho. Exporte um backup para levar para outro aparelho ou não perder nada ao limpar o navegador.', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' },
         Button('Exportar', { icone: 'exportar', id: 'decks-backup-export', title: 'Exportar backup', onClick: async () => { if (backup) await backup.exportar(); else files.save('estante-backup.json', await decks.exportAll(collection), 'application/json'); toast('Backup exportado'); } }),
         Button('Restaurar', { icone: 'importar', id: 'decks-backup-restore', title: 'Restaurar backup', onClick: () => fileInput.click() })),
       fileInput)));
+  paint();
+  return root;
 }
 
 /* ---------------- Leva 128 · /perfil ---------------- */
@@ -7767,8 +7792,15 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // U2 · cada contagem inteira numa linha (em 360 quebrava "3 / cópia(s)")
     mount(summary, Text([h('span', { class: 'ds-nowrap' }, `${state.items.length} carta(s)`), ' · ', h('span', { class: 'ds-nowrap' }, `${total} cópia(s)`)], { size: 'sm', tone: 'muted' }));
     if (state.loading) return;
-    if (!state.items.length) { paintUndo(); paintPending(); mount(dashboard, null); return mount(listEl, Empty('Sua coleção está vazia. Cole uma lista, importe um CSV do ManaBox, Moxfield ou Archidekt, marque cartas com dois toques nas listas e na busca, ou adicione pelo nome acima.',
-      Row({ class: 'ds-row--wrap' }, Button('Importar lista', { icone: 'importar', onClick: () => openImportList() }), Button('Importar CSV', { icone: 'planilha', onClick: () => csvInput.click() })))); }
+    pintaVazia(!state.items.length);
+    if (!state.items.length) { paintUndo(); paintPending(); mount(dashboard, null); return mount(listEl, Empty('Escaneie pela câmera, cole uma lista ou importe um CSV do ManaBox, Moxfield ou Archidekt.',
+      h('div', { class: 'ds-empty__acoes' },
+        Row({ class: 'ds-row--wrap' }, Button('Escanear', { variant: 'primary', icone: 'scanner', id: 'col-scan-vazio', onClick: () => go('/scanner') }), importBtn),
+        // D4 · as outras portas ficam discretas: CSV, digitar o nome (abre a seção no lugar) e a busca
+        h('div', { class: 'ds-empty__mais' }, csvBtn,
+          Button('Pelo nome', { variant: 'ghost', icone: 'editar', id: 'col-pelo-nome', onClick: () => { secaoAdicionar.dataset.aberta = 'true'; secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
+          Button('Buscar', { variant: 'ghost', icone: 'buscar', id: 'col-buscar-vazio', onClick: () => go('/cartas') }))),
+      { icone: 'colecao', titulo: 'Sua coleção está vazia', hero: true, id: 'col-vazio' })); }
     // C12 · o motor de filtro decide o recorte; a ordenação vem depois
     state.filtro = { ...state.filtro, texto: state.filter };
     const r = FL.filtraColecao(state.items, state.filtro, { cards: state.cards, usadoEm: state.usedIn });
@@ -7868,17 +7900,27 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const filterIn = Input({ id: 'col-filter', placeholder: 'Nome ou texto da carta', value: state.filter, onInput: e => { state.filter = e.target.value; paint(); } });
   filterBtn = Button('Filtros', { id: 'col-filters', icone: 'filtro', onClick: openFilters }); paintFilterBtn();
 
+  // D4 · "Colar lista" e "Abrir CSV" são os mesmos botões nos dois estados: na coleção vazia moram no cartão de primeiro uso
+  const importBtn = Button('Colar lista', { id: 'col-import', icone: 'importar', title: 'Importar uma lista de cartas', onClick: () => openImportList() });
+  const csvBtn = Button('Abrir CSV', { id: 'col-csv-import', icone: 'planilha', title: 'Importar CSV (ManaBox e outros)', onClick: () => csvInput.click() });
+  const colAcoes = h('div', { class: 'col-acoes' },
+      // U2 · quatro ações em grade de duas colunas, cada uma com ícone
+      importBtn, csvBtn,
+      Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
+      Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() }));
   const secaoAdicionar = Surface({ class: 'ds-surface--pad ds-surface--shelf', id: 'col-adicionar' }, Stack({},
     Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn), { hint: 'Cada adição soma uma cópia. Toque no nome de uma carta da lista para definir edição, foil, idioma e condição.' }),
-    h('div', { class: 'col-acoes' },
-      // U2 · quatro ações em grade de duas colunas, cada uma com ícone
-      Button('Colar lista', { id: 'col-import', icone: 'importar', title: 'Importar uma lista de cartas', onClick: () => openImportList() }),
-      Button('Abrir CSV', { id: 'col-csv-import', icone: 'planilha', title: 'Importar CSV (ManaBox e outros)', onClick: () => csvInput.click() }),
-      Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
-      Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() })),
+    colAcoes,
     csvInput, listInput));
+  let root = null;
+  /** D4 · coleção vazia: título e cartão de primeiro uso; botões do título, filtro e seção de adicionar saem (voltam com a primeira carta ou por "Pelo nome"). */
+  function pintaVazia(vazia) {
+    if (root) root.dataset.vazia = String(vazia);
+    csvBtn.classList.toggle('ds-btn--ghost', vazia);
+    if (!vazia) { if (importBtn.parentElement !== colAcoes) colAcoes.prepend(importBtn, csvBtn); delete secaoAdicionar.dataset.aberta; }
+  }
   load();
-  return Stack(pad(),
+  root = Stack({ ...pad(), class: 'ds-wrap col-root' },
     Row({ class: 'col-topo' }, Stack({ style: { gap: 'var(--space-1)', minWidth: '0' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
       IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }),
       // Leva 113 · adicionar carta foi para o fim da página: o atalho leva até lá
@@ -7887,12 +7929,13 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // Leva 113 · ordem pedida: painel primeiro, depois filtro e visões da coleção; adicionar carta e backup no fim
     dashboard,
     undoBar, pendingBox,
-    Row({ class: 'ds-row--wrap' },
+    Row({ class: 'ds-row--wrap col-filtro' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn),
     toolbar, viewsRow, countLine, listEl, selectionBar,
     secaoAdicionar,
     care);
+  return root;
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

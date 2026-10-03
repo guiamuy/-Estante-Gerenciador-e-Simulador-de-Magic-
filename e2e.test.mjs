@@ -107,7 +107,7 @@ async function open(t, { dev = true } = {}) {
 test('e2e · criar lista, ver galeria, marcar coleção e exportar faltantes', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas');
-  await page.click('#deck-new');
+  await page.click('#decks-new-empty'); // D4 · na estante vazia, "Nova lista" vive no cartão de primeiro uso
   await page.fill('#deck-name', 'Commander Malcolm v3');
   await page.fill('#deck-text', 'Commander\n1 Malcolm, Alluring Scoundrel\n\nDeck\n1 Sol Ring\n30 Island\n1 Counterspell\n1 Carta Inexistente');
   await page.click('#deck-save');
@@ -156,6 +156,11 @@ test('e2e · todo botão visível tem ao menos 44px de altura no celular', { ski
   }
 });
 
+/** D4 (leva 142) · na coleção vazia a seção "Adicionar carta" fica recolhida: "Pelo nome" abre no lugar antes de digitar. */
+async function digitaCarta(page, nome) {
+  if (await page.locator('#col-pelo-nome').isVisible().catch(() => false)) { await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add'); }
+  await page.fill('#col-add', nome);
+}
 async function createDeck(page, base, name, text, format = 'pauper') {
   await page.goto(base + '#/listas/editar');
   await page.fill('#deck-name', name);
@@ -359,7 +364,7 @@ test('e2e · C2/C9 coleção: somar, editar quantidade, remover, adicionar e fil
   await page.click('#col-remove-confirm');
   await page.waitForFunction(() => !document.querySelector('.col-row[data-name="Sol Ring"]'));
 
-  await page.fill('#col-add', 'sol ring');
+  await digitaCarta(page, 'sol ring');
   await page.click('#col-add-btn');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
   assert.equal(await page.locator('.col-row[data-name="Sol Ring"] .col-row__n').innerText(), '1');
@@ -683,8 +688,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   assert.ok(desenhados.length >= 5 && desenhados.every(Boolean), 'ícones da barra desenhados: ' + JSON.stringify(desenhados));
   // coleção: adicionar pelo nome confere pela base de nomes
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-add');
-  await page.fill('#col-add', 'Preordain'); await page.click('#col-add-btn');
+  await digitaCarta(page, 'Preordain'); await page.click('#col-add-btn');
   await page.waitForSelector('.col-row[data-name="Preordain"]');
   await page.fill('#col-add', 'Xyzzy'); await page.click('#col-add-btn');
   await page.waitForFunction(() => /Não achei "Xyzzy"/.test(document.body.innerText));
@@ -1068,8 +1072,8 @@ test('e2e · C10 exportar a coleção por lista: formatos, seleção manual, cop
 
 test('e2e · C1 adicionar impressão, editar acabamento e ajustar por impressão', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await page.goto(base + '#/colecao');
-  await page.fill('#col-add', 'Counterspell');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  await digitaCarta(page, 'Counterspell');
   await page.click('#col-add-btn');
   await page.waitForSelector('.col-row[data-name="Counterspell"]');
   await page.click('.col-row[data-name="Counterspell"] .col-row__info');
@@ -1099,8 +1103,8 @@ test('e2e · C1 adicionar impressão, editar acabamento e ajustar por impressão
 
 test('e2e · C5 aviso de backup e de armazenamento desprotegido', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await page.goto(base + '#/colecao');
-  await page.fill('#col-add', 'Sol Ring');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  await digitaCarta(page, 'Sol Ring');
   await page.click('#col-add-btn');
   await page.waitForSelector('#col-backup');
   assert.match(await page.innerText('#col-care'), /Sem backup ainda/);
@@ -3832,8 +3836,8 @@ test('e2e · leva 113 modo único: lista 100% joga no motor completo; lista com 
 
 test('e2e · leva 113 coleção: painel primeiro, depois as visões; adicionar carta e backup no fim', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-add');
-  await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio, #col-add');
+  await digitaCarta(page, 'Sol Ring'); await page.click('#col-add-btn');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
   const ordem = await page.evaluate(() => { const y = sel => { const el = document.querySelector(sel); return el ? Math.round(el.getBoundingClientRect().top + scrollY) : null; };
     return { painel: y('#col-dashboard'), filtro: y('#col-filter'), visoes: y('#col-views'), lista: y('.col-row'), adicionar: y('#col-adicionar'), backup: y('#col-backup') }; });
@@ -5487,5 +5491,44 @@ test('e2e · D3 início que lembra de você: "Olá, Nome", cartão Continuar (pa
   await page.goto(base + '#/'); await page.waitForSelector('#home-continuar');
   await page.waitForFunction(() => document.querySelector('#home-continuar') && document.querySelector('#home-continuar').dataset.itens === '2');
   assert.equal(await page.locator('#home-continuar [data-tipo="lista"]').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, uma frase, um primário e um secundário; o resto em "Mais" ou discreto; tudo volta com o primeiro item', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const solidos = () => page.locator('#outlet .ds-btn:not(.ds-btn--ghost):visible').count();
+  const primarios = () => page.locator('#outlet .ds-btn--primary:visible').count();
+  // Listas vazia: cartão de primeiro uso; botões do título e cartão de backup fora; "Mais" abre Restaurar backup
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
+  assert.equal(await page.locator('#decks-vazio .ds-empty__icone svg').count(), 1);
+  assert.match(await page.innerText('#decks-vazio'), /Nenhuma lista ainda/);
+  assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
+  assert.equal(await page.locator('#deck-new').isVisible(), false); assert.equal(await page.locator('#decks-backup').isVisible(), false);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), 'listas vazia cabe sem rolagem');
+  await page.click('#decks-mais'); await page.waitForSelector('.ds-dialog #decks-backup-restore-folha');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await auditaTela(page, 'listas vazia');
+  // com uma lista, o título recupera Prontas e Nova e o backup volta
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
+  assert.equal(await page.locator('#deck-new').isVisible(), true); assert.equal(await page.locator('#decks-backup').isVisible(), true);
+  // Coleção vazia: Escanear e Colar lista; CSV, Pelo nome e Buscar discretos; filtro e seção de adicionar escondidos
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
+  assert.equal(await page.locator('#col-filter').isVisible(), false); assert.equal(await page.locator('#col-adicionar').isVisible(), false);
+  assert.equal(await page.locator('#col-scan').isVisible(), false, 'o Escanear do título sai: o do cartão é o primário');
+  assert.equal(await page.locator('#col-csv-import').isVisible(), true, 'Abrir CSV continua alcançável (discreto)');
+  assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), 'coleção vazia cabe sem rolagem');
+  await auditaTela(page, 'coleção vazia');
+  // "Pelo nome" abre a seção no lugar e foca o campo; a primeira carta devolve a tela completa
+  await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add');
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add', null, { timeout: 3000 });
+  await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  assert.equal(await page.locator('#col-scan').isVisible(), true); assert.equal(await page.locator('#col-filter').isVisible(), true);
+  assert.equal(await page.locator('#col-adicionar .col-acoes #col-import').count(), 1, 'Colar lista voltou para a grade de ações');
+  assert.equal(await page.locator('#col-csv-import').evaluate(el => el.classList.contains('ds-btn--ghost')), false);
   assert.deepEqual(errors, []);
 });

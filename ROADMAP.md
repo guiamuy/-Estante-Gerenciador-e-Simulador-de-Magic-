@@ -392,6 +392,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-aa ✅ | D1 fundamentos: escala de texto e densidade por tokens, literais zerados, aviso que não atravessa telas (leva 138) | D | 1 | — |
 | 16º-ac ✅ | D2 Ajustes e Aparência: tema, cor de destaque (4 acentos AA), texto, densidade, movimento, vibração (leva 140) | D | 1 | — |
 | 16º-ad ✅ | D3 Início que lembra de você: "Olá, Nome", cartão Continuar (partida, última lista, pilha do scanner), painel offline em uma linha (leva 141) | D | 1 | — |
+| 16º-ae ✅ | D4a estados vazios de Listas e Coleção: cartão de primeiro uso com ícone, título, frase, um primário e um secundário; o resto em "Mais" (leva 142) | D | 1 | — |
+| 16º-af ▶ | D4b onboarding de 3 passos na primeira abertura, pulável; vazio de Cartas sai com a base local para Ajustes › Dados (D5) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4241,6 +4243,25 @@ para cada promessa (pixels de campo, contraste, sobreposição, nomes falados).
   com tudo pronto o painel está recolhido (≤ 72 px) e o teste abre "Detalhes" antes de ler as linhas.
 - **Fora:** sugestão de "próxima lista" ou "jogar de novo" por histórico; cartão com miniatura da carta; tempo
   relativo ("há 2 h") — entram se o uso pedir.
+
+**D4a · Estados vazios de Listas e Coleção** ✅ (leva 142, 03/10/2026) — a D4 foi partida em duas: esta (os vazios) e
+a D4b (onboarding). O vazio de Cartas é o cartão "Base local", que a D5 leva para Ajustes › Dados; o do Scanner é
+pilha de avisos e fica com a D8.
+- **Entregue:** componente `Empty` com `titulo` e variante `hero` (ícone de 88 px no acento, título em display,
+  uma frase, ações centradas, sem tracejado). **Listas vazia:** "Nenhuma lista ainda" com **Ver prontas**
+  (primário) e **Nova lista**; os botões Prontas/Nova do título e o cartão de backup saem (repetiam o cartão);
+  **Mais** abre uma folha com **Restaurar backup** — o que quem chega de outro aparelho procura. **Coleção vazia:**
+  "Sua coleção está vazia" com **Escanear** (primário) e **Colar lista**; **Abrir CSV**, **Pelo nome** e **Buscar**
+  como botões discretos; busca/filtro, botões do título e a seção Adicionar somem — "Pelo nome" abre a seção no
+  lugar e foca o campo. Com o primeiro item tudo volta ao lugar de sempre (os botões Colar lista e Abrir CSV são
+  os mesmos nos dois estados, por isso os ids `#col-import`/`#col-csv-import` não mudaram).
+- **Medido (360×780):** as duas telas vazias cabem sem rolagem (Coleção tinha 909 px, Cartas segue com 1090 até
+  a D5); de 6 e 11 botões visíveis para 3 (2 sólidos + Mais) e 5 (2 sólidos + 3 discretos).
+- **Testes:** e2e "D4a" (ícone, título, exatamente 2 sólidos e 1 primário em cada vazio, botões do título e backup
+  escondidos, folha Mais, sem rolagem, `auditaTela`, "Pelo nome" foca o campo, tudo volta com o primeiro item);
+  ajuda `digitaCarta` em 5 testes que digitavam na coleção vazia; "criar lista…" passa a tocar
+  `#decks-new-empty` (o Nova do título não existe na estante vazia). Contrato visual verde.
+- **Fora:** vazios de Cartas (D5) e Scanner (D8); vazio da busca de cartas sem rede já tinha ícone (U4).
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.
