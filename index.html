@@ -879,6 +879,9 @@ body {
 .tb-card[data-selected="true"] .tb-card__label { transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card:has(.tb-card__label) .tb-card__sick { top: 28%; z-index: 1; } /* o selo de enjoo desce para não cobrir o nome */
 .tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--scrim); border: 1px solid var(--border); }
+/* R5 · Aura ou Equipamento colado em quem o carrega: sem o vão entre as cartas e com um filete do lado de onde vem */
+.tb-row > .tb-card[data-anexo="true"] { margin-left: calc(var(--space-2) * -1); }
+.tb-row > .tb-card[data-anexo="true"] .tb-card__face { box-shadow: inset 3px 0 0 var(--accent); }
 .tb-card[data-estado="ataca"] .tb-card__face { outline: 3px solid var(--negative); }
 .tb-card[data-estado="bloqueia"] .tb-card__face { outline: 3px solid var(--accent); }
 .tb-card[data-estado="alvo"] .tb-card__face { outline: 3px dashed var(--warning); }
@@ -3768,6 +3771,7 @@ function validateScript(sc) {
     for (const f of ['perPower', 'perToughness']) if (self[f] != null && !Number.isInteger(self[f])) errs.push(`bônus próprio: ${f} precisa ser inteiro`);
     if ((self.perPower != null || self.perToughness != null) && !PER_COUNTS.includes(self.per)) errs.push(`bônus próprio: contagem "${self.per}" desconhecida`);
     if (self.ward != null && (typeof self.ward !== 'string' || !self.ward.trim())) errs.push('bônus próprio: vigilância precisa de um custo de mana');
+    if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
   }
@@ -3981,7 +3985,11 @@ const RAW_SCRIPTS = [
   // Leva 108 · "This effect doesn't remove Auras and Equipment you control that are already attached to it."
   { name: 'Benevolent Blessing', aura: { enchant: 'creature' }, choose: 'color', grants: { protection: 'chosen', mantemOsSeus: true },
     example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
-  { name: 'Silhana Ledgewalker', self: { evasion: 'flying-only' },
+  // texto oficial em .listas/oficiais.json (consultas de 30/09/2026): "Hexproof" e nada mais. Sem script, as duas contavam como
+  // cobertas só pelo texto buscado; com ele, a palavra-chave vale mesmo se o dado da carta vier sem ela.
+  { name: 'Gladecover Scout', self: { keywords: ['hexproof'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Slippery Bogle', self: { keywords: ['hexproof'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Silhana Ledgewalker', self: { evasion: 'flying-only', keywords: ['hexproof'] },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Aura Gnarlid', self: { perPower: 1, perToughness: 1, per: 'auras-on-battlefield', evasion: 'power-less' },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -7828,7 +7836,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 67;
+const ENGINE_VERSION = 68;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -8041,6 +8049,8 @@ function createGame(setup) {
     if (sc.equip) f.script.equip = sc.equip;
     if (sc.grants) f.script.grants = sc.grants;
     if (sc.self) f.script.self = sc.self;
+    // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
+    if (sc.self && Array.isArray(sc.self.keywords)) { for (const k of sc.self.keywords) if (!f.kw.includes(k)) f.kw.push(k); if (f.kw.includes('flash')) f.flash = true; }
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
     if (sc.affinity) f.script.affinity = sc.affinity;
@@ -10430,14 +10440,17 @@ const HANDLERS = {
     resumeEffects(s, ev || []);
   },
   /** M10 · escolhe qual gatilho vai para a pilha primeiro (resolve por último). */
-  order_trigger(s, a) {
+  order_trigger(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'triggers' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho para ordenar');
     const mine = s.queued.filter(q => q.controller === a.p);
     const pick = mine[a.index || 0];
     if (!pick) throw new RuleError('gatilho', 'gatilho inválido');
-    s.queued = s.queued.filter(q => q !== pick);
-    makeAbility(s, { oid: pick.source, name: pick.name, controller: a.p }, { effects: pick.effects });
-    if (!s.queued.some(q => q.controller === a.p)) s.pending = null;
+    // v68 · o gatilho escolhido vai à pilha pelo mesmo caminho dos outros (alvo, "você pode", custo opcional, condição e
+    // valor). Antes, com dois gatilhos seus ao mesmo tempo, ele ia sem nada disso: Armadillo Cloak + Spirit Link ganhavam
+    // 0 de vida, gatilho com alvo ia sem alvo e o opcional virava obrigatório. O último que sobra vai sozinho, sem pergunta.
+    s.pending = null;
+    putTriggerOnStack(s, pick, ev || []);
+    if (!s.pending) flushTriggers(s, ev || []);
     s.turn.passes = 0;
   },
   /* nota: afterMadness devolve a pendência que a insanidade interrompeu */
@@ -12095,7 +12108,7 @@ function TableCard(card, opts = {}) {
   const el = h('button', {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
     'aria-label': fala,
-    dataset: { tapped: String(tapped), sick: String(sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '',
+    dataset: { tapped: String(tapped), sick: String(sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '', ...(card.attachedTo && card.zone === 'battlefield' ? { anexo: 'true' } : {}),
       estado: est && est.anel ? est.anel : '', ...(opts.pilha ? { pilhaTotal: String(opts.pilha.total), pilhaViradas: String(opts.pilha.viradas) } : {}) },
     onClick: opts.onClick
   },
@@ -12668,6 +12681,14 @@ function rotulosDeAlvos(s, v, alvos) {
     const partes = [];
     if (iguais.some(y => y.controller !== o.controller)) partes.push(o.controller === v ? 'você' : s.players[o.controller].name);
     if (iguais.some(y => y.controller === o.controller && !!y.tapped !== !!o.tapped)) partes.push(o.tapped ? 'virada' : 'desvirada');
+    // R5 · duas criaturas iguais do mesmo dono, uma com Auras e outra sem (dois Slippery Bogle): o que as separa é a força
+    const pt = x => { if (x.zone !== 'battlefield' || !((s.facts[x.name] || {}).types || []).includes('creature')) return null; try { const st = E.stats(s, x); return `${st.power}/${st.toughness}`; } catch (e) { return null; } };
+    const minha = pt(o);
+    if (minha && iguais.some(y => y.controller === o.controller && !!y.tapped === !!o.tapped && pt(y) !== minha)) partes.push(minha);
+    // e o que está preso nela (a Floresta com Utopia Sprawl e a Floresta sem nada)
+    const presas = x => (s.zones || []).flatMap(z => z.battlefield || []).filter(a => s.objects[a] && s.objects[a].attachedTo === x.oid).map(a => s.objects[a].name).sort().join(' e ');
+    const minhas = presas(o);
+    if (!minha && iguais.some(y => y.controller === o.controller && !!y.tapped === !!o.tapped && presas(y) !== minhas)) partes.push(minhas ? `com ${minhas}` : 'sem Aura');
     return partes.length ? `${base[i]} (${partes.join(', ')})` : base[i];
   });
 }
@@ -12898,6 +12919,17 @@ function agrupaLeque(s, oids, { separa } = {}) {
   }
   return [...pilhas.values()];
 }
+/** R5 · as duas linhas do campo de um jogador, com cada Aura ou Equipamento logo depois de quem o carrega. A Aura presa a um
+    terreno vai para a linha dos terrenos, ao lado dele; a que está presa a algo de outro jogador fica no fim da linha de quem a
+    controla. Puro. Antes as permanentes vinham na ordem de chegada: com dois Slippery Bogle e cinco Auras não dava para ver
+    qual Aura estava em qual. */
+function linhasDoCampo(s, ids) {
+  const terreno = oid => ((s.facts[s.objects[oid].name] || {}).types || []).includes('land');
+  const dono = oid => { const h = s.objects[oid].attachedTo; return h && ids.includes(h) ? h : null; };
+  const livres = ids.filter(o => !dono(o));
+  const comAnexos = lista => lista.flatMap(h => [h, ...ids.filter(o => dono(o) === h)]);
+  return { lands: comAnexos(livres.filter(terreno)), others: comAnexos(livres.filter(o => !terreno(o))) };
+}
 /** A15 · terrenos iguais numa pilha (hoje é o mesmo leque das outras permanentes). */
 const agrupaTerrenos = (s, oids, opts) => agrupaLeque(s, oids, opts);
 
@@ -13103,7 +13135,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -14096,6 +14128,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
       const ab = allAbilities[act.index || 0] || {};
       if (ab.loyalty != null) { legal.push(doBtn(ab.label || `${ab.loyalty > 0 ? '+' : ''}${ab.loyalty}`, act, { variant: 'primary' })); continue; }
       if (act.color) { legal.push(doBtn(`Gerar {${act.color}}`, act)); continue; }
+      // R5 · habilidade que só gera mana de símbolo fixo (ficha Eldrazi Spawn: "Sacrifice this creature: Add {C}") diz a mana, não "Ativar"
+      const soMana = (ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana' && Array.isArray(e.symbols));
+      if (soMana) { const c0 = custoDaHabilidade(ab); legal.push(doBtn(`Gerar ${ab.effects.flatMap(e => e.symbols).map(x => `{${x}}`).join('')}${c0 ? ` (${c0})` : ''}`, act)); continue; }
       const cost = custoDaHabilidade(ab);
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
@@ -14208,7 +14243,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
 
   function side(s, p, mine) {
     const z = s.zones[p];
-    const lands = z.battlefield.filter(o => isLand(s, o)), others = z.battlefield.filter(o => !isLand(s, o));
+    const { lands, others } = T.linhasDoCampo(s, z.battlefield); // R5 · cada Aura ao lado de quem a carrega
     const pl = s.players[p];
     const chips = h('div', { class: 'tb-chips' },
       mine || pl.dummy ? null : ZoneChip('Mão', z.hand.length, null),
@@ -14230,7 +14265,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
       sub: subMasm, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
-    const field = [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.length })];
+    const field = [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.filter(o => isLand(s, o)).length })];
     const ativo = s.status === 'playing' && s.turn.active === p;   // U7 · o lado de quem joga acende
     return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo) },
       'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') },
@@ -14386,6 +14421,10 @@ function createTableScreen({ store, perfil = null, online = null }) {
         hint: (() => { const TIPO = { creature: 'criaturas', land: 'terrenos', artifact: 'artefatos', enchantment: 'encantamentos' }, PARA = { hand: 'para a mão', battlefield: 'para o campo' };
           if (pk.needMv) return `Toque nas cartas até somar ${pk.needMv} de valor de mana: ${pk.picked.reduce((n, o) => n + ((s.facts[s.objects[o].name] || {}).cmc || 0), 0)} de ${pk.needMv}`; // colher provas
           const tipo = pk.label === 'olhar o topo' && pk.filter && (pk.filter.types || []).length === 1 && Object.keys(pk.filter).length === 1 ? TIPO[pk.filter.types[0]] : null;
+          const UMA = { creature: 'uma criatura', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+          const qualquerPermanente = pk.label === 'olhar o topo' && pk.filter && (pk.filter.types || []).length >= 5 && Object.keys(pk.filter).length === 1;
+          if (pk.label === 'olhar o topo' && pk.max === 1 && !pk.min && PARA[pk.to] && (qualquerPermanente || tipo))
+            return `Pode levar ${qualquerPermanente ? 'uma permanente' : UMA[pk.filter.types[0]]} ${PARA[pk.to]}: toque nela, ou confirme sem pegar · o resto ${REST[pk.rest] || ''}`;
           if (!tipo || !PARA[pk.to] || pk.max <= 1) return null;
           const podem = pk.from.filter(o => s.facts[s.objects[o].name].types.includes(pk.filter.types[0])).length;
           const NADA = { creature: 'Nenhuma criatura', land: 'Nenhum terreno', artifact: 'Nenhum artefato', enchantment: 'Nenhum encantamento' }[pk.filter.types[0]];
@@ -14489,13 +14528,22 @@ function createTableScreen({ store, perfil = null, online = null }) {
     if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       // Leva 107 · as que podem ser escolhidas vêm primeiro; as reveladas que não servem ficam depois, apagadas
-      const cards = (pk.mostrar ? [...pk.from, ...pk.mostrar.filter(x => !pk.from.includes(x))] : pk.from).map(oid => {
+      // R5 · carta que está entre as olhadas mas não pode ser pega (terreno em Lead the Stampede, mágica em Malevolent Rumble)
+      // aparece apagada; antes parecia escolhível e o toque dava em recusa. Na busca de UMA carta do grimório, cópias
+      // iguais viram uma carta só com ×N (nove Florestas e Planícies em fila na Sheltering Landscape).
+      const pegaveis = new Set([...E.legalActions(s, v).filter(a => a.t === 'pick').map(a => a.oid), ...pk.picked]);
+      const todas = pk.mostrar ? [...pk.from, ...pk.mostrar.filter(x => !pk.from.includes(x))] : pk.from;
+      const juntar = pk.label === 'vasculhar' && pk.max === 1;
+      const copias = {}; if (juntar) for (const oid of todas) { const n = s.objects[oid].name; copias[n] = (copias[n] || 0) + 1; }
+      const vistasNaBusca = new Set();
+      const cards = todas.filter(oid => { if (!juntar) return true; const n = s.objects[oid].name; if (vistasNaBusca.has(n)) return false; vistasNaBusca.add(n); return true; }).map(oid => {
         const o = s.objects[oid];
-        const serve = pk.from.includes(oid);
+        const serve = pk.from.includes(oid) && pegaveis.has(oid);
         // Leva 125 · na fileira de escolha a carta aparece em pé: terreno virado saía girado e menor que os outros
         const c = TableCard({ ...o, tapped: false, image: imgOf(o.name, 'normal'), images: imagensOf(o.name) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
+          ...(juntar && copias[o.name] > 1 ? { pilha: { total: copias[o.name], viradas: 0 } } : {}),
           onClick: () => { if (serve && !pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
-        if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, revelada, não pode ser escolhida`); }
+        if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, ${pk.mostrar && !pk.from.includes(oid) ? 'revelada, ' : ''}não pode ser escolhida`); }
         return c;
       });
       const cabPk = banner.querySelector('.tb-banner__text strong'), dicaPk = banner.querySelector('.tb-banner__text strong ~ span:not(.ds-icon)');

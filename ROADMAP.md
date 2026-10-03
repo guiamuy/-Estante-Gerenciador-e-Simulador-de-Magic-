@@ -141,8 +141,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R2 Rakdos Madness carta a carta: 21 cartas revisadas, pagamento sem toque à toa, decisões legíveis (leva 125, **motor v65**) | 🟡 |
 | R · Revisão carta a carta | R3 Mono Blue Faeries carta a carta: 17 cartas revisadas, alvo sem ambiguidade e pelo toque na carta, Sewer-veillance Cam pela regra (leva 131, **motor v66**) | 🟡 |
 | R · Revisão carta a carta | R4 Elves carta a carta: 23 cartas revisadas, colher provas alcançável, Winding Way sem pergunta, pagar custo tocando nas cartas, Elves 100% sem rede (leva 136, **motor v67**) | 🟡 |
-| R · Revisão carta a carta | R5 GW Bogles, carta a carta | ▶ |
-| R · Revisão carta a carta | R6–R8 as outras três listas Pauper, carta a carta · R9 homologação independente | ○ |
+| R · Revisão carta a carta | R5 GW Bogles carta a carta: 23 cartas revisadas, gatilhos simultâneos corrigidos, Aura ao lado de quem a carrega (leva 139, **motor v68**) | 🟡 |
+| R · Revisão carta a carta | R6 Boros Bully, carta a carta | ▶ |
+| R · Revisão carta a carta | R7–R8 as outras duas listas Pauper, carta a carta · R9 homologação independente | ○ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
@@ -378,6 +379,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
 | 16º-n 🟡 | Rakdos Madness carta a carta: pagamento automático sem virar terreno à toa (motor v65), decisões escritas na bandeja, escolha tocando na carta (leva 125) | R2 | 1 | teste no aparelho; partidas salvas da v64 não abrem |
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
+| 16º-ab 🟡 | GW Bogles carta a carta: dois gatilhos seus ao mesmo tempo mantêm alvo, valor e "você pode" (motor v68); Aura ao lado de quem a carrega; alvos iguais dizem a força (leva 139) | R5 | 1 | teste no aparelho; partidas salvas da v67 não abrem |
 | 16º-z 🟡 | Elves carta a carta: colher provas na folha (não era alcançável), Winding Way entrega as cartas sem pergunta (motor v67), custo de várias cartas tocando nelas, Llanowar Elves e Elvish Mystic com script (leva 136) | R4 | 1 | teste no aparelho; partidas salvas da v66 não abrem |
 | 16º-x 🟡 | Mono Blue Faeries carta a carta: escolha de alvo sem nome repetido e tocando na carta, Sewer-veillance Cam pela regra (motor v66), ninjutsu e desconto escritos na folha (leva 131) | R3 | 1 | teste no aparelho; partidas salvas da v65 não abrem |
 | 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
@@ -2366,7 +2368,24 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Cobertura de tela declarada:** sem teste de tela próprio — Timberwatch Elf, Scattershot Archer, Masked Vandal (sem alvo contra o Goldfish), Mirrorshell Crab, Negate, Spell Pierce, Valakut Invoker, Elvish Mystic, Elvish Vanguard e Nylea's Disciple; usam caminhos de tela já testados e têm teste de regra. Jaspera Sentinel e Nyxborn Hydra ficam com os e2e da leva 104.
 - **Fora:** o Shark com as cartas desta lista não foi revisado (trilha bot); a escolha de tipo da Distant Melody não mostra quantas cartas cada tipo rende.
 
-**R5 a R8 · As outras quatro listas Pauper, carta a carta** ▶ (R5 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (feita, leva 131) · R4 Elves (feita, leva 136) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
+**R5 · GW Bogles, carta a carta** 🟡 (leva 139, **motor v68**; falta o teste no aparelho)
+- **Valor:** o baralho de Auras joga pela tela sabendo em quem cada Aura está, e os gatilhos de ganhar vida valem quando vêm juntos.
+- **Aceite:** as 23 cartas com ficha `revisada` (texto de `.listas/oficiais.json`, consultas de 30/09/2026); regra conferida com a lista real; jogadas-chave pela tela em 360×780 com `auditaTela`.
+- **Bug real do motor (muda resultado de partida):** **dois ou mais gatilhos do mesmo jogador ao mesmo tempo.** Depois da pergunta de ordem, o gatilho ia à pilha por um caminho que perdia o alvo, o valor, o custo opcional, a condição e o "você pode". Efeitos: Armadillo Cloak + Spirit Link ganhavam **0** de vida; gatilho com alvo ia sem alvo; gatilho opcional virava obrigatório. Agora o gatilho escolhido segue o mesmo caminho dos outros, e o último que sobra vai sozinho (uma pergunta a menos). Vale para todas as listas.
+- **Sem rede:** Gladecover Scout e Slippery Bogle ganharam script com a resistência a magia (e a Silhana Ledgewalker passou a declará-la); a palavra-chave vale mesmo se o dado da carta vier sem ela. **GW Bogles mede 100% sem rede.** Só Vault of Whispers (Jund Wildfire) ainda depende do texto buscado.
+- **Tela corrigida:**
+  - **Aura ao lado de quem a carrega:** as permanentes vinham na ordem de chegada; agora cada Aura ou Equipamento fica colado, com um filete, logo depois da criatura. A Aura de terreno vai para a linha dos terrenos, ao lado dele, e não entra na conta dos terrenos.
+  - **Alvos iguais:** dois Slippery Bogle, um com Auras e outro sem, eram um botão só (mirava o primeiro); agora cada um diz a força ("Slippery Bogle (3/1)"). Terrenos iguais dizem o que carregam ("Forest (desvirada, com Utopia Sprawl)").
+  - **Olhar o topo:** carta que está entre as olhadas mas não pode ser pega aparece apagada (antes parecia escolhível e o toque dava em recusa); Malevolent Rumble diz "Pode levar uma permanente para a mão".
+  - **Busca no grimório de uma carta:** cópias iguais viram uma carta com a contagem (Sheltering Landscape mostrava nove terrenos em fila).
+  - **Mana de habilidade com custo:** a ficha Eldrazi Spawn mostra "Gerar {C} (sacrificar)" no lugar de "Ativar (sacrificar)".
+- **Expectativas alteradas (com motivo):** `rules.unit` "M10 · dois gatilhos ao mesmo tempo" esperava uma segunda pergunta de ordem com uma opção só: passou a esperar a pilha pronta depois da primeira escolha. O cenário de scripts passou a mirar o oponente quando o alvo é um jogador (mirava "o primeiro da lista", que dependia do sorteio de quem começa e quebrou com dois scripts novos na biblioteca).
+- **Testes:** `bogles.regras` (14, com a lista real); `faeries.regras` +1 (dois gatilhos opcionais simultâneos continuam opcionais); e2e R5 (2: alvo e mesa com Auras; gatilhos de vida, Malevolent Rumble e Sheltering Landscape).
+- **Versão e goldens:** **motor v68**; um registro antigo com dois gatilhos simultâneos tinha duas escolhas de ordem e agora tem uma. Goldens regravados só pela versão. **Partida salva na v67 não abre.**
+- **Cobertura de tela declarada:** sem teste de tela próprio — Gladecover Scout, Silhana Ledgewalker, Aura Gnarlid, Ancestral Mask, Sentinel's Eyes (fuga), Benevolent Blessing, Setessan Training, Mask of Law and Grace, Flaring Pain, Journey to Nowhere, Standard Bearer, Tormod's Crypt e Lifelink; têm teste de regra e usam o caminho de tela das Auras ou da escolha de alvo. Flaring Pain não foi exercitada contra uma carta que previna dano.
+- **Fora:** as Auras continuam ocupando uma carta inteira cada na linha (cinco Auras num Bogle rolam para o lado); empilhar as Auras atrás da criatura é história de design (E53). O Shark com esta lista não foi revisado (trilha bot).
+
+**R6 a R8 · As outras três listas Pauper, carta a carta** ▶ (R6 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (feita, leva 131) · R4 Elves (feita, leva 136) · R5 GW Bogles (feita, leva 139) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
 - **Aceite de cada uma:** todas as cartas da lista com ficha `revisada` ou com a pendência escrita; uma partida guiada da lista pela tela (as jogadas-chave do baralho) no e2e; captura das decisões novas; a sonda R0 com mais uma semente para a lista.
 - **Estimativa:** 7 a 8 levas. Apoio: a auditoria de texto fez 111 cartas numa leva (105), mas sem tela; mecânica nova rendeu de 4 a 6 cartas por leva; aqui o motor já está auditado e o trabalho é de tela, com 17 a 24 cartas por lista e muita mecânica repetida entre listas (14 auras, 8 lampejos, 7 modais).
 

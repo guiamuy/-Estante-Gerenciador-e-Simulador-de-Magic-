@@ -237,3 +237,22 @@ test('Leva 131 · o aviso do gatilho opcional diz a condição: Moon-Circuit Hac
   let s = jogo(2); const sc = s.facts['Moon-Circuit Hacker'].script;
   assert.equal(T.descreveEfeitos(sc.abilities[0].effects), 'compra 1 carta; descarta 1 carta (só se ela não entrou neste turno)');
 });
+
+test('v68 · dois gatilhos seus ao mesmo tempo: escolhida a ordem, cada um continua opcional e o último vai sozinho (dois Moon-Circuit Hacker causando dano)', () => {
+  let s = jogo(6); let h1, h2; [s, h1] = poe(s, 0, 'Moon-Circuit Hacker'); [s, h2] = poe(s, 0, 'Moon-Circuit Hacker');
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: [h1, h2] });
+  s = passaAte(s, x => !!x.pending && x.pending.kind !== 'blockers' || x.turn.step === 'main2');
+  if (s.pending && s.pending.kind === 'blockers') s = passaAte(act(s, { t: 'block', p: 1, blocks: [] }), x => !!x.pending || x.turn.step === 'main2');
+  assert.equal(s.pending && s.pending.kind, 'triggers', 'dois gatilhos de dano: a mesa pergunta a ordem');
+  s = act(s, { t: 'order_trigger', p: 0, index: 0 });
+  assert.equal(s.pending, null, 'escolhido o primeiro, o que sobra vai sozinho (antes: segunda pergunta com uma opção só)');
+  assert.deepEqual(J(s.stack.map(o => s.objects[o].name)), ['Moon-Circuit Hacker', 'Moon-Circuit Hacker']);
+  const mao = s.zones[0].hand.length; let viu = 0;
+  for (let i = 0; i < 20 && (s.pending || s.stack.length); i++) {
+    if (!s.pending) { s = resolveUm(s); continue; }
+    if (s.pending.kind === 'may_pay') { viu++; s = act(s, { t: viu === 1 ? 'pay' : 'decline', p: 0 }); continue; }
+    s = act(s, legais(s, s.pending.p)[0]); // o descarte do Hacker que não entrou neste turno
+  }
+  assert.equal(viu, 2, 'os dois continuam sendo "you may" (antes viravam obrigatórios)');
+  assert.equal(s.zones[0].hand.length, mao, 'aceitou um (comprou e descartou), recusou o outro');
+});

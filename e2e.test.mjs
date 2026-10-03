@@ -5034,6 +5034,91 @@ test('e2e · Leva 136 · Elves: Distant Melody diz de qual carta é a escolha do
   assert.deepEqual(M.errors, []);
 });
 
+// ---- R5 · GW Bogles pela tela (360×780, modo único) ----
+const terraR5 = async M => { for (const n of ['Plains', 'Forest', 'Sheltering Landscape']) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) return n; } return null; };
+/** Joga terreno e um Slippery Bogle por turno até a mesa ficar como o teste precisa; devolve o estado no turno seguinte. */
+const montaR5 = async (M, bogles, pronto, max = 22) => { let e; for (let i = 0; i < max; i++) { await terraR5(M); e = await M.est();
+  const bog = await M.oid('Slippery Bogle'); if (bog && e.campo.filter(n => n === 'Slippery Bogle').length < bogles) { const c = await M.legal(`a.t==='cast' && a.oid==='${bog}'`); if (c.length) { await M.act(c[0]); await M.resolve(); } }
+  e = await M.est(); if (e.campo.filter(n => n === 'Slippery Bogle').length >= bogles && pronto(e)) { await M.proximo(); await terraR5(M); return M.est(); } await M.proximo(); }
+  assert.fail('a mesa não chegou ao ponto do teste: ' + JSON.stringify(e)); };
+const cartasR5 = (page, linha) => page.locator(`.tb-side [data-zone="${linha}"] .tb-card, .tb-side .tb-zone--${linha} .tb-card`).evaluateAll(cs => cs.map(c => c.getAttribute('aria-label')));
+
+test('e2e · R5 · Bogles: dois Slippery Bogle dizem a força no alvo; cada Aura fica ao lado de quem a carrega, e a do terreno vai para a linha dos terrenos', { skip }, async t => {
+  const M = await comLista125(t, '14 Forest\n6 Plains\n10 Slippery Bogle\n8 Ethereal Armor\n8 Rancor\n7 Utopia Sprawl\n7 Abundant Growth', ['Forest', 'Plains', 'Slippery Bogle', 'Ethereal Armor', 'Rancor', 'Utopia Sprawl', 'Abundant Growth'], '3');
+  const { page } = M;
+  let e = await montaR5(M, 2, e => e.campo.includes('Plains') && e.campo.filter(n => n === 'Forest').length >= 2 && ['Ethereal Armor', 'Rancor', 'Utopia Sprawl', 'Abundant Growth'].every(n => e.mao.includes(n)));
+  let f = await folha131(page, 'Rancor'); assert.deepEqual(f.map(b => b.txt), ['Conjurar → Slippery Bogle · {G}'], 'iguais em tudo: um botão só');
+  await naFolha(page, /^Conjurar/); await M.resolve();
+  f = await folha131(page, 'Ethereal Armor');
+  assert.deepEqual(f.map(b => b.txt), ['Conjurar → Slippery Bogle (3/1) · {W}', 'Conjurar → Slippery Bogle (1/1) · {W}'], 'com o Rancor num deles, o alvo diz a força (antes: um botão só, que mirava o primeiro)');
+  await auditaTela(page, 'folha da Ethereal Armor com dois Bogles'); await fecha136(page);
+  // Utopia Sprawl: só Floresta; a cor é perguntada ao entrar
+  f = await folha131(page, 'Utopia Sprawl'); assert.ok(f.length >= 1 && f.every(b => /^Conjurar → Forest( \(.+\))? · \{G\}$/.test(b.txt)), f.map(b => b.txt).join(' | '));
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForTimeout(300); e = await M.resolve();
+  assert.equal(e.pend, 'choose_color'); assert.match(await M.decisao(), /^Escolha uma cor para Utopia Sprawl \| A carta pede uma cor ao entrar no campo\.$/);
+  await auditaTela(page, 'cor da Utopia Sprawl');
+  await page.locator('.tb-banner__actions button', { hasText: 'Azul' }).click(); await page.waitForTimeout(200); e = await M.resolve();
+  // Abundant Growth: a Floresta com a Utopia Sprawl e as sem nada são alvos diferentes
+  f = await folha131(page, 'Abundant Growth');
+  assert.ok(f.some(b => /^Conjurar → Forest \((virada|desvirada), com Utopia Sprawl\) · \{G\}$/.test(b.txt)), 'a Floresta encantada diz o que carrega: ' + f.map(b => b.txt).join(' | '));
+  assert.equal(new Set(f.map(b => b.txt)).size, f.length, 'nenhum alvo repetido');
+  await fecha136(page);
+  // a mesa: Aura colada em quem a carrega
+  const ordem = await page.locator('.tb-side .tb-card').evaluateAll(cs => cs.map(c => ({ fala: c.getAttribute('aria-label'), anexo: c.dataset.anexo === 'true' })));
+  const iBogle = ordem.findIndex(c => /^Slippery Bogle, 3\/1, Com Rancor/.test(c.fala));
+  assert.ok(iBogle >= 0 && /^Rancor, Anexada a Slippery Bogle/.test(ordem[iBogle + 1].fala) && ordem[iBogle + 1].anexo, 'o Rancor vem logo depois do Bogle que o carrega: ' + ordem.map(c => c.fala).join(' | '));
+  const iFloresta = ordem.findIndex(c => /^Forest, .*Com Utopia Sprawl/.test(c.fala));
+  assert.ok(iFloresta >= 0 && /^Utopia Sprawl, Anexada a Forest/.test(ordem[iFloresta + 1].fala) && ordem[iFloresta + 1].anexo, 'a Utopia Sprawl vem logo depois da Floresta encantada');
+  const terrenos = (await M.est()).campo.filter(n => ['Forest', 'Plains'].includes(n)).length;
+  assert.match((await page.locator('.tb-side').last().innerText()).replace(/\s+/g, ' '), new RegExp(`Permanentes · 3 .*Terrenos · ${terrenos}\\b`), 'a Aura do terreno não entra na conta dos terrenos nem na linha das permanentes');
+  await auditaTela(page, 'mesa com Auras');
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · R5 · Bogles: Armadillo Cloak e Spirit Link ganham a vida dos dois gatilhos; Malevolent Rumble diz o que pode levar; Sheltering Landscape busca com cópias juntas', { skip }, async t => {
+  const M = await comLista125(t, "12 Forest\n8 Plains\n8 Slippery Bogle\n8 Armadillo Cloak\n8 Spirit Link\n8 Malevolent Rumble\n4 Sheltering Landscape\n4 Sentinel's Eyes", ['Forest', 'Plains', 'Slippery Bogle', 'Armadillo Cloak', 'Spirit Link', 'Malevolent Rumble', 'Sheltering Landscape', "Sentinel's Eyes"], '6');
+  const { page } = M;
+  let e = await montaR5(M, 1, e => e.campo.filter(n => n === 'Plains').length >= 3 && e.campo.filter(n => n === 'Forest').length >= 2 && ['Armadillo Cloak', 'Spirit Link', 'Malevolent Rumble'].every(n => e.mao.includes(n)));
+  for (const n of ['Armadillo Cloak', 'Spirit Link']) { await page.locator(`#tb-hand .tb-card[aria-label^="${n}"]`).first().click(); await naFolha(page, /^Conjurar/); await M.resolve(); }
+  for (let i = 0; i < 10; i++) { e = await M.est(); if (e.pend === 'attackers') break; await page.click('#tb-pass'); await page.waitForTimeout(200); }
+  await page.locator('.tb-side .tb-card[aria-label^="Slippery Bogle"]').first().click(); await page.waitForTimeout(150); await page.click('#tb-attack'); await page.waitForTimeout(300);
+  for (let i = 0; i < 10; i++) { e = await M.est(); if (e.pend) break; await page.click('#tb-pass', { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(200); }
+  // os dois gatilhos de vida ao mesmo tempo: uma pergunta de ordem, e os dois valem (antes ganhavam 0)
+  assert.equal(e.pend, 'triggers');
+  assert.equal(await M.decisao(), 'Ordem dos gatilhos | Escolha qual entra primeiro na pilha (o último escolhido resolve primeiro).');
+  assert.deepEqual(await page.locator('.tb-banner__actions button').allInnerTexts(), ['Armadillo Cloak', 'Spirit Link']);
+  await auditaTela(page, 'ordem dos gatilhos');
+  await page.click('#tb-trigger'); await page.waitForTimeout(200); e = await M.est();
+  assert.equal(e.pend, null, 'uma escolha só: o segundo vai sozinho'); assert.equal(e.pilha, 2);
+  await M.resolve();
+  assert.equal((await mesa136(page)).vida, 26, 'Bogle 3/3 com a Cloak: 3 de vida da Cloak e 3 da Spirit Link');
+  // Malevolent Rumble
+  await M.proximo(); await terraR5(M);
+  await page.locator('#tb-hand .tb-card[aria-label^="Malevolent"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+  assert.equal(e.pend, 'pick');
+  assert.equal(await M.decisao(), 'Malevolent Rumble · Olhar o topo do grimório | Pode levar uma permanente para a mão: toque nela, ou confirme sem pegar · o resto vai para o cemitério');
+  assert.match(await page.innerText('#ds-toast'), /^Malevolent Rumble revelou: /);
+  const olhadas = await page.locator('#tb-pick-cards .tb-card').evaluateAll(cs => cs.map(c => ({ fala: c.getAttribute('aria-label'), fora: c.classList.contains('tb-card--fora') })));
+  for (const c of olhadas) assert.equal(c.fora, /^(Malevolent Rumble|Armadillo Cloak, não|Spirit Link, não)/.test(c.fala) && /não pode ser escolhida/.test(c.fala) || /^Malevolent Rumble/.test(c.fala), 'só a mágica que não é permanente fica apagada: ' + c.fala);
+  await auditaTela(page, 'escolha da Malevolent Rumble');
+  await page.click('#tb-pick-done'); await page.waitForTimeout(200); e = await M.resolve();
+  assert.ok(e.campo.includes('Eldrazi Spawn'));
+  let f = await folha131(page, 'Eldrazi Spawn', '.tb-side'); assert.deepEqual(f.map(b => b.txt), ['Gerar {C} (sacrificar)']); await fecha136(page);
+  // Sheltering Landscape: busca com cópias iguais juntas
+  assert.ok(e.campo.includes('Sheltering Landscape'));
+  f = await folha131(page, 'Sheltering Landscape', '.tb-side'); assert.deepEqual(f.map(b => b.txt), ['Gerar {C}', 'Ativar ({T}, sacrificar)']);
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Ativar/ }).click(); await page.waitForTimeout(300); e = await M.resolve();
+  assert.equal(e.pend, 'pick'); assert.equal(await M.decisao(), 'Sheltering Landscape · Vasculhar o grimório | Toque na carta.');
+  const achadas = await page.locator('#tb-pick-cards .tb-card').evaluateAll(cs => cs.map(c => c.getAttribute('aria-label').replace(/, \d+ cópias/, ', N cópias')));
+  assert.deepEqual(achadas.slice().sort(), ['Forest, N cópias', 'Plains, N cópias'], 'uma carta por nome, com a contagem (antes: nove cartas em fila)');
+  await auditaTela(page, 'busca da Sheltering Landscape');
+  const planicies = e.campo.filter(n => n === 'Plains').length;
+  await page.locator('#tb-pick-cards .tb-card[aria-label^="Plains"]').click(); await page.waitForTimeout(200); e = await M.resolve();
+  if (e.pend === 'pick') { await page.click('#tb-pick-done'); await page.waitForTimeout(200); e = await M.est(); }
+  assert.equal(e.campo.filter(n => n === 'Plains').length, planicies + 1); assert.ok(!e.campo.includes('Sheltering Landscape') || e.cemiterio.includes('Sheltering Landscape'), 'a Landscape foi sacrificada');
+  assert.deepEqual(M.errors, []);
+});
+
 /* ---------------- Leva 133 · partida online entre duas abas (transporte local) ---------------- */
 test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra aba, as duas mesas convergem, sem desfazer, desistir encerra', { skip }, async t => {
   const { page: A, errors, base } = await open(t, { dev: false });

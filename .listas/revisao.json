@@ -1601,7 +1601,7 @@
    }
   },
   "Gladecover Scout": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1609,13 +1609,27 @@
     "fonte": "https://aetherhub.com/Card/M14/Gladecover%20Scout/176",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido: ganhou script com a resistência a magia; antes a carta contava como coberta só pelo texto buscado."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Gladecover Scout, Slippery Bogle e Silhana"
+   ],
    "notas": [],
    "tracos": {
-    "script": false,
+    "script": true,
+    "cobertura": "completo",
     "mecanicas": [],
     "efeitos": [],
     "gatilhos": [],
@@ -1623,7 +1637,7 @@
    }
   },
   "Slippery Bogle": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1631,13 +1645,30 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/slippery_bogle.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido: ganhou script com a resistência a magia."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido: dois Bogles, um com Auras e outro sem, eram um botão só no alvo (mirava o primeiro); agora cada um diz a força. Na mesa, cada Aura fica colada em quem a carrega."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Gladecover Scout, Slippery Bogle e Silhana",
+    "bogles.regras: dois Slippery Bogle",
+    "e2e: R5 · Bogles: dois Slippery Bogle",
+    "e2e: R5 · Bogles: Armadillo Cloak e Spirit Link"
+   ],
    "notas": [],
    "tracos": {
-    "script": false,
+    "script": true,
+    "cobertura": "completo",
     "mecanicas": [],
     "efeitos": [],
     "gatilhos": [],
@@ -1645,7 +1676,7 @@
    }
   },
   "Silhana Ledgewalker": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1653,10 +1684,24 @@
     "fonte": "https://aetherhub.com/Card/GPT/Silhana%20Ledgewalker/94",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: resistência a magia (agora no script) e só é bloqueada por criatura com voar."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Gladecover Scout, Slippery Bogle e Silhana",
+    "bogles.regras: Aura Gnarlid só pode ser bloqueada"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1668,7 +1713,7 @@
    }
   },
   "Aura Gnarlid": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1676,10 +1721,24 @@
     "fonte": "https://aetherhub.com/Card/ROE/Aura-Gnarlid/175",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: +1/+1 por Aura no campo (dos dois lados); criatura com poder menor não a bloqueia."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Rancor volta",
+    "bogles.regras: Aura Gnarlid só pode ser bloqueada"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1691,7 +1750,7 @@
    }
   },
   "Malevolent Rumble": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1699,10 +1758,24 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/m/malevolent_rumble.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: revela quatro (os dois veem), pode pegar uma permanente, resto no cemitério, ficha Eldrazi Spawn 0/1 que se sacrifica por {C}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido: o aviso diz o que pode ser levado; a mágica entre as reveladas aparece apagada (antes parecia escolhível); a ficha mostra \"Gerar {C} (sacrificar)\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Malevolent Rumble",
+    "e2e: R5 · Bogles: Armadillo Cloak e Spirit Link"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1718,7 +1791,7 @@
    }
   },
   "Abundant Growth": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1726,10 +1799,24 @@
     "fonte": "https://aetherhub.com/Card/DMC/Abundant%20Growth/128",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: encanta qualquer terreno, compra, o terreno gera qualquer cor."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido: a Floresta com Aura e a sem Aura são alvos diferentes na folha; a Aura do terreno aparece na linha dos terrenos, ao lado dele."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Utopia Sprawl só encanta Floresta",
+    "e2e: R5 · Bogles: dois Slippery Bogle"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1748,7 +1835,7 @@
    }
   },
   "Ancestral Mask": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1756,10 +1843,23 @@
     "fonte": "https://aetherhub.com/Card/MMQ/Ancestral%20Mask/229",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: +2/+2 por OUTRO encantamento no campo, dos dois lados."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: as auras somam"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1774,7 +1874,7 @@
    }
   },
   "Armadillo Cloak": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1782,10 +1882,25 @@
     "fonte": "https://aetherhub.com/Market/CardInfo?CardName=Armadillo+Cloak&set=ARC&number=78",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido (bug do motor): com outro gatilho seu ao mesmo tempo (Spirit Link), a vida ganha era 0; agora cada gatilho leva o valor do dano. +2/+2 e atropelar conferidos."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: a mesa pergunta a ordem dos dois gatilhos uma vez só."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: as auras somam",
+    "bogles.regras: Armadillo Cloak, Spirit Link e Lifelink",
+    "e2e: R5 · Bogles: Armadillo Cloak e Spirit Link"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1804,7 +1919,7 @@
    }
   },
   "Ethereal Armor": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1812,10 +1927,24 @@
     "fonte": "https://aetherhub.com/Card/DSK/Ethereal-Armor/7",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: +1/+1 por encantamento que você controla (os do oponente não contam) e iniciativa."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: alvo com a força quando há dois Bogles."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: as auras somam",
+    "e2e: R5 · Bogles: dois Slippery Bogle"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1830,7 +1959,7 @@
    }
   },
   "Utopia Sprawl": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1838,10 +1967,24 @@
     "fonte": "https://aetherhub.com/Card/AFC/Utopia%20Sprawl/172",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: só encanta Floresta; cor escolhida ao entrar; soma uma mana dessa cor."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: pergunta da cor com o nome da carta; a Aura fica ao lado da Floresta na linha dos terrenos."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Utopia Sprawl só encanta Floresta",
+    "e2e: R5 · Bogles: dois Slippery Bogle"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1857,7 +2000,7 @@
    }
   },
   "Rancor": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1865,10 +2008,25 @@
     "fonte": "https://www.echomtg.com/mtg/items/rancor/104854/",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: +2/+0, atropelar; volta para a mão do dono quando vai do campo para o cemitério."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: colado no Bogle que o carrega."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: as auras somam",
+    "bogles.regras: Rancor volta",
+    "e2e: R5 · Bogles: dois Slippery Bogle"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1887,7 +2045,7 @@
    }
   },
   "Sentinel's Eyes": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1895,10 +2053,23 @@
     "fonte": "https://aetherhub.com/Card/THB/Sentinels-Eyes/36",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: +1/+1, vigilância; fuga por {W} exilando duas outras cartas do cemitério, à escolha de quem paga."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio. A fuga pela folha do cemitério usa o caminho da leva 107."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Sentinel's Eyes"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1914,7 +2085,7 @@
    }
   },
   "Benevolent Blessing": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1922,10 +2093,23 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/90962",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: lampejo; cor escolhida ao entrar; as suas Auras que já estavam ficam; Aura nova da cor não entra."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Benevolent Blessing"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1941,7 +2125,7 @@
    }
   },
   "Setessan Training": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1949,10 +2133,23 @@
     "fonte": "https://aetherhub.com/Card/THB/Setessan-Training/201",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: só em criatura sua; compra; +1/+0 e atropelar."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Sentinel's Eyes"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1971,7 +2168,7 @@
    }
   },
   "Sheltering Landscape": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -1979,10 +2176,24 @@
     "fonte": "https://aetherhub.com/Card/MH3/Sheltering-Landscape/227",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: {T}: {C}; {T}, sacrificar: busca Montanha, Floresta ou Planície básica virada; ciclar {R}{G}{W}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido: a busca mostrava nove cartas em fila; agora uma por nome com a contagem."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Sheltering Landscape",
+    "e2e: R5 · Bogles: Armadillo Cloak e Spirit Link"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1999,7 +2210,7 @@
    }
   },
   "Mask of Law and Grace": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -2007,10 +2218,23 @@
     "fonte": "https://aetherhub.com/Card/UDS/Mask%20of%20Law%20and%20Grace/11",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: proteção contra preto e vermelho (não é mirada nem bloqueada por eles)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Mask of Law and Grace"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2025,7 +2249,7 @@
    }
   },
   "Flaring Pain": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles",
     "Pauper Boros Bully"
@@ -2034,10 +2258,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/f/flaring_pain.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: marca o turno (dano não pode ser prevenido); lampejo do passado {R}. O efeito contra prevenção de dano não foi exercitado contra uma carta que previna (nenhuma das listas Pauper usa uma além de proteção)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Flaring Pain"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2053,7 +2290,7 @@
    }
   },
   "Journey to Nowhere": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -2061,10 +2298,23 @@
     "fonte": "https://aetherhub.com/Card/ZEN/Journey%20to%20Nowhere/14",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: exila a criatura alvo e devolve ao dono quando sai do campo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio. Contra o Goldfish não há criatura para mirar."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Standard Bearer"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2122,7 +2372,7 @@
    }
   },
   "Standard Bearer": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles",
     "Pauper Boros Bully"
@@ -2131,10 +2381,23 @@
     "fonte": "https://aetherhub.com/Card/APC/Standard%20Bearer/18",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: o oponente precisa mirar um Porta-estandarte se puder."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Standard Bearer"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2148,7 +2411,7 @@
    }
   },
   "Tormod's Crypt": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -2156,10 +2419,23 @@
     "fonte": "https://aetherhub.com/Card/M21/Tormods-Crypt/241",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: exila o cemitério do jogador alvo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Standard Bearer"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2173,7 +2449,7 @@
    }
   },
   "Lifelink": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -2181,10 +2457,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/l/lifelink.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido: vínculo com a vida soma com os gatilhos da Cloak e da Spirit Link."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido pelo caminho de tela comum das Auras (folha \"Conjurar → alvo\", Aura colada em quem a carrega); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Armadillo Cloak, Spirit Link e Lifelink"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -2199,7 +2488,7 @@
    }
   },
   "Spirit Link": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper GW Bogles"
    ],
@@ -2207,10 +2496,24 @@
     "fonte": "https://aetherhub.com/Card/10E/Spirit%20Link/45",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 139,
+    "obs": "corrigido junto com a Armadillo Cloak (gatilhos simultâneos perdiam o valor)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 139,
+    "obs": "conferido no e2e dos dois gatilhos."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "bogles.regras: Armadillo Cloak, Spirit Link e Lifelink",
+    "e2e: R5 · Bogles: Armadillo Cloak e Spirit Link"
+   ],
    "notas": [],
    "tracos": {
     "script": true,

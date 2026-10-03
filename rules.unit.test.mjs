@@ -301,8 +301,8 @@ test('M10 · dois gatilhos ao mesmo tempo: o controlador escolhe a ordem', () =>
   assert.equal(E.legalActions(t, a).length, 2, 'uma opção por gatilho');
   assert.throws(() => act(t, { t: 'pass', p: a }), /ordem dos gatilhos/);
   t = act(t, { t: 'order_trigger', p: a, index: 0 });
-  assert.equal(t.pending.kind, 'triggers', 'ainda falta um');
-  t = act(t, { t: 'order_trigger', p: a, index: 0 });
+  // v68 · com dois gatilhos, escolhido o primeiro não há mais ordem a decidir: o que sobra vai sozinho
+  // (antes: assert.equal(t.pending.kind, 'triggers', 'ainda falta um') e uma segunda escolha com uma opção só)
   assert.equal(t.pending, null);
   assert.equal(t.stack.length, 2, 'os dois gatilhos na pilha, na ordem escolhida');
 });

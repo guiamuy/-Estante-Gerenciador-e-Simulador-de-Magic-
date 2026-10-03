@@ -349,9 +349,13 @@ function runExample(sc) {
     const pd = s.pending;
     if (pd && pd.p === a && pd.kind === 'choose_color') { s = act(s, { t: 'choose_color', p: a, color: 'G' }); continue; }
     if (pd && pd.p === a && pd.kind === 'pick_target') {
-      const opt = pd.options[0];
+      // quando o alvo é um jogador, o cenário mira o oponente (antes: o primeiro da lista, que era o oponente só
+      // quando o sorteio punha o jogador 1 para começar; um script novo na biblioteca muda o sorteio)
+      const iOponente = pd.options.findIndex(o => o && o.player === d);
+      const index = iOponente >= 0 ? iOponente : 0;
+      const opt = pd.options[index];
       if (opt && opt.oid) watchOverride = opt.oid;
-      s = act(s, { t: 'pick_target', p: a, index: 0 }); continue;
+      s = act(s, { t: 'pick_target', p: a, index }); continue;
     }
     // S47 · a decisão de pagar pode ser de qualquer um dos dois; o cenário recusa e segue
     if (pd && pd.kind === 'may_pay') { s = act(s, { t: 'decline', p: pd.p }); continue; }
