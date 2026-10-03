@@ -5240,3 +5240,47 @@ test('e2e · Leva 137 chat: botão com selo de novas, frase rápida e texto cheg
   await auditaTela(B, 'conversa com mensagens dos dois');
   assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
 });
+
+/* ---------------- D1 · escala de texto, densidade e aviso que não atravessa telas ---------------- */
+test('e2e · D1 escala grande e densidade compacta mudam a mesa inteira pelos tokens, o alvo de toque fica em 44 px, e o aviso de uma tela não aparece na seguinte', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  const mede = () => page.evaluate(() => {
+    const px = (sel, prop) => parseFloat(getComputedStyle(document.querySelector(sel))[prop]);
+    return { titulo: px('.tb-vez__rotulo', 'fontSize'), chip: px('#tb-keep', 'fontSize'), alvo: document.querySelector('#tb-keep').getBoundingClientRect().height, gap: px('.tb-board', 'rowGap') || px('.tb-board', 'gap'), pad: px('.tb-dock', 'paddingLeft') };
+  });
+  const base0 = await mede();
+  // escala grande: textos crescem ~12% em toda a mesa; o alvo continua ≥ 44
+  await page.evaluate(() => document.documentElement.setAttribute('data-escala', 'grande')); await page.waitForTimeout(100);
+  const grande = await mede();
+  assert.ok(Math.abs(grande.titulo / base0.titulo - 1.12) < 0.02 && Math.abs(grande.chip / base0.chip - 1.12) < 0.02, JSON.stringify([base0, grande]));
+  assert.ok(grande.alvo >= 44);
+  await auditaTela(page, 'mesa com texto grande');
+  await page.evaluate(() => document.documentElement.setAttribute('data-escala', 'pequena')); await page.waitForTimeout(100);
+  const pequena = await mede(); assert.ok(Math.abs(pequena.chip / base0.chip - 0.92) < 0.02);
+  assert.ok(pequena.alvo >= 44, 'texto pequeno não encolhe o alvo de toque');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-escala'));
+  // densidade compacta: espaços encolhem 15%, alvo fica
+  await page.evaluate(() => document.documentElement.setAttribute('data-densidade', 'compacta')); await page.waitForTimeout(100);
+  const compacta = await mede();
+  assert.ok(Math.abs(compacta.pad / base0.pad - 0.85) < 0.03, JSON.stringify([base0.pad, compacta.pad]));
+  assert.ok(compacta.alvo >= 44);
+  await auditaTela(page, 'mesa compacta');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-densidade'));
+  // a preferência guardada volta depois de recarregar
+  await page.evaluate(() => window.__estanteTema && window.__estanteTema.setAparencia({ escala: 'grande', densidade: 'compacta' }));
+  await page.reload(); await page.waitForSelector('#tb-keep');
+  assert.deepEqual(await page.evaluate(() => [document.documentElement.getAttribute('data-escala'), document.documentElement.getAttribute('data-densidade')]), ['grande', 'compacta']);
+  await page.evaluate(() => window.__estanteTema.setAparencia({ escala: 'media', densidade: 'confortavel' }));
+  // aviso: o da tela anterior some ao trocar de tela; o que tem ação (nova versão) fica
+  await page.evaluate(() => __m3.toast('Aviso da mesa', 10000)); await page.waitForTimeout(50);
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list'); await page.waitForTimeout(100);
+  assert.equal(await page.getAttribute('#ds-toast', 'data-open'), 'false', 'o aviso da mesa não atravessa para Listas');
+  await page.evaluate(() => __m3.toast('Nova versão pronta', 0, { acao: { rotulo: 'Atualizar', icone: 'atualizar', onClick: () => {} } })); await page.waitForTimeout(50);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(100);
+  assert.equal(await page.getAttribute('#ds-toast', 'data-open'), 'true', 'o aviso com ação continua');
+  assert.deepEqual(errors, []);
+});

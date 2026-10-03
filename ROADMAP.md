@@ -387,6 +387,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-s 🟡 | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) — parte 1 na leva 130 (sala, transporte, sincronização), parte 2 na leva 133 (telas; joga entre duas abas), parte 3 na leva 134 (Firebase REST + eventos), parte 4 na leva 135 (ausência e encerramento) | E48 | 4 | **URL do Realtime Database** em `FIREBASE_DB_URL` para dois celulares |
 | 16º-t ✅ | Chat na partida online (U15, leva 137) | E49 | 1 | — |
 | 16º-u ✅ | Roadmap completo de design (épico E53 · D1–D12) escrito a partir da auditoria de 13 telas (leva 137); execução sequencial a partir da D1 | D | 12 | capturas do aparelho depois de D2 e D6 |
+| 16º-aa ✅ | D1 fundamentos: escala de texto e densidade por tokens, literais zerados, aviso que não atravessa telas (leva 138) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4155,6 +4156,26 @@ para cada promessa (pixels de campo, contraste, sobreposição, nomes falados).
 | D10 | Movimento com sistema | Catálogo de movimentos (entrar, sair, trocar turno, folha, aviso) por tokens `--dur-*` e `--ease-*`, cada um com regra de movimento reduzido; vibração mapeada por evento | contrato visual: nenhuma animação sem regra de reduced motion |
 | D11 | Acessibilidade medida | Varredura automática no headless (nomes, papéis, foco visível, contraste de tudo que é texto) em todas as telas e nos dois temas; correções | teste novo no portão com zero achados |
 | D12 | Guia visual vivo | `/ds` completo: tokens (inclusive escala, densidade, acentos, superfícies), componentes com estados, capturas de referência das telas; checklist de design por leva | o portão confere que todo componente usado está no catálogo |
+
+**D1 · Fundamentos: escala e densidade** ✅ (leva 138, 03/10/2026)
+- **Entregue:** dois tokens multiplicadores no `:root` — `--escala-texto` (pequena .92 · média 1 · grande 1.12)
+  dentro de todos os `--text-*`, e `--densidade` (confortável 1 · compacta .85) dentro de todos os `--space-*`;
+  aplicados por atributo no `<html>` (`data-escala`, `data-densidade`), guardados em `ui.aparencia` (vai no backup
+  v3) e reaplicados no `init` do tema (`theme.setAparencia`, `theme.aparencia`). O alvo de toque (`--tap-min`)
+  não encolhe. A tela de Ajustes que expõe isso é a D2; nesta leva muda-se pelo gancho de teste e pela preferência.
+- **Literais zerados nos componentes:** 14 `font-size`, 9 durações e 5 raios viraram tokens — novos `--text-2xs`,
+  `--text-3xs`, `--simbolo-sm/md/lg/xl` (símbolos de mana e custos), `--dur-4` (chegada de carta, troca de vez),
+  `--dur-giro` (carregando), `--radius-0` (trilhos e sublinhado), `--radius-tile` (ladrilho da marca).
+- **Aviso que não atravessa telas:** `fechaToast()` no roteador; o aviso com ação ("Nova versão pronta") fica.
+- **Medido (mesa, 360×780, começo da partida):** compacta devolve ≈ 25 px de campo; grande mantém os alvos em 44 px
+  e nenhuma sobreposição nas quatro combinações (capturas padrão · grande · compacta · pequena+compacta).
+- **Guarda-corpos:** contrato visual — zero `font-size`/`ms`/`border-radius` literal nos componentes; tokens de
+  texto e espaço são `calc(... var(--escala-texto|--densidade))`; os seletores de atributo existem; `--tap-min`
+  fixo. U (`theme.unit`: atributos, inválido cai no padrão, guardado volta no init). e2e "D1" (escala grande e
+  pequena mudam a mesa inteira na proporção certa, densidade compacta encolhe espaços, alvos ≥ 44 em todos,
+  `auditaTela` em grande e em compacta, preferência sobrevive à recarga, aviso some ao trocar de tela e o com ação
+  fica).
+- **Fora:** a interface de Ajustes (D2); escala por tela.
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.

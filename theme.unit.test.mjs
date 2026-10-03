@@ -51,3 +51,24 @@ test('U1 · a escolha sempre vai para o documento (nunca fica sem data-theme) e 
   assert.equal(await th2.init(), 'light', 'armazenamento quebrado não derruba o tema');
   assert.equal(await th2.cycle(), 'dark');
 });
+
+/* ---------------- D1 · aparência: escala de texto e densidade ---------------- */
+test('D1 · escala e densidade: atributos no <html>, valores inválidos caem no padrão, guardado volta no init', async () => {
+  const store = P.memoryStore(); const d = documento();
+  const doc = { documentElement: d.root, querySelectorAll: () => [] };
+  const th = T.createTheme(store, janela('dark'), doc);
+  await th.init();
+  assert.deepEqual(JSON.parse(JSON.stringify(th.aparencia)), { escala: 'media', densidade: 'confortavel' });
+  assert.equal('data-escala' in d.root.attrs, false, 'padrão não marca o <html>');
+  await th.setAparencia({ escala: 'grande' });
+  assert.equal(d.root.attrs['data-escala'], 'grande'); assert.equal('data-densidade' in d.root.attrs, false);
+  await th.setAparencia({ densidade: 'compacta' });
+  assert.deepEqual(JSON.parse(JSON.stringify(await store.get('ui.aparencia'))), { escala: 'grande', densidade: 'compacta' });
+  await th.setAparencia({ escala: 'enorme' });
+  assert.equal('data-escala' in d.root.attrs, false, 'valor desconhecido volta ao padrão');
+  assert.equal(d.root.attrs['data-densidade'], 'compacta');
+  // outro "aparelho" com o mesmo store: o init reaplica
+  const d2 = documento(); const th2 = T.createTheme(store, janela('dark'), { documentElement: d2.root, querySelectorAll: () => [] });
+  await th2.init(); assert.equal(d2.root.attrs['data-densidade'], 'compacta'); assert.equal('data-escala' in d2.root.attrs, false);
+  assert.deepEqual(JSON.parse(JSON.stringify([th.ESCALAS, th.DENSIDADES])), [['pequena', 'media', 'grande'], ['confortavel', 'compacta']]);
+});

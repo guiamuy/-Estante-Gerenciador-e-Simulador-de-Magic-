@@ -186,3 +186,22 @@ for (const [name, theme] of [['escuro', DARK], ['claro', LIGHT]]) {
     for (const bg of ['--bg', '--bg-elev-1']) assert.ok(ratio(theme['--warning'], theme[bg]) >= 4.5, `${bg}: ${ratio(theme['--warning'], theme[bg]).toFixed(2)}`);
   });
 }
+
+/* ---------------- D1 · fundamentos: escala, densidade e fim dos literais ---------------- */
+test('D1 · nenhum tamanho de fonte, duração ou raio em literal nos componentes: tudo por token', () => {
+  const linhas = componentCss.split('\n').filter(l => !l.trim().startsWith('/*'));
+  const fonte = linhas.filter(l => /font-size:\s*[\d.]+px/.test(l)).map(l => l.trim().slice(0, 70));
+  const ms = linhas.filter(l => /\b\d+ms\b/.test(l)).map(l => l.trim().slice(0, 70));
+  const raio = linhas.filter(l => /border-radius:\s*[\d.]+px/.test(l) && !/border-radius:\s*0px/.test(l)).map(l => l.trim().slice(0, 70));
+  assert.deepEqual(fonte, [], 'font-size literal'); assert.deepEqual(ms, [], 'duração literal'); assert.deepEqual(raio, [], 'raio literal');
+});
+
+test('D1 · escala de texto e densidade são tokens multiplicadores aplicados por atributo no <html>; o alvo de toque não encolhe', () => {
+  assert.equal(DARK['--escala-texto'], '1'); assert.equal(DARK['--densidade'], '1');
+  for (const t of ['--text-xs', '--text-sm', '--text-md', '--text-lg', '--text-xl', '--text-2xl', '--text-3xl', '--text-2xs', '--text-3xs']) assert.match(DARK[t], /calc\(.*var\(--escala-texto\)\)/, t);
+  for (const t of ['--space-1', '--space-2', '--space-3', '--space-4', '--space-5', '--space-6', '--space-7', '--space-8']) assert.match(DARK[t], /calc\(.*var\(--densidade\)\)/, t);
+  assert.equal(DARK['--tap-min'], '44px', 'o alvo de toque é fixo');
+  assert.match(css, /:root\[data-escala="pequena"\] \{ --escala-texto: \.92; \}/);
+  assert.match(css, /:root\[data-escala="grande"\] \{ --escala-texto: 1\.12; \}/);
+  assert.match(css, /:root\[data-densidade="compacta"\] \{ --densidade: \.85; \}/);
+});
