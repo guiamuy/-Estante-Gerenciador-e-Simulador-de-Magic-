@@ -4894,6 +4894,146 @@ test('e2e · Leva 131 · Faeries: Counterspell diz qual mágica anula, Dispel di
   assert.deepEqual(M.errors, []);
 });
 
+// ---- Leva 136 · R4 · Elves pela tela (360×780, modo único) ----
+const floresta136 = async (M, pronto, max = 18) => { let e; for (let i = 0; i < max; i++) { const o = await M.oid('Forest'); if (o) await M.act({ t: 'play_land', p: 0, oid: o }); e = await M.est(); if (pronto(e)) return e; await M.proximo(); } assert.fail('a mão não chegou ao ponto do teste: ' + JSON.stringify(e)); };
+/** Joga terreno e conjura tudo o que der, turno a turno, até a mesa ficar como o teste precisa. */
+const monta136 = async (M, pronto, max = 18) => { let e; for (let i = 0; i < max; i++) {
+  const o = await M.oid('Forest'); if (o) await M.act({ t: 'play_land', p: 0, oid: o });
+  for (let k = 0; k < 6; k++) { const c = await M.legal("a.t==='cast' && !a.faceDown"); if (!c.length) break; await M.act(c[0]); await M.resolve(); }
+  e = await M.est(); if (pronto(e)) { await M.proximo(); const o2 = await M.oid('Forest'); if (o2) await M.act({ t: 'play_land', p: 0, oid: o2 }); return M.est(); } await M.proximo(); }
+  assert.fail('a mesa não chegou ao ponto do teste: ' + JSON.stringify(e)); };
+const fecha136 = async page => { if (await page.locator('#ds-dialog-close').count()) await page.click('#ds-dialog-close'); await page.waitForTimeout(150); };
+const grade136 = page => page.locator('#tb-escolha .tb-card').evaluateAll(cs => cs.map(c => (c.matches('button') ? c : c.querySelector('button')).getAttribute('aria-label')));
+const mesa136 = page => page.evaluate(() => { const s = window.__estanteMesa.estado(); const meus = s.zones[0].battlefield.map(o => s.objects[o]);
+  return { pool: s.players[0].pool, vida: s.players[0].life, viradas: meus.filter(o => o.tapped).map(o => o.name), elfos: s.zones.flatMap(z => z.battlefield).filter(o => /Elf/.test((s.facts[s.objects[o].name].typeText || '') + ' ' + (s.facts[s.objects[o].name].subtypes || []).join(' '))).length,
+    florestas: meus.filter(o => o.name === 'Forest').length, topo: s.zones[0].library.slice(0, 5).map(o => s.objects[o].name), tipos: Object.fromEntries(Object.entries(s.facts).map(([n, f]) => [n, f.types])) }; });
+
+test('e2e · Leva 136 · Elves: virar dois Elfos tocando nas cartas (Birchlore Rangers), Quirion Ranger pergunta o alvo e depois qual Floresta volta, Priest diz quanta mana gera', { skip }, async t => {
+  const M = await comLista125(t, '18 Forest\n8 Llanowar Elves\n8 Birchlore Rangers\n8 Priest of Titania\n8 Quirion Ranger\n5 Timberwatch Elf\n5 Jaspera Sentinel', ['Forest', 'Llanowar Elves', 'Birchlore Rangers', 'Priest of Titania', 'Quirion Ranger', 'Timberwatch Elf', 'Jaspera Sentinel'], '7');
+  const { page } = M;
+  await monta136(M, e => ['Birchlore Rangers', 'Priest of Titania', 'Quirion Ranger'].every(n => e.campo.includes(n)) && e.campo.filter(n => n === 'Llanowar Elves').length >= 2);
+  let m = await mesa136(page);
+  // Priest: o botão diz quantas manas saem
+  let f = await folha131(page, 'Priest of Titania', '.tb-side');
+  assert.deepEqual(f.map(b => b.txt), [m.elfos > 4 ? `Gerar ${m.elfos} × {G}` : 'Gerar ' + '{G}'.repeat(m.elfos)], 'uma {G} por Elfo no campo');
+  await auditaTela(page, 'folha do Priest of Titania'); await fecha136(page);
+  // Birchlore: escolhe a cor, depois toca em dois Elfos
+  f = await folha131(page, 'Birchlore Rangers', '.tb-side');
+  assert.deepEqual(f.map(b => b.txt), ['W', 'U', 'B', 'R', 'G'].map(c => `Gerar {${c}}`));
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForSelector('#tb-escolha');
+  assert.equal(await page.innerText('#tb-escolha-pergunta'), 'Quais criaturas viram para pagar? Toque nas cartas: 0 de 2.');
+  const cartas = await grade136(page);
+  assert.equal(new Set(cartas).size, cartas.length, 'uma carta por criatura diferente (antes: uma lista com todos os pares): ' + cartas.join(' | '));
+  assert.ok(cartas.some(c => /^Virar Llanowar Elves, \d cópias iguais$/.test(c)), 'cópias iguais viram uma pilha');
+  await auditaTela(page, 'virar dois Elfos');
+  await page.locator('#tb-escolha [data-escolha="Llanowar Elves"]').first().click(); await page.waitForTimeout(200);
+  assert.equal(await page.innerText('#tb-escolha-pergunta'), 'Quais criaturas viram para pagar? Toque nas cartas: 1 de 2.');
+  assert.match((await grade136(page)).join(' | '), /Virar Llanowar Elves, \d cópias iguais, 1 escolhida\(s\)/);
+  await page.locator('#tb-escolha [data-escolha="Llanowar Elves"]').first().click(); await page.waitForTimeout(300);
+  m = await mesa136(page);
+  assert.equal(await page.locator('#tb-escolha').count(), 0, 'fechou a conta, a escolha fecha'); assert.equal(m.pool.W, 1);
+  assert.equal(m.viradas.filter(n => n === 'Llanowar Elves').length, 2, 'viraram os dois Llanowar tocados, não a Birchlore');
+  // Quirion: alvo, depois qual Floresta (virada e desvirada aparecem separadas)
+  const umaFloresta = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.find(o => s.objects[o].name === 'Forest' && !s.objects[o].tapped); });
+  await M.act({ t: 'tap_mana', p: 0, oid: umaFloresta, option: 0 });
+  f = await folha131(page, 'Quirion Ranger', '.tb-side');
+  assert.match(f[0].txt, /^Ativar \(devolver Forest à mão\)( · \d+ alvos| → .+)$/, 'o custo está escrito');
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForTimeout(300);
+  if (await page.locator('#tb-alvos').count()) { await auditaTela(page, 'alvos do Quirion Ranger'); await page.locator('#tb-alvos button', { hasText: 'Llanowar Elves' }).first().click(); await page.waitForTimeout(300); }
+  await page.waitForSelector('#tb-escolha');
+  assert.equal(await page.innerText('#tb-escolha-pergunta'), 'Qual terreno volta para a mão? Toque na carta.');
+  const terrenos = await grade136(page);
+  assert.deepEqual(terrenos.slice().sort(), ['Devolver Forest (virada)', m.florestas - 1 > 1 ? `Devolver Forest, ${m.florestas - 1} cópias iguais` : 'Devolver Forest'].sort(), 'Florestas iguais juntas, a virada à parte (antes: uma carta por Floresta, sem dizer qual estava virada)');
+  await auditaTela(page, 'qual Floresta volta');
+  const mao = (await M.est()).mao.filter(n => n === 'Forest').length;
+  await page.locator('#tb-escolha .tb-card').nth(terrenos.indexOf('Devolver Forest (virada)')).click(); await page.waitForTimeout(200);
+  const e = await M.resolve(); const d = await mesa136(page);
+  assert.equal(e.mao.filter(n => n === 'Forest').length, mao + 1, 'a Floresta voltou para a mão'); assert.equal(d.florestas, m.florestas - 1);
+  assert.equal(d.viradas.filter(n => n === 'Llanowar Elves').length, 1, 'um dos Llanowar foi desvirado'); assert.equal(d.viradas.includes('Forest'), false, 'voltou a Floresta virada');
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 136 · Elves: Winding Way entrega as cartas sem pergunta e diz o que revelou; Lead the Stampede diz o que pode ser pego; Huntmaster pergunta pela ficha; colher provas aparece na folha', { skip }, async t => {
+  const M = await comLista125(t, '18 Forest\n10 Llanowar Elves\n8 Winding Way\n8 Lead the Stampede\n8 Lys Alana Huntmaster\n8 Vitu-Ghazi Inspector', ['Forest', 'Llanowar Elves', 'Winding Way', 'Lead the Stampede', 'Lys Alana Huntmaster', 'Vitu-Ghazi Inspector'], '4');
+  const { page } = M;
+  await floresta136(M, e => e.campo.filter(x => x === 'Forest').length >= 3 && e.mao.includes('Winding Way') && e.mao.includes('Lead the Stampede'));
+  let f = await folha131(page, 'Winding Way');
+  assert.deepEqual(f.map(b => b.txt), ['Revelar 4 e pegar as criaturas · {1}{G}', 'Revelar 4 e pegar os terrenos · {1}{G}']);
+  let m = await mesa136(page); const topo = m.topo.slice(0, 4), criaturas = topo.filter(n => m.tipos[n].includes('creature'));
+  let antes = await M.est();
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForTimeout(300);
+  let e = await M.resolve();
+  assert.equal(e.pend, null, 'nenhuma pergunta: a carta diz "all"');
+  assert.equal(e.mao.length, antes.mao.length - 1 + criaturas.length, 'as criaturas reveladas foram para a mão');
+  assert.equal(e.cemiterio.length, antes.cemiterio.length + 1 + (4 - criaturas.length), 'o resto e a própria carta no cemitério');
+  await page.waitForSelector('#ds-toast[data-open="true"]');
+  assert.equal(await page.innerText('#ds-toast'), `Winding Way revelou: ${topo.join(', ')}`, 'a mesa diz o que foi revelado');
+  await auditaTela(page, 'Winding Way resolvida');
+  // Lead the Stampede: o aviso diz o que pode ir para a mão
+  await M.proximo(); await floresta136(M, e => e.campo.filter(x => x === 'Forest').length >= 3 && e.mao.includes('Lead the Stampede'));
+  m = await mesa136(page); const cinco = m.topo, pegaveis = cinco.filter(n => m.tipos[n].includes('creature'));
+  await page.locator('#tb-hand .tb-card[aria-label^="Lead the"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+  assert.equal(e.pend, 'pick');
+  assert.equal(await M.decisao(), 'Lead the Stampede · Olhar o topo do grimório | ' + (pegaveis.length ? `Toque nas criaturas que vão para a mão: 0 de ${pegaveis.length} · o resto vai para o fundo` : 'Nenhuma criatura entre as cartas · tudo vai para o fundo'));
+  await auditaTela(page, 'escolha de Lead the Stampede');
+  antes = await M.est();
+  for (const o of await M.legal("a.t==='pick'")) await M.act(o);
+  if ((await M.est()).pend === 'pick') { await page.click('#tb-pick-done'); await page.waitForTimeout(200); }
+  e = await M.est(); assert.equal(e.mao.length, antes.mao.length + pegaveis.length);
+  // Huntmaster: conjurar um Elfo pergunta pela ficha
+  await M.proximo();
+  await floresta136(M, e => e.campo.filter(x => x === 'Forest').length >= 5 && ['Lys Alana Huntmaster', 'Llanowar Elves', 'Vitu-Ghazi Inspector'].every(n => e.mao.includes(n)), 24);
+  await page.locator('#tb-hand .tb-card[aria-label^="Lys Alana"]').first().click(); await naFolha(page, /^Conjurar/); await M.resolve();
+  await page.locator('#tb-hand .tb-card[aria-label^="Llanowar"]').first().click(); await naFolha(page, /^Conjurar/); e = await M.resolve();
+  assert.equal(e.pend, 'may_pay');
+  assert.equal(await M.decisao(), 'Lys Alana Huntmaster: fazer o efeito? | Se aceitar: cria 1 ficha de Elf Warrior 1/1. Recusando, nada acontece.');
+  await auditaTela(page, 'ficha da Huntmaster');
+  await page.locator('.tb-banner__actions button', { hasText: /^Fazer$/ }).click(); await page.waitForTimeout(200); e = await M.resolve();
+  assert.ok(e.campo.includes('Elf Warrior') && e.campo.includes('Llanowar Elves'));
+  // Vitu-Ghazi Inspector: colher provas é uma opção da folha (antes as duas formas tinham o mesmo nome e a mesa conjurava sempre sem as provas)
+  await M.proximo(); await floresta136(M, e => e.mao.includes('Vitu-Ghazi Inspector') && e.cemiterio.length >= 3);
+  f = await folha131(page, 'Vitu-Ghazi Inspector');
+  assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Conjurar · {1}{G}', false], ['Conjurar com provas 6 · {1}{G}', false]]);
+  await auditaTela(page, 'folha do Vitu-Ghazi Inspector');
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: 'com provas' }).click(); await page.waitForTimeout(300);
+  e = await M.est(); assert.equal(e.pend, 'pick');
+  assert.equal(await M.decisao(), 'Vitu-Ghazi Inspector · Colher provas: exile do cemitério | Toque nas cartas até somar 6 de valor de mana: 0 de 6');
+  await auditaTela(page, 'colher provas');
+  const vida = (await mesa136(page)).vida;
+  for (let i = 0; i < 8 && (await M.est()).pend === 'pick'; i++) { const o = await M.legal("a.t==='pick'"); if (!o.length) { await page.click('#tb-pick-done'); break; } await M.act(o[0]); }
+  e = await M.est(); assert.ok(e.exilio.length >= 1, 'as provas foram para o exílio');
+  for (let i = 0; i < 12; i++) { e = await M.est(); if (e.pend === 'pick_target') { await page.click('#tb-pick-target'); await page.waitForTimeout(150); } else if (e.pend) await M.act((await M.legal("a.t!=='concede'"))[0]); /* a Huntmaster em campo pergunta pela ficha: o Inspector é mágica de Elfo */
+    else if (e.pilha) { await page.click('#tb-pass', { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(150); } else break; }
+  assert.equal((await mesa136(page)).vida, vida + 2, 'com provas: marcador na criatura alvo e 2 de vida');
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 136 · Elves: Distant Melody diz de qual carta é a escolha do tipo; Salt Road Packbeast mostra o custo com afinidade', { skip }, async t => {
+  const M = await comLista125(t, '16 Forest\n8 Birchlore Rangers\n8 Llanowar Elves\n6 Distant Melody\n6 Salt Road Packbeast\n6 Timberwatch Elf\n5 Mirrorshell Crab\n5 Scattershot Archer', ['Forest', 'Birchlore Rangers', 'Llanowar Elves', 'Distant Melody', 'Salt Road Packbeast', 'Timberwatch Elf', 'Mirrorshell Crab', 'Scattershot Archer'], '9');
+  const { page } = M;
+  let e = await monta136(M, e => e.campo.includes('Birchlore Rangers') && e.campo.includes('Llanowar Elves') && e.campo.includes('Timberwatch Elf') && e.mao.includes('Distant Melody') && e.mao.includes('Salt Road Packbeast') && e.campo.filter(n => n === 'Forest').length >= 4);
+  const criaturas = e.campo.filter(n => n !== 'Forest').length;
+  let f = await folha131(page, 'Salt Road Packbeast');
+  assert.deepEqual(f.map(b => [b.txt, b.apagado]), [[`Conjurar · ${5 - criaturas > 0 ? `{${5 - criaturas}}` : ''}{W} (com desconto) — mana insuficiente`, true]], 'afinidade com criaturas: {1} a menos por criatura; falta o {W}');
+  await auditaTela(page, 'folha da Salt Road Packbeast'); await fecha136(page);
+  f = await folha131(page, 'Distant Melody'); assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Conjurar · {3}{U} — mana insuficiente', true]]); await fecha136(page);
+  // {U} pelas Birchlore Rangers, virando ela e a Timberwatch
+  await folha131(page, 'Birchlore Rangers', '.tb-side'); await page.locator('.ds-dialog .tb-sheet__actions button').nth(1).click(); await page.waitForSelector('#tb-escolha');
+  await page.locator('#tb-escolha [data-escolha="Birchlore Rangers"]').first().click(); await page.waitForTimeout(200);
+  await page.locator('#tb-escolha [data-escolha="Timberwatch Elf"]').first().click(); await page.waitForTimeout(300);
+  let m = await mesa136(page); assert.equal(m.pool.U, 1);
+  const elfos = m.elfos, mao = (await M.est()).mao.length;
+  f = await folha131(page, 'Distant Melody'); assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Conjurar · {3}{U}', false]]);
+  await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForTimeout(300); e = await M.resolve();
+  assert.equal(e.pend, 'choose_type');
+  assert.match(await M.decisao(), /^Distant Melody · Escolha um tipo de criatura \| O efeito conta as suas permanentes desse tipo\./);
+  assert.equal((await page.locator('.tb-banner__actions button').allInnerTexts())[0], 'Elf', 'o tipo que mais rende vem primeiro');
+  await auditaTela(page, 'tipo de criatura da Distant Melody');
+  await page.click('#tb-choose-type'); await page.waitForTimeout(200); e = await M.resolve();
+  assert.equal(e.mao.length, mao - 1 + elfos, 'uma carta por Elfo seu');
+  assert.deepEqual(M.errors, []);
+});
+
 /* ---------------- Leva 133 · partida online entre duas abas (transporte local) ---------------- */
 test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra aba, as duas mesas convergem, sem desfazer, desistir encerra', { skip }, async t => {
   const { page: A, errors, base } = await open(t, { dev: false });

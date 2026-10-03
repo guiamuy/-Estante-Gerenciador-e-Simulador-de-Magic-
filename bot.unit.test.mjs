@@ -539,9 +539,19 @@ test('Leva 115 · carta com escolha (Winding Way): o v3 enxerga o que ela rende 
   s.players[a].landPlayed = true;
   const v3 = B.criaBot({ nivel: 'shark' }).jogada(s, a), v2 = B.criaBot({ nivel: 'shark-v2' }).jogada(s, a);
   assert.deepEqual([v3.acao.t, v3.acao.oid], ['cast', ww], 'v3 conjura Winding Way');
-  assert.notEqual(v2.acao.oid, ww, 'v2 deixava na mão');
-  // e, na hora de escolher, pega as cartas em vez de encerrar sem pegar nada
+  // Leva 136 (trilha motor) · expectativa mudou com a regra: Winding Way diz "put ALL cards of the chosen type into your hand",
+  // então não há escolha na resolução e o motor v67 entrega as cartas sem perguntar. Sem a pergunta no caminho, o v2 também
+  // enxerga o que a carta rende (antes: assert.notEqual(v2.acao.oid, ww, 'v2 deixava na mão')).
+  assert.equal(v2.acao.oid, ww, 'sem escolha na resolução, o v2 também vê o ganho');
+  // e a carta entrega as quatro criaturas sem pergunta (antes: a mesa abria uma escolha e o bot precisava pegar as cartas)
   let t = act(s, v3.acao);
+  for (let i = 0; i < 12 && (t.stack.length || t.pending); i++) { const j = t.pending ? B.criaBot({ nivel: 'shark' }).jogada(t, t.pending.p) : { acao: { t: 'pass', p: t.turn.priority } }; t = act(t, j.acao); }
+  assert.equal(t.pending, null); assert.ok(criaturas.every(o => t.objects[o].zone === 'hand'), 'as quatro criaturas do topo estão na mão');
+  // a carta com escolha de verdade passa a ser Lead the Stampede ("you may reveal any number of creature cards"): o que o teste
+  // conferia sobre a escolha (pegar em vez de encerrar vazia) continua conferido, com ela
+  tira('Forest', 'battlefield'); const ls = tira('Lead the Stampede', 'hand');
+  t = act(s, { t: 'cast', p: a, oid: ls });
+  // e, na hora de escolher, pega as cartas em vez de encerrar sem pegar nada
   for (let i = 0; i < 12 && !(t.pending && t.pending.kind === 'pick'); i++) { const j = t.pending ? B.criaBot({ nivel: 'shark' }).jogada(t, t.pending.p) : { acao: { t: 'pass', p: t.turn.priority } }; t = act(t, j.acao); }
   assert.equal(t.pending && t.pending.kind, 'pick');
   assert.equal(B.criaBot({ nivel: 'shark' }).jogada(t, a).acao.t, 'pick', 'pega carta (antes: encerrava a escolha vazia)');

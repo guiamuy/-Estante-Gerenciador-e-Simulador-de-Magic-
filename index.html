@@ -4359,6 +4359,10 @@ const RAW_SCRIPTS = [
   // S19 · valores dinâmicos
   { name: 'Priest of Titania', produces: [{ symbol: 'G', per: 'elves-on-battlefield' }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // Leva 136 · texto oficial (Scryfall DOM 168 e Elvish Mystic, consultas de 30/09/2026 em .listas/oficiais.json): "{T}: Add {G}."
+  // Sem script, as duas dependiam do texto buscado na rede para gerar mana; sem internet caíam para manual.
+  { name: 'Llanowar Elves', produces: [['G']], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Elvish Mystic', produces: [['G']], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Overgrown Battlement', produces: [{ symbol: 'G', per: 'defenders-you-control' }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // Leva 106 · texto (Forge, 30/09/2026): "{T}: Add X mana in any combination of colors, where X is the number of
@@ -4449,9 +4453,12 @@ const RAW_SCRIPTS = [
     example: { target: 'none', expect: { picked: true } } },
   { name: 'Winding Way', modes: [
     // Leva 106 · "Put ALL cards of the chosen type revealed this way into your hand": min 4 (limitado ao que combina)
-    { label: 'Revelar 4 e pegar as criaturas', effects: [{ do: 'look', count: 4, amount: 4, min: 4, filter: { types: ['creature'] }, to: 'hand', rest: 'graveyard' }] },
-    { label: 'Revelar 4 e pegar os terrenos', effects: [{ do: 'look', count: 4, amount: 4, min: 4, filter: { types: ['land'] }, to: 'hand', rest: 'graveyard' }] }],
-    example: { action: 'mode:0', target: 'none', expect: { picked: true } } },
+    // Leva 136 · "Reveal the top four": `revela` (os dois jogadores veem) e `todas` (sem pergunta, não há escolha). Simplificação
+    // declarada: "Choose creature or land" é decidido ao conjurar (modo), não na resolução; o oponente fica sabendo antes.
+    { label: 'Revelar 4 e pegar as criaturas', effects: [{ do: 'look', count: 4, amount: 4, min: 4, todas: true, revela: true, filter: { types: ['creature'] }, to: 'hand', rest: 'graveyard' }] },
+    { label: 'Revelar 4 e pegar os terrenos', effects: [{ do: 'look', count: 4, amount: 4, min: 4, todas: true, revela: true, filter: { types: ['land'] }, to: 'hand', rest: 'graveyard' }] }],
+    // Leva 136 · `todas`: não abre mais escolha (o cenário antigo conferia "picked"); a regra é conferida em elves.regras e pauper.regras
+    example: { action: 'mode:0', target: 'none', expect: { attached: false } } },
   { name: 'Mystical Tutor', effects: [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'library-top' }], example: { target: 'none', expect: { picked: true } } },
   { name: 'Solve the Equation', effects: [{ do: 'search', amount: 1, filter: { types: ['instant', 'sorcery'] }, to: 'hand' }], example: { target: 'none', expect: { picked: true } } },
   { name: 'Idyllic Tutor', effects: [{ do: 'search', amount: 1, filter: { types: ['enchantment'] }, to: 'hand' }], example: { target: 'none', expect: { picked: true } } },
@@ -7754,7 +7761,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 66;
+const ENGINE_VERSION = 67;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -9034,6 +9041,9 @@ function applyEffect(s, src, eff, tgt, events) {
       startPick(s, { p: who, from, min: Math.min(eff.min || 0, servem), max: eff.amount, to: eff.to || 'hand',
         rest: eff.rest || 'library-bottom', shuffle: !!eff.shuffle, filter: eff.filter, onPicked: eff.onPicked || null,
         label: 'olhar o topo', source: src.name }, events);
+      // Leva 136 · "put ALL cards of the chosen type into your hand" (Winding Way): não há o que escolher. Antes a mesa
+      // pedia um toque em cada carta obrigatória; agora todas as que servem vão sozinhas e o resto segue o destino.
+      if (eff.todas) { s.pending.picked = from.filter(oid => matchesFilter(s, s.objects[oid], eff.filter)); concluiPick(s, events); }
       break;
     }
     case 'scry': case 'surveil': {
@@ -9272,7 +9282,9 @@ function startPick(s, spec, events) {
 }
 /** S55 · soma do valor de mana do que já foi escolhido. */
 const pickedMv = (s, pk) => (pk.picked || []).reduce((n, oid) => n + ((s.facts[s.objects[oid].name] || {}).cmc || 0), 0);
-function finishPick(s, events) {
+function finishPick(s, events) { concluiPick(s, events); resumeEffects(s, events); }
+/** O que a escolha faz com as cartas, sem retomar os efeitos (quem chama de dentro de uma resolução continua sozinho). */
+function concluiPick(s, events) {
   const pk = s.pending; s.pending = null;
   const dest = (oid, where) => {
     if (where === 'stay') return;
@@ -9298,7 +9310,6 @@ function finishPick(s, events) {
     }
   }
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
-  resumeEffects(s, events);
 }
 /** Efeitos que ficaram esperando a escolha terminar. */
 function resumeEffects(s, events) {
@@ -10867,6 +10878,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid];
     abilitiesOf(s, o).filter(x => x.kind === 'activated' && (x.cost || {}).fromHand).forEach((ab, index) => {
+      // Leva 136 · a habilidade da mão era oferecida sem conferir a mana (Mirrorshell Crab sem {U}): a mesa mostrava o botão e o motor recusava
+      if (s.manaCheck && (ab.cost || {}).mana && !canPay(s, p, parseCost(ab.cost.mana))) return;
       const need = (ab.effects || []).filter(SC.isTargeted);
       if (!need.length) return out.push({ t: 'activate', p, oid, index, fromHand: true });
       // S45 · a habilidade da mão pode pedir mais de um alvo, e o último pode ficar de fora
@@ -12602,7 +12615,8 @@ function alvoSemEfeito(s, efeitos, alvos) {
 /** Leva 131 · botões "ação → alvo" da folha. (1) Alvo em que o efeito não faz nada ("se for vermelha" numa carta que
     não é) sai da frente: vira um botão só, discreto, que abre a lista. (2) Mais de quatro alvos para a mesma ação
     viram um botão que abre a lista por dono (antes a folha era uma coluna de botões dourados que não cabia na tela).
-    Puro: devolve descrições; quem tem `alvos` abre a lista com essas ações. `opcoes` guarda tudo o que o botão alcança. */
+    Puro: devolve descrições; quem tem `grupos` abre a lista com um alvo por grupo (cada grupo guarda as formas de pagar
+    aquele alvo, para a pergunta seguinte). `opcoes` guarda tudo o que o botão alcança. */
 const LIMITE_DE_ALVOS = 4;
 function enxugaAlvos(s, lista, efeitosDe = () => []) {
   const prefixo = d => d.label.split(' → ')[0];
@@ -12614,11 +12628,11 @@ function enxugaAlvos(s, lista, efeitosDe = () => []) {
   for (const d of lista) {
     if (!comAlvo(d)) { out.push(d); continue; }
     const k = chave(d); if (feitos.has(k)) continue; feitos.add(k);
-    const todos = grupos.get(k), tudo = ds => ds.flatMap(x => x.opcoes || [x.action]), uma = ds => ds.map(x => x.action);
+    const todos = grupos.get(k), tudo = ds => ds.flatMap(x => x.opcoes || [x.action]), uma = ds => ds.map(x => ({ label: x.label, action: x.action, opcoes: x.opcoes || [x.action] }));
     const inuteis = todos.filter(x => alvoSemEfeito(s, efeitosDe(x), x.action.targets)), uteis = todos.filter(x => !inuteis.includes(x));
-    if (uteis.length > LIMITE_DE_ALVOS) out.push({ label: `${prefixo(d)} · ${uteis.length} alvos`, variant: d.variant, titulo: prefixo(d), opcoes: tudo(uteis), alvos: uma(uteis) });
+    if (uteis.length > LIMITE_DE_ALVOS) out.push({ label: `${prefixo(d)} · ${uteis.length} alvos`, variant: d.variant, titulo: prefixo(d), opcoes: tudo(uteis), grupos: uma(uteis) });
     else out.push(...uteis);
-    if (inuteis.length) out.push({ label: `${prefixo(d)} — sem efeito nos alvos de agora`, semEfeito: true, variant: 'ghost', titulo: `${prefixo(d)} (sem efeito)`, opcoes: tudo(inuteis), alvos: uma(inuteis) });
+    if (inuteis.length) out.push({ label: `${prefixo(d)} — sem efeito nos alvos de agora`, semEfeito: true, variant: 'ghost', titulo: `${prefixo(d)} (sem efeito)`, opcoes: tudo(inuteis), grupos: uma(inuteis) });
   }
   return out;
 }
@@ -13544,6 +13558,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
       if (res) adjudicating = { name: res.name, oid: res.oid };
       recusa = null;
       save(); paint();
+      // Leva 136 · carta que revela e resolve sem pergunta (Winding Way): a mesa diz o que foi revelado; antes só o registro dizia
+      const rev = events.filter(e => e.kind === 'effect' && e.do === 'reveal').pop();
+      if (rev) toast(`${rev.name} revelou: ${rev.target}`, 6000);
       return true;
     } catch (e) {
       recusa = T.explicaRecusa(e, action, table.state);
@@ -13694,7 +13711,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
     return out.map(d => (d.opcoes && d.opcoes.length > 1 ? d : (d.opcoes ? (({ opcoes, ...resto }) => resto)(d) : d)));
   }
   /** Leva 131 · a folha enxuga os botões "ação → alvo" (regra em T.enxugaAlvos) e abre a lista por dono quando precisa. */
-  const enxugaAlvos = (lista, efeitosDe) => T.enxugaAlvos(table.state, lista, efeitosDe).map(d => d.alvos ? { ...d, abre: () => escolherAlvo(d.titulo, d.alvos, { sempre: !!d.semEfeito }) } : d);
+  const enxugaAlvos = (lista, efeitosDe) => T.enxugaAlvos(table.state, lista, efeitosDe).map(d => d.grupos ? { ...d, abre: () => escolherAlvo(d.titulo, d.grupos.map(g => g.action), { sempre: !!d.semEfeito,
+    // escolhido o alvo, se há mais de uma forma de pagar (qual Floresta volta, qual criatura vira), a pergunta seguinte é essa
+    executa: a => { const g = d.grupos.find(x => x.action === a); return g && g.opcoes.length > 1 ? escolher(g.label, g.opcoes) : act(a); } }) } : d);
   function escolher(titulo, opcoes) {
     const s = table.state;
     const xs = [...new Set(opcoes.map(a => a.x).filter(x => x != null))].sort((p, q) => p - q);
@@ -13707,6 +13726,8 @@ function createTableScreen({ store, perfil = null, online = null }) {
     // Leva 125 · quando a escolha é UMA carta (descartar, sacrificar, virar, devolver, exilar), a pergunta mostra as
     // cartas, não uma lista de botões dourados com o nome: cópias iguais da mão ou do cemitério viram uma carta só com ×N.
     if (unico && qtd === 1 && unico[0] !== 'revelar' && opcoes.every(a => s.objects[[].concat(a.pay[unico[0]])[0]])) return escolherCarta(titulo, unico, opcoes);
+    // Leva 136 · duas ou mais cartas (Birchlore Rangers: vire dois Elfos): toca nas cartas, em vez de uma lista com todos os pares
+    if (unico && qtd > 1 && unico[0] !== 'revelar' && opcoes.every(a => [].concat(a.pay[unico[0]]).every(x => s.objects[x]))) return escolherVarias(titulo, unico, qtd, opcoes);
     const pergunta = unico ? unico[1] : () => 'Como você paga o custo?';
     const rotulos = opcoes.map(a => {
       const partes = CAMPOS_PAGAMENTO.filter(([c]) => a.pay && a.pay[c] != null).map(([c, , verbo]) => c === 'revelar' ? `${verbo} ${a.pay[c]}` : `${verbo} ${nomesDe(s, a.pay[c])}`);
@@ -13723,13 +13744,17 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const s = table.state;
     const grupos = new Map();
     for (const a of opcoes) { const oid = [].concat(a.pay[campo])[0], o = s.objects[oid];
-      const chave = ['hand', 'graveyard'].includes(o.zone) ? `${o.zone}|${o.name}` : oid;
-      if (!grupos.has(chave)) grupos.set(chave, { o, oid, acao: a, total: 0 }); grupos.get(chave).total++; }
+      // Leva 136 · terrenos iguais no campo (qual Floresta volta para a mão) agrupam por nome e por estarem virados ou não
+      const terrenoLiso = o.zone === 'battlefield' && s.facts[o.name].types.includes('land') && !s.zones.some(z => z.battlefield.some(x => s.objects[x].attachedTo === oid)) && !Object.keys(o.counters || {}).length;
+      const chave = ['hand', 'graveyard'].includes(o.zone) ? `${o.zone}|${o.name}` : terrenoLiso ? `campo|${o.name}|${!!o.tapped}` : oid;
+      if (!grupos.has(chave)) grupos.set(chave, { o, oid, acao: a, ids: new Set() }); grupos.get(chave).ids.add(oid); }
+    for (const g of grupos.values()) g.total = g.ids.size; // Leva 136 · conta cartas, não ações (o mesmo terreno aparecia uma vez por alvo)
     const cartas = [...grupos.values()].map(g => {
       const c = TableCard({ ...g.o, tapped: false, image: imgOf(g.o.name, 'normal'), images: imagensOf(g.o.name) }, { ...(g.total > 1 ? { pilha: { total: g.total, viradas: 0 } } : {}), ...comPeek(g.oid),
+        ...(g.o.zone === 'battlefield' && g.o.tapped ? { tags: ['virada'] } : {}),
         onClick: () => { closeDialog(); act(g.acao); } });
       const alvoDoNome = c.matches('button') ? c : (c.querySelector('button') || c);
-      alvoDoNome.setAttribute('aria-label', `${verbo} ${g.o.name}${g.total > 1 ? `, ${g.total} cópias iguais` : ''}`); c.dataset.escolha = g.o.name;
+      alvoDoNome.setAttribute('aria-label', `${verbo} ${g.o.name}${g.o.zone === 'battlefield' && g.o.tapped ? ' (virada)' : ''}${g.total > 1 ? `, ${g.total} cópias iguais` : ''}`); c.dataset.escolha = g.o.name;
       return c;
     });
     Dialog({ title: titulo, body: Stack({},
@@ -13737,11 +13762,43 @@ function createTableScreen({ store, perfil = null, online = null }) {
       h('div', { class: 'tb-zonegrid', id: 'tb-escolha' }, ...cartas)),
       actions: [Button('Voltar', { onClick: closeDialog })] });
   }
+  /** Leva 136 · escolha de N cartas para pagar um custo. Cartas iguais no mesmo estado viram uma pilha ×N: cada toque
+   *  leva mais uma dela; tocar numa pilha já usada inteira (ou com a conta fechada) tira as dela. Fechou a conta, age. */
+  function escolherVarias(titulo, [campo, pergunta, verbo], qtd, opcoes) {
+    const s = table.state;
+    const chaveDe = oid => { const o = s.objects[oid]; return ['hand', 'graveyard'].includes(o.zone) ? `${o.zone}|${o.name}` : `campo|${o.name}|${!!o.tapped}|${!!o.sick}|${JSON.stringify(o.counters || {})}`; };
+    const grupos = new Map();
+    for (const a of opcoes) for (const oid of [].concat(a.pay[campo])) { const k = chaveDe(oid); if (!grupos.has(k)) grupos.set(k, { k, o: s.objects[oid], ids: [], n: 0 }); const g = grupos.get(k); if (!g.ids.includes(oid)) g.ids.push(oid); }
+    const lista = [...grupos.values()];
+    const escolhidos = () => lista.flatMap(g => g.ids.slice(0, g.n));
+    // o motor lista até um teto de combinações; a combinação tocada que ficou fora da lista segue o molde das outras (o motor confere ao aplicar)
+    const acaoDe = ids => { const alvo = ids.slice().sort().join(); return opcoes.find(a => [].concat(a.pay[campo]).slice().sort().join() === alvo) || { ...opcoes[0], pay: { ...opcoes[0].pay, [campo]: ids } }; };
+    const toca = g => {
+      const total = escolhidos().length;
+      if (total < qtd && g.n < g.ids.length) g.n++; else if (g.n) g.n = 0; else return;
+      const ids = escolhidos();
+      if (ids.length === qtd) { const a = acaoDe(ids); if (a) { closeDialog(); return act(a); } g.n = 0; }
+      pinta();
+    };
+    const grade = h('div', { class: 'tb-zonegrid', id: 'tb-escolha' }), conta = h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-escolha-pergunta', 'aria-live': 'polite' });
+    function pinta() {
+      conta.textContent = `${pergunta(qtd)} Toque nas cartas: ${escolhidos().length} de ${qtd}.`;
+      grade.replaceChildren(...lista.map(g => {
+        const c = TableCard({ ...g.o, tapped: false, image: imgOf(g.o.name, 'normal'), images: imagensOf(g.o.name) }, { ...(g.ids.length > 1 ? { pilha: { total: g.ids.length, viradas: 0 } } : {}), ...comPeek(g.ids[0]),
+          selected: g.n > 0, tags: [g.o.sick && g.o.zone === 'battlefield' ? 'enjoo' : null, g.n > 0 && g.ids.length > 1 ? `${g.n} de ${g.ids.length}` : null].filter(Boolean), onClick: () => toca(g) });
+        const b = c.matches('button') ? c : (c.querySelector('button') || c);
+        b.setAttribute('aria-label', `${verbo} ${g.o.name}${g.ids.length > 1 ? `, ${g.ids.length} cópias iguais` : ''}${g.n ? `, ${g.n} escolhida(s)` : ''}`); b.setAttribute('aria-pressed', String(g.n > 0)); c.dataset.escolha = g.o.name;
+        return c;
+      }));
+    }
+    pinta();
+    Dialog({ title: titulo, body: Stack({}, conta, grade), actions: [Button('Voltar', { onClick: closeDialog })] });
+  }
   /** Leva 110 · escolha de alvo fora da folha da carta (insanidade, conjurar de graça): todos os alvos,
    *  jogadores primeiro, numa folha que rola. Antes o aviso mostrava só os três primeiros botões. */
-  function escolherAlvo(titulo, opcoes, { sempre = false, acao = a => a } = {}) {
+  function escolherAlvo(titulo, opcoes, { sempre = false, acao = a => a, executa = a => act(acao(a)) } = {}) {
     const s = table.state;
-    if (opcoes.length === 1 && !sempre) return act(acao(opcoes[0]));
+    if (opcoes.length === 1 && !sempre) return executa(opcoes[0]);
     const eu = table.viewer();
     // grupos: jogadores, suas permanentes, as do oponente (12 "Grizzly Bear" sem dono não dizem nada)
     const grupo = a => { const x = (a.targets || [])[0]; if (!x || x.player != null) return 0; const o = s.objects[x.oid]; return o && o.controller === eu ? 1 : 2; };
@@ -13750,7 +13807,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const estado = x => { const o = x.oid != null && s.objects[x.oid]; if (!o) return null;
       const p = [o.tapped ? 'virada' : null, o.damage ? `${o.damage} de dano` : null, (o.counters || {}).p1p1 ? `+${o.counters.p1p1}/+${o.counters.p1p1}` : null].filter(Boolean); return p.length ? p.join(' · ') : null; };
     const botao = a => { const ts = a.targets || []; const st = ts.length === 1 ? estado(ts[0]) : null;
-      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); act(acao(a)); }, ...(st ? { title: st } : {}) }, ); };
+      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); executa(a); }, ...(st ? { title: st } : {}) }, ); };
     const oponente = s.players.find((_, i) => i !== eu);
     const TITULOS = ['Jogadores', 'Suas permanentes', `Permanentes de ${oponente ? oponente.name : 'oponente'}`];
     const secoes = [0, 1, 2].map(g => ord.filter(a => grupo(a) === g)).map((lista, g) => lista.length ? Stack({ style: { gap: 'var(--space-2)' } },
@@ -13838,7 +13895,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.sacrificeOther ? 'sacrificar outra' : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? 'sacrificar outra' : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
   }
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
@@ -13874,7 +13931,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${(f.script.flashback || {}).mana || ''}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${(f.script.flashback || {}).mana || ''}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
@@ -13908,7 +13965,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const comCombo = E.legalActions(s, v).find(a => a.t === 'tap_mana' && a.oid === oid && a.combo > 1);
     if (o.zone === 'battlefield' && comCombo) legal.push({ label: `Gerar ${comCombo.combo} manas`, variant: 'primary', abre: () => dividirMana(oid, comCombo.combo) });
     else if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
-      E.productions(s, o).forEach((opt, k) => legal.push(doBtn(`Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k })));
+      E.productions(s, o).forEach((opt, k) => legal.push(doBtn(opt.length > 4 && opt.every(c => c === opt[0]) ? `Gerar ${opt.length} × {${opt[0]}}` : `Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k }))); // Leva 136 · nove {G} em fila viram "9 × {G}"
     // S24: faces duplas
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
       legal.push(doBtn(x.disturb ? `Disturb · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
@@ -14146,7 +14203,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
           onClick: () => (pagamentos.length > 1 ? escolher(s.pending.name, pagamentos) : act(pagamentos[0] || { t: 'pay', p: v })) }),
           Button(efeito ? (s.pending.cost || extra ? 'Não pagar' : 'Não fazer') : 'Deixar anular', { id: 'tb-decline', onClick: () => act({ t: 'decline', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'choose_type' && s.pending.p === v) {
-      banner = PriorityBanner({ title: 'Escolha um tipo de criatura', hint: 'O efeito conta as suas permanentes desse tipo.', tone: 'warning',
+      banner = PriorityBanner({ title: `${s.objects[s.pending.oid] ? s.objects[s.pending.oid].name + ' · ' : ''}Escolha um tipo de criatura`, hint: 'O efeito conta as suas permanentes desse tipo. Os tipos vêm do que mais rende para o que menos rende.', tone: 'warning', // Leva 136 · diz de qual carta é a escolha
         // Leva 106 · os tipos vêm do que mais rende para o menos; com muitos, "Outros tipos" abre a lista inteira
         actions: (() => {
           const ops = s.pending.options || [];
@@ -14215,12 +14272,20 @@ function createTableScreen({ store, perfil = null, online = null }) {
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';
       banner = PriorityBanner({ title: pk.source ? `${pk.source} · ${tituloPk}` : tituloPk, tone: 'warning',
-        hint: pk.max > 1 ? `${pk.picked.length} de até ${pk.max} escolhida(s) · o resto ${REST[pk.rest] || ''}` : pk.min ? 'Toque na carta.' : `Toque na carta, ou confirme sem escolher · o resto ${REST[pk.rest] || ''}`,
+        // Leva 136 · olhar o topo com filtro (Lead the Stampede): o aviso diz o que pode ser pego e para onde vai
+        hint: (() => { const TIPO = { creature: 'criaturas', land: 'terrenos', artifact: 'artefatos', enchantment: 'encantamentos' }, PARA = { hand: 'para a mão', battlefield: 'para o campo' };
+          if (pk.needMv) return `Toque nas cartas até somar ${pk.needMv} de valor de mana: ${pk.picked.reduce((n, o) => n + ((s.facts[s.objects[o].name] || {}).cmc || 0), 0)} de ${pk.needMv}`; // colher provas
+          const tipo = pk.label === 'olhar o topo' && pk.filter && (pk.filter.types || []).length === 1 && Object.keys(pk.filter).length === 1 ? TIPO[pk.filter.types[0]] : null;
+          if (!tipo || !PARA[pk.to] || pk.max <= 1) return null;
+          const podem = pk.from.filter(o => s.facts[s.objects[o].name].types.includes(pk.filter.types[0])).length;
+          const NADA = { creature: 'Nenhuma criatura', land: 'Nenhum terreno', artifact: 'Nenhum artefato', enchantment: 'Nenhum encantamento' }[pk.filter.types[0]];
+          return podem ? `Toque nas ${tipo} que vão ${PARA[pk.to]}: ${pk.picked.length} de ${Math.min(pk.max, podem)} · o resto ${REST[pk.rest] || ''}` : `${NADA} entre as cartas · tudo ${REST[pk.rest] || ''}`; })()
+          || (pk.max > 1 ? `${pk.picked.length} de até ${pk.max} escolhida(s) · o resto ${REST[pk.rest] || ''}` : pk.min ? 'Toque na carta.' : `Toque na carta, ou confirme sem escolher · o resto ${REST[pk.rest] || ''}`),
         actions: [done ? Button('Confirmar', { variant: 'primary', id: 'tb-pick-done', onClick: () => act({ t: 'pick_done', p: v }) }) : null].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'commander_zone' && s.pending.p === v) {
       // M13 · 903.9: o dono escolhe; o padrão é voltar, que é o que quase todo mundo faz

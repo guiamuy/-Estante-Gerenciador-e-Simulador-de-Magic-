@@ -140,8 +140,9 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R1 Axebane Guardian: mana em qualquer combinação de cores — **as sete listas Pauper em 100%** (leva 122) | 🟡 |
 | R · Revisão carta a carta | R2 Rakdos Madness carta a carta: 21 cartas revisadas, pagamento sem toque à toa, decisões legíveis (leva 125, **motor v65**) | 🟡 |
 | R · Revisão carta a carta | R3 Mono Blue Faeries carta a carta: 17 cartas revisadas, alvo sem ambiguidade e pelo toque na carta, Sewer-veillance Cam pela regra (leva 131, **motor v66**) | 🟡 |
-| R · Revisão carta a carta | R4 Elves, carta a carta | ▶ |
-| R · Revisão carta a carta | R5–R8 as outras quatro listas Pauper, carta a carta · R9 homologação independente | ○ |
+| R · Revisão carta a carta | R4 Elves carta a carta: 23 cartas revisadas, colher provas alcançável, Winding Way sem pergunta, pagar custo tocando nas cartas, Elves 100% sem rede (leva 136, **motor v67**) | 🟡 |
+| R · Revisão carta a carta | R5 GW Bogles, carta a carta | ▶ |
+| R · Revisão carta a carta | R6–R8 as outras três listas Pauper, carta a carta · R9 homologação independente | ○ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
@@ -377,6 +378,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
 | 16º-n 🟡 | Rakdos Madness carta a carta: pagamento automático sem virar terreno à toa (motor v65), decisões escritas na bandeja, escolha tocando na carta (leva 125) | R2 | 1 | teste no aparelho; partidas salvas da v64 não abrem |
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
+| 16º-z 🟡 | Elves carta a carta: colher provas na folha (não era alcançável), Winding Way entrega as cartas sem pergunta (motor v67), custo de várias cartas tocando nelas, Llanowar Elves e Elvish Mystic com script (leva 136) | R4 | 1 | teste no aparelho; partidas salvas da v66 não abrem |
 | 16º-x 🟡 | Mono Blue Faeries carta a carta: escolha de alvo sem nome repetido e tocando na carta, Sewer-veillance Cam pela regra (motor v66), ninjutsu e desconto escritos na folha (leva 131) | R3 | 1 | teste no aparelho; partidas salvas da v65 não abrem |
 | 16º-o | Revisão carta a carta das listas Commander (R10–R13) e mapa das regras que faltam (R14) | R | 14 a 22 | depende de quatro estruturas do motor (camadas, substituição, cópia, troca de controle) |
 | 16º-p ✅ | Dívidas do design system pagas, com guarda-corpos (leva 123) | U16 | 1 | — |
@@ -2342,7 +2344,28 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Cobertura de tela declarada:** Blue Elemental Blast, Steel Sabotage, Annul e Ninja of the Deep Hours não têm teste de tela próprio: usam o mesmo caminho de Counterspell/Hydroblast e do Moon-Circuit Hacker. A habilidade {2}{U} da Harrier Strix também não. Contra o Goldfish não há mágica do oponente na pilha: as anulações foram feitas pela tela em mágicas próprias e, contra o oponente, nos testes de regra.
 - **Fora:** gatilho que sai da pilha por falta de alvo não avisa na tela (só no registro); o Shark escolhe o primeiro alvo e "Virar" no gatilho da Cam sem olhar de quem é a criatura (trilha bot); a condição no aviso cobre só "não entrou neste turno" (as outras duas condições do dicionário ficam para a lista que as usa); partida guiada inteira da lista fica para a homologação (R9).
 
-**R4 a R8 · As outras cinco listas Pauper, carta a carta** ▶ (R4 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (feita, leva 131) · R4 Elves (23: mana de criatura, metamorfose, contagem do campo) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
+**R4 · Elves, carta a carta** 🟡 (leva 136, **motor v67**; falta o teste no aparelho)
+- **Valor:** a lista que mais gera mana por criatura joga pela tela sem lista de botões: paga-se tocando nas cartas, e as três mágicas de busca dizem o que fazem. Elves passa a funcionar inteira sem internet.
+- **Aceite:** as 23 cartas com ficha `revisada` (texto de `.listas/oficiais.json`, consultas de 30/09/2026); regra conferida com a lista real; jogadas-chave pela tela em 360×780 com `auditaTela`.
+- **Bugs reais corrigidos:**
+  - **Vitu-Ghazi Inspector — colher provas não era alcançável pela tela.** Conjurar com e sem provas tinham o mesmo nome na folha; a mesa juntava as duas e conjurava sempre sem. Agora "Conjurar com provas 6" é um botão, e a escolha das cartas diz quanto falta somar.
+  - **Mirrorshell Crab — canalizar oferecido sem mana.** A habilidade da mão não conferia a mana: sem {U} o botão aparecia e o motor recusava. Vale para toda habilidade ativada a partir da mão.
+- **Regra corrigida (muda resultado de partida):** **Winding Way** — "put ALL cards of the chosen type into your hand" não tem escolha. Antes a mesa exigia um toque em cada carta obrigatória; agora elas vão sozinhas, o resto vai para o cemitério e as quatro reveladas entram no registro ("Reveal": os dois jogadores veem) e num aviso na mesa.
+- **Sem rede:** Llanowar Elves e Elvish Mystic ganharam script ({T}: {G}); dependiam do texto buscado. **Elves mede 100% sem rede** (`node .listas/medir.mjs`). Continuam dependendo do texto: Gladecover Scout e Slippery Bogle (GW Bogles), Vault of Whispers (Jund Wildfire).
+- **Tela corrigida:**
+  - **Pagar com várias cartas** (Birchlore Rangers: vire dois Elfos): era uma lista com todos os pares (55 botões com 11 Elfos); agora toca-se nas cartas, cópias iguais em pilha, e a conta fecha sozinha. Vale para todo custo de duas ou mais cartas.
+  - **Qual terreno volta** (Quirion Ranger): Florestas iguais juntas e a virada à parte; o botão diz o custo ("Ativar (devolver Forest à mão)"). Com muitos alvos, primeiro o alvo, depois a Floresta.
+  - **Lead the Stampede:** o aviso diz o que pode ser pego e para onde vai ("Toque nas criaturas que vão para a mão: 0 de 3"), ou que não há criatura.
+  - **Distant Melody:** o aviso diz de qual carta é a escolha do tipo.
+  - **Priest of Titania:** "Gerar 9 × {G}" no lugar de nove símbolos.
+- **Expectativas alteradas (com motivo):** `pauper.regras` "Leva 106 · Winding Way" esperava a escolha aberta com mínimo igual às criaturas: passou a esperar as cartas na mão sem pergunta (mesma regra). `pauper.regras` "Leva 104 · custo adicional" escolhia a última carta da mão do baralho de teste, que muda a cada script novo e caiu numa carta de insanidade: passou a escolher uma sem insanidade. `bot.unit` "Leva 115 · Winding Way" (trilha bot) dizia que o v2 deixava a carta na mão por causa da escolha: sem escolha, o v2 também conjura; o teste confere as criaturas na mão e continua conferindo que o bot pega cartas numa escolha aberta, agora com Lead the Stampede. O cenário do script de Winding Way deixou de conferir "picked".
+- **Testes:** `elves.regras` (19, com a lista real); e2e Leva 136 (3: mana e custos tocando nas cartas; Winding Way/Lead the Stampede/Huntmaster/colher provas; Distant Melody/Packbeast).
+- **Versão e goldens:** **motor v67**; goldens regravados só pela versão (registro, estado final e turno idênticos; o resumo muda porque o estado guarda a versão). **Partida salva na v66 não abre.**
+- **Simplificação declarada:** Winding Way decide "criatura ou terreno" ao conjurar (como modo), não na resolução; o oponente fica sabendo antes. Entra no mapa de regras (R14).
+- **Cobertura de tela declarada:** sem teste de tela próprio — Timberwatch Elf, Scattershot Archer, Masked Vandal (sem alvo contra o Goldfish), Mirrorshell Crab, Negate, Spell Pierce, Valakut Invoker, Elvish Mystic, Elvish Vanguard e Nylea's Disciple; usam caminhos de tela já testados e têm teste de regra. Jaspera Sentinel e Nyxborn Hydra ficam com os e2e da leva 104.
+- **Fora:** o Shark com as cartas desta lista não foi revisado (trilha bot); a escolha de tipo da Distant Melody não mostra quantas cartas cada tipo rende.
+
+**R5 a R8 · As outras quatro listas Pauper, carta a carta** ▶ (R5 é a próxima) — uma leva por lista, nesta ordem (da que mais se joga contra o Shark para a que tem mais mecânica própria): R3 Mono Blue Faeries (feita, leva 131) · R4 Elves (feita, leva 136) · R5 GW Bogles (23: 14 auras, proteção, concessões) · R6 Boros Bully (23: fichas, prevenção, lampejo com virar criaturas, masmorra) · R7 Jund Wildfire (23: sacrifício, cemitério, tempestade) · R8 Walls Combo (24: defensores, transmutar, combo de mana).
 - **Aceite de cada uma:** todas as cartas da lista com ficha `revisada` ou com a pendência escrita; uma partida guiada da lista pela tela (as jogadas-chave do baralho) no e2e; captura das decisões novas; a sonda R0 com mais uma semente para a lista.
 - **Estimativa:** 7 a 8 levas. Apoio: a auditoria de texto fez 111 cartas numa leva (105), mas sem tela; mecânica nova rendeu de 4 a 6 cartas por leva; aqui o motor já está auditado e o trabalho é de tela, com 17 a 24 cartas por lista e muita mecânica repetida entre listas (14 auras, 8 lampejos, 7 modais).
 

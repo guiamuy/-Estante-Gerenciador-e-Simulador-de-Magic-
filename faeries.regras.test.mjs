@@ -229,7 +229,7 @@ test('Leva 131 · folha: alvo em que "se for vermelha" não faz nada sai da fren
   // muitos alvos úteis: um botão só, com a contagem
   const muitos = ['A', 'B', 'C', 'D', 'E'].map((n, i) => ({ label: `Conjurar → ${n}`, action: { t: 'cast', targets: [{ player: i % 2 }] }, variant: 'primary' }));
   const junto = J(T.enxugaAlvos(s, muitos));
-  assert.deepEqual(junto.map(d => [d.label, d.alvos.length, d.opcoes.length]), [['Conjurar · 5 alvos', 5, 5]]);
+  assert.deepEqual(junto.map(d => [d.label, d.grupos.length, d.opcoes.length]), [['Conjurar · 5 alvos', 5, 5]]);
   assert.deepEqual(J(T.enxugaAlvos(s, muitos.slice(0, 4))).map(d => d.label), muitos.slice(0, 4).map(d => d.label), 'até quatro, cada alvo tem o seu botão');
 });
 

@@ -253,7 +253,8 @@ test('Leva 104 · custo adicional: o jogador escolhe a carta descartada e a perm
   const mao = s.zones[a].hand.filter(x => x !== grab);
   const descartes = pagos(s, a, grab, x => x.t === 'cast').map(x => J(x.pay.discard)[0]);
   assert.deepEqual(J(descartes).sort(), J(mao).sort(), 'cada carta da mão é uma opção');
-  const escolhida = mao[mao.length - 1];
+  // Leva 136 · a mão deste baralho de teste muda a cada script novo; a carta escolhida não pode ter insanidade (iria para o exílio)
+  const escolhida = mao.filter(o => !(s.facts[s.objects[o].name].script || {}).madness).pop();
   const r = act(s, { t: 'cast', p: a, oid: grab, pay: { discard: [escolhida] } });
   assert.equal(r.objects[escolhida].zone, 'graveyard', 'foi a escolhida (antes: sempre a primeira da mão)');
   [s, fan] = poe(s, a, 'Fanatical Offering', 'hand'); [s, pedra] = poe(s, a, 'Pedra'); [s, urso] = poe(s, a, 'Urso');
@@ -543,9 +544,12 @@ test('Leva 106 · Winding Way põe na mão TODAS as cartas do tipo escolhido', (
   let s = jogo(); const a = s.turn.active; let ww;
   [s, ww] = poe(s, a, 'Winding Way', 'hand');
   s = act(s, { t: 'cast', p: a, oid: ww, mode: 0 });
-  s = passaAte(s, x => !!x.pending);
-  const servem = J(s.pending.from).filter(o => E.stats ? s.facts[s.objects[o].name].types.includes('creature') : false).length;
-  assert.equal(s.pending.min, servem, 'mínimo = quantas criaturas vieram (antes: 0, dava para não pegar nenhuma)');
+  // Leva 136 · a mesma regra ("put all cards of the chosen type"), agora sem pergunta: antes a mesa exigia um toque em
+  // cada criatura (mínimo = quantas vieram); como não há escolha, o motor v67 entrega todas e manda o resto ao cemitério.
+  const topo = J(s.zones[a].library.slice(0, 4));
+  s = passaAte(s, x => !x.stack.length || !!x.pending);
+  assert.equal(s.pending, null, 'nenhuma pergunta');
+  for (const o of topo) assert.equal(s.objects[o].zone, s.facts[s.objects[o].name].types.includes('creature') ? 'hand' : 'graveyard', s.objects[o].name);
 });
 
 test('Leva 106 · Masked Vandal: exilar do cemitério é opcional, o jogador escolhe a carta e o alvo vem antes', () => {
