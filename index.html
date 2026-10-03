@@ -11171,14 +11171,30 @@ const NOME_DO_BOT = 'Shark';
 /** Qualquer nível vindo da mesa (inclusive os antigos "amador" e "profissional") vira o Shark. */
 const nivelDaMesa = () => 'profissional';
 /** Bot pronto para jogar. Padrão: o Shark. */
+/** Leva 126 · avaliador com multiplicadores por parcela (vida, vidaDele, poder, resistencia, criaturas, outras, mao,
+    mana, marcadores, volta, evasao, perigo, temporario). Sem multiplicador, a parcela vale o que vale na avaliaV3. */
+function avaliadorCom(mult) {
+  const ks = Object.keys(mult || {});
+  if (!ks.length) return avaliaV3;
+  return (s, p) => {
+    const base = avaliaV3(s, p);
+    if (base.parcelas.vitoria) return base;
+    let nota = base.nota;
+    for (const k of ks) if (base.parcelas[k]) nota += base.parcelas[k] * (mult[k] - 1);
+    return { nota, parcelas: base.parcelas };
+  };
+}
 /** Leva 118 · o que o Shark atual liga além do v4 (cada peça só entra aqui depois de pagar em torneio). */
 const NOVO5 = { tempo: true, terreno: true, cores: true, basePilha: true }; // leva 118, congelado como 'shark-v5'
-const NOVO = { ...NOVO5, semToque: true, recursos: true, relogio: true };
-function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null } = {}) {
+const NOVO6 = { ...NOVO5, semToque: true, recursos: true, relogio: true }; // leva 119, congelado como 'shark-v6'
+const PESOS_ATUAIS = {}; // multiplicadores promovidos por torneio (leva 126)
+const NOVO = { ...NOVO6 };
+function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || !!extraOpts;
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || !!extraOpts || !!pesos;
+  const avAtual = v4 || v5 || v6 ? null : avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) });
   const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }
     : { av: avaliaV3, bloqueioForte: true, duplo: true, projeta: true, corrida: true, subconjuntos: true, valor: true, desdobra: true };
@@ -11192,14 +11208,14 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
       if (!atual || s.status !== 'playing') return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra });
       const sei = atualizaMemoria(vistas, s, p);
       const mundos = []; for (let k = 0; k < (mundosN || MUNDOS); k++) mundos.push(visaoDe(s, p, k, sei));
-      return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...(v4 ? {} : v5 ? NOVO5 : NOVO), ...(extraOpts || {}), mundos });
+      return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : NOVO), ...(avAtual ? { av: avAtual } : {}), ...(extraOpts || {}), mundos });
     }
   };
 }
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */

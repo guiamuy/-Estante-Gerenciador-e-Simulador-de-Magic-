@@ -31,7 +31,12 @@ function cartasReais(raiz = '.') {
 const CARTAS = cartasReais(new URL('.', import.meta.url).pathname.replace(/\/$/, ''));
 const listas = ST.STARTER_DECKS.filter(d => d.format === 'pauper').map(d => ({ name: d.name, entries: D.parseDeckText(d.text).entries.filter(e => e.zone !== 'side') }));
 export { cartasReais, listas, partida };
+// leva 126 · ORC=<ms> e MUNDOS=<n> trocam o orçamento e o número de mundos dos Sharks de informação justa (busca de pesos
+// em partidas rápidas); 'p:mao=0.5,poder=1.5' é o Shark atual com multiplicadores nas parcelas da avaliação.
+const ORC = +(process.env.ORC || 250), MUNDOSN = +(process.env.MUNDOS || 0);
 const cria = nivel => {
+  if (nivel.startsWith('p:')) return B.criaBot({ nivel: 'shark', orcamentoMs: ORC, mundos: MUNDOSN, pesos: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(x => { const [k, v] = x.split('='); return [k, +v]; })) });
+  if (['shark', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
   if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
   // leva 118 · 'y:tempo,terreno,cores,basePilha' = Shark v4 com as peças novas ligadas uma a uma
   if (nivel.startsWith('y:')) return B.criaBot({ nivel: 'shark-v4', orcamentoMs: 250, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => [k, true])) });

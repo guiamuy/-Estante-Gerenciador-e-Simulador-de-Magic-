@@ -367,6 +367,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
+| 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 | 16º-l 🟡 | Faixa de turno, Highway Robbery (tramar e escolha), gatilho com modos e sonda de alcance (leva 121) | U7b · R0 | 1 | teste no aparelho |
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
@@ -2558,6 +2559,24 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
+
+**B20 · Pesos da avaliação por torneio** ✅ (leva 126, 03/10/2026) — fechada com resultado negativo.
+- **Pergunta:** a avaliação foi calibrada no olho; mudar o peso de alguma parcela deixa o Shark mais forte?
+- **Entregue:** a avaliação aceita multiplicador por parcela (`avaliadorCom`), o torneio aceita `p:mao=0.5,...`,
+  `ORC=<ms>` e `MUNDOS=<n>` para partidas rápidas; o Shark da leva 119 fica congelado como `shark-v6`.
+  **O Shark não mudou de jogo:** nenhum peso foi promovido.
+- **Medição (sete listas Pauper, 112 partidas por candidato, partidas rápidas: 60 ms e 1 mundo, contra o `shark-v6`):**
+  carta na mão ×0,5 = 54% · ×0,25 = 48% · poder e resistência ×1,5 = 50% · evasão ×2 = 52% · dano no oponente ×1,5 = 51% ·
+  mana ×0,5 = 46% · perigo ×2 = 51% · corpo em campo ×2 = 53%. Margem de ±9: **tudo ruído.**
+- **Achado:** dobrar ou cortar pela metade qualquer parcela não muda o resultado. O que limita o Shark é olhar só um
+  lance à frente; as levas que pagaram (115, 118) mudaram o que ele simula, não quanto cada coisa vale.
+  Não repetir busca de pesos antes de ele simular mais longe.
+- **Custo medido para simular turnos:** aplicar uma ação custa ~1 ms e um turno tem ~21 ações (quase todas passar a
+  prioridade): ~20–40 ms por turno simulado. Seis simulações de um turno e meio cabem em ~250 ms no computador.
+- **Limite da medição:** triagem curta (112 partidas) e no modo rápido; efeito pequeno (até ~5 pontos) pode existir e
+  não foi visto.
+- **Testes:** U (multiplicador muda só a parcela pedida, não muda partida decidida, vazio é a avaliação de sempre).
+- **Depende de:** B17.
 
 **B17 · Usar os recursos** 🟡 (leva 119, 02/10/2026) — parte entregue; "guardar a resposta para a ameaça certa" depende da B9.
 - **Erros de jogo eliminados** (partida narrada Mono Blue Faeries × Boros Bully):

@@ -780,3 +780,19 @@ test('Leva 119 · descarte: com terreno sobrando, vai o terreno, não a anulaç�
   assert.deepEqual([j.acao.t, j.acao.oid], ['discard', ids[0].Island]);
   assert.equal(B.criaBot({ nivel: 'shark-v5' }).nivel, 'shark-v5');
 });
+
+// Leva 126 · pesos ajustáveis: a avaliação aceita multiplicadores por parcela, para o torneio procurar os melhores.
+test('Leva 126 · multiplicador de parcela: muda só a parcela pedida, não muda partida decidida, e sem multiplicador é a avaliaV3', () => {
+  const s = mesa(11);
+  const base = B.avaliaV3(s, 0);
+  assert.equal(B.avaliadorCom({})(s, 0).nota, base.nota);
+  assert.equal(B.avaliadorCom({ mao: 1 })(s, 0).nota, base.nota);
+  const t = J(s); t.zones[1].library.push(...t.zones[1].hand.splice(0, 3).map(o => { t.objects[o].zone = 'library'; return o; }));
+  const b2 = B.avaliaV3(t, 0);
+  assert.ok(b2.parcelas.mao > 0, 'tenho mais cartas na mão que o oponente');
+  assert.equal(B.avaliadorCom({ mao: 0.5 })(t, 0).nota, b2.nota - b2.parcelas.mao / 2);
+  assert.equal(B.avaliadorCom({ poder: 3 })(t, 0).nota, b2.nota + 2 * b2.parcelas.poder);
+  const fim = J(t); fim.players[1].lost = true; fim.status = 'over'; fim.winner = 0;
+  assert.equal(B.avaliadorCom({ mao: 0.1 })(fim, 0).nota, B.avaliaV3(fim, 0).nota, 'vitória vale o mesmo com qualquer peso');
+  assert.equal(B.criaBot({ nivel: 'shark-v6' }).nivel, 'shark-v6');
+});
