@@ -384,6 +384,26 @@ a { color: var(--accent); }
 .ds-atalho__detalhe { font-size: var(--text-xs); line-height: 1.35; opacity: .82; font-weight: var(--weight-regular); }
 .ds-atalho--largo { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: flex-start; min-height: 76px; gap: var(--space-4); }
 .ds-atalho--largo .ds-atalho__icone svg { width: 30px; height: 30px; }
+/* D3 · painel offline recolhido quando está tudo guardado e há rede: uma linha com anel; "Detalhes" abre o resto no lugar */
+#home-offline[data-compacto="true"] { padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); }
+#home-offline[data-compacto="true"] .ds-offline__corpo { display: none; }
+#home-offline[data-compacto="true"] .ds-offline__titulo .ds-text { font-size: var(--text-md); line-height: var(--lh-md); }
+.ds-offline__topo .ds-offline__abrir { margin-left: auto; }
+/* D3 · Continuar: o que você estava fazendo, uma linha por coisa, toque na linha inteira */
+.home-continuar { overflow: hidden; }
+.home-continuar__rotulo { padding: var(--space-3) var(--space-4) 0; }
+.home-continuar__item { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 60px; padding: var(--space-2) var(--space-4);
+  border: 0; background: transparent; color: var(--fg); text-align: left; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-1) var(--ease-out); }
+.home-continuar__item + .home-continuar__item { border-top: 1px solid var(--border); }
+.home-continuar__item:active { background: var(--bg-elev-2); }
+.home-continuar__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.home-continuar__icone { flex: none; width: 40px; height: 40px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--bg-elev-2); color: var(--accent); }
+.home-continuar__item[data-tipo="partida"] .home-continuar__icone { background: var(--accent); color: var(--accent-fg); }
+.home-continuar__texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-continuar__texto strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); line-height: var(--lh-lg); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-continuar__texto span { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-continuar__seta { flex: none; color: var(--fg-subtle); display: inline-flex; }
 
 .ds-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--space-2); }
 .ds-icones__item { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) 0; color: var(--fg); }
@@ -6961,7 +6981,7 @@ function createDeckEditor({ decks, collection }) {
 }
 
 /* ---------------- /lista?id= ---------------- */
-function createDeckScreen({ decks, collection, cardRepo, images, share, files }) {
+function createDeckScreen({ decks, collection, cardRepo, images, share, files, store }) {
   const id = q().get('id');
   const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo lista…', { size: 'sm', tone: 'muted' })));
   const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false,
@@ -6971,6 +6991,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files })
   async function load() {
     state.deck = await decks.get(id);
     if (!state.deck) return mount(root, Empty('Lista não encontrada.', Button('Ver listas', { icone: 'voltar', onClick: () => go('/listas') })));
+    if (store) store.set('ui.ultimaLista', { id, nome: state.deck.name, em: Date.now() }).catch(() => {}); // D3 · a tela inicial oferece "continuar" nesta lista
     state.owned = await collection.all();
     cardRepo.stats.degraded = false;
     const progress = Text('Buscando cartas…', { size: 'sm', tone: 'muted' });
@@ -16925,7 +16946,7 @@ const ROUTES = [
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup }) },
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
-  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files }) },
+  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
@@ -16936,11 +16957,18 @@ const ROUTES = [
   { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
 ];
 
+/** D3 · nome do perfil em memória: a tela inicial cumprimenta sem esperar o armazenamento (o botão da barra mantém). */
+let nomeDoPerfil = null;
 function renderHome() {
-  const el = h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-6)' } },
-    Text('Plataforma de Magic', { size: '2xl', display: true, as: 'h1' }),
-    Text('Monte listas, marque o que já tem e jogue: o motor cuida das regras, do turno, da pilha e da vida.', { tone: 'muted' }),
-    h('div', { style: { height: 'var(--space-5)' } }),
+  // D3 · cabeçalho que lembra de você: "Olá, Nome" quando há perfil; sem perfil, a marca e uma frase do que o app faz
+  const titulo = Text(nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante', { size: '2xl', display: true, as: 'h1', attrs: { id: 'home-titulo' } });
+  const frase = Text('Listas, coleção, scanner e mesa com regras.', { tone: 'muted', attrs: { id: 'home-frase' } });
+  frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
+  const continuar = h('div', { id: 'home-continuar-slot' });
+  const el = h('div', { class: 'ds-wrap', id: 'home', style: { paddingTop: 'var(--space-5)' } },
+    titulo, frase,
+    h('div', { style: { height: 'var(--space-4)' } }),
+    continuar,
     // U2 · atalhos com ícone e uma palavra; o detalhe diz o que tem lá dentro
     h('nav', { class: 'ds-atalhos', id: 'home-atalhos', 'aria-label': 'Atalhos' },
       Atalho('Jogar', { icone: 'jogar', variant: 'primary', id: 'go-play', detalhe: 'Contra o Shark, sozinho ou a dois', onClick: () => { location.hash = '#/mesa'; } }),
@@ -16953,17 +16981,56 @@ function renderHome() {
     h('div', { class: 'ds-row', style: { justifyContent: 'center', marginTop: 'var(--space-4)' } },
       Button('Componentes', { variant: 'ghost', icone: 'camadas', id: 'go-ds', title: 'Catálogo de componentes', onClick: () => { location.hash = '#/ds'; } })));
   el.querySelector('#go-play').classList.add('ds-atalho--largo');
+  perfil.get().then(p => {
+    nomeDoPerfil = p && p.nome ? p.nome : null;
+    titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';
+    frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
+  }).catch(() => {});
+  painelContinuar().then(card => { if (card) { continuar.replaceChildren(card, h('div', { style: { height: 'var(--space-4)' } })); el.querySelector('#go-play').classList.remove('ds-btn--primary'); } }).catch(() => {});
   return el;
+}
+
+/** D3 · cartão Continuar: partida em andamento (com placar da série ou sala online), última lista aberta e pilha do scanner.
+    Cada linha é um toque só; sem nada para retomar, o cartão não aparece. Quando há partida salva, o atalho Jogar deixa de
+    ser o primário: a linha da partida é o caminho principal. */
+async function painelContinuar() {
+  const store = platform.store;
+  const seguro = async (fn, vazio = null) => { try { return await fn(); } catch (e) { return vazio; } };
+  const [salvo, serie, ultima, pilha] = await Promise.all([
+    seguro(() => store.get(__m18.SAVE_KEY)), seguro(() => store.get(__m18.SERIE_KEY)), seguro(() => store.get('ui.ultimaLista')), seguro(() => store.get('scanner.lot'), [])]);
+  const itens = [];
+  if (salvo && salvo.setup && Array.isArray(salvo.setup.players)) {
+    const nomes = salvo.setup.players.map(p => p.name).join(' × ');
+    const partes = [nomes];
+    if (serie && Array.isArray(serie.vitorias)) partes.push(`série ${serie.vitorias.join('–')} · jogo ${serie.jogo} de ${serie.melhorDe}`);
+    else partes.push(`${(salvo.log || []).length} ações`);
+    if (salvo.options && salvo.options.online) partes.push(`online · sala ${salvo.options.online.codigo}`);
+    itens.push({ tipo: 'partida', icone: 'jogar', titulo: 'Continuar a partida', detalhe: partes.join(' · '), rota: '#/partida' });
+  }
+  if (ultima && ultima.id) {
+    const d = await seguro(() => decks.get(ultima.id));
+    if (d) itens.push({ tipo: 'lista', icone: 'listas', titulo: d.name || ultima.nome || 'Lista', detalhe: 'Última lista aberta', rota: `#/lista?id=${encodeURIComponent(ultima.id)}` });
+  }
+  if (Array.isArray(pilha) && pilha.length) itens.push({ tipo: 'scanner', icone: 'scanner', titulo: 'Pilha do scanner', detalhe: pilha.length === 1 ? '1 carta esperando conferência' : `${pilha.length} cartas esperando conferência`, rota: '#/scanner' });
+  if (!itens.length) return null;
+  const rotulo = Text('Continuar', { caps: true, as: 'p' }); rotulo.classList.add('home-continuar__rotulo');
+  return Surface({ class: 'home-continuar', id: 'home-continuar', dataset: { itens: String(itens.length) } },
+    rotulo,
+    ...itens.map(it => h('button', { type: 'button', class: 'home-continuar__item', dataset: { tipo: it.tipo }, 'aria-label': `${it.titulo} · ${it.detalhe}`, onClick: () => { location.hash = it.rota; } },
+      h('span', { class: 'home-continuar__icone' }, Icone(it.icone, { tamanho: 22 })),
+      h('span', { class: 'home-continuar__texto' }, h('strong', {}, it.titulo), h('span', {}, it.detalhe)),
+      h('span', { class: 'home-continuar__seta' }, Icone('seguir', { tamanho: 18 })))));
 }
 
 /* O1 · o que já funciona sem internet, e o botão que prepara o resto */
 function offlinePanel() {
   const box = Surface({ class: 'ds-surface--pad', id: 'home-offline' }, Row({}, Spinner(), Text('Conferindo o que já está guardado…', { size: 'sm', tone: 'muted' })));
+  let aberto = false; // D3 · com tudo guardado e rede, o painel é uma linha; "Detalhes" abre o resto no lugar
   // U4 · cada item com ícone e estado desenhado; o anel resume o quanto já está guardado
   const ESTADO = { pronto: ['marcar', 'pronto'], parcial: ['meia', 'em parte'], falta: ['baixar', 'falta baixar'], vazio: ['menos', 'nada a guardar'] };
   const linha = it => h('div', { class: 'ds-offline__linha', dataset: { item: it.id, estado: it.estado, pronto: String(it.estado === 'pronto') } },
     h('span', { class: 'ds-offline__icone' }, Icone(it.icone, { tamanho: 20 })),
-    h('span', { class: 'ds-offline__texto' }, h('strong', {}, it.rotulo), h('span', {}, it.detalhe)),
+    h('span', { class: 'ds-offline__texto' }, h('strong', {}, it.rotulo), ' ', h('span', {}, it.detalhe)),
     h('span', { class: 'ds-offline__estado', role: 'img', 'aria-label': ESTADO[it.estado][1] }, Icone(ESTADO[it.estado][0], { tamanho: 18 })));
   async function paint(extra) {
     let st; try { st = await keeper.status(); } catch (e) { return mount(box, Text('Não foi possível conferir o que está guardado.', { size: 'sm', tone: 'muted' })); }
@@ -16982,22 +17049,30 @@ function offlinePanel() {
     const proteger = st.protecao === 'vulneravel' ? Button('Proteger armazenamento', { id: 'home-offline-protect', icone: 'proteger', onClick: async () => {
       const r = await platform.persistence.request(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Instale o app e mantenha backups em dia.', 3600); paint(); } }) : null;
     box.dataset.rede = String(!!st.rede); box.dataset.pronto = String(tudoPronto);
+    const recolhivel = !!st.rede && tudoPronto && !extra;
+    const compacto = recolhivel && !aberto;
+    box.dataset.compacto = String(compacto);
+    const abrir = recolhivel ? Button(compacto ? 'Detalhes' : 'Recolher', { variant: 'ghost', icone: compacto ? 'mais' : 'menos', id: 'home-offline-detalhes', classe: 'ds-offline__abrir',
+      onClick: () => { aberto = !aberto; paint(); } }) : null;
+    if (abrir) { abrir.setAttribute('aria-expanded', String(!compacto)); abrir.setAttribute('aria-controls', 'home-offline-corpo'); }
     mount(box, Stack({},
       h('div', { class: 'ds-offline__topo' },
-        __m3.AnelProgresso(tudoPronto ? 100 : rs.pct, { id: 'home-offline-ring', rotulo: 'guardado para jogar sem internet' }),
+        __m3.AnelProgresso(tudoPronto ? 100 : rs.pct, { id: 'home-offline-ring', rotulo: 'guardado para jogar sem internet', tamanho: compacto ? 44 : 64 }),
         h('div', { class: 'ds-offline__titulo' },
           Text('Sem internet', { size: 'lg', display: true }),
           h('span', { class: 'ds-offline__estado-geral', id: 'home-offline-state', dataset: { tom: st.rede ? (tudoPronto ? 'pronto' : 'falta') : 'offline' } },
             st.rede ? null : Icone('semRede', { tamanho: 16 }),
-            st.rede ? (tudoPronto ? 'Tudo pronto' : rs.faltam === 1 ? 'Falta preparar 1 item' : `Falta preparar ${rs.faltam} itens`) : 'Você está sem internet agora'))),
-      h('div', { id: 'home-offline-lines', class: 'ds-offline__lista' }, ...rs.itens.map(linha)),
-      linhaEspaco,
-      esp && esp.apertado ? Note('<b>O espaço do app está quase no limite.</b> Faça um backup da coleção; se continuar crescendo, o app nativo passa a valer a pena (gatilho G1 do plano).', 'warning') : null,
-      extra || null,
-      !st.rede ? AvisoRede('Tudo que está marcado funciona agora; o resto baixa quando a internet voltar.', { id: 'home-offline-aviso' }) : null,
-      Row({ class: 'ds-row--wrap' },
-        st.rede ? Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', icone: tudoPronto ? 'conferir' : 'baixar', id: 'home-offline-prep', onClick: preparar }) : null,
-        proteger)));
+            st.rede ? (tudoPronto ? 'Tudo pronto' : rs.faltam === 1 ? 'Falta preparar 1 item' : `Falta preparar ${rs.faltam} itens`) : 'Você está sem internet agora')),
+        abrir),
+      h('div', { class: 'ds-offline__corpo', id: 'home-offline-corpo' }, Stack({},
+        h('div', { id: 'home-offline-lines', class: 'ds-offline__lista' }, ...rs.itens.map(linha)),
+        linhaEspaco,
+        esp && esp.apertado ? Note('<b>O espaço do app está quase no limite.</b> Faça um backup da coleção; se continuar crescendo, o app nativo passa a valer a pena (gatilho G1 do plano).', 'warning') : null,
+        extra || null,
+        !st.rede ? AvisoRede('Tudo que está marcado funciona agora; o resto baixa quando a internet voltar.', { id: 'home-offline-aviso' }) : null,
+        Row({ class: 'ds-row--wrap' },
+          st.rede ? Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { variant: tudoPronto ? undefined : 'primary', icone: tudoPronto ? 'conferir' : 'baixar', id: 'home-offline-prep', onClick: preparar }) : null,
+          proteger)))));
   }
   async function preparar() {
     const prog = Text('Preparando…', { size: 'sm', attrs: { id: 'home-offline-progress' } });
@@ -17041,7 +17116,7 @@ function appBar() {
 /** Leva 128 · avatar na barra: foto ou inicial do perfil; sem perfil, o ícone de pessoa apagado. Toque abre o perfil. */
 function perfilBotao() {
   const b = h('a', { class: 'ds-nav ds-nav--perfil', href: '#/perfil', id: 'nav-perfil', 'aria-label': 'Perfil', title: 'Perfil', dataset: { rota: '/perfil' } }, Avatar(null, { tamanho: 36 }));
-  const pinta = async () => { let p = null; try { p = await perfil.get(); } catch (e) { p = null; } b.replaceChildren(Avatar(p, { tamanho: 36 })); b.setAttribute('aria-label', p && p.nome ? `Perfil de ${p.nome}` : 'Perfil'); };
+  const pinta = async () => { let p = null; try { p = await perfil.get(); } catch (e) { p = null; } nomeDoPerfil = p && p.nome ? p.nome : null; b.replaceChildren(Avatar(p, { tamanho: 36 })); b.setAttribute('aria-label', p && p.nome ? `Perfil de ${p.nome}` : 'Perfil'); };
   pinta();
   document.addEventListener('estante:perfil', pinta);
   return b;

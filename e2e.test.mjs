@@ -517,6 +517,13 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('#home-offline-prep');
   await page.click('#home-offline-prep');
   await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 15000 });
+  // D3 (leva 140) · expectativa mudou: com tudo guardado e rede, o painel é uma linha (anel, estado e "Detalhes");
+  // as linhas por item continuam no lugar e aparecem ao abrir
+  assert.equal(await page.getAttribute('#home-offline', 'data-compacto'), 'true');
+  assert.ok((await page.locator('#home-offline').boundingBox()).height <= 72, 'painel recolhido em uma linha');
+  assert.equal(await page.locator('#home-offline-lines').isVisible(), false);
+  await page.click('#home-offline-detalhes'); await page.waitForSelector('#home-offline-lines');
+  assert.equal(await page.getAttribute('#home-offline-detalhes', 'aria-expanded'), 'true');
   // U4 (leva 97) · expectativa mudou: o "✓ Listas: …" em texto virou uma linha por item com ícone e estado desenhado;
   // o teste lê o estado de cada linha (data-estado) e o texto dela
   const linhas = await page.innerText('#home-offline-lines');
@@ -544,7 +551,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // (waitForFunction não espera função assíncrona: o laço abaixo consulta o cache pelo Node)
   for (let i = 0; i < 40; i++) { if (await page.evaluate(async () => { try { return (await (await caches.open('estante-ocr-v1')).keys()).length >= 2; } catch (e) { return false; } })) break; await page.waitForTimeout(300); }
   await page.goto(base + '#/listas'); await page.goto(base + '#/');
-  await page.waitForSelector('#home-offline-lines');
+  await page.waitForSelector('#home-offline-lines', { state: 'attached' }); // D3 · pode já estar recolhido
   await page.waitForFunction(() => (document.querySelector('#home-offline-lines [data-item="leitor"]') || {}).dataset?.estado === 'pronto', null, { timeout: 8000 });
   await page.unroute('https://**.scryfall.io/**');
   // O3 · o painel mostra o espaço usado pelo app (gatilho G1)
@@ -5419,5 +5426,66 @@ test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e
   await toque('#perfil-aparencia [data-vibracao]', () => document.querySelector('#perfil-aparencia [data-vibracao]').getAttribute('aria-pressed') === 'true');
   await toque('#perfil-aparencia [data-tema="dark"]', () => document.documentElement.getAttribute('data-theme') === 'dark');
   assert.deepEqual(await html(), ['dark', null, null, null, null]);
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · D3 início que lembra de você: "Olá, Nome", cartão Continuar (partida, última lista, pilha do scanner) e o primeiro atalho mais alto', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const topo = sel => page.locator(sel).boundingBox().then(b => Math.round(b.y));
+  // sem perfil e sem nada para retomar: marca, uma frase e os atalhos; nenhum cartão Continuar
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(300);
+  assert.equal(await page.innerText('#home-titulo'), 'Estante');
+  assert.equal(await page.locator('#home-frase').isVisible(), true);
+  assert.equal(await page.locator('#home-continuar').count(), 0, 'sem cartão quando não há o que continuar');
+  const antes = 209; // leva 139: topo do atalho Jogar em 360×780 (medido antes da D3)
+  const semPerfil = await topo('#go-play');
+  assert.ok(semPerfil <= antes - 50, `Jogar subiu ≥ 50 px sem perfil (${antes} → ${semPerfil})`);
+  // com perfil: "Olá, Nome", a frase sai e o atalho sobe mais
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
+  await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar'); await page.waitForSelector('#ds-toast[data-open="true"]');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Olá, Gui');
+  assert.equal(await page.locator('#home-frase').isVisible(), false);
+  const comPerfil = await topo('#go-play');
+  assert.ok(comPerfil <= antes - 75, `Jogar subiu ≥ 75 px com perfil (${antes} → ${comPerfil})`);
+  console.log(`D3 · topo de Jogar: ${antes} → ${semPerfil} (sem perfil) → ${comPerfil} (com perfil)`);
+  assert.ok(await page.locator('#go-play').evaluate(el => el.classList.contains('ds-btn--primary')), 'sem partida salva, Jogar é o primário');
+  // última lista aberta vira uma linha do cartão; o toque abre a lista
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-continuar [data-tipo="lista"]');
+  assert.match(await page.innerText('#home-continuar [data-tipo="lista"]'), /Delver[\s\S]*Última lista aberta/);
+  assert.equal(await page.locator('#home-continuar [data-tipo="partida"]').count(), 0);
+  await page.click('#home-continuar [data-tipo="lista"]'); await page.waitForSelector('.deck-summary');
+  assert.match(page.url(), /#\/lista\?id=/);
+  // partida em andamento: linha principal do cartão; Jogar deixa de ser o primário; o toque volta para a mesa
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 15000 }); await page.click('#tb-keep');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-continuar [data-tipo="partida"]');
+  assert.match(await page.innerText('#home-continuar [data-tipo="partida"]'), /Continuar a partida[\s\S]*Gui × /);
+  assert.equal(await page.getAttribute('#home-continuar', 'data-itens'), '2');
+  assert.equal(await page.locator('#home-atalhos .ds-btn--primary').count(), 0, 'com partida salva, a linha da partida é o caminho principal (nenhum atalho primário)');
+  await page.click('#home-continuar [data-tipo="partida"]'); await page.waitForSelector('#tb-pass, #tb-new', { timeout: 15000 });
+  assert.match(page.url(), /#\/partida$/);
+  // pilha do scanner: terceira linha, com a contagem
+  await page.goto(base + '#/scanner'); await page.waitForSelector('#scan-read:not([disabled])', { timeout: 10000 });
+  await pausaAuto(page);
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring'));
+  await page.click('#scan-read'); await esperaPilha(page, 1);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-continuar [data-tipo="scanner"]');
+  assert.match(await page.innerText('#home-continuar [data-tipo="scanner"]'), /Pilha do scanner[\s\S]*1 carta esperando/);
+  assert.equal(await page.getAttribute('#home-continuar', 'data-itens'), '3');
+  // cada linha é um alvo de toque inteiro, com nome falado completo; a tela cabe em 360 sem vazar
+  const linhas = await page.$$eval('#home-continuar button', bs => bs.map(b => ({ h: Math.round(b.getBoundingClientRect().height), nome: b.getAttribute('aria-label') })));
+  assert.ok(linhas.every(l => l.h >= 44 && l.nome && l.nome.includes(' · ')), JSON.stringify(linhas));
+  await auditaTela(page, 'início com Continuar');
+  // lista apagada não fica presa no cartão
+  await page.click('#home-continuar [data-tipo="lista"]'); await page.waitForSelector('#deck-delete'); await page.click('#deck-delete');
+  await page.waitForSelector('.ds-dialog .ds-btn--danger'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForSelector('#decks-list');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-continuar');
+  await page.waitForFunction(() => document.querySelector('#home-continuar') && document.querySelector('#home-continuar').dataset.itens === '2');
+  assert.equal(await page.locator('#home-continuar [data-tipo="lista"]').count(), 0);
   assert.deepEqual(errors, []);
 });

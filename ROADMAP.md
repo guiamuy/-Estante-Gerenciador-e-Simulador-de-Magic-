@@ -391,6 +391,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-u ✅ | Roadmap completo de design (épico E53 · D1–D12) escrito a partir da auditoria de 13 telas (leva 137); execução sequencial a partir da D1 | D | 12 | capturas do aparelho depois de D2 e D6 |
 | 16º-aa ✅ | D1 fundamentos: escala de texto e densidade por tokens, literais zerados, aviso que não atravessa telas (leva 138) | D | 1 | — |
 | 16º-ac ✅ | D2 Ajustes e Aparência: tema, cor de destaque (4 acentos AA), texto, densidade, movimento, vibração (leva 140) | D | 1 | — |
+| 16º-ad ✅ | D3 Início que lembra de você: "Olá, Nome", cartão Continuar (partida, última lista, pilha do scanner), painel offline em uma linha (leva 141) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -4217,6 +4218,29 @@ para cada promessa (pixels de campo, contraste, sobreposição, nomes falados).
   claro). Expectativas da D1 e da leva 123 estendidas com o motivo no teste (aparência com cinco campos; contrato
   da vibração com liga/desliga).
 - **Fora:** acento por tela; cor do oponente (D7); nome "Ajustes" como tela própria (fica em Perfil até D5).
+
+**D3 · Início que lembra de você** ✅ (leva 141, 03/10/2026)
+- **Entregue:** cabeçalho **"Olá, Nome"** quando há perfil (a frase de apresentação só aparece sem perfil, e
+  virou uma linha: "Listas, coleção, scanner e mesa com regras."); cartão **Continuar** acima dos atalhos, uma
+  linha por coisa a retomar, a linha inteira é o toque: **partida em andamento** (jogadores · ações, ou placar e
+  jogo da série, ou "online · sala ESTA-XXXX") abre a mesa; **última lista aberta** (registrada em
+  `ui.ultimaLista` ao abrir a tela da lista; some se a lista foi apagada) abre a lista; **pilha do scanner**
+  (N cartas esperando conferência) abre o scanner. Com partida salva, o atalho Jogar deixa de ser o primário:
+  a linha da partida é o caminho principal. Sem nada a retomar, o cartão não existe.
+- **Painel "Sem internet":** com tudo guardado e rede, recolhe em **uma linha** (anel de 44 px, "Tudo pronto",
+  botão **Detalhes**) de no máximo 72 px; "Detalhes" abre no lugar as linhas por item, o espaço e "Conferir de
+  novo" (`aria-expanded`/`aria-controls`). Faltando algo, sem rede ou com aviso de preparo, continua aberto como
+  antes. Divergência da história: abre **no lugar**, não em folha — mantém os ids e os testes O1/Q10/U12 e evita
+  uma camada para ler cinco linhas.
+- **Medido (360×780, escuro):** topo do atalho Jogar **209 → 151 px sem perfil (−58) e 130 px com perfil
+  (−79)**; o cartão Continuar com partida e lista ocupa 151 px e empurra os atalhos para 297 px, de propósito:
+  o que está no meio vem antes do que começa do zero.
+- **Testes:** e2e "D3" (vazio sem cartão; "Olá, Gui" e frase escondida; linha da lista abre a lista; linha da
+  partida abre a mesa e tira o primário dos atalhos; pilha do scanner com contagem; cada linha ≥ 44 px com nome
+  falado completo; `auditaTela`; lista apagada sai do cartão). Expectativa de O1 mudou com o motivo no teste:
+  com tudo pronto o painel está recolhido (≤ 72 px) e o teste abre "Detalhes" antes de ler as linhas.
+- **Fora:** sugestão de "próxima lista" ou "jogar de novo" por histórico; cartão com miniatura da carta; tempo
+  relativo ("há 2 h") — entram se o uso pedir.
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.
