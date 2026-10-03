@@ -13634,7 +13634,18 @@ function buildIndex(names) {
     entries.push({ key: simple(full), name: full });
     if (full.includes(' // ')) entries.push({ key: simple(full.split(' // ')[0]), name: full });
   }
-  return entries.filter(e => e.key.length >= 2).map(e => ({ ...e, bg: [...bigrams(e.key)] }));
+  const index = entries.filter(e => e.key.length >= 2).map(e => ({ ...e, bg: [...bigrams(e.key)] }));
+  // X14 · nome lido exatamente como está na base é achado por consulta direta, sem percorrer os 30 mil
+  // chave repetida (nome inteiro de uma carta = primeira metade de outra): fica o nome mais curto, que é o da carta lida
+  const exatos = new Map(), prefixos = new Set();
+  for (const e of index) {
+    if (!exatos.has(e.key) || e.name.length < exatos.get(e.key).length) exatos.set(e.key, e.name);
+    // começos de nome que terminam em fim de palavra: "mountain" é começo de "mountain goat"
+    for (let i = e.key.indexOf(' '); i > 0; i = e.key.indexOf(' ', i + 1)) prefixos.add(e.key.slice(0, i));
+  }
+  Object.defineProperty(index, 'exatos', { value: exatos, enumerable: false });
+  Object.defineProperty(index, 'prefixos', { value: prefixos, enumerable: false });
+  return index;
 }
 
 /** Melhores nomes para um texto de OCR, com nota de 0 a 1. O OCR costuma
@@ -13645,6 +13656,7 @@ function matchName(index, text, { limit = 3 } = {}) {
   // X11 · o OCR também arrasta lixo no COMEÇO da linha (a curva da barra do título vira "l", "fi", "ol"):
   // tenta de novo sem as palavrinhas de até 2 letras da frente e fica com a melhor nota de cada nome
   const semFrente = q0.replace(/^(?:[a-z,'\-]{1,2} )+(?=[a-z,'\-]{3})/, '');
+  if (index.exatos && index.exatos.has(q0)) return [{ name: index.exatos.get(q0), score: 1, exata: true, ...(index.prefixos.has(q0) ? { prefixo: true } : {}) }];
   const best = new Map();
   for (const q of semFrente !== q0 && semFrente.length >= 3 ? [q0, semFrente] : [q0]) matchInto(best, index, q);
   return [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
@@ -13703,15 +13715,32 @@ function criaVotacao({ precisa = 2, exata = EXATA, aceite = ACCEPT } = {}) {
    - segundo candidato colado no primeiro (diferença < margem) é ambíguo: não entra, por mais vezes que apareça;
    - a mesma carta não entra de novo até sair do quadro (vaziosParaRearmar leituras sem nome) E passar o cooldown;
    - `maisUma()` é o toque na tela: a mesma carta entra outra vez por vontade da pessoa. */
-const PORTEIRO = { precisa: 3, precisaExata: 2, exata: EXATA, aceite: ACCEPT, margem: 0.06, cooldownMs: 2500, vaziosParaRearmar: 3 };
+/* X14 · resposta imediata. A regra das duas leituras nasceu na leva 112, quando a faixa do nome vinha do lugar errado
+   e o leitor devolvia nome de outro texto. Desde a X11 a linha lida é a do nome da carta retificada: uma leitura
+   IDÊNTICA a um nome da base, pelo contorno da carta, com 5 letras ou mais, já é evidência suficiente — e era a
+   segunda leitura (mais o respiro entre as duas) que dominava o tempo até aceitar. Entra na primeira quando quem
+   chama diz que a leitura é `confiavel`. Nome curto, leitura aproximada e leitura pela moldura seguem como antes. */
+const PORTEIRO = { precisa: 3, precisaExata: 2, exata: EXATA, aceite: ACCEPT, margem: 0.06, cooldownMs: 2500, vaziosParaRearmar: 3, letrasParaImediata: 5 };
+/** A leitura pode entrar na primeira? Só a idêntica a um nome da base (`exata`, letra por letra, sem limpeza de
+    lixo na frente), pelo contorno, com a carta parada, de nome com letras suficientes — e que não seja o começo de
+    outro nome (linha cortada de "Mountain Goat" lê "Mountain": essa espera a segunda leitura). */
+function leituraConfiavel(found, { peloContorno = false, parado = true, letras = PORTEIRO.letrasParaImediata } = {}) {
+  const best = found && found[0];
+  return !!best && peloContorno && parado && best.exata === true && !best.prefixo && best.score >= 1
+    && simple(best.name.split(' // ')[0]).replace(/[^a-z]/g, '').length >= letras;
+}
 function criaPorteiro(opts = {}) {
   const o = { ...PORTEIRO, ...opts };
   const agora = o.agora || (() => Date.now());
   let nome = null, contagem = 0, vazios = 0, ultimo = null, ultimoEm = 0, armado = true;
+  // X14 · com a entrada na primeira leitura, uma leitura solta de outra carta (A, Z, A) não pode liberar a A de novo:
+  // todo nome aceito há menos de um cooldown é repetido, seja ou não o último
+  const recentes = new Map();
+  const recente = n => { const t = recentes.get(n); if (t == null) return false; if (agora() - t < o.cooldownMs) return true; recentes.delete(n); return false; };
   const rearma = () => { armado = true; };
   return {
     /** Recebe os candidatos de uma leitura e devolve { aceito, motivo }. */
-    voto(found) {
+    voto(found, { confiavel = false } = {}) {
       const best = found && found[0], segundo = found && found[1];
       if (!best || best.score < o.aceite) {
         nome = null; contagem = 0; vazios++;
@@ -13721,15 +13750,15 @@ function criaPorteiro(opts = {}) {
       vazios = 0;
       if (best.name === nome) contagem++; else { nome = best.name; contagem = 1; }
       if (segundo && best.score < o.exata && best.score - segundo.score < o.margem) return { aceito: null, motivo: 'ambígua' };
-      const bastante = best.score >= o.exata ? contagem >= o.precisaExata : contagem >= o.precisa;
+      const bastante = confiavel && best.score >= o.exata ? true : best.score >= o.exata ? contagem >= o.precisaExata : contagem >= o.precisa;
       if (!bastante) return { aceito: null, motivo: 'espera' };
-      if (best.name === ultimo && (!armado || agora() - ultimoEm < o.cooldownMs)) return { aceito: null, motivo: 'repetida' };
-      ultimo = best.name; ultimoEm = agora(); armado = false; contagem = 0;
+      if ((best.name === ultimo && (!armado || agora() - ultimoEm < o.cooldownMs)) || recente(best.name)) return { aceito: null, motivo: 'repetida' };
+      ultimo = best.name; ultimoEm = agora(); armado = false; contagem = 0; recentes.set(ultimo, ultimoEm);
       return { aceito: best.name, motivo: 'aceita' };
     },
     /** Toque na tela: a mesma carta entra de novo agora. Devolve o nome ou null. */
-    maisUma() { if (!ultimo) return null; ultimoEm = agora(); return ultimo; },
-    zera() { nome = null; contagem = 0; vazios = 0; ultimo = null; ultimoEm = 0; armado = true; },
+    maisUma() { if (!ultimo) return null; ultimoEm = agora(); recentes.set(ultimo, ultimoEm); return ultimo; },
+    zera() { nome = null; contagem = 0; vazios = 0; ultimo = null; ultimoEm = 0; armado = true; recentes.clear(); },
     get ultimo() { return ultimo; }
   };
 }
@@ -14474,7 +14503,7 @@ function retifica(src, sw, sh, cantos, larg, alt) {
     achado pode ser a borda de fora, a moldura de dentro ou um protetor; a moldura guia pode estar torta.
     O nome fica entre 4,5% e 10,5% da carta: a linha é achada dentro da faixa, não suposta. */
 const FAIXA_NOME = { x: 0.0, y: -0.03, w: 0.86, h: 0.22 };
-const LARGURA_NOME = 800;                       // largura da faixa retificada: o nome fica com ~30 px de altura
+const LARGURA_NOME = 800;                       // largura da faixa retificada: o nome fica com ~30 px de altura. X14 mediu 600 px: o leitor ganha ~10 ms e a moldura antiga deixa de ler (85% → 79%); ficou em 800
 const ALTURA_NOME = { min: 0.022, max: 0.055 }; // altura da linha do nome, em frações da altura da carta
 /** Linha de texto dentro da faixa (RGBA): a sequência de linhas com mais traços verticais, cercada em
     cima e embaixo por linhas calmas (a barra do título). Devolve { y0, y1, nota, cinza }. */
@@ -14613,7 +14642,7 @@ function deslocamento(a, b) {
    a mesma foto desfocada (caixa de 2 px, duas passadas), que o OCR já não lê, cai para 0,1. O limiar corta só isso. */
 const LIMIARES_LINHA = { nitidezMin: 0.3, deslocamentoMax: 0.05, alturaMin: 0.30 };
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
 })();
@@ -14628,30 +14657,48 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, criaDiario, criaCronometro, realcaTexto,
+const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, realcaTexto,
   achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, brilho } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-// Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros e o teto do plano B
-const RESPIRO_MS = 120;        // entre uma leitura e a próxima, para a tela respirar
+// Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros entre elas
+const RESPIRO_MS = 120;        // sem carta no quadro, ou passada pulada (tremida/desfocada: a régua de movimento precisa de intervalo entre dois quadros). X14: com carta lida, a próxima passada sai no próximo quadro do vídeo
+const REPOUSO_MS = 250;        // X14 · carta já aceita parada no quadro: não há o que ler, o laço descansa (bateria e aquecimento)
 // Leva 112 · o plano B (texto esparso do quadro inteiro) saiu: era a origem das leituras erradas com a carta mal
 // posicionada. Sem carta achada, a leitura vale só dentro da moldura guia.
 const go = to => { location.hash = '#' + to; };
 
 /** OCR de uma linha. Motor carregado sob demanda e reaproveitado. */
 function createOcr(win = window, doc = document) {
-  let worker = null, loading = null;
-  async function engine() {
-    if (worker) return worker;
-    if (!loading) loading = (async () => {
-      if (!win.Tesseract) await new Promise((ok, fail) => {
-        const s = doc.createElement('script'); s.src = TESSERACT_URL; s.async = true;
-        s.onload = ok; s.onerror = () => fail(new Error('ocr-indisponivel')); doc.head.appendChild(s);
-      });
-      const w = await win.Tesseract.createWorker('eng');
-      worker = w; return w;
-    })().catch(e => { loading = null; throw e; });
-    return loading;
+  // X14 · dois leitores: o do nome e o da edição. Antes eram um só, em fila: a linha de coleção da carta que acabou
+  // de entrar segurava a leitura do nome da carta seguinte. O da edição só é criado na primeira edição lida.
+  const faixas = { nome: { worker: null, loading: null, mode: null, fila: Promise.resolve() }, edicao: { worker: null, loading: null, mode: null, fila: Promise.resolve() } };
+  let biblioteca = null;
+  const carrega = () => biblioteca || (biblioteca = (async () => {
+    if (!win.Tesseract) await new Promise((ok, fail) => {
+      const s = doc.createElement('script'); s.src = TESSERACT_URL; s.async = true;
+      s.onload = ok; s.onerror = () => fail(new Error('ocr-indisponivel')); doc.head.appendChild(s);
+    });
+  })().catch(e => { biblioteca = null; throw e; }));
+  async function engine(qual = 'nome') {
+    const f = faixas[qual];
+    if (f.worker) return f.worker;
+    if (!f.loading) {
+      const g = f.ger = (f.ger || 0) + 1;
+      const p = f.loading = (async () => {
+        await carrega();
+        const w = await win.Tesseract.createWorker('eng');
+        // encerrado enquanto carregava (saiu do scanner): o leitor que chega tarde não fica vivo
+        if (f.ger !== g) { try { await w.terminate(); } catch (e) { /* ignora */ } throw new Error('ocr-encerrado'); }
+        f.worker = w; return w;
+      })().catch(e => { if (f.loading === p) f.loading = null; throw e; });
+    }
+    return f.loading;
+  }
+  async function encerra(f) {
+    f.ger = (f.ger || 0) + 1;
+    const w = f.worker; f.worker = null; f.loading = null; f.mode = null;
+    if (w) { try { await w.terminate(); } catch (e) { /* ignora */ } }
   }
   /** Tons de cinza, contraste e ampliação: o nome é texto pequeno sobre arte. */
   function prepare(canvas, escala = 1, modo = 'name') {
@@ -14668,11 +14715,11 @@ function createOcr(win = window, doc = document) {
     return c;
   }
   const MODES = OCR_MODES;
-  let mode = null, fila = Promise.resolve();
-  // Leva 109 · uma leitura por vez: o laço automático e a leitura da edição dividem o mesmo motor
-  const serial = fn => { const p = fila.then(fn, fn); fila = p.catch(() => {}); return p; };
+  // uma leitura por vez em cada leitor
+  const serial = (f, fn) => { const p = f.fila.then(fn, fn); f.fila = p.catch(() => {}); return p; };
+  const faixaDe = want => (want === 'colecao' || want === 'collector' ? 'edicao' : 'nome');
   return {
-    warm: () => engine(),
+    warm: (qual = 'nome') => engine(qual),
     /** Q10 · os arquivos do leitor ainda estão no aparelho? null quando o navegador não tem cache. */
     async guardado(cachesApi = (typeof caches !== 'undefined' ? caches : null)) {
       if (!cachesApi || typeof cachesApi.open !== 'function') return null;
@@ -14684,13 +14731,18 @@ function createOcr(win = window, doc = document) {
       } catch (e) { return null; }
     },
     read(canvas, want = 'name', escala = 1) {
-      return serial(async () => {
-        const w = await engine();
-        if (mode !== want) { await w.setParameters(MODES[want]); mode = want; }
-        const r = await w.recognize(prepare(canvas, escala, want)); return (r && r.data && r.data.text) || '';
+      const qual = faixaDe(want), f = faixas[qual];
+      const pronto = prepare(canvas, escala, want);   // 'linha' e 'colecao' já chegam prontas (o MESMO canvas: quem chama não o reaproveita antes de a leitura voltar)
+      return serial(f, async () => {
+        const w = await engine(qual);
+        if (f.mode !== want) { await w.setParameters(MODES[want]); f.mode = want; }
+        const r = await w.recognize(pronto); return (r && r.data && r.data.text) || '';
       });
     },
-    async stop() { if (worker) { try { await worker.terminate(); } catch (e) { /* ignora */ } worker = null; loading = null; mode = null; } }
+    /** Encerra os leitores (ou só um: 'nome' | 'edicao'). O de edição sai junto com a tela do scanner. */
+    async stop(qual) {
+      for (const [k, f] of Object.entries(faixas)) if (!qual || qual === k) await encerra(f);
+    }
   };
 }
 
@@ -14725,11 +14777,13 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   const root = Stack({ class: 'ds-wrap scan', id: 'scan', dataset: { base: 'idle', camera: 'idle', leitor: 'idle' } });
 
   /* ---- ciclo de vida ---- */
-  function stopAll() { state.alive = false; state.auto = false; try { camera.stop(); } catch (e) { /* ignora */ } }
+  function stopAll() { state.alive = false; state.auto = false; try { camera.stop(); } catch (e) { /* ignora */ } try { if (ocr.stop) ocr.stop('edicao'); } catch (e) { /* ignora */ } }
   const onHash = () => { if (!location.hash.startsWith('#/scanner')) { stopAll(); window.removeEventListener('hashchange', onHash); } };
   window.addEventListener('hashchange', onHash);
   const marca = () => { root.dataset.base = state.base; root.dataset.camera = state.camera; root.dataset.leitor = state.engine; };
 
+  /** X14 · o leitor da edição sobe em segundo plano assim que o do nome está pronto: a primeira carta não paga a carga dele. */
+  function aqueceEdicao() { if (state.alive && state.edition) { try { const p = ocr.warm('edicao'); if (p && p.catch) p.catch(() => {}); } catch (e) { /* sem edição */ } } }
   async function boot() {
     paintStatus(); paintDock(); paintEstado();
     state.base = 'loading'; paintStatus(); marca();
@@ -14752,7 +14806,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     paintStatus(); paintDock(); paintEstado(); marca();
     if (state.camera === 'on') {
       state.engine = 'loading'; paintStatus(); paintEstado(); marca();
-      ocr.warm().then(() => { state.engine = 'ready'; state.ocrReady = true; store.set('ocr.ready', Date.now()); paintStatus(); paintDock(); marca(); ligaSePronto(); })
+      ocr.warm().then(() => { state.engine = 'ready'; state.ocrReady = true; aqueceEdicao(); store.set('ocr.ready', Date.now()); paintStatus(); paintDock(); marca(); ligaSePronto(); })
         .catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); paintEstado(); marca(); });
     }
   }
@@ -14865,14 +14919,15 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const tempos = { det: 0, prep: 0, ocr: 0, casa: 0 }, relogio = () => performance.now();
     try { const q = quadroPequeno(); luz = brilho(q.cinza, q.w, q.h, null); quad = achaQuadrilatero(q.cinza, q.w, q.h); } catch (e) { quad = null; }
     tempos.det = Math.round(relogio() - t0);
-    const mov = quad && state.cantosAntes ? deslocamento(quad.cantos, state.cantosAntes) : 0;
+    const visto = !!(quad && state.cantosAntes);   // já havia contorno na passada anterior: dá para dizer se a carta está parada
+    const mov = visto ? deslocamento(quad.cantos, state.cantosAntes) : 0;
     state.cantosAntes = quad ? quad.cantos : null;
     if (!quad) state.invertida = false;   // carta nova no quadro: volta a supor que está em pé
     pintaContorno(quad);
     // contorno pequeno demais para ler (carta longe, ou um objeto com cara de carta fora da área que a tela mostra):
     // não serve para a leitura, mas não impede a moldura guia
     const longe = !!quad && alturaDaCarta(quad.cantos, vw, vh) < LIMIARES_LINHA.alturaMin * Math.max(vw, vh);
-    const base = { luz, movimento: mov * 100, contorno: !!quad && !longe, longe, tempos, inicio: Date.now() - Math.round(relogio() - t0) };
+    const base = { luz, movimento: mov * 100, parado: visto && mov <= LIMIARES_LINHA.deslocamentoMax, contorno: !!quad && !longe, longe, tempos, inicio: Date.now() - Math.round(relogio() - t0) };
     if (via !== 'manual' && quad && !longe && mov > LIMIARES_LINHA.deslocamentoMax) { dicaTexto(DICAS.tremida); return { pulou: 'tremida', ms: 0, nitidez: 0, ...base }; }
     const caminhos = [];
     if (quad && !longe) caminhos.push({ nome: 'carta', cantos: state.invertida ? viraCantos(quad.cantos) : quad.cantos });
@@ -14925,20 +14980,42 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     })();
     return key;
   }
+  /** X14 · a carta está parada? Na primeira passada de uma carta não há contorno anterior para comparar: mede de novo
+      agora (a leitura levou dezenas de ms, o quadro já é outro) e compara com o contorno que foi lido. */
+  function segueParada(L) {
+    if (L.parado) return true;
+    if (!L.contorno || !state.cantosAntes) return false;
+    try {
+      const q = quadroPequeno(), quad = achaQuadrilatero(q.cinza, q.w, q.h);
+      if (!quad) return false;
+      const mov = deslocamento(quad.cantos, state.cantosAntes);
+      state.cantosAntes = quad.cantos;
+      return mov <= LIMIARES_LINHA.deslocamentoMax;
+    } catch (e) { return false; }
+  }
+  /** Uma passada do automático. Devolve o ritmo da próxima: 'quadro' (carta sendo lida), 'repouso' (carta já aceita, parada) ou nada. */
   async function passo() {
-    if (!state.alive || !state.auto || state.camera !== 'on' || state.base !== 'ready' || state.engine !== 'ready' || state.busy) return;
+    if (!state.alive || !state.auto || state.manualPendente || state.camera !== 'on' || state.base !== 'ready' || state.engine !== 'ready' || state.busy) return;
     state.busy = true;
+    let temCarta = false, ritmo;
     try {
       const L = await lerUmaVez('auto');
       // X13 · o cronômetro vê toda passada: carta no quadro é contorno achado ou nome lido
       const lido = !L.pulou && L.found[0] && L.found[0].score >= ACCEPT ? L.found[0].name : null;
-      cronometro.quadro(!!(L.contorno || L.longe || lido), L.inicio);
+      temCarta = !!(L.contorno || L.longe || lido);
+      cronometro.quadro(temCarta, L.inicio);
       if (L.pulou) { if (L.pulou !== 'tremida' && L.pulou !== 'desfocada') cronometro.leitura(null); diario.anota({ via: L.pulou, texto: '', melhor: null, ms: 0, decisao: 'pulou', nitidez: L.nitidez, movimento: L.movimento, tempos: L.tempos }); return; }
-      const v = porteiro.voto(L.found);
+      // X14 · leitura idêntica a um nome da base, pelo contorno, entra na primeira (o resto segue pedindo repetição)
+      const peloContorno = L.caminho === 'carta';
+      const confiavel = leituraConfiavel(L.found, { peloContorno }) && segueParada(L);
+      const v = porteiro.voto(L.found, { confiavel });
+      // carta no quadro que não dá nome (reflexo, verso, sleeve fosco): depois de 8 passadas secas, volta ao passo de 120 ms
+      state.secas = v.motivo === 'nada' || v.motivo === 'fraca' ? (state.secas || 0) + 1 : 0;
+      ritmo = v.motivo === 'repetida' ? 'repouso' : temCarta && state.secas < 8 ? 'quadro' : undefined;
       // carta já aceita e ainda no quadro: o tempo dela não é tempo de leitura
       cronometro.leitura(v.motivo === 'repetida' ? null : lido, L.inicio);
       let decisao = v.motivo, ateAceitar = null;
-      if (v.aceito) { const c = cronometro.aceite(v.aceito); ateAceitar = c.desdeEntrada != null ? c.desdeEntrada : c.confirmacao; await aceita(v.aceito, L); decisao = `${v.aceito} +1`; dicaTexto(''); }
+      if (v.aceito) { const c = cronometro.aceite(v.aceito); ateAceitar = c.desdeEntrada != null ? c.desdeEntrada : c.confirmacao; await aceita(v.aceito, L); decisao = `${v.aceito} +1${confiavel ? ' (1ª leitura)' : ''}`; dicaTexto(''); }
       else {
         const semNome = v.motivo === 'nada' || v.motivo === 'fraca';
         // com a carta achada e sem nome, o problema é a leitura (reflexo, distância), não o enquadramento
@@ -14949,12 +15026,26 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       diario.anota({ via: L.caminho, texto: L.texto, melhor: L.found[0] || null, ms: L.ms, decisao, nitidez: L.nitidez, movimento: L.movimento, tempos: L.tempos, ateAceitar });
     } catch (e) { diario.anota({ via: 'erro', texto: String(e && e.message || e), melhor: null, ms: 0, decisao: 'falhou' }); }
     finally { state.busy = false; }
+    return ritmo;
   }
-  async function laco() { while (state.alive && state.auto) { await passo(); await dormir(RESPIRO_MS); } }
+  /** X14 · o próximo quadro do vídeo (ou 120 ms, o que vier primeiro): com carta no quadro, a leitura seguinte não espera. */
+  const proximoQuadro = () => new Promise(r => {
+    let feito = false; const ok = () => { if (!feito) { feito = true; r(); } };
+    if (typeof video.requestVideoFrameCallback === 'function') { video.requestVideoFrameCallback(ok); setTimeout(ok, RESPIRO_MS); }
+    else setTimeout(ok, 16);
+  });
+  // um laço só: ligar e desligar o automático depressa não deixa dois lendo ao mesmo tempo
+  let geracao = 0;
+  async function laco() {
+    const g = ++geracao;
+    while (state.alive && state.auto && g === geracao) { const ritmo = await passo(); await (ritmo === 'quadro' ? proximoQuadro() : dormir(ritmo === 'repouso' ? REPOUSO_MS : RESPIRO_MS)); }
+  }
   /** "Ler agora": uma leitura pedida pela pessoa; entra o melhor candidato legível, desde que não seja ambíguo. */
   async function readOnce() {
     if (state.camera !== 'on' || state.base !== 'ready') return;
-    while (state.busy) await dormir(30);
+    // a vez é de quem pediu: o automático cede enquanto o pedido espera a passada em curso terminar
+    state.manualPendente = true;
+    try { while (state.busy) await dormir(30); } finally { state.manualPendente = false; }
     state.busy = true; paintDock();
     try {
       const L = await lerUmaVez('manual');
@@ -15001,7 +15092,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function setAuto(on) {
     const antes = state.auto;
     state.auto = on;
-    if (on) { porteiro.zera(); state.cantosAntes = null; state.falhas = 0; state.invertida = false; if (!antes) laco(); }
+    if (on) { porteiro.zera(); state.cantosAntes = null; state.falhas = 0; state.invertida = false; laco(); }
     else { pintaContorno(null); dicaTexto(''); state.cantosAntes = null; }
     paintDock(); paintEstado(); if (!state.last) paintResult();
   }
@@ -15011,7 +15102,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'X13 (câmera no máximo + cronômetro)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `nitidez ≥ ${LIMIARES_LINHA.nitidezMin}, movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'X14 (resposta imediata)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `nitidez ≥ ${LIMIARES_LINHA.nitidezMin}, movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';

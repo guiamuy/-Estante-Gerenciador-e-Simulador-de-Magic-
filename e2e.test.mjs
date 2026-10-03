@@ -267,7 +267,8 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
   // A8: recarregar mantém a partida
   const lands = await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count();
   await page.reload();
-  await page.waitForSelector('#tb-pass');
+  // instável sob carga (02/10/2026: 2 de 5 rodadas completas): se estourar, a falha diz em que tela a página voltou
+  await page.waitForSelector('#tb-pass').catch(async e => { throw new Error('depois de recarregar, a mesa não voltou: ' + await page.evaluate(() => location.hash + ' | ' + [...document.querySelectorAll('[id]')].map(x => x.id).filter(i => /^tb-|^ds-dialog|^prep|^sw/.test(i)).join(',') + ' | ' + document.body.innerText.slice(0, 300).replace(/\n/g, ' / '))); });
   assert.equal(await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count(), lands);
 
   // registro legível
@@ -659,7 +660,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])', { timeout: 10000 });
   await pausaAuto(page);
-  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', ''));
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring'));
   await page.click('#scan-read');
   await esperaPilha(page, 1);
   await page.waitForSelector('#scan-edition');
@@ -1102,12 +1103,15 @@ test('e2e · C5 aviso de backup e de armazenamento desprotegido', { skip }, asyn
 
 // Câmera e OCR simulados: o teste controla o texto que o "leitor" devolve.
 const FAKE_DEVICE = deny => `
-  window.__ocrQueue = [];
+  window.__ocrQueue = []; window.__ocrColecao = [];
   // Q10 · o leitor falso deixa no cache o que o service worker deixaria ao baixar o leitor de verdade
-  window.Tesseract = { createWorker: async () => {
+  window.Tesseract = { createWorker: async () => { window.__ocrCriados = (window.__ocrCriados || 0) + 1;
     try { const c = await caches.open('estante-ocr-v1'); await c.put('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', new Response('')); await c.put('https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz', new Response('')); } catch (e) {}
-    return { setParameters: async () => {}, terminate: async () => {},
-      recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) };
+    // X14 · o app tem dois leitores (nome e edição) que leem ao mesmo tempo: cada um tira da sua fila, conforme o modo
+    // que o app configurou (bloco = linha de coleção). Com uma fila só, quem chegasse primeiro levava o texto do outro.
+    let bloco = false;
+    return { setParameters: async p => { bloco = String(p && p.tessedit_pageseg_mode) === '6'; }, terminate: async () => { window.__ocrEncerrados = (window.__ocrEncerrados || 0) + 1; },
+      recognize: async () => { const f = bloco ? window.__ocrColecao : window.__ocrQueue; return { data: { text: f.length ? f.shift() : '' } }; } };
   } };
   const gum = async () => {
     if (${deny}) { const e = new Error('Permission denied'); e.name = 'NotAllowedError'; throw e; }
@@ -1134,12 +1138,15 @@ async function pausaAuto(page) {
 // X7 · câmera falsa que mostra uma carta de verdade no quadro: fundo escuro e um
 // retângulo claro com textura, na proporção da carta.
 const FAKE_CARD_CAM = `
-  window.__ocrQueue = [];
+  window.__ocrQueue = []; window.__ocrColecao = [];
   // Q10 · o leitor falso deixa no cache o que o service worker deixaria ao baixar o leitor de verdade
-  window.Tesseract = { createWorker: async () => {
+  window.Tesseract = { createWorker: async () => { window.__ocrCriados = (window.__ocrCriados || 0) + 1;
     try { const c = await caches.open('estante-ocr-v1'); await c.put('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', new Response('')); await c.put('https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz', new Response('')); } catch (e) {}
-    return { setParameters: async () => {}, terminate: async () => {},
-      recognize: async () => ({ data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }) };
+    // X14 · o app tem dois leitores (nome e edição) que leem ao mesmo tempo: cada um tira da sua fila, conforme o modo
+    // que o app configurou (bloco = linha de coleção). Com uma fila só, quem chegasse primeiro levava o texto do outro.
+    let bloco = false;
+    return { setParameters: async p => { bloco = String(p && p.tessedit_pageseg_mode) === '6'; }, terminate: async () => { window.__ocrEncerrados = (window.__ocrEncerrados || 0) + 1; },
+      recognize: async () => { const f = bloco ? window.__ocrColecao : window.__ocrQueue; return { data: { text: f.length ? f.shift() : '' } }; } };
   } };
   const gum = async () => {
     const c = document.createElement('canvas'); c.width = 640; c.height = 480;
@@ -1355,12 +1362,12 @@ test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e
   await page.reload();
   await page.waitForSelector('#scan-read:not([disabled])');
   await pausaAuto(page);
-  await page.evaluate(() => window.__ocrQueue.push('Counterspell', '267/303 U\nMH2 • EN'));
+  await page.evaluate(() => { window.__ocrQueue.push('Counterspell'); window.__ocrColecao.push('267/303 U\nMH2 • EN'); });
   await page.click('#scan-read');
   await page.waitForSelector('#scan-edition');
   assert.match(await page.innerText('#scan-edition'), /MH2 #267 · Modern Horizons 2/); // leva 112: a linha do resultado ficou só "✓ nome · edição", sem o rótulo
 
-  await page.evaluate(() => window.__ocrQueue.push('Island', ''));
+  await page.evaluate(() => window.__ocrQueue.push('Island'));
   await page.click('#scan-read');
   await page.waitForFunction(() => /não identificada/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
 
@@ -3297,13 +3304,16 @@ test('e2e · leva 112 scanner: cabe sem rolar num S25, não registra leitura inc
   assert.ok(medida.palco >= 380, 'a câmera ocupa a maior parte da tela: ' + JSON.stringify(medida));
   assert.equal(medida.botoes, true, 'todos os botões à vista');
   await auditaTela(page, 'scanner sem rolagem');
-  // leituras que alternam entre dois nomes (carta mal posicionada): nada entra
-  await page.evaluate(() => window.__ocrQueue.push('Counterspell', 'Sol Ring', 'Counterspell', 'Sol Ring'));
+  // leituras aproximadas que alternam entre dois nomes (carta mal lida): nada entra.
+  // X14 · expectativa ajustada: antes este trecho alternava dois nomes EXATOS. Leitura idêntica a um nome da base, pelo
+  // contorno da carta, agora entra na primeira (é a história X14); o que continua não podendo entrar é a leitura
+  // aproximada sem repetição, que é o que este trecho passou a exercitar.
+  await page.evaluate(() => window.__ocrQueue.push('Countersqell', 'Sol Rimg', 'Countersqell', 'Sol Rimg', 'Sol Rimg'));
   await page.waitForFunction(() => window.__ocrQueue.length === 0, null, { timeout: 12000 });
   await page.waitForTimeout(400);
-  assert.equal(await contaPilha(page), 0, 'leitura que muda de nome a cada quadro não registra nada');
-  // a mesma leitura duas vezes seguidas: entra, com "[nome] ✓"
-  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring'));
+  assert.equal(await contaPilha(page), 0, 'leitura aproximada que muda de nome, ou que se repete só duas vezes, não registra nada');
+  // uma leitura exata pelo contorno: entra na primeira, com "[nome] ✓"
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring'));
   await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 12000 });
   assert.match(await page.innerText('#scan-ok'), /Sol Ring/);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-ok.png' });
@@ -3343,13 +3353,20 @@ test('e2e · leva 112 scanner: cabe sem rolar num S25, não registra leitura inc
 // foto) → contorno de quatro cantos → pedaço do vídeo → linha do nome retificada. O leitor falso guarda a imagem que
 // recebeu; o OCR de verdade (tesseract.js, no Node) confere que ali está o nome, e depois a linha de coleção.
 const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false, qps = 10) => `
-  window.__ocrQueue = []; window.__ocrImgs = []; window.__canvases = 0;
+  window.__ocrQueue = []; window.__ocrColecao = []; window.__ocrImgs = []; window.__ocrImgsColecao = []; window.__canvases = 0;
   const criar = document.createElement.bind(document);
   document.createElement = function (tag, ...r) { if (String(tag).toLowerCase() === 'canvas') window.__canvases++; return criar(tag, ...r); };
-  window.Tesseract = { createWorker: async () => {
+  window.Tesseract = { createWorker: async () => { window.__ocrCriados = (window.__ocrCriados || 0) + 1;
     try { const c = await caches.open('estante-ocr-v1'); await c.put('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', new Response('')); await c.put('https://tessdata.projectnaptha.com/4.0.0/eng.traineddata.gz', new Response('')); } catch (e) {}
-    return { setParameters: async () => {}, terminate: async () => {},
-      recognize: async alvo => { try { if (window.__ocrImgs.length < 12) window.__ocrImgs.push(alvo.toDataURL('image/png')); } catch (e) {} return { data: { text: window.__ocrQueue.length ? window.__ocrQueue.shift() : '' } }; } };
+    let bloco = false;   // X14 · dois leitores, duas filas (ver FAKE_DEVICE)
+    return { setParameters: async p => { bloco = String(p && p.tessedit_pageseg_mode) === '6'; }, terminate: async () => { window.__ocrEncerrados = (window.__ocrEncerrados || 0) + 1; },
+      recognize: async alvo => {
+        const imgs = bloco ? window.__ocrImgsColecao : window.__ocrImgs, f = bloco ? window.__ocrColecao : window.__ocrQueue;
+        try { if (imgs.length < 12) imgs.push(alvo.toDataURL('image/png')); } catch (e) {}
+        if (bloco && window.__colecaoLenta) await new Promise(r => setTimeout(r, window.__colecaoLenta));
+        if (!bloco) window.__leiturasDeNome = (window.__leiturasDeNome || 0) + 1;
+        return { data: { text: f.length ? f.shift() : '' } };
+      } };
   } };
   const gum = async () => {
     const img = new Image(); img.src = ${JSON.stringify(dataUrl)}; await img.decode();
@@ -3372,7 +3389,8 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   await page.waitForSelector('#scan-read:not([disabled])');
   await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
   // duas leituras iguais (porteiro) e, depois do aceite, a linha de coleção
-  await page.evaluate(() => { window.__ocrImgs.length = 0; window.__ocrQueue.push('Counterspell', 'Counterspell', '267/330 U\nMH2 • EN'); });
+  // X14 · uma leitura exata pelo contorno basta; a linha de coleção é lida pelo segundo leitor
+  await page.evaluate(() => { window.__ocrImgs.length = 0; window.__ocrColecao.push('267/330 U\nMH2 • EN'); window.__ocrQueue.push('Counterspell'); });
   await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 15000 }).catch(async e => { throw new Error('diario: ' + JSON.stringify(await page.evaluate(() => window.__scanDiario.lista().slice(0, 4)))); });
   assert.match(await page.innerText('#scan-ok'), /Counterspell/);
   // o contorno é um quadrilátero desenhado sobre a carta (inclinada 12°): quatro pontos, e não um retângulo reto
@@ -3405,16 +3423,71 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   let T = null, langPath = null;
   try { const { createRequire } = await import('node:module'); const req = createRequire(import.meta.url); T = req('tesseract.js'); langPath = join(req.resolve('@tesseract.js-data/eng/package.json'), '..', '4.0.0'); } catch (e) { return; }
   const imgs = (await page.evaluate(() => window.__ocrImgs)).map(u => Buffer.from(u.split(',')[1], 'base64'));
-  assert.ok(imgs.length >= 3, 'o leitor recebeu nome, nome e linha de coleção');
+  const imgsColecao = (await page.evaluate(() => window.__ocrImgsColecao)).map(u => Buffer.from(u.split(',')[1], 'base64'));
+  assert.ok(imgs.length >= 1 && imgsColecao.length >= 1, 'os leitores receberam o nome e a linha de coleção');
   const worker = await T.createWorker('eng', 1, { langPath, gzip: true, cacheMethod: 'none' });
   try {
     await worker.setParameters({ tessedit_pageseg_mode: '7' });
     const nome = (await worker.recognize(imgs[0])).data.text;
     assert.match(nome, /Counterspell/, 'a linha que saiu do navegador tem o nome legível: "' + nome.trim() + '"');
     await worker.setParameters({ tessedit_pageseg_mode: '6' });
-    const col = (await worker.recognize(imgs[2])).data.text;
+    const col = (await worker.recognize(imgsColecao[0])).data.text;
     assert.match(col, /267/, 'número de coleção legível: "' + col.trim() + '"'); assert.match(col, /MH2/, 'edição legível: "' + col.trim() + '"');
   } finally { await worker.terminate(); }
+});
+
+// X14 · resposta imediata: uma leitura exata pelo contorno basta, e a edição (lida por um segundo leitor) não segura a
+// leitura do nome seguinte.
+test('e2e · X14 resposta imediata: a carta entra na primeira leitura exata pelo contorno, e a edição demorada não segura as leituras de nome', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64'), false, 30));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  await page.waitForFunction(() => (window.__leiturasDeNome || 0) >= 2, null, { timeout: 10000 });   // o laço já está lendo (sem nome ainda)
+  // o leitor da edição já subiu em segundo plano, antes de qualquer carta: a primeira não paga a carga dele
+  await page.waitForFunction(() => window.__ocrCriados === 2, null, { timeout: 4000 });
+  // a edição vai demorar 1,5 s; a carta fica parada no quadro (o leitor segue devolvendo o mesmo nome)
+  await page.evaluate(() => { window.__colecaoLenta = 1500; window.__ocrColecao.push('267/330 U\nMH2 • EN'); for (let i = 0; i < 80; i++) window.__ocrQueue.push('Counterspell'); });
+  await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 10000 });
+  await esperaPilha(page, 1);
+  const aceite = (await page.evaluate(() => window.__scanDiario.lista())).find(x => /Counterspell \+1/.test(x.decisao));
+  assert.match(aceite.decisao, /1ª leitura/, 'uma leitura bastou: ' + aceite.decisao);
+  assert.equal(aceite.via, 'carta');
+  // enquanto a edição ainda está sendo lida, o leitor do nome continua trabalhando
+  await page.waitForSelector('#scan-edition-espera', { timeout: 4000 });
+  const antes = await page.evaluate(() => window.__leiturasDeNome);
+  await page.waitForFunction(n => window.__leiturasDeNome >= n + 2, antes, { timeout: 1200 }).catch(async () => { throw new Error('o nome ficou esperando a edição: ' + antes + ' → ' + await page.evaluate(() => window.__leiturasDeNome)); });
+  assert.equal(await page.locator('#scan-edition-espera').count(), 1, 'e a edição ainda não tinha voltado');
+  await page.waitForSelector('#scan-edition', { timeout: 6000 });
+  assert.match(await page.innerText('#scan-edition'), /MH2 #267/);
+  // o tempo de confirmação com leitor falso é o custo do próprio app numa passada
+  await opcaoScanner(page, 'diag', false);
+  const tempo = await page.innerText('#scan-diag-tempo');
+  const ms = +(/confirmação (\d+) ms/.exec(tempo) || [])[1];
+  console.log('X14 · navegador de teste: ' + tempo);
+  assert.ok(ms < 200, 'confirmação numa passada só (antes: duas passadas e 120 ms de respiro): ' + tempo);
+  await page.click('#ds-dialog-close');
+  assert.equal(await contaPilha(page), 1, 'a carta parada não entra de novo');
+  // carta já aceita e parada: o laço descansa (antes lia quadro a quadro, 8+ por segundo)
+  const n0 = await page.evaluate(() => window.__leiturasDeNome); await page.waitForTimeout(1000);
+  const porSegundo = (await page.evaluate(() => window.__leiturasDeNome)) - n0;
+  assert.ok(porSegundo >= 1 && porSegundo <= 5, 'leituras por segundo com a carta já aceita: ' + porSegundo);
+  assert.equal(await contaPilha(page), 1);
+  await page.evaluate(() => { window.__ocrQueue.length = 0; });
+  // ligar e desligar o automático depressa não deixa dois laços lendo
+  // (sem nome no leitor, cada passada lê duas linhas — contorno e moldura — no passo de 120 ms)
+  const ritmo = async () => { await page.waitForTimeout(600); const a = await page.evaluate(() => window.__leiturasDeNome); await page.waitForTimeout(1500); return (await page.evaluate(() => window.__leiturasDeNome)) - a; };
+  const umLaco = await ritmo();
+  for (let i = 0; i < 6; i++) await page.click('[data-auto]');
+  const depois = await ritmo();
+  assert.ok(depois <= umLaco * 1.4 + 2, 'um laço só depois de alternar o automático: ' + umLaco + ' → ' + depois + ' leituras em 1,5 s');
+  // sair do scanner encerra o leitor da edição (o do nome fica para a próxima vez)
+  await page.evaluate(() => { location.hash = '#/'; });
+  await page.waitForFunction(() => window.__ocrEncerrados === 1, null, { timeout: 4000 });
+  assert.deepEqual(errors, []);
 });
 
 // X11 · carta de cabeça para baixo: depois de três leituras sem nome o scanner vira a carta e MANTÉM virada pelas
@@ -3492,7 +3565,7 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
   assert.equal(subida[0].height.ideal, 2160); assert.equal(subida[0].advanced, undefined, 'o formato vai num pedido só dele (no Chrome, junto do foco ele seria ignorado)');
   assert.equal(subida[1].advanced[0].focusMode, 'continuous', 'e o foco contínuo é pedido de novo em seguida');
   // uma carta entra, para o cronômetro ter o que medir
-  await page.evaluate(() => window.__ocrQueue.push('Counterspell', 'Counterspell', ''));
+  await page.evaluate(() => window.__ocrQueue.push('Counterspell'));
   await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 15000 });
   await page.click('[data-auto]');
   await page.waitForTimeout(1700);   // o contorno parado some sozinho com o automático pausado
@@ -3525,7 +3598,7 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
   await page.waitForFunction(() => /máximo 3840×2160; subida: 3840×2160 ✓\) · zoom 1\.5×/.test(document.querySelector('#scan-diag-camera').innerText), null, { timeout: 8000 });
   assert.match(await page.innerText('#scan-diag-tempo'), /Até aceitar: .*confirmação \d+ ms \(1 carta/);
   assert.match(await page.innerText('#scan-diag'), /det \d+ · prep \d+ · ocr \d+ · casa \d+/);
-  assert.match(await page.innerText('#scan-diag'), /Counterspell \+1 · \d+ ms até aceitar/);
+  assert.match(await page.innerText('#scan-diag'), /Counterspell \+1 \(1ª leitura\) · \d+ ms até aceitar/);
   // a medida que o épico E52 acompanha: custo do detector e do preparo no navegador (o leitor aqui é falso)
   const etapas = (await page.evaluate(() => window.__scanDiario.lista())).filter(x => x.via === 'carta' && x.tempos);
   const med = k => { const v = etapas.map(x => x.tempos[k]).sort((a, b) => a - b); return v[Math.floor((v.length - 1) / 2)]; };
@@ -3534,7 +3607,7 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.click('#scan-diag-copiar');
   const copiado = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(copiado, /leitor_versao: X13/); assert.match(copiado, /subida: 3840×2160 ✓/); assert.match(copiado, /ate_aceitar: .*confirmação \d+ ms/); assert.match(copiado, /zoom: 1\.5×/);
+  assert.match(copiado, /leitor_versao: X1\d/); assert.match(copiado, /subida: 3840×2160 ✓/); assert.match(copiado, /ate_aceitar: .*confirmação \d+ ms/); assert.match(copiado, /zoom: 1\.5×/);
   await page.click('#ds-dialog-close');
   // reabrir o scanner: a lente e o zoom escolhidos voltam sozinhos
   await page.reload();

@@ -1002,3 +1002,74 @@ test('X13 · diário: a linha copiada traz o tempo por etapa e o tempo até acei
   const txt = d.texto({ aparelho: 'x' });
   assert.match(txt, /carta · 210 ms \[det 12 · prep 30 · ocr 160 · casa 8\]/); assert.match(txt, /até aceitar 640 ms/);
 });
+
+/* ---------------- X14 · resposta imediata ---------------- */
+test('X14 · porteiro: leitura exata e confiável entra na primeira; sem a marca, a exata segue precisando de duas', () => {
+  let t = 0; const p = X.criaPorteiro({ agora: () => t });
+  const exata = [{ name: 'Counterspell', score: 1 }];
+  assert.equal(p.voto(exata, { confiavel: true }).aceito, 'Counterspell');
+  const q = X.criaPorteiro({ agora: () => t });
+  assert.equal(q.voto(exata).aceito, null); assert.equal(q.voto(exata).aceito, 'Counterspell');
+  // "confiável" não vale para leitura aproximada: continua pedindo três seguidas
+  const r = X.criaPorteiro({ agora: () => t }), aprox = [{ name: 'Counterspell', score: 0.92 }];
+  assert.equal(r.voto(aprox, { confiavel: true }).aceito, null); assert.equal(r.voto(aprox, { confiavel: true }).aceito, null);
+  assert.equal(r.voto(aprox, { confiavel: true }).aceito, 'Counterspell');
+});
+
+test('X14 · porteiro: a entrada imediata não duplica a carta parada nem atropela o intervalo', () => {
+  let t = 0; const p = X.criaPorteiro({ agora: () => t });
+  const exata = [{ name: 'Sol Ring', score: 1 }], c = { confiavel: true };
+  assert.equal(p.voto(exata, c).aceito, 'Sol Ring');
+  for (let i = 0; i < 5; i++) { t += 200; assert.deepEqual([p.voto(exata, c).aceito, p.voto(exata, c).motivo], [null, 'repetida']); }
+  // saiu do quadro (três leituras sem nome) e passou o intervalo: entra de novo na primeira
+  p.voto([]); p.voto([]); p.voto([]); t += 2600;
+  assert.equal(p.voto(exata, c).aceito, 'Sol Ring');
+  // outra carta logo em seguida entra na hora (pilha na mão)
+  t += 100; assert.equal(p.voto([{ name: 'Island', score: 1 }], c).aceito, 'Island');
+});
+
+test('X14 · porteiro: uma leitura solta de outra carta não libera de novo a que acabou de entrar (A, Z, A)', () => {
+  let t = 0; const p = X.criaPorteiro({ agora: () => t });
+  const c = { confiavel: true }, ex = n => [{ name: n, score: 1 }];
+  assert.equal(p.voto(ex('Counterspell'), c).aceito, 'Counterspell');
+  t += 200; assert.equal(p.voto(ex('Island'), c).aceito, 'Island');
+  t += 200; assert.equal(p.voto(ex('Counterspell'), c).motivo, 'repetida', 'dentro do intervalo, o nome já aceito é repetido mesmo sem ser o último');
+  t += 2600; assert.equal(p.voto(ex('Counterspell'), c).aceito, 'Counterspell', 'passado o intervalo, é outra cópia');
+  // o toque na tela (mais uma) renova o intervalo; zerar esquece tudo
+  t += 100; p.voto(ex('Island'), c); p.maisUma(); t += 2400; p.voto(ex('Counterspell'), c);
+  assert.equal(p.voto(ex('Island'), c).motivo, 'repetida');
+  p.zera(); assert.equal(p.voto(ex('Island'), c).aceito, 'Island');
+});
+
+test('X14 · leitura confiável: só idêntica a um nome da base, pelo contorno, parada, com 5 letras ou mais', () => {
+  const sim = (name, score, peloContorno = true, extra = { exata: true }) => X.leituraConfiavel([{ name, score, ...extra }], { peloContorno });
+  assert.equal(sim('Counterspell', 1, true, {}), false, 'nota 1 pelo caminho aproximado (lixo limpo na frente) não é identidade');
+  assert.equal(sim('Mountain', 1, true, { exata: true, prefixo: true }), false, 'começo de outro nome espera a segunda leitura');
+  assert.equal(X.leituraConfiavel([{ name: 'Counterspell', score: 1, exata: true }], { peloContorno: true, parado: false }), false, 'carta em movimento não entra na primeira');
+  assert.equal(sim('Counterspell', 1), true);
+  assert.equal(sim('Sol Ring', 1), true, 'espaço não conta, mas são 7 letras');
+  assert.equal(sim('Counterspell', 0.97), false, 'quase exata não é exata');
+  assert.equal(sim('Counterspell', 1, false), false, 'pela moldura guia continua precisando repetir');
+  assert.equal(sim('Opt', 1), false); assert.equal(sim('Ow', 1), false); assert.equal(sim('Fire // Ice', 1), false, 'o nome lido no topo é "Fire": 4 letras');
+  assert.equal(sim('Island', 1), true);
+  assert.equal(X.leituraConfiavel([], { peloContorno: true }), false); assert.equal(X.leituraConfiavel(null, { peloContorno: true }), false);
+});
+
+test('X14 · nome exato é achado por consulta direta: mesmo resultado, sem percorrer a base', () => {
+  assert.equal(INDEX.exatos.get('sol ring'), 'Sol Ring');
+  assert.deepEqual(JSON.parse(JSON.stringify(X.matchName(INDEX, 'Sol Ring'))), [{ name: 'Sol Ring', score: 1, exata: true }]);
+  assert.equal(X.matchName(INDEX, 'Fire').map(m => [m.name, m.score, m.exata]).join(), 'Fire // Ice,1,true', 'carta dividida responde pela primeira metade');
+  assert.equal(X.matchName(INDEX, 'S0l Ring')[0].name, 'Sol Ring', 'troca típica de OCR também cai na consulta direta');
+  // lixo no fim ou no começo não é exato: segue pelo caminho aproximado e NÃO chega a nota 1 no fim
+  assert.ok(X.matchName(INDEX, 'Sol Ring oo')[0].score < 1);
+  assert.equal(X.matchName(INDEX, 'ol Sol Ring')[0].exata, undefined, 'lixo limpo na frente pode dar nota 1, mas não é identidade');
+  // nome que é começo de outro vem marcado; nome repetido como metade de carta dividida fica com o mais curto
+  const I = X.buildIndex(['Mountain Goat', 'Mountain', 'Fire // Ice', 'Fire', 'Counterspell']);
+  assert.equal(X.matchName(I, 'Mountain')[0].prefixo, true); assert.equal(X.matchName(I, 'Counterspell')[0].prefixo, undefined);
+  assert.equal(X.matchName(I, 'Fire')[0].name, 'Fire'); assert.equal(X.matchName(I, 'Mountain Goat')[0].prefixo, undefined);
+  // custo: mil consultas exatas em menos de 50 ms no total
+  const t0 = performance.now(); for (let i = 0; i < 1000; i++) X.matchName(INDEX, 'Counterspell');
+  assert.ok(performance.now() - t0 < 50, 'consulta direta: ' + (performance.now() - t0).toFixed(1) + ' ms por mil');
+  // o índice continua sendo uma lista comum (quem percorre não vê a tabela)
+  assert.equal(Object.keys(INDEX).includes('exatos'), false); assert.ok(Array.isArray(INDEX));
+});

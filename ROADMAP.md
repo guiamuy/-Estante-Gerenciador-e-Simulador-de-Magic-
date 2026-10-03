@@ -112,7 +112,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | X · Scanner | X11 leitura por contorno: quatro cantos, carta retificada, linha do nome (leva 116) | 🟡 |
 | X · Scanner | X12 reconhecimento pela arte (impressão digital da imagem) | ○ |
 | X · Scanner | X13 câmera no máximo e cronômetro de leitura (leva 120) | 🟡 |
-| X · Scanner | X14 resposta imediata · X15 melhor quadro e edição em resolução cheia | ▶ |
+| X · Scanner | X14 resposta imediata (leva 127) | 🟡 |
+| X · Scanner | X15 melhor quadro e edição em resolução cheia | ▶ |
 | X · Scanner | X16 tela nova do scanner · X17 pilha e conferência visuais · X18 sessão de catalogação | ○ |
 | C · Coleção | C10 exportar por lista (três formatos, seleção manual) | 🟡 |
 | C · Coleção | C11 importar por lista com conferência, pendências e desfazer | 🟡 |
@@ -368,6 +369,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
+| 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
 | 16º-k | Shark profissional: B9, B10, B12 a B16 e B18 a B20 (perfis, mulligan, sequência, papel, jogar em volta, busca, plano, combate, recursos, reserva, leitura, pesos) | B9–B20 | 12 | uma leva por história; cada uma só fica se o torneio pagar |
 | 16º-l 🟡 | Faixa de turno, Highway Robbery (tramar e escolha), gatilho com modos e sonda de alcance (leva 121) | U7b · R0 | 1 | teste no aparelho |
 | 16º-m 🟡 | Axebane Guardian: mana em qualquer combinação de cores; Walls Combo volta a jogar (leva 122) | R1 | 1 | teste no aparelho |
@@ -476,7 +478,7 @@ cada leva; a recomendação de testar no celular antes de seguir continua de pé
 | E37 🟡 | B2–B7 (levas 59 a 63) — épico do bot completo, aguardando teste no aparelho | Bot com duas dificuldades: amador experiente e profissional, medidos no portão |
 | E38 🟡 | A13 (leva 77) · A14 (leva 78) · A15 (leva 79) · A16 (leva 80) — épico completo, aguardando teste no aparelho | Mesa profissional: leitura do campo, pilha explicada, zoom e prévia de combate |
 | E39 🟡 | X7 (leva 64) · X8 (leva 65) · X9 (leva 66) · X10 🟡 (leva 67) · X11 🟡 (leva 116) · X12 ○ | Scanner sem moldura, pilha de leitura, validação ágil, acerto medido e leitura por contorno |
-| E52 🟡 | X13 🟡 (leva 120) · X14 ▶ · X15 · X16 · X17 · X18 | Scanner de referência: imagem no máximo da câmera, resposta imediata e experiência de outro patamar |
+| E52 🟡 | X13 🟡 (leva 120) · X14 🟡 (leva 127) · X15 ▶ · X16 · X17 · X18 | Scanner de referência: imagem no máximo da câmera, resposta imediata e experiência de outro patamar |
 | E40 🟡 | C12 (levas 73 e 74) · C13 (leva 75) · C14 (leva 76) — épico completo, aguardando teste no aparelho | Filtros de verdade e a coleção como coleção, com painel gráfico |
 | E41 🟡 | C10 (leva 68) · C11 (leva 69) | Importar e exportar a coleção por lista, com conferência e desfazer |
 | E42 🟡 | O1 (leva 70) · O2 (leva 71) · O3 (leva 72) — épico completo, aguardando teste no aparelho | Offline de verdade: o que é seu fica no aparelho, telas sem rede e portão offline |
@@ -3179,7 +3181,7 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 | Medida | Hoje | Meta |
 |---|---|---|
 | Tempo até aceitar no aparelho, mediana, carta entrando no quadro | desconhecido (a X13 passou a medir) | ≤ 600 ms |
-| Passadas até aceitar uma leitura exata pelo contorno | 2 a 3 | 1 |
+| Passadas até aceitar uma leitura exata pelo contorno | 1 desde a X14 (era 2 a 3) | 1 |
 | Detector + preparo no navegador de teste | ~55 ms | ≤ 40 ms |
 | Edição certa no conjunto do portão | 22 de 27 | ≥ 25 de 27 |
 | Toques para escanear e guardar um lote | abrir pilha → lote → destino → adicionar | 1 depois do lote lido |
@@ -3187,7 +3189,7 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 | Ordem | História | Frente | Levas |
 |---|---|---|---|
 | 1º 🟡 | **X13** câmera no máximo e cronômetro | imagem | 1 (leva 120) |
-| 2º | **X14** resposta imediata | velocidade | 1 |
+| 2º 🟡 | **X14** resposta imediata | velocidade | 1 (leva 127) |
 | 3º | **X15** melhor quadro e edição em resolução cheia | imagem e velocidade | 1 |
 | 4º | **X16** tela nova do scanner | experiência | 1 a 2 |
 | 5º | **X17** pilha e conferência visuais | experiência | 1 |
@@ -3210,18 +3212,36 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 - **Depende de:** X11.
 - **Fora:** escolher sozinho a melhor lente; zoom automático de enquadramento (X15); foto em resolução cheia para a edição (X15).
 
-**X14 · Resposta imediata** ▶
+**X14 · Resposta imediata** 🟡 (leva 127; aguardando teste no aparelho)
 - **Valor:** a carta entra na pilha na primeira leitura boa, sem esperar a segunda.
 - **Aceite:**
-  - leitura **exata** (nome idêntico a um da base), pelo contorno, com nome de 5 letras ou mais e linha nítida: aceita na primeira passada. Nome curto, leitura aproximada e leitura pela moldura continuam precisando de 2 e 3 leituras;
-  - a próxima passada começa no próximo quadro do vídeo (sem os 120 ms de respiro) enquanto há carta no quadro; sem carta, o laço desacelera para poupar bateria;
+  - leitura **idêntica** a um nome da base (letra por letra, sem limpeza de lixo), pelo contorno, com a carta parada, com nome de 5 letras ou mais e que não seja o começo de outro nome ("Mountain" / "Mountain Goat"): aceita na primeira passada. Nome curto, começo de outro nome, leitura aproximada, carta em movimento e leitura pela moldura continuam precisando de 2 e 3 leituras;
+  - um nome aceito há menos de 2,5 s não entra de novo, mesmo que outra carta tenha sido lida no meio (A, Z, A);
+  - carta já aceita e parada no quadro: o laço descansa 250 ms entre passadas; carta no quadro sem nome por 8 passadas: volta ao passo de 120 ms (bateria);
+  - a próxima passada começa no próximo quadro do vídeo (sem os 120 ms de respiro) enquanto há carta no quadro; sem carta, o laço segue no ritmo antigo, para poupar bateria;
   - nome exato é achado por consulta direta, sem percorrer a base;
-  - a linha do nome vai para o leitor em 600 px;
-  - a edição é lida por um segundo leitor, sem segurar a leitura da carta seguinte; o leitor é aquecido ao abrir;
-  - carta que chega não perde a primeira passada para a régua de movimento.
-- **Testes:** U (porteiro: exata longa pelo contorno entra na 1ª; curta, aproximada e pela moldura não; nada entra errado nos casos da leva 112), fotos (27 fotos sem perda de acerto em 600 px), I headless (uma leitura basta; mediana "até aceitar" abaixo do orçamento com leitor falso; edição não atrasa a carta seguinte).
-- **Depende de:** X13 (a medida). **Risco:** aceitar na primeira leitura é a troca de segurança por velocidade; a salvaguarda é a identidade exata com a base e o desfazer de um toque.
-- **Fora:** leitor mais rápido que o Tesseract.
+  - a edição é lida por um segundo leitor, sem segurar a leitura da carta seguinte.
+- **Entregue (leva 127):** `leituraConfiavel` e `porteiro.voto(found, { confiavel })`; `proximoQuadro` no laço (`requestVideoFrameCallback`); tabela `exatos` no índice de nomes; `createOcr` com dois leitores (nome e edição), o segundo sobe em segundo plano quando o do nome fica pronto e é encerrado ao sair do scanner. O diagnóstico marca "(1ª leitura)" no aceite. "Ler agora" tem a vez sobre o automático; alternar o Automático não cria laços em paralelo.
+- **Revisão independente antes de publicar (02/10/2026), corrigido na mesma leva:** sequência A, Z, A duplicava a carta; a entrada imediata não conferia se a carta estava parada (agora mede o contorno de novo depois da leitura); nota 1 vinda do caminho aproximado contava como idêntica; nome que é começo de outro entrava na primeira; carta aceita parada era lida quadro a quadro; a primeira edição pagava a carga do segundo leitor, que nunca era encerrado; chave repetida no índice ficava com o primeiro nome (agora o mais curto).
+- **Medido (02/10/2026):**
+
+  | Medida | Antes (leva 120) | Depois |
+  |---|---|---|
+  | Tempo de confirmação no navegador de teste (leitor falso: é o custo do próprio app) | 228 ms | **45 a 80 ms** (37 ms antes da conferência de carta parada) |
+  | Passadas até aceitar uma leitura exata pelo contorno | 2, com 120 ms entre elas | 1 |
+  | Fotos com contorno (27 do portão + 11 reais) que entram na primeira leitura | — | 17 de 36 (23 antes de excluir começo de outro nome e nota 1 não idêntica) |
+  | Dessas, aceitas com o nome errado (contra 34 mil nomes) | — | **0** |
+  | Consulta de nome exato | 7 ms (percorre a base) | < 0,05 ms |
+
+- **Medido e NÃO adotado:**
+  - linha do nome em 600 px (estava no aceite original): o leitor ganha ~10 ms por linha no servidor e a carta de moldura antiga que hoje lê deixa de ler (85% → 79%). Ficou em 800 px;
+  - aquecer o leitor com uma leitura em branco ao abrir: o modelo já é carregado na criação do leitor; sem medida no aparelho de que a primeira leitura é mais lenta, não entrou.
+- **Já era assim, conferido:** a carta que chega não perde a primeira passada para a régua de movimento (sem contorno na passada anterior, não há deslocamento a medir).
+- **Risco declarado:** aceitar na primeira leitura troca uma margem de segurança por velocidade. As salvaguardas são a identidade exata com a base, o mínimo de 5 letras, o contorno e o desfazer de um toque. A medida de erro acima é de 36 fotos; o aparelho é quem confirma. Numa pilha, a primeira leitura pode ser a de uma carta de baixo cujo nome aparece inteiro (isso já acontecia com duas leituras).
+- **Expectativas ajustadas com justificativa:** leva 112 (o trecho que alternava dois nomes exatos passou a alternar leituras aproximadas: exata pelo contorno agora entra na primeira); X11 e X3/X5 (a linha de coleção vai para a fila do segundo leitor nos testes); O1.
+- **Testes:** U (porteiro: confiável entra na 1ª, sem a marca precisa de duas, aproximada segue com três; não duplica a carta parada; reentra depois de sair e do intervalo; leitura confiável só com nota 1, contorno e 5 letras; consulta direta com o mesmo resultado, carta dividida, troca típica de OCR, custo), fotos (27, sem mudança de acerto), I headless (uma leitura basta e sai marcada "1ª leitura"; edição com 1,5 s de atraso não segura as leituras de nome; confirmação abaixo de 200 ms; a carta parada não entra de novo; leitura pela moldura segue precisando de duas no teste X1/X2/X4).
+- **Depende de:** X13.
+- **Fora:** leitor mais rápido que o Tesseract; pular a leitura enquanto a carta aceita continua no quadro (numa pilha a carta de cima troca sem o contorno mudar).
 
 **X15 · Melhor quadro e edição em resolução cheia** ○
 - **Valor:** a edição acerta mais e a carta pode ficar mais longe.
@@ -3660,6 +3680,12 @@ conversa paralela à do Shark e à da revisão carta a carta)
 - **Fora (dívidas que ficam medidas, sem guarda-corpo de contagem):** 14 `font-size` e 8 durações em literal nos
   componentes; sem aviso de atualização quando o worker é bloqueado (file://, origem insegura).
 - **Portão:** 719 verdes (`npm test` completo sobre a árvore rebaseada com as levas 119 a 122 das outras trilhas: unidade, fuzz, golden, torneio, fotos e 74 e2e), motor v64 sem mudança. O e2e pegou um parêntese meu errado no rodapé das trocas (leva 114) antes de publicar.
+
+**Leva 127 · X14 resposta imediata** 🟡 (épico E52, segundo passo)
+- **Entregue:** leitura idêntica a um nome da base, pelo contorno, com a carta parada, com 5 letras ou mais e que não seja começo de outro nome, entra na primeira passada; nome aceito há menos de 2,5 s não entra de novo; carta já aceita parada faz o laço descansar; com carta no quadro a passada seguinte sai no próximo quadro do vídeo; nome exato por consulta direta; a edição é lida por um segundo leitor e não segura o nome da carta seguinte.
+- **Medido:** confirmação no navegador de teste de 228 ms para 45 a 80 ms; 17 de 36 fotos entram na primeira leitura, nenhuma com o nome errado contra 34 mil nomes. Linha em 600 px medida e não adotada (perde a moldura antiga por ~10 ms). História **X14**.
+- **Limite declarado:** não testado em aparelho real; a meta de 600 ms até aceitar só se confere com o diagnóstico do celular.
+- **Portão:** `npm test` 725 de 725 verdes (02/10/2026, sobre a árvore com a leva 123 · U16 da outra trilha; rodado de novo por `npm run publicar` depois de receber a leva 124 · Q12), incluindo o e2e novo da X14 e os 71 testes de unidade do scanner. O e2e "goldfish: mão, terreno…" (mesa, fora desta leva) estourou o tempo esperando `#tb-pass` depois de recarregar em 2 de 5 rodadas completas; passa sempre isolado (7 de 7, inclusive com a CPU ocupada) — instável sob carga, causa não achada, não corrigido aqui. O teste passou a dizer em que tela a página voltou quando falha.
 
 **Leva 120 · X13 câmera no máximo e cronômetro de leitura** 🟡 (pedido de 02/10/2026; primeiro passo do épico E52 "Scanner de referência")
 - **Plano do épico:** três frentes na ordem pedida — imagem (X13, X15), velocidade (X14, X15), experiência (X16 a X18) — com orçamentos medidos. Seção "X · Scanner de referência (E52)".
