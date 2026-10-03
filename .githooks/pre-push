@@ -1,0 +1,3 @@
+#!/bin/sh
+# Q12 · guarda de agregação antes de qualquer push no main. Instalado pelo `npm install` (script prepare).
+exec node "$(git rev-parse --show-toplevel)/agregacao.mjs" --pre-push

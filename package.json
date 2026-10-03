@@ -6,7 +6,10 @@
   "scripts": {
     "test": "node --test",
     "test:fuzz:full": "FUZZ_GAMES=3000 node --test engine.fuzz.test.mjs",
-    "golden:update": "node generate.mjs"
+    "golden:update": "node generate.mjs",
+    "publicar": "node publicar.mjs",
+    "agregacao": "node agregacao.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "@tesseract.js-data/eng": "^1.0.0",

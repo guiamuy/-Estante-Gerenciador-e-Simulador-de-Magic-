@@ -14,6 +14,11 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 150   # a guarda de agregação precisa enxergar os commits recentes das outras trilhas
+      - name: Guarda de agregação (nenhuma trilha apaga a entrega de outra)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node agregacao.mjs --faixa "${{ github.event.before }}..${{ github.sha }}"
       - uses: actions/setup-node@v4
         with:
           node-version: 22

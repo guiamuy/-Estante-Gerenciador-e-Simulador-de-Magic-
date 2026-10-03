@@ -140,6 +140,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R2 Rakdos Madness, carta a carta | ▶ |
 | R · Revisão carta a carta | R3–R8 as outras seis listas Pauper, carta a carta · R9 homologação independente | ○ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
+| Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
 
@@ -276,6 +277,8 @@ ganha o passo da funcionalidade na mesma leva.
 - 250 partidas de fuzz a cada push;
 - 3.000 partidas toda noite.
 
+A cada push no `main` o mesmo workflow roda antes a **guarda de agregação** (Q12): nenhuma trilha apaga a entrega de outra sem declarar.
+
 Se o portão falhar, não há deploy (ver seção 8).
 
 ---
@@ -374,6 +377,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-s | Partida online 1x1: transporte abstraído, adaptador local nos testes, Firebase atrás de config (U14) | E48 | 4 | **projeto Firebase do usuário** |
 | 16º-t | Chat na partida online (U15) | E49 | 1 | depende de 16º-s |
 | 16º-u | Roadmap completo de design: auditoria de todas as telas, crítica e plano de elevação (temas, acento, verso, superfície da mesa, densidade, fonte) | U | 1 | capturas do aparelho para a auditoria final |
+| 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -574,6 +578,23 @@ Camadas de teste: **U** unidade · **P** propriedade/fuzz · **G** golden · **I
 - **Testes:** P, I.
 - **Depende de:** A1.
 - **Fora:** —
+
+**Q12 · Publicação aditiva entre trilhas** ✅ (leva 124, 02/10/2026)
+- **Origem:** o usuário passou a trabalhar com conversas simultâneas e pediu a prova de que nada se sobrepôs, e uma camada que faça o deploy sempre somar, salvo intenção declarada.
+- **Auditoria do `main` (levas 109 a 122, 16 commits, linha por linha):** histórico linear, 30 pushes sem push forçado, os dois ramos `acumulado/*` já contidos no `main`. Todo o código e todos os testes das levas 113 a 122 estão vivos no `HEAD`. **Uma perda real:** o commit da leva 122 (trilha do motor) apagou do ROADMAP a história **B17 · Usar os recursos** (leva 119, trilha do bot), 20 linhas; restaurada nesta leva. **Uma remoção de propósito:** a leva 121 tirou o placar da série da faixa (leva 114) e o levou para o balão, dito no próprio commit.
+- **Valor:** cada conversa publica por cima das outras; o que uma entrega a outra não desfaz sem escrever que quis desfazer.
+- **Entregue:**
+  - `agregacao.mjs` (guarda): um commit novo não pode apagar linhas que um commit das últimas 72 horas, de outra trilha, acrescentou. Linha só mudada de lugar, ou que só ganhou conteúdo (todas as palavras e números antigos continuam), não conta. Mostra as linhas, o commit atingido e as duas saídas.
+  - Rodapés no commit: `Trilha: <nome>` (quem publica) e `Sobrescreve: <sha> — motivo` (a única forma de passar apagando; sem motivo não vale).
+  - `npm run publicar` (`publicar.mjs`): busca o `main`, rebase, guarda, portão sobre o código já somado, push sem `--force`; se outra trilha publicar no meio, recomeça.
+  - Gancho `pre-push` (ligado pelo `npm install`) e passo no CI: barram também push forçado e número de leva repetido entre trilhas.
+  - `ROADMAP.md` com `merge=union`: em conflito o git fica com os dois lados, que foi exatamente onde a perda aconteceu.
+  - `CLAUDE.md` na raiz: o protocolo chega sozinho a toda conversa que clonar o repositório.
+- **Testes:** U `agregacao.unit` (14): só acrescentar passa; linha estendida passa e número trocado não; gancho de pre-push (deixa passar o que soma, barra push forçado e cópia antiga); cópia antiga por cima é barrada e o relato traz a linha e o rodapé pronto; declaração com e sem motivo; a própria trilha; linha movida; fora da janela; commit sem trilha; leva repetida; rebase com os dois lados no ROADMAP; instalação; nenhum arquivo com marca de conflito nem id `16º-x` repetido. A guarda rodada sobre o histórico real aponta só os dois casos acima; a leva 123 (U16), que estendeu duas linhas da leva 121 sem tirar nada, passa.
+- **Sem rede:** não muda o app; `index.html` e `sw.js` intactos. Motor continua v64, goldens intactos.
+- **Fora / parcial declarado:** a guarda vê texto, não comportamento: duas trilhas mudando a mesma regra em linhas diferentes só o portão pega. Trabalho que ainda não foi publicado por uma conversa não é visível daqui. O CI acusa depois do push; quem barra antes é o `publicar` e o gancho. O Pages continua publicando o `main` mesmo com portão vermelho (a leva 119 foi ao ar com ✗): amarrar o deploy ao ✓ pede trocar a fonte do Pages para GitHub Actions, decisão do usuário. Upload pela interface web não passa pelo gancho; o CI marca ✗ se ele apagar entrega recente.
+- **Prova em uso, na própria publicação:** enquanto o portão desta leva rodava, a trilha `geral` publicou a leva 123 (U16). O `publicar` recomeçou sozinho, o rebase parou no conflito do ROADMAP (mesma linha `16º-p`, mesmo número de leva) e a resolução ficou com os dois lados: U16 mantém 123 e `16º-p`…`16º-u`; esta leva virou 124 e `16º-v`.
+- **Depende de:** Q6.
 
 **Q11 · Regras das listas Pauper contra o texto oficial, 29/09/2026** ✅ (leva 89)
 - **Origem:** o usuário viu no aparelho o Timberwatch Elf contando só os Elfos dele. O texto diz "the number of Elves on the battlefield" (de todos).
@@ -2511,6 +2532,27 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   fazendo o erro), P.
 - **Depende de:** B8.
 
+**B17 · Usar os recursos** 🟡 (leva 119, 02/10/2026) — parte entregue; "guardar a resposta para a ameaça certa" depende da B9.
+- **Erros de jogo eliminados** (partida narrada Mono Blue Faeries × Boros Bully):
+  - ficava a partida inteira com permanente barata na mão e mana parada → permanente que só custa sair da mão entra
+    na segunda fase principal; a que tem lampejo entra no passo final do oponente;
+  - descartava a anulação tendo terreno sobrando → o descarte escolhe a carta que menos faz falta;
+  - **regressão da leva 118**: virava terrenos à toa quando o oponente conjurava (a nota de passar era medida depois
+    da pilha e a de virar terreno, antes) → virar terreno por conta própria deixou de ser candidata e toda jogada é
+    medida depois da pilha;
+  - decisão de vários segundos em mesa grande → a leitura das respostas do oponente passou a respeitar o relógio.
+- **Medição (sete listas Pauper, 448 partidas em duas fatias, contra o `shark-v5` congelado):** **54% em 443 decididas
+  (238–205)**, dentro da margem de ±5. As fatias deram 59% e 49%. **Ganho de força não demonstrado.** Fica pelo que
+  corrige na mesa, não por força. Medido antes do limite de relógio entrar.
+- **Tempo (cinco partidas, sem concorrência, orçamento de 250 ms):** p50 15 ms, p95 271 ms, p99 343 ms, pior 557 ms.
+  O v5 passava de 700 ms em 29 decisões das mesmas partidas; no torneio houve decisão de 12,9 s.
+- **Erros vistos nas partidas narradas e ainda abertos:** Bogles segura auras e bloqueia com a criatura encantada;
+  recusa o "compre e descarte" opcional; ataca com tudo estando para morrer no contra-ataque de voadoras; baixa a
+  permanente só na segunda fase principal, mesmo quando ela ajudaria no combate.
+- **Ferramenta:** `FATIA=i/n node torneio.listas.mjs ...` divide o torneio entre os núcleos.
+- **Testes:** U (toque de terreno com o v5 errando, mana sobrando no meu turno e no passo final do oponente, descarte).
+- **Depende de:** B11.
+
 ### C · Coleção
 
 **C1 · Coleção por impressão** ✅
@@ -3811,6 +3853,24 @@ conversa paralela à do Shark e à da revisão carta a carta)
 ---
 
 ## 8. Como publicar e verificar
+
+### Publicar a partir de uma conversa (padrão desde a leva 124)
+
+```
+npm install        # uma vez por clone; liga o gancho de pre-push
+npm run publicar   # busca o main, rebase, guarda de agregação, portão, push
+```
+
+Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:` de todo commit):
+
+| Trilha | Escopo |
+|---|---|
+| `bot` | Shark: B9–B20 |
+| `motor` | épico R, regras e scripts de carta |
+| `geral` | design system, scanner, coleção, listas, offline, o que não é bot nem motor |
+| `infra` | portão, CI, publicação |
+
+### Publicar pela interface web
 
 1. Suba os arquivos alterados em **Add file → Upload files**.
 2. A aba **Actions** roda o Portão de release. ✓ verde significa publicável.
