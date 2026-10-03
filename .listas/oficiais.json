@@ -583,22 +583,51 @@
     }
    ],
    "fonte": "https://aetherhub.com/Card/ORI/Smash-to-Smithereens/163",
-   "consulta": "2026-09-30",
+   "consulta": "2026-10-02",
    "incerto": false,
-   "nota": "Fonte unica (AetherHub, printing ORI); custo nao aparece no texto da fonte (simbolos sao imagem), preenchido por conhecimento geral."
+   "nota": "Leva 124: custo {1}{R}, texto e ruling confirmados numa segunda fonte (mtg.wtf, 02/10/2026); antes era fonte única (AetherHub ORI) com o custo preenchido de memória."
   },
   {
    "name": "Dark Withering",
-   "mana_cost": "{B}",
+   "mana_cost": "{4}{B}{B}",
    "type_line": "Instant",
    "oracle_text": "Destroy target nonblack creature.\nMadness {B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
    "power": null,
    "toughness": null,
-   "rulings": [],
-   "fonte": "https://aetherhub.com/Card/TSP/Dark-Withering/101",
-   "consulta": "2026-09-30",
+   "rulings": [
+    {
+     "data": null,
+     "texto": "A card with madness that's discarded counts as having been discarded even though it's put into exile rather than a graveyard."
+    },
+    {
+     "data": null,
+     "texto": "A spell cast for its madness cost is put onto the stack like any other spell. It can be countered, copied, and so on."
+    },
+    {
+     "data": null,
+     "texto": "Casting a spell with madness ignores the timing rules based on the card's card type."
+    },
+    {
+     "data": null,
+     "texto": "If you choose not to cast a card with madness when the madness triggered ability resolves, it's put into your graveyard."
+    },
+    {
+     "data": null,
+     "texto": "If you discard a card with madness to pay the cost of a spell or activated ability, that card's madness triggered ability will resolve before the spell or ability the discard paid for."
+    },
+    {
+     "data": null,
+     "texto": "If you discard a card with madness while a spell or ability is resolving, it moves immediately to exile."
+    },
+    {
+     "data": null,
+     "texto": "Madness works independently of why you're discarding the card."
+    }
+   ],
+   "fonte": "https://mtg.wtf/card/tsp/101/Dark-Withering",
+   "consulta": "2026-10-02",
    "incerto": false,
-   "nota": "Fonte unica (AetherHub TSP). Rulings nao obtidos (nenhum exibido na fonte)."
+   "nota": "Leva 124: custo corrigido de {B} para {4}{B}{B} (a fonte anterior, AetherHub, não trazia o custo no texto e o campo tinha ficado com o custo de insanidade). Texto, custo e rulings conferidos em mtg.wtf (TSP #101) em 02/10/2026; a Scryfall recusou a consulta."
   },
   {
    "name": "Gladecover Scout",

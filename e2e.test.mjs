@@ -1688,7 +1688,10 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   await page.click('#tb-pass-turn');
   await page.waitForFunction(() => document.querySelector('#tb-hand') && document.querySelector('#tb-hand').dataset.forcada === 'true', null, { timeout: 5000 });
   assert.equal(await page.getAttribute('#tb-hand', 'data-recolhida'), 'false');
-  assert.match(await page.innerText('#tb-hand-aviso'), /Escolha o que descartar/);
+  // Leva 124 · expectativa ajustada com justificativa: com decisão pendente, a bandeja escreve a pergunta inteira no
+  // cabeçalho de decisão; o aviso curto "Escolha o que descartar" diria a mesma coisa duas vezes e saiu nesse estado
+  assert.match((await page.innerText('#tb-decisao')).replace(/\s+/g, ' '), /^Descarte \d+ cartas? Limpeza: mão acima de 7 cartas/);
+  assert.equal(await page.locator('#tb-hand-aviso').count(), 0);
   assert.match(await page.getAttribute('#tb-hand-toggle', 'aria-label'), /aberta para descarte/);
   assert.equal(await page.locator('#tb-hand-toggle').isDisabled(), true, 'não dá para recolher no meio do descarte');
   while (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); })) {
@@ -3180,11 +3183,14 @@ test('e2e · leva 104 escolhas de quem paga: Jaspera vira a criatura escolhida, 
   await gerar.nth(4).click();
   await page.waitForSelector('#tb-escolha');
   assert.match(await page.innerText('#tb-escolha-pergunta'), /Qual criatura vira para pagar/);
-  const opcoes = await page.locator('#tb-escolha .ds-btn').allInnerTexts();
+  // Leva 124 · expectativa ajustada com justificativa: a escolha de UMA carta deixou de ser uma lista de botões com o
+  // nome e passou a mostrar as cartas (toque na carta); o nome falado de cada uma continua "Virar <carta>"
+  const opcoes = await page.locator('#tb-escolha .tb-card').evaluateAll(cs => cs.map(c => c.getAttribute('aria-label')));
   assert.deepEqual(opcoes.slice().sort(), ['Virar Elvish Visionary', 'Virar Grizzly Bear']);
+  assert.equal(await page.locator('#tb-escolha .ds-btn').count(), 0);
   await auditaTela(page, 'escolha do custo');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/escolha-custo.png' });
-  await page.click('#tb-escolha >> text=Virar Elvish Visionary');
+  await page.click('#tb-escolha [data-escolha="Elvish Visionary"]');
   await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].tapped, vis);
   const depois = await page.evaluate(([u, p]) => { const s = window.__estanteMesa.estado(); return { urso: s.objects[u].tapped, verde: s.players[p].pool.G }; }, [urso, eu]);
   assert.equal(depois.urso, false, 'o Urso, que eu não escolhi, continua desvirado');
@@ -3697,7 +3703,7 @@ test('e2e · leva 111 ficha de Sangue: sem mana a habilidade aparece apagada com
   const mao = await page.evaluate(p => window.__estanteMesa.estado().zones[p].hand.length, p);
   await ficha.click(); await page.waitForSelector('.ds-dialog');
   await page.click('.ds-dialog .ds-btn:has-text("Ativar ({1}, {T}, descartar uma carta, sacrificar)")');
-  if (await page.locator('#tb-escolha').count()) { await page.locator('#tb-escolha .ds-btn').first().click(); }
+  if (await page.locator('#tb-escolha').count()) { await page.locator('#tb-escolha .tb-card').first().click(); } // Leva 124 · a carta do custo se escolhe tocando nela
   for (let i = 0; i < 6 && await page.evaluate(() => window.__estanteMesa.estado().stack.length > 0); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(150); }
   const fim = await page.evaluate(p => { const s = window.__estanteMesa.estado(); return { sangue: s.zones[p].battlefield.filter(o => s.objects[o].name === 'Blood').length, mao: s.zones[p].hand.length, cemiterio: s.zones[p].graveyard.length }; }, p);
   assert.deepEqual(fim, { sangue: 0, mao, cemiterio: 1 }, 'descartou uma, comprou uma, a ficha sumiu');
@@ -4280,4 +4286,203 @@ test('e2e · Leva 123 diálogo prende o foco e devolve a quem abriu; aviso com a
   await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(100);
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim()), '', 'fora da tela com doca, a reserva some');
   assert.deepEqual(errors, []);
+});
+
+/* ---------------- Leva 124 · R2 · Rakdos Madness carta a carta: decisões legíveis ---------------- */
+const comLista124 = async (t, texto, nomes, semente) => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, nomes);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'R2', texto, 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', semente);
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal121(page);
+  const M = {
+    page, errors,
+    est: () => estado121(page),
+    act: a => page.evaluate(a => { try { window.__estanteMesa.act(a); return true; } catch (e) { return String(e); } }, a),
+    oid: (nome, zona = 'hand') => page.evaluate(([nome, zona]) => { const s = window.__estanteMesa.estado(); return s.zones[0][zona].find(o => s.objects[o].name === nome) || null; }, [nome, zona]),
+    legal: f => page.evaluate(f => window.__estanteMesa.legais().filter(new Function('a', 'return ' + f)), f),
+    decisao: async () => (await page.locator('#tb-decisao').innerText()).replace(/\s*\n+\s*/g, ' | '),
+    terreno: async () => { for (const n of ['Mountain', 'Swamp']) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) return n; } return null; },
+    proximo: async () => { await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(150); await meuPrincipal121(page); },
+    resolve: async () => { for (let i = 0; i < 20; i++) { const e = await estado121(page); if (e.pend || !e.pilha) return e; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(100); } return estado121(page); },
+    desvirados: () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.filter(o => !s.objects[o].tapped && s.facts[s.objects[o].name].types.includes('land')).map(o => s.objects[o].name); }),
+  };
+  return M;
+};
+
+test('e2e · Leva 124 · Rakdos: carta que não pode ser jogada diz por quê, e o pagamento vira só o que precisa', { skip }, async t => {
+  const M = await comLista124(t, '10 Mountain\n10 Swamp\n14 Faithless Looting\n10 Fiery Temper\n8 Kitchen Imp\n8 Grab the Prize', ['Mountain', 'Swamp', 'Faithless Looting', 'Fiery Temper', 'Kitchen Imp', 'Grab the Prize'], '3');
+  const { page } = M;
+  // sem terreno em campo: a folha de uma mágica diz "mana insuficiente" (antes vinha só com "Fechar")
+  let e = await M.est();
+  const magica = e.mao.find(n => !['Mountain', 'Swamp'].includes(n));
+  await page.locator(`#tb-hand .tb-card[aria-label^="${magica}"]`).first().click(); await page.waitForSelector('.ds-dialog');
+  const apagado = page.locator('.ds-dialog .tb-sheet__actions button').first();
+  assert.equal(await apagado.isDisabled(), true);
+  assert.match(await apagado.innerText(), /^Conjurar · .* — mana insuficiente$/, 'motivo: mana, não "escolha 1 alvo(s)"');
+  await auditaTela(page, 'folha com o motivo de não poder conjurar');
+  await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+  // segundo terreno no mesmo turno: a folha diz por quê
+  assert.ok(await M.terreno());
+  e = await M.est(); const outro = e.mao.find(n => ['Mountain', 'Swamp'].includes(n));
+  if (outro) { await page.locator(`#tb-hand .tb-card[aria-label^="${outro}"]`).first().click(); await page.waitForSelector('.ds-dialog');
+    assert.match(await page.locator('.ds-dialog .tb-sheet__actions button').first().innerText(), /^Jogar terreno — já jogou terreno neste turno$/);
+    await page.click('#ds-dialog-close'); await page.waitForTimeout(150); }
+  // chega a duas cores em campo e paga {R}: vira uma Mountain só, nenhuma mana fica flutuando
+  for (let i = 0; i < 12; i++) { e = await M.est(); const d = await M.desvirados(); if (d.includes('Mountain') && d.includes('Swamp') && d.length >= 3 && e.mao.includes('Faithless Looting')) break; await M.proximo(); await M.terreno(); }
+  const antes = await M.desvirados();
+  assert.ok(antes.includes('Mountain') && antes.includes('Swamp') && antes.length >= 3, 'duas cores em campo: ' + antes.join(','));
+  await page.locator('#tb-hand .tb-card[aria-label^="Faithless Looting"]').first().click(); await naFolha(page, /^Conjurar/);
+  const depois = await M.desvirados();
+  assert.equal(depois.length, antes.length - 1, 'Faithless Looting custa {R}: um terreno virado (antes, com Swamp de número menor, viravam todos até a Mountain)');
+  assert.equal(depois.filter(n => n === 'Swamp').length, antes.filter(n => n === 'Swamp').length, 'nenhum Swamp virado para pagar vermelho');
+  assert.equal(await page.evaluate(() => Object.values(window.__estanteMesa.estado().players[0].pool).reduce((a, b) => a + b, 0)), 0, 'nada flutuando');
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 124 · Rakdos: a pergunta de cada decisão fica escrita na bandeja (descarte por efeito, insanidade, lampejo pelo cemitério)', { skip }, async t => {
+  const M = await comLista124(t, '12 Mountain\n8 Swamp\n14 Faithless Looting\n8 Fiery Temper\n8 Kitchen Imp\n10 Grab the Prize', ['Mountain', 'Swamp', 'Faithless Looting', 'Fiery Temper', 'Kitchen Imp', 'Grab the Prize'], '5');
+  const { page } = M; let e;
+  await M.terreno();
+  for (let i = 0; i < 14; i++) { e = await M.est(); const d = await M.desvirados(); if (d.filter(n => n === 'Mountain').length >= 2 && d.includes('Swamp') && e.mao.includes('Faithless Looting') && e.mao.includes('Kitchen Imp')) break; await M.proximo(); await M.terreno(); }
+  e = await M.est(); assert.ok(e.mao.includes('Faithless Looting') && e.mao.includes('Kitchen Imp'), 'mão pronta: ' + e.mao.join(','));
+  // Faithless Looting: o descarte diz de qual carta é (antes: "Mão acima de 7 na limpeza")
+  await page.locator('#tb-hand .tb-card[aria-label^="Faithless Looting"]').first().click(); await naFolha(page, /^Conjurar/);
+  e = await M.resolve(); assert.equal(e.pend, 'discard');
+  assert.equal(await M.decisao(), 'Faithless Looting: descarte 2 cartas | Toque na carta da mão que você descarta.');
+  assert.doesNotMatch(await page.innerText('.tb-dock'), /limpeza/i);
+  assert.ok((await page.locator('.tb-dock .tb-banner__text').boundingBox()).width <= 2, 'com a pergunta escrita, a palavra do momento e o balão saem da vista (o texto continua no documento)');
+  assert.equal(await page.locator('.tb-dock button.tb-banner__text').count(), 0, 'e não sobra botão invisível');
+  await auditaTela(page, 'descarte por efeito');
+  // descarta o Kitchen Imp: insanidade com a carta, o custo e as duas saídas à vista
+  await page.locator('#tb-hand .tb-card[aria-label^="Kitchen Imp"]').first().click(); await page.waitForTimeout(250);
+  e = await M.est(); assert.equal(e.pend, 'madness');
+  assert.match(await M.decisao(), /^Kitchen Imp: insanidade \{B\} \| Conjure agora por \{B\} ou deixe ir para o cemitério\.$/);
+  assert.equal(await page.locator('#tb-decisao .ds-sym').count() >= 2, true, 'o custo aparece em símbolo');
+  assert.deepEqual(await page.locator('.tb-dock .tb-banner__actions button').allInnerTexts(), ['Conjurar', 'Cemitério'], 'dois botões de uma palavra');
+  assert.equal(await page.locator('#tb-madness').isEnabled(), true);
+  await auditaTela(page, 'insanidade');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/124-insanidade.png' });
+  await page.click('#tb-madness'); await page.waitForTimeout(250);
+  e = await M.est(); assert.ok(e.pilha >= 1, 'Kitchen Imp na pilha por insanidade');
+  // segundo descarte da mesma Looting continua dizendo a fonte
+  assert.equal(e.pend, 'discard'); assert.equal(await M.decisao(), 'Faithless Looting: descarte 1 carta | Toque na carta da mão que você descarta.');
+  const fica = e.mao.find(n => !['Kitchen Imp', 'Fiery Temper'].includes(n));
+  await page.locator(`#tb-hand .tb-card[aria-label^="${fica}"]`).first().click(); await page.waitForTimeout(200);
+  for (let i = 0; i < 12; i++) { e = await M.est(); if (e.pend === 'madness') await page.click('#tb-madness-no'); else if (e.pilha) await page.click('#tb-pass').catch(() => {}); else break; await page.waitForTimeout(120); }
+  e = await M.est(); assert.ok(e.campo.includes('Kitchen Imp'), 'o Imp entrou'); assert.ok(e.cemiterio.includes('Faithless Looting'));
+  // lampejo: sem mana sobrando, o chip do cemitério não acende e a folha diz por quê
+  const chip = page.locator('#tb-cemiterio-me');
+  const sobra = (await M.desvirados()).length;
+  if (sobra < 3) {
+    assert.equal(await chip.getAttribute('data-jogaveis'), null, 'sem mana para o lampejo: sem ponto');
+    await chip.click(); await page.waitForSelector('.ds-dialog .tb-zonegrid');
+    await page.locator('.ds-dialog .tb-card[aria-label^="Faithless Looting"]').first().click(); await page.waitForTimeout(250);
+    assert.match(await page.locator('.ds-dialog .tb-sheet__actions button').first().innerText(), /^Lampejo do passado · \{2\}\{R\} — mana insuficiente$/);
+    await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+  }
+  // turno seguinte, com mana: o chip acende, o cemitério não empilha cartas e o lampejo diz só o custo dele
+  await M.proximo(); await M.terreno();
+  for (let i = 0; i < 6 && (await M.desvirados()).length < 3; i++) { await M.proximo(); await M.terreno(); }
+  assert.ok(Number(await chip.getAttribute('data-jogaveis')) >= 1, 'há carta jogável no cemitério');
+  assert.match(await chip.getAttribute('aria-label'), /Cemitério: \d+, .*pode.* ser jogada.* agora/);
+  await auditaTela(page, 'mesa com o chip do cemitério aceso');
+  await chip.click(); await page.waitForSelector('.ds-dialog .tb-zonegrid');
+  const sobre = await page.evaluate(() => { const cs = [...document.querySelectorAll('.ds-dialog .tb-zonegrid .tb-card')].map(c => c.getBoundingClientRect()); let n = 0;
+    for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) if (cs[i].left < cs[j].right - 1 && cs[j].left < cs[i].right - 1 && cs[i].top < cs[j].bottom - 1 && cs[j].top < cs[i].bottom - 1) n++; return [cs.length, n]; });
+  assert.ok(sobre[0] >= 2); assert.equal(sobre[1], 0, 'nenhuma carta do cemitério por cima de outra');
+  await auditaTela(page, 'cemitério aberto');
+  await page.locator('.ds-dialog .tb-card[aria-label^="Faithless Looting"]').first().click(); await page.waitForTimeout(250);
+  const lampejo = page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Lampejo do passado/ });
+  assert.equal((await lampejo.innerText()).replace(/\s+/g, ' ').trim(), 'Lampejo do passado · {2}{R}', 'só o custo do lampejo (antes vinha "· {2}{R} · {R}")');
+  await lampejo.click(); e = await M.resolve();
+  assert.equal(e.pend, 'discard'); assert.match(await M.decisao(), /^Faithless Looting: descarte \d cartas?/);
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 124 · Rakdos: escolher a carta do custo é tocar na carta (cópias iguais juntas), e a insanidade sem mana explica', { skip }, async t => {
+  const M = await comLista124(t, '14 Mountain\n6 Swamp\n16 Grab the Prize\n12 Kitchen Imp\n12 Fiery Temper', ['Mountain', 'Swamp', 'Grab the Prize', 'Kitchen Imp', 'Fiery Temper'], '7');
+  const { page } = M; let e;
+  await M.terreno();
+  // só Mountain em campo, duas, e Kitchen Imp na mão: Grab the Prize paga {1}{R} e a insanidade {B} do Imp não tem como ser paga
+  for (let i = 0; i < 14; i++) { e = await M.est(); const d = await M.desvirados(); if (d.length >= 2 && d.every(n => n === 'Mountain') && e.mao.includes('Grab the Prize') && e.mao.includes('Kitchen Imp') && e.mao.filter(n => n === 'Grab the Prize').length >= 2) break; await M.proximo(); const o = await M.oid('Mountain'); if (o) await M.act({ t: 'play_land', p: 0, oid: o }); }
+  e = await M.est(); assert.ok(e.mao.includes('Grab the Prize') && e.mao.includes('Kitchen Imp'), 'mão pronta: ' + e.mao.join(','));
+  await page.locator('#tb-hand .tb-card[aria-label^="Grab the Prize"]').first().click(); await naFolha(page, /^Conjurar/);
+  await page.waitForSelector('#tb-escolha .tb-card');
+  assert.match(await page.innerText('#tb-escolha-pergunta'), /Qual carta você descarta\? Toque na carta\./);
+  const nomes = await page.locator('#tb-escolha > *').evaluateAll(cs => cs.map(c => c.dataset.escolha));
+  assert.equal(new Set(nomes).size, nomes.length, 'cada carta diferente aparece uma vez: ' + nomes.join(','));
+  const outras = e.mao.filter(n => n === 'Grab the Prize').length - 1;
+  if (outras > 1) assert.match(await page.locator('#tb-escolha [data-escolha="Grab the Prize"]').innerText(), new RegExp(`×${outras}`), 'cópias iguais numa pilha só');
+  assert.equal(await page.locator('#tb-escolha .ds-btn').count(), 0, 'cartas, não uma lista de botões');
+  await auditaTela(page, 'escolha da carta do custo');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/124-escolha-carta.png' });
+  await page.locator('#tb-escolha [data-escolha="Kitchen Imp"]').click(); await page.waitForTimeout(250);
+  e = await M.est(); assert.equal(e.pend, 'madness'); assert.ok(e.pilha >= 1, 'Grab the Prize na pilha, custo pago');
+  assert.match(await M.decisao(), /^Kitchen Imp: insanidade \{B\} \| Sem mana para pagar \{B\} agora: ela vai para o cemitério\.$/);
+  assert.equal(await page.locator('#tb-madness').isDisabled(), true, 'Conjurar apagado, não sumido');
+  await auditaTela(page, 'insanidade sem mana');
+  await page.click('#tb-madness-no'); await page.waitForTimeout(200);
+  e = await M.resolve(); assert.ok(e.cemiterio.includes('Kitchen Imp'));
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · Leva 124 · Rakdos: alvo de gatilho sem botão "principal", escolha do Carnarium e pagamento da Nihil Spellbomb dizem o que fazem', { skip }, async t => {
+  const M = await comLista124(t, '8 Mountain\n6 Swamp\n8 Rakdos Carnarium\n8 Bojuka Bog\n12 Nihil Spellbomb\n8 Voldaren Epicure\n10 Cast into the Fire', ['Mountain', 'Swamp', 'Rakdos Carnarium', 'Bojuka Bog', 'Nihil Spellbomb', 'Voldaren Epicure', 'Cast into the Fire'], '8');
+  const { page } = M; let e; const feitos = new Set();
+  const limpa = async () => { for (let i = 0; i < 8; i++) { e = await M.est(); if (!e.pend && !e.pilha) return; if (e.pend === 'pick_target') await M.act({ t: 'pick_target', p: 0, index: 1 }); else if (e.pend === 'pick') await M.act({ t: 'pick', p: 0, oid: await page.evaluate(() => window.__estanteMesa.estado().pending.from[0]) }); else if (e.pend === 'may_pay') await M.act({ t: 'decline', p: 0 }); else await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); } };
+  for (let turno = 0; turno < 22 && feitos.size < 4; turno++) {
+    e = await M.est();
+    for (const nome of ['Bojuka Bog', 'Rakdos Carnarium', 'Swamp', 'Mountain']) {
+      if (!e.mao.includes(nome) || (nome === 'Rakdos Carnarium' && e.campo.length < 1) || (['Bojuka Bog', 'Rakdos Carnarium'].includes(nome) && feitos.has(nome))) continue;
+      if (await M.act({ t: 'play_land', p: 0, oid: await M.oid(nome) }) !== true) continue;
+      await page.waitForTimeout(250); e = await M.est();
+      if (nome === 'Bojuka Bog' && e.pend === 'pick_target') {
+        assert.match(await M.decisao(), /^Bojuka Bog: escolha o alvo \| O gatilho faz: /);
+        assert.deepEqual(await page.locator('.tb-dock .tb-banner__actions button').allInnerTexts(), ['Você', 'Goldfish']);
+        assert.equal(await page.locator('.tb-dock .tb-banner__actions .ds-btn--primary').count(), 0, 'nenhum alvo vem como principal (antes: "Você", que exilava o próprio cemitério)');
+        await auditaTela(page, 'alvo do gatilho do Bojuka Bog'); feitos.add(nome);
+      }
+      if (nome === 'Rakdos Carnarium' && e.pend === 'pick') {
+        assert.equal(await M.decisao(), 'Rakdos Carnarium · Escolha o que volta para a mão | Toque na carta.');
+        assert.equal(await page.locator('#tb-pick-cards .tb-card[data-tapped="true"]').count(), 0, 'na fileira de escolha, todas as cartas em pé');
+        assert.ok(await page.locator('#tb-pick-cards .tb-card[aria-label^="Rakdos Carnarium"]').count() >= 1, 'o próprio Carnarium pode voltar');
+        await auditaTela(page, 'escolha do Rakdos Carnarium'); feitos.add(nome);
+      }
+      await limpa(); break;
+    }
+    for (const nome of ['Voldaren Epicure', 'Nihil Spellbomb']) { e = await M.est(); const o = e.mao.includes(nome) && e.campo.filter(n => n === nome).length < 2 ? await M.oid(nome) : null; const l = o ? (await M.legal(`a.t === 'cast' && a.oid === '${o}'`))[0] : null; if (l) { await M.act(l); await M.resolve(); await limpa(); } }
+    e = await M.est();
+    // Cast into the Fire com duas criaturas minhas em campo: cada combinação de alvos uma vez só
+    if (!feitos.has('Cast') && e.mao.includes('Cast into the Fire') && e.campo.filter(n => n === 'Voldaren Epicure').length >= 2 && (await M.legal(`a.t === 'cast' && a.mode === 0`)).length) {
+      await page.locator('#tb-hand .tb-card[aria-label^="Cast into the Fire"]').first().click(); await page.waitForSelector('.ds-dialog');
+      const rot = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
+      const pares = rot.filter(x => /Voldaren Epicure \+ Voldaren Epicure/.test(x));
+      const n = e.campo.filter(x => x === 'Voldaren Epicure').length;
+      assert.equal(pares.length, n * (n - 1) / 2, `pares de alvos sem repetir a ordem (${n} criaturas): ${pares.length}`);
+      assert.equal(new Set(rot).size <= rot.length, true);
+      await auditaTela(page, 'folha da Cast into the Fire'); feitos.add('Cast');
+      await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+    }
+    // Nihil Spellbomb: sacrifica, e o gatilho pergunta dizendo o que se ganha
+    e = await M.est();
+    const ativa = !feitos.has('Spellbomb') && e.campo.includes('Nihil Spellbomb') ? (await M.legal(`a.t === 'activate' && a.targets && a.targets[0].player === 1`))[0] : null;
+    const pretoLivre = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.some(o => !s.objects[o].tapped && /Swamp|Bojuka Bog|Rakdos Carnarium/.test(s.objects[o].name)); });
+    if (ativa && pretoLivre) {
+      await M.act(ativa);
+      for (let i = 0; i < 8; i++) { e = await M.est(); if (e.pend === 'may_pay') break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
+      assert.equal(e.pend, 'may_pay');
+      assert.equal(await M.decisao(), 'Nihil Spellbomb: pagar {B}? | Se pagar: compra 1 carta. Recusando, nada acontece.');
+      assert.deepEqual((await page.locator('.tb-dock .tb-banner__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim()), ['Pagar {B}', 'Não pagar']);
+      await auditaTela(page, 'pagamento da Nihil Spellbomb');
+      const mao = e.mao.length; await page.click('#tb-pay'); await page.waitForTimeout(250); await limpa();
+      assert.equal((await M.est()).mao.length, mao + 1, 'pagou e comprou'); feitos.add('Spellbomb');
+    }
+    await M.proximo();
+  }
+  assert.deepEqual([...feitos].sort(), ['Bojuka Bog', 'Cast', 'Rakdos Carnarium', 'Spellbomb'], 'as quatro decisões foram exercitadas');
+  assert.deepEqual(M.errors, []);
 });

@@ -484,7 +484,7 @@
    }
   },
   "Voldaren Epicure": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -492,10 +492,25 @@
     "fonte": "https://scryfall.com/card/vow/308/voldaren-epicure",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: 1 de dano em cada oponente e ficha de Sangue ao entrar; a ficha descarta como custo (insanidade vale)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "escolha da carta descartada pela ficha agora é tocar na carta (cópias iguais juntas)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Kitchen Imp",
+    "pauper.regras: Leva 105 insanidade",
+    "e2e: Leva 124 · Rakdos: escolher a carta do custo"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -513,7 +528,7 @@
    }
   },
   "Sneaky Snacker": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -521,10 +536,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/sneaky_snacker.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: volta virada na terceira compra do turno, só se já estava no cemitério naquele momento; voa."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "gatilho automático, sem decisão; registro conta."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Sneaky Snacker"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -540,7 +568,7 @@
    }
   },
   "Kitchen Imp": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -548,10 +576,25 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/k/kitchen_imp.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: insanidade {B} a qualquer momento (ignora o tempo de feitiço), voa e tem ímpeto."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "insanidade: pergunta escrita na bandeja (cabeçalho de decisão), \"Conjurar\" apagado com o motivo quando falta mana."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Kitchen Imp",
+    "e2e: Leva 124 · Rakdos: a pergunta de cada decisão",
+    "e2e: Leva 124 · Rakdos: insanidade sem mana"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -565,7 +608,7 @@
    }
   },
   "Lightning Bolt": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness",
     "Pauper Boros Bully"
@@ -574,10 +617,24 @@
     "fonte": "https://scryfall.com/card/a25/141/lightning-bolt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: 3 de dano em qualquer alvo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "alvos em grupos (leva 110); carta sem mana diz \"mana insuficiente\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "pauper.regras: Leva 110 qualquer alvo",
+    "e2e: Leva 124 · Rakdos: carta que não pode ser jogada"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -591,7 +648,7 @@
    }
   },
   "Fiery Temper": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -599,10 +656,24 @@
     "fonte": "https://casualplaneswalker.com/card/fiery-temper/",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: 3 de dano em qualquer alvo; insanidade {R} com alvo escolhido na conjuração."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "insanidade: pergunta escrita na bandeja (cabeçalho de decisão); alvo na folha de alvos."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Faithless Looting descartando duas",
+    "e2e: Leva 124 · Rakdos: a pergunta de cada decisão"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -618,7 +689,7 @@
    }
   },
   "Faithless Looting": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness",
     "Pauper Boros Bully",
@@ -628,10 +699,24 @@
     "fonte": "https://scryfall.com/card/soc/244/faithless-looting",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: compra duas e descarta duas na mesma resolução; lampejo {2}{R} exila. Simplificação declarada: a decisão de insanidade de cada carta vem logo depois do descarte dela (as duas vão para a pilha; a ordem é a dos descartes)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "descarte diz a carta de origem (antes: \"limpeza\"); lampejo: ponto no chip do cemitério, rótulo só com o custo do lampejo, motivo quando falta mana."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Faithless Looting (2 testes)",
+    "e2e: Leva 124 · Rakdos: a pergunta de cada decisão"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -648,7 +733,7 @@
    }
   },
   "Grab the Prize": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -656,10 +741,25 @@
     "fonte": "https://scryfall.com/card/dsk/138/grab-the-prize",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: descarte é custo adicional (anulada, o custo já foi pago); sem dano se a descartada for terreno."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "a carta do custo se escolhe tocando nela, com cópias iguais juntas (antes: lista de botões \"Descartar X (1)\")."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Grab the Prize",
+    "pauper.regras: Leva 105",
+    "e2e: Leva 124 · Rakdos: escolher a carta do custo"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -738,7 +838,7 @@
    ]
   },
   "Vampire's Kiss": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -746,10 +846,23 @@
     "fonte": "https://scryfall.com/card/vow/136/vampires-kiss",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: mira qualquer jogador; perda de vida (não é dano); duas fichas de Sangue."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "alvo na folha da carta."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Vampire's Kiss"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -766,7 +879,7 @@
    }
   },
   "Alms of the Vein": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -774,10 +887,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/a/alms_of_the_vein.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: só o oponente é alvo; insanidade {B}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "insanidade: pergunta escrita na bandeja (cabeçalho de decisão)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Vampire's Kiss"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -794,7 +920,7 @@
    }
   },
   "End the Festivities": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -802,10 +928,24 @@
     "fonte": "https://scryfall.com/card/vow/155/end-the-festivities",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: sem alvo; 1 em cada oponente e em cada criatura e planeswalker dele."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conjurar direto, sem pergunta."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: End the Festivities",
+    "pauper.regras"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -819,7 +959,7 @@
    }
   },
   "Jagged Barrens": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -827,10 +967,24 @@
     "fonte": "https://scryfall.com/card/otj/259",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: entra virado, 1 de dano no oponente alvo, {B} ou {R}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "um oponente só: sem pergunta."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: terrenos da lista",
+    "mana.unit: fonte flexível"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -848,7 +1002,7 @@
    }
   },
   "Bojuka Bog": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness",
     "Commander Orzhov Killian"
@@ -857,10 +1011,24 @@
     "fonte": "https://casualplaneswalker.com/card/bojuka-bog/faq/",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: entra virado; exila o cemitério do jogador alvo (qualquer jogador)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "alvo do gatilho: pergunta escrita na bandeja (cabeçalho de decisão), e nenhum botão vem dourado (antes o destaque era \"Você\")."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: terrenos da lista",
+    "e2e: Leva 124 · Rakdos: alvo de gatilho"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -878,7 +1046,7 @@
    }
   },
   "Razortrap Gorge": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -886,10 +1054,23 @@
     "fonte": "https://scryfall.com/card/dsk/267/razortrap-gorge",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: virado a menos que algum jogador tenha 13 ou menos de vida."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "sem decisão."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: terrenos da lista"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -903,7 +1084,7 @@
    }
   },
   "Rakdos Carnarium": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -911,10 +1092,24 @@
     "fonte": "https://scryfall.com/card/gk2/77",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: entra virado; devolve um terreno seu (pode ser ele mesmo; sozinho, volta ele); {B}{R}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "escolha: pergunta escrita na bandeja (cabeçalho de decisão), cartas em pé na fileira (terreno virado saía girado)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: terrenos da lista",
+    "e2e: Leva 124 · Rakdos: alvo de gatilho"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -932,7 +1127,7 @@
    }
   },
   "Red Elemental Blast": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness",
     "Pauper Boros Bully",
@@ -942,10 +1137,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/r/red_elemental_blast.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: os dois modos só miram azul."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "um botão por modo e alvo."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Red Elemental Blast"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -962,7 +1170,7 @@
    }
   },
   "Duress": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -970,10 +1178,24 @@
     "fonte": "https://scryfall.com/card/one/92/duress",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido na leva 107: mão revelada, escolhe não criatura e não terreno, é descarte (insanidade vale)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "mão revelada com as que não servem apagadas (leva 107); título agora diz \"Duress · Escolha o descarte do oponente\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "pauper.regras: Leva 105/107",
+    "e2e: leva 107 Duress"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -987,7 +1209,7 @@
    }
   },
   "Nihil Spellbomb": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness",
     "Pauper Jund Wildfire"
@@ -996,10 +1218,24 @@
     "fonte": "https://scryfall.com/card/a25/226/nihil-spellbomb",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: mira qualquer jogador; o gatilho de ir ao cemitério pergunta {B} para comprar."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "pagamento: pergunta escrita na bandeja (cabeçalho de decisão) dizendo o que se ganha (\"compra 1 carta\"); \"Não pagar\"."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Nihil Spellbomb",
+    "e2e: Leva 124 · Rakdos: alvo de gatilho"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1016,7 +1252,7 @@
    }
   },
   "Cast into the Fire": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -1024,10 +1260,24 @@
     "fonte": "https://www.hareruyamtg.com/en/products/detail/132966",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: zero, um ou dois alvos diferentes no primeiro modo; exilar artefato no segundo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "cada combinação de dois alvos aparece uma vez (antes: A + B e B + A)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Red Elemental Blast",
+    "e2e: Leva 124 · Rakdos: alvo de gatilho"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1044,7 +1294,7 @@
    }
   },
   "Smash to Smithereens": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -1052,10 +1302,23 @@
     "fonte": "https://aetherhub.com/Card/ORI/Smash-to-Smithereens/163",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: mira só o artefato; 3 de dano no controlador; alvo ilegal ao resolver, nada acontece. Custo confirmado em segunda fonte."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "alvo na folha."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Red Elemental Blast"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -1070,7 +1333,7 @@
    }
   },
   "Dark Withering": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Rakdos Madness"
    ],
@@ -1078,10 +1341,24 @@
     "fonte": "https://aetherhub.com/Card/TSP/Dark-Withering/101",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 124,
+    "obs": "conferido: não mira criatura preta; insanidade {B}. Custo corrigido no arquivo de textos ({4}{B}{B})."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 124,
+    "obs": "insanidade: pergunta escrita na bandeja (cabeçalho de decisão)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "rakdos.regras: Dark Withering",
+    "rakdos.regras: Red Elemental Blast"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
