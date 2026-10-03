@@ -25,7 +25,16 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - name: Unidade, fuzz, golden, integração e contrato visual
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee portao.log
         env:
           CI: 'true'
           FUZZ_GAMES: ${{ github.event_name == 'schedule' && '3000' || '250' }}
+      # Quando o portão cai, o nome de cada teste que falhou e a primeira linha do erro viram anotação do job:
+      # dá para ler pela API (gh api .../check-runs/<id>/annotations) sem baixar o log inteiro.
+      - name: Testes que falharam
+        if: failure()
+        run: |
+          test -f portao.log || exit 0
+          awk '/^not ok/ { nome=$0; pega=1; next } pega && /error:/ { getline l1; getline l2; gsub(/^ +/, "", l1); gsub(/^ +/, "", l2); print "::error title=" substr(nome, 1, 120) "::" nome " — " $0 " " l1 " " l2; pega=0 }' portao.log | head -10
