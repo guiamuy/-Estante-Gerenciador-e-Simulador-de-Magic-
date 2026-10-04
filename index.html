@@ -13929,7 +13929,7 @@ function descreveAlvo(chave) {
   if (!nome) return (each ? 'cada ' : '') + qual;
   return (each ? 'cada ' : (['player', 'opponent'].includes(nome) ? 'um ' : 'uma ')) + base[nome] + (qual && qual !== nome ? ' ' + qual : '');
 }
-const ALVO_PT = { any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+const ALVO_PT = { enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
@@ -15135,7 +15135,10 @@ function createTableScreen({ store, perfil = null, online = null }) {
       const cost = custoDaHabilidade(ab);
       if (ab.adapt != null && !act.targets) { legal.push(doBtn(`Adaptar ${ab.adapt}${cost ? ` (${cost})` : ''}`, act, { variant: 'primary' })); continue; } // R7 · dizia só "Ativar ({1}{G})"
       // R6 · ficha não tem texto na folha: o botão diz o que a habilidade faz ("Ativar ({2}, sacrificar): compra 1 carta")
-      const oQueFaz = o.token ? T.descreveEfeitos(ab.effects) : '';
+      // R8 · duas habilidades com o mesmo custo (Freed from the Real: {U} vira, {U} desvira) saíam com o mesmo nome; a folha juntava
+      // as duas num botão só e a segunda (desvirar) não podia ser usada. Com custo repetido, o botão diz o que cada uma faz.
+      const custoRepetido = allAbilities.filter(x => x.loyalty == null && custoDaHabilidade(x) === cost).length > 1;
+      const oQueFaz = o.token || custoRepetido ? T.descreveEfeitos(ab.effects) : '';
       legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
     // Leva 111 · habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo
@@ -15147,7 +15150,8 @@ function createTableScreen({ store, perfil = null, online = null }) {
       let motivo = 'não dá agora';
       try { E.apply(s, { t: 'activate', p: v, oid, index }); } catch (e) { motivo = T.explicaRecusa(e, { t: 'activate', oid }, s).motivo; }
       const cost = custoDaHabilidade(ab);
-      legal.push({ label: `Ativar${cost ? ` (${cost})` : ''} — ${motivo.charAt(0).toLowerCase() + motivo.slice(1)}`, disabled: true });
+      const repetido = ((f.script && f.script.abilities) || []).filter(x => x.kind === 'activated' && custoDaHabilidade(x) === cost).length > 1;
+      legal.push({ label: `Ativar${cost ? ` (${cost})` : ''}${repetido ? `: ${T.descreveEfeitos(ab.effects)}` : ''} — ${motivo.charAt(0).toLowerCase() + motivo.slice(1)}`, disabled: true });
     });
     // mesa assistida: conjurar sem pagar quando o tempo é legal mas falta mana
     if (s.manaCheck && canAdjudicate(v) && (o.zone === 'hand' || o.zone === 'command') && !legal.some(b => /Conjurar/.test(b.label)) && !f.types.includes('land')) {

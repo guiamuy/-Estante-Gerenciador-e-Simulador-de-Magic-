@@ -2558,7 +2558,9 @@
     "boros.regras: gatilhos idênticos",
     "e2e: R6 · Boros: gatilhos iguais"
    ],
-   "notas": [],
+   "notas": [
+    "leva 165: verso (Luminous Phantom) conferido no mtg.wtf (MID 27b) em 04/10/2026: voar; 1 de vida quando outra criatura sua sai do campo; exilada no lugar de ir para o cemitério. Confere com o script."
+   ],
    "tracos": {
     "script": true,
     "cobertura": "completo",
@@ -3318,7 +3320,7 @@
    ]
   },
   "Drift of Phantasms": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3326,10 +3328,23 @@
     "fonte": "https://scryfall.com/card/plst/RAV-46/drift-of-phantasms",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: defensor, voar; transmutar {1}{U}{U} busca carta de valor de mana 3."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Drift of Phantasms"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3343,7 +3358,7 @@
    }
   },
   "Overgrown Battlement": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3351,10 +3366,24 @@
     "fonte": "https://scryfall.com/card/ncc/303/overgrown-battlement",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: defensor; {G} por criatura sua com defensor."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: \"Gerar {G}{G}{G}\"; desvirada pela Freed from the Real gera de novo."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Overgrown Battlement",
+    "e2e: R8 · Walls: Freed from the Real"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3408,7 +3437,7 @@
    }
   },
   "Sagu Wildling": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3416,10 +3445,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/sagu_wildling_roost_seek.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido o lado criatura: voar, 3 de vida ao entrar. O lado Presságio (Roost Seek) não tem texto em .listas/oficiais.json e a consulta de 04/10/2026 ao mtg.wtf foi recusada: o que o script faz nele (buscar um terreno básico e embaralhar a carta no grimório) não foi conferido contra fonte."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: finalizadores"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3439,7 +3481,7 @@
    }
   },
   "Saruli Caretaker": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3447,10 +3489,24 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/saruli_caretaker.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: defensor; {T} e virar outra criatura desvirada: mana de qualquer cor."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: cinco botões de cor e a escolha da criatura tocando na carta."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Saruli Caretaker",
+    "e2e: R8 · Walls: Freed from the Real"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3464,7 +3520,7 @@
    }
   },
   "Shield-Wall Sentinel": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3472,10 +3528,23 @@
     "fonte": "https://scryfall.com/card/dmu/238/shield-wall-sentinel",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: defensor; pode buscar criatura com defensor."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio. A busca junta cópias iguais (leva 139)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Drift of Phantasms"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3491,7 +3560,7 @@
    }
   },
   "Tinder Wall": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3499,10 +3568,24 @@
     "fonte": "https://scryfall.com/card/ice/270/tinder-wall",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: sacrificar por {R}{R}; {R}, sacrificar: 2 de dano na criatura que ela bloqueia."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: \"Gerar {R}{R} (sacrificar)\"; o dano aparece apagado fora do bloqueio (o motivo sai como \"escolha 1 alvo(s)\", pouco claro)."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Tinder Wall",
+    "e2e: R8 · Walls: Freed from the Real"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3517,7 +3600,7 @@
    }
   },
   "Bloodrite Invoker": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3525,10 +3608,23 @@
     "fonte": "https://scryfall.com/card/roe/97/bloodrite-invoker",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: {8}: o jogador alvo perde 3 e você ganha 3."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: finalizadores"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3543,7 +3639,7 @@
    }
   },
   "Galvanic Alchemist": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3551,10 +3647,23 @@
     "fonte": "https://scryfall.com/card/avr/54/galvanic-alchemist",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: vínculo de alma; as duas criaturas ganham \"{2}{U}: desvire esta criatura\"."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio. A pergunta do par é a da leva S51."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Galvanic Alchemist"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3570,7 +3679,7 @@
    }
   },
   "Orochi Leafcaller": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3578,10 +3687,23 @@
     "fonte": "https://scryfall.com/card/chk/234/orochi-leafcaller",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: {G}: mana de qualquer cor (sem {T})."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Saruli Caretaker"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3595,7 +3717,7 @@
    }
   },
   "Secret Door": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3603,10 +3725,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/s/secret_door.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: defensor; {4}{U}: aventurar-se na masmorra, só em momento de feitiço."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: finalizadores"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3620,7 +3755,7 @@
    }
   },
   "Tuktuk Rubblefort": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3628,10 +3763,23 @@
     "fonte": "https://scryfall.com/card/znr/173/tuktuk-rubblefort",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: defensor, alcance; as suas criaturas têm ímpeto (a muralha que entrou agora já gera mana)."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: sem decisão."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Overgrown Battlement"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3684,7 +3832,7 @@
    }
   },
   "Pulse of Murasa": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3692,10 +3840,23 @@
     "fonte": "https://scryfall.com/card/m20/189/pulse-of-murasa",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: devolve criatura ou terreno de qualquer cemitério à mão do dono; 6 de vida."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: cemitério"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3710,7 +3871,7 @@
    }
   },
   "Reaping the Graves": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3718,10 +3879,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/r/reaping_the_graves.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: devolve criatura do seu cemitério; a cópia da tempestade pode escolher outro alvo."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: cemitério"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3737,7 +3911,7 @@
    }
   },
   "Freed from the Real": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3745,10 +3919,24 @@
     "fonte": "https://scryfall.com/card/a25/58/freed-from-the-real",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: {U}: vira; {U}: desvira a criatura encantada."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "corrigido (bug): as duas habilidades tinham o mesmo nome (\"Ativar ({U})\"), a folha juntava num botão só e desvirar não podia ser usado — o combo do baralho não saía pela tela. Agora cada botão diz o que faz."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Galvanic Alchemist",
+    "e2e: R8 · Walls: Freed from the Real"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3891,7 +4079,7 @@
    }
   },
   "Faerie Macabre": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3899,10 +4087,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/f/faerie_macabre.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: descartar (sem mana): exila até duas cartas de cemitérios."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: cemitério"
+   ],
    "notas": [],
    "tracos": {
     "script": true,
@@ -3916,7 +4117,7 @@
    }
   },
   "Moment's Peace": {
-   "status": "pendente",
+   "status": "revisada",
    "listas": [
     "Pauper Walls Combo"
    ],
@@ -3924,10 +4125,23 @@
     "fonte": "https://raw.githubusercontent.com/Card-Forge/forge/master/forge-gui/res/cardsfolder/m/moments_peace.txt",
     "consulta": "2026-09-30"
    },
-   "motor": null,
-   "tela": null,
-   "bot": null,
-   "testes": [],
+   "motor": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido: previne todo o dano de combate do turno; lampejo {2}{G}."
+   },
+   "tela": {
+    "ok": true,
+    "leva": 165,
+    "obs": "conferido pelo caminho de tela comum (folha \"Conjurar/Ativar → alvo\" e avisos de decisão); sem teste de tela próprio."
+   },
+   "bot": {
+    "ok": null,
+    "obs": "não revisado"
+   },
+   "testes": [
+    "walls.regras: Moment's Peace"
+   ],
    "notas": [],
    "tracos": {
     "script": true,

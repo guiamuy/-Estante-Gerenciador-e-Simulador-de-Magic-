@@ -5295,6 +5295,44 @@ test('e2e · R7 · Jund: o custo de sacrificar diz o quê; Fanatical Offering es
   assert.deepEqual(M.errors, []);
 });
 
+// ---- R8 · Walls Combo pela tela (360×780, modo único) ----
+test('e2e · R8 · Walls: Freed from the Real tem um botão para virar e outro para desvirar; a Battlement desvirada gera mana de novo; Tinder Wall diz a mana que gera', { skip }, async t => {
+  const M = await comLista125(t, '20 Forest\n10 Overgrown Battlement\n8 Saruli Caretaker\n8 Freed from the Real\n7 Tinder Wall\n7 Galvanic Alchemist', ['Forest', 'Overgrown Battlement', 'Saruli Caretaker', 'Freed from the Real', 'Tinder Wall', 'Galvanic Alchemist'], '3', { cores: true });
+  const { page } = M; let e;
+  const terra = async () => { const o = await M.oid('Forest'); if (o) await M.act({ t: 'play_land', p: 0, oid: o }); };
+  for (let i = 0; i < 24; i++) { await terra();
+    for (const n of ['Overgrown Battlement', 'Saruli Caretaker', 'Tinder Wall']) { const v = await M.oid(n); if (v && !(await M.est()).campo.includes(n)) { const c = await M.legal(`a.t==='cast' && a.oid==='${v}'`); if (c.length) { await M.act(c[0]); await segueR6(M); } } }
+    e = await M.est(); if (['Overgrown Battlement', 'Saruli Caretaker', 'Tinder Wall'].every(n => e.campo.includes(n)) && e.campo.filter(n => n === 'Forest').length >= 4 && e.mao.includes('Freed from the Real')) { await M.proximo(); await terra(); break; }
+    await M.proximo(); }
+  e = await M.est(); assert.ok(e.mao.includes('Freed from the Real') && ['Overgrown Battlement', 'Saruli Caretaker', 'Tinder Wall'].every(n => e.campo.includes(n)), 'mesa pronta: ' + JSON.stringify(e));
+  const obj = nome => page.evaluate(nome => { const s = window.__estanteMesa.estado(); const o = s.zones[0].battlefield.find(x => s.objects[x].name === nome); return o ? { oid: o, virada: !!s.objects[o].tapped } : null; }, nome);
+  const pool = () => page.evaluate(() => window.__estanteMesa.estado().players[0].pool);
+  // as muralhas dizem a mana que geram
+  let f = await folha131(page, 'Overgrown Battlement', '.tb-side'); assert.deepEqual(f.map(b => b.txt), ['Gerar {G}{G}{G}'], 'três com defensor'); await fecha136(page);
+  f = await folha131(page, 'Tinder Wall', '.tb-side'); assert.equal(f[0].txt, 'Gerar {R}{R} (sacrificar)'); assert.ok(f[1].apagado, 'o dano só quando ela bloqueia'); await fecha136(page);
+  // {U} pela Caretaker (vira a Tinder Wall), e a Aura na Battlement
+  await folha131(page, 'Saruli Caretaker', '.tb-side'); await page.locator('.ds-dialog .tb-sheet__actions button').nth(1).click(); await page.waitForTimeout(300);
+  if (await page.locator('#tb-escolha').count()) { await page.locator('#tb-escolha [data-escolha="Tinder Wall"]').first().click(); await page.waitForTimeout(300); }
+  assert.equal((await pool()).U, 1);
+  const ob = await obj('Overgrown Battlement');
+  f = await folha131(page, 'Freed from the Real'); assert.ok(f.some(b => /^Conjurar → Overgrown Battlement · \{2\}\{U\}$/.test(b.txt)), f.map(b => b.txt).join(' | '));
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: 'Overgrown Battlement' }).click(); await page.waitForTimeout(300); e = await segueR6(M);
+  assert.ok(e.campo.includes('Freed from the Real'));
+  // turno seguinte: Battlement gera {G}{G}{G}; com {U}{U} flutuando, a folha da Aura tem DOIS botões diferentes
+  await M.proximo(); await terra();
+  await M.act({ t: 'tap_mana', p: 0, oid: ob.oid, option: 0 }); assert.equal((await pool()).G, 3); assert.equal((await obj('Overgrown Battlement')).virada, true);
+  await folha131(page, 'Saruli Caretaker', '.tb-side'); await page.locator('.ds-dialog .tb-sheet__actions button').nth(1).click(); await page.waitForTimeout(300);
+  if (await page.locator('#tb-escolha').count()) { await page.locator('#tb-escolha .tb-card').first().click(); await page.waitForTimeout(300); }
+  assert.equal((await pool()).U, 1);
+  f = await folha131(page, 'Freed from the Real', '.tb-side');
+  assert.deepEqual(f.map(b => [b.txt, b.apagado]), [['Ativar ({U}): vira a criatura encantada', false], ['Ativar ({U}): desvira a criatura encantada', false]], 'antes: dois "Ativar ({U})" iguais, juntados num botão que só virava');
+  await auditaTela(page, 'folha da Freed from the Real');
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: 'desvira' }).click(); await page.waitForTimeout(300); e = await segueR6(M);
+  assert.equal((await obj('Overgrown Battlement')).virada, false, 'a Battlement desvirou');
+  await M.act({ t: 'tap_mana', p: 0, oid: ob.oid, option: 0 }); assert.equal((await pool()).G, 6, 'e gera mana de novo: cada volta rende');
+  assert.deepEqual(M.errors, []);
+});
+
 /* ---------------- Leva 133 · partida online entre duas abas (transporte local) ---------------- */
 test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra aba, as duas mesas convergem, sem desfazer, desistir encerra', { skip }, async t => {
   const { page: A, errors, base } = await open(t, { dev: false });
