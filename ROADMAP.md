@@ -417,6 +417,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-az ✅ | H4 resumo do turno recolhido: faixa de 44 px com ícone e sinais, detalhe por cima da mesa, fecha fácil (leva 174) | H | 1 | teste no aparelho |
 | 16º-ba ✅ | H5 ver o oponente jogar: o turno do bot passa quadro a quadro, com legenda, a tela indo até onde acontece, som e efeito por passo, Pular e liga/desliga (leva 175) | H | 1 | teste no aparelho |
 | 16º-bb ✅ | H6 pagar com as manas que eu escolho: folha de pagamento com a sugestão do motor, contador por fonte e cor, conferência a cada toque (certo, falta, sobra) (leva 176) | H | 1 | teste no aparelho |
+| 16º-bc ✅ | H3 melhor de 3 online: quem cria a sala escolhe a série; trocas com a reserva em cada aparelho, a partida seguinte abre sozinha nos dois lados, desistir de uma partida não fecha a sala (leva 177) | H | 1 | teste no aparelho com dois celulares |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4899,6 +4900,33 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   demais para no começo, reabrir, hot-seat e goldfish inalterados); e2e "H2" (registro com Voltar de 44 px e ícone,
   cancelar não mexe, confirmar volta ao estado exato, três toques atravessando turno, até a mão inicial, reabrir).
 - **Fora:** refazer (avançar de novo o que foi desfeito); desfazer sem limite no goldfish e a dois.
+
+**H3 · Melhor de 3 contra outra pessoa, também online** ✅ (leva 177, 04/10/2026)
+- **Antes:** a série já valia contra o Goldfish, contra o Shark e a dois no mesmo aparelho (leva 114). Na partida
+  **online** o chip "Melhor de 3" aparecia e não fazia nada: a partida era sempre única e desistir fechava a sala.
+- **Agora:** quem **cria a sala** escolhe "Melhor de 3"; a sala guarda a escolha e a série nasce nos dois aparelhos.
+  - fim de partida sem série decidida: os dois veem **Próxima partida**; desistir de uma partida **não fecha a
+    sala** (o aviso diz que a série continua);
+  - **trocas com a reserva:** cada aparelho mexe só na própria lista (sem "passe o aparelho"); quem perdeu escolhe
+    quem começa, o outro lê quem está escolhendo; **Pronto** envia as trocas e a tela passa a "Esperando …";
+  - com as duas trocas, o **anfitrião monta a mesa** da partida seguinte e ela **abre sozinha nos dois lados**,
+    com o deck trocado e quem foi escolhido começando;
+  - a série fecha com duas vitórias; aí a sala é encerrada como antes.
+- **Como funciona (sem regra nova):** a partida N ≥ 2 tem mesa e ações num nó próprio da sala
+  (`jogos/j<N>`), longe das da partida 1; as trocas vão em `serie/j<N>/a<assento>`. As cartas não viajam de novo
+  (já estão nos dois aparelhos desde a partida 1). A troca do outro aparelho só vale se for **a mesma lista com
+  cartas mudadas de lado** e dentro dos limites (`trocaLegitima`); senão a partida usa a lista original dele.
+- **Estados:** sem conexão ao enviar (aviso e Pronto de novo); o outro saiu da sala ("A série parou aqui" e caminho
+  de volta); voltar à tela depois de enviar retoma a espera.
+- **Limites declarados:** (1) a troca enviada não pode ser refeita depois do Pronto; (2) o convidado não escolhe o
+  tamanho da série (vale a de quem cria); (3) duas abas no mesmo aparelho dividem o que fica guardado: recarregar a
+  tela de trocas numa aba depois de a outra já ter aberto a partida seguinte cai em "não há série esperando"
+  (não acontece entre dois aparelhos); (4) a lista de cada um fica legível na sala para o outro aparelho (a tela
+  não mostra; a informação oculta online é a mesma da leva 133).
+- **Testes:** U `online.unit` ×3 (sala melhor de 3, trocas por assento, partida 2 com ações separadas; duas mesas
+  na partida 2 convergem sem as ações da partida 1; `trocaLegitima`); e2e "H3" com duas abas (série nos dois lados,
+  desistir não encerra, trocas só da própria lista, um primário, espera, partida 2 com o deck trocado e quem começa,
+  2–0 encerra a sala; `auditaTela` em 360 px, claro e escuro).
 
 **H4 · Resumo do turno recolhido** ✅ (leva 174, 04/10/2026)
 - **Antes:** o resumo dos últimos turnos nascia aberto entre as duas mesas — uma caixa com as linhas do seu turno

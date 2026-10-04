@@ -160,3 +160,61 @@ test('Leva 137 · mensagens: limpeza e limite, ordem pela chave, "minha", não l
   const lidas = O.mensagensDe(vistos.at(-1).sala, 1);
   assert.deepEqual(J(lidas.map(m => [m.de, m.texto, m.minha])), [[0, 'Boa!', false], [1, '<b>x</b>', true]], 'o texto é guardado como texto; a tela nunca o interpreta como HTML');
 });
+
+/* ---------------- H3 · melhor de 3 online ---------------- */
+test('H3 · sala: melhor de 3 fica gravado; a partida 2 tem mesa e ações próprias, longe das da partida 1; cada assento publica a própria troca', async () => {
+  let t0 = 90_000; const tr = O.transporteMemoria({ agora: () => t0++ });
+  let n = 0; const sala = O.createSala({ transporte: tr, agora: () => t0, aleatorio: () => (n++ % 5) / 5 });
+  const unica = await sala.criar({ nome: 'Ana', deck: PAUPER_DECK, formato: 'pauper' });
+  assert.equal((await sala.ler(unica)).melhorDe, 1, 'sem pedir, partida única');
+  const codigo = await sala.criar({ nome: 'Ana', deck: PAUPER_DECK, formato: 'pauper', melhorDe: 3 });
+  assert.equal((await sala.ler(codigo)).melhorDe, 3);
+  await sala.entrar(codigo, { nome: 'Bia', deck: PAUPER_DECK, formato: 'pauper' });
+  await sala.publicarSetup(codigo, { seed: 7 });
+  await sala.enviarAcao(codigo, { antes: 0, p: 0, action: { t: 'keep', p: 0 }, de: 0 });
+  // trocas: uma de cada vez, sem apagar a do outro
+  await sala.publicarTroca(codigo, 2, 1, { entries: [{ name: 'Island', qty: 60, zone: 'main' }], primeiro: 1 });
+  await sala.publicarTroca(codigo, 2, 0, { entries: [{ name: 'Forest', qty: 60, zone: 'main' }] });
+  const s1 = J(await sala.ler(codigo));
+  assert.deepEqual(Object.keys(s1.serie.j2).sort(), ['a0', 'a1']);
+  assert.equal(s1.serie.j2.a1.primeiro, 1); assert.equal(s1.serie.j2.a0.entries[0].name, 'Forest');
+  await sala.publicarProxima(codigo, 2, { setup: { seed: 9 }, primeiro: 1 });
+  await sala.enviarAcao(codigo, { antes: 0, p: 1, action: { t: 'keep', p: 1 }, de: 1 }, 2);
+  await sala.enviarAcao(codigo, { antes: 1, p: 0, action: { t: 'keep', p: 0 }, de: 0 }, 2);
+  const v1 = [], v2 = []; sala.ouvir(codigo, d => v1.push(d)); sala.ouvir(codigo, d => v2.push(d), 2); await tique();
+  assert.deepEqual(J(v1.at(-1).acoes.map(a => a.de)), [0], 'quem ouve a partida 1 só vê as ações dela');
+  assert.deepEqual(J(v2.at(-1).acoes.map(a => a.de)), [1, 0], 'quem ouve a partida 2 vê as dela, em ordem');
+  assert.equal(v2.at(-1).sala.jogos.j2.setup.seed, 9);
+  assert.equal(v2.at(-1).sala.setup.seed, 7, 'a mesa da partida 1 continua lá');
+});
+
+test('H3 · duas mesas na partida 2 da sala convergem, e as ações da partida 1 não entram nelas', async () => {
+  let t0 = 70_000; const tr = O.transporteMemoria({ agora: () => t0++ });
+  const sala = O.createSala({ transporte: tr, agora: () => t0 });
+  const codigo = await sala.criar({ nome: 'Ana', deck: PAUPER_DECK, formato: 'pauper', melhorDe: 3 });
+  await sala.entrar(codigo, { nome: 'Bia', deck: PAUPER_DECK, formato: 'pauper' });
+  await sala.publicarSetup(codigo, { seed: 1 });
+  await sala.enviarAcao(codigo, { antes: 0, p: 0, action: { t: 'concede', p: 0 }, de: 0 }); // fim da partida 1
+  const setup2 = setupDe(77);
+  await sala.publicarProxima(codigo, 2, { setup: { ...setup2, cards: null } });
+  const lado = assento => { const s = O.criaSincronizador({ sala, codigo, setup: setup2, assento, criaMesa, jogo: 2 }); s.ligar(); return s; };
+  const a = lado(0), b = lado(1); await tique();
+  assert.equal(a.mesa.state.status, 'mulligan', 'a desistência da partida 1 não chegou à mesa da partida 2');
+  await a.agir({ t: 'keep', p: 0, bottom: [] }); await tique();
+  await b.agir({ t: 'keep', p: 1, bottom: [] }); await tique();
+  assert.equal(a.mesa.state.status, 'playing');
+  assert.equal(JSON.stringify(a.mesa.state), JSON.stringify(b.mesa.state), 'as duas mesas iguais');
+  assert.equal(Object.keys(J(await sala.ler(codigo)).acoes).length, 1, 'a partida 1 ficou com a ação dela só');
+  assert.equal(Object.keys(J(await sala.ler(codigo)).jogos.j2.acoes).length, 2);
+});
+
+test('H3 · troca vinda do outro aparelho: vale só a mesma lista com cartas mudadas de lado e dentro dos limites', () => {
+  const original = [{ name: 'Island', qty: 56, zone: 'main' }, { name: 'Counterspell', qty: 4, zone: 'main' }, { name: 'Dispel', qty: 3, zone: 'side' }, { name: 'Island', qty: 1, zone: 'side' }];
+  assert.equal(T.trocaLegitima(J(original), 'pauper', original), true, 'sem trocar nada');
+  const trocada = T.moveNaTroca(T.moveNaTroca(original, 'Counterspell', 'main'), 'Dispel', 'side');
+  assert.equal(T.trocaLegitima(trocada, 'pauper', original), true, 'um por um');
+  assert.equal(T.trocaLegitima(T.moveNaTroca(original, 'Counterspell', 'main'), 'pauper', original), false, 'deck com 59 cartas');
+  assert.equal(T.trocaLegitima([...J(original), { name: 'Black Lotus', qty: 1, zone: 'main' }], 'pauper', original), false, 'carta que não estava na lista');
+  assert.equal(T.trocaLegitima(J(original).map(e => e.name === 'Counterspell' ? { ...e, qty: 5 } : e), 'pauper', original), false, 'quantidade inventada');
+  assert.equal(T.trocaLegitima(null, 'pauper', original), false); assert.equal(T.trocaLegitima([{ name: 'Island' }], 'pauper', original), false);
+});

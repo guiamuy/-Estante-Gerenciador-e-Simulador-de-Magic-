@@ -6887,3 +6887,84 @@ test('e2e · H6 pagar com as manas que eu escolho: a folha abre com a sugestão 
   assert.equal(await page.getAttribute('#tb-mana-manual', 'aria-pressed'), 'false', 'a escolha fica guardada no aparelho');
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- H3 · melhor de 3 online entre duas abas ---------------- */
+test('e2e · H3 melhor de 3 online: a série nasce nos dois lados, desistir de uma partida não fecha a sala, cada um troca só a própria reserva, a partida 2 abre sozinha com o deck trocado e a série fecha em 2–0', { skip }, async t => {
+  const { page: A, errors, base } = await open(t, { dev: false });
+  await A.addInitScript(() => { window.__MTG_TEST = true; });
+  await A.setViewportSize({ width: 360, height: 780 });
+  await createDeck(A, base, 'Coberta', '30 Island\n30 Counterspell\n\nSideboard\n4 Lightning Bolt', 'livre');
+  await A.goto(base + '#/mesa'); await A.waitForSelector('[data-opponent="online"]');
+  await A.click('[data-opponent="online"]'); await A.waitForSelector('#online-criar');
+  await A.click('[data-serie="3"]');
+  await A.waitForFunction(() => !document.querySelector('#online-criar').disabled, null, { timeout: 10000 });
+  await A.click('#online-criar'); await A.waitForSelector('#online-codigo');
+  const codigo = (await A.innerText('#online-codigo')).trim();
+  const salaDe = p => p.evaluate(c => JSON.parse(localStorage.getItem('estante.online:salas/' + c)), codigo);
+  assert.equal((await salaDe(A)).melhorDe, 3, 'a sala guarda que é melhor de 3');
+  const B = await A.context().newPage(); const errosB = [];
+  B.on('pageerror', e => errosB.push(String(e))); B.on('console', m => { if (m.type() === 'error' && !/Failed to load resource: net::ERR_/.test(m.text())) errosB.push(m.text()); });
+  await B.addInitScript(() => { window.__MTG_TEST = true; });
+  await B.setViewportSize({ width: 360, height: 780 });
+  await B.goto(base + '#/mesa'); await B.waitForSelector('[data-opponent="online"]'); await B.click('[data-opponent="online"]');
+  await B.click('[data-online-modo="entrar"]'); await B.waitForSelector('#online-codigo-input');
+  await B.fill('#online-codigo-input', codigo.slice(5)); await B.click('#online-entrar');
+  await A.waitForSelector('#tb-keep', { timeout: 20000 }); await B.waitForSelector('#tb-keep', { timeout: 20000 });
+  const estado = p => p.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  const desiste = async p => { await p.click('#tb-concede'); await p.waitForSelector('.ds-dialog'); await p.click('.ds-dialog .ds-btn--danger'); };
+  // 1 · partida 1: o anfitrião desiste; a sala continua aberta e os dois veem "Próxima partida"
+  await A.click('#tb-concede'); await A.waitForSelector('.ds-dialog');
+  assert.match(await A.innerText('.ds-dialog'), /A série continua/, 'o aviso de desistir fala da série');
+  await A.click('.ds-dialog .ds-btn--danger');
+  await B.waitForFunction(() => window.__estanteMesa.estado().status === 'over', null, { timeout: 10000 });
+  await A.waitForSelector('#tb-serie-next'); await B.waitForSelector('#tb-serie-next');
+  assert.equal((await salaDe(A)).estado, 'jogando', 'desistir de uma partida não encerra a sala no meio da série');
+  assert.match(await B.textContent('.tb-banner'), /venceu a partida 1/);
+  // 2 · trocas: cada aba só mexe na própria lista; quem perdeu (anfitrião) escolhe quem começa
+  await A.click('#tb-serie-next'); await B.click('#tb-serie-next');
+  await A.waitForSelector('#serie-pronto'); await B.waitForSelector('#serie-pronto');
+  assert.match(await A.innerText('h1'), /Partida 2 de 3/);
+  assert.equal(await A.locator('#serie-entrega').count(), 0, 'online não passa o aparelho');
+  assert.equal(await A.locator('#serie-primeiro [data-primeiro]').count(), 2, 'quem perdeu escolhe');
+  assert.equal(await B.locator('#serie-primeiro [data-primeiro]').count(), 0, 'quem venceu só lê');
+  assert.match(await B.innerText('#serie-primeiro'), /escolhe quem começa/);
+  assert.equal(await A.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Pronto');
+  await auditaTela(A, 'série online · trocas');
+  await A.click('.troca-grade[data-zona="main"] .troca-carta[data-nome="Counterspell"]');
+  assert.equal(await A.locator('#serie-pronto').isDisabled(), true, 'deck abaixo do mínimo não segue');
+  await A.click('.troca-grade[data-zona="side"] .troca-carta[data-nome="Lightning Bolt"]');
+  await A.click('#serie-primeiro [data-primeiro="1"]');
+  assert.match(await B.innerText('#troca-diff'), /Sem trocas/, 'o convidado não vê as trocas do anfitrião');
+  await A.click('#serie-pronto'); await A.waitForSelector('#serie-espera');
+  assert.match(await A.innerText('#serie-espera'), /Esperando/);
+  assert.equal(await A.locator('.ds-btn--primary:visible').count(), 0);
+  await auditaTela(A, 'série online · esperando (escuro)');
+  await A.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(A, 'série online · esperando (claro)');
+  await A.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  assert.equal((await salaDe(A)).jogos, undefined, 'sem a troca do outro, a partida 2 não começa');
+  // 3 · o convidado fica pronto: a partida 2 abre nos dois lados, com o deck trocado e quem foi escolhido começando
+  await B.click('#serie-pronto');
+  await A.waitForSelector('#tb-keep', { timeout: 20000 }); await B.waitForSelector('#tb-keep', { timeout: 20000 });
+  assert.equal(await estado(A), await estado(B), 'a mesa da partida 2 nasce igual nos dois lados');
+  const j2 = await A.evaluate(() => { const s = window.__estanteMesa.estado(); const de = (p, n) => Object.values(s.objects).filter(o => o.owner === p && o.name === n).length;
+    return { status: s.status, raiosA: de(0, 'Lightning Bolt'), contrasA: de(0, 'Counterspell'), raiosB: de(1, 'Lightning Bolt'), comeca: s.turn.active }; });
+  assert.deepEqual(j2, { status: 'mulligan', raiosA: 1, contrasA: 29, raiosB: 0, comeca: 1 });
+  assert.equal(await A.evaluate(() => window.__estanteMesa.quemVe()), 0); assert.equal(await B.evaluate(() => window.__estanteMesa.quemVe()), 1);
+  await A.click('#tb-keep');
+  await B.waitForFunction(() => window.__estanteMesa.estado().players[0].kept === true, null, { timeout: 10000 });
+  await B.click('#tb-keep');
+  await A.waitForFunction(() => window.__estanteMesa.estado().status === 'playing', null, { timeout: 10000 });
+  assert.equal(await estado(A), await estado(B), 'as ações da partida 2 chegam aos dois');
+  const sala2 = await salaDe(A);
+  assert.equal(Object.keys(sala2.jogos.j2.acoes).length, 2, 'ações da partida 2 no nó dela');
+  assert.equal(sala2.jogos.j2.setup.cards, null, 'as cartas não viajam de novo');
+  // 4 · o anfitrião desiste de novo: 2–0, a série fecha e a sala encerra
+  await desiste(A);
+  await B.waitForFunction(() => window.__estanteMesa.estado().status === 'over', null, { timeout: 10000 });
+  await B.waitForSelector('#tb-new');
+  assert.match(await B.textContent('.tb-banner'), /venceu a série por 2–0/);
+  assert.match(await A.textContent('.tb-banner'), /venceu a série por 2–0/);
+  assert.equal(await B.locator('#tb-serie-next').count(), 0);
+  assert.equal((await salaDe(A)).estado, 'encerrada');
+  assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
+});

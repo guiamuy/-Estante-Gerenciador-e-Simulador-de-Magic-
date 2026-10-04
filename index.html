@@ -6889,11 +6889,11 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
   return {
     gerarCodigo: () => gerarCodigo(aleatorio), normalizaCodigo,
     /** Anfitrião: cria a sala com a própria lista e espera o convidado. Tenta outro código se o sorteado já existir. */
-    async criar({ nome, avatar = null, deck, formato }) {
+    async criar({ nome, avatar = null, deck, formato, melhorDe = 1 }) {
       for (let tent = 0; tent < 8; tent++) {
         const codigo = gerarCodigo(aleatorio);
         if (await transporte.ler(caminho(codigo))) continue;
-        await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, anfitriao: { nome, avatar, deck }, convidado: null, acoes: {}, presenca: { 0: agora() } });
+        await transporte.escrever(caminho(codigo), { criadaEm: agora(), estado: 'esperando', formato, melhorDe: melhorDe === 3 ? 3 : 1, anfitriao: { nome, avatar, deck }, convidado: null, acoes: {}, presenca: { 0: agora() } });
         return codigo;
       }
       throw new Error('sem-codigo-livre');
@@ -6912,7 +6912,11 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
     async ler(codigo) { return transporte.ler(caminho(codigo)); },
     /** Anfitrião publica o setup montado (semente, listas, cartas): a partida começa nos dois lados. */
     async publicarSetup(codigo, setup) { await transporte.atualizar(caminho(codigo), { setup, estado: 'jogando' }); },
-    async enviarAcao(codigo, acao) { return transporte.empurrar(`${caminho(codigo)}/acoes`, acao); },
+    async enviarAcao(codigo, acao, jogo = 1) { return transporte.empurrar(`${caminho(codigo)}/${jogo > 1 ? `jogos/j${jogo}/` : ''}acoes`, acao); },
+    /** H3 · série online: cada jogador publica a própria troca com a reserva (e, se perdeu, quem começa) para a partida `jogo`. */
+    async publicarTroca(codigo, jogo, assento, { entries, primeiro = null }) { await transporte.atualizar(`${caminho(codigo)}/serie/j${jogo}`, { ['a' + assento]: { entries, primeiro, em: agora() } }); },
+    /** H3 · o anfitrião publica a mesa da partida `jogo` (≥ 2). As ações dela ficam em `jogos/j<N>/acoes`, longe das da partida 1. */
+    async publicarProxima(codigo, jogo, { setup, primeiro = null }) { await transporte.atualizar(`${caminho(codigo)}/jogos`, { ['j' + jogo]: { setup, primeiro, em: agora() } }); },
     async encerrar(codigo, motivo) { await transporte.atualizar(caminho(codigo), { estado: 'encerrada', fim: { motivo, em: agora() } }); },
     async marcarPresenca(codigo, assento) { await transporte.atualizar(`${caminho(codigo)}/presenca`, { [assento]: agora() }); },
     /** Leva 137 · chat: a mensagem entra na sala, em ordem, com quem e quando. */
@@ -6920,7 +6924,7 @@ function createSala({ transporte, agora = () => Date.now(), aleatorio = Math.ran
     /** Apaga a sala (depois do fim, pelo anfitrião). Transporte sem `apagar` só a marca encerrada. */
     async apagar(codigo) { if (transporte.apagar) await transporte.apagar(caminho(codigo)); else await transporte.escrever(caminho(codigo), null); },
     /** Ouve a sala inteira; devolve `parar`. cb recebe { sala, acoes (ordenadas) }. */
-    ouvir(codigo, cb) { return transporte.ouvir(caminho(codigo), sala => cb(sala ? { sala, acoes: ordenadas(sala.acoes) } : null)); },
+    ouvir(codigo, cb, jogo = 1) { return transporte.ouvir(caminho(codigo), sala => cb(sala ? { sala, acoes: ordenadas(jogo > 1 ? (((sala.jogos || {})['j' + jogo]) || {}).acoes : sala.acoes) } : null)); },
     ordenadas
   };
 }
@@ -6941,7 +6945,7 @@ function naoLidas(mensagens, assento, lidoAte = 0) { return mensagens.filter(m =
 /* ---------- sincronizador: liga uma mesa local à lista de ações da sala ---------- */
 /** `criaMesa(setup)` monta a mesa (createTable sem bot, sem desfazer). `assento` é quem joga neste aparelho.
     Devolve { mesa, agir(action), receber({ acoes }), parar, estado() }. `aoMudar(mesa, motivo)` avisa a tela. */
-function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = () => {}, aoErro = () => {}, aoSala = () => {} }) {
+function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = () => {}, aoErro = () => {}, aoSala = () => {}, jogo = 1 }) {
   let mesa = criaMesa(setup);
   let aplicadas = []; // chaves das ações da sala já refletidas na mesa, na ordem
   let pendentes = []; // ações minhas aplicadas localmente e ainda não vistas na sala: { antes, action }
@@ -6986,7 +6990,7 @@ function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = (
       const minha = { antes, p: assento, action };
       pendentes.push(minha);
       aoMudar(mesa, 'local');
-      ultimoEnvio = sala.enviarAcao(codigo, { antes, p: assento, action, de: assento }).catch(e => {
+      ultimoEnvio = sala.enviarAcao(codigo, { antes, p: assento, action, de: assento }, jogo).catch(e => {
         // não chegou à sala: a mesa volta ao que a sala tem (a jogada não valeu) e a tela é avisada
         pendentes = pendentes.filter(x => x !== minha);
         reconstruir(ultimas);
@@ -6998,7 +7002,7 @@ function criaSincronizador({ sala, codigo, setup, assento, criaMesa, aoMudar = (
     async agir(action) { const ev = this.agirAgora(action); await ultimoEnvio; return ev; },
     ultimoEnvio() { return ultimoEnvio; },
     receber,
-    ligar() { parar = sala.ouvir(codigo, receber); return parar; },
+    ligar() { parar = sala.ouvir(codigo, receber, jogo); return parar; },
     parar() { parar(); },
     estado() { return { aplicadas: aplicadas.length, pendentes: pendentes.length, reconstrucoes, ignoradas }; },
     sala() { return salaVista; }
@@ -14399,6 +14403,17 @@ function diffDaTroca(entries, original) {
   const porNome = (x, y) => x.name.localeCompare(y.name);
   return { entram: entram.sort(porNome), saem: saem.sort(porNome) };
 }
+/** H3 · a troca que chegou do outro aparelho só vale se for a mesma lista com cartas mudadas de lado:
+    mesmas cartas, mesmas quantidades somando deck e reserva, e dentro dos limites do formato. */
+function trocaLegitima(entries, formato, original) {
+  if (!Array.isArray(entries) || !entries.every(e => e && typeof e.name === 'string' && Number.isInteger(e.qty) && e.qty > 0)) return false;
+  const soma = es => { const m = new Map(); for (const e of es) m.set(e.name, (m.get(e.name) || 0) + e.qty); return m; };
+  const a = soma(original), b = soma(entries);
+  if (a.size !== b.size) return false;
+  for (const [nome, n] of a) if (b.get(nome) !== n) return false;
+  const fixas = es => es.filter(e => e.zone === 'commander' || e.zone === 'companion').map(e => `${e.zone}:${e.name}:${e.qty}`).sort().join('|');
+  return fixas(original) === fixas(entries) && validaTroca(entries, formato, original).ok;
+}
 /** Próxima partida da série: avança o número do jogo e guarda quem começa. */
 function proximoJogo(serie, primeiro) { return { ...serie, jogo: serie.jogo + 1, primeiro }; }
 
@@ -14798,7 +14813,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -15276,12 +15291,14 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       try { const defs = __m23.fichasDasCartas(names); if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c) cards[c.name] = c; } } } catch (e) { /* sem ficha guardada */ }
       return cards;
     }
-    async function guardarEIr(setup, assento, codigo) {
+    async function guardarEIr(setup, assento, codigo, serieDe = null) {
       const mesa = T.createTable(setup, { options: { autoPass: true } });
       await store.set(T.SAVE_KEY, { ...mesa.serialize(), options: { autoPass: true, bot: null, online: { codigo, assento, modo: online.modo } } });
       // duas abas do mesmo aparelho dividem o store: o assento desta aba fica na sessão dela
       try { sessionStorage.setItem('estante.online.assento', JSON.stringify({ codigo, assento })); } catch (e) { /* sem sessão */ }
-      await store.remove(T.SERIE_KEY);
+      // H3 · melhor de 3 online: a série nasce nos dois aparelhos com as duas listas (a troca de reserva parte delas)
+      if (serieDe && serieDe.melhorDe > 1) await store.set(T.SERIE_KEY, T.novaSerie({ melhorDe: serieDe.melhorDe, formato: setup.format, semente: setup.seed, opcoes: { online: { codigo } }, assentos: serieDe.assentos }));
+      else await store.remove(T.SERIE_KEY);
       if (on.parar) { on.parar(); on.parar = null; }
       go('/partida');
     }
@@ -15289,7 +15306,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const mine = byId(state.mine); if (!mine || on.esperando) return;
       on.erro = null; on.esperando = true; paintOpponent();
       try {
-        on.codigo = await online.sala.criar({ nome: meuNome(), deck: mine.entries, formato: mine.format });
+        on.codigo = await online.sala.criar({ nome: meuNome(), deck: mine.entries, formato: mine.format, melhorDe: state.melhorDe });
         on.parar = online.sala.ouvir(on.codigo, async d => {
           if (!d || !d.sala) return;
           if (d.sala.estado === 'encerrada') { on.erro = 'O outro jogador saiu da sala.'; on.esperando = false; on.codigo = null; if (on.parar) { on.parar(); on.parar = null; } return paintOpponent(); }
@@ -15303,7 +15320,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
               const seats = [{ name: meuNome(), deck: mine }, { name: d.sala.convidado.nome || 'Oponente', deck: theirs }];
               const setup = T.buildSetup({ format: mine.format, seed: state.seed, seats, cards, manaCheck: true, mode: 'full' });
               await online.sala.publicarSetup(on.codigo, setup);
-              await guardarEIr(setup, 0, on.codigo);
+              await guardarEIr(setup, 0, on.codigo, { melhorDe: state.melhorDe, assentos: seats.map(x => ({ name: x.name, entries: x.deck.entries })) });
             } catch (e) { on.publiquei = false; on.erro = 'Não foi possível preparar a mesa: ' + (e.message || e); paintOpponent(); }
           }
         });
@@ -15318,7 +15335,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         on.parar = online.sala.ouvir(on.codigo, async d => {
           if (!d || !d.sala) return;
           if (d.sala.estado === 'encerrada') { on.erro = 'O anfitrião fechou a sala.'; on.esperando = false; on.codigo = null; if (on.parar) { on.parar(); on.parar = null; } return paintOpponent(); }
-          if (d.sala.setup && !on.publiquei) { on.publiquei = true; await guardarEIr(d.sala.setup, 1, on.codigo); }
+          if (d.sala.setup && !on.publiquei) { on.publiquei = true; await guardarEIr(d.sala.setup, 1, on.codigo, { melhorDe: d.sala.melhorDe === 3 ? 3 : 1, assentos: d.sala.setup.players.map(x => ({ name: x.name, entries: x.deck })) }); }
         });
       } catch (e) { on.erro = ERROS_SALA[e.message] || 'Não foi possível entrar na sala.'; on.esperando = false; }
       paintOpponent();
@@ -15446,7 +15463,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         covBox,
         ChipField('Oponente', oppChips), oppNota,
         theirsField, bloqueioDele,
-        ChipField('Série', serieChips, 'Na melhor de 3, entre as partidas você troca cartas do deck com a reserva. Vence quem ganhar duas.'),
+        ChipField('Série', serieChips, 'Na melhor de 3, entre as partidas você troca cartas do deck com a reserva. Vence quem ganhar duas. Online, vale a escolha de quem cria a sala.'),
         DEV ? ChipField('Modo (teste)', modeBox) : null,
         DEV ? ChipField('Mana (teste)', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
           c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })()) : null,
@@ -15857,7 +15874,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
         const o = { ...data.options.online };
         try { const meu = JSON.parse(sessionStorage.getItem('estante.online.assento') || 'null'); if (meu && meu.codigo === o.codigo) o.assento = meu.assento; } catch (e) { /* fica o do store */ }
         if (data.engine !== E.ENGINE_VERSION) throw new Error('versao-do-motor');
-        sinc = __m30.criaSincronizador({ sala: online.sala, codigo: o.codigo, setup: data.setup, assento: o.assento,
+        sinc = __m30.criaSincronizador({ sala: online.sala, codigo: o.codigo, setup: data.setup, assento: o.assento, jogo: o.jogo || 1,
           criaMesa: setup => T.createTable(setup, { options: { autoPass: true } }),
           aoMudar: (m, motivo) => { if (motivo !== 'local') { adjudicating = null; save(); paint(); } },
           aoSala: () => { if (root.isConnected) { paint(); pintaChat(); } },
@@ -15869,7 +15886,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
         sinc.ligar();
         const pararLigacao = online.transporte.aoMudarLigacao(() => { if (root.isConnected) paint(); else pararLigacao(); });
         // o anfitrião apaga a sala um minuto depois do fim (o convidado já recebeu a última ação)
-        const vigiaFim = setInterval(() => { if (!root.isConnected) return clearInterval(vigiaFim); if (table.state.status === 'over' && o.assento === 0) { clearInterval(vigiaFim); setTimeout(() => online.sala.apagar(o.codigo).catch(() => {}), 60000); } }, 2000);
+        const vigiaFim = setInterval(() => { if (!root.isConnected) return clearInterval(vigiaFim); if (table.state.status === 'over' && o.assento === 0 && !(serie && serie.melhorDe > 1 && T.resultadoDaSerie(serie) == null)) { clearInterval(vigiaFim); setTimeout(() => online.sala.apagar(o.codigo).catch(() => {}), 60000); } }, 2000);
         pararPresenca = setInterval(() => { if (!root.isConnected) { clearInterval(pararPresenca); sinc.parar(); return; } online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {}); if (table.state.status !== 'over') paint(); }, 15000);
         online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {});
       } else table = T.restoreTable(data);
@@ -16861,8 +16878,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
             b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
           IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
-          IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
-            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); if (sinc) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
+          IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text(serie && serie.melhorDe > 1 ? 'Esta partida termina com vitória do oponente. A série continua se ainda não estiver decidida.' : 'A partida termina com vitória do oponente.', { tone: 'muted' }),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); const segue = serie && serie.melhorDe > 1 && T.resultadoDaSerie(T.registraJogo(serie, 1 - v)) == null; act({ t: 'concede', p: v }); if (sinc && !segue) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
         opp != null ? side(s, opp, false) : null,
         h('div', { class: 'tb-center' }, painelPilha, onlineBox(), recusaBox(), resumoBox(), adj),
@@ -16882,7 +16899,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
    Uma tela por jogador humano que tem reserva: deck em cima, reserva embaixo, um toque passa uma cópia de um lado
    para o outro; a barra do topo diz se os limites do formato valem e o que entrou e saiu. Segurar a carta mostra
    a carta inteira. O Shark não troca cartas (declarado no ROADMAP). */
-function createSeriesScreen({ store }) {
+function createSeriesScreen({ store, online = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   (async () => {
     let serie = null, salvo = null;
@@ -16896,8 +16913,11 @@ function createSeriesScreen({ store }) {
     // (image_uris/card_faces) e por isso nunca achava imagem: todas as cartas saíam só com o nome
     const imagens = nome => { const c = T.cartaDaMesa(cartas, nome); return c ? (c.images || (c.faces && c.faces[0] && c.faces[0].images) || null) : null; };
     const humanos = serie.assentos.map((a, i) => ({ a, i })).filter(x => !x.a.dummy && !x.a.bot);
-    const comReserva = humanos.filter(x => x.a.original.some(e => e.zone === 'side'));
-    const st = { passo: 0, entrada: serie.assentos.map(a => a.atual.map(e => ({ ...e }))), primeiro: null, busy: false, entregue: comReserva.length < 2 };
+    // H3 · série online: cada aparelho troca só a própria reserva; a mesa da próxima partida é montada pelo anfitrião
+    const on = online && salvo.options && salvo.options.online ? { ...salvo.options.online } : null;
+    if (on) { try { const meu = JSON.parse(sessionStorage.getItem('estante.online.assento') || 'null'); if (meu && meu.codigo === on.codigo) on.assento = meu.assento; } catch (e) { /* fica o do store */ } }
+    const comReserva = humanos.filter(x => x.a.original.some(e => e.zone === 'side') && (!on || x.i === on.assento));
+    const st = { passo: 0, entrada: serie.assentos.map(a => a.atual.map(e => ({ ...e }))), primeiro: null, busy: false, entregue: comReserva.length < 2, pronto: false, saiu: false, erro: null, publiquei: false, indo: false };
     // quem perdeu escolhe quem começa; empate: sorteio pela semente
     const perdedor = serie.ultimoPerdedor != null ? serie.ultimoPerdedor : (serie.semente + serie.jogo) % serie.assentos.length;
     const perdedorHumano = !serie.assentos[perdedor].dummy && !serie.assentos[perdedor].bot;
@@ -16959,12 +16979,63 @@ function createSeriesScreen({ store }) {
         go('/partida');
       } catch (e) { toast('Não foi possível começar a partida: ' + (e.message || e)); st.busy = false; }
     }
+    const N = serie.jogo + 1; let pararSala = () => {};
+    const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    async function pronto() {
+      if (st.busy) return; st.busy = true; st.erro = null; paint();
+      try { await online.sala.publicarTroca(on.codigo, N, on.assento, { entries: serie.assentos[on.assento].atual, primeiro: perdedor === on.assento ? st.primeiro : null }); st.pronto = true; }
+      catch (e) { st.erro = 'Sem conexão: suas trocas não chegaram ao outro jogador. Tente de novo.'; }
+      st.busy = false; paint();
+    }
+    async function entraNaProxima(jogo) {
+      if (st.indo) return; st.indo = true; pararSala();
+      try {
+        const setup = { ...jogo.setup, cards: cartas };
+        const proxima = T.proximoJogo({ ...serie, assentos: serie.assentos.map((a, i) => ({ ...a, atual: ((setup.players[i] || {}).deck || a.atual).map(e => ({ ...e })) })) }, setup.first != null ? setup.first : null);
+        const mesa = T.createTable(setup, { options: { autoPass: true } });
+        await store.set(T.SAVE_KEY, { ...mesa.serialize(), options: { autoPass: true, bot: null, online: { ...salvo.options.online, jogo: N } } });
+        await store.set(T.SERIE_KEY, proxima);
+        go('/partida');
+      } catch (e) { st.indo = false; st.erro = 'Não foi possível abrir a próxima partida: ' + (e.message || e); paint(); }
+    }
+    async function ouveSala(d) {
+      if (!d || !d.sala || d.sala.estado === 'encerrada') { st.saiu = true; return paint(); }
+      const jogo = (d.sala.jogos || {})['j' + N] || null, trocas = (d.sala.serie || {})['j' + N] || {};
+      if (jogo && jogo.setup) return entraNaProxima(jogo);
+      if (trocas['a' + on.assento] && !st.pronto) { st.pronto = true; paint(); }
+      if (on.assento !== 0 || !trocas.a0 || !trocas.a1 || st.publiquei) return;
+      st.publiquei = true;
+      try {
+        // a troca do outro aparelho só vale se for a lista dele com cartas mudadas de lado; senão joga a original
+        const listas = serie.assentos.map((a, i) => T.trocaLegitima(trocas['a' + i].entries, serie.formato, a.original) ? trocas['a' + i].entries : a.original);
+        const tp = trocas['a' + perdedor].primeiro, primeiro = tp === 0 || tp === 1 ? tp : perdedor;
+        const setup = T.buildSetup({ format: serie.formato, seed: (serie.semente + N * 7919) >>> 0, seats: serie.assentos.map((a, i) => ({ name: a.name, deck: { entries: listas[i] } })), cards: cartas, manaCheck: true, mode: 'full', first: primeiro });
+        // as cartas são as mesmas da partida 1 e já estão nos dois aparelhos: não viajam de novo
+        await online.sala.publicarProxima(on.codigo, N, { setup: { ...setup, cards: null }, primeiro });
+      } catch (e) { st.publiquei = false; st.erro = 'Não foi possível preparar a próxima partida: ' + (e.message || e); paint(); }
+    }
+    if (on) {
+      st.entregue = true;
+      pararSala = online.sala.ouvir(on.codigo, d => { ouveSala(d); });
+      const vigia = setInterval(() => { if (!root.isConnected) { clearInterval(vigia); pararSala(); } }, 2000);
+    }
     function paint(nome, para) {
       const atual = comReserva[st.passo] || null;
       const placar = `${serie.assentos[0].name} ${serie.vitorias[0]}–${serie.vitorias[1]} ${serie.assentos[1].name}`;
       const cab = [Row({ class: 'troca-cab' }, Stack({ style: { gap: '2px', minWidth: '0' } },
         Text(`Partida ${serie.jogo + 1} de ${serie.melhorDe}`, { size: '2xl', display: true, as: 'h1' }),
         Text(placar, { size: 'sm', tone: 'muted', attrs: { id: 'serie-placar' } })))];
+      const outro = on ? serie.assentos[1 - on.assento].name : '';
+      if (on && st.saiu) {
+        return mount(root, ...cab, (() => { const n = Note(`<b>A série parou aqui.</b> ${esc(outro)} saiu da sala. O placar fica guardado nas suas partidas.`, 'warning'); n.id = 'serie-saiu'; return n; })(),
+          Row({}, Button('Preparar partida', { variant: 'primary', icone: 'jogar', onClick: async () => { await store.remove(T.SAVE_KEY); await store.remove(T.SERIE_KEY); go('/mesa'); } })));
+      }
+      if (on && st.pronto) {
+        return mount(root, ...cab, Surface({ class: 'ds-surface--pad' }, Stack({},
+          Text('Trocas enviadas', { size: 'lg', display: true, as: 'h2' }),
+          Row({}, Spinner(), Text(`Esperando ${outro} terminar as trocas. A partida ${N} abre sozinha nos dois aparelhos.`, { size: 'sm', tone: 'muted', attrs: { id: 'serie-espera', 'aria-live': 'polite' } })),
+          st.erro ? Note(esc(st.erro), 'negative') : null)));
+      }
       // a dois: cada um troca sem o outro ver
       if (atual && !st.entregue) {
         return mount(root, ...cab, Surface({ class: 'ds-surface--pad' }, Stack({},
@@ -16974,17 +17045,18 @@ function createSeriesScreen({ store }) {
       }
       const ultimo = !atual || st.passo >= comReserva.length - 1;
       const valido = !atual || T.validaTroca(atual.a.atual, serie.formato, atual.a.original).ok;
-      const quem = perdedorHumano
+      const quem = (on ? perdedor === on.assento : perdedorHumano)
         ? ChipField('Quem começa', h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Quem começa', id: 'serie-primeiro' }, ...serie.assentos.map((a, i) => {
           const c = Chip(a.name, { pressed: st.primeiro === i, dataset: { primeiro: String(i) } }); c.addEventListener('click', () => { st.primeiro = i; paint(); }); return c; })),
           `${serie.assentos[perdedor].name} ${serie.ultimoPerdedor != null ? 'perdeu a partida anterior e' : 'foi sorteado e'} escolhe quem começa.`)
-        : Text(`${serie.assentos[perdedor].name} perdeu a partida anterior e escolheu começar.`, { size: 'sm', tone: 'muted', attrs: { id: 'serie-primeiro' } });
+        : Text(on ? `${serie.assentos[perdedor].name} ${serie.ultimoPerdedor != null ? 'perdeu a partida anterior' : 'foi sorteado'} e escolhe quem começa.` : `${serie.assentos[perdedor].name} perdeu a partida anterior e escolheu começar.`, { size: 'sm', tone: 'muted', attrs: { id: 'serie-primeiro' } });
       mount(root, ...cab,
         atual ? (comReserva.length > 1 ? Text(`Trocas de ${atual.a.name}`, { size: 'lg', display: true, as: 'h2' }) : null) : null,
         atual ? painel(atual.i, nome ? { nome, para } : null) : Note('Nenhuma lista tem reserva: não há o que trocar.', 'info'),
         __m3.reservaDoca(h('div', { class: 'troca-rodape' },   // leva 123 · o aviso flutuante sobe acima do rodapé
           ultimo ? quem : null,
-          Row({}, ultimo
+          on && st.erro ? Note(esc(st.erro), 'negative') : null,
+          Row({}, on ? Button('Pronto', { variant: 'primary', id: 'serie-pronto', icone: 'jogar', disabled: !valido || st.busy, onClick: pronto }) : ultimo
             ? Button(`Começar a partida ${serie.jogo + 1}`, { variant: 'primary', id: 'serie-start', icone: 'jogar', disabled: !valido, onClick: comecar })
             : Button('Confirmar trocas', { variant: 'primary', id: 'serie-confirma', disabled: !valido, onClick: () => { st.passo++; st.entregue = false; paint(); window.scrollTo(0, 0); } })))));
     }
@@ -19088,7 +19160,7 @@ const ROUTES = [
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som }) },
-  { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
+  { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
