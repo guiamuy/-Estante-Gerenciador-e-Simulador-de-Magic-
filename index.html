@@ -361,6 +361,22 @@ a { color: var(--accent); }
 .ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .ds-visor__custo { flex: none; font-size: var(--simbolo-lg); white-space: nowrap; }
 .ds-visor__tipo { gap: var(--space-2); align-items: center; }
+/* H6 · folha de pagamento: uma linha por fonte (e por cor que ela gera), com contador; a conferência embaixo */
+.tb-pagar { display: flex; flex-direction: column; gap: var(--space-3); }
+.tb-pagar__acao { margin: 0; font-size: var(--text-md); color: var(--fg); }
+.tb-pagar__fontes { display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-pagar__fonte { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); padding-left: var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); }
+.tb-pagar__fonte:not([data-usadas="0"]) { border-color: var(--accent); }
+.tb-pagar__nome { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.tb-pagar__nome > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-pagar__gera { flex: none; white-space: nowrap; }
+.tb-pagar__qtd { flex: none; min-width: 2.6em; text-align: center; font-variant-numeric: tabular-nums; font-size: var(--text-sm); color: var(--fg-muted); }
+.tb-pagar__soma { margin: 0; font-size: var(--text-sm); color: var(--fg-muted); }
+.tb-pagar__estado { margin: 0; display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); font-size: var(--text-sm); color: var(--fg); border-left: 3px solid var(--border-strong); }
+.tb-pagar__estado > .ds-icon { flex: none; margin-top: 1px; }
+.tb-pagar__estado[data-tom="positive"] { border-left-color: var(--positive); } .tb-pagar__estado[data-tom="positive"] > .ds-icon { color: var(--positive); }
+.tb-pagar__estado[data-tom="negative"] { border-left-color: var(--negative); } .tb-pagar__estado[data-tom="negative"] > .ds-icon { color: var(--negative); }
+.tb-pagar__estado[data-tom="warning"] { border-left-color: var(--warning); } .tb-pagar__estado[data-tom="warning"] > .ds-icon { color: var(--warning); }
 /* H5 · a cena: legenda do que o oponente fez, presa acima da bandeja; a mesa não aceita toque enquanto ela passa */
 .tb-cena { position: fixed; left: var(--space-3); right: var(--space-3); bottom: calc(var(--doca-h, 0px) + var(--space-2) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay);
   display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
@@ -6529,7 +6545,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -14718,7 +14734,71 @@ function cartaDaMesa(cards, nome) {
   }
   return null;
 }
-return { cartaDaMesa, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+/* ---------------- H6 · pagar com as manas que eu escolho ----------------
+   O motor paga sozinho: usa primeiro o que está na reserva e vira as fontes que faltam (`planTaps`). Escolher as manas, então,
+   não pede regra nova: basta virar as fontes escolhidas ANTES de conjurar — o motor encontra a mana na reserva e não vira mais
+   nada. Estas funções conferem a escolha simulando no próprio motor (que é puro): viram as fontes, aplicam a ação e olham se o
+   motor ainda precisou virar alguma coisa. Nenhuma conta de custo é refeita aqui: lampejo, desconto, X e imposto valem como
+   o motor os cobra. */
+const valoresDaAcao = a => { const set = new Set(); (function anda(x) { if (Array.isArray(x)) x.forEach(anda); else if (x && typeof x === 'object') Object.values(x).forEach(anda); else if (x != null) set.add(x); })(a); return set; };
+/** Fontes de mana que o jogador pode virar agora: [{ oid, nome, opcoes: [[cores]], combo }]. */
+function fontesDeMana(s, p) {
+  return E.legalActions(s, p).filter(a => a.t === 'tap_mana').map(a => { const o = s.objects[a.oid]; return { oid: a.oid, nome: o.name, opcoes: E.productions(s, o).map(x => x.slice()), combo: a.combo || 0 }; });
+}
+/** Confere uma escolha de fontes para a ação `a`. `toques`: [{ oid, option }].
+    Devolve { ok, falta: [oids que o motor ainda viraria], sobra: reserva depois de pagar, gerado: cores produzidas, impossivel, erro }. */
+function conferePagamento(s, a, toques = []) {
+  const p = a.p; let s2 = s; const gerado = [];
+  try { for (const t of toques) { gerado.push(...(E.productions(s2, s2.objects[t.oid])[t.option || 0] || [])); s2 = E.apply(s2, { t: 'tap_mana', p, oid: t.oid, option: t.option || 0 }).state; } }
+  catch (e) { return { ok: false, impossivel: true, erro: e.message, falta: [], sobra: {}, gerado }; }
+  let s3; try { s3 = E.apply(s2, a).state; } catch (e) { return { ok: false, impossivel: true, erro: e.message, falta: [], sobra: {}, gerado }; }
+  const daAcao = valoresDaAcao(a); // a própria carta e o que a ação já escolheu virar (custo de virar criaturas) não contam como mana
+  const falta = Object.values(s3.objects).filter(o => o.tapped && o.controller === p && s2.objects[o.oid] && s2.objects[o.oid].zone === 'battlefield' && !s2.objects[o.oid].tapped
+    && !daAcao.has(o.oid) && E.productions(s2, s2.objects[o.oid]).length > 0).map(o => o.oid);
+  const sobra = Object.fromEntries(Object.entries(s3.players[p].pool || {}).filter(([, n]) => n > 0));
+  return { ok: falta.length === 0, falta, sobra, gerado, impossivel: false, erro: null };
+}
+/** O que o motor faria sozinho: precisa virar fonte? Quais, e com que cor cada uma? Devolve { precisa, fontes, sugestao: [{ oid, option }] }.
+    Fonte de "qualquer combinação de cores" (Axebane Guardian) fica com o motor: a folha não sabe dividir as cores dela. */
+function planoDePagamento(s, a) {
+  const nada = { precisa: false, fontes: [], sugestao: [] };
+  if (!s || !a || !s.manaCheck || a.t === 'tap_mana' || a.t === 'pass' || a.free) return nada;
+  const auto = conferePagamento(s, a, []);
+  if (auto.impossivel || !auto.falta.length) return nada;
+  const fontes = fontesDeMana(s, a.p), porOid = new Map(fontes.map(f => [f.oid, f]));
+  if (auto.falta.some(oid => !porOid.has(oid) || porOid.get(oid).combo > 0)) return { ...nada, motivo: 'combinacao' };
+  // a cor de cada fonte de mais de uma opção: a primeira combinação que paga sem o motor virar mais nada
+  const variaveis = auto.falta.filter(oid => porOid.get(oid).opcoes.length > 1);
+  let escolha = variaveis.map(() => 0), achou = false;
+  const monta = () => auto.falta.map(oid => ({ oid, option: variaveis.includes(oid) ? escolha[variaveis.indexOf(oid)] : 0 }));
+  for (let tentativa = 0; tentativa < 243 && !achou; tentativa++) {
+    const r = conferePagamento(s, a, monta());
+    if (r.ok) { achou = true; break; }
+    let i = 0; for (; i < variaveis.length; i++) { escolha[i]++; if (escolha[i] < porOid.get(variaveis[i]).opcoes.length) break; escolha[i] = 0; }
+    if (i === variaveis.length) break;
+  }
+  if (!achou) escolha = variaveis.map(() => 0);
+  return { precisa: true, fontes, sugestao: monta() };
+}
+/** Fontes iguais (mesmo nome, mesmas opções) viram um grupo com contador: "Mountain 2 de 5". */
+function gruposDeFontes(fontes) {
+  const grupos = new Map();
+  for (const f of fontes) { if (f.combo > 0) continue; const chave = f.nome + '|' + JSON.stringify(f.opcoes); if (!grupos.has(chave)) grupos.set(chave, { chave, nome: f.nome, opcoes: f.opcoes, oids: [] }); grupos.get(chave).oids.push(f.oid); }
+  return [...grupos.values()];
+}
+/** Sugestão → contagem por grupo e opção ({ chave: [n por opção] }). */
+function contagemDosToques(grupos, toques) {
+  const conta = Object.fromEntries(grupos.map(g => [g.chave, g.opcoes.map(() => 0)]));
+  for (const t of toques) { const g = grupos.find(x => x.oids.includes(t.oid)); if (g) conta[g.chave][t.option || 0]++; }
+  return conta;
+}
+/** Contagem → fontes de verdade, na ordem do campo. */
+function toquesDaContagem(grupos, conta) {
+  const out = [];
+  for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
+  return out;
+}
+return { cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -15543,6 +15623,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     if (som) { const ligado = som.prefs.ligado;
       const c = Chip('Som', { icone: ligado ? 'som' : 'somMudo', pressed: ligado, id: 'tb-som', onClick: async () => { const p = await som.ajusta({ ligado: !som.prefs.ligado }); if (p.ligado) { som.destrava(); som.toca('suaVez'); } semSentidos = true; paint(); toast(p.ligado ? 'Som ligado' : 'Som desligado'); } });
       c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', ligado ? 'Som da partida ligado' : 'Som da partida desligado'); vezPop.appendChild(c); }
+    // H6 · escolher as manas que pagam (desligado, o motor escolhe como antes)
+    { const c = Chip('Escolher mana', { icone: 'terreno', pressed: manaManual, id: 'tb-mana-manual', onClick: () => { manaManual = !manaManual; store.set(MANA_KEY, manaManual).catch(() => {}); semSentidos = true; paint(); toast(manaManual ? 'Você escolhe as manas de cada pagamento' : 'O motor paga sozinho'); } });
+      c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', manaManual ? 'Escolher as manas de cada pagamento: ligado' : 'Escolher as manas de cada pagamento: desligado'); vezPop.appendChild(c); }
     // H5 · ver as jogadas do oponente uma a uma (só contra o bot)
     if (!sinc && table.options && table.options.bot) {
       const c = Chip('Ver jogadas', { icone: 'pular', pressed: verJogadas, id: 'tb-ver-jogadas', onClick: () => { verJogadas = !verJogadas; store.set(VER_KEY, verJogadas).catch(() => {}); semSentidos = true; paint(); toast(verJogadas ? 'As jogadas do oponente passam uma a uma' : 'O turno do oponente aparece de uma vez'); } });
@@ -15604,7 +15687,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
-    cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
+    manaManual: sim => { manaManual = !!sim; }, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -15690,8 +15773,61 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
       ? __m33.roteiroDaJogada(passos, { eu, stats: E.stats, tipos: nome => ((table.state.facts || {})[nome] || {}).types || [] }) : [];
     if (quadros.length) encena(quadros, eu); else paint();
   }
-  function act(action) {
+  /* ---- H6 · pagar com as manas que eu escolho ----
+     Toda jogada em que o motor viraria fonte de mana por conta própria abre antes a folha de pagamento: as fontes já vêm
+     marcadas como o motor faria (um toque em Pagar dá o mesmo resultado de antes), e dá para trocar quais viram e a cor de
+     cada uma. A escolha é conferida no próprio motor a cada toque; só paga quando fecha a conta. */
+  const MANA_KEY = 'mesa.manaManual';
+  let manaManual = !(typeof window !== 'undefined' && window.__SEM_PAGAMENTO);
+  store.get(MANA_KEY).then(x => { if (x === false) manaManual = false; }).catch(() => {});
+  const simbolos = cores => cores.map(c => `{${c}}`).join('');
+  function abrePagamento(action, plano, rotulo) {
+    const s = table.state, p = action.p, alvo = s.objects[action.oid];
+    const grupos = T.gruposDeFontes(plano.fontes), conta = T.contagemDosToques(grupos, plano.sugestao);
+    const corpo = h('div', { class: 'tb-pagar', id: 'tb-pagar' });
+    const reserva = Object.entries(s.players[p].pool || {}).filter(([, n]) => n > 0).flatMap(([c, n]) => Array(n).fill(c));
+    const usados = g => conta[g.chave].reduce((a, b) => a + b, 0);
+    const confirma = () => {
+      const toques = T.toquesDaContagem(grupos, conta);
+      closeDialog();
+      try { for (const tq of toques) table.act({ t: 'tap_mana', p, oid: tq.oid, option: tq.option }); }
+      catch (e) { toast(e.message || 'Não deu para virar essa fonte'); save(); paint(); return; }
+      act(action, { pago: true });
+    };
+    const pagar = Button('Pagar', { variant: 'primary', icone: 'marcar', id: 'tb-pagar-ok', onClick: confirma });
+    function pinta() {
+      const toques = T.toquesDaContagem(grupos, conta), r = T.conferePagamento(s, action, toques);
+      const sobra = Object.entries(r.sobra).flatMap(([c, n]) => Array(n).fill(c));
+      const estado = r.impossivel ? { tom: 'negative', icone: 'alerta', texto: `Com essas escolhas não dá para pagar${r.erro ? ' (' + r.erro + ')' : ''}. Troque a cor ou a fonte.` }
+        : !r.ok ? { tom: 'negative', icone: 'alerta', texto: `Falta mana. Para completar ainda seria preciso virar: ${r.falta.map(oid => s.objects[oid].name).join(', ')}.` }
+        : sobra.length ? { tom: 'warning', icone: 'alerta', texto: `Paga, e sobra ${simbolos(sobra)} na reserva até o fim da etapa.` }
+        : { tom: 'positive', icone: 'marcar', texto: 'Pagamento certo.' };
+      pagar.disabled = !r.ok;
+      mount(corpo,
+        rotulo ? h('p', { class: 'tb-pagar__acao', id: 'tb-pagar-acao' }, rotulo) : null,
+        h('div', { class: 'tb-pagar__fontes', id: 'tb-pagar-fontes', role: 'group', 'aria-label': 'Fontes de mana' }, ...grupos.flatMap(g => g.opcoes.map((op, k) => {
+          const n = conta[g.chave][k], livre = g.oids.length - usados(g);
+          const muda = d => { conta[g.chave][k] = Math.max(0, Math.min(g.oids.length, n + d)); pinta(); const b = corpo.querySelector(`[data-fonte="${CSS.escape(g.chave)}"][data-opcao="${k}"] [data-passo="${d}"]`); if (b && !b.disabled) b.focus(); };
+          return h('div', { class: 'tb-pagar__fonte', dataset: { fonte: g.chave, opcao: String(k), nome: g.nome, usadas: String(n) } },
+            h('span', { class: 'tb-pagar__nome' }, h('span', { lang: 'en' }, g.nome), h('span', { class: 'tb-pagar__gera' }, simbolos(op))),
+            (() => { const b = IconButton('menos', `Uma ${g.nome} a menos`, { variant: 'ghost', disabled: n <= 0, dataset: { passo: '-1' }, onClick: () => muda(-1) }); return b; })(),
+            h('span', { class: 'tb-pagar__qtd', 'aria-label': `${n} de ${g.oids.length} ${g.nome} para ${op.join(' ')}` }, `${n}/${g.oids.length}`),
+            IconButton('mais', `Uma ${g.nome} a mais`, { variant: 'ghost', disabled: livre <= 0, dataset: { passo: '1' }, onClick: () => muda(1) }));
+        }))),
+        h('p', { class: 'tb-pagar__soma', id: 'tb-pagar-soma' }, 'Você gera ', h('span', { class: 'tb-pagar__gera' }, r.gerado.length ? simbolos(r.gerado) : 'nada'), reserva.length ? h('span', {}, ' · na reserva ', h('span', { class: 'tb-pagar__gera' }, simbolos(reserva))) : null),
+        h('p', { class: 'tb-pagar__estado', id: 'tb-pagar-estado', role: 'status', dataset: { tom: estado.tom, ok: String(r.ok) } }, Icone(estado.icone, { tamanho: 18 }), h('span', {}, estado.texto)));
+      simbolizar(corpo);
+    }
+    pinta();
+    Dialog({ title: alvo ? `Pagar · ${alvo.name}` : 'Pagar', body: corpo,
+      actions: [Button('Automático', { variant: 'ghost', icone: 'raio', id: 'tb-pagar-auto', title: 'O motor escolhe as fontes, como antes', onClick: () => { closeDialog(); act(action, { pago: true }); } }), pagar] });
+  }
+  function act(action, { pago = false, rotulo = '' } = {}) {
     if (cena) return false; // a mesa não aceita jogada enquanto mostra a do oponente
+    if (!pago && manaManual && action && action.p === table.viewer()) {
+      let plano = null; try { plano = T.planoDePagamento(table.state, action); } catch (e) { plano = null; }
+      if (plano && plano.precisa) { abrePagamento(action, plano, rotulo); return true; }
+    }
     try {
       const eu = table.viewer();
       const events = table.act(action);
@@ -15840,7 +15976,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   // A15 · as ações de uma carta são descritas uma vez e viram botão (folha) ou chip (espiar)
   const doBtn = (label, action, opts = {}) => ({ label, action, variant: opts.variant });
   const toButton = d => d.disabled ? Button(d.label, { block: true, disabled: true }) : Button(d.label, { block: true, variant: d.variant,
-    onClick: () => { closeDialog(); if (d.abre) d.abre(); else if (d.opcoes) escolher(d.label, d.opcoes); else act(d.action); } });
+    onClick: () => { closeDialog(); if (d.abre) d.abre(); else if (d.opcoes) escolher(d.label, d.opcoes); else act(d.action, { rotulo: d.label }); } });
 
   /* ---- Leva 104 · escolhas de quem paga: valor de X e o que vira, sacrifica, descarta ou volta ---- */
   const nomesDe = (s, lista) => {

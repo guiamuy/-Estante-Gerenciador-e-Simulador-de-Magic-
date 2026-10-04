@@ -79,6 +79,9 @@ async function open(t, { dev = true, apresentacao = false, cena = false } = {}) 
   // H5 · contra o bot a mesa mostra o turno dele quadro a quadro (segundos de espera, mesa sem toque). Só o teste que pede vê a cena;
   // os outros recebem o turno do bot de uma vez, como antes.
   if (!cena) await ctx.addInitScript(() => { window.__SEM_CENA = true; });
+  // H6 · a folha de pagamento abre antes de toda mágica que vira terreno; os testes que não são dela continuam com o
+  // pagamento automático (um toque a menos por mágica). O teste da H6 liga por `window.__estanteMesa.manaManual(true)`.
+  await ctx.addInitScript(() => { window.__SEM_PAGAMENTO = true; });
   const page = await ctx.newPage();
   // leva 113: o app publicado só tem o motor completo. Os testes de mesa montam o estado à mão (mover carta, conjurar
   // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
@@ -6818,5 +6821,69 @@ test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com
   assert.equal(await page.locator('#tb-cena').count(), 0, 'desligado: sem cena'); assert.equal((await M()).narrado.length, n4);
   await page.reload(); await page.waitForSelector('#tb-vez-btn'); await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-ver-jogadas', { state: 'visible' });
   assert.equal(await page.getAttribute('#tb-ver-jogadas', 'aria-pressed'), 'false', 'a escolha fica guardada no aparelho');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · H6 pagar com as manas que eu escolho: a folha abre com a sugestão do motor, confere a cada toque (certo, falta, cor errada, sobra), só paga quando fecha, e vira exatamente o que escolhi; Automático e desligar continuam como antes', { skip }, async t => {
+  const M = await comLista125(t, '14 Mountain\n10 Swamp\n36 Lightning Bolt', ['Mountain', 'Swamp', 'Lightning Bolt'], '3');
+  const { page, errors } = M;
+  const campo = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); const meus = s.zones[0].battlefield.map(o => s.objects[o]); const conta = (n, v) => meus.filter(o => o.name === n && !!o.tapped === v).length;
+    return { mDe: conta('Mountain', false), mVi: conta('Mountain', true), sDe: conta('Swamp', false), sVi: conta('Swamp', true), vida: s.players[1].life, pilha: s.stack.length, reserva: Object.values(s.players[0].pool).reduce((a, b) => a + b, 0) }; });
+  // terreno a cada turno até ter duas Mountain, um Swamp e um Lightning Bolt ({R}) na mão
+  const terra = async prefere => { for (const n of prefere) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) return n; } return null; };
+  for (let i = 0; i < 20; i++) { const c = await campo(); await terra(c.mDe < 2 ? ['Mountain', 'Swamp'] : c.sDe < 1 ? ['Swamp', 'Mountain'] : ['Mountain', 'Swamp']); const d = await campo(); if (d.mDe >= 2 && d.sDe >= 1 && await M.oid('Lightning Bolt')) break; await M.proximo(); }
+  const ini = await campo(); assert.ok(ini.mDe >= 2 && ini.sDe >= 1 && await M.oid('Lightning Bolt'), 'mesa pronta: ' + JSON.stringify(ini));
+  await page.evaluate(() => window.__estanteMesa.manaManual(true));
+  const abreFolha = async () => { await page.locator('#tb-hand .tb-card[aria-label^="Lightning Bolt"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__actions'); await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /Goldfish/ }).first().click(); };
+  const linha = nome => page.locator(`#tb-pagar-fontes .tb-pagar__fonte[data-nome="${nome}"]`);
+  const usadas = async nome => Number(await linha(nome).getAttribute('data-usadas'));
+  const estado = () => page.$eval('#tb-pagar-estado', el => [el.dataset.tom, el.dataset.ok, el.innerText.trim()]);
+  // a folha de pagamento abre no lugar da conjuração direta, com a sugestão do motor marcada
+  await abreFolha(); await page.waitForSelector('#tb-pagar'); await page.waitForTimeout(350); // a folha entra com movimento curto: mede depois
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Pagar · Lightning Bolt'); assert.equal((await campo()).pilha, 0, 'nada foi conjurado ainda');
+  assert.equal(await usadas('Mountain'), 1, '{R}: o motor sugere uma Mountain'); assert.equal(await usadas('Swamp'), 0);
+  assert.deepEqual((await estado()).slice(0, 2), ['positive', 'true']); assert.match((await estado())[2], /Pagamento certo/); assert.equal(await page.isEnabled('#tb-pagar-ok'), true);
+  assert.equal(await page.innerText(`#tb-pagar-fontes .tb-pagar__fonte[data-nome="Mountain"] .tb-pagar__qtd`), `1/${ini.mDe}`);
+  assert.ok(await page.locator('#tb-pagar-acao .ds-sym').count() >= 1, 'o custo em símbolos'); assert.equal(await page.locator('#tb-pagar-soma .ds-sym').count(), 1, 'a mana que a escolha gera, em símbolo');
+  assert.ok(await page.$$eval('#tb-pagar-fontes button', bs => bs.every(b => b.getBoundingClientRect().width >= 44 && b.getBoundingClientRect().height >= 44)), 'contadores com alvos de 44 px');
+  await auditaTela(page, 'folha de pagamento');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/h6-pagar.png' });
+  // nenhuma fonte: falta mana, a folha diz o que completaria e o botão espera
+  await linha('Mountain').locator('[data-passo="-1"]').click();
+  assert.equal(await usadas('Mountain'), 0); let e = await estado(); assert.deepEqual(e.slice(0, 2), ['negative', 'false']); assert.match(e[2], /Falta mana\. Para completar ainda seria preciso virar: Mountain\./); assert.equal(await page.isDisabled('#tb-pagar-ok'), true);
+  // cor errada: o Swamp gera {B} e o custo pede {R} — continua faltando
+  await linha('Swamp').locator('[data-passo="1"]').click();
+  e = await estado(); assert.deepEqual(e.slice(0, 2), ['negative', 'false'], 'preto não paga vermelho: ' + e[2]); assert.match(e[2], /virar: Mountain/);
+  // a Mountain de volta, com o Swamp a mais: paga e avisa o que sobra
+  await linha('Mountain').locator('[data-passo="1"]').click();
+  e = await estado(); assert.deepEqual(e.slice(0, 2), ['warning', 'true']); assert.match(e[2], /Paga, e sobra/); assert.equal(await page.locator('#tb-pagar-estado .ds-sym').count(), 1, 'a sobra aparece em símbolo');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/h6-sobra.png' });
+  await linha('Swamp').locator('[data-passo="-1"]').click();
+  e = await estado(); assert.deepEqual(e.slice(0, 2), ['positive', 'true']);
+  // o contador não passa do que existe
+  for (let i = 1; i < ini.mDe; i++) await linha('Mountain').locator('[data-passo="1"]').click();
+  assert.equal(await linha('Mountain').locator('[data-passo="1"]').isDisabled(), true); assert.equal(await usadas('Mountain'), ini.mDe);
+  for (let i = 1; i < ini.mDe; i++) await linha('Mountain').locator('[data-passo="-1"]').click();
+  // pagar: vira exatamente o escolhido, a mágica resolve e nada flutua
+  await page.click('#tb-pagar-ok'); await page.waitForSelector('.ds-dialog', { state: 'detached' }); await M.resolve();
+  let fim = await campo();
+  assert.deepEqual([fim.mVi, fim.mDe, fim.sVi], [1, ini.mDe - 1, 0], 'virou o que eu escolhi: ' + JSON.stringify(fim)); assert.equal(fim.vida, ini.vida - 3); assert.equal(fim.reserva, 0);
+  // fechar a folha sem pagar não conjura nem vira nada
+  await M.proximo(); await terra(['Mountain', 'Swamp']);
+  const antes = await campo(); assert.ok(await M.oid('Lightning Bolt'), 'outro Lightning Bolt na mão');
+  await abreFolha(); await page.waitForSelector('#tb-pagar'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.deepEqual(await campo(), antes, 'cancelar não mexe na mesa');
+  // Automático: o motor escolhe, como antes
+  await abreFolha(); await page.waitForSelector('#tb-pagar'); assert.equal((await page.innerText('#tb-pagar-auto')).trim(), 'Automático');
+  await page.click('#tb-pagar-auto'); await page.waitForSelector('.ds-dialog', { state: 'detached' }); await M.resolve();
+  fim = await campo(); assert.equal(fim.vida, antes.vida - 3); assert.equal(fim.mVi + fim.sVi, 1, 'uma fonte virada pelo motor');
+  // desligar no balão da faixa: a mágica volta a ser conjurada direto
+  await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-mana-manual', { state: 'visible' });
+  assert.equal(await page.getAttribute('#tb-mana-manual', 'aria-pressed'), 'true'); assert.equal((await page.innerText('#tb-mana-manual')).trim(), 'Escolher mana');
+  await auditaTela(page, 'balão da faixa com Escolher mana');
+  await page.click('#tb-mana-manual'); await page.waitForFunction(() => document.querySelector('#tb-mana-manual').getAttribute('aria-pressed') === 'false'); await page.click('#tb-vez-fechar');
+  if (await M.oid('Lightning Bolt') && (await campo()).mDe >= 1) { const v0 = (await campo()).vida; await abreFolha(); await page.waitForTimeout(250); assert.equal(await page.locator('#tb-pagar').count(), 0, 'desligado: sem folha de pagamento'); await M.resolve(); assert.equal((await campo()).vida, v0 - 3); }
+  await page.reload(); await page.waitForSelector('#tb-vez-btn'); await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-mana-manual', { state: 'visible' });
+  assert.equal(await page.getAttribute('#tb-mana-manual', 'aria-pressed'), 'false', 'a escolha fica guardada no aparelho');
   assert.deepEqual(errors, []);
 });

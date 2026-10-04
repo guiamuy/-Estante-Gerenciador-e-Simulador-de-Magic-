@@ -416,6 +416,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ay ✅ | H2 contra o bot, desfazer volta quantas jogadas quiser (até a mão inicial) e o Registro volta ao começo de um turno (leva 173) | H | 1 | teste no aparelho |
 | 16º-az ✅ | H4 resumo do turno recolhido: faixa de 44 px com ícone e sinais, detalhe por cima da mesa, fecha fácil (leva 174) | H | 1 | teste no aparelho |
 | 16º-ba ✅ | H5 ver o oponente jogar: o turno do bot passa quadro a quadro, com legenda, a tela indo até onde acontece, som e efeito por passo, Pular e liga/desliga (leva 175) | H | 1 | teste no aparelho |
+| 16º-bb ✅ | H6 pagar com as manas que eu escolho: folha de pagamento com a sugestão do motor, contador por fonte e cor, conferência a cada toque (certo, falta, sobra) (leva 176) | H | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4944,6 +4945,37 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   mesa sem toque, jogada recusada no meio, fim no estado real, Pular, desligar e lembrar; `auditaTela` na cena).
   O harness dos e2e desliga a cena por padrão (`open(t, { cena: true })` liga).
 - **Fora:** escolher a velocidade; voltar um quadro; cena na partida online e a dois.
+
+**H6 · Pagar com as manas que eu escolho** ✅ (leva 176, 04/10/2026)
+- **Antes:** ao conjurar, o motor escolhia sozinho quais terrenos virar (e que cor cada um gerava). Só dava para
+  escolher virando terreno por terreno pela folha de cada carta, antes de conjurar.
+- **Agora:** toda jogada em que o motor viraria fonte de mana abre a **folha de pagamento** ("Pagar · nome da
+  carta", com a ação e o custo em símbolos):
+  - **uma linha por fonte e por cor que ela gera** (Mountain {R}, Swamp {B}; terreno de duas cores tem uma linha
+    por cor), com contador **− n/N +**; fontes iguais ficam juntas;
+  - já vem **marcada como o motor pagaria** — um toque em **Pagar** dá o resultado de antes; mudar é opcional;
+  - **confere a cada toque, no próprio motor:** "Pagamento certo.", "Falta mana. Para completar ainda seria preciso
+    virar: Mountain." (cor errada cai aqui: preto não paga vermelho), "Paga, e sobra {B} na reserva até o fim da
+    etapa." ou "Com essas escolhas não dá para pagar…"; mostra a mana que a escolha gera e a que já está na reserva;
+  - **Pagar** só acende com a conta fechada; fechar a folha não conjura nem vira nada; **Automático** paga como antes.
+- **Como confere (sem regra nova):** o motor já usa primeiro o que está na reserva e só vira o que falta. A folha
+  vira as fontes escolhidas e aplica a jogada **numa simulação** (o motor é puro): se o motor ainda precisou virar
+  alguma coisa, a escolha não paga. Assim lampejo, desconto, X, imposto de comandante e custo alternativo valem
+  como o motor os cobra, sem conta refeita na tela. Ao confirmar, as fontes viram de verdade e a jogada segue.
+- **Liga e desliga:** chip **Escolher mana** no balão da faixa de turno; guardado no aparelho (`mesa.manaManual`)
+  e levado no backup. Ligado por padrão (foi o pedido).
+- **Limites declarados:** (1) fonte de "qualquer combinação de cores" (Axebane Guardian): a folha não sabe dividir
+  as cores — nessas jogadas o motor paga sozinho, como antes; (2) **qual mana da reserva paga o custo genérico**
+  continua sendo escolha do motor (incolor primeiro, depois W U B R G): escolher isso pede mudança no motor (ação de
+  conjurar com o pagamento explícito) e fica proposto à trilha motor; (3) cada fonte virada é uma jogada para o
+  Desfazer (voltar um pagamento de três terrenos são quatro toques); (4) fontes iguais não são distinguidas (as
+  duas Mountain valem o mesmo).
+- **Modelo (puro, `table-model`):** `fontesDeMana`, `conferePagamento`, `planoDePagamento`, `gruposDeFontes`,
+  `contagemDosToques`, `toquesDaContagem`.
+- **Testes:** U `pagamento.unit` ×3, com lista real e texto oficial (sugestão = plano do motor; falta, sobra,
+  impossível; partida intocada pela conferência; não abre quando a reserva já paga; terreno de duas cores com a cor
+  certa; grupos); e2e "H6" (folha com sugestão, 44 px, falta, cor errada, sobra, contador no limite, pagar vira o
+  escolhido, cancelar, Automático, desligar e lembrar; `auditaTela`). O harness dos e2e desliga a folha por padrão.
 
 ### P · Plataforma
 
