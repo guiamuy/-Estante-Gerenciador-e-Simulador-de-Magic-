@@ -58,13 +58,14 @@ test('D1 · escala e densidade: atributos no <html>, valores inválidos caem no 
   const doc = { documentElement: d.root, querySelectorAll: () => [] };
   const th = T.createTheme(store, janela('dark'), doc);
   await th.init();
-  // D2 · a aparência ganhou acento, movimento e vibração (expectativa estendida de propósito)
-  assert.deepEqual(JSON.parse(JSON.stringify(th.aparencia)), { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true });
+  // D2 · a aparência ganhou acento, movimento e vibração; D7 · superfície, cor do oponente e verso (expectativa estendida de propósito)
+  const MESA = { superficie: 'nogueira', oponente: 'azul', verso: 'estante' };
+  assert.deepEqual(JSON.parse(JSON.stringify(th.aparencia)), { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, ...MESA });
   assert.equal('data-escala' in d.root.attrs, false, 'padrão não marca o <html>');
   await th.setAparencia({ escala: 'grande' });
   assert.equal(d.root.attrs['data-escala'], 'grande'); assert.equal('data-densidade' in d.root.attrs, false);
   await th.setAparencia({ densidade: 'compacta' });
-  assert.deepEqual(JSON.parse(JSON.stringify(await store.get('ui.aparencia'))), { escala: 'grande', densidade: 'compacta', acento: 'latao', movimento: 'sistema', vibracao: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(await store.get('ui.aparencia'))), { escala: 'grande', densidade: 'compacta', acento: 'latao', movimento: 'sistema', vibracao: true, ...MESA });
   await th.setAparencia({ escala: 'enorme' });
   assert.equal('data-escala' in d.root.attrs, false, 'valor desconhecido volta ao padrão');
   assert.equal(d.root.attrs['data-densidade'], 'compacta');
@@ -86,4 +87,19 @@ test('D2 · acento, movimento e vibração: atributos, validação, e quem ouve 
   assert.equal('data-acento' in d.root.attrs, false, 'acento desconhecido volta ao latão'); assert.equal('data-movimento' in d.root.attrs, false);
   assert.equal(th.aparencia.vibracao, false, 'o que não veio no patch não muda');
   await th.setAparencia({ vibracao: true }); assert.equal(ouvidas.at(-1), true);
+});
+
+test('D7 · superfície, cor do oponente e verso: atributos no <html> só fora do padrão, valor inválido volta ao padrão, guardado volta no init', async () => {
+  const store = P.memoryStore(); const d = documento();
+  const doc = { documentElement: d.root, querySelectorAll: () => [] };
+  const th = T.createTheme(store, janela('dark'), doc);
+  await th.init();
+  assert.deepEqual(JSON.parse(JSON.stringify([th.SUPERFICIES, th.OPONENTES, th.VERSOS])), [['nogueira', 'feltro', 'pedra', 'linho'], ['azul', 'rubi', 'ametista'], ['estante', 'selo', 'trama']]);
+  for (const a of ['data-superficie', 'data-oponente', 'data-verso']) assert.equal(a in d.root.attrs, false, a + ' padrão não marca o <html>');
+  await th.setAparencia({ superficie: 'feltro', oponente: 'rubi', verso: 'selo' });
+  assert.equal(d.root.attrs['data-superficie'], 'feltro'); assert.equal(d.root.attrs['data-oponente'], 'rubi'); assert.equal(d.root.attrs['data-verso'], 'selo');
+  await th.setAparencia({ superficie: 'veludo', oponente: 'azul' });
+  assert.equal('data-superficie' in d.root.attrs, false, 'superfície desconhecida volta ao padrão'); assert.equal('data-oponente' in d.root.attrs, false); assert.equal(d.root.attrs['data-verso'], 'selo', 'o que não veio no patch não muda');
+  const th2 = T.createTheme(store, janela('dark'), { documentElement: d.root, querySelectorAll: () => [] }); await th2.init();
+  assert.equal(th2.aparencia.verso, 'selo', 'guardado volta no init');
 });

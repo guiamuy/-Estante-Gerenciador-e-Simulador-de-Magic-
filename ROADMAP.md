@@ -401,6 +401,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ae ✅ | D4a estados vazios de Listas e Coleção: cartão de primeiro uso com ícone, título, frase, um primário e um secundário; o resto em "Mais" (leva 142) | D | 1 | — |
 | 16º-af ✅ | D4b apresentação de 3 passos na primeira abertura, pulável, uma vez só, "Rever apresentação" no Perfil (leva 145) | D | 1 | — |
 | 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
+| 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4408,6 +4409,28 @@ na primeira abertura, pulável (não como "Ajuda" escondida).
   Perfil), D4a (sem asserção sobre o backup em Listas).
 - **Fora:** "Apagar tudo" (limpar listas, coleção e perfil de uma vez) — ação destrutiva que pede desenho próprio
   com desfazer; renomear Perfil → Ajustes; cache de imagens como item de Dados (entra se o espaço apertar).
+**D7 · Mesa: superfície, cor do oponente e verso** ✅ (leva 151, 03/10/2026) — feita antes da D6 de propósito: a D6
+mexe nas mesmas linhas da mesa que a trilha motor está revisando (R5 moveu Auras e terrenos); esta só acrescenta
+tokens, um atributo no `<html>` e o verso.
+- **Entregue:** em Perfil › Aparência, bloco **Mesa**: **Superfície** (Nogueira · Feltro · Pedra · Linho), **Cor do
+  oponente** (Azul · Rubi · Ametista) e **Verso de carta** (Estante · Selo · Trama), cada chip com amostra. A
+  superfície só vale na tela da partida (`body[data-tela="partida"]` troca `--bg` e os veios pelos `--mesa-*`): o
+  resto do app continua o móvel de sempre. A cor do oponente redefine o trio `--player-opp*` nos dois temas (faixa
+  "vez do oponente", lado aceso, avatar). Os versos são três desenhos próprios só com tokens (`.ds-verso`), sem
+  marca; ficam no catálogo `/ds` com as amostras.
+- **Regra respeitada no caminho:** a carta **virada para baixo do outro jogador** passou a mostrar o verso — sem
+  nome, sem imagem, só o que é público (2/2, "virada para baixo"); espiar e abrir a folha também não revelam. Antes
+  a mesa mostrava a face para quem não devia ver (hot-seat e online). Quem conjurou continua vendo a própria carta
+  com a marca.
+- **Medido:** contrato visual confere `--fg` e `--fg-muted` AA (≥ 4,5) sobre cada superfície nos dois temas, texto
+  sobre a cor do oponente ≥ 4,5 e a cor sobre o fundo ≥ 3, versos sem cor literal; e2e em 360×780 (`auditaTela`
+  na Aparência e na mesa com feltro e verso).
+- **Testes:** U (`theme.unit`: três campos novos com validação, padrão sem atributo, guardado volta no init;
+  expectativa da D1/D2 estendida com motivo); contrato visual "D7"; e2e "D7" (chips, aplica na hora, fundo só na
+  partida, persiste após recarga; partida hot-seat com Birchlore Rangers virada para baixo: Ana vê a carta, Bia vê
+  o verso e a folha não revela).
+- **Fora:** verso como imagem do usuário; superfície por foto; cor do oponente por jogador na partida online
+  (cada aparelho escolhe a sua); animação de virar a carta (D10).
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.

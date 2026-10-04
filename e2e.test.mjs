@@ -5909,3 +5909,62 @@ test('e2e · D5 dados num lugar só: Perfil › Dados com backup, conta, base lo
   await auditaTela(page, 'perfil com Dados');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · D7 mesa do seu jeito: superfície só na partida, cor do oponente e verso persistem; a carta virada para baixo do outro mostra o verso, não o nome (hot-seat)', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Forest', 'Birchlore Rangers']);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const html = () => page.evaluate(() => ['data-superficie', 'data-oponente', 'data-verso'].map(a => document.documentElement.getAttribute(a)));
+  const fundo = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const opp = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--player-opp').trim());
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#aparencia-mesa');
+  assert.deepEqual(await html(), [null, null, null], 'padrões não marcam o <html>');
+  const fundoPadrao = await fundo(); const oppPadrao = await opp();
+  assert.equal(await page.locator('#aparencia-superficie .ds-chip').count(), 4); assert.equal(await page.locator('#aparencia-oponente .ds-chip').count(), 3); assert.equal(await page.locator('#aparencia-verso .ds-chip').count(), 3);
+  assert.equal(await page.locator('#aparencia-verso .aparencia__verso .ds-verso[data-desenho]').count(), 3, 'cada chip de verso mostra o seu desenho');
+  await page.click('#aparencia-superficie [data-superficie="feltro"]'); await page.click('#aparencia-oponente [data-oponente="rubi"]'); await page.click('#aparencia-verso [data-verso="selo"]');
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-verso') === 'selo');
+  assert.deepEqual(await html(), ['feltro', 'rubi', 'selo']);
+  assert.notEqual(await opp(), oppPadrao, 'a cor do oponente mudou na hora');
+  assert.equal(await fundo(), fundoPadrao, 'fora da partida o fundo não muda');
+  await auditaTela(page, 'aparência com Mesa');
+  await page.reload(); await page.waitForSelector('#aparencia-mesa');
+  assert.deepEqual(await html(), ['feltro', 'rubi', 'selo'], 'persiste');
+  assert.equal(await page.getAttribute('#aparencia-superficie [data-superficie="feltro"]', 'aria-pressed'), 'true');
+  // partida hot-seat: o fundo vira feltro; Ana conjura virada para baixo; Bia vê o verso e nenhum nome
+  await createDeck(page, base, 'Rangers', '30 Forest\n10 Birchlore Rangers', 'livre');
+  await page.goto(base + '#/mesa'); await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  await page.waitForSelector('#tb-vez[data-papel="eu"]');
+  assert.equal(await page.evaluate(() => document.body.dataset.tela), 'partida');
+  assert.notEqual(await fundo(), fundoPadrao, 'na partida o fundo é a superfície escolhida');
+  const act = a => page.evaluate(a => { try { window.__estanteMesa.act(a); return true; } catch (e) { return String(e); } }, a);
+  const oid = (nome, zona = 'hand', p = 0) => page.evaluate(([nome, zona, p]) => { const s = window.__estanteMesa.estado(); return s.zones[p][zona].find(o => s.objects[o].name === nome) || null; }, [nome, zona, p]);
+  const minhaVez = async () => { for (let i = 0; i < 60; i++) { await reveal(page); const e = await estado121(page); if (e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; } for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(60); } };
+  let conj = null;
+  for (let turno = 0; turno < 6 && !conj; turno++) {
+    const f = await oid('Forest'); if (f) await act({ t: 'play_land', p: 0, oid: f });
+    const l = await page.evaluate(() => window.__estanteMesa.legais().filter(a => a.t === 'cast' && a.faceDown)); if (l.length) { conj = l[0]; break; }
+    await page.click('#tb-pass-turn'); await minhaVez(); // Bia joga vazio; volta para Ana
+  }
+  assert.ok(conj, 'Ana consegue conjurar a Rangers virada para baixo');
+  await act(conj);
+  for (let i = 0; i < 10; i++) { const e = await estado121(page); if (!e.pilha && !e.pend) break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(100); }
+  // Ana vê a própria carta com a marca "virada para baixo", não o verso
+  await page.waitForSelector('.tb-side--me .tb-card[data-oid]');
+  assert.equal(await page.locator('.tb-side--me .tb-card__face--verso').count(), 0, 'quem conjurou vê a carta');
+  assert.match(await page.locator('.tb-side--me [data-zone="permanents"] .tb-card').first().getAttribute('aria-label'), /Birchlore Rangers/);
+  // passa o aparelho: Bia vê o verso, sem nome nem imagem; a folha também não revela
+  await page.click('#tb-pass-turn'); await page.waitForSelector('#tb-reveal'); await page.click('#tb-reveal');
+  await page.waitForSelector('.tb-side--opp .tb-card__face--verso');
+  const lado = await page.innerText('.tb-side--opp'); assert.doesNotMatch(lado, /Birchlore/, 'o nome não aparece do outro lado');
+  assert.match(await page.locator('.tb-side--opp [data-zone="permanents"] .tb-card').first().getAttribute('aria-label'), /^Carta virada para baixo/);
+  assert.equal(await page.locator('.tb-side--opp .tb-card__face--verso .ds-verso').count(), 1, 'o verso escolhido');
+  assert.match(await page.locator('.tb-side--opp .tb-card__face--verso .tb-card__pt').innerText(), /2\/2/, 'o que é público: 2/2');
+  await page.locator('.tb-side--opp [data-zone="permanents"] .tb-card').first().click(); await page.waitForSelector('.ds-dialog');
+  assert.doesNotMatch(await page.innerText('.ds-dialog'), /Birchlore/, 'a folha não revela'); await page.keyboard.press('Escape');
+  await auditaTela(page, 'mesa feltro com verso');
+  assert.deepEqual(errors, []);
+});

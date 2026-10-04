@@ -224,3 +224,32 @@ test('D2 · cada acento (latão, cobre, prata, jade) tem AA sobre o fundo e a su
   assert.equal(amostrasEscuro['--acento-latao'], DARK['--accent']); assert.equal(amostrasClaro['--acento-latao'], LIGHT['--accent']);
   for (const k of ['cobre', 'prata', 'jade']) { assert.ok(amostrasEscuro['--acento-' + k]); assert.ok(amostrasClaro['--acento-' + k]); }
 });
+
+/* ---------------- D7 · mesa do seu jeito: superfície, cor do oponente e verso ---------------- */
+test('D7 · cada superfície da mesa mantém o texto AA nos dois temas; cada cor do oponente tem texto legível sobre ela e se destaca do fundo; os versos só usam tokens', () => {
+  const bloco = sel => { const i = css.indexOf(sel); assert.ok(i >= 0, sel); return vars(css.slice(i, css.indexOf('}', i))); };
+  for (const sup of ['feltro', 'pedra', 'linho']) {
+    const escuro = bloco(`:root[data-superficie="${sup}"] {`), claro = bloco(`:root[data-theme="light"][data-superficie="${sup}"] {`);
+    for (const [nome, t, base] of [['escuro', escuro, DARK], ['claro', claro, LIGHT]]) {
+      for (const fg of ['--fg', '--fg-muted']) assert.ok(ratio(base[fg], t['--mesa-bg']) >= 4.5, `${sup} ${nome}: ${fg} sobre a mesa = ${ratio(base[fg], t['--mesa-bg']).toFixed(2)}`);
+      assert.ok(t['--mesa-veio-1'] && t['--mesa-veio-2'], `${sup} ${nome}: veios definidos`);
+    }
+  }
+  for (const op of ['rubi', 'ametista']) {
+    const escuro = { ...DARK, ...bloco(`:root[data-oponente="${op}"] {`) }, claro = { ...LIGHT, ...bloco(`:root[data-theme="light"][data-oponente="${op}"] {`) };
+    for (const [nome, t] of [['escuro', escuro], ['claro', claro]]) {
+      assert.ok(ratio(t['--player-opp-fg'], t['--player-opp']) >= 4.5, `${op} ${nome}: texto sobre a cor do oponente = ${ratio(t['--player-opp-fg'], t['--player-opp']).toFixed(2)}`);
+      assert.ok(ratio(t['--player-opp'], t['--bg']) >= 3, `${op} ${nome}: a cor do oponente se destaca do fundo = ${ratio(t['--player-opp'], t['--bg']).toFixed(2)}`);
+      assert.ok(t['--player-opp-soft'], `${op} ${nome}: tom suave`);
+    }
+  }
+  // a cor padrão também cumpre (azul, já no :root)
+  for (const t of [DARK, LIGHT]) { assert.ok(ratio(t['--player-opp-fg'], t['--player-opp']) >= 4.5); assert.ok(ratio(t['--player-opp'], t['--bg']) >= 3); }
+  // só a tela da partida troca o fundo
+  assert.match(css, /body\[data-tela="partida"\] \{ --bg: var\(--mesa-bg\);/);
+  // versos: três desenhos, nenhum literal de cor (só var(--…) e transparent)
+  const versos = css.match(/\.ds-verso[^{]*\{[^}]*\}/g) || [];
+  assert.ok(versos.length >= 3, 'três desenhos de verso');
+  for (const v of versos) assert.doesNotMatch(v, /#[0-9a-f]{3,8}|rgba?\(/i, 'verso sem cor literal: ' + v.slice(0, 60));
+  for (const k of ['selo', 'trama']) assert.match(css, new RegExp(`:root\\[data-verso="${k}"\\] \\.ds-verso:not\\(\\[data-desenho\\]\\), \\.ds-verso\\[data-desenho="${k}"\\]`));
+});

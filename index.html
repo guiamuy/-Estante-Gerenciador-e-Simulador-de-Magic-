@@ -232,6 +232,23 @@
 :root[data-theme="light"][data-acento="cobre"] { --accent: #7f441c; --accent-hover: #6b3917; --accent-fg: #fdf8ea; --accent-soft: rgba(127, 68, 28, .15); }
 :root[data-theme="light"][data-acento="prata"] { --accent: #555a61; --accent-hover: #474b52; --accent-fg: #fdf8ea; --accent-soft: rgba(85, 90, 97, .15); }
 :root[data-theme="light"][data-acento="jade"] { --accent: #1b6547; --accent-hover: #175539; --accent-fg: #fdf8ea; --accent-soft: rgba(27, 101, 71, .15); }
+/* D7 · superfície da mesa: só a tela da partida troca o fundo (body[data-tela="partida"]); nogueira é o móvel de sempre */
+:root { --mesa-bg: var(--bg); --mesa-veio-1: var(--grain-1); --mesa-veio-2: var(--grain-2); }
+:root[data-superficie="feltro"] { --mesa-bg: #15302a; --mesa-veio-1: rgba(255, 255, 255, .025); --mesa-veio-2: rgba(0, 0, 0, .14); }
+:root[data-superficie="pedra"] { --mesa-bg: #22252a; --mesa-veio-1: rgba(255, 255, 255, .02); --mesa-veio-2: rgba(0, 0, 0, .2); }
+:root[data-superficie="linho"] { --mesa-bg: #262320; --mesa-veio-1: rgba(255, 244, 222, .03); --mesa-veio-2: rgba(255, 244, 222, .02); }
+:root[data-theme="light"][data-superficie="feltro"] { --mesa-bg: #c3d9c6; --mesa-veio-1: rgba(20, 60, 40, .04); --mesa-veio-2: rgba(20, 60, 40, .05); }
+:root[data-theme="light"][data-superficie="pedra"] { --mesa-bg: #d7d8d9; --mesa-veio-1: rgba(0, 0, 0, .03); --mesa-veio-2: rgba(0, 0, 0, .05); }
+:root[data-theme="light"][data-superficie="linho"] { --mesa-bg: #ebe4d4; --mesa-veio-1: rgba(90, 62, 22, .04); --mesa-veio-2: rgba(90, 62, 22, .04); }
+body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1); --grain-2: var(--mesa-veio-2); }
+/* D7 · cor do oponente na mesa: azul é a de sempre; rubi e ametista com par de contraste nos dois temas */
+:root[data-oponente="rubi"] { --player-opp: #dc8f98; --player-opp-fg: #1c0a0d; --player-opp-soft: rgba(220, 143, 152, .18); }
+:root[data-oponente="ametista"] { --player-opp: #bb9ddc; --player-opp-fg: #150b1f; --player-opp-soft: rgba(187, 157, 220, .18); }
+:root[data-theme="light"][data-oponente="rubi"] { --player-opp: #8a2b3a; --player-opp-fg: #fdf8ea; --player-opp-soft: rgba(138, 43, 58, .14); }
+:root[data-theme="light"][data-oponente="ametista"] { --player-opp: #5b3c8a; --player-opp-fg: #fdf8ea; --player-opp-soft: rgba(91, 60, 138, .14); }
+/* amostras para os chips da Aparência */
+:root { --superficie-nogueira: #1f1811; --superficie-feltro: #15302a; --superficie-pedra: #22252a; --superficie-linho: #262320; --oponente-azul: #86acd8; --oponente-rubi: #dc8f98; --oponente-ametista: #bb9ddc; }
+:root[data-theme="light"] { --superficie-nogueira: #e7dbc4; --superficie-feltro: #c3d9c6; --superficie-pedra: #d7d8d9; --superficie-linho: #ebe4d4; --oponente-azul: #2c5a88; --oponente-rubi: #8a2b3a; --oponente-ametista: #5b3c8a; }
 /* D2 · menos movimento por escolha (além do que o sistema pede): tudo instantâneo */
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 
@@ -486,6 +503,23 @@ a { color: var(--accent); }
 .aparencia__cor[data-acento="cobre"] { background: var(--acento-cobre); }
 .aparencia__cor[data-acento="prata"] { background: var(--acento-prata); }
 .aparencia__cor[data-acento="jade"] { background: var(--acento-jade); }
+.aparencia__cor[data-superficie="nogueira"] { background: var(--superficie-nogueira); }
+.aparencia__cor[data-superficie="feltro"] { background: var(--superficie-feltro); }
+.aparencia__cor[data-superficie="pedra"] { background: var(--superficie-pedra); }
+.aparencia__cor[data-superficie="linho"] { background: var(--superficie-linho); }
+.aparencia__cor[data-oponente="azul"] { background: var(--oponente-azul); }
+.aparencia__cor[data-oponente="rubi"] { background: var(--oponente-rubi); }
+.aparencia__cor[data-oponente="ametista"] { background: var(--oponente-ametista); }
+/* D7 · verso de carta: três desenhos próprios, sem marca, só com tokens. `data-verso` no html escolhe; a classe desenha. */
+.ds-verso { display: block; width: 100%; height: 100%; border-radius: inherit; background-color: var(--bg-elev-3); box-shadow: inset 0 0 0 3px var(--bg-elev-1), inset 0 0 0 4px var(--accent-soft);
+  background-image: radial-gradient(circle at 50% 50%, var(--accent-soft) 0 18%, transparent 19%), repeating-linear-gradient(45deg, var(--accent-soft) 0 2px, transparent 2px 10px), repeating-linear-gradient(-45deg, var(--accent-soft) 0 2px, transparent 2px 10px); }
+:root[data-verso="selo"] .ds-verso:not([data-desenho]), .ds-verso[data-desenho="selo"] { background-image: radial-gradient(circle at 50% 50%, var(--accent) 0 9%, transparent 10%), radial-gradient(circle at 50% 50%, transparent 0 20%, var(--accent-soft) 21% 24%, transparent 25%), radial-gradient(circle at 50% 50%, transparent 0 30%, var(--accent-soft) 31% 33%, transparent 34%); }
+:root[data-verso="trama"] .ds-verso:not([data-desenho]), .ds-verso[data-desenho="trama"] { background-image: repeating-linear-gradient(60deg, var(--accent-soft) 0 3px, transparent 3px 9px), repeating-linear-gradient(-60deg, var(--accent-soft) 0 3px, transparent 3px 9px); }
+.aparencia__verso { width: 18px; height: 25px; border-radius: var(--radius-0); overflow: hidden; flex: none; border: 1px solid var(--border-strong); }
+.ds-versos { display: flex; gap: var(--space-3); } .ds-versos .ds-card { width: 72px; }
+.aparencia__verso .ds-verso { box-shadow: none; }
+.tb-card__face--verso { display: block; }
+.tb-card__face--verso .ds-verso { position: absolute; inset: 0; }
 .ds-chip .aparencia__cor { margin-right: var(--space-1); }
 /* leva 133 · partida online */
 .online-sala__linha { align-items: center; gap: var(--space-2); }
@@ -1861,17 +1895,23 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   };
   // D1 · aparência além do tema: escala de texto e densidade, por atributo no <html>, guardadas no aparelho
   const APAR = 'ui.aparencia';
-  let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true };
+  let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, superficie: 'nogueira', oponente: 'azul', verso: 'estante' };
   const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'], ACENTOS = ['latao', 'cobre', 'prata', 'jade'], MOVIMENTOS = ['sistema', 'reduzido'];
+  // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta
+  const SUPERFICIES = ['nogueira', 'feltro', 'pedra', 'linho'], OPONENTES = ['azul', 'rubi', 'ametista'], VERSOS = ['estante', 'selo', 'trama'];
   const aplicaAparencia = a => {
     aparencia = { escala: ESCALAS.includes(a && a.escala) ? a.escala : 'media', densidade: DENSIDADES.includes(a && a.densidade) ? a.densidade : 'confortavel',
-      acento: ACENTOS.includes(a && a.acento) ? a.acento : 'latao', movimento: MOVIMENTOS.includes(a && a.movimento) ? a.movimento : 'sistema', vibracao: !(a && a.vibracao === false) };
+      acento: ACENTOS.includes(a && a.acento) ? a.acento : 'latao', movimento: MOVIMENTOS.includes(a && a.movimento) ? a.movimento : 'sistema', vibracao: !(a && a.vibracao === false),
+      superficie: SUPERFICIES.includes(a && a.superficie) ? a.superficie : 'nogueira', oponente: OPONENTES.includes(a && a.oponente) ? a.oponente : 'azul', verso: VERSOS.includes(a && a.verso) ? a.verso : 'estante' };
     const root = doc.documentElement;
     if (root && root.setAttribute) {
       if (aparencia.escala === 'media') root.removeAttribute('data-escala'); else root.setAttribute('data-escala', aparencia.escala);
       if (aparencia.densidade === 'confortavel') root.removeAttribute('data-densidade'); else root.setAttribute('data-densidade', aparencia.densidade);
       if (aparencia.acento === 'latao') root.removeAttribute('data-acento'); else root.setAttribute('data-acento', aparencia.acento);
       if (aparencia.movimento === 'sistema') root.removeAttribute('data-movimento'); else root.setAttribute('data-movimento', aparencia.movimento);
+      if (aparencia.superficie === 'nogueira') root.removeAttribute('data-superficie'); else root.setAttribute('data-superficie', aparencia.superficie);
+      if (aparencia.oponente === 'azul') root.removeAttribute('data-oponente'); else root.setAttribute('data-oponente', aparencia.oponente);
+      if (aparencia.verso === 'estante') root.removeAttribute('data-verso'); else root.setAttribute('data-verso', aparencia.verso);
     }
     if (opts.aoAparencia) opts.aoAparencia({ ...aparencia });
     return aparencia;
@@ -1879,7 +1919,7 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   return {
     get current() { return current; },
     get aparencia() { return { ...aparencia }; },
-    ESCALAS, DENSIDADES, ACENTOS, MOVIMENTOS,
+    ESCALAS, DENSIDADES, ACENTOS, MOVIMENTOS, SUPERFICIES, OPONENTES, VERSOS,
     async init() {
       let saved = null; try { saved = await store.get(KEY); } catch (e) {}
       try { aplicaAparencia(await store.get(APAR)); } catch (e) { aplicaAparencia(null); }
@@ -2596,7 +2636,12 @@ function renderDS() {
         CardFace({ name: 'Lightning Bolt' }, { onClick: () => toast('Carta') }),
         CardFace({ name: 'Counterspell' }),
         CardFace({ name: 'Llanowar Elves' }),
-        CardFace({ name: 'Sol Ring' }))),
+        CardFace({ name: 'Sol Ring' })),
+      // D7 · os três versos (desenhos próprios, só tokens) e as amostras de superfície e cor do oponente
+      Text('Versos de carta: Estante · Selo · Trama', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'ds-versos', id: 'ds-versos' }, ...['estante', 'selo', 'trama'].map(k => h('span', { class: 'ds-card', role: 'img', 'aria-label': 'verso ' + k }, h('span', { class: 'ds-verso', dataset: { desenho: k } })))),
+      Row({ class: 'ds-row--wrap' }, ...['nogueira', 'feltro', 'pedra', 'linho'].map(k => Row({}, (() => { const a = h('span', { class: 'aparencia__cor', 'aria-hidden': 'true' }); a.dataset.superficie = k; return a; })(), Text(k, { size: 'xs', tone: 'muted' })))),
+      Row({ class: 'ds-row--wrap' }, ...['azul', 'rubi', 'ametista'].map(k => Row({}, (() => { const a = h('span', { class: 'aparencia__cor', 'aria-hidden': 'true' }); a.dataset.oponente = k; return a; })(), Text(k, { size: 'xs', tone: 'muted' }))))),
 
     Section('Mesa', ...(() => {
       const M = __m17;
@@ -7008,6 +7053,9 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       h('div', { class: 'ds-segmentado' + (itens.length >= 4 ? ' ds-segmentado--grade' : ''), role: 'group', 'aria-label': rotulo, id },
         ...itens.map(([k, nome, icone]) => Chip(nome, { icone, pressed: atual === k, dataset: { [id.replace('aparencia-', '')]: k }, onClick: () => ao(k) }))));
     const temaAtual = theme.current;
+    const amostras = (rotulo, id, campo, itens, atual) => h('div', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, rotulo),
+      h('div', { class: 'ds-segmentado' + (itens.length >= 4 ? ' ds-segmentado--grade' : ''), role: 'group', 'aria-label': rotulo, id },
+        ...itens.map(([k, nome]) => { const c = Chip(nome, { pressed: atual === k, dataset: { [campo]: k }, onClick: () => muda({ [campo]: k }) }); const am = h('span', { class: 'aparencia__cor', 'aria-hidden': 'true' }); am.dataset[campo] = k; c.prepend(am); return c; })));
     return Surface({ class: 'ds-surface--pad', id: 'perfil-aparencia' }, Stack({},
       Text('Aparência', { size: 'sm', as: 'h2', display: true }),
       seg('Tema', 'aparencia-tema', [['dark', 'Escuro', 'lua'], ['light', 'Claro', 'sol']], temaAtual, k => { if (k !== theme.current) theme.cycle().then(() => paint()); }),
@@ -7020,6 +7068,14 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         // os dois alternam a partir do estado atual do tema, não do desenho: dois toques rápidos não se perdem
         Chip('Menos movimento', { icone: 'pausa', pressed: a.movimento === 'reduzido', dataset: { movimento: '1' }, onClick: () => muda({ movimento: theme.aparencia.movimento === 'reduzido' ? 'sistema' : 'reduzido' }) }),
         Chip('Vibração', { icone: 'raio', pressed: a.vibracao, dataset: { vibracao: '1' }, onClick: () => muda({ vibracao: !theme.aparencia.vibracao }) })),
+      // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta (amostra em cada chip)
+      Text('Mesa', { size: 'sm', as: 'h3', display: true, attrs: { id: 'aparencia-mesa' } }),
+      amostras('Superfície', 'aparencia-superficie', 'superficie', [['nogueira', 'Nogueira'], ['feltro', 'Feltro'], ['pedra', 'Pedra'], ['linho', 'Linho']], a.superficie),
+      amostras('Cor do oponente', 'aparencia-oponente', 'oponente', [['azul', 'Azul'], ['rubi', 'Rubi'], ['ametista', 'Ametista']], a.oponente),
+      h('div', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Verso de carta'),
+        h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Verso de carta', id: 'aparencia-verso' },
+          ...[['estante', 'Estante'], ['selo', 'Selo'], ['trama', 'Trama']].map(([k, nome]) => { const c = Chip(nome, { pressed: a.verso === k, dataset: { verso: k }, onClick: () => muda({ verso: k }) });
+            c.prepend(h('span', { class: 'aparencia__verso', 'aria-hidden': 'true' }, h('span', { class: 'ds-verso', dataset: { desenho: k } }))); return c; }))),
       Text('Vale neste aparelho e vai junto no backup completo.', { size: 'sm', tone: 'muted' })));
   }
   function paint() {
@@ -12623,11 +12679,11 @@ function TableCard(card, opts = {}) {
       estado: est && est.anel ? est.anel : '', ...(opts.pilha ? { pilhaTotal: String(opts.pilha.total), pilhaViradas: String(opts.pilha.viradas) } : {}) },
     onClick: opts.onClick
   },
-  h('span', { class: 'tb-card__face' },
-    card.image ? imgDaMesa(card, opts.size) : h('span', { class: 'tb-card__name' }, card.name),
+  h('span', { class: 'tb-card__face' + (opts.verso ? ' tb-card__face--verso' : '') },
+    opts.verso ? h('span', { class: 'ds-verso' }) : card.image ? imgDaMesa(card, opts.size) : h('span', { class: 'tb-card__name' }, card.name), // D7 · verso escolhido na Aparência
     pt ? h('span', { class: 'tb-card__pt', dataset: { pt } }, pt) : null),
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
-  card.image && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
+  (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
   sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
   // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
@@ -14562,7 +14618,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
   }
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
-    sheet(d.o.name, d.acoes.map(toButton), d.where);
+    sheet(ocultaDe(table.state, d.o) ? VERSO_NOME : d.o.name, d.acoes.map(toButton), d.where); // D7 · a folha também não revela a carta do outro
   }
   /** A15 · tudo que a carta pode fazer agora, como descrições, e a linha de contexto. */
   function acoesDe(oid) {
@@ -14714,8 +14770,9 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const s = table.state, o = d.o;
     const est = T.estadoDaCarta(s, o, plan);
     if (peekEl) peekEl.remove();
-    peekEl = CardPeek({ name: o.name, image: imgOf(o.name, 'normal'), tipo: est.tipo, pt: est.pt, custo: d.costTxt || null, zona: T.ZONE_PT[o.zone] || null,
-      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.map(m => m.rotulo || m.texto)], oracle: oracleOf(o.name),
+    const oculta = ocultaDe(s, o); // D7 · espiar a carta virada do outro mostra só o que é público (2/2, virada para baixo)
+    peekEl = CardPeek({ name: oculta ? VERSO_NOME : o.name, image: oculta ? null : imgOf(o.name, 'normal'), tipo: oculta ? 'Criatura' : est.tipo, pt: est.pt, custo: oculta ? null : (d.costTxt || null), zona: T.ZONE_PT[o.zone] || null,
+      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.map(m => m.rotulo || m.texto)], oracle: oculta ? null : oracleOf(o.name),
       acoes: d.acoes.filter(a => !a.disabled) });
     simbolizar(peekEl); // U3
     document.body.appendChild(peekEl);
@@ -14766,8 +14823,12 @@ function createTableScreen({ store, perfil = null, online = null }) {
   /** U5 · iguais em leque: tocar age na primeira desvirada (ou na primeira, se todas viradas).
       No combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque. */
   const separaNoCombate = oid => plan.eligible.has(oid) || plan.attack.has(oid) || plan.blocks.has(oid) || [...plan.blocks.values()].includes(oid);
+  // D7 · carta virada para baixo de quem não está olhando: o verso, sem nome nem imagem (hot-seat e online não vazam a carta)
+  const ocultaDe = (s, o) => !!(o && o.faceDown && o.zone === 'battlefield' && (o.controller != null ? o.controller : o.owner) !== table.viewer());
+  const VERSO_NOME = 'Carta virada para baixo';
   const landPiles = (s, ids, onClick) => T.agrupaLeque(s, ids, { separa: separaNoCombate }).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
+    if (ocultaDe(s, s.objects[alvo])) return TableCard({ ...s.objects[alvo], name: VERSO_NOME, image: null, images: null }, { verso: true, onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), onPeek: comPeek(alvo).onPeek, size: undefined });
     return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name), images: imagensOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo) || alvoPendente(s, alvo), ...comPeek(alvo) });
   });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
@@ -17673,6 +17734,7 @@ async function boot(root) {
   const router = createRouter(ROUTES, ({ route }) => {
     __m3.fechaToast(); // D1 · o aviso da tela anterior não atravessa para esta
     document.title = 'Estante · ' + (route.title || '');
+    document.body.dataset.tela = (route.path === '*' ? 'nao-encontrado' : route.path.replace(/^\//, '') || 'inicio').replace(/\//g, '-'); // D7 · a superfície da mesa só vale em "partida"
     mount(outlet, route.render());
     marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/');
     window.scrollTo(0, 0);
