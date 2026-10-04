@@ -15,8 +15,8 @@ const so = (a, d, o) => ev(a, d, o).map(e => e.tipo);
 test('G4 · vida, compra, descarte, terreno, conjurar e entrar no campo saem da diferença entre dois estados', () => {
   assert.deepEqual(ev(st(), st([], { players: [{ life: 17 }, { life: 24 }] })), [{ tipo: 'dano', jogador: 0, n: 3 }, { tipo: 'cura', jogador: 1, n: 4 }]);
   assert.deepEqual(ev(st([ob(1, 'library'), ob(2, 'library'), ob(3, 'library', { owner: 1 })]), st([ob(1, 'hand'), ob(2, 'hand'), ob(3, 'hand', { owner: 1 })])),
-    [{ tipo: 'compra', jogador: 0, n: 2 }, { tipo: 'compra', jogador: 1, n: 1 }], 'compra é contada por jogador, não por carta');
-  assert.deepEqual(ev(st([ob(1, 'hand'), ob(2, 'hand')]), st([ob(1, 'graveyard'), ob(2, 'graveyard')])), [{ tipo: 'descarte', jogador: 0, n: 2 }]);
+    [{ tipo: 'compra', jogador: 0, n: 2, oids: [1, 2] }, { tipo: 'compra', jogador: 1, n: 1, oids: [3] }], 'compra é contada por jogador e diz quais cartas (a G5 anima cada uma)');
+  assert.deepEqual(ev(st([ob(1, 'hand'), ob(2, 'hand')]), st([ob(1, 'graveyard'), ob(2, 'graveyard')])), [{ tipo: 'descarte', jogador: 0, n: 2, oids: [1, 2] }]);
   assert.deepEqual(so(st([ob(1, 'hand', { name: 'Ilha' })]), st([ob(1, 'battlefield', { name: 'Ilha' })])), ['terreno']);
   assert.deepEqual(so(st([ob(1, 'hand', { name: 'Bicho' })]), st([ob(1, 'stack', { name: 'Bicho' })])), ['conjura']);
   assert.deepEqual(so(st([ob(1, 'stack', { name: 'Bicho' })]), st([ob(1, 'battlefield', { name: 'Bicho' })])), ['entra']);
@@ -131,11 +131,37 @@ test('G4 · com o motor de verdade: comprar, perder vida, baixar terreno e a car
   t.act({ t: 'keep', p: 0, bottom: [] }); t.act({ t: 'keep', p: 1, bottom: [] });
   const ouve = fn => { const antes = t.state; const eventos = fn() || []; return J(S.eventosSensoriais(antes, t.state, { eventos, stats: E.stats, tipos: n => t.state.facts[n].types })); };
   const p = t.state.turn.priority;
-  assert.deepEqual(ouve(() => t.act({ t: 'draw', p, target: p, n: 2 })), [{ tipo: 'compra', jogador: p, n: 2 }]);
+  const comprou = ouve(() => t.act({ t: 'draw', p, target: p, n: 2 }));
+  assert.deepEqual(comprou.map(e => [e.tipo, e.jogador, e.n, e.oids.length]), [['compra', p, 2, 2]]); assert.ok(comprou[0].oids.every(o => t.state.objects[o].zone === 'hand'));
   assert.deepEqual(ouve(() => t.act({ t: 'life', p, target: 1 - p, delta: -3 })), [{ tipo: 'dano', jogador: 1 - p, n: 3 }]);
   assert.deepEqual(ouve(() => t.act({ t: 'life', p, target: p, delta: 2 })), [{ tipo: 'cura', jogador: p, n: 2 }]);
   const ilha = t.state.zones[p].hand.find(o => t.state.facts[t.state.objects[o].name].types.includes('land')) ?? (() => { const o = t.state.zones[p].library.find(x => t.state.facts[t.state.objects[x].name].types.includes('land')); t.act({ t: 'move', p, oid: o, to: 'hand' }); return o; })();
   assert.deepEqual(ouve(() => t.act({ t: 'move', p, oid: ilha, to: 'battlefield' })), [{ tipo: 'terreno', oid: ilha, jogador: p }]);
   assert.deepEqual(ouve(() => t.act({ t: 'move', p, oid: ilha, to: 'graveyard' })).map(e => e.tipo), ['destroi']);
   const antes = t.state; assert.equal(t.undo(), true); assert.notEqual(t.state, antes, 'desfazer troca o estado: a mesa não toca nada nessa volta (teste e2e)');
+});
+
+test('G5 · plano de efeitos: cada evento vira um efeito num alvo (carta, vida, pilha ou mesa); o que saiu da tela vira fantasma', () => {
+  const p = (evs, o = { espectador: 0 }) => J(S.planoDeEfeitos(evs, o));
+  assert.deepEqual(p([{ tipo: 'dano', jogador: 1, n: 3 }]), [{ atraso: 0, fx: 'dano', vida: 1, texto: '−3', tom: 'neg' }]);
+  assert.deepEqual(p([{ tipo: 'dano', jogador: 0, n: 2 }]), [{ atraso: 0, fx: 'dano', vida: 0, texto: '−2', tom: 'neg' }, { atraso: 0, fx: 'vinheta', tom: 'neg' }], 'dano em quem está vendo: a tela avisa pelas bordas');
+  assert.deepEqual(p([{ tipo: 'cura', jogador: 0, n: 4 }]), [{ atraso: 0, fx: 'cura', vida: 0, texto: '+4', tom: 'pos' }]);
+  assert.deepEqual(p([{ tipo: 'danoCriatura', oid: 7, n: 2 }]), [{ atraso: 0, fx: 'golpe', oid: 7, texto: '−2', tom: 'neg' }]);
+  assert.deepEqual(p([{ tipo: 'ataque', oids: [1, 2, 3], jogador: 0 }]), [{ atraso: 0, fx: 'ataque', oid: 1 }, { atraso: 60, fx: 'ataque', oid: 2 }, { atraso: 120, fx: 'ataque', oid: 3 }], 'atacantes saem em fila');
+  assert.deepEqual(p([{ tipo: 'bloqueio', oids: [4] }, { tipo: 'aprimora', oid: 5 }, { tipo: 'enfraquece', oid: 6 }]).map(x => [x.fx, x.oid]), [['aprimora', 5], ['enfraquece', 6], ['bloqueio', 4]]);
+  assert.deepEqual(p([{ tipo: 'terreno', oid: 1 }, { tipo: 'entra', oid: 2 }, { tipo: 'ficha', oid: 3 }]).map(x => [x.fx, x.oid]), [['terreno', 1], ['entra', 2], ['entra', 3]]);
+  // compra: só a de quem está vendo (a mão do oponente não aparece na tela)
+  assert.deepEqual(p([{ tipo: 'compra', jogador: 0, n: 2, oids: [8, 9] }]).map(x => [x.fx, x.oid, x.atraso]), [['compra', 8, 0], ['compra', 9, 60]]);
+  assert.deepEqual(p([{ tipo: 'compra', jogador: 1, n: 2, oids: [8, 9] }]), []);
+  // o que saiu: fantasma, com o jeito de sair
+  assert.deepEqual(p([{ tipo: 'morre', oid: 1 }, { tipo: 'destroi', oid: 2 }, { tipo: 'exila', oid: 3 }, { tipo: 'devolve', oid: 4 }, { tipo: 'descarte', jogador: 0, n: 1, oids: [5] }]).map(x => [x.fx, x.oid, x.como]),
+    [['fantasma', 5, 'descarte'], ['fantasma', 1, 'morre'], ['fantasma', 2, 'morre'], ['fantasma', 3, 'exila'], ['fantasma', 4, 'devolve']]);
+  // remoção global: a mesa treme, a tela clareia e todas as cartas se desfazem em fila
+  assert.deepEqual(p([{ tipo: 'remocaoGlobal', oids: [1, 2, 3], n: 3 }]).map(x => [x.fx, x.oid ?? (x.mesa ? 'mesa' : x.tom), x.atraso]),
+    [['abalo', 'mesa', 0], ['vinheta', 'acento', 0], ['fantasma', 1, 0], ['fantasma', 2, 60], ['fantasma', 3, 120]]);
+  // várias mágicas conjuradas: um pulso só na pilha; anulação tem efeito próprio; turno e fim não ganham efeito aqui
+  assert.deepEqual(p([{ tipo: 'conjura', oid: 1 }, { tipo: 'conjura', oid: 2 }, { tipo: 'anula' }, { tipo: 'turno', jogador: 0 }, { tipo: 'fim', vencedor: 0 }]).map(x => x.fx), ['conjura', 'anula']);
+  // teto: o turno inteiro do bot não vira uma chuva de efeitos
+  assert.equal(p([{ tipo: 'remocaoGlobal', oids: Array.from({ length: 30 }, (_, i) => i), n: 30 }, { tipo: 'ataque', oids: Array.from({ length: 30 }, (_, i) => i) }]).length, 16);
+  assert.deepEqual(p([]), []);
 });

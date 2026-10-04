@@ -70,6 +70,9 @@
   --dur-4: 420ms;   /* D1 · chegada de carta, troca de vez */
   --dur-giro: 700ms; /* D1 · giro contínuo do carregando */
   --dur-pulso: 1200ms; /* D10 · pulso de atenção (ligação caindo, chip ligado) */
+  --dur-fx-curto: 320ms; /* G5 · efeito de mesa curto: tremor de dano, clarão, carta que some */
+  --dur-fx: 560ms; /* G5 · efeito de mesa: investida de ataque, pulso de cura e de aprimoramento, abalo */
+  --dur-fx-longo: 900ms; /* G5 · número que sobe do marcador de vida */
   --dur-pulso-lento: 2400ms; /* D10 · pulso lento e discreto (sem internet na barra) */
   --dur-brilho: 1200ms; /* D10 · brilho de carregamento que atravessa a moldura */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
@@ -358,6 +361,65 @@ a { color: var(--accent); }
 .ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .ds-visor__custo { flex: none; font-size: var(--simbolo-lg); white-space: nowrap; }
 .ds-visor__tipo { gap: var(--space-2); align-items: center; }
+/* G5 · efeitos visuais da partida. Só transform, opacity e filter (não mexem no layout); duração e curva por token.
+   Com "menos movimento" as animações já são anuladas pelas regras gerais: sobra a parte parada (anel de cor e número). */
+.tb-fx { animation-delay: var(--fx-atraso, 0s); }
+.tb-fx-camada { position: fixed; inset: 0; z-index: var(--z-overlay); pointer-events: none; overflow: hidden; }
+@keyframes tb-fx-tremor { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+@keyframes tb-fx-pulso { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.09); } }
+@keyframes tb-fx-murcha { 0%, 100% { transform: scale(1); } 45% { transform: scale(.9); } }
+@keyframes tb-fx-investe { 0%, 100% { transform: translateY(0) scale(1); } 35% { transform: translateY(calc(var(--fx-dir, -1) * 18px)) scale(1.07); } }
+@keyframes tb-fx-firma { 0%, 100% { transform: scale(1); } 30% { transform: scale(.94); } 60% { transform: scale(1.04); } }
+@keyframes tb-fx-pousa { from { opacity: .3; transform: translateY(-12px) scale(1.08); } to { opacity: 1; transform: none; } }
+@keyframes tb-fx-chega { from { opacity: 0; transform: translate(36px, -14px) rotate(7deg); } to { opacity: 1; transform: none; } }
+@keyframes tb-fx-clarao { from { opacity: .6; } to { opacity: 0; } }
+@keyframes tb-fx-anel { from { opacity: .95; transform: scale(.92); } to { opacity: 0; transform: scale(1.28); } }
+@keyframes tb-fx-abalo { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(-7px, 3px); } 30% { transform: translate(6px, -4px); } 45% { transform: translate(-5px, -2px); } 60% { transform: translate(4px, 3px); } 80% { transform: translate(-2px, 1px); } }
+@keyframes tb-fx-sobe { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); } 15% { opacity: 1; transform: translate(-50%, -70%) scale(1.2); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -190%) scale(1); } }
+@keyframes tb-fx-morre { 0% { opacity: 1; transform: none; filter: none; } 35% { opacity: 1; filter: grayscale(1) brightness(.7); } 100% { opacity: 0; transform: translateY(20px) scale(.84) rotate(-5deg); filter: grayscale(1) brightness(.5); } }
+@keyframes tb-fx-exila { 0% { opacity: 1; transform: none; filter: none; } 100% { opacity: 0; transform: scale(1.2); filter: brightness(2.4) blur(2px); } }
+@keyframes tb-fx-devolve { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(calc(var(--fx-dir, 1) * 96px)) scale(.8); } }
+@keyframes tb-fx-descarta { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(44px) rotate(9deg) scale(.9); } }
+@keyframes tb-fx-quebra { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(0deg); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(.2) rotate(120deg); } }
+@keyframes tb-fx-brilho { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 45% { box-shadow: 0 0 0 8px var(--accent-soft); } }
+/* marcador de vida: dano treme e fica vermelho; cura pulsa e fica verde */
+.tb-fx--dano { animation: tb-fx-tremor var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); border-color: var(--negative); box-shadow: 0 0 0 2px var(--negative); }
+.tb-fx--cura { animation: tb-fx-pulso var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); border-color: var(--positive); box-shadow: 0 0 0 2px var(--positive); }
+/* cartas: o efeito de cor mora numa camada por cima da carta (::after), o de movimento na própria carta */
+.tb-card.tb-fx::after { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: var(--radius-card); pointer-events: none; opacity: 0; animation-delay: var(--fx-atraso, 0s); }
+.tb-fx--golpe { animation: tb-fx-tremor var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-card.tb-fx--golpe::after { background: var(--negative); animation: tb-fx-clarao var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx--aprimora { animation: tb-fx-pulso var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-card.tb-fx--aprimora::after { border: 2px solid var(--accent); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx--enfraquece { animation: tb-fx-murcha var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-card.tb-fx--enfraquece::after { background: var(--scrim); animation: tb-fx-clarao var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx--ataque { animation: tb-fx-investe var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); z-index: 4; }
+.tb-fx--bloqueio { animation: tb-fx-firma var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-card.tb-fx--bloqueio::after { border: 2px solid var(--fg); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx--terreno { animation: tb-fx-pousa var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
+.tb-card.tb-fx--entra::after { border: 2px solid var(--accent); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx--compra { animation: tb-fx-chega var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
+.tb-fx--conjura { animation: tb-fx-brilho var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx--abalo { animation: tb-fx-abalo var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+/* o número que sobe do marcador (ou da criatura) */
+.tb-fx-num { position: fixed; transform: translate(-50%, -150%); font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; font-weight: var(--weight-medium); color: var(--fg); padding: var(--space-1) var(--space-2); border-radius: var(--radius-2); background: var(--scrim);
+  animation: tb-fx-sobe var(--dur-fx-longo) var(--ease-out) var(--fx-atraso, 0s) both; white-space: nowrap; }
+.tb-fx-num--parado { animation: none !important; opacity: 1; } /* menos movimento: o número aparece parado e sai sozinho */
+.tb-fx-num[data-tom="neg"] { color: var(--negative); }
+.tb-fx-num[data-tom="pos"] { color: var(--positive); }
+/* clarão de tela: vermelho nas bordas quando o dano é em você; latão na remoção global */
+.tb-fx-vinheta { position: absolute; inset: 0; opacity: 0; animation: tb-fx-clarao var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx-vinheta[data-tom="neg"] { background: radial-gradient(ellipse at center, transparent 55%, var(--negative) 130%); }
+.tb-fx-vinheta[data-tom="acento"] { background: var(--accent-soft); }
+/* a foto da carta que saiu da mesa */
+.tb-fx-fantasma { position: fixed; margin: 0; pointer-events: none; animation-fill-mode: both; animation-delay: var(--fx-atraso, 0s); }
+.tb-fx-fantasma--morre { animation: tb-fx-morre var(--dur-fx) var(--ease-in-out) var(--fx-atraso, 0s) both; }
+.tb-fx-fantasma--exila { animation: tb-fx-exila var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) both; }
+.tb-fx-fantasma--devolve { animation: tb-fx-devolve var(--dur-4) var(--ease-in-out) var(--fx-atraso, 0s) both; }
+.tb-fx-fantasma--descarte { animation: tb-fx-descarta var(--dur-4) var(--ease-in-out) var(--fx-atraso, 0s) both; }
+/* anulação: um anel que se fecha onde a mágica estava */
+.tb-fx-anula { position: fixed; width: 72px; height: 72px; border: 3px solid var(--negative); border-radius: var(--radius-full); animation: tb-fx-quebra var(--dur-fx) var(--ease-in-out) var(--fx-atraso, 0s) both; }
+.tb-fx-anula::after { content: ''; position: absolute; left: 50%; top: -6px; bottom: -6px; width: 3px; margin-left: -1px; background: var(--negative); transform: rotate(45deg); border-radius: var(--radius-full); }
 /* G4 · som da partida em Aparência: chip + volume numa linha; os sons para ouvir em chips */
 .aparencia__som { display: flex; align-items: center; gap: var(--space-3); }
 .aparencia__som > button { flex: none; }
@@ -2856,7 +2918,7 @@ function renderDS() {
     // D10 · catálogo de movimento: cada duração com nome e uso; a regra de menos movimento é global (sistema ou escolha)
     Section('Movimento',
       Text('Durações por token; com "menos movimento" (do sistema ou da Aparência) tudo fica instantâneo. Vibração por evento: toque · confirmação · alerta · turno.', { size: 'sm', tone: 'muted' }),
-      h('div', { class: 'ds-movimentos', id: 'ds-movimentos' }, ...[['--dur-1', 'toque: botão afunda, chip liga'], ['--dur-2', 'entrar e sair: folha, aviso, carta na mesa'], ['--dur-3', 'trocar de vez, pulso de posse'], ['--dur-4', 'chegada de carta na troca'], ['--dur-giro', 'giro do carregando'], ['--dur-pulso', 'pulso de atenção (ligação, chip ligado)'], ['--dur-pulso-lento', 'pulso discreto (sem internet)'], ['--dur-brilho', 'brilho de carregamento']].map(([tok, uso]) =>
+      h('div', { class: 'ds-movimentos', id: 'ds-movimentos' }, ...[['--dur-1', 'toque: botão afunda, chip liga'], ['--dur-2', 'entrar e sair: folha, aviso, carta na mesa'], ['--dur-3', 'trocar de vez, pulso de posse'], ['--dur-4', 'chegada de carta na troca'], ['--dur-giro', 'giro do carregando'], ['--dur-pulso', 'pulso de atenção (ligação, chip ligado)'], ['--dur-pulso-lento', 'pulso discreto (sem internet)'], ['--dur-brilho', 'brilho de carregamento'], ['--dur-fx-curto', 'efeito de mesa curto: tremor de dano, carta que some'], ['--dur-fx', 'efeito de mesa: ataque, cura, aprimoramento, abalo'], ['--dur-fx-longo', 'número que sobe do marcador de vida']].map(([tok, uso]) =>
         h('div', { class: 'ds-movimento' }, h('button', { class: 'ds-movimento__demo', type: 'button', 'aria-label': `demonstrar ${tok}`, style: { '--demo': `var(${tok})` }, onClick: e => { const el = e.currentTarget; el.classList.remove('is-on'); void el.offsetWidth; el.classList.add('is-on'); } }),
           h('code', {}, tok), Text(uso, { size: 'xs', tone: 'muted' })))),
       Row({ class: 'ds-row--wrap' }, ...Object.keys(__m0.EVENTOS_HAPTICOS).map(k => Button(k, { icone: 'raio', onClick: () => { const ok = __m0.haptics.evento(k); toast(ok ? `vibrou: ${k}` : 'sem vibração neste aparelho ou desligada'); } })))),
@@ -14606,7 +14668,7 @@ function eventosSensoriais(antes, depois, { eventos = [], stats = null, tipos = 
   });
   // objetos: zona, combate, dano marcado, marcadores e bônus
   const compras = new Map(), descartes = new Map(), saiu = [], atacam = [], bloqueiam = [];
-  const soma = (m, k) => m.set(k, (m.get(k) || 0) + 1);
+  const soma = (m, k, oid) => m.set(k, [...(m.get(k) || []), oid]);
   for (const o of Object.values(depois.objects)) {
     const a = antes.objects[o.oid];
     if (!a) { if (o.zone === 'battlefield') out.push({ tipo: o.token ? 'ficha' : 'entra', oid: o.oid, jogador: o.controller }); continue; }
@@ -14625,13 +14687,13 @@ function eventosSensoriais(antes, depois, { eventos = [], stats = null, tipos = 
     const passouPelaPilha = de !== 'stack' && para !== 'stack' && (resolvidas.has(o.oid) || (de === 'hand' && para === 'graveyard' && anuladas.has(o.name)));
     if (para === 'stack' || passouPelaPilha) out.push({ tipo: 'conjura', oid: o.oid, jogador: o.controller });
     if (para === 'stack') continue;
-    if (de === 'library' && para === 'hand') soma(compras, o.owner);
-    else if (de === 'hand' && para === 'graveyard') { if (!passouPelaPilha) soma(descartes, o.owner); }
+    if (de === 'library' && para === 'hand') soma(compras, o.owner, o.oid);
+    else if (de === 'hand' && para === 'graveyard') { if (!passouPelaPilha) soma(descartes, o.owner, o.oid); }
     else if (para === 'battlefield') out.push({ tipo: tem(o.name, 'land') ? 'terreno' : 'entra', oid: o.oid, jogador: o.controller });
     else if (de === 'battlefield') saiu.push({ oid: o.oid, para, jogador: a.controller, criatura: !!a.faceDown || tem(a.name, 'creature') });
   }
-  for (const [p, n] of compras) out.push({ tipo: 'compra', jogador: p, n });
-  for (const [p, n] of descartes) out.push({ tipo: 'descarte', jogador: p, n });
+  for (const [p, oids] of compras) out.push({ tipo: 'compra', jogador: p, n: oids.length, oids });
+  for (const [p, oids] of descartes) out.push({ tipo: 'descarte', jogador: p, n: oids.length, oids });
   if (atacam.length) out.push({ tipo: 'ataque', oids: atacam, jogador: depois.turn.active });
   if (bloqueiam.length) out.push({ tipo: 'bloqueio', oids: bloqueiam });
   if (efeito('counter')) out.push({ tipo: 'anula' });
@@ -14694,6 +14756,38 @@ function planoDeSom(eventos, { espectador = null, max = 4, passo = 0.14 } = {}) 
   return escolhidos.map((som, i) => ({ som, quando: Math.round(i * passo * 1000) / 1000 }));
 }
 
+/* ---------------- G5 · efeitos visuais ----------------
+   Dos eventos de uma jogada, o que desenhar e onde. Cada item diz o efeito (`fx`) e o alvo: uma carta (`oid`), o marcador
+   de vida de um jogador (`vida`), a pilha (`pilha`) ou a mesa (`mesa`). `fantasma` é a carta que saiu da tela: quem
+   desenha fotografa a carta antes de redesenhar e anima a foto. `texto` é o número que sobe (−3, +2). Puro. */
+function planoDeEfeitos(eventos, { espectador = null, max = 16, passo = 60 } = {}) {
+  const out = [];
+  const poe = item => out.push({ atraso: 0, ...item });
+  const emFila = (oids, item) => (oids || []).slice(0, 8).forEach((oid, k) => poe({ ...item, oid, atraso: k * passo }));
+  for (const e of eventos.slice().sort((x, y) => ORDEM.indexOf(x.tipo) - ORDEM.indexOf(y.tipo))) {
+    switch (e.tipo) {
+      case 'compra': if (e.jogador === espectador) emFila(e.oids, { fx: 'compra' }); break; // a mão do oponente não aparece: nada a mover
+      case 'descarte': emFila(e.oids, { fx: 'fantasma', como: 'descarte' }); break;
+      case 'terreno': poe({ fx: 'terreno', oid: e.oid }); break;
+      case 'entra': case 'ficha': poe({ fx: 'entra', oid: e.oid }); break;
+      case 'conjura': if (!out.some(x => x.fx === 'conjura')) poe({ fx: 'conjura', pilha: true }); break;
+      case 'anula': poe({ fx: 'anula' }); break;
+      case 'aprimora': poe({ fx: 'aprimora', oid: e.oid }); break;
+      case 'enfraquece': poe({ fx: 'enfraquece', oid: e.oid }); break;
+      case 'ataque': emFila(e.oids, { fx: 'ataque' }); break;
+      case 'bloqueio': emFila(e.oids, { fx: 'bloqueio' }); break;
+      case 'danoCriatura': poe({ fx: 'golpe', oid: e.oid, texto: '−' + e.n, tom: 'neg' }); break;
+      case 'dano': poe({ fx: 'dano', vida: e.jogador, texto: '−' + e.n, tom: 'neg' }); if (e.jogador === espectador) poe({ fx: 'vinheta', tom: 'neg' }); break;
+      case 'cura': poe({ fx: 'cura', vida: e.jogador, texto: '+' + e.n, tom: 'pos' }); break;
+      case 'morre': case 'destroi': poe({ fx: 'fantasma', oid: e.oid, como: 'morre' }); break;
+      case 'exila': poe({ fx: 'fantasma', oid: e.oid, como: 'exila' }); break;
+      case 'devolve': poe({ fx: 'fantasma', oid: e.oid, como: 'devolve' }); break;
+      case 'remocaoGlobal': poe({ fx: 'abalo', mesa: true }); poe({ fx: 'vinheta', tom: 'acento' }); emFila(e.oids, { fx: 'fantasma', como: 'morre' }); break;
+      default: break; // turno e fim já têm desenho próprio (a faixa de vez e o placar)
+    }
+  }
+  return out.slice(0, max);
+}
 const limpaPrefs = p => ({ ligado: !(p && p.ligado === false), volume: p && typeof p.volume === 'number' && Number.isFinite(p.volume) ? Math.min(1, Math.max(0, p.volume)) : 0.6 });
 
 function createSom({ store = null, criaContexto = null } = {}) {
@@ -14758,7 +14852,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -15175,6 +15269,57 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     if (som) som.tocaEventos(evs, { espectador: v });
     return evs;
   }
+  /* ---- G5 · efeitos visuais: a mesa é redesenhada inteira a cada jogada, então o efeito é posto por cima do desenho novo;
+     o que saiu da tela (morreu, foi exilado, descartado) é fotografado antes e a foto é que se desfaz ---- */
+  const fxLog = [];
+  const menosMovimento = () => document.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const durFx = tok => { const x = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(tok)); return Number.isFinite(x) && x > 0 ? x : 600; };
+  const camadaFx = () => { let c = document.getElementById('tb-fx'); if (!c) { c = h('div', { id: 'tb-fx', class: 'tb-fx-camada', 'aria-hidden': 'true' }); document.body.appendChild(c); } return c; };
+  const some = (el, ms) => setTimeout(() => { el.remove(); const c = document.getElementById('tb-fx'); if (c && !c.childElementCount) c.remove(); }, ms);
+  function preparaEfeitos(evs, v) {
+    const plano = __m33.planoDeEfeitos(evs, { espectador: v });
+    const parado = menosMovimento(), fantasmas = [];
+    if (!parado) for (const p of plano) {
+      if (p.fx !== 'fantasma') continue;
+      const el = root.querySelector(`.tb-card[data-oid="${p.oid}"]`); if (!el) continue;
+      const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
+      fantasmas.push({ p, r, clone: el.cloneNode(true) });
+    }
+    const pilha = root.querySelector('#tb-stack');
+    return { plano, fantasmas, parado, rPilha: pilha ? pilha.getBoundingClientRect() : null };
+  }
+  function aplicaEfeitos({ plano, fantasmas, parado, rPilha }, s, v) {
+    const feitos = [], curto = durFx('--dur-fx-curto'), medio = durFx('--dur-fx'), longo = durFx('--dur-fx-longo');
+    const meu = oid => s.objects[oid] && s.objects[oid].controller === v;
+    const alvoDe = p => p.oid != null ? root.querySelector(`.tb-card[data-oid="${p.oid}"]`) : p.vida != null ? root.querySelector(p.vida === v ? '#tb-life-me' : '#tb-life-opp') : p.mesa ? root.querySelector('.tb-board') : p.pilha ? root.querySelector('#tb-stack') : null;
+    const naCamada = (el, p, ms) => { el.style.setProperty('--fx-atraso', p.atraso + 'ms'); camadaFx().appendChild(el); some(el, ms + p.atraso + 80); };
+    for (const p of plano) {
+      if (p.fx === 'fantasma') continue;
+      if (p.fx === 'vinheta') { if (!parado) { naCamada(h('div', { class: 'tb-fx-vinheta', dataset: { tom: p.tom } }), p, medio); feitos.push('vinheta'); } continue; }
+      if (p.fx === 'anula') {
+        if (parado || !rPilha || !rPilha.width) continue;
+        const x = h('div', { class: 'tb-fx-anula' }); x.style.left = `${rPilha.left + Math.min(rPilha.width / 2, 64)}px`; x.style.top = `${rPilha.top + rPilha.height / 2}px`;
+        naCamada(x, p, medio); feitos.push('anula'); continue;
+      }
+      const el = alvoDe(p); if (!el) continue;
+      el.classList.add('tb-fx', 'tb-fx--' + p.fx); el.style.setProperty('--fx-atraso', p.atraso + 'ms');
+      if (p.oid != null) el.style.setProperty('--fx-dir', meu(p.oid) ? '-1' : '1'); // quem ataca avança para o outro lado da mesa
+      setTimeout(() => { el.classList.remove('tb-fx', 'tb-fx--' + p.fx); }, longo + p.atraso);
+      feitos.push(p.fx);
+      if (p.texto) {
+        const r = el.getBoundingClientRect();
+        const n = h('span', { class: 'tb-fx-num' + (parado ? ' tb-fx-num--parado' : ''), dataset: { tom: p.tom } }, p.texto); n.style.left = `${r.left + r.width / 2}px`; n.style.top = `${r.top + r.height / 2}px`;
+        naCamada(n, p, longo); feitos.push('num:' + p.texto);
+      }
+    }
+    for (const { p, r, clone } of fantasmas) {
+      clone.removeAttribute('id'); clone.disabled = true; clone.tabIndex = -1; clone.className += ' tb-fx-fantasma tb-fx-fantasma--' + p.como;
+      Object.assign(clone.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      clone.style.setProperty('--fx-dir', s.objects[p.oid] && s.objects[p.oid].owner === v ? '1' : '-1'); // devolvida: desce para a minha mão, sobe para a do oponente
+      naCamada(clone, p, p.como === 'morre' ? medio : curto + 120); feitos.push('fantasma:' + p.como);
+    }
+    if (feitos.length) { root.dataset.fx = feitos.join(' '); fxLog.push(...feitos); if (fxLog.length > 200) fxLog.splice(0, fxLog.length - 200); }
+  }
   // Leva 128 · a foto do perfil entra no círculo da faixa de vez quando o turno é seu
   let meuAvatar = null;
   if (perfil) perfil.get().then(p => { if (p.avatar) { meuAvatar = p.avatar; if (table) paint(); } }).catch(() => {});
@@ -15300,7 +15445,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
-  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(),
+  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -16297,7 +16442,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     const s = table.state;
     const v = table.viewer();
     if (s.status === 'over') fechaJogoDaSerie(s); // antes de desenhar o placar
-    ouve(s, v); // G4
+    const sentidos = ouve(s, v); // G4
+    const cena = sentidos.length ? preparaEfeitos(sentidos, v) : null; // G5 · antes de redesenhar
     // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
     if (table.humans().length > 1 && v !== shownViewer && s.status !== 'over') { handoff = true; shownViewer = v; }
     if (handoff) {
@@ -16345,6 +16491,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     if (sinc) pintaChat(); // leva 137 · selo de mensagens novas
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
     vistos = new Set(s.zones.flatMap(z => z.battlefield));
+    if (cena) aplicaEfeitos(cena, s, v); // G5 · por cima do desenho novo
   }
 
   return root;

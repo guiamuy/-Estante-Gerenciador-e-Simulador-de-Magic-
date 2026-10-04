@@ -6131,7 +6131,7 @@ test('e2e · D10 movimento com sistema: catálogo em /ds, pulsos por token, a ve
   await page.addInitScript(() => { window.__MTG_TEST = true; window.__vibs = []; Object.defineProperty(navigator, 'vibrate', { value: p => { window.__vibs.push(p); return true; }, configurable: true }); });
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-movimentos');
-  assert.equal(await page.locator('#ds-movimentos .ds-movimento').count(), 8, 'oito durações no catálogo');
+  assert.equal(await page.locator('#ds-movimentos .ds-movimento').count(), 11, 'onze durações no catálogo (G5 somou três de efeito de mesa)');
   await page.click('#ds-movimentos .ds-movimento__demo >> nth=5');
   assert.equal(await page.$eval('#ds-movimentos .ds-movimento__demo >> nth=5', el => getComputedStyle(el).animationDuration), '1.2s', 'a demo usa o token (--dur-pulso)');
   await page.click('.ds-surface:has(#ds-movimentos) button:has-text("turno")');
@@ -6540,5 +6540,56 @@ test('e2e · G4 som na partida: a jogada vira evento e som (terreno, sua vez, co
   await page.waitForFunction(() => window.__estanteMesa.som.prefs.volume === 0.25);
   await page.click('#aparencia-som [data-som]'); await page.waitForFunction(() => !document.querySelector('#aparencia-ouvir'));
   assert.equal(await page.isDisabled('#aparencia-volume'), true, 'desligado: o volume espera e o botão de ouvir some');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · G5 efeitos visuais na partida: terreno pousa, compra chega, criatura entra, dano treme o marcador e sobe o número, criatura morta se desfaz; com menos movimento fica só a parte parada', { skip }, async t => {
+  const M = await comLista125(t, '12 Mountain\n10 Swamp\n16 Fiery Temper\n16 Kitchen Imp', ['Mountain', 'Swamp', 'Fiery Temper', 'Kitchen Imp'], '3');
+  const { page, errors } = M;
+  const efeitos = () => page.evaluate(() => window.__estanteMesa.efeitos());
+  const novos = async fn => { const n = (await efeitos()).length; await fn(); await page.waitForTimeout(120); return (await efeitos()).slice(n); };
+  const terra = async () => { for (const n of ['Swamp', 'Mountain']) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) return o; } return null; };
+  /** Avança turnos (um terreno por turno) até existir a jogada pedida. */
+  const ate = async (f, nome) => { for (let i = 0; i < 16; i++) { const a = (await M.legal(f))[0]; if (a) return a; await M.proximo(); await terra(); } assert.fail('não ficou jogável: ' + nome); };
+  // terreno: a carta pousa (classe na carta nova, por cima do desenho novo)
+  let oid = null; const fxTerreno = await novos(async () => { oid = await terra(); });
+  assert.deepEqual(fxTerreno, ['terreno']); assert.equal(await page.getAttribute('#tb', 'data-fx'), 'terreno');
+  assert.equal(await page.locator(`.tb-board .tb-card[data-oid="${oid}"].tb-fx--terreno`).count(), 1, 'o efeito está na carta que acabou de entrar');
+  // passar o turno: a carta comprada chega à mão
+  const fxTurno = await novos(() => M.proximo()); assert.ok(fxTurno.includes('compra'), JSON.stringify(fxTurno));
+  // até ter mana para a criatura: terreno a cada turno
+  await terra(); const imp = await ate("a.t === 'cast' && !(a.targets || []).length", 'Kitchen Imp');
+  const fxImp = await novos(async () => { await M.act(imp); await M.resolve(); }); assert.ok(fxImp.includes('entra'), JSON.stringify(fxImp));
+  const impOid = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.find(o => s.objects[o].name === 'Kitchen Imp'); });
+  // dano no oponente: o marcador treme, fica vermelho e o número sobe
+  const noOponente = "a.t === 'cast' && (a.targets || []).some(x => x.player === 1)";
+  const raio = await ate(noOponente, 'Fiery Temper no oponente');
+  const fxDano = await novos(async () => { await M.act(raio); await M.resolve(); });
+  assert.ok(fxDano.includes('dano') && fxDano.includes('num:−3'), JSON.stringify(fxDano));
+  assert.ok(!fxDano.includes('vinheta'), 'dano no oponente não escurece a minha tela');
+  // o número e o anel existem na tela enquanto o efeito dura, e saem sozinhos
+  await M.proximo(); await terra(); const raio2 = await ate(noOponente, 'segundo Fiery Temper');
+  const fx2 = await novos(async () => { await M.act(raio2); await M.resolve(); });
+  assert.ok(fx2.includes('dano'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g5-dano.png' });
+  assert.equal(await page.locator('#tb-fx .tb-fx-num[data-tom="neg"]').count(), 1); assert.equal(await page.innerText('#tb-fx .tb-fx-num'), '−3');
+  assert.equal(await page.locator('#tb-life-opp.tb-fx--dano').count(), 1);
+  assert.equal(await page.getAttribute('#tb-fx', 'aria-hidden'), 'true'); assert.equal(await page.$eval('#tb-fx', el => getComputedStyle(el).pointerEvents), 'none', 'a camada de efeitos não pega toque');
+  await auditaTela(page, 'mesa com efeito de dano');
+  await page.waitForFunction(() => !document.querySelector('#tb-fx') && !document.querySelector('.tb-fx--dano'), null, { timeout: 4000 });
+  // criatura destruída: a foto da carta se desfaz onde ela estava
+  await M.proximo(); await terra(); const emMim = await ate(`a.t === 'cast' && (a.targets || []).some(x => x.oid === "${impOid}")`, 'Fiery Temper na minha criatura');
+  const fxMorte = await novos(async () => { await M.act(emMim); await M.resolve(); });
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g5-morte.png' });
+  assert.ok(fxMorte.includes('fantasma:morre'), JSON.stringify(fxMorte));
+  assert.equal(await page.locator(`.tb-board .tb-card[data-oid="${impOid}"]`).count(), 0, 'a carta saiu do campo; o que se vê é a foto dela');
+  // menos movimento: nada de fantasma nem clarão; o número e a cor continuam (parados)
+  await page.evaluate(() => window.__estanteTema.setAparencia({ movimento: 'reduzido' }));
+  await M.proximo(); await terra(); const r3 = await ate("a.t === 'cast' && (a.targets || []).some(x => x.player === 0)", 'Fiery Temper em mim');
+  const fxParado = await novos(async () => { await M.act(r3); await M.resolve(); });
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g5-menos-movimento.png' });
+  assert.ok(fxParado.includes('dano') && fxParado.includes('num:−3'), JSON.stringify(fxParado)); assert.ok(!fxParado.includes('vinheta') && !fxParado.some(x => x.startsWith('fantasma')), 'sem clarão e sem fantasma');
+  assert.deepEqual(await page.$eval('#tb-fx .tb-fx-num', el => { const c = getComputedStyle(el); return [c.animationName, c.opacity, el.textContent]; }), ['none', '1', '−3'], 'o número aparece parado, sem animação');
+  await page.waitForFunction(() => !document.querySelector('#tb-fx'), null, { timeout: 4000 });
   assert.deepEqual(errors, []);
 });

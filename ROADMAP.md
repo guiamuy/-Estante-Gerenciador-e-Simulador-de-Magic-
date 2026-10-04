@@ -410,6 +410,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-as ✅ | G2 etiquetas coloridas em cartas da coleção e em listas: criar, aplicar em lote ou pela carta, filtrar por chip (leva 166) | G | 1 | teste no aparelho |
 | 16º-at ✅ | G3 valor acumulado em real, dólar e euro: coleção, recorte do filtro, cada etiqueta, cada lista (deck, reserva, falta comprar) e total da estante (leva 167) | G | 1 | teste no aparelho |
 | 16º-au ✅ | G4 som na partida: eventos de mesa lidos do estado (compra, ataque, dano, cura, anulação, destruição, descarte, remoção global…) e vinte sons sintetizados, com liga/desliga e volume (leva 168) | G | 1 | teste no aparelho |
+| 16º-av ✅ | G5 efeitos visuais na partida: um efeito por evento (compra, ataque, dano com número, cura, anulação, destruição, exílio, descarte, remoção global, aprimoramento), por tokens de movimento, com menos movimento respeitado (leva 169) | G | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4791,6 +4792,38 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   desligar lembrado, volume, as vinte receitas aceitas pelo áudio do navegador, `auditaTela` em três telas).
 - **Fora:** música de fundo; som por carta específica; som na coleção e nas listas; vibração por evento de mesa
   (hoje só a troca de turno vibra).
+
+**G5 · Efeitos visuais na partida** ✅ (leva 169, 04/10/2026)
+- **Como funciona:** os mesmos eventos de mesa da G4 viram um plano de efeitos (`planoDeEfeitos`, puro): cada item
+  diz o efeito e o alvo (uma carta, o marcador de vida, a pilha ou a mesa). A mesa é redesenhada inteira a cada
+  jogada, então o efeito é posto **por cima do desenho novo**; a carta que saiu da tela é **fotografada antes** e a
+  foto é que se desfaz (camada fixa `#tb-fx`, sem toque, fora do leitor de tela).
+- **Um efeito por evento:**
+  - **Comprar:** a carta chega à mão deslizando, uma depois da outra.
+  - **Baixar terreno:** a carta pousa. **Entrar no campo / ficha:** anel de latão que se abre.
+  - **Conjurar:** a pilha pulsa. **Anular:** um anel vermelho se fecha onde a mágica estava.
+  - **Atacar:** cada atacante investe para o outro lado da mesa, em fila. **Bloquear:** a criatura firma, com anel.
+  - **Dano em jogador:** o marcador de vida treme e fica vermelho, e o número (−3) sobe; se o dano é em você, as
+    bordas da tela acendem em vermelho. **Ganhar vida:** o marcador pulsa em verde e sobe o +N.
+  - **Dano em criatura:** a carta treme com um clarão vermelho e o número. **Aprimorar:** pulso com anel de latão.
+    **Enfraquecer:** a carta murcha e escurece um instante.
+  - **Criatura destruída / permanente destruída:** a foto da carta perde a cor, cai e some. **Exilar:** clareia e
+    some. **Devolver à mão:** desliza para a mão do dono. **Descartar:** a carta cai da mão.
+  - **Remoção global:** a mesa treme, a tela clareia e as cartas se desfazem em fila.
+- **Design system:** três tokens novos de duração (`--dur-fx-curto` 320 ms, `--dur-fx` 560 ms, `--dur-fx-longo`
+  900 ms), no catálogo de movimento; curvas e cores dos tokens que já existiam; só `transform`, `opacity` e
+  `filter` (nada mexe no layout). No máximo 16 efeitos por jogada (o turno inteiro do Shark não vira chuva).
+- **Menos movimento** (Aparência ou sistema): sem fantasma, sem clarão e sem tremor; o número aparece **parado**
+  ao lado do marcador e sai sozinho.
+- **Limites declarados:** compra e descarte do **oponente** não têm efeito (a mão dele não está na tela); troca de
+  turno e fim de partida ficam com o desenho que já tinham (faixa de vez e placar); efeito aplicado numa carta se
+  perde se a mesa for redesenhada antes de terminar (o número e a foto, que moram na camada, continuam); numa
+  jogada que junta várias coisas (turno do Shark) os efeitos saem juntos, não em sequência de turno.
+- **Testes:** U `sentidos.unit` +1 (plano de efeitos: alvo e número de cada evento, fila de atacantes, fantasmas,
+  remoção global, teto); e2e "G5 efeitos visuais" (terreno, compra, entrar, dano com número, criatura morta, camada
+  sem toque, limpeza sozinha, menos movimento com número parado), com capturas em `SHOTS`.
+- **Fora:** partículas e trilhas por cor de mana; efeito por carta específica; animar a carta indo da mão à pilha;
+  sequenciar o turno do bot jogada a jogada (pede o modelo da mesa entregar um passo de cada vez).
 
 ### P · Plataforma
 
