@@ -6,7 +6,8 @@ const { platform: F2, pwa: W1, components: F5 } = loadModules();
 
 test('leva 123 · vibração faz parte do contrato da plataforma e nunca lança', () => {
   // D2 · a vibração ganhou liga/desliga (Ajustes › Aparência): o contrato cresceu de propósito
-  assert.deepEqual(JSON.parse(JSON.stringify(F2.PLATFORM_CONTRACT.haptics)), ['vibrate', 'ligar', 'ligada']);
+  // D10 · vibração por evento (toque, confirmação, alerta, turno): o contrato cresceu de novo, de propósito
+  assert.deepEqual(JSON.parse(JSON.stringify(F2.PLATFORM_CONTRACT.haptics)), ['vibrate', 'evento', 'ligar', 'ligada']);
   const h = F2.webHaptics({ vibrate: () => true }); assert.equal(h.ligada(), true); assert.equal(h.vibrate(5), true);
   assert.equal(h.ligar(false), false); assert.equal(h.vibrate(5), false, 'desligada, não vibra nem chama o aparelho'); h.ligar(true); assert.equal(h.vibrate(5), true);
   const chamadas = [];
@@ -65,4 +66,14 @@ test('leva 123 · Note e Badge aceitam o tom em texto ou em objeto; "danger" vir
     assert.equal(F5.Badge('x', { tone: 'danger' }).className, 'ds-badge ds-badge--negative');
     assert.equal(F5.Badge('x').className, 'ds-badge');
   } finally { realm.document = antes; }
+});
+
+test('D10 · vibração por evento: um padrão por significado, sequência para a troca de vez, nada quando desligada ou sem evento', () => {
+  const chamadas = [];
+  const h = F2.webHaptics({ vibrate: p => { chamadas.push(p); return true; } });
+  assert.equal(h.evento('toque'), true); assert.equal(h.evento('confirmacao'), true); assert.equal(h.evento('alerta'), true); assert.equal(h.evento('turno'), true);
+  assert.deepEqual(JSON.parse(JSON.stringify(chamadas)), [8, 12, 30, [12, 40, 12]]);
+  assert.equal(h.evento('inexistente'), false, 'evento desconhecido não vibra'); assert.equal(chamadas.length, 4);
+  h.ligar(false); assert.equal(h.evento('alerta'), false); assert.equal(chamadas.length, 4, 'desligada: não chama o aparelho');
+  assert.deepEqual(Object.keys(F2.EVENTOS_HAPTICOS), ['toque', 'confirmacao', 'alerta', 'turno']);
 });

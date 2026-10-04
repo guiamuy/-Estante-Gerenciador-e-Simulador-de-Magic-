@@ -405,6 +405,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
 | 16º-ak ✅ | D9 coleção: painel recolhido por padrão (abrir fica lembrado), agrupar e ordem lado a lado, desfazer numa linha; primeira carta 1494 → 524 px (leva 154) | D | 1 | — |
+| 16º-al ✅ | D10 movimento com sistema: pulsos por token, vibração por evento (toque · confirmação · alerta · turno), catálogo em /ds, portão confere keyframes e menos movimento (leva 155) | D | 1 | literais do scanner ficam com a X16 |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4487,6 +4488,26 @@ X16 (tela nova, estados desenhados) planejada em cima das mesmas notas; mexer ne
   passou a abrir o painel antes de ler os números, com o motivo no teste; "aberto fica lembrado" conferido.
 - **Fora:** galeria com sombra/canto (já por token, contrato visual confere); filtros em folha (já existe, C12);
   seleção múltipla (já existe, C13); miniatura maior na visão densa.
+**D10 · Movimento com sistema** ✅ (leva 155, 03/10/2026)
+- **O que já havia:** a regra global de menos movimento (sistema) desde a U-era e a da escolha (D2); durações em
+  `--dur-1…4` e `--dur-giro` (D1). Faltavam os pulsos (1,2 s · 2,4 s · 1,2 s em literal), um `ease-in-out` solto, a
+  vibração sem vocabulário (8, 12, 30 ms espalhados) e nada no catálogo.
+- **Entregue:** tokens **`--dur-pulso`** (atenção: ligação caindo), **`--dur-pulso-lento`** (sem internet na barra)
+  e **`--dur-brilho`** (carregamento do visor), aplicados; `ease-in-out` por token. **Vibração por evento** na
+  camada de plataforma — `haptics.evento('toque' | 'confirmacao' | 'alerta' | 'turno')`, catálogo
+  `EVENTOS_HAPTICOS` (8 · 12 · 30 · [12, 40, 12]) — usada no pulso de posse da lista, em Salvar do perfil, na
+  espiada da carta, na mão recolhida e na mensagem nova do chat; **a vez chegando a você vibra com o padrão de
+  turno** (hot-seat e online). Seção **Movimento** no `/ds`: cada duração com nome, uso e demonstração, e os quatro
+  eventos de vibração para sentir no aparelho.
+- **Portão:** contrato visual "D10" — a regra global de menos movimento existe (sistema e escolha), nenhuma duração
+  em segundos fora de token (0s de atraso é legítimo), toda animação nomeada tem `@keyframes` e todo `@keyframes` é
+  usado, tokens de pulso existem. Os três literais do scanner (`.scan-*`, leva 112) ficam fora da regra, declarados
+  para a X16 da trilha scanner. U (`ds.unit`: eventos, sequência do turno, desligada não chama o aparelho; contrato
+  da plataforma com `evento`); e2e "D10" (catálogo com 8 durações e demo pelo token, botão do evento vibra
+  [12, 40, 12], chip sem rede pulsa em 2,4 s, a vez de Bia chega com o padrão de turno no hot-seat, menos movimento
+  por escolha zera a demo).
+- **Fora:** transições de troca de tela (o router troca seco de propósito: no celular a animação de rota custa
+  quadros); animação de virar a carta (verso ↔ face); sons.
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.

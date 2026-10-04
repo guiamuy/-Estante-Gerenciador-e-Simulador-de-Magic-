@@ -69,6 +69,9 @@
   --dur-3: 280ms;
   --dur-4: 420ms;   /* D1 · chegada de carta, troca de vez */
   --dur-giro: 700ms; /* D1 · giro contínuo do carregando */
+  --dur-pulso: 1200ms; /* D10 · pulso de atenção (ligação caindo, chip ligado) */
+  --dur-pulso-lento: 2400ms; /* D10 · pulso lento e discreto (sem internet na barra) */
+  --dur-brilho: 1200ms; /* D10 · brilho de carregamento que atravessa a moldura */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
   --ease-in-out: cubic-bezier(.45, .05, .55, .95);
 
@@ -343,7 +346,7 @@ a { color: var(--accent); }
 .ds-carta-img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .ds-visor__moldura { position: relative; width: min(100%, 380px); aspect-ratio: 488 / 680; margin: 0 auto var(--space-4); border-radius: 4.75% / 3.5%; overflow: hidden;
   background: var(--bg-elev-2); box-shadow: var(--shadow-3); }
-.ds-visor__moldura[data-carregando="true"]::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--fg) 8%, transparent) 50%, transparent 70%) 0 0 / 200% 100%; animation: ds-brilho 1.2s linear infinite; }
+.ds-visor__moldura[data-carregando="true"]::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--fg) 8%, transparent) 50%, transparent 70%) 0 0 / 200% 100%; animation: ds-brilho var(--dur-brilho) linear infinite; }
 @keyframes ds-brilho { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .ds-visor__moldura[data-carregando="true"]::after { animation: none; } }
 .ds-visor__moldura .ds-empty { height: 100%; display: flex; flex-direction: column; justify-content: center; }
@@ -394,7 +397,7 @@ a { color: var(--accent); }
 .ds-empty__mais { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1); }
 /* chip da barra: um ponto que pulsa devagar enquanto a internet não volta */
 #nav-offline { position: relative; }
-#nav-offline::before { content: ''; position: absolute; top: 5px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); box-shadow: 0 0 0 0 var(--warning); animation: ds-pulso-rede 2.4s var(--ease-out) infinite; }
+#nav-offline::before { content: ''; position: absolute; top: 5px; right: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); box-shadow: 0 0 0 0 var(--warning); animation: ds-pulso-rede var(--dur-pulso-lento) var(--ease-out) infinite; }
 @keyframes ds-pulso-rede { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
 @media (prefers-reduced-motion: reduce) { #nav-offline::before { animation: none; } .ds-anel__barra { transition: none; } }
 
@@ -430,6 +433,13 @@ a { color: var(--accent); }
 .home-continuar__texto span { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-continuar__seta { flex: none; color: var(--fg-subtle); display: inline-flex; }
 
+/* D10 · catálogo de movimento */
+.ds-movimentos { display: grid; grid-template-columns: 1fr; gap: var(--space-2); }
+.ds-movimento { display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: var(--space-3); align-items: center; }
+.ds-movimento__demo { grid-row: 1 / span 2; width: 44px; height: 44px; border-radius: var(--radius-1); background: var(--accent-soft); border: 1px solid var(--accent); }
+.ds-movimento__demo.is-on { animation: ds-demo var(--demo, var(--dur-2)) var(--ease-out); }
+@keyframes ds-demo { 0% { transform: translateX(0); background: var(--accent); } 100% { transform: translateX(12px); background: var(--accent-soft); } }
+.ds-movimento code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); }
 .ds-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--space-2); }
 .ds-icones__item { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) 0; color: var(--fg); }
 .ds-icones__item figcaption { font-size: var(--text-xs); color: var(--fg-muted); font-family: var(--font-mono); }
@@ -541,7 +551,7 @@ a { color: var(--accent); }
 .tb-chat__hora { font-size: var(--text-xs); color: var(--fg-muted); align-self: flex-end; font-variant-numeric: tabular-nums; }
 .tb-chat__linha { align-items: stretch; gap: var(--space-2); }
 .tb-chat__linha .ds-input { flex: 1 1 auto; min-width: 0; }
-.tb-online[data-ligado="false"] { background: var(--warning); animation: tb-online-pulso 1.2s ease-in-out infinite; }
+.tb-online[data-ligado="false"] { background: var(--warning); animation: tb-online-pulso var(--dur-pulso) var(--ease-in-out) infinite; }
 @keyframes tb-online-pulso { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
 .perfil-conta__texto { gap: 0; min-width: 0; }
@@ -1530,7 +1540,7 @@ const __m0 = (function () {
 /** Contrato que todo adaptador precisa cumprir. Verificado nos testes. */
 const PLATFORM_CONTRACT = {
   store: ['get', 'set', 'remove', 'keys'],
-  haptics: ['vibrate', 'ligar', 'ligada'],
+  haptics: ['vibrate', 'evento', 'ligar', 'ligada'],
   camera: ['available', 'start', 'capture', 'stop'],
   files: ['save', 'readText'],
   share: ['available', 'text', 'copy'],
@@ -1544,10 +1554,14 @@ function webHaptics(nav) {
   return {
     /** Vibra por `ms` milissegundos. Devolve true quando o aparelho aceitou o pedido (e a vibração está ligada). */
     vibrate(ms) { if (!ligado) return false; try { return !!(nav && typeof nav.vibrate === 'function' && nav.vibrate(ms)); } catch (e) { return false; } },
+    /** D10 · vibração por evento, um padrão por significado (não por tela): toque leve, confirmação, alerta, troca de vez. */
+    evento(nome) { const p = EVENTOS_HAPTICOS[nome]; return p == null ? false : this.vibrate(Array.isArray(p) ? p.slice() : p); },
     ligar(sim) { ligado = !!sim; return ligado; },
     ligada() { return ligado; }
   };
 }
+/** D10 · catálogo dos padrões de vibração (ms, ou sequência vibra/pausa/vibra). */
+const EVENTOS_HAPTICOS = { toque: 8, confirmacao: 12, alerta: 30, turno: [12, 40, 12] };
 /** Instância padrão para módulos que não recebem a plataforma (gestos, mesa, scanner). */
 const haptics = webHaptics(typeof navigator !== 'undefined' ? navigator : null);
 
@@ -1887,7 +1901,7 @@ function createPlatform(env = {}) {
     haptics: env.haptics || webHaptics(nav)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics, EVENTOS_HAPTICOS };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -2698,6 +2712,14 @@ function renderDS() {
       Row({ class: 'ds-row--wrap' }, ...['nogueira', 'feltro', 'pedra', 'linho'].map(k => Row({}, (() => { const a = h('span', { class: 'aparencia__cor', 'aria-hidden': 'true' }); a.dataset.superficie = k; return a; })(), Text(k, { size: 'xs', tone: 'muted' })))),
       Row({ class: 'ds-row--wrap' }, ...['azul', 'rubi', 'ametista'].map(k => Row({}, (() => { const a = h('span', { class: 'aparencia__cor', 'aria-hidden': 'true' }); a.dataset.oponente = k; return a; })(), Text(k, { size: 'xs', tone: 'muted' }))))),
 
+    // D10 · catálogo de movimento: cada duração com nome e uso; a regra de menos movimento é global (sistema ou escolha)
+    Section('Movimento',
+      Text('Durações por token; com "menos movimento" (do sistema ou da Aparência) tudo fica instantâneo. Vibração por evento: toque · confirmação · alerta · turno.', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'ds-movimentos', id: 'ds-movimentos' }, ...[['--dur-1', 'toque: botão afunda, chip liga'], ['--dur-2', 'entrar e sair: folha, aviso, carta na mesa'], ['--dur-3', 'trocar de vez, pulso de posse'], ['--dur-4', 'chegada de carta na troca'], ['--dur-giro', 'giro do carregando'], ['--dur-pulso', 'pulso de atenção (ligação, chip ligado)'], ['--dur-pulso-lento', 'pulso discreto (sem internet)'], ['--dur-brilho', 'brilho de carregamento']].map(([tok, uso]) =>
+        h('div', { class: 'ds-movimento' }, h('button', { class: 'ds-movimento__demo', type: 'button', 'aria-label': `demonstrar ${tok}`, style: { '--demo': `var(${tok})` }, onClick: e => { const el = e.currentTarget; el.classList.remove('is-on'); void el.offsetWidth; el.classList.add('is-on'); } }),
+          h('code', {}, tok), Text(uso, { size: 'xs', tone: 'muted' })))),
+      Row({ class: 'ds-row--wrap' }, ...Object.keys(__m0.EVENTOS_HAPTICOS).map(k => Button(k, { icone: 'raio', onClick: () => { const ok = __m0.haptics.evento(k); toast(ok ? `vibrou: ${k}` : 'sem vibração neste aparelho ou desligada'); } })))),
+
     Section('Mesa', ...(() => {
       const M = __m17;
       const demo = (name, extra = {}) => ({ name, oid: 'ds-' + name, ...extra });
@@ -3410,7 +3432,7 @@ function onTaps(el, { single, double, delay = DOUBLE_MS }) {
 function pulse(el) {
   if (!el) return;
   el.classList.remove('is-pulse'); void el.offsetWidth; el.classList.add('is-pulse');
-  __m0.haptics.vibrate(12); // leva 123 · pela camada de plataforma
+  __m0.haptics.evento('confirmacao'); // leva 123 · pela camada de plataforma; D10 · por evento
 }
 /* A15 · TOQUE LONGO
    Segurar abre (espiar a carta); soltar fecha. O clique que o navegador dispara
@@ -7094,7 +7116,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
   async function salvar(forca = false) {
     if ((!mudou() && !forca) || st.ocupado) return;
     st.ocupado = true; paint();
-    try { st.salvo = await perfil.set({ nome: st.nome, avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.vibrate(8); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); st.confirmaSalvo = true; }
+    try { st.salvo = await perfil.set({ nome: st.nome, avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.evento('confirmacao'); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); st.confirmaSalvo = true; }
     catch (err) { toast('Não foi possível salvar o perfil'); }
     finally { st.ocupado = false; paint(); if (st.confirmaSalvo) { st.confirmaSalvo = false; const b = root.querySelector('#perfil-salvar'); if (b) confirmaBotao(b, { texto: 'Salvo' }); } } // D8 · ✓ no botão depois de a tela repintar
   }
@@ -14183,7 +14205,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
     if (chat.aberto) pintaFolhaChat(ms);
     // mensagem nova com a folha fechada: aviso curto e vibração, uma vez por mensagem
     const ult = ms.filter(m => !m.minha).at(-1);
-    if (ult && !chat.aberto && ult.em > chat.lidoAte && chat.anunciada !== ult.chave) { chat.anunciada = ult.chave; toast(`${table.state.players[ult.de].name}: ${ult.texto.length > 60 ? ult.texto.slice(0, 57) + '…' : ult.texto}`, 3200); __m0.haptics.vibrate(8); }
+    if (ult && !chat.aberto && ult.em > chat.lidoAte && chat.anunciada !== ult.chave) { chat.anunciada = ult.chave; toast(`${table.state.players[ult.de].name}: ${ult.texto.length > 60 ? ult.texto.slice(0, 57) + '…' : ult.texto}`, 3200); __m0.haptics.evento('alerta'); }
     if (chat.aberto) { const ultTodas = ms.at(-1); if (ultTodas) chat.lidoAte = Math.max(chat.lidoAte, ultTodas.em); }
   }
   function pintaFolhaChat(ms) {
@@ -14246,6 +14268,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
     if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, h('span', { class: 'tb-vez__btn' }, ...miolo()));
     if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
     vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
+    if (troca && papel === 'eu') __m0.haptics.evento('turno'); // D10 · a vez chegou a você: padrão próprio de vibração
     vezEl.dataset.papel = papel; vezEl.dataset.turno = String(vz.turno);
     const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}|${!!(meuAvatar && papel === 'eu')}`;
     vezEl.dataset.serie = String(vz.detalhes.some(d => d.k === 'serie'));
@@ -14837,7 +14860,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
       acoes: d.acoes.filter(a => !a.disabled) });
     simbolizar(peekEl); // U3
     document.body.appendChild(peekEl);
-    __m0.haptics.vibrate(8);
+    __m0.haptics.evento('toque');
   }
   const comPeek = oid => ({ onPeek: aberto => peek(oid, aberto) });
 
@@ -15247,7 +15270,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
       maoRecolhida = recolher != null ? recolher : !maoRecolhida;
       store.set(MAO_KEY, maoRecolhida).catch(() => {});
       aplica(!maoRecolhida);
-      __m0.haptics.vibrate(8);
+      __m0.haptics.evento('toque');
     };
     const puxador = h('button', { class: 'tb-hand__toggle', id: 'tb-hand-toggle', type: 'button', 'aria-controls': 'tb-hand-body', 'aria-expanded': String(band.aberta),
       'aria-label': rotuloAria(band.aberta), title: 'Mão', disabled: band.forcada, onClick: () => alterna() },

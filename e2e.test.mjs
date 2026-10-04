@@ -6075,3 +6075,35 @@ test('e2e · D9 coleção: agrupar e ordem lado a lado, desfazer importação nu
   await auditaTela(page, 'coleção com agrupar e ordem numa linha');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · D10 movimento com sistema: catálogo em /ds, pulsos por token, a vez chegando vibra com o padrão "turno" e "menos movimento" zera tudo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; window.__vibs = []; Object.defineProperty(navigator, 'vibrate', { value: p => { window.__vibs.push(p); return true; }, configurable: true }); });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-movimentos');
+  assert.equal(await page.locator('#ds-movimentos .ds-movimento').count(), 8, 'oito durações no catálogo');
+  await page.click('#ds-movimentos .ds-movimento__demo >> nth=5');
+  assert.equal(await page.$eval('#ds-movimentos .ds-movimento__demo >> nth=5', el => getComputedStyle(el).animationDuration), '1.2s', 'a demo usa o token (--dur-pulso)');
+  await page.click('.ds-surface:has(#ds-movimentos) button:has-text("turno")');
+  assert.deepEqual(await page.evaluate(() => JSON.parse(JSON.stringify(window.__vibs.at(-1)))), [12, 40, 12], 'padrão da troca de vez');
+  // o pulso de "sem internet" na barra usa o token lento
+  await page.context().setOffline(true); await page.goto(base + '#/listas'); await page.waitForSelector('#nav-offline:not(.ds-hidden)');
+  assert.equal(await page.$eval('#nav-offline', el => getComputedStyle(el, '::before').animationDuration), '2.4s');
+  await page.context().setOffline(false);
+  // hot-seat: quando a vez chega a quem está com o aparelho, vibra "turno" (uma vez por troca)
+  await createDeck(page, base, 'Peixes', '30 Island\n10 Sky Pike', 'livre');
+  await page.goto(base + '#/mesa'); await page.click('[data-opponent="hotseat"]'); await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  await page.waitForSelector('#tb-vez[data-papel="eu"]');
+  await page.evaluate(() => { window.__vibs.length = 0; });
+  await page.click('#tb-pass-turn'); await page.waitForSelector('#tb-reveal'); await page.click('#tb-reveal'); await page.waitForSelector('#tb-vez[data-papel="eu"]');
+  const vibs = await page.evaluate(() => JSON.parse(JSON.stringify(window.__vibs)));
+  assert.ok(vibs.some(v => Array.isArray(v) && v.join() === '12,40,12'), 'a vez de Bia chegou com o padrão de turno: ' + JSON.stringify(vibs));
+  // menos movimento por escolha: a demo do catálogo fica instantânea
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-aparencia'); await page.click('#perfil-aparencia [data-movimento]');
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-movimento') === 'reduzido');
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-movimentos');
+  await page.click('#ds-movimentos .ds-movimento__demo >> nth=1');
+  assert.ok(parseFloat(await page.$eval('#ds-movimentos .ds-movimento__demo >> nth=1', el => getComputedStyle(el).animationDuration)) < 0.001, 'instantânea');
+  assert.deepEqual(errors, []);
+});

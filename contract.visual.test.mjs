@@ -253,3 +253,21 @@ test('D7 · cada superfície da mesa mantém o texto AA nos dois temas; cada cor
   for (const v of versos) assert.doesNotMatch(v, /#[0-9a-f]{3,8}|rgba?\(/i, 'verso sem cor literal: ' + v.slice(0, 60));
   for (const k of ['selo', 'trama']) assert.match(css, new RegExp(`:root\\[data-verso="${k}"\\] \\.ds-verso:not\\(\\[data-desenho\\]\\), \\.ds-verso\\[data-desenho="${k}"\\]`));
 });
+
+/* ---------------- D10 · movimento com sistema ---------------- */
+test('D10 · toda animação tem regra de menos movimento, nenhuma duração em segundos fora de token, e cada @keyframes é usado (o scanner fica para a X16)', () => {
+  // a regra global cobre tudo o que anima ou transiciona quando o sistema pede menos movimento; a escolha na Aparência faz o mesmo
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\*, \*::before, \*::after \{ animation: none !important; transition: none !important; \}/);
+  assert.match(css, /:root\[data-movimento="reduzido"\] \*, :root\[data-movimento="reduzido"\] \*::before, :root\[data-movimento="reduzido"\] \*::after \{ animation-duration: \.01ms !important/);
+  // durações em segundos (1.2s, 2.4s…) só por token; o scanner (.scan-*) é dívida declarada da X16
+  const linhas = componentCss.split('\n').filter(l => !l.trim().startsWith('/*') && !/\.scan-/.test(l));
+  const segundos = linhas.filter(l => /(animation|transition)[^;]*\b(?:\d*\.\d+|[1-9]\d*)s\b/.test(l)).map(l => l.trim().slice(0, 80)); // 0s (atraso nulo) é legítimo
+  assert.deepEqual(segundos, [], 'duração literal em segundos');
+  // cada @keyframes definido é usado por alguma animação, e cada animação nomeada tem @keyframes
+  const definidos = new Set([...css.matchAll(/@keyframes ([a-zA-Z0-9_-]+)/g)].map(m => m[1]));
+  const usados = new Set([...css.matchAll(/animation:\s*([a-zA-Z][a-zA-Z0-9_-]*)/g)].map(m => m[1]).filter(n => n !== 'none'));
+  for (const n of usados) assert.ok(definidos.has(n), `animação sem @keyframes: ${n}`);
+  for (const n of definidos) assert.ok(usados.has(n), `@keyframes sem uso: ${n}`);
+  // tokens de pulso existem
+  for (const t of ['--dur-pulso', '--dur-pulso-lento', '--dur-brilho']) assert.match(DARK[t] || '', /^\d+ms$/, t);
+});
