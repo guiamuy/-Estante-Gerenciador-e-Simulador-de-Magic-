@@ -411,6 +411,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-at ✅ | G3 valor acumulado em real, dólar e euro: coleção, recorte do filtro, cada etiqueta, cada lista (deck, reserva, falta comprar) e total da estante (leva 167) | G | 1 | teste no aparelho |
 | 16º-au ✅ | G4 som na partida: eventos de mesa lidos do estado (compra, ataque, dano, cura, anulação, destruição, descarte, remoção global…) e vinte sons sintetizados, com liga/desliga e volume (leva 168) | G | 1 | teste no aparelho |
 | 16º-av ✅ | G5 efeitos visuais na partida: um efeito por evento (compra, ataque, dano com número, cura, anulação, destruição, exílio, descarte, remoção global, aprimoramento), por tokens de movimento, com menos movimento respeitado (leva 169) | G | 1 | teste no aparelho |
+| 16º-aw ✅ | Correção do CI: botão Etiquetas da lista sai da linha de ações (derrubava o Excluir com fonte larga); o e2e confere a linha com a fonte do CI (leva 170) | G2 | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4720,7 +4721,8 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   abrir a carta → **Etiquetas**. Criar uma etiqueta com cartas escolhidas já aplica nelas.
 - **Gerir, no lugar:** a mesma folha cria (campo + cor, Enter cria), renomeia, troca a cor e apaga. Apagar pergunta
   dentro da folha, dizendo quantas cartas e listas perdem a etiqueta; nada sai da coleção nem das listas.
-- **Listas:** botão de etiqueta no cabeçalho da lista (as etiquetas aparecem por extenso sob o nome); na estante,
+- **Listas:** botão **Etiquetas** sob o nome da lista, junto das etiquetas por extenso (leva 170: saiu da linha de
+  Editar/Exportar/Excluir, onde derrubava o Excluir para a linha de baixo com a fonte larga do CI); na estante,
   pontos em cada linha e chips de filtro só das etiquetas que têm lista.
 - **Barra de seleção** refeita em duas fileiras (contagem, Todas, sair / Etiquetar, Exportar): antes eram três em 360.
 - **Dados:** módulo novo `src/data/etiquetas.js` (`__m32`), modelo puro + serviço; chave `etiquetas` no aparelho,
@@ -4735,6 +4737,11 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   agrupar a coleção por etiqueta no seletor "Agrupar"; etiqueta por impressão (vale para a carta, todas as
   cópias); o link com filtro de etiqueta só faz sentido no próprio aparelho (os ids são locais). Valor em dinheiro
   por etiqueta é a G3.
+
+- **Correção (leva 170, 04/10/2026):** o portão do CI ficou vermelho na 168 e na 169 — "excluir ao lado de editar"
+  (e2e U2 parte 2). O botão de etiqueta era o quarto na linha de ações da lista; com a fonte de sistema do CI, mais
+  larga, o Excluir descia. O portão local não via porque mede com a fonte daqui. O botão foi para baixo do nome e
+  o teste passou a conferir a linha **também com a fonte larga** (falha no código antigo, passa no novo).
 
 **G3 · Valor acumulado da coleção, das etiquetas e das listas** ✅ (leva 167, 04/10/2026)
 - **Coleção (Painel):** bloco **Valor** com uma linha por recorte — **Coleção** (tudo), **Recorte** (aparece com

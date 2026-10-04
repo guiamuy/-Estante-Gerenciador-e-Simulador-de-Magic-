@@ -8122,10 +8122,12 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           Text(d.name, { size: '2xl', display: true, as: 'h1' }),
           Row({ class: 'ds-row--wrap' }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), identity ? ManaPips(identity) : null,
             Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } })),
-          __m32.Pilulas(__m32.de(state.etq, 'listas', d.id), { id: 'deck-etiquetas-da-lista' })),
+          // G2 · etiquetas da lista e o botão que as muda, juntos sob o título (na linha de Editar/Exportar/Excluir o
+          // quarto botão derrubava o Excluir para a linha de baixo com a fonte larga do CI — leva 170)
+          etiquetas ? Row({ class: 'ds-row--wrap deck-etq' }, __m32.Pilulas(__m32.de(state.etq, 'listas', d.id), { id: 'deck-etiquetas-da-lista' }),
+            Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'deck-etiquetas', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', chaves: [d.id], titulo: d.name, onMuda: e => { state.etq = e; paint(); } }) })) : null),
         h('div', { class: 'ds-grow' }),
         Row({ class: 'ds-row--wrap' },
-          etiquetas ? IconButton('etiqueta', 'Etiquetas', { id: 'deck-etiquetas', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', chaves: [d.id], titulo: d.name, onMuda: e => { state.etq = e; paint(); } }) }) : null,
           // U2 · editar e exportar com ícone; excluir vira ícone discreto (continua pedindo confirmação)
           Button('Editar', { id: 'deck-edit', icone: 'editar', onClick: () => go('/listas/editar?id=' + d.id) }),
           Button('Exportar', { id: 'deck-export', icone: 'exportar', onClick: exportDialog }),

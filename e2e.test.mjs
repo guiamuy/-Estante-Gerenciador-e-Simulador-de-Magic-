@@ -2670,6 +2670,9 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   await page.click('#decks-list .ds-list__item'); await page.waitForSelector('.deck-summary');
   await temIcone('#deck-edit'); await temIcone('#deck-export'); await temIcone('#deck-delete');
   await mesmaLinha('#deck-edit', '#deck-delete', 'excluir ao lado de editar');
+  // leva 170 · o CI usa uma fonte de sistema mais larga: a mesma linha é conferida com ela (na 168 um quarto botão derrubou o Excluir só lá)
+  { const larga = await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150);
+    await mesmaLinha('#deck-edit', '#deck-delete', 'excluir ao lado de editar, com fonte larga'); await larga.evaluate(el => el.remove()); await page.waitForTimeout(100); }
   assert.equal(await page.getAttribute('#deck-delete', 'aria-label'), 'Excluir lista');
   await page.click('#deck-delete'); await page.waitForSelector('.ds-dialog');
   await page.click('.ds-dialog >> text=Cancelar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
@@ -6403,7 +6406,7 @@ test('e2e · G2 etiquetas: criar com cor, aplicar pela seleção (três estados)
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item');
   assert.equal(await page.locator('#decks-etiquetas .etq-chip').count(), 0, 'etiqueta sem lista não vira chip na estante');
   await page.locator('#decks-list .deck-item', { hasText: 'Delver' }).click(); await page.waitForSelector('#deck-etiquetas');
-  assert.equal(await page.getAttribute('#deck-etiquetas', 'aria-label'), 'Etiquetas');
+  assert.equal((await page.innerText('#deck-etiquetas')).trim(), 'Etiquetas'); assert.deepEqual(await page.$$eval('#deck-etiquetas .ds-icon', is => is.map(i => i.dataset.icone)), ['etiqueta']);
   await page.click('#deck-etiquetas'); await page.waitForSelector('#etq-folha');
   assert.equal(await marca('Pauper azul').getAttribute('aria-label'), 'Pauper azul, 0 lista(s)');
   await marca('Pauper azul').click(); await page.waitForSelector('.etq-linha__marca[aria-checked="true"]');
