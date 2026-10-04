@@ -2698,6 +2698,15 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   fazendo o erro), P.
 - **Depende de:** B8.
 
+**B10c · A "regressão" do Mono Blue Faeries não existe** ✅ (medição de 04/10/2026, sem mudança no Shark)
+- **Suspeita:** depois da leva 143 o Shark venceu 26–38 pilotando Faeries no torneio geral; antes, 35–29.
+- **Medição por piloto (`PILOTO=0`, 96 pares, mesma semente e mesmo oponente):** `shark-v7` (leva 143) contra
+  `shark-v6` (antes dela): **44 de 96 cada um (46%)**; só o novo ganhou em 4 pares, só o antigo em 4. E o Shark de hoje
+  sem a avaliação nova (`y:!av4`) contra o `shark-v9`: 39 contra 38 de 96. **Sem regressão.**
+- **Lição de método:** o placar por lista do torneio geral compara amostras diferentes (64 partidas, oponentes e
+  sementes diferentes) e oscila 15 pontos à toa. Para um baralho, vale só a medição por piloto.
+- **Ferramenta:** `'y:!peça'` no torneio desliga uma peça do Shark (`node torneio.listas.mjs 'y:!ordena' shark-v9 ...`).
+
 **B9 · Combo do Shark na mesa** ✅ (leva 164, 04/10/2026) — segunda passada no Walls Combo.
 - **Achado:** o combo de mana infinita da leva 147 são mais de cem ações iguais. Na mesa, cada uma virava linha no
   registro, e o jogador com uma resposta na mão era parado a cada vez que a habilidade de desvirar ia para a pilha
