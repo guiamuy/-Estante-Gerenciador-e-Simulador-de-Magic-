@@ -11721,6 +11721,9 @@ const __m25 = (function () {
    PLANO DO BARALHO (B9): perfis em PERFIS (dado, não código por carta). Com perfil, a avaliação conta as peças do
    combo e o motor já com a carta que o desvira, e `passoDoCombo` executa a mana infinita até fechar a partida. Hoje
    só o Walls Combo tem perfil. Terreno na mão vale menos que terreno em campo. 'shark-v7' é o Shark da leva 143.
+   TRUQUE PRÓPRIO NO ATAQUE (B16): ao escolher o ataque, conta com a própria habilidade ou mágica usada depois dos
+   bloqueios (quem tem habilidade de virar com alvo fica em casa para usá-la) e espera os bloqueios para usar.
+   'shark-v8' é o Shark da leva 147, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -12098,6 +12101,41 @@ function notaDoAtaque(s, p, atacantes, opts = {}) {
   return (opts.av || avalia)(cur, p).nota - (opts.corrida ? riscoDeVolta(cur, p) : 0);
 }
 
+/** B16 · truque próprio no ataque: a nota do ataque contando que, depois dos bloqueios, eu ainda posso usar uma
+    habilidade ou mágica minha num atacante (o Timberwatch Elf num atacante que passou, por exemplo). Devolve
+    { nota, truque } — a melhor entre "não fazer nada" e até seis truques, medidos depois do dano. */
+function notaDoAtaqueComTruque(s, p, atacantes, opts = {}) {
+  const av = opts.av || avalia;
+  const r = simula(s, { t: 'attack', p, attackers: atacantes });
+  if (!r) return null;
+  let cur = r.estado;
+  for (let i = 0; i < 12 && cur.status === 'playing'; i++) {
+    if (cur.pending && cur.pending.kind === 'blockers') {
+      const b = opts.bloqueioForte ? decideBloqueioProfissional(cur, cur.pending.p, { ...opts, bloqueioForte: false, orcamentoMs: 60 }) : decideBloqueio(cur, cur.pending.p);
+      const rb = simula(cur, b.acao); if (!rb) return null; cur = rb.estado; break;
+    }
+    if (cur.pending || cur.turn.step === 'main2' || cur.turn.step === 'end') return null;
+    const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) return null; cur = rp.estado;
+  }
+  if (cur.status !== 'playing' || cur.pending || cur.turn.priority !== p || cur.stack.length) return null;
+  const fecha = st => av(projetaCombate(st), p).nota - (opts.corrida ? riscoDeVolta(projetaCombate(st), p) : 0);
+  let melhor = { nota: fecha(cur), truque: null };
+  const meus = new Set((cur.combat || {}).attackers || []);
+  const vistos = new Set(); let n = 0;
+  const ordem = E.legalActions(cur, p).filter(a => RESOLVE.includes(a.t) && (a.targets || []).some(x => x.oid && meus.has(x.oid)))
+    .sort((x, y) => { const bx = (cur.objects[x.targets[0].oid] || {}).blockedBy ? 1 : 0, by = (cur.objects[y.targets[0].oid] || {}).blockedBy ? 1 : 0; return bx - by || (chaveAcao(x) < chaveAcao(y) ? -1 : 1); });
+  for (const a of ordem) {
+    const alvo = cur.objects[a.targets[0].oid];
+    const k = (cur.objects[a.oid] || {}).name + '#' + (a.index != null ? a.index : '') + '#' + alvo.name + ((alvo.blockedBy || []).length ? 'b' : 'l');
+    if (vistos.has(k)) continue; vistos.add(k);
+    if (++n > 6) break;
+    const x = simula(cur, a); if (!x) continue;
+    const nota = fecha(resolveSimulado(x.estado, 8, opts.desdobra ? p : null, opts.av));
+    if (nota > melhor.nota) melhor = { nota, truque: a };
+  }
+  return melhor;
+}
+
 /* ---------------- Leva 132 · olhar o turno seguinte ----------------
    O Shark decidia olhando um lance: a jogada, a resposta do oponente e o combate em curso. Aqui ele joga a posição
    para a frente — o resto do turno e o turno inteiro do oponente — com uma política rápida para os dois lados, e
@@ -12188,6 +12226,22 @@ function decideAtaqueProfissional(s, p, opts = {}) {
     a => { const n = notaDoAtaque(s, p, a.attackers, opts); const v = n == null ? -Infinity : n; notasAtq.push({ a, n: v, fixa: a.attackers.length === obrigadas.length }); return v; }, opts);
   // Leva 132 · as três melhores formações (e "não atacar") são jogadas até o meu próximo turno: o contra-ataque do
   // oponente entra na conta pelo que ele causa, não só quando mata.
+  // B16 · as três melhores formações e o ataque com tudo são medidos de novo contando o meu truque depois dos bloqueios
+  if (opts.truque && r.acao) {
+    const topo = notasAtq.filter(x => x.n > -Infinity).sort((x, y) => y.n - x.n).slice(0, 3);
+    const tudo = notasAtq.find(x => x.a.attackers.length === podem.length); if (tudo && !topo.includes(tudo)) topo.push(tudo);
+    // quem tem habilidade de virar com alvo (o Timberwatch Elf) fica em casa para usá-la: todos os outros atacam
+    const comTruque = oid => (((s.facts[s.objects[oid].name] || {}).script || {}).abilities || []).some(ab => ab.kind === 'activated' && (ab.cost || {}).tap && (ab.effects || []).some(e => e.target));
+    const semFontes = podem.filter(oid => !comTruque(oid) || obrigadas.includes(oid));
+    if (semFontes.length && semFontes.length < podem.length && !topo.some(x => x.a.attackers.join('|') === semFontes.join('|'))) topo.push({ a: { t: 'attack', p, attackers: semFontes }, n: -Infinity });
+    let melhorT = { a: r.acao, n: r.nota };
+    for (const x of topo) {
+      if (opts.limite && opts.agora() > opts.limite) break;
+      const m = notaDoAtaqueComTruque(s, p, x.a.attackers, opts);
+      if (m && m.truque && m.nota > melhorT.n) melhorT = { a: x.a, n: m.nota };
+    }
+    r.acao = melhorT.a;
+  }
   if (opts.rolaAtaque && r.acao) {
     const m = melhorAFrente(notasAtq, p, opts, (w, a) => { const x = simula(w, a); return x ? x.estado : null; });
     if (m) r.acao = m.a;
@@ -12252,6 +12306,9 @@ function jogadaProfissional(s, p, opts = {}) {
   // vou comprar e baixar terreno, e o que dá para fazer na manutenção dá para fazer depois, sabendo mais.
   if (opts.tempo && !minhaDecisao && s.turn.active === p && !s.stack.length && ['untap', 'upkeep', 'draw'].includes(s.turn.step))
     return { acao: { t: 'pass', p }, motivo: 'passei: espero a fase principal' };
+  // B16 · ataque declarado e bloqueio ainda não: o truque espera. Usado agora, o oponente bloqueia sabendo.
+  if (opts.truque && !minhaDecisao && s.turn.active === p && !s.stack.length && s.turn.step === 'combat_attackers' && ((s.combat || {}).attackers || []).length)
+    return { acao: { t: 'pass', p }, motivo: 'passei: espero os bloqueios' };
   const terrenos = acoes.filter(a => a.t === 'play_land');
   if (terrenos.length) {
     // Leva 118 · qual terreno: o que permite a melhor jogada seguinte neste turno; se nenhuma jogada depende dele,
@@ -12736,13 +12793,14 @@ const NOVO5 = { tempo: true, terreno: true, cores: true, basePilha: true }; // l
 const NOVO6 = { ...NOVO5, semToque: true, recursos: true, relogio: true }; // leva 119, congelado como 'shark-v6'
 const PESOS_ATUAIS = {}; // multiplicadores promovidos por torneio (leva 126)
 const NOVO7 = { ...NOVO6, av4: true, ordena: true, manaPlano: true }; // leva 143, congelado como 'shark-v7'
-const NOVO = { ...NOVO7, plano: true }; // B9 · plano do baralho
+const NOVO8 = { ...NOVO7, plano: true }; // B9 · plano do baralho (leva 147), congelado como 'shark-v8'
+const NOVO = { ...NOVO8, truque: true }; // B16 · truque próprio no ataque
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
@@ -12781,7 +12839,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, notaDoAtaqueComTruque, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */
