@@ -13434,6 +13434,25 @@ function shouldStop(s, i) {
   return respond && RESPONSE_STOPS.has(s.turn.step);
 }
 
+/** Combo do Shark na mesa (trilha bot: o combo de mana infinita da leva 147 são dezenas de ações iguais).
+    Diz se a ação é uma repetição do laço: o bot virando o motor, desvirando, deixando a própria habilidade resolver —
+    ou o outro lado passando a prioridade com essa habilidade na pilha. O finalizador (o dano) não é repetição. */
+function repeticaoDoCombo(before, action, assentoBot, perfil) {
+  if (assentoBot == null || !perfil || !before || before.status !== 'playing' || before.pending) return false;
+  if (action.p === assentoBot) {
+    const passo = __m25.passoDoCombo(before, assentoBot, perfil);
+    return !!passo && !/^combo:/.test(passo.motivo || '') && passo.acao.t === action.t && (passo.acao.oid || '') === (action.oid || '') && (passo.acao.index == null || passo.acao.index === action.index);
+  }
+  if (action.t !== 'pass' || !before.stack.length) return false;
+  const topo = before.objects[before.stack[before.stack.length - 1]];
+  return !!(topo && topo.ability && topo.controller === assentoBot && topo.name === perfil.combo.desvira);
+}
+/** Chave da habilidade no topo da pilha, para "já cedi a esta repetição neste turno". Null se o topo não é habilidade. */
+function chaveDaRepeticao(s) {
+  const topo = s.stack.length ? s.objects[s.stack[s.stack.length - 1]] : null;
+  return topo && topo.ability ? `${s.turn.number}|${topo.source}|${topo.name}` : null;
+}
+
 function createTable(setup, { log = [], marks = null, options: opts = {} } = {}) {
   // B3 · um assento pode ser dirigido pelo bot: { nivel, seat }
   // U10 · um bot só: partidas salvas contra o "amador" ou o "profissional" continuam como Shark
@@ -13451,7 +13470,10 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
   // A16 · foto do começo do turno e o resumo de cada turno que terminou
   let foto = null, resumos = [];
 
-  function reset() { match = E.createMatch(setup); lines = []; entradas = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; foto = null; resumos = []; }
+  // combo do Shark: uma linha só no registro para o laço inteiro, e o jogador que passou uma vez pela habilidade
+  // repetida não é parado de novo por ela no mesmo turno
+  let combo = null, cedidas = new Set(), perfilBot;
+  function reset() { match = E.createMatch(setup); lines = []; entradas = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; foto = null; resumos = []; combo = null; cedidas = new Set(); }
   const anota = (textos, st) => { for (const texto of textos) entradas.push({ texto, turno: st.turn.number || 0, passo: st.status === 'mulligan' ? 'mulligan' : st.turn.step, ativo: (st.players[st.turn.active] || {}).name || '' }); };
   function fechaResumoDoBot() {
     if (!options.bot || !motivosDoBot.length) return;
@@ -13474,6 +13496,18 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       if (foto && foto.turno > 0) { const r = resumoDoTurnoMesa(foto, fotoDoTurno(before), before); if (r) resumos.push(r); }
       foto = fotoDoTurno(after);
     } else if (!foto && after.status === 'playing') foto = fotoDoTurno(after);
+    if (options.bot && before.status === 'playing') {
+      if (perfilBot === undefined) perfilBot = __m25.perfilDe(before, options.bot.seat);
+      if (repeticaoDoCombo(before, action, options.bot.seat, perfilBot)) {
+        // o laço inteiro vira uma linha, atualizada no lugar; as dezenas de "virou / desvirou / passou" não entram
+        const c = perfilBot.combo, turno = before.turn.number;
+        if (!combo || combo.turno !== turno) { combo = { turno, n: 0, linha: lines.length, entrada: entradas.length }; lines.push(''); anota([''], before); }
+        if (action.t === 'activate') combo.n++;
+        const texto = `${before.players[options.bot.seat].name}: combo de mana infinita — ${c.motor} vira para mana e ${c.desvira} desvira (${combo.n}×)`;
+        lines[combo.linha] = texto; entradas[combo.entrada].texto = texto;
+        return events;
+      }
+    }
     lines.push(...novas);
     // a linha pertence ao momento em que a ação foi feita (o separador de turno, ao turno novo)
     for (const texto of novas) anota([texto], /^— Turno/.test(texto) ? after : before);
@@ -13545,7 +13579,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
         events.push(...record(acao));
         continue;
       }
-      if (options.autoPass && s.status === 'playing' && !s.pending && !shouldStop(s, s.turn.priority)) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }
+      if (options.autoPass && s.status === 'playing' && !s.pending && (!shouldStop(s, s.turn.priority) || cedidas.has(chaveDaRepeticao(s)))) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }
       break;
     }
     return events;
@@ -13553,6 +13587,8 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
 
   function act(action) {
     humanMarks.push(match.log.length);
+    // passou a prioridade com uma habilidade do outro lado na pilha: a mesma habilidade, repetida neste turno, não para de novo
+    if (action.t === 'pass' && match.state.status === 'playing') { const k = chaveDaRepeticao(match.state), topo = k && match.state.objects[match.state.stack[match.state.stack.length - 1]]; if (k && topo.controller !== action.p) cedidas.add(k); }
     const events = record(action);
     return events.concat(autopilot());
   }
@@ -14082,7 +14118,7 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 

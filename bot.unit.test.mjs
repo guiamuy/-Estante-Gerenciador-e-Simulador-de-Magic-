@@ -1007,3 +1007,33 @@ test('B10b · opção de torneio "segura" (desligada no Shark): com Counterspell
   const sem = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(2), mao: ['Faerie Miscreant'] } });
   assert.equal(B.custoDaResposta(sem.s, 0), null);
 });
+
+// Combo do Shark na mesa: o laço de mana infinita são dezenas de ações iguais. No registro ele vira uma linha, e o
+// jogador que passou uma vez pela habilidade repetida não é parado de novo por ela no mesmo turno.
+test('B9 · combo na mesa: as ações do laço são reconhecidas como repetição (o finalizador não), e a habilidade repetida tem a mesma chave no turno', async () => {
+  const { table: T } = loadModules();
+  let { s, ids } = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: [...MURO.campo, 'Freed from the Real'] } });
+  s.objects[ids[0]['Freed from the Real']].attachedTo = ids[0]['Axebane Guardian'];
+  const pf = B.perfilDe(s, 0), bot = shark('shark');
+  const vistos = { repeticao: 0, finalizador: 0, chaves: new Set() };
+  for (let i = 0; i < 60 && s.status === 'playing'; i++) {
+    const q = s.pending ? s.pending.p : s.turn.priority;
+    const acao = q === 0 ? bot.jogada(s, 0).acao : { t: 'pass', p: 1 };
+    const rep = T.repeticaoDoCombo(s, acao, 0, pf);
+    const nome = acao.oid ? s.objects[acao.oid].name : '';
+    const topo = s.stack.length ? s.objects[s.stack[s.stack.length - 1]] : null;
+    if (topo && topo.name === 'Valakut Invoker') { assert.equal(rep, false, 'a resolução do dano não é repetição'); }
+    else if (nome === 'Valakut Invoker') { vistos.finalizador++; assert.equal(rep, false, 'o dano aparece no registro'); }
+    else { assert.equal(rep, true, `${acao.t} ${nome} de P${q} é repetição`); vistos.repeticao++; }
+    if (q === 1 && rep) vistos.chaves.add(T.chaveDaRepeticao(s));
+    s = act(s, acao);
+  }
+  assert.ok(vistos.finalizador >= 2 && vistos.repeticao >= 30, JSON.stringify([vistos.finalizador, vistos.repeticao]));
+  assert.equal(vistos.chaves.size, 1, 'a habilidade que desvira é sempre "a mesma" no turno: quem cedeu uma vez não é parado de novo');
+  // fora do combo nada é repetição
+  const fora = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: MURO.campo } });
+  assert.equal(T.repeticaoDoCombo(fora.s, { t: 'pass', p: 0 }, 0, pf), false);
+  assert.equal(T.repeticaoDoCombo(fora.s, { t: 'pass', p: 1 }, 0, pf), false);
+  assert.equal(T.repeticaoDoCombo(fora.s, { t: 'pass', p: 0 }, 0, null), false);
+  assert.equal(T.chaveDaRepeticao(fora.s), null);
+});

@@ -373,6 +373,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
+| 16º-z12 ✅ | Combo do Shark na mesa: uma linha no registro para o laço inteiro e sem parada repetida na mesma habilidade (leva 164) | B9 | 1 | — |
 | 16º-z11 🟡 | Shark pilotando Mono Blue Faeries: aceita a compra opcional de graça; segurar a mana da anulação medido e desligado; sem ganho demonstrado (leva 162) | B10b | 1 | a lista segue em 41% |
 | 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
@@ -2680,6 +2681,28 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
+
+**B9 · Combo do Shark na mesa** ✅ (leva 164, 04/10/2026) — segunda passada no Walls Combo.
+- **Achado:** o combo de mana infinita da leva 147 são mais de cem ações iguais. Na mesa, cada uma virava linha no
+  registro, e o jogador com uma resposta na mão era parado a cada vez que a habilidade de desvirar ia para a pilha
+  (dezenas de paradas no mesmo turno).
+- **Entregue:**
+  - o laço inteiro vira **uma linha** no registro, atualizada no lugar ("combo de mana infinita — Axebane Guardian
+    vira para mana e Freed from the Real desvira (N×)"); o dano do finalizador continua aparecendo;
+  - quem passou a prioridade uma vez com uma habilidade do outro lado na pilha não é parado de novo pela **mesma
+    habilidade** no mesmo turno (vale para qualquer habilidade repetida, não só para o combo);
+  - a compactação é decidida pelo estado e pela ação, então refazer a partida (desfazer, restaurar) dá o mesmo registro.
+- **Força do Walls: nada mudou.** Li duas partidas narradas (contra Rakdos Madness e GW Bogles) e não achei erro de
+  decisão barato de corrigir: nas duas o Shark usou toda a mana e perdeu por mão sem terreno (dois mulligans), por
+  remoção em todas as criaturas ou por uma criatura protegida e enorme que as muralhas não seguram. Os 33% parecem
+  mais da lista contra este campo do que do piloto. Sem medição nova: as decisões do bot não mudaram.
+- **Simplificação declarada:** quem cede à habilidade repetida perde a chance de responder a uma repetição posterior
+  no mesmo turno (é o atalho de laço do Magic de mesa).
+- **Tela de outra trilha:** `createTable` (registro e paradas) — o combo é entrega desta trilha e a mesa ficava
+  impraticável com ele.
+- **Testes:** U (cada ação do laço é reconhecida como repetição, o finalizador e a resolução do dano não; a habilidade
+  repetida tem uma chave só no turno; fora do combo nada é repetição).
+- **Depende de:** B9 (leva 147).
 
 **B10b · Mono Blue Faeries: recursos e resposta** 🟡 (leva 162, 04/10/2026) — resultado quase todo negativo.
 - **Partida narrada (Mono Blue Faeries × Jund Wildfire):** o Shark recusava a compra opcional do Moon-Circuit Hacker
