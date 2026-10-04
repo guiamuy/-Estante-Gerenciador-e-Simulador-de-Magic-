@@ -9073,7 +9073,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 69;
+const ENGINE_VERSION = 70;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -9210,14 +9210,14 @@ function bonus(s, host) {
 function countFor(s, src, per) {
   if (per && typeof per === 'object' && per.subtype) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
-    return battlefield(s).filter(o => o.controller === src.controller && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length;
+    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'trigger-value') return src.triggerValue || 0; // S48 · quanto o gatilho trouxe (dano causado)
   if (per === 'chosen-type-permanents') { // S50 · permanentes suas do tipo escolhido
     const tipo = src.chosenType;
     if (!tipo) return 0;
     const rx = new RegExp('\\b' + tipo + '\\b', 'i');
-    return battlefield(s).filter(o => o.controller === src.controller && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length;
+    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
   const ench = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => s.facts[o.name].types.includes('enchantment'));
@@ -9239,7 +9239,7 @@ function countFor(s, src, per) {
   if (per === 'opponents-empty-hand') return s.players.filter((pl, i) => i !== src.controller && !pl.lost && !s.zones[i].hand.length).length;
   if (String(per).startsWith('devotion-')) { // S32 · devoção: símbolos daquela cor no custo das suas permanentes
     const cor = String(per).slice(-1);
-    return perms.filter(o => o.controller === src.controller).reduce((n, o) => {
+    return perms.filter(o => o.controller === src.controller && !o.faceDown).reduce((n, o) => { // R9 · virada para baixo não tem custo de mana
       const c = s.facts[o.name].cost || {};
       return n + (c.colored ? (c.colored[cor] || 0) : 0) + (c.hybrid || []).filter(h => h.includes(cor)).length;
     }, 0);
@@ -9522,9 +9522,11 @@ function productions(s, o, visto) {
   const spec = ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
   let opts = spec.length ? spec.flatMap(x => expandProduction(s, o, x, visto)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x, visto));
-  for (const x of attachedTo(s, o)) {
-    const g = grantsOf(s, x); if (!g) continue;
-    if (g.produces) opts = opts.concat(g.produces.flatMap(y => expandProduction(s, o, y, visto)));
+  // R9 · primeiro toda a produção concedida (Abundant Growth), depois o mana extra (Utopia Sprawl): ele vale
+  // para qualquer mana que o terreno gere, não só para as opções que existiam quando a Aura entrou
+  const anexos = attachedTo(s, o).map(x => [x, grantsOf(s, x)]).filter(([, g]) => g);
+  for (const [, g] of anexos) if (g.produces) opts = opts.concat(g.produces.flatMap(y => expandProduction(s, o, y, visto)));
+  for (const [x, g] of anexos) {
     if (g.extraMana) {
       const extra = g.extraMana === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : g.extraMana;
       if (extra.length) opts = opts.flatMap(base => extra.map(c => base.concat([c])));
@@ -9680,7 +9682,8 @@ function affinityDiscount(s, p, o) {
   }
   const tipo = sc.affinity;
   if (!tipo) return 0;
-  const n = battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes(tipo)).length;
+  // R9 · criatura concedida é Aura (não conta como criatura); virada para baixo é só criatura
+  const n = battlefield(s).filter(x => x.controller === p && (tipo === 'creature' ? isCreature(s, x) : !x.faceDown && s.facts[x.name].types.includes(tipo))).length;
   return Math.min(n, teto);
 }
 /** S49 · exigência de criatura para desconto: subtipo, ou "que não seja daquele subtipo". */
@@ -9754,7 +9757,8 @@ function payAlt(s, p, cost, pay, selfOid) {
 /* ---------------- S18 · ninjutsu e insanidade ---------------- */
 function afterMadness(s) {
   const after = s.pendingAfterMadness; s.pendingAfterMadness = null;
-  if (after === 'cleanup') finishCleanup(s);
+  // R9 · 514.3a: com a mágica na pilha, os jogadores recebem prioridade na limpeza e depois vem outra limpeza
+  if (after === 'cleanup') { if (s.stack.length) { s.turn.passes = 0; s.turn.priority = s.turn.active; } else finishCleanup(s); }
   else if (after && after.kind === 'discard') s.pending = after; // continua o descarte que faltava
 }
 const ninjutsuOf = (s, o) => (s.facts[o.name].script || {}).ninjutsu;
@@ -9822,6 +9826,7 @@ function enterStep(s, step) {
 function finishCleanup(s) {
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempProtection; delete o.usedThisTurn; }
   delete s.fogged; delete s.preventedColors; delete s.noPrevention;
+  for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
   s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; });
   s.spellsThisTurn = 0;
   for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
@@ -9841,6 +9846,7 @@ function finishCleanup(s) {
   enterStep(s, 'untap');
 }
 function advanceStep(s) {
+  if (s.turn.step === 'cleanup') return enterStep(s, 'cleanup'); // R9 · houve prioridade na limpeza: outra etapa de limpeza
   let i = STEPS.indexOf(s.turn.step) + 1;
   // 508.8: sem atacantes declarados, bloqueio e dano não acontecem
   if (STEPS[i] === 'combat_blockers' && !(s.combat && s.combat.attackers.length)) i = STEPS.indexOf('combat_end');
@@ -9856,12 +9862,12 @@ function mustAttack(s, p) {
   return battlefield(s).filter(o => o.controller === p && o.goaded && podem.has(o.oid)).map(o => o.oid);
 }
 function eligibleAttackers(s, p) {
-  return battlefield(s).filter(o => o.controller === p && s.facts[o.name].types.includes('creature') && !o.tapped &&
+  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped &&
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
     (!o.sick || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
-  return battlefield(s).filter(o => o.controller === p && s.facts[o.name].types.includes('creature') && !o.tapped).map(o => o.oid);
+  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped).map(o => o.oid);
 }
 function canBlock(s, blocker, attacker) {
   const b = s.objects[blocker], a = s.objects[attacker];
@@ -10139,8 +10145,11 @@ function legalTargets(s, p, kind, selfOid, color) {
  * e habilidade ativada (não para gatilho nem para a conferência na resolução), depois da cor e das outras
  * condições do alvo, e basta UM dos alvos ser o Flagbearer. */
 function violaPortaEstandarte(s, p, need, chosen, selfOid) {
-  const flags = battlefield(s).filter(o => o.controller !== p && ((s.facts[o.name].script || {}).staticRule) === 'flagbearer').map(o => o.oid);
-  if (!flags.length || !need.length) return false;
+  // R9 · a exigência nasce de um porta-estandarte de oponente, mas o texto pede "um Flagbearer no campo": o do
+  // próprio jogador também cumpre, e metamorfo (todos os tipos de criatura) é Flagbearer
+  const impoe = battlefield(s).some(o => o.controller !== p && ((s.facts[o.name].script || {}).staticRule) === 'flagbearer');
+  if (!impoe || !need.length) return false;
+  const flags = battlefield(s).filter(o => !o.faceDown && (((s.facts[o.name].script || {}).staticRule) === 'flagbearer' || (isCreature(s, o) && isChangeling(s, o)))).map(o => o.oid);
   const podia = need.some(eff => legalTargets(s, p, eff.target, selfOid, eff.targetColor).some(x => flags.includes(x.oid) && targetAllowed(s, eff, x)));
   return podia && !(chosen || []).some(t => t && flags.includes(t.oid));
 }
@@ -10522,7 +10531,9 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'to_library_shuffled': { // S26 · a carta volta embaralhada para o grimório
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo && alvo.zone !== 'library') { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); note({ name: alvo.name }); }
+      // R9 · 400.7: se a carta já saiu do cemitério (voltou à mão, foi exilada), é outro objeto e fica onde está
+      const saiu = eff.target === 'self-source' && alvo && !['graveyard', 'battlefield'].includes(alvo.zone);
+      if (alvo && alvo.zone !== 'library' && !saiu) { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); note({ name: alvo.name }); }
       break;
     }
     case 'transform': { // S25 · troca a face no campo
@@ -10968,7 +10979,7 @@ function putTriggerOnStack(s, q, events) {
 /** S20 · candidatos para os custos de sacrificar ou virar outra permanente. */
 function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
   return battlefield(s).filter(o => o.controller === p && (o.oid !== selfOid || spec.includeSelf) &&
-    (spec.types || []).some(x => s.facts[o.name].types.includes(x)) &&
+    (spec.types || []).some(x => x === 'creature' ? isCreature(s, o) : !o.faceDown && s.facts[o.name].types.includes(x)) && // R9 · concedida é Aura; virada para baixo é só criatura
     // S50 · o custo pode pedir um subtipo ("dois Elfos que você controla")
     // Leva 108 · virada para baixo não tem tipo de criatura (708.2): não serve como "Elfo" num custo
     (!spec.subtype || (!o.faceDown && (isChangeling(s, o) || new RegExp('\\b' + spec.subtype + '\\b', 'i').test(s.facts[o.name].typeText || '')))) &&
@@ -11346,7 +11357,7 @@ const HANDLERS = {
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
-    if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser o porta-estandarte do oponente');
+    if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
@@ -11359,8 +11370,9 @@ const HANDLERS = {
     else if (a.escape) { // S48 · fuga: paga o mana e exila as outras cartas do cemitério
       payAlt(s, a.p, escapeOf(s, o), a.pay, a.oid);
     }
-    else if (a.disturb) { const db = disturbOf(s, s.objects[a.oid]) || disturbOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
-    else if (a.omen) { const om = omenOf(s, o); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
+    else if (a.disturb) { const db = disturbOf(s, { name: o.frontName || o.name }); // R9 · a carta já trocou de face: o custo está na frente
+      if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
+    else if (a.omen) { const om = omenOf(s, { name: o.frontName || o.name }); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
     else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0)); }
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
@@ -11488,7 +11500,7 @@ const HANDLERS = {
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, o)) throw new RuleError('alvo', 'alvo ilegal'); });
-    if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser o porta-estandarte do oponente');
+    if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
     // S33/Leva 106 · adaptar usa a pilha (701.46a): os marcadores entram na resolução, se ela ainda não tiver nenhum
@@ -11785,7 +11797,7 @@ const HANDLERS = {
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (!targetStillLegal(s, a.p, eff.target, chosen[i], oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
-    if (violaPortaEstandarte(s, a.p, need, chosen, oid)) throw new RuleError('alvo', 'um dos alvos precisa ser o porta-estandarte do oponente'); // Leva 108
+    if (violaPortaEstandarte(s, a.p, need, chosen, oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte'); // Leva 108
     s.pending = null;
     moveObject(s, oid, 'stack');
     s.objects[oid].controller = a.p;
@@ -12288,6 +12300,9 @@ function resolveAbility(s, o, events) {
     if (fonte && !triggerConditionMet(s, fonte, resto)) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; }
     o.condicaoConferida = true;
   }
+  // R9 · 608.2b: com todos os alvos ilegais a habilidade sai da pilha antes de qualquer pergunta ou pagamento
+  if (!o.mayPayAsked) { const comAlvo = (o.effects || []).filter(SC.isTargeted); const esc = o.targets || [];
+    if (comAlvo.length && comAlvo.every((eff, i) => !targetStillLegal(s, o.controller, eff.target, esc[i], o.oid, eff.targetColor, eff, o))) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; } }
   // S47 · "você pode pagar {X}. Se fizer, ...": a decisão vem antes dos efeitos
   if ((o.mayPay || o.optionalTrigger) && !o.mayPayAsked) {
     o.mayPayAsked = true;
