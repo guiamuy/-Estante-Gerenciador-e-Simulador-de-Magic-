@@ -408,6 +408,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-aq ✅ | Coleção: bloco expansível **Exportar** com ícone próprio abaixo de Adicionar carta — texto, CSV, filtradas e seleção; sai do fim da página (leva 160) | U18 | 1 | teste no aparelho |
 | 16º-ar ✅ | G1 preço da carta em dólar, real e euro, com a cotação do dólar buscada e guardada no aparelho (leva 163) | G | 1 | teste no aparelho |
 | 16º-as ✅ | G2 etiquetas coloridas em cartas da coleção e em listas: criar, aplicar em lote ou pela carta, filtrar por chip (leva 166) | G | 1 | teste no aparelho |
+| 16º-at ✅ | G3 valor acumulado em real, dólar e euro: coleção, recorte do filtro, cada etiqueta, cada lista (deck, reserva, falta comprar) e total da estante (leva 167) | G | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4732,6 +4733,29 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   agrupar a coleção por etiqueta no seletor "Agrupar"; etiqueta por impressão (vale para a carta, todas as
   cópias); o link com filtro de etiqueta só faz sentido no próprio aparelho (os ids são locais). Valor em dinheiro
   por etiqueta é a G3.
+
+**G3 · Valor acumulado da coleção, das etiquetas e das listas** ✅ (leva 167, 04/10/2026)
+- **Coleção (Painel):** bloco **Valor** com uma linha por recorte — **Coleção** (tudo), **Recorte** (aparece com
+  filtro ligado, em destaque, com a descrição do filtro) e **uma linha por etiqueta** que tem carta. Cada linha
+  mostra o real em destaque e, embaixo, dólar e euro. Com o painel fechado, o cabeçalho diz "N cópias · R$ X".
+- **Lista:** bloco **Valor** abaixo do resumo — **Lista inteira**, **Deck** e **Reserva** (quando há reserva) e
+  **Falta comprar** (as cópias que não estão na coleção, contadas pelo nome somando as zonas).
+- **Estante:** valor em cada linha de lista e o **total das listas à vista** (com chip de etiqueta ligado, é o
+  total daquela etiqueta).
+- **Como a conta é feita (declarado na tela):** soma cópia a cópia do preço em dólar que a Scryfall guardou para a
+  carta (TCGplayer), **na impressão padrão** — não na impressão exata que a pessoa marcou; foil pelo preço foil,
+  etched pelo etched, e o outro acabamento quando só ele tem preço. Real e euro do total saem da cotação do
+  dólar (G1); o euro do total é convertido, não o do mercado europeu. Cópia sem preço **fica fora e é contada**
+  ("4 cópia(s) sem preço ficam fora da soma"). Sem cotação, o total sai em dólar e a tela diz por quê.
+- **Limites declarados:** é estimativa, não avaliação — preço da impressão padrão pode ficar longe do de uma
+  edição antiga ou especial; preço guardado envelhece até a carta ser buscada de novo; na estante só entram
+  cartas já guardadas no aparelho (lista nunca aberta aparece sem valor ou com "N sem preço").
+- **Testes:** U `cambio.unit` +2 (soma por acabamento, sem preço, arredondamento de centavos, número em destaque
+  e nota; coleção impressão a impressão, lista com deck/reserva/falta); e2e "G3 valor acumulado" (sem cotação em
+  dólar; com cotação nas três moedas; recorte; etiqueta; painel fechado; lista com e sem reserva; estante),
+  com `auditaTela` em quatro telas.
+- **Fora:** preço pela impressão exata (pede buscar cada impressão na Scryfall); ordenar a coleção por preço;
+  histórico de valor; escolher a moeda em destaque.
 
 ### P · Plataforma
 

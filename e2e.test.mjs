@@ -6421,3 +6421,63 @@ test('e2e · G2 etiquetas: criar com cor, aplicar pela seleção (três estados)
   await page.locator('#decks-etiquetas .etq-chip', { hasText: 'Torneio' }).click(); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 2);
   assert.deepEqual(errors, []);
 });
+
+test('e2e · G3 valor acumulado: coleção, recorte do filtro e cada etiqueta no painel; lista inteira, deck, reserva e o que falta comprar; total da estante — em real, dólar e euro', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PRECO = { 'sol ring': { usd: '2.00', usd_foil: '10.00' }, island: { usd: '0.25' }, counterspell: { usd: '1.50' }, 'delver of secrets': { usd: '0.50' } }; // Preordain fica sem preço
+  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;
+    return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()] && { ...DB[i.name.toLowerCase()], prices: PRECO[i.name.toLowerCase()] || {} }).filter(Boolean), not_found: [] } }); });
+  const valor = sel => page.$eval(sel, el => [el.querySelector('.ds-valor__nome').textContent, el.querySelector('.ds-valor__principal').textContent, el.querySelector('.ds-valor__outras').textContent]);
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring\n4 Preordain');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  // sem cotação (as fontes estão fora do ar no teste): o total sai em dólar e a tela diz por quê
+  await page.waitForFunction(() => /Sem cotação do dólar ainda/.test((document.querySelector('#col-valor-nota') || {}).textContent || ''));
+  assert.deepEqual(await valor('#col-valor-tudo'), ['Coleção', 'US$ 5,75', 'sem cotação para converter']);
+  // com cotação: real em destaque, dólar e euro embaixo; o que não tem preço fica fora e é dito
+  await page.context().route(/api\.frankfurter\.dev/, r => r.fulfill({ json: { base: 'USD', rates: { BRL: 5, EUR: 0.8 } }, headers: { 'access-control-allow-origin': '*' } }));
+  await page.reload(); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.waitForFunction(() => /Dólar a R\$ 5,00/.test((document.querySelector('#col-valor-nota') || {}).textContent || ''));
+  assert.deepEqual(await valor('#col-valor-tudo'), ['Coleção', 'R$ 28,75', 'US$ 5,75 · € 4,60']);
+  assert.match(await page.innerText('#col-valor-nota'), /Estimativa pelo preço em dólar da Scryfall.*4 cópia\(s\) sem preço ficam fora da soma\./);
+  assert.equal(await page.getAttribute('#col-valor-tudo', 'aria-label'), 'Coleção: R$ 28,75, US$ 5,75, € 4,60; 4 cópia(s) sem preço');
+  assert.equal(await page.locator('#col-valor-recorte').count(), 0, 'sem filtro não há linha de recorte');
+  // recorte do filtro: linha própria em destaque, a da coleção continua
+  await page.fill('#col-filter', 'sol'); await page.waitForSelector('#col-valor-recorte');
+  assert.deepEqual(await valor('#col-valor-recorte'), ['Recorte', 'R$ 10,00', 'US$ 2,00 · € 1,60']); assert.equal((await valor('#col-valor-tudo'))[1], 'R$ 28,75');
+  await page.fill('#col-filter', ''); await page.waitForFunction(() => !document.querySelector('#col-valor-recorte'));
+  // etiqueta: cada uma ganha a sua linha de valor
+  await page.click('.col-row[data-name="Island"] .col-row__thumb'); await page.waitForSelector('#col-viewer-etq'); await page.click('#col-viewer-etq'); await page.waitForSelector('#etq-folha');
+  await page.fill('#etq-nova', 'Troca'); await page.click('#etq-criar'); await page.waitForSelector('.etq-linha__marca[aria-checked="true"]');
+  await page.click('#etq-pronto'); await page.waitForSelector('#col-valor [data-etiqueta]');
+  assert.deepEqual(await valor('#col-valor [data-etiqueta]'), ['Troca', 'R$ 3,75', 'US$ 0,75 · € 0,60']);
+  assert.equal(await page.innerText('#col-valor [data-etiqueta] .ds-valor__detalhe'), '1 carta(s)');
+  await page.locator('#col-valor').scrollIntoViewIfNeeded(); await auditaTela(page, 'painel da coleção com valor');
+  // fechado, o cabeçalho do painel já diz o total
+  await page.click('#col-dash-toggle'); await page.waitForFunction(() => document.querySelector('#col-dash-toggle').getAttribute('aria-expanded') === 'false');
+  assert.match(await page.innerText('#col-dash-toggle'), /10 cópias · R\$ 28,75/);
+  await auditaTela(page, 'painel fechado com valor');
+  // lista: inteira e o que falta comprar; com reserva, deck e reserva separados
+  await createDeck(page, base, 'Delver', PAUPER); await page.waitForSelector('#deck-valor-tudo');
+  await page.waitForFunction(() => (document.querySelector('#deck-valor-tudo .ds-valor__principal') || {}).textContent === 'R$ 65,00');
+  assert.deepEqual(await valor('#deck-valor-tudo'), ['Lista inteira', 'R$ 65,00', 'US$ 13,00 · € 10,40']);
+  assert.deepEqual(await valor('#deck-valor-falta'), ['Falta comprar', 'R$ 46,25', 'US$ 9,25 · € 7,40']);
+  assert.equal(await page.innerText('#deck-valor-falta .ds-valor__detalhe'), '23 carta(s) que não estão na coleção', '17 Island, 4 Delver e 2 Counterspell (os 4 Preordain estão na coleção)');
+  assert.equal(await page.locator('#deck-valor-reserva').count(), 0, 'sem reserva: sem as linhas de deck e reserva');
+  assert.match(await page.innerText('#deck-valor-nota'), /4 cópia\(s\) sem preço ficam fora da soma\./);
+  await page.locator('#deck-valor').scrollIntoViewIfNeeded(); await auditaTela(page, 'lista com valor');
+  await createDeck(page, base, 'Com reserva', '3 Island\n\nSideboard\n2 Counterspell'); await page.waitForSelector('#deck-valor-reserva');
+  await page.waitForFunction(() => (document.querySelector('#deck-valor-tudo .ds-valor__principal') || {}).textContent === 'R$ 18,75');
+  assert.deepEqual([await valor('#deck-valor-deck'), await valor('#deck-valor-reserva')], [['Deck', 'R$ 3,75', 'US$ 0,75 · € 0,60'], ['Reserva', 'R$ 15,00', 'US$ 3,00 · € 2,40']]);
+  assert.equal(await page.locator('#deck-valor-falta').count(), 0, 'tudo na coleção: nada a comprar');
+  // estante: valor em cada linha e o total das listas à vista
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-valor-total');
+  await page.waitForFunction(() => (document.querySelector('#decks-valor-total .ds-valor__principal') || {}).textContent === 'R$ 83,75');
+  assert.deepEqual(await valor('#decks-valor-total'), ['2 lista(s)', 'R$ 83,75', 'US$ 16,75 · € 13,40']);
+  assert.deepEqual(await page.$$eval('#decks-list .deck-item', ls => ls.map(l => [l.querySelector('.deck-item__nome').textContent, l.querySelector('.deck-item__valor').textContent]).sort()), [['Com reserva', 'R$ 18,75'], ['Delver', 'R$ 65,00']]);
+  assert.equal(await page.$eval('#decks-list .deck-item[data-deck] .deck-item__valor', v => /^valor estimado R\$ /.test(v.getAttribute('aria-label'))), true);
+  await auditaTela(page, 'estante com valor');
+  assert.deepEqual(errors, []);
+});

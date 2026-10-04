@@ -358,6 +358,17 @@ a { color: var(--accent); }
 .ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .ds-visor__custo { flex: none; font-size: var(--simbolo-lg); white-space: nowrap; }
 .ds-visor__tipo { gap: var(--space-2); align-items: center; }
+/* G3 · valor acumulado: rótulo à esquerda; real em destaque, dólar e euro embaixo */
+.ds-valores { display: flex; flex-direction: column; gap: var(--space-1); }
+.ds-valor { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-2) var(--space-3); background: var(--bg-elev-2); border-radius: var(--radius-2); }
+.ds-valor__rotulo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-width: 0; font-size: var(--text-sm); color: var(--fg); }
+.ds-valor__nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-valor__detalhe { flex-basis: 100%; font-size: var(--text-xs); color: var(--fg-muted); }
+.ds-valor__numeros { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.ds-valor__principal { font-family: var(--font-display); font-size: var(--text-md); color: var(--fg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ds-valor__outras { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ds-valor--destaque .ds-valor__principal { font-size: var(--text-xl); color: var(--accent); }
+.deck-item__valor { font-size: var(--text-sm); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* G2 · etiquetas: ponto de cor, chip de filtro, folha de três estados */
 .etq-ponto { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--fg-subtle); border: 1px solid var(--border-strong); }
 .etq-ponto--medio { width: 14px; height: 14px; }
@@ -3668,6 +3679,42 @@ function usdDaCopia(card, { foil = false } = {}) {
   const pr = precosDe(card, null); const a = foil ? pr.foil : pr.normal, b = foil ? pr.normal : pr.foil;
   return (a && a.usd) || (b && b.usd) || null;
 }
+/* ---- G3 · valor acumulado ----
+   Soma em dólar pelo preço que a Scryfall guardou para a carta (impressão padrão), cópia a cópia: foil pelo preço
+   foil, etched pelo preço etched. O real e o euro do total saem da cotação. Cópia sem preço não entra e é contada. */
+function usdDe(card, acabamento = '', taxas = null) {
+  if (!card) return null;
+  if (acabamento === 'etched') { const e = paraNumero(card.prices && card.prices.usd_etched); if (e != null) return e; }
+  const foil = acabamento === 'foil' || acabamento === 'etched';
+  const pr = precosDe(card, taxas); const a = foil ? pr.foil : pr.normal, b = foil ? pr.normal : pr.foil;
+  return (a && a.usd) || (b && b.usd) || null;
+}
+/** linhas: [{ card, qty, acabamento }] → { usd, brl, eur, comPreco, semPreco } (cópias). */
+function soma(linhas, taxas = null) {
+  let usd = 0, comPreco = 0, semPreco = 0;
+  for (const l of linhas) {
+    const q = l.qty || 0; if (q <= 0) continue;
+    const p = usdDe(l.card, l.acabamento || '', taxas);
+    if (p == null) semPreco += q; else { usd += p * q; comPreco += q; }
+  }
+  usd = Math.round(usd * 100) / 100;
+  return { usd, brl: taxas ? usd * taxas.BRL : null, eur: taxas ? usd * taxas.EUR : null, comPreco, semPreco };
+}
+/** Coleção (ou um recorte dela): cada impressão guardada conta com o acabamento dela. `cardDe(g)` devolve a carta do grupo. */
+const linhasDaColecao = (grupos, cardDe) => grupos.flatMap(g => { const c = cardDe(g); return (g.items || []).map(it => ({ card: c, qty: it.qty, acabamento: it.finish || '' })); });
+/** Lista: tudo, deck (principal + comandante + companheiro), reserva e o que falta comprar (pelo nome, somando as zonas). */
+function valorDaLista(entries, { cardDe, chave, owned = {}, taxas = null } = {}) {
+  const linha = e => ({ card: cardDe(e), qty: e.qty });
+  const porNome = new Map();
+  for (const e of entries) { const k = chave(e); const cur = porNome.get(k) || { e, qty: 0 }; cur.qty += e.qty; porNome.set(k, cur); }
+  const falta = [...porNome].map(([k, x]) => ({ card: cardDe(x.e), qty: Math.max(0, x.qty - (owned[k] || 0)) }));
+  return {
+    tudo: soma(entries.map(linha), taxas),
+    deck: soma(entries.filter(e => e.zone !== 'side').map(linha), taxas),
+    reserva: soma(entries.filter(e => e.zone === 'side').map(linha), taxas),
+    falta: soma(falta, taxas), faltaCopias: falta.reduce((n, l) => n + l.qty, 0)
+  };
+}
 const SIMBOLO = { usd: 'US$', brl: 'R$', eur: '€' };
 /** "R$ 6,42" — vírgula decimal e ponto de milhar, como se escreve no Brasil. */
 function fmt(valor, moeda) {
@@ -3680,9 +3727,26 @@ function quando(em) {
   const d = new Date(em); const p = n => String(n).padStart(2, '0');
   return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+/** O número que a tela mostra em destaque: em real quando há cotação, senão em dólar; "—" sem nenhuma cópia com preço. */
+const principal = v => !v || !v.comPreco ? '—' : v.brl != null ? fmt(v.brl, 'brl') : fmt(v.usd, 'usd');
+/** Linha de valor: rótulo à esquerda; à direita o real em destaque e, embaixo, dólar e euro. */
+function LinhaValor(rotulo, v, { id = null, marca = null, detalhe = '', destaque = false, dataset = {} } = {}) {
+  const { h } = __m3;
+  const outras = !v.comPreco ? 'sem preço guardado' : v.brl != null ? `${fmt(v.usd, 'usd')} · ${fmt(v.eur, 'eur')}` : 'sem cotação para converter';
+  const fala = `${rotulo}: ${v.comPreco ? (v.brl != null ? `${fmt(v.brl, 'brl')}, ${fmt(v.usd, 'usd')}, ${fmt(v.eur, 'eur')}` : fmt(v.usd, 'usd')) : 'sem preço'}` + (v.semPreco ? `; ${v.semPreco} cópia(s) sem preço` : '');
+  return h('div', { class: 'ds-valor' + (destaque ? ' ds-valor--destaque' : ''), id, role: 'group', 'aria-label': fala, dataset: { usd: v.usd.toFixed(2), semPreco: String(v.semPreco), ...dataset } },
+    h('span', { class: 'ds-valor__rotulo' }, marca, h('span', { class: 'ds-valor__nome' }, rotulo), detalhe ? h('span', { class: 'ds-valor__detalhe' }, detalhe) : null),
+    h('span', { class: 'ds-valor__numeros' }, h('span', { class: 'ds-valor__principal' }, principal(v)), h('span', { class: 'ds-valor__outras' }, outras)));
+}
+/** A linha que explica de onde vem o número. `taxas`: objeto, null (sem cotação) ou undefined (buscando). */
+function notaValor(taxas, v) {
+  const cot = taxas ? `Dólar a ${fmt(taxas.BRL, 'brl')} · cotação de ${quando(taxas.em)}${taxas.velha ? ' (sem internet: a última guardada)' : ''}.`
+    : taxas === undefined ? 'Buscando a cotação do dólar…' : 'Sem cotação do dólar ainda: real e euro aparecem na próxima vez com internet.';
+  return 'Estimativa pelo preço em dólar da Scryfall (TCGplayer) guardado para cada carta, na impressão padrão; foil pelo preço foil. ' + cot + (v && v.semPreco ? ` ${v.semPreco} cópia(s) sem preço ficam fora da soma.` : '');
+}
 /** Instância padrão para as telas que não recebem dependências (o visor da carta abre de vários lugares). */
 const padrao = createCambio({});
-return { createCambio, interpreta, precosDe, usdDaCopia, fmt, quando, FONTES, VALIDADE_MS, CHAVE, padrao };
+return { createCambio, interpreta, precosDe, usdDaCopia, usdDe, soma, linhasDaColecao, valorDaLista, principal, LinhaValor, notaValor, fmt, quando, FONTES, VALIDADE_MS, CHAVE, padrao };
 })();
 
 /* ==== src/app/cards.js ==== */
@@ -7330,7 +7394,7 @@ async function folha({ servico, tipo = 'cartas', chaves = [], titulo = 'Etiqueta
   Dialog({ title: titulo, body: corpo, actions: [Button('Pronto', { variant: 'primary', id: 'etq-pronto', onClick: closeDialog })] });
 }
 
-return { createEtiquetas, normaliza, limpaNome, proximaCor, cria, edita, apaga, marca, esquece, de, estadoNaSelecao, contagem, vazio, folha, Pontos, Pilulas, ChipEtiqueta, CORES, TIPOS, NOME_MAX, LIMITE, CHAVE };
+return { createEtiquetas, normaliza, limpaNome, proximaCor, cria, edita, apaga, marca, esquece, de, estadoNaSelecao, contagem, vazio, folha, Ponto, Pontos, Pilulas, ChipEtiqueta, CORES, TIPOS, NOME_MAX, LIMITE, CHAVE };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -7358,7 +7422,7 @@ const FORMAT_OPTS = Object.entries(FORMATS).map(([value, label]) => ({ value, la
    Só o nome em palavras. O resto é desenho: cores em símbolos de mana, selo do formato,
    deck principal e reserva em ícone com número, e a posse como uma barra fina. O nome
    falado de cada peça diz tudo por extenso. */
-function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null }) {
+function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null, valor = null }) {
   const conta = (icone, n, fala, classe) => h('span', { class: 'deck-item__conta ' + classe, role: 'img', 'aria-label': fala, title: fala }, Icone(icone, { tamanho: 16 }), h('b', {}, String(n)));
   const corpo = [
     h('span', { class: 'deck-item__nome' }, nome),
@@ -7367,7 +7431,8 @@ function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, data
       h('span', { class: 'deck-item__formato' }, FORMATS[formato] || formato),
       conta('baralho', main, `${main} cartas no deck`, 'deck-item__main'),
       side ? conta('reserva', side, `${side} na reserva`, 'deck-item__reserva') : null,
-      __m32.Pontos(etiquetas)), // G2
+      __m32.Pontos(etiquetas), // G2
+      valor ? h('span', { class: 'deck-item__valor', role: 'img', 'aria-label': valor.fala, title: valor.fala }, valor.texto) : null), // G3
     posse ? h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(posse.need), 'aria-valuenow': String(posse.have),
       'aria-label': `tenho ${posse.have} de ${posse.need}`, title: `tenho ${posse.have} de ${posse.need}`, dataset: { completa: String(posse.have === posse.need) } },
       h('span', { class: 'deck-item__posse-barra', style: { width: `${posse.need ? Math.round(posse.have / posse.need * 100) : 0}%` } })) : null
@@ -7383,6 +7448,10 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
   // G2 · etiquetas das listas: chips de filtro acima da estante (só aparecem quando existe etiqueta)
   const etqRow = h('div', { id: 'decks-etiquetas' });
   const etqLigadas = new Set();
+  // G3 · valor de cada lista e o total das que estão à vista; a cotação chega depois e repinta
+  const valorRow = h('div', { id: 'decks-valor' });
+  let taxas = null;
+  __m31.padrao.taxas().then(t => { if (t) { taxas = t; paint(); } }).catch(() => { /* sem cotação: fica em dólar */ });
   const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden' });
   fileInput.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -7405,6 +7474,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     mount(etqRow, all.length && etq.lista.length ? Row({ class: 'ds-row--wrap col-etiquetas' },
       ...etq.lista.filter(e => contaEtq.get(e.id)).map(e => __m32.ChipEtiqueta(e, { pressed: etqLigadas.has(e.id), conta: contaEtq.get(e.id), onClick: () => { if (etqLigadas.has(e.id)) etqLigadas.delete(e.id); else etqLigadas.add(e.id); paint(); } })),
       Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'decks-etiquetas-gerir', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', existe: new Set(all.map(d => d.id)), onMuda: () => paint() }) })) : null);
+    if (!all.length) mount(valorRow, null);
     if (!all.length) return mount(list, Empty('Comece por uma lista pronta ou cole uma lista do Moxfield, Archidekt ou Arena.',
       h('div', { class: 'ds-empty__acoes' },
         Row({ class: 'ds-row--wrap' },
@@ -7418,20 +7488,27 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     let guardadas = new Map();
     try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
     const visiveis = etqLigadas.size ? all.filter(d => (etq.listas[d.id] || []).some(id => etqLigadas.has(id))) : all;
+    const valorDe = d => __m31.soma(d.entries.map(e => ({ card: guardadas.get(norm(e.name)), qty: e.qty })), taxas);
+    const valores = new Map(visiveis.map(d => [d.id, valorDe(d)]));
+    const total = [...valores.values()].reduce((a, v) => ({ usd: a.usd + v.usd, comPreco: a.comPreco + v.comPreco, semPreco: a.semPreco + v.semPreco }), { usd: 0, comPreco: 0, semPreco: 0 });
+    const totalV = { ...total, brl: taxas ? total.usd * taxas.BRL : null, eur: taxas ? total.usd * taxas.EUR : null };
+    mount(valorRow, total.comPreco ? h('div', { class: 'ds-valores' }, __m31.LinhaValor(etqLigadas.size ? `${visiveis.length} lista(s) com a etiqueta` : `${visiveis.length} lista(s)`, totalV, { id: 'decks-valor-total',
+      detalhe: total.semPreco ? `${total.semPreco} carta(s) sem preço guardado` : '' })) : null);
     if (!visiveis.length) return mount(list, Empty('Nenhuma lista com essas etiquetas.', Button('Ver todas', { icone: 'fechar', id: 'decks-etiquetas-limpar', onClick: () => { etqLigadas.clear(); paint(); } })));
     mount(list, h('div', { class: 'ds-list' }, ...visiveis.map(d => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
       const reserva = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
       return DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: need - reserva, side: reserva,
-        posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id) });
+        posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id),
+        valor: (v => v.comPreco ? { texto: __m31.principal(v), fala: `valor estimado ${__m31.principal(v)}` + (v.semPreco ? `, ${v.semPreco} carta(s) sem preço` : '') } : null)(valores.get(d.id)) });
     })));
   }
   const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
     Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
       Button('Prontas', { id: 'deck-starter', icone: 'caixa', title: 'Listas prontas', onClick: () => go('/listas/prontas') }),
       Button('Nova', { variant: 'primary', id: 'deck-new', icone: 'mais', title: 'Nova lista', onClick: () => go('/listas/editar') })),
-    etqRow,
+    etqRow, valorRow,
     list,
     // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
     fileInput);
@@ -7803,7 +7880,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
   const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false,
     // C12b · o mesmo motor de filtro da coleção, sobre as cartas da lista
     filtro: __m27.novoFiltro(), texto: '',
-    etq: __m32.vazio() }; // G2 · etiquetas desta lista
+    etq: __m32.vazio(), // G2 · etiquetas desta lista
+    taxas: undefined }; // G3 · cotação do dólar (undefined = buscando, null = sem cotação)
 
   async function load() {
     state.deck = await decks.get(id);
@@ -7988,6 +8066,18 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           Text(`${stats.have}/${stats.need}`, { size: '3xl', display: true }),
           Text(stats.missing ? `faltam ${stats.missing} carta(s)` : 'coleção completa', { size: 'sm', tone: stats.missing ? 'muted' : 'positive' })),
         curveView(stats.curve)),
+      // G3 · quanto vale a lista (e quanto falta comprar), nas três moedas
+      (() => {
+        const v = __m31.valorDaLista(d.entries, { cardDe: entryCard, chave: e => norm(e.name), owned: state.owned, taxas: state.taxas || null });
+        if (!v.tudo.comPreco && !v.tudo.semPreco) return null;
+        return Surface({ class: 'ds-surface--pad', id: 'deck-valor' }, h('div', { class: 'ds-valores' },
+          Text('Valor', { size: 'sm', caps: true, as: 'h2' }),
+          __m31.LinhaValor('Lista inteira', v.tudo, { id: 'deck-valor-tudo', destaque: true }),
+          v.reserva.comPreco + v.reserva.semPreco ? __m31.LinhaValor('Deck', v.deck, { id: 'deck-valor-deck' }) : null,
+          v.reserva.comPreco + v.reserva.semPreco ? __m31.LinhaValor('Reserva', v.reserva, { id: 'deck-valor-reserva' }) : null,
+          v.faltaCopias ? __m31.LinhaValor('Falta comprar', v.falta, { id: 'deck-valor-falta', detalhe: `${v.faltaCopias} carta(s) que não estão na coleção` }) : null,
+          Text(__m31.notaValor(state.taxas, v.tudo), { size: 'xs', tone: 'subtle', attrs: { id: 'deck-valor-nota' } })));
+      })(),
       // E51 · reserva misturada no principal (lista salva antes da separação, ou colada sem "Sideboard")
       __m24.reservaMisturada(d) ? (() => {
         const sug = __m24.sugereReserva(d);
@@ -8011,6 +8101,11 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
   }
 
   load();
+  // G3 · a cotação chega depois e só então a tela é repintada (sem roubar o foco de quem está digitando no filtro)
+  __m31.padrao.taxas().then(t => { state.taxas = t || null; }).catch(() => { state.taxas = null; }).then(() => {
+    if (!state.deck || !root.querySelector('#deck-valor')) return;
+    if (document.activeElement && document.activeElement.id === 'deck-filter') paintPreservandoFoco(); else paint();
+  });
   return root;
 }
 
@@ -8092,7 +8187,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // C11 · pendências da importação por lista e a última importação (para desfazer)
     pending: [], undo: null,
     // G2 · etiquetas (estado inteiro) e se já chegaram do armazenamento
-    etq: __m32.vazio(), etqPronta: false };
+    etq: __m32.vazio(), etqPronta: false,
+    // G3 · cotação do dólar: undefined = buscando, null = sem cotação
+    taxas: undefined };
   const descreve = f => FL.descreveFiltro(f, { nomesEtiquetas: new Map(state.etq.lista.map(e => [e.id, e.nome])) });
   const undoBar = h('div', { id: 'col-undo' });
   const pendingBox = h('div', { id: 'col-pending' });
@@ -8137,6 +8234,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     }
     if (etiquetas) { try { state.etq = await etiquetas.estado(); state.etqPronta = true; } catch (e) { /* sem armazenamento: sem etiquetas */ } }
     state.loading = false; paint(); paintCare();
+    // G3 · a cotação chega depois (a guardada é imediata); só o painel é repintado
+    __m31.padrao.taxas().then(t => { state.taxas = t || null; }).catch(() => { state.taxas = null; }).then(() => { if (state.recorte && state.items.length) paintDashboard(state.recorte); });
     if (state.items.length) {
       try { state.cards = await cardRepo.byNames(state.items.map(i => i.name)); } catch (e) { /* sem rede: segue só com nomes */ }
       paint();
@@ -8457,11 +8556,24 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // Leva 149 · bloco expansível com ícone; fechado, o cabeçalho resume o recorte (cartas e cópias)
     const res = FL.resumoColecao((r && r.itens) || [], state.cards);
     const bloco = { titulo: 'Painel', icone: 'painel', aberto: state.painel, id: 'col-dash-bloco', toggleId: 'col-dash-toggle', onToggle: () => lembra({ painel: !state.painel }) };
-    if (!state.painel) return mount(dashboard, Expansivel({ ...bloco, resumo: `${res.cartas} cartas · ${res.copias} cópias` }));
+    // G3 · valor do recorte (com filtro) ou da coleção; fechado, o cabeçalho já diz o total
+    const tx = state.taxas || null, filtrado = !FL.filtroVazio(state.filtro);
+    const vRecorte = __m31.soma(__m31.linhasDaColecao((r && r.itens) || [], cardOf), tx);
+    if (!state.painel) return mount(dashboard, Expansivel({ ...bloco, resumo: vRecorte.comPreco ? `${res.copias} cópias · ${__m31.principal(vRecorte)}` : `${res.cartas} cartas · ${res.copias} cópias` })); // com valor, o resumo cabe em 360 trocando "cartas" pelo total
+    const vTudo = filtrado ? __m31.soma(__m31.linhasDaColecao(state.items, cardOf), tx) : vRecorte;
+    const porEtiqueta = state.etq.lista.map(e => ({ e, itens: state.items.filter(g => (state.etq.cartas[g.key] || []).includes(e.id)) })).filter(x => x.itens.length)
+      .map(x => ({ e: x.e, n: x.itens.length, v: __m31.soma(__m31.linhasDaColecao(x.itens, cardOf), tx) }));
+    const valor = h('div', { class: 'ds-valores', id: 'col-valor' },
+      Text('Valor', { size: 'sm', caps: true, as: 'h2' }), // h2: logo abaixo do h1 da tela (o axe mede a ordem dos títulos)
+      filtrado ? __m31.LinhaValor('Recorte', vRecorte, { id: 'col-valor-recorte', destaque: true, detalhe: descreve(state.filtro) }) : null,
+      __m31.LinhaValor('Coleção', vTudo, { id: 'col-valor-tudo', destaque: !filtrado }),
+      ...porEtiqueta.map(({ e, n, v }) => __m31.LinhaValor(e.nome, v, { marca: __m32.Ponto(e.cor, 'etq-ponto--medio'), detalhe: `${n} carta(s)`, dataset: { etiqueta: e.id } })),
+      Text(__m31.notaValor(state.taxas, vTudo), { size: 'xs', tone: 'subtle', attrs: { id: 'col-valor-nota' } }));
     const tile = (n, rot, id) => h('div', { class: 'col-dash__tile', id }, Text(String(n), { size: '2xl', display: true }), Text(rot, { size: 'xs', tone: 'muted' }));
     mount(dashboard, Expansivel(bloco, Stack({},
       FL.filtroVazio(state.filtro) ? null : Text(`Números do recorte atual (${descreve(state.filtro)}). Toque numa barra ligada para desligar.`, { size: 'xs', tone: 'muted' }),
       h('div', { class: 'col-dash__tiles' }, tile(res.cartas, 'cartas', 'col-dash-cartas'), tile(res.copias, 'cópias', 'col-dash-copias'), tile(res.edicoes, 'edições', 'col-dash-edicoes')),
+      valor,
       res.semDados ? Text(`${res.semDados} carta(s) sem dados guardados ficam fora das distribuições.`, { size: 'xs', tone: 'subtle' }) : null,
       h('div', { class: 'col-dash__grid' },
         barras('Por cor', 'cor', res.cor), barras('Por tipo', 'tipo', res.tipo), barras('Por raridade', 'raridade', res.raridade), curva(res.custo)),

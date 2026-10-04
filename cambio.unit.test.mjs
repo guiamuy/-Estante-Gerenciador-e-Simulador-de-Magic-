@@ -67,3 +67,36 @@ test('leva 163 · valores escritos como no Brasil; data da cotação curta', () 
   assert.equal(C.fmt(1234567.891, 'brl'), 'R$ 1.234.567,89'); assert.equal(C.fmt(null, 'brl'), '—'); assert.equal(C.fmt(NaN, 'usd'), '—');
   assert.match(C.quando(new Date(2026, 9, 4, 14, 2).getTime()), /^04\/10 14:02$/);
 });
+
+test('G3 · soma em dólar cópia a cópia: foil pelo preço foil, etched pelo etched, sem preço fica fora e é contado; real e euro pela cotação', () => {
+  const sol = { prices: { usd: '2.00', usd_foil: '10.00', usd_etched: '15.00' } }, ilha = { prices: { usd: '0.25' } }, semPreco = { prices: {} }, soEuro = { prices: { eur: '9.00' } };
+  const tx = { BRL: 5, EUR: 0.9 };
+  assert.equal(C.usdDe(sol, ''), 2); assert.equal(C.usdDe(sol, 'foil'), 10); assert.equal(C.usdDe(sol, 'etched'), 15);
+  assert.equal(C.usdDe(ilha, 'foil'), 0.25, 'só existe o normal: vale o normal'); assert.equal(C.usdDe(ilha, 'etched'), 0.25);
+  assert.equal(C.usdDe(semPreco, ''), null); assert.equal(C.usdDe(null, ''), null);
+  assert.equal(C.usdDe(soEuro, ''), null, 'só euro e sem cotação: não dá para pôr em dólar'); assert.equal(C.usdDe(soEuro, '', tx), 10, 'com cotação, o euro de mercado vira dólar');
+  const v = C.soma([{ card: sol, qty: 2 }, { card: sol, qty: 1, acabamento: 'foil' }, { card: ilha, qty: 10 }, { card: semPreco, qty: 3 }, { card: undefined, qty: 1 }, { card: ilha, qty: 0 }], tx);
+  assert.deepEqual(J(v), { usd: 16.5, brl: 82.5, eur: 14.85, comPreco: 13, semPreco: 4 });
+  assert.deepEqual(J(C.soma([{ card: sol, qty: 1 }])), { usd: 2, brl: null, eur: null, comPreco: 1, semPreco: 0 }, 'sem cotação: só o dólar');
+  assert.deepEqual(J(C.soma([])), { usd: 0, brl: null, eur: null, comPreco: 0, semPreco: 0 });
+  assert.equal(C.soma([{ card: { prices: { usd: '0.10' } }, qty: 3 }]).usd, 0.3, 'centavos não viram 0,30000000000000004');
+  // o número em destaque: real com cotação, dólar sem ela, traço sem preço
+  assert.equal(C.principal(v), 'R$ 82,50'); assert.equal(C.principal(C.soma([{ card: sol, qty: 1 }])), 'US$ 2,00'); assert.equal(C.principal(C.soma([{ card: semPreco, qty: 1 }], tx)), '—');
+  assert.match(C.notaValor(null, v), /Sem cotação do dólar ainda.* 4 cópia\(s\) sem preço ficam fora da soma\.$/);
+  assert.match(C.notaValor(undefined, null), /Buscando a cotação do dólar…$/);
+  assert.match(C.notaValor({ BRL: 5, EUR: 0.9, em: 0, velha: true }, C.soma([])), /Dólar a R\$ 5,00 · cotação de \d\d\/\d\d \d\d:\d\d \(sem internet: a última guardada\)\.$/);
+});
+
+test('G3 · coleção soma impressão por impressão; lista dá tudo, deck, reserva e o que falta comprar (pelo nome, somando as zonas)', () => {
+  const cartas = new Map([['sol ring', { prices: { usd: '2.00', usd_foil: '10.00' } }], ['island', { prices: { usd: '0.25' } }], ['counterspell', { prices: { usd: '1.50' } }]]);
+  const grupos = [{ key: 'sol ring', items: [{ qty: 1, finish: '' }, { qty: 2, finish: 'foil' }] }, { key: 'island', items: [{ qty: 4 }] }, { key: 'mistério', items: [{ qty: 1 }] }];
+  assert.deepEqual(J(C.soma(C.linhasDaColecao(grupos, g => cartas.get(g.key)))), { usd: 23, brl: null, eur: null, comPreco: 7, semPreco: 1 });
+  // recorte: só as impressões que passaram no filtro (o motor de filtro já entrega `items` recortado)
+  assert.equal(C.soma(C.linhasDaColecao([{ key: 'sol ring', items: [{ qty: 2, finish: 'foil' }] }], g => cartas.get(g.key))).usd, 20);
+  const entries = [{ name: 'Island', qty: 10, zone: 'main' }, { name: 'Counterspell', qty: 3, zone: 'main' }, { name: 'Counterspell', qty: 1, zone: 'side' }, { name: 'Sol Ring', qty: 1, zone: 'commander' }];
+  const v = C.valorDaLista(entries, { cardDe: e => cartas.get(e.name.toLowerCase()), chave: e => e.name.toLowerCase(), owned: { island: 20, counterspell: 2 }, taxas: { BRL: 5, EUR: 0.9 } });
+  assert.equal(v.tudo.usd, 10.5); assert.equal(v.deck.usd, 9); assert.equal(v.reserva.usd, 1.5); assert.equal(v.tudo.brl, 52.5);
+  assert.equal(v.faltaCopias, 3, 'faltam 2 Counterspell (4 pedidos no total, 2 na coleção) e 1 Sol Ring'); assert.equal(v.falta.usd, 5);
+  const tudoEmCasa = C.valorDaLista(entries, { cardDe: e => cartas.get(e.name.toLowerCase()), chave: e => e.name.toLowerCase(), owned: { island: 10, counterspell: 4, 'sol ring': 1 } });
+  assert.equal(tudoEmCasa.faltaCopias, 0); assert.equal(tudoEmCasa.falta.usd, 0);
+});
