@@ -373,6 +373,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
+| 16º-z11 🟡 | Shark pilotando Mono Blue Faeries: aceita a compra opcional de graça; segurar a mana da anulação medido e desligado; sem ganho demonstrado (leva 162) | B10b | 1 | a lista segue em 41% |
 | 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
@@ -2678,6 +2679,26 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
+
+**B10b · Mono Blue Faeries: recursos e resposta** 🟡 (leva 162, 04/10/2026) — resultado quase todo negativo.
+- **Partida narrada (Mono Blue Faeries × Jund Wildfire):** o Shark recusava a compra opcional do Moon-Circuit Hacker
+  todas as vezes (empate na avaliação caía em "não fazer"); gastava a Ilha da anulação numa criatura de um mana e, no
+  turno seguinte, descartava a Counterspell para o Refurbished Familiar.
+- **Entregue:** em empate, o efeito opcional sem custo é aceito (`aceita`). O v9 (leva 159) fica congelado.
+- **Tentado e desligado:** `segura` — com uma anulação na mão que as fontes desviradas pagam, a jogada que tira essa
+  mana do turno do oponente custa 6 pontos. Fica só como opção de torneio.
+- **Medição por piloto (`PILOTO=0`, 96 pares, mesma semente, contra o `shark-v9`):**
+  só o aceite: 40 de 96 (42%) contra 39 de 96 (41%); só o novo ganhou em 4 pares, só o antigo em 3: **ruído.**
+  aceite + segurar: 35 de 96 (36%) contra 39 (41%); só o novo em 3, só o antigo em 7: **pior, dentro do ruído.**
+  Segurar a mana custa desenvolvimento e o Shark não converte a anulação em vantagem. Zero ações ilegais.
+- **Não medido:** torneio geral das sete listas com o aceite (a mudança só age em empate de efeito opcional).
+- **Estado do Faeries:** 41% pilotado pelo Shark contra o próprio Shark com as outras listas. Segue a lista mais fraca
+  depois do Walls. O que falta parece ser de leitura do jogo (quando anular, ninjutsu no atacante certo), não de regra
+  simples; candidatas: valor da anulação pelo que a mágica do oponente faria (hoje ele anula o que aparecer) e ninjutsu
+  contado na escolha do ataque, como o truque da B16.
+- **Testes:** U (compra do Hacker aceita, com o v9 recusando; a opção `segura` ligada à mão segura as duas Ilhas e o
+  Shark publicado não).
+- **Depende de:** B16.
 
 **B16 · Combate: truque próprio no ataque** 🟡 (leva 159, 04/10/2026) — parte entregue; saiu da leitura do Elves.
 - **Partida narrada (Elves × Rakdos Madness):** o Shark de Elves decidia o ataque sem contar com o Timberwatch Elf

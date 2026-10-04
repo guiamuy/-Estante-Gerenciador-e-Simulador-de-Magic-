@@ -36,10 +36,10 @@ export { cartasReais, listas, partida };
 const ORC = +(process.env.ORC || 250), MUNDOSN = +(process.env.MUNDOS || 0);
 const cria = nivel => {
   if (nivel.startsWith('p:')) return B.criaBot({ nivel: 'shark', orcamentoMs: ORC, mundos: MUNDOSN, pesos: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(x => { const [k, v] = x.split('='); return [k, +v]; })) });
-  if (['shark', 'shark-v8', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
+  if (['shark', 'shark-v9', 'shark-v8', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
   if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
   // leva 132 · 'y:rolaAtaque,rolaJogada' = Shark v6 com as peças novas ligadas uma a uma
-  if (nivel.startsWith('y:')) return B.criaBot({ nivel: 'shark-v6', orcamentoMs: ORC, mundos: MUNDOSN, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => [k, true])) });
+  if (nivel.startsWith('y:')) return B.criaBot({ nivel: 'shark-v9', orcamentoMs: ORC, mundos: MUNDOSN, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => [k, true])) });
   if (!nivel.startsWith('x:')) return B.criaBot({ nivel, orcamentoMs: 250 });
   const f = new Set(nivel.slice(2).split(',').filter(Boolean));
   const opts = { orcamentoMs: 250, agora: () => Date.now(), av: f.has('av3') ? B.avaliaV3 : B.avaliaV2, bloqueioForte: true, duplo: true, projeta: f.has('projeta'), corrida: f.has('corrida'), subconjuntos: f.has('sub'), valor: f.has('valor'), desdobra: f.has('desdobra') };

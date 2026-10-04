@@ -976,3 +976,34 @@ test('B16 · ataque contando o próprio truque: com o Timberwatch Elf em campo, 
   const velho = joga('shark-v8');
   assert.notEqual(velho.status, 'over', 'v8: não contava com o truque ao decidir o ataque');
 });
+
+// B10b · Mono Blue Faeries (partida narrada contra Jund Wildfire, 04/10/2026): o Shark recusava a compra do
+// Moon-Circuit Hacker todas as vezes e gastava a mana da anulação antes do turno do oponente (e depois a descartava).
+test('B10b · efeito opcional de graça: o Shark aceita a compra do Moon-Circuit Hacker; o v9 recusava', async () => {
+  let { s } = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: [...ILHAS(2), 'Moon-Circuit Hacker'], mao: ['Island'] }, p1: { campo: ['Plains'] } });
+  const piloto = shark('shark-v9'), outro = shark('shark-v9');
+  for (let i = 0; i < 60 && !(s.pending && s.pending.kind === 'may_pay' && s.pending.p === 0) && s.turn.active === 0 && s.status === 'playing'; i++) {
+    const q = s.pending ? s.pending.p : s.turn.priority;
+    s = act(s, (q === 0 ? piloto : outro).jogada(s, q).acao);
+  }
+  assert.ok(s.pending && s.pending.kind === 'may_pay' && !s.pending.cost, 'o Hacker causou dano e a compra opcional está na mesa');
+  assert.equal(shark('shark-v9').jogada(s, 0).acao.t, 'decline');
+  assert.equal(shark('shark').jogada(s, 0).acao.t, 'pay');
+});
+
+// A opção `segura` foi medida (36% contra 41% do v9 pilotando Faeries, 96 pares) e NÃO entrou no Shark: fica só para o
+// torneio. O teste guarda o que ela faz, ligada à mão.
+test('B10b · opção de torneio "segura" (desligada no Shark): com Counterspell na mão e só as duas Ilhas que a pagam, não gasta uma delas numa criatura; com três Ilhas, joga a criatura', async () => {
+  const segura = () => B.criaBot({ nivel: 'shark-v9', agora: relogioParado, extra: { segura: true } });
+  const duas = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(2), mao: ['Counterspell', 'Faerie Miscreant'] }, p1: { campo: ['Plains', 'Plains'], mao: ['Squadron Hawk', 'Battle Screech'] } });
+  assert.equal(JSON.stringify(B.custoDaResposta(duas.s, 0)), JSON.stringify({ custo: 2, oids: [duas.ids[0].Counterspell] }));
+  const v = shark('shark-v9').jogada(duas.s, 0);
+  assert.deepEqual([v.acao.t, v.acao.oid], ['cast', duas.ids[0]['Faerie Miscreant']], 'v9: gastava a Ilha e ficava sem a anulação no turno do oponente');
+  assert.equal(segura().jogada(duas.s, 0).acao.t, 'pass');
+  assert.equal(shark('shark').jogada(duas.s, 0).acao.t, 'cast', 'o Shark publicado não segura');
+  const tres = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(3), mao: ['Counterspell', 'Faerie Miscreant'] }, p1: { campo: ['Plains', 'Plains'], mao: ['Squadron Hawk', 'Battle Screech'] } });
+  const j = segura().jogada(tres.s, 0);
+  assert.deepEqual([j.acao.t, j.acao.oid], ['cast', tres.ids[0]['Faerie Miscreant']], 'sobra mana para as duas coisas');
+  const sem = await monta(0, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(2), mao: ['Faerie Miscreant'] } });
+  assert.equal(B.custoDaResposta(sem.s, 0), null);
+});

@@ -11743,6 +11743,8 @@ const __m25 = (function () {
    TRUQUE PRÓPRIO NO ATAQUE (B16): ao escolher o ataque, conta com a própria habilidade ou mágica usada depois dos
    bloqueios (quem tem habilidade de virar com alvo fica em casa para usá-la) e espera os bloqueios para usar.
    'shark-v8' é o Shark da leva 147, congelado.
+   OPCIONAL DE GRAÇA (B10b): em empate, aceita o efeito opcional sem custo (a compra do Moon-Circuit Hacker).
+   'shark-v9' é o Shark da leva 159, congelado. A opção `segura` existe só para o torneio (não pagou).
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -12291,6 +12293,19 @@ function coresPagas(s, p) {
   return n;
 }
 
+/** B10b · a resposta mais barata que tenho na mão: instantânea ou carta com lampejo que anula mágica. Devolve
+    { custo, oids } ou null. Lê só a minha mão e o texto das minhas cartas. */
+function custoDaResposta(s, p) {
+  let melhor = null; const oids = [];
+  for (const oid of s.zones[p].hand) {
+    const f = s.facts[s.objects[oid].name] || {};
+    if (!((f.types || []).includes('instant') || f.flash) || !/"do":"counter"/.test(JSON.stringify(f.script || {}))) continue;
+    const c = f.cost || {}, cmc = (c.generic || 0) + Object.values(c.colored || {}).reduce((x, y) => x + y, 0) + (c.hybrid || []).length;
+    oids.push(oid); if (melhor == null || cmc < melhor) melhor = cmc;
+  }
+  return melhor == null ? null : { custo: melhor, oids };
+}
+
 /** Leva 119 · quanto uma carta da mão faz falta (para escolher o descarte): terreno sobrando vale pouco, mágica
     que as minhas cores pagam vale mais, e mais ainda se já cabe na mana que tenho. */
 function valorNaMao(s, p, oid) {
@@ -12371,8 +12386,17 @@ function jogadaProfissional(s, p, opts = {}) {
     const depois = RESOLVE.includes(a.t) || emEscolha || pilha ? resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av) : sim.estado;
     // Leva 119 · descarte: entre cartas que dão a mesma mesa, vai embora a que menos faz falta
     const custoDescarte = opts.recursos && a.t === 'discard' && a.oid ? valorNaMao(s, p, a.oid) * 0.5 : 0;
-    return notaComResposta(depois, p, opts) - custoDescarte;
+    // B10b · efeito opcional de graça ("você pode comprar"): em empate, aceita. Antes o empate caía em "não fazer".
+    const aceite = opts.aceita && minhaDecisao && pend.kind === 'may_pay' && !pend.cost && !pend.extra && a.t === 'pay' ? 1 : 0;
+    return notaComResposta(depois, p, opts) - custoDescarte + aceite - gastaAResposta(w, a, depois);
   };
+  // B10b · segurar a anulação: com uma resposta na mão que as minhas fontes desviradas pagam, a jogada que me deixa
+  // sem essa mana no turno do oponente custa 6 pontos (a resposta em si não paga o pedágio).
+  const custoResposta = opts.segura && !minhaDecisao && s.turn.active === p && !s.stack.length ? custoDaResposta(s, p) : null;
+  function gastaAResposta(w, a, depois) {
+    if (!custoResposta || custoResposta.oids.includes(a.oid)) return 0;
+    return fontesDeMana(w, p) >= custoResposta.custo && fontesDeMana(depois, p) < custoResposta.custo ? 6 : 0;
+  }
   const notasJog = [];
   // Leva 143 · com muitas candidatas, uma leitura barata (um mundo, sem a resposta do oponente) põe as melhores na
   // frente; o relógio corta o fim da fila, não o que a ordem alfabética deixou por último.
@@ -12813,13 +12837,14 @@ const NOVO6 = { ...NOVO5, semToque: true, recursos: true, relogio: true }; // le
 const PESOS_ATUAIS = {}; // multiplicadores promovidos por torneio (leva 126)
 const NOVO7 = { ...NOVO6, av4: true, ordena: true, manaPlano: true }; // leva 143, congelado como 'shark-v7'
 const NOVO8 = { ...NOVO7, plano: true }; // B9 · plano do baralho (leva 147), congelado como 'shark-v8'
-const NOVO = { ...NOVO8, truque: true }; // B16 · truque próprio no ataque
+const NOVO9 = { ...NOVO8, truque: true }; // B16 · truque próprio no ataque (leva 159), congelado como 'shark-v9'
+const NOVO = { ...NOVO9, aceita: true }; // B10b · `segura` (segurar a mana da anulação) foi medido e fica desligado: 36% contra 41% pilotando Faeries
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
@@ -12858,7 +12883,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, notaDoAtaqueComTruque, criaBot, NOME_DO_BOT, nivelDaMesa };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa };
 })();
 
 /* ==== src/ui/table-components.js ==== */
