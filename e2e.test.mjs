@@ -6318,3 +6318,106 @@ test('e2e · leva 163 preço em três moedas no detalhe da carta: dólar, real p
   assert.equal(await page.innerText('#card-precos [data-acabamento="normal"] [data-moeda="brl"]'), 'R$ 10,00');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · G2 etiquetas: criar com cor, aplicar pela seleção (três estados) e pela carta, filtrar por chip (vai no link), renomear, apagar com confirmação; listas etiquetadas e filtradas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  assert.equal(await page.locator('#col-etiquetas').isVisible(), false, 'coleção vazia: sem a fileira de etiquetas');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring\n4 Preordain');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  const linhas = () => page.$$eval('#col-list .col-row', rs => rs.map(r => r.dataset.name));
+  const marca = nome => page.locator('.etq-linha', { hasText: nome }).locator('.etq-linha__marca');
+  const fecha = async () => { await page.click('#etq-pronto'); await page.waitForSelector('.ds-dialog', { state: 'detached' }); };
+  // sem etiqueta ainda: o botão convida a criar; a folha explica e cria no lugar, com cor
+  assert.equal((await page.innerText('#col-etiquetas-gerir')).trim(), 'Criar etiqueta');
+  assert.deepEqual(await page.$$eval('#col-etiquetas-gerir .ds-icon', is => is.map(i => i.dataset.icone)), ['etiqueta']);
+  await page.click('#col-etiquetas-gerir'); await page.waitForSelector('#etq-vazio');
+  await page.fill('#etq-nova', 'Troca'); await page.press('#etq-nova', 'Enter'); await page.waitForSelector('.etq-linha');
+  await page.fill('#etq-nova', 'Pauper'); await page.click('.etq-nova .etq-cor[data-cor="azul"]'); await page.click('#etq-criar');
+  await page.waitForFunction(() => document.querySelectorAll('.etq-linha').length === 2);
+  await page.fill('#etq-nova', 'troca'); await page.click('#etq-criar'); await page.waitForTimeout(150);
+  assert.equal(await page.locator('.etq-linha').count(), 2, 'nome repetido não cria');
+  assert.deepEqual(await page.$$eval('.etq-linha .etq-ponto', ps => ps.map(p => p.dataset.cor)), ['latao', 'azul'], 'a primeira pega a cor livre; a segunda, a escolhida');
+  assert.ok(await page.$$eval('.etq-nova .etq-cor', bs => bs.every(b => b.getBoundingClientRect().width >= 44 && b.getBoundingClientRect().height >= 44) && new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size === 1), 'amostras de cor: alvos de 44 px numa fileira só');
+  await page.fill('#etq-nova', '');
+  await auditaTela(page, 'folha de etiquetas (gestão)');
+  // pela seleção: duas cartas ganham Troca; depois só uma ganha Pauper → com as duas escolhidas, Pauper fica "em parte"
+  await page.click('#etq-selecionar'); await page.waitForSelector('#col-selection-count');
+  assert.equal(await page.isDisabled('#col-etiquetar'), true, 'sem carta escolhida, Etiquetar espera');
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__check'); await page.click('.col-row[data-name="Island"] .col-row__check');
+  await auditaTela(page, 'coleção (selecionando, com Etiquetar)');
+  await page.click('#col-etiquetar'); await page.waitForSelector('#etq-folha');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Etiquetar 2 cartas');
+  await marca('Troca').click(); await page.waitForFunction(() => document.querySelector('.etq-linha__marca').getAttribute('aria-checked') === 'true');
+  await fecha();
+  await page.click('.col-row[data-name="Island"] .col-row__check'); await page.click('#col-etiquetar'); await page.waitForSelector('#etq-folha');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Sol Ring', 'uma carta só: o título é o nome dela');
+  await marca('Pauper').click(); await page.waitForFunction(() => document.querySelectorAll('.etq-linha__marca[aria-checked="true"]').length === 2);
+  await fecha();
+  await page.click('.col-row[data-name="Island"] .col-row__check'); await page.click('#col-etiquetar'); await page.waitForSelector('#etq-folha');
+  assert.deepEqual(await page.$$eval('.etq-linha__marca', bs => bs.map(b => [b.getAttribute('role'), b.getAttribute('aria-checked'), b.getAttribute('aria-label')])),
+    [['checkbox', 'true', 'Troca, 2 carta(s)'], ['checkbox', 'mixed', 'Pauper, 1 carta(s)']]);
+  await auditaTela(page, 'folha de etiquetas (aplicando)');
+  await fecha(); await page.click('#col-select-off'); await page.waitForFunction(() => !document.querySelector('#col-select-off'));
+  // na lista: pontos de cor com o nome falado
+  const pontos = nome => page.$eval(`.col-row[data-name="${nome}"]`, r => { const p = r.querySelector('.etq-pontos'); return p ? p.getAttribute('aria-label') : null; });
+  assert.equal(await pontos('Sol Ring'), 'etiquetas: Troca, Pauper'); assert.equal(await pontos('Island'), 'etiquetas: Troca'); assert.equal(await pontos('Preordain'), null);
+  // chips: ponto, nome e contagem; um toque filtra, o recorte vai para o link e volta dele
+  assert.deepEqual(await page.$$eval('#col-etiquetas .etq-chip', cs => cs.map(c => [c.getAttribute('aria-label'), c.getAttribute('aria-pressed')])), [['Troca: 2', 'false'], ['Pauper: 1', 'false']]);
+  assert.equal((await page.innerText('#col-etiquetas-gerir')).trim(), 'Etiquetas');
+  await page.locator('#col-etiquetas .etq-chip', { hasText: 'Pauper' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#col-list .col-row').length === 1);
+  assert.deepEqual(await linhas(), ['Sol Ring']); assert.equal(await page.innerText('#col-count-desc'), 'Pauper'); assert.match(page.url(), /colecao\?f=x/);
+  await page.locator('#col-etiquetas .etq-chip', { hasText: 'Troca' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#col-list .col-row').length === 2);
+  assert.equal(await page.innerText('#col-count-desc'), 'Pauper/Troca', 'duas ligadas: passa quem tem qualquer uma');
+  await page.locator('#col-etiquetas .etq-chip', { hasText: 'Troca' }).click(); await page.waitForFunction(() => document.querySelectorAll('#col-list .col-row').length === 1);
+  await auditaTela(page, 'coleção filtrada por etiqueta');
+  await page.reload(); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  assert.deepEqual(await linhas(), ['Sol Ring'], 'etiquetas guardadas no aparelho; o recorte voltou pelo link');
+  assert.equal(await page.locator('#col-etiquetas .etq-chip[aria-pressed="true"]').count(), 1);
+  await page.click('#col-filters-clear'); await page.waitForFunction(() => document.querySelectorAll('#col-list .col-row').length === 4);
+  // pela carta: o visor tem "Etiquetas"
+  await page.click('.col-row[data-name="Island"] .col-row__thumb'); await page.waitForSelector('#col-viewer-etq'); await page.click('#col-viewer-etq'); await page.waitForSelector('#etq-folha');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Island');
+  await marca('Pauper').click(); await page.waitForFunction(() => document.querySelectorAll('.etq-linha__marca[aria-checked="true"]').length === 2); await fecha();
+  assert.equal(await pontos('Island'), 'etiquetas: Troca, Pauper');
+  // renomear e trocar a cor; apagar pede confirmação e tira a etiqueta das cartas (as cartas ficam)
+  await page.click('#col-etiquetas-gerir'); await page.waitForSelector('#etq-folha');
+  await page.locator('.etq-linha', { hasText: 'Pauper' }).locator('[data-etiqueta-edita]').click(); await page.waitForSelector('#etq-editar-nome');
+  await page.fill('#etq-editar-nome', 'Pauper azul'); await page.click('.etq-editor .etq-cor[data-cor="rubi"]');
+  assert.equal(await page.inputValue('#etq-editar-nome'), 'Pauper azul', 'trocar a cor não perde o nome digitado');
+  await page.click('#etq-editar-salva'); await page.waitForFunction(() => !document.querySelector('#etq-editar-nome'));
+  assert.deepEqual(await page.$$eval('.etq-linha', ls => ls.map(l => [l.querySelector('.etq-linha__nome').textContent, l.querySelector('.etq-ponto').dataset.cor])), [['Troca', 'latao'], ['Pauper azul', 'rubi']]);
+  await page.locator('.etq-linha', { hasText: 'Troca' }).locator('[data-etiqueta-edita]').click(); await page.click('#etq-apagar'); await page.waitForSelector('#etq-apagar-pergunta');
+  assert.match(await page.innerText('#etq-apagar-pergunta'), /Apagar "Troca"\? 2 carta\(s\) e 0 lista\(s\) perdem a etiqueta\. Nada sai da coleção/);
+  await page.click('#etq-apagar-nao'); assert.equal(await page.locator('#etq-apagar-pergunta').count(), 0); assert.equal(await page.locator('.etq-editor').count(), 1, 'Manter volta ao editor, nada apagado');
+  await page.click('#etq-apagar'); await page.click('#etq-apagar-sim'); await page.waitForFunction(() => document.querySelectorAll('.etq-linha').length === 1);
+  await fecha();
+  assert.deepEqual(await page.$$eval('#col-etiquetas .etq-chip', cs => cs.map(c => c.getAttribute('aria-label'))), ['Pauper azul: 2']);
+  assert.equal(await pontos('Island'), 'etiquetas: Pauper azul'); assert.equal((await linhas()).length, 4, 'nenhuma carta saiu da coleção');
+  // listas: etiquetar na tela da lista, ver na estante, filtrar por chip
+  await createDeck(page, base, 'Delver', PAUPER); await createDeck(page, base, 'Outra', '4 Island');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item');
+  assert.equal(await page.locator('#decks-etiquetas .etq-chip').count(), 0, 'etiqueta sem lista não vira chip na estante');
+  await page.locator('#decks-list .deck-item', { hasText: 'Delver' }).click(); await page.waitForSelector('#deck-etiquetas');
+  assert.equal(await page.getAttribute('#deck-etiquetas', 'aria-label'), 'Etiquetas');
+  await page.click('#deck-etiquetas'); await page.waitForSelector('#etq-folha');
+  assert.equal(await marca('Pauper azul').getAttribute('aria-label'), 'Pauper azul, 0 lista(s)');
+  await marca('Pauper azul').click(); await page.waitForSelector('.etq-linha__marca[aria-checked="true"]');
+  await page.fill('#etq-nova', 'Torneio'); await page.click('#etq-criar'); await page.waitForFunction(() => document.querySelectorAll('.etq-linha__marca[aria-checked="true"]').length === 2);
+  await fecha();
+  assert.deepEqual(await page.$$eval('#deck-etiquetas-da-lista .etq-pilula', ps => ps.map(p => p.textContent)), ['Pauper azul', 'Torneio'], 'criar com a lista aberta já aplica nela');
+  await auditaTela(page, 'lista com etiquetas');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-etiquetas .etq-chip');
+  assert.deepEqual(await page.$$eval('#decks-etiquetas .etq-chip', cs => cs.map(c => c.getAttribute('aria-label'))), ['Pauper azul: 1', 'Torneio: 1']);
+  assert.equal(await page.$eval('#decks-list .deck-item[data-deck] .etq-pontos', p => p.getAttribute('aria-label')), 'etiquetas: Pauper azul, Torneio');
+  assert.equal(await page.locator('#decks-list .deck-item').count(), 2);
+  await page.locator('#decks-etiquetas .etq-chip', { hasText: 'Torneio' }).click(); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 1);
+  assert.match(await page.innerText('#decks-list .deck-item'), /Delver/);
+  await auditaTela(page, 'estante filtrada por etiqueta');
+  await page.locator('#decks-etiquetas .etq-chip', { hasText: 'Torneio' }).click(); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 2);
+  assert.deepEqual(errors, []);
+});

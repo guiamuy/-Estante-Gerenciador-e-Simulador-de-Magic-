@@ -407,6 +407,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
 | 16º-aq ✅ | Coleção: bloco expansível **Exportar** com ícone próprio abaixo de Adicionar carta — texto, CSV, filtradas e seleção; sai do fim da página (leva 160) | U18 | 1 | teste no aparelho |
 | 16º-ar ✅ | G1 preço da carta em dólar, real e euro, com a cotação do dólar buscada e guardada no aparelho (leva 163) | G | 1 | teste no aparelho |
+| 16º-as ✅ | G2 etiquetas coloridas em cartas da coleção e em listas: criar, aplicar em lote ou pela carta, filtrar por chip (leva 166) | G | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4703,6 +4704,34 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   escapar na leva 133.
 - **Fora:** escolher a moeda principal; histórico de preço; preço por impressão na lista de impressões (G3 usa a
   impressão padrão e declara).
+
+**G2 · Etiquetas em cartas e listas** ✅ (leva 166, 04/10/2026)
+- **Decisão de desenho:** etiqueta, não pasta. Uma carta ou lista pode ter várias ("Troca" e "Pauper" ao mesmo
+  tempo); nada "mora" num lugar só e nada precisa ser movido. Uma etiqueta = nome (até 24 letras) + uma de seis
+  cores do próprio design system (latão, cobre, jade, azul, rubi, ametista). O conjunto é um só para cartas e listas.
+- **Coleção:** fileira de chips logo abaixo da busca (ponto de cor, nome e quantas cartas); um toque filtra, vários
+  ligados somam ("tem qualquer uma"). O recorte conta no botão Filtros, vai para o link (`x=`), entra nas visões
+  salvas e na exportação "Filtradas". Cada linha (visões Lista e Densa) mostra os pontos das etiquetas da carta.
+- **Aplicar:** (a) várias de uma vez — Selecionar → toque nas cartas → **Etiquetar**; a folha mostra cada etiqueta
+  com caixa de três estados (todas, em parte, nenhuma) e um toque liga ou desliga em todas; (b) numa carta só —
+  abrir a carta → **Etiquetas**. Criar uma etiqueta com cartas escolhidas já aplica nelas.
+- **Gerir, no lugar:** a mesma folha cria (campo + cor, Enter cria), renomeia, troca a cor e apaga. Apagar pergunta
+  dentro da folha, dizendo quantas cartas e listas perdem a etiqueta; nada sai da coleção nem das listas.
+- **Listas:** botão de etiqueta no cabeçalho da lista (as etiquetas aparecem por extenso sob o nome); na estante,
+  pontos em cada linha e chips de filtro só das etiquetas que têm lista.
+- **Barra de seleção** refeita em duas fileiras (contagem, Todas, sair / Etiquetar, Exportar): antes eram três em 360.
+- **Dados:** módulo novo `src/data/etiquetas.js` (`__m32`), modelo puro + serviço; chave `etiquetas` no aparelho,
+  incluída nas preferências do backup (v3) — restaura junto. Excluir uma lista tira as marcas dela. Etiqueta
+  apagada (ou vinda de link de outro aparelho) sai do filtro em vez de esconder a coleção.
+- **Medido em 360×780:** chips e amostras de cor com 44 px; as seis cores numa fileira; sem rolagem lateral;
+  `auditaTela` em seis telas (folha gerindo e aplicando, coleção selecionando e filtrada, lista, estante filtrada).
+- **Testes:** U `etiquetas.unit` ×5 (criar/renomear/apagar sem mexer no estado recebido; marcar em lote, três
+  estados, contagem; saneamento do que vem guardado; serviço, releitura pós-backup e chave no backup; filtro por
+  etiqueta, link e descrição); e2e "G2 etiquetas" (fluxo inteiro na coleção e nas listas).
+- **Fora (declarado):** etiquetar pela Galeria e pelas Pilhas (a seleção múltipla só existe na visão Lista);
+  agrupar a coleção por etiqueta no seletor "Agrupar"; etiqueta por impressão (vale para a carta, todas as
+  cópias); o link com filtro de etiqueta só faz sentido no próprio aparelho (os ids são locais). Valor em dinheiro
+  por etiqueta é a G3.
 
 ### P · Plataforma
 

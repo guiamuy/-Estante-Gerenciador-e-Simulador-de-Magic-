@@ -358,6 +358,52 @@ a { color: var(--accent); }
 .ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .ds-visor__custo { flex: none; font-size: var(--simbolo-lg); white-space: nowrap; }
 .ds-visor__tipo { gap: var(--space-2); align-items: center; }
+/* G2 · etiquetas: ponto de cor, chip de filtro, folha de três estados */
+.etq-ponto { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--fg-subtle); border: 1px solid var(--border-strong); }
+.etq-ponto--medio { width: 14px; height: 14px; }
+.etq-ponto--grande { width: 22px; height: 22px; }
+.etq-ponto[data-cor="latao"] { background: var(--acento-latao); }
+.etq-ponto[data-cor="cobre"] { background: var(--acento-cobre); }
+.etq-ponto[data-cor="jade"] { background: var(--acento-jade); }
+.etq-ponto[data-cor="azul"] { background: var(--oponente-azul); }
+.etq-ponto[data-cor="rubi"] { background: var(--oponente-rubi); }
+.etq-ponto[data-cor="ametista"] { background: var(--oponente-ametista); }
+.etq-pontos { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+.etq-pontos__mais { font-size: var(--text-2xs); color: var(--fg-muted); }
+.etq-pilulas { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.etq-pilula { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); color: var(--fg-muted); }
+.etq-chip { gap: var(--space-2); }
+.etq-chip__conta { font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.etq-chip[aria-pressed="true"] .etq-ponto { border-color: var(--accent-fg); }
+.col-etiquetas { gap: var(--space-2); }
+.col-selection { display: flex; flex-direction: column; gap: var(--space-2); }
+.col-selection__acoes > .ds-btn { flex: 1 1 0; }
+.etq-folha { display: flex; flex-direction: column; gap: var(--space-3); }
+.etq-linhas { display: flex; flex-direction: column; gap: var(--space-1); }
+.etq-linha { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); border-radius: var(--radius-2); }
+.etq-linha[data-nova="true"] { animation: etq-entra var(--dur-pulso) var(--ease-out); }
+@keyframes etq-entra { from { background: var(--accent-soft); } to { background: transparent; } }
+.etq-linha__marca { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-3); min-height: var(--tap-min); padding: 0 var(--space-2); background: transparent; border: 0; border-radius: var(--radius-2); color: var(--fg); font-size: var(--text-md); text-align: left; }
+@media (hover: hover) { button.etq-linha__marca:hover { background: var(--bg-elev-2); } }
+.etq-linha__nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etq-linha__conta { flex: none; color: var(--fg-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.etq-caixa { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--border-strong); border-radius: var(--radius-1); color: var(--accent-fg); transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
+.etq-linha__marca[aria-checked="true"] .etq-caixa { background: var(--accent); border-color: var(--accent); }
+.etq-linha__marca[aria-checked="mixed"] .etq-caixa { border-color: var(--accent); }
+.etq-caixa__parte { width: 10px; height: 2px; background: var(--accent); border-radius: var(--radius-full); }
+.etq-cores { display: flex; flex-wrap: wrap; }
+.etq-cor { display: inline-flex; align-items: center; justify-content: center; width: var(--tap-min); height: var(--tap-min); padding: 0; background: transparent; border: 0; border-radius: var(--radius-full); }
+.etq-cor[aria-checked="true"] .etq-ponto { outline: 2px solid var(--fg); outline-offset: 3px; }
+.etq-editor { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); background: var(--bg-elev-2); border-radius: var(--radius-2); }
+.etq-editor__confirma { display: flex; flex-direction: column; gap: var(--space-2); }
+.etq-nova { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+.etq-nova__linha { display: flex; gap: var(--space-2); align-items: center; }
+.etq-nova__linha > input { flex: 1; min-width: 0; }
+.etq-atalho { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+.col-row__titulo > .etq-pontos { align-self: center; }
+.col-dense__name .etq-pontos { margin-left: var(--space-2); vertical-align: middle; }
+.col-root[data-vazia="true"] #col-etiquetas { display: none; }
+@media (prefers-reduced-motion: reduce) { .etq-linha[data-nova="true"] { animation: none; } }
 /* leva 163 · preço em três moedas no visor da carta: uma linha por acabamento, valores alinhados em colunas */
 .ds-precos { display: flex; flex-direction: column; gap: var(--space-2); }
 .ds-precos__linha { display: grid; grid-template-columns: minmax(48px, auto) 1fr 1fr 1fr; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--bg-elev-2); border-radius: var(--radius-2); }
@@ -2175,6 +2221,7 @@ const ICONES = {
   // Leva 149 · blocos da coleção: painel (barras sobre a base) e adicionar carta (carta com o sinal de mais)
   painel: '<path d="M4 20h16"/><rect x="5.5" y="11" width="3.5" height="6" rx="1"/><rect x="10.25" y="5" width="3.5" height="12" rx="1"/><rect x="15" y="8.5" width="3.5" height="8.5" rx="1"/>',
   cartaMais: '<path d="M15.5 11V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h4.2"/><path d="M17 14v6.5M13.75 17.25h6.5"/>',
+  etiqueta: '<path d="M3.5 11.8V5.3a1.8 1.8 0 0 1 1.8-1.8h6.5a1.8 1.8 0 0 1 1.3.5l6.9 6.9a1.8 1.8 0 0 1 0 2.6l-6.5 6.5a1.8 1.8 0 0 1-2.6 0L4 13.1a1.8 1.8 0 0 1-.5-1.3z"/><circle cx="8.2" cy="8.2" r="1.3"/>', // G2 · etiquetas de cartas e listas
   cartaSai: '<path d="M15.5 10V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h5.2"/><path d="M17 20.5v-7"/><path d="M13.9 16.6 17 13.5l3.1 3.1"/>', // leva 160 · bloco Exportar da coleção: a carta que sai
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
@@ -6313,7 +6360,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -6828,7 +6875,8 @@ const FORMATOS = [['pauper', 'Pauper'], ['commander', 'Commander'], ['modern', '
 
 const FILTRO_VAZIO = Object.freeze({
   texto: '', cores: [], modoCor: 'qualquer', tipos: [], raridades: [], cmcMin: null, cmcMax: null, formato: '',
-  edicoes: [], idiomas: [], acabamentos: [], qtdMin: null, qtdMax: null, emLista: '', semEdicao: false
+  edicoes: [], idiomas: [], acabamentos: [], qtdMin: null, qtdMax: null, emLista: '', semEdicao: false,
+  etiquetas: [] // G2 · ids de etiqueta; a carta passa se tiver qualquer uma das ligadas
 });
 const novoFiltro = (parcial = {}) => ({ ...FILTRO_VAZIO, ...parcial });
 
@@ -6847,6 +6895,7 @@ function filtrosAtivos(f) {
   if (f.qtdMin != null || f.qtdMax != null) n++;
   if (f.emLista) n++;
   if (f.semEdicao) n++;
+  if (f.etiquetas && f.etiquetas.length) n++;
   return n;
 }
 const filtroVazio = f => filtrosAtivos(f) === 0;
@@ -6884,8 +6933,9 @@ function itemPassa(it, f) {
 }
 
 /** Aplica o filtro. `cards`: Map nome normalizado → carta (pode faltar); `usadoEm`: Map nome → listas. */
-function filtraColecao(grupos, f, { cards = new Map(), usadoEm = new Map() } = {}) {
+function filtraColecao(grupos, f, { cards = new Map(), usadoEm = new Map(), etiquetasDe = null } = {}) {
   const t = norm(f.texto || '');
+  const etq = f.etiquetas && f.etiquetas.length && etiquetasDe ? f.etiquetas : null; // G2 · sem quem diga as etiquetas da carta, o critério não se aplica
   const itens = [];
   let copias = 0, semDados = 0;
   for (const g of grupos) {
@@ -6900,6 +6950,7 @@ function filtraColecao(grupos, f, { cards = new Map(), usadoEm = new Map() } = {
     if (f.emLista === 'sim' && !(usadoEm.get(g.key) || []).length) continue;
     if (f.emLista === 'nao' && (usadoEm.get(g.key) || []).length) continue;
     if (f.semEdicao && !g.items.some(it => !it.set)) continue;
+    if (etq) { const tem = etiquetasDe(g.key) || []; if (!etq.some(id => tem.includes(id))) continue; }
     const passa = cartaPassa(card, f);
     if (passa === false) continue;
     if (passa === null) { semDados++; continue; }
@@ -6926,8 +6977,9 @@ function opcoesDeFiltro(grupos) {
 }
 
 /** Frase curta do que está ligado ("verde · criatura · custo ≤ 3"), para o cabeçalho e as visões. */
-function descreveFiltro(f) {
+function descreveFiltro(f, { nomesEtiquetas = null } = {}) {
   const partes = [];
+  if (f.etiquetas && f.etiquetas.length) partes.push(nomesEtiquetas ? f.etiquetas.map(id => nomesEtiquetas.get(id) || 'etiqueta').join('/') : f.etiquetas.length === 1 ? '1 etiqueta' : `${f.etiquetas.length} etiquetas`);
   if (f.texto && f.texto.trim()) partes.push(`"${f.texto.trim()}"`);
   if (f.cores.length) partes.push((f.modoCor === 'identidade' ? 'identidade ' : '') + f.cores.map(c => (CORES.find(x => x[0] === c) || [c, c])[1].toLowerCase()).join('/'));
   if (f.tipos.length) partes.push(f.tipos.map(t => (TIPOS_PT[t] || t).toLowerCase()).join('/'));
@@ -6949,7 +7001,7 @@ function descreveFiltro(f) {
 }
 
 /* ---- C12b · o recorte vira link: só o que está ligado, curto o bastante para a barra de endereço ---- */
-const CHAVES = { texto: 't', cores: 'c', modoCor: 'm', tipos: 'y', raridades: 'r', cmcMin: 'a', cmcMax: 'b', formato: 'f', edicoes: 'e', idiomas: 'l', acabamentos: 'k', qtdMin: 'q', qtdMax: 'w', emLista: 'd', semEdicao: 'g' };
+const CHAVES = { texto: 't', cores: 'c', modoCor: 'm', tipos: 'y', raridades: 'r', cmcMin: 'a', cmcMax: 'b', formato: 'f', edicoes: 'e', idiomas: 'l', acabamentos: 'k', qtdMin: 'q', qtdMax: 'w', emLista: 'd', semEdicao: 'g', etiquetas: 'x' };
 function codificaFiltro(f) {
   const p = new URLSearchParams();
   for (const [k, ch] of Object.entries(CHAVES)) {
@@ -7070,6 +7122,217 @@ function faltaParaMontar(deck, owned) {
 return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, linkDoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
 })();
 
+/* ==== src/data/etiquetas.js ==== */
+const __m32 = (function () {
+/* =====================================================================
+   G2 · ETIQUETAS
+   Agrupamento livre de cartas da coleção e de listas: uma etiqueta tem nome e cor,
+   e uma carta ou lista pode ter várias (não é pasta: nada "mora" numa só).
+   O estado é um objeto simples guardado no aparelho (`etiquetas`) e viaja no backup:
+     { lista: [{ id, nome, cor }], cartas: { [nome normalizado]: [ids] }, listas: { [id da lista]: [ids] } }
+   As funções de cima são puras (estado entra, estado novo sai); o serviço guarda; a folha desenha.
+   ===================================================================== */
+const { h, mount, Row, Text, Button, IconButton, Input, Icone, Dialog, closeDialog, toast } = __m3;
+const CHAVE = 'etiquetas';
+const NOME_MAX = 24, LIMITE = 40;
+const CORES = [['latao', 'Latão'], ['cobre', 'Cobre'], ['jade', 'Jade'], ['azul', 'Azul'], ['rubi', 'Rubi'], ['ametista', 'Ametista']]; // seis: cabem numa fileira de alvos de 44 px na folha em 360
+const TIPOS = ['cartas', 'listas'];
+const corValida = c => CORES.some(x => x[0] === c);
+const limpaNome = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, NOME_MAX);
+const mesmoNome = (a, b) => limpaNome(a).toLocaleLowerCase('pt-BR') === limpaNome(b).toLocaleLowerCase('pt-BR');
+const vazio = () => ({ lista: [], cartas: {}, listas: {} });
+/** Qualquer coisa guardada vira um estado válido: etiqueta sem nome sai, cor estranha vira a primeira, marca de etiqueta que não existe some. */
+function normaliza(bruto) {
+  const e = vazio();
+  if (!bruto || typeof bruto !== 'object') return e;
+  const vistos = new Set();
+  for (const t of Array.isArray(bruto.lista) ? bruto.lista : []) {
+    if (!t || typeof t.id !== 'string' || !t.id || /[,~]/.test(t.id) || vistos.has(t.id)) continue;
+    const nome = limpaNome(t.nome); if (!nome) continue;
+    vistos.add(t.id); e.lista.push({ id: t.id, nome, cor: corValida(t.cor) ? t.cor : CORES[0][0] });
+    if (e.lista.length >= LIMITE) break;
+  }
+  for (const tipo of TIPOS) {
+    const m = bruto[tipo] && typeof bruto[tipo] === 'object' ? bruto[tipo] : {};
+    for (const [k, ids] of Object.entries(m)) {
+      const ok = [...new Set((Array.isArray(ids) ? ids : []).filter(id => vistos.has(id)))];
+      if (ok.length) e[tipo][k] = ok;
+    }
+  }
+  return e;
+}
+/** Próxima cor ainda não usada (ou a menos usada), para a etiqueta nova já nascer diferente das outras. */
+function proximaCor(estado) {
+  const uso = new Map(CORES.map(([c]) => [c, 0]));
+  for (const t of estado.lista) uso.set(t.cor, (uso.get(t.cor) || 0) + 1);
+  return [...uso.entries()].sort((a, b) => a[1] - b[1])[0][0];
+}
+function cria(estado, { nome, cor } = {}, id) {
+  const n = limpaNome(nome);
+  if (!n) return { estado, erro: 'nome-vazio' };
+  if (estado.lista.some(t => mesmoNome(t.nome, n))) return { estado, erro: 'nome-repetido' };
+  if (estado.lista.length >= LIMITE) return { estado, erro: 'limite' };
+  const nova = { id, nome: n, cor: corValida(cor) ? cor : proximaCor(estado) };
+  return { estado: { ...estado, lista: [...estado.lista, nova] }, etiqueta: nova };
+}
+function edita(estado, id, { nome, cor } = {}) {
+  const atual = estado.lista.find(t => t.id === id);
+  if (!atual) return { estado, erro: 'nao-existe' };
+  const n = nome === undefined ? atual.nome : limpaNome(nome);
+  if (!n) return { estado, erro: 'nome-vazio' };
+  if (estado.lista.some(t => t.id !== id && mesmoNome(t.nome, n))) return { estado, erro: 'nome-repetido' };
+  const nova = { id, nome: n, cor: corValida(cor) ? cor : atual.cor };
+  return { estado: { ...estado, lista: estado.lista.map(t => t.id === id ? nova : t) }, etiqueta: nova };
+}
+const semId = (mapa, id) => { const out = {}; for (const [k, ids] of Object.entries(mapa)) { const r = ids.filter(x => x !== id); if (r.length) out[k] = r; } return out; };
+function apaga(estado, id) {
+  return { estado: { lista: estado.lista.filter(t => t.id !== id), cartas: semId(estado.cartas, id), listas: semId(estado.listas, id) } };
+}
+/** Liga ou desliga a etiqueta em várias cartas (ou listas) de uma vez. */
+function marca(estado, tipo, chaves, id, ligar) {
+  if (!TIPOS.includes(tipo) || !estado.lista.some(t => t.id === id)) return { estado, erro: 'nao-existe' };
+  const m = { ...estado[tipo] };
+  for (const k of chaves) {
+    const cur = m[k] || [];
+    const prox = ligar ? (cur.includes(id) ? cur : [...cur, id]) : cur.filter(x => x !== id);
+    if (prox.length) m[k] = prox; else delete m[k];
+  }
+  return { estado: { ...estado, [tipo]: m } };
+}
+/** A carta (ou lista) saiu do aparelho: as marcas dela saem junto. */
+function esquece(estado, tipo, chave) {
+  if (!TIPOS.includes(tipo) || !estado[tipo][chave]) return { estado };
+  const m = { ...estado[tipo] }; delete m[chave];
+  return { estado: { ...estado, [tipo]: m } };
+}
+/** Etiquetas de uma carta ou lista, na ordem em que foram criadas. */
+function de(estado, tipo, chave) {
+  const ids = (estado[tipo] && estado[tipo][chave]) || [];
+  return ids.length ? estado.lista.filter(t => ids.includes(t.id)) : [];
+}
+/** 'todas' | 'algumas' | 'nenhuma' — como a etiqueta está na seleção (a caixa de três estados da folha). */
+function estadoNaSelecao(estado, tipo, chaves, id) {
+  if (!chaves.length) return 'nenhuma';
+  const n = chaves.filter(k => ((estado[tipo] || {})[k] || []).includes(id)).length;
+  return n === 0 ? 'nenhuma' : n === chaves.length ? 'todas' : 'algumas';
+}
+/** Quantas cartas (ou listas) cada etiqueta tem. `existe`: só conta o que ainda está no aparelho. */
+function contagem(estado, tipo, existe = null) {
+  const c = new Map(estado.lista.map(t => [t.id, 0]));
+  for (const [k, ids] of Object.entries(estado[tipo] || {})) {
+    if (existe && !existe.has(k)) continue;
+    for (const id of ids) if (c.has(id)) c.set(id, c.get(id) + 1);
+  }
+  return c;
+}
+
+function createEtiquetas({ store, novoId = () => 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) } = {}) {
+  let memoria = null;
+  const le = async () => { if (!memoria) { let g = null; try { g = await store.get(CHAVE); } catch (e) { /* sem armazenamento: começa vazio */ } memoria = normaliza(g); } return memoria; };
+  const grava = async r => { if (r.erro) return r; memoria = r.estado; try { await store.set(CHAVE, memoria); } catch (e) { /* vale só nesta sessão */ } return r; };
+  return {
+    async estado() { return le(); },
+    /** O backup restaurou as preferências: a próxima leitura vem do armazenamento. */
+    recarrega() { memoria = null; },
+    async cria(dados) { return grava(cria(await le(), dados, novoId())); },
+    async edita(id, dados) { return grava(edita(await le(), id, dados)); },
+    async apaga(id) { return grava(apaga(await le(), id)); },
+    async marca(tipo, chaves, id, ligar) { return grava(marca(await le(), tipo, chaves, id, ligar)); },
+    async esquece(tipo, chave) { return grava(esquece(await le(), tipo, chave)); }
+  };
+}
+
+/* ---------------- desenho ---------------- */
+const ERROS = { 'nome-vazio': 'Dê um nome à etiqueta', 'nome-repetido': 'Já existe uma etiqueta com esse nome', limite: `O limite é de ${LIMITE} etiquetas`, 'nao-existe': 'Essa etiqueta não existe mais' };
+const Ponto = (cor, classe = '') => h('span', { class: 'etq-ponto' + (classe ? ' ' + classe : ''), dataset: { cor }, 'aria-hidden': 'true' });
+/** As etiquetas de uma linha como pontos de cor; o nome de cada uma é falado e aparece na dica. */
+function Pontos(tags, { max = 4 } = {}) {
+  if (!tags || !tags.length) return null;
+  const fala = 'etiquetas: ' + tags.map(t => t.nome).join(', ');
+  return h('span', { class: 'etq-pontos', role: 'img', 'aria-label': fala, title: fala }, ...tags.slice(0, max).map(t => Ponto(t.cor)),
+    tags.length > max ? h('span', { class: 'etq-pontos__mais', 'aria-hidden': 'true' }, '+' + (tags.length - max)) : null);
+}
+/** As etiquetas por extenso (ponto + nome), para o cabeçalho de uma lista. */
+function Pilulas(tags, attrs = {}) {
+  if (!tags || !tags.length) return null;
+  return h('span', { class: 'etq-pilulas', ...attrs }, ...tags.map(t => h('span', { class: 'etq-pilula', dataset: { etiqueta: t.id } }, Ponto(t.cor), t.nome)));
+}
+/** Chip de filtro: ponto de cor, nome e quantas cartas (ou listas) a etiqueta tem. */
+function ChipEtiqueta(t, { pressed = false, conta = null, onClick } = {}) {
+  return h('button', { class: 'ds-chip etq-chip', type: 'button', 'aria-pressed': String(!!pressed), dataset: { etiqueta: t.id }, onClick,
+    'aria-label': conta == null ? t.nome : `${t.nome}: ${conta}` }, Ponto(t.cor), h('span', { class: 'ds-chip__rotulo' }, t.nome), conta == null ? null : h('span', { class: 'etq-chip__conta', 'aria-hidden': 'true' }, String(conta)));
+}
+/** A folha de etiquetas. Com `chaves`, cada linha liga/desliga a etiqueta nelas (caixa de três estados quando só parte tem);
+    sem `chaves`, é a folha de gestão. Criar, renomear, trocar a cor e apagar (com confirmação) acontecem no lugar. */
+async function folha({ servico, tipo = 'cartas', chaves = [], titulo = 'Etiquetas', existe = null, onMuda = () => {}, onSelecionar = null }) {
+  let est = await servico.estado();
+  const ui = { editando: null, apagando: false, nome: '', cor: null, novaCor: proximaCor(est) };
+  const corpo = h('div', { class: 'etq-folha', id: 'etq-folha' });
+  const rotuloTipo = tipo === 'listas' ? 'lista(s)' : 'carta(s)';
+  const depois = async r => { if (r && r.erro) { toast(ERROS[r.erro] || 'Não deu para guardar'); return false; } est = await servico.estado(); pinta(); onMuda(est); return true; };
+  const amostras = (atual, escolhe) => h('div', { class: 'etq-cores', role: 'radiogroup', 'aria-label': 'Cor da etiqueta' }, ...CORES.map(([c, nome]) =>
+    h('button', { class: 'etq-cor', type: 'button', role: 'radio', 'aria-checked': String(c === atual), 'aria-label': nome, title: nome, dataset: { cor: c }, onClick: () => escolhe(c) }, Ponto(c, 'etq-ponto--grande'))));
+  const novaIn = Input({ id: 'etq-nova', placeholder: 'Nova etiqueta', maxlength: String(NOME_MAX) });
+  novaIn.setAttribute('aria-label', 'Nome da nova etiqueta'); novaIn.setAttribute('maxlength', String(NOME_MAX));
+  const criar = async () => {
+    const r = await servico.cria({ nome: novaIn.value, cor: ui.novaCor });
+    if (r.erro) { toast(ERROS[r.erro]); novaIn.focus(); return; }
+    // criar com cartas escolhidas já aplica: é o caminho mais curto de "quero separar estas"
+    if (chaves.length) await servico.marca(tipo, chaves, r.etiqueta.id, true);
+    novaIn.value = ''; est = await servico.estado(); ui.novaCor = proximaCor(est); pinta(); onMuda(est);
+    const linha = corpo.querySelector(`[data-etiqueta="${r.etiqueta.id}"]`); if (linha) linha.dataset.nova = 'true';
+  };
+  novaIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criar(); } });
+  const editor = t => {
+    const nomeIn = Input({ id: 'etq-editar-nome', value: ui.nome });
+    nomeIn.setAttribute('aria-label', 'Nome da etiqueta'); nomeIn.setAttribute('maxlength', String(NOME_MAX));
+    nomeIn.addEventListener('input', e => { ui.nome = e.target.value; });
+    const salvar = async () => { if (await depois(await servico.edita(t.id, { nome: ui.nome, cor: ui.cor }))) { ui.editando = null; pinta(); } };
+    nomeIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); salvar(); } });
+    const usoC = contagem(est, 'cartas').get(t.id) || 0, usoL = contagem(est, 'listas').get(t.id) || 0;
+    return h('div', { class: 'etq-editor', dataset: { etiqueta: t.id } }, nomeIn, amostras(ui.cor, c => { ui.cor = c; pinta(); const el = corpo.querySelector('#etq-editar-nome'); if (el) el.value = ui.nome; }),
+      ui.apagando
+        ? h('div', { class: 'etq-editor__confirma', id: 'etq-apagar-pergunta' },
+            Text(`Apagar "${t.nome}"? ${usoC} carta(s) e ${usoL} lista(s) perdem a etiqueta. Nada sai da coleção nem das listas.`, { size: 'sm', tone: 'muted' }),
+            Row({}, h('div', { class: 'ds-grow' }), Button('Manter', { id: 'etq-apagar-nao', onClick: () => { ui.apagando = false; pinta(); } }),
+              Button('Apagar', { variant: 'danger', icone: 'lixeira', id: 'etq-apagar-sim', onClick: async () => { ui.editando = null; ui.apagando = false; await depois(await servico.apaga(t.id)); toast(`Etiqueta "${t.nome}" apagada`); } })))
+        : Row({ class: 'ds-row--wrap' }, IconButton('lixeira', `Apagar a etiqueta ${t.nome}`, { id: 'etq-apagar', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => { ui.apagando = true; pinta(); } }), h('div', { class: 'ds-grow' }),
+            Button('Cancelar', { variant: 'ghost', id: 'etq-editar-cancela', onClick: () => { ui.editando = null; pinta(); } }),
+            Button('Salvar', { variant: 'primary', icone: 'marcar', id: 'etq-editar-salva', onClick: salvar })));
+  };
+  const linha = (t, conta) => {
+    const como = estadoNaSelecao(est, tipo, chaves, t.id);
+    const miolo = [chaves.length ? h('span', { class: 'etq-caixa', 'aria-hidden': 'true' }, como === 'todas' ? Icone('marcar', { tamanho: 16 }) : como === 'algumas' ? h('span', { class: 'etq-caixa__parte' }) : null) : null,
+      Ponto(t.cor, 'etq-ponto--medio'), h('span', { class: 'etq-linha__nome' }, t.nome), h('span', { class: 'etq-linha__conta' }, String(conta))];
+    const fala = `${t.nome}, ${conta} ${rotuloTipo}`;
+    return h('div', { class: 'etq-linha', dataset: { etiqueta: t.id } },
+      chaves.length
+        ? h('button', { class: 'etq-linha__marca', type: 'button', role: 'checkbox', 'aria-checked': como === 'todas' ? 'true' : como === 'algumas' ? 'mixed' : 'false', 'aria-label': fala,
+            onClick: async () => { await depois(await servico.marca(tipo, chaves, t.id, como !== 'todas')); } }, ...miolo)
+        : h('div', { class: 'etq-linha__marca etq-linha__marca--parada', 'aria-label': fala }, ...miolo),
+      IconButton('editar', `Editar a etiqueta ${t.nome}`, { variant: 'ghost', dataset: { etiquetaEdita: t.id }, onClick: () => { ui.editando = t.id; ui.apagando = false; ui.nome = t.nome; ui.cor = t.cor; pinta(); const el = corpo.querySelector('#etq-editar-nome'); if (el) el.focus(); } }));
+  };
+  function pinta() {
+    const conta = contagem(est, tipo, existe);
+    mount(corpo,
+      est.lista.length
+        ? h('div', { class: 'etq-linhas', id: 'etq-linhas' }, ...est.lista.map(t => ui.editando === t.id ? editor(t) : linha(t, conta.get(t.id) || 0)))
+        : Text(chaves.length ? 'Nenhuma etiqueta ainda. Crie a primeira: ela já entra nas cartas escolhidas.' : 'Nenhuma etiqueta ainda. Use para separar o que quiser: Troca, Emprestadas, Pauper, Para vender.', { size: 'sm', tone: 'muted', attrs: { id: 'etq-vazio' } }),
+      h('div', { class: 'etq-nova' },
+        h('div', { class: 'etq-nova__linha' }, novaIn, Button('Criar', { variant: est.lista.length ? null : 'primary', icone: 'mais', id: 'etq-criar', onClick: criar })),
+        amostras(ui.novaCor, c => { ui.novaCor = c; pinta(); })),
+      onSelecionar && !chaves.length && tipo === 'cartas'
+        ? h('div', { class: 'etq-atalho' }, Button('Selecionar cartas', { icone: 'selecionar', id: 'etq-selecionar', onClick: onSelecionar }),
+            Text('Marque várias cartas na lista e toque em Etiquetar. Numa carta só, abra a carta e toque em Etiquetas.', { size: 'xs', tone: 'subtle' }))
+        : null);
+  }
+  pinta();
+  Dialog({ title: titulo, body: corpo, actions: [Button('Pronto', { variant: 'primary', id: 'etq-pronto', onClick: closeDialog })] });
+}
+
+return { createEtiquetas, normaliza, limpaNome, proximaCor, cria, edita, apaga, marca, esquece, de, estadoNaSelecao, contagem, vazio, folha, Pontos, Pilulas, ChipEtiqueta, CORES, TIPOS, NOME_MAX, LIMITE, CHAVE };
+})();
+
 /* ==== src/app/decks.js ==== */
 const __m15 = (function () {
 /* =====================================================================
@@ -7095,7 +7358,7 @@ const FORMAT_OPTS = Object.entries(FORMATS).map(([value, label]) => ({ value, la
    Só o nome em palavras. O resto é desenho: cores em símbolos de mana, selo do formato,
    deck principal e reserva em ícone com número, e a posse como uma barra fina. O nome
    falado de cada peça diz tudo por extenso. */
-function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {} }) {
+function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null }) {
   const conta = (icone, n, fala, classe) => h('span', { class: 'deck-item__conta ' + classe, role: 'img', 'aria-label': fala, title: fala }, Icone(icone, { tamanho: 16 }), h('b', {}, String(n)));
   const corpo = [
     h('span', { class: 'deck-item__nome' }, nome),
@@ -7103,7 +7366,8 @@ function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, data
       cores != null ? ManaPips(cores) : null,
       h('span', { class: 'deck-item__formato' }, FORMATS[formato] || formato),
       conta('baralho', main, `${main} cartas no deck`, 'deck-item__main'),
-      side ? conta('reserva', side, `${side} na reserva`, 'deck-item__reserva') : null),
+      side ? conta('reserva', side, `${side} na reserva`, 'deck-item__reserva') : null,
+      __m32.Pontos(etiquetas)), // G2
     posse ? h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(posse.need), 'aria-valuenow': String(posse.have),
       'aria-label': `tenho ${posse.have} de ${posse.need}`, title: `tenho ${posse.have} de ${posse.need}`, dataset: { completa: String(posse.have === posse.need) } },
       h('span', { class: 'deck-item__posse-barra', style: { width: `${posse.need ? Math.round(posse.have / posse.need * 100) : 0}%` } })) : null
@@ -7114,8 +7378,11 @@ function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, data
 }
 
 /* ---------------- /listas ---------------- */
-function createDecksHome({ decks, collection, files, cardRepo, backup = null }) {
+function createDecksHome({ decks, collection, files, cardRepo, backup = null, etiquetas = null }) {
   const list = h('div', { id: 'decks-list' }, Row({}, Spinner()));
+  // G2 · etiquetas das listas: chips de filtro acima da estante (só aparecem quando existe etiqueta)
+  const etqRow = h('div', { id: 'decks-etiquetas' });
+  const etqLigadas = new Set();
   const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden' });
   fileInput.addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
@@ -7131,6 +7398,13 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
     // D4 · vazio de primeiro uso: os botões do título e o cartão de backup saem (repetiriam o que o cartão oferece);
     // "Restaurar backup" fica na folha "Mais", que é o que quem chega de outro aparelho procura
     root.dataset.vazia = String(!all.length);
+    let etq = __m32.vazio();
+    if (etiquetas) { try { etq = await etiquetas.estado(); } catch (e) { /* sem armazenamento: sem etiquetas */ } }
+    const contaEtq = __m32.contagem(etq, 'listas', new Set(all.map(d => d.id)));
+    [...etqLigadas].forEach(id => { if (!contaEtq.get(id)) etqLigadas.delete(id); }); // etiqueta apagada ou sem lista sai do filtro
+    mount(etqRow, all.length && etq.lista.length ? Row({ class: 'ds-row--wrap col-etiquetas' },
+      ...etq.lista.filter(e => contaEtq.get(e.id)).map(e => __m32.ChipEtiqueta(e, { pressed: etqLigadas.has(e.id), conta: contaEtq.get(e.id), onClick: () => { if (etqLigadas.has(e.id)) etqLigadas.delete(e.id); else etqLigadas.add(e.id); paint(); } })),
+      Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'decks-etiquetas-gerir', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', existe: new Set(all.map(d => d.id)), onMuda: () => paint() }) })) : null);
     if (!all.length) return mount(list, Empty('Comece por uma lista pronta ou cole uma lista do Moxfield, Archidekt ou Arena.',
       h('div', { class: 'ds-empty__acoes' },
         Row({ class: 'ds-row--wrap' },
@@ -7143,18 +7417,21 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null }) 
     // Leva 110 · cores só do que já está guardado no aparelho (sem rede, sem espera)
     let guardadas = new Map();
     try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
-    mount(list, h('div', { class: 'ds-list' }, ...all.map(d => {
+    const visiveis = etqLigadas.size ? all.filter(d => (etq.listas[d.id] || []).some(id => etqLigadas.has(id))) : all;
+    if (!visiveis.length) return mount(list, Empty('Nenhuma lista com essas etiquetas.', Button('Ver todas', { icone: 'fechar', id: 'decks-etiquetas-limpar', onClick: () => { etqLigadas.clear(); paint(); } })));
+    mount(list, h('div', { class: 'ds-list' }, ...visiveis.map(d => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
       const reserva = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
       return DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: need - reserva, side: reserva,
-        posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id } });
+        posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id) });
     })));
   }
   const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
     Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
       Button('Prontas', { id: 'deck-starter', icone: 'caixa', title: 'Listas prontas', onClick: () => go('/listas/prontas') }),
       Button('Nova', { variant: 'primary', id: 'deck-new', icone: 'mais', title: 'Nova lista', onClick: () => go('/listas/editar') })),
+    etqRow,
     list,
     // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
     fileInput);
@@ -7520,15 +7797,17 @@ function createDeckEditor({ decks, collection }) {
 }
 
 /* ---------------- /lista?id= ---------------- */
-function createDeckScreen({ decks, collection, cardRepo, images, share, files, store }) {
+function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null }) {
   const id = q().get('id');
   const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo lista…', { size: 'sm', tone: 'muted' })));
   const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false,
     // C12b · o mesmo motor de filtro da coleção, sobre as cartas da lista
-    filtro: __m27.novoFiltro(), texto: '' };
+    filtro: __m27.novoFiltro(), texto: '',
+    etq: __m32.vazio() }; // G2 · etiquetas desta lista
 
   async function load() {
     state.deck = await decks.get(id);
+    if (etiquetas) { try { state.etq = await etiquetas.estado(); } catch (e) { /* sem armazenamento: sem etiquetas */ } }
     if (!state.deck) return mount(root, Empty('Lista não encontrada.', Button('Ver listas', { icone: 'voltar', onClick: () => go('/listas') })));
     if (store) store.set('ui.ultimaLista', { id, nome: state.deck.name, em: Date.now() }).catch(() => {}); // D3 · a tela inicial oferece "continuar" nesta lista
     state.owned = await collection.all();
@@ -7675,14 +7954,16 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
         Stack({ style: { gap: 'var(--space-1)' } },
           Text(d.name, { size: '2xl', display: true, as: 'h1' }),
           Row({ class: 'ds-row--wrap' }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), identity ? ManaPips(identity) : null,
-            Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } }))),
+            Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } })),
+          __m32.Pilulas(__m32.de(state.etq, 'listas', d.id), { id: 'deck-etiquetas-da-lista' })),
         h('div', { class: 'ds-grow' }),
         Row({ class: 'ds-row--wrap' },
+          etiquetas ? IconButton('etiqueta', 'Etiquetas', { id: 'deck-etiquetas', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', chaves: [d.id], titulo: d.name, onMuda: e => { state.etq = e; paint(); } }) }) : null,
           // U2 · editar e exportar com ícone; excluir vira ícone discreto (continua pedindo confirmação)
           Button('Editar', { id: 'deck-edit', icone: 'editar', onClick: () => go('/listas/editar?id=' + d.id) }),
           Button('Exportar', { id: 'deck-export', icone: 'exportar', onClick: exportDialog }),
           IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
-            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); if (etiquetas) await etiquetas.esquece('listas', d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
       // D8 · estado da lista numa linha: sem rede, avisos e erros de validação (ou "válida"); o toque abre a folha com tudo
       LinhaEstado([
         state.degraded ? { icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão com a Scryfall: mostrando as cartas guardadas no aparelho.' } : null,
@@ -7796,7 +8077,7 @@ function abrirPainelFiltros({ filtro, grupos, onChange, onLimpar, semImpressoes 
   aplica();
 }
 
-function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share, names }) {
+function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share, names, etiquetas = null }) {
   const { parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, CONDITIONS, LANGS, FINISHES } = __m14;
   const FL = __m27;
   const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true,
@@ -7809,7 +8090,10 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // C10 · seleção manual por nome, para exportar um recorte
     selecting: false, selected: new Set(), exportFormat: 'simples',
     // C11 · pendências da importação por lista e a última importação (para desfazer)
-    pending: [], undo: null };
+    pending: [], undo: null,
+    // G2 · etiquetas (estado inteiro) e se já chegaram do armazenamento
+    etq: __m32.vazio(), etqPronta: false };
+  const descreve = f => FL.descreveFiltro(f, { nomesEtiquetas: new Map(state.etq.lista.map(e => [e.id, e.nome])) });
   const undoBar = h('div', { id: 'col-undo' });
   const pendingBox = h('div', { id: 'col-pending' });
   const listEl = h('div', { id: 'col-list' }, Row({}, Spinner(), Text('Abrindo coleção…', { size: 'sm', tone: 'muted' })));
@@ -7818,6 +8102,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const selectionBar = h('div', { id: 'col-selection' });
   const countLine = h('div', { id: 'col-count' });
   const viewsRow = h('div', { id: 'col-views' });
+  const etqRow = h('div', { id: 'col-etiquetas' });
   // C12b · o recorte chega pelo link (#/colecao?f=…) e volta para ele a cada mudança
   const fLink = q().get('f');
   if (fLink) { state.filtro = FL.decodificaFiltro(fLink); state.filter = state.filtro.texto || ''; }
@@ -7850,6 +8135,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       const k = norm(e.name); const arr = state.usedIn.get(k) || [];
       if (!arr.includes(d.name)) arr.push(d.name); state.usedIn.set(k, arr);
     }
+    if (etiquetas) { try { state.etq = await etiquetas.estado(); state.etqPronta = true; } catch (e) { /* sem armazenamento: sem etiquetas */ } }
     state.loading = false; paint(); paintCare();
     if (state.items.length) {
       try { state.cards = await cardRepo.byNames(state.items.map(i => i.name)); } catch (e) { /* sem rede: segue só com nomes */ }
@@ -8174,7 +8460,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     if (!state.painel) return mount(dashboard, Expansivel({ ...bloco, resumo: `${res.cartas} cartas · ${res.copias} cópias` }));
     const tile = (n, rot, id) => h('div', { class: 'col-dash__tile', id }, Text(String(n), { size: '2xl', display: true }), Text(rot, { size: 'xs', tone: 'muted' }));
     mount(dashboard, Expansivel(bloco, Stack({},
-      FL.filtroVazio(state.filtro) ? null : Text(`Números do recorte atual (${FL.descreveFiltro(state.filtro)}). Toque numa barra ligada para desligar.`, { size: 'xs', tone: 'muted' }),
+      FL.filtroVazio(state.filtro) ? null : Text(`Números do recorte atual (${descreve(state.filtro)}). Toque numa barra ligada para desligar.`, { size: 'xs', tone: 'muted' }),
       h('div', { class: 'col-dash__tiles' }, tile(res.cartas, 'cartas', 'col-dash-cartas'), tile(res.copias, 'cópias', 'col-dash-copias'), tile(res.edicoes, 'edições', 'col-dash-edicoes')),
       res.semDados ? Text(`${res.semDados} carta(s) sem dados guardados ficam fora das distribuições.`, { size: 'xs', tone: 'subtle' }) : null,
       h('div', { class: 'col-dash__grid' },
@@ -8201,7 +8487,24 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function verCarta(g) {
     const c = cardOf(g);
     if (!c) return openPrintings(g);
-    openCardViewer(c, [Button('Impressões', { icone: 'camadas', id: 'col-viewer-prints', onClick: () => { closeDialog(); openPrintings(g); } })], { quantidade: g.qty });
+    openCardViewer(c, [Button('Impressões', { icone: 'camadas', id: 'col-viewer-prints', onClick: () => { closeDialog(); openPrintings(g); } }),
+      etiquetas ? Button('Etiquetas', { icone: 'etiqueta', id: 'col-viewer-etq', onClick: () => { closeDialog(); abreEtiquetas([g.key], g.name); } }) : null].filter(Boolean), { quantidade: g.qty });
+  }
+  /* ---- G2 · etiquetas: chips de filtro acima da lista, folha para criar e aplicar ---- */
+  function abreEtiquetas(chaves = [], titulo = '') {
+    __m32.folha({ servico: etiquetas, tipo: 'cartas', chaves, existe: new Set(state.items.map(g => g.key)),
+      titulo: !chaves.length ? 'Etiquetas' : chaves.length === 1 ? titulo : `Etiquetar ${chaves.length} cartas`,
+      onMuda: e => { state.etq = e; paint(); paintFilterBtn(); },
+      onSelecionar: () => { closeDialog(); toggleSelecting(true); toast('Toque nas cartas e depois em Etiquetar'); } });
+  }
+  function paintEtq() {
+    if (!etiquetas) return mount(etqRow, null);
+    const conta = __m32.contagem(state.etq, 'cartas', new Set(state.items.map(g => g.key)));
+    const ligadas = state.filtro.etiquetas || [];
+    mount(etqRow, Row({ class: 'ds-row--wrap col-etiquetas' },
+      ...state.etq.lista.map(e => __m32.ChipEtiqueta(e, { pressed: ligadas.includes(e.id), conta: conta.get(e.id) || 0,
+        onClick: () => { const cur = state.filtro.etiquetas || []; state.filtro = { ...state.filtro, etiquetas: cur.includes(e.id) ? cur.filter(x => x !== e.id) : [...cur, e.id] }; state.limite = 120; paint(); paintFilterBtn(); } })),
+      Button(state.etq.lista.length ? 'Etiquetas' : 'Criar etiqueta', { variant: 'ghost', icone: 'etiqueta', id: 'col-etiquetas-gerir', onClick: () => abreEtiquetas() })));
   }
   /** Galeria: a arte, a quantidade e um toque para a carta grande. */
   function cartao(g) {
@@ -8215,7 +8518,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function denso(g) {
     const c = cardOf(g);
     return h('button', { class: 'col-dense__row', type: 'button', dataset: { name: g.name }, onClick: () => openPrintings(g) },
-      h('span', { class: 'col-dense__name' }, g.name, c && c.mana_cost ? h('span', { class: 'col-dense__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null), // U3
+      h('span', { class: 'col-dense__name' }, g.name, c && c.mana_cost ? h('span', { class: 'col-dense__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null, __m32.Pontos(__m32.de(state.etq, 'cartas', g.key))), // U3 · G2
       h('span', { class: 'col-dense__meta' }, [c && c.type_line ? c.type_line.split(' — ')[0] : null, g.items.filter(i => i.set).map(i => i.set.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join(' ') || null].filter(Boolean).join(' · ')),
       h('span', { class: 'col-dense__qty' }, String(g.qtyRecorte ?? g.qty)));
   }
@@ -8246,11 +8549,15 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function paintSelection() {
     if (!state.selecting) return mount(selectionBar, null);
     const n = state.selected.size;
-    mount(selectionBar, Surface({ class: 'ds-surface--pad col-selection' }, Row({ class: 'ds-row--wrap' },
-      Text(n ? `${n} carta(s) selecionada(s)` : 'Toque nas cartas para selecionar', { size: 'sm', attrs: { id: 'col-selection-count' } }), h('div', { class: 'ds-grow' }),
-      Button('Todas', { icone: 'selecionar', id: 'col-select-all', onClick: () => { state.items.forEach(g => state.selected.add(g.key)); paint(); } }),
-      Button('Exportar seleção', { variant: 'primary', icone: 'exportar', id: 'col-export-selection', disabled: !n, onClick: () => openExport({ selecao: true }) }),
-      IconButton('fechar', 'Sair da seleção', { id: 'col-select-off', onClick: () => toggleSelecting(false) }))));
+    // G2 · duas fileiras: contagem, Todas e sair em cima; as ações sobre a seleção (etiquetar, exportar) embaixo
+    mount(selectionBar, Surface({ class: 'ds-surface--pad col-selection' },
+      Row({},
+        Text(n ? `${n} carta(s) selecionada(s)` : 'Toque nas cartas para selecionar', { size: 'sm', attrs: { id: 'col-selection-count' } }), h('div', { class: 'ds-grow' }),
+        Button('Todas', { icone: 'selecionar', id: 'col-select-all', onClick: () => { state.items.forEach(g => state.selected.add(g.key)); paint(); } }),
+        IconButton('fechar', 'Sair da seleção', { id: 'col-select-off', onClick: () => toggleSelecting(false) })),
+      Row({ class: 'col-selection__acoes' },
+        etiquetas ? Button('Etiquetar', { icone: 'etiqueta', id: 'col-etiquetar', disabled: !n, onClick: () => abreEtiquetas([...state.selected], (state.items.find(g => state.selected.has(g.key)) || {}).name || 'Etiquetas') }) : null,
+        Button('Exportar', { variant: 'primary', icone: 'exportar', id: 'col-export-selection', title: 'Exportar a seleção', disabled: !n, onClick: () => openExport({ selecao: true }) }))));
   }
   async function openExport({ selecao = false, filtro = false } = {}) {
     const all = await collection.items();
@@ -8263,7 +8570,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const nota = h('div', { id: 'col-export-note' });
     const gera = () => {
       const fonte = escopo.qual === 'filtro' ? doRecorte : all;
-      const r = exportCollectionText(fonte, { formato: state.exportFormat, selecao: escopo.qual === 'selecao' ? new Set(state.selected) : null, rotulo: escopo.qual === 'filtro' ? `recorte: ${FL.descreveFiltro(state.filtro)}` : null, agora: new Date().toISOString().slice(0, 10) });
+      const r = exportCollectionText(fonte, { formato: state.exportFormat, selecao: escopo.qual === 'selecao' ? new Set(state.selected) : null, rotulo: escopo.qual === 'filtro' ? `recorte: ${descreve(state.filtro)}` : null, agora: new Date().toISOString().slice(0, 10) });
       area.value = r.text || '(nada para exportar)';
       const partes = [`${r.cartas} carta(s) · ${r.copias} cópia(s)`];
       if (r.genericas && state.exportFormat !== 'simples') partes.push(`${r.genericas} cópia(s) sem edição definida saem só com o nome`);
@@ -8298,7 +8605,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${g.name}`, onClick: () => verCarta(g) },
         (ims && ImagemCarta(ims, { sizes: '64px', onFalha: el => el.replaceWith(h('span', {}, g.name.slice(0, 1))) })) /* 64 e não 48: numa tela 3× pede a "normal", a que o guardião guarda para a coleção */ || h('span', {}, g.name.slice(0, 1))),
       h('button', { class: 'col-row__info', type: 'button', 'aria-label': `Impressões de ${g.name}`, onClick: () => openPrintings(g) },
-        h('span', { class: 'col-row__titulo' }, Text(g.name, { size: 'md' }), c && c.mana_cost ? h('span', { class: 'col-row__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null), // U3
+        h('span', { class: 'col-row__titulo' }, Text(g.name, { size: 'md' }), c && c.mana_cost ? h('span', { class: 'col-row__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null, __m32.Pontos(__m32.de(state.etq, 'cartas', g.key))), // U3 · G2: pontos das etiquetas
         Text(printed ? printsSummary(g) : ([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'), { size: 'xs', tone: 'muted' })),
       h('div', { class: 'col-row__qty' },
         IconButton('menos', `Uma cópia a menos de ${g.name}`, { onClick: () => g.qty > 1 ? setQty(g, g.qty - 1) : confirmRemove(g) }),
@@ -8323,9 +8630,11 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       { icone: 'colecao', titulo: 'Sua coleção está vazia', hero: true, id: 'col-vazio' })); }
     // C12 · o motor de filtro decide o recorte; a ordenação vem depois
     state.filtro = { ...state.filtro, texto: state.filter };
-    const r = FL.filtraColecao(state.items, state.filtro, { cards: state.cards, usadoEm: state.usedIn });
+    // G2 · etiqueta apagada (ou vinda de link de outro aparelho) sai do filtro em vez de esconder a coleção inteira
+    if (state.etqPronta && (state.filtro.etiquetas || []).some(id => !state.etq.lista.some(e => e.id === id))) state.filtro = { ...state.filtro, etiquetas: state.filtro.etiquetas.filter(id => state.etq.lista.some(e => e.id === id)) };
+    const r = FL.filtraColecao(state.items, state.filtro, { cards: state.cards, usadoEm: state.usedIn, etiquetasDe: k => state.etq.cartas[k] });
     state.recorte = r;
-    sincronizaLink(); paintViews();
+    sincronizaLink(); paintViews(); paintEtq();
     paintCount(r);
     paintDashboard(r);
     paintExport(); // leva 160 · "Filtradas" acompanha o recorte
@@ -8361,7 +8670,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     if (!ativos) return mount(countLine, null);
     mount(countLine, Row({ class: 'ds-row--wrap' },
       Text(`${r.total} carta(s) · ${r.copias} cópia(s)` + (r.semDados ? ` · ${r.semDados} sem dados guardados (não dá para filtrar por cor, tipo, custo ou raridade)` : ''), { size: 'sm', attrs: { id: 'col-count-text' } }),
-      Text(FL.descreveFiltro(state.filtro), { size: 'xs', tone: 'muted', attrs: { id: 'col-count-desc' } }),
+      Text(descreve(state.filtro), { size: 'xs', tone: 'muted', attrs: { id: 'col-count-desc' } }),
       Button('Salvar visão', { variant: 'ghost', id: 'col-view-save', onClick: salvarVisao }),
       Button('Limpar filtros', { variant: 'ghost', id: 'col-filters-clear', onClick: limparFiltros })));
   }
@@ -8387,7 +8696,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       closeDialog(); await collection.saveView({ nome, filtro: { ...state.filtro, texto: state.filter } }); state.views = await collection.views(); paintViews(); toast(`Visão "${nome}" salva`);
     };
     input.addEventListener('keydown', ev => { if (ev.key === 'Enter') save(); });
-    Dialog({ title: 'Salvar visão', body: Field('Nome', input, { hint: `Guarda o recorte atual (${FL.descreveFiltro({ ...state.filtro, texto: state.filter }) || 'sem filtros'}) neste aparelho. Um toque na visão aplica tudo de novo.` }),
+    Dialog({ title: 'Salvar visão', body: Field('Nome', input, { hint: `Guarda o recorte atual (${descreve({ ...state.filtro, texto: state.filter }) || 'sem filtros'}) neste aparelho. Um toque na visão aplica tudo de novo.` }),
       actions: [Button('Cancelar', { onClick: closeDialog }), Button('Salvar', { variant: 'primary', id: 'col-view-save-confirm', onClick: save })] });
     setTimeout(() => input.focus(), 50);
   }
@@ -8482,7 +8791,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     Row({ class: 'ds-row--wrap col-filtro' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn),
-    toolbar, viewsRow, countLine, listEl, selectionBar,
+    etqRow, toolbar, viewsRow, countLine, listEl, selectionBar,
     csvInput, listInput,
     care);
   return root;
@@ -17869,11 +18178,12 @@ const backup = {
     const m = await __m24.migraReservas(decks, null);
     let extra = '';
     if (r.perfil) { await perfil.set({ nome: r.perfil.nome, avatar: r.perfil.avatar }); document.dispatchEvent(new CustomEvent('estante:perfil')); extra += ' · perfil'; }
-    if (r.prefs) { const n = await perfil.importaPreferencias(r.prefs); if (n) { extra += ' · preferências'; await theme.init(); } }
+    if (r.prefs) { const n = await perfil.importaPreferencias(r.prefs); if (n) { extra += ' · preferências'; await theme.init(); etiquetas.recarrega(); /* G2 */ } }
     return `${r.decks} lista(s) restaurada(s)` + (m.length ? ` · reserva separada em ${m.length}` : '') + extra;
   }
 };
 const names = createNameIndex({ store: platform.store, scryfall });
+const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
 __m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
 const ocr = createOcr();
@@ -17890,11 +18200,11 @@ const installer = createInstaller({ window: typeof window !== 'undefined' ? wind
 const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
-  { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup }) },
+  { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup, etiquetas }) },
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
-  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store }) },
-  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names }) },
+  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas }) },
+  { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online }) },
