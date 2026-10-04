@@ -954,3 +954,25 @@ test('B9 · buscar a peça que falta: com o motor e o finalizador em campo, o Sh
   for (let i = 0; i < 10 && (s.pending || s.stack.length); i++) s = act(s, s.pending ? bot.jogada(s, s.pending.p).acao : { t: 'pass', p: s.turn.priority });
   assert.ok(s.zones[0].hand.some(o => s.objects[o].name === 'Freed from the Real'), 'mão: ' + s.zones[0].hand.map(o => s.objects[o].name));
 });
+
+// B16 · truque próprio no ataque. Partida narrada Elves × Rakdos Madness (03/10/2026): o Shark de Elves atacava sem
+// contar com o Timberwatch Elf e perdia a corrida.
+test('B16 · ataque contando o próprio truque: com o Timberwatch Elf em campo, o Shark ataca e fecha a partida no atacante que passou', async () => {
+  let { s, ids } = await monta(6, 3, { ativo: 0, vez: 0, passo: 'main1',
+    p0: { campo: ['Forest', 'Timberwatch Elf', 'Llanowar Elves', 'Elvish Mystic', 'Priest of Titania', 'Elvish Vanguard'] },
+    p1: { campo: ['Plains', 'Thraben Inspector', 'Squadron Hawk', 'Squadron Hawk'] } });
+  s.players[1].life = 6; s.players[0].life = 20;
+  const joga = nivel => {
+    let t = s; const bot = shark(nivel), outro = shark('shark-v8');
+    for (let i = 0; i < 80 && t.status === 'playing' && t.turn.active === 0; i++) {
+      const q = t.pending ? t.pending.p : t.turn.priority;
+      const j = (q === 0 ? bot : outro).jogada(t, q);
+      t = act(t, j.acao);
+    }
+    return t;
+  };
+  const novo = joga('shark');
+  assert.equal(novo.status, 'over', 'cinco Elfos: o 1/1 que passou vira 6/6 e fecha os 6 de vida'); assert.equal(novo.winner, 0);
+  const velho = joga('shark-v8');
+  assert.notEqual(velho.status, 'over', 'v8: não contava com o truque ao decidir o ataque');
+});

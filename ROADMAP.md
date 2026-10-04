@@ -373,6 +373,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-i ✅ | Shark: sequência do turno (leva 118) | B11 | 1 | — |
 | 16º-j 🟡 | Shark: usar os recursos (leva 119) — erros visíveis corrigidos, ganho de força não demonstrado | B17 | 1 | — |
 | 16º-j2 🟡 | Scanner de referência (E52), primeiro passo: X13 câmera no máximo e cronômetro (leva 120) | E52 | 1 de 6 a 7 | teste no aparelho: diagnóstico com a subida de resolução e o tempo até aceitar |
+| 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
@@ -2675,6 +2676,26 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Testes:** U (manutenção, terreno pela jogada, terreno pela cor, fichas com mágica na pilha — todos com o v4
   fazendo o erro), P.
 - **Depende de:** B8.
+
+**B16 · Combate: truque próprio no ataque** 🟡 (leva 159, 04/10/2026) — parte entregue; saiu da leitura do Elves.
+- **Partida narrada (Elves × Rakdos Madness):** o Shark de Elves decidia o ataque sem contar com o Timberwatch Elf
+  ({T}: +X/+X, X = Elfos em campo) e, quando usava a habilidade, usava antes dos bloqueios.
+- **Entregue:**
+  - ao escolher o ataque, as três melhores formações, o ataque com tudo e "todos menos quem tem habilidade de virar
+    com alvo" são medidos de novo contando o melhor truque próprio depois dos bloqueios (`notaDoAtaqueComTruque`);
+  - com o ataque declarado e o bloqueio ainda não, ele passa e espera os bloqueios para usar o truque.
+- **Medição por piloto, Elves (`PILOTO=6`, 96 pares, mesma semente, contra o `shark-v8`):** novo venceu 50 de 96
+  (52%); v8 venceu 48 de 96 (50%); só o novo ganhou em 5 pares, só o antigo em 3. **Ganho não demonstrado.**
+  O truque decide poucas partidas. Fica pelo erro visível que corrige (teste com o v8 errando), não por força.
+- **Torneio geral contra o v8:** 52% em 224 decididas (117–107): sem regressão. Zero ações ilegais.
+- **Achado:** pilotando Elves contra o Shark de hoje, ele já ganha metade das partidas; Elves não é mais a lista
+  fraca que parecia (27–37 era contra outro oponente). **Perfil de Elves não foi escrito**: não achei um plano de
+  combinação que mudasse o resultado. Lista mais fraca agora, depois do Walls (33%): Mono Blue Faeries (26–38 na
+  leva 143), que depende de segurar mana para a anulação — a próxima a olhar.
+- **Falta:** truque na defesa (bloquear contando com a habilidade), e contar com o truque do oponente (B13).
+- **Testes:** U (Timberwatch Elf fica em casa, os outros atacam, o truque sai depois dos bloqueios e fecha a partida;
+  o v8 não atacava).
+- **Depende de:** B9.
 
 **B9 · Conhecer os baralhos: o plano de cada um** 🟡 (leva 147, 03/10/2026) — primeiro perfil: Walls Combo.
 - **Por que este primeiro:** era a lista que o Shark pilotava pior (23–39 na leva 143; 15–43 antes).
