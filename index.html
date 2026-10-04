@@ -361,6 +361,22 @@ a { color: var(--accent); }
 .ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .ds-visor__custo { flex: none; font-size: var(--simbolo-lg); white-space: nowrap; }
 .ds-visor__tipo { gap: var(--space-2); align-items: center; }
+/* H5 · a cena: legenda do que o oponente fez, presa acima da bandeja; a mesa não aceita toque enquanto ela passa */
+.tb-cena { position: fixed; left: var(--space-3); right: var(--space-3); bottom: calc(var(--doca-h, 0px) + var(--space-2) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay);
+  display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  border-radius: var(--radius-3); background: var(--bg-elev-3); border: 1px solid var(--player-opp); box-shadow: var(--shadow-3); color: var(--fg); animation: ds-rise var(--dur-2) var(--ease-out); }
+.tb-cena[data-quem="eu"] { border-color: var(--accent); }
+.tb-cena__carta { flex: none; width: 34px; aspect-ratio: 488 / 680; object-fit: cover; border-radius: var(--radius-1); }
+.tb-cena__icone { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: var(--radius-full); background: var(--player-opp-soft); color: var(--fg); }
+.tb-cena[data-quem="eu"] .tb-cena__icone { background: var(--accent-soft); }
+.tb-cena__texto { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: var(--text-sm); line-height: var(--lh-sm); }
+.tb-cena__texto strong { font-size: var(--text-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); font-weight: var(--weight-medium); }
+.tb-cena__texto span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.tb-cena__conta { flex: none; font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.tb-cena > .ds-btn { flex: none; }
+#tb[data-cena="true"] .tb-board, #tb[data-cena="true"] .tb-top__actions, #tb[data-cena="true"] .tb-dock { pointer-events: none; }
+#tb[data-cena="true"] .tb-dock { filter: saturate(.5); }
+@media (prefers-reduced-motion: reduce) { .tb-cena { animation: none; } }
 /* G5 · efeitos visuais da partida. Só transform, opacity e filter (não mexem no layout); duração e curva por token.
    Com "menos movimento" as animações já são anuladas pelas regras gerais: sobra a parte parada (anel de cor e número). */
 .tb-fx { animation-delay: var(--fx-atraso, 0s); }
@@ -6513,7 +6529,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -14020,6 +14036,9 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
 
   // H2 · o turno em que cada ação do registro foi feita: é o que deixa voltar ao começo de um turno
   let turnoDoLog = [];
+  // H5 · passos da última jogada (a sua ação e tudo o que o bot e o motor fizeram por causa dela), para a tela poder mostrar o
+  // turno do oponente jogada a jogada. Só guarda quando a tela pede: torneios e testes não acumulam estados na memória.
+  let guardando = false, passos = [];
   function record(action) {
     const before = match.state;
     turnoDoLog.push(before.turn.number || 0);
@@ -14045,6 +14064,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       }
     }
     lines.push(...novas);
+    if (guardando) { passos.push({ antes: before, depois: after, acao: action, eventos: events, linhas: novas }); if (passos.length > 600) passos.shift(); } // H5
     // a linha pertence ao momento em que a ação foi feita (o separador de turno, ao turno novo)
     for (const texto of novas) anota([texto], /^— Turno/.test(texto) ? after : before);
     return events;
@@ -14159,6 +14179,10 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       return humans[0];
     },
     humans() { return match.state.players.map((pl, i) => pl.dummy ? -1 : i).filter(i => i >= 0); },
+    /** H5 · liga (ou desliga) a guarda dos passos de cada jogada. */
+    guardaPassos(sim = true) { guardando = !!sim; passos = []; },
+    /** H5 · os passos guardados desde a última colheita, do mais antigo ao mais novo; esvazia a guarda. */
+    colhePassos() { const p = passos; passos = []; return p; },
     /* H2 · contra o bot não há outra pessoa de quem esconder nada: dá para voltar jogada a jogada até o começo da partida.
        A dois (hot-seat ou online) continua a barreira de informação revelada: compra, mulligan e olhar o grimório não se desfazem. */
     semBarreira() { return !!options.bot && match.state.players.filter((pl, i) => !pl.dummy && i !== options.bot.seat).length === 1; },
@@ -14854,6 +14878,44 @@ function planoDeEfeitos(eventos, { espectador = null, max = 16, passo = 60 } = {
   }
   return out.slice(0, max);
 }
+/* ---------------- H5 · roteiro da jogada ----------------
+   Uma jogada sua pode disparar o turno inteiro do oponente. Dos passos guardados pelo modelo da mesa, este roteiro tira os
+   QUADROS que valem ser vistos, em ordem: a sua jogada, cada jogada do oponente e cada passo em que algo aconteceu na mesa
+   (dano, criatura que entrou, compra). Passos em que nada acontece (prioridade passando) somem dentro do quadro anterior.
+   Devolve [] quando o oponente não fez nada: aí a tela desenha direto, como sempre. Puro. */
+const LINHA_DE_SERVICO = /^— Turno|^Resumo do turno|^\s/;
+/** Passo que o registro não descreve (a compra do começo do turno, por exemplo): a legenda sai do que mudou na mesa. */
+function legendaDosSentidos(sentidos, nomeDe) {
+  const frase = e => e.tipo === 'compra' ? `${nomeDe(e.jogador)} comprou ${e.n} carta${e.n > 1 ? 's' : ''}` : e.tipo === 'descarte' ? `${nomeDe(e.jogador)} descartou ${e.n} carta${e.n > 1 ? 's' : ''}`
+    : e.tipo === 'dano' ? `${nomeDe(e.jogador)} perdeu ${e.n} de vida` : e.tipo === 'cura' ? `${nomeDe(e.jogador)} ganhou ${e.n} de vida` : e.tipo === 'remocaoGlobal' ? `${e.n} permanentes saíram do campo`
+    : e.tipo === 'morre' || e.tipo === 'destroi' ? 'Uma permanente foi para o cemitério' : e.tipo === 'entra' || e.tipo === 'ficha' || e.tipo === 'terreno' ? 'Uma permanente entrou no campo' : '';
+  return [...new Set(sentidos.map(frase).filter(Boolean))].slice(0, 2).join(' · ');
+}
+function roteiroDaJogada(passos, { eu = 0, stats = null, tipos = null, teto = 12000, max = 40 } = {}) {
+  const quadros = [];
+  let oponenteAgiu = false;
+  (passos || []).forEach((p, i) => {
+    const sentidos = eventosSensoriais(p.antes, p.depois, { eventos: p.eventos, stats, tipos });
+    const doOponente = p.acao.p !== eu && p.acao.t !== 'pass';
+    const visto = sentidos.some(e => !(e.tipo === 'compra' && e.jogador !== eu)); // compra do oponente não aparece na tela
+    if (i > 0 && !doOponente && !sentidos.length) { if (quadros.length) quadros[quadros.length - 1].estado = p.depois; return; }
+    if (doOponente) oponenteAgiu = true;
+    const linhas = (p.linhas || []).filter(l => !LINHA_DE_SERVICO.test(l));
+    const virou = sentidos.find(e => e.tipo === 'turno');
+    const nomeDe = j => ((p.depois.players || [])[j] || {}).name || 'oponente';
+    quadros.push({ estado: p.depois, eventos: p.eventos || [], sentidos, quem: doOponente || i === 0 ? p.acao.p : (virou ? virou.jogador : (sentidos.find(e => e.jogador != null) || { jogador: p.depois.turn.active }).jogador), meu: i === 0, // passo automático: a legenda é de quem a coisa aconteceu, não de quem passou a prioridade
+      legenda: linhas.slice(0, 2).join(' · ') || (virou ? `Turno ${p.depois.turn.number} · ${nomeDe(virou.jogador)}` : legendaDosSentidos(sentidos, nomeDe)), oid: p.acao.oid != null ? p.acao.oid : (p.acao.attackers || [])[0] ?? null,
+      ms: i === 0 ? 450 : doOponente ? 1000 : visto ? 800 : 350 });
+  });
+  if (!oponenteAgiu || quadros.length < 2) return [];
+  // quadro sem nada a dizer nem a mostrar (uma virada de etapa) junta-se ao anterior
+  const uteis = quadros.filter((q, i) => i === 0 || q.legenda || q.sentidos.length);
+  uteis[uteis.length - 1].estado = quadros[quadros.length - 1].estado; // o último quadro é sempre o estado final
+  const corte = uteis.slice(0, max); corte[corte.length - 1].estado = quadros[quadros.length - 1].estado;
+  const total = corte.reduce((n, q) => n + q.ms, 0);
+  if (total > teto) { const f = teto / total; for (const q of corte) q.ms = Math.max(300, Math.round(q.ms * f)); }
+  return corte;
+}
 const limpaPrefs = p => ({ ligado: !(p && p.ligado === false), volume: p && typeof p.volume === 'number' && Number.isFinite(p.volume) ? Math.min(1, Math.max(0, p.volume)) : 0.6 });
 
 function createSom({ store = null, criaContexto = null } = {}) {
@@ -14918,7 +14980,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -15481,6 +15543,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     if (som) { const ligado = som.prefs.ligado;
       const c = Chip('Som', { icone: ligado ? 'som' : 'somMudo', pressed: ligado, id: 'tb-som', onClick: async () => { const p = await som.ajusta({ ligado: !som.prefs.ligado }); if (p.ligado) { som.destrava(); som.toca('suaVez'); } semSentidos = true; paint(); toast(p.ligado ? 'Som ligado' : 'Som desligado'); } });
       c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', ligado ? 'Som da partida ligado' : 'Som da partida desligado'); vezPop.appendChild(c); }
+    // H5 · ver as jogadas do oponente uma a uma (só contra o bot)
+    if (!sinc && table.options && table.options.bot) {
+      const c = Chip('Ver jogadas', { icone: 'pular', pressed: verJogadas, id: 'tb-ver-jogadas', onClick: () => { verJogadas = !verJogadas; store.set(VER_KEY, verJogadas).catch(() => {}); semSentidos = true; paint(); toast(verJogadas ? 'As jogadas do oponente passam uma a uma' : 'O turno do oponente aparece de uma vez'); } });
+      c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', verJogadas ? 'Ver as jogadas do oponente uma a uma: ligado' : 'Ver as jogadas do oponente uma a uma: desligado'); vezPop.appendChild(c); }
     vezPop.hidden = !vezAberto;
     return vezEl;
   }
@@ -15537,6 +15603,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
+    // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
+    cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -15564,14 +15632,74 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     const n = Note(`<b>${esc(recusa.titulo)}.</b> ${esc(recusa.motivo)}.${recusa.dica ? ' ' + esc(recusa.dica) : ''}`, 'warning');
     n.id = 'tb-recusa'; return n;
   }
+  /* ---- H5 · ver o oponente jogar: a jogada sua que dispara o turno do bot é mostrada quadro a quadro ----
+     A mesa é desenhada com cada estado intermediário (o motor não muda: são estados que ele já produziu); cada quadro traz
+     a legenda do que aconteceu, o som e o efeito do passo (G4/G5 saem da diferença entre um quadro e o seguinte) e leva a
+     tela até onde a coisa acontece. Durante a cena a mesa não aceita toque; "Pular" vai direto ao fim. */
+  const VER_KEY = 'mesa.verJogadas';
+  let verJogadas = !(typeof window !== 'undefined' && window.__SEM_CENA), cena = null, mesaReal = null;
+  store.get(VER_KEY).then(x => { if (x === false) verJogadas = false; }).catch(() => {});
+  const visaoDaCena = (real, eu) => Object.create(real, { state: { get: () => (cena ? cena.estado : real.state) }, viewer: { value: () => eu }, canUndo: { value: () => false }, desfaziveis: { value: () => 0 } });
+  function focaNaCena(q) {
+    const suave = menosMovimento() ? 'auto' : 'smooth';
+    const alvo = root.querySelector('.tb-board .tb-fx') || (q.oid != null && root.querySelector(`.tb-board .tb-card[data-oid="${q.oid}"]`)) || root.querySelector(q.quem === cena.eu ? '#tb-life-me' : '#tb-life-opp');
+    if (alvo && alvo.scrollIntoView) alvo.scrollIntoView({ block: 'center', inline: 'nearest', behavior: suave });
+  }
+  function pintaLegenda(q) {
+    const s = cena.estado, nome = q.quem === cena.eu ? 'Você' : s.players[q.quem].name, n = cena.quadros.length;
+    const carta = q.oid != null && s.objects[q.oid] && !ocultaDe(s, s.objects[q.oid]) ? s.objects[q.oid].name : null;
+    const img = carta ? imgOf(carta, 'small') : null;
+    if (!cena.el) cena.el = h('div', { class: 'tb-cena', id: 'tb-cena', role: 'status', 'aria-live': 'polite', dataset: { sobrepoe: 'true' } });
+    cena.el.dataset.quem = q.quem === cena.eu ? 'eu' : 'oponente'; cena.el.dataset.quadro = String(cena.i + 1);
+    mount(cena.el,
+      img ? h('img', { class: 'tb-cena__carta', src: img, alt: '', onError: e => e.target.remove() }) : h('span', { class: 'tb-cena__icone', 'aria-hidden': 'true' }, Icone(q.quem === cena.eu ? 'pessoa' : (table.options && table.options.bot ? 'tubarao' : 'pessoas'), { tamanho: 20 })),
+      h('div', { class: 'tb-cena__texto' }, h('strong', {}, nome), h('span', { id: 'tb-cena-legenda' }, q.legenda || 'passou')),
+      h('span', { class: 'tb-cena__conta', 'aria-hidden': 'true' }, `${cena.i + 1}/${n}`),
+      Button('Pular', { variant: 'ghost', icone: 'pular', id: 'tb-cena-pular', onClick: fimDaCena }));
+    root.appendChild(cena.el);
+  }
+  function quadroDaCena() {
+    if (!cena) return;
+    if (!root.isConnected) return fimDaCena(); // saiu da tela no meio: a partida fica no estado final
+    const q = cena.quadros[cena.i];
+    cena.estado = q.estado; eventosDaJogada = q.eventos;
+    paint(); pintaLegenda(q); focaNaCena(q);
+    cenaLog.push(q.legenda);
+    cena.i++;
+    cena.timer = setTimeout(cena.i >= cena.quadros.length ? fimDaCena : quadroDaCena, q.ms);
+  }
+  function encena(quadros, eu) {
+    mesaReal = table; cena = { quadros, i: 0, estado: quadros[0].estado, eu, timer: null, el: null };
+    table = visaoDaCena(mesaReal, eu); root.dataset.cena = 'true';
+    quadroDaCena();
+  }
+  function fimDaCena() {
+    if (!cena) return;
+    clearTimeout(cena.timer); if (cena.el) cena.el.remove();
+    table = mesaReal; mesaReal = null; cena = null; delete root.dataset.cena;
+    if (!root.isConnected) return;
+    if (estadoOuvido !== table.state) semSentidos = true; // pulou: o fim é desenhado de uma vez, sem tocar todos os sons juntos
+    paint();
+    const meu = root.querySelector('#tb-life-me'); if (meu && meu.scrollIntoView) meu.scrollIntoView({ block: 'nearest', behavior: menosMovimento() ? 'auto' : 'smooth' });
+  }
+  const cenaLog = [];
+  /** Depois de qualquer jogada: se o oponente jogou por causa dela, mostra passo a passo; senão desenha direto. */
+  function desenhaDepoisDe(eu) {
+    const passos = table.colhePassos ? table.colhePassos() : [];
+    const quadros = verJogadas && !sinc && table.options && table.options.bot && passos.length > 1
+      ? __m33.roteiroDaJogada(passos, { eu, stats: E.stats, tipos: nome => ((table.state.facts || {})[nome] || {}).types || [] }) : [];
+    if (quadros.length) encena(quadros, eu); else paint();
+  }
   function act(action) {
+    if (cena) return false; // a mesa não aceita jogada enquanto mostra a do oponente
     try {
+      const eu = table.viewer();
       const events = table.act(action);
       eventosDaJogada = events; // G4 · os efeitos da jogada ajudam a nomear o que se ouve (anulação, destruição)
       const res = events.filter(e => e.kind === 'resolved' && e.adjudicate).pop();
       if (res) adjudicating = { name: res.name, oid: res.oid };
       recusa = null;
-      save(); paint();
+      save(); desenhaDepoisDe(eu);
       // Leva 136 · carta que revela e resolve sem pergunta (Winding Way): a mesa diz o que foi revelado; antes só o registro dizia
       const rev = events.filter(e => e.kind === 'effect' && e.do === 'reveal').pop();
       if (rev) toast(`${rev.name} revelou: ${rev.target}`, 6000);
@@ -15609,6 +15737,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
         pararPresenca = setInterval(() => { if (!root.isConnected) { clearInterval(pararPresenca); sinc.parar(); return; } online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {}); if (table.state.status !== 'over') paint(); }, 15000);
         online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {});
       } else table = T.restoreTable(data);
+      if (!sinc && table.guardaPassos && table.options && table.options.bot) table.guardaPassos(true); // H5
     }
     catch (e) {
       return mount(root, Stack(pad(), Note(e.message === 'versao-do-motor'
@@ -16137,7 +16266,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     const n = table.jogadasDesde(turno); if (!n) return;
     Dialog({ title: `Voltar ao turno ${turno}?`, body: Text(`A partida volta ao ponto em que o turno ${turno} (${ativo}) chegou para você. Tudo o que foi jogado depois disso, por você e pelo oponente, é desfeito.`, { tone: 'muted' }),
       actions: [Button('Cancelar', { onClick: () => { closeDialog(); openLog(); } }),
-        Button('Voltar', { variant: 'primary', icone: 'desfazer', id: 'tb-volta-confirma', onClick: () => { closeDialog(); if (table.undo(n)) { adjudicating = null; semSentidos = true; save(); paint(); toast(`Voltou ao turno ${turno}`); } } })] });
+        Button('Voltar', { variant: 'primary', icone: 'desfazer', id: 'tb-volta-confirma', onClick: () => { closeDialog(); if (table.undo(n)) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast(`Voltou ao turno ${turno}`); } } })] });
   }
   function openLog() {
     const turnos = T.linhaDoTempo(table.entradas).reverse();
@@ -16407,7 +16536,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
             try { const ev = table.passUntil(v, n => n.turn.number !== start && n.turn.active === v && n.turn.step === 'main1');
               const res = ev.filter(e => e.kind === 'resolved' && e.adjudicate).pop(); if (res) adjudicating = { name: res.name, oid: res.oid };
             } catch (e) { toast(e.message); }
-            save(); paint();
+            save(); desenhaDepoisDe(v); // H5 · passar o turno é o caso em que o oponente mais joga
           } })].filter(Boolean)
       });
     } else {
@@ -16594,7 +16723,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
           sinc ? (() => { const b = IconButton('conversa', 'Conversa', { id: 'tb-chat', variant: 'ghost', onClick: abreChat }); const lig = online.transporte.ligado();
             b.appendChild(h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(lig) }, 'aria-label': lig ? 'Partida online, conectada' : 'Partida online, reconectando' }));
             b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
-          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
+          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
           IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); if (sinc) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),

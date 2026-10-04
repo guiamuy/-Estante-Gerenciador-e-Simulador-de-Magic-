@@ -59,7 +59,7 @@ const DB = Object.fromEntries([
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
 
-async function open(t, { dev = true, apresentacao = false } = {}) {
+async function open(t, { dev = true, apresentacao = false, cena = false } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
@@ -76,6 +76,9 @@ async function open(t, { dev = true, apresentacao = false } = {}) {
   // D4b (leva 145) · a apresentação de primeira abertura só aparece no teste que a pede: os outros (e as abas que abrem
   // a partir do mesmo contexto, como as da partida online) começam direto na tela
   if (!apresentacao) await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; });
+  // H5 · contra o bot a mesa mostra o turno dele quadro a quadro (segundos de espera, mesa sem toque). Só o teste que pede vê a cena;
+  // os outros recebem o turno do bot de uma vez, como antes.
+  if (!cena) await ctx.addInitScript(() => { window.__SEM_CENA = true; });
   const page = await ctx.newPage();
   // leva 113: o app publicado só tem o motor completo. Os testes de mesa montam o estado à mão (mover carta, conjurar
   // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
@@ -6758,5 +6761,62 @@ test('e2e · H4 resumo do turno recolhido: faixa de 44 px com ícone e sinais no
   // o X dispensa: a faixa some e a mesa ganha a linha de volta
   assert.equal(await page.getAttribute('#tb-resumo-ok', 'aria-label'), 'Dispensar resumo');
   await page.click('#tb-resumo-ok'); await page.waitForFunction(() => !document.querySelector('#tb-resumo'));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com legenda, a mesa não aceita toque durante a cena, Pular vai ao fim, e dá para desligar', { skip }, async t => {
+  const { page, errors, base } = await open(t, { cena: true });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 });
+  await fimDaCena(); await page.waitForSelector('#tb-pass');
+  const M = () => page.evaluate(() => { const m = window.__estanteMesa; return { cena: m.cena(), narrado: m.narrado(), turno: m.estado().turn.number, final: m.estadoFinal().turn.number }; });
+  // chega à minha vez e passa o turno: o Shark joga o turno dele
+  const minhaVez = async () => { for (let i = 0; i < 60; i++) { await fimDaCena(); const e = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { meu: s.turn.active === 0 && s.turn.priority === 0 && !s.pending && !s.stack.length, pend: s.pending && s.pending.kind }; });
+    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); } };
+  /** Passa o turno até o Shark fazer alguma coisa. Com a mão cheia, a limpeza pede descarte antes: é o descarte que entrega o turno a ele. */
+  const passaAteCena = async () => { for (let i = 0; i < 8; i++) { await minhaVez(); await page.click('#tb-pass-turn'); await page.waitForTimeout(150);
+    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await M()).cena) await page.locator('#tb-hand .tb-card').first().click();
+    try { await page.waitForSelector('#tb[data-cena="true"] #tb-cena', { timeout: 2000 }); return; } catch (e) { /* turno sem jogada do oponente: tenta o próximo */ } } assert.fail('o Shark não jogou em oito turnos'); };
+  await minhaVez();
+  const antes = (await M()).narrado.length;
+  await passaAteCena();
+  // durante a cena: legenda com quem jogou e o que fez, contagem, Pular de 44 px; a mesa e a bandeja não pegam toque
+  await page.waitForTimeout(260); // a legenda entra com movimento curto
+  const c1 = await page.evaluate(() => { const el = document.querySelector('#tb-cena'), b = document.querySelector('#tb-cena-pular').getBoundingClientRect(), r = el.getBoundingClientRect(), doca = document.querySelector('.tb-dock').getBoundingClientRect();
+    return { quem: el.dataset.quem, conta: el.querySelector('.tb-cena__conta').textContent, pularH: b.height, pularW: b.width, texto: el.querySelector('.tb-cena__texto').innerText, acimaDaDoca: r.bottom <= doca.top + 1, dentro: r.left >= 0 && r.right <= innerWidth,
+      mesaSemToque: getComputedStyle(document.querySelector('.tb-board')).pointerEvents, docaSemToque: getComputedStyle(document.querySelector('.tb-dock')).pointerEvents, icones: [...el.querySelectorAll('#tb-cena-pular .ds-icon')].map(i => i.dataset.icone), vivo: el.getAttribute('aria-live') }; });
+  assert.match(c1.conta, /^\d+\/\d+$/); assert.ok(c1.pularH >= 44 && c1.pularW >= 44, JSON.stringify(c1)); assert.ok(c1.acimaDaDoca && c1.dentro, 'a legenda fica acima da bandeja, dentro da tela: ' + JSON.stringify(c1));
+  assert.equal(c1.mesaSemToque, 'none'); assert.equal(c1.docaSemToque, 'none'); assert.deepEqual(c1.icones, ['pular']); assert.equal(c1.vivo, 'polite');
+  assert.doesNotMatch(c1.texto, /\p{Extended_Pictographic}/u);
+  assert.equal(await page.evaluate(() => window.__estanteMesa.act({ t: 'pass', p: 0 })), false, 'jogada no meio da cena é recusada, sem estragar a partida');
+  const m1 = await M(); assert.ok(m1.cena && m1.cena.total >= 2, JSON.stringify(m1.cena));
+  await auditaTela(page, 'mesa durante a cena do oponente');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/h5-cena.png' });
+  // a cena termina sozinha no estado final, com a jogada do Shark narrada
+  await fimDaCena();
+  const m2 = await M(); const novas = m2.narrado.slice(antes);
+  assert.equal(m2.cena, null); assert.equal(m2.turno, m2.final, 'acabou no estado de verdade'); assert.ok(novas.some(l => /^Shark (jogou|conjurou|atacou|ativou)/.test(l)), 'a jogada do Shark foi narrada: ' + JSON.stringify(novas));
+  assert.equal(await page.locator('#tb-cena').count(), 0); assert.equal(await page.$eval('.tb-board', el => getComputedStyle(el).pointerEvents), 'auto', 'a mesa volta a aceitar toque');
+  // Pular: vai direto ao fim
+  await passaAteCena();
+  await page.click('#tb-cena-pular'); await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb-cena'));
+  const m3 = await M(); assert.equal(m3.cena, null); assert.equal(m3.turno, m3.final);
+  // desligar no balão da faixa: o turno do oponente volta a aparecer de uma vez
+  await minhaVez(); await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-ver-jogadas', { state: 'visible' });
+  assert.equal(await page.getAttribute('#tb-ver-jogadas', 'aria-pressed'), 'true'); assert.equal((await page.innerText('#tb-ver-jogadas')).trim(), 'Ver jogadas');
+  await auditaTela(page, 'balão da faixa com Ver jogadas');
+  await page.click('#tb-ver-jogadas'); await page.waitForFunction(() => document.querySelector('#tb-ver-jogadas').getAttribute('aria-pressed') === 'false'); await page.click('#tb-vez-fechar');
+  const n4 = (await M()).narrado.length; await page.click('#tb-pass-turn'); await page.waitForTimeout(400);
+  assert.equal(await page.locator('#tb-cena').count(), 0, 'desligado: sem cena'); assert.equal((await M()).narrado.length, n4);
+  await page.reload(); await page.waitForSelector('#tb-vez-btn'); await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-ver-jogadas', { state: 'visible' });
+  assert.equal(await page.getAttribute('#tb-ver-jogadas', 'aria-pressed'), 'false', 'a escolha fica guardada no aparelho');
   assert.deepEqual(errors, []);
 });

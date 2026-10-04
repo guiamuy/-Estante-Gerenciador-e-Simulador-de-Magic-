@@ -415,6 +415,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ax ✅ | H1 imagens nítidas: verso de dupla face na mesa e na folha (com Virar carta) e cartas com imagem na troca de reserva (leva 171) | H | 1 | teste no aparelho |
 | 16º-ay ✅ | H2 contra o bot, desfazer volta quantas jogadas quiser (até a mão inicial) e o Registro volta ao começo de um turno (leva 173) | H | 1 | teste no aparelho |
 | 16º-az ✅ | H4 resumo do turno recolhido: faixa de 44 px com ícone e sinais, detalhe por cima da mesa, fecha fácil (leva 174) | H | 1 | teste no aparelho |
+| 16º-ba ✅ | H5 ver o oponente jogar: o turno do bot passa quadro a quadro, com legenda, a tela indo até onde acontece, som e efeito por passo, Pular e liga/desliga (leva 175) | H | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4913,6 +4914,36 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   (altura, alvos de 44 px, ícones, nome falado, abrir sem mover o campo, três jeitos de fechar, Registro, X;
   `auditaTela` aberto e fechado). A expectativa do e2e A16 mudou com justificativa: o texto do resumo abre a um toque.
 - **Fora:** lembrar aberto/fechado entre partidas; resumo por fase.
+
+**H5 · Ver o oponente jogar** ✅ (leva 175, 04/10/2026)
+- **Antes:** uma jogada sua (passar o turno, por exemplo) fazia o Shark jogar o turno inteiro dele dentro do motor, e
+  a mesa era desenhada **uma vez só, já no fim**: terreno, criatura, ataque e dano apareciam prontos, todos os
+  efeitos juntos. Não dava para acompanhar.
+- **Agora, contra o bot:** o turno dele passa **quadro a quadro**. Cada quadro é um estado que o motor já tinha
+  produzido (nenhuma regra muda): a sua jogada, cada jogada do oponente e cada passo em que algo acontece na mesa.
+  Passos em que só a prioridade passa somem dentro do quadro anterior.
+  - **Legenda** presa acima da bandeja: quem jogou, o que fez (as mesmas frases do Registro), a miniatura da
+    carta quando há, a contagem ("3/7") e **Pular**.
+  - **A tela vai até onde acontece:** rola sozinha para a carta, a criatura ou o marcador de vida do quadro, e volta
+    para o seu lado no fim.
+  - **Som e efeito por quadro:** como a G4 e a G5 leem a diferença entre dois estados, cada passo toca o som dele e
+    mostra o efeito dele, em sequência — antes saíam empilhados.
+  - **A mesa não aceita toque durante a cena** (campo e bandeja); a jogada tentada no meio é recusada sem estragar a
+    partida. **Pular** vai direto ao estado final, sem tocar todos os sons de uma vez.
+- **Ritmo:** 1 s por jogada do oponente, 0,8 s por acontecimento, 0,35 s para o que não aparece (compra dele);
+  a cena inteira cabe em cerca de 12 s (turno longo acelera, nunca abaixo de 0,3 s por quadro); até 40 quadros.
+- **Liga e desliga:** chip **Ver jogadas** no balão da faixa de turno, ao lado do Som; guardado no aparelho
+  (`mesa.verJogadas`) e levado no backup. Ligado por padrão.
+- **Modelo:** `guardaPassos()`/`colhePassos()` no modelo da mesa (só guarda quando a tela pede: torneio e teste não
+  acumulam estados); `roteiroDaJogada` puro em `sentidos.js`.
+- **Limites declarados:** só contra o bot (a dois, as jogadas já acontecem na sua frente; online, chegam uma a uma
+  pela sala). A legenda usa as frases do Registro, que já dizia qual carta o Shark escolheu numa vidência — isso
+  é do registro, não mudou aqui. Com "Ver jogadas" ligado, passar o turno leva alguns segundos a mais.
+- **Testes:** U `sentidos.unit` +2 (roteiro: quadros, passes absorvidos, estado final, sem cena sem oponente, teto;
+  passos encadeados do modelo com o motor de verdade); e2e "H5" (cena com legenda e contagem, Pular de 44 px,
+  mesa sem toque, jogada recusada no meio, fim no estado real, Pular, desligar e lembrar; `auditaTela` na cena).
+  O harness dos e2e desliga a cena por padrão (`open(t, { cena: true })` liga).
+- **Fora:** escolher a velocidade; voltar um quadro; cena na partida online e a dois.
 
 ### P · Plataforma
 

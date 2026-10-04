@@ -165,3 +165,56 @@ test('G5 · plano de efeitos: cada evento vira um efeito num alvo (carta, vida, 
   assert.equal(p([{ tipo: 'remocaoGlobal', oids: Array.from({ length: 30 }, (_, i) => i), n: 30 }, { tipo: 'ataque', oids: Array.from({ length: 30 }, (_, i) => i) }]).length, 16);
   assert.deepEqual(p([]), []);
 });
+
+test('H5 · roteiro da jogada: a sua ação, cada jogada do oponente e cada passo em que algo acontece viram quadros; passes somem; sem jogada do oponente não há cena', () => {
+  const base = (objs, extra) => st(objs, { players: [{ life: 20, name: 'Você' }, { life: 20, name: 'Shark' }], ...extra });
+  const s0 = base([ob(1, 'hand', { name: 'Ilha' }), ob(5, 'hand', { owner: 1, controller: 1, name: 'Bicho' })]);
+  const s1 = base([ob(1, 'battlefield', { name: 'Ilha' }), ob(5, 'hand', { owner: 1, controller: 1, name: 'Bicho' })]);                       // eu: terreno
+  const s2 = { ...s1, turn: { number: 4, active: 1, step: 'main1' } };                                                                     // eu passo: vira o turno
+  const s3 = base([ob(1, 'battlefield', { name: 'Ilha' }), ob(5, 'stack', { owner: 1, controller: 1, name: 'Bicho' })], { turn: s2.turn }); // bot conjura
+  const s4 = base([ob(1, 'battlefield', { name: 'Ilha' }), ob(5, 'battlefield', { owner: 1, controller: 1, name: 'Bicho' })], { turn: s2.turn }); // eu passo: resolve
+  const s5 = { ...s4, turn: { number: 4, active: 1, step: 'combat_begin' } };                                                               // bot passa: nada acontece
+  const s6 = { ...s5, players: [{ life: 17, name: 'Você' }, { life: 20, name: 'Shark' }] };                                                                              // dano em mim
+  const passos = [
+    { antes: s0, depois: s1, acao: { t: 'play_land', p: 0, oid: 1 }, eventos: [], linhas: ['Você jogou Ilha'] },
+    { antes: s1, depois: s2, acao: { t: 'pass', p: 0 }, eventos: [], linhas: ['— Turno 4 · Shark —'] },
+    { antes: s2, depois: s3, acao: { t: 'cast', p: 1, oid: 5 }, eventos: [], linhas: ['Shark conjurou Bicho'] },
+    { antes: s3, depois: s4, acao: { t: 'pass', p: 0 }, eventos: [{ kind: 'resolved', oid: 5, to: 'battlefield' }], linhas: ['Bicho entrou no campo'] },
+    { antes: s4, depois: s5, acao: { t: 'pass', p: 1 }, eventos: [], linhas: [] },
+    { antes: s5, depois: s6, acao: { t: 'pass', p: 0 }, eventos: [], linhas: ['Você perdeu 3 de vida (20 → 17)'] }];
+  const q = S.roteiroDaJogada(passos, { eu: 0, tipos });
+  assert.deepEqual(J(q.map(x => [x.quem, x.legenda, x.sentidos.map(e => e.tipo).join('+'), x.ms])), [
+    [0, 'Você jogou Ilha', 'terreno', 450], [1, 'Turno 4 · Shark', 'turno', 800], [1, 'Shark conjurou Bicho', 'conjura', 1000], [1, 'Bicho entrou no campo', 'entra', 800], [0, 'Você perdeu 3 de vida (20 → 17)', 'dano', 800]]);
+  assert.equal(q[0].meu, true); assert.equal(q[2].oid, 5, 'a carta da jogada vai na legenda');
+  assert.equal(q[3].estado, s5, 'o passe sem nada foi absorvido pelo quadro anterior (a mesa não pisca à toa)');
+  assert.equal(q[q.length - 1].estado, s6, 'o último quadro é o estado final');
+  // sem jogada do oponente (só eu e passes): nada de cena
+  assert.equal(S.roteiroDaJogada(passos.slice(0, 2), { eu: 0, tipos }).length, 0); assert.equal(S.roteiroDaJogada([], { eu: 0 }).length, 0); assert.equal(S.roteiroDaJogada(null, { eu: 0 }).length, 0);
+  // turno comprido: a cena inteira cabe no teto, nenhum quadro some depressa demais
+  const comprido = [passos[0], ...Array.from({ length: 30 }, () => passos[2])];
+  const qs = S.roteiroDaJogada(comprido, { eu: 0, tipos, teto: 12000 });
+  assert.ok(qs.reduce((n, x) => n + x.ms, 0) <= 12000 * 1.05 && qs.every(x => x.ms >= 300), 'perto do teto de 12 s (o mínimo de 300 ms por quadro pode passar um pouco)');
+  assert.equal(S.roteiroDaJogada(comprido, { eu: 0, tipos, max: 10 }).length, 10);
+});
+
+test('H5 · o modelo da mesa guarda os passos só quando a tela pede, e a colheita esvazia', () => {
+  const setup = T.buildSetup({ format: 'pauper', seed: 21, cards: CARDS, seats: [{ name: 'Você', deck: { entries: PAUPER_DECK } }, { name: 'Shark', deck: { entries: PAUPER_DECK } }], manaCheck: true, mode: 'full' });
+  const mesa = T.createTable(setup, { options: { autoPass: true, bot: { nivel: 'shark', seat: 1 } } });
+  mesa.act({ t: 'keep', p: 0, bottom: [] });
+  assert.deepEqual(J(mesa.colhePassos()), [], 'desligado por padrão: torneio e teste não acumulam estados');
+  mesa.guardaPassos(true);
+  // joga até o bot ter feito alguma coisa numa jogada minha
+  let passos = [], quadros = [];
+  for (let i = 0; i < 40 && !quadros.length && mesa.state.status === 'playing'; i++) {
+    const s = mesa.state, ls = E.legalActions(s, 0), antes = s;
+    mesa.act(s.pending ? ls[0] : (ls.find(a => a.t === 'play_land') || { t: 'pass', p: 0 }));
+    passos = mesa.colhePassos();
+    assert.ok(passos.length >= 1); assert.equal(passos[0].antes, antes, 'o primeiro passo parte do estado em que eu joguei'); assert.equal(passos[passos.length - 1].depois, mesa.state, 'o último chega ao estado da mesa');
+    for (let k = 1; k < passos.length; k++) assert.equal(passos[k].antes, passos[k - 1].depois, 'os passos encadeiam');
+    quadros = S.roteiroDaJogada(passos, { eu: 0, stats: E.stats, tipos: n => mesa.state.facts[n].types });
+  }
+  assert.ok(quadros.length >= 2, 'o bot jogou e virou cena'); assert.ok(quadros.some(q => q.quem === 1 && q.legenda), 'com a jogada dele legendada: ' + JSON.stringify(quadros.map(q => q.legenda)));
+  assert.equal(quadros[quadros.length - 1].estado, mesa.state);
+  assert.deepEqual(J(mesa.colhePassos()), [], 'colheu, esvaziou');
+  mesa.guardaPassos(false); mesa.act(mesa.state.pending ? E.legalActions(mesa.state, 0)[0] : { t: 'pass', p: 0 }); assert.deepEqual(J(mesa.colhePassos()), []);
+});
