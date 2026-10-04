@@ -116,7 +116,7 @@ test('e2e · criar lista, ver galeria, marcar coleção e exportar faltantes', {
   await page.click('#deck-save');
   await page.waitForSelector('.deck-summary');
   const body = await page.innerText('main');
-  assert.match(body, /1 carta\(s\) não reconhecida\(s\): Carta Inexistente/);
+  assert.match(await estadoDaLista(page), /1 carta\(s\) não reconhecida\(s\): Carta Inexistente/); // D8 · na folha da linha de estado
   assert.match(body, /Terrenos/);
   assert.match(await page.innerText('.deck-summary'), /0\/34/);
 
@@ -163,6 +163,13 @@ test('e2e · todo botão visível tem ao menos 44px de altura no celular', { ski
 async function digitaCarta(page, nome) {
   if (await page.locator('#col-pelo-nome').isVisible().catch(() => false)) { await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add'); }
   await page.fill('#col-add', nome);
+}
+/** D8 (leva 153) · os avisos e erros de validação da lista moram na linha de estado; a folha traz os textos completos. */
+async function estadoDaLista(page) {
+  await page.waitForSelector('#deck-estado'); await page.click('#deck-estado'); await page.waitForSelector('.ds-dialog');
+  const texto = await page.innerText('.ds-dialog');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  return texto;
 }
 async function createDeck(page, base, name, text, format = 'pauper') {
   await page.goto(base + '#/listas/editar');
@@ -736,7 +743,9 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.fill('#deck-text', PAUPER + '\n1 Lightning Bolt');
   await page.click('#deck-save');
   await page.waitForSelector('.deck-summary');
-  const corpo = await page.innerText('body');
+  // D8 (leva 153) · os avisos moram na linha de estado; o texto completo abre na folha
+  await page.waitForSelector('#deck-estado'); assert.match(await page.innerText('#deck-estado'), /\d+ avisos?/);
+  const corpo = await estadoDaLista(page);
   assert.match(corpo, /1 carta\(s\) ainda não conferida\(s\) \(sem internet/, 'aviso, não erro');
   assert.doesNotMatch(corpo, /não reconhecida/);
   // busca: sem rede vai direto à base local, sem mensagem de falha
@@ -1339,7 +1348,7 @@ test('e2e · L11 companheiro fora das 100 e condição do Lurrus', { skip }, asy
   await page.fill('#deck-text', 'Commander\n1 Mock Commander\n\nDeck\n1 Lurrus of the Dream-Den\n99 Plains');
   await page.click('#deck-save');
   await page.waitForSelector('.deck-summary');
-  assert.match(await page.innerText('main'), /101 de 100/, 'antes: Lurrus conta como carta do deck');
+  assert.match(await estadoDaLista(page), /101 de 100/, 'antes: Lurrus conta como carta do deck'); // D8 · texto na folha
 
   await page.locator('.deck-slot[data-name="Lurrus of the Dream-Den"] .ds-card').click();
   await page.click('#deck-set-companion');
@@ -1347,7 +1356,7 @@ test('e2e · L11 companheiro fora das 100 e condição do Lurrus', { skip }, asy
   assert.match(await page.innerText('#deck-counts'), /100 no deck/);
   const body = await page.innerText('main');
   assert.match(body, /Companheiro/);
-  assert.match(body, /Lista válida para Commander/);
+  assert.match(await page.innerText('#deck-estado'), /Válida · Commander/); // D8 · a linha de estado resume; a folha traz a frase
 
   // condição quebrada: permanente de valor 4 no deck
   await page.goto(base + '#/listas');
@@ -1356,7 +1365,8 @@ test('e2e · L11 companheiro fora das 100 e condição do Lurrus', { skip }, asy
   await page.fill('#deck-text', 'Commander\n1 Mock Commander\n\nCompanion\n1 Lurrus of the Dream-Den\n\nDeck\n98 Plains\n1 Mock Ogre');
   await page.click('#deck-save');
   await page.waitForSelector('.deck-summary');
-  assert.match(await page.innerText('main'), /Condição de Lurrus of the Dream-Den .* Mock Ogre/);
+  assert.match(await page.innerText('#deck-estado'), /1 erro/); // D8 · o erro está na linha de estado; o texto, na folha
+  assert.match(await estadoDaLista(page), /Condição de Lurrus of the Dream-Den .* Mock Ogre/);
   assert.deepEqual(errors, []);
 });
 
@@ -6000,5 +6010,46 @@ test('e2e · D6 mesa de relance: no início da partida nenhuma zona vazia ocupa 
   assert.equal(await page.getAttribute('.tb-side--me', 'data-campo'), 'ocupado');
   assert.equal(await page.locator('.tb-side--opp .tb-zone').count(), 0, 'o lado do oponente segue sem zonas');
   await auditaTela(page, 'mesa de relance');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · D8 avisos no lugar: a lista sem rede tem uma linha de estado (≤ 48 px) com folha no lugar de duas notas; o botão mostra ✓ por 1,2 s antes do aviso', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER + '\n1 Carta Inexistente'); // a carta sem script garante "Copiar sem script"
+  const urlDelver = page.url();
+  // sem rede: uma lista nova com carta nunca vista abre com "Sem internet" e os avisos numa linha só (antes: duas notas)
+  await page.route('https://api.scryfall.com/**', r => r.abort('internetdisconnected'));
+  await page.context().setOffline(true);
+  await createDeck(page, base, 'Sem rede', '20 Island\n4 Lightning Bolt');
+  await page.waitForSelector('#deck-estado', { timeout: 10000 });
+  const linha = await page.locator('#deck-estado').boundingBox();
+  assert.ok(linha.height <= 48, `uma linha (${Math.round(linha.height)} px; antes eram duas notas somando 153 px)`);
+  assert.equal(await page.locator('#outlet .ds-note:visible').count(), 0, 'nenhuma nota empilhada na tela');
+  assert.equal(await page.locator('#deck-sem-rede').count(), 0, 'o aviso de rede entrou na linha');
+  const itens = await page.$$eval('#deck-estado .ds-estado__item', is => is.map(i => [i.dataset.tom, i.textContent.trim()]));
+  assert.deepEqual(itens[0], ['warning', 'Sem internet']);
+  assert.ok(itens.some(([tom, txt]) => tom === 'warning' && /aviso/.test(txt)), JSON.stringify(itens));
+  assert.match(await page.getAttribute('#deck-estado', 'aria-label'), /^Estado da lista: Sem internet, .*Toque para ver os detalhes$/);
+  await page.click('#deck-estado'); await page.waitForSelector('.ds-dialog');
+  assert.equal(await page.locator('.ds-dialog .ds-note').count(), itens.length, 'uma nota por item na folha');
+  assert.match(await page.innerText('.ds-dialog'), /Sem conexão com a Scryfall/);
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await auditaTela(page, 'lista sem rede');
+  await page.context().setOffline(false); await page.unroute('https://api.scryfall.com/**');
+  // ✓ no botão: Copiar sem script mostra "Copiado" no próprio botão e volta ao rótulo em ~1,2 s; o aviso vem junto
+  await page.goto(urlDelver); await page.reload(); await page.waitForSelector('#deck-copy-missing', { timeout: 10000 });
+  await page.evaluate(() => { navigator.clipboard.writeText = async () => {}; });
+  await page.click('#deck-copy-missing');
+  await page.waitForSelector('#deck-copy-missing[data-confirmado="true"]');
+  assert.equal(await page.innerText('#deck-copy-missing .ds-btn__rotulo'), 'Copiado');
+  assert.equal(await page.locator('#deck-copy-missing svg').count(), 1, 'o ✓ desenhado');
+  assert.match(await page.innerText('#ds-toast'), /copiadas/);
+  await page.waitForSelector('#deck-copy-missing:not([data-confirmado])', { timeout: 3000 });
+  assert.equal(await page.innerText('#deck-copy-missing .ds-btn__rotulo'), 'Copiar sem script');
+  // Perfil: Salvar vira "Salvo" por um instante
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome'); await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar');
+  await page.waitForSelector('#perfil-salvar[data-confirmado="true"]'); assert.equal(await page.innerText('#perfil-salvar .ds-btn__rotulo'), 'Salvo');
   assert.deepEqual(errors, []);
 });

@@ -462,6 +462,8 @@ a { color: var(--accent); }
 .ds-nav--perfil { min-width: var(--tap-min); padding: 0 var(--space-1); }
 /* abaixo da faixa estreita suportada (360) a barra não tem os 44 px do avatar: ele sai e o perfil segue por #/perfil */
 @media (max-width: 339px) { .ds-nav--perfil { display: none; } }
+/* D8 · com o chip "Sem rede" na barra, em 360 px os destinos apertam o passo em vez de vazar para o lado */
+@media (max-width: 379px) { .ds-appbar:has(#nav-offline:not(.ds-hidden)) .ds-appbar__inner { gap: var(--space-1); } .ds-appbar:has(#nav-offline:not(.ds-hidden)) .ds-nav { min-width: var(--tap-min); padding-left: 2px; padding-right: 2px; } }
 .ds-nav--perfil[aria-current="page"] .ds-avatar { border-color: var(--accent); }
 .perfil-cabeca { display: flex; align-items: center; gap: var(--space-4); }
 .perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }
@@ -735,6 +737,24 @@ a { color: var(--accent); }
 }
 .ds-note--warning { border-left-color: var(--warning); }
 .ds-note--negative { border-left-color: var(--negative); }
+/* D8 · linha de estado: avisos lado a lado, uma linha, rola de lado se não couber; o toque abre a folha */
+.ds-estado { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--tap-min); padding: 0 var(--space-3);
+  border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-1); background: var(--bg-elev-1); color: var(--fg-muted);
+  font: inherit; font-size: var(--text-sm); text-align: left; overflow-x: auto; white-space: nowrap; scrollbar-width: none; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+.ds-estado::-webkit-scrollbar { display: none; }
+.ds-estado[data-tom="warning"] { border-left-color: var(--warning); }
+.ds-estado[data-tom="negative"] { border-left-color: var(--negative); }
+.ds-estado[data-tom="positive"] { border-left-color: var(--positive); }
+.ds-estado__item { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; }
+.ds-estado__item[data-tom="warning"] .ds-icon { color: var(--warning); }
+.ds-estado__item[data-tom="negative"] .ds-icon { color: var(--negative); }
+.ds-estado__item[data-tom="positive"] .ds-icon { color: var(--positive); }
+.ds-estado__item + .ds-estado__item::before { content: '·'; color: var(--fg-subtle); margin-right: var(--space-1); }
+.ds-estado__seta { margin-left: auto; display: inline-flex; color: var(--fg-subtle); padding-left: var(--space-2); }
+.ds-estado:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* D8 · botão confirmado: ✓ no acento por 1,2 s */
+.ds-btn[data-confirmado="true"] { color: var(--positive); border-color: var(--positive); }
+.ds-btn--primary[data-confirmado="true"] { color: var(--accent-fg); border-color: var(--accent); }
 .ds-spinner {
   width: 18px; height: 18px; border-radius: var(--radius-full);
   border: 2px solid var(--border); border-top-color: var(--accent);
@@ -2070,6 +2090,7 @@ const ICONES = {
   conferir: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4.5v4.2h-4.2"/>',
   mais: '<path d="M12 5v14M5 12h14"/>',
   menos: '<path d="M5 12h14"/>',
+  alerta: '<path d="M12 4 3 19.5h18Z"/><path d="M12 9.5V14"/><path d="M12 16.8v.2"/>', // D8 · aviso (linha de estado)
   fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   editar: '<path d="M4.5 19.5l1-4.2L15.8 5a1.9 1.9 0 0 1 2.7 0l.5.5a1.9 1.9 0 0 1 0 2.7L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>',
   lixeira: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7"/><path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/><path d="M10.2 11v5.5M13.8 11v5.5"/>',
@@ -2309,6 +2330,31 @@ function AnelProgresso(pct, { tamanho = 64, id, rotulo = 'guardado' } = {}) {
 /** leva 123 · o tom pode vir como texto ('warning') ou objeto ({ tone }); 'danger' é apelido de 'negative'. */
 const TOM = t => { const x = t && typeof t === 'object' ? t.tone : t; return x === 'danger' ? 'negative' : (x || ''); };
 const Note = (content, tone) => h('div', { class: ['ds-note', TOM(tone) ? `ds-note--${TOM(tone)}` : ''].filter(Boolean).join(' '), html: content });
+/** D8 · avisos de estado numa linha só: um item por aviso (ícone + rótulo curto, com tom); o toque abre a folha com os
+    textos completos. `itens`: [{ icone, tom, rotulo, detalhe }] — `detalhe` é HTML já escapado (como em Note). */
+function LinhaEstado(itens, { id, titulo = 'Estado' } = {}) {
+  const lista = (itens || []).filter(Boolean);
+  if (!lista.length) return null;
+  const pior = lista.some(i => TOM(i.tom) === 'negative') ? 'negative' : lista.some(i => TOM(i.tom) === 'warning') ? 'warning' : lista.some(i => TOM(i.tom) === 'positive') ? 'positive' : '';
+  const falado = lista.map(i => i.rotulo).join(', ');
+  return h('button', { class: 'ds-estado', type: 'button', id: id || null, dataset: { tom: pior, itens: String(lista.length) }, 'aria-label': `${titulo}: ${falado}. Toque para ver os detalhes`,
+    onClick: () => Dialog({ title: titulo, body: Stack({}, ...lista.map(i => Note(i.detalhe || escapa(i.rotulo), TOM(i.tom) || undefined))), actions: [Button('Fechar', { onClick: closeDialog })] }) },
+    ...lista.map(i => h('span', { class: 'ds-estado__item', dataset: { tom: TOM(i.tom) || 'muted' } }, i.icone ? Icone(i.icone, { tamanho: 16 }) : null, h('span', { class: 'ds-estado__rotulo' }, i.rotulo))),
+    h('span', { class: 'ds-estado__seta' }, Icone('seguir', { tamanho: 16 })));
+}
+const escapa = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/** D8 · retorno no lugar da ação: o botão mostra ✓ e um rótulo curto por 1,2 s e volta ao que era. O aviso flutuante
+    continua para o detalhe; este é o primeiro retorno, perto do dedo. */
+function confirmaBotao(btn, { texto = 'Feito', ms = 1200 } = {}) {
+  if (!btn || btn.dataset.confirmado === 'true') return;
+  const filhos = [...btn.childNodes], rotuloAntes = btn.getAttribute('aria-label');
+  btn.dataset.confirmado = 'true';
+  // botão só de ícone (44 px): troca só o desenho; o texto vai para o nome falado, não para dentro da caixa
+  if (btn.classList.contains('ds-btn--icon')) btn.replaceChildren(Icone('marcar', { tamanho: 20 }));
+  else btn.replaceChildren(Icone('marcar', { tamanho: 20 }), h('span', { class: 'ds-btn__rotulo' }, texto));
+  btn.setAttribute('aria-label', texto);
+  setTimeout(() => { btn.replaceChildren(...filhos); if (rotuloAntes == null) btn.removeAttribute('aria-label'); else btn.setAttribute('aria-label', rotuloAntes); delete btn.dataset.confirmado; }, ms);
+}
 const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-label': 'carregando' });
 /** Leva 149 · bloco que abre e fecha. O cabeçalho inteiro é o botão: selo com o ícone do conceito, título, resumo
     opcional (o que o bloco guarda quando está fechado) e a seta. Quem usa guarda o estado e redesenha. */
@@ -2450,7 +2496,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -3458,7 +3504,7 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
       state.results = r.cards; state.source = r.source;
       if (r.degraded) state.error = explainFailure(r.cause, env);
       if (r.source === 'local' && !r.cards.length && !(await local.count()))
-        state.error = 'A base local está vazia. Importe um arquivo de cartas para buscar sem rede.';
+        state.error = 'A base local está vazia: busque uma vez com internet, ou importe um arquivo de cartas em Perfil › Dados.';
       if (images && images.available && r.source === 'rede')
         images.warm(r.cards.slice(0, 24).map(c => c.images && c.images.normal));
     } catch (e) {
@@ -6809,7 +6855,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao } = __m3;
 const { norm } = __m7;
 const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
@@ -7043,9 +7089,9 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
   async function salvar(forca = false) {
     if ((!mudou() && !forca) || st.ocupado) return;
     st.ocupado = true; paint();
-    try { st.salvo = await perfil.set({ nome: st.nome, avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.vibrate(8); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); }
+    try { st.salvo = await perfil.set({ nome: st.nome, avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.vibrate(8); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); st.confirmaSalvo = true; }
     catch (err) { toast('Não foi possível salvar o perfil'); }
-    finally { st.ocupado = false; paint(); }
+    finally { st.ocupado = false; paint(); if (st.confirmaSalvo) { st.confirmaSalvo = false; const b = root.querySelector('#perfil-salvar'); if (b) confirmaBotao(b, { texto: 'Salvo' }); } } // D8 · ✓ no botão depois de a tela repintar
   }
 
   /* ---- D2 · Aparência: tema, acento, densidade, texto, movimento, vibração — aplica na hora e guarda ---- */
@@ -7107,7 +7153,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Text('Backup completo', { size: 'sm', as: 'h2', display: true }),
         Text('Listas, coleção, perfil e preferências num arquivo. Guarde fora do aparelho para não perder nada ao trocar de celular ou limpar o navegador.', { size: 'sm', tone: 'muted' }),
         Row({ class: 'ds-row--wrap' },
-          Button('Exportar', { icone: 'exportar', id: 'perfil-backup-export', title: 'Exportar backup completo', onClick: async () => { await backup.exportar(); toast('Backup exportado'); } }),
+          Button('Exportar', { icone: 'exportar', id: 'perfil-backup-export', title: 'Exportar backup completo', onClick: async e => { const b = e.currentTarget; await backup.exportar(); confirmaBotao(b, { texto: 'Exportado' }); toast('Backup exportado'); } }),
           Button('Restaurar', { icone: 'importar', id: 'perfil-backup-restore', title: 'Restaurar backup', onClick: () => backupInput.click() })),
         backupInput)),
       secaoConta(),
@@ -7345,7 +7391,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       }));
     const text = () => area.value;
     Dialog({ title: 'Exportar', body: Stack({}, chips, area), actions: [
-      Button('Copiar', { onClick: async () => { toast(await share.copy(text()) ? 'Copiado' : 'Não foi possível copiar'); } }),
+      Button('Copiar', { icone: 'copiar', onClick: async e => { const ok = await share.copy(text()); if (ok) confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Copiado' : 'Não foi possível copiar'); } }),
       Button('Baixar .txt', { onClick: () => { files.save(`${state.deck.name}${pick.which === 'missing' ? ' - faltantes' : ''}.txt`, text()); toast('Arquivo baixado'); } }),
       Button('Fechar', { variant: 'primary', onClick: closeDialog })
     ] });
@@ -7414,16 +7460,24 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           Button('Exportar', { id: 'deck-export', icone: 'exportar', onClick: exportDialog }),
           IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
-      state.degraded ? AvisoRede('Sem conexão com a Scryfall: mostrando as cartas guardadas no aparelho.', { id: 'deck-sem-rede' }) : null,
+      // D8 · estado da lista numa linha: sem rede, avisos e erros de validação (ou "válida"); o toque abre a folha com tudo
+      LinhaEstado([
+        state.degraded ? { icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão com a Scryfall: mostrando as cartas guardadas no aparelho.' } : null,
+        ...(() => { const erros = issues.filter(i => i.level === 'error'), avisos = issues.filter(i => i.level !== 'error'); return [
+          erros.length ? { icone: 'fechar', tom: 'negative', rotulo: erros.length === 1 ? '1 erro' : `${erros.length} erros`, detalhe: erros.map(i => '<b>✕</b> ' + escapeHtml(i.message)).join('<br>') } : null,
+          avisos.length ? { icone: 'alerta', tom: 'warning', rotulo: avisos.length === 1 ? '1 aviso' : `${avisos.length} avisos`, detalhe: avisos.map(i => '<b>!</b> ' + escapeHtml(i.message)).join('<br>') } : null,
+          !issues.length && d.format !== 'livre' ? { icone: 'marcar', tom: 'positive', rotulo: `Válida · ${FORMATS[d.format]}`, detalhe: `<b>✓</b> Lista válida para ${FORMATS[d.format]}.` } : null]; })()
+      ], { id: 'deck-estado', titulo: 'Estado da lista' }),
       (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
           // U2 parte 3 · selos com ícone desenhado no lugar de ✓ ◐ ✎
           Badge([Icone('marcar', { tamanho: 14 }), ` ${cv.completo}`], { tone: 'positive' }), cv.parcial ? Badge([Icone('meia', { tamanho: 14 }), ` ${cv.parcial}`]) : null, cv.manual ? Badge([Icone('editar', { tamanho: 14 }), ` ${cv.manual}`]) : null),
         Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela está pronta para jogar.' : `Esta lista ainda não joga: o motor não resolve ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
           { size: 'sm', tone: 'muted' }),
-        cv.worst.length ? Button('Copiar sem script', { id: 'deck-copy-missing', icone: 'copiar', title: 'Copiar as cartas que o motor ainda não resolve', onClick: async () => {
+        cv.worst.length ? Button('Copiar sem script', { id: 'deck-copy-missing', icone: 'copiar', title: 'Copiar as cartas que o motor ainda não resolve', onClick: async e => {
           const txt = cv.worst.map(n => `1 ${n}`).join('\n');
-          toast(await share.copy(txt) ? `${cv.worst.length} carta(s) copiadas` : 'Não foi possível copiar');
+          const ok = await share.copy(txt); if (ok) confirmaBotao(e.currentTarget, { texto: 'Copiado' });
+          toast(ok ? `${cv.worst.length} carta(s) copiadas` : 'Não foi possível copiar');
         } }) : null)); })(),
       Surface({ class: 'ds-surface--pad deck-summary' },
         h('div', { class: 'deck-summary__own' },
@@ -7440,9 +7494,6 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           sug ? Button('Separar reserva', { variant: 'primary', icone: 'pilhas', id: 'deck-reserva-separar', onClick: async () => {
             state.deck = await decks.save({ ...state.deck, entries: sug.entries }); toast(`${sug.movidas} carta(s) foram para a reserva`); paint(); } }) : null);
       })() : null,
-      issues.length
-        ? Note(issues.map(i => (i.level === 'error' ? '<b>✕</b> ' : '<b>!</b> ') + escapeHtml(i.message)).join('<br>'), issues.some(i => i.level === 'error') ? 'negative' : 'warning')
-        : (d.format !== 'livre' ? Note(`<b>✓</b> Lista válida para ${FORMATS[d.format]}.`) : null),
       Row({ class: 'ds-row--wrap' }, markChip,
         state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : Text('Um toque abre a carta. Dois toques marcam que você a tem.', { size: 'sm', tone: 'muted' })),
       linhaFiltro,
@@ -8134,7 +8185,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       await collection.set(canonico, cur + 1);
       if (c) state.cards.set(norm(c.name), c);
       addIn.value = ''; addState.name = '';
-      toast(`${canonico}: ${cur + 1} cópia(s)`); await refresh(); paintCare();
+      confirmaBotao(addBtn, { texto: 'Somou' }); toast(`${canonico}: ${cur + 1} cópia(s)`); await refresh(); paintCare();
     } catch (e) { toast('Não foi possível adicionar agora'); }
     finally { addBtn.disabled = false; }
   }

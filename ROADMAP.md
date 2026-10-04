@@ -403,6 +403,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
+| 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4449,6 +4450,25 @@ tokens, um atributo no `<html>` e o verso.
   a linha fina de Permanentes, `auditaTela`). U5/U7/R2/R5 da mesa continuam verdes.
 - **Fora:** colapsar o lado do oponente inteiro quando ele está fora da partida; esconder o chip de exílio até a
   primeira carta exilada (é alvo de toque para ver o que já saiu).
+**D8 · Avisos e retorno no lugar** ✅ (leva 153, 03/10/2026) — **sem o scanner**, de propósito: a trilha scanner tem a
+X16 (tela nova, estados desenhados) planejada em cima das mesmas notas; mexer nelas aqui cruzaria as duas. A medida
+"≥ 120 px devolvidos à moldura" fica com a X16.
+- **Entregue:** componente **`LinhaEstado`** no DS — os avisos de uma tela numa linha só (ícone + rótulo curto por
+  item, tom pelo pior; o toque abre a folha com os textos completos; nome falado lista os itens). Na **tela da lista**
+  ela junta "Sem internet", erros e avisos de validação (ou "Válida · Formato") no lugar do aviso de rede + nota
+  empilhada. Componente **`confirmaBotao`**: ✓ e rótulo curto no próprio botão por 1,2 s, antes do aviso flutuante —
+  em Copiar sem script e Copiar da exportação ("Copiado"), Salvar do perfil ("Salvo"), Exportar backup
+  ("Exportado") e no + de adicionar carta ("Somou"). Ícone novo `alerta`.
+- **Correções no caminho:** em 360 px com o chip "Sem rede" na barra, os destinos vazavam para o lado (382 px); agora
+  apertam o passo. A frase "base local vazia" em Cartas aponta para Perfil › Dados (D5).
+- **Medido (360×780, lista sem rede):** duas notas (52 + 101 px) viram uma linha de 44 px — **109 px devolvidos** à
+  lista de cartas.
+- **Testes:** e2e "D8" (lista nova sem rede: uma linha ≤ 48 px, nenhuma nota na tela, itens com tom, nome falado,
+  folha com uma nota por item, `auditaTela` com o chip Sem rede; ✓ no botão de copiar e volta ao rótulo; Salvar vira
+  "Salvo"). Quatro testes que liam os textos de validação no `main` passaram a abrir a folha (`estadoDaLista`),
+  com o motivo no teste.
+- **Fora:** scanner (X16); linha de estado na coleção (os avisos dela já são contextuais: backup e armazenamento);
+  ✓ nos botões da mesa (o retorno lá é o próprio estado do jogo).
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.
