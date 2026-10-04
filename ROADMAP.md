@@ -404,6 +404,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
+| 16º-ak ✅ | D9 coleção: painel recolhido por padrão (abrir fica lembrado), agrupar e ordem lado a lado, desfazer numa linha; primeira carta 1494 → 524 px (leva 154) | D | 1 | — |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4469,6 +4470,23 @@ X16 (tela nova, estados desenhados) planejada em cima das mesmas notas; mexer ne
   com o motivo no teste.
 - **Fora:** scanner (X16); linha de estado na coleção (os avisos dela já são contextuais: backup e armazenamento);
   ✓ nos botões da mesa (o retorno lá é o próprio estado do jogo).
+**D9 · Coleção e cartas: ver e trabalhar** ✅ (leva 154, 03/10/2026)
+- **O que a auditoria achou:** com 14 cartas, o painel aberto media 913 px e a primeira carta da coleção só
+  aparecia a **1494 px** do topo (quase dois ecrãs de rolagem); a barra de desfazer da importação quebrava em três
+  linhas; Agrupar e Ordem ocupavam duas linhas de 44 px. Filtros em folha com contagem ao vivo, visão densa com
+  símbolos e seleção múltipla com barra já existiam (C12–C13) e ficaram como estão.
+- **Entregue:** o **painel nasce recolhido** numa linha ("Painel · Mostrar"); abrir fica lembrado por aparelho
+  (`collection.prefs.painel`), e quem já tinha a preferência gravada não muda. **A ordem pedida na leva 113 continua
+  — painel, filtro, visões, lista, adicionar** — só o estado inicial muda, por isso está declarado aqui como
+  divergência consciente dessa decisão. **Agrupar e Ordem** dividem a linha. **Desfazer importação** numa linha:
+  texto, ícone de desfazer (nome falado "Desfazer a importação") e X.
+- **Medido (360×780, 14 cartas):** primeira carta **1494 → 524 px**; campo de busca 1245 → 327 px; painel
+  913 → 62 px recolhido; tela 3596 → 2625 px.
+- **Testes:** e2e "D9" (primeira carta ≤ 620 px, painel ≤ 70 px, agrupar/ordem lado a lado, desfazer numa linha com
+  alvos de 44 px e nome falado, painel abre e mantém a ordem da leva 113, `auditaTela` aberto e recolhido). C14
+  passou a abrir o painel antes de ler os números, com o motivo no teste; "aberto fica lembrado" conferido.
+- **Fora:** galeria com sombra/canto (já por token, contrato visual confere); filtros em folha (já existe, C12);
+  seleção múltipla (já existe, C13); miniatura maior na visão densa.
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.

@@ -930,7 +930,7 @@ test('e2e · C14 painel da coleção: números, barra que filtra, curva, recolhe
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
   await page.waitForFunction(() => /Creature/.test(document.querySelector('.col-row[data-name="Grizzly Bear"]').innerText), null, { timeout: 8000 });
 
-  // números e distribuições
+  // números e distribuições (leva 149: o painel é um bloco expansível, aberto por padrão)
   await page.waitForFunction(() => document.querySelector('#col-dash-cartas') && document.querySelector('#col-dash-cartas').innerText.startsWith('4'));
   assert.match(await page.innerText('#col-dash-copias'), /^22/); assert.match(await page.innerText('#col-dash-edicoes'), /^1/);
   assert.match(await page.getAttribute('[data-dash="cor:G"]', 'aria-label'), /Verde: 1 carta\(s\), 4 cópia\(s\)/);
@@ -6051,5 +6051,27 @@ test('e2e · D8 avisos no lugar: a lista sem rede tem uma linha de estado (≤ 4
   // Perfil: Salvar vira "Salvo" por um instante
   await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome'); await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar');
   await page.waitForSelector('#perfil-salvar[data-confirmado="true"]'); assert.equal(await page.innerText('#perfil-salvar .ds-btn__rotulo'), 'Salvo');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · D9 coleção: agrupar e ordem lado a lado, desfazer importação numa linha com ícones e alvos de 44 px; a ordem painel › adicionar › filtro › lista da leva 149 continua', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio'); await page.click('#col-pelo-nome'); await page.waitForSelector('#col-import');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring\n1 Grizzly Bear');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]'); await page.waitForTimeout(400);
+  // agrupar e ordem dividem a linha; a barra de desfazer é uma linha só
+  const [ag, ord] = [await page.locator('#col-group').boundingBox(), await page.locator('#col-sort').boundingBox()];
+  assert.ok(Math.abs(ag.y - ord.y) < 2 && ord.x > ag.x + ag.width - 1, 'agrupar e ordem lado a lado');
+  const undo = await page.locator('#col-undo-btn').boundingBox(), ok = await page.locator('#col-undo-ok').boundingBox();
+  assert.ok(Math.abs(undo.y - ok.y) < 2 && undo.height >= 44 && ok.height >= 44, 'desfazer e OK na mesma linha, 44 px');
+  assert.equal(await page.getAttribute('#col-undo-btn', 'aria-label'), 'Desfazer a importação');
+  assert.ok((await page.locator('#outlet .col-undo').boundingBox()).height <= 70, 'barra de desfazer numa linha');
+  // a ordem da leva 149 (painel, adicionar, filtro, lista) continua; a D9 cedeu o "painel recolhido por padrão" ao bloco expansível dela
+  const y = sel => page.locator(sel).first().boundingBox().then(b => Math.round(b.y));
+  assert.ok((await y('#col-dashboard')) < (await y('#col-filter')) && (await y('#col-filter')) < (await y('.col-row')), 'painel, filtro, lista');
+  await auditaTela(page, 'coleção com agrupar e ordem numa linha');
   assert.deepEqual(errors, []);
 });

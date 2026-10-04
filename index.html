@@ -1260,6 +1260,11 @@ body {
 @media (min-width: 640px) { .col-row { grid-template-columns: 48px 1fr auto; grid-template-areas: "thumb info qty"; } }
 /* C14 · painel da coleção: números, barras que filtram, curva e "o que falta" */
 .col-dash__tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+/* D9 · agrupar e ordem dividem a linha (antes duas linhas de 44 px); o painel recolhido ficou com o bloco expansível da leva 149 */
+.col-undo { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.col-undo__linha { flex-wrap: nowrap; min-width: 0; }
+.col-undo__texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-toolbar > .ds-select, .col-toolbar > select { flex: 1 1 140px; min-width: 0; }
 .col-dash__tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-2); background: var(--bg-elev-2); border-radius: var(--radius-2); }
 .col-dash__grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
 @media (min-width: 640px) { .col-dash__grid { grid-template-columns: 1fr 1fr; } }
@@ -7842,10 +7847,11 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function paintUndo() {
     const u = state.undo;
     if (!u) return mount(undoBar, null);
-    mount(undoBar, Surface({ class: 'ds-surface--pad' }, Row({ class: 'ds-row--wrap' },
-      Text(`Importação: ${u.copias} cópia(s)${u.nPendentes ? ` · ${u.nPendentes} pendente(s)` : ''}`, { size: 'sm' }), h('div', { class: 'ds-grow' }),
-      Button('Desfazer', { id: 'col-undo-btn', icone: 'desfazer', onClick: desfazer }),
-      Button('OK', { variant: 'ghost', id: 'col-undo-ok', onClick: () => { state.undo = null; paintUndo(); } }))));
+    // D9 · uma linha só: texto, Desfazer e OK (antes quebrava em três linhas em 360 px)
+    mount(undoBar, Surface({ class: 'ds-surface--pad col-undo' }, Row({ class: 'col-undo__linha' },
+      Text(`Importação: ${u.copias} cópia(s)${u.nPendentes ? ` · ${u.nPendentes} pendente(s)` : ''}`, { size: 'sm', attrs: { class: 'ds-text ds-text--sm col-undo__texto' } }), h('div', { class: 'ds-grow' }),
+      IconButton('desfazer', 'Desfazer a importação', { id: 'col-undo-btn', onClick: desfazer }),
+      IconButton('fechar', 'OK', { variant: 'ghost', id: 'col-undo-ok', onClick: () => { state.undo = null; paintUndo(); } }))));
   }
   function paintPending() {
     const n = state.pending.length;
@@ -7962,7 +7968,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   async function lembra(p) { Object.assign(state, p); state.limite = 120; state.pilhaAberta = null; paint(); try { await collection.savePrefs({ visao: state.visao, agrupar: state.agrupar, ordenar: state.ordenar, painel: state.painel, adicionar: state.adicionar }); } catch (e) { /* sem armazenamento: só nesta sessão */ } }
   function paintToolbar() {
     const visoes = [['lista', 'Lista', 'linhas'], ['galeria', 'Galeria', 'colecao'], ['densa', 'Densa', 'densa'], ['pilhas', 'Pilhas', 'pilhas']];
-    mount(toolbar, Row({ class: 'ds-row--wrap' },
+    mount(toolbar, Row({ class: 'ds-row--wrap col-toolbar' },
       h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Visão' }, ...visoes.map(([k, label, icone]) => { const c = Chip(label, { icone, pressed: state.visao === k, dataset: { visao: k } }); c.addEventListener('click', () => lembra({ visao: k })); return c; })),
       Select(FL.AGRUPAMENTOS.map(([value, label]) => ({ value, label: value ? `Agrupar: ${label}` : label })), { id: 'col-group', value: state.agrupar, onChange: e => lembra({ agrupar: e.target.value }) }),
       Select(FL.ORDENACOES.map(([value, label]) => ({ value, label: `Ordem: ${label}` })), { id: 'col-sort', value: state.ordenar, onChange: e => lembra({ ordenar: e.target.value }) })));
