@@ -406,6 +406,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
 | 16º-ak ✅ | D9 coleção: painel recolhido por padrão (abrir fica lembrado), agrupar e ordem lado a lado, desfazer numa linha; primeira carta 1494 → 524 px (leva 154) | D | 1 | — |
 | 16º-al ✅ | D10 movimento com sistema: pulsos por token, vibração por evento (toque · confirmação · alerta · turno), catálogo em /ds, portão confere keyframes e menos movimento (leva 155) | D | 1 | literais do scanner ficam com a X16 |
+| 16º-am ✅ | D11 acessibilidade medida: axe-core no portão (12 telas e folhas × 2 temas, zero achados); selects com nome, h1 na partida, texto sutil e cabeçalho de grupo AA no claro (leva 156) | D | 1 | — |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4397,6 +4398,25 @@ na primeira abertura, pulável (não como "Ajuda" escondida).
   dentro da apresentação (o Perfil está a um toque).
 
 **D5 · Dados e administração num lugar só** ✅ (leva 150, 03/10/2026)
+**D5 · Dados e administração num lugar só** ✅ (leva 149, 03/10/2026)
+**D5 · Dados e administração num lugar só** ✅ (leva 148, 03/10/2026)
+**D11 · Acessibilidade medida** ✅ (leva 156, 03/10/2026)
+- **Medição:** `axe-core` 4.13 (devDependency nova — a única desde o Playwright; justificativa: é o motor de
+  contraste e de nomes/papéis de referência, roda dentro da página no headless, sem rede) com as regras WCAG 2.1
+  A/AA e boas práticas, em **12 telas e folhas** (início, listas, lista, coleção, folha de filtros, cartas, scanner,
+  preparar partida, partida, perfil, apresentação, catálogo) **nos dois temas**, em 360×780. Varredura inicial:
+  **5 achados**; depois das correções, **zero**.
+- **Correções:** os três `select` da coleção (agrupar, ordenar, lista para montar) sem nome acessível — `Select`
+  ganhou `ariaLabel`; a tela da partida não tinha título de nível 1 — `h1` só para leitor de tela ("Mesa"), classe
+  `ds-sr-only` no DS; no tema claro, `--fg-subtle` passou de 4,44 para 5,33:1 sobre a superfície elevada (#5f4f36)
+  e o cabeçalho de grupo das listas (latão sobre a estante, 3,55:1) passou a usar o token novo `--fg-grupo` (latão no
+  escuro, 6,1:1; texto apagado no claro, ≥ 4,5).
+- **Portão:** e2e "D11" falha com a lista de achados (tema · tela: regra · alvos) se qualquer tela regredir; falha
+  também se o `axe-core` não estiver instalado (clone antigo sem `npm install`).
+- **Fora:** leitura com leitor de tela real (TalkBack/VoiceOver) — só o aparelho confirma; teclado completo no
+  desktop (o app é celular primeiro); regras AAA.
+
+**D5 · Dados e administração num lugar só** ✅ (leva 146, 03/10/2026)
 - **Entregue:** seção **Dados** no Perfil, nesta ordem: **Backup completo** (arquivo), **Conta Google** (nuvem,
   atrás do Client ID), **Base local de cartas** (contagem, Importar, Exportar e Limpar — agora com confirmação) e
   **Espaço no aparelho** (espaço usado e proteção contra limpeza, com "Proteger armazenamento" quando vulnerável; o

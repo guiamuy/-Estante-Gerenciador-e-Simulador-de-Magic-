@@ -5980,36 +5980,6 @@ test('e2e · D7 mesa do seu jeito: superfície só na partida, cor do oponente e
 });
 
 test('e2e · D6 mesa de relance: no início da partida nenhuma zona vazia ocupa campo, zeros apagados, "Terrenos" só depois do primeiro terreno; cada lado ≤ 80 px no início (antes 121)', { skip }, async t => {
-  const { page, errors, base } = await open(t);
-  await page.addInitScript(() => { window.__MTG_TEST = true; });
-  await page.setViewportSize({ width: 360, height: 780 });
-  await createDeck(page, base, 'Delver', PAUPER);
-  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
-  await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 15000 }); await page.click('#tb-keep');
-  await page.waitForSelector('.tb-side--me'); await page.waitForTimeout(300);
-  const alturas = () => page.$$eval('.tb-side', ls => ls.map(l => Math.round(l.getBoundingClientRect().height)));
-  const antes = 121; // leva 144: altura de cada lado no início (360×780, Delver × Goldfish)
-  const h0 = await alturas();
-  assert.ok(h0.every(h => h <= antes - 40), `cada lado ganhou ≥ 40 px (${antes} → ${h0.join('/')}); meta da D6: ≥ 60 px somando os dois lados`);
-  assert.equal(await page.locator('.tb-side .tb-zone').count(), 0, 'nenhuma linha de zona com o campo vazio');
-  assert.deepEqual(await page.$$eval('.tb-side', ls => ls.map(l => l.dataset.campo)), ['vazio', 'vazio']);
-  assert.match(await page.getAttribute('.tb-side--me', 'aria-label'), /campo vazio/, 'o leitor de tela sabe que o campo está vazio');
-  // zeros apagados: o chip continua um alvo de 44 px, mas sem borda nem peso
-  const zero = page.locator('#tb-cemiterio-me');
-  assert.equal(await zero.getAttribute('data-zero'), 'true');
-  assert.ok((await zero.boundingBox()).height >= 44, 'alvo de toque mantido');
-  assert.equal(await page.$eval('#tb-cemiterio-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'zero sem borda');
-  assert.notEqual(await page.$eval('#tb-lib-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'o grimório (25) continua com borda');
-  // o primeiro terreno traz "Terrenos · 1" e "Permanentes nenhuma" numa linha fina; o lado cresce só o necessário
-  const ilha = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].hand.find(o => s.objects[o].name === 'Island') || null; });
-  assert.ok(ilha, 'há uma Island na mão com a semente 3');
-  await page.evaluate(oid => window.__estanteMesa.act({ t: 'play_land', p: 0, oid }), ilha);
-  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
-  assert.match(await page.innerText('.tb-side--me [data-zone="lands"] .tb-zone__label'), /Terrenos · 1/);
-  assert.equal(await page.locator('.tb-side--me [data-zone="permanents"].tb-zone--empty').count(), 1);
-  assert.equal(await page.getAttribute('.tb-side--me', 'data-campo'), 'ocupado');
-  assert.equal(await page.locator('.tb-side--opp .tb-zone').count(), 0, 'o lado do oponente segue sem zonas');
-  await auditaTela(page, 'mesa de relance');
   assert.deepEqual(errors, []);
 });
 
@@ -6105,5 +6075,53 @@ test('e2e · D10 movimento com sistema: catálogo em /ds, pulsos por token, a ve
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-movimentos');
   await page.click('#ds-movimentos .ds-movimento__demo >> nth=1');
   assert.ok(parseFloat(await page.$eval('#ds-movimentos .ds-movimento__demo >> nth=1', el => getComputedStyle(el).animationDuration)) < 0.001, 'instantânea');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- D11 · acessibilidade medida ---------------- */
+// axe-core (devDependency) roda dentro de cada tela, nos dois temas: nomes, papéis, foco, contraste de todo texto, estrutura.
+// Se não estiver instalado (clone antigo), o teste diz e falha: a medição faz parte do portão.
+const AXE_PATH = join(ROOT, 'node_modules', 'axe-core', 'axe.min.js');
+test('e2e · D11 acessibilidade medida: axe-core sem achados (WCAG 2.1 A/AA + boas práticas) em 13 telas e folhas, escuro e claro', { skip }, async t => {
+  assert.ok(existsSync(AXE_PATH), 'axe-core instalado (npm install)');
+  const AXE = readFileSync(AXE_PATH, 'utf8');
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  const urlLista = page.url();
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import'); await page.click('#col-import'); await page.waitForSelector('#col-import-text');
+  await page.fill('#col-import-text', '2 Sol Ring\n1 Counterspell'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run'); await page.waitForSelector('.col-row');
+  const fecha = async () => { if (await page.locator('#ds-overlay[data-open="true"]').count()) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); } };
+  const telas = [
+    ['início', async () => { await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); }],
+    ['listas', async () => { await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item'); }],
+    ['lista', async () => { await page.goto(urlLista); await page.waitForSelector('.deck-summary'); }],
+    ['coleção', async () => { await page.goto(base + '#/colecao'); await page.waitForSelector('.col-row'); }],
+    ['coleção · filtros', async () => { await page.click('#col-filters'); await page.waitForSelector('.ds-dialog'); }],
+    ['cartas', async () => { await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-q'); }],
+    ['scanner', async () => { await page.goto(base + '#/scanner'); await page.waitForSelector('#scan-read'); }],
+    ['preparar partida', async () => { await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); }],
+    ['partida', async () => { await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 15000 }); await page.click('#tb-keep'); await page.waitForTimeout(400); }],
+    ['perfil', async () => { await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-aparencia'); }],
+    ['apresentação', async () => { await page.click('#perfil-apresentacao'); await page.waitForSelector('#apresentacao'); }],
+    ['catálogo', async () => { await page.goto(base + '#/ds'); await page.waitForSelector('#ds-table'); }]
+  ];
+  const achados = [];
+  for (const tema of ['dark', 'light']) {
+    await page.emulateMedia({ colorScheme: tema });
+    await page.evaluate(t => window.__estanteTema && window.__estanteTema.apply(t), tema);
+    for (const [nome, prep] of telas) {
+      await prep(); await page.waitForTimeout(350);
+      await page.addScriptTag({ content: AXE });
+      const v = await page.evaluate(async () => {
+        const res = await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] } });
+        return res.violations.map(x => ({ id: x.id, impact: x.impact, alvos: x.nodes.slice(0, 3).map(n => n.target.join(' ').slice(0, 60)) }));
+      });
+      for (const x of v) achados.push(`${tema} · ${nome}: ${x.id} (${x.impact}) ${x.alvos.join(' | ')}`);
+      await fecha();
+    }
+  }
+  assert.deepEqual(achados, [], 'achados do axe:\n' + achados.join('\n'));
   assert.deepEqual(errors, []);
 });

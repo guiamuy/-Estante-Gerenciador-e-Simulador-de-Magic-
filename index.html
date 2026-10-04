@@ -109,6 +109,7 @@
   --fg: #f1e8d7;
   --fg-muted: #bcab90;
   --fg-subtle: #9c8b71;
+  --fg-grupo: var(--accent); /* D11 · cabeçalho de grupo em latão no escuro (6,1:1) */
   --accent: #cfa851;
   --accent-hover: #e8c375;
   --accent-fg: #18120a;
@@ -150,7 +151,8 @@
   --border-strong: #9a8560;
   --fg: #241b0f;
   --fg-muted: #57492f;
-  --fg-subtle: #6b5b3c;
+  --fg-subtle: #5f4f36; /* D11 · AA sobre --bg-elev-2 (antes 4,44) */
+  --fg-grupo: var(--fg-muted); /* D11 · cabeçalho de grupo: no claro o latão não passa de 4,5 sobre a estante */
   --accent: #7a5a17;
   --accent-hover: #674b12;
   --accent-fg: #fdf8ea;
@@ -189,7 +191,8 @@
     --border-strong: #9a8560;
     --fg: #241b0f;
     --fg-muted: #57492f;
-    --fg-subtle: #6b5b3c;
+    --fg-subtle: #5f4f36;
+    --fg-grupo: var(--fg-muted);
     --accent: #7a5a17;
     --accent-hover: #674b12;
     --accent-fg: #fdf8ea;
@@ -679,7 +682,7 @@ a { color: var(--accent); }
 @media (hover: hover) { .ds-list__item:hover { background: var(--accent-soft); } }
 .ds-list__group {
   position: sticky; top: 0; z-index: var(--z-sticky);
-  background: var(--bg-elev-3); color: var(--accent);
+  background: var(--bg-elev-3); color: var(--fg-grupo);
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .09em;
   border-bottom: 1px solid var(--border);
@@ -801,6 +804,7 @@ a { color: var(--accent); }
 .ds-appbar__brand small { display: block; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--fg-muted); }
 
 .ds-hidden { display: none !important; }
+.ds-sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* D11 · só para o leitor de tela */
 .ds-nowrap { white-space: nowrap; }
 
 /* ===================== marca ===================== */
@@ -2196,7 +2200,7 @@ function Field(label, control, opts = {}) {
 const Input = (opts = {}) => h('input', { class: 'ds-input', type: opts.type || 'text', id: opts.id, value: opts.value ?? '', placeholder: opts.placeholder || '', onInput: opts.onInput, inputmode: opts.inputmode });
 const Textarea = (opts = {}) => h('textarea', { class: 'ds-textarea', id: opts.id, placeholder: opts.placeholder || '', spellcheck: 'false', onInput: opts.onInput }, opts.value ?? '');
 function Select(options, opts = {}) {
-  return h('select', { class: 'ds-select', id: opts.id, onChange: opts.onChange },
+  return h('select', { class: 'ds-select', id: opts.id, onChange: opts.onChange, 'aria-label': opts.ariaLabel || null }, // D11 · nome falado para select fora de Field
     ...options.map(o => h('option', { value: o.value, selected: o.value === opts.value }, o.label)));
 }
 
@@ -7956,7 +7960,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   function montar() {
     const deck = state.decksAll.find(d => d.id === state.montar) || null;
-    const sel = Select([{ value: '', label: 'Escolha uma lista…' }, ...state.decksAll.map(d => ({ value: d.id, label: d.name }))], { id: 'col-build-deck', value: state.montar, onChange: e => { state.montar = e.target.value; paintDashboard(state.recorte); } });
+    const sel = Select([{ value: '', label: 'Escolha uma lista…' }, ...state.decksAll.map(d => ({ value: d.id, label: d.name }))], { id: 'col-build-deck', ariaLabel: 'Lista para montar', value: state.montar, onChange: e => { state.montar = e.target.value; paintDashboard(state.recorte); } });
     let corpo = null;
     if (deck) {
       const owned = {}; for (const g of state.items) owned[g.key] = g.qty;
@@ -7992,8 +7996,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const visoes = [['lista', 'Lista', 'linhas'], ['galeria', 'Galeria', 'colecao'], ['densa', 'Densa', 'densa'], ['pilhas', 'Pilhas', 'pilhas']];
     mount(toolbar, Row({ class: 'ds-row--wrap col-toolbar' },
       h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Visão' }, ...visoes.map(([k, label, icone]) => { const c = Chip(label, { icone, pressed: state.visao === k, dataset: { visao: k } }); c.addEventListener('click', () => lembra({ visao: k })); return c; })),
-      Select(FL.AGRUPAMENTOS.map(([value, label]) => ({ value, label: value ? `Agrupar: ${label}` : label })), { id: 'col-group', value: state.agrupar, onChange: e => lembra({ agrupar: e.target.value }) }),
-      Select(FL.ORDENACOES.map(([value, label]) => ({ value, label: `Ordem: ${label}` })), { id: 'col-sort', value: state.ordenar, onChange: e => lembra({ ordenar: e.target.value }) })));
+      Select(FL.AGRUPAMENTOS.map(([value, label]) => ({ value, label: value ? `Agrupar: ${label}` : label })), { id: 'col-group', ariaLabel: 'Agrupar', value: state.agrupar, onChange: e => lembra({ agrupar: e.target.value }) }),
+      Select(FL.ORDENACOES.map(([value, label]) => ({ value, label: `Ordem: ${label}` })), { id: 'col-sort', ariaLabel: 'Ordenar', value: state.ordenar, onChange: e => lembra({ ordenar: e.target.value }) })));
   }
   const cardOf = g => state.cards.get(g.key) || state.cards.get(norm(g.name));
   // Q10 · a miniatura é a que o guardião guarda para a coleção: sem rede, galeria e pilhas mostram a carta
@@ -15327,6 +15331,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
     }) : null;
 
     mount(root,
+      h('h1', { class: 'ds-sr-only' }, 'Mesa'), // D11 · a tela da partida tem título para o leitor de tela
       h('header', { class: 'tb-top ds-wrap' },
         vezBox(s, v), vezPop,
         // Leva 121 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
