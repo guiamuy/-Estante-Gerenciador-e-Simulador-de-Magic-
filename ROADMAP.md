@@ -404,6 +404,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-af ✅ | D4b apresentação de 3 passos na primeira abertura, pulável, uma vez só, "Rever apresentação" no Perfil (leva 145) | D | 1 | — |
 | 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
 | 16º-aq ✅ | Coleção: bloco expansível **Exportar** com ícone próprio abaixo de Adicionar carta — texto, CSV, filtradas e seleção; sai do fim da página (leva 160) | U18 | 1 | teste no aparelho |
+| 16º-ar ✅ | G1 preço da carta em dólar, real e euro, com a cotação do dólar buscada e guardada no aparelho (leva 163) | G | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4628,6 +4629,46 @@ decks, sugestão de cartas, ranking, marketplace.
 Aparência, D3 no início, D6 na mesa, D9 na coleção); OAuth Client ID (`GOOGLE_CLIENT_ID`) e URL do Firebase
 (`FIREBASE_DB_URL`) continuam pendentes das levas 129 e 134. A decisão do onboarding foi tomada na D4b com a opção
 recomendada (primeira abertura, pulável; "Rever" no Perfil).
+
+### G · Gestão com valor e partida sensorial (E54, pedido de 04/10/2026)
+
+**Pedido:** agrupar cartas na coleção e nas listas; preço em dólar, real e euro com cotação por API; valor
+acumulado da coleção, das listas e dos agrupamentos; sons e efeitos visuais na partida (compra, ataque, dano, cura,
+anulação, destruição, descarte, remoção global, aprimoramento).
+
+**Decisões de desenho (declaradas ao usuário antes de executar):** agrupamento por **etiquetas** coloridas (uma
+carta ou lista pode ter várias), não por pastas exclusivas; som **sintetizado no aparelho** (zero arquivo de áudio,
+funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" é a mais recente que a API pública dá.
+
+| Ordem | História | Entrega em uma frase |
+|---|---|---|
+| G1 | Preço em três moedas | detalhe da carta com US$, R$ e €, normal e foil; cotação guardada no aparelho |
+| G2 | Etiquetas | criar, colorir e aplicar etiquetas em cartas da coleção e em listas; filtrar por chip |
+| G3 | Valor acumulado | coleção inteira, recorte do filtro, cada etiqueta e cada lista, nas três moedas |
+| G4 | Som na partida | motor de eventos puro + sons sintetizados, com liga/desliga e volume |
+| G5 | Efeitos visuais na partida | um efeito por evento, por tokens de movimento, com menos movimento respeitado |
+
+**G1 · Preço em dólar, real e euro** ✅ (leva 163, 04/10/2026)
+- **Entregue:** no detalhe da carta, seção **Preço** com uma linha por acabamento (Normal, Foil) e três colunas:
+  **US$** (TCGplayer, pela Scryfall), **R$** (dólar × cotação) e **€** (Cardmarket, pela Scryfall, quando existe;
+  senão o dólar convertido — a dica do valor diz qual é). Abaixo, "Dólar a R$ X · cotação de DD/MM HH:MM · fonte".
+  Carta sem preço na Scryfall diz **"Sem preço"**; nada é estimado.
+- **Cotação do dólar:** módulo novo `src/data/cambio.js` (`__m31`). Três fontes públicas sem chave, tentadas em
+  ordem — AwesomeAPI, Frankfurter (BCE), ExchangeRate-API — com validação de faixa (resposta estranha é descartada).
+  Guardada no aparelho (`cambio.usd`), vale por uma hora; sem internet vale a última, marcada "a última guardada";
+  sem nunca ter tido cotação, o real fica em branco com a explicação. Duas telas pedindo juntas fazem uma busca só.
+- **Limites declarados:** o preço é o que a Scryfall tinha quando a carta foi buscada (ela atualiza uma vez por
+  dia; carta guardada há tempo mostra preço antigo). O formato da AwesomeAPI não pôde ser conferido daqui em
+  04/10/2026 (a consulta devolveu 429); se ele mudar, a validação descarta e a segunda fonte responde. Frankfurter
+  e ExchangeRate-API foram conferidas em 04/10/2026 (USD→BRL 5,22; USD→EUR 0,89).
+- **Testes:** U `cambio.unit` ×4 (formato de cada fonte e descarte; ordem das fontes, guarda, validade, sem rede,
+  busca única; preços normal/foil, euro de mercado × convertido, só euro, sem preço; escrita brasileira dos
+  valores); e2e "leva 163" (três moedas nas duas linhas, legenda da cotação, carta sem preço, cotação guardada sem
+  nova busca e valendo sem internet, `auditaTela`). O harness aborta as três fontes por padrão.
+- **Correção de arrumação:** saiu do repositório o arquivo `undefined/x.png`, uma captura que a trilha geral deixou
+  escapar na leva 133.
+- **Fora:** escolher a moeda principal; histórico de preço; preço por impressão na lista de impressões (G3 usa a
+  impressão padrão e declara).
 
 ### P · Plataforma
 

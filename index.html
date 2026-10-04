@@ -358,6 +358,12 @@ a { color: var(--accent); }
 .ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .ds-visor__custo { flex: none; font-size: var(--simbolo-lg); white-space: nowrap; }
 .ds-visor__tipo { gap: var(--space-2); align-items: center; }
+/* leva 163 · preço em três moedas no visor da carta: uma linha por acabamento, valores alinhados em colunas */
+.ds-precos { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-precos__linha { display: grid; grid-template-columns: minmax(48px, auto) 1fr 1fr 1fr; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--bg-elev-2); border-radius: var(--radius-2); }
+.ds-precos__rotulo { font-size: var(--text-xs); color: var(--fg-muted); text-transform: uppercase; letter-spacing: .09em; }
+.ds-precos__valor { font-family: var(--font-display); font-size: var(--text-md); color: var(--fg); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.ds-precos__valor[data-moeda="brl"] { color: var(--accent); }
 .ds-visor__oracle { margin: var(--space-1) 0 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border);
   font-size: var(--text-md); line-height: 1.5; white-space: pre-wrap; color: var(--fg); }
 
@@ -3534,6 +3540,104 @@ function onLongPress(el, { start, end, ms = LONG_MS, moveTolerance = 10 }) {
 return { onTaps, pulse, DOUBLE_MS, onLongPress, LONG_MS };
 })();
 
+/* ==== src/data/cambio.js ==== */
+const __m31 = (function () {
+/* =====================================================================
+   P2 · PREÇO EM TRÊS MOEDAS (leva 163)
+   A Scryfall dá o preço em dólar (TCGplayer) e em euro (Cardmarket). O real
+   sai do dólar pela cotação do dia, buscada em API pública sem chave e
+   guardada no aparelho: sem internet vale a última, com a data à vista.
+   Nada aqui inventa preço: sem dado da Scryfall, a carta fica "sem preço".
+   ===================================================================== */
+const CHAVE = 'cambio.usd';
+const VALIDADE_MS = 60 * 60 * 1000; // uma hora: as fontes públicas atualizam de hora em hora a uma vez por dia
+/** Fontes de cotação do dólar, na ordem em que são tentadas. Todas públicas, sem chave e com CORS aberto. */
+const FONTES = [
+  { id: 'awesomeapi', nome: 'AwesomeAPI', url: 'https://economia.awesomeapi.com.br/json/last/USD-BRL,USD-EUR' },
+  { id: 'frankfurter', nome: 'Frankfurter (BCE)', url: 'https://api.frankfurter.dev/v1/latest?base=USD&symbols=BRL,EUR' },
+  { id: 'er-api', nome: 'ExchangeRate-API', url: 'https://open.er-api.com/v6/latest/USD' }
+];
+/** Uma cotação só vale se for número finito numa faixa plausível: resposta estranha é descartada, não usada. */
+const plausivel = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
+const num = v => (typeof v === 'string' && v.trim() !== '' ? Number(v) : v);
+/** Lê a resposta de cada fonte e devolve { BRL, EUR } (quanto vale 1 dólar) ou null. */
+function interpreta(fonte, json) {
+  if (!json || typeof json !== 'object') return null;
+  let brl = null, eur = null;
+  if (fonte === 'awesomeapi') { brl = num(json.USDBRL && json.USDBRL.bid); eur = num(json.USDEUR && json.USDEUR.bid); }
+  else if (fonte === 'frankfurter') { brl = json.rates && json.rates.BRL; eur = json.rates && json.rates.EUR; }
+  else if (fonte === 'er-api') { if (json.result && json.result !== 'success') return null; brl = json.rates && json.rates.BRL; eur = json.rates && json.rates.EUR; }
+  else return null;
+  if (!plausivel(brl, 0.5, 100) || !plausivel(eur, 0.2, 5)) return null;
+  return { BRL: brl, EUR: eur };
+}
+function createCambio({ store = null, fetch: busca = null, agora = () => Date.now(), fontes = FONTES } = {}) {
+  let st = store, fx = busca, memoria = null, emVoo = null;
+  const le = async () => { if (memoria) return memoria; try { const g = st ? await st.get(CHAVE) : null; if (g && interpretaGuardada(g)) memoria = g; } catch (e) { /* sem armazenamento */ } return memoria; };
+  const interpretaGuardada = g => g && plausivel(g.BRL, 0.5, 100) && plausivel(g.EUR, 0.2, 5) && typeof g.em === 'number';
+  async function buscaNaRede() {
+    if (!fx) return null;
+    for (const f of fontes) {
+      try {
+        const r = await fx(f.url, { cache: 'no-store' });
+        if (!r || !r.ok) continue;
+        const t = interpreta(f.id, await r.json());
+        if (t) return { ...t, em: agora(), fonte: f.nome };
+      } catch (e) { /* tenta a próxima fonte */ }
+    }
+    return null;
+  }
+  return {
+    /** Troca o armazenamento e a rede (o app liga os do aparelho na partida). */
+    configura({ store: s, fetch: f } = {}) { if (s) st = s; if (f) fx = f; memoria = null; return this; },
+    /** Cotação do dólar: { BRL, EUR, em, fonte, origem }. origem: 'rede' (buscada agora), 'guardada' (dentro da validade ou
+        sem rede) ou null quando nunca houve cotação neste aparelho. `forcar` ignora a validade. */
+    async taxas({ forcar = false } = {}) {
+      const g = await le();
+      if (g && !forcar && agora() - g.em < VALIDADE_MS) return { ...g, origem: 'guardada', velha: false };
+      if (!emVoo) emVoo = buscaNaRede().finally(() => { emVoo = null; });
+      const nova = await emVoo;
+      if (nova) { memoria = nova; try { if (st) await st.set(CHAVE, nova); } catch (e) { /* vale só nesta sessão */ } return { ...nova, origem: 'rede', velha: false }; }
+      return g ? { ...g, origem: 'guardada', velha: true } : null;
+    }
+  };
+}
+const paraNumero = v => { const n = typeof v === 'string' ? Number(v) : v; return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null; };
+/** Preços de uma carta nas três moedas. `taxas` pode ser null (aí só sai o que a Scryfall deu).
+    Devolve { normal, foil } com { usd, brl, eur, eurDeMercado } cada, ou null quando não há preço daquele acabamento.
+    O euro é o de mercado (Cardmarket) quando a Scryfall traz; senão é o dólar convertido. O real é sempre conversão. */
+function precosDe(card, taxas = null) {
+  const p = (card && card.prices) || {};
+  const monta = (usdBruto, eurBruto) => {
+    const usd = paraNumero(usdBruto), eurM = paraNumero(eurBruto);
+    if (usd == null && eurM == null) return null;
+    const usdBase = usd != null ? usd : (taxas ? eurM / taxas.EUR : null); // só há euro: o dólar sai da cotação
+    return { usd: usdBase, brl: taxas && usdBase != null ? usdBase * taxas.BRL : null, eur: eurM != null ? eurM : (taxas && usd != null ? usd * taxas.EUR : null), eurDeMercado: eurM != null, usdDeMercado: usd != null };
+  };
+  return { normal: monta(p.usd, p.eur), foil: monta(p.usd_foil, p.eur_foil) };
+}
+/** Valor de uma cópia no acabamento pedido, em dólar; cai para o outro acabamento quando só ele tem preço. */
+function usdDaCopia(card, { foil = false } = {}) {
+  const pr = precosDe(card, null); const a = foil ? pr.foil : pr.normal, b = foil ? pr.normal : pr.foil;
+  return (a && a.usd) || (b && b.usd) || null;
+}
+const SIMBOLO = { usd: 'US$', brl: 'R$', eur: '€' };
+/** "R$ 6,42" — vírgula decimal e ponto de milhar, como se escreve no Brasil. */
+function fmt(valor, moeda) {
+  if (valor == null || !Number.isFinite(valor)) return '—';
+  const [int, dec] = valor.toFixed(2).split('.');
+  return `${SIMBOLO[moeda] || moeda} ${int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${dec}`;
+}
+/** "cotação de 04/10 14:02" */
+function quando(em) {
+  const d = new Date(em); const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+/** Instância padrão para as telas que não recebem dependências (o visor da carta abre de vários lugares). */
+const padrao = createCambio({});
+return { createCambio, interpreta, precosDe, usdDaCopia, fmt, quando, FONTES, VALIDADE_MS, CHAVE, padrao };
+})();
+
 /* ==== src/app/cards.js ==== */
 const __m12 = (function () {
 /* =====================================================================
@@ -3753,7 +3857,23 @@ function openCardViewer(card, extra = [], { quantidade = null } = {}) {
         h('div', { class: 'ds-grow' }),
         Badge(LEGAL_PT[v] || v, { tone: v === 'legal' ? 'positive' : v === 'banned' ? 'negative' : undefined })));
 
-    const price = card.prices && (card.prices.usd || card.prices.usd_foil);
+    // leva 163 · preço em dólar, real e euro; o real e a cotação entram quando a cotação chega (a última guardada vale offline)
+    const precoBox = h('div', { class: 'ds-precos', id: 'card-precos' });
+    const pintaPrecos = taxas => {
+      const pr = __m31.precosDe(card, taxas);
+      if (!pr.normal && !pr.foil) return mount(precoBox, Text('Sem preço na Scryfall para esta impressão.', { size: 'sm', tone: 'subtle', attrs: { id: 'card-sem-preco' } }));
+      const linha = (rotulo, v, acab) => v ? h('div', { class: 'ds-precos__linha', dataset: { acabamento: acab } },
+        h('span', { class: 'ds-precos__rotulo' }, rotulo),
+        ...[['usd', v.usd, v.usdDeMercado], ['brl', v.brl, false], ['eur', v.eur, v.eurDeMercado]].map(([m, val, mercado]) =>
+          h('span', { class: 'ds-precos__valor', dataset: { moeda: m, mercado: String(!!mercado) }, title: mercado ? 'preço de mercado' : 'convertido pela cotação do dólar' },
+            val == null ? (taxas === undefined ? '…' : '—') : __m31.fmt(val, m)))) : null;
+      mount(precoBox,
+        linha('Normal', pr.normal, 'normal'), linha('Foil', pr.foil, 'foil'),
+        Text(taxas ? `Dólar a ${__m31.fmt(taxas.BRL, 'brl')} · cotação de ${__m31.quando(taxas.em)}${taxas.velha ? ' (sem internet: a última guardada)' : ''} · ${taxas.fonte}` + ((pr.normal && !pr.normal.eurDeMercado) || (pr.foil && !pr.foil.eurDeMercado) ? ' · euro sem preço de mercado é convertido' : ' · euro do mercado europeu')
+          : taxas === undefined ? 'Buscando a cotação do dólar…' : 'Sem cotação do dólar ainda: o real aparece na próxima vez com internet.', { size: 'xs', tone: 'subtle', attrs: { id: 'card-cotacao' } }));
+    };
+    pintaPrecos(undefined);
+    __m31.padrao.taxas().then(t => pintaPrecos(t || null)).catch(() => pintaPrecos(null));
 
     const semImagem = () => h('div', { class: 'ds-empty', dataset: { semImagem: '1' } }, Text(name), Text('Imagem ainda não guardada neste aparelho.', { size: 'xs', tone: 'subtle' }));
     // leva 102 · a carta grande: moldura com a proporção da carta (nada pula ao carregar), brilho enquanto carrega,
@@ -3777,8 +3897,10 @@ function openCardViewer(card, extra = [], { quantidade = null } = {}) {
       Row({ class: 'ds-row--wrap' },
         Badge(card.set_name || card.set, { tone: 'accent' }),
         card.rarity ? Badge(card.rarity) : null,
-        ManaPips((card.color_identity || []).join('')),
-        price ? Badge('US$ ' + price) : Badge('preço indisponível')));
+        ManaPips((card.color_identity || []).join(''))),
+      h('div', { style: { height: 'var(--space-3)' } }),
+      Text('Preço', { size: 'sm', caps: true, as: 'h3' }),
+      precoBox);
   };
   paint();
 
@@ -17712,6 +17834,8 @@ const backup = {
   }
 };
 const names = createNameIndex({ store: platform.store, scryfall });
+// leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
+__m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
 const ocr = createOcr();
 const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 // O2 · as telas recebem um ambiente VIVO: se a internet cair no meio do uso, `env.online` muda junto

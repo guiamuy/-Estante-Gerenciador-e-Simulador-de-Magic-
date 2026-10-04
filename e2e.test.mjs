@@ -71,6 +71,8 @@ async function open(t, { dev = true, apresentacao = false } = {}) {
   // local verde. O padrão passa a ser o mesmo nos dois lugares: o CDN de imagens fica fora do ar, salvo quando o
   // próprio teste o simula (rota da página, que tem precedência sobre a do contexto).
   await ctx.route(/^https:\/\/[^/]*\bscryfall\.io\//, r => r.abort('internetdisconnected'));
+  // leva 163 · a cotação do dólar não sai do aparelho nos testes: cada teste que precisa dela responde por rota própria
+  await ctx.route(/^https:\/\/(economia\.awesomeapi\.com\.br|api\.frankfurter\.dev|open\.er-api\.com)\//, r => r.abort('internetdisconnected'));
   // D4b (leva 145) · a apresentação de primeira abertura só aparece no teste que a pede: os outros (e as abas que abrem
   // a partir do mesmo contexto, como as da partida online) começam direto na tela
   if (!apresentacao) await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; });
@@ -6242,5 +6244,39 @@ test('e2e · leva 160 coleção: bloco Exportar expansível com ícone próprio,
   // o ícone novo está no catálogo
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-icones');
   assert.equal(await page.locator('#ds-icones [data-icone="cartaSai"]').count(), 1, 'cartaSai no catálogo de ícones');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 163 preço em três moedas no detalhe da carta: dólar, real pela cotação e euro; foil separado; sem internet vale a última cotação; sem preço não inventa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  // a Scryfall devolve Sol Ring com preço normal e foil (euro de mercado só no normal) e Counterspell sem preço
+  await page.route('https://api.scryfall.com/cards/search**', r => r.fulfill({ json: { object: 'list', has_more: false, data: [
+    { ...DB['sol ring'], prices: { usd: '2.00', usd_foil: '10.00', eur: '1.50', eur_foil: null } }, { ...DB['counterspell'], prices: {} }] } }));
+  let pedidos = 0;
+  await page.context().route(/api\.frankfurter\.dev/, r => { pedidos++; return r.fulfill({ json: { base: 'USD', rates: { BRL: 5, EUR: 0.9 } }, headers: { 'access-control-allow-origin': '*' } }); });
+  await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-q'); await page.fill('#cards-q', 'o'); await page.click('#cards-search');
+  await page.waitForSelector('#cards-results .ds-card');
+  await page.locator('#cards-results .ds-card[aria-label="Sol Ring"]').click(); await page.waitForSelector('#card-precos');
+  await page.waitForFunction(() => /Dólar a/.test((document.querySelector('#card-cotacao') || {}).textContent || ''));
+  const linhas = await page.$$eval('#card-precos .ds-precos__linha', ls => ls.map(l => [l.dataset.acabamento, ...[...l.querySelectorAll('.ds-precos__valor')].map(v => v.textContent + (v.dataset.mercado === 'true' ? ' *' : ''))]));
+  assert.deepEqual(linhas, [['normal', 'US$ 2,00 *', 'R$ 10,00', '€ 1,50 *'], ['foil', 'US$ 10,00 *', 'R$ 50,00', '€ 9,00']], 'real = dólar × cotação; euro de mercado no normal, convertido no foil');
+  assert.match(await page.innerText('#card-cotacao'), /Dólar a R\$ 5,00 · cotação de \d\d\/\d\d \d\d:\d\d · Frankfurter \(BCE\) · euro sem preço de mercado é convertido/);
+  assert.ok(pedidos >= 1);
+  await auditaTela(page, 'visor da carta com preço');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // carta sem preço: diz que não há, não inventa
+  await page.locator('#cards-results .ds-card[aria-label="Counterspell"]').click(); await page.waitForSelector('#card-sem-preco');
+  assert.equal(await page.locator('#card-precos .ds-precos__valor').count(), 0);
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // a cotação fica guardada: dentro da validade não busca de novo, e sem internet continua valendo
+  const antes = pedidos;
+  await page.context().unroute(/api\.frankfurter\.dev/); await page.context().route(/api\.frankfurter\.dev/, r => r.abort('internetdisconnected'));
+  await page.reload(); await page.waitForSelector('#cards-q'); await page.fill('#cards-q', 'o'); await page.click('#cards-search'); await page.waitForSelector('#cards-results .ds-card');
+  await page.locator('#cards-results .ds-card[aria-label="Sol Ring"]').click();
+  await page.waitForFunction(() => /Dólar a R\$ 5,00/.test((document.querySelector('#card-cotacao') || {}).textContent || ''));
+  assert.equal(pedidos, antes, 'cotação guardada: nenhuma busca nova');
+  assert.equal(await page.innerText('#card-precos [data-acabamento="normal"] [data-moeda="brl"]'), 'R$ 10,00');
   assert.deepEqual(errors, []);
 });
