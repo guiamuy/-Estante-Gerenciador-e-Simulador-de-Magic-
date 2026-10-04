@@ -1270,7 +1270,7 @@ body {
 .col-root[data-vazia="true"] :is(#col-search, #col-ir-adicionar, #col-scan, .col-filtro) { display: none; }
 .col-root[data-vazia="true"] #col-adicionar:not([data-aberta="true"]) { display: none; }
 .col-root[data-vazia="true"] #col-adicionar .col-acoes { display: none; }
-.col-root[data-vazia="true"] #col-acoes-lista { display: none; } /* leva 149 · exportar e selecionar só com carta na coleção */
+.col-root[data-vazia="true"] #col-exportar { display: none; } /* leva 149/160 · exportar e selecionar só com carta na coleção */
 .col-root[data-vazia="true"] > div:empty { display: none; }
 .col-acoes .ds-btn { justify-content: flex-start; font-size: var(--text-sm); padding: 0 var(--space-3); white-space: nowrap; min-width: 0; }
 .col-row__remover { color: var(--fg-muted); }
@@ -2169,6 +2169,7 @@ const ICONES = {
   // Leva 149 · blocos da coleção: painel (barras sobre a base) e adicionar carta (carta com o sinal de mais)
   painel: '<path d="M4 20h16"/><rect x="5.5" y="11" width="3.5" height="6" rx="1"/><rect x="10.25" y="5" width="3.5" height="12" rx="1"/><rect x="15" y="8.5" width="3.5" height="8.5" rx="1"/>',
   cartaMais: '<path d="M15.5 11V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h4.2"/><path d="M17 14v6.5M13.75 17.25h6.5"/>',
+  cartaSai: '<path d="M15.5 10V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h5.2"/><path d="M17 20.5v-7"/><path d="M13.9 16.6 17 13.5l3.1 3.1"/>', // leva 160 · bloco Exportar da coleção: a carta que sai
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
 };
 function Icone(nome, { tamanho = 20, classe = '' } = {}) {
@@ -5296,7 +5297,7 @@ function createCollection({ store }) {
       await persist(); return list.length;
     },
     /** C13 · visão, agrupamento e ordenação lembrados por aparelho. */
-    async prefs() { return { visao: 'lista', agrupar: '', ordenar: 'nome', painel: true, adicionar: true, ...((await store.get(PREFS)) || {}) }; },
+    async prefs() { return { visao: 'lista', agrupar: '', ordenar: 'nome', painel: true, adicionar: true, exportar: true, ...((await store.get(PREFS)) || {}) }; },
     async savePrefs(p) { const cur = await api.prefs(); await store.set(PREFS, { ...cur, ...p }); },
     /** C12b · visões salvas: nome + filtro, por aparelho. */
     async views() { return ((await store.get(VIEWS)) || []).map(v => ({ ...v })); },
@@ -7682,7 +7683,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // C13 · visão (lista/galeria/densa/pilhas), agrupamento e ordenação lembrados; pilha aberta; quantas linhas já desenhadas
     visao: 'lista', agrupar: '', ordenar: 'nome', pilhaAberta: null, limite: 120,
     // C14 · painel aberto ou fechado (lembrado), lista escolhida em "o que falta para montar"
-    painel: true, adicionar: true, montar: '', decksAll: [],
+    painel: true, adicionar: true, exportar: true, montar: '', decksAll: [],
     // C10 · seleção manual por nome, para exportar um recorte
     selecting: false, selected: new Set(), exportFormat: 'simples',
     // C11 · pendências da importação por lista e a última importação (para desfazer)
@@ -7719,6 +7720,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     state.views = await collection.views();
     const prefs = await collection.prefs();
     state.visao = prefs.visao; state.agrupar = prefs.agrupar; state.ordenar = prefs.ordenar; state.painel = prefs.painel !== false; if ((prefs.adicionar !== false) !== state.adicionar) { state.adicionar = prefs.adicionar !== false; paintAdd(); } // leva 149 · só redesenha se mudou: o campo não pisca sob o dedo
+    state.exportar = prefs.exportar !== false; paintExport();
     const all = await decks.list();
     state.decksAll = all;
     state.usedIn = new Map();
@@ -8204,6 +8206,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     sincronizaLink(); paintViews();
     paintCount(r);
     paintDashboard(r);
+    paintExport(); // leva 160 · "Filtradas" acompanha o recorte
     paintToolbar();
     if (!r.itens.length) { mount(listEl, Empty(FL.filtroVazio(state.filtro) ? 'Nenhuma carta na coleção.' : 'Nenhuma carta passa por esses filtros.', FL.filtroVazio(state.filtro) ? null : Button('Limpar filtros', { icone: 'fechar', onClick: limparFiltros }))); paintSelection(); paintUndo(); paintPending(); return; }
     // C13 · ordenar, agrupar e desenhar na visão escolhida, em lotes (a rolagem não trava com milhares)
@@ -8316,10 +8319,25 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       colAcoes));
   }
   paintAdd();
-  const acoesLista = h('div', { class: 'col-acoes', id: 'col-acoes-lista' },
-    Button('Exportar', { id: 'col-export', icone: 'exportar', onClick: () => openExport() }),
-    Button('Selecionar', { id: 'col-select', icone: 'selecionar', onClick: () => toggleSelecting() }),
-    csvInput, listInput);
+  // Leva 160 · exportar sobe para junto dos outros blocos (pedido de 04/10/2026): expansível com ícone próprio, logo abaixo
+  // de "Adicionar carta", com as quatro saídas — lista em texto (formatos na folha), CSV direto, só o recorte do filtro e
+  // seleção de cartas. Aberto/fechado lembrado por aparelho (`prefs.exportar`).
+  const secaoExportar = h('div', { id: 'col-exportar' });
+  function paintExport() {
+    const aberto = state.exportar !== false;
+    const temFiltro = !FL.filtroVazio(state.filtro) && state.recorte;
+    const filtroBtn = Button('Filtradas', { id: 'col-export-filtro', icone: 'filtro', disabled: !temFiltro, title: temFiltro ? `Exportar o recorte do filtro (${state.recorte.total})` : 'Ligue um filtro para exportar só o recorte', onClick: () => openExport({ filtro: true }) });
+    if (temFiltro) filtroBtn.appendChild(h('span', { class: 'ds-btn__conta', 'aria-hidden': 'true' }, String(state.recorte.total)));
+    mount(secaoExportar, Expansivel({ titulo: 'Exportar', icone: 'cartaSai', aberto, id: 'col-export-bloco', toggleId: 'col-export-toggle', resumo: aberto ? '' : 'texto · CSV · seleção',
+      onToggle: () => { state.exportar = !aberto; paintExport(); collection.savePrefs({ exportar: !aberto }).catch(() => { /* sem armazenamento: só nesta sessão */ }); } },
+      h('div', { class: 'col-acoes', id: 'col-acoes-exportar' },
+        Button('Em texto', { id: 'col-export', icone: 'exportar', title: 'Exportar a coleção como lista de texto (copiar ou baixar)', onClick: () => openExport() }),
+        Button('Em CSV', { id: 'col-export-csv', icone: 'planilha', title: 'Baixar a coleção em CSV', onClick: e => { const b = e.currentTarget; Promise.resolve(exportCsv()).then(() => { if (state.items.length) confirmaBotao(b, { texto: 'Baixado' }); }); } }),
+        filtroBtn,
+        (() => { const b = Button('Selecionar', { id: 'col-select', icone: 'selecionar', title: 'Escolher cartas para exportar só elas', onClick: () => toggleSelecting() }); b.setAttribute('aria-pressed', String(!!state.selecting)); return b; })()),
+      Text('Texto abre os formatos (simples, Arena, Moxfield). O backup completo fica em Perfil › Dados.', { size: 'xs', tone: 'subtle' })));
+  }
+  paintExport();
   let root = null;
   /** D4 · coleção vazia: título e cartão de primeiro uso; botões do título, filtro e seção de adicionar saem (voltam com a primeira carta ou por "Pelo nome"). */
   function pintaVazia(vazia) {
@@ -8337,12 +8355,13 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // Leva 149 · ordem pedida: painel, adicionar carta, depois filtro e visões da coleção; ações da lista e backup no fim
     dashboard,
     secaoAdicionar,
+    secaoExportar,
     undoBar, pendingBox,
     Row({ class: 'ds-row--wrap col-filtro' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn),
     toolbar, viewsRow, countLine, listEl, selectionBar,
-    acoesLista,
+    csvInput, listInput,
     care);
   return root;
 }

@@ -402,6 +402,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ae ✅ | D4a estados vazios de Listas e Coleção: cartão de primeiro uso com ícone, título, frase, um primário e um secundário; o resto em "Mais" (leva 142) | D | 1 | — |
 | 16º-af ✅ | D4b apresentação de 3 passos na primeira abertura, pulável, uma vez só, "Rever apresentação" no Perfil (leva 145) | D | 1 | — |
 | 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
+| 16º-aq ✅ | Coleção: bloco expansível **Exportar** com ícone próprio abaixo de Adicionar carta — texto, CSV, filtradas e seleção; sai do fim da página (leva 160) | U18 | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4259,6 +4260,32 @@ conversa paralela à do Shark e à da revisão carta a carta)
   recusado); e2e "Leva 137" (duas abas: selo 0 → 2, frase rápida e texto com HTML chegam como texto, aviso com
   nome e mensagem, abrir zera, resposta chega na folha aberta; `auditaTela` nas duas abas).
 - **Fora:** "digitando…"; histórico fora da sala; avatar nos balões (quando o perfil da conta estiver na sala).
+**U18 · Exportar como bloco expansível, no alto da coleção** ✅ (leva 160, pedido de 04/10/2026)
+- **Valor:** exportar deixa de ficar escondido depois da lista (rolagem inteira) e passa a ter lugar, ícone e
+  nome próprios, junto dos outros blocos; as variações ficam à vista em vez de dentro de uma folha.
+- **Entregue:** bloco **Exportar** (`Expansivel`, o mesmo do Painel e do Adicionar carta), logo abaixo de
+  "Adicionar carta" e acima do filtro. Ícone novo `cartaSai` (a carta com a seta que sai, par do `cartaMais`), no
+  selo do cabeçalho e no catálogo `/ds`. Dentro, quatro saídas em duas colunas, cada uma com ícone:
+  **Em texto** (abre a folha com os formatos simples · Arena · Moxfield, copiar ou baixar), **Em CSV** (baixa
+  direto e confirma com ✓ no botão), **Filtradas** (só o recorte do filtro; apagado sem filtro, com a contagem
+  quando há) e **Selecionar** (liga a seleção para exportar só as escolhidas; fica marcado enquanto ligada). Uma
+  linha lembra que o backup completo mora em Perfil › Dados. Fechado, o cabeçalho resume "texto · CSV · seleção".
+  Aberto/fechado lembrado por aparelho (`prefs.exportar`); **aberto por padrão**, como os outros dois blocos.
+  Coleção vazia: o bloco não aparece.
+- **Mudou de lugar (declarado):** a leva 149 tinha posto Exportar e Selecionar depois da lista (`#col-acoes-lista`)
+  porque agem sobre ela; este pedido traz para cima. Os ids `#col-export` e `#col-select` continuam os mesmos.
+- **Medido (360×780):** o bloco aberto ocupa 222 px e o fechado 62 px; com os três blocos abertos a primeira carta
+  fica a ~950 px do topo. **Risco apontado:** três blocos abertos por padrão empurram a lista para o segundo ecrã;
+  quem exporta pouco fecha o bloco uma vez e fica lembrado. Se o uso no aparelho incomodar, o padrão do Exportar
+  vira "fechado" numa linha.
+- **Testes:** e2e "leva 160" (vazia sem bloco; cabeçalho ≥ 44 px na largura toda com `cartaSai`; ordem adicionar ›
+  exportar › filtro › lista; quatro botões com ícone, até duas palavras e 44 px; texto abre a folha; CSV baixa e
+  confirma; Filtradas acende com filtro, mostra a contagem e exporta só o recorte; Selecionar marca; fechar resume,
+  sobe a lista ≥ 120 px e fica lembrado; ícone no catálogo; `auditaTela` aberto e fechado). Expectativas da leva
+  149 e da U2 parte 2 atualizadas com o motivo (posição e pares de botões).
+- **Fora:** exportar para imagem/PDF; compartilhar direto por app; exportar o que falta para uma lista (já está em
+  Painel › montar).
+
 **U17 · Blocos expansíveis da coleção, formato obrigatório em Jogar e enquadrar a foto** ✅ (leva 149, pedido de 03/10/2026)
 - **Valor:** a coleção mostra o que cada bloco é de relance e deixa a lista subir; a partida sempre tem formato; a foto do perfil fica como o usuário quer.
 - **Entregue:**

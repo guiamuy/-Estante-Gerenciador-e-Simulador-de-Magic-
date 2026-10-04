@@ -2691,7 +2691,7 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   for (const id of ['#col-import', '#col-csv-import', '#col-export', '#col-select', '#col-filters', '#col-add-btn']) await temIcone(id);
   // as quatro ações em duas colunas
   await mesmaLinha('#col-import', '#col-csv-import', 'Colar lista e Abrir CSV lado a lado');
-  await mesmaLinha('#col-export', '#col-select', 'Exportar e Selecionar lado a lado');
+  await mesmaLinha('#col-export', '#col-export-csv', 'Em texto e Em CSV lado a lado'); await mesmaLinha('#col-export-filtro', '#col-select', 'Filtradas e Selecionar lado a lado'); // leva 160 · bloco Exportar: quatro saídas em duas colunas
   // visões: segmentado numa linha só, com ícone em cada parte
   const visoes = await page.$$eval('.ds-segmentado [data-visao]', els => els.map(e => ({ y: Math.round(e.getBoundingClientRect().y), svg: !!e.querySelector('svg'), dir: Math.round(e.getBoundingClientRect().right) })));
   assert.equal(visoes.length, 4); assert.ok(visoes.every(v => v.y === visoes[0].y && v.svg && v.dir <= 360), 'quatro visões numa linha: ' + JSON.stringify(visoes));
@@ -5748,7 +5748,7 @@ test('e2e · leva 149 coleção: painel e adicionar carta são blocos expansíve
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
   // D4 + leva 149 · coleção vazia: "Pelo nome" mostra o bloco já aberto, sem as ações de importar (elas moram no cartão)
   assert.equal(await page.locator('#col-add-bloco').isVisible(), false, 'vazia, o bloco de adicionar não aparece');
-  assert.equal(await page.locator('#col-acoes-lista').isVisible(), false, 'vazia, exportar e selecionar não aparecem');
+  assert.equal(await page.locator('#col-export-bloco').isVisible(), false, 'vazia, exportar e selecionar não aparecem');
   await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add');
   assert.equal(await page.getAttribute('#col-add-toggle', 'aria-expanded'), 'true');
   await auditaTela(page, 'coleção vazia com adicionar aberto');
@@ -5762,12 +5762,13 @@ test('e2e · leva 149 coleção: painel e adicionar carta são blocos expansíve
     assert.equal(c.titulo, titulo); assert.equal(c.aberto, 'true', 'abertos por padrão');
     assert.doesNotMatch(c.texto, /\p{Extended_Pictographic}/u, 'sem emoji no cabeçalho');
   }
-  // ordem: painel, adicionar carta, filtro, lista; exportar e selecionar depois da lista
+  // leva 160 · expectativa mudou (pedido de 04/10): exportar e selecionar subiram para um bloco próprio, logo abaixo de adicionar
+  // ordem: painel, adicionar carta, exportar, filtro, lista
   const y = sel => page.$eval(sel, el => Math.round(el.getBoundingClientRect().top + scrollY));
-  const ordem = { painel: await y('#col-dash-bloco'), adicionar: await y('#col-add-bloco'), filtro: await y('#col-filter'), lista: await y('.col-row'), acoes: await y('#col-acoes-lista') };
-  assert.ok(ordem.painel < ordem.adicionar && ordem.adicionar < ordem.filtro && ordem.filtro < ordem.lista && ordem.lista < ordem.acoes, JSON.stringify(ordem));
+  const ordem = { painel: await y('#col-dash-bloco'), adicionar: await y('#col-add-bloco'), exportar: await y('#col-export-bloco'), filtro: await y('#col-filter'), lista: await y('.col-row') };
+  assert.ok(ordem.painel < ordem.adicionar && ordem.adicionar < ordem.exportar && ordem.exportar < ordem.filtro && ordem.filtro < ordem.lista, JSON.stringify(ordem));
   for (const id of ['#col-import', '#col-csv-import']) assert.equal(await page.locator('#col-add-bloco ' + id).count(), 1, id + ' dentro de adicionar carta');
-  for (const id of ['#col-export', '#col-select']) assert.equal(await page.locator('#col-acoes-lista ' + id).count(), 1, id + ' junto da lista');
+  for (const id of ['#col-export', '#col-select']) assert.equal(await page.locator('#col-export-bloco ' + id).count(), 1, id + ' dentro do bloco Exportar');
   await emTodasAsMedidas(page, 'coleção com os dois blocos abertos');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/colecao-140-abertos.png', fullPage: true });
   // fechar os dois: sobra o cabeçalho; o painel fechado resume o recorte; a lista sobe
@@ -6184,5 +6185,62 @@ test('e2e · D12 guia visual vivo: /ds mostra os tokens que estão valendo (muda
   await page.goto(base + '#/listas'); await page.goto(base + '#/ds'); await page.waitForSelector('#ds-tokens-cor');
   const jade = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
   assert.notEqual(jade, valendo); assert.ok((await page.innerText('#ds-tokens-cor [data-token="--accent"]')).includes(jade));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · leva 160 coleção: bloco Exportar expansível com ícone próprio, abaixo de Adicionar carta — texto, CSV, filtradas e seleção; fechar fica lembrado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  assert.equal(await page.locator('#col-export-bloco').isVisible(), false, 'coleção vazia: nada a exportar, o bloco não aparece');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  // cabeçalho: botão na largura toda, ≥ 44 px, ícone próprio (a carta que sai) e a seta; aberto por padrão
+  const c = await page.$eval('#col-export-toggle', el => ({ h: el.getBoundingClientRect().height, w: el.getBoundingClientRect().width, pai: el.parentElement.getBoundingClientRect().width, aberto: el.getAttribute('aria-expanded'),
+    icones: [...el.querySelectorAll('.ds-icon')].map(i => i.dataset.icone), titulo: el.querySelector('.ds-expansivel__titulo').textContent, texto: el.textContent }));
+  assert.ok(c.h >= 44 && c.w >= c.pai - 2, JSON.stringify(c)); assert.deepEqual(c.icones, ['cartaSai', 'descer']); assert.equal(c.titulo, 'Exportar'); assert.equal(c.aberto, 'true');
+  assert.doesNotMatch(c.texto, /\p{Extended_Pictographic}/u, 'sem emoji');
+  // posição: logo abaixo de Adicionar carta e acima do filtro e da lista (antes ficava depois da lista)
+  const y = sel => page.$eval(sel, el => Math.round(el.getBoundingClientRect().top + scrollY));
+  const [add, exp, filtro, lista] = [await y('#col-add-bloco'), await y('#col-export-bloco'), await y('#col-filter'), await y('.col-row')];
+  assert.ok(add < exp && exp < filtro && filtro < lista, JSON.stringify({ add, exp, filtro, lista }));
+  assert.equal(await page.locator('#col-acoes-lista').count(), 0, 'as ações saíram do fim da página');
+  // quatro saídas, cada uma com ícone, rótulo de até duas palavras e 44 px
+  const botoes = await page.$$eval('#col-acoes-exportar .ds-btn', bs => bs.map(b => ({ id: b.id, rot: b.querySelector('.ds-btn__rotulo').textContent, svg: b.querySelectorAll('svg').length, h: Math.round(b.getBoundingClientRect().height), off: b.disabled })));
+  assert.deepEqual(botoes.map(b => [b.id, b.rot]), [['col-export', 'Em texto'], ['col-export-csv', 'Em CSV'], ['col-export-filtro', 'Filtradas'], ['col-select', 'Selecionar']]);
+  assert.ok(botoes.every(b => b.svg === 1 && b.h >= 44 && b.rot.split(' ').length <= 2), JSON.stringify(botoes));
+  assert.equal(botoes[2].off, true, 'sem filtro ligado, "Filtradas" fica apagado');
+  await auditaTela(page, 'coleção com o bloco Exportar aberto');
+  // Em texto abre a folha com os formatos; Em CSV baixa direto e confirma no botão
+  await page.click('#col-export'); await page.waitForSelector('#col-export-text'); assert.match(await page.inputValue('#col-export-text'), /3 Island/);
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  const [csv] = await Promise.all([page.waitForEvent('download'), page.click('#col-export-csv')]);
+  assert.equal(csv.suggestedFilename(), 'estante-colecao.csv');
+  await page.waitForSelector('#col-export-csv[data-confirmado="true"]');
+  // com filtro ligado, "Filtradas" acende, mostra a contagem e abre a folha já no recorte
+  await page.fill('#col-filter', 'Sol'); await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  await page.waitForSelector('#col-export-filtro:not([disabled])');
+  assert.equal(await page.innerText('#col-export-filtro .ds-btn__conta'), '1');
+  await page.click('#col-export-filtro'); await page.waitForSelector('#col-export-text');
+  const txt = await page.inputValue('#col-export-text'); assert.match(txt, /Sol Ring/); assert.doesNotMatch(txt, /Island/);
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await page.fill('#col-filter', ''); await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 3);
+  // Selecionar liga a seleção (o botão fica marcado) e a barra de seleção aparece
+  await page.click('#col-select'); await page.waitForSelector('#col-select-off');
+  assert.equal(await page.getAttribute('#col-select', 'aria-pressed'), 'true');
+  await page.click('#col-select-off'); await page.waitForFunction(() => !document.querySelector('#col-select-off'));
+  // fechar: sobra o cabeçalho com o resumo, a lista sobe, e fica lembrado
+  await page.click('#col-export-toggle'); await page.waitForFunction(() => !document.querySelector('#col-acoes-exportar'));
+  assert.equal(await page.getAttribute('#col-export-toggle', 'aria-expanded'), 'false');
+  assert.match(await page.innerText('#col-export-toggle'), /texto · CSV · seleção/);
+  assert.ok((await page.$eval('#col-export-bloco', el => el.getBoundingClientRect().height)) <= 64, 'fechado ocupa só o cabeçalho');
+  assert.ok(lista - (await y('.col-row')) >= 120, 'a lista sobe com o bloco fechado');
+  await auditaTela(page, 'coleção com o bloco Exportar fechado');
+  await page.goto(base + '#/listas'); await page.goto(base + '#/colecao'); await page.waitForSelector('#col-export-toggle');
+  await page.waitForFunction(() => document.querySelector('#col-export-toggle').getAttribute('aria-expanded') === 'false');
+  // o ícone novo está no catálogo
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-icones');
+  assert.equal(await page.locator('#ds-icones [data-icone="cartaSai"]').count(), 1, 'cartaSai no catálogo de ícones');
   assert.deepEqual(errors, []);
 });
