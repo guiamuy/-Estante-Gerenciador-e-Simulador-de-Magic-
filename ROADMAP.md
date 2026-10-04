@@ -402,6 +402,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-af ✅ | D4b apresentação de 3 passos na primeira abertura, pulável, uma vez só, "Rever apresentação" no Perfil (leva 145) | D | 1 | — |
 | 16º-ag ✅ | Coleção com blocos expansíveis e ícone (painel, adicionar carta de volta ao topo), Jogar sem "Todos", enquadrar a foto do perfil (leva 149) | U17 | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
+| 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4409,7 +4410,7 @@ na primeira abertura, pulável (não como "Ajuda" escondida).
   Perfil), D4a (sem asserção sobre o backup em Listas).
 - **Fora:** "Apagar tudo" (limpar listas, coleção e perfil de uma vez) — ação destrutiva que pede desenho próprio
   com desfazer; renomear Perfil → Ajustes; cache de imagens como item de Dados (entra se o espaço apertar).
-**D7 · Mesa: superfície, cor do oponente e verso** ✅ (leva 151, 03/10/2026) — feita antes da D6 de propósito: a D6
+**D7 · Mesa: superfície, cor do oponente e verso** ✅ (leva 152, 03/10/2026) — feita antes da D6 de propósito: a D6
 mexe nas mesmas linhas da mesa que a trilha motor está revisando (R5 moveu Auras e terrenos); esta só acrescenta
 tokens, um atributo no `<html>` e o verso.
 - **Entregue:** em Perfil › Aparência, bloco **Mesa**: **Superfície** (Nogueira · Feltro · Pedra · Linho), **Cor do
@@ -4431,6 +4432,23 @@ tokens, um atributo no `<html>` e o verso.
   o verso e a folha não revela).
 - **Fora:** verso como imagem do usuário; superfície por foto; cor do oponente por jogador na partida online
   (cada aparelho escolhe a sua); animação de virar a carta (D10).
+**D6 · Mesa: relance** ✅ (leva 152, 03/10/2026)
+- **Entregue:** com o campo vazio, o lado do jogador é só a linha de vida e zonas — as linhas "Terrenos nenhum" e
+  "Permanentes nenhuma" não existem até a primeira carta entrar (o nome falado do lado diz "campo vazio";
+  `data-campo` marca); com uma das duas zonas vazia ela continua como linha fina. **Zeros apagados:** chip de zona
+  com 0 perde borda, fundo e peso (fica `data-zero`), mas continua um alvo de 44 px que abre a zona. O grimório e
+  qualquer contagem > 0 seguem como antes.
+- **Medido (360×780, Delver × Goldfish, início da partida):** cada lado **121 → 72 px**; os dois lados **242 → 144
+  px**, **98 px de campo ganhos** (meta ≥ 60). Depois do primeiro terreno: "Terrenos · 1" + "Permanentes nenhuma"
+  numa linha fina.
+- **Divergência da história:** "registro e resumo em folha" ficou de fora de propósito: o resumo dos últimos turnos
+  (`#tb-resumo`) é o que diz o que o oponente fez enquanto você não olhava, e já some com um toque (OK); o registro
+  completo já é uma folha. Tirá-los da mesa pouparia pixels só depois do início e esconderia leitura útil.
+- **Testes:** e2e "D6" (altura dos lados ≤ 81 px no início contra 121, nenhuma `.tb-zone` com campo vazio,
+  `data-campo` e nome falado, zero sem borda e com 44 px, grimório com borda, primeiro terreno traz "Terrenos · 1" e
+  a linha fina de Permanentes, `auditaTela`). U5/U7/R2/R5 da mesa continuam verdes.
+- **Fora:** colapsar o lado do oponente inteiro quando ele está fora da partida; esconder o chip de exílio até a
+  primeira carta exilada (é alvo de toque para ver o que já saiu).
 
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.

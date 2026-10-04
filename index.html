@@ -986,7 +986,11 @@ body {
 .tb-zone { display: flex; flex-direction: column; gap: var(--space-1); }
 .tb-zone__label { font-size: var(--text-xs); color: var(--fg-muted); }
 .tb-zone__empty { font-size: var(--text-xs); color: var(--fg-subtle); }
-.tb-zone--empty { flex-direction: row; gap: var(--space-2); align-items: baseline; }
+.tb-zone--empty { flex-direction: row; gap: var(--space-2); align-items: baseline; line-height: var(--lh-xs); }
+/* D6 · relance: zeros apagados (o número some do olho, o alvo de toque fica), campo vazio numa linha */
+.tb-chip[data-zero="true"] { color: var(--fg-subtle); border-color: transparent; background: transparent; padding: 0 var(--space-1); }
+.tb-chip[data-zero="true"] b { color: var(--fg-subtle); font-weight: var(--weight-regular); }
+/* (D6) o lado com campo vazio só se declara pelo nome falado e por data-campo */
 .tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2); scroll-snap-type: x proximity; }
 
 .tb-card {
@@ -12775,7 +12779,7 @@ function LifeCounter({ name, life, active, sub, onClick, id }) {
 
 /** Contagem de zona (grimório, cemitério…) que abre a zona. */
 // Leva 125 · `jogaveis`: quantas cartas da zona têm ação agora (lampejo do passado no cemitério, carta jogável do exílio)
-const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: 'tb-chip', type: 'button', onClick, id, dataset: jogaveis ? { jogaveis: String(jogaveis) } : {},
+const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: 'tb-chip', type: 'button', onClick, id, dataset: { ...(jogaveis ? { jogaveis: String(jogaveis) } : {}), ...(!n ? { zero: 'true' } : {}) }, // D6 · zero apagado
   ...(jogaveis ? { 'aria-label': `${label}: ${n}, ${jogaveis === 1 ? 'uma carta pode ser jogada' : jogaveis + ' cartas podem ser jogadas'} agora` } : {}) },
   label, h('b', {}, String(n)), jogaveis ? h('span', { class: 'tb-chip__ponto', 'aria-hidden': 'true' }) : null);
 
@@ -14857,10 +14861,14 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
       sub: subMasm, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
-    const field = [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.filter(o => isLand(s, o)).length })];
+    // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
+    // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
+    const campoVazio = !others.length && !lands.length;
+    const field = campoVazio ? []
+      : [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.filter(o => isLand(s, o)).length })];
     const ativo = s.status === 'playing' && s.turn.active === p;   // U7 · o lado de quem joga acende
-    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo) },
-      'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') },
+    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado' },
+      'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') + (campoVazio ? ', campo vazio' : '') },
       h('div', { class: 'tb-side__head' }, life, chips),
       ...(mine ? field : field.reverse()));
   }

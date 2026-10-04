@@ -5968,3 +5968,37 @@ test('e2e · D7 mesa do seu jeito: superfície só na partida, cor do oponente e
   await auditaTela(page, 'mesa feltro com verso');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · D6 mesa de relance: no início da partida nenhuma zona vazia ocupa campo, zeros apagados, "Terrenos" só depois do primeiro terreno; cada lado ≤ 80 px no início (antes 121)', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 15000 }); await page.click('#tb-keep');
+  await page.waitForSelector('.tb-side--me'); await page.waitForTimeout(300);
+  const alturas = () => page.$$eval('.tb-side', ls => ls.map(l => Math.round(l.getBoundingClientRect().height)));
+  const antes = 121; // leva 144: altura de cada lado no início (360×780, Delver × Goldfish)
+  const h0 = await alturas();
+  assert.ok(h0.every(h => h <= antes - 40), `cada lado ganhou ≥ 40 px (${antes} → ${h0.join('/')}); meta da D6: ≥ 60 px somando os dois lados`);
+  assert.equal(await page.locator('.tb-side .tb-zone').count(), 0, 'nenhuma linha de zona com o campo vazio');
+  assert.deepEqual(await page.$$eval('.tb-side', ls => ls.map(l => l.dataset.campo)), ['vazio', 'vazio']);
+  assert.match(await page.getAttribute('.tb-side--me', 'aria-label'), /campo vazio/, 'o leitor de tela sabe que o campo está vazio');
+  // zeros apagados: o chip continua um alvo de 44 px, mas sem borda nem peso
+  const zero = page.locator('#tb-cemiterio-me');
+  assert.equal(await zero.getAttribute('data-zero'), 'true');
+  assert.ok((await zero.boundingBox()).height >= 44, 'alvo de toque mantido');
+  assert.equal(await page.$eval('#tb-cemiterio-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'zero sem borda');
+  assert.notEqual(await page.$eval('#tb-lib-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'o grimório (25) continua com borda');
+  // o primeiro terreno traz "Terrenos · 1" e "Permanentes nenhuma" numa linha fina; o lado cresce só o necessário
+  const ilha = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].hand.find(o => s.objects[o].name === 'Island') || null; });
+  assert.ok(ilha, 'há uma Island na mão com a semente 3');
+  await page.evaluate(oid => window.__estanteMesa.act({ t: 'play_land', p: 0, oid }), ilha);
+  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
+  assert.match(await page.innerText('.tb-side--me [data-zone="lands"] .tb-zone__label'), /Terrenos · 1/);
+  assert.equal(await page.locator('.tb-side--me [data-zone="permanents"].tb-zone--empty').count(), 1);
+  assert.equal(await page.getAttribute('.tb-side--me', 'data-campo'), 'ocupado');
+  assert.equal(await page.locator('.tb-side--opp .tb-zone').count(), 0, 'o lado do oponente segue sem zonas');
+  await auditaTela(page, 'mesa de relance');
+  assert.deepEqual(errors, []);
+});
