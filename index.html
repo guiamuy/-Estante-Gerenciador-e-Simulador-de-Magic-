@@ -485,8 +485,8 @@ a { color: var(--accent); }
 .ds-nav--perfil { min-width: var(--tap-min); padding: 0 var(--space-1); }
 /* abaixo da faixa estreita suportada (360) a barra não tem os 44 px do avatar: ele sai e o perfil segue por #/perfil */
 @media (max-width: 339px) { .ds-nav--perfil { display: none; } }
-/* D8 · com o chip "Sem rede" na barra, em 360 px os destinos apertam o passo em vez de vazar para o lado */
-@media (max-width: 379px) { .ds-appbar:has(#nav-offline:not(.ds-hidden)) .ds-appbar__inner { gap: var(--space-1); } .ds-appbar:has(#nav-offline:not(.ds-hidden)) .ds-nav { min-width: var(--tap-min); padding-left: 2px; padding-right: 2px; } }
+/* D8 · com o chip "Sem rede" na barra, em 360 px a barra aperta o passo em vez de vazar para o lado */
+@media (max-width: 379px) { .ds-appbar:has(#nav-offline:not(.ds-hidden)) .ds-appbar__inner { gap: var(--space-1); } #nav-offline { min-width: var(--tap-min); } #nav-offline .ds-nav__rotulo { display: none; } .ds-appbar:has(#nav-offline:not(.ds-hidden)) #theme-toggle { display: none; } } /* leva 158 · sem internet em tela estreita: o chip fica só com o ícone e o ponto (o nome falado continua) e o botão de tema sai da barra (o tema segue em Perfil › Aparência); os destinos não encolhem, para os rótulos não se tocarem com fonte larga */
 .ds-nav--perfil[aria-current="page"] .ds-avatar { border-color: var(--accent); }
 .perfil-cabeca { display: flex; align-items: center; gap: var(--space-4); }
 .perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }

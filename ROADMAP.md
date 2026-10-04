@@ -408,6 +408,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-al ✅ | D10 movimento com sistema: pulsos por token, vibração por evento (toque · confirmação · alerta · turno), catálogo em /ds, portão confere keyframes e menos movimento (leva 155) | D | 1 | literais do scanner ficam com a X16 |
 | 16º-am ✅ | D11 acessibilidade medida: axe-core no portão (12 telas e folhas × 2 temas, zero achados); selects com nome, h1 na partida, texto sutil e cabeçalho de grupo AA no claro (leva 156) | D | 1 | — |
 | 16º-an ✅ | D12 guia visual vivo: /ds com tokens lidos do documento, componentes com estados, movimento e checklist; o portão barra componente do DS fora do catálogo — fecha o épico E53 (leva 157) | D | 1 | capturas do aparelho |
+| 16º-ap ✅ | Barra sem internet em tela estreita: chip só com ícone e tema fora da barra; e2e D8 audita com fonte larga (CI verde de novo) (leva 158) | D | 1 | — |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4474,6 +4475,11 @@ X16 (tela nova, estados desenhados) planejada em cima das mesmas notas; mexer ne
   folha com uma nota por item, `auditaTela` com o chip Sem rede; ✓ no botão de copiar e volta ao rótulo; Salvar vira
   "Salvo"). Quatro testes que liam os textos de validação no `main` passaram a abrir a folha (`estadoDaLista`),
   com o motivo no teste.
+- **Correção depois de publicada (leva 158):** o portão do CI ficou vermelho na 157 só no e2e "D8": com a fonte de
+  sistema do CI (mais larga), o aperto que a D8 deu nos destinos da barra fazia "Coleção" encostar em "Sem rede".
+  Agora, sem internet em tela até 379 px, o chip fica só com o ícone e o ponto (nome falado mantido) e o botão de tema
+  sai da barra (o tema continua em Perfil › Aparência); os destinos não encolhem. O e2e "D8" passou a auditar a tela
+  também com fonte larga, para o portão local pegar o que só o CI via.
 - **Fora:** scanner (X16); linha de estado na coleção (os avisos dela já são contextuais: backup e armazenamento);
   ✓ nos botões da mesa (o retorno lá é o próprio estado do jogo).
 

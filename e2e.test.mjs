@@ -6038,6 +6038,14 @@ test('e2e · D8 avisos no lugar: a lista sem rede tem uma linha de estado (≤ 4
   assert.match(await page.innerText('.ds-dialog'), /Sem conexão com a Scryfall/);
   await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   await auditaTela(page, 'lista sem rede');
+  // leva 158 · o CI usa uma fonte de sistema mais larga: a mesma tela é auditada com ela (a barra com o chip Sem rede
+  // encostava "Coleção" em "Sem rede" só lá). Em tela estreita sem internet o chip é só ícone e o botão de tema sai.
+  assert.equal(await page.locator('#nav-offline .ds-nav__rotulo').isVisible(), false, 'chip só com ícone em 360');
+  assert.equal(await page.getAttribute('#nav-offline', 'aria-label'), 'Sem internet: ver o que funciona');
+  assert.equal(await page.locator('#theme-toggle').isVisible(), false, 'tema fora da barra sem internet em 360');
+  const larga = await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' });
+  await auditaTela(page, 'lista sem rede, fonte larga');
+  await larga.evaluate(el => el.remove());
   await page.context().setOffline(false); await page.unroute('https://api.scryfall.com/**');
   // ✓ no botão: Copiar sem script mostra "Copiado" no próprio botão e volta ao rótulo em ~1,2 s; o aviso vem junto
   await page.goto(urlDelver); await page.reload(); await page.waitForSelector('#deck-copy-missing', { timeout: 10000 });
