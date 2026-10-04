@@ -436,6 +436,16 @@ a { color: var(--accent); }
 .home-continuar__texto span { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-continuar__seta { flex: none; color: var(--fg-subtle); display: inline-flex; }
 
+/* D12 · catálogo: tokens e checklist */
+.ds-tokens { display: grid; grid-template-columns: 1fr; gap: var(--space-1); }
+.ds-token { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; }
+.ds-token__amostra { flex: none; width: 28px; height: 28px; border-radius: var(--radius-1); border: 1px solid var(--border-strong); }
+.ds-token__amostra--raio { background: var(--bg-elev-3); width: 36px; height: 36px; }
+.ds-token__nome { display: flex; flex-direction: column; min-width: 0; font-size: var(--text-xs); color: var(--fg-muted); }
+.ds-token code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg); }
+.ds-token__barra { display: inline-block; height: 10px; background: var(--accent); border-radius: var(--radius-0); }
+.ds-tokens--texto .ds-token { justify-content: space-between; }
+.ds-checklist { margin: 0; padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-muted); }
 /* D10 · catálogo de movimento */
 .ds-movimentos { display: grid; grid-template-columns: 1fr; gap: var(--space-2); }
 .ds-movimento { display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: var(--space-3); align-items: center; }
@@ -2373,7 +2383,7 @@ function confirmaBotao(btn, { texto = 'Feito', ms = 1200 } = {}) {
   const filhos = [...btn.childNodes], rotuloAntes = btn.getAttribute('aria-label');
   btn.dataset.confirmado = 'true';
   // botão só de ícone (44 px): troca só o desenho; o texto vai para o nome falado, não para dentro da caixa
-  if (btn.classList.contains('ds-btn--icon')) btn.replaceChildren(Icone('marcar', { tamanho: 20 }));
+  if (btn.classList.contains('ds-btn--icon') || btn.classList.contains('ds-btn--icone')) btn.replaceChildren(Icone('marcar', { tamanho: 20 }));
   else btn.replaceChildren(Icone('marcar', { tamanho: 20 }), h('span', { class: 'ds-btn__rotulo' }, texto));
   btn.setAttribute('aria-label', texto);
   setTimeout(() => { btn.replaceChildren(...filhos); if (rotuloAntes == null) btn.removeAttribute('aria-label'); else btn.setAttribute('aria-label', rotuloAntes); delete btn.dataset.confirmado; }, ms);
@@ -2607,9 +2617,49 @@ return { logoSvg, logoLockup, faviconHref, installFavicon, iconeDoApp };
 const __m5 = (function () {
 /* F5 · catálogo de componentes. Rota /ds. É documentação viva e alvo de teste. */
 const { logoSvg, logoLockup } = __m4;
-const { h, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, Tabs, List, ListItem, ListGroup, Empty, Note, Spinner, CardFace, CardGrid, Dialog, closeDialog, toast } = __m3;
-const Section = (title, ...kids) => Surface({ class: 'ds-surface--pad' },
+const { h, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, Tabs, List, ListItem, ListGroup, Empty, Note, Spinner, CardFace, CardGrid, Dialog, closeDialog, toast,
+  Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Avatar, LinhaEstado, confirmaBotao, ImagemCarta } = __m3;
+const Section = (title, ...kids) => Surface({ class: 'ds-surface--pad', dataset: { secao: title } },
   Text(title, { size: 'sm', caps: true, as: 'h2' }), Stack({}, ...kids));
+/* D12 · tokens lidos do próprio documento: o catálogo nunca descreve uma cor que não é a que está valendo */
+const TOKENS_COR = [['--bg', 'fundo'], ['--bg-elev-1', 'superfície'], ['--bg-elev-2', 'elevada 2'], ['--bg-elev-3', 'elevada 3'], ['--border', 'borda'], ['--border-strong', 'borda forte'],
+  ['--fg', 'texto'], ['--fg-muted', 'texto apagado'], ['--fg-subtle', 'texto sutil'], ['--fg-grupo', 'grupo de lista'], ['--accent', 'acento'], ['--accent-hover', 'acento ao toque'], ['--accent-fg', 'texto sobre acento'], ['--accent-soft', 'acento suave'],
+  ['--positive', 'positivo'], ['--warning', 'atenção'], ['--negative', 'negativo'], ['--player-opp', 'oponente'], ['--player-opp-fg', 'texto sobre oponente'], ['--mesa-bg', 'superfície da mesa'], ['--shelf-edge', 'ombro da prateleira']];
+const TOKENS_ESPACO = ['--space-1', '--space-2', '--space-3', '--space-4', '--space-5', '--space-6', '--space-7', '--space-8'];
+const TOKENS_TEXTO = ['--text-3xs', '--text-2xs', '--text-xs', '--text-sm', '--text-md', '--text-lg', '--text-xl', '--text-2xl', '--text-3xl'];
+const TOKENS_RAIO = ['--radius-0', '--radius-1', '--radius-2', '--radius-card', '--radius-full'];
+function valorDe(tok) { try { return getComputedStyle(document.documentElement).getPropertyValue(tok).trim(); } catch (e) { return ''; } }
+function secaoTokens() {
+  const cor = ([tok, nome]) => h('div', { class: 'ds-token', dataset: { token: tok } },
+    h('span', { class: 'ds-token__amostra', style: { background: `var(${tok})` } }),
+    h('span', { class: 'ds-token__nome' }, h('code', {}, tok), h('span', {}, `${nome} · ${valorDe(tok)}`)));
+  return Section('Tokens',
+    Text('Cores lidas do documento agora (mudam com tema, acento e superfície escolhidos). Texto e espaço são multiplicados pela escala e pela densidade da Aparência.', { size: 'sm', tone: 'muted' }),
+    h('div', { class: 'ds-tokens', id: 'ds-tokens-cor' }, ...TOKENS_COR.map(cor)),
+    Text('Escala de texto', { size: 'sm', caps: true, as: 'h3' }),
+    h('div', { class: 'ds-tokens ds-tokens--texto', id: 'ds-tokens-texto' }, ...TOKENS_TEXTO.map(t => h('div', { class: 'ds-token' }, h('span', { style: { fontSize: `var(${t})`, lineHeight: '1.2' } }, 'Estante'), h('code', {}, `${t} · ${valorDe(t)}`)))),
+    Text('Espaço', { size: 'sm', caps: true, as: 'h3' }),
+    h('div', { class: 'ds-tokens', id: 'ds-tokens-espaco' }, ...TOKENS_ESPACO.map(t => h('div', { class: 'ds-token' }, h('span', { class: 'ds-token__barra', style: { width: `var(${t})` } }), h('code', {}, `${t} · ${valorDe(t)}`)))),
+    Text('Raios', { size: 'sm', caps: true, as: 'h3' }),
+    Row({ class: 'ds-row--wrap' }, ...TOKENS_RAIO.map(t => h('div', { class: 'ds-token ds-token--raio' }, h('span', { class: 'ds-token__amostra ds-token__amostra--raio', style: { borderRadius: `var(${t})` } }), h('code', {}, t)))),
+    Text('Aparência (tudo em Perfil › Aparência): acentos latão · cobre · prata · jade; superfícies nogueira · feltro · pedra · linho; cor do oponente azul · rubi · ametista; versos estante · selo · trama; escala de texto 3 passos; densidade 2; menos movimento; vibração.', { size: 'sm', tone: 'muted' }));
+}
+/* D12 · checklist de design por leva: o que o portão mede e o que a revisão olha */
+const CHECKLIST = [
+  'Alvos de toque ≥ 44 px e layout em uma coluna em 360×780 (auditaTela, sem rolagem lateral, sem texto sobre texto)',
+  'Um primário por tela; o raro vai para folha ou para Perfil › Dados/Aparência',
+  'Tudo por token: cor, fonte, espaço, raio e duração (contrato visual barra literal)',
+  'Estado vazio com ícone + título + frase + 1 primário + 1 secundário; carregando e erro desenhados; caminho de volta',
+  'Retorno no lugar da ação (✓ no botão) antes do aviso flutuante; nada destrutivo sem confirmar ou desfazer',
+  'Movimento por --dur-*/--ease-*, com menos movimento respeitado; vibração por evento',
+  'Nos dois temas e com cada acento: AA (contrato visual) e axe-core sem achados (e2e D11)',
+  'Medir antes e depois em pixels e escrever o número na história do ROADMAP'
+];
+function secaoChecklist() {
+  return Section('Checklist de design por leva',
+    h('ol', { class: 'ds-checklist', id: 'ds-checklist' }, ...CHECKLIST.map(t => h('li', {}, t))),
+    Text('Capturas de referência: SHOT_W=360 SHOT_TEMA=dark SHOTS=<pasta> npm test gera as telas; compare com a leva anterior antes de publicar.', { size: 'xs', tone: 'subtle' }));
+}
 
 function renderDS() {
   let tab = 'um';
@@ -2666,6 +2716,8 @@ function renderDS() {
         h('span', { style: { color: 'var(--fg-muted)' }, html: logoSvg(32, 'mono') })),
       Text('Símbolo, marca nominativa e variante monocromática. Herda a cor do tema; serve de favicon e de ícone da aplicação.', { size: 'sm', tone: 'muted' })),
 
+    secaoTokens(),
+
     Section('Tipografia',
       Text('Display 2xl', { size: '2xl', display: true }),
       Text('Título xl', { size: 'xl' }),
@@ -2681,7 +2733,18 @@ function renderDS() {
         Button('Fantasma', { variant: 'ghost', onClick: () => toast('Fantasma') }),
         Button('Destrutivo', { variant: 'danger', onClick: () => toast('Destrutivo') }),
         Button('Desativado', { disabled: true }),
-        Button('◐', { icon: true, ariaLabel: 'ícone' }))),
+        IconButton('mais', 'Adicionar', { onClick: () => toast('Ícone') })),
+      // D12 · estados: confirmado (✓ por 1,2 s), chip ligado e desligado, atalho e destino da barra
+      Row({ class: 'ds-row--wrap' },
+        Button('Confirmar', { icone: 'marcar', id: 'ds-confirma', onClick: e => confirmaBotao(e.currentTarget, { texto: 'Feito' }) }),
+        Chip('Ligado', { icone: 'marcar', pressed: true }), Chip('Desligado', { icone: 'caixa', pressed: false }),
+        NavBotao('Destino', { icone: 'listas' })),
+      h('div', { class: 'ds-atalhos' }, Atalho('Atalho', { icone: 'colecao', detalhe: 'Detalhe curto' }), Atalho('Principal', { icone: 'jogar', variant: 'primary' }))),
+
+    Section('Perfil e progresso',
+      Row({ class: 'ds-row--wrap' }, Avatar(null, { tamanho: 44 }), Avatar({ nome: 'Guilherme', avatar: null }, { tamanho: 44 }),
+        AnelProgresso(0, { tamanho: 44 }), AnelProgresso(45, { tamanho: 44 }), AnelProgresso(100, { tamanho: 44 })),
+      Text('Avatar sem perfil, com inicial e com foto (na tela do perfil); anel de progresso 0 · 45 · 100.', { size: 'xs', tone: 'subtle' })),
 
     Section('Campos',
       Field('Texto', Input({ placeholder: 'Buscar carta…', id: 'ds-in' })),
@@ -2742,7 +2805,10 @@ function renderDS() {
     })()),
 
     Section('Estados',
-      Empty('Nenhuma lista ainda.', Button('Criar lista', { variant: 'primary' })),
+      Empty('Comece por uma lista pronta ou cole uma lista.', h('div', { class: 'ds-empty__acoes' }, Row({}, Button('Ver prontas', { variant: 'primary', icone: 'caixa' }), Button('Nova lista', { icone: 'mais' }))), { icone: 'listas', titulo: 'Nenhuma lista ainda', hero: true }),
+      Empty('Nenhuma carta passa por esses filtros.'),
+      LinhaEstado([{ icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão: mostrando o que está guardado.' }, { icone: 'alerta', tom: 'warning', rotulo: '2 avisos', detalhe: '<b>!</b> Exemplo de aviso.<br><b>!</b> Outro aviso.' }], { id: 'ds-linha-estado', titulo: 'Estado' }),
+      AvisoRede('Sem internet: a busca usa as cartas guardadas no aparelho.'),
       Note('Nota informativa com <b>ênfase</b>.'),
       Note('Atenção: algo exige decisão.', 'warning'),
       Note('Erro: a operação não pôde ser concluída.', 'negative'),
@@ -2758,7 +2824,10 @@ function renderDS() {
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: () => { closeDialog(); toast('Excluído'); } })]
           })
         }),
-        Button('Mostrar toast', { id: 'ds-open-toast', onClick: () => toast('Mensagem de sistema') }))));
+        Button('Mostrar toast', { id: 'ds-open-toast', onClick: () => toast('Mensagem de sistema') }),
+        Button('Toast com ação', { onClick: () => toast('Nova versão pronta', 0, { acao: { rotulo: 'Atualizar', onClick: () => toast('Atualizando…') } }) }))),
+
+    secaoChecklist());
 }
 return { renderDS };
 })();

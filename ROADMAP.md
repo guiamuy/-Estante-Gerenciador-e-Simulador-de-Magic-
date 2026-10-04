@@ -404,9 +404,10 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
-| 16º-ak ✅ | D9 coleção: painel recolhido por padrão (abrir fica lembrado), agrupar e ordem lado a lado, desfazer numa linha; primeira carta 1494 → 524 px (leva 154) | D | 1 | — |
+| 16º-ak ✅ | D9 coleção: agrupar e ordem lado a lado, desfazer importação numa linha; o painel recolhido cedeu ao bloco expansível da leva 149 (leva 154) | D | 1 | — |
 | 16º-al ✅ | D10 movimento com sistema: pulsos por token, vibração por evento (toque · confirmação · alerta · turno), catálogo em /ds, portão confere keyframes e menos movimento (leva 155) | D | 1 | literais do scanner ficam com a X16 |
 | 16º-am ✅ | D11 acessibilidade medida: axe-core no portão (12 telas e folhas × 2 temas, zero achados); selects com nome, h1 na partida, texto sutil e cabeçalho de grupo AA no claro (leva 156) | D | 1 | — |
+| 16º-an ✅ | D12 guia visual vivo: /ds com tokens lidos do documento, componentes com estados, movimento e checklist; o portão barra componente do DS fora do catálogo — fecha o épico E53 (leva 157) | D | 1 | capturas do aparelho |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
 
@@ -4398,25 +4399,6 @@ na primeira abertura, pulável (não como "Ajuda" escondida).
   dentro da apresentação (o Perfil está a um toque).
 
 **D5 · Dados e administração num lugar só** ✅ (leva 150, 03/10/2026)
-**D5 · Dados e administração num lugar só** ✅ (leva 149, 03/10/2026)
-**D5 · Dados e administração num lugar só** ✅ (leva 148, 03/10/2026)
-**D11 · Acessibilidade medida** ✅ (leva 156, 03/10/2026)
-- **Medição:** `axe-core` 4.13 (devDependency nova — a única desde o Playwright; justificativa: é o motor de
-  contraste e de nomes/papéis de referência, roda dentro da página no headless, sem rede) com as regras WCAG 2.1
-  A/AA e boas práticas, em **12 telas e folhas** (início, listas, lista, coleção, folha de filtros, cartas, scanner,
-  preparar partida, partida, perfil, apresentação, catálogo) **nos dois temas**, em 360×780. Varredura inicial:
-  **5 achados**; depois das correções, **zero**.
-- **Correções:** os três `select` da coleção (agrupar, ordenar, lista para montar) sem nome acessível — `Select`
-  ganhou `ariaLabel`; a tela da partida não tinha título de nível 1 — `h1` só para leitor de tela ("Mesa"), classe
-  `ds-sr-only` no DS; no tema claro, `--fg-subtle` passou de 4,44 para 5,33:1 sobre a superfície elevada (#5f4f36)
-  e o cabeçalho de grupo das listas (latão sobre a estante, 3,55:1) passou a usar o token novo `--fg-grupo` (latão no
-  escuro, 6,1:1; texto apagado no claro, ≥ 4,5).
-- **Portão:** e2e "D11" falha com a lista de achados (tema · tela: regra · alvos) se qualquer tela regredir; falha
-  também se o `axe-core` não estiver instalado (clone antigo sem `npm install`).
-- **Fora:** leitura com leitor de tela real (TalkBack/VoiceOver) — só o aparelho confirma; teclado completo no
-  desktop (o app é celular primeiro); regras AAA.
-
-**D5 · Dados e administração num lugar só** ✅ (leva 146, 03/10/2026)
 - **Entregue:** seção **Dados** no Perfil, nesta ordem: **Backup completo** (arquivo), **Conta Google** (nuvem,
   atrás do Client ID), **Base local de cartas** (contagem, Importar, Exportar e Limpar — agora com confirmação) e
   **Espaço no aparelho** (espaço usado e proteção contra limpeza, com "Proteger armazenamento" quando vulnerável; o
@@ -4433,7 +4415,8 @@ na primeira abertura, pulável (não como "Ajuda" escondida).
   Perfil), D4a (sem asserção sobre o backup em Listas).
 - **Fora:** "Apagar tudo" (limpar listas, coleção e perfil de uma vez) — ação destrutiva que pede desenho próprio
   com desfazer; renomear Perfil → Ajustes; cache de imagens como item de Dados (entra se o espaço apertar).
-**D7 · Mesa: superfície, cor do oponente e verso** ✅ (leva 152, 03/10/2026) — feita antes da D6 de propósito: a D6
+
+**D7 · Mesa: superfície, cor do oponente e verso** ✅ (leva 151, 03/10/2026) — feita antes da D6 de propósito: a D6
 mexe nas mesmas linhas da mesa que a trilha motor está revisando (R5 moveu Auras e terrenos); esta só acrescenta
 tokens, um atributo no `<html>` e o verso.
 - **Entregue:** em Perfil › Aparência, bloco **Mesa**: **Superfície** (Nogueira · Feltro · Pedra · Linho), **Cor do
@@ -4455,6 +4438,7 @@ tokens, um atributo no `<html>` e o verso.
   o verso e a folha não revela).
 - **Fora:** verso como imagem do usuário; superfície por foto; cor do oponente por jogador na partida online
   (cada aparelho escolhe a sua); animação de virar a carta (D10).
+
 **D6 · Mesa: relance** ✅ (leva 152, 03/10/2026)
 - **Entregue:** com o campo vazio, o lado do jogador é só a linha de vida e zonas — as linhas "Terrenos nenhum" e
   "Permanentes nenhuma" não existem até a primeira carta entrar (o nome falado do lado diz "campo vazio";
@@ -4472,6 +4456,7 @@ tokens, um atributo no `<html>` e o verso.
   a linha fina de Permanentes, `auditaTela`). U5/U7/R2/R5 da mesa continuam verdes.
 - **Fora:** colapsar o lado do oponente inteiro quando ele está fora da partida; esconder o chip de exílio até a
   primeira carta exilada (é alvo de toque para ver o que já saiu).
+
 **D8 · Avisos e retorno no lugar** ✅ (leva 153, 03/10/2026) — **sem o scanner**, de propósito: a trilha scanner tem a
 X16 (tela nova, estados desenhados) planejada em cima das mesmas notas; mexer nelas aqui cruzaria as duas. A medida
 "≥ 120 px devolvidos à moldura" fica com a X16.
@@ -4491,23 +4476,21 @@ X16 (tela nova, estados desenhados) planejada em cima das mesmas notas; mexer ne
   com o motivo no teste.
 - **Fora:** scanner (X16); linha de estado na coleção (os avisos dela já são contextuais: backup e armazenamento);
   ✓ nos botões da mesa (o retorno lá é o próprio estado do jogo).
-**D9 · Coleção e cartas: ver e trabalhar** ✅ (leva 154, 03/10/2026)
-- **O que a auditoria achou:** com 14 cartas, o painel aberto media 913 px e a primeira carta da coleção só
-  aparecia a **1494 px** do topo (quase dois ecrãs de rolagem); a barra de desfazer da importação quebrava em três
-  linhas; Agrupar e Ordem ocupavam duas linhas de 44 px. Filtros em folha com contagem ao vivo, visão densa com
-  símbolos e seleção múltipla com barra já existiam (C12–C13) e ficaram como estão.
-- **Entregue:** o **painel nasce recolhido** numa linha ("Painel · Mostrar"); abrir fica lembrado por aparelho
-  (`collection.prefs.painel`), e quem já tinha a preferência gravada não muda. **A ordem pedida na leva 113 continua
-  — painel, filtro, visões, lista, adicionar** — só o estado inicial muda, por isso está declarado aqui como
-  divergência consciente dessa decisão. **Agrupar e Ordem** dividem a linha. **Desfazer importação** numa linha:
-  texto, ícone de desfazer (nome falado "Desfazer a importação") e X.
-- **Medido (360×780, 14 cartas):** primeira carta **1494 → 524 px**; campo de busca 1245 → 327 px; painel
-  913 → 62 px recolhido; tela 3596 → 2625 px.
-- **Testes:** e2e "D9" (primeira carta ≤ 620 px, painel ≤ 70 px, agrupar/ordem lado a lado, desfazer numa linha com
-  alvos de 44 px e nome falado, painel abre e mantém a ordem da leva 113, `auditaTela` aberto e recolhido). C14
-  passou a abrir o painel antes de ler os números, com o motivo no teste; "aberto fica lembrado" conferido.
-- **Fora:** galeria com sombra/canto (já por token, contrato visual confere); filtros em folha (já existe, C12);
-  seleção múltipla (já existe, C13); miniatura maior na visão densa.
+
+**D9 · Coleção e cartas: ver e trabalhar** ✅ (leva 154, 03/10/2026) — **recorte menor que o planejado, por causa da
+leva 149 (U17):** enquanto esta leva esperava o portão, a leva 149 (pedido do usuário em outra conversa) transformou
+Painel e Adicionar carta em blocos expansíveis **abertos por padrão**, com o painel resumindo o recorte quando
+fechado. A D9 trazia "painel recolhido por padrão"; o pedido do usuário vence, e esta leva **cedeu** essa parte no
+rebase (nada dela ficou no código). Divergência registrada: a primeira carta continua abaixo dos dois blocos
+abertos até o usuário fechá-los (fica lembrado).
+- **Entregue:** **Agrupar e Ordem** dividem a linha (antes duas linhas de 44 px); **Desfazer importação** numa linha
+  — texto, ícone de desfazer (nome falado "Desfazer a importação") e X — em vez de três linhas em 360 px.
+- **O que já existia e ficou como está:** filtros em folha com contagem ao vivo (C12), visão densa com símbolos,
+  seleção múltipla com barra (C13), galeria por token (contrato visual).
+- **Testes:** e2e "D9" (agrupar/ordem lado a lado, desfazer numa linha com alvos de 44 px e nome falado, ordem
+  painel › filtro › lista preservada, `auditaTela`). C14 segue o padrão da leva 149 (aberto; recolher lembrado).
+- **Fora:** o painel recolhido por padrão (decidido pela leva 149); miniatura maior na visão densa.
+
 **D10 · Movimento com sistema** ✅ (leva 155, 03/10/2026)
 - **O que já havia:** a regra global de menos movimento (sistema) desde a U-era e a da escolha (D2); durações em
   `--dur-1…4` e `--dur-giro` (D1). Faltavam os pulsos (1,2 s · 2,4 s · 1,2 s em literal), um `ease-in-out` solto, a
@@ -4529,11 +4512,47 @@ X16 (tela nova, estados desenhados) planejada em cima das mesmas notas; mexer ne
 - **Fora:** transições de troca de tela (o router troca seco de propósito: no celular a animação de rota custa
   quadros); animação de virar a carta (verso ↔ face); sons.
 
+**D11 · Acessibilidade medida** ✅ (leva 156, 03/10/2026)
+- **Medição:** `axe-core` 4.13 (devDependency nova — a única desde o Playwright; justificativa: é o motor de
+  contraste e de nomes/papéis de referência, roda dentro da página no headless, sem rede) com as regras WCAG 2.1
+  A/AA e boas práticas, em **12 telas e folhas** (início, listas, lista, coleção, folha de filtros, cartas, scanner,
+  preparar partida, partida, perfil, apresentação, catálogo) **nos dois temas**, em 360×780. Varredura inicial:
+  **5 achados**; depois das correções, **zero**.
+- **Correções:** os três `select` da coleção (agrupar, ordenar, lista para montar) sem nome acessível — `Select`
+  ganhou `ariaLabel`; a tela da partida não tinha título de nível 1 — `h1` só para leitor de tela ("Mesa"), classe
+  `ds-sr-only` no DS; no tema claro, `--fg-subtle` passou de 4,44 para 5,33:1 sobre a superfície elevada (#5f4f36)
+  e o cabeçalho de grupo das listas (latão sobre a estante, 3,55:1) passou a usar o token novo `--fg-grupo` (latão no
+  escuro, 6,1:1; texto apagado no claro, ≥ 4,5).
+- **Portão:** e2e "D11" falha com a lista de achados (tema · tela: regra · alvos) se qualquer tela regredir; falha
+  também se o `axe-core` não estiver instalado (clone antigo sem `npm install`).
+- **Fora:** leitura com leitor de tela real (TalkBack/VoiceOver) — só o aparelho confirma; teclado completo no
+  desktop (o app é celular primeiro); regras AAA.
+
+**D12 · Guia visual vivo** ✅ (leva 157, 03/10/2026) — fecha o épico E53 (D1–D12, levas 138–157, um dia de trabalho
+da trilha geral em paralelo às trilhas bot, motor e scanner).
+- **Entregue:** `/ds` passa a ser o guia: seção **Tokens** com as 21 cores lidas do documento no momento (mudam com
+  tema, acento e superfície), escala de texto (9 passos) e espaço (8) multiplicados pela Aparência, raios, e a lista
+  do que a Aparência oferece; **Botões** com estados (confirmado ✓, chip ligado/desligado, destino da barra, atalho e
+  atalho principal); **Perfil e progresso** (avatar sem perfil, com inicial; anel 0 · 45 · 100); **Estados** com o
+  vazio de primeiro uso, o vazio simples, a linha de estado, o aviso de rede e as notas; **Sobreposições** com o
+  aviso com ação; **Checklist de design por leva** (8 itens, o que o portão mede e o que a revisão olha) e o comando
+  das capturas de referência.
+- **Portão:** contrato visual "D12" — todo componente visual exportado pelo DS aparece no catálogo (lista de
+  utilitários não visuais declarada), as nove seções existem e os ids do guia estão lá; e2e "D12" (21 tokens de cor
+  com o valor que está valendo, troca de acento reflete no guia, 9 textos, 8 espaços, 8 itens do checklist, estados
+  presentes, ✓ no botão, `auditaTela`).
+- **Arrumação:** o bloco da D5 estava duplicado no ROADMAP por uma junção automática (`merge=union`) entre levas;
+  ficou um só, e a D11 foi para depois da D10.
+- **Fora:** capturas de tela guardadas no repositório (pesam e envelhecem; o comando gera na hora); página de
+  componentes por tela (o guia é por componente, de propósito).
+
 **Fora do épico (escopo negativo mantido):** tablet e paisagem; temas enviados por terceiros; sons; gerador de
 decks, sugestão de cartas, ranking, marketplace.
 
-**Depende do usuário:** capturas do aparelho depois da D2 e da D6 (as duas que mais mexem na tela que ele usa). A
-decisão do onboarding foi tomada na D4b com a opção recomendada (primeira abertura, pulável; "Rever" no Perfil).
+**Depende do usuário:** teste no aparelho das levas 138–157 (as que mais mexem na tela do dia a dia: D2/D7 em Perfil ›
+Aparência, D3 no início, D6 na mesa, D9 na coleção); OAuth Client ID (`GOOGLE_CLIENT_ID`) e URL do Firebase
+(`FIREBASE_DB_URL`) continuam pendentes das levas 129 e 134. A decisão do onboarding foi tomada na D4b com a opção
+recomendada (primeira abertura, pulável; "Rever" no Perfil).
 
 ### P · Plataforma
 

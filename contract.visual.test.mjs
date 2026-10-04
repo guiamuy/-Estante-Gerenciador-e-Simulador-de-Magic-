@@ -271,3 +271,18 @@ test('D10 · toda animação tem regra de menos movimento, nenhuma duração em 
   // tokens de pulso existem
   for (const t of ['--dur-pulso', '--dur-pulso-lento', '--dur-brilho']) assert.match(DARK[t] || '', /^\d+ms$/, t);
 });
+
+/* ---------------- D12 · guia visual vivo ---------------- */
+test('D12 · todo componente visual exportado pelo DS aparece no catálogo /ds, e o catálogo documenta tokens, estados, movimento e checklist', () => {
+  const html = HTML;
+  const exportacao = html.match(/return \{ h, Text, Button, Field, Select, Chip,[^}]*\};/s);
+  assert.ok(exportacao, 'linha de exportação do DS');
+  const nomes = exportacao[0].replace(/^return \{|\};$/g, '').split(',').map(x => x.trim()).filter(Boolean);
+  // o que não é visual (utilitários, símbolos de mana parseados, fechamento) fica fora da exigência
+  const NAO_VISUAL = new Set(['h', 'clear', 'mount', 'closeDialog', 'fechaToast', 'reservaDoca', 'analisaSimbolos', 'SIMBOLO_RX', 'nomeDoSimbolo', 'simbolizar', 'srcsetDaCarta', 'ICONES', 'ImagemCarta']);
+  const i = html.indexOf('const Section = (title, ...kids)'); const j = html.indexOf('\n}\n', html.indexOf('function renderDS()')); const catalogo = html.slice(i, j); // o módulo do catálogo inteiro (Section usa Surface)
+  const faltam = nomes.filter(n => !NAO_VISUAL.has(n)).filter(n => !new RegExp(`\\b${n}\\(`).test(catalogo) && !catalogo.includes(`${n}(`));
+  assert.deepEqual(faltam, [], 'componentes do DS fora do catálogo');
+  for (const secao of ['Tokens', 'Tipografia', 'Botões', 'Perfil e progresso', 'Estados', 'Movimento', 'Mesa', 'Sobreposições', 'Checklist de design por leva']) assert.ok(catalogo.includes(`'${secao}'`), `seção ${secao}`);
+  for (const id of ['ds-tokens-cor', 'ds-tokens-texto', 'ds-tokens-espaco', 'ds-checklist', 'ds-movimentos', 'ds-versos', 'ds-linha-estado']) assert.ok(html.includes(`'${id}'`), id);
+});

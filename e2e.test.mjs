@@ -532,7 +532,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('#home-offline-prep');
   await page.click('#home-offline-prep');
   await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 15000 });
-  // D3 (leva 140) · expectativa mudou: com tudo guardado e rede, o painel é uma linha (anel, estado e "Detalhes");
+  // D3 (leva 141) · expectativa mudou: com tudo guardado e rede, o painel é uma linha (anel, estado e "Detalhes");
   // as linhas por item continuam no lugar e aparecem ao abrir
   assert.equal(await page.getAttribute('#home-offline', 'data-compacto'), 'true');
   assert.ok((await page.locator('#home-offline').boundingBox()).height <= 72, 'painel recolhido em uma linha');
@@ -5583,7 +5583,8 @@ test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e
   // o backup completo leva a aparência
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#perfil-backup-export')]);
   const dados = JSON.parse(await (await download.createReadStream()).toArray().then(p => Buffer.concat(p).toString('utf8')));
-  assert.deepEqual(dados.prefs['ui.aparencia'], { escala: 'grande', densidade: 'compacta', acento: 'jade', movimento: 'reduzido', vibracao: false });
+  // D7 (leva 151) · a aparência ganhou superfície, cor do oponente e verso: o backup leva os três no padrão
+  assert.deepEqual(dados.prefs['ui.aparencia'], { escala: 'grande', densidade: 'compacta', acento: 'jade', movimento: 'reduzido', vibracao: false, superficie: 'nogueira', oponente: 'azul', verso: 'estante' });
   // de volta ao padrão
   const toque = async (sel, pronto) => { await page.click(sel); await page.waitForFunction(pronto, null, { timeout: 5000 }); };
   await toque('#aparencia-acento [data-acento="latao"]', () => !document.documentElement.getAttribute('data-acento'));
@@ -5980,6 +5981,36 @@ test('e2e · D7 mesa do seu jeito: superfície só na partida, cor do oponente e
 });
 
 test('e2e · D6 mesa de relance: no início da partida nenhuma zona vazia ocupa campo, zeros apagados, "Terrenos" só depois do primeiro terreno; cada lado ≤ 80 px no início (antes 121)', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 15000 }); await page.click('#tb-keep');
+  await page.waitForSelector('.tb-side--me'); await page.waitForTimeout(300);
+  const alturas = () => page.$$eval('.tb-side', ls => ls.map(l => Math.round(l.getBoundingClientRect().height)));
+  const antes = 121; // leva 144: altura de cada lado no início (360×780, Delver × Goldfish)
+  const h0 = await alturas();
+  assert.ok(h0.every(h => h <= antes - 40), `cada lado ganhou ≥ 40 px (${antes} → ${h0.join('/')}); meta da D6: ≥ 60 px somando os dois lados`);
+  assert.equal(await page.locator('.tb-side .tb-zone').count(), 0, 'nenhuma linha de zona com o campo vazio');
+  assert.deepEqual(await page.$$eval('.tb-side', ls => ls.map(l => l.dataset.campo)), ['vazio', 'vazio']);
+  assert.match(await page.getAttribute('.tb-side--me', 'aria-label'), /campo vazio/, 'o leitor de tela sabe que o campo está vazio');
+  // zeros apagados: o chip continua um alvo de 44 px, mas sem borda nem peso
+  const zero = page.locator('#tb-cemiterio-me');
+  assert.equal(await zero.getAttribute('data-zero'), 'true');
+  assert.ok((await zero.boundingBox()).height >= 44, 'alvo de toque mantido');
+  assert.equal(await page.$eval('#tb-cemiterio-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'zero sem borda');
+  assert.notEqual(await page.$eval('#tb-lib-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'o grimório (25) continua com borda');
+  // o primeiro terreno traz "Terrenos · 1" e "Permanentes nenhuma" numa linha fina; o lado cresce só o necessário
+  const ilha = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].hand.find(o => s.objects[o].name === 'Island') || null; });
+  assert.ok(ilha, 'há uma Island na mão com a semente 3');
+  await page.evaluate(oid => window.__estanteMesa.act({ t: 'play_land', p: 0, oid }), ilha);
+  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
+  assert.match(await page.innerText('.tb-side--me [data-zone="lands"] .tb-zone__label'), /Terrenos · 1/);
+  assert.equal(await page.locator('.tb-side--me [data-zone="permanents"].tb-zone--empty').count(), 1);
+  assert.equal(await page.getAttribute('.tb-side--me', 'data-campo'), 'ocupado');
+  assert.equal(await page.locator('.tb-side--opp .tb-zone').count(), 0, 'o lado do oponente segue sem zonas');
+  await auditaTela(page, 'mesa de relance');
   assert.deepEqual(errors, []);
 });
 
@@ -6123,5 +6154,27 @@ test('e2e · D11 acessibilidade medida: axe-core sem achados (WCAG 2.1 A/AA + bo
     }
   }
   assert.deepEqual(achados, [], 'achados do axe:\n' + achados.join('\n'));
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · D12 guia visual vivo: /ds mostra os tokens que estão valendo (mudam com o acento), estados dos componentes e o checklist; cabe em 360 sem rolagem lateral', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-tokens-cor');
+  assert.equal(await page.locator('#ds-tokens-cor .ds-token').count(), 21, 'vinte e um tokens de cor');
+  const lido = await page.innerText('#ds-tokens-cor [data-token="--accent"]');
+  const valendo = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  assert.ok(lido.includes(valendo), `o catálogo mostra o valor que está valendo (${valendo})`);
+  assert.equal(await page.locator('#ds-tokens-texto .ds-token').count(), 9); assert.equal(await page.locator('#ds-tokens-espaco .ds-token').count(), 8);
+  assert.equal(await page.locator('#ds-checklist li').count(), 8, 'oito itens no checklist');
+  for (const sel of ['#ds-linha-estado', '#ds-versos', '#ds-movimentos', '.ds-empty--hero', '.ds-anel[data-pct="100"]', '.ds-avatar']) assert.ok(await page.locator(sel).count() >= 1, sel);
+  await page.click('#ds-confirma'); await page.waitForSelector('#ds-confirma[data-confirmado="true"]');
+  await auditaTela(page, 'catálogo');
+  // o acento muda e o catálogo acompanha sem recarregar a página inteira
+  await page.evaluate(() => window.__estanteTema.setAparencia({ acento: 'jade' }));
+  await page.goto(base + '#/listas'); await page.goto(base + '#/ds'); await page.waitForSelector('#ds-tokens-cor');
+  const jade = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  assert.notEqual(jade, valendo); assert.ok((await page.innerText('#ds-tokens-cor [data-token="--accent"]')).includes(jade));
   assert.deepEqual(errors, []);
 });
