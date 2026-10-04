@@ -358,6 +358,12 @@ a { color: var(--accent); }
 .ds-visor__cabeca > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .ds-visor__custo { flex: none; font-size: var(--simbolo-lg); white-space: nowrap; }
 .ds-visor__tipo { gap: var(--space-2); align-items: center; }
+/* G4 · som da partida em Aparência: chip + volume numa linha; os sons para ouvir em chips */
+.aparencia__som { display: flex; align-items: center; gap: var(--space-3); }
+.aparencia__som > button { flex: none; }
+.aparencia__som > input[type="range"] { flex: 1; min-width: 0; }
+.aparencia__sons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+#aparencia-som > .ds-btn { align-self: flex-start; }
 /* G3 · valor acumulado: rótulo à esquerda; real em destaque, dólar e euro embaixo */
 .ds-valores { display: flex; flex-direction: column; gap: var(--space-1); }
 .ds-valor { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-2) var(--space-3); background: var(--bg-elev-2); border-radius: var(--radius-2); }
@@ -1053,6 +1059,7 @@ body {
   display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-1) var(--space-3) var(--space-4);
   border: 1px solid var(--border-strong); border-radius: var(--radius-2); background: var(--bg-elev-2); color: var(--fg); box-shadow: var(--shadow-3); animation: ds-rise var(--dur-2) var(--ease-out); }
 .tb-vez-pop[hidden] { display: none; }
+.tb-vez-pop { flex-wrap: wrap; } .tb-vez-pop__som { flex: none; margin-top: var(--space-2); } /* G4 · som da partida no balão */
 .tb-vez-pop__lista { flex: 1 1 auto; min-width: 0; margin: var(--space-2) 0 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-md); line-height: var(--lh-md); }
 .tb-vez-pop__lista dt { color: var(--fg-muted); font-weight: var(--weight-regular); }
 .tb-vez-pop__lista dd { margin: 0; font-weight: var(--weight-medium); overflow-wrap: anywhere; }
@@ -2232,6 +2239,8 @@ const ICONES = {
   // Leva 149 · blocos da coleção: painel (barras sobre a base) e adicionar carta (carta com o sinal de mais)
   painel: '<path d="M4 20h16"/><rect x="5.5" y="11" width="3.5" height="6" rx="1"/><rect x="10.25" y="5" width="3.5" height="12" rx="1"/><rect x="15" y="8.5" width="3.5" height="8.5" rx="1"/>',
   cartaMais: '<path d="M15.5 11V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h4.2"/><path d="M17 14v6.5M13.75 17.25h6.5"/>',
+  som: '<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6"/><path d="M18 6.7a7.5 7.5 0 0 1 0 10.6"/>', // G4 · som da partida ligado
+  somMudo: '<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>', // G4 · som desligado
   etiqueta: '<path d="M3.5 11.8V5.3a1.8 1.8 0 0 1 1.8-1.8h6.5a1.8 1.8 0 0 1 1.3.5l6.9 6.9a1.8 1.8 0 0 1 0 2.6l-6.5 6.5a1.8 1.8 0 0 1-2.6 0L4 13.1a1.8 1.8 0 0 1-.5-1.3z"/><circle cx="8.2" cy="8.2" r="1.3"/>', // G2 · etiquetas de cartas e listas
   cartaSai: '<path d="M15.5 10V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h5.2"/><path d="M17 20.5v-7"/><path d="M13.9 16.6 17 13.5l3.1 3.1"/>', // leva 160 · bloco Exportar da coleção: a carta que sai
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
@@ -6424,7 +6433,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -7518,7 +7527,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -7703,6 +7712,24 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Verso de carta', id: 'aparencia-verso' },
           ...[['estante', 'Estante'], ['selo', 'Selo'], ['trama', 'Trama']].map(([k, nome]) => { const c = Chip(nome, { pressed: a.verso === k, dataset: { verso: k }, onClick: () => muda({ verso: k }) });
             c.prepend(h('span', { class: 'aparencia__verso', 'aria-hidden': 'true' }, h('span', { class: 'ds-verso', dataset: { desenho: k } }))); return c; }))),
+      // G4 · som da partida: liga/desliga, volume e uma escuta de cada som
+      som ? (() => {
+        const p = som.prefs;
+        const volume = __m3.Range({ id: 'aparencia-volume', min: 0, max: 100, value: Math.round(p.volume * 100), rotulo: 'Volume do som da partida', onInput: e => { som.ajusta({ volume: Number(e.target.value) / 100 }); } });
+        volume.addEventListener('change', () => { som.destrava(); som.toca('entra'); });
+        volume.disabled = !p.ligado;
+        return h('div', { class: 'ds-field', id: 'aparencia-som' }, h('span', { class: 'ds-field__label' }, 'Som da partida'),
+          h('div', { class: 'aparencia__som' },
+            Chip('Som', { icone: p.ligado ? 'som' : 'somMudo', pressed: p.ligado, dataset: { som: '1' }, onClick: async () => { const n = await som.ajusta({ ligado: !som.prefs.ligado }); if (n.ligado) { som.destrava(); som.toca('suaVez'); } paint(); } }),
+            volume),
+          // os vinte sons ficam numa folha: a seção não cresce onze linhas
+          p.ligado ? Button('Ouvir sons', { variant: 'ghost', icone: 'som', id: 'aparencia-ouvir', onClick: () => Dialog({ title: 'Sons da partida',
+            body: Stack({}, Text('Toque num nome para ouvir.', { size: 'sm', tone: 'muted' }),
+              h('div', { class: 'aparencia__sons', id: 'aparencia-sons', role: 'group', 'aria-label': 'Ouvir cada som' },
+                ...Object.keys(__m33.RECEITAS).map(k => Chip(__m33.NOMES[k] || k, { dataset: { ouvir: k }, onClick: () => { som.destrava(); som.toca(k); } })))),
+            actions: [Button('Fechar', { variant: 'primary', onClick: closeDialog })] }) }) : null,
+          Text('Sons feitos no próprio aparelho, sem baixar nada: compra, ataque, dano, cura, anulação, destruição, descarte, remoção global e mais.', { size: 'xs', tone: 'subtle' }));
+      })() : null,
       Text('Vale neste aparelho e vai junto no backup completo.', { size: 'sm', tone: 'muted' })));
   }
   function paint() {
@@ -14543,6 +14570,197 @@ return { repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvo
 })();
 
 
+/* ==== src/app/sentidos.js ==== */
+const __m33 = (function () {
+/* =====================================================================
+   G4 · A PARTIDA QUE SE OUVE (e, na G5, que se vê)
+   1. eventosSensoriais(antes, depois): compara dois estados do motor e diz o que aconteceu em termos de
+      mesa — comprou, atacou, levou dano, ganhou vida, foi anulada, morreu… Puro: não toca no motor, não
+      depende de quem fez a jogada (vale para o bot e para a partida online).
+   2. planoDeSom(eventos): escolhe poucos sons, na ordem em que a jogada se conta, sem repetir.
+   3. createSom(): sintetiza cada som no aparelho (WebAudio). Nenhum arquivo de áudio: funciona offline e
+      cabe no arquivo único. Liga/desliga e volume guardados no aparelho (`mesa.som`), levados no backup.
+   ===================================================================== */
+const CHAVE = 'mesa.som';
+/** Ordem em que uma jogada se conta (e em que os sons saem quando vários acontecem juntos). */
+const ORDEM = ['turno', 'compra', 'terreno', 'conjura', 'anula', 'entra', 'ficha', 'aprimora', 'enfraquece', 'ataque', 'bloqueio', 'danoCriatura', 'dano', 'cura', 'descarte', 'morre', 'destroi', 'exila', 'devolve', 'remocaoGlobal', 'fim'];
+const GLOBAL_A_PARTIR_DE = 3; // três permanentes saindo do campo de uma vez, fora do dano de combate, é remoção global
+
+function eventosSensoriais(antes, depois, { eventos = [], stats = null, tipos = null } = {}) {
+  const out = [];
+  if (!antes || !depois || antes === depois || !antes.objects || !depois.objects) return out;
+  const efeito = d => eventos.some(e => e && e.kind === 'effect' && e.do === d && !e.failed && !e.pending && !e.paid);
+  const tem = (nome, t) => { try { return !!(tipos && tipos(nome).includes(t)); } catch (e) { return false; } };
+  // mágica conjurada e resolvida (ou anulada) dentro da mesma jogada: sai da mão direto para o cemitério ou o campo,
+  // e só os eventos do motor dizem que ela passou pela pilha — sem isso pareceria um descarte
+  const resolvidas = new Set(eventos.filter(e => e && (e.kind === 'resolved' || e.kind === 'fizzled') && e.oid != null).map(e => e.oid));
+  const anuladas = new Set(eventos.filter(e => e && e.kind === 'effect' && e.do === 'counter' && !e.failed && !e.pending && !e.paid).map(e => e.target));
+  const forca = (st, o) => { try { const x = stats ? stats(st, o) : null; return x ? { p: x.power || 0, t: x.toughness || 0 } : null; } catch (e) { return null; } };
+  // turno
+  if ((depois.turn && depois.turn.number || 0) > (antes.turn && antes.turn.number || 0) && depois.status === 'playing') out.push({ tipo: 'turno', jogador: depois.turn.active });
+  // vida
+  depois.players.forEach((pl, p) => {
+    const a = antes.players[p]; if (!a) return;
+    const d = pl.life - a.life;
+    if (d < 0) out.push({ tipo: 'dano', jogador: p, n: -d }); else if (d > 0) out.push({ tipo: 'cura', jogador: p, n: d });
+  });
+  // objetos: zona, combate, dano marcado, marcadores e bônus
+  const compras = new Map(), descartes = new Map(), saiu = [], atacam = [], bloqueiam = [];
+  const soma = (m, k) => m.set(k, (m.get(k) || 0) + 1);
+  for (const o of Object.values(depois.objects)) {
+    const a = antes.objects[o.oid];
+    if (!a) { if (o.zone === 'battlefield') out.push({ tipo: o.token ? 'ficha' : 'entra', oid: o.oid, jogador: o.controller }); continue; }
+    if (a.zone === o.zone) {
+      if (o.zone !== 'battlefield') continue;
+      if (o.attacking != null && a.attacking == null) atacam.push(o.oid);
+      if (o.blocking && !a.blocking) bloqueiam.push(o.oid);
+      if ((o.damage || 0) > (a.damage || 0)) out.push({ tipo: 'danoCriatura', oid: o.oid, n: (o.damage || 0) - (a.damage || 0) });
+      const fa = forca(antes, a), fd = forca(depois, o);
+      const mais = ((o.counters || {}).p1p1 || 0) > ((a.counters || {}).p1p1 || 0) || (fa && fd && (fd.p > fa.p || fd.t > fa.t));
+      const menos = ((o.counters || {}).m1m1 || 0) > ((a.counters || {}).m1m1 || 0) || (fa && fd && (fd.p < fa.p || fd.t < fa.t));
+      if (mais) out.push({ tipo: 'aprimora', oid: o.oid }); else if (menos) out.push({ tipo: 'enfraquece', oid: o.oid });
+      continue;
+    }
+    const de = a.zone, para = o.zone;
+    const passouPelaPilha = de !== 'stack' && para !== 'stack' && (resolvidas.has(o.oid) || (de === 'hand' && para === 'graveyard' && anuladas.has(o.name)));
+    if (para === 'stack' || passouPelaPilha) out.push({ tipo: 'conjura', oid: o.oid, jogador: o.controller });
+    if (para === 'stack') continue;
+    if (de === 'library' && para === 'hand') soma(compras, o.owner);
+    else if (de === 'hand' && para === 'graveyard') { if (!passouPelaPilha) soma(descartes, o.owner); }
+    else if (para === 'battlefield') out.push({ tipo: tem(o.name, 'land') ? 'terreno' : 'entra', oid: o.oid, jogador: o.controller });
+    else if (de === 'battlefield') saiu.push({ oid: o.oid, para, jogador: a.controller, criatura: !!a.faceDown || tem(a.name, 'creature') });
+  }
+  for (const [p, n] of compras) out.push({ tipo: 'compra', jogador: p, n });
+  for (const [p, n] of descartes) out.push({ tipo: 'descarte', jogador: p, n });
+  if (atacam.length) out.push({ tipo: 'ataque', oids: atacam, jogador: depois.turn.active });
+  if (bloqueiam.length) out.push({ tipo: 'bloqueio', oids: bloqueiam });
+  if (efeito('counter')) out.push({ tipo: 'anula' });
+  // saída do campo: uma a uma, ou remoção global
+  const emCombate = (antes.turn && antes.turn.step) === 'combat_damage' || (depois.turn && depois.turn.step) === 'combat_damage';
+  if (saiu.length >= GLOBAL_A_PARTIR_DE && !(emCombate && !efeito('destroy') && !efeito('exile') && !efeito('bounce'))) out.push({ tipo: 'remocaoGlobal', oids: saiu.map(x => x.oid), n: saiu.length });
+  else for (const x of saiu) out.push({ tipo: x.para === 'graveyard' ? (x.criatura ? 'morre' : 'destroi') : x.para === 'exile' ? 'exila' : 'devolve', oid: x.oid, jogador: x.jogador });
+  // fim
+  if (depois.status === 'over' && antes.status !== 'over') out.push({ tipo: 'fim', vencedor: depois.winner == null ? null : depois.winner });
+  return out.sort((x, y) => ORDEM.indexOf(x.tipo) - ORDEM.indexOf(y.tipo));
+}
+
+/* ---------------- sons ----------------
+   Cada som é uma lista de vozes curtas. Voz de oscilador: { o: forma, f: [início, fim] em Hz }. Voz de ruído:
+   { r: 1, filtro: [tipo, início, fim] }. Comuns: t (atraso, s), d (duração, s), g (ganho de pico, 0–1). */
+const RECEITAS = {
+  compra:        [{ r: 1, filtro: ['bandpass', 1800, 3800], d: 0.1, g: 1 }],
+  descarte:      [{ r: 1, filtro: ['bandpass', 1500, 500], d: 0.16, g: 1 }],
+  terreno:       [{ o: 'sine', f: [120, 70], d: 0.22, g: 0.6 }, { r: 1, filtro: ['lowpass', 400, 200], d: 0.08, g: 0.3 }],
+  conjura:       [{ o: 'triangle', f: [392, 784], d: 0.24, g: 0.3 }, { o: 'sine', f: [588, 1176], t: 0.06, d: 0.26, g: 0.18 }],
+  entra:         [{ o: 'sine', f: [196, 196], d: 0.2, g: 0.45 }, { o: 'sine', f: [294, 294], d: 0.26, g: 0.25 }],
+  aprimora:      [{ o: 'triangle', f: [523, 523], d: 0.09, g: 0.3 }, { o: 'triangle', f: [659, 659], t: 0.08, d: 0.09, g: 0.3 }, { o: 'triangle', f: [784, 784], t: 0.16, d: 0.2, g: 0.3 }],
+  enfraquece:    [{ o: 'triangle', f: [466, 466], d: 0.1, g: 0.28 }, { o: 'triangle', f: [370, 370], t: 0.09, d: 0.1, g: 0.28 }, { o: 'triangle', f: [277, 277], t: 0.18, d: 0.22, g: 0.28 }],
+  ataque:        [{ r: 1, filtro: ['bandpass', 500, 3200], d: 0.18, g: 1 }, { o: 'sawtooth', f: [240, 110], t: 0.11, d: 0.1, g: 0.3 }],
+  bloqueio:      [{ o: 'square', f: [190, 140], d: 0.08, g: 0.22 }, { r: 1, filtro: ['highpass', 2200, 2200], d: 0.05, g: 0.3 }],
+  golpe:         [{ r: 1, filtro: ['lowpass', 900, 300], d: 0.1, g: 0.55 }, { o: 'sine', f: [170, 60], d: 0.14, g: 0.55 }],
+  dano:          [{ o: 'sine', f: [150, 42], d: 0.32, g: 0.8 }, { r: 1, filtro: ['lowpass', 600, 150], d: 0.14, g: 0.5 }],
+  cura:          [{ o: 'sine', f: [523, 523], d: 0.2, g: 0.28 }, { o: 'sine', f: [784, 784], t: 0.1, d: 0.3, g: 0.26 }, { o: 'sine', f: [1047, 1047], t: 0.2, d: 0.36, g: 0.2 }],
+  anula:         [{ o: 'sawtooth', f: [880, 110], d: 0.3, g: 0.26 }, { r: 1, filtro: ['bandpass', 3000, 600], t: 0.05, d: 0.2, g: 0.2 }],
+  morre:         [{ o: 'triangle', f: [220, 92], d: 0.36, g: 0.4 }, { r: 1, filtro: ['lowpass', 500, 150], t: 0.05, d: 0.2, g: 0.25 }],
+  exila:         [{ o: 'sine', f: [1100, 2300], d: 0.3, g: 0.18 }, { r: 1, filtro: ['highpass', 3000, 5000], d: 0.26, g: 0.14 }],
+  devolve:       [{ r: 1, filtro: ['bandpass', 3200, 900], d: 0.16, g: 1 }],
+  remocaoGlobal: [{ r: 1, filtro: ['lowpass', 2400, 110], d: 0.75, g: 0.5 }, { o: 'sine', f: [95, 34], d: 0.75, g: 0.5 }, { o: 'sawtooth', f: [180, 50], t: 0.04, d: 0.4, g: 0.14 }],
+  suaVez:        [{ o: 'sine', f: [659, 659], d: 0.12, g: 0.24 }, { o: 'sine', f: [988, 988], t: 0.12, d: 0.26, g: 0.24 }],
+  vitoria:       [{ o: 'triangle', f: [523, 523], d: 0.14, g: 0.3 }, { o: 'triangle', f: [659, 659], t: 0.13, d: 0.14, g: 0.3 }, { o: 'triangle', f: [784, 784], t: 0.26, d: 0.14, g: 0.3 }, { o: 'triangle', f: [1047, 1047], t: 0.39, d: 0.5, g: 0.32 }],
+  derrota:       [{ o: 'triangle', f: [392, 392], d: 0.2, g: 0.3 }, { o: 'triangle', f: [311, 311], t: 0.19, d: 0.2, g: 0.3 }, { o: 'triangle', f: [233, 196], t: 0.38, d: 0.6, g: 0.32 }]
+};
+/** Nome de cada som na voz do app (catálogo e teste em Aparência). */
+const NOMES = { compra: 'Comprar carta', descarte: 'Descartar', terreno: 'Baixar terreno', conjura: 'Conjurar', entra: 'Entrar no campo', aprimora: 'Aprimorar criatura', enfraquece: 'Enfraquecer criatura',
+  ataque: 'Atacar', bloqueio: 'Bloquear', golpe: 'Dano em criatura', dano: 'Dano em jogador', cura: 'Ganhar vida', anula: 'Anular mágica', morre: 'Criatura destruída', exila: 'Exilar', devolve: 'Devolver à mão',
+  remocaoGlobal: 'Remoção global', suaVez: 'Sua vez', vitoria: 'Vitória', derrota: 'Derrota' };
+const SOM_DO_TIPO = { ficha: 'entra', destroi: 'morre', danoCriatura: 'golpe' };
+const duracaoDe = nome => Math.max(0, ...(RECEITAS[nome] || []).map(v => (v.t || 0) + v.d));
+
+/** Dos eventos de uma jogada, quais sons tocar e quando (s). Poucos, sem repetir, na ordem da jogada. */
+function planoDeSom(eventos, { espectador = null, max = 4, passo = 0.14 } = {}) {
+  const tipos = new Set(eventos.map(e => e.tipo));
+  const nomes = [];
+  const poe = n => { if (n && RECEITAS[n] && !nomes.includes(n)) nomes.push(n); };
+  for (const e of eventos.slice().sort((x, y) => ORDEM.indexOf(x.tipo) - ORDEM.indexOf(y.tipo))) {
+    if (e.tipo === 'turno') { if (espectador != null && e.jogador === espectador) poe('suaVez'); continue; }
+    if (e.tipo === 'fim') { poe(e.vencedor == null ? null : espectador == null || e.vencedor === espectador ? 'vitoria' : 'derrota'); continue; }
+    if (tipos.has('remocaoGlobal') && ['morre', 'destroi', 'exila', 'devolve'].includes(e.tipo)) continue;
+    poe(SOM_DO_TIPO[e.tipo] || e.tipo);
+  }
+  // com muita coisa junta (o turno inteiro do bot), ficam os mais fortes: o fim da partida e a remoção nunca são cortados
+  const forte = n => ['vitoria', 'derrota', 'remocaoGlobal', 'dano', 'anula'].includes(n);
+  let escolhidos = nomes;
+  if (nomes.length > max) { const f = nomes.filter(forte).slice(-max); const resto = nomes.filter(n => !forte(n)).slice(0, Math.max(0, max - f.length)); escolhidos = nomes.filter(n => f.includes(n) || resto.includes(n)); }
+  return escolhidos.map((som, i) => ({ som, quando: Math.round(i * passo * 1000) / 1000 }));
+}
+
+const limpaPrefs = p => ({ ligado: !(p && p.ligado === false), volume: p && typeof p.volume === 'number' && Number.isFinite(p.volume) ? Math.min(1, Math.max(0, p.volume)) : 0.6 });
+
+function createSom({ store = null, criaContexto = null } = {}) {
+  let prefs = limpaPrefs(null), ctx = null, mestre = null, ruido = null;
+  const tocados = [];
+  const novoContexto = () => {
+    if (criaContexto) return criaContexto();
+    const C = typeof window !== 'undefined' ? (window.AudioContext || window.webkitAudioContext) : null;
+    return C ? new C() : null;
+  };
+  function contexto() {
+    if (ctx) return ctx;
+    try { ctx = novoContexto(); } catch (e) { ctx = null; }
+    if (!ctx) return null;
+    mestre = ctx.createGain(); mestre.gain.value = prefs.volume;
+    // vários sons juntos (o turno do bot) passam por um compressor: nada estoura no alto-falante do celular
+    if (ctx.createDynamicsCompressor) { const comp = ctx.createDynamicsCompressor(); mestre.connect(comp); comp.connect(ctx.destination); } else mestre.connect(ctx.destination);
+    return ctx;
+  }
+  /** O navegador segura o áudio até um toque; pedir para acordar nunca pode virar erro na tela. */
+  const acorda = c => { try { if (c.state === 'suspended' && c.resume) { const r = c.resume(); if (r && r.catch) r.catch(() => { /* segue mudo até o próximo toque */ }); } } catch (e) { /* segue mudo */ } };
+  function bufferDeRuido(c) {
+    if (ruido) return ruido;
+    const n = Math.floor(c.sampleRate * 1); ruido = c.createBuffer(1, n, c.sampleRate);
+    const d = ruido.getChannelData(0); let x = 22222; // gerador fixo: o mesmo ruído sempre, sem Math.random
+    for (let i = 0; i < n; i++) { x = (x * 16807) % 2147483647; d[i] = (x / 2147483647) * 2 - 1; }
+    return ruido;
+  }
+  function voz(c, v, t0) {
+    const ini = t0 + (v.t || 0), fim = ini + v.d;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, ini); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v.g), ini + Math.min(0.012, v.d / 4)); g.gain.exponentialRampToValueAtTime(0.0001, fim);
+    g.connect(mestre);
+    let fonte;
+    if (v.o) {
+      fonte = c.createOscillator(); fonte.type = v.o;
+      fonte.frequency.setValueAtTime(v.f[0], ini); if (v.f[1] !== v.f[0]) fonte.frequency.exponentialRampToValueAtTime(Math.max(20, v.f[1]), fim);
+      fonte.connect(g);
+    } else {
+      fonte = c.createBufferSource(); fonte.buffer = bufferDeRuido(c);
+      const f = c.createBiquadFilter(); f.type = v.filtro[0]; if (f.Q && v.filtro[0] === 'bandpass') f.Q.value = 0.6; /* faixa larga: o ruído filtrado não some */ f.frequency.setValueAtTime(v.filtro[1], ini); if (v.filtro[2] !== v.filtro[1]) f.frequency.exponentialRampToValueAtTime(Math.max(20, v.filtro[2]), fim);
+      fonte.connect(f); f.connect(g);
+    }
+    fonte.start(ini); fonte.stop(fim + 0.03);
+  }
+  return {
+    async init() { try { if (store) prefs = limpaPrefs(await store.get(CHAVE)); } catch (e) { /* sem armazenamento: padrão */ } if (mestre) mestre.gain.value = prefs.volume; return { ...prefs }; },
+    get prefs() { return { ...prefs }; },
+    async ajusta(patch) { prefs = limpaPrefs({ ...prefs, ...(patch || {}) }); if (mestre) mestre.gain.value = prefs.volume; try { if (store) await store.set(CHAVE, prefs); } catch (e) { /* vale só nesta sessão */ } return { ...prefs }; },
+    /** O navegador só deixa tocar depois de um toque: a mesa chama isto no primeiro toque. */
+    destrava() { if (!prefs.ligado) return false; const c = contexto(); if (c) acorda(c); return !!c; },
+    /** Toca um som pelo nome. Devolve false quando o som está desligado, não existe ou o aparelho não tem áudio. */
+    toca(nome, atraso = 0) {
+      if (!prefs.ligado || !RECEITAS[nome]) return false;
+      tocados.push(nome); if (tocados.length > 60) tocados.shift();
+      const c = contexto(); if (!c) return false;
+      try { acorda(c); const t0 = c.currentTime + 0.01 + atraso; for (const v of RECEITAS[nome]) voz(c, v, t0); } catch (e) { return false; }
+      return true;
+    },
+    tocaEventos(eventos, opts = {}) { const plano = planoDeSom(eventos, opts); for (const p of plano) this.toca(p.som, p.quando); return plano; },
+    /** O que foi pedido para tocar, do mais antigo ao mais novo (catálogo e testes). */
+    get tocados() { return tocados.slice(); }
+  };
+}
+return { eventosSensoriais, planoDeSom, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+})();
+
 /* ==== src/app/table.js ==== */
 const __m19 = (function () {
 /* =====================================================================
@@ -14943,8 +15161,20 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
 }
 
 /* ---------------- A1–A9 · a mesa ---------------- */
-function createTableScreen({ store, perfil = null, online = null }) {
+function createTableScreen({ store, perfil = null, online = null, som = null }) {
   const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
+  // G4 · som da partida: o que mudou entre a última mesa desenhada e esta vira som. Desfazer e abrir a partida não tocam.
+  let estadoOuvido = null, eventosDaJogada = [], semSentidos = false, sentidosAgora = [];
+  if (som) root.addEventListener('pointerdown', () => som.destrava(), { passive: true });
+  function ouve(s, v) {
+    const antes = estadoOuvido; estadoOuvido = s;
+    const evs = antes && !semSentidos ? __m33.eventosSensoriais(antes, s, { eventos: eventosDaJogada, stats: E.stats, tipos: nome => ((s.facts || {})[nome] || {}).types || [] }) : [];
+    eventosDaJogada = []; semSentidos = false;
+    if (!evs.length) return evs;
+    sentidosAgora = evs; root.dataset.sentidos = evs.map(e => e.tipo).join(' '); // o último conjunto fica à vista para teste e depuração
+    if (som) som.tocaEventos(evs, { espectador: v });
+    return evs;
+  }
   // Leva 128 · a foto do perfil entra no círculo da faixa de vez quando o turno é seu
   let meuAvatar = null;
   if (perfil) perfil.get().then(p => { if (p.avatar) { meuAvatar = p.avatar; if (table) paint(); } }).catch(() => {});
@@ -15036,6 +15266,10 @@ function createTableScreen({ store, perfil = null, online = null }) {
     vezPop.replaceChildren(
       h('dl', { class: 'tb-vez-pop__lista' }, ...vz.detalhes.flatMap(d => [h('dt', {}, d.rotulo), h('dd', { id: d.k === 'serie' ? 'tb-serie' : null, dataset: { k: d.k, meu: String(d.valor === 'Você') } }, d.valor)])),
       IconButton('fechar', 'Fechar', { variant: 'ghost', id: 'tb-vez-fechar', onClick: () => abreVez(false) }));
+    // G4 · som da partida a um toque da faixa (a linha da faixa não comporta um quarto ícone em 360 px)
+    if (som) { const ligado = som.prefs.ligado;
+      const c = Chip('Som', { icone: ligado ? 'som' : 'somMudo', pressed: ligado, id: 'tb-som', onClick: async () => { const p = await som.ajusta({ ligado: !som.prefs.ligado }); if (p.ligado) { som.destrava(); som.toca('suaVez'); } semSentidos = true; paint(); toast(p.ligado ? 'Som ligado' : 'Som desligado'); } });
+      c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', ligado ? 'Som da partida ligado' : 'Som da partida desligado'); vezPop.appendChild(c); }
     vezPop.hidden = !vezAberto;
     return vezEl;
   }
@@ -15066,7 +15300,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
   // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
-  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state,
+  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(),
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -15097,6 +15331,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
   function act(action) {
     try {
       const events = table.act(action);
+      eventosDaJogada = events; // G4 · os efeitos da jogada ajudam a nomear o que se ouve (anulação, destruição)
       const res = events.filter(e => e.kind === 'resolved' && e.adjudicate).pop();
       if (res) adjudicating = { name: res.name, oid: res.oid };
       recusa = null;
@@ -16062,6 +16297,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
     const s = table.state;
     const v = table.viewer();
     if (s.status === 'over') fechaJogoDaSerie(s); // antes de desenhar o placar
+    ouve(s, v); // G4
     // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
     if (table.humans().length > 1 && v !== shownViewer && s.status !== 'over') { handoff = true; shownViewer = v; }
     if (handoff) {
@@ -16096,7 +16332,7 @@ function createTableScreen({ store, perfil = null, online = null }) {
           sinc ? (() => { const b = IconButton('conversa', 'Conversa', { id: 'tb-chat', variant: 'ghost', onClick: abreChat }); const lig = online.transporte.ligado();
             b.appendChild(h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(lig) }, 'aria-label': lig ? 'Partida online, conectada' : 'Partida online, reconectando' }));
             b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
-          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; save(); paint(); toast('Desfeito'); } } }),
+          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
           IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); if (sinc) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
@@ -18290,12 +18526,13 @@ const backup = {
     const m = await __m24.migraReservas(decks, null);
     let extra = '';
     if (r.perfil) { await perfil.set({ nome: r.perfil.nome, avatar: r.perfil.avatar }); document.dispatchEvent(new CustomEvent('estante:perfil')); extra += ' · perfil'; }
-    if (r.prefs) { const n = await perfil.importaPreferencias(r.prefs); if (n) { extra += ' · preferências'; await theme.init(); etiquetas.recarrega(); /* G2 */ } }
+    if (r.prefs) { const n = await perfil.importaPreferencias(r.prefs); if (n) { extra += ' · preferências'; await theme.init(); etiquetas.recarrega(); /* G2 */ await som.init(); /* G4 */ } }
     return `${r.decks} lista(s) restaurada(s)` + (m.length ? ` · reserva separada em ${m.length}` : '') + extra;
   }
 };
 const names = createNameIndex({ store: platform.store, scryfall });
 const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
+const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
 __m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
 const ocr = createOcr();
@@ -18319,9 +18556,9 @@ const ROUTES = [
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
-  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online }) },
+  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store }) },
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, apresentacao: () => mostraApresentacao(),
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),

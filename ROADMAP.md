@@ -409,6 +409,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ar ✅ | G1 preço da carta em dólar, real e euro, com a cotação do dólar buscada e guardada no aparelho (leva 163) | G | 1 | teste no aparelho |
 | 16º-as ✅ | G2 etiquetas coloridas em cartas da coleção e em listas: criar, aplicar em lote ou pela carta, filtrar por chip (leva 166) | G | 1 | teste no aparelho |
 | 16º-at ✅ | G3 valor acumulado em real, dólar e euro: coleção, recorte do filtro, cada etiqueta, cada lista (deck, reserva, falta comprar) e total da estante (leva 167) | G | 1 | teste no aparelho |
+| 16º-au ✅ | G4 som na partida: eventos de mesa lidos do estado (compra, ataque, dano, cura, anulação, destruição, descarte, remoção global…) e vinte sons sintetizados, com liga/desliga e volume (leva 168) | G | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4756,6 +4757,40 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   com `auditaTela` em quatro telas.
 - **Fora:** preço pela impressão exata (pede buscar cada impressão na Scryfall); ordenar a coleção por preço;
   histórico de valor; escolher a moeda em destaque.
+
+**G4 · Som na partida** ✅ (leva 168, 04/10/2026)
+- **Decisão de desenho:** som **sintetizado no aparelho** (WebAudio), zero arquivo de áudio — funciona offline, não
+  pesa no download e cabe no arquivo único (ADR-02). Cada som tem de 1 a 4 vozes curtas (oscilador ou ruído
+  filtrado), menos de um segundo, passando por um compressor para nada estourar no alto-falante do celular.
+- **Motor de eventos (puro, `src/app/sentidos.js`, `__m33`):** `eventosSensoriais(antes, depois)` compara dois
+  estados do motor e diz o que aconteceu na mesa: **compra, descarte, terreno, conjurar, anulação, entrar no
+  campo, ficha, aprimorar** (marcador +1/+1 ou bônus de força), **enfraquecer, ataque, bloqueio, dano em criatura,
+  dano em jogador, ganho de vida, criatura destruída/morta, exílio, devolver à mão, remoção global** (três ou mais
+  permanentes saindo do campo de uma vez, fora do dano de combate), **troca de turno e fim de partida**. Não mexe no
+  motor (ADR-04) e não depende de quem jogou: vale para o Shark e para a partida online. É a mesma lista que a G5
+  usa para os efeitos visuais.
+- **Sons (20):** comprar, descartar, baixar terreno, conjurar, entrar no campo, aprimorar, enfraquecer, atacar,
+  bloquear, dano em criatura, dano em jogador, ganhar vida, anular, criatura destruída, exilar, devolver à mão,
+  remoção global, sua vez, vitória, derrota. Quando várias coisas acontecem juntas (o turno inteiro do Shark), tocam
+  no máximo quatro, espaçados, sem repetir; fim de partida, remoção global, dano e anulação nunca são cortados.
+- **Controle:** chip **Som** no balão da faixa de turno da mesa (um toque na faixa abre; vale também na partida
+  online); em Perfil › Aparência › Mesa, chip **Som**, **volume** e **Ouvir sons** (folha com os vinte, um toque toca). Guardado no
+  aparelho (`mesa.som`) e levado no backup. Ligado por padrão a 60%. **Desfazer não toca nada.**
+- **Limites declarados:** (1) anulação e "conjurou e já resolveu" dependem dos eventos da jogada feita neste
+  aparelho; na partida **online**, a jogada do outro lado chega só como estado, então uma mágica anulada lá soa
+  como conjurar e uma instantânea que resolveu de vez pode soar como descarte. (2) O botão de som não coube na
+  linha da faixa (um quarto ícone derruba as ferramentas para a linha de baixo em 360 px — o portão barrou): por
+  isso mora no balão. (3) O navegador só
+  libera áudio depois do primeiro toque na mesa; no iPhone com a chave de silêncio ligada o som não sai.
+  (4) "Remoção global" é reconhecida pelo efeito (três ou mais saindo), não pelo texto da carta.
+- **Medido:** cada som renderizado fora de linha a volume máximo — pico entre 0,14 e 0,41 (nada estoura), o mais
+  longo com 0,78 s. Balão da faixa com o chip de som em 360×780 sem sobreposição (`auditaTela`).
+- **Testes:** U `sentidos.unit` ×6 (zona a zona; combate e força; saída do campo, remoção global × dano de combate,
+  anulação, fim; plano de som; receitas, preferências e serviço com áudio de mentira; com o motor de verdade);
+  e2e "G4 som na partida" (terreno, sua vez + compra, conjurar + dano sem soar descarte, desfazer silencioso,
+  desligar lembrado, volume, as vinte receitas aceitas pelo áudio do navegador, `auditaTela` em três telas).
+- **Fora:** música de fundo; som por carta específica; som na coleção e nas listas; vibração por evento de mesa
+  (hoje só a troca de turno vibra).
 
 ### P · Plataforma
 

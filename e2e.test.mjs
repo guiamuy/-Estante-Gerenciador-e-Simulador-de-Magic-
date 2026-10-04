@@ -6481,3 +6481,64 @@ test('e2e · G3 valor acumulado: coleção, recorte do filtro e cada etiqueta no
   await auditaTela(page, 'estante com valor');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · G4 som na partida: a jogada vira evento e som (terreno, sua vez, compra, conjurar, dano); desfazer não toca; desligar a um toque fica lembrado; volume e escuta de cada som em Perfil › Aparência', { skip }, async t => {
+  const M = await comLista125(t, '20 Mountain\n20 Fiery Temper\n20 Kitchen Imp', ['Mountain', 'Fiery Temper', 'Kitchen Imp'], '3');
+  const { page, errors } = M;
+  const tocados = () => page.evaluate(() => window.__estanteMesa.som.tocados);
+  const sentidos = () => page.evaluate(() => window.__estanteMesa.sentidos().map(e => e.tipo));
+  // o som mora no balão da faixa de turno (um toque na faixa): chip com ícone, ligado por padrão
+  const abreBalao = async () => { if (await page.locator('#tb-vez-pop').isHidden()) await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-som', { state: 'visible' }); };
+  await abreBalao();
+  assert.equal(await page.getAttribute('#tb-som', 'aria-pressed'), 'true'); assert.equal(await page.getAttribute('#tb-som', 'aria-label'), 'Som da partida ligado');
+  assert.deepEqual(await page.$$eval('#tb-som .ds-icon', is => is.map(i => i.dataset.icone)), ['som']);
+  assert.ok((await tocados()).includes('compra'), 'chegar ao meu turno já tocou a compra');
+  await auditaTela(page, 'balão da faixa com o som');
+  await page.click('#tb-vez-fechar');
+  // cada jogada: o evento certo e o som certo
+  const n0 = (await tocados()).length;
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: await M.oid('Mountain') }), true); await page.waitForTimeout(80);
+  assert.deepEqual(await sentidos(), ['terreno']); assert.deepEqual((await tocados()).slice(n0), ['terreno']); assert.equal(await page.getAttribute('#tb', 'data-sentidos'), 'terreno');
+  // passar o turno: a volta para a minha vez toca "sua vez" e a compra (o turno do oponente, não)
+  const n1 = (await tocados()).length; await M.proximo();
+  const volta = (await tocados()).slice(n1); assert.ok(volta.includes('suaVez') && volta.includes('compra'), JSON.stringify(volta));
+  await M.terreno(); await M.proximo(); await M.terreno();
+  // conjurar no oponente: som de conjurar; ao resolver, o dano (20 → 17)
+  const raio = (await M.legal("a.t === 'cast' && (a.targets || []).some(x => x.player === 1)"))[0]; assert.ok(raio, 'Fiery Temper conjurável no oponente com três montanhas');
+  const n2 = (await tocados()).length; assert.equal(await M.act(raio), true); await M.resolve(); await page.waitForTimeout(80);
+  const jogada = (await tocados()).slice(n2);
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().players[1].life), 17); assert.ok(jogada.includes('conjura') && jogada.includes('dano'), JSON.stringify(jogada));
+  assert.ok(!jogada.includes('descarte'), 'mágica que resolveu não soa como descarte');
+  // desfazer volta o estado sem tocar nada
+  const antes = (await tocados()).length;
+  if (await page.isEnabled('#tb-undo')) { await page.click('#tb-undo'); await page.waitForTimeout(150); assert.equal((await tocados()).length, antes, 'desfazer é silencioso'); }
+  // desligar: ícone e nome mudam, nada mais toca, e a escolha fica guardada
+  await abreBalao(); await page.click('#tb-som'); await page.waitForFunction(() => document.querySelector('#tb-som').getAttribute('aria-pressed') === 'false');
+  assert.deepEqual(await page.$$eval('#tb-som .ds-icon', is => is.map(i => i.dataset.icone)), ['somMudo']); assert.equal(await page.getAttribute('#tb-som', 'aria-label'), 'Som da partida desligado');
+  await page.click('#tb-vez-fechar');
+  const mudo = (await tocados()).length;
+  await M.proximo();
+  assert.equal((await tocados()).length, mudo, 'som desligado: nada é pedido ao aparelho');
+  assert.ok((await sentidos()).includes('compra'), 'o evento continua existindo (a G5 desenha mesmo sem som)');
+  await page.reload(); await page.waitForSelector('#tb-vez-btn'); await abreBalao(); assert.equal(await page.getAttribute('#tb-som', 'aria-pressed'), 'false', 'desligado continua desligado ao voltar');
+  await page.click('#tb-som'); await page.waitForFunction(() => document.querySelector('#tb-som').getAttribute('aria-pressed') === 'true');
+  assert.deepEqual((await tocados()).slice(-1), ['suaVez'], 'ligar confirma com um som');
+  // Perfil › Aparência: chip, volume e a escuta de cada som
+  await page.goto(page.url().replace(/#.*/, '#/perfil')); await page.waitForSelector('#aparencia-som');
+  assert.equal(await page.getAttribute('#aparencia-som [data-som]', 'aria-pressed'), 'true');
+  assert.equal(await page.inputValue('#aparencia-volume'), '60');
+  await page.locator('#aparencia-som').scrollIntoViewIfNeeded(); await auditaTela(page, 'perfil com som da partida');
+  await page.click('#aparencia-ouvir'); await page.waitForSelector('#aparencia-sons');
+  const nomes = await page.$$eval('#aparencia-sons [data-ouvir]', cs => cs.map(c => c.textContent.trim()));
+  assert.equal(nomes.length, 20); for (const n of ['Comprar carta', 'Atacar', 'Dano em jogador', 'Ganhar vida', 'Anular mágica', 'Criatura destruída', 'Descartar', 'Remoção global', 'Aprimorar criatura']) assert.ok(nomes.includes(n), n);
+  await page.click('#aparencia-sons [data-ouvir="remocaoGlobal"]'); assert.deepEqual((await tocados()).slice(-1), ['remocaoGlobal']);
+  // cada receita toca de verdade no áudio do navegador (um parâmetro inválido de WebAudio faria toca() devolver false)
+  const falhas = await page.evaluate(() => [...document.querySelectorAll('#aparencia-sons [data-ouvir]')].map(c => c.dataset.ouvir).filter(k => window.__estanteMesa.som.toca(k) !== true));
+  assert.deepEqual(falhas, [], 'sons que o navegador recusou');
+  await auditaTela(page, 'folha dos sons'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await page.$eval('#aparencia-volume', el => { el.value = '25'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForFunction(() => window.__estanteMesa.som.prefs.volume === 0.25);
+  await page.click('#aparencia-som [data-som]'); await page.waitForFunction(() => !document.querySelector('#aparencia-ouvir'));
+  assert.equal(await page.isDisabled('#aparencia-volume'), true, 'desligado: o volume espera e o botão de ouvir some');
+  assert.deepEqual(errors, []);
+});
