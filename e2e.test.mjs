@@ -6668,3 +6668,53 @@ test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanho
   await auditaTela(page, 'trocas com imagem');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão desfaz uma a uma atravessando compra e turno do bot, e o registro volta ao começo de um turno com confirmação', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  assert.equal(await page.isDisabled('#tb-undo'), true, 'antes da primeira decisão não há o que voltar');
+  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  assert.equal(await page.isEnabled('#tb-undo'), true, 'contra o bot, manter a mão também se desfaz (a dois, não)');
+  const est = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return { turno: s.turn.number, mao: s.zones[0].hand.length, grimorio: s.zones[0].library.length, vida: s.players.map(p => p.life), status: s.status }; });
+  // joga até o turno 4: cada passo meu fica guardado com o estado de antes
+  const fotos = [];
+  for (let i = 0; i < 60; i++) {
+    const e = await est(); if (e.turno >= 4 || e.status !== 'playing') break;
+    fotos.push(e);
+    const pend = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.pending && s.pending.kind; });
+    const ok = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), ls = M.legais(); const a = s.pending ? ls[0] : (ls.find(x => x.t === 'play_land') || { t: 'pass', p: 0 }); return M.act(a); });
+    assert.equal(ok, true, 'jogada aceita' + (pend ? ' (' + pend + ')' : '')); await page.waitForTimeout(40);
+  }
+  const fim = await est(); assert.ok(fim.turno >= 4 && fotos.length >= 5, JSON.stringify(fim));
+  assert.ok(fim.grimorio < fotos[0].grimorio, 'houve compra no caminho');
+  // o registro: cada turno com jogada minha tem "Voltar"; confirma antes
+  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline'); await page.waitForTimeout(350);
+  const botoes = await page.$$eval('#tb-timeline [data-volta-turno]', bs => bs.map(b => ({ turno: Number(b.dataset.voltaTurno), texto: b.textContent.trim(), h: b.getBoundingClientRect().height, icone: (b.querySelector('.ds-icon') || { dataset: {} }).dataset.icone })));
+  assert.ok(botoes.length >= 2, 'há turnos para voltar: ' + JSON.stringify(botoes)); assert.ok(botoes.every(b => b.texto === 'Voltar' && b.h >= 44 && b.icone === 'desfazer'), JSON.stringify(botoes));
+  await auditaTela(page, 'registro com voltar ao turno');
+  const alvo = Math.max(...botoes.map(b => b.turno)), idx = fotos.findIndex(f => f.turno >= alvo); assert.ok(idx >= 3, 'há jogadas antes do turno escolhido');
+  await page.click(`#tb-timeline [data-volta-turno="${alvo}"]`); await page.waitForSelector('#tb-volta-confirma');
+  assert.equal(await page.innerText('#ds-dialog-title'), `Voltar ao turno ${alvo}?`);
+  // cancelar não mexe na partida e devolve o registro
+  const antes = await est(); await page.locator('.ds-dialog__actions button', { hasText: 'Cancelar' }).click(); await page.waitForSelector('#tb-timeline'); assert.deepEqual(await est(), antes);
+  await page.click(`#tb-timeline [data-volta-turno="${alvo}"]`); await page.click('#tb-volta-confirma'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.deepEqual(await est(), fotos[idx], `voltou ao estado em que o turno ${alvo} chegou para mim`);
+  // o botão: três toques, três jogadas para trás, cada uma no estado exato de antes (atravessa compra e o turno do bot)
+  for (let k = 1; k <= 3; k++) { await page.click('#tb-undo'); await page.waitForTimeout(120); assert.deepEqual(await est(), fotos[idx - k], 'volta ' + k); }
+  assert.ok(fotos[idx - 3].grimorio > fotos[idx].grimorio || fotos[idx - 3].turno < fotos[idx].turno, 'as voltas atravessaram um turno');
+  assert.equal(await page.isEnabled('#tb-undo'), true, 'e continua podendo voltar');
+  // até o começo: o botão volta tudo e só então apaga
+  for (let i = 0; i < 40 && await page.isEnabled('#tb-undo'); i++) { await page.click('#tb-undo'); await page.waitForTimeout(60); }
+  await page.waitForSelector('#tb-keep'); assert.equal(await page.isDisabled('#tb-undo'), true, 'de volta à mão inicial: nada mais a desfazer');
+  // recarregar não perde a possibilidade de voltar
+  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass'); await page.reload(); await page.waitForSelector('#tb-pass');
+  assert.equal(await page.isEnabled('#tb-undo'), true, 'partida reaberta: as jogadas continuam desfazíveis');
+  assert.deepEqual(errors, []);
+});

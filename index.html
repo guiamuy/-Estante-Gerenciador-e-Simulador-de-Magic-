@@ -1351,6 +1351,7 @@ body {
 .tb-log { margin: 0; max-height: 55vh; overflow-y: auto; font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--space-3); }
 /* A14 · linha do tempo: turno, fase, linhas */
 .tb-log__turn { display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-log__cab { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--tap-min); } /* H2 · o turno e o botão de voltar a ele */
 .tb-log__turnhead { margin: 0; font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-md); color: var(--accent); }
 .tb-log__phase { display: grid; grid-template-columns: 6.5em 1fr; gap: var(--space-2); }
 .tb-log__phasehead { font-size: var(--text-xs); color: var(--fg-muted); padding-top: 2px; }
@@ -13488,6 +13489,9 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
   const vistas = new Set();
   return {
     nivel,
+    /** H2 · a partida voltou no tempo (desfazer): o que o bot viu e planejou depois daquele ponto deixa de valer. Ele reaprende do
+        que está à vista, como acontece quando a partida é reaberta. Sem isto, voltar uma jogada deixaria o bot sabendo a carta desfeita. */
+    esquece() { vistas.clear(); plano = []; avPlano = null; passosCombo = 0; turnoCombo = -1; },
     /** Mão inicial: do v3 em diante o bot decide; os anteriores mantêm sempre (como antes). */
     mulligan(s, p) { return v3 || atual ? decideMulligan(s, p) : { acao: { t: 'keep', p, bottom: s.zones[p].hand.slice(0, s.players[p].mulligans || 0) }, motivo: 'mantive' }; },
     jogada(s, p) {
@@ -13997,8 +14001,11 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     motivosDoBot = [];
   }
 
+  // H2 · o turno em que cada ação do registro foi feita: é o que deixa voltar ao começo de um turno
+  let turnoDoLog = [];
   function record(action) {
     const before = match.state;
+    turnoDoLog.push(before.turn.number || 0);
     const events = match.act(action);
     const after = match.state;
     if (revealed(before, after)) barrier = match.log.length;
@@ -14107,6 +14114,8 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
 
   function rebuild(prefix) {
     reset();
+    turnoDoLog = []; // H2
+    if (robo && robo.esquece) robo.esquece(); // H2 · o bot não leva para o passado o que viu no futuro desfeito
     const keep = new Set(marks || []);
     for (let i = 0; i < prefix.length; i++) { if (keep.has(i)) humanMarks.push(i); record(prefix[i]); }
   }
@@ -14133,16 +14142,25 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       return humans[0];
     },
     humans() { return match.state.players.map((pl, i) => pl.dummy ? -1 : i).filter(i => i >= 0); },
-    canUndo() { return humanMarks.length > 0 && humanMarks[humanMarks.length - 1] >= barrier; },
-    undo() {
-      if (!api.canUndo()) return false;
-      const target = humanMarks[humanMarks.length - 1];
+    /* H2 · contra o bot não há outra pessoa de quem esconder nada: dá para voltar jogada a jogada até o começo da partida.
+       A dois (hot-seat ou online) continua a barreira de informação revelada: compra, mulligan e olhar o grimório não se desfazem. */
+    semBarreira() { return !!options.bot && match.state.players.filter((pl, i) => !pl.dummy && i !== options.bot.seat).length === 1; },
+    /** Quantas jogadas suas dá para voltar agora. */
+    desfaziveis() { return api.semBarreira() ? humanMarks.length : humanMarks.filter(m => m >= barrier).length; },
+    canUndo() { return api.desfaziveis() > 0; },
+    /** Volta `n` jogadas suas (com tudo o que o bot e o motor fizeram depois de cada uma). Devolve quantas voltou (false = nada). */
+    undo(n = 1) {
+      const k = Math.min(Math.max(1, Math.floor(n) || 1), api.desfaziveis());
+      if (!k) return false;
+      const corte = humanMarks.length - k, target = humanMarks[corte];
       const prefix = match.log.slice(0, target);
-      marks = humanMarks.slice(0, -1);
+      marks = humanMarks.slice(0, corte);
       rebuild(prefix); // o replay recalcula a barreira de informação revelada
       marks = null;
-      return true;
+      return k;
     },
+    /** Quantas jogadas suas foram feitas do começo do turno `t` para cá e podem ser desfeitas: é o `n` de undo(n) para voltar a ele. */
+    jogadasDesde(t) { return Math.min(humanMarks.filter(i => (turnoDoLog[i] || 0) >= t).length, api.desfaziveis()); },
     /** Passa em sequência pelo jogador p até: pilha ganhar objeto, decisão
         pendente, fim de partida, outro humano receber a prioridade ou a
         condição de parada. */
@@ -16057,10 +16075,20 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   }
 
   /** A14 · registro como linha do tempo: turno mais recente primeiro, agrupado por fase. */
+  /** H2 · partida da série que já terminou e entrou no placar não volta: o resultado contado não pode mudar por baixo. */
+  const podeVoltar = () => !sinc && table.canUndo() && !(table.state.status === 'over' && serie && serie.melhorDe > 1);
+  function voltaAoTurno(turno, ativo) {
+    const n = table.jogadasDesde(turno); if (!n) return;
+    Dialog({ title: `Voltar ao turno ${turno}?`, body: Text(`A partida volta ao ponto em que o turno ${turno} (${ativo}) chegou para você. Tudo o que foi jogado depois disso, por você e pelo oponente, é desfeito.`, { tone: 'muted' }),
+      actions: [Button('Cancelar', { onClick: () => { closeDialog(); openLog(); } }),
+        Button('Voltar', { variant: 'primary', icone: 'desfazer', id: 'tb-volta-confirma', onClick: () => { closeDialog(); if (table.undo(n)) { adjudicating = null; semSentidos = true; save(); paint(); toast(`Voltou ao turno ${turno}`); } } })] });
+  }
   function openLog() {
     const turnos = T.linhaDoTempo(table.entradas).reverse();
+    const volta = t => t.turno && podeVoltar() && table.semBarreira() && table.jogadasDesde(t.turno) > 0
+      ? Button('Voltar', { variant: 'ghost', icone: 'desfazer', classe: 'tb-log__volta', dataset: { voltaTurno: String(t.turno) }, title: `Voltar ao começo do turno ${t.turno}`, onClick: () => voltaAoTurno(t.turno, t.ativo) }) : null;
     Dialog({ title: 'Registro', body: turnos.length ? h('div', { class: 'tb-log', id: 'tb-timeline' }, ...turnos.map(t => h('section', { class: 'tb-log__turn', dataset: { turn: String(t.turno) } },
-      h('h3', { class: 'tb-log__turnhead' }, t.turno ? `Turno ${t.turno} · ${t.ativo}` : 'Antes do primeiro turno'),
+      h('div', { class: 'tb-log__cab' }, h('h3', { class: 'tb-log__turnhead' }, t.turno ? `Turno ${t.turno} · ${t.ativo}` : 'Antes do primeiro turno'), volta(t)),
       ...t.fases.map(f => h('div', { class: 'tb-log__phase', dataset: { phase: f.rotulo } },
         f.rotulo ? h('span', { class: 'tb-log__phasehead' }, f.rotulo) : null,
         h('ul', { class: 'tb-log__lines' }, ...f.linhas.map(l => h('li', {}, l)))))))) : Empty('Nada aconteceu ainda.'),
@@ -16510,7 +16538,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
           sinc ? (() => { const b = IconButton('conversa', 'Conversa', { id: 'tb-chat', variant: 'ghost', onClick: abreChat }); const lig = online.transporte.ligado();
             b.appendChild(h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(lig) }, 'aria-label': lig ? 'Partida online, conectada' : 'Partida online, reconectando' }));
             b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
-          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !table.canUndo(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
+          IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), title: sinc ? 'Online não dá para desfazer' : null, onClick: () => { if (table.undo()) { adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
           IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
           IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text('A partida termina com vitória do oponente.', { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); act({ t: 'concede', p: v }); if (sinc) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),

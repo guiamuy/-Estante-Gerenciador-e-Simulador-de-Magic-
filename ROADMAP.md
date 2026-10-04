@@ -413,6 +413,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-av ✅ | G5 efeitos visuais na partida: um efeito por evento (compra, ataque, dano com número, cura, anulação, destruição, exílio, descarte, remoção global, aprimoramento), por tokens de movimento, com menos movimento respeitado (leva 169) | G | 1 | teste no aparelho |
 | 16º-aw ✅ | Correção do CI: botão Etiquetas da lista sai da linha de ações (derrubava o Excluir com fonte larga); o e2e confere a linha com a fonte do CI (leva 170) | G2 | 1 | teste no aparelho |
 | 16º-ax ✅ | H1 imagens nítidas: verso de dupla face na mesa e na folha (com Virar carta) e cartas com imagem na troca de reserva (leva 171) | H | 1 | teste no aparelho |
+| 16º-ay ✅ | H2 contra o bot, desfazer volta quantas jogadas quiser (até a mão inicial) e o Registro volta ao começo de um turno (leva 173) | H | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4874,6 +4875,27 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
 - **Limite declarado:** carta de duas faces cuja face de trás o motor não conhece (Delver of Secrets, por exemplo)
   continua fora da partida — isso é da trilha motor, não de imagem. Sem a foto que acompanhou o pedido, o defeito
   foi reproduzido pela descrição; se a foto mostrar outro caso, ele entra como correção.
+
+**H2 · Voltar quantas jogadas quiser contra o bot** ✅ (leva 173, 04/10/2026)
+- **Antes:** desfazer só voltava a última jogada e parava em qualquer compra, mulligan ou olhada no grimório
+  (a "barreira de informação revelada", que protege o jogo a dois).
+- **Agora, contra o Shark:** não há outra pessoa de quem esconder nada, então o botão **Desfazer** volta jogada a
+  jogada **até a mão inicial**, atravessando compra e o turno inteiro do bot. Cada toque volta uma jogada sua, com
+  tudo o que o bot e o motor fizeram depois dela.
+- **Voltar a um turno:** no **Registro**, cada turno com jogada sua ganhou **Voltar** (ícone de desfazer). Pede
+  confirmação ("Voltar ao turno 5?") e leva a partida ao ponto em que aquele turno chegou para você.
+- **Justo com o bot:** ao voltar, o Shark **esquece** o que viu e planejou no futuro desfeito (`esquece()`); reaprende
+  do que está à vista, como quando a partida é reaberta. Ele decide de novo — pensa com relógio, então a segunda
+  vez pode não repetir a primeira.
+- **Continua valendo ao reabrir** a partida (as marcas das jogadas vão no que é salvo).
+- **Não mudou:** a dois (hot-seat) a barreira continua; online não desfaz; goldfish fica como estava. Partida de
+  série que já terminou e entrou no placar não volta (o resultado contado não muda por baixo).
+- **Modelo (puro, `table-model`):** `semBarreira()`, `desfaziveis()`, `undo(n)` (devolve quantas voltou),
+  `jogadasDesde(turno)`.
+- **Testes:** U `table.unit` (volta uma a uma com o estado exato, várias de uma vez, ao começo de um turno, pedir
+  demais para no começo, reabrir, hot-seat e goldfish inalterados); e2e "H2" (registro com Voltar de 44 px e ícone,
+  cancelar não mexe, confirmar volta ao estado exato, três toques atravessando turno, até a mão inicial, reabrir).
+- **Fora:** refazer (avançar de novo o que foi desfeito); desfazer sem limite no goldfish e a dois.
 
 ### P · Plataforma
 

@@ -138,7 +138,7 @@ test('G4 · com o motor de verdade: comprar, perder vida, baixar terreno e a car
   const ilha = t.state.zones[p].hand.find(o => t.state.facts[t.state.objects[o].name].types.includes('land')) ?? (() => { const o = t.state.zones[p].library.find(x => t.state.facts[t.state.objects[x].name].types.includes('land')); t.act({ t: 'move', p, oid: o, to: 'hand' }); return o; })();
   assert.deepEqual(ouve(() => t.act({ t: 'move', p, oid: ilha, to: 'battlefield' })), [{ tipo: 'terreno', oid: ilha, jogador: p }]);
   assert.deepEqual(ouve(() => t.act({ t: 'move', p, oid: ilha, to: 'graveyard' })).map(e => e.tipo), ['destroi']);
-  const antes = t.state; assert.equal(t.undo(), true); assert.notEqual(t.state, antes, 'desfazer troca o estado: a mesa não toca nada nessa volta (teste e2e)');
+  const antes = t.state; assert.ok(t.undo()); assert.notEqual(t.state, antes, 'desfazer troca o estado: a mesa não toca nada nessa volta (teste e2e)');
 });
 
 test('G5 · plano de efeitos: cada evento vira um efeito num alvo (carta, vida, pilha ou mesa); o que saiu da tela vira fantasma', () => {

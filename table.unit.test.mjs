@@ -597,3 +597,43 @@ test('H1 · a carta que a mesa desenha: o nome do verso de uma dupla face acha a
   assert.deepEqual(J(T.cartaDaMesa(div, 'Fire').images), { normal: 'x' }, 'a primeira face de uma carta de imagem única usa a imagem da carta');
   assert.equal(T.cartaDaMesa(div, 'Ice').images, null);
 });
+
+test('H2 · contra o bot dá para voltar quantas jogadas quiser, atravessando compra e turno do bot; a dois a barreira continua', () => {
+  const setup = T.buildSetup({ format: 'pauper', seed: 21, cards: CARDS, seats: [{ name: 'Você', deck: { entries: PAUPER_DECK } }, { name: 'Shark', deck: { entries: PAUPER_DECK } }], manaCheck: true, mode: 'full' });
+  const mesa = T.createTable(setup, { options: { autoPass: true, bot: { nivel: 'shark', seat: 1 } } });
+  assert.equal(mesa.semBarreira(), true); assert.equal(mesa.canUndo(), false, 'nada feito ainda');
+  const inicio = E.hashState(mesa.state);
+  mesa.act({ t: 'keep', p: 0, bottom: [] });
+  assert.equal(mesa.canUndo(), true, 'contra o bot, manter a mão também se desfaz');
+  // joga alguns turnos: cada passo meu é uma jogada; o bot joga a vez dele no meio
+  const fotos = [];
+  for (let i = 0; i < 40 && mesa.state.status === 'playing' && mesa.state.turn.number < 5; i++) {
+    const s = mesa.state, eu = s.pending ? s.pending.p : s.turn.priority; assert.equal(eu, 0, 'o bot nunca deixa a decisão com ele');
+    fotos.push({ hash: E.hashState(s), n: mesa.desfaziveis(), turno: s.turn.number });
+    const legais = E.legalActions(s, 0);
+    mesa.act(s.pending ? legais[0] : (legais.find(a => a.t === 'play_land') || { t: 'pass', p: 0 }));
+  }
+  assert.ok(mesa.state.turn.number >= 4 && fotos.length >= 6, 'a partida andou: turno ' + mesa.state.turn.number);
+  assert.ok(mesa.state.zones[0].library.length < 53, 'houve compra no caminho (a barreira antiga pararia aqui)');
+  assert.equal(mesa.desfaziveis(), fotos.length + 1, 'todas as jogadas minhas contam, mais a de manter a mão');
+  // uma por uma: cada volta cai exatamente no estado de antes daquela jogada
+  for (let k = fotos.length - 1; k >= Math.max(0, fotos.length - 4); k--) { assert.equal(mesa.undo(), 1); assert.equal(E.hashState(mesa.state), fotos[k].hash, 'volta ' + k); assert.equal(mesa.desfaziveis(), fotos[k].n); }
+  // várias de uma vez, e voltar ao começo de um turno
+  const alvo = fotos.find(f => f.turno === 2); assert.ok(alvo, 'houve jogada minha no turno 2');
+  const n = mesa.jogadasDesde(2); assert.ok(n >= 1);
+  assert.equal(mesa.undo(n), n); assert.equal(E.hashState(mesa.state), alvo.hash, 'voltou ao estado em que o turno 2 chegou para mim');
+  assert.equal(mesa.jogadasDesde(2), 0, 'não sobrou jogada minha do turno 2 em diante');
+  // pedir mais do que existe volta tudo e para no começo da partida
+  const tudo = mesa.desfaziveis(); assert.equal(mesa.undo(999), tudo); assert.equal(E.hashState(mesa.state), inicio); assert.equal(mesa.canUndo(), false); assert.equal(mesa.undo(), false);
+  // depois de voltar, a partida segue: a jogada refeita vale e o bot decide de novo (ele pensa com relógio; não é repetição exata)
+  mesa.act({ t: 'keep', p: 0, bottom: [] }); assert.equal(mesa.state.players[0].kept, true); assert.equal(mesa.desfaziveis(), 1);
+  // salvar e retomar guarda as jogadas: quem reabre a partida continua podendo voltar
+  const antes = E.hashState(mesa.state); const s2 = mesa.state; mesa.act(s2.pending ? E.legalActions(s2, 0)[0] : { t: 'pass', p: 0 });
+  const retomada = T.restoreTable(J(mesa.serialize()));
+  assert.equal(retomada.desfaziveis(), mesa.desfaziveis()); assert.equal(retomada.undo(), 1); assert.equal(E.hashState(retomada.state), antes);
+  // a dois humanos nada muda: manter a mão e comprar continuam fechando a porta
+  const dois = hotseat(7); assert.equal(dois.semBarreira(), false);
+  dois.act({ t: 'keep', p: 0, bottom: [] }); assert.equal(dois.canUndo(), false);
+  // goldfish (sem bot) também fica como estava
+  const gf = goldfish(7); assert.equal(gf.semBarreira(), false); gf.act({ t: 'keep', p: 0, bottom: [] }); assert.equal(gf.canUndo(), false);
+});
