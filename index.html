@@ -1367,8 +1367,24 @@ body {
 .tb-peek__acao { min-height: 0; padding: 2px var(--space-2); font-size: var(--text-xs); }
 @media (prefers-reduced-motion: no-preference) { .tb-peek__card { animation: tb-entrou var(--dur-1) var(--ease-out); } }
 /* A16 · resumo do turno */
-.tb-resumo { padding: var(--space-2) var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-1); }
-.tb-resumo__lines { margin: 0; padding-left: var(--space-4); font-size: var(--text-sm); color: var(--fg-muted); display: flex; flex-direction: column; gap: 2px; }
+.tb-resumo { position: relative; }
+.tb-resumo__linha { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); padding-left: var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); }
+.tb-resumo__faixa { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: 0; border: 0; background: transparent; color: var(--fg); font: inherit; text-align: left; }
+.tb-resumo__faixa > .ds-icon { flex: none; color: var(--accent); }
+.tb-resumo__titulo { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-display); font-size: var(--text-sm); }
+.tb-resumo__sinais { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); overflow: hidden; color: var(--fg-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.tb-resumo__sinal { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.tb-resumo__nada { font-size: var(--text-xs); white-space: nowrap; }
+.tb-resumo__faixa > .tb-resumo__seta { color: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out); }
+.tb-resumo[data-aberto="true"] .tb-resumo__seta { transform: rotate(180deg); }
+.tb-resumo__painel { position: absolute; left: 0; right: 0; top: calc(100% + var(--space-1)); z-index: var(--z-overlay); max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border-strong); box-shadow: var(--shadow-3); animation: ds-rise var(--dur-2) var(--ease-out); }
+.tb-resumo__painel[hidden] { display: none; }
+.tb-resumo__painel > .ds-btn { align-self: flex-start; }
+.tb-resumo__lines { margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); color: var(--fg-muted); display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-resumo__lines li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.tb-resumo__lines li > .ds-icon { flex: none; margin-top: 2px; color: var(--fg-subtle); }
+@media (prefers-reduced-motion: reduce) { .tb-resumo__painel { animation: none; } .tb-resumo__faixa > .tb-resumo__seta { transition: none; } }
 /* A14 · pilha explicada */
 .tb-stack__head { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; }
 .tb-stack__prio { font-size: var(--text-xs); color: var(--accent); }
@@ -2304,6 +2320,7 @@ const ICONES = {
   cartaMais: '<path d="M15.5 11V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h4.2"/><path d="M17 14v6.5M13.75 17.25h6.5"/>',
   som: '<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6"/><path d="M18 6.7a7.5 7.5 0 0 1 0 10.6"/>', // G4 · som da partida ligado
   somMudo: '<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>', // G4 · som desligado
+  vida: '<path d="M12 19.5s-7-4.4-7-9.7a3.9 3.9 0 0 1 7-2.3 3.9 3.9 0 0 1 7 2.3c0 5.3-7 9.7-7 9.7z"/>', // H4 · vida, no resumo do turno
   etiqueta: '<path d="M3.5 11.8V5.3a1.8 1.8 0 0 1 1.8-1.8h6.5a1.8 1.8 0 0 1 1.3.5l6.9 6.9a1.8 1.8 0 0 1 0 2.6l-6.5 6.5a1.8 1.8 0 0 1-2.6 0L4 13.1a1.8 1.8 0 0 1-.5-1.3z"/><circle cx="8.2" cy="8.2" r="1.3"/>', // G2 · etiquetas de cartas e listas
   cartaSai: '<path d="M15.5 10V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h5.2"/><path d="M17 20.5v-7"/><path d="M13.9 16.6 17 13.5l3.1 3.1"/>', // leva 160 · bloco Exportar da coleção: a carta que sai
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>'
@@ -14645,7 +14662,21 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   if (entrou.length) linhas.push(`Entrou: ${entrou.join(', ')}`);
   if (cemiterio.length) linhas.push(`Morreu ou foi para o cemitério: ${cemiterio.join(', ')}`);
   if (outros.length) linhas.push(`Saiu do campo: ${outros.join(', ')}`);
-  return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
+  // H4 · os mesmos fatos, contados: a faixa recolhida mostra ícone + número sem depender do texto das linhas
+  const fatos = { vida: vida.length, compras: s.players.reduce((n, _, i) => n + (fim.compradas[i] || 0), 0), entrou: entrou.length, cemiterio: cemiterio.length, saiu: outros.length };
+  return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'], fatos };
+}
+/** H4 · sinais do resumo de um turno: [{ k, icone, n, fala }], só o que aconteceu, na ordem em que a linha aparece. Puro. */
+const SINAIS_DO_RESUMO = [['vida', 'vida', n => `vida de ${n} jogador(es) mudou`], ['compras', 'comprar', n => `${n} carta(s) comprada(s)`], ['entrou', 'cartaMais', n => `${n} entrou(aram) no campo`],
+  ['cemiterio', 'lixeira', n => `${n} foi(ram) para o cemitério`], ['saiu', 'cartaSai', n => `${n} saiu(íram) do campo`]];
+function sinaisDoResumo(r) {
+  const f = (r && r.fatos) || {};
+  return SINAIS_DO_RESUMO.filter(([k]) => f[k] > 0).map(([k, icone, fala]) => ({ k, icone, n: f[k], fala: fala(f[k]) }));
+}
+/** H4 · o ícone de uma linha do resumo, pelo começo dela. */
+function iconeDaLinhaDoResumo(l) {
+  const t = String(l || '');
+  return t.startsWith('Vida:') ? 'vida' : t.startsWith('Compraram:') ? 'comprar' : t.startsWith('Entrou:') ? 'cartaMais' : t.startsWith('Morreu') ? 'lixeira' : t.startsWith('Saiu do campo:') ? 'cartaSai' : 'registro';
 }
 
 /** H1 · a carta que a mesa desenha para um nome. O motor troca o nome do objeto quando a carta transforma (Delver of Secrets
@@ -14663,7 +14694,7 @@ function cartaDaMesa(cards, nome) {
   }
   return null;
 }
-return { cartaDaMesa, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { cartaDaMesa, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -15466,16 +15497,41 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
 
   // A16 · resumo do turno que acabou: aparece no começo do turno seguinte, some com um toque ou no próximo resumo
-  let resumoVisto = 0;
+  // H4 · o balão aberto entre as mesas virou uma faixa de 44 px: ícone, o turno e os sinais do que aconteceu (ícone + número).
+  // Um toque abre o detalhe POR CIMA da mesa (não empurra o campo); toque fora, Esc ou outro toque fecha; o X dispensa.
+  let resumoVisto = 0, resumoAberto = false;
+  const foraDoResumo = e => { const el = root.querySelector('#tb-resumo'); if (el && !el.contains(e.target)) abreResumo(false); };
+  const escDoResumo = e => { if (e.key === 'Escape') abreResumo(false); };
+  function abreResumo(sim) {
+    resumoAberto = !!sim;
+    const el = root.querySelector('#tb-resumo');
+    if (el) { el.dataset.aberto = String(resumoAberto); const p = el.querySelector('#tb-resumo-painel'), b = el.querySelector('#tb-resumo-btn'); if (p) p.hidden = !resumoAberto; if (b) b.setAttribute('aria-expanded', String(resumoAberto)); }
+    document.removeEventListener('pointerdown', foraDoResumo, true); document.removeEventListener('keydown', escDoResumo);
+    if (resumoAberto) { document.addEventListener('pointerdown', foraDoResumo, true); document.addEventListener('keydown', escDoResumo); }
+  }
   function resumoBox() {
     // os turnos que terminaram desde o último OK (no máximo os dois últimos: o seu e o do oponente)
     const novos = table.resumos.filter(r => r.turno > resumoVisto).slice(-2).reverse();
-    if (!novos.length) return null;
-    return h('section', { class: 'tb-resumo', id: 'tb-resumo', dataset: { turn: String(novos[0].turno) }, 'aria-label': 'Resumo dos últimos turnos' },
-      ...novos.map((r, i) => h('div', { class: 'tb-resumo__turno', dataset: { turn: String(r.turno) } },
-        Row({}, Text(`Turno ${r.turno} · ${r.ativo}`, { size: 'sm', display: true }), h('div', { class: 'ds-grow' }),
-          i === 0 ? Button('OK', { variant: 'ghost', id: 'tb-resumo-ok', onClick: () => { resumoVisto = novos[0].turno; paint(); } }) : null),
-        h('ul', { class: 'tb-resumo__lines' }, ...r.linhas.map(l => h('li', {}, l))))));
+    if (!novos.length) { if (resumoAberto) abreResumo(false); return null; }
+    // a faixa resume os turnos que o detalhe mostra (o seu e o do oponente): os fatos somam
+    const soma = { fatos: novos.reduce((a, r) => { for (const [k, v] of Object.entries(r.fatos || {})) a[k] = (a[k] || 0) + v; return a; }, {}) };
+    const sinais = T.sinaisDoResumo(soma);
+    const titulo = novos.length > 1 ? `Turnos ${novos[1].turno} e ${novos[0].turno}` : `Turno ${novos[0].turno} · ${novos[0].ativo}`;
+    const btn = h('button', { class: 'tb-resumo__faixa', type: 'button', id: 'tb-resumo-btn', 'aria-expanded': String(resumoAberto), 'aria-controls': 'tb-resumo-painel',
+      'aria-label': `Resumo, ${titulo.toLowerCase()}: ${sinais.length ? sinais.map(x => x.fala).join(', ') : 'nada mudou'}`, onClick: () => abreResumo(!resumoAberto) },
+      Icone('registro', { tamanho: 20 }),
+      h('span', { class: 'tb-resumo__titulo' }, titulo),
+      h('span', { class: 'tb-resumo__sinais', 'aria-hidden': 'true' }, ...(sinais.length ? sinais.map(x => h('span', { class: 'tb-resumo__sinal', dataset: { sinal: x.k }, title: x.fala }, Icone(x.icone, { tamanho: 16 }), String(x.n))) : [h('span', { class: 'tb-resumo__nada' }, 'sem mudança')])),
+      Icone('descer', { tamanho: 18, classe: 'tb-resumo__seta' }));
+    const painel = h('div', { class: 'tb-resumo__painel', id: 'tb-resumo-painel', hidden: !resumoAberto, dataset: { sobrepoe: 'true' } },
+      ...novos.map(r => h('div', { class: 'tb-resumo__turno', dataset: { turn: String(r.turno) } },
+        Text(`Turno ${r.turno} · ${r.ativo}`, { size: 'sm', display: true }),
+        h('ul', { class: 'tb-resumo__lines' }, ...r.linhas.map(l => h('li', {}, Icone(T.iconeDaLinhaDoResumo(l), { tamanho: 16 }), h('span', {}, l)))))),
+      Button('Registro', { variant: 'ghost', icone: 'registro', id: 'tb-resumo-registro', onClick: () => { abreResumo(false); openLog(); } }));
+    return h('section', { class: 'tb-resumo', id: 'tb-resumo', dataset: { turn: String(novos[0].turno), aberto: String(resumoAberto) }, 'aria-label': 'Resumo dos últimos turnos' },
+      h('div', { class: 'tb-resumo__linha' }, btn,
+        IconButton('fechar', 'Dispensar resumo', { id: 'tb-resumo-ok', variant: 'ghost', onClick: () => { resumoVisto = novos[0].turno; abreResumo(false); paint(); } })),
+      painel);
   }
   // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
   let recusa = null;

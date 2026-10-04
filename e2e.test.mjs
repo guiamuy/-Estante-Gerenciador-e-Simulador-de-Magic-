@@ -1498,6 +1498,8 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   // A16 · passado o turno, o resumo dele aparece na mesa: vida e o que entrou; some com OK
   await page.click('#tb-pass-turn');
   await page.waitForSelector('#tb-resumo', { timeout: 8000 });
+  // H4 · expectativa ajustada com justificativa: o resumo nasce recolhido numa faixa (o balão aberto afastava as mesas); o texto abre a um toque
+  assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false); await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' });
   const resumoTurno = await page.innerText('#tb-resumo');
   assert.match(resumoTurno, /Turno \d+ · Você/, 'o seu turno aparece mesmo com o goldfish jogando logo depois');
   assert.match(resumoTurno, /Vida: Goldfish 20 → 18/);
@@ -6716,5 +6718,45 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   // recarregar não perde a possibilidade de voltar
   await page.click('#tb-keep'); await page.waitForSelector('#tb-pass'); await page.reload(); await page.waitForSelector('#tb-pass');
   assert.equal(await page.isEnabled('#tb-undo'), true, 'partida reaberta: as jogadas continuam desfazíveis');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · H4 resumo do turno recolhido: faixa de 44 px com ícone e sinais no lugar do balão; abre por cima da mesa sem empurrar o campo; fecha no toque fora, no Esc e no X', { skip }, async t => {
+  const M = await comLista125(t, '20 Mountain\n20 Fiery Temper\n20 Kitchen Imp', ['Mountain', 'Fiery Temper', 'Kitchen Imp'], '3');
+  const { page, errors } = M;
+  await M.terreno(); await M.proximo();
+  await page.waitForSelector('#tb-resumo');
+  const medida = () => page.evaluate(() => { const r = s => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { y: Math.round(b.top + scrollY), h: Math.round(b.height), w: Math.round(b.width) }; };
+    return { resumo: r('#tb-resumo'), faixa: r('#tb-resumo-btn'), x: r('#tb-resumo-ok'), meuLado: r('#tb-life-me'), painel: document.querySelector('#tb-resumo-painel').hidden ? null : r('#tb-resumo-painel') }; });
+  const fechado = await medida();
+  // recolhido: uma linha só, com alvos de 44 px (antes: caixa aberta com as linhas dos dois turnos, 150 px ou mais entre as mesas)
+  assert.ok(fechado.resumo.h >= 44 && fechado.resumo.h <= 50, 'faixa de uma linha: ' + JSON.stringify(fechado)); assert.ok(fechado.faixa.h >= 44 && fechado.x.h >= 44 && fechado.x.w >= 44); assert.equal(fechado.painel, null);
+  assert.equal(await page.getAttribute('#tb-resumo-btn', 'aria-expanded'), 'false');
+  assert.deepEqual(await page.$$eval('#tb-resumo-btn > .ds-icon', is => is.map(i => i.dataset.icone)), ['registro', 'descer']);
+  assert.match(await page.innerText('#tb-resumo-btn .tb-resumo__titulo'), /^Turnos \d+ e \d+$|^Turno \d+ · /);
+  const sinais = await page.$$eval('#tb-resumo .tb-resumo__sinal', ss => ss.map(x => [x.dataset.sinal, x.querySelector('.ds-icon').dataset.icone, x.textContent.trim()]));
+  assert.ok(sinais.length >= 1 && sinais.every(([k, icone, n]) => k && icone && /^\d+$/.test(n)), 'sinais com ícone e número: ' + JSON.stringify(sinais));
+  assert.match(await page.getAttribute('#tb-resumo-btn', 'aria-label'), /^Resumo, turnos? .+: \d+ /);
+  assert.doesNotMatch(await page.innerText('#tb-resumo'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await auditaTela(page, 'mesa com o resumo recolhido');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/h4-recolhido.png' });
+  // aberto: o detalhe flutua por cima; a faixa e o meu lado da mesa ficam exatamente onde estavam
+  await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' }); await page.waitForTimeout(250);
+  const aberto = await medida();
+  assert.equal(aberto.resumo.h, fechado.resumo.h, 'abrir não muda a altura que o resumo ocupa'); assert.deepEqual(aberto.meuLado, fechado.meuLado, 'o campo não desce nem um pixel');
+  assert.ok(aberto.painel.h > 40 && aberto.painel.y >= fechado.resumo.y + fechado.resumo.h); assert.equal(await page.getAttribute('#tb-resumo-btn', 'aria-expanded'), 'true');
+  assert.match(await page.innerText('#tb-resumo-painel'), /Turno \d+ · /); assert.ok(await page.locator('#tb-resumo-painel .tb-resumo__lines li .ds-icon').count() >= 1, 'cada linha com ícone');
+  await auditaTela(page, 'mesa com o resumo aberto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/h4-aberto.png' });
+  // fecha: toque de novo, toque fora, Esc
+  await page.click('#tb-resumo-btn'); assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false);
+  await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' });
+  await page.locator('#tb-life-opp').dispatchEvent('pointerdown'); assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false, 'toque fora fecha');
+  await page.click('#tb-resumo-btn'); await page.keyboard.press('Escape'); assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false, 'Esc fecha');
+  // "Registro" dentro do detalhe leva ao registro completo
+  await page.click('#tb-resumo-btn'); await page.click('#tb-resumo-registro'); await page.waitForSelector('#tb-timeline'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // o X dispensa: a faixa some e a mesa ganha a linha de volta
+  assert.equal(await page.getAttribute('#tb-resumo-ok', 'aria-label'), 'Dispensar resumo');
+  await page.click('#tb-resumo-ok'); await page.waitForFunction(() => !document.querySelector('#tb-resumo'));
   assert.deepEqual(errors, []);
 });

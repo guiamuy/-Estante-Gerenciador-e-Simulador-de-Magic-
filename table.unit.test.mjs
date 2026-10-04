@@ -637,3 +637,18 @@ test('H2 · contra o bot dá para voltar quantas jogadas quiser, atravessando co
   // goldfish (sem bot) também fica como estava
   const gf = goldfish(7); assert.equal(gf.semBarreira(), false); gf.act({ t: 'keep', p: 0, bottom: [] }); assert.equal(gf.canUndo(), false);
 });
+
+test('H4 · sinais do resumo do turno: só o que aconteceu, contado, com ícone; cada linha tem o ícone do que conta', () => {
+  assert.deepEqual(J(T.sinaisDoResumo({ fatos: { vida: 1, compras: 2, entrou: 0, cemiterio: 3, saiu: 0 } })),
+    [{ k: 'vida', icone: 'vida', n: 1, fala: 'vida de 1 jogador(es) mudou' }, { k: 'compras', icone: 'comprar', n: 2, fala: '2 carta(s) comprada(s)' }, { k: 'cemiterio', icone: 'lixeira', n: 3, fala: '3 foi(ram) para o cemitério' }]);
+  assert.deepEqual(J(T.sinaisDoResumo({ fatos: { vida: 0, compras: 0, entrou: 0, cemiterio: 0, saiu: 0 } })), []);
+  assert.deepEqual(J(T.sinaisDoResumo({ linhas: ['resumo antigo, sem fatos'] })), [], 'partida salva antes da H4 não quebra'); assert.deepEqual(J(T.sinaisDoResumo(null)), []);
+  assert.deepEqual(['Vida: Você 20 → 17', 'Compraram: Você 1', 'Entrou: Island', 'Morreu ou foi para o cemitério: Delver of Secrets', 'Saiu do campo: Clue (ficha)', 'Nada mudou no campo nem na vida.'].map(T.iconeDaLinhaDoResumo),
+    ['vida', 'comprar', 'cartaMais', 'lixeira', 'cartaSai', 'registro']);
+  // os fatos saem do modelo junto com as linhas
+  const t = goldfish(3); t.act({ t: 'keep', p: 0, bottom: [] }); toMain(t);
+  const terra = handOf(t, 'Island') || handOf(t, 'Mountain') || pull(t, 'Island'); t.act({ t: 'play_land', p: 0, oid: terra });
+  t.passUntil(0, n => n.turn.number > t.state.turn.number); while (t.state.pending) t.act({ t: 'discard', p: 0, oid: t.state.zones[0].hand[0] });
+  const r = t.resumos.find(x => x.linhas.some(l => l.startsWith('Entrou:'))); assert.ok(r, 'há um resumo com a entrada do terreno');
+  assert.equal(r.fatos.entrou, 1); assert.ok(T.sinaisDoResumo(r).some(x => x.k === 'entrou' && x.n === 1));
+});

@@ -414,6 +414,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-aw ✅ | Correção do CI: botão Etiquetas da lista sai da linha de ações (derrubava o Excluir com fonte larga); o e2e confere a linha com a fonte do CI (leva 170) | G2 | 1 | teste no aparelho |
 | 16º-ax ✅ | H1 imagens nítidas: verso de dupla face na mesa e na folha (com Virar carta) e cartas com imagem na troca de reserva (leva 171) | H | 1 | teste no aparelho |
 | 16º-ay ✅ | H2 contra o bot, desfazer volta quantas jogadas quiser (até a mão inicial) e o Registro volta ao começo de um turno (leva 173) | H | 1 | teste no aparelho |
+| 16º-az ✅ | H4 resumo do turno recolhido: faixa de 44 px com ícone e sinais, detalhe por cima da mesa, fecha fácil (leva 174) | H | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4896,6 +4897,22 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   demais para no começo, reabrir, hot-seat e goldfish inalterados); e2e "H2" (registro com Voltar de 44 px e ícone,
   cancelar não mexe, confirmar volta ao estado exato, três toques atravessando turno, até a mão inicial, reabrir).
 - **Fora:** refazer (avançar de novo o que foi desfeito); desfazer sem limite no goldfish e a dois.
+
+**H4 · Resumo do turno recolhido** ✅ (leva 174, 04/10/2026)
+- **Antes:** o resumo dos últimos turnos nascia aberto entre as duas mesas — uma caixa com as linhas do seu turno
+  e do turno do oponente (150 px ou mais em 360×780), afastando os dois lados e escondendo o seu campo.
+- **Agora:** uma **faixa de 44 px** com o ícone de registro, os turnos ("Turnos 2 e 3") e **sinais do que
+  aconteceu** — ícone + número para vida, compras, entradas no campo, cemitério e saídas; "sem mudança" quando nada
+  houve. Um toque **abre o detalhe por cima da mesa** (não empurra o campo: o seu lado fica no mesmo pixel), com
+  ícone em cada linha e o botão **Registro** para o histórico completo. Fecha tocando de novo, tocando fora ou
+  com Esc; o **X** dispensa a faixa até o próximo turno.
+- **Medido em 360×780:** resumo de 2 turnos ocupava ≥ 150 px entre as mesas; agora 46 px, aberto ou fechado.
+- **Modelo:** o resumo do turno ganhou `fatos` contados (`T.sinaisDoResumo`, `T.iconeDaLinhaDoResumo`, puros); ícone
+  novo `vida`.
+- **Testes:** U `table.unit` (sinais, resumo antigo sem fatos, ícone por linha, fatos saindo do modelo); e2e "H4"
+  (altura, alvos de 44 px, ícones, nome falado, abrir sem mover o campo, três jeitos de fechar, Registro, X;
+  `auditaTela` aberto e fechado). A expectativa do e2e A16 mudou com justificativa: o texto do resumo abre a um toque.
+- **Fora:** lembrar aberto/fechado entre partidas; resumo por fase.
 
 ### P · Plataforma
 
