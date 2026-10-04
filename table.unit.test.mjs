@@ -578,3 +578,22 @@ test('Leva 115 · na mesa, o Shark faz mulligan de mão sem terreno, manda carta
   assert.match(mesa.lines.join('\n'), /Shark: mulligan: mão sem terreno/);
   void comprou;
 });
+
+test('H1 · a carta que a mesa desenha: o nome do verso de uma dupla face acha a própria face (imagem, texto, tipo); o da frente devolve a carta inteira', () => {
+  const frente = { small: 'f-s', normal: 'f-n', large: 'f-l' }, verso = { small: 'v-s', normal: 'v-n', large: 'v-l' };
+  const cards = {
+    'Delver of Secrets': { name: 'Delver of Secrets', type_line: 'Creature — Human Wizard', oracle_text: 'frente\n//\nverso', images: frente, cmc: 1,
+      faces: [{ name: 'Delver of Secrets', type_line: 'Creature — Human Wizard', oracle_text: 'frente', mana_cost: '{U}', power: '1', toughness: '1', images: frente },
+        { name: 'Insectile Aberration', type_line: 'Creature — Human Insect', oracle_text: 'Flying', mana_cost: '', power: '3', toughness: '2', images: verso }] },
+    Island: { name: 'Island', type_line: 'Basic Land — Island', images: { normal: 'i-n' }, faces: [] }
+  };
+  assert.equal(T.cartaDaMesa(cards, 'Delver of Secrets'), cards['Delver of Secrets'], 'nome da frente: a carta inteira, sem cópia');
+  const v = J(T.cartaDaMesa(cards, 'Insectile Aberration'));
+  assert.deepEqual([v.name, v.type_line, v.oracle_text, v.power, v.toughness, v.images, v.faceDe, v.face, v.faces, v.cmc], ['Insectile Aberration', 'Creature — Human Insect', 'Flying', '3', '2', verso, 'Delver of Secrets', 1, [], 1]);
+  assert.equal(T.cartaDaMesa(cards, 'Island'), cards.Island);
+  assert.equal(T.cartaDaMesa(cards, 'Carta que não existe'), null); assert.equal(T.cartaDaMesa(null, 'Island'), null); assert.equal(T.cartaDaMesa(cards, ''), null);
+  // face sem imagem própria (aventura, carta dividida): fica sem imagem em vez de mostrar a arte da outra face como se fosse dela
+  const div = { 'Fire // Ice': { name: 'Fire // Ice', images: { normal: 'x' }, faces: [{ name: 'Fire', images: null }, { name: 'Ice', images: null }] } };
+  assert.deepEqual(J(T.cartaDaMesa(div, 'Fire').images), { normal: 'x' }, 'a primeira face de uma carta de imagem única usa a imagem da carta');
+  assert.equal(T.cartaDaMesa(div, 'Ice').images, null);
+});

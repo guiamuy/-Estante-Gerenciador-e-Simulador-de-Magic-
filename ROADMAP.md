@@ -412,6 +412,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-au ✅ | G4 som na partida: eventos de mesa lidos do estado (compra, ataque, dano, cura, anulação, destruição, descarte, remoção global…) e vinte sons sintetizados, com liga/desliga e volume (leva 168) | G | 1 | teste no aparelho |
 | 16º-av ✅ | G5 efeitos visuais na partida: um efeito por evento (compra, ataque, dano com número, cura, anulação, destruição, exílio, descarte, remoção global, aprimoramento), por tokens de movimento, com menos movimento respeitado (leva 169) | G | 1 | teste no aparelho |
 | 16º-aw ✅ | Correção do CI: botão Etiquetas da lista sai da linha de ações (derrubava o Excluir com fonte larga); o e2e confere a linha com a fonte do CI (leva 170) | G2 | 1 | teste no aparelho |
+| 16º-ax ✅ | H1 imagens nítidas: verso de dupla face na mesa e na folha (com Virar carta) e cartas com imagem na troca de reserva (leva 171) | H | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4840,6 +4841,39 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   sem toque, limpeza sozinha, menos movimento com número parado), com capturas em `SHOTS`.
 - **Fora:** partículas e trilhas por cor de mana; efeito por carta específica; animar a carta indo da mão à pilha;
   sequenciar o turno do bot jogada a jogada (pede o modelo da mesa entregar um passo de cada vez).
+
+### H · Mesa legível (E55, pedido de 04/10/2026, noite)
+
+**Pedido:** voltar quantas jogadas quiser contra o bot; verso das cartas de duas faces e cartas da troca de reserva
+em imagem nítida; melhor de 3 contra bot e contra humano; trocar o balão grande do registro entre as mesas por algo
+recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que pagam uma mágica, com validação.
+
+| Ordem | História | Entrega em uma frase |
+|---|---|---|
+| H1 | Imagens nítidas | verso de dupla face na mesa e na folha; cartas com imagem na troca de reserva |
+| H2 | Voltar à vontade | contra o bot, desfazer volta jogada a jogada sem limite |
+| H3 | Melhor de 3 a dois | série também em hot-seat e online |
+| H4 | Registro recolhível | o resumo entre as mesas vira uma linha com ícone, que abre e fecha |
+| H5 | Ver o oponente jogar | o turno do oponente passa jogada a jogada, com a tela indo até onde acontece |
+| H6 | Pagar com as manas que eu escolho | folha de pagamento com validação antes de conjurar |
+
+**H1 · Imagens nítidas: verso de dupla face e troca de reserva** ✅ (leva 171, 04/10/2026)
+- **Defeito 1 (verso):** quando a carta transforma, o motor troca o nome do objeto para o da face de trás (Lunarch
+  Veteran vira Luminous Phantom), e a mesa procurava a imagem pelo nome novo num índice que só tem a frente: a carta
+  transformada ficava **sem imagem, só com o nome**. Agora o nome do verso acha a própria face (`T.cartaDaMesa`,
+  puro): imagem, texto e tipo do verso, no campo, ao espiar e na folha.
+- **Defeito 2 (folha):** a carta grande da folha da mesa pedia só a imagem "normal" (488 px), borrada em tela 3×.
+  Agora leva todos os tamanhos (o navegador escolhe a grande) e a carta de duas faces ganhou **Virar carta** na
+  própria folha: a outra face aparece inteira, com o nome e o texto dela. Carta de uma face não ganha o botão.
+- **Defeito 3 (troca de reserva):** a tela de trocas lia as cartas no formato cru da Scryfall (`image_uris`), mas a
+  partida guarda o formato do app (`images`): **nenhuma carta tinha imagem**, todas saíam só com o nome. Agora usa
+  `ImagemCarta` com todos os tamanhos e a cadeia de reserva; sem imagem guardada, continua caindo para o nome.
+- **Testes:** U `table.unit` (nome da frente, do verso, face sem imagem própria, nome desconhecido); e2e "H1"
+  (folha com srcset e 240 px, virar e desvirar, carta de uma face sem botão, Luminous Phantom no campo com a imagem
+  do verso depois do disturb, as três cartas da troca com imagem carregada; `auditaTela` em três telas).
+- **Limite declarado:** carta de duas faces cuja face de trás o motor não conhece (Delver of Secrets, por exemplo)
+  continua fora da partida — isso é da trilha motor, não de imagem. Sem a foto que acompanhou o pedido, o defeito
+  foi reproduzido pela descrição; se a foto mostrar outro caso, ele entra como correção.
 
 ### P · Plataforma
 

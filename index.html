@@ -14630,7 +14630,22 @@ function resumoDoTurnoMesa(inicio, fim, s) {
   return { turno: fim.turno, ativo: nome(fim.ativo), linhas: linhas.length ? linhas : ['Nada mudou no campo nem na vida.'] };
 }
 
-return { repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+/** H1 · a carta que a mesa desenha para um nome. O motor troca o nome do objeto quando a carta transforma (Delver of Secrets
+    vira Insectile Aberration), e `cards` só tem a entrada da frente: aqui o nome do verso acha a face certa, com a imagem,
+    o texto e o tipo dela. Devolve a carta inteira quando o nome é o da frente; null quando não há nada guardado. Puro. */
+function cartaDaMesa(cards, nome) {
+  if (!cards || !nome) return null;
+  if (cards[nome]) return cards[nome];
+  for (const c of Object.values(cards)) {
+    const i = (c && c.faces ? c.faces : []).findIndex(f => f && f.name === nome);
+    if (i < 0) continue;
+    const f = c.faces[i];
+    return { ...c, name: f.name, mana_cost: f.mana_cost || '', type_line: f.type_line || '', oracle_text: f.oracle_text || '', power: f.power ?? null, toughness: f.toughness ?? null,
+      images: f.images || (i === 0 ? c.images : null) || null, faces: [], faceDe: c.name, face: i };
+  }
+  return null;
+}
+return { cartaDaMesa, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -15425,7 +15440,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   store.get(MAO_KEY).then(v => { if (v === true && !maoRecolhida) { maoRecolhida = true; if (table) paint(); } }).catch(() => {});
 
   const save = () => store.set(T.SAVE_KEY, table.serialize()).catch(() => {});
-  const card = name => (table.setup.cards || {})[name] || null;
+  const card = name => T.cartaDaMesa(table.setup.cards, name); // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */
@@ -15594,14 +15609,29 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
 
   /* ---- folhas de ação ---- */
   function sheet(name, buttons, extra) {
-    const img = imgOf(name, 'normal');
+    // H1 · a carta grande da folha sai nítida (todos os tamanhos, o navegador escolhe; antes só a "normal", borrada em tela 3×)
+    // e a carta de duas faces vira na própria folha: a outra face aparece inteira, com o texto dela
+    const c = card(name), inteira = c && c.faceDe ? card(c.faceDe) : c;
+    const faces = inteira && (inteira.faces || []).length > 1 && inteira.faces.every(f => f.images) ? inteira.faces : [];
+    let face = c && c.face != null ? c.face : 0;
+    const foto = h('div', { class: 'tb-sheet__foto' }), texto = h('div', { class: 'tb-sheet__texto' });
+    const pinta = () => {
+      const f = faces.length ? faces[face] : null;
+      const ims = f ? f.images : imagensOf(name), nome = f ? f.name : name, regras = f ? (f.oracle_text || '') : oracleOf(name);
+      // Q10 · sem imagem: a folha fica só com o texto
+      mount(foto, __m3.ImagemCarta(ims, { alt: nome, sizes: '240px', lazy: false, classe: 'tb-sheet__img', onFalha: el => el.remove() }));
+      foto.dataset.face = String(face);
+      mount(texto, f && f.name !== name ? Text(f.name, { size: 'sm', tone: 'muted', attrs: { lang: 'en', id: 'tb-sheet-face' } }) : null, regras ? simbolizar(h('p', { class: 'tb-adj__oracle' }, regras)) : null);
+    };
+    pinta();
     Dialog({ title: name, body: Stack({},
-      img ? h('img', { src: img, alt: name, class: 'tb-sheet__img', onError: e => { e.target.remove(); } }) : null, // Q10 · sem imagem: a folha fica só com o texto
+      foto,
+      faces.length ? Button('Virar carta', { icone: 'virar', id: 'tb-sheet-virar', onClick: () => { face = (face + 1) % faces.length; pinta(); } }) : null,
       extra || null,
       // Leva 121 · as ações vêm antes do texto: com a imagem carregada a folha passa da altura da tela (360×780) e os
       // botões ficavam abaixo da dobra. "Tramar" nasceria escondido atrás de uma rolagem (foto do aparelho, 02/10/2026).
       buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null,
-      oracleOf(name) ? h('p', { class: 'tb-adj__oracle' }, oracleOf(name)) : null),
+      texto),
       actions: [Button('Fechar', { onClick: closeDialog })] });
   }
   // A15 · as ações de uma carta são descritas uma vez e viram botão (folha) ou chip (espiar)
@@ -16513,7 +16543,9 @@ function createSeriesScreen({ store }) {
         Empty('Não há série esperando a próxima partida.', Button('Preparar partida', { variant: 'primary', icone: 'jogar', onClick: () => go('/mesa') })));
     }
     const cartas = salvo.setup.cards || {};
-    const img = nome => { const c = cartas[nome]; if (!c) return ''; const u = c.image_uris || ((c.card_faces || [])[0] || {}).image_uris || {}; return u.normal || u.small || ''; };
+    // H1 · as cartas da partida guardada estão no formato do app (images/faces); a tela lia o formato cru da Scryfall
+    // (image_uris/card_faces) e por isso nunca achava imagem: todas as cartas saíam só com o nome
+    const imagens = nome => { const c = T.cartaDaMesa(cartas, nome); return c ? (c.images || (c.faces && c.faces[0] && c.faces[0].images) || null) : null; };
     const humanos = serie.assentos.map((a, i) => ({ a, i })).filter(x => !x.a.dummy && !x.a.bot);
     const comReserva = humanos.filter(x => x.a.original.some(e => e.zone === 'side'));
     const st = { passo: 0, entrada: serie.assentos.map(a => a.atual.map(e => ({ ...e }))), primeiro: null, busy: false, entregue: comReserva.length < 2 };
@@ -16531,11 +16563,12 @@ function createSeriesScreen({ store }) {
       const delta = noDeckAgora - noDeckOrig; // > 0: entrou no deck; < 0: saiu
       const marca = de === 'main' && delta > 0 ? `+${delta}` : de === 'side' && delta < 0 ? `+${-delta}` : '';
       const fixa = e.zone === 'commander' || e.zone === 'companion';
-      const src = img(e.name);
+      const semImagem = () => h('span', { class: 'troca-carta__semimg' }, e.name);
+      const foto = __m3.ImagemCarta(imagens(e.name), { classe: 'troca-carta__img', sizes: '(min-width: 400px) 92px, 80px', onFalha: el => el.replaceWith(semImagem()) });
       const b = h('button', { class: 'troca-carta', type: 'button', disabled: fixa, dataset: { nome: e.name, de, ...(marca ? { nova: '1' } : {}) },
         'aria-label': `${e.name}, ${e.qty} ${de === 'main' ? 'no deck' : 'na reserva'}. Toque para mandar uma para ${de === 'main' ? 'a reserva' : 'o deck'}.`,
         onClick: () => { if (fixa) return; serie.assentos[seat].atual = T.moveNaTroca(serie.assentos[seat].atual, e.name, de); paint(e.name, de === 'main' ? 'side' : 'main'); } },
-        src ? h('img', { class: 'troca-carta__img', src, alt: '', loading: 'lazy', onError: ev => { ev.target.replaceWith(h('span', { class: 'troca-carta__semimg' }, e.name)); } }) : h('span', { class: 'troca-carta__semimg' }, e.name),
+        foto || semImagem(),
         h('span', { class: 'troca-carta__qtd' }, `×${e.qty}`),
         marca ? h('span', { class: 'troca-carta__nova', title: 'Veio do outro lado nesta série' }, marca) : null);
       if (cartas[e.name]) onLongPress(b, { start: () => __m12.openCardViewer(cartas[e.name]), end: () => {} });

@@ -6596,3 +6596,75 @@ test('e2e · G5 efeitos visuais na partida: terreno pousa, compra chega, criatur
   await page.waitForFunction(() => !document.querySelector('#tb-fx'), null, { timeout: 4000 });
   assert.deepEqual(errors, []);
 });
+
+test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanhos e vira a carta de duas faces; a carta transformada no campo mostra o verso; a troca com a reserva mostra as cartas (antes só o nome)', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const { PNG } = await import('pngjs'); const png = new PNG({ width: 488, height: 680 }); png.data.fill(120); const PNG_H1 = PNG.sync.write(png);
+  await page.route(/cards\.scryfall\.io/, r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG_H1, headers: { 'access-control-allow-origin': '*' } }));
+  const uris = (lado, n) => Object.fromEntries(['small', 'normal', 'large', 'png'].map(tm => [tm, `https://cards.scryfall.io/${tm}/${lado}/x/${n}.png`]));
+  // Lunarch Veteran // Luminous Phantom, textos oficiais de .listas/oficiais.json. Como a Scryfall manda uma dupla face: sem image_uris no topo, uma por face.
+  const vet = OFICIAIS_121.find(x => x.name === 'Lunarch Veteran'); assert.ok(vet, 'texto oficial de Lunarch Veteran');
+  const [textoFrente, textoVerso] = String(vet.oracle_text).split(/\n\/\/\n/);
+  const terreno = (n, cor) => ({ object: 'card', id: n, name: n, type_line: `Basic Land — ${n}`, mana_cost: '', oracle_text: `({T}: Add {${cor}}.)`, colors: [], color_identity: [], cmc: 0, keywords: [], image_uris: uris('front', n) });
+  const CARTAS = { plains: terreno('Plains', 'W'), mountain: terreno('Mountain', 'R'),
+    'lunarch veteran': { object: 'card', id: 'vet', name: 'Lunarch Veteran', type_line: vet.type_line, mana_cost: vet.mana_cost || '{W}', oracle_text: vet.oracle_text, colors: ['W'], color_identity: ['W'], cmc: 1, keywords: [], power: vet.power, toughness: vet.toughness,
+      card_faces: [{ name: 'Lunarch Veteran', type_line: 'Creature — Human Cleric', mana_cost: '{W}', oracle_text: textoFrente, power: '1', toughness: '1', image_uris: uris('front', 'vet') },
+        { name: 'Luminous Phantom', type_line: 'Creature — Spirit Cleric', mana_cost: '', oracle_text: textoVerso || 'Flying', power: '1', toughness: '1', image_uris: uris('back', 'vet') }] } };
+  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers; return r.fulfill({ json: { not_found: [], data: ids.map(i => CARTAS[i.name.toLowerCase()]).filter(Boolean) } }); });
+  await createDeck(page, base, 'Veteranos', '20 Plains\n40 Lunarch Veteran\n\nSideboard\n4 Mountain', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start:not([disabled])');
+  await page.click('[data-serie="3"]'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300); await meuPrincipal121(page);
+  const act = a => page.evaluate(a => { try { return window.__estanteMesa.act(a); } catch (e) { return String(e); } }, a);
+  const oid = (nome, zona = 'hand') => page.evaluate(([nome, zona]) => { const s = window.__estanteMesa.estado(); return s.zones[0][zona].find(o => s.objects[o].name === nome) || null; }, [nome, zona]);
+  // folha da carta: imagem com todos os tamanhos (a tela 3× pede a grande) e o botão de virar
+  await page.locator('#tb-hand .tb-card[aria-label^="Lunarch Veteran"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img');
+  const frente = await page.$eval('.ds-dialog .tb-sheet__img', i => ({ srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), alt: i.alt }));
+  assert.match(frente.srcset, /normal\/front\/x\/vet\.png 488w/); assert.match(frente.srcset, /large\/front\/x\/vet\.png 672w/); assert.equal(frente.sizes, '240px'); assert.equal(frente.alt, 'Lunarch Veteran');
+  assert.deepEqual(await page.$$eval('#tb-sheet-virar .ds-icon', is => is.map(i => i.dataset.icone)), ['virar']); assert.equal((await page.innerText('#tb-sheet-virar')).trim(), 'Virar carta');
+  await page.click('#tb-sheet-virar'); await page.waitForSelector('#tb-sheet-face');
+  const verso = await page.$eval('.ds-dialog .tb-sheet__img', i => ({ srcset: i.getAttribute('srcset'), alt: i.alt }));
+  assert.match(verso.srcset, /large\/back\/x\/vet\.png 672w/, 'o verso vem com a imagem grande dele'); assert.equal(verso.alt, 'Luminous Phantom');
+  assert.equal(await page.innerText('#tb-sheet-face'), 'Luminous Phantom'); assert.match(await page.innerText('.ds-dialog .tb-sheet__texto'), /Flying/);
+  await page.waitForFunction(() => { const i = document.querySelector('.ds-dialog .tb-sheet__img'); return i && i.complete && i.naturalWidth > 0; });
+  await auditaTela(page, 'folha da carta, verso');
+  await page.click('#tb-sheet-virar'); await page.waitForFunction(() => !document.querySelector('#tb-sheet-face'));
+  assert.equal(await page.$eval('.ds-dialog .tb-sheet__img', i => i.alt), 'Lunarch Veteran', 'virar de novo volta à frente');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // carta de uma face só: sem botão de virar
+  await page.locator('#tb-hand .tb-card[aria-label^="Plains"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img');
+  assert.equal(await page.locator('#tb-sheet-virar').count(), 0); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // no campo, transformada: conjura a Veteran, ela vai ao cemitério (bloqueio não existe contra o goldfish: descarte na limpeza) e volta por disturb com o verso
+  let conjurada = false;
+  for (let turno = 0; turno < 14 && !conjurada; turno++) {
+    const terra = await oid('Plains'); if (terra) await act({ t: 'play_land', p: 0, oid: terra });
+    const volta = (await page.evaluate(() => window.__estanteMesa.legais().filter(a => a.t === 'cast' && a.disturb)))[0];
+    if (volta) { await act(volta); for (let i = 0; i < 10 && (await estado121(page)).pilha; i++) { await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(100); } conjurada = true; break; }
+    // passa o turno; se a limpeza pedir descarte, descarta uma Veteran (é ela que vai voltar do cemitério)
+    await page.locator('#tb-pass-turn').click(); await page.waitForTimeout(150);
+    for (let i = 0; i < 120; i++) { const e = await estado121(page);
+      if (e.pend === 'discard') { await act({ t: 'discard', p: 0, oid: await oid('Lunarch Veteran') }); continue; }
+      if (e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) break;
+      for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; }
+      await page.waitForTimeout(60); }
+  }
+  assert.ok(conjurada, 'a Veteran voltou do cemitério por disturb');
+  await page.waitForSelector('.tb-board .tb-card[aria-label^="Luminous Phantom"]');
+  const noCampo = await page.$eval('.tb-board .tb-card[aria-label^="Luminous Phantom"] img', i => [i.getAttribute('src'), i.getAttribute('srcset')]);
+  assert.match(noCampo[0], /normal\/back\/x\/vet\.png/, 'a carta transformada mostra a imagem do verso (antes: só o nome, sem imagem)'); assert.match(noCampo[1], /large\/back\/x\/vet\.png/);
+  await page.locator('.tb-board .tb-card[aria-label^="Luminous Phantom"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img');
+  assert.equal(await page.$eval('.ds-dialog .tb-sheet__img', i => i.alt), 'Luminous Phantom', 'a folha da transformada abre no verso'); assert.match(await page.innerText('.ds-dialog .tb-sheet__texto'), /Flying/);
+  await page.click('#tb-sheet-virar'); assert.equal(await page.$eval('.ds-dialog .tb-sheet__img', i => i.alt), 'Lunarch Veteran');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await auditaTela(page, 'mesa com carta transformada');
+  // troca com a reserva: cada carta com a imagem (dupla face pela frente), nítida para a tela
+  await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForSelector('#tb-serie-next'); await page.click('#tb-serie-next'); await page.waitForSelector('#troca');
+  const troca = await page.$$eval('.troca-carta', bs => bs.map(b => { const i = b.querySelector('img.troca-carta__img'); return [b.dataset.nome, i ? i.getAttribute('srcset') : null, !!b.querySelector('.troca-carta__semimg')]; }));
+  assert.deepEqual(troca.map(x => x[0]).sort(), ['Lunarch Veteran', 'Mountain', 'Plains']);
+  for (const [nome, srcset, soNome] of troca) { assert.ok(srcset && /normal\/front\/.* 488w/.test(srcset), `${nome}: imagem com a normal no srcset (${srcset})`); assert.equal(soNome, false, `${nome}: não caiu para só o nome`); }
+  await page.waitForFunction(() => [...document.querySelectorAll('img.troca-carta__img')].every(i => i.complete && i.naturalWidth > 0));
+  await auditaTela(page, 'trocas com imagem');
+  assert.deepEqual(errors, []);
+});
