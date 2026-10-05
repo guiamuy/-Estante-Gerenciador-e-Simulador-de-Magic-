@@ -431,6 +431,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bf ✅ | I1 mesa legível, parte 2: bloqueios em pares (atacante e bloqueador na mesma linha), registro com a fase em cima e ícone por acontecimento, resumo com a mesma linha (leva 183) | I | 1 | teste no aparelho |
 | 16º-bg ✅ | I2 coleção e listas no mesmo padrão: contagem só no Painel; listas com busca (lista ou carta), filtros de formato, cor, posse e ordem; Formato em primeiro na coleção (leva 185) | I | 1 | teste no aparelho |
 | 16º-bh ✅ | I3 tela Jogar sem texto solto: estado da lista em ladrilhos (motor, reserva, offline) com folha de detalhe; dica a um toque em Série, Paradas e Semente; componente Dica no design system (leva 186) | I | 1 | teste no aparelho |
+| 16º-bi ✅ | I4 fichas do seu jeito: Perfil › Fichas lista as fichas que as cartas criam (ícone, cores), busca as artes na Scryfall, guarda opções e imagens e a mesa usa a escolhida; offline troca entre as já baixadas (leva 187) | I | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5193,6 +5194,32 @@ mesmo padrão de design".
   tela, folha com as frases e a versão, três dicas de 44 px, abre em fluxo, fecha de três jeitos, foco, não aciona o
   campo; `auditaTela` claro e escuro); contrato visual (catálogo). Expectativas mudadas de propósito em cinco e2e que
   liam as frases antigas.
+
+**I4 · Fichas do seu jeito** ✅ (leva 187, 05/10/2026)
+- **Onde:** Perfil › **Fichas** (rota `/perfil/fichas`), uma área só para isso.
+- **Lista:** todas as fichas que as cartas com regra completa criam (15 hoje: Treasure, Clue, Food, Blood, Map, Bird
+  1/1, Bird 2/2, Goblin, Servo, Elf Warrior, Eldrazi Spawn, Dinosaur, Human Soldier, Crab, Elemental). As das **suas
+  listas** vêm primeiro. Cada linha: miniatura da arte em uso (ou o ícone), **ícone do tipo** (garras para criatura,
+  gema para artefato), nome, força/resistência, **símbolos de cor** e o estado (Padrão · N baixadas · Sua arte).
+- **Artes:** ao abrir uma ficha com internet, o app busca na Scryfall as impressões dela (`!"nome" t:token`, com
+  força e cor), mostra uma por arte (reimpressão com a mesma ilustração não repete; teto de 36) e **guarda as opções
+  e as imagens no aparelho**. Um toque escolhe: a arte fica marcada, a imagem grande é baixada e **a mesa passa a
+  usá-la** nas próximas partidas. "Padrão" volta ao automático. "Atualizar" busca de novo.
+- **Sem internet:** aviso na lista e na ficha; dá para **trocar entre as artes já baixadas**; ficha nunca aberta diz
+  que as artes aparecem quando houver conexão; nada é pedido à rede.
+- **Estados:** buscando, erro com "Tentar de novo", ficha que a Scryfall não tem ("Sem arte disponível"), offline.
+- **Guardado:** `fichas.escolhas` (vai no backup v3) e `fichas.opcoes` (só no aparelho). O repositório de cartas
+  consulta a escolha antes do próprio cache.
+- **Limites declarados:** (1) "todos os tipos de ficha" são os que o motor do app cria, não todas as fichas do Magic;
+  a lista cresce sozinha quando um script novo cria ficha; (2) partida já em andamento continua com a arte com que
+  começou; (3) a escolha é por ficha (nome + força/resistência), não por lista; (4) as opções vêm da Scryfall em
+  inglês e ficam limitadas a 36 artes por ficha.
+- **Modelo e serviço (`src/data/fichas.js`, `__m34`):** `listaDeFichas`, `chaveDaFicha`, `iconeDaFicha`,
+  `coresDaFicha`, `descricaoDaFicha`, `consultaDaFicha`, `opcoesDeArte`, `rotuloDaOpcao`, `createFichas`. Ícones
+  novos: `garras`, `gema`, `ficha`.
+- **Testes:** U `fichas.unit` ×3; e2e "I4" (entrada no Perfil, lista com ícone e cores, busca, mesma arte não
+  repete, escolha guardada e usada na mesa, ficha sem arte, offline com e sem opções, padrão; `auditaTela` em 360 px
+  claro e escuro).
 
 ### P · Plataforma
 

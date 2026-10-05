@@ -7296,3 +7296,81 @@ test('e2e · I3 tela Jogar: o estado da lista é uma linha de ícones com folha 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'Jogar sem texto solto (claro)');
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- I4 · fichas do seu jeito ---------------- */
+test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na internet, escolha guardada (e usada na mesa), sem internet só o que já foi baixado, e volta ao padrão', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  // a Scryfall falsa tem três impressões da Clue (duas com a mesma arte) e nenhuma do Crab
+  const buscas = [];
+  const clue = (id, arte, set, n) => ({ object: 'card', id, name: 'Clue', type_line: 'Token Artifact — Clue', layout: 'token', oracle_text: '{2}, Sacrifice this token: Draw a card.', colors: [], color_identity: [], cmc: 0, keywords: [], set, set_name: 'Edição ' + set.toUpperCase(), collector_number: n,
+    image_uris: Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${arte}.png`])) });
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || ''); buscas.push(q);
+    if (/^!"Clue" t:token/.test(q)) return r.fulfill({ json: { object: 'list', has_more: false, data: [clue('clue-a', 'clue-a', 'soi', '11'), clue('clue-b', 'clue-b', 'mh2', '14'), clue('clue-a2', 'clue-a', 'inr', '2')] } });
+    if (/t:token/.test(q)) return r.fulfill({ json: { object: 'list', has_more: false, data: [] } });
+    return r.fallback(); });
+  await createDeck(page, base, 'Pistas', '20 Plains\n10 Thraben Inspector', 'livre');
+  // 1 · a entrada fica no Perfil, numa área só dela
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-fichas');
+  assert.match(await page.innerText('#perfil-fichas'), /Fichas/); assert.ok(await page.$eval('#perfil-fichas', e => e.getBoundingClientRect().height >= 44));
+  await page.click('#perfil-fichas'); await page.waitForSelector('#fichas-lista');
+  // 2 · a lista: todas as fichas, a da minha lista primeiro; cada uma com ícone, nome, força, cores e estado
+  const linhas = await page.$$eval('#fichas-lista .ficha-linha', ls => ls.map(l => ({ chave: l.dataset.ficha, nome: l.querySelector('.ficha-linha__nome span').textContent, icone: l.querySelector('.ficha-linha__nome .ds-icon').dataset.icone,
+    cores: [...l.querySelectorAll('.ficha-linha__cores [data-simbolo], .ficha-linha__cores .ds-simbolo, .ficha-linha__cores > *')].length, sub: l.querySelector('.ficha-linha__sub').textContent.trim(), h: Math.round(l.getBoundingClientRect().height), fala: l.getAttribute('aria-label') })));
+  assert.ok(linhas.length >= 15, 'todas as fichas: ' + linhas.length); assert.equal(linhas[0].chave, 'ficha:clue', 'a ficha das minhas listas vem primeiro');
+  assert.deepEqual(await page.$$eval('#fichas-lista .ds-list__group', gs => gs.map(g => g.textContent)), ['Nas suas listas', 'Outras fichas']);
+  assert.ok(linhas.every(l => l.icone && l.cores >= 1 && l.h >= 44 && /Padrão/.test(l.sub)), 'ícone, cores, 44 px e estado: ' + JSON.stringify(linhas.slice(0, 2)));
+  assert.equal(linhas.find(l => l.chave === 'ficha:bird 1/1').icone, 'garras'); assert.equal(linhas[0].icone, 'gema');
+  assert.match(linhas.find(l => l.chave === 'ficha:bird 1/1').fala, /Bird 1\/1, Criatura — Bird · 1\/1\. Arte padrão/);
+  assert.doesNotMatch(await page.innerText('#fichas-lista'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await auditaTela(page, 'fichas · lista (escuro)');
+  // 3 · abrir a Clue: busca as artes na internet sozinha; mesma arte não repete; o padrão está em uso
+  await page.click('.ficha-linha[data-ficha="ficha:clue"]'); await page.waitForSelector('#ficha-opcoes', { timeout: 15000 });
+  assert.match(page.url(), /perfil\/fichas\?f=/); assert.ok(buscas.some(q => q === '!"Clue" t:token'), 'buscou a ficha como token: ' + JSON.stringify(buscas));
+  assert.deepEqual(await page.$$eval('#ficha-opcoes .ficha-opcao', os => os.map(o => o.dataset.opcao || 'padrao')), ['padrao', 'clue-a', 'clue-b']);
+  assert.equal(await page.getAttribute('#ficha-padrao', 'aria-pressed'), 'true');
+  assert.deepEqual(await page.$$eval('#ficha-opcoes .ficha-opcao[data-opcao] .ficha-opcao__rotulo', rs => rs.map(r => r.textContent)), ['SOI · #11', 'MH2 · #14']);
+  assert.ok((await page.$$eval('#ficha-opcoes .ficha-opcao', os => os.map(o => Math.round(o.getBoundingClientRect().height)))).every(h => h >= 44));
+  await page.waitForFunction(() => [...document.querySelectorAll('#ficha-opcoes .ficha-opcao__img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });
+  await auditaTela(page, 'fichas · artes da Clue');
+  // 4 · escolher: marca na hora, avisa que ficou guardada, e sobrevive a recarregar
+  await page.click('.ficha-opcao[data-opcao="clue-b"]');
+  await page.waitForFunction(() => document.querySelector('.ficha-opcao[data-opcao="clue-b"]').getAttribute('aria-pressed') === 'true');
+  assert.match(await page.innerText('#ds-toast'), /Clue: arte guardada para jogar sem internet/); assert.equal(await page.getAttribute('#ficha-padrao', 'aria-pressed'), 'false');
+  await page.reload(); await page.waitForSelector('#ficha-opcoes');
+  assert.equal(await page.getAttribute('.ficha-opcao[data-opcao="clue-b"]', 'aria-pressed'), 'true', 'a escolha fica guardada');
+  await page.click('#ficha-voltar'); await page.waitForSelector('#fichas-lista');
+  assert.match(await page.$eval('.ficha-linha[data-ficha="ficha:clue"] .ficha-linha__sub', e => e.textContent), /Sua arte/); assert.equal(await page.getAttribute('.ficha-linha[data-ficha="ficha:clue"]', 'data-escolhida'), 'true');
+  await page.click('#fichas-voltar'); await page.waitForSelector('#perfil-fichas'); assert.match(await page.innerText('#perfil-fichas'), /1 com a sua arte/);
+  // 5 · ficha que a Scryfall não tem: estado vazio desenhado, sem grade
+  await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:crab 0/3')); await page.waitForSelector('#ficha-sem-arte', { timeout: 15000 });
+  assert.equal(await page.locator('#ficha-opcoes').count(), 0);
+  // 6 · sem internet: a Clue mostra o que já foi baixado e ainda dá para trocar; ficha nunca aberta diz que precisa de conexão; nada é buscado
+  await page.context().setOffline(true); const antes = buscas.length;
+  await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-sem-rede');
+  await page.click('.ficha-linha[data-ficha="ficha:clue"]'); await page.waitForSelector('#ficha-sem-rede');
+  assert.match(await page.innerText('#ficha-sem-rede'), /artes já baixadas/); assert.equal(await page.locator('#ficha-opcoes .ficha-opcao[data-opcao]').count(), 2); assert.equal(await page.locator('#ficha-atualizar').count(), 0, 'sem rede não oferece buscar');
+  await page.click('.ficha-opcao[data-opcao="clue-a"]'); await page.waitForFunction(() => document.querySelector('.ficha-opcao[data-opcao="clue-a"]').getAttribute('aria-pressed') === 'true');
+  await auditaTela(page, 'fichas · sem internet');
+  await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:goblin 1/1')); await page.waitForSelector('#ficha-sem-rede');
+  assert.match(await page.innerText('#ficha-sem-rede'), /aparecem quando houver conexão/); assert.equal(await page.locator('#ficha-opcoes, #ficha-buscando').count(), 0);
+  assert.equal(buscas.length, antes, 'sem internet nada é pedido');
+  await page.context().setOffline(false);
+  // 7 · a mesa usa a arte escolhida (clue-a)
+  await page.goto(base + '#/mesa'); await page.click('[data-opponent="hotseat"]'); await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia'); await page.click('[data-mana]'); await page.fill('#mesa-seed', '2'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page); await toMyMain(page);
+  await drawUntil(page, 'Thraben Inspector'); await handCard(page, 'Thraben Inspector').click(); await page.click('.ds-dialog >> text=Conjurar');
+  for (let i = 0; i < 6 && await page.locator('.tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
+  if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done');
+  const ficha = page.locator('.tb-side--me .tb-card[aria-label^="Clue"]').first(); await ficha.waitFor({ timeout: 8000 });
+  assert.match(await ficha.locator('img').first().getAttribute('data-fonte'), /front\/x\/clue-a\.png$/, 'a ficha na mesa é a arte que eu escolhi');
+  // 8 · voltar ao padrão
+  await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:clue')); await page.waitForSelector('#ficha-opcoes');
+  await page.click('#ficha-padrao'); await page.waitForFunction(() => document.querySelector('#ficha-padrao').getAttribute('aria-pressed') === 'true');
+  assert.match(await page.innerText('#ds-toast'), /voltou à arte padrão/);
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'fichas · artes (claro)');
+  assert.deepEqual(errors, []);
+});

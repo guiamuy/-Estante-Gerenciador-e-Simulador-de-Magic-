@@ -1043,6 +1043,28 @@ body {
 .deck-reserva-aviso .ds-btn { align-self: flex-start; }
 .deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
 .deck-slot { position: relative; }
+/* I4 · fichas: linha da lista (miniatura ou ícone, nome, cores, estado) e grade de artes */
+.perfil-atalho { text-align: left; color: var(--fg); font: inherit; }
+.ficha-linha { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: calc(var(--tap-min) + var(--space-3)); text-align: left; }
+.ficha-linha__selo { flex: none; width: var(--tap-min); height: var(--tap-min); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--fg-muted); }
+.ficha-linha__img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.ficha-linha__texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ficha-linha__nome { display: flex; align-items: center; gap: var(--space-1); min-width: 0; font-size: var(--text-md); color: var(--fg); }
+.ficha-linha__nome > .ds-icon { flex: none; color: var(--fg-subtle); }
+.ficha-linha__nome > span { min-width: 0; overflow-wrap: anywhere; }
+.ficha-linha__nome > b { flex: none; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--fg-muted); }
+.ficha-linha__sub { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
+.ficha-linha__cores { display: inline-flex; align-items: center; gap: 2px; }
+.ficha-linha__seta { flex: none; color: var(--fg-subtle); }
+.ficha-cab { align-items: center; gap: var(--space-2); color: var(--fg-muted); }
+.ficha-opcao { position: relative; display: flex; flex-direction: column; gap: var(--space-1); padding: 0; border: 0; background: transparent; color: var(--fg); font: inherit; text-align: center; min-height: var(--tap-min); }
+.ficha-opcao__img, .ficha-opcao__semimg { display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 488 / 680; border-radius: var(--radius-card); box-shadow: var(--shadow-1); object-fit: cover; }
+.ficha-opcao__semimg { background: var(--bg-elev-2); border: 1px dashed var(--border-strong); color: var(--fg-muted); box-shadow: none; }
+.ficha-opcao__rotulo { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); overflow-wrap: anywhere; }
+.ficha-opcao[aria-pressed="true"] .ficha-opcao__img, .ficha-opcao[aria-pressed="true"] .ficha-opcao__semimg { outline: 3px solid var(--accent); outline-offset: 2px; }
+.ficha-opcao[aria-pressed="true"] .ficha-opcao__rotulo { color: var(--fg); }
+.ficha-opcao__marca { position: absolute; top: var(--space-2); right: var(--space-2); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); }
+.ficha-opcao:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 /* L7 · edição rápida: − e + sob a carta (dois alvos de 44 px cabem na coluna de 104) e sugestões de nome */
 .deck-slot__passo { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); margin-top: var(--space-1); }
 .deck-slot__passo .ds-btn { min-width: 0; width: 100%; padding-inline: 0; }
@@ -2361,6 +2383,10 @@ const ICONES = {
   menos: '<path d="M5 12h14"/>',
   alerta: '<path d="M12 4 3 19.5h18Z"/><path d="M12 9.5V14"/><path d="M12 16.8v.2"/>', // D8 · aviso (linha de estado)
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.6v.2"/>', // I3 · dica (explicação a um toque)
+  // I4 · fichas: criatura (três garras), artefato (gema lapidada) e a ficha genérica (carta com selo)
+  garras: '<path d="M7 4.5c2 4.5 2 10.5 0 15"/><path d="M12 3.5c2 5 2 12 0 17"/><path d="M17 4.5c2 4.5 2 10.5 0 15"/>',
+  gema: '<path d="M7.5 4.5h9l4 5-8.5 10-8.5-10z"/><path d="M3.5 9.5h17"/><path d="M9.5 4.5 8 9.5l4 10 4-10-1.5-5"/>',
+  ficha: '<rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M9 16h6"/>',
   fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   editar: '<path d="M4.5 19.5l1-4.2L15.8 5a1.9 1.9 0 0 1 2.7 0l.5.5a1.9 1.9 0 0 1 0 2.7L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>',
   lixeira: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7"/><path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/><path d="M10.2 11v5.5M13.8 11v5.5"/>',
@@ -3403,8 +3429,11 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
         para sempre; a busca é "!nome t:token", com força/resistência quando é criatura. Devolve Map chave→carta|null. */
     async fichas(defs, { onlineOnly = false } = {}) {
       const out = new Map();
+      // I4 · a arte que o usuário escolheu em Perfil › Fichas vale antes de tudo (fica no aparelho e no backup)
+      let escolhas = {}; try { escolhas = (await store.get('fichas.escolhas')) || {}; } catch (e) { /* sem armazenamento: sem escolhas */ }
       for (const t of defs || []) {
         const chave = 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
+        if (escolhas[chave] && escolhas[chave].images) { out.set(chave, escolhas[chave]); continue; }
         const rec = await readCache(chave);
         if (rec && (rec.card || fresh(rec))) { out.set(chave, rec.card); continue; }
         if (onlineOnly) { out.set(chave, null); continue; }
@@ -6684,7 +6713,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -7703,6 +7732,91 @@ async function folha({ servico, tipo = 'cartas', chaves = [], titulo = 'Etiqueta
 return { createEtiquetas, normaliza, limpaNome, proximaCor, cria, edita, apaga, marca, esquece, de, estadoNaSelecao, contagem, vazio, folha, Ponto, Pontos, Pilulas, ChipEtiqueta, CORES, TIPOS, NOME_MAX, LIMITE, CHAVE };
 })();
 
+/* ==== src/data/fichas.js ==== */
+const __m34 = (function () {
+/* =====================================================================
+   I4 · FICHAS DO SEU JEITO
+   A lista são as fichas que as cartas com script criam (o que pode aparecer numa partida). Para cada uma, o usuário
+   escolhe a arte entre as impressões que a Scryfall tem; a escolha fica no aparelho (`fichas.escolhas`, vai no backup)
+   e a mesa a usa antes de qualquer outra. As opções já vistas ficam guardadas (`fichas.opcoes`) com as imagens, para
+   trocar de arte sem internet. Buscar opções novas só com internet.
+   ===================================================================== */
+const { norm } = __m7;
+const ESCOLHAS = 'fichas.escolhas', OPCOES = 'fichas.opcoes';
+const OPCOES_MAX = 36;
+const TIPO_PT = { creature: 'Criatura', artifact: 'Artefato', enchantment: 'Encantamento', land: 'Terreno' };
+/** A mesma chave que o repositório de cartas usa para a ficha. */
+const chaveDaFicha = t => 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
+/** O ícone que simboliza a ficha: criatura são garras, artefato é gema, o resto é a ficha genérica. */
+const iconeDaFicha = t => (t.types || []).includes('creature') ? 'garras' : (t.types || []).includes('artifact') ? 'gema' : 'ficha';
+/** Cores da ficha na ordem WUBRG; incolor vira ['C']. */
+const coresDaFicha = t => { const cs = [...'WUBRG'].filter(c => (t.colors || []).includes(c)); return cs.length ? cs : ['C']; };
+/** "Criatura — Bird · 1/1", para a linha de baixo. */
+function descricaoDaFicha(t) {
+  const tipos = (t.types || []).map(x => TIPO_PT[x] || x).join(' ');
+  const sub = (t.subtypes || []).join(' ');
+  return [tipos + (sub ? ` — ${sub}` : ''), t.power != null ? `${t.power}/${t.toughness}` : ''].filter(Boolean).join(' · ');
+}
+/** Todas as fichas que o app sabe criar, em ordem de nome (e de força); `nomesDasListas` marca as que as listas do
+    usuário criam, que vêm primeiro. Cada item: { chave, def, nome, pt, icone, cores, descricao, suaLista }. Puro. */
+function listaDeFichas(nomesDasListas = []) {
+  const minhas = new Set(__m23.fichasDasCartas(nomesDasListas).map(chaveDaFicha));
+  return __m23.fichasDasCartas(Object.keys(__m23.SCRIPTS)).map(def => ({ chave: chaveDaFicha(def), def, nome: def.name, pt: def.power != null ? `${def.power}/${def.toughness}` : '',
+    icone: iconeDaFicha(def), cores: coresDaFicha(def), descricao: descricaoDaFicha(def), suaLista: minhas.has(chaveDaFicha(def)) }))
+    .sort((a, b) => Number(b.suaLista) - Number(a.suaLista) || a.nome.localeCompare(b.nome) || a.pt.localeCompare(b.pt));
+}
+/** A busca na Scryfall: nome exato, tipo ficha, força/resistência quando é criatura, cor quando pedida. */
+function consultaDaFicha(def, { comCor = true } = {}) {
+  return `!"${def.name}" t:token` + (def.power != null ? ` pow=${def.power} tou=${def.toughness}` : '') + (comCor && (def.colors || []).length ? ` c=${def.colors.join('').toLowerCase()}` : '');
+}
+/** Das cartas que a busca devolveu, as opções de arte: só as que têm imagem, uma por imagem (reimpressão com a mesma
+    arte não repete), no máximo `max`. Sem preço nem legalidade: o que fica guardado é o que a mesa precisa. */
+function opcoesDeArte(cartas, max = OPCOES_MAX) {
+  const vistas = new Set(), out = [];
+  for (const c of cartas || []) {
+    const im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images)); if (!im || !im.normal) continue;
+    const arte = String(im.art || im.normal).replace(/\?.*$/, '');
+    if (vistas.has(arte)) continue; vistas.add(arte);
+    out.push({ id: c.id, name: c.name, type_line: c.type_line || '', oracle_text: c.oracle_text || '', power: c.power ?? null, toughness: c.toughness ?? null, colors: c.colors || [], color_identity: c.color_identity || [],
+      keywords: c.keywords || [], layout: c.layout || 'token', set: c.set || '', set_name: c.set_name || '', collector_number: c.collector_number || '', images: im, faces: [], mana_cost: '', cmc: 0 });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+const rotuloDaOpcao = o => [String(o.set || '').toUpperCase(), o.collector_number ? '#' + o.collector_number : ''].filter(Boolean).join(' · ') || 'sem edição';
+
+function createFichas({ store, scryfall, images = null, temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false }) {
+  const le = async (k) => { try { return (await store.get(k)) || {}; } catch (e) { return {}; } };
+  const aquece = async urls => { if (images && images.available) { try { await images.warm(urls.filter(Boolean)); } catch (e) { /* imagem é conforto */ } } };
+  return {
+    temRede,
+    /** { escolhas: { chave: carta }, opcoes: { chave: [carta] } } */
+    async estado() { return { escolhas: await le(ESCOLHAS), opcoes: await le(OPCOES) }; },
+    /** Busca as artes da ficha na Scryfall (só com internet), guarda a lista e as imagens para escolher depois sem rede.
+        Erros: 'sem-rede' (aparelho offline) e o que a busca lançar. Lista vazia quando a Scryfall não tem a ficha. */
+    async buscar(def) {
+      if (!temRede()) throw new Error('sem-rede');
+      let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints' });
+      if (!cartas.length && (def.colors || []).length) cartas = await scryfall.search(consultaDaFicha(def, { comCor: false }), { pages: 2, unique: 'prints' });
+      const lista = opcoesDeArte(cartas);
+      const todas = await le(OPCOES); todas[chaveDaFicha(def)] = lista;
+      await store.set(OPCOES, todas);
+      await aquece(lista.flatMap(o => [o.images.normal, o.images.small]));
+      return lista;
+    },
+    /** Guarda a arte escolhida (ou volta ao padrão com `null`) e baixa a imagem grande dela para a mesa e a folha. */
+    async escolher(def, opcao) {
+      const todas = await le(ESCOLHAS), chave = chaveDaFicha(def);
+      if (opcao) todas[chave] = opcao; else delete todas[chave];
+      await store.set(ESCOLHAS, todas);
+      if (opcao) await aquece([opcao.images.normal, opcao.images.large, opcao.images.small]);
+      return todas;
+    }
+  };
+}
+return { chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX };
+})();
+
 /* ==== src/app/decks.js ==== */
 const __m15 = (function () {
 /* =====================================================================
@@ -7876,7 +7990,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -8100,6 +8214,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar })),
         fotoInput)),
       secaoAparencia(),
+      // I4 · fichas: uma área só para escolher a arte de cada ficha
+      fichas ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-fichas', onClick: () => go('/perfil/fichas') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('ficha', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Fichas'),
+        h('span', { class: 'ds-expansivel__resumo' }, st.fichasEscolhidas ? `${st.fichasEscolhidas} com a sua arte` : 'Escolher a arte'), Icone('seguir', { tamanho: 20 })) : null,
       // D5 · Dados: tudo que é administração num lugar só — backup por arquivo, conta (nuvem), base local de cartas, espaço
       Text('Dados', { size: 'lg', display: true, as: 'h2', attrs: { id: 'perfil-dados' } }),
       Surface({ class: 'ds-surface--pad', id: 'perfil-backup' }, Stack({},
@@ -8119,9 +8237,96 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     try { st.salvo = await perfil.get(); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; st.erro = null; }
     catch (e) { st.erro = e; }
     if (conta) { try { st.conta = await conta.get(); } catch (e) { st.conta = null; } }
+    if (fichas) { try { st.fichasEscolhidas = Object.keys((await fichas.estado()).escolhas).length; } catch (e) { st.fichasEscolhidas = 0; } }
     paint();
   }
   carrega();
+  return root;
+}
+
+/* ---------------- I4 · /perfil/fichas ---------------- */
+/** Fichas do seu jeito: a lista das fichas que as cartas criam e, em cada uma, as artes para escolher. */
+function createFichasScreen({ fichas, decks }) {
+  const F = __m34;
+  const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo as fichas…', { size: 'sm', tone: 'muted' })));
+  const st = { lista: [], estado: { escolhas: {}, opcoes: {} }, aberta: q().get('f') || '', buscando: false, erro: '', run: 0 };
+  const online = () => fichas.temRede();
+  const simbolos = cores => h('span', { class: 'ficha-linha__cores' }, ...cores.map(c => Simbolo(c)));
+  const miniatura = it => { const c = st.estado.escolhas[it.chave] || (st.estado.opcoes[it.chave] || [])[0];
+    return h('span', { class: 'ficha-linha__selo' }, (c && ImagemCarta(c.images, { sizes: '44px', classe: 'ficha-linha__img', onFalha: el => el.replaceWith(Icone(it.icone, { tamanho: 22 })) })) || Icone(it.icone, { tamanho: 22 })); };
+
+  function linha(it) {
+    const escolhida = !!st.estado.escolhas[it.chave], n = (st.estado.opcoes[it.chave] || []).length;
+    return h('button', { class: 'ds-list__item ficha-linha', type: 'button', dataset: { ficha: it.chave, escolhida: String(escolhida) },
+      'aria-label': `${it.nome}${it.pt ? ' ' + it.pt : ''}, ${it.descricao}. ${escolhida ? 'Arte escolhida por você' : n ? `${n} arte(s) baixada(s), arte padrão em uso` : 'Arte padrão'}`,
+      onClick: () => { st.aberta = it.chave; st.erro = ''; go('/perfil/fichas?f=' + encodeURIComponent(it.chave)); } },
+      miniatura(it),
+      h('span', { class: 'ficha-linha__texto' },
+        h('span', { class: 'ficha-linha__nome' }, Icone(it.icone, { tamanho: 16 }), h('span', { lang: 'en' }, it.nome), it.pt ? h('b', {}, it.pt) : null),
+        h('span', { class: 'ficha-linha__sub' }, simbolos(it.cores), h('span', {}, escolhida ? 'Sua arte' : n ? `${n} baixada(s)` : 'Padrão'))),
+      escolhida ? Badge([Icone('marcar', { tamanho: 14 })], { tone: 'positive' }) : null,
+      Icone('seguir', { tamanho: 18, classe: 'ficha-linha__seta' }));
+  }
+  function pintaLista() {
+    const minhas = st.lista.filter(x => x.suaLista), outras = st.lista.filter(x => !x.suaLista);
+    mount(root,
+      Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'fichas-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('Fichas', { size: '2xl', display: true, as: 'h1' })),
+      online() ? null : AvisoRede('Sem internet: dá para trocar entre as artes já baixadas. Para ver outras, conecte-se.', { id: 'fichas-sem-rede' }),
+      st.lista.length ? h('div', { class: 'ds-list', id: 'fichas-lista' },
+        ...(minhas.length ? [h('div', { class: 'ds-list__group' }, 'Nas suas listas'), ...minhas.map(linha)] : []),
+        ...(outras.length ? [h('div', { class: 'ds-list__group' }, minhas.length ? 'Outras fichas' : 'Fichas'), ...outras.map(linha)] : []))
+        : Empty('Nenhuma carta com ficha por enquanto.', null, { icone: 'ficha', titulo: 'Sem fichas' }));
+  }
+  async function busca(it) {
+    const run = ++st.run; st.buscando = true; st.erro = ''; pintaFicha(it);
+    try { const lista = await fichas.buscar(it.def); if (run !== st.run) return; st.estado.opcoes[it.chave] = lista; }
+    catch (e) { if (run !== st.run) return; st.erro = e.message === 'sem-rede' ? 'sem-rede' : 'falha'; }
+    st.buscando = false; if (st.aberta === it.chave && root.isConnected) pintaFicha(it);
+  }
+  async function escolhe(it, opcao) {
+    st.estado.escolhas = await fichas.escolher(it.def, opcao);
+    toast(opcao ? `${it.nome}: arte guardada para jogar sem internet` : `${it.nome}: voltou à arte padrão`);
+    pintaFicha(it);
+  }
+  function pintaFicha(it) {
+    const opcoes = st.estado.opcoes[it.chave] || [], atual = st.estado.escolhas[it.chave] || null;
+    const opcao = o => { const emUso = !!atual && atual.id === o.id;
+      return h('button', { class: 'ficha-opcao', type: 'button', 'aria-pressed': String(emUso), dataset: { opcao: o.id }, 'aria-label': `Arte ${F.rotuloDaOpcao(o)}${o.set_name ? ', ' + o.set_name : ''}${emUso ? ', em uso' : ''}`, onClick: () => escolhe(it, o) },
+        ImagemCarta(o.images, { sizes: '(min-width: 400px) 120px, 104px', classe: 'ficha-opcao__img', onFalha: el => el.replaceWith(h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 }))) }) || h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 })),
+        h('span', { class: 'ficha-opcao__rotulo' }, F.rotuloDaOpcao(o)),
+        emUso ? h('span', { class: 'ficha-opcao__marca' }, Icone('marcar', { tamanho: 16 })) : null); };
+    const padrao = h('button', { class: 'ficha-opcao ficha-opcao--padrao', type: 'button', id: 'ficha-padrao', 'aria-pressed': String(!atual), 'aria-label': 'Arte padrão do app' + (!atual ? ', em uso' : ''), onClick: () => escolhe(it, null) },
+      h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 })), h('span', { class: 'ficha-opcao__rotulo' }, 'Padrão'), !atual ? h('span', { class: 'ficha-opcao__marca' }, Icone('marcar', { tamanho: 16 })) : null);
+    const semNada = !opcoes.length && !st.buscando;
+    mount(root,
+      Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar às fichas', { id: 'ficha-voltar', variant: 'ghost', onClick: () => { st.aberta = ''; st.run++; go('/perfil/fichas'); } }),
+        Stack({ style: { gap: '2px', minWidth: '0' } }, Text(it.nome, { size: '2xl', display: true, as: 'h1', attrs: { lang: 'en' } }),
+          Row({ class: 'ficha-cab' }, Icone(it.icone, { tamanho: 16 }), simbolos(it.cores), Text(it.descricao, { size: 'sm', tone: 'muted' })))),
+      // só com internet se buscam artes novas; as já baixadas continuam à mão
+      !online() ? AvisoRede(opcoes.length ? 'Sem internet: estas são as artes já baixadas. Para ver outras, conecte-se.' : 'Sem internet: as artes desta ficha aparecem quando houver conexão.', { id: 'ficha-sem-rede' }) : null,
+      st.erro === 'falha' ? (() => { const n = Note('<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'ficha-erro'; return n; })() : null,
+      st.buscando ? Row({ id: 'ficha-buscando' }, Spinner(), Text('Buscando artes…', { size: 'sm', tone: 'muted' })) : null,
+      semNada && online() && !st.erro ? Empty('A Scryfall não tem imagem desta ficha. A mesa usa a carta em texto.', null, { icone: it.icone, titulo: 'Sem arte disponível', id: 'ficha-sem-arte' }) : null,
+      opcoes.length ? h('div', { class: 'ds-cardgrid ficha-grade', id: 'ficha-opcoes' }, padrao, ...opcoes.map(opcao)) : null,
+      online() && !st.buscando && (opcoes.length || st.erro) ? Row({}, Button(st.erro ? 'Tentar de novo' : 'Atualizar', { icone: 'atualizar', id: 'ficha-atualizar', onClick: () => busca(it) })) : null);
+  }
+  function pinta() {
+    const it = st.aberta ? st.lista.find(x => x.chave === st.aberta) : null;
+    if (!it) return pintaLista();
+    pintaFicha(it);
+    // primeira vez nesta ficha, com internet: busca as artes sozinho
+    if (online() && !(st.estado.opcoes[it.chave] || []).length && !st.buscando && !st.erro) busca(it);
+  }
+  (async () => {
+    let nomes = [];
+    try { nomes = (await decks.list()).flatMap(d => d.entries.map(e => e.name)); } catch (e) { /* sem listas: todas juntas */ }
+    st.lista = F.listaDeFichas(nomes);
+    try { st.estado = await fichas.estado(); } catch (e) { /* sem armazenamento: começa do padrão */ }
+    pinta();
+  })();
+  // a rede voltou ou caiu com a tela aberta: o aviso e a busca acompanham
+  const aoMudarRede = () => { if (!root.isConnected) { removeEventListener('online', aoMudarRede); removeEventListener('offline', aoMudarRede); return; } if (st.lista.length) pinta(); };
+  if (typeof addEventListener === 'function') { addEventListener('online', aoMudarRede); addEventListener('offline', aoMudarRede); }
   return root;
 }
 
@@ -9363,7 +9568,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, DeckLinha };
+return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, DeckLinha };
 })();
 
 
@@ -19600,7 +19805,7 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen } = __m15;
+const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen } = __m15;
 const { createTableSetup, createTableScreen, createSeriesScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
@@ -19656,6 +19861,7 @@ const backup = {
 };
 const names = createNameIndex({ store: platform.store, scryfall });
 const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
+const fichas = __m34.createFichas({ store: platform.store, scryfall, images }); // I4
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
 __m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
@@ -19682,7 +19888,8 @@ const ROUTES = [
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, apresentacao: () => mostraApresentacao(),
+  { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks }) }, // I4
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),
