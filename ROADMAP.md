@@ -429,6 +429,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bd ✅ | H7 imagens que não somem na partida: cada imagem baixa uma vez, é conferida inteira e fica no aparelho; a que falha ou chega cortada volta sozinha; redesenhar a mesa não vai à rede (leva 180) | H | 1 | teste no aparelho com sinal fraco |
 | 16º-be ✅ | L7 edição rápida da lista: chip Ajustar, − e + em cada carta, adicionar pelo nome com sugestões da base local, Desfazer ao tirar a última cópia (leva 182) | L | 1 | teste no aparelho |
 | 16º-bf ✅ | I1 mesa legível, parte 2: bloqueios em pares (atacante e bloqueador na mesma linha), registro com a fase em cima e ícone por acontecimento, resumo com a mesma linha (leva 183) | I | 1 | teste no aparelho |
+| 16º-bg ✅ | I2 coleção e listas no mesmo padrão: contagem só no Painel; listas com busca (lista ou carta), filtros de formato, cor, posse e ordem; Formato em primeiro na coleção (leva 185) | I | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5145,6 +5146,29 @@ mesmo padrão de design".
 - **Testes:** U `table.unit` ×2; e2e "E50 janela do atacante" (pares na mesma linha, ícones, cores, nome falado,
   `auditaTela`) e e2e "I1" (fase em cima, largura inteira, ícone por linha, filete, resumo com a mesma linha;
   `auditaTela` claro e escuro).
+
+**I2 · Coleção e listas no mesmo padrão de filtro** ✅ (leva 185, 05/10/2026)
+- **Coleção:** a linha "N carta(s) · M cópia(s)" saiu de baixo do título (repetia o Painel). O **cabeçalho do Painel**
+  passa a dizer **cartas e cópias** sempre (aberto ou fechado); com preço guardado, o valor vai numa segunda linha
+  (antes, com valor, o cabeçalho trocava "cartas" pelo total para caber em 360 px). No painel de filtros, **Formato**
+  (o antigo "Legal em") subiu para o primeiro campo.
+- **Listas:** a estante ganhou o mesmo conjunto da coleção — campo de **busca** (nome da lista **ou de uma carta
+  dela**) e botão **Filtros** com o número de critérios ligados; folha "Filtrar listas" com **Formato** (só os que
+  existem na estante), **Cor** (símbolos; "qualquer uma delas" ou "só dentro delas"), **Coleção** (tenho todas ·
+  falta carta) e **Ordem** (recentes · nome · formato · mais completas); contador ao vivo, **Limpar** e **Mostrar**;
+  linha de contagem "N de M lista(s)" com o filtro por extenso; vazio desenhado quando nada passa. As etiquetas (G2)
+  continuam como chips e somam com o filtro. O total em valor acompanha o recorte.
+- **O filtro da estante vale enquanto o app está aberto:** abrir uma lista e voltar não o desfaz.
+- **Modelo (puro, `filter`):** `filtraListas`, `novoFiltroDeListas`, `filtrosDeListaAtivos`, `filtroDeListasVazio`,
+  `descreveFiltroDeListas`, `ORDENS_DE_LISTA`, `POSSES_DE_LISTA`. `Expansivel` aceita `resumo` em linhas.
+- **Limites declarados:** (1) o filtro das listas não vai para o endereço nem é guardado entre aberturas do app (o da
+  coleção vai; visões salvas de listas ficam para depois); (2) cor da lista depende das cartas já guardadas no
+  aparelho — lista sem dados é contada à parte, não some calada; (3) "Formato" na coleção é legalidade da carta; nas
+  listas é o formato da lista.
+- **Testes:** U `filter.unit` ×2; e2e "I2" (texto por lista e por carta sem perder o foco, formato, cor, selo no
+  botão, contagem, voltar de uma lista mantém, vazio, ordem, coleção sem contagem sob o título e Formato em
+  primeiro; `auditaTela` em 360 px claro e escuro). Expectativas mudadas de propósito em seis e2e que liam
+  `#col-summary` (agora leem o cabeçalho do Painel).
 
 ### P · Plataforma
 

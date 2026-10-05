@@ -179,6 +179,13 @@ async function estadoDaLista(page) {
   await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   return texto;
 }
+/** I2 · a contagem da coleção ("N carta(s) · M cópia(s)") saiu de baixo do título: os testes leem do cabeçalho do Painel. */
+async function contagemDaColecao(page) {
+  await page.waitForSelector('#col-dash-toggle .ds-expansivel__resumo');
+  const t = await page.$eval('#col-dash-toggle .ds-expansivel__resumo', e => e.firstElementChild ? e.firstElementChild.textContent : e.textContent);
+  const m = /(\d+) cartas · (\d+) cópias/.exec(t);
+  return m ? `${m[1]} carta(s) · ${m[2]} cópia(s)` : t;
+}
 async function createDeck(page, base, name, text, format = 'pauper') {
   await page.goto(base + '#/listas/editar');
   await page.fill('#deck-name', name);
@@ -364,7 +371,7 @@ test('e2e · C2/C9 coleção: somar, editar quantidade, remover, adicionar e fil
   await page.goto(base + '#/colecao');
   await page.waitForSelector('.col-row');
   assert.equal(await page.locator('.col-row').count(), 4);
-  assert.match(await page.innerText('#col-summary'), /4 carta\(s\) · 33 cópia\(s\)/);
+  assert.match(await contagemDaColecao(page), /4 carta\(s\) · 33 cópia\(s\)/); // I2 · expectativa mudou de lugar: a contagem mora no Painel
   assert.match(await page.innerText('.col-row[data-name="Island"]'), /em Malcolm v3/);
 
   const cs = page.locator('.col-row[data-name="Counterspell"]');
@@ -872,7 +879,7 @@ test('e2e · C13 a coleção como coleção: galeria, densa, pilhas, agrupar, or
   await page.setInputFiles('#col-csv-file', { name: 'muitas.csv', mimeType: 'text/csv', buffer: Buffer.from(linhas.join('\n') + '\n') });
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Carta Inventada 000"]');
-  await page.waitForFunction(() => /303 carta\(s\)/.test(document.querySelector('#col-summary').innerText));
+  await page.waitForFunction(() => /303 cartas/.test((document.querySelector('#col-dash-toggle') || {}).innerText || '')); // I2 · contagem no Painel
 
   // lista em lotes: 120 primeiro, "mostrar mais" traz o resto (as conhecidas vêm depois de "Carta Inventada…")
   assert.equal(await page.locator('.col-row').count(), 120, 'primeiro lote');
@@ -1120,7 +1127,7 @@ test('e2e · C1 adicionar impressão, editar acabamento e ajustar por impressão
   await page.locator('.col-print', { hasText: 'sem edição' }).locator('button[aria-label^="Uma cópia a menos"]').click();
   await page.waitForFunction(() => { const el = document.querySelector('#col-prints'); return el && !/sem edição/.test(el.innerText); });
   await page.keyboard.press('Escape');
-  assert.match(await page.innerText('#col-summary'), /1 carta\(s\) · 2 cópia\(s\)/);
+  assert.match(await contagemDaColecao(page), /1 carta\(s\) · 2 cópia\(s\)/); // I2 · contagem no Painel
   assert.deepEqual(errors, []);
 });
 
@@ -2440,12 +2447,12 @@ test('e2e · HOMOLOGAÇÃO 3 · H2 link com vários critérios e "&" sobrevive a
   await page.route('https://api.scryfall.com/cards/collection', async r => { await new Promise(x => setTimeout(x, 1500)); r.fallback(); });
   await page.evaluate(() => { localStorage.clear(); });
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-summary');
+  await page.waitForSelector('#col-dash-toggle'); // I2 · o resumo sob o título saiu; o Painel marca a tela pronta
   await page.click('#nav-decks');
   await page.waitForTimeout(2200);
   assert.match(await page.evaluate(() => location.hash), /^#\/listas/, 'o endereço é o da tela aberta');
   await page.click('#nav-collection');
-  await page.waitForSelector('#col-summary', { timeout: 4000 });
+  await page.waitForSelector('#col-dash-toggle', { timeout: 4000 }); // I2
   assert.deepEqual(errors, []);
 });
 
@@ -2705,7 +2712,9 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   await page.waitForSelector('.col-row[data-name="Counterspell"]'); await page.waitForTimeout(300);
   await mesmaLinha('main h1', '#col-scan', 'Escanear na linha do título'); await mesmaLinha('main h1', '#col-search', 'Buscar na linha do título');
   assert.equal(await page.getAttribute('#col-search', 'aria-label'), 'Buscar cartas');
-  assert.equal(await page.locator('#col-summary .ds-nowrap').count(), 2, 'contagens sem quebra no meio');
+  // I2 · expectativa mudou de propósito: a contagem sob o título saiu (repetia o Painel); o cabeçalho do Painel a mostra numa linha só
+  assert.equal(await page.locator('#col-summary').count(), 0); assert.match(await contagemDaColecao(page), /^\d+ carta\(s\) · \d+ cópia\(s\)$/);
+  assert.ok(await page.$eval('#col-dash-toggle .ds-expansivel__resumo > span', e => e.scrollWidth <= e.clientWidth + 1), 'contagem inteira, sem corte');
   for (const id of ['#col-import', '#col-csv-import', '#col-export', '#col-select', '#col-filters', '#col-add-btn']) await temIcone(id);
   // as quatro ações em duas colunas
   await mesmaLinha('#col-import', '#col-csv-import', 'Colar lista e Abrir CSV lado a lado');
@@ -6525,7 +6534,7 @@ test('e2e · G3 valor acumulado: coleção, recorte do filtro e cada etiqueta no
   await page.locator('#col-valor').scrollIntoViewIfNeeded(); await auditaTela(page, 'painel da coleção com valor');
   // fechado, o cabeçalho do painel já diz o total
   await page.click('#col-dash-toggle'); await page.waitForFunction(() => document.querySelector('#col-dash-toggle').getAttribute('aria-expanded') === 'false');
-  assert.match(await page.innerText('#col-dash-toggle'), /10 cópias · R\$ 28,75/);
+  assert.match((await page.innerText('#col-dash-toggle')).replace(/\s+/g, ' '), /cartas · 10 cópias R\$ 28,75/); // I2 · cartas e cópias em cima, valor na linha de baixo
   await auditaTela(page, 'painel fechado com valor');
   // lista: inteira e o que falta comprar; com reserva, deck e reserva separados
   await createDeck(page, base, 'Delver', PAUPER); await page.waitForSelector('#deck-valor-tudo');
@@ -7163,5 +7172,70 @@ test('e2e · I1 registro: a fase fica em cima e os acontecimentos usam a largura
   await auditaTela(page, 'registro (I1, escuro)');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i1-registro.png' });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'registro (I1, claro)');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- I2 · coleção e listas no mesmo padrão de filtro ---------------- */
+test('e2e · I2 listas com busca e filtros como a coleção: texto (lista ou carta), formato, cor, posse e ordem; contagem, Limpar e vazio; o filtro sobrevive a abrir uma lista; coleção com Formato em primeiro e a contagem só no Painel', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Azul Controle', '20 Island\n4 Counterspell', 'pauper');
+  await createDeck(page, base, 'Montanhas', '20 Mountain\n4 Lightning Bolt', 'pauper');
+  await createDeck(page, base, 'Mesa do Sol', '1 Sol Ring\n10 Island', 'livre');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item');
+  const nomes = () => page.$$eval('#decks-list .deck-item', is => is.map(i => i.querySelector('.deck-item__nome, .deck-linha__nome, strong, b, h2, h3')?.textContent.trim() || i.textContent.trim().split('\n')[0]));
+  const tem = async n => (await page.locator('#decks-list .deck-item', { hasText: n }).count()) === 1;
+  assert.equal(await page.locator('#decks-list .deck-item').count(), 3);
+  assert.equal(await page.locator('#decks-filter').count(), 1); assert.equal(await page.locator('#decks-filters').count(), 1);
+  assert.equal(await page.locator('#decks-count-text').count(), 0, 'sem filtro, sem linha de contagem');
+  await auditaTela(page, 'listas com busca e filtros (escuro)');
+  // 1 · texto: nome da lista ou de uma carta dela; o foco fica no campo enquanto digita
+  await page.click('#decks-filter'); await page.keyboard.type('sol');
+  await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 1);
+  assert.ok(await tem('Mesa do Sol')); assert.equal(await page.evaluate(() => document.activeElement.id), 'decks-filter', 'digitar não perde o foco');
+  assert.match(await page.innerText('#decks-count-text'), /1 de 3 lista\(s\)/);
+  await page.fill('#decks-filter', 'lightning'); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 1);
+  assert.ok(await tem('Montanhas'), 'achou pela carta');
+  await page.click('#decks-filters-clear'); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 3);
+  assert.equal(await page.inputValue('#decks-filter'), '');
+  // 2 · painel: formato (só os que existem na estante), contador ao vivo, selo no botão
+  await page.click('#decks-filters'); await page.waitForSelector('#decks-filters-body'); await page.waitForTimeout(350);
+  assert.deepEqual(await page.$$eval('#decks-filters-body [data-formato]', cs => cs.map(c => c.dataset.formato).sort()), ['livre', 'pauper']);
+  assert.match(await page.innerText('#decks-filters-count'), /3 lista\(s\)/);
+  await auditaTela(page, 'painel de filtros das listas');
+  await page.click('#decks-filters-body [data-formato="pauper"]');
+  assert.match(await page.innerText('#decks-filters-count'), /2 lista\(s\)/);
+  await page.click('#decks-filters-body [data-cor="R"]');
+  assert.match(await page.innerText('#decks-filters-count'), /1 lista\(s\)/);
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário: Mostrar');
+  await page.click('#decks-filters-apply'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.equal(await page.locator('#decks-list .deck-item').count(), 1); assert.ok(await tem('Montanhas'));
+  assert.equal(await page.getAttribute('#decks-filters', 'data-ativos'), '2'); assert.equal(await page.getAttribute('#decks-filters', 'aria-label'), 'Filtros, 2 ativo(s)');
+  assert.match(await page.innerText('#decks-count-desc'), /Pauper · vermelho/);
+  // 3 · o filtro sobrevive a abrir uma lista e voltar
+  await page.click('#decks-list .deck-item'); await page.waitForSelector('.deck-summary');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item');
+  assert.equal(await page.locator('#decks-list .deck-item').count(), 1, 'voltar não desfaz o filtro'); assert.equal(await page.getAttribute('#decks-filters', 'data-ativos'), '2');
+  // 4 · sem resultado: estado vazio com Limpar; ordem por nome
+  await page.fill('#decks-filter', 'zzzz'); await page.waitForSelector('#decks-filtros-limpar-vazio');
+  assert.match(await page.innerText('#decks-list'), /Nenhuma lista passa por esses filtros/);
+  await auditaTela(page, 'listas sem resultado');
+  await page.click('#decks-filtros-limpar-vazio'); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 3);
+  await page.click('#decks-filters'); await page.waitForSelector('#decks-filters-body');
+  await page.click('#decks-filters-body [data-ordem="nome"]'); await page.click('#decks-filters-apply'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.deepEqual(await page.$$eval('#decks-list .deck-item', is => is.map(i => i.dataset.deck).length), 3);
+  const ordem = await page.$$eval('#decks-list .deck-item', is => is.map(i => i.textContent));
+  assert.ok(ordem[0].includes('Azul Controle') && ordem[1].includes('Mesa do Sol') && ordem[2].includes('Montanhas'), 'ordem por nome: ' + ordem.map(x => x.slice(0, 14)));
+  assert.equal(await page.locator('#decks-count-text').count(), 0, 'ordenar não conta como filtro');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'listas com busca e filtros (claro)');
+  // 5 · coleção: a contagem saiu de baixo do título e está no Painel; "Formato" é o primeiro campo do painel de filtros
+  await page.goto(base + '#/listas/editar'); await page.fill('#deck-name', 'Tenho'); await page.selectOption('#deck-format', 'livre'); await page.fill('#deck-text', '3 Island\n1 Sol Ring');
+  await page.click('[data-ownall]'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-dash-toggle');
+  assert.equal(await page.locator('#col-summary').count(), 0, 'sem contagem solta sob o título');
+  assert.match(await contagemDaColecao(page), /2 carta\(s\) · 4 cópia\(s\)/, 'o Painel diz cartas e cópias');
+  await page.click('#col-filters'); await page.waitForSelector('#col-filters-body');
+  assert.equal(await page.$eval('#col-filters-body .ds-field__label', e => e.textContent.trim()), 'Formato');
+  assert.ok(await page.locator('#col-filters-body [data-formato="pauper"]').count() === 1 && await page.locator('#col-filters-body [data-formato="commander"]').count() === 1);
   assert.deepEqual(errors, []);
 });

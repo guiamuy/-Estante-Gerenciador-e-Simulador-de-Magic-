@@ -197,3 +197,34 @@ test('C14 · o que falta para montar uma lista: por carta, total e porcentagem; 
   assert.equal(F.faltaParaMontar({ entries: [] }, {}).pct, 100, 'lista vazia: nada falta');
   assert.equal(F.faltaParaMontar(null, {}).missing, 0);
 });
+
+/* ---------------- I2 · filtro das listas ---------------- */
+test('I2 · filtraListas: texto casa nome da lista ou carta dela; formato, cor (qualquer / só dentro), posse e ordem; sem cores guardadas é contada à parte', () => {
+  const carta = (name, colors, type_line = 'Creature') => [name.toLowerCase(), { name, colors, color_identity: colors, type_line }];
+  const cards = new Map([carta('Counterspell', ['U'], 'Instant'), carta('Lightning Bolt', ['R'], 'Instant'), carta('Llanowar Elves', ['G']), carta('Island', [], 'Basic Land — Island'), carta('Sol Ring', [], 'Artifact')]);
+  const L = (id, name, format, entries, updated) => ({ id, name, format, updated, entries: entries.map(([n, q, z]) => ({ name: n, qty: q, zone: z || 'main' })) });
+  const listas = [L('a', 'Azul Controle', 'pauper', [['Counterspell', 4], ['Island', 20]], 30), L('b', 'Izzet Tempo', 'pauper', [['Counterspell', 4], ['Lightning Bolt', 4]], 20),
+    L('c', 'Elfos', 'commander', [['Llanowar Elves', 1]], 10), L('d', 'Artefatos', 'livre', [['Sol Ring', 1]], 40), L('e', 'Misteriosa', 'pauper', [['Carta Sem Dados', 4]], 5)];
+  const owned = { counterspell: 4, island: 20, 'sol ring': 1 };
+  const ids = (f, o = {}) => F.filtraListas(listas, F.novoFiltroDeListas(f), { cards, owned, ...o }).itens.map(d => d.id).join('');
+  assert.equal(ids({}), 'dabce', 'sem filtro: todas, as mais recentes primeiro');
+  assert.equal(ids({ texto: 'izzet' }), 'b'); assert.equal(ids({ texto: 'COUNTERSPELL' }), 'ab', 'pelo nome de uma carta da lista');
+  assert.equal(ids({ formatos: ['pauper'] }), 'abe'); assert.equal(ids({ formatos: ['commander', 'livre'] }), 'dc');
+  assert.equal(ids({ cores: ['U'] }), 'ab', 'qualquer uma delas: Izzet tem azul'); assert.equal(ids({ cores: ['U'], modoCor: 'identidade' }), 'a', 'só dentro delas: Izzet (azul e vermelho) sai');
+  assert.equal(ids({ cores: ['C'] }), 'd', 'incolor'); assert.equal(ids({ cores: ['U', 'R'], modoCor: 'identidade' }), 'ab');
+  assert.equal(F.filtraListas(listas, F.novoFiltroDeListas({ cores: ['G'] }), { cards, owned }).semDados, 1, 'a lista sem cartas guardadas não some calada');
+  assert.equal(ids({ posse: 'completa' }), 'da'); assert.equal(ids({ posse: 'falta' }), 'bce');
+  assert.equal(ids({ ordem: 'nome' }), 'dacbe'); assert.equal(ids({ ordem: 'formato' }), 'cdabe'); assert.equal(ids({ ordem: 'completa' }).slice(0, 2), 'da');
+  assert.equal(ids({ formatos: ['pauper'], cores: ['R'], texto: 'tempo' }), 'b', 'critérios somam');
+  assert.equal(F.filtraListas([], F.novoFiltroDeListas()).total, 0); assert.equal(F.filtraListas(null, F.novoFiltroDeListas()).total, 0);
+});
+test('I2 · filtro das listas: quantos critérios estão ligados, quando está vazio e a frase da contagem', () => {
+  const f = F.novoFiltroDeListas();
+  assert.equal(F.filtrosDeListaAtivos(f), 0); assert.equal(F.filtroDeListasVazio(f), true);
+  assert.equal(F.filtroDeListasVazio({ ...f, ordem: 'nome' }), true, 'ordem não esconde nada');
+  assert.equal(F.filtroDeListasVazio({ ...f, texto: '  ' }), true); assert.equal(F.filtroDeListasVazio({ ...f, texto: 'elf' }), false);
+  const g = F.novoFiltroDeListas({ formatos: ['pauper', 'commander'], cores: ['U', 'R'], modoCor: 'identidade', posse: 'falta', texto: 'tempo' });
+  assert.equal(F.filtrosDeListaAtivos(g), 3);
+  assert.equal(F.descreveFiltroDeListas(g, { formatos: { pauper: 'Pauper', commander: 'Commander' } }), 'Pauper/Commander · azul/vermelho (só essas) · falta carta · "tempo"');
+  assert.equal(F.descreveFiltroDeListas(f), '');
+});

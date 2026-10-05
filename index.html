@@ -678,6 +678,8 @@ a { color: var(--accent); }
 .ds-expansivel__selo { flex: none; display: grid; place-items: center; width: calc(var(--space-6) + var(--space-1)); height: calc(var(--space-6) + var(--space-1)); border-radius: var(--radius-2);
   background: var(--accent-soft); color: var(--accent); }
 .ds-expansivel__titulo { flex: 0 1 auto; min-width: 0; font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--lh-lg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-expansivel__resumo--linhas { display: flex; flex-direction: column; white-space: normal; }
+.ds-expansivel__resumo--linhas > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ds-expansivel__resumo { flex: 1 1 0; min-width: 0; text-align: right; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ds-expansivel__seta { flex: none; margin-left: auto; color: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out); }
 .ds-expansivel[data-aberto="true"] .ds-expansivel__seta { transform: rotate(180deg); }
@@ -2617,7 +2619,8 @@ function Expansivel({ titulo, icone, aberto = true, onToggle, id, toggleId, resu
   const cabeca = h('button', { class: 'ds-expansivel__cabeca', type: 'button', id: toggleId, 'aria-expanded': String(!!aberto), title: aberto ? 'Recolher' : 'Mostrar', onClick: onToggle },
     h('span', { class: 'ds-expansivel__selo' }, Icone(icone, { tamanho: 20 })),
     h('span', { class: 'ds-expansivel__titulo' }, titulo),
-    resumo ? h('span', { class: 'ds-expansivel__resumo' }, resumo) : null,
+    // I2 · `resumo` pode ser uma lista: cada item numa linha (contagem em cima, valor embaixo), para caber em 360 px
+    resumo && resumo.length ? h('span', { class: 'ds-expansivel__resumo' + (Array.isArray(resumo) ? ' ds-expansivel__resumo--linhas' : '') }, ...(Array.isArray(resumo) ? resumo.filter(Boolean).map(l => h('span', {}, l)) : [resumo])) : null,
     Icone('descer', { tamanho: 20, classe: 'ds-expansivel__seta' }));
   if (aberto) cabeca.setAttribute('aria-controls', corpoId);
   return h('section', { class: 'ds-surface ds-expansivel', id, dataset: { aberto: String(!!aberto) } }, cabeca,
@@ -7399,7 +7402,49 @@ function faltaParaMontar(deck, owned) {
   return { need, have, missing: need - have, itens, pct: need ? Math.round((have / need) * 100) : 100 };
 }
 
-return { FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, linkDoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+/* ---------------- I2 · filtro das listas: o mesmo padrão da coleção, sobre a estante ---------------- */
+const FILTRO_LISTAS_VAZIO = Object.freeze({ texto: '', formatos: [], cores: [], modoCor: 'qualquer', posse: '', ordem: 'recente' });
+const ORDENS_DE_LISTA = [['recente', 'Recentes'], ['nome', 'Nome'], ['formato', 'Formato'], ['completa', 'Mais completas']];
+const POSSES_DE_LISTA = [['completa', 'Tenho todas'], ['falta', 'Falta carta']];
+const novoFiltroDeListas = (parcial = {}) => ({ ...FILTRO_LISTAS_VAZIO, ...parcial });
+/** Quantos critérios do painel estão ligados (texto e ordem não contam: um é o campo, a outra não esconde nada). */
+const filtrosDeListaAtivos = f => (f.formatos.length ? 1 : 0) + (f.cores.length ? 1 : 0) + (f.posse ? 1 : 0);
+const filtroDeListasVazio = f => !String(f.texto || '').trim() && !filtrosDeListaAtivos(f);
+/** Recorta e ordena as listas. `cards` (nome normalizado → carta guardada) dá as cores; `owned` (nome → cópias) dá a
+    posse. Texto casa com o nome da lista ou com o nome de qualquer carta dela. Lista sem cores conhecidas (cartas ainda
+    não guardadas) não passa em filtro de cor e é contada em `semDados`. */
+function filtraListas(listas, f, { cards = new Map(), owned = {} } = {}) {
+  const q = norm(f.texto || '');
+  let semDados = 0;
+  const posseDe = d => { const need = d.entries.reduce((n, e) => n + e.qty, 0); const have = d.entries.reduce((n, e) => n + Math.min(e.qty, owned[norm(e.name)] || 0), 0); return { need, have, falta: need - have }; };
+  const itens = (listas || []).filter(d => {
+    if (q && !norm(d.name).includes(q) && !d.entries.some(e => norm(e.name).includes(q))) return false;
+    if (f.formatos.length && !f.formatos.includes(d.format)) return false;
+    if (f.posse) { const p = posseDe(d); if ((f.posse === 'completa') !== (p.falta === 0)) return false; }
+    if (f.cores.length) {
+      const cs = __m14.coresDaLista(d.entries, cards);
+      if (cs == null) { semDados++; return false; }
+      const lista = cs ? [...cs] : ['C'];
+      if (f.modoCor === 'identidade' ? !lista.every(c => f.cores.includes(c)) : !lista.some(c => f.cores.includes(c))) return false;
+    }
+    return true;
+  });
+  const porNome = (a, b) => a.name.localeCompare(b.name);
+  const ordem = { nome: porNome, formato: (a, b) => String(a.format).localeCompare(String(b.format)) || porNome(a, b),
+    completa: (a, b) => posseDe(a).falta - posseDe(b).falta || porNome(a, b), recente: (a, b) => (b.updated || 0) - (a.updated || 0) || porNome(a, b) }[f.ordem] || null;
+  return { itens: ordem ? itens.slice().sort(ordem) : itens, total: itens.length, semDados };
+}
+/** O filtro das listas em palavras, para a linha de contagem. */
+function descreveFiltroDeListas(f, { formatos = {} } = {}) {
+  const partes = [];
+  if (f.formatos.length) partes.push(f.formatos.map(x => formatos[x] || x).join('/'));
+  if (f.cores.length) partes.push(f.cores.map(c => (CORES.find(([k]) => k === c) || [c, c])[1].toLowerCase()).join('/') + (f.modoCor === 'identidade' ? ' (só essas)' : ''));
+  if (f.posse) partes.push(f.posse === 'completa' ? 'tenho todas' : 'falta carta');
+  if (String(f.texto || '').trim()) partes.push(`"${String(f.texto).trim()}"`);
+  return partes.join(' · ');
+}
+
+return { FILTRO_LISTAS_VAZIO, ORDENS_DE_LISTA, POSSES_DE_LISTA, novoFiltroDeListas, filtrosDeListaAtivos, filtroDeListasVazio, filtraListas, descreveFiltroDeListas, FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, linkDoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
 })();
 
 /* ==== src/data/etiquetas.js ==== */
@@ -7659,8 +7704,49 @@ function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, data
 }
 
 /* ---------------- /listas ---------------- */
+/* I2 · o filtro da estante vale enquanto o app está aberto: abrir uma lista e voltar não o desfaz */
+let filtroDasListas = null;
+/** I2 · painel de filtros das listas, no mesmo desenho do da coleção: formato, cor, posse e ordem. */
+function abrirFiltrosDeListas({ filtro, formatos, onChange, onLimpar }) {
+  const FL = __m27; const f = { ...filtro, formatos: [...filtro.formatos], cores: [...filtro.cores] };
+  const contador = Text('', { size: 'sm', attrs: { id: 'decks-filters-count' } });
+  const aplica = () => { const r = onChange({ ...f }) || { total: 0 }; contador.textContent = `${r.total} lista(s)`; };
+  const varios = (lista, get, set, ds) => Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
+    const c = ds === 'cor' ? h('button', { class: 'ds-chip ds-chip--simbolo', type: 'button', 'aria-pressed': String(get().includes(valor)), 'aria-label': label, title: label, dataset: { [ds]: String(valor) } }, Simbolo(valor))
+      : Chip(label, { pressed: get().includes(valor), dataset: { [ds]: String(valor) } });
+    c.addEventListener('click', () => { const cur = get(); set(cur.includes(valor) ? cur.filter(x => x !== valor) : [...cur, valor]); c.setAttribute('aria-pressed', String(get().includes(valor))); aplica(); });
+    return c; }));
+  const unico = (lista, get, set, ds, { vazio = '' } = {}) => { const row = Row({ class: 'ds-row--wrap' }, ...lista.map(([valor, label]) => {
+    const c = Chip(label, { pressed: get() === valor, dataset: { [ds]: String(valor) } });
+    c.addEventListener('click', () => { set(get() === valor ? vazio : valor); row.querySelectorAll('.ds-chip').forEach(x => x.setAttribute('aria-pressed', String(x.dataset[ds] === String(get())))); aplica(); });
+    return c; })); return row; };
+  const body = Stack({ id: 'decks-filters-body' },
+    Field('Formato', varios(formatos, () => f.formatos, v => { f.formatos = v; }, 'formato')),
+    Field('Cor', Stack({ style: { gap: 'var(--space-1)' } },
+      varios(FL.CORES, () => f.cores, v => { f.cores = v; }, 'cor'),
+      unico([['qualquer', 'Qualquer uma delas'], ['identidade', 'Só dentro delas']], () => f.modoCor, v => { f.modoCor = v || 'qualquer'; }, 'modoCor', { vazio: 'qualquer' }))),
+    Field('Coleção', unico(FL.POSSES_DE_LISTA, () => f.posse, v => { f.posse = v; }, 'posse')),
+    Field('Ordem', unico(FL.ORDENS_DE_LISTA, () => f.ordem, v => { f.ordem = v || 'recente'; }, 'ordem', { vazio: 'recente' })));
+  Dialog({ title: 'Filtrar listas', body: Stack({}, contador, body), actions: [
+    Button('Limpar', { id: 'decks-filters-reset', onClick: () => { closeDialog(); onLimpar(); } }),
+    Button('Mostrar', { variant: 'primary', id: 'decks-filters-apply', onClick: closeDialog })] });
+  aplica();
+}
 function createDecksHome({ decks, collection, files, cardRepo, backup = null, etiquetas = null }) {
   const list = h('div', { id: 'decks-list' }, Row({}, Spinner()));
+  // I2 · busca e filtros da estante, no padrão da coleção: campo de texto, botão Filtros com o número de critérios, contagem e Limpar
+  const FLL = __m27;
+  let fl = filtroDasListas || FLL.novoFiltroDeListas();
+  let conhecidas = { all: [], guardadas: new Map(), owned: {} };
+  const guardaFiltro = f => { fl = f; filtroDasListas = FLL.filtroDeListasVazio(f) && f.ordem === 'recente' ? null : f; };
+  const filtroIn = Input({ id: 'decks-filter', placeholder: 'Nome da lista ou de uma carta', value: fl.texto, onInput: e => { guardaFiltro({ ...fl, texto: e.target.value }); paint(); } });
+  filtroIn.setAttribute('aria-label', 'Buscar nas listas');
+  const filtroBtn = Button('Filtros', { id: 'decks-filters', icone: 'filtro', onClick: () => abrirFiltrosDeListas({ filtro: fl,
+    formatos: Object.entries(FORMATS).filter(([k]) => conhecidas.all.some(d => d.format === k) || fl.formatos.includes(k)),
+    onChange: f => { guardaFiltro({ ...f, texto: fl.texto }); paint(); return FLL.filtraListas(conhecidas.all, fl, { cards: conhecidas.guardadas, owned: conhecidas.owned }); },
+    onLimpar: () => { guardaFiltro(FLL.novoFiltroDeListas()); filtroIn.value = ''; paint(); } }) });
+  const filtroRow = h('div', { id: 'decks-filtro' });
+  const contagemRow = h('div', { id: 'decks-contagem' });
   // G2 · etiquetas das listas: chips de filtro acima da estante (só aparecem quando existe etiqueta)
   const etqRow = h('div', { id: 'decks-etiquetas' });
   const etqLigadas = new Set();
@@ -7690,7 +7776,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     mount(etqRow, all.length && etq.lista.length ? Row({ class: 'ds-row--wrap col-etiquetas' },
       ...etq.lista.filter(e => contaEtq.get(e.id)).map(e => __m32.ChipEtiqueta(e, { pressed: etqLigadas.has(e.id), conta: contaEtq.get(e.id), onClick: () => { if (etqLigadas.has(e.id)) etqLigadas.delete(e.id); else etqLigadas.add(e.id); paint(); } })),
       Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'decks-etiquetas-gerir', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', existe: new Set(all.map(d => d.id)), onMuda: () => paint() }) })) : null);
-    if (!all.length) mount(valorRow, null);
+    if (!all.length) { mount(valorRow, null); mount(filtroRow, null); mount(contagemRow, null); }
     if (!all.length) return mount(list, Empty('Comece por uma lista pronta ou cole uma lista do Moxfield, Archidekt ou Arena.',
       h('div', { class: 'ds-empty__acoes' },
         Row({ class: 'ds-row--wrap' },
@@ -7703,13 +7789,24 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     // Leva 110 · cores só do que já está guardado no aparelho (sem rede, sem espera)
     let guardadas = new Map();
     try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
-    const visiveis = etqLigadas.size ? all.filter(d => (etq.listas[d.id] || []).some(id => etqLigadas.has(id))) : all;
+    const comEtiqueta = etqLigadas.size ? all.filter(d => (etq.listas[d.id] || []).some(id => etqLigadas.has(id))) : all;
+    // I2 · depois das etiquetas, o filtro da estante (texto, formato, cor, posse) e a ordem
+    conhecidas = { all: comEtiqueta, guardadas, owned };
+    const recorte = FLL.filtraListas(comEtiqueta, fl, { cards: guardadas, owned });
+    const visiveis = recorte.itens, filtrando = !FLL.filtroDeListasVazio(fl);
+    pintaBotaoFiltros(filtroBtn, null, FLL.filtrosDeListaAtivos(fl));
+    if (!filtroRow.firstChild) mount(filtroRow, Row({ class: 'ds-row--wrap' }, h('div', { class: 'ds-grow', style: { minWidth: '160px' } }, filtroIn), filtroBtn)); // uma vez só: remontar tiraria o foco de quem digita
+    mount(contagemRow, filtrando ? Row({ class: 'ds-row--wrap' },
+      Text(`${recorte.total} de ${comEtiqueta.length} lista(s)` + (recorte.semDados ? ` · ${recorte.semDados} sem cartas guardadas (não dá para filtrar por cor)` : ''), { size: 'sm', attrs: { id: 'decks-count-text' } }),
+      Text(FLL.descreveFiltroDeListas(fl, { formatos: FORMATS }), { size: 'xs', tone: 'muted', attrs: { id: 'decks-count-desc' } }),
+      Button('Limpar', { variant: 'ghost', icone: 'fechar', id: 'decks-filters-clear', onClick: () => { guardaFiltro(FLL.novoFiltroDeListas()); filtroIn.value = ''; paint(); } })) : null);
     const valorDe = d => __m31.soma(d.entries.map(e => ({ card: guardadas.get(norm(e.name)), qty: e.qty })), taxas);
     const valores = new Map(visiveis.map(d => [d.id, valorDe(d)]));
     const total = [...valores.values()].reduce((a, v) => ({ usd: a.usd + v.usd, comPreco: a.comPreco + v.comPreco, semPreco: a.semPreco + v.semPreco }), { usd: 0, comPreco: 0, semPreco: 0 });
     const totalV = { ...total, brl: taxas ? total.usd * taxas.BRL : null, eur: taxas ? total.usd * taxas.EUR : null };
     mount(valorRow, total.comPreco ? h('div', { class: 'ds-valores' }, __m31.LinhaValor(etqLigadas.size ? `${visiveis.length} lista(s) com a etiqueta` : `${visiveis.length} lista(s)`, totalV, { id: 'decks-valor-total',
       detalhe: total.semPreco ? `${total.semPreco} carta(s) sem preço guardado` : '' })) : null);
+    if (!visiveis.length && filtrando && comEtiqueta.length) return mount(list, Empty('Nenhuma lista passa por esses filtros.', Button('Limpar', { icone: 'fechar', id: 'decks-filtros-limpar-vazio', onClick: () => { guardaFiltro(FLL.novoFiltroDeListas()); filtroIn.value = ''; paint(); } }), { icone: 'filtro' }));
     if (!visiveis.length) return mount(list, Empty('Nenhuma lista com essas etiquetas.', Button('Ver todas', { icone: 'fechar', id: 'decks-etiquetas-limpar', onClick: () => { etqLigadas.clear(); paint(); } })));
     mount(list, h('div', { class: 'ds-list' }, ...visiveis.map(d => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
@@ -7724,7 +7821,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
       Button('Prontas', { id: 'deck-starter', icone: 'caixa', title: 'Listas prontas', onClick: () => go('/listas/prontas') }),
       Button('Nova', { variant: 'primary', id: 'deck-new', icone: 'mais', title: 'Nova lista', onClick: () => go('/listas/editar') })),
-    etqRow, valorRow,
+    filtroRow, etqRow, contagemRow, valorRow,
     list,
     // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
     fileInput);
@@ -8425,9 +8522,9 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
 /* ---- C12 · painel de filtros: o mesmo para coleção e listas ----
    `filtro` é copiado; cada toque chama onChange(f) e espera de volta { total, copias } para o contador.
    `semImpressoes` esconde o que só faz sentido com impressões (edição, idioma, acabamento, lista). */
-function pintaBotaoFiltros(btn, filtro) {
+function pintaBotaoFiltros(btn, filtro, ativos = null) {
   if (!btn) return;
-  const n = __m27.filtrosAtivos({ ...filtro, texto: '' });
+  const n = ativos != null ? ativos : __m27.filtrosAtivos({ ...filtro, texto: '' });
   // U2 · o ícone fica; o número de filtros ativos vira um selo ao lado do rótulo
   let conta = btn.querySelector('.ds-btn__conta');
   if (!conta) { conta = document.createElement('span'); conta.className = 'ds-btn__conta'; btn.appendChild(conta); }
@@ -8462,13 +8559,14 @@ function abrirPainelFiltros({ filtro, grupos, onChange, onLimpar, semImpressoes 
   const idiomas = op.idiomas.map(l => [l.valor, `${(LANG_PT[l.valor] || l.valor.toUpperCase())} · ${l.copias}`]);
   const acabamentos = op.acabamentos.map(a => [a.valor, `${FIN_PT[a.valor] || a.valor} · ${a.copias}`]);
   const body = Stack({ id: 'col-filters-body' },
+    // I2 · formato de jogo em primeiro, igual ao painel das listas (era "Legal em", no meio do painel)
+    Field('Formato', unico(FL.FORMATOS, () => f.formato, v => { f.formato = v; }, 'formato'), { hint: 'Mostra só as cartas legais no formato.' }),
     Field('Cor', Stack({ style: { gap: 'var(--space-1)' } },
       grupoChips(FL.CORES, () => f.cores, v => { f.cores = v; }, 'cor'),
       unico([['qualquer', 'Qualquer uma delas'], ['identidade', 'Identidade dentro delas']], () => f.modoCor, v => { f.modoCor = v || 'qualquer'; }, 'modoCor'))),
     Field('Tipo', Stack({ style: { gap: 'var(--space-1)' } }, grupoChips(FL.TIPOS.map(t => [t, FL.TIPOS_PT[t]]), () => f.tipos, v => { f.tipos = v; }, 'tipo'), subtipo)),
     Field('Raridade', grupoChips(FL.RARIDADES, () => f.raridades, v => { f.raridades = v; }, 'raridade')),
     Field('Custo de mana', Row({ class: 'ds-row--wrap' }, Text('de', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-min', f.cmcMin, v => { f.cmcMin = v; }), Text('até', { size: 'sm', tone: 'muted' }), numero('col-filter-cmc-max', f.cmcMax, v => { f.cmcMax = v; }))),
-    Field('Legal em', unico(FL.FORMATOS, () => f.formato, v => { f.formato = v; }, 'formato')),
     !semImpressoes && edicoes.length ? Field('Edição', grupoChips(edicoes, () => f.edicoes, v => { f.edicoes = v; }, 'edicao')) : null,
     !semImpressoes && idiomas.length > 1 ? Field('Idioma', grupoChips(idiomas, () => f.idiomas, v => { f.idiomas = v; }, 'idioma')) : null,
     !semImpressoes && acabamentos.length > 1 ? Field('Acabamento', grupoChips(acabamentos, () => f.acabamentos, v => { f.acabamentos = v; }, 'acabamento')) : null,
@@ -8504,7 +8602,6 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const undoBar = h('div', { id: 'col-undo' });
   const pendingBox = h('div', { id: 'col-pending' });
   const listEl = h('div', { id: 'col-list' }, Row({}, Spinner(), Text('Abrindo coleção…', { size: 'sm', tone: 'muted' })));
-  const summary = h('div', { id: 'col-summary' });
   const care = h('div', { id: 'col-care' });
   const selectionBar = h('div', { id: 'col-selection' });
   const countLine = h('div', { id: 'col-count' });
@@ -8869,7 +8966,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // G3 · valor do recorte (com filtro) ou da coleção; fechado, o cabeçalho já diz o total
     const tx = state.taxas || null, filtrado = !FL.filtroVazio(state.filtro);
     const vRecorte = __m31.soma(__m31.linhasDaColecao((r && r.itens) || [], cardOf), tx);
-    if (!state.painel) return mount(dashboard, Expansivel({ ...bloco, resumo: vRecorte.comPreco ? `${res.copias} cópias · ${__m31.principal(vRecorte)}` : `${res.cartas} cartas · ${res.copias} cópias` })); // com valor, o resumo cabe em 360 trocando "cartas" pelo total
+    // I2 · fechado ou aberto, o cabeçalho diz cartas e cópias; com preço guardado, o valor vai na linha de baixo
+    bloco.resumo = [`${res.cartas} cartas · ${res.copias} cópias`, vRecorte.comPreco ? __m31.principal(vRecorte) : null];
+    if (!state.painel) return mount(dashboard, Expansivel(bloco));
     const vTudo = filtrado ? __m31.soma(__m31.linhasDaColecao(state.items, cardOf), tx) : vRecorte;
     const porEtiqueta = state.etq.lista.map(e => ({ e, itens: state.items.filter(g => (state.etq.cartas[g.key] || []).includes(e.id)) })).filter(x => x.itens.length)
       .map(x => ({ e: x.e, n: x.itens.length, v: __m31.soma(__m31.linhasDaColecao(x.itens, cardOf), tx) }));
@@ -9037,9 +9136,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
 
   function paint() {
-    const total = state.items.reduce((sum, i) => sum + i.qty, 0);
-    // U2 · cada contagem inteira numa linha (em 360 quebrava "3 / cópia(s)")
-    mount(summary, Text([h('span', { class: 'ds-nowrap' }, `${state.items.length} carta(s)`), ' · ', h('span', { class: 'ds-nowrap' }, `${total} cópia(s)`)], { size: 'sm', tone: 'muted' }));
+    // I2 · a contagem de cartas e cópias saiu de baixo do título (repetia o painel): mora só no cabeçalho do Painel
     if (state.loading) return;
     pintaVazia(!state.items.length);
     if (!state.items.length) { paintUndo(); paintPending(); mount(dashboard, null); return mount(listEl, Empty('Escaneie pela câmera, cole uma lista ou importe um CSV do ManaBox, Moxfield ou Archidekt.',
@@ -9200,7 +9297,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   load();
   root = Stack({ ...pad(), class: 'ds-wrap col-root' },
-    Row({ class: 'col-topo' }, Stack({ style: { gap: 'var(--space-1)', minWidth: '0' } }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), summary), h('div', { class: 'ds-grow' }),
+    Row({ class: 'col-topo' }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
       IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }),
       // Leva 149 · o atalho abre o bloco de adicionar (logo abaixo do painel) e põe o foco no campo
       IconButton('mais', 'Adicionar carta', { id: 'col-ir-adicionar', onClick: () => { abreAdicionar(true); secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
