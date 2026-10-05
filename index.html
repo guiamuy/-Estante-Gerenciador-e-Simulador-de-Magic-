@@ -1023,6 +1023,13 @@ body {
 .deck-reserva-aviso .ds-btn { align-self: flex-start; }
 .deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
 .deck-slot { position: relative; }
+/* L7 · edição rápida: − e + sob a carta (dois alvos de 44 px cabem na coluna de 104) e sugestões de nome */
+.deck-slot__passo { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); margin-top: var(--space-1); }
+.deck-slot__passo .ds-btn { min-width: 0; width: 100%; padding-inline: 0; }
+.deck-slot--passo .deck-slot__flag { bottom: calc(var(--tap-min) + var(--space-1) + var(--space-2)); }   /* o selo "falta" fica sobre a carta, não sobre os botões */
+.deck-sug { max-height: calc(var(--tap-min) * 6.5); overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-2); }
+.deck-sug[hidden] { display: none; }
+.deck-sug .ds-list__item { min-height: var(--tap-min); width: 100%; text-align: left; }
 .deck-slot[data-missing="true"] .ds-card img { opacity: .42; filter: grayscale(.85); }
 .deck-slot__qty, .deck-slot__flag {
   position: absolute; pointer-events: none; font-size: var(--text-xs); line-height: 1;
@@ -6070,6 +6077,34 @@ function planCollectionImport(items, { existentes = new Set(), conhecidos = null
     as cores das cartas do deck principal (terrenos não têm cor). `cards` é Map(nome normalizado -> carta).
     Devolve null quando falta o dado de qualquer carta que conta (ou só há terrenos guardados): melhor não
     mostrar cor do que mostrar a cor errada ou "incolor" por engano. */
+/* ---------------- L7 · edição rápida ---------------- */
+/** Soma `delta` cópias de `nome` na `zona` e devolve uma lista nova (não muta). Chegou a zero, a entrada sai;
+    carta que não estava entra no fim, com a grafia dada. */
+function ajustaEntrada(entries, nome, zona, delta) {
+  const k = norm(nome), z = ZONES.includes(zona) ? zona : 'main';
+  const out = (entries || []).map(e => ({ ...e }));
+  const i = out.findIndex(e => norm(e.name) === k && (e.zone || 'main') === z);
+  if (i < 0) { if (delta > 0) out.push({ name: nome, qty: delta, zone: z }); return out; }
+  out[i].qty += delta;
+  if (out[i].qty <= 0) out.splice(i, 1);
+  return out;
+}
+/** Sugestões de nome para o que foi digitado (2 letras ou mais): primeiro os que começam com o texto, depois os que
+    têm uma palavra começando com ele, depois os que o contêm; em cada faixa, os mais curtos antes. Sem acento e
+    sem caixa. `nomes` é a base de nomes guardada no aparelho. */
+function sugereNomes(nomes, texto, limite = 6) {
+  const q = norm(texto);
+  if (q.length < 2 || !Array.isArray(nomes)) return [];
+  const faixas = [[], [], []];
+  for (const n of nomes) {
+    const k = norm(n); const i = k.indexOf(q);
+    if (i < 0) continue;
+    faixas[i === 0 ? 0 : /[\s\-,/]/.test(k[i - 1]) ? 1 : 2].push(n);
+  }
+  const ordem = (a, b) => a.length - b.length || a.localeCompare(b);
+  return faixas.flatMap(f => f.sort(ordem)).slice(0, limite);
+}
+
 function coresDaLista(entries, cards) {
   const ORD = 'WUBRG', cor = new Set();
   const cmd = entries.filter(e => e.zone === 'commander');
@@ -6087,7 +6122,7 @@ function coresDaLista(entries, cards) {
   return [...ORD].filter(x => cor.has(x)).join('');
 }
 
-return { parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
+return { ajustaEntrada, sugereNomes, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
   parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
@@ -7559,9 +7594,9 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem } = __m3;
 const { norm } = __m7;
-const { parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
+const { ajustaEntrada, sugereNomes, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
 const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
@@ -8046,13 +8081,14 @@ function createDeckEditor({ decks, collection }) {
 }
 
 /* ---------------- /lista?id= ---------------- */
-function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null }) {
+function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null, names = null }) {
   const id = q().get('id');
   const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo lista…', { size: 'sm', tone: 'muted' })));
   const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false,
     // C12b · o mesmo motor de filtro da coleção, sobre as cartas da lista
     filtro: __m27.novoFiltro(), texto: '',
     etq: __m32.vazio(), // G2 · etiquetas desta lista
+    ajustando: false, zonaNova: 'main', // L7 · edição rápida
     taxas: undefined }; // G3 · cotação do dólar (undefined = buscando, null = sem cotação)
 
   async function load() {
@@ -8121,6 +8157,63 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       actions: [...extra, Button('Fechar', { variant: 'primary', onClick: closeDialog })] });
   }
 
+  /* ---- L7 · edição rápida: somar, tirar e adicionar carta sem colar a lista de novo ---- */
+  const zonaDe = e => e.zone || 'main';
+  const focaSlot = (nome, zona) => { const el = [...root.querySelectorAll('.deck-slot')].find(x => x.dataset.name === nome && x.dataset.zona === zona); if (el) { const b = el.querySelector('.ds-card'); if (b) b.focus({ preventScroll: true }); } };
+  async function trocaEntradas(novas, { aviso = '', desfazer = true } = {}) {
+    const antes = state.deck.entries;
+    state.deck.entries = novas; await persist(); paint();
+    if (aviso) toast(aviso, desfazer ? 4200 : 2400, desfazer ? { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { state.deck.entries = antes; await persist(); paint(); } } } : {});
+  }
+  async function passo(e, delta) {
+    const nome = e.name, zona = zonaDe(e), saiu = e.qty + delta <= 0;
+    await trocaEntradas(ajustaEntrada(state.deck.entries, nome, zona, delta), { aviso: saiu ? `${nome} saiu da lista` : '' });
+    if (!saiu) focaSlot(nome, zona);
+  }
+  const sugBox = h('div', { class: 'deck-sug', id: 'deck-sug', role: 'listbox', 'aria-label': 'Sugestões de carta' });
+  const addIn = Input({ id: 'deck-add', placeholder: 'Nome da carta, em inglês', onInput: () => pintaSugestoes() });
+  addIn.autocomplete = 'off'; addIn.setAttribute('autocapitalize', 'off'); addIn.setAttribute('aria-controls', 'deck-sug');
+  addIn.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); adiciona(); } else if (ev.key === 'Escape' && addIn.value) { ev.stopPropagation(); addIn.value = ''; pintaSugestoes(); } });
+  const addBtn = IconButton('mais', 'Adicionar carta', { variant: 'primary', id: 'deck-add-btn', onClick: () => adiciona() });
+  function pintaSugestoes() {
+    const lista = names && names.nomes ? sugereNomes(names.nomes(), addIn.value, 6) : [];
+    mount(sugBox, ...lista.map(n => ListItem({ onClick: () => adiciona(n), dataset: { sugestao: n } }, h('span', { lang: 'en' }, n))));
+    sugBox.hidden = !lista.length;
+    return lista;
+  }
+  async function adiciona(escolhida = null) {
+    const digitado = addIn.value.trim(); if (!escolhida && !digitado) return;
+    addBtn.disabled = true;
+    try {
+      let canonico = escolhida, c = null;
+      try { const found = await cardRepo.byNames([escolhida || digitado]); c = found.get(norm(escolhida || digitado)) || null; if (c && !canonico) canonico = c.name; } catch (e) { /* sem rede: a base de nomes decide abaixo */ }
+      if (!canonico) {
+        const best = names && names.match ? names.match(digitado, { limit: 1 })[0] : null;
+        if (best && best.score >= 0.999) canonico = best.name;
+        else if (best && best.score >= 0.75) return toast(`Não achei "${digitado}". Parecido: ${best.name}`, 3600);
+        else return toast(names && names.info && names.info() ? `Não achei "${digitado}". Confira a grafia.` : `Sem internet e sem a base de nomes para conferir "${digitado}".`, 3600);
+      }
+      if (c) { state.cards.set(norm(canonico), c); if (images && images.available) images.warm([c.images && c.images.normal]); }
+      const zona = state.deck.format === 'commander' ? 'main' : state.zonaNova;
+      addIn.value = ''; pintaSugestoes();
+      const novas = ajustaEntrada(state.deck.entries, canonico, zona, 1);
+      const n = novas.find(x => norm(x.name) === norm(canonico) && zonaDe(x) === zona).qty;
+      await trocaEntradas(novas, { aviso: `${canonico}: ${n} ${zona === 'side' ? 'na reserva' : 'no deck'}` });
+      addIn.focus({ preventScroll: true });
+    } catch (e) { toast('Não foi possível adicionar agora'); }
+    finally { addBtn.disabled = false; }
+  }
+  function blocoAjuste() {
+    const comReserva = state.deck.format !== 'commander';
+    const zonas = comReserva ? h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Onde a carta entra', id: 'deck-add-zona' }, ...[['main', 'Deck', 'baralho'], ['side', 'Reserva', 'reserva']].map(([z, rot, ic]) =>
+      Chip(rot, { icone: ic, pressed: state.zonaNova === z, dataset: { zona: z }, onClick: () => { state.zonaNova = z; paint(); addIn.focus({ preventScroll: true }); } }))) : null;
+    const semBase = !(names && names.info && names.info());
+    return Surface({ class: 'ds-surface--pad deck-ajuste', id: 'deck-ajuste' }, Stack({ style: { gap: 'var(--space-2)' } },
+      Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn)),
+      sugBox, zonas,
+      Text(semBase ? 'Sem a base de nomes neste aparelho: escreva o nome inteiro e toque em +.' : 'Escolha uma sugestão ou escreva o nome inteiro. Em cada carta, + e − mudam a quantidade.', { size: 'xs', tone: 'subtle', attrs: { id: 'deck-ajuste-dica' } })));
+  }
+
   function curveView(curve) {
     const max = Math.max(1, ...curve);
     return h('div', { class: 'deck-curve', 'aria-label': 'curva de mana' },
@@ -8151,6 +8244,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
 
   function paint() {
     const d = state.deck;
+    const focoNoAdd = typeof document !== 'undefined' && document.activeElement === addIn;
     const stats = deckStats(d, state.cards, state.owned);
     const issues = validateDeck(d, state.cards, { semRede: state.degraded || (typeof navigator !== 'undefined' && navigator.onLine === false) }); // Q10
     const identity = [...new Set(d.entries.filter(e => e.zone === 'commander').flatMap(e => (entryCard(e) && entryCard(e).color_identity) || []))].join('');
@@ -8186,10 +8280,20 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           const lacking = have < e.qty;
           const cov = coverage(c || { name: e.name }, undefined, e.name); // S58 · nome da lista vale para achar o script
           const face = CardFace({ name: e.name, image: img(c), mana_cost: c && c.mana_cost, type_line: c && c.type_line }, { botao: true });
-          const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level } }, face,
+          const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level, zona: zonaDe(e) } }, face,
             h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}`, role: 'img', 'aria-label': `Motor: ${COVERAGE_PT[cov.level]}` }, Icone(COVERAGE_ICONE[cov.level], { tamanho: 14 })),
             e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
             lacking ? h('span', { class: 'deck-slot__flag' }, have ? `falta ${e.qty - have}` : 'falta') : null);
+          // L7 · no modo Ajustar, cada carta ganha − e + (44 px cada); − na última cópia tira a carta, com Desfazer
+          if (state.ajustando) {
+            const fixa = zonaDe(e) === 'commander' || zonaDe(e) === 'companion';
+            slot.classList.add('deck-slot--passo');
+            slot.appendChild(h('div', { class: 'deck-slot__passo' },
+              IconButton('menos', e.qty > 1 ? `Tirar uma ${e.name}` : `Tirar ${e.name} da lista`, { dataset: { passo: '-1' }, onClick: () => passo(e, -1) }),
+              IconButton('mais', `Mais uma ${e.name}`, { dataset: { passo: '1' }, disabled: fixa, onClick: () => passo(e, 1) })));
+            slot.addEventListener('keydown', ev => { if (ev.target.closest('.deck-slot__passo')) return;
+              if (ev.key === '+' || ev.key === '=') { ev.preventDefault(); if (!fixa) passo(e, 1); } else if (ev.key === '-' || ev.key === '_') { ev.preventDefault(); passo(e, -1); } });
+          }
           // C7: um toque abre a carta (ou marca, no modo marcação); dois toques marcam "tenho"
           if (state.marking) face.addEventListener('click', () => toggleOwned(e));
           else onTaps(face, { single: () => openEntry(e), double: () => { pulse(slot); toggleOwned(e, true); } });
@@ -8197,7 +8301,9 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
         })));
     }).filter(Boolean);
 
-    const markChip = Chip('Marcar as minhas', { id: 'deck-mark', icone: 'marcar', pressed: state.marking, onClick: () => { state.marking = !state.marking; paint(); } });
+    const markChip = Chip('Marcar as minhas', { id: 'deck-mark', icone: 'marcar', pressed: state.marking, onClick: () => { state.marking = !state.marking; if (state.marking) state.ajustando = false; paint(); } });
+    const ajustarChip = Chip('Ajustar', { id: 'deck-ajustar', icone: 'cartaMais', pressed: state.ajustando, onClick: () => { state.ajustando = !state.ajustando; if (state.ajustando) { state.marking = false; if (names && names.ensure) names.ensure({ online: typeof navigator === 'undefined' || navigator.onLine !== false }).then(() => { if (state.ajustando && root.isConnected) paint(); }).catch(() => {}); } paint(); if (state.ajustando) addIn.focus({ preventScroll: true }); } });
+    ajustarChip.title = 'Somar, tirar e adicionar cartas sem colar a lista de novo';
 
     mount(root,
       Row({ class: 'ds-row--wrap' },
@@ -8262,10 +8368,11 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           sug ? Button('Separar reserva', { variant: 'primary', icone: 'pilhas', id: 'deck-reserva-separar', onClick: async () => {
             state.deck = await decks.save({ ...state.deck, entries: sug.entries }); toast(`${sug.movidas} carta(s) foram para a reserva`); paint(); } }) : null);
       })() : null,
-      Row({ class: 'ds-row--wrap' }, markChip,
-        state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : Text('Um toque abre a carta. Dois toques marcam que você a tem.', { size: 'sm', tone: 'muted' })),
+      Row({ class: 'ds-row--wrap' }, markChip, ajustarChip,
+        state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : state.ajustando ? null : Text('Um toque abre a carta. Dois toques marcam que você a tem.', { size: 'sm', tone: 'muted' })),
+      state.ajustando ? blocoAjuste() : null,
       linhaFiltro,
-      ...(groups.length ? groups : [Empty(filtrando ? 'Nenhuma carta da lista passa por esses filtros.' : 'Lista vazia.')]));
+      ...(groups.length ? groups : [Empty(filtrando ? 'Nenhuma carta da lista passa por esses filtros.' : 'Lista vazia.')]));    if (focoNoAdd && state.ajustando) addIn.focus({ preventScroll: true }); // L7 · redesenhar não tira o foco de quem está digitando a carta
   }
   /** Redesenhar a tela toda a cada letra perderia o foco do campo: guarda e devolve. */
   function paintPreservandoFoco() {
@@ -8274,6 +8381,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     const el = root.querySelector('#deck-filter'); if (el) { el.focus(); if (pos != null) el.setSelectionRange(pos, pos); }
   }
 
+  // L7 · no teclado: "/" leva ao campo de adicionar (fora de qualquer campo de texto)
+  root.addEventListener('keydown', ev => { if (ev.key === '/' && state.ajustando && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); addIn.focus(); } });
   load();
   // G3 · a cotação chega depois e só então a tela é repintada (sem roubar o foco de quem está digitando no filtro)
   __m31.padrao.taxas().then(t => { state.taxas = t || null; }).catch(() => { state.taxas = null; }).then(() => {
@@ -17487,12 +17596,12 @@ function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
 
 /* ---------------- C6 · catálogo de nomes ---------------- */
 function createNameIndex({ store, scryfall, now = () => Date.now() }) {
-  let index = null, meta = null;
+  let index = null, meta = null, lista = [];
   const api = {
     async load() {
       if (index) return index;
       const saved = await store.get(NAMES_KEY);
-      if (saved && Array.isArray(saved.names)) { meta = { ts: saved.ts, count: saved.names.length, bytes: saved.bytes || 0 }; index = buildIndex(saved.names); }
+      if (saved && Array.isArray(saved.names)) { meta = { ts: saved.ts, count: saved.names.length, bytes: saved.bytes || 0 }; index = buildIndex(saved.names); lista = saved.names; }
       return index;
     },
     async refresh() {
@@ -17500,7 +17609,7 @@ function createNameIndex({ store, scryfall, now = () => Date.now() }) {
       if (!names.length) throw new Error('catalogo-vazio');
       const bytes = JSON.stringify(names).length;
       await store.set(NAMES_KEY, { ts: now(), names, bytes });
-      meta = { ts: now(), count: names.length, bytes }; index = buildIndex(names);
+      meta = { ts: now(), count: names.length, bytes }; index = buildIndex(names); lista = names;
       return meta;
     },
     /** Garante a base: baixa se não existe; atualiza se velha e houver rede. */
@@ -17511,6 +17620,8 @@ function createNameIndex({ store, scryfall, now = () => Date.now() }) {
       return meta;
     },
     info() { return meta; },
+    /** L7 · os nomes guardados, para sugerir enquanto se digita (lista vazia sem a base). */
+    nomes() { return lista; },
     match(text, opts) { return index ? matchName(index, text, opts) : []; },
     /** Leva 109 · texto de várias linhas (quadro inteiro): a melhor linha manda. */
     matchLines(text, opts) { return index ? matchLines(index, text, opts) : []; }
@@ -19328,7 +19439,7 @@ const ROUTES = [
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup, etiquetas }) },
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
-  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas }) },
+  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },

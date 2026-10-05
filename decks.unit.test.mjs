@@ -694,3 +694,31 @@ test('Leva 110 · cores da lista: deck principal pelas cores das cartas, Command
 test('Leva 110 · cores da lista: nenhuma carta guardada não vira "incolor"', () => {
   assert.equal(D.coresDaLista([{ name: 'Nada Guardado', qty: 4, zone: 'main' }], new Map()), null);
 });
+
+/* ---------------- L7 · edição rápida ---------------- */
+test('L7 · ajustaEntrada: soma, tira, remove no zero, cria na zona pedida e não mexe na lista recebida', () => {
+  const { ajustaEntrada } = loadModules().decks;
+  const J = x => JSON.parse(JSON.stringify(x));
+  const lista = [{ name: 'Island', qty: 20, zone: 'main' }, { name: 'Counterspell', qty: 1, zone: 'main' }, { name: 'Counterspell', qty: 2, zone: 'side' }];
+  const copia = J(lista);
+  assert.deepEqual(J(ajustaEntrada(lista, 'Island', 'main', 1))[0], { name: 'Island', qty: 21, zone: 'main' });
+  assert.deepEqual(J(ajustaEntrada(lista, 'counterspell', 'side', -1))[2], { name: 'Counterspell', qty: 1, zone: 'side' }, 'sem caixa; só a zona pedida');
+  assert.equal(ajustaEntrada(lista, 'Counterspell', 'side', -1)[1].qty, 1, 'a do deck não muda');
+  assert.deepEqual(J(ajustaEntrada(lista, 'Counterspell', 'main', -1)).map(e => e.name + ':' + e.zone), ['Island:main', 'Counterspell:side'], 'última cópia: a entrada sai');
+  assert.deepEqual(J(ajustaEntrada(lista, 'Brainstorm', 'side', 1)).at(-1), { name: 'Brainstorm', qty: 1, zone: 'side' }, 'carta nova entra no fim, na zona pedida');
+  assert.equal(ajustaEntrada(lista, 'Brainstorm', 'main', -1).length, 3, 'tirar o que não existe não cria nada');
+  assert.equal(ajustaEntrada(lista, 'Brainstorm', 'zona-que-nao-existe', 1).at(-1).zone, 'main');
+  assert.deepEqual(J(lista), copia, 'a lista recebida fica intacta');
+  assert.deepEqual(J(ajustaEntrada([{ name: 'Sol Ring', qty: 1 }], 'Sol Ring', 'main', 1)), [{ name: 'Sol Ring', qty: 2 }], 'entrada antiga sem zona conta como deck');
+});
+test('L7 · sugereNomes: começa com o texto, depois palavra que começa, depois contém; curtos antes; sem acento e sem caixa', () => {
+  const { sugereNomes } = loadModules().decks;
+  const J = x => JSON.parse(JSON.stringify(x));
+  const nomes = ['Counterspell', 'Counterbalance', 'Mana Counter', 'Encounter', 'Island', 'Lim-Dûl\'s Vault', 'Fire // Ice', 'Counter'];
+  assert.deepEqual(J(sugereNomes(nomes, 'count')), ['Counter', 'Counterspell', 'Counterbalance', 'Mana Counter', 'Encounter']);
+  assert.deepEqual(J(sugereNomes(nomes, 'COUNT', 2)), ['Counter', 'Counterspell'], 'limite');
+  assert.deepEqual(J(sugereNomes(nomes, 'dul')), ['Lim-Dûl\'s Vault'], 'acento e hífen');
+  assert.deepEqual(J(sugereNomes(nomes, 'ice')), ['Fire // Ice']);
+  assert.deepEqual(J(sugereNomes(nomes, 'c')), [], 'uma letra não sugere');
+  assert.deepEqual(J(sugereNomes(null, 'count')), []); assert.deepEqual(J(sugereNomes(nomes, 'zzz')), []);
+});

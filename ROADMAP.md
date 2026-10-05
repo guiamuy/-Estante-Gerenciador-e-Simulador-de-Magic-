@@ -426,6 +426,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bb ✅ | H6 pagar com as manas que eu escolho: folha de pagamento com a sugestão do motor, contador por fonte e cor, conferência a cada toque (certo, falta, sobra) (leva 176) | H | 1 | teste no aparelho |
 | 16º-bc ✅ | H3 melhor de 3 online: quem cria a sala escolhe a série; trocas com a reserva em cada aparelho, a partida seguinte abre sozinha nos dois lados, desistir de uma partida não fecha a sala (leva 177) | H | 1 | teste no aparelho com dois celulares |
 | 16º-bd ✅ | H7 imagens que não somem na partida: cada imagem baixa uma vez, é conferida inteira e fica no aparelho; a que falha ou chega cortada volta sozinha; redesenhar a mesa não vai à rede (leva 180) | H | 1 | teste no aparelho com sinal fraco |
+| 16º-be ✅ | L7 edição rápida da lista: chip Ajustar, − e + em cada carta, adicionar pelo nome com sugestões da base local, Desfazer ao tirar a última cópia (leva 182) | L | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -3718,15 +3719,27 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 
 ### L · Listas, continuação
 
-**L7 · Edição rápida** ○
+**L7 · Edição rápida** ✅ (leva 182, 04/10/2026)
 - **Valor:** ajustar a lista sem colar o texto de novo.
-- **Aceite:**
-  - buscar com autocompletar (`/cards/autocomplete`);
-  - +/− quantidade e mover entre zonas;
-  - atalhos de teclado no desktop.
-- **Testes:** I.
+- **Entregue:** na tela da lista, o chip **Ajustar** (ao lado de "Marcar as minhas") liga o modo de edição:
+  - **cada carta ganha − e +** (dois alvos de 44 px sob a carta); a quantidade muda na hora e fica guardada;
+    **−** na última cópia tira a carta, com **Desfazer** no aviso; comandante e companheiro não somam cópia;
+  - **Adicionar carta:** campo com **sugestões enquanto se digita** (até seis, da base de nomes guardada no
+    aparelho — funciona sem internet), um toque soma uma cópia; nome inteiro + Enter também entra (confere na
+    Scryfall ou na base de nomes; grafia errada diz o parecido); o campo limpa e fica com o foco para a próxima;
+  - **Deck ou Reserva** para a carta nova (fora do Commander); a escolha vale para as seguintes;
+  - **teclado:** com a carta em foco, `+` soma e `−` tira; `/` leva ao campo de adicionar.
+- **Mover entre zonas** continua na folha da carta (E51: "1 para a reserva", "Todas para o deck"); não foi
+  duplicado nos botões da carta para caberem dois alvos de 44 px na coluna de 104 px.
+- **Divergência do aceite original, declarada:** o aceite pedia `/cards/autocomplete` (rede). As sugestões saem da
+  base de nomes local (C6), pela conduta offline; ao ligar o modo com internet e sem a base, ela é baixada sozinha.
+  Sem base e sem rede, vale só o nome inteiro.
+- **Modelo (puro, `decks`):** `ajustaEntrada(entries, nome, zona, delta)`, `sugereNomes(nomes, texto, limite)`;
+  a base de nomes ganhou `nomes()`.
+- **Testes:** U `decks.unit` ×2; e2e "L7" (− e +, última cópia com Desfazer, sugestão com 44 px, reserva, nome
+  inteiro, grafia errada, teclado, foco, recarga; `auditaTela` em 360 px, claro e escuro, com e sem sugestões).
 - **Depende de:** L3.
-- **Fora:** —
+- **Fora:** arrastar carta entre zonas; editar a impressão (V1).
 
 **L8 · Estatísticas** ○
 - **Valor:** entender a lista como no Archidekt.

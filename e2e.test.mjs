@@ -3477,8 +3477,15 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   const worker = await T.createWorker('eng', 1, { langPath, gzip: true, cacheMethod: 'none' });
   try {
     await worker.setParameters({ tessedit_pageseg_mode: '7' });
-    const nome = (await worker.recognize(imgs[0])).data.text;
-    assert.match(nome, /Counterspell/, 'a linha que saiu do navegador tem o nome legível: "' + nome.trim() + '"');
+    // Leva 182 · correção de corrida do próprio teste (portão vermelho 3× em 04/10, sempre com "QUITETTITTTTIIR TT"):
+    // o leitor recebe, em rodízio, o recorte da linha do nome e outros recortes do quadro. `imgs[0]` supunha que o
+    // primeiro depois de zerar a lista era sempre a linha do nome; com a máquina carregada o laço está no meio do
+    // rodízio e o primeiro é outro recorte. A afirmação continua a mesma — a linha do nome que o leitor recebeu é
+    // legível pelo OCR de verdade — conferida nos primeiros recortes distintos, na ordem em que chegaram.
+    const distintos = [...new Map(imgs.map(b => [b.toString('base64'), b])).values()].slice(0, 4);
+    const lidas = []; for (const im of distintos) { lidas.push((await worker.recognize(im)).data.text.trim()); if (/Counterspell/.test(lidas.at(-1))) break; }
+    const nome = lidas.find(x => /Counterspell/.test(x)) || lidas.join(' | ');
+    assert.match(nome, /Counterspell/, 'a linha que saiu do navegador tem o nome legível: "' + nome + '"');
     await worker.setParameters({ tessedit_pageseg_mode: '6' });
     const col = (await worker.recognize(imgsColecao[0])).data.text;
     assert.match(col, /267/, 'número de coleção legível: "' + col.trim() + '"'); assert.match(col, /MH2/, 'edição legível: "' + col.trim() + '"');
@@ -7039,5 +7046,67 @@ test('e2e · H7 imagens da partida: a que falha ou chega cortada volta sozinha e
     assert.ok(agora.length > 0 && agora.every(Boolean), `redesenho ${i + 1}: toda carta à vista já está pintada`);
   }
   assert.equal(total(), antes, 'nenhum download novo das cartas da mesa ao redesenhar');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- L7 · edição rápida da lista ---------------- */
+test('e2e · L7 edição rápida: Ajustar mostra − e + em cada carta e o campo de adicionar com sugestões; tirar a última cópia tem Desfazer; a reserva recebe carta nova; teclado soma e tira', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Azul', '20 Island\n4 Counterspell\n1 Preordain\n\nSideboard\n2 Delver of Secrets', 'pauper');
+  const qtd = nome => page.$$eval('.deck-slot', (els, n) => els.filter(e => e.dataset.name === n).map(e => ((e.querySelector('.deck-slot__qty') || {}).textContent || '×1').replace('×', '') + (e.dataset.zona === 'side' ? 's' : '')).join(','), nome);
+  assert.equal(await page.locator('.deck-slot__passo').count(), 0, 'fora do modo Ajustar a carta não tem botões');
+  await page.click('#deck-ajustar'); await page.waitForSelector('#deck-ajuste');
+  assert.equal(await page.getAttribute('#deck-ajustar', 'aria-pressed'), 'true');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'deck-add', 'o foco vai para o campo de adicionar');
+  assert.equal(await page.locator('.deck-slot__passo').count(), 4, 'toda carta ganha − e +');
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: adicionar');
+  await auditaTela(page, 'lista em Ajustar (escuro)');
+  // 1 · + e −: a quantidade muda na hora e fica guardada
+  const slot = nome => page.locator(`.deck-slot[data-name="${nome}"][data-zona="main"]`);
+  await slot('Counterspell').locator('[data-passo="1"]').click();
+  await page.waitForFunction(() => /×5/.test(document.querySelector('.deck-slot[data-name="Counterspell"] .deck-slot__qty').textContent));
+  assert.equal(await qtd('Counterspell'), '5');
+  await slot('Counterspell').locator('[data-passo="-1"]').click(); await slot('Counterspell').locator('[data-passo="-1"]').click();
+  await page.waitForFunction(() => /×3/.test(document.querySelector('.deck-slot[data-name="Counterspell"] .deck-slot__qty').textContent));
+  assert.match(await page.innerText('#deck-counts'), /24 no deck/);
+  // 2 · tirar a última cópia remove a carta e oferece Desfazer
+  assert.match(await slot('Preordain').locator('[data-passo="-1"]').getAttribute('aria-label'), /Tirar Preordain da lista/);
+  await slot('Preordain').locator('[data-passo="-1"]').click();
+  await page.waitForFunction(() => !document.querySelector('.deck-slot[data-name="Preordain"]'));
+  assert.equal(await qtd('Preordain'), '');
+  assert.match(await page.innerText('#ds-toast'), /Preordain saiu da lista/);
+  await page.click('.ds-toast__acao'); await page.waitForSelector('.deck-slot[data-name="Preordain"]');
+  assert.equal(await qtd('Preordain'), '1', 'Desfazer devolve a carta');
+  // 3 · adicionar pelo nome: sugestões da base guardada, um toque soma no deck
+  await page.fill('#deck-add', 'mou'); await page.waitForSelector('#deck-sug [data-sugestao="Mountain"]');
+  const sug = await page.$$eval('#deck-sug .ds-list__item', is => is.map(i => Math.round(i.getBoundingClientRect().height)));
+  assert.ok(sug.every(x => x >= 44), 'sugestões com 44 px: ' + sug);
+  await auditaTela(page, 'lista em Ajustar com sugestões');
+  await page.click('#deck-sug [data-sugestao="Mountain"]');
+  await page.waitForSelector('.deck-slot[data-name="Mountain"][data-zona="main"]');
+  assert.equal(await qtd('Mountain'), '1'); assert.equal(await page.inputValue('#deck-add'), '', 'o campo limpa para a próxima');
+  assert.equal(await page.locator('#deck-sug').isHidden(), true);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'deck-add', 'o foco continua no campo');
+  // 4 · para a reserva: a zona escolhida vale para a próxima carta; nome inteiro + Enter também entra
+  await page.click('#deck-add-zona [data-zona="side"]');
+  await page.fill('#deck-add', 'sol ring'); await page.keyboard.press('Enter');
+  await page.waitForSelector('.deck-slot[data-name="Sol Ring"][data-zona="side"]');
+  assert.equal(await qtd('Sol Ring'), '1s');
+  await page.fill('#deck-add', 'carta que nao existe'); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => /Não achei/.test(document.querySelector('#ds-toast').textContent));
+  // 5 · teclado: com a carta em foco, + soma e − tira; "/" volta ao campo
+  await slot('Island').locator('.ds-card').focus();
+  await page.keyboard.press('+'); await page.waitForFunction(() => /×21/.test(document.querySelector('.deck-slot[data-name="Island"] .deck-slot__qty').textContent));
+  assert.equal(await page.evaluate(() => document.activeElement.closest('.deck-slot').dataset.name), 'Island', 'o foco fica na mesma carta');
+  await page.keyboard.press('-'); await page.keyboard.press('-');
+  await page.waitForFunction(() => /×19/.test(document.querySelector('.deck-slot[data-name="Island"] .deck-slot__qty').textContent));
+  await page.keyboard.press('/'); assert.equal(await page.evaluate(() => document.activeElement.id), 'deck-add');
+  // 6 · claro, e sair do modo
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'lista em Ajustar (claro)');
+  await page.click('#deck-ajustar'); await page.waitForSelector('#deck-ajuste', { state: 'detached' });
+  assert.equal(await page.locator('.deck-slot__passo').count(), 0);
+  await page.reload(); await page.waitForSelector('.deck-slot');
+  assert.equal(await qtd('Island'), '19', 'tudo guardado');
   assert.deepEqual(errors, []);
 });
