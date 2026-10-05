@@ -1393,9 +1393,36 @@ body {
 .tb-log__turn { display: flex; flex-direction: column; gap: var(--space-1); }
 .tb-log__cab { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--tap-min); } /* H2 · o turno e o botão de voltar a ele */
 .tb-log__turnhead { margin: 0; font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-md); color: var(--accent); }
-.tb-log__phase { display: grid; grid-template-columns: 6.5em 1fr; gap: var(--space-2); }
-.tb-log__phasehead { font-size: var(--text-xs); color: var(--fg-muted); padding-top: 2px; }
-.tb-log__lines { margin: 0; padding-left: var(--space-4); display: flex; flex-direction: column; gap: 2px; }
+.tb-log__phase { display: flex; flex-direction: column; gap: var(--space-1); }   /* I1 · a fase em cima, os acontecimentos na largura inteira */
+.tb-log__phasehead { display: flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); font-weight: var(--weight-medium); letter-spacing: .04em; color: var(--fg-muted); }
+.tb-log__phasehead > .ds-icon { flex: none; color: var(--fg-subtle); }
+.tb-log__phasehead::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.tb-log__lines { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+/* I1 · acontecimentos: a mesma linha no Registro e no resumo da mesa — ícone do que aconteceu, texto, filete de quem agiu */
+.tb-fatos { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); color: var(--fg); }
+.tb-fatos__linha { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-left: 2px solid transparent; border-radius: var(--radius-1); line-height: var(--lh-sm); }
+.tb-fatos__linha > span { min-width: 0; overflow-wrap: anywhere; }
+.tb-fatos__linha > .ds-icon { flex: none; margin-top: 1px; color: var(--fg-subtle); }
+.tb-fatos__linha[data-dono="eu"] { border-left-color: var(--accent); }
+.tb-fatos__linha[data-dono="opp"] { border-left-color: var(--player-opp); }
+.tb-fatos__linha[data-tipo="combate"] > .ds-icon { color: var(--negative); }
+.tb-fatos__linha[data-tipo="defesa"] > .ds-icon { color: var(--accent); }
+.tb-fatos__linha[data-tipo="vida"] > .ds-icon { color: var(--fg); }
+.tb-fatos__linha[data-tipo="perda"] > .ds-icon { color: var(--fg-muted); }
+/* I1 · bloqueios em pares: atacante (vermelho, espada) e bloqueador (dourado, escudo) na mesma linha */
+.tb-balao[data-corpo="true"] { flex-wrap: wrap; }
+.tb-pares { flex: 1 0 100%; min-width: 0; }
+.tb-pares__lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.tb-pares__par { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); font-size: var(--text-sm); }
+.tb-pares__lado { display: flex; align-items: flex-start; gap: var(--space-1); min-width: 0; color: var(--fg); }
+.tb-pares__lado > .ds-icon { flex: none; margin-top: 1px; }
+.tb-pares__lado--ataca > .ds-icon { color: var(--negative); }
+.tb-pares__lado--bloqueia > .ds-icon { color: var(--accent); }
+.tb-pares__lado--livre { color: var(--fg-muted); font-size: var(--text-xs); letter-spacing: .06em; text-transform: uppercase; }
+.tb-pares__nome { min-width: 0; overflow-wrap: anywhere; }
+.tb-pares__nomes { display: flex; flex-direction: column; min-width: 0; }
+.tb-pares__seta { color: var(--fg-subtle); }
+.tb-pares__dica { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--fg-muted); line-height: var(--lh-xs); }
 /* A15 · espiar a carta: sobreposição que só existe enquanto o dedo segura */
 .tb-peek { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--overlay); pointer-events: none; }
 .tb-peek__card { display: grid; grid-template-columns: minmax(120px, 42%) 1fr; gap: var(--space-3); width: min(100%, 560px); max-height: 92vh; overflow: hidden; padding: var(--space-3); background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
@@ -14020,7 +14047,21 @@ function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [
 /** O momento de prioridade: frase curta e ação primária sempre no mesmo lugar. */
 /** E50 P4 · o momento e a dica cabem numa linha só quando há espaço; cortados, viram um botão que abre um
     balão por cima da bandeja com o texto inteiro. `data-cortado` é medido depois de montar. */
-function PriorityBanner({ title, hint, actions, tone, momento }) {
+/** I1 · quadro dos bloqueios: um par por linha, atacante à esquerda (espada, vermelho) e quem o bloqueia à direita
+    (escudo, dourado); atacante sem bloqueio diz "livre". `linhas` vem de `resumoDosBloqueios` (table-model). */
+function QuadroDeBloqueios({ linhas, dica }) {
+  const nome = n => h('span', { class: 'tb-pares__nome', lang: 'en' }, n);
+  return h('div', { class: 'tb-pares', id: 'tb-pares' },
+    h('ul', { class: 'tb-pares__lista' }, ...(linhas || []).map(l => h('li', { class: 'tb-pares__par', dataset: { bloqueado: String(l.bloqueadores.length > 0), atacante: String(l.oid) },
+      'aria-label': l.bloqueadores.length ? `${l.nome}, bloqueado por ${l.bloqueadores.map(b => b.nome).join(' e ')}` : `${l.nome}, sem bloqueio` },
+      h('span', { class: 'tb-pares__lado tb-pares__lado--ataca' }, Icone('espada', { tamanho: 16 }), nome(l.nome)),
+      Icone(l.bloqueadores.length ? 'voltar' : 'seguir', { tamanho: 16, classe: 'tb-pares__seta' }),
+      l.bloqueadores.length
+        ? h('span', { class: 'tb-pares__lado tb-pares__lado--bloqueia' }, Icone('escudo', { tamanho: 16 }), h('span', { class: 'tb-pares__nomes' }, ...l.bloqueadores.map(b => nome(b.nome))))
+        : h('span', { class: 'tb-pares__lado tb-pares__lado--livre' }, 'livre')))),
+    dica ? h('p', { class: 'tb-pares__dica' }, dica) : null);
+}
+function PriorityBanner({ title, hint, actions, tone, momento, corpo = null }) {
   // Leva 110 · com `momento`, a bandeja mostra só o ícone e a palavra do momento, sempre inteiros; título e dica
   // ficam no texto falado e no balão (um toque). Sem `momento`, o comportamento antigo (texto cortado vira balão).
   const chip = momento ? h('span', { class: 'tb-momento', dataset: { tom: momento.tom || 'normal' } }, Icone(momento.icone, { tamanho: 18, classe: 'tb-momento__icone' }),
@@ -14028,8 +14069,10 @@ function PriorityBanner({ title, hint, actions, tone, momento }) {
   const texto = h('button', { class: 'tb-banner__text', type: 'button', 'aria-expanded': 'false', title: hint ? `${title} — ${hint}` : title, dataset: momento ? { compacto: 'true' } : {} },
     chip, h('strong', { class: momento ? 'tb-banner__completo' : '' }, title), hint ? h('span', { class: momento ? 'tb-banner__completo' : '' }, hint) : null, Icone('descer', { tamanho: 14, classe: 'tb-banner__mais' }));
   const balao = h('div', { class: 'tb-balao', role: 'note', hidden: true },
-    h('div', { class: 'tb-balao__texto' }, h('strong', {}, title), hint ? h('p', {}, hint) : null),
-    IconButton('fechar', 'Fechar', { variant: 'ghost', classe: 'tb-balao__fechar', onClick: () => abre(false) }));
+    h('div', { class: 'tb-balao__texto' }, h('strong', {}, title), corpo ? null : (hint ? h('p', {}, hint) : null)),
+    IconButton('fechar', 'Fechar', { variant: 'ghost', classe: 'tb-balao__fechar', onClick: () => abre(false) }),
+    corpo);   // I1 · `corpo` desenha o conteúdo (bloqueios em pares) na largura inteira do balão, abaixo do título; sem ele, a frase
+  if (corpo) balao.dataset.corpo = 'true';
   const banner = h('div', { class: 'tb-banner', dataset: { tone: tone || 'default' }, role: 'status', 'aria-live': 'polite' },
     texto, h('div', { class: 'tb-banner__actions' }, ...(actions || []).filter(Boolean)), balao);
   const fora = e => { if (!balao.contains(e.target) && e.target !== texto && !texto.contains(e.target)) abre(false); };
@@ -14055,7 +14098,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
 })();
 
 
@@ -14979,6 +15022,43 @@ function sinaisDoResumo(r) {
   const f = (r && r.fatos) || {};
   return SINAIS_DO_RESUMO.filter(([k]) => f[k] > 0).map(([k, icone, fala]) => ({ k, icone, n: f[k], fala: fala(f[k]) }));
 }
+/** I1 · o ícone de uma linha do registro, pelo que ela conta. A ordem importa: a primeira regra que casa vence.
+    Devolve { icone, tipo }; `tipo` dá o tom (combate, defesa, vida, perda) e null é linha comum. Puro. */
+const ICONES_DO_REGISTRO = [
+  [/ (atacou com|não atacou)\b|entrou atacando/, 'espada', 'combate'],
+  [/ (bloqueou|não bloqueou)\b/, 'escudo', 'defesa'],
+  [/ (perdeu|ganhou) \d+ \(\d+ → -?\d+\)|→ -?\d+\)?$|de dano de comandante/, 'vida', 'vida'],
+  [/ (desistiu|venceu)\b|perdeu a partida|Empate/, 'fim', null],
+  [/não resolveu|sem alvo legal|será anulada|foi anulad|anulou/, 'fechar', 'perda'],
+  [/ morreu\b|foi destruíd|sacrificou|descartou|para o cemitério|ir para o cemitério/, 'lixeira', 'perda'],
+  [/exíl|exilou|exilad/, 'cartaSai', 'perda'],
+  [/ (voltou|devolveu)\b|para a mão|para o grimório/, 'voltar', null],
+  [/ comprou \d|comprou uma carta/, 'comprar', null],
+  [/ jogou /, 'terreno', null],
+  [/ conjurou |Tempestade:/, 'camadas', null],
+  [/ ativou |^Gatilho de |ordenou os gatilhos|usou ninjutsu| ciclou | transmutou /, 'raio', null],
+  [/ gerou \{| (virou|desvirou) |reserva$/, 'virar', null],
+  [/entrou no campo|criou |ficha/, 'cartaMais', null],
+  [/recebeu \d+ de dano/, 'alerta', 'combate'],
+  [/como alvo de |escolheu o alvo/, 'alvo', null],
+  [/ escolheu | pagou | recusou | não pagou | preferiu /, 'marcar', null],
+  [/manteve a mão|fez mulligan|companheiro/, 'mao', null],
+  [/ tramou |pôs um marcador|tirou um marcador/, 'tramar', null]
+];
+function iconeDaLinhaDoRegistro(texto) {
+  const t = String(texto || '');
+  for (const [re, icone, tipo] of ICONES_DO_REGISTRO) if (re.test(t)) return { icone, tipo };
+  return { icone: 'registro', tipo: null };
+}
+/** I1 · de quem é a linha: índice do jogador cujo nome abre o texto (o mais longo primeiro: "Ana" não rouba "Ana Maria"), ou -1. */
+function donoDaLinha(texto, nomes) {
+  const t = String(texto || '');
+  return (nomes || []).map((n, i) => [String(n || ''), i]).filter(([n]) => n).sort((a, b) => b[0].length - a[0].length)
+    .reduce((achado, [n, i]) => achado >= 0 ? achado : (t === n || t.startsWith(n + ' ') || t.startsWith(n + ':') ? i : -1), -1);
+}
+/** I1 · o ícone da fase no registro. */
+const ICONE_DA_FASE = { 'Início': 'sol', 'Principal 1': 'jogar', 'Combate': 'espada', 'Principal 2': 'jogar', 'Final': 'lua', 'Mão inicial': 'mao' };
+const iconeDaFase = rotulo => ICONE_DA_FASE[rotulo] || 'registro';
 /** H4 · o ícone de uma linha do resumo, pelo começo dela. */
 function iconeDaLinhaDoResumo(l) {
   const t = String(l || '');
@@ -15064,7 +15144,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -15905,7 +15985,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   let maoRecolhida = false, statusAnterior = null;
   store.get(MAO_KEY).then(v => { if (v === true && !maoRecolhida) { maoRecolhida = true; if (table) paint(); } }).catch(() => {});
 
-  const save = () => store.set(T.SAVE_KEY, table.serialize()).catch(() => {});
+  let gravando = Promise.resolve(); // a última gravação em curso (o teste espera por ela antes de recarregar a página)
+  const save = () => (gravando = store.set(T.SAVE_KEY, table.serialize()).catch(() => {}));
   const card = name => T.cartaDaMesa(table.setup.cards, name); // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
@@ -15956,8 +16037,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
       Icone('descer', { tamanho: 18, classe: 'tb-resumo__seta' }));
     const painel = h('div', { class: 'tb-resumo__painel', id: 'tb-resumo-painel', hidden: !resumoAberto, dataset: { sobrepoe: 'true' } },
       ...novos.map(r => h('div', { class: 'tb-resumo__turno', dataset: { turn: String(r.turno) } },
-        Text(`Turno ${r.turno} · ${r.ativo}`, { size: 'sm', display: true }),
-        h('ul', { class: 'tb-resumo__lines' }, ...r.linhas.map(l => h('li', {}, Icone(T.iconeDaLinhaDoResumo(l), { tamanho: 16 }), h('span', {}, l)))))),
+        h('div', { class: 'tb-log__turnhead' }, `Turno ${r.turno} · ${r.ativo}`),   // I1 · o mesmo cabeçalho de turno do Registro
+        h('ul', { class: 'tb-resumo__lines tb-fatos' }, ...r.linhas.map(l => linhaDoRegistro(l, T.iconeDaLinhaDoResumo(l)))))),
       Button('Registro', { variant: 'ghost', icone: 'registro', id: 'tb-resumo-registro', onClick: () => { abreResumo(false); openLog(); } }));
     return h('section', { class: 'tb-resumo', id: 'tb-resumo', dataset: { turn: String(novos[0].turno), aberto: String(resumoAberto) }, 'aria-label': 'Resumo dos últimos turnos' },
       h('div', { class: 'tb-resumo__linha' }, btn,
@@ -15969,7 +16050,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
-    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
+    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -16703,15 +16784,23 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
       actions: [Button('Cancelar', { onClick: () => { closeDialog(); openLog(); } }),
         Button('Voltar', { variant: 'primary', icone: 'desfazer', id: 'tb-volta-confirma', onClick: () => { closeDialog(); if (table.undo(n)) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast(`Voltou ao turno ${turno}`); } } })] });
   }
+  /** I1 · uma linha de acontecimento: ícone pelo que conta, texto, e de quem é (filete). Serve ao registro e ao resumo. */
+  function linhaDoRegistro(l, icone = null) {
+    const ic = icone ? { icone, tipo: null } : T.iconeDaLinhaDoRegistro(l);
+    const dono = T.donoDaLinha(l, table.state.players.map(p => p.name)), eu = table.viewer();
+    return h('li', { class: 'tb-fatos__linha', dataset: { ...(ic.tipo ? { tipo: ic.tipo } : {}), ...(dono >= 0 ? { dono: dono === eu ? 'eu' : 'opp' } : {}) } }, Icone(ic.icone, { tamanho: 16 }), h('span', {}, l));
+  }
   function openLog() {
     const turnos = T.linhaDoTempo(table.entradas).reverse();
     const volta = t => t.turno && podeVoltar() && table.semBarreira() && table.jogadasDesde(t.turno) > 0
       ? Button('Voltar', { variant: 'ghost', icone: 'desfazer', classe: 'tb-log__volta', dataset: { voltaTurno: String(t.turno) }, title: `Voltar ao começo do turno ${t.turno}`, onClick: () => voltaAoTurno(t.turno, t.ativo) }) : null;
     Dialog({ title: 'Registro', body: turnos.length ? h('div', { class: 'tb-log', id: 'tb-timeline' }, ...turnos.map(t => h('section', { class: 'tb-log__turn', dataset: { turn: String(t.turno) } },
       h('div', { class: 'tb-log__cab' }, h('h3', { class: 'tb-log__turnhead' }, t.turno ? `Turno ${t.turno} · ${t.ativo}` : 'Antes do primeiro turno'), volta(t)),
+      // I1 · a fase fica em cima (ícone + nome + fio), e os acontecimentos usam a largura inteira, cada um com o ícone do
+      // que conta e um filete da cor de quem agiu (você no acento, o oponente na cor dele)
       ...t.fases.map(f => h('div', { class: 'tb-log__phase', dataset: { phase: f.rotulo } },
-        f.rotulo ? h('span', { class: 'tb-log__phasehead' }, f.rotulo) : null,
-        h('ul', { class: 'tb-log__lines' }, ...f.linhas.map(l => h('li', {}, l)))))))) : Empty('Nada aconteceu ainda.'),
+        f.rotulo ? h('span', { class: 'tb-log__phasehead' }, Icone(T.iconeDaFase(f.rotulo), { tamanho: 14 }), h('span', {}, f.rotulo)) : null,
+        h('ul', { class: 'tb-log__lines tb-fatos' }, ...f.linhas.map(l => linhaDoRegistro(l)))))))) : Empty('Nada aconteceu ainda.'),
       actions: [Button('Fechar', { onClick: closeDialog })] });
   }
 
@@ -16956,7 +17045,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     } else if (s.turn.priority === v && !s.stack.length && T.resumoDosBloqueios(s, v)) {
       // E50 P2 · a janela depois dos bloqueios: quem bloqueou quem, e que este é o momento de responder
       const rb = T.resumoDosBloqueios(s, v);
-      banner = PriorityBanner({ title: rb.titulo, hint: `${rb.texto}. ${rb.dica}`, tone: 'warning', momento: { icone: 'escudo', curto: 'Bloqueios', tom: 'decisao' },
+      banner = PriorityBanner({ title: rb.titulo, hint: `${rb.texto}. ${rb.dica}`, tone: 'warning', momento: { icone: 'escudo', curto: 'Bloqueios', tom: 'decisao' }, corpo: __m17.QuadroDeBloqueios(rb),
         actions: [Button(rb.atacante ? 'Ir ao dano' : 'Passar', { variant: 'primary', id: 'tb-pass', onClick: () => act({ t: 'pass', p: v }) })] });
     } else if (s.turn.priority === v) {
       const top = s.stack.length ? s.objects[s.stack[s.stack.length - 1]].name : null;

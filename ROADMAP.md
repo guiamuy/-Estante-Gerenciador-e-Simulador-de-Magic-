@@ -427,6 +427,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bc ✅ | H3 melhor de 3 online: quem cria a sala escolhe a série; trocas com a reserva em cada aparelho, a partida seguinte abre sozinha nos dois lados, desistir de uma partida não fecha a sala (leva 177) | H | 1 | teste no aparelho com dois celulares |
 | 16º-bd ✅ | H7 imagens que não somem na partida: cada imagem baixa uma vez, é conferida inteira e fica no aparelho; a que falha ou chega cortada volta sozinha; redesenhar a mesa não vai à rede (leva 180) | H | 1 | teste no aparelho com sinal fraco |
 | 16º-be ✅ | L7 edição rápida da lista: chip Ajustar, − e + em cada carta, adicionar pelo nome com sugestões da base local, Desfazer ao tirar a última cópia (leva 182) | L | 1 | teste no aparelho |
+| 16º-bf ✅ | I1 mesa legível, parte 2: bloqueios em pares (atacante e bloqueador na mesma linha), registro com a fase em cima e ícone por acontecimento, resumo com a mesma linha (leva 183) | I | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5088,6 +5089,43 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   rede e cache falsos: cortada na rede, cortada no cache, cortada sempre; `fonteParaLargura`); e2e "H7" (falha →
   cortada → inteira sem toque, lista inteira na memória, seis redesenhos sem download). Expectativa mudada de
   propósito nos e2e "Leva 123" e "H1": a carta da mesa pinta de `blob:` e diz o endereço em `data-fonte`.
+
+### I · Leitura e gestão (E56, pedido de 05/10/2026)
+
+**Pedido (oito pontos, 05/10/2026):** bloqueios declarados mais visuais (atacante e bloqueador na mesma linha, com
+símbolo); registro com as fases em cima e ícone por acontecimento, sem coluna vazia; resumo da mesa na mesma
+gramática; contagem da coleção só no painel; listas com filtros e gestão como a coleção, e filtro por formato nas
+duas; área no Perfil para escolher a arte de cada ficha; tela Jogar sem texto solto (ícone + dica); histórico e
+estatísticas de partidas por conta. A mensagem chegou cortada no último ponto ("…seguindo o mesmo"): assumido "o
+mesmo padrão de design".
+
+| Ordem | História | Entrega em uma frase |
+|---|---|---|
+| I1 | Mesa legível, parte 2 | bloqueios em pares; registro com fase em cima e ícone por linha; resumo com a mesma linha |
+| I2 | Coleção e listas no mesmo padrão | contagem no painel; busca e filtros nas listas; filtro por formato nas duas |
+| I3 | Tela Jogar sem texto solto | estados em ícone + palavra; explicação em dica do design system |
+| I4 | Fichas do seu jeito | Perfil › Fichas: escolher a arte de cada ficha, com internet, e guardar para jogar offline |
+| I5 | Histórico e estatísticas | partidas guardadas por conta e painel gráfico |
+
+**I1 · Mesa legível, parte 2: bloqueios em pares, registro e resumo estruturados** ✅ (leva 183, 05/10/2026)
+- **Bloqueios declarados:** o balão deixou de ser uma frase corrida ("Sky Pike ← Wall Guard · …"). Agora é uma
+  lista de **pares**, um por linha: atacante à esquerda com espada (vermelho), bloqueador à direita com escudo
+  (dourado); dois bloqueadores no mesmo atacante empilham do lado direito; atacante sem bloqueio diz **livre**.
+  A dica da janela ("reforce, remova um bloqueador ou passe") fica embaixo. Os pares usam a largura inteira do balão.
+- **Registro:** a fase saiu da coluna da esquerda (6,5 em, que deixava as linhas começando no meio da tela) e foi
+  para **cima**, como divisória: ícone da fase, nome e um fio. Os acontecimentos usam a **largura inteira**, cada
+  um com o **ícone do que conta** (terreno, conjurar, ativar/gatilho, atacar, bloquear, vida, morte/descarte,
+  exílio, devolver, compra, mana, alvo, escolha, mão inicial, fim) e um **filete da cor de quem agiu** (você no
+  acento, o oponente na cor dele). Medido em 360 px: a linha começa na borda do corpo do diálogo.
+- **Resumo da mesa:** o painel aberto usa a mesma linha (`tb-fatos`), o mesmo cabeçalho de turno e os mesmos
+  ícones; a faixa recolhida de 44 px (H4) não muda.
+- **Modelo (puro, `table-model`):** `iconeDaLinhaDoRegistro`, `donoDaLinha`, `iconeDaFase`. Componente
+  `QuadroDeBloqueios` (`table-components`); `PriorityBanner` aceita `corpo`.
+- **Limites declarados:** o ícone sai do texto da linha (o registro guarda frases, não eventos): linha nova do motor
+  sem regra cai no ícone genérico; o balão dos bloqueios continua abrindo por toque na bandeja.
+- **Testes:** U `table.unit` ×2; e2e "E50 janela do atacante" (pares na mesma linha, ícones, cores, nome falado,
+  `auditaTela`) e e2e "I1" (fase em cima, largura inteira, ícone por linha, filete, resumo com a mesma linha;
+  `auditaTela` claro e escuro).
 
 ### P · Plataforma
 

@@ -652,3 +652,26 @@ test('H4 · sinais do resumo do turno: só o que aconteceu, contado, com ícone;
   const r = t.resumos.find(x => x.linhas.some(l => l.startsWith('Entrou:'))); assert.ok(r, 'há um resumo com a entrada do terreno');
   assert.equal(r.fatos.entrou, 1); assert.ok(T.sinaisDoResumo(r).some(x => x.k === 'entrou' && x.n === 1));
 });
+
+/* ---------------- I1 · registro e bloqueios com ícone ---------------- */
+test('I1 · ícone de cada linha do registro pelo que ela conta, e o tom de combate, defesa, vida e perda', () => {
+  const ic = t => { const r = T.iconeDaLinhaDoRegistro(t); return r.icone + (r.tipo ? ':' + r.tipo : ''); };
+  assert.equal(ic('Ana atacou com Sky Pike, Sky Pike'), 'espada:combate'); assert.equal(ic('Ana não atacou'), 'espada:combate');
+  assert.equal(ic('Bia bloqueou Sky Pike com Wall Guard'), 'escudo:defesa'); assert.equal(ic('Bia não bloqueou'), 'escudo:defesa');
+  assert.equal(ic('Bia perdeu 2 (20 → 18)'), 'vida:vida'); assert.equal(ic('Ana ganhou 3 (17 → 20)'), 'vida:vida');
+  assert.equal(ic('Wall Guard morreu'), 'lixeira:perda'); assert.equal(ic('Ana descartou Fiery Temper'), 'lixeira:perda');
+  assert.equal(ic('Lightning Bolt não resolveu: alvo ilegal'), 'fechar:perda');
+  assert.equal(ic('Ana comprou 1 carta'), 'comprar'); assert.equal(ic('Ana jogou Mountain'), 'terreno');
+  assert.equal(ic('Ana conjurou Lightning Bolt · alvo: Wall Guard'), 'camadas'); assert.equal(ic('Ana ativou Prodigal Sorcerer · alvo: Bia'), 'raio');
+  assert.equal(ic('Gatilho de Kitchen Imp (ao entrar)'), 'raio'); assert.equal(ic('Ana gerou {R} com Mountain'), 'virar');
+  assert.equal(ic('Sky Pike entrou no campo'), 'cartaMais'); assert.equal(ic('Ana manteve a mão (7 cartas)'), 'mao');
+  assert.equal(ic('Ana escolheu Wall Guard como alvo de Kitchen Imp'), 'alvo'); assert.equal(ic('Ana desistiu'), 'fim');
+  assert.equal(ic('uma linha que ninguém previu'), 'registro'); assert.equal(ic(''), 'registro');
+  assert.equal(T.iconeDaFase('Combate'), 'espada'); assert.equal(T.iconeDaFase('Principal 1'), 'jogar'); assert.equal(T.iconeDaFase('Mão inicial'), 'mao'); assert.equal(T.iconeDaFase('fase nova'), 'registro');
+});
+test('I1 · de quem é a linha: o nome que abre o texto, o mais longo primeiro; linha sem jogador é de ninguém', () => {
+  assert.equal(T.donoDaLinha('Ana jogou Mountain', ['Ana', 'Bia']), 0); assert.equal(T.donoDaLinha('Bia perdeu 2 (20 → 18)', ['Ana', 'Bia']), 1);
+  assert.equal(T.donoDaLinha('Ana Maria atacou com Sky Pike', ['Ana', 'Ana Maria']), 1, '"Ana" não rouba a linha de "Ana Maria"');
+  assert.equal(T.donoDaLinha('Wall Guard morreu', ['Ana', 'Bia']), -1); assert.equal(T.donoDaLinha('Anabela jogou', ['Ana', 'Bia']), -1, 'só nome inteiro');
+  assert.equal(T.donoDaLinha('Vida: Ana 20 → 18', ['Ana', 'Bia']), -1); assert.equal(T.donoDaLinha('', ['Ana']), -1); assert.equal(T.donoDaLinha('Ana jogou', null), -1);
+});

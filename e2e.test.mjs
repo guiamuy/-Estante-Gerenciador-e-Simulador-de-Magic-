@@ -290,6 +290,9 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
 
   // A8: recarregar mantém a partida
   const lands = await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count();
+  // Leva 183 · a instabilidade abaixo era corrida do teste: recarregava antes de a última jogada terminar de ser gravada (CI
+  // vermelho na 182). Espera a gravação em curso (gancho da mesa) ou, sem o gancho, um instante.
+  await page.evaluate(() => (window.__estanteMesa && window.__estanteMesa.gravado ? window.__estanteMesa.gravado() : new Promise(r => setTimeout(r, 500))));
   await page.reload();
   // instável sob carga (02/10/2026: 2 de 5 rodadas completas): se estourar, a falha diz em que tela a página voltou
   await page.waitForSelector('#tb-pass').catch(async e => { throw new Error('depois de recarregar, a mesa não voltou: ' + await page.evaluate(() => location.hash + ' | ' + [...document.querySelectorAll('[id]')].map(x => x.id).filter(i => /^tb-|^ds-dialog|^prep|^sw/.test(i)).join(',') + ' | ' + document.body.innerText.slice(0, 300).replace(/\n/g, ' / '))); });
@@ -2890,6 +2893,22 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   assert.match(faixa, /Sky Pike ← Wall Guard/);
   assert.match(faixa, /Sua janela/);
   assert.equal(await page.locator('#tb-pass').innerText(), 'Ir ao dano');
+  // I1 · o balão dos bloqueios mostra pares: atacante (espada) e bloqueador (escudo) na mesma linha, não uma frase corrida
+  await page.setViewportSize({ width: 360, height: 780 }); await page.click('.tb-dock__bar .tb-banner__text'); await page.waitForSelector('#tb-pares', { state: 'visible' }); await page.waitForTimeout(250);
+  const par = await page.$eval('#tb-pares .tb-pares__par', li => { const r = e => { const b = e.getBoundingClientRect(); return { x: Math.round(b.left), y: Math.round(b.top + b.height / 2) }; };
+    const a = li.querySelector('.tb-pares__lado--ataca'), b = li.querySelector('.tb-pares__lado--bloqueia');
+    return { fala: li.getAttribute('aria-label'), bloqueado: li.dataset.bloqueado, ataca: a.textContent.trim(), bloqueia: b.textContent.trim(), icones: [a.querySelector('.ds-icon').dataset.icone, b.querySelector('.ds-icon').dataset.icone], a: r(a), b: r(b),
+      cores: [getComputedStyle(a.querySelector('.ds-icon')).color, getComputedStyle(b.querySelector('.ds-icon')).color] }; });
+  assert.deepEqual([par.ataca, par.bloqueia, par.bloqueado], ['Sky Pike', 'Wall Guard', 'true']); assert.deepEqual(par.icones, ['espada', 'escudo']);
+  assert.equal(par.fala, 'Sky Pike, bloqueado por Wall Guard');
+  assert.ok(Math.abs(par.a.y - par.b.y) <= 2 && par.a.x < par.b.x, 'atacante e bloqueador na mesma linha, atacante à esquerda: ' + JSON.stringify(par));
+  assert.notEqual(par.cores[0], par.cores[1], 'cores diferentes para quem ataca e quem bloqueia');
+  assert.match(await page.innerText('#tb-pares .tb-pares__dica'), /Sua janela/);
+  assert.doesNotMatch(await page.innerText('.tb-balao'), /←/, 'sem a seta de texto no balão');
+  await auditaTela(page, 'balão dos bloqueios em pares');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i1-bloqueios.png' });
+  await page.evaluate(() => { const b = document.querySelector('.tb-balao:not([hidden]) .tb-balao__fechar'); if (b) b.click(); });
+  await page.setViewportSize({ width: 390, height: 844 });
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/janela-bloqueios.png' }); await page.click('.tb-dock__bar .tb-banner__text'); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/janela-balao.png' }); await page.click('.tb-dock__bar .tb-banner__text'); }
   // marcas: o atacante mostra o bloqueador; o bloqueador mostra quem bloqueia
   // leva 110: o nome falado virou frase ("Bloqueada por Wall Guard" no lugar de "← Wall Guard"); na carta fica só o ícone
@@ -7108,5 +7127,41 @@ test('e2e · L7 edição rápida: Ajustar mostra − e + em cada carta e o campo
   assert.equal(await page.locator('.deck-slot__passo').count(), 0);
   await page.reload(); await page.waitForSelector('.deck-slot');
   assert.equal(await qtd('Island'), '19', 'tudo guardado');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- I1 · registro com a fase em cima e ícone por acontecimento; resumo na mesma gramática ---------------- */
+test('e2e · I1 registro: a fase fica em cima e os acontecimentos usam a largura inteira, cada um com ícone e o filete de quem agiu; o resumo da mesa usa a mesma linha', { skip }, async t => {
+  const M = await comLista125(t, '20 Mountain\n20 Fiery Temper\n20 Kitchen Imp', ['Mountain', 'Fiery Temper', 'Kitchen Imp'], '3');
+  const { page, errors } = M;
+  await M.terreno(); await M.proximo();
+  await page.waitForSelector('#tb-resumo');
+  // resumo aberto: mesmas linhas do registro (classe, ícone) e o mesmo cabeçalho de turno
+  await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' }); await page.waitForTimeout(250);
+  const res = await page.$$eval('#tb-resumo-painel .tb-fatos__linha', ls => ls.map(l => ({ icone: (l.querySelector('.ds-icon') || { dataset: {} }).dataset.icone, texto: l.textContent.trim() })));
+  assert.ok(res.length >= 1 && res.every(x => x.icone && x.texto), 'linhas do resumo com ícone: ' + JSON.stringify(res));
+  assert.ok(await page.locator('#tb-resumo-painel .tb-log__turnhead').count() >= 1, 'cabeçalho de turno igual ao do Registro');
+  await auditaTela(page, 'resumo aberto (I1)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i1-resumo.png' });
+  await page.click('#tb-resumo-registro'); await page.waitForSelector('#tb-timeline'); await page.waitForTimeout(350);
+  const m = await page.evaluate(() => {
+    const cx = e => { const b = e.getBoundingClientRect(); return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom), w: Math.round(b.width) }; };
+    const corpo = cx(document.querySelector('#tb-timeline'));
+    return { corpo, fases: [...document.querySelectorAll('#tb-timeline .tb-log__phase')].filter(f => f.querySelector('.tb-log__phasehead')).map(f => { const hd = f.querySelector('.tb-log__phasehead'), li = [...f.querySelectorAll('.tb-fatos__linha')];
+      return { rotulo: f.dataset.phase, icone: (hd.querySelector('.ds-icon') || { dataset: {} }).dataset.icone, hd: cx(hd), linhas: li.map(x => ({ ...cx(x), icone: (x.querySelector('.ds-icon') || { dataset: {} }).dataset.icone, dono: x.dataset.dono || '', texto: x.textContent.trim() })) }; }) };
+  });
+  assert.ok(m.fases.length >= 2, 'há fases no registro');
+  for (const f of m.fases) {
+    assert.ok(f.icone, 'a fase tem ícone: ' + f.rotulo);
+    assert.ok(f.linhas.length >= 1 && f.hd.b <= f.linhas[0].t + 1, `a fase "${f.rotulo}" fica em cima das linhas, não ao lado`);
+    for (const l of f.linhas) { assert.ok(l.icone, 'linha com ícone: ' + l.texto); assert.ok(l.l - m.corpo.l <= 4 && l.w >= m.corpo.w - 24, `a linha usa a largura inteira (sem coluna vazia à esquerda): ${JSON.stringify(l)} em ${JSON.stringify(m.corpo)}`); }
+  }
+  const todas = m.fases.flatMap(f => f.linhas);
+  assert.ok(todas.some(l => l.texto.includes('jogou Mountain') && l.icone === 'terreno' && l.dono === 'eu'), 'meu terreno: ícone de terreno e filete meu: ' + JSON.stringify(todas.slice(0, 6)));
+  assert.ok(todas.filter(l => l.icone !== 'registro').length >= todas.length - 1, 'quase toda linha tem ícone próprio, não o genérico: ' + JSON.stringify(todas.map(l => [l.icone, l.texto])));
+  assert.doesNotMatch(await page.innerText('#tb-timeline'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await auditaTela(page, 'registro (I1, escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i1-registro.png' });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'registro (I1, claro)');
   assert.deepEqual(errors, []);
 });
