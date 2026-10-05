@@ -9990,7 +9990,7 @@ function chargeWard(s, p, stackOid, chosen) {
     if (!alvo || alvo.controller === p) continue;
     const custo = wardOf(s, alvo);
     if (!custo) continue;
-    cobrancas.push({ kind: 'may_pay', p, cost: custo, target: stackOid, name: `vigilância de ${alvo.name}` });
+    cobrancas.push({ kind: 'may_pay', p, cost: custo, target: stackOid, name: `salvaguarda de ${alvo.name}` });
   }
   if (!cobrancas.length) return;
   if (s.pending) { s.filaWard = (s.filaWard || []).concat(cobrancas); return; }
@@ -10266,7 +10266,7 @@ function applyEffect(s, src, eff, tgt, events) {
         note({ amount: n }); } break;
     case 'destroy': {
       const alvoD = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // Leva 108 · Cryoshatter sem alvo
-      if (!alvoD || has(s, alvoD, 'indestructible')) note({ failed: true });
+      if (!alvoD || has(s, alvoD, 'indestructible')) note({ failed: true, ...(alvoD ? { why: 'indestrutível' } : {}) }); // R9b · o registro só diz "indestrutível" quando é esse o motivo
       else { moveObject(s, alvoD.oid, 'graveyard'); note({}); }
       break;
     }
@@ -13987,10 +13987,10 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
-    case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t} (indestrutível)` : `${ev.name} destruiu ${t}`;
+    case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
-    case 'counter': return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : `${ev.name} anulou ${t}`;
+    case 'counter': return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
     case 'counters': return `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
     case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
     case 'return_chosen': return `${ev.name}: ${t} devolveu uma permanente à mão`;
@@ -14651,7 +14651,15 @@ function descreveAlvo(chave) {
   if (!nome) return (each ? 'cada ' : '') + qual;
   return (each ? 'cada ' : (['player', 'opponent'].includes(nome) ? 'um ' : 'uma ')) + base[nome] + (qual && qual !== nome ? ' ' + qual : '');
 }
-const ALVO_PT = { enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each-opponent-creature-planeswalker': 'cada oponente e cada criatura e planeswalker deles',
+  'each-own-creature': 'cada criatura sua', 'each-flying-creature': 'cada criatura com voar', 'each-nonflying-creature': 'cada criatura sem voar', 'creature-spell': 'uma mágica de criatura',
+  'noncreature-spell': 'uma mágica que não é de criatura', 'instant-spell': 'uma mágica instantânea', 'artifact-spell': 'uma mágica de artefato', 'artifact-enchantment-spell': 'uma mágica de artefato ou encantamento',
+  'artifact-enchantment': 'um artefato ou encantamento', 'artifact-enchantment-opponent-controls': 'um artefato ou encantamento de um oponente', 'card-in-any-graveyard': 'uma carta de um cemitério',
+  'creature-land-in-any-graveyard': 'uma carta de criatura ou terreno de um cemitério', 'creature-in-your-graveyard': 'uma carta de criatura do seu cemitério', 'permanent-in-your-graveyard': 'uma carta de permanente do seu cemitério',
+  'creature-enchantment-you-control': 'uma criatura ou encantamento seu', 'other-creature-you-control': 'outra criatura sua', 'creature-you-control': 'uma criatura sua', 'creature-opponent-controls': 'uma criatura de um oponente',
+  'first-target': 'o mesmo alvo', 'spell-or-creature': 'uma mágica ou criatura', 'spell-or-ability': 'uma mágica ou habilidade', 'target-controller': 'quem controlava o alvo', 'self-source': 'esta permanente', self: 'você',
+  'creature-blocked-by-source': 'a criatura que ela bloqueia', all: 'tudo', enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
+const PALAVRA_PT = { indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
@@ -14672,10 +14680,10 @@ function descreveEfeito(e) {
     case 'bounce': return `devolve ${alvo || 'uma permanente'} para a mão do dono`;
     case 'to_hand': return 'volta para a mão';
     case 'token': { const t = e.token || {}; const pt = t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}`; }
-    case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
+    case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && v.per ? '+X' : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); return `${alvo || 'a criatura'} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}`; }
     case 'add_mana': return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')} no grimório`;
-    case 'scry': return `olha as ${n} de cima e decide (scry ${n})`;
+    case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
     case 'look': return `olha as ${n} cartas de cima`;
     case 'untap': return `desvira ${alvo || 'uma permanente'}`;
@@ -14684,7 +14692,7 @@ function descreveEfeito(e) {
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
     case 'counters': return `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
-    case 'keyword': return `${alvo || 'a criatura'} ganha ${e.keyword || 'uma habilidade'} até o fim do turno`;
+    case 'keyword': return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
@@ -14700,6 +14708,16 @@ function descreveEfeito(e) {
     case 'draw_free_cast': return 'compra e pode conjurar de graça';
     case 'exile_top_playable': return 'exila a carta de cima e pode jogá-la';
     case 'prevent_spell': case 'prevent_color': return 'previne dano';
+    case 'discard_chosen': return 'olha a mão do alvo e escolhe uma carta para ele descartar';
+    case 'exile_chosen': return 'o alvo exila uma carta do próprio cemitério';
+    case 'return_held': return 'devolve ao campo a carta que estava exilada';
+    case 'connive': return 'maquina: compra uma carta e descarta uma; se não for terreno, ganha um marcador +1/+1';
+    case 'no_prevention': return 'o dano não pode ser prevenido neste turno';
+    case 'gain_per_revealed': return 'ganha 3 de vida para cada carta revelada';
+    case 'to_library_shuffled': return 'é embaralhada no grimório do dono';
+    case 'discard_or_sacrifice_land_draw': return 'pode descartar uma carta ou sacrificar um terreno; se fizer, compra 2 cartas';
+    case 'choose_type': return 'escolhe um tipo de criatura';
+    case 'put_back': return `devolve ${plural(n, 'carta', 'cartas')} da mão ao topo do grimório`;
     default: return String(e.do).replace(/_/g, ' ');
   }
 }
@@ -14714,12 +14732,16 @@ function linhaOficialDaHabilidade(o, facts, oracle) {
   const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
   const sc = (facts && facts.script) || {};
   const mesmo = a => a && JSON.stringify(a.effects || []) === JSON.stringify(o.effects || []);
-  const iG = (sc.triggers || []).findIndex(mesmo), iA = (sc.abilities || []).findIndex(mesmo);
+  // R9b · gatilhos e ativadas moram juntos em script.abilities: separar por tipo, senão o gatilho de entrada da Harrier Strix
+  // mostrava a linha da habilidade ativada ("{2}{U}: Draw a card, then discard a card.")
+  const doTipo = k => (sc.abilities || []).filter(a => a && (k === 'triggered' ? a.kind === 'triggered' : a.kind !== 'triggered'));
+  const gat = [...(sc.triggers || []), ...doTipo('triggered')], atv = doTipo('activated');
+  const iG = gat.findIndex(mesmo), iA = iG >= 0 ? -1 : atv.findIndex(mesmo);
   const gatilhos = linhas.filter(l => /^(When|Whenever|At the beginning)\b/.test(l));
   const ativadas = linhas.filter(l => /^[^.:]{1,60}:\s/.test(l) && !/^(When|Whenever|At the beginning)\b/.test(l));
   // a posição só é confiável quando script e carta têm o mesmo número de linhas daquele tipo
-  if (iG >= 0 && gatilhos.length === (sc.triggers || []).length && gatilhos[iG]) return gatilhos[iG];
-  if (iA >= 0 && ativadas.length === (sc.abilities || []).length && ativadas[iA]) return ativadas[iA];
+  if (iG >= 0 && gatilhos.length === gat.length && gatilhos[iG]) return gatilhos[iG];
+  if (iA >= 0 && ativadas.length === atv.length && ativadas[iA]) return ativadas[iA];
   if (iG >= 0 && gatilhos.length === 1) return gatilhos[0];
   if (iA >= 0 && ativadas.length === 1) return ativadas[0];
   return texto;
@@ -16359,7 +16381,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.discardSelf ? 'descartar esta carta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {
@@ -16401,8 +16423,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
         : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
-        : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}` : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + (a.targets ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
@@ -16439,7 +16461,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
       E.productions(s, o).forEach((opt, k) => legal.push(doBtn(opt.length > 4 && opt.every(c => c === opt[0]) ? `Gerar ${opt.length} × {${opt[0]}}` : `Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k }))); // Leva 136 · nove {G} em fila viram "9 × {G}"
     // S24: faces duplas
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
-      legal.push(doBtn(x.disturb ? `Disturb · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
+      legal.push(doBtn(x.disturb ? `Perturbar · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));
@@ -16467,7 +16489,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
       // cor, e o botão saía "Gerar {W}" — cinco botões que juntavam todos os alvos e protegiam sempre o primeiro (a própria Mother).
       // Agora: um botão por criatura; as cinco cores ficam juntas nele e a folha pergunta a cor em seguida (escolher → escolherCor).
       if (act.color && (ab.effects || []).some(e => e.do === 'protection')) { const c0 = custoDaHabilidade(ab);
-        legal.push(doBtn(`Proteger de uma cor${c0 ? ` (${c0})` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' })); continue; }
+        legal.push(doBtn(`Proteger de uma cor${c0 ? ` (${c0})` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' })); continue; }
       if (act.color) { legal.push(doBtn(`Gerar {${act.color}}`, act)); continue; }
       // R5 · habilidade que só gera mana de símbolo fixo (ficha Eldrazi Spawn: "Sacrifice this creature: Add {C}") diz a mana, não "Ativar"
       const soMana = (ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana' && Array.isArray(e.symbols));
@@ -16479,7 +16501,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
       // as duas num botão só e a segunda (desvirar) não podia ser usada. Com custo repetido, o botão diz o que cada uma faz.
       const custoRepetido = allAbilities.filter(x => x.loyalty == null && custoDaHabilidade(x) === cost).length > 1;
       const oQueFaz = o.token || custoRepetido ? T.descreveEfeitos(ab.effects) : '';
-      legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
+      legal.push(doBtn(`Ativar${cost ? ` (${cost})` : ''}${oQueFaz ? `: ${oQueFaz}` : ''}${(act.targets || []).length ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' }));
     }
     // Leva 111 · habilidade que existe mas não dá para ativar agora aparece apagada, com o motivo
     // (antes a folha ficava vazia e parecia que a ficha não tinha habilidade)
@@ -16691,7 +16713,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
       // Leva 125 · a pergunta fica à vista (cabeçalho de decisão): qual carta, por quanto, e o que acontece se recusar.
       // Sem mana para a insanidade, "Conjurar" aparece apagado e a frase diz por quê (antes o botão só sumia).
       banner = PriorityBanner({ title: `${carta ? carta.name : 'Carta descartada'}: insanidade ${s.pending.cost}`, tone: 'warning',
-        hint: opts.length ? `Conjure agora por ${s.pending.cost} ou deixe ir para o cemitério.` : `Sem mana para pagar ${s.pending.cost} agora: ela vai para o cemitério.`,
+        hint: opts.length ? `Conjure agora por ${s.pending.cost} ou deixe ir para o cemitério.` : E.legalActions({ ...s, manaCheck: false }, v).some(x => x.t === 'cast_madness') ? `Sem mana para pagar ${s.pending.cost} agora: ela vai para o cemitério.` : 'Sem alvo para ela agora: ela vai para o cemitério.', // R9b · dizia "sem mana" com mana sobrando (Dark Withering sem criatura que não seja preta)
         actions: [Button('Conjurar', { variant: 'primary', id: 'tb-madness', disabled: !opts.length, onClick: () => escolherAlvo(`Conjurar ${carta ? carta.name : 'a carta'}`, opts) }),
           Button('Cemitério', { id: 'tb-madness-no', onClick: () => act({ t: 'decline_madness', p: v }) })] });
     } else if (s.pending && s.pending.kind === 'may_pay' && s.pending.p === v) {

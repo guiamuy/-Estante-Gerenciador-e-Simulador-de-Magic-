@@ -268,7 +268,7 @@ test('A14 · efeitos em português de jogador, um por um, e o desconhecido não 
   assert.equal(d({ do: 'lose', amount: 1, target: 'each-opponent' }), 'cada oponente perde 1 de vida');
   assert.equal(d({ do: 'draw', amount: { per: 'opponents-empty-hand' } }), 'compra X cartas');
   assert.equal(d({ do: 'coisa_nova' }), 'coisa nova', 'efeito fora do dicionário aparece pelo nome');
-  assert.equal(T.descreveEfeitos([{ do: 'scry', amount: 1 }, { do: 'draw', amount: 1 }]), 'olha as 1 de cima e decide (scry 1); compra 1 carta');
+  assert.equal(T.descreveEfeitos([{ do: 'scry', amount: 1 }, { do: 'draw', amount: 1 }]), 'vidência 1: olha 1 carta de cima e decide o que fica no topo; compra 1 carta'); // R9b · expectativa ajustada: a frase dizia "scry" (a mesa chama vidência desde a leva 131) e "as 1"
   assert.equal(T.descreveEfeitos([]), '');
 });
 

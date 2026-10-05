@@ -147,7 +147,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R8 Walls Combo carta a carta: 24 cartas revisadas, Freed from the Real utilizável pela tela; **as sete listas Pauper revisadas carta a carta** (leva 165, motor v69 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R9 homologação independente das sete listas Pauper: sete revisores sem acesso às levas R1–R8, 10 divergências de regra corrigidas com teste (leva 178, motor v70) | 🟡 |
 | R · Revisão carta a carta | Proteção contra a cor à escolha pela tela (relato do aparelho): Mother of Runes, Benevolent Bodyguard e Alseid protegem a criatura tocada, com a cor tocada (leva 179, motor v70 sem mudança) | 🟡 |
-| R · Revisão carta a carta | R9b tela da homologação: registro, pilha explicada e rótulos apontados pelos revisores | ▶ |
+| R · Revisão carta a carta | R9b tela da homologação: registro não diz mais "anulou"/"indestrutível" sem ter feito, pilha explicada com a linha do gatilho, sobrecarga e perturbar com o rótulo certo, ward como salvaguarda, 35 frases do dicionário de efeitos em português (leva 181, motor v70 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
@@ -390,7 +390,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
 | 16º-r9 🟡 | Homologação independente das Pauper: perturbar e presságio cobrados, Hallow só no turno, Lembas, Masked Vandal sem alvo, insanidade na limpeza, Utopia Sprawl + Abundant Growth, Hydra concedida, virada para baixo sem tipo, Flagbearer (leva 178) | R9 | 1 | teste no aparelho |
 | 16º-prot 🟡 | Proteção contra a cor à escolha: botão por criatura e pergunta da cor; regra fixada no motor com fonte multicolorida e incolor (leva 179) | R | 1 | teste no aparelho |
-| 16º-r9b ▶ | Tela da homologação: registro que mente ("anulou", "indestrutível"), pilha explicada com a linha errada, sobrecarga "sem pagar mana", "Disturb", ward chamado de vigilância, seta solta sem alvo, descrições de reserva em inglês | R9 | 1 | — |
+| 16º-r9b 🟡 | Tela da homologação: registro, pilha explicada, rótulos e dicionário de efeitos (leva 181) | R9 | 1 | teste no aparelho |
+| 16º-r9d ○ | Resto da tela da homologação: cor escolhida visível na mesa (Benevolent Blessing, Utopia Sprawl), habilidade do par (Galvanic Alchemist) com custo e efeito no botão, ordem de gatilhos com botões iguais de valor diferente, registro do ninjutsu só na resolução, "pode" sem custo descrito como pagamento | R9 | 1 | — |
 | 16º-r9c ○ | Estruturas apontadas pela homologação: regra das lendas, atacante divide o dano entre bloqueadores, escolha de como pagar (mana flutuante e fontes), busca que pode não achar, reciclar e rajada pela pilha | R12 | 3 a 5 | decisão por estrutura |
 | 16º-r8 🟡 | Walls Combo carta a carta: habilidades de mesmo custo com nomes diferentes na folha (Freed from the Real não desvirava pela tela); fecha as sete listas Pauper (leva 165) | R8 | 1 | teste no aparelho |
 | 16º-r7 🟡 | Jund Wildfire carta a carta: custos de sacrifício e adaptar por extenso, permanentes iguais juntas na escolha, Vault of Whispers com script (leva 148) | R7 | 1 | teste no aparelho |
@@ -2498,6 +2499,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Testes:** e2e "proteção contra cor · Mother of Runes" (falhava: a folha mostrava cinco "Gerar"); `protecao.regras` (5).
 - **Simplificação declarada:** a cor é escolhida ao ativar (pela regra, na resolução); o oponente vê a cor antes de responder.
 - **Fora:** Benevolent Bodyguard e Alseid usam o mesmo caminho e não têm teste de tela próprio.
+
+**R9b · Tela da homologação** 🟡 (leva 181, motor v70 sem mudança de regra) — o que os revisores apontaram como texto errado ou enganoso:
+- **Registro que mentia:** Hydroblast numa mágica que não é vermelha dizia "anulou" (e a mágica resolvia); numa permanente que não é vermelha dizia "não destruiu (indestrutível)". Agora "não anulou X: sem efeito" e "não destruiu X: sem efeito"; "indestrutível" só quando é esse o motivo (o evento do motor passou a dizer o porquê; o estado não muda).
+- **Pilha explicada:** o gatilho de entrada da Harrier Strix e da Sewer-veillance Cam mostrava o texto da habilidade ativada da mesma carta. Gatilhos e ativadas são separados por tipo antes de casar com as linhas do texto oficial.
+- **Rótulos:** custo alternativo que cobra mana (sobrecarga da Electrickery) dizia "Conjurar sem pagar mana" → "Custo alternativo · Sobrecarga {1}{R}…"; "Disturb" → "Perturbar"; ward cobrado como "vigilância de X" → "salvaguarda de X"; ação com zero alvos (Cast into the Fire, Faerie Macabre) não deixa mais a seta solta; canalizar (Mirrorshell Crab) e Faerie Macabre dizem "descartar esta carta" no custo; a faixa de insanidade diz "sem alvo" quando o que falta é alvo, não mana.
+- **Dicionário de efeitos:** 35 frases saíam em inglês, com chave de script ou sem frase ("cada flying creature", "self source", "return held", "−NaN/−NaN", "indestructible"). Todas em português; um teste percorre os efeitos de todos os scripts e derruba o portão se voltar inglês, chave ou NaN.
+- **Testes:** `homologacao.tela.unit` (6, todos falhavam).
+- **Fora (história 16º-r9d):** cor escolhida visível na mesa; botão da habilidade do par; ordem de gatilhos com botões iguais; registro do ninjutsu antes de resolver; "pode" sem custo descrito como pagamento. Os rótulos da folha foram conferidos por leitura do código da tela (teste de fonte), não por partida guiada.
 
 **R10 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
 - **R10 · Plano do lote:** texto oficial das 105 cartas sem texto conferido, ficha de leitura e triagem em três baldes (só script · primitiva nova · lacuna estrutural), com a matriz primitiva × cartas. Sem isso a ordem é palpite. 1 leva.
