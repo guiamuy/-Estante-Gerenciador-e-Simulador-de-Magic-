@@ -148,7 +148,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R9 homologação independente das sete listas Pauper: sete revisores sem acesso às levas R1–R8, 10 divergências de regra corrigidas com teste (leva 178, motor v70) | 🟡 |
 | R · Revisão carta a carta | Proteção contra a cor à escolha pela tela (relato do aparelho): Mother of Runes, Benevolent Bodyguard e Alseid protegem a criatura tocada, com a cor tocada (leva 179, motor v70 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R9b tela da homologação: registro não diz mais "anulou"/"indestrutível" sem ter feito, pilha explicada com a linha do gatilho, sobrecarga e perturbar com o rótulo certo, ward como salvaguarda, 35 frases do dicionário de efeitos em português (leva 181, motor v70 sem mudança) | 🟡 |
-| R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
+| R · Revisão carta a carta | R10 plano do lote Commander: texto oficial das 158 cartas que faltavam, triagem das 164 em baldes (54 prontas · 24 A · 70 B · 16 C) e matriz primitiva × cartas (leva 184, sem mudança de motor) | ✅ |
+| R · Revisão carta a carta | R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -2510,7 +2511,25 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Testes:** `homologacao.tela.unit` (6, todos falhavam).
 - **Fora (história 16º-r9d):** cor escolhida visível na mesa; botão da habilidade do par; ordem de gatilhos com botões iguais; registro do ninjutsu antes de resolver; "pode" sem custo descrito como pagamento. Os rótulos da folha foram conferidos por leitura do código da tela (teste de fonte), não por partida guiada.
 
-**R10 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
+**R10 · Plano do lote Commander** ✅ (leva 184, motor v70 sem mudança) — o plano saiu do texto oficial, não de palpite.
+- **Texto oficial:** 158 cartas das duas listas não tinham texto conferido. Coletadas em 05/10/2026 e gravadas em `.listas/oficiais-commander.json`, cada uma com fonte, data e nota do que foi montado de duas fontes. Scryfall e Gatherer recusaram (403); custo, tipo, P/T e rulings vêm de api.magicthegathering.io (redação às vezes antiga) e a redação atual de casualplaneswalker.com, mtg.wtf, mtgnexus.com e grimoria.app. Páginas HTML erraram custo de mana em mais de 20 leituras (o custo é imagem); valeu o que duas fontes estruturadas disseram. **Incertas (2):** Kytheon, Hero of Akros (fonte única, redação antiga) e Sorin of House Markov (o gatilho de transformar diverge entre fontes). Não escrever script delas sem nova conferência.
+- **Triagem** (`.listas/triagem-commander.json`, 164 cartas não básicas): **54 prontas** (script completo; falta a auditoria frase a frase) · **24 no balde A** (cabem no vocabulário de hoje; 5 delas só têm a nota do script velha) · **70 no balde B** (pedem primitiva nova) · **16 no balde C** (dependem de estrutura que o motor não tem). Por lista — Killian: 25 prontas, 16 A, 38 B, 9 C. Malcolm + Kediss: 34 prontas, 8 A, 32 B, 7 C.
+- **O achado que muda a estimativa:** o balde B é uma cauda longa. São ~55 primitivas para 70 cartas, e 45 delas destravam uma carta só. As que rendem: reanimar por valor de mana (7 cartas), "ative somente se" (5), revelar até achar (5: o plano inteiro do baralho do Malcolm), édito (4), modal de escolher dois ou três (4), mana com dano ou vida (4), custo alternativo novo (4), kicker (3), marcador nomeado (3), entra virado a menos que (3).
+- **Estruturas (balde C):** camadas de efeito contínuo 613 (7 cartas: Darksteel Mutation, Reprobation, Mishra's Factory, Blinkmoth Nexus, Smuggler's Copter, Animate Dead, Gideon), veneno (3), fase (2), cópia (2), suspender (1), troca de controle (1).
+- **Ordem proposta para a R11** (cada linha uma leva, salvo indicação):
+  1. Auditoria frase a frase das 54 prontas + as 5 de nota velha contra o texto novo (a auditoria das Pauper achou 18 erros em 138 cartas; esperar de 5 a 8 aqui).
+  2. Os dois comandantes e os terrenos: Killian (redução por alvo), Malcolm (dano por Pirata → Treasure), Kediss, e os 20 terrenos e pedras de mana (entra virado a menos que, mana com sacrifício, mana com dano). 2 levas. Terreno aparece em toda mão: é o que mais se sente.
+  3. Resto do balde A (Elas il-Kor, Leonin Relic-Warder, Open the Armory, Reprieve, Rite of Oblivion, Swan Song, Bounty Agent, You See a Guard Approach…).
+  4. Revelar até achar (Polymorph, Transmogrify, Reality Scramble, Reweave, −2 da Lukka): o baralho do Malcolm passa a fazer o que ele faz.
+  5. Reanimar por valor + modal múltiplo + édito: o miolo do Killian (Patch Up, Call of the Death-Dweller, Ascend from Avernus, Sevinne's Reclamation, Profane Command, Silverquill Command, Wretched Confluence, Austere Command, Accursed Marauder, os dois Priests). 2 a 3 levas.
+  6. "Ative somente se", kicker, marcador nomeado, custos alternativos, gatilho atrasado. 2 levas.
+  7. A cauda de uma carta por primitiva: 4 a 6 levas, ou as cartas ficam manuais declaradas.
+- **Estimativa honesta:** R11 de 13 a 17 levas; R12 (estruturas) de 6 a 10. As duas listas a 100% ficam a **19 a 27 levas**. O Malcolm chega antes: 42 das 81 cartas já estão prontas ou no balde A.
+- **Decisão pendente do dono do produto:** hoje lista com carta parcial ou manual não joga (modo único, leva 113). Com essa regra, nenhuma lista de Commander joga antes de ~12 levas. Alternativa: deixar a lista jogar quando só restarem cartas do balde C, com essas cartas marcadas "manual" na mesa (o jogador aplica o efeito). Não foi feito; fica registrado para decidir.
+- **Testes:** `commander.lote.unit` (2): toda carta das listas tem texto com fonte e data; a triagem cobre as mesmas cartas e toda B ou C diz o que falta.
+- **Fora:** nenhum script escrito ou alterado nesta leva; `medir.mjs` ainda conta "sem texto conferido" só por `oficiais.json` (passa a ler os dois arquivos na auditoria da R11).
+
+**R11 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
 - **R10 · Plano do lote:** texto oficial das 105 cartas sem texto conferido, ficha de leitura e triagem em três baldes (só script · primitiva nova · lacuna estrutural), com a matriz primitiva × cartas. Sem isso a ordem é palpite. 1 leva.
 - **R11 · Balde A e B**, na ordem que mais destrava por leva (terrenos de duas cores e pedras de mana primeiro: Command Tower, Exotic Orchard e Sol Ring estão nas duas listas). 6 a 10 levas.
 - **R12 · Estruturas** que as listas exigem, cada uma com a regra numerada inteira e fuzz: camadas de efeito contínuo (613), efeitos de substituição (614), cópia de mágica e de permanente (707), troca de controle, regra de lenda, ataque a planeswalker, mais de um alvo por gatilho. A decisão de construir ou deixar a carta manual é tomada por estrutura, com a contagem de cartas que cada uma destrava. 5 a 8 levas.

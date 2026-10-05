@@ -1,0 +1,2106 @@
+{
+ "sobre": "R10 (leva de plano) · texto oficial das 158 cartas das listas Commander Orzhov Killian e Malcolm + Kediss que não estavam em oficiais.json, coletado em 05/10/2026 por oito coletores com a regra de nunca escrever de memória. Scryfall e Gatherer recusaram (403); custo, tipo, P/T e rulings vêm de api.magicthegathering.io (redação às vezes antiga), a redação atual de casualplaneswalker.com, mtg.wtf, mtgnexus.com e grimoria.app; cada carta diz a fonte e, em nota, o que foi montado de duas fontes ou divergiu. incerto=true: não usar como verdade sem nova conferência.",
+ "cartas": [
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Abrade",
+   "mana_cost": "{1}{R}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target artifact.",
+   "fonte": "https://mtg.wtf/card?q=Abrade",
+   "nota": "Confirmado em mtg.wtf, API magicthegathering.io e echomtg. tappedout mostra 'This deals 3 damage' (redação própria do site, descartada)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Accursed Marauder",
+   "mana_cost": "{1}{B}",
+   "type_line": "Creature — Zombie Warrior",
+   "oracle_text": "When this creature enters, each player sacrifices a nontoken creature of their choice.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [
+    "As Accursed Marauder's enters-the-battlefield ability resolves, first the player whose turn it is chooses which creature they'll sacrifice, then each other player in turn order does the same. Players will know the choices of previous players when making their choice. Then all of the chosen creatures are sacrificed by their controllers simultaneously.",
+    "You may sacrifice Accursed Marauder to its own ability. If it is the only creature you control when that ability resolves, you must sacrifice it."
+   ],
+   "fonte": "https://mtg.wtf/card?q=Accursed+Marauder",
+   "nota": "Texto confirmado também em casualplaneswalker.com; custo {1}{B} confirmado no título da página Scryfall (scryfall.com/card/mh3/405) via busca. P/T 2/1 só em mtg.wtf (carta ausente da API magicthegathering.io)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Alseid of Life's Bounty",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment Creature — Nymph",
+   "oracle_text": "Lifelink\n{1}, Sacrifice this creature: Target creature or enchantment you control gains protection from the color of your choice until end of turn.",
+   "power": "1",
+   "toughness": "1",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Alseid of Life's Bounty",
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); custo de mana {W} e custo de ativação {1} confirmados na API e em cardsrealm. Redação atual ('this creature') de mtgnexus e casualplaneswalker. Descartados por serem leitura de ícone/redação do site: mtgnexus mostrou custo de mana {1}{W}; tappedout mostrou ativação '{W}'."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "An Offer You Can't Refuse",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target noncreature spell. Its controller creates two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this artifact: Add one mana of any color.\")",
+   "rulings": [
+    "If the target is no longer legal as An Offer You Can't Refuse resolves, no Treasure tokens are created.",
+    "If the target is still legal as it resolves but the spell can't be countered for some reason, its controller will still create two Treasure tokens."
+   ],
+   "fonte": "https://mtg.wtf/card?q=An+Offer+You+Can't+Refuse",
+   "nota": "Confirmado em mtg.wtf e API magicthegathering.io. Texto de lembrete (entre parênteses) veio da API; mtg.wtf devolveu sem o lembrete."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Angelic Gift",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nWhen this Aura enters, draw a card.\nEnchanted creature has flying.",
+   "rulings": [
+    "If the target creature is an illegal target by the time Angelic Gift tries to resolve, it doesn't resolve. It won't enter the battlefield, so its enters-the-battlefield ability won't trigger."
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Angelic Gift",
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); redação atual ('this Aura enters') de mtgnexus; cardsrealm mostra 'When Angelic Gift enters' e a API 'enters the battlefield' (redações antigas, mesmo efeito)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Angelic Renewal",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment",
+   "oracle_text": "Whenever a creature is put into your graveyard from the battlefield, you may sacrifice this enchantment. If you do, return that card to the battlefield.",
+   "rulings": [
+    "Angelic Renewal's ability triggers if a creature you own dies under another player's control.",
+    "If a token creature is put into your graveyard from the battlefield, you can sacrifice Angelic Renewal, but nothing will be returned to the battlefield.",
+    "If Angelic Renewal leaves the battlefield before its triggered ability resolves, you won't be able to sacrifice it and the creature can't be returned to the battlefield.",
+    "If multiple creatures are put into your graveyard at once, Angelic Renewal triggers multiple times, but it can only be sacrificed once and only brings back one creature."
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Angelic Renewal",
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); redação atual ('this enchantment') de mtgnexus; cardsrealm/API usam o nome da carta. Rulings vindos de cardsrealm, podem estar levemente resumidos pela extração."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Anguished Unmaking",
+   "mana_cost": "{1}{W}{B}",
+   "type_line": "Instant",
+   "oracle_text": "Exile target nonland permanent. You lose 3 life.",
+   "rulings": [
+    "If the nonland permanent becomes an illegal target, Anguished Unmaking doesn't resolve. You won't lose 3 life."
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Anguished Unmaking",
+   "nota": "Confirmado em mtgnexus, cardsrealm e API magicthegathering.io."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Animate Dead",
+   "mana_cost": "{1}{B}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature card in a graveyard\nWhen this Aura enters, if it's on the battlefield, it loses \"enchant creature card in a graveyard\" and gains \"enchant creature put onto the battlefield with this Aura.\" Return enchanted creature card to the battlefield under your control and attach this Aura to it. When this Aura leaves the battlefield, that creature's controller sacrifices it.\nEnchanted creature gets -1/-0.",
+   "rulings": [
+    "If Animate Dead isn't on the battlefield when its triggered ability resolves, none of its effects occur. (paráfrase da extração de cardsrealm)",
+    "Once a creature is returned, this Aura cannot attach to another creature. (paráfrase da extração de cardsrealm)"
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Animate Dead",
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); redação atual ('this Aura') de mtgnexus e cardsrealm. Quebra de linha: API e mtgnexus trazem 'When this Aura leaves the battlefield...' no MESMO parágrafo do gatilho de entrada (3 linhas no total); cardsrealm separou em parágrafo próprio. Adotado o formato de 3 linhas da API. Rulings aqui são paráfrases, não texto literal."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Arcane Denial",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target spell. Its controller may draw up to two cards at the beginning of the next turn's upkeep.\nYou draw a card at the beginning of the next turn's upkeep.",
+   "rulings": [
+    "The controller of the countered spell doesn't choose how many cards to draw until the relevant ability resolves. The player may draw 0, 1, or 2 cards. They choose the number before drawing any cards."
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Arcane Denial",
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); texto idêntico em mtgnexus, cardsrealm e API. Quebra de linha entre as duas frases conforme mtgnexus/cardsrealm."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Arcane Signet",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+   "rulings": [
+    "If you don't have a commander, Arcane Signet's ability produces no mana.",
+    "If you have two commanders, the ability adds one mana of any color in their combined color identities.",
+    "If your commander is a card that has no colors in its color identity, Arcane Signet's ability produces no mana. It doesn't produce {C}."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=\"Arcane Signet\"&pageSize=1",
+   "nota": "Custo {2} (cmc 2.0) do JSON da API magicthegathering.io. mtgnexus e cardsrealm devolveram '{1}', mas nesses sites o custo é imagem e a extração erra; valor da API adotado. Texto idêntico nas três fontes."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Ascend from Avernus",
+   "mana_cost": "{X}{W}{W}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Return all creature and planeswalker cards with mana value X or less from your graveyard to the battlefield. Exile Ascend from Avernus.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=\"Ascend from Avernus\"&pageSize=1",
+   "nota": "Custo {X}{W}{W}{W} do JSON da API (cmc 3.0, colors [W], conferido em duas leituras). mtgnexus devolveu '{X}{B}{B}' (custo em imagem, extração não confiável, descartado); cardsrealm e tappedout não mostraram custo. Texto idêntico em API, mtgnexus e cardsrealm."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Austere Command",
+   "mana_cost": "{4}{W}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with mana value 3 or less.\n• Destroy all creatures with mana value 4 or greater.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=\"Austere Command\"&pageSize=1",
+   "nota": "Custo {4}{W}{W} do JSON da API (cmc 6.0, conferido em duas leituras). cardsrealm devolveu '(3)(W)' e tappedout '{1}{W}{W}' (custo em imagem, extrações não confiáveis, descartadas). Texto idêntico em API, cardsrealm e tappedout. Rulings das páginas vieram parafraseados e foram omitidos (os modos escolhidos resolvem na ordem impressa)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Authority of the Consuls",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment",
+   "oracle_text": "Creatures your opponents control enter tapped.\nWhenever a creature an opponent controls enters, you gain 1 life.",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Authority of the Consuls",
+   "nota": "Custo {W} do JSON da API (cmc 1.0, duas leituras); mtgnexus e cardsrealm devolveram '{1}{W}' (custo em imagem, descartado). Redação atual idêntica em mtgnexus e cardsrealm; API traz a redação antiga ('enter the battlefield tapped' / 'enters the battlefield under an opponent's control')."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Ayli, Eternal Pilgrim",
+   "mana_cost": "{W}{B}",
+   "type_line": "Legendary Creature — Kor Cleric",
+   "oracle_text": "Deathtouch\n{1}, Sacrifice another creature: You gain life equal to the sacrificed creature's toughness.\n{1}{W}{B}, Sacrifice another creature: Exile target nonland permanent. Activate only if you have at least 10 life more than your starting life total.",
+   "power": "2",
+   "toughness": "3",
+   "rulings": [
+    "Once you've announced either activated ability, it's too late for anyone to interrupt you by trying to remove the creature you sacrifice.",
+    "Your starting life total is the life total you began the game with. For most two-player formats, this is 20. For Two-Headed Giant, it's the life total your team started with, usually 30. In Commander games, your starting life total is 40."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=\"Ayli, Eternal Pilgrim\"&pageSize=1",
+   "nota": "Custo {W}{B} e P/T 2/3 do JSON da API (cmc 2.0, duas leituras). cardsrealm/tappedout devolveram '{1}{W}{B}' e tappedout '1/4' (extrações de imagem, descartadas). Texto de regras idêntico em API, cardsrealm e tappedout; 'Activate only if' é a redação atual (tappedout e uma leitura da API mostraram 'Activate this ability only if', redação antiga, mesmo efeito)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Benalish Sleeper",
+   "mana_cost": "{1}{W}",
+   "type_line": "Creature — Phyrexian Human Soldier",
+   "oracle_text": "Kicker {B} (You may pay an additional {B} as you cast this spell.)\nWhen this creature enters, if it was kicked, each player sacrifices a creature of their choice.",
+   "power": "3",
+   "toughness": "1",
+   "rulings": [
+    "As the ability resolves, the active player chooses a creature first, then each other player in turn order does the same. (resumo da extração de cardsrealm)",
+    "If kicked, you may sacrifice Benalish Sleeper itself. If you control no other creatures, you must sacrifice it. (resumo da extração de cardsrealm)"
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Benalish Sleeper",
+   "nota": "Custo {1}{W} e P/T 3/1 do JSON da API (cmc 2.0, colors [W], colorIdentity [B,W]); mtgnexus confirma 3/1. cardsrealm devolveu '{1}{B}' e '2/1' (extração não confiável, descartada). Redação atual ('this creature enters', 'a creature of their choice') de mtgnexus; API/cardsrealm trazem 'enters the battlefield ... sacrifices a creature'."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Benevolent Bodyguard",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Cleric",
+   "oracle_text": "Sacrifice this creature: Target creature you control gains protection from the color of your choice until end of turn.",
+   "power": "1",
+   "toughness": "1",
+   "fonte": "https://casualplaneswalker.com/card/benevolent-bodyguard/faq",
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); cardsrealm concorda em {W} e 1/1. Redação atual ('this creature') de casualplaneswalker; API/cardsrealm usam o nome da carta."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Blinkmoth Nexus",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 1/1 Blinkmoth artifact creature with flying until end of turn. It's still a land.\n{1}, {T}: Target Blinkmoth creature gets +1/+1 until end of turn.",
+   "rulings": [
+    "A noncreature permanent that turns into a creature can attack, and its {T} abilities can be activated, only if its controller has continuously controlled that permanent since the beginning of their most recent turn.",
+    "Blinkmoth Nexus can be the target of its last ability after activating its middle ability. Activating it after it has blocked a creature won't remove it from combat or stop it from dealing and being dealt combat damage."
+   ],
+   "fonte": "https://mtg.cardsrealm.com/en-us/card/blinkmoth-nexus",
+   "nota": "Confirmado em cardsrealm e API magicthegathering.io. Redação atual ('This land becomes') de cardsrealm; API usa 'Blinkmoth Nexus becomes'."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Bounty Agent",
+   "mana_cost": "{1}{W}",
+   "type_line": "Creature — Human Soldier",
+   "oracle_text": "Vigilance\n{T}, Sacrifice this creature: Destroy target legendary permanent that's an artifact, creature, or enchantment.",
+   "power": "2",
+   "toughness": "2",
+   "fonte": "https://casualplaneswalker.com/card/bounty-agent/faq",
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); cardsrealm e casualplaneswalker concordam em 2/2. Redação atual ('this creature') de casualplaneswalker; API/cardsrealm usam o nome da carta."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Brainstorm",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Draw three cards, then put two cards from your hand on top of your library in any order.",
+   "rulings": [
+    "You draw three cards and put two cards back all while Brainstorm is resolving. Nothing can happen between the two, and no player may choose to take actions."
+   ],
+   "fonte": "https://mtg.cardsrealm.com/en-us/card/brainstorm",
+   "nota": "Confirmado em cardsrealm e API magicthegathering.io."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Call of the Death-Dweller",
+   "mana_cost": "{2}{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Return up to two target creature cards with total mana value 3 or less from your graveyard to the battlefield. Put a deathtouch counter on either of them. Then put a menace counter on either of them.",
+   "rulings": [
+    "If a card in a player's graveyard has {X} in its mana cost, X is considered to be 0.",
+    "If you return no creature cards to the battlefield, you won't put any counters on any creatures.",
+    "If you return two creature cards, you may put one counter on each or put both counters on one.",
+    "You could target a single creature card with Call of the Death-Dweller. In this case, you'll put both counters on that creature."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=\"Call of the Death-Dweller\"&pageSize=1",
+   "nota": "Custo {2}{B} do JSON da API (cmc 3.0, colors [B], duas leituras). cardsrealm devolveu '{1}{B}{G}' e mtgnexus '{1}{B}' (custo em imagem, extrações não confiáveis, descartadas). Texto idêntico em API, cardsrealm e mtgnexus."
+  },
+  {
+   "name": "Caves of Koilos",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This land deals 1 damage to you.",
+   "rulings": [
+    "2015-06-22: Like most lands, each land in this cycle is colorless. The damage dealt to you is dealt by a colorless source.",
+    "2015-06-22: The damage dealt to you is part of the second mana ability. It doesn't use the stack and can't be responded to."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Caves of Koilos\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em casualplaneswalker.com/card/caves-of-koilos/faq (mesma redação)."
+  },
+  {
+   "name": "Cephalid Coliseum",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {U}. This land deals 1 damage to you.\nThreshold — {U}, {T}, Sacrifice this land: Target player draws three cards, then discards three cards. Activate only if there are seven or more cards in your graveyard.",
+   "fonte": "https://mtg.wtf/card?q=!\"Cephalid Coliseum\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em casualplaneswalker.com/card/cephalid-coliseum/faq (mesma redação). tappedout.net mostra redação antiga, sem a palavra de habilidade Threshold. Nenhum ruling na página."
+  },
+  {
+   "name": "Chart a Course",
+   "mana_cost": "{1}{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Draw two cards. Then discard a card unless you attacked this turn.",
+   "fonte": "https://mtg.wtf/card?q=!\"Chart a Course\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto e custo confirmados em casualplaneswalker.com e api.magicthegathering.io. tappedout.net mostra redação antiga ('unless you attacked with a creature this turn'). Nenhum ruling na página."
+  },
+  {
+   "name": "Children of Korlis",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Rebel Cleric",
+   "oracle_text": "Sacrifice this creature: You gain life equal to the life you've lost this turn. (Damage causes loss of life.)",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    "2021-03-19: If your life total becomes 0 or less, you'll lose the game before you can activate the ability of Children of Korlis.",
+    "2021-03-19: The life you gain is based on the total amount of life you lost, not the difference in your life total from when the turn started. For example, if you lose 5 life and gain 3 life before activating the ability, the ability will cause you to gain 5 life, not 2."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Children of Korlis\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo {W} confirmado em api.magicthegathering.io (manaCost {W}, cmc 1). O resumo de tappedout.net trouxe {1}{W}, descartado como erro de leitura. Texto de lembrete vindo de casualplaneswalker.com."
+  },
+  {
+   "name": "Chromatic Sphere",
+   "mana_cost": "{1}",
+   "type_line": "Artifact",
+   "oracle_text": "{1}, {T}, Sacrifice this artifact: Add one mana of any color. Draw a card.",
+   "rulings": [
+    "2008-08-01: This is a mana ability, which means it can be activated as part of the process of casting a spell or activating another ability. If that happens you get the mana right away, but you don't get to look at the drawn card until you have finished casting that spell or activating that ability."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Chromatic Sphere\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em casualplaneswalker.com/card/chromatic-sphere/faq."
+  },
+  {
+   "name": "Chromatic Star",
+   "mana_cost": "{1}",
+   "type_line": "Artifact",
+   "oracle_text": "{1}, {T}, Sacrifice this artifact: Add one mana of any color.\nWhen this artifact is put into a graveyard from the battlefield, draw a card.",
+   "fonte": "https://mtg.wtf/card?q=!\"Chromatic Star\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em casualplaneswalker.com/card/chromatic-star/faq. Nenhum ruling na página."
+  },
+  {
+   "name": "Combat Research",
+   "mana_cost": "{U}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature has \"Whenever this creature deals combat damage to a player, draw a card.\"\nAs long as enchanted creature is legendary, it gets +1/+1 and has ward {1}. (Whenever enchanted creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)",
+   "rulings": [
+    "2022-09-09: Because the card-draw ability is granted to the creature, if an opponent takes control of the enchanted creature and it deals combat damage while they control it, that opponent will draw a card."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Combat Research\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo {U} confirmado em api.magicthegathering.io (cmc 1); o resumo de tappedout.net trouxe {1}{U}, descartado. Texto de lembrete do ward vindo de casualplaneswalker.com."
+  },
+  {
+   "name": "Command Tower",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+   "rulings": [
+    "2020-11-10: If you don't have a commander, Command Tower's ability produces no mana.",
+    "2020-11-10: If you have two commanders, the ability adds one mana of any color in their combined color identities.",
+    "2020-11-10: If your commander is a card that has no colors in its color identity, Command Tower's ability produces no mana. It doesn't produce {C}."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Command Tower\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em tappedout.net/mtg-card/command-tower/ (mesmo texto, grafia britânica 'colour')."
+  },
+  {
+   "name": "Consider",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\nDraw a card.",
+   "rulings": [
+    "2024-01-12: You perform the actions stated on a card in sequence. For some spells and abilities, you'll surveil last. For others, you'll surveil and then perform other actions."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Consider\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto de lembrete vindo de casualplaneswalker.com; tappedout.net traz lembrete com 'that card' em vez de 'it' (só lembrete, sem efeito de regra)."
+  },
+  {
+   "name": "Corpse Knight",
+   "mana_cost": "{W}{B}",
+   "type_line": "Creature — Zombie Knight",
+   "oracle_text": "Whenever another creature you control enters, each opponent loses 1 life.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "2019-07-12: In a Two-Headed Giant game, Corpse Knight's ability causes the opposing team to lose 1 life twice."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Corpse Knight\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo {W}{B} e 2/2 confirmados em api.magicthegathering.io e casualplaneswalker.com (2/2). Resumos de tappedout.net ({1}{B}, 1/2) e cardsrealm ({1}{W}{B}, 1/1) divergiram e foram descartados como erro de leitura de símbolos. Não foi verificado se alguma impressão tem P/T diferente."
+  },
+  {
+   "name": "Cruel Celebrant",
+   "mana_cost": "{W}{B}",
+   "type_line": "Creature — Vampire",
+   "oracle_text": "Whenever this creature or another creature or planeswalker you control dies, each opponent loses 1 life and you gain 1 life.",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [
+    "2019-05-03: If Cruel Celebrant dies at the same time as one or more other creatures and/or planeswalkers you control, its ability triggers for each of them.",
+    "2019-05-03: If a planeswalker that's also a creature dies, Cruel Celebrant's ability triggers only once.",
+    "2019-05-03: In a Two-Headed Giant game, Cruel Celebrant's ability causes the opposing team to lose 2 life and you gain 1 life."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Cruel Celebrant\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo {W}{B} e 1/2 confirmados em api.magicthegathering.io e casualplaneswalker.com (1/2). Resumo de tappedout.net ({1}{B}, 1/1) descartado."
+  },
+  {
+   "name": "Curiosity",
+   "mana_cost": "{U}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nWhenever enchanted creature deals damage to an opponent, you may draw a card.",
+   "rulings": [
+    "2011-09-22: \"You\" refers to the controller of Curiosity, which may be different from the controller of the enchanted creature. \"An opponent\" refers to an opponent of Curiosity's controller.",
+    "2011-09-22: Any damage dealt by the enchanted creature to an opponent will cause Curiosity to trigger, not just combat damage.",
+    "2023-09-01: Curiosity doesn't trigger if the enchanted creature deals damage to a planeswalker or to a battle.",
+    "2023-09-01: If you control Curiosity and it's enchanting an opponent's creature, you won't draw a card when that creature deals damage to you. The creature has to deal damage to one of your opponents for the ability to trigger.",
+    "2023-09-01: You draw one card each time the enchanted creature deals damage to an opponent, no matter how much damage it deals."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Curiosity\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo {U} confirmado em api.magicthegathering.io (cmc 1); resumo de tappedout.net trouxe {1}{U}, descartado. Texto idêntico em casualplaneswalker.com."
+  },
+  {
+   "name": "Dark Confidant",
+   "mana_cost": "{1}{B}",
+   "type_line": "Creature — Human Wizard",
+   "oracle_text": "At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [
+    "2025-06-06: If a card in a player's library has {X} in its mana cost, X is 0 for the purpose of determining its mana value."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Dark Confidant\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em casualplaneswalker.com e tappedout.net (custo, texto e 2/1 iguais). O gatilho não é opcional (sem 'may')."
+  },
+  {
+   "name": "Darksteel Mutation",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature is an Insect artifact creature with base power and toughness 0/1 and has indestructible, and it loses all other abilities, card types, and creature types.",
+   "rulings": [
+    "Darksteel Mutation causes the enchanted creature to lose all abilities except indestructible at the time it becomes enchanted.",
+    "Darksteel Mutation doesn't affect the enchanted creature's colors, if any.",
+    "Darksteel Mutation overwrites any previous effects that set the enchanted creature's power or toughness to a specific value.",
+    "Darksteel Mutation overwrites the printed power and toughness of the enchanted creature, as well as any characteristic-defining abilities.",
+    "Darksteel Mutation does not overwrite effects that change the enchanted creature's power or toughness without setting it to a specific value.",
+    "If it had any other artifact subtypes (such as Equipment), it will retain those.",
+    "The creature will keep any supertypes it previously had.",
+    "The enchanted creature will be only an artifact and a creature, not any other card types."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=\"Darksteel Mutation\"&pageSize=1",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "mtg.wtf recusou por limite de requisições (429) para esta carta. Texto confirmado em casualplaneswalker.com/card/darksteel-mutation/faq (mesma redação); custo {1}{W} igual em tappedout.net e na API. tappedout.net mostra redação antiga ('is a 0/1 Insect artifact creature with indestructible and loses all other abilities'). Rulings vieram sem data na leitura da API."
+  },
+  {
+   "name": "Daze",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "You may return an Island you control to its owner's hand rather than pay this spell's mana cost.\nCounter target spell unless its controller pays {1}.",
+   "rulings": [
+    "2026-03-20: To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as the alternative cost of Daze), add any cost increases, then apply any cost reductions. The mana value of the spell is determined by only its mana cost, no matter what the total cost to cast that spell was."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Daze\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em casualplaneswalker.com e tappedout.net (custo e texto iguais)."
+  },
+  {
+   "name": "Delay",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target spell. If the spell is countered this way, exile it with three time counters on it instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend. (At the beginning of its owner's upkeep, they remove a time counter. When the last is removed, they may play it without paying its mana cost. If it's a creature, it has haste.)",
+   "rulings": [
+    "2021-03-19: If the target spell is face down, it'll be exiled face up. It can't be cast face down when casting it without paying its mana cost.",
+    "2021-03-19: If the target spell was cast with flashback, Delay's effect will exile it, not the flashback effect. The card will get time counters and gain suspend (if it didn't already have suspend).",
+    "2021-03-19: When the last time counter is removed from the exiled card, it's cast as a completely new spell. Modes and targets are chosen again. If the spell has any mandatory additional costs, they must be paid again. If they can't be, the spell can't be cast and stays exiled.",
+    "2024-02-02: Due to a recent rules change to suspend, you are no longer required to cast the suspended card as the second triggered ability of suspend resolves. Instead, as the second triggered ability resolves, you may cast the card. Timing permissions based on the card's type are ignored. If you don't cast the card, it remains exiled with no time counters on it, and it's no longer suspended.",
+    "2024-02-02: If the card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost.",
+    "2024-02-02: If the first triggered ability of suspend (the one that removes time counters) is countered, no time counter is removed. The ability will trigger again at the beginning of the card's owner's next upkeep.",
+    "2024-02-02: If the second triggered ability is countered, the card can't be cast. It remains exiled with no time counters on it, and it's no longer suspended.",
+    "2024-02-02: If the spell requires any targets, those targets are chosen when the spell is finally cast, not when it's exiled.",
+    "2024-02-02: If you cast a card \"without paying its mana cost,\" such as with suspend, you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, you must pay those if you want to cast the card.",
+    "2024-02-02: When the last time counter is removed, the second triggered ability of suspend (the one that lets you cast the card) triggers. It doesn't matter why the last time counter was removed or what effect removed it."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Delay\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto de regras igual em mtg.wtf, casualplaneswalker.com e tappedout.net; custo {1}{U} igual em mtg.wtf e tappedout.net. Texto de lembrete vindo de casualplaneswalker.com ('they may play it'); o ruling de 2024-02-02 confirma que conjurar ao sair o último marcador é opcional. tappedout.net traz lembrete antigo ('the player casts it'). Rulings genéricos de suspend foram omitidos; lista completa na página."
+  },
+  {
+   "name": "Dig Through Time",
+   "mana_cost": "{6}{U}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nLook at the top seven cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order.",
+   "rulings": [
+    "2021-03-19: Because delve isn't an alternative cost, it can be used in conjunction with alternative costs, such as flashback.",
+    "2021-03-19: Delve doesn't change a spell's mana cost or mana value.",
+    "2021-03-19: You can exile cards to pay only for generic mana, and you can't exile more cards than the generic mana requirement of a spell with delve."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Dig Through Time\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo {6}{U}{U} confirmado em api.magicthegathering.io (cmc 8); resumo de tappedout.net trouxe {1}{U}{U}, descartado. Texto de lembrete do delve vindo de casualplaneswalker.com / API."
+  },
+  {
+   "name": "Dragon Fodder",
+   "mana_cost": "{1}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Create two 1/1 red Goblin creature tokens.",
+   "fonte": "https://mtg.wtf/card?q=!\"Dragon Fodder\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Confirmado em casualplaneswalker.com e tappedout.net. Nenhum ruling na página."
+  },
+  {
+   "name": "Dwarven Ruins",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "Dwarven Ruins enters tapped.\n{T}: Add {R}.\n{T}, Sacrifice Dwarven Ruins: Add {R}{R}.",
+   "fonte": "https://casualplaneswalker.com/card/dwarven-ruins/faq",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "mtg.wtf recusou por limite de requisições (429) para esta carta. A fonte usa o nome da carta em vez de 'This land' (redação ainda não atualizada na fonte; efeito idêntico). Confirmado em api.magicthegathering.io e tappedout.net com redação antiga ('enters the battlefield tapped'); mesmas três habilidades. Nenhum ruling encontrado."
+  },
+  {
+   "name": "Elas il-Kor, Sadistic Pilgrim",
+   "mana_cost": "{W}{B}",
+   "type_line": "Legendary Creature — Phyrexian Kor Cleric",
+   "oracle_text": "Deathtouch\nWhenever another creature you control enters, you gain 1 life.\nWhenever another creature you control dies, each opponent loses 1 life.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "2022-09-09: If one or more other creatures enter the battlefield under your control at the same time that Elas il-Kor enters the battlefield, its second ability will trigger for each of those other creatures.",
+    "2022-09-09: If one or more other creatures you control die at the same time that Elas il-Kor dies, its last ability triggers for each of those other creatures.",
+    "2022-09-09: In a Two-Headed Giant game, Elas il-Kor's last ability causes the opposing team to lose 2 life."
+   ],
+   "fonte": "https://mtg.wtf/card?q=!\"Elas il-Kor, Sadistic Pilgrim\"",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo {W}{B} e 2/2 confirmados em api.magicthegathering.io (cmc 2); resumo de tappedout.net trouxe {1}{W}{B}, descartado. Texto igual em casualplaneswalker.com."
+  },
+  {
+   "name": "Everflowing Chalice",
+   "mana_cost": "{0}",
+   "type_line": "Artifact",
+   "oracle_text": "Multikicker {2}\nThis artifact enters with a charge counter on it for each time it was kicked.\n{T}: Add {C} for each charge counter on this artifact.",
+   "rulings": [
+    "You can cast Everflowing Chalice without kicking it at all if you wish. However, if Everflowing Chalice has no charge counters on it, activating its last ability won't produce any mana. (2021-03-19)",
+    "If a card or token enters as a copy of a permanent, the new permanent isn't kicked, even if the original was. (2024-11-08)",
+    "If you copy a kicked spell on the stack, the copy is also kicked. If the copied spell is a permanent spell, the token the copy of that spell becomes when it enters is also kicked. (2024-11-08)",
+    "If you put a permanent with a kicker ability onto the battlefield without casting it, you can't kick it. (2024-11-08)"
+   ],
+   "nota": "Texto de lembrete do Multikicker não veio na extração (só a palavra-chave e o custo).",
+   "fonte": "https://mtg.wtf/card?q=Everflowing+Chalice",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Exotic Orchard",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+   "rulings": [
+    "Exotic Orchard checks the effects of all mana-producing abilities of lands your opponents control, but it doesn't check their costs. (2009-02-01)",
+    "Exotic Orchard doesn't care about any restrictions or riders your opponents' lands put on the mana they produce. (2009-02-01)",
+    "Lands that produce mana based only on what other lands 'could produce' won't help each other unless some other land allows one of them to actually produce some type of mana. (2009-02-01)",
+    "The colors of mana are white, blue, black, red, and green. Exotic Orchard can't be tapped for colorless mana. (2009-02-01)",
+    "When determining what colors of mana your opponents' lands could produce, Exotic Orchard takes into account any applicable replacement effects. (2009-02-01)"
+   ],
+   "fonte": "https://mtg.wtf/card?q=!Exotic+Orchard",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Expressive Iteration",
+   "mana_cost": "{U}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Look at the top three cards of your library. Put one of them into your hand, put one of them on the bottom of your library, and exile one of them. You may play the exiled card this turn.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/expressive-iteration",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Fellwar Stone",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+   "rulings": [
+    "It only produces one mana even if the land can produce more than one. (2004-10-04)",
+    "The ability can be activated if the opponent has no lands that produce mana, but the effect will not be able to generate any mana. (2004-10-04)",
+    "This works even if the opponent's lands are tapped. It only checks what kinds of mana can be produced, not if the abilities that produce them are usable right now. (2004-10-04)",
+    "Fellwar Stone checks the effects of all mana-producing abilities of lands your opponents control, but it doesn't check their costs. (2009-10-01)",
+    "Fellwar Stone doesn't care about any restrictions or riders your opponents' lands put on the mana they produce. (2009-10-01)",
+    "The colors of mana are white, blue, black, red, and green. Fellwar Stone can't be tapped for colorless mana. (2009-10-01)",
+    "When determining what colors of mana your opponents' lands could produce, take into account any applicable replacement effects. (2009-10-01)"
+   ],
+   "fonte": "https://mtg.wtf/card?q=Fellwar+Stone",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Fetid Heath",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{W/B}, {T}: Add {W}{W}, {W}{B}, or {B}{B}.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/fetid-heath",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Flickering Ward",
+   "mana_cost": "{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nAs this Aura enters, choose a color.\nEnchanted creature has protection from the chosen color. This effect doesn't remove this Aura.\n{W}: Return this Aura to its owner's hand.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/flickering-ward",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Flusterstorm",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target instant or sorcery spell unless its controller pays {1}.\nStorm (When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.)",
+   "rulings": [
+    "The copies are put directly onto the stack. They aren't cast and won't be counted by other spells with storm cast later in the turn.",
+    "A copy of a spell can be countered like any other spell, but it must be countered individually. Countering a spell with storm won't affect the copies.",
+    "You may choose new targets for any of the copies. You can make different choices for each copy.",
+    "The triggered ability that creates the copies can itself be countered by anything that can counter a triggered ability. If it is countered, no copies will be put onto the stack.",
+    "Spells cast from zones other than a player's hand and spells that were countered are counted by the storm ability."
+   ],
+   "nota": "Texto idêntico em casualplaneswalker.com/card/flusterstorm.",
+   "fonte": "https://grimoria.app/cards/flusterstorm",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Foil",
+   "mana_cost": "{2}{U}{U}",
+   "type_line": "Instant",
+   "oracle_text": "You may discard an Island card and another card rather than pay this spell's mana cost.\nCounter target spell.",
+   "nota": "Texto idêntico em mtg.wtf/card?q=!Foil.",
+   "fonte": "https://grimoria.app/cards/foil",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Forbidden Friendship",
+   "mana_cost": "{1}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Create a 1/1 red Dinosaur creature token with haste and a 1/1 white Human Soldier creature token.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/forbidden-friendship",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Frantic Search",
+   "mana_cost": "{2}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Draw two cards, then discard two cards. Untap up to three lands.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/frantic-search",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Gitaxian Probe",
+   "mana_cost": "{U/P}",
+   "type_line": "Sorcery",
+   "oracle_text": "({U/P} can be paid with either {U} or 2 life.)\nLook at target player's hand.\nDraw a card.",
+   "nota": "Fonte única; rulings não disponíveis. Símbolos do lembrete normalizados para {U/P} e {U} (a extração trouxe \"U/P\" e \"U\" sem chaves).",
+   "fonte": "https://casualplaneswalker.com/card/gitaxian-probe",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Glint-Horn Buccaneer",
+   "mana_cost": "{1}{R}{R}",
+   "type_line": "Creature — Minotaur Pirate",
+   "oracle_text": "Haste\nWhenever you discard a card, this creature deals 1 damage to each opponent.\n{1}{R}, Discard a card: Draw a card. Activate only if this creature is attacking.",
+   "power": "2",
+   "toughness": "4",
+   "nota": "Custo e texto idênticos em casualplaneswalker.com (que não mostra P/T). P/T 2/4 vem só do grimoria.app. A extração do tappedout.net deu {1}{R} e 2/2 com redação antiga; descartada, porque a mesma fonte errou custo e P/T de High Priest of Penance contra mtg.wtf.",
+   "fonte": "https://grimoria.app/cards/glint-horn-buccaneer",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Hard Evidence",
+   "mana_cost": "{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Create a 0/3 blue Crab creature token.\nInvestigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/hard-evidence",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "High Priest of Penance",
+   "mana_cost": "{W}{B}",
+   "type_line": "Creature — Human Cleric",
+   "oracle_text": "Whenever this creature is dealt damage, you may destroy target nonland permanent.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    "High Priest of Penance's ability triggers once for each instance of damage dealt to it, not once for each 1 damage. The ability will trigger even if High Priest of Penance is dealt lethal damage. (2013-01-24)"
+   ],
+   "nota": "Custo e texto idênticos em casualplaneswalker.com. A extração do tappedout.net deu {1}{W}{B} e 1/3; descartada (duas fontes contra uma).",
+   "fonte": "https://mtg.wtf/card?q=High+Priest+of+Penance",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "High Tide",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/high-tide",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Idolized",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature has \"Whenever this creature attacks alone, it gets +X/+X until end of turn, where X is the number of nonland permanents you control.\"",
+   "nota": "Texto idêntico em grimoria.app/cards/idolized e tappedout.net; custo confirmado também em casualplaneswalker.com.",
+   "fonte": "https://scrydex.com/magicthegathering/cards/idolized/PIP-17",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Idyllic Tutor",
+   "mana_cost": "{2}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Search your library for an enchantment card, reveal it, put it into your hand, then shuffle.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/idyllic-tutor",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Impulse",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Look at the top four cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.",
+   "nota": "Texto de casualplaneswalker.com; custo e tipo vieram de tappedout.net/mtg-card/impulse/ (mesmo texto).",
+   "fonte": "https://casualplaneswalker.com/card/impulse",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Into the Roil",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Kicker {1}{U} (You may pay an additional {1}{U} as you cast this spell.)\nReturn target nonland permanent to its owner's hand. If this spell was kicked, draw a card.",
+   "nota": "Fonte única; rulings não disponíveis na página.",
+   "fonte": "https://casualplaneswalker.com/card/into-the-roil",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Isolated Chapel",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
+   "nota": "echomtg.com mostra a redação antiga (\"Isolated Chapel enters the battlefield tapped unless...\"); mesma regra.",
+   "fonte": "https://grimoria.app/cards/isolated-chapel",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Izzet Signet",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "{1}, {T}: Add {U}{R}.",
+   "fonte": "https://mtg.wtf/card?q=Izzet+Signet",
+   "incerto": false,
+   "nota": "Confirmado também em casualplaneswalker.com (texto idêntico).",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Jirina, Dauntless General",
+   "mana_cost": "{W}{B}",
+   "type_line": "Legendary Creature — Human Soldier",
+   "oracle_text": "When Jirina enters, exile target player's graveyard.\nSacrifice Jirina: Humans you control gain hexproof and indestructible until end of turn.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "The set of creatures affected by Jirina's last ability is determined as the ability resolves. Humans you begin to control later in the turn, non-Human creatures you control that become Human, and noncreature permanents that become Human creatures later in the turn won't gain hexproof and indestructible."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Jirina%2C+Dauntless+General%22",
+   "incerto": false,
+   "nota": "Custo, tipo, P/T e ruling: magicthegathering.io, que mostra redação antiga ('When Jirina, Dauntless General enters the battlefield, ...'). Redação atual ('When Jirina enters, ...') tirada de https://casualplaneswalker.com/card/jirina-dauntless-general/faq. Sem diferença de regra.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Kami of False Hope",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Spirit",
+   "oracle_text": "Sacrifice this creature: Prevent all combat damage that would be dealt this turn.",
+   "power": "1",
+   "toughness": "1",
+   "fonte": "https://casualplaneswalker.com/card/kami-of-false-hope/faq",
+   "incerto": false,
+   "nota": "Texto atual e P/T: casualplaneswalker. Custo {W} de magicthegathering.io (que mostra a redação antiga 'Sacrifice Kami of False Hope: ...').",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Kaya's Ghostform",
+   "mana_cost": "{B}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature or planeswalker you control\nWhen enchanted permanent dies or is put into exile, return that card to the battlefield under your control.",
+   "rulings": [
+    "If Kaya's Ghostform and the enchanted permanent are both put into graveyards and/or exiled at the same time, the enchanted permanent will be returned to the battlefield.",
+    "If Kaya's Ghostform enchants a permanent you control but don't own, that permanent will return to the battlefield under your control when it dies or is exiled.",
+    "If an effect exiles the enchanted permanent and immediately returns it to the battlefield, the last ability of Kaya's Ghostform triggers but will have no effect.",
+    "If another player gains control of the enchanted permanent, Kaya's Ghostform will be put into your graveyard.",
+    "If the enchanted permanent is put into a graveyard or exile but leaves that zone before the last ability of Kaya's Ghostform resolves, that card stays in its new zone.",
+    "Kaya's Ghostform can enchant a token, but its last ability won't return the token to the battlefield.",
+    "Kaya's Ghostform is put into your graveyard once the enchanted permanent leaves the battlefield."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Ghostform",
+   "incerto": false,
+   "nota": "Texto confirmado em casualplaneswalker. mtg.cardsrealm.com devolveu custo {1}{W}{B}, descartado como erro da extração (magicthegathering.io dá {B} em JSON estruturado).",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Kediss, Emberclaw Familiar",
+   "mana_cost": "{1}{R}",
+   "type_line": "Legendary Creature — Elemental Lizard",
+   "oracle_text": "Whenever a commander you control deals combat damage to an opponent, it deals that much damage to each other opponent.\nPartner (You can have two commanders if both have partner.)",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    "Kediss's triggered ability will trigger if any commander you control deals combat damage to an opponent, not just your commander.",
+    "Kediss's triggered ability won't trigger if a commander you control deals combat damage to a planeswalker.",
+    "The damage the commander deals as a result of Kediss's triggered ability isn't combat damage.",
+    "To have two commanders, both must have the partner ability as the game begins.",
+    "If something refers to your commander while you have two commanders, it refers to one of them of your choice."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Kediss%2C+Emberclaw+Familiar%22",
+   "incerto": false,
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Kher Keep",
+   "mana_cost": "",
+   "type_line": "Legendary Land",
+   "oracle_text": "{T}: Add {C}.\n{1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.",
+   "fonte": "https://mtg.wtf/card?q=Kher+Keep",
+   "incerto": false,
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Killian, Ink Duelist",
+   "mana_cost": "{W}{B}",
+   "type_line": "Legendary Creature — Human Warlock",
+   "oracle_text": "Lifelink\nMenace (This creature can't be blocked except by two or more creatures.)\nSpells you cast that target a creature cost {2} less to cast.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "If a spell has additional costs, apply those increases before applying cost reductions.",
+    "Killian can reduce alternative costs. For example, if you choose to pay the {1}{B} alternative cost for Baleful Mastery while targeting a creature, that cost would be reduced to {B}.",
+    "Killian, Ink Duelist can't reduce the colored mana requirement of a spell's mana cost."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Killian%2C+Ink+Duelist%22",
+   "incerto": false,
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Knight of the White Orchid",
+   "mana_cost": "{W}{W}",
+   "type_line": "Creature — Human Knight",
+   "oracle_text": "First strike\nWhen Knight of the White Orchid enters, if an opponent controls more lands than you, you may search your library for a Plains card, put it onto the battlefield, then shuffle.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "The Plains you search for doesn't have to be basic. For example, you could put a Sacred Foundry onto the battlefield."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Knight+of+the+White+Orchid%22",
+   "incerto": false,
+   "nota": "magicthegathering.io mostra 'enters the battlefield' (antigo); casualplaneswalker mostra 'When Knight of the White Orchid enters, ...' (gravado). A redação atual pode ser 'When this creature enters' — não confirmado; sem diferença de regra. Ruling de 'intervening if' veio parafraseado pela extração: a habilidade não dispara se nenhum oponente controla mais terrenos, e não faz nada se na resolução a condição não valer (não literal, por isso fora de rulings).",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Krenko's Command",
+   "mana_cost": "{1}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Create two 1/1 red Goblin creature tokens.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Krenko&type=Sorcery",
+   "incerto": false,
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Kytheon, Hero of Akros",
+   "mana_cost": "{W}",
+   "type_line": "Legendary Creature — Human Soldier",
+   "oracle_text": "At end of combat, if Kytheon, Hero of Akros and at least two other creatures attacked this combat, exile Kytheon, then return him to the battlefield transformed under his owner's control.\n{2}{W}: Kytheon gains indestructible until end of turn.",
+   "power": "2",
+   "toughness": "1",
+   "faces": [
+    {
+     "name": "Kytheon, Hero of Akros",
+     "mana_cost": "{W}",
+     "type_line": "Legendary Creature — Human Soldier",
+     "oracle_text": "At end of combat, if Kytheon, Hero of Akros and at least two other creatures attacked this combat, exile Kytheon, then return him to the battlefield transformed under his owner's control.\n{2}{W}: Kytheon gains indestructible until end of turn.",
+     "power": "2",
+     "toughness": "1"
+    },
+    {
+     "name": "Gideon, Battle-Forged",
+     "mana_cost": "",
+     "type_line": "Legendary Planeswalker — Gideon",
+     "oracle_text": "+2: Up to one target creature an opponent controls attacks Gideon, Battle-Forged during its controller's next turn if able.\n+1: Until your next turn, target creature gains indestructible. Untap that creature.\n0: Until end of turn, Gideon, Battle-Forged becomes a 4/4 Human Soldier creature with indestructible that's still a planeswalker. Prevent all damage that would be dealt to him this turn.",
+     "loyalty": "3"
+    }
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Kytheon",
+   "incerto": true,
+   "nota": "Fonte única (magicthegathering.io, dados da impressão ORI); não consegui segunda fonte para confirmar a redação Oracle atual (mtg.wtf 429, Scryfall 403, casualplaneswalker sem texto). Pronomes/nomes abreviados podem ter mudado em errata posterior; rulings não vieram utilizáveis. Estrutura (transform, custo, P/T 2/1, lealdade 3, +2/+1/0) é a da fonte.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Lazotep Plating",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Amass Zombies 1. (Put a +1/+1 counter on an Army you control. It's also a Zombie. If you don't control an Army, create a 0/0 black Zombie Army creature token first.)\nYou and permanents you control gain hexproof until end of turn.",
+   "rulings": [
+    "If you create a Zombie Army token when Lazotep Plating instructs you to amass 1, that token will gain hexproof until end of turn.",
+    "You amass 1 and grant hexproof all while Lazotep Plating is resolving. Nothing can happen between the two, and no player may choose to take actions."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Lazotep+Plating%22",
+   "incerto": false,
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Legions to Ashes",
+   "mana_cost": "{1}{W}{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Exile target nonland permanent an opponent controls and all tokens that player controls with the same name as that permanent.",
+   "rulings": [
+    "If the target is illegal as Legions to Ashes tries to resolve, it will be removed from the stack and do nothing, even if there are tokens with that name still on the battlefield.",
+    "The target permanent need not be a token. In that case, it will still be exiled."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Legions+to+Ashes%22",
+   "incerto": false,
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Leonin Relic-Warder",
+   "mana_cost": "{W}{W}",
+   "type_line": "Creature — Cat Cleric",
+   "oracle_text": "When this creature enters, you may exile target artifact or enchantment.\nWhen this creature leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "If Leonin Relic-Warder leaves the battlefield before its first ability has resolved, its second ability will trigger and when it resolves, do nothing. Then its first ability will resolve and exile the targeted artifact or enchantment with no way to return it to the battlefield."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Leonin+Relic-Warder%22",
+   "incerto": false,
+   "nota": "Custo, P/T e ruling: magicthegathering.io (redação antiga 'When Leonin Relic-Warder enters the battlefield'). Redação atual tirada de https://casualplaneswalker.com/card/leonin-relic-warder/faq.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Lose Focus",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Replicate {U} (When you cast this spell, copy it for each time you paid its replicate cost. You may choose new targets for the copies.)\nCounter target spell unless its controller pays {2}.",
+   "rulings": [
+    "As the replicate triggered ability resolves, you'll copy Lose Focus for each time you paid its replicate cost, even if the original spell is no longer on the stack at that time (perhaps because it was countered).",
+    "The copies that replicate creates are created on the stack, so they're not \"cast.\" Abilities that trigger when a player casts a spell won't trigger."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Lose+Focus%22",
+   "incerto": false,
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Lotus Petal",
+   "mana_cost": "{0}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}, Sacrifice this artifact: Add one mana of any color.",
+   "fonte": "https://casualplaneswalker.com/card/lotus-petal/faq",
+   "incerto": false,
+   "nota": "Texto atual: casualplaneswalker. Custo {0} de magicthegathering.io (redação anterior: '{T}, Sacrifice Lotus Petal: Add one mana of any color.').",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Lukka, Coppercoat Outcast",
+   "mana_cost": "{3}{R}{R}",
+   "type_line": "Legendary Planeswalker — Lukka",
+   "oracle_text": "+1: Exile the top three cards of your library. Creature cards exiled this way gain \"You may cast this card from exile as long as you control a Lukka planeswalker.\"\n−2: Exile target creature you control, then reveal cards from the top of your library until you reveal a creature card with greater mana value. Put that card onto the battlefield and the rest on the bottom of your library in a random order.\n−7: Each creature you control deals damage equal to its power to each opponent.",
+   "loyalty": "5",
+   "rulings": [
+    "For each creature card exiled with Lukka's first ability, you can cast it as long as you control any Lukka planeswalker, not just the one that exiled the card.",
+    "If a creature card in a player's library or a creature on the battlefield has {X} in its mana cost, X is considered to be 0.",
+    "You still pay any costs for spells cast from Lukka's first ability."
+   ],
+   "fonte": "https://mtg.wtf/card?q=Lukka%2C+Coppercoat+Outcast",
+   "incerto": false,
+   "nota": "Fonte única (mtg.wtf); a página pode ter mais rulings além dos três devolvidos.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Lurrus of the Dream-Den",
+   "mana_cost": "{1}{W/B}{W/B}",
+   "type_line": "Legendary Creature — Cat Nightmare",
+   "oracle_text": "Companion — Each permanent card in your starting deck has mana value 2 or less. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nLifelink\nOnce during each of your turns, you may cast a permanent spell with mana value 2 or less from your graveyard.",
+   "power": "3",
+   "toughness": "2",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Lurrus+of+the+Dream-Den%22",
+   "incerto": false,
+   "nota": "Fonte única. Rulings vieram resumidos (não literais), por isso fora do campo: a permissão não cobre terrenos nem mágicas instantâneas/feitiços; pôr o companheiro na mão por {3} é ação especial sem pilha, uma vez por jogo, em velocidade de feitiço.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Malcolm, Keen-Eyed Navigator",
+   "mana_cost": "{2}{U}",
+   "type_line": "Legendary Creature — Siren Pirate",
+   "oracle_text": "Flying\nWhenever one or more Pirates you control deal damage to your opponents, you create a Treasure token for each opponent dealt damage. (It's an artifact with \"{T}, Sacrifice this artifact: Add one mana of any color.\")\nPartner (You can have two commanders if both have partner.)",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "Malcolm's triggered ability considers all damage dealt by Pirates you control to opponents, not just combat damage.",
+    "Malcolm's triggered ability will trigger even if Pirates you control deal damage to only a single opponent. A single Treasure for you. Yarrr."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Malcolm%2C+Keen-Eyed+Navigator%22",
+   "incerto": false,
+   "nota": "Fonte única; a impressão SPG traz o mesmo texto sem os lembretes.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "March of Swirling Mist",
+   "mana_cost": "{X}{U}",
+   "type_line": "Instant",
+   "oracle_text": "As an additional cost to cast this spell, you may exile any number of blue cards from your hand. This spell costs {2} less to cast for each card exiled this way.\nUp to X target creatures phase out.",
+   "rulings": [
+    "An attacking or blocking creature that phases out is removed from combat.",
+    "As a creature is phased out, Auras and Equipment attached to it also phase out at the same time.",
+    "Permanents phase back in during their controller's untap step, immediately before that player untaps their permanents.",
+    "Phased out permanents are treated as though they don't exist.",
+    "Phasing out doesn't cause permanents to leave or re-enter the battlefield, so no \"leaves the battlefield\" or \"enters the battlefield\" abilities will trigger.",
+    "You may exile more cards than necessary for March of Swirling Mist's first ability, but you can't reduce the mana it costs to less than {U} this way."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22March+of+Swirling+Mist%22",
+   "incerto": false,
+   "nota": "Fonte única; alguns rulings vieram truncados e foram omitidos.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Mind Stone",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
+   "fonte": "https://mtg.wtf/card?q=Mind+Stone",
+   "incerto": false,
+   "nota": "Fonte única (mtg.wtf); a extração veio com as duas habilidades na mesma linha, separadas aqui por serem habilidades distintas.",
+   "consulta": "2026-10-05"
+  },
+  {
+   "name": "Miscast",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target instant or sorcery spell unless its controller pays {3}.",
+   "nota": "Custo {U} confirmado também em tappedout.net/mtg-card/miscast/. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Miscast.",
+   "fonte": "https://casualplaneswalker.com/card/miscast/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Mishra's Bauble",
+   "mana_cost": "{0}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}, Sacrifice this artifact: Look at the top card of target player's library. Draw a card at the beginning of the next turn's upkeep.",
+   "nota": "Redação atual ('this artifact') confirmada em mtg.cardsrealm.com; API e cópia em cache do Scryfall (brr/34) ainda mostram 'Sacrifice Mishra's Bauble' (redação antiga, mesma regra). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Mishra's+Bauble.",
+   "fonte": "https://casualplaneswalker.com/card/mishras-bauble/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Mishra's Factory",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{1}: Mishra's Factory becomes a 2/2 Assembly-Worker artifact creature until end of turn. It's still a land.\n{T}: Target Assembly-Worker creature gets +1/+1 until end of turn.",
+   "rulings": [
+    "2022-12-08: A noncreature permanent that becomes a creature can attack, and its {T} abilities can be activated, only if its controller has continuously controlled that permanent since the beginning of their most recent turn.",
+    "2022-12-08: After it becomes a creature, Mishra's Factory will still have all its abilities."
+   ],
+   "nota": "Três fontes (casualplaneswalker, cardsrealm, API) mostram o nome próprio 'Mishra's Factory becomes' no texto. Rulings da API (podem estar truncados pelo resumo da ferramenta). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Mishra's+Factory.",
+   "fonte": "https://casualplaneswalker.com/card/mishras-factory/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Mogg Salvage",
+   "mana_cost": "{2}{R}",
+   "type_line": "Instant",
+   "oracle_text": "If an opponent controls an Island and you control a Mountain, you may cast this spell without paying its mana cost.\nDestroy target artifact.",
+   "rulings": [
+    "2021-06-18: To cast Mogg Salvage without paying its mana cost, any opponent may control an Island, not just the one who controls the target artifact.",
+    "2021-06-18: Who controls what lands is important only as you cast Mogg Salvage. Once it has been cast, you no longer controlling a Mountain or each opponent no longer controlling any Islands won't affect Mogg Salvage.",
+    "2021-06-18: Casting a spell without paying its mana cost has no effect on its mana value. Mogg Salvage's mana value is always 3."
+   ],
+   "nota": "Custo {2}{R} confirmado em scryfall.com/card/mh2/282, Card Kingdom e pelo ruling (MV 3). tappedout.net mostrou {1}{R} — descartado como erro da fonte. Rulings: scryfall.com/card/mh2/282. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Mogg+Salvage.",
+   "fonte": "https://casualplaneswalker.com/card/mogg-salvage/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Moonsnare Prototype",
+   "mana_cost": "{U}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}, Tap an untapped artifact or creature you control: Add {C}.\nChannel — {4}{U}, Discard this card: The owner of target nonland permanent puts it on their choice of the top or bottom of their library.",
+   "rulings": [
+    "2022-02-18: Discarding the card is part of the cost to activate a channel ability.",
+    "2022-02-18: If a channel ability requires a target, you may not activate it without a target just to discard the card.",
+    "2022-02-18: The owner of that permanent chooses whether it goes on top or bottom. Other players get to know what they chose.",
+    "2022-02-18: In some unusual cases, including melded or mutated creatures, a permanent may consist of multiple cards. In those cases, the permanent's owner puts all cards on top or all cards on bottom. They choose the cards' relative order, and other players don't get to know that order."
+   ],
+   "nota": "Custo {U} em API e scryfall.com/card/neo/69; tappedout.net mostrou {1} — descartado (mesma fonte errou o custo de Mogg Salvage). Redação antiga em API/Scryfall em cache/cardsrealm: 'Discard Moonsnare Prototype' e 'puts it on the top or bottom' (mesma regra). Rulings: scryfall.com/card/neo/69. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Moonsnare+Prototype.",
+   "fonte": "https://casualplaneswalker.com/card/moonsnare-prototype/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Mother of Runes",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Cleric",
+   "oracle_text": "{T}: Target creature you control gains protection from the color of your choice until end of turn.",
+   "power": "1",
+   "toughness": "1",
+   "nota": "P/R 1/1 e custo {W} confirmados também em tappedout.net. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo/P-R: https://api.magicthegathering.io/v1/cards?name=Mother+of+Runes.",
+   "fonte": "https://casualplaneswalker.com/card/mother-of-runes/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Mystic Remora",
+   "mana_cost": "{U}",
+   "type_line": "Enchantment",
+   "oracle_text": "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter on this permanent, then sacrifice it unless you pay its upkeep cost for each age counter on it.)\nWhenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}.",
+   "rulings": [
+    "2022-12-08: Paying cumulative upkeep is always optional. If it's not paid, the permanent with cumulative upkeep is sacrificed. Partial payments of the total cumulative upkeep cost can't be made. For example, if Mystic Remora has three age counters on it when its cumulative upkeep ability triggers, it gets another age counter and then its controller chooses to either pay {4} or sacrifice it."
+   ],
+   "nota": "Confirmado também em scryfall.com/card/dmr/59 (de onde vem o ruling). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Mystic+Remora.",
+   "fonte": "https://casualplaneswalker.com/card/mystic-remora/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Mystical Tutor",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Search your library for an instant or sorcery card, reveal it, then shuffle and put that card on top.",
+   "rulings": [
+    "2016-06-08: The \"shuffle and put the card on top\" is a single action. If an effect causes the top card of the library to be face up, the second card down is not revealed."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/mystical-tutor/faq",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Mystical+Tutor."
+  },
+  {
+   "name": "Narset, Parter of Veils",
+   "mana_cost": "{1}{U}{U}",
+   "type_line": "Legendary Planeswalker — Narset",
+   "oracle_text": "Each opponent can't draw more than one card each turn.\n−2: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+   "loyalty": "5",
+   "rulings": [
+    "2019-05-03: If an opponent hasn't drawn any cards in a turn and a spell or ability instructs that player to draw multiple cards, that player will just draw one card.",
+    "2019-05-03: Narset will \"see\" cards drawn by opponents earlier in the turn she entered the battlefield, although Narset can't affect cards drawn before she entered the battlefield.",
+    "2019-05-03: Replacement effects (such as that of Underrealm Lich or the first ability of Jace, Wielder of Mysteries) can't be used to replace draws that Narset disallows.",
+    "2019-05-03: Your opponents can each draw a maximum of one card each on each player's turn. Subsequent card draws during that turn are ignored."
+   ],
+   "nota": "Rulings combinados de API e cardsrealm; podem estar levemente truncados pela ferramenta de leitura. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo/lealdade: https://api.magicthegathering.io/v1/cards?name=Narset,+Parter+of+Veils.",
+   "fonte": "https://casualplaneswalker.com/card/narset-parter-of-veils/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Norn's Wellspring",
+   "mana_cost": "{1}{W}",
+   "type_line": "Artifact",
+   "oracle_text": "Whenever a creature you control dies, scry 1 and put an oil counter on this artifact.\n{1}, {T}, Remove two oil counters from this artifact: Draw a card.",
+   "nota": "Redação atual ('this artifact') confirmada em cardsrealm; API e Scryfall em cache (one/24) mostram 'Norn's Wellspring' no lugar (redação antiga, mesma regra). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Norn's+Wellspring.",
+   "fonte": "https://casualplaneswalker.com/card/norns-wellspring/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Open the Armory",
+   "mana_cost": "{1}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Search your library for an Aura or Equipment card, reveal it, put it into your hand, then shuffle.",
+   "fonte": "https://casualplaneswalker.com/card/open-the-armory/faq",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Open+the+Armory."
+  },
+  {
+   "name": "Opt",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
+   "nota": "Custo {U} de tappedout.net/mtg-card/opt/ e Card Kingdom (a API não devolveu a carta pela busca por nome). A quebra de linha antes de 'Draw a card.' é estrutural minha; as fontes mostram em linha corrida. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Opt.",
+   "fonte": "https://casualplaneswalker.com/card/opt/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Orzhov Basilica",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {W}{B}.",
+   "rulings": [
+    "2013-04-15: If this land enters the battlefield and you control no other lands, its ability will force you to return it to your hand."
+   ],
+   "nota": "API mostra a redação antiga ('Orzhov Basilica enters the battlefield tapped...'). Quebras de linha entre habilidades são estruturais (fonte em linha corrida). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Orzhov+Basilica.",
+   "fonte": "https://casualplaneswalker.com/card/orzhov-basilica/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Orzhov Signet",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "{1}, {T}: Add {W}{B}.",
+   "fonte": "https://casualplaneswalker.com/card/orzhov-signet/faq",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Orzhov+Signet."
+  },
+  {
+   "name": "Patch Up",
+   "mana_cost": "{2}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Return up to three target creature cards with total mana value 3 or less from your graveyard to the battlefield.",
+   "fonte": "https://casualplaneswalker.com/card/patch-up/faq",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Patch+Up."
+  },
+  {
+   "name": "Path of Ancestry",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\n{T}: Add one mana of any color in your commander's color identity. When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+   "rulings": [
+    "2020-11-10: If you don't have a commander, Path of Ancestry's ability produces no mana.",
+    "2020-11-10: If your commander is a card that has no colors in its color identity, Path of Ancestry's ability produces no mana.",
+    "2020-11-10: If your commander has no creature types, it can't share a creature type with any spell that you cast.",
+    "2020-11-10: If you cast your commander with mana from Path of Ancestry, and your commander hasn't somehow lost all of its creature types while on the stack, you'll scry 1.",
+    "2020-11-10: If Path of Ancestry's last ability produces two mana (most likely due to Mana Reflection), spending those two mana to cast creature spells that share a creature type with your commander will cause two abilities to trigger.",
+    "2023-07-28: If you have two commanders, the last ability adds one mana of any color in their combined color identities.",
+    "2023-07-28: Your commander's creature types are checked immediately after you cast a creature spell."
+   ],
+   "nota": "API mostra a redação antiga ('Path of Ancestry enters the battlefield tapped') e sem o lembrete de scry. Quebra de linha após 'enters tapped.' é estrutural. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Path+of+Ancestry.",
+   "fonte": "https://casualplaneswalker.com/card/path-of-ancestry/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Phyresis",
+   "mana_cost": "{1}{B}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature has infect. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+   "rulings": [
+    "2011-06-01: Multiple instances of infect on the same creature are redundant."
+   ],
+   "nota": "As fontes mostram 'Enchant creature.' em linha corrida com ponto; separei em linha própria sem ponto (formato de palavra-chave). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Phyresis.",
+   "fonte": "https://casualplaneswalker.com/card/phyresis/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Phyrexian Tower",
+   "mana_cost": "",
+   "type_line": "Legendary Land",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice a creature: Add {B}{B}.",
+   "nota": "Quebra de linha entre as duas habilidades é estrutural (fontes em linha corrida). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Phyrexian+Tower.",
+   "fonte": "https://casualplaneswalker.com/card/phyrexian-tower/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Polymorph",
+   "mana_cost": "{3}{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Destroy target creature. It can't be regenerated.\nIts controller reveals cards from the top of their library until they reveal a creature card. The player puts that card onto the battlefield, then shuffles all other cards revealed this way into their library.",
+   "rulings": [
+    "2009-10-01: A \"creature card\" is any card with the type creature, even if it has other types such as artifact, enchantment, or land.",
+    "2009-10-01: If the targeted creature is an illegal target by the time Polymorph would resolve, the entire spell doesn't resolve.",
+    "2009-10-01: If there are no creature cards in the player's library, all the cards in that library are revealed, then the library is shuffled.",
+    "2013-07-01: If the targeted creature has indestructible, it's still a legal target — it just isn't destroyed."
+   ],
+   "nota": "Quebra de parágrafo após 'regenerated.' não confirmada (fontes em linha corrida); não altera regra. Rulings possivelmente truncados pela ferramenta. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Polymorph.",
+   "fonte": "https://casualplaneswalker.com/card/polymorph/faq",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Preordain",
+   "mana_cost": "{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Scry 2, then draw a card. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+   "fonte": "https://casualplaneswalker.com/card/preordain/faq",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Preordain."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Priest of Fell Rites",
+   "mana_cost": "{W}{B}",
+   "type_line": "Creature — Human Warlock",
+   "oracle_text": "{T}, Pay 3 life, Sacrifice this creature: Return target creature card from your graveyard to the battlefield. Activate only as a sorcery.\nUnearth {3}{W}{B} ({3}{W}{B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)",
+   "power": "2",
+   "toughness": "2",
+   "rulings": [
+    "You choose the target of the first ability before paying any of that ability's costs. In other words, you can't choose Priest of Fell Rites itself as the target to bring it back from the graveyard.",
+    "If a creature returned to the battlefield by the unearth ability would leave it for any reason, it's exiled instead—unless the spell or ability that's causing the creature to leave the battlefield is actually trying to exile it.",
+    "Activating a creature card's unearth ability isn't the same as casting the creature card. The unearth ability is put on the stack, but the creature card is not. Spells and abilities that interact with activated abilities (such as Stifle) will interact with unearth, but spells and abilities that interact with spells (such as Cancel) will not."
+   ],
+   "fonte": "https://mtg.wtf/card?q=Priest+of+Fell+Rites",
+   "nota": "mtg.wtf, casualplaneswalker e api.magicthegathering.io concordam ({W}{B}, 2/2). tappedout.net mostrou custo {1}{W}{B}, descartado por divergir de duas fontes (tappedout também errou/omitiu custos em outras cartas do lote)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Priest of Forgotten Gods",
+   "mana_cost": "{1}{B}",
+   "type_line": "Creature — Human Cleric",
+   "oracle_text": "{T}, Sacrifice two other creatures: Any number of target players each lose 2 life and sacrifice a creature of their choice. You add {B}{B} and draw a card.",
+   "power": "1",
+   "toughness": "2",
+   "rulings": [
+    "Because it may have targets, the ability of Priest of Forgotten Gods isn't a mana ability. It uses the stack and can be responded to, even if no targets were chosen.",
+    "You can activate the ability of Priest of Forgotten Gods without choosing any targets if you wish. You'll still add {B}{B} and draw a card.",
+    "You may target players who can't sacrifice a creature. Those players still lose 2 life."
+   ],
+   "fonte": "https://mtg.wtf/card?q=Priest+of+Forgotten+Gods",
+   "nota": "Redação atual do mtg.wtf (\"sacrifice a creature of their choice\"); api.magicthegathering.io mostra a antiga (\"sacrifice a creature\"). Mesmo efeito."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Profane Command",
+   "mana_cost": "{X}{B}{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Choose two —\n• Target player loses X life.\n• Return target creature card with mana value X or less from your graveyard to the battlefield.\n• Target creature gets -X/-X until end of turn.\n• Up to X target creatures gain fear until end of turn. (They can't be blocked except by artifact creatures and/or black creatures.)",
+   "rulings": [
+    "The value chosen for X applies to each X in the spell's effect. You pay {X} only once."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Profane+Command%22&pageSize=1",
+   "nota": "Texto confirmado também em mtg.cardsrealm.com/en-us/card/profane-command. tappedout.net mostrou custo {X}{1}{B} e redação antiga (\"converted mana cost\"), descartado."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Reality Scramble",
+   "mana_cost": "{2}{R}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Put target permanent you own on the bottom of your library. Reveal cards from the top of your library until you reveal a card that shares a card type with that permanent. Put that card onto the battlefield and the rest on the bottom of your library in a random order.\nRetrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)",
+   "rulings": [
+    "Reality Scramble can target any permanent you own, including those another player controls. A token's owner is the player who created it.",
+    "The target permanent's last known existence on the battlefield is checked to determine its types.",
+    "You'll stop as soon as you reveal a card that shares any card types with the target permanent.",
+    "In most cases, at least one card in your library (the card you put on the bottom of your library) will share a card type with the target permanent. However, in some unusual situations, no cards in your library share a card type with the permanent (perhaps because the permanent was a token or its types were changed). In that case, you'll reveal your entire library, put nothing onto the battlefield, and put the cards back in a random order.",
+    "Casting a card with retrace from your graveyard follows the normal timing rules for its card type.",
+    "When a retrace card you cast from your graveyard resolves or is countered, it's put back into your graveyard."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Reality+Scramble%22&pageSize=1",
+   "nota": "Texto idêntico em casualplaneswalker.com e deckbox.org; custo só na API."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Reprieve",
+   "mana_cost": "{1}{W}",
+   "type_line": "Instant",
+   "oracle_text": "Return target spell to its owner's hand.\nDraw a card.",
+   "rulings": [
+    "If a spell is returned to its owner's hand, it's removed from the stack and thus will not resolve. The spell isn't countered; it just no longer exists. This works against a spell that can't be countered."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Reprieve%22&pageSize=1",
+   "nota": "Custo e texto idênticos em tappedout.net/mtg-card/reprieve/."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Reprobation",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment — Aura",
+   "oracle_text": "Enchant creature\nEnchanted creature loses all abilities and is a Coward creature with base power and toughness 0/1. (It keeps all supertypes but loses all other types and creature types.)",
+   "rulings": [
+    "If the enchanted creature gains an ability after Reprobation becomes attached to it, it will keep that ability.",
+    "The enchanted creature retains any supertypes it had, such as legendary or snow."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Reprobation%22&pageSize=1",
+   "nota": "Texto idêntico em casualplaneswalker.com. Outros 3 rulings (interação de camadas com P/T e tipos) vieram truncados pela ferramenta e foram omitidos."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Resculpt",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Exile target artifact or creature. Its controller creates a 4/4 blue and red Elemental creature token.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Resculpt%22&pageSize=1",
+   "nota": "Texto idêntico em casualplaneswalker.com; custo só na API. Sem rulings na fonte."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Reweave",
+   "mana_cost": "{5}{U}",
+   "type_line": "Instant — Arcane",
+   "oracle_text": "Target permanent's controller sacrifices it. If the player does, they reveal cards from the top of their library until they reveal a permanent card that shares a card type with the sacrificed permanent, put that card onto the battlefield, then shuffle.\nSplice onto Arcane {2}{U}{U} (As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)",
+   "rulings": [
+    "When Reweave resolves it uses the type(s) that the permanent had right before it was sacrificed.",
+    "The player reveals cards only if the targeted permanent gets sacrificed.",
+    "A permanent card is a card that could be put onto the battlefield, which is any card that isn't an instant or sorcery.",
+    "You choose all targets for the spell after revealing cards you want to splice, including any targets required by the text of any of those cards. You may choose a different target for each instance of the word \"target\" on the resulting spell.",
+    "A card with a splice ability can't be spliced onto itself because the spell is on the stack (and not in your hand) when you reveal the cards you want to splice onto it."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Reweave%22&pageSize=1",
+   "nota": "Texto idêntico em casualplaneswalker.com; custo só na API. O 3º ruling é trecho final de um ruling mais longo sobre a errata de Tribal."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Rite of Oblivion",
+   "mana_cost": "{W}{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "As an additional cost to cast this spell, sacrifice a nonland permanent.\nExile target nonland permanent.\nFlashback {2}{W}{B} (You may cast this card from your graveyard for its flashback cost and any additional costs. Then exile it.)",
+   "rulings": [
+    "If you cast Rite of Oblivion using flashback, you must still pay its additional cost of sacrificing a nonland permanent.",
+    "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way.",
+    "You must still follow any timing restrictions and permissions, including those based on the card's type."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/rite-of-oblivion/faq",
+   "nota": "Palavras de casualplaneswalker.com (que mostra o texto numa linha só e custo \"2WB\"); custo {W}{B} e flashback {2}{W}{B} de api.magicthegathering.io; quebras de linha (3 parágrafos) de tappedout.net/mtg-card/rite-of-oblivion/."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Rune of Mortality",
+   "mana_cost": "{1}{B}",
+   "type_line": "Enchantment — Aura Rune",
+   "oracle_text": "Enchant permanent\nWhen this Aura enters, draw a card.\nAs long as enchanted permanent is a creature, it has deathtouch.\nAs long as enchanted permanent is an Equipment, it has \"Equipped creature has deathtouch.\"",
+   "rulings": [
+    "If the target of an Aura spell is an illegal target as that spell tries to resolve, it won't resolve, it won't enter the battlefield, and none of its enters-the-battlefield triggered abilities will trigger.",
+    "Runes can target and be attached to any permanent, even one that isn't currently a creature or an Equipment. You can cast a Rune choosing a Vehicle as the target, for example. The Rune's enters-the-battlefield ability will trigger, and you'll draw a card. The Rune won't do anything while the Vehicle isn't a creature, but if it becomes one later, the appropriate ability will start applying."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/rune-of-mortality/faq",
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com (\"When this Aura enters\")."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Rune of Sustenance",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment — Aura Rune",
+   "oracle_text": "Enchant permanent\nWhen this Aura enters, draw a card.\nAs long as enchanted permanent is a creature, it has lifelink.\nAs long as enchanted permanent is an Equipment, it has \"Equipped creature has lifelink.\"",
+   "rulings": [
+    "If the target of an Aura spell is an illegal target as that spell tries to resolve, it won't resolve, it won't enter the battlefield, and none of its enters-the-battlefield triggered abilities will trigger.",
+    "Runes can target and be attached to any permanent, even one that isn't currently a creature or an Equipment. You can cast a Rune choosing a Vehicle as the target, for example. The Rune's enters-the-battlefield ability will trigger, and you'll draw a card. The Rune won't do anything while the Vehicle isn't a creature, but if it becomes one later, the appropriate ability will start applying."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/rune-of-sustenance/faq",
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com (\"When this Aura enters\")."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Saheeli, Sublime Artificer",
+   "mana_cost": "{1}{U/R}{U/R}",
+   "type_line": "Legendary Planeswalker — Saheeli",
+   "oracle_text": "Whenever you cast a noncreature spell, create a 1/1 colorless Servo artifact creature token.\n−2: Target artifact you control becomes a copy of another target artifact or creature you control until end of turn, except it's an artifact in addition to its other types.",
+   "loyalty": "5",
+   "rulings": [
+    "Saheeli's first ability resolves before the spell that caused it to trigger. It resolves even if that spell is countered.",
+    "Saheeli's loyalty ability causes the target artifact to copy the printed values of the target permanent, plus any copy effects that have been applied to it.",
+    "The target artifact is an artifact in addition to whatever types the second target has, and this exception is copiable.",
+    "If the target artifact becomes a creature the same turn it enters the battlefield, you can't attack with it or use any of its {T} abilities unless it has haste.",
+    "If an effect begins to apply to the target artifact before it becomes a copy of another permanent, that effect will continue to apply.",
+    "If the target artifact copies a permanent that's copying something else, it will become whatever the target is copying.",
+    "If the target artifact is an Equipment attached to a creature and it becomes a copy of a non-Equipment permanent, it becomes unattached."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Saheeli%2C+Sublime+Artificer%22&pageSize=1",
+   "nota": "Texto idêntico em casualplaneswalker.com. Custo híbrido {U/R}; a API grafa a habilidade como \"[−2]:\"."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Saprazzan Skerry",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped with two depletion counters on it.\n{T}, Remove a depletion counter from this land: Add {U}{U}. If there are no depletion counters on this land, sacrifice it.",
+   "fonte": "https://casualplaneswalker.com/card/saprazzan-skerry/faq",
+   "nota": "Redação atual de casualplaneswalker.com; tipo e quebra de linha de api.magicthegathering.io (redação antiga com o nome da carta, mesmo efeito). Sem rulings na fonte."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Scorn-Blade Berserker",
+   "mana_cost": "{B}",
+   "type_line": "Creature — Human Berserker",
+   "oracle_text": "Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following ability until end of turn.)\n{1}, Sacrifice this creature: Draw a card.",
+   "power": "0",
+   "toughness": "1",
+   "rulings": [
+    "If a backup ability targets the creature with backup, that creature will get +1/+1 counters, but it won't gain additional abilities.",
+    "The abilities that backup grants to the target creature are determined only once, at the time the ability triggers. They won't change if the permanent with backup loses any abilities before the backup ability resolves.",
+    "Backup confers only abilities that are actually printed below it. Any abilities that are gained by the permanent are ignored, including abilities gained due to a resolving spell or ability or copy effects.",
+    "If a backup ability causes another creature to gain abilities, the creature with backup will still have those abilities."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/scorn-blade-berserker/faq",
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com. P/T 0/1 e custo {B} lidos como valores brutos da API (conferido duas vezes); tappedout não exibiu P/T."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Secluded Steppe",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\n{T}: Add {W}.\nCycling {W} ({W}, Discard this card: Draw a card.)",
+   "fonte": "https://casualplaneswalker.com/card/secluded-steppe/faq",
+   "nota": "Redação atual de casualplaneswalker.com; tipo de api.magicthegathering.io (redação antiga, mesmo efeito). Sem rulings na fonte."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Selfless Savior",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Dog",
+   "oracle_text": "Sacrifice this creature: Another target creature you control gains indestructible until end of turn. (Damage and effects that say \"destroy\" don't destroy it.)",
+   "power": "1",
+   "toughness": "1",
+   "fonte": "https://casualplaneswalker.com/card/selfless-savior/faq",
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com. Sem rulings na fonte."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Selfless Spirit",
+   "mana_cost": "{1}{W}",
+   "type_line": "Creature — Spirit Cleric",
+   "oracle_text": "Flying\nSacrifice this creature: Creatures you control gain indestructible until end of turn.",
+   "power": "2",
+   "toughness": "1",
+   "rulings": [
+    "The set of creatures affected by Selfless Spirit's last ability is determined as the ability resolves. Creatures you begin to control later in the turn won't gain indestructible."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/selfless-spirit/faq",
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Sevinne's Reclamation",
+   "mana_cost": "{2}{W}",
+   "type_line": "Sorcery",
+   "oracle_text": "Return target permanent card with mana value 3 or less from your graveyard to the battlefield. If this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy.\nFlashback {4}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+   "rulings": [
+    "A permanent card is an artifact, creature, enchantment, land, or planeswalker card.",
+    "If a card in a graveyard has {X} in its mana cost, X is considered to be 0.",
+    "If the target card is an illegal target by the time Sevinne's Reclamation tries to resolve, the spell doesn't resolve. You won't copy it if you cast it from a graveyard.",
+    "If you cast Sevinne's Reclamation from your graveyard, any abilities that trigger as the permanent card returns to the battlefield will resolve before the copy of Sevinne's Reclamation resolves but after new targets for the copy have been chosen.",
+    "The copy that Sevinne's Reclamation creates is created on the stack, so it's not \"cast.\" Abilities that trigger when a player casts a spell won't trigger. The copy wasn't cast from a graveyard, so it won't make another copy of itself.",
+    "You must still follow any timing restrictions and permissions, including those based on the card's type. For instance, you can cast a sorcery using flashback only when you could normally cast a sorcery."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Sevinne&pageSize=5",
+   "nota": "Texto idêntico em casualplaneswalker.com e tappedout.net; custo só na API."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Shineshadow Snarl",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "As this land enters, you may reveal a Plains or Swamp card from your hand. If you don't, this land enters tapped.\n{T}: Add {W} or {B}.",
+   "rulings": [
+    "You may reveal any land card with either or both of the appropriate subtypes. It doesn't have to be a basic land card.",
+    "The \"Snarl\" itself doesn't have any land subtypes. You can't reveal one to satisfy the ability of another.",
+    "If an effect instructs you to put one of these lands onto the battlefield tapped, it will still enter the battlefield tapped even if you reveal a land card from your hand.",
+    "If a land card with an appropriate subtype is entering the battlefield from your hand at the same time as one of these lands, you may reveal the other land to have the \"Snarl\" enter untapped."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/shineshadow-snarl/faq",
+   "nota": "Redação atual de casualplaneswalker.com; tipo e rulings de api.magicthegathering.io (redação antiga, mesmo efeito)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Shivan Reef",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This land deals 1 damage to you.",
+   "rulings": [
+    "The damage dealt to you is part of the second mana ability. It doesn't use the stack and can't be responded to.",
+    "Like most lands, each land in this cycle is colorless. The damage dealt to you is dealt by a colorless source."
+   ],
+   "fonte": "https://casualplaneswalker.com/card/shivan-reef/faq",
+   "nota": "Redação atual de casualplaneswalker.com; tipo e rulings de api.magicthegathering.io (redação antiga, mesmo efeito)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Shore Up",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Target creature you control gets +1/+1 and gains hexproof until end of turn. Untap it. (It can't be the target of spells or abilities your opponents control.)",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Shore+Up",
+   "nota": "Texto idêntico em mtgnexus, casualplaneswalker e api.magicthegathering.io; custo confirmado em mtgnexus e magicthegathering.io."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Silverquill Command",
+   "mana_cost": "{2}{W}{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Choose two —\n• Target creature gets +3/+3 and gains flying until end of turn.\n• Return target creature card with mana value 2 or less from your graveyard to the battlefield.\n• Target player draws a card and loses 1 life.\n• Target opponent sacrifices a creature of their choice.",
+   "rulings": [
+    "2021-04-16: If all of Silverquill Command's targets are illegal as it tries to resolve, it will do nothing.",
+    "2021-04-16: If at least one target is still legal as Silverquill Command tries to resolve, it will resolve and do as much as it can."
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Silverquill+Command",
+   "nota": "Texto de mtgnexus e casualplaneswalker (redação atual 'sacrifices a creature of their choice'; magicthegathering.io e Card Kingdom mostram a antiga 'sacrifices a creature'). Custo {2}{W}{B} vem de api.magicthegathering.io (cmc 4) e Card Kingdom; a leitura do mtgnexus devolveu {1}{W}{B}, descartada por ser minoria (2 fontes contra 1). Rulings de magicthegathering.io."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Skrelv, Defector Mite",
+   "mana_cost": "{W/P}",
+   "type_line": "Legendary Artifact Creature — Phyrexian Mite",
+   "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nSkrelv can't block.\n{W/P}, {T}: Choose a color. Another target creature you control gains toxic 1 and hexproof from that color until end of turn. It can't be blocked by creatures of that color this turn. ({W/P} can be paid with either {W} or 2 life.)",
+   "power": "1",
+   "toughness": "1",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Skrelv,+Defector+Mite",
+   "nota": "Custo (mana phyrexiano branco) e P/T confirmados no Card Kingdom. Impressões antigas dizem 'Skrelv, Defector Mite can't block.'"
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Skrelv's Hive",
+   "mana_cost": "{1}{W}",
+   "type_line": "Enchantment",
+   "oracle_text": "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and \"This token can't block.\"\nCorrupted — As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink.",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Skrelv's+Hive",
+   "nota": "Custo só apareceu no Card Kingdom ({1}{W}); fonte única para o custo. mtgnexus mostra 'This token can't block.'; tappedout, cardsrealm e Card Kingdom mostram a redação antiga 'This creature can't block.' (mesma função)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Skullclamp",
+   "mana_cost": "{1}",
+   "type_line": "Artifact — Equipment",
+   "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
+   "fonte": "https://mtg.wtf/card?q=%21%22Skullclamp%22",
+   "nota": "Texto idêntico em mtg.wtf e mtgnexus."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Sleight of Hand",
+   "mana_cost": "{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.",
+   "rulings": [
+    "2023-09-01: If there is only one card in your library, you put it into your hand."
+   ],
+   "fonte": "https://mtg.wtf/card?q=%21%22Sleight+of+Hand%22",
+   "nota": "Fonte única (mtg.wtf); demais tentativas caíram em limite de requisições."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Slip Out the Back",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Put a +1/+1 counter on target creature. It phases out. (Treat it and anything attached to it as though they don't exist until its controller's next turn.)",
+   "rulings": [
+    "2022-04-29: An attacking or blocking creature that phases out is removed from combat.",
+    "2022-04-29: As a creature is phased out, Auras and Equipment attached to it also phase out at the same time. Those Auras and Equipment will phase in at the same time that creature does, and they'll phase in still attached to that creature.",
+    "2022-04-29: Permanents phase back in during their controller's untap step, immediately before that player untaps their permanents. Creatures that phase in this way are able to attack and pay a cost of {T} during that turn. If a permanent had counters on it when it phased out, it will have those counters when it phases back in.",
+    "2022-04-29: Phased-out permanents are treated as though they don't exist. They can't be the target of spells or abilities, their static abilities have no effect on the game, their triggered abilities can't trigger, they can't attack or block, and so on.",
+    "2022-04-29: Phasing out doesn't cause any 'leaves the battlefield' abilities to trigger. Similarly, phasing in won't cause any 'enters the battlefield' abilities to trigger."
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Slip+Out+the+Back",
+   "nota": "Texto e custo idênticos em mtgnexus e api.magicthegathering.io (rulings desta última)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Smuggler's Copter",
+   "mana_cost": "{2}",
+   "type_line": "Artifact — Vehicle",
+   "oracle_text": "Flying\nWhenever this Vehicle attacks or blocks, you may draw a card. If you do, discard a card.\nCrew 1 (Tap any number of creatures you control with total power 1 or more: This Vehicle becomes an artifact creature until end of turn.)",
+   "power": "3",
+   "toughness": "3",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Smuggler's+Copter",
+   "nota": "Texto atual do mtgnexus; custo {2} e P/T de api.magicthegathering.io (que mostra a redação antiga 'Whenever Smuggler's Copter attacks or blocks'). A API lista 12 rulings de 2017-09-29 sobre crew/veículos, mas a leitura não devolveu o texto literal — não registrados."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Snapback",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "You may exile a blue card from your hand rather than pay this spell's mana cost.\nReturn target creature to its owner's hand.",
+   "rulings": [
+    "2021-03-19: To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as the alternative cost of Snapback), add any cost increases, then apply any cost reductions. The mana value of the spell is determined by only its mana cost, no matter what the total cost to cast that spell was."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Snapback",
+   "nota": "Texto idêntico em api.magicthegathering.io e casualplaneswalker; custo só na primeira. A quebra de linha entre as duas frases é suposição de formatação (as fontes devolveram em linha única)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Sol Ring",
+   "mana_cost": "{1}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add {C}{C}.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Sol+Ring",
+   "nota": "Confirmado em casualplaneswalker (mostra 'T: Add CC.' sem chaves)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Solve the Equation",
+   "mana_cost": "{2}{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Search your library for an instant or sorcery card, reveal it, put it into your hand, then shuffle.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Solve+the+Equation",
+   "nota": "Texto idêntico em mtgnexus, Card Kingdom e magicthegathering.io. Custo {2}{U} (cmc 3) explícito em magicthegathering.io e Card Kingdom; o mtgnexus não mostrava o custo."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": true,
+   "name": "Sorin of House Markov",
+   "mana_cost": "{1}{B}",
+   "type_line": "Legendary Creature — Human Noble",
+   "oracle_text": "Lifelink\nExtort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)\nAt the beginning of each of your postcombat main phases, if you gained 3 or more life this turn, exile Sorin, then return him to the battlefield transformed under his owner's control.",
+   "power": "1",
+   "toughness": "4",
+   "faces": [
+    {
+     "name": "Sorin of House Markov",
+     "mana_cost": "{1}{B}",
+     "type_line": "Legendary Creature — Human Noble",
+     "oracle_text": "Lifelink\nExtort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)\nAt the beginning of each of your postcombat main phases, if you gained 3 or more life this turn, exile Sorin, then return him to the battlefield transformed under his owner's control.",
+     "power": "1",
+     "toughness": "4"
+    },
+    {
+     "name": "Sorin, Ravenous Neonate",
+     "mana_cost": "",
+     "type_line": "Legendary Planeswalker — Sorin",
+     "oracle_text": "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)\n+2: Create a Food token.\n−1: Sorin deals damage equal to the amount of life you gained this turn to any target.\n−6: Gain control of target creature. It becomes a Vampire in addition to its other types. Put a lifelink counter on it if you control a white permanent other than that creature or Sorin.",
+     "loyalty": "3"
+    }
+   ],
+   "fonte": "https://www.mtgnexus.com/autocard/card/Sorin+of+House+Markov",
+   "nota": "Divergência na redação do gatilho de transformação: mtgnexus, cardsrealm e outof.games mostram 'At the beginning of each of your postcombat main phases ... exile Sorin' (registrada); scryfall.com/card/mh3/245 e tappedout mostram 'At the beginning of your postcombat main phase ... exile Sorin of House Markov'. Só muda resultado se houver fase principal pós-combate extra no turno. Custo {1}{B} confirmado em scryfall.com/card/mh3/245, outof.games e Card Kingdom; P/T 1/4 em mtgnexus, outof.games e Card Kingdom; lealdade 3 em mtgnexus e Card Kingdom. Face de trás: indicador de cor branco e preto (scryfall), sem custo de mana. Nenhum ruling obtido."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Soul-Guide Lantern",
+   "mana_cost": "{1}",
+   "type_line": "Artifact",
+   "oracle_text": "When this artifact enters, exile target card from a graveyard.\n{T}, Sacrifice this artifact: Exile each opponent's graveyard.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Soul-Guide+Lantern",
+   "nota": "Texto atual do mtgnexus; custo {1} em api.magicthegathering.io e Card Kingdom (ambas com a redação antiga 'When Soul-Guide Lantern enters the battlefield'). Quebras de linha entre habilidades são formatação minha (fonte devolveu em linha única)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Speaker of the Heavens",
+   "mana_cost": "{W}",
+   "type_line": "Creature — Human Cleric",
+   "oracle_text": "Vigilance, lifelink (Attacking doesn't cause this creature to tap. Damage dealt by this creature also causes you to gain that much life.)\n{T}: Create a 4/4 white Angel creature token with flying. Activate only if you have at least 7 life more than your starting life total and only as a sorcery.",
+   "power": "1",
+   "toughness": "1",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Speaker+of+the+Heavens",
+   "nota": "Custo {W} só no Card Kingdom (fonte única para o custo), que mostra a redação antiga 'Activate this ability only if ... and only any time you could cast a sorcery' (mesma função)."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Spell Snare",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target spell with mana value 2.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Spell+Snare",
+   "nota": "Texto confirmado em casualplaneswalker; custo só em magicthegathering.io."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Spire of Industry",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{T}, Pay 1 life: Add one mana of any color. Activate only if you control an artifact.",
+   "fonte": "https://casualplaneswalker.com/card/spire-of-industry/faq/",
+   "nota": "Fonte única (casualplaneswalker), que mostra os símbolos sem chaves ('T: Add C. T, Pay 1 life: ...'); chaves e quebra de linha normalizadas por mim."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Springleaf Drum",
+   "mana_cost": "{1}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}, Tap an untapped creature you control: Add one mana of any color.",
+   "rulings": [
+    "2020-08-07: You can tap a creature that hasn't been under your control since your most recent turn began to activate Springleaf Drum's ability."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Springleaf+Drum",
+   "nota": "Texto confirmado em casualplaneswalker; custo só em magicthegathering.io."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Stream of Thought",
+   "mana_cost": "{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Target player mills four cards. You shuffle up to four cards from your graveyard into your library.\nReplicate {2}{U}{U} (When you cast this spell, copy it for each time you paid its replicate cost. You may choose new targets for the copies.)",
+   "rulings": [
+    "2019-06-14: If you replicate Stream of Thought, the copies resolve before the original spell, so they can't shuffle Stream of Thought into your library.",
+    "2019-06-14: Stream of Thought is still on the stack while you choose cards in your graveyard to shuffle into your library. It can't shuffle itself into your library.",
+    "2019-06-14: The copies that replicate creates are created on the stack, so they're not \"cast.\" Abilities that trigger when a player casts a spell won't trigger.",
+    "2019-06-14: You choose which cards to shuffle into your library while Stream of Thought is resolving. If you target yourself with Stream of Thought, you may choose any of the four cards that you put into your graveyard or any cards that were there before.",
+    "2019-06-14: You'll copy Stream of Thought for each time you paid its replicate cost, even if it's countered."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=Stream+of+Thought",
+   "nota": "Texto idêntico em magicthegathering.io, mtgnexus e Card Kingdom. Custo {U} (cmc 1) em magicthegathering.io e Card Kingdom; a leitura do mtgnexus devolveu {2}{U}{U} (confusão com o custo de replicate), descartada."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Sulfur Falls",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped unless you control an Island or a Mountain.\n{T}: Add {U} or {R}.",
+   "fonte": "https://www.cardkingdom.com/catalog/search?filter[name]=Sulfur+Falls",
+   "nota": "Fonte única (Card Kingdom, redação das impressões mais recentes; as antigas dizem 'Sulfur Falls enters the battlefield tapped unless...')."
+  },
+  {
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "name": "Svyelunite Temple",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\n{T}: Add {U}.\n{T}, Sacrifice this land: Add {U}{U}.",
+   "fonte": "https://www.mtgnexus.com/autocard/card/Svyelunite+Temple",
+   "nota": "Idêntico em mtgnexus e na impressão Secret Lair do Card Kingdom."
+  },
+  {
+   "name": "Swan Song",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.",
+   "rulings": [
+    "2013-09-15: Swan Song can target a spell that can't be countered. That spell won't be countered when Swan Song resolves, but its controller will get a Bird token."
+   ],
+   "fonte": "https://mtg.wtf/card?q=Swan+Song",
+   "nota": "Texto, custo e ruling de mtg.wtf; iguais em api.magicthegathering.io ({U}). tappedout.net e mtg.cardsrealm.com foram lidos como {1}{U} — leitura descartada (duas fontes estruturadas dizem {U}).",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Tainted Field",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. Activate only if you control a Swamp.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Tainted+Field%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/tainted-field/faq/"
+  },
+  {
+   "name": "Talisman of Creativity",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This artifact deals 1 damage to you.",
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). A API mostrava redação antiga (nome da carta / \"enters the battlefield\"); gravada a redação atual do casualplaneswalker; sem diferença de regra. Segunda fonte: https://casualplaneswalker.com/card/talisman-of-creativity/faq/",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Talisman+of+Creativity%22",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Talisman of Hierarchy",
+   "mana_cost": "{2}",
+   "type_line": "Artifact",
+   "oracle_text": "{T}: Add {C}.\n{T}: Add {W} or {B}. This artifact deals 1 damage to you.",
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). A API mostrava redação antiga (nome da carta / \"enters the battlefield\"); gravada a redação atual do casualplaneswalker; sem diferença de regra. Segunda fonte: https://casualplaneswalker.com/card/talisman-of-hierarchy/faq/",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Talisman+of+Hierarchy%22",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Temple of Silence",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {W} or {B}.",
+   "rulings": [
+    "2013-09-15: When you scry, you may put all the cards you look at back on top of your library, you may put all of those cards on the bottom of your library, or you may put some of those cards on top and the rest of them on the bottom."
+   ],
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). A API mostrava redação antiga (nome da carta / \"enters the battlefield\"); gravada a redação atual do casualplaneswalker; sem diferença de regra. Segunda fonte: https://casualplaneswalker.com/card/temple-of-silence/faq/",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Temple+of+Silence%22",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "The Dross Pits",
+   "mana_cost": "",
+   "type_line": "Land — Sphere",
+   "oracle_text": "This land enters tapped.\n{T}: Add {B}.\n{1}{B}, {T}, Sacrifice this land: Draw a card.",
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). A API mostrava redação antiga (nome da carta / \"enters the battlefield\"); gravada a redação atual do casualplaneswalker; sem diferença de regra. Segunda fonte: https://casualplaneswalker.com/card/the-dross-pits/faq/",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22The+Dross+Pits%22",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "The Fair Basilica",
+   "mana_cost": "",
+   "type_line": "Land — Sphere",
+   "oracle_text": "This land enters tapped.\n{T}: Add {W}.\n{1}{W}, {T}, Sacrifice this land: Draw a card.",
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). A API mostrava redação antiga (nome da carta / \"enters the battlefield\"); gravada a redação atual do casualplaneswalker; sem diferença de regra. Segunda fonte: https://casualplaneswalker.com/card/the-fair-basilica/faq/",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22The+Fair+Basilica%22",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Transmogrify",
+   "mana_cost": "{3}{R}",
+   "type_line": "Sorcery",
+   "oracle_text": "Exile target creature. That creature's controller reveals cards from the top of their library until they reveal a creature card. That player puts that card onto the battlefield, then shuffles the rest into their library.",
+   "rulings": [
+    "2020-06-23: If the player reveals their entire library without revealing a creature card, that player just shuffles their library.",
+    "2020-06-23: If the target creature is an illegal target by the time Transmogrify tries to resolve, the spell won't resolve."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Transmogrify%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/transmogrify/faq/"
+  },
+  {
+   "name": "Treasure Cruise",
+   "mana_cost": "{7}{U}",
+   "type_line": "Sorcery",
+   "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards.",
+   "rulings": [
+    "2021-03-19: Because delve isn't an alternative cost, it can be used in conjunction with alternative costs, such as flashback. It can also be used to pay for additional costs that include generic mana.",
+    "2021-03-19: Delve doesn't change a spell's mana cost or mana value. For example, Treasure Cruise's mana value is 8 even if you exiled three cards to cast it.",
+    "2021-03-19: You can exile cards to pay only for generic mana, and you can't exile more cards than the generic mana requirement of a spell with delve."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Treasure+Cruise%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/treasure-cruise/faq/"
+  },
+  {
+   "name": "Unearth",
+   "mana_cost": "{B}",
+   "type_line": "Sorcery",
+   "oracle_text": "Return target creature card with mana value 3 or less from your graveyard to the battlefield.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+   "rulings": [
+    "2019-06-14: If a card in a player's graveyard has {X} in its mana cost, X is considered to be 0."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Unearth%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/unearth/faq/"
+  },
+  {
+   "name": "Unsubstantiate",
+   "mana_cost": "{1}{U}",
+   "type_line": "Instant",
+   "oracle_text": "Return target spell or creature to its owner's hand.",
+   "rulings": [
+    "2020-06-23: If a spell is returned to its owner's hand, it's removed from the stack and thus will not resolve. The spell isn't countered; it just no longer exists. This works against a spell that can't be countered."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Unsubstantiate%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/unsubstantiate/faq/"
+  },
+  {
+   "name": "Utter End",
+   "mana_cost": "{2}{W}{B}",
+   "type_line": "Instant",
+   "oracle_text": "Exile target nonland permanent.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Utter+End%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/utter-end/faq/"
+  },
+  {
+   "name": "Vault of the Archangel",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "{T}: Add {C}.\n{2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn.",
+   "rulings": [
+    "2011-01-22: Vault of the Archangel's last ability affects only creatures you control when that ability resolves. It won't affect creatures that come under your control later in the turn.",
+    "2011-01-22: Multiple instances of deathtouch or lifelink on the same creature are redundant."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Vault+of+the+Archangel%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/vault-of-the-archangel/faq/"
+  },
+  {
+   "name": "Wash Away",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Cleave {1}{U}{U} (You may cast this spell for its cleave cost. If you do, remove the words in square brackets.)\nCounter target spell [that wasn't cast from its owner's hand].",
+   "rulings": [
+    "2021-11-19: A cleave cost is an alternative cost that's paid instead of the spell's mana cost. Casting a spell for its cleave cost doesn't change the spell's mana value.",
+    "2021-11-19: Copies of spells are never cast from a player's hand, so Wash Away can counter copies of spells even if its cleave cost wasn't paid, regardless of whether the original spell being copied was cast from a player's hand.",
+    "2021-11-19: If an effect allows you to \"cast a spell without paying its mana cost,\" you can't cast that spell for its cleave cost.",
+    "2021-11-19: If you cast a spell for its cleave cost, that spell doesn't have any of the text in square brackets while it's on the stack.",
+    "2021-11-19: You can't cast a spell for both its cleave cost and another alternative cost."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Wash+Away%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/wash-away/faq/"
+  },
+  {
+   "name": "Windbrisk Heights",
+   "mana_cost": "",
+   "type_line": "Land",
+   "oracle_text": "Hideaway 4 (When this land enters, look at the top four cards of your library, exile one face down, then put the rest on the bottom in a random order.)\nThis land enters tapped.\n{T}: Add {W}.\n{W}, {T}: You may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn.",
+   "rulings": [
+    "2007-10-01: At the time the ability resolves, you'll get to play the card if you declared three different creatures as attackers at any point in the turn.",
+    "2022-04-29: Any player who has controlled a permanent with a hideaway ability since a card was exiled with it may look at that card.",
+    "2022-04-29: Hideaway now causes you to put the rest of the cards on the bottom of your library in a random order instead of any order.",
+    "2022-04-29: Previously, permanents with hideaway entered the battlefield tapped. This ability has been removed from the definition of hideaway."
+   ],
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). A API mostrava redação antiga (nome da carta / \"enters the battlefield\"); gravada a redação atual do casualplaneswalker; sem diferença de regra. Segunda fonte: https://casualplaneswalker.com/card/windbrisk-heights/faq/",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Windbrisk+Heights%22",
+   "consulta": "2026-10-05",
+   "incerto": false
+  },
+  {
+   "name": "Wretched Confluence",
+   "mana_cost": "{3}{B}{B}",
+   "type_line": "Instant",
+   "oracle_text": "Choose three. You may choose the same mode more than once.\n• Target player draws a card and loses 1 life.\n• Target creature gets -2/-2 until end of turn.\n• Return target creature card from your graveyard to your hand.",
+   "rulings": [
+    "2015-11-04: You choose the modes as you cast the spell. Once modes are chosen, they can't be changed.",
+    "2015-11-04: If a mode requires a target, you can select that mode only if there's a legal target available.",
+    "2015-11-04: No matter which combination of modes you choose, you always follow the instructions of a Confluence in the order they are written.",
+    "2015-11-04: If all targets for the chosen modes become illegal before the Confluence resolves, the spell won't resolve and none of its effects will happen.",
+    "2015-11-04: If a Confluence is copied, the effect that creates the copy will usually allow you to choose new targets, but you can't choose new modes.",
+    "2015-11-04: No player can cast spells or activate abilities in between the modes of a resolving spell."
+   ],
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Wretched+Confluence%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/wretched-confluence/faq/"
+  },
+  {
+   "name": "You See a Guard Approach",
+   "mana_cost": "{U}",
+   "type_line": "Instant",
+   "oracle_text": "Choose one —\n• Distract the Guard — Tap target creature.\n• Hide — Target creature you control gains hexproof until end of turn. (It can't be the target of spells or abilities your opponents control.)",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22You+See+a+Guard+Approach%22",
+   "consulta": "2026-10-05",
+   "incerto": false,
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/you-see-a-guard-approach/faq/"
+  },
+  {
+   "name": "Zulaport Cutthroat",
+   "mana_cost": "{1}{B}",
+   "type_line": "Creature — Human Rogue Ally",
+   "oracle_text": "Whenever this creature or another creature you control dies, each opponent loses 1 life and you gain 1 life.",
+   "power": "1",
+   "toughness": "1",
+   "rulings": [
+    "2021-03-19: If another creature you control dies at the same time as Zulaport Cutthroat, its ability triggers for that creature."
+   ],
+   "nota": "Custo, tipo, P/T e ruling de api.magicthegathering.io (P/T 1/1 e {1}{B} também em tappedout.net). Redação atual \"this creature\" de https://mtg.cardsrealm.com/en-us/card/zulaport-cutthroat; a API e o casualplaneswalker ainda mostram \"Whenever Zulaport Cutthroat or another creature you control dies\" — mesma regra, só muda a autorreferência.",
+   "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Zulaport+Cutthroat%22",
+   "consulta": "2026-10-05",
+   "incerto": false
+  }
+ ]
+}

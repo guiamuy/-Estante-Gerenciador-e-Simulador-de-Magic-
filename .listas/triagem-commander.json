@@ -1,0 +1,1664 @@
+{
+ "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde.",
+ "cartas": [
+  {
+   "name": "Abrade",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Accursed Marauder",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "edito"
+   ]
+  },
+  {
+   "name": "Alseid of Life's Bounty",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "An Offer You Can't Refuse",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Angelic Gift",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "reauditar"
+   ],
+   "obs": "igual à Setessan Training; a nota do script está velha"
+  },
+  {
+   "name": "Angelic Renewal",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-lembra-carta"
+   ]
+  },
+  {
+   "name": "Anguished Unmaking",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Animate Dead",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "camadas-613",
+    "aura-em-cemiterio"
+   ]
+  },
+  {
+   "name": "Arcane Denial",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-atrasado"
+   ]
+  },
+  {
+   "name": "Arcane Signet",
+   "listas": "KM",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Ascend from Avernus",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "reanimar-por-valor"
+   ],
+   "obs": "X e em massa; planeswalker junto"
+  },
+  {
+   "name": "Austere Command",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "modal-multiplo",
+    "massa-por-filtro"
+   ]
+  },
+  {
+   "name": "Authority of the Consuls",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "entra-virado-do-oponente",
+    "gatilho-criatura-do-oponente"
+   ],
+   "obs": "a primeira frase é efeito de substituição (614)"
+  },
+  {
+   "name": "Ayli, Eternal Pilgrim",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "valor-do-sacrificado",
+    "ative-somente-se"
+   ]
+  },
+  {
+   "name": "Benalish Sleeper",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "kicker",
+    "edito"
+   ]
+  },
+  {
+   "name": "Benevolent Bodyguard",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Blinkmoth Nexus",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "C",
+   "primitivas": [
+    "camadas-613"
+   ],
+   "obs": "terreno que vira criatura"
+  },
+  {
+   "name": "Bojuka Bog",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Bounty Agent",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "filtro-de-alvo"
+   ],
+   "obs": "alvo lendário (artefato, criatura ou encantamento)"
+  },
+  {
+   "name": "Brainstorm",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Call of the Death-Dweller",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "reanimar-por-valor",
+    "marcador-de-palavra-chave"
+   ]
+  },
+  {
+   "name": "Caves of Koilos",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Cephalid Coliseum",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-com-dano",
+    "ative-somente-se"
+   ],
+   "obs": "limiar"
+  },
+  {
+   "name": "Chart a Course",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "atacou-neste-turno"
+   ]
+  },
+  {
+   "name": "Children of Korlis",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "contagem-vida-perdida"
+   ]
+  },
+  {
+   "name": "Chromatic Sphere",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Chromatic Star",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Combat Research",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "habilidade-concedida",
+    "bonus-condicional"
+   ],
+   "obs": "ward concedido"
+  },
+  {
+   "name": "Command Tower",
+   "listas": "KM",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Consider",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Corpse Knight",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Counterspell",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Cruel Celebrant",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Curiosity",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "A",
+   "primitivas": [
+    "reauditar"
+   ],
+   "obs": "gatilho enchanted-deals-damage; só contra oponente; 'pode'"
+  },
+  {
+   "name": "Dark Confidant",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "revela-topo-para-a-mao"
+   ]
+  },
+  {
+   "name": "Darksteel Mutation",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "camadas-613"
+   ]
+  },
+  {
+   "name": "Daze",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Delay",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "C",
+   "primitivas": [
+    "suspender-702.62"
+   ],
+   "obs": "fica parcial declarada"
+  },
+  {
+   "name": "Dig Through Time",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "delve-por-carta"
+   ]
+  },
+  {
+   "name": "Dispel",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Dragon Fodder",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Dwarven Ruins",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "mana-com-sacrificio"
+   ],
+   "obs": "como a Tinder Wall"
+  },
+  {
+   "name": "Elas il-Kor, Sadistic Pilgrim",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "other-etb e other-dies já existem"
+  },
+  {
+   "name": "Everflowing Chalice",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "kicker",
+    "marcador-nomeado"
+   ],
+   "obs": "multikicker"
+  },
+  {
+   "name": "Exotic Orchard",
+   "listas": "KM",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Expressive Iteration",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "olhar-e-repartir"
+   ]
+  },
+  {
+   "name": "Faithless Looting",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Fellwar Stone",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Fetid Heath",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-filtro-hibrido"
+   ]
+  },
+  {
+   "name": "Flickering Ward",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "reauditar"
+   ],
+   "obs": "como Benevolent Blessing, mais {W}: volta para a mão"
+  },
+  {
+   "name": "Flusterstorm",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "reauditar"
+   ],
+   "obs": "rajada já existe; a nota está velha"
+  },
+  {
+   "name": "Foil",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "custo-alternativo-novo"
+   ],
+   "obs": "descartar uma Ilha e outra carta"
+  },
+  {
+   "name": "Forbidden Friendship",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Frantic Search",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "desvirar-ate-n"
+   ]
+  },
+  {
+   "name": "Gitaxian Probe",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "mana-phyrexiana",
+    "olhar-mao"
+   ]
+  },
+  {
+   "name": "Glint-Horn Buccaneer",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-ao-descartar",
+    "ative-somente-se"
+   ]
+  },
+  {
+   "name": "Hard Evidence",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "High Priest of Penance",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-recebe-dano"
+   ]
+  },
+  {
+   "name": "High Tide",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "mana-extra-do-turno"
+   ]
+  },
+  {
+   "name": "Idolized",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "habilidade-concedida",
+    "ataca-sozinha"
+   ]
+  },
+  {
+   "name": "Idyllic Tutor",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Impulse",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Into the Roil",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "kicker"
+   ]
+  },
+  {
+   "name": "Isolated Chapel",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "entra-virado-a-menos-que"
+   ],
+   "obs": "controla Plains ou Swamp"
+  },
+  {
+   "name": "Izzet Signet",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Jirina, Dauntless General",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "palavra-chave-por-subtipo"
+   ],
+   "obs": "o gatilho de entrada já cabe"
+  },
+  {
+   "name": "Kami of False Hope",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Kaya's Ghostform",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-lembra-carta"
+   ],
+   "obs": "morre ou é exilada"
+  },
+  {
+   "name": "Kediss, Emberclaw Familiar",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "com dois jogadores 'cada outro oponente' é ninguém: declarar"
+  },
+  {
+   "name": "Kher Keep",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "ficha por habilidade"
+  },
+  {
+   "name": "Killian, Ink Duelist",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "reducao-por-alvo"
+   ],
+   "obs": "é o comandante: prioridade"
+  },
+  {
+   "name": "Knight of the White Orchid",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "condicao-de-gatilho"
+   ],
+   "obs": "oponente controla mais terrenos"
+  },
+  {
+   "name": "Krenko's Command",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Kytheon, Hero of Akros",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "C",
+   "primitivas": [
+    "camadas-613",
+    "ataque-a-planeswalker"
+   ],
+   "obs": "texto incerto; frente cabe, verso parcial"
+  },
+  {
+   "name": "Lazotep Plating",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "amass",
+    "hexproof-de-jogador"
+   ]
+  },
+  {
+   "name": "Legions to Ashes",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "exila-fichas-de-mesmo-nome"
+   ]
+  },
+  {
+   "name": "Leonin Relic-Warder",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "como Journey to Nowhere, com 'pode'"
+  },
+  {
+   "name": "Lose Focus",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "replicar"
+   ],
+   "obs": "cópias como as da rajada"
+  },
+  {
+   "name": "Lotus Petal",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Lukka, Coppercoat Outcast",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "revelar-ate",
+    "conjurar-do-exilio"
+   ],
+   "obs": "−2 sai com revelar-até; +1 e −7 ficam"
+  },
+  {
+   "name": "Lurrus of the Dream-Den",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "conjurar-do-cemiterio"
+   ],
+   "obs": "uma vez por turno"
+  },
+  {
+   "name": "Malcolm, Keen-Eyed Navigator",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-dano-por-subtipo"
+   ],
+   "obs": "é o comandante: prioridade; Treasure já existe"
+  },
+  {
+   "name": "March of Swirling Mist",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "fase-702.26"
+   ]
+  },
+  {
+   "name": "Mind Stone",
+   "listas": "KM",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Miscast",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Mishra's Bauble",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-atrasado",
+    "olhar-topo-de-jogador"
+   ]
+  },
+  {
+   "name": "Mishra's Factory",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "C",
+   "primitivas": [
+    "camadas-613"
+   ],
+   "obs": "terreno que vira criatura"
+  },
+  {
+   "name": "Mogg Salvage",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "custo-alternativo-novo"
+   ],
+   "obs": "de graça com condição de campo"
+  },
+  {
+   "name": "Moonsnare Prototype",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "topo-ou-fundo-a-escolha-do-dono"
+   ],
+   "obs": "a mana já cabe"
+  },
+  {
+   "name": "Mother of Runes",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Mystic Remora",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "manutencao-cumulativa",
+    "gatilho-magica-do-oponente"
+   ]
+  },
+  {
+   "name": "Mystical Tutor",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Narset, Parter of Veils",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "limite-de-compra"
+   ],
+   "obs": "o −2 cabe em look com filtro"
+  },
+  {
+   "name": "Negate",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Norn's Wellspring",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "marcador-nomeado"
+   ]
+  },
+  {
+   "name": "Open the Armory",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "A",
+   "primitivas": [
+    "filtro-de-busca"
+   ],
+   "obs": "Aura ou Equipamento"
+  },
+  {
+   "name": "Opt",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Orzhov Basilica",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "igual à Boros Garrison"
+  },
+  {
+   "name": "Orzhov Signet",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Patch Up",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "reanimar-por-valor"
+   ],
+   "obs": "até três alvos com valor total 3"
+  },
+  {
+   "name": "Path of Ancestry",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-ao-gastar-mana"
+   ],
+   "obs": "a mana já cabe; a vidência fica parcial"
+  },
+  {
+   "name": "Phyresis",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "veneno"
+   ],
+   "obs": "infectar"
+  },
+  {
+   "name": "Phyrexian Tower",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "mana-com-sacrificio"
+   ],
+   "obs": "sacrificar outra criatura"
+  },
+  {
+   "name": "Polymorph",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "revelar-ate"
+   ],
+   "obs": "'não pode ser regenerada' não tem efeito sem regeneração"
+  },
+  {
+   "name": "Preordain",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Priest of Fell Rites",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "reanimar-por-valor",
+    "custo-de-vida",
+    "unearth"
+   ]
+  },
+  {
+   "name": "Priest of Forgotten Gods",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "edito",
+    "alvos-qualquer-numero"
+   ]
+  },
+  {
+   "name": "Profane Command",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "modal-multiplo",
+    "reanimar-por-valor"
+   ],
+   "obs": "X; medo"
+  },
+  {
+   "name": "Reality Scramble",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "revelar-ate",
+    "retrace"
+   ]
+  },
+  {
+   "name": "Reprieve",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "A",
+   "primitivas": [
+    "filtro-de-alvo"
+   ],
+   "obs": "devolver mágica à mão já existe (Unsubstantiate)"
+  },
+  {
+   "name": "Reprobation",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "camadas-613"
+   ]
+  },
+  {
+   "name": "Resculpt",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Reweave",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "revelar-ate",
+    "splice"
+   ],
+   "obs": "splice fica parcial"
+  },
+  {
+   "name": "Rite of Oblivion",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "A",
+   "primitivas": [
+    "filtro-de-custo"
+   ],
+   "obs": "custo adicional: sacrificar permanente que não é terreno"
+  },
+  {
+   "name": "Rune of Mortality",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "bonus-condicional"
+   ]
+  },
+  {
+   "name": "Rune of Sustenance",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "bonus-condicional"
+   ]
+  },
+  {
+   "name": "Saheeli, Sublime Artificer",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "C",
+   "primitivas": [
+    "copia-707"
+   ],
+   "obs": "o passivo cabe; o −2 é cópia"
+  },
+  {
+   "name": "Saprazzan Skerry",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "marcador-nomeado"
+   ]
+  },
+  {
+   "name": "Scorn-Blade Berserker",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "backup"
+   ]
+  },
+  {
+   "name": "Secluded Steppe",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "reciclar já existe"
+  },
+  {
+   "name": "Selfless Savior",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Selfless Spirit",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Sevinne's Reclamation",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "reanimar-por-valor",
+    "copia-707"
+   ],
+   "obs": "a cópia no lampejo fica parcial"
+  },
+  {
+   "name": "Shineshadow Snarl",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "entra-virado-a-menos-que"
+   ],
+   "obs": "revelar Plains ou Swamp da mão"
+  },
+  {
+   "name": "Shivan Reef",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Shore Up",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Silverquill Command",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "modal-multiplo",
+    "reanimar-por-valor",
+    "edito"
+   ]
+  },
+  {
+   "name": "Skrelv's Hive",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "veneno"
+   ],
+   "obs": "tóxico e corrompido"
+  },
+  {
+   "name": "Skrelv, Defector Mite",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "veneno",
+    "mana-phyrexiana"
+   ]
+  },
+  {
+   "name": "Skullclamp",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "gatilho-equipada-morre"
+   ]
+  },
+  {
+   "name": "Sleight of Hand",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Slip Out the Back",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "C",
+   "primitivas": [
+    "fase-702.26"
+   ]
+  },
+  {
+   "name": "Smuggler's Copter",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "C",
+   "primitivas": [
+    "camadas-613",
+    "veiculo-tripular"
+   ]
+  },
+  {
+   "name": "Snapback",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "custo-alternativo-novo"
+   ],
+   "obs": "exilar carta azul da mão"
+  },
+  {
+   "name": "Sol Ring",
+   "listas": "KM",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Solve the Equation",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Sorin of House Markov",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "C",
+   "primitivas": [
+    "troca-de-controle",
+    "extorsao"
+   ],
+   "obs": "texto incerto no gatilho; −6 rouba criatura"
+  },
+  {
+   "name": "Soul-Guide Lantern",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "reauditar"
+   ],
+   "obs": "os alvos e custos já existem; nota velha"
+  },
+  {
+   "name": "Speaker of the Heavens",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "ative-somente-se"
+   ]
+  },
+  {
+   "name": "Spell Pierce",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Spell Snare",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Spire of Industry",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-com-dano",
+    "ative-somente-se"
+   ],
+   "obs": "paga 1 de vida"
+  },
+  {
+   "name": "Springleaf Drum",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Stream of Thought",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "replicar",
+    "embaralhar-do-cemiterio"
+   ]
+  },
+  {
+   "name": "Sulfur Falls",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "entra-virado-a-menos-que"
+   ]
+  },
+  {
+   "name": "Svyelunite Temple",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "mana-com-sacrificio"
+   ]
+  },
+  {
+   "name": "Swan Song",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [
+    "filtro-de-alvo"
+   ],
+   "obs": "ficha para o controlador da mágica"
+  },
+  {
+   "name": "Tainted Field",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Talisman of Creativity",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-com-dano"
+   ]
+  },
+  {
+   "name": "Talisman of Hierarchy",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-com-dano"
+   ]
+  },
+  {
+   "name": "Temple of Silence",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "vidência ao entrar"
+  },
+  {
+   "name": "The Dross Pits",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": []
+  },
+  {
+   "name": "The Fair Basilica",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": []
+  },
+  {
+   "name": "Transmogrify",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "revelar-ate"
+   ]
+  },
+  {
+   "name": "Treasure Cruise",
+   "listas": "M",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "delve-por-carta"
+   ]
+  },
+  {
+   "name": "Unearth",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Unsubstantiate",
+   "listas": "M",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Utter End",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  },
+  {
+   "name": "Vault of the Archangel",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "palavra-chave para todas as suas, como Selfless Spirit"
+  },
+  {
+   "name": "Wash Away",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "custo-alternativo-novo"
+   ],
+   "obs": "cleave muda o filtro do alvo"
+  },
+  {
+   "name": "Windbrisk Heights",
+   "listas": "K",
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "hideaway",
+    "atacou-neste-turno"
+   ]
+  },
+  {
+   "name": "Wretched Confluence",
+   "listas": "K",
+   "motor": "manual",
+   "balde": "B",
+   "primitivas": [
+    "modal-multiplo"
+   ],
+   "obs": "o mesmo modo mais de uma vez"
+  },
+  {
+   "name": "You See a Guard Approach",
+   "listas": "M",
+   "motor": "manual",
+   "balde": "A",
+   "primitivas": [],
+   "obs": "modal de escolher um"
+  },
+  {
+   "name": "Zulaport Cutthroat",
+   "listas": "K",
+   "motor": "completo",
+   "balde": "ok"
+  }
+ ],
+ "matriz": {
+  "camadas-613": [
+   "Animate Dead",
+   "Blinkmoth Nexus",
+   "Darksteel Mutation",
+   "Kytheon, Hero of Akros",
+   "Mishra's Factory",
+   "Reprobation",
+   "Smuggler's Copter"
+  ],
+  "reanimar-por-valor": [
+   "Ascend from Avernus",
+   "Call of the Death-Dweller",
+   "Patch Up",
+   "Priest of Fell Rites",
+   "Profane Command",
+   "Sevinne's Reclamation",
+   "Silverquill Command"
+  ],
+  "reauditar": [
+   "Angelic Gift",
+   "Curiosity",
+   "Flickering Ward",
+   "Flusterstorm",
+   "Soul-Guide Lantern"
+  ],
+  "ative-somente-se": [
+   "Ayli, Eternal Pilgrim",
+   "Cephalid Coliseum",
+   "Glint-Horn Buccaneer",
+   "Speaker of the Heavens",
+   "Spire of Industry"
+  ],
+  "revelar-ate": [
+   "Lukka, Coppercoat Outcast",
+   "Polymorph",
+   "Reality Scramble",
+   "Reweave",
+   "Transmogrify"
+  ],
+  "edito": [
+   "Accursed Marauder",
+   "Benalish Sleeper",
+   "Priest of Forgotten Gods",
+   "Silverquill Command"
+  ],
+  "modal-multiplo": [
+   "Austere Command",
+   "Profane Command",
+   "Silverquill Command",
+   "Wretched Confluence"
+  ],
+  "mana-com-dano": [
+   "Cephalid Coliseum",
+   "Spire of Industry",
+   "Talisman of Creativity",
+   "Talisman of Hierarchy"
+  ],
+  "custo-alternativo-novo": [
+   "Foil",
+   "Mogg Salvage",
+   "Snapback",
+   "Wash Away"
+  ],
+  "kicker": [
+   "Benalish Sleeper",
+   "Everflowing Chalice",
+   "Into the Roil"
+  ],
+  "filtro-de-alvo": [
+   "Bounty Agent",
+   "Reprieve",
+   "Swan Song"
+  ],
+  "bonus-condicional": [
+   "Combat Research",
+   "Rune of Mortality",
+   "Rune of Sustenance"
+  ],
+  "mana-com-sacrificio": [
+   "Dwarven Ruins",
+   "Phyrexian Tower",
+   "Svyelunite Temple"
+  ],
+  "marcador-nomeado": [
+   "Everflowing Chalice",
+   "Norn's Wellspring",
+   "Saprazzan Skerry"
+  ],
+  "entra-virado-a-menos-que": [
+   "Isolated Chapel",
+   "Shineshadow Snarl",
+   "Sulfur Falls"
+  ],
+  "veneno": [
+   "Phyresis",
+   "Skrelv's Hive",
+   "Skrelv, Defector Mite"
+  ],
+  "gatilho-lembra-carta": [
+   "Angelic Renewal",
+   "Kaya's Ghostform"
+  ],
+  "gatilho-atrasado": [
+   "Arcane Denial",
+   "Mishra's Bauble"
+  ],
+  "atacou-neste-turno": [
+   "Chart a Course",
+   "Windbrisk Heights"
+  ],
+  "habilidade-concedida": [
+   "Combat Research",
+   "Idolized"
+  ],
+  "delve-por-carta": [
+   "Dig Through Time",
+   "Treasure Cruise"
+  ],
+  "mana-phyrexiana": [
+   "Gitaxian Probe",
+   "Skrelv, Defector Mite"
+  ],
+  "replicar": [
+   "Lose Focus",
+   "Stream of Thought"
+  ],
+  "fase-702.26": [
+   "March of Swirling Mist",
+   "Slip Out the Back"
+  ],
+  "copia-707": [
+   "Saheeli, Sublime Artificer",
+   "Sevinne's Reclamation"
+  ],
+  "aura-em-cemiterio": [
+   "Animate Dead"
+  ],
+  "massa-por-filtro": [
+   "Austere Command"
+  ],
+  "entra-virado-do-oponente": [
+   "Authority of the Consuls"
+  ],
+  "gatilho-criatura-do-oponente": [
+   "Authority of the Consuls"
+  ],
+  "valor-do-sacrificado": [
+   "Ayli, Eternal Pilgrim"
+  ],
+  "marcador-de-palavra-chave": [
+   "Call of the Death-Dweller"
+  ],
+  "contagem-vida-perdida": [
+   "Children of Korlis"
+  ],
+  "revela-topo-para-a-mao": [
+   "Dark Confidant"
+  ],
+  "suspender-702.62": [
+   "Delay"
+  ],
+  "olhar-e-repartir": [
+   "Expressive Iteration"
+  ],
+  "mana-filtro-hibrido": [
+   "Fetid Heath"
+  ],
+  "desvirar-ate-n": [
+   "Frantic Search"
+  ],
+  "olhar-mao": [
+   "Gitaxian Probe"
+  ],
+  "gatilho-ao-descartar": [
+   "Glint-Horn Buccaneer"
+  ],
+  "gatilho-recebe-dano": [
+   "High Priest of Penance"
+  ],
+  "mana-extra-do-turno": [
+   "High Tide"
+  ],
+  "ataca-sozinha": [
+   "Idolized"
+  ],
+  "palavra-chave-por-subtipo": [
+   "Jirina, Dauntless General"
+  ],
+  "reducao-por-alvo": [
+   "Killian, Ink Duelist"
+  ],
+  "condicao-de-gatilho": [
+   "Knight of the White Orchid"
+  ],
+  "ataque-a-planeswalker": [
+   "Kytheon, Hero of Akros"
+  ],
+  "amass": [
+   "Lazotep Plating"
+  ],
+  "hexproof-de-jogador": [
+   "Lazotep Plating"
+  ],
+  "exila-fichas-de-mesmo-nome": [
+   "Legions to Ashes"
+  ],
+  "conjurar-do-exilio": [
+   "Lukka, Coppercoat Outcast"
+  ],
+  "conjurar-do-cemiterio": [
+   "Lurrus of the Dream-Den"
+  ],
+  "gatilho-dano-por-subtipo": [
+   "Malcolm, Keen-Eyed Navigator"
+  ],
+  "olhar-topo-de-jogador": [
+   "Mishra's Bauble"
+  ],
+  "topo-ou-fundo-a-escolha-do-dono": [
+   "Moonsnare Prototype"
+  ],
+  "manutencao-cumulativa": [
+   "Mystic Remora"
+  ],
+  "gatilho-magica-do-oponente": [
+   "Mystic Remora"
+  ],
+  "limite-de-compra": [
+   "Narset, Parter of Veils"
+  ],
+  "filtro-de-busca": [
+   "Open the Armory"
+  ],
+  "gatilho-ao-gastar-mana": [
+   "Path of Ancestry"
+  ],
+  "custo-de-vida": [
+   "Priest of Fell Rites"
+  ],
+  "unearth": [
+   "Priest of Fell Rites"
+  ],
+  "alvos-qualquer-numero": [
+   "Priest of Forgotten Gods"
+  ],
+  "retrace": [
+   "Reality Scramble"
+  ],
+  "splice": [
+   "Reweave"
+  ],
+  "filtro-de-custo": [
+   "Rite of Oblivion"
+  ],
+  "backup": [
+   "Scorn-Blade Berserker"
+  ],
+  "gatilho-equipada-morre": [
+   "Skullclamp"
+  ],
+  "veiculo-tripular": [
+   "Smuggler's Copter"
+  ],
+  "troca-de-controle": [
+   "Sorin of House Markov"
+  ],
+  "extorsao": [
+   "Sorin of House Markov"
+  ],
+  "embaralhar-do-cemiterio": [
+   "Stream of Thought"
+  ],
+  "hideaway": [
+   "Windbrisk Heights"
+  ]
+ }
+}
