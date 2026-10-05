@@ -430,6 +430,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-be ✅ | L7 edição rápida da lista: chip Ajustar, − e + em cada carta, adicionar pelo nome com sugestões da base local, Desfazer ao tirar a última cópia (leva 182) | L | 1 | teste no aparelho |
 | 16º-bf ✅ | I1 mesa legível, parte 2: bloqueios em pares (atacante e bloqueador na mesma linha), registro com a fase em cima e ícone por acontecimento, resumo com a mesma linha (leva 183) | I | 1 | teste no aparelho |
 | 16º-bg ✅ | I2 coleção e listas no mesmo padrão: contagem só no Painel; listas com busca (lista ou carta), filtros de formato, cor, posse e ordem; Formato em primeiro na coleção (leva 185) | I | 1 | teste no aparelho |
+| 16º-bh ✅ | I3 tela Jogar sem texto solto: estado da lista em ladrilhos (motor, reserva, offline) com folha de detalhe; dica a um toque em Série, Paradas e Semente; componente Dica no design system (leva 186) | I | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5169,6 +5170,29 @@ mesmo padrão de design".
   botão, contagem, voltar de uma lista mantém, vazio, ordem, coleção sem contagem sob o título e Formato em
   primeiro; `auditaTela` em 360 px claro e escuro). Expectativas mudadas de propósito em seis e2e que liam
   `#col-summary` (agora leem o cabeçalho do Painel).
+
+**I3 · Tela Jogar sem texto solto** ✅ (leva 186, 05/10/2026)
+- **Antes:** sob o seletor da lista, quatro linhas de texto ("Reserva: 15 carta(s) ficam de fora…", "Motor: 100%
+  completo", "Guardada para jogar sem internet.", "motor v70") e, sob Série, Paradas e Semente, uma frase de
+  explicação cada.
+- **Agora:**
+  - **estado da lista em três ladrilhos** iguais (ícone + valor em cima, rótulo embaixo): **Motor 100%**, **Reserva
+    15**, **Offline Pronta** (ou "41/60" com o botão Baixar cartas). O grupo é um botão: o toque abre a folha "Sua
+    lista" com as frases inteiras e a versão do motor. Lista que não joga continua com o aviso inteiro à vista;
+  - **dica a um toque:** Série, Paradas e Semente levam um "i" de 44 px ao lado do rótulo; o toque abre a explicação
+    logo abaixo do rótulo (em fluxo: não cobre o controle nem sai da tela) e fecha no segundo toque, no toque fora
+    ou no Esc. Textos encurtados.
+- **Design system:** componente **`Dica`** e `rotuloDeCampo` (com `Field(..., { dica })`), ícone `info`,
+  `LinhaEstado(..., { ladrilhos: true })` com `valor`, `fala` e `id` por item; os três no catálogo `/ds`.
+- **Medido em 360×780:** o bloco sob a lista foi de quatro linhas de texto para uma faixa de ladrilhos; a tela
+  inteira perde seis frases soltas. Os ladrilhos cabem com a fonte larga do CI (teste).
+- **Limites declarados:** as notas de bloqueio do oponente ("O Shark joga só com lista 100% coberta…") e os textos de
+  sala online continuam por extenso — são o motivo de um botão estar travado, não explicação opcional; a dica vale
+  só na tela Jogar por enquanto (os outros campos do app migram quando forem tocados).
+- **Testes:** e2e "I3" (ladrilhos com ícone, iguais e sem corte com fonte larga, nome falado, frases antigas fora da
+  tela, folha com as frases e a versão, três dicas de 44 px, abre em fluxo, fecha de três jeitos, foco, não aciona o
+  campo; `auditaTela` claro e escuro); contrato visual (catálogo). Expectativas mudadas de propósito em cinco e2e que
+  liam as frases antigas.
 
 ### P · Plataforma
 

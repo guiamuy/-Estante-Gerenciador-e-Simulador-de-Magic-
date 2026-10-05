@@ -739,6 +739,15 @@ a { color: var(--accent); }
 .ds-field { display: block; }
 .ds-field__label { display: block; font-size: var(--text-sm); color: var(--fg-muted); margin-bottom: var(--space-1); }
 .ds-field__hint { display: block; font-size: var(--text-xs); color: var(--fg-subtle); margin-top: var(--space-1); }
+/* I3 · dica: o "i" ao lado do rótulo (alvo de 44 px, desenho de 18) e o texto que ele abre, em fluxo, logo abaixo */
+.ds-field__label--dica { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-1); margin-bottom: 0; }
+.ds-dica { display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap-min); min-height: var(--tap-min); margin: 0; padding: 0; border: 0; border-radius: var(--radius-full); background: transparent; color: var(--fg-subtle); }
+.ds-dica[aria-expanded="true"] { color: var(--accent); }
+.ds-dica:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; }
+.ds-dica__balao { flex: 1 0 100%; display: block; margin: 0 0 var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); border-left: 2px solid var(--accent);
+  font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); animation: ds-rise var(--dur-2) var(--ease-out); }
+.ds-dica__balao[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .ds-dica__balao { animation: none; } }
 .ds-input, .ds-select, .ds-textarea {
   width: 100%; min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
@@ -939,6 +948,15 @@ a { color: var(--accent); }
 .ds-estado__item[data-tom="positive"] .ds-icon { color: var(--positive); }
 .ds-estado__item + .ds-estado__item::before { content: '·'; color: var(--fg-subtle); margin-right: var(--space-1); }
 .ds-estado__seta { margin-left: auto; display: inline-flex; color: var(--fg-subtle); padding-left: var(--space-2); }
+/* I3 · estado em ladrilhos: colunas iguais, valor com ícone em cima e rótulo embaixo */
+.ds-estado--ladrilhos { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; align-items: stretch; gap: var(--space-2); overflow: visible; padding: var(--space-2) var(--space-3); }
+.ds-estado--ladrilhos .ds-estado__seta { display: none; }
+.ds-estado--ladrilhos .ds-estado__item { display: flex; flex-direction: column-reverse; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: var(--tap-min); }
+.ds-estado--ladrilhos .ds-estado__item + .ds-estado__item::before { content: none; }
+.ds-estado--ladrilhos .ds-estado__item + .ds-estado__item { border-left: 1px solid var(--border); }
+.ds-estado--ladrilhos .ds-estado__valor { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-lg); line-height: var(--lh-lg); color: var(--fg); font-variant-numeric: tabular-nums; }
+.ds-estado--ladrilhos .ds-estado__valor b { font-weight: var(--weight-medium); }
+.ds-estado--ladrilhos .ds-estado__rotulo { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; }
 .ds-estado:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* D8 · botão confirmado: ✓ no acento por 1,2 s */
 .ds-btn[data-confirmado="true"] { color: var(--positive); border-color: var(--positive); }
@@ -2342,6 +2360,7 @@ const ICONES = {
   mais: '<path d="M12 5v14M5 12h14"/>',
   menos: '<path d="M5 12h14"/>',
   alerta: '<path d="M12 4 3 19.5h18Z"/><path d="M12 9.5V14"/><path d="M12 16.8v.2"/>', // D8 · aviso (linha de estado)
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.6v.2"/>', // I3 · dica (explicação a um toque)
   fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   editar: '<path d="M4.5 19.5l1-4.2L15.8 5a1.9 1.9 0 0 1 2.7 0l.5.5a1.9 1.9 0 0 1 0 2.7L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>',
   lixeira: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7"/><path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/><path d="M10.2 11v5.5M13.8 11v5.5"/>',
@@ -2424,9 +2443,27 @@ function Avatar(perfil, { tamanho = 36, classe = '' } = {}) {
 }
 
 /* ---------------- campos ---------------- */
+/** I3 · dica: explicação que não precisa ficar escrita na tela. Um "i" de 44 px ao lado do rótulo; o toque abre o
+    texto logo abaixo (em fluxo: não cobre nada e não é cortado pela borda da tela) e fecha no segundo toque, no toque
+    fora ou no Esc. `sobre` é o assunto, para o nome falado ("Sobre Série"). Devolve [botão, balão] para o rótulo. */
+function Dica(texto, { sobre = '', id = null } = {}) {
+  const balao = h('span', { class: 'ds-dica__balao', role: 'note', hidden: true, id: id ? id + '-texto' : null }, texto);
+  const botao = h('button', { class: 'ds-dica', type: 'button', id, 'aria-expanded': 'false', 'aria-label': sobre ? `Sobre ${sobre}` : 'Mais informação', title: sobre ? `Sobre ${sobre}` : 'Mais informação' }, Icone('info', { tamanho: 18 }));
+  const fora = e => { if (e.target !== botao && !botao.contains(e.target) && !balao.contains(e.target)) abre(false); };
+  const esc = e => { if (e.key === 'Escape' && !balao.hidden) { e.stopPropagation(); abre(false); botao.focus(); } };
+  function abre(sim) {
+    balao.hidden = !sim; botao.setAttribute('aria-expanded', String(sim));
+    document.removeEventListener('pointerdown', fora, true); document.removeEventListener('keydown', esc, true);
+    if (sim) { document.addEventListener('pointerdown', fora, true); document.addEventListener('keydown', esc, true); }
+  }
+  botao.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); abre(balao.hidden); });
+  return [botao, balao];
+}
+/** Rótulo de campo; com `dica`, leva o "i" e o texto que ele abre. */
+const rotuloDeCampo = (label, dica) => dica ? h('span', { class: 'ds-field__label ds-field__label--dica' }, h('span', {}, label), ...Dica(dica, { sobre: label })) : h('span', { class: 'ds-field__label' }, label);
 function Field(label, control, opts = {}) {
   return h('label', { class: ['ds-field', opts.invalid ? 'ds-field--invalid' : ''].filter(Boolean).join(' ') },
-    h('span', { class: 'ds-field__label' }, label),
+    rotuloDeCampo(label, opts.dica),
     control,
     opts.hint ? h('span', { class: 'ds-field__hint' }, opts.hint) : null);
 }
@@ -2588,14 +2625,18 @@ const TOM = t => { const x = t && typeof t === 'object' ? t.tone : t; return x =
 const Note = (content, tone) => h('div', { class: ['ds-note', TOM(tone) ? `ds-note--${TOM(tone)}` : ''].filter(Boolean).join(' '), html: content });
 /** D8 · avisos de estado numa linha só: um item por aviso (ícone + rótulo curto, com tom); o toque abre a folha com os
     textos completos. `itens`: [{ icone, tom, rotulo, detalhe }] — `detalhe` é HTML já escapado (como em Note). */
-function LinhaEstado(itens, { id, titulo = 'Estado' } = {}) {
+function LinhaEstado(itens, { id, titulo = 'Estado', ladrilhos = false } = {}) {
   const lista = (itens || []).filter(Boolean);
   if (!lista.length) return null;
   const pior = lista.some(i => TOM(i.tom) === 'negative') ? 'negative' : lista.some(i => TOM(i.tom) === 'warning') ? 'warning' : lista.some(i => TOM(i.tom) === 'positive') ? 'positive' : '';
-  const falado = lista.map(i => i.rotulo).join(', ');
-  return h('button', { class: 'ds-estado', type: 'button', id: id || null, dataset: { tom: pior, itens: String(lista.length) }, 'aria-label': `${titulo}: ${falado}. Toque para ver os detalhes`,
+  const falado = lista.map(i => i.fala || (i.valor != null ? `${i.rotulo} ${i.valor}` : i.rotulo)).join(', ');
+  // I3 · `ladrilhos`: cada item vira um ladrilho (ícone + valor em cima, rótulo embaixo), em colunas iguais — cabe em 360 px
+  // com qualquer fonte, e o número se lê de relance. Sem `ladrilhos`, a linha de sempre.
+  return h('button', { class: 'ds-estado' + (ladrilhos ? ' ds-estado--ladrilhos' : ''), type: 'button', id: id || null, dataset: { tom: pior, itens: String(lista.length) }, 'aria-label': `${titulo}: ${falado}. Toque para ver os detalhes`,
     onClick: () => Dialog({ title: titulo, body: Stack({}, ...lista.map(i => Note(i.detalhe || escapa(i.rotulo), TOM(i.tom) || undefined))), actions: [Button('Fechar', { onClick: closeDialog })] }) },
-    ...lista.map(i => h('span', { class: 'ds-estado__item', dataset: { tom: TOM(i.tom) || 'muted' } }, i.icone ? Icone(i.icone, { tamanho: 16 }) : null, h('span', { class: 'ds-estado__rotulo' }, i.rotulo))),
+    ...lista.map(i => h('span', { class: 'ds-estado__item', id: i.id || null, dataset: { tom: TOM(i.tom) || 'muted' } },
+      ...(ladrilhos ? [h('span', { class: 'ds-estado__rotulo' }, i.rotulo), h('span', { class: 'ds-estado__valor' }, i.icone ? Icone(i.icone, { tamanho: 16 }) : null, h('b', {}, i.valor != null ? String(i.valor) : ''))]
+        : [i.icone ? Icone(i.icone, { tamanho: 16 }) : null, h('span', { class: 'ds-estado__rotulo' }, i.rotulo)]))),
     h('span', { class: 'ds-estado__seta' }, Icone('seguir', { tamanho: 16 })));
 }
 const escapa = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -2753,7 +2794,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -2842,7 +2883,7 @@ const __m5 = (function () {
 /* F5 · catálogo de componentes. Rota /ds. É documentação viva e alvo de teste. */
 const { logoSvg, logoLockup } = __m4;
 const { h, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, Tabs, List, ListItem, ListGroup, Empty, Note, Spinner, CardFace, CardGrid, Dialog, closeDialog, toast,
-  Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Avatar, LinhaEstado, confirmaBotao, ImagemCarta } = __m3;
+  Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Avatar, LinhaEstado, confirmaBotao, ImagemCarta, Dica, rotuloDeCampo } = __m3;
 const Section = (title, ...kids) => Surface({ class: 'ds-surface--pad', dataset: { secao: title } },
   Text(title, { size: 'sm', caps: true, as: 'h2' }), Stack({}, ...kids));
 /* D12 · tokens lidos do próprio documento: o catálogo nunca descreve uma cor que não é a que está valendo */
@@ -3032,7 +3073,11 @@ function renderDS() {
       Empty('Comece por uma lista pronta ou cole uma lista.', h('div', { class: 'ds-empty__acoes' }, Row({}, Button('Ver prontas', { variant: 'primary', icone: 'caixa' }), Button('Nova lista', { icone: 'mais' }))), { icone: 'listas', titulo: 'Nenhuma lista ainda', hero: true }),
       Empty('Nenhuma carta passa por esses filtros.'),
       LinhaEstado([{ icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão: mostrando o que está guardado.' }, { icone: 'alerta', tom: 'warning', rotulo: '2 avisos', detalhe: '<b>!</b> Exemplo de aviso.<br><b>!</b> Outro aviso.' }], { id: 'ds-linha-estado', titulo: 'Estado' }),
+      LinhaEstado([{ icone: 'marcar', tom: 'positive', rotulo: 'Motor', valor: '100%', detalhe: 'Exemplo.' }, { icone: 'reserva', rotulo: 'Reserva', valor: 15, detalhe: 'Exemplo.' }, { icone: 'baixar', tom: 'warning', rotulo: 'Offline', valor: '41/60', detalhe: 'Exemplo.' }], { id: 'ds-estado-ladrilhos', titulo: 'Estado em ladrilhos', ladrilhos: true }),
       AvisoRede('Sem internet: a busca usa as cartas guardadas no aparelho.'),
+      // I3 · dica: explicação a um toque, no lugar de texto solto sob o campo
+      Field('Semente', Input({ value: '4', inputmode: 'numeric' }), { dica: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
+      h('div', { class: 'ds-field', id: 'ds-dica' }, rotuloDeCampo('Série', 'Melhor de 3: vence quem ganhar duas.'), Row({}, ...Dica('Dica solta, fora de um campo.', { sobre: 'o exemplo' }))),
       Note('Nota informativa com <b>ênfase</b>.'),
       Note('Atenção: algo exige decisão.', 'warning'),
       Note('Erro: a operação não pôde ser concluída.', 'negative'),
@@ -15527,8 +15572,9 @@ const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
 /** Campo com botões: não usa <label>, que reenvia o clique para o primeiro
     controle e faria o segundo chip marcar o primeiro. */
-const ChipField = (label, control, hint) => h('div', { class: 'ds-field' },
-  h('span', { class: 'ds-field__label' }, label), control,
+// I3 · `dica` (texto) põe o "i" ao lado do rótulo no lugar da frase solta sob o campo; `hint` continua para o que precisa ficar à vista
+const ChipField = (label, control, hint, { dica = '' } = {}) => h('div', { class: 'ds-field' },
+  __m3.rotuloDeCampo(label, dica), control,
   hint ? h('span', { class: 'ds-field__hint' }, hint) : null);
 const randomSeed = () => {
   try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % 1000000; } catch (e) { return Date.now() % 1000000; }
@@ -15627,17 +15673,22 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const reserva = contaDeck(d).side;
       const lista6 = xs => `${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}`;
       const bloqueio = cv.pct < 100 ? (() => { const n = Note(`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. Escolha outra lista ou troque essas cartas.`, 'warning'); n.id = 'mesa-bloqueio'; return n; })() : null;
-      mount(covBox, Stack({ style: { gap: 'var(--space-1)' } },
-        reserva ? Text(`Reserva: ${reserva} carta(s) ficam de fora da partida. Na melhor de 3, você troca entre as partidas.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-reserva' } }) : null,
-        DEV || !bloqueio ? Text(`Motor: ${cv.pct}% completo` + (cv.pct < 100 ? ` · ${cv.parcial + cv.manual} carta(s) sem regra completa` : ''), { size: 'sm', tone: cv.pct === 100 ? 'positive' : 'muted' }) : null,
+      // I3 · o estado da lista numa linha de ícones (motor, reserva, offline); o toque abre a folha com as frases inteiras
+      // e a versão do motor. Antes eram quatro linhas de texto solto sob o seletor da lista.
+      const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const versao = `Versão do motor: <span id="mesa-engine-version">motor v${E.ENGINE_VERSION}</span>.`;
+      mount(covBox, Stack({ style: { gap: 'var(--space-2)' } },
+        __m3.LinhaEstado([
+          DEV || !bloqueio ? { id: 'mesa-motor', icone: cv.pct === 100 ? 'marcar' : 'meia', tom: cv.pct === 100 ? 'positive' : 'warning', rotulo: 'Motor', valor: `${cv.pct}%`,
+            detalhe: (cv.pct === 100 ? '<b>Motor 100% completo.</b> O motor resolve sozinho todas as cartas desta lista.' : `<b>Motor ${cv.pct}% completo.</b> ${cv.parcial + cv.manual} carta(s) sem regra completa: ${esc(lista6(faltam))}.`) + ' ' + versao }
+            : { id: 'mesa-motor', icone: 'alerta', tom: 'warning', rotulo: 'Motor', valor: `${cv.pct}%`, detalhe: `<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${esc(lista6(faltam))}. ${versao}` },
+          reserva ? { id: 'mesa-reserva', icone: 'reserva', rotulo: 'Reserva', valor: reserva, detalhe: `<b>${reserva} carta(s) na reserva</b> ficam de fora da partida. Na melhor de 3, você troca entre as partidas.` } : null,
+          prontaOffline ? { id: 'mesa-offline-ok', icone: 'marcar', tom: 'positive', rotulo: 'Offline', valor: 'Pronta', fala: 'pronta para jogar sem internet', detalhe: '<b>Guardada no aparelho.</b> Esta lista joga sem internet.' }
+            : { id: 'mesa-offline-falta', icone: 'baixar', tom: 'warning', rotulo: 'Offline', valor: `${guardadas}/${nomes.length}`, fala: `${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet`, detalhe: `<b>${guardadas} de ${nomes.length} cartas guardadas.</b> Baixe as cartas para jogar esta lista sem internet.` }
+        ], { id: 'mesa-estado', titulo: 'Sua lista', ladrilhos: true }),
         DEV && faltam.length ? Text(`Fica com você: ${lista6(faltam)}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
         DEV ? null : bloqueio,
-        prontaOffline
-          ? Text('Guardada para jogar sem internet.', { size: 'sm', tone: 'positive', attrs: { id: 'mesa-offline-ok' } })
-          : Row({ class: 'ds-row--wrap' },
-            Text(`${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet.`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-offline-falta' } }),
-            Button('Baixar cartas', { id: 'mesa-offline-pin', icone: 'baixar', title: 'Guardar para jogar sem internet', onClick: () => guardar(nomes) })),
-        Text(`motor v${E.ENGINE_VERSION}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-engine-version' } })));
+        prontaOffline ? null : Row({}, Button('Baixar cartas', { id: 'mesa-offline-pin', icone: 'baixar', title: 'Guardar para jogar sem internet', onClick: () => guardar(nomes) }))));
       paintMode();
       paintChips();
       paintStart();
@@ -15891,15 +15942,15 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         covBox,
         ChipField('Oponente', oppChips), oppNota,
         theirsField, bloqueioDele,
-        ChipField('Série', serieChips, 'Na melhor de 3, entre as partidas você troca cartas do deck com a reserva. Vence quem ganhar duas. Online, vale a escolha de quem cria a sala.'),
+        ChipField('Série', serieChips, '', { dica: 'Melhor de 3: vence quem ganhar duas. Entre as partidas você troca cartas do deck com a reserva. Online, vale a escolha de quem cria a sala.' }),
         DEV ? ChipField('Modo (teste)', modeBox) : null,
         DEV ? ChipField('Mana (teste)', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
           c.addEventListener('click', () => { state.mana = !state.mana; c.setAttribute('aria-pressed', String(state.mana)); }); return c; })()) : null,
         ChipField('Paradas', (() => { const c = Chip('Parar sempre', { icone: 'pausa', pressed: false, dataset: { stopall: '1' } }); c.setAttribute('aria-label', 'Parar em todos os passos');
           c.addEventListener('click', () => { state.stopAll = !state.stopAll; c.setAttribute('aria-pressed', String(state.stopAll)); }); return c; })(),
-          'Ligado, a mesa para em todos os passos. Desligado, passa sozinha onde não há decisão, como no Arena.'),
+          '', { dica: 'Ligado: a mesa para em todos os passos. Desligado: passa sozinha onde não há decisão, como no Arena.' }),
         Field('Semente', Input({ id: 'mesa-seed', value: String(state.seed), inputmode: 'numeric', onInput: e => { state.seed = parseInt(e.target.value, 10) || 0; } }),
-          { hint: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
+          { dica: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
         Row({}, startBtn))));
     // leva 133 · saiu da tela esperando alguém: para de ouvir (a sala continua e pode ser cancelada ao voltar)
     const vigia = setInterval(() => { if (!root.isConnected) { clearInterval(vigia); if (on.parar) { on.parar(); on.parar = null; } } }, 1000);

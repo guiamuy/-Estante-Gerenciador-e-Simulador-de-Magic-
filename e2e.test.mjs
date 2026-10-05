@@ -612,8 +612,10 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.waitForSelector('.deck-summary');
   assert.equal(await page.locator('#deck-edit svg, #deck-export svg, #deck-delete svg').count(), 3, 'ações da lista com ícone sem internet');
   // U12 · o Delver agora tem imagem; sem service worker no teste, ela falha e a carta cai para o nome (O2) — espera a troca
-  await page.waitForFunction(() => /Delver of Secrets/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
-  assert.match(await page.innerText('body'), /Delver of Secrets/);
+  // Leva 186 · corrida do próprio teste (portão vermelho em 05/10): a tela da lista é repintada quando a cotação responde
+  // (G3); entre a espera e a leitura seguinte as imagens voltavam a carregar e o nome sumia por um instante. A espera
+  // é a própria afirmação: o nome aparece (a imagem falhou e a carta caiu para o texto).
+  await page.waitForFunction(() => /Delver of Secrets/.test(document.body.innerText), null, { timeout: 15000 });
 
   // mesa: bot liberado (cobertura sai do que está guardado) e a partida roda
   await page.goto(base + '#/mesa');
@@ -1587,8 +1589,8 @@ test('e2e · S2/A10 cobertura do motor na lista e na preparação', { skip }, as
   assert.equal(await page.locator('.deck-slot[data-name="Lightning Bolt"][data-coverage="completo"]').count(), 1);
   assert.equal(await page.locator('.deck-slot[data-name="Mystery Ritual"][data-coverage="manual"]').count(), 1);
   await page.goto(base + '#/mesa');
-  await page.waitForSelector('#mesa-coverage .ds-text');
-  assert.match(await page.innerText('#mesa-coverage'), /Motor: 75% completo/);
+  await page.waitForSelector('#mesa-motor'); // I3 · expectativa mudou de propósito: o estado da lista virou uma linha de ícones (Motor N% · Reserva N · Offline); a frase inteira abre na folha
+  assert.match((await page.innerText('#mesa-coverage')).replace(/\s+/g, ' '), /Motor 75%/);
   assert.deepEqual(errors, []);
 });
 
@@ -1621,11 +1623,11 @@ test('e2e · S9 motor completo: libera só com 100% de cobertura e não aceita a
   await page.goto(base + '#/mesa');
   await page.waitForSelector('#mesa-mode [data-mode="full"]');
   await escolheLista(page, 'mesa-mine', /Com carta manual/);
-  await page.waitForFunction(() => /75% completo|% completo/.test(document.querySelector('#mesa-coverage').innerText));
+  await page.waitForFunction(() => /Motor\s+\d+%/.test(document.querySelector('#mesa-coverage').innerText)); // I3 · ladrilhos de estado
   assert.equal(await page.locator('#mesa-mode [data-mode="full"]').isDisabled(), true, 'lista com carta manual não libera o motor completo');
 
   await escolheLista(page, 'mesa-mine', /^Coberta$/);
-  await page.waitForFunction(() => /100% completo/.test(document.querySelector('#mesa-coverage').innerText));
+  await page.waitForFunction(() => /Motor\s+100%/.test(document.querySelector('#mesa-coverage').innerText)); // I3 · ladrilhos de estado
   await page.click('#mesa-mode [data-mode="full"]');
   await page.fill('#mesa-seed', '4');
   await page.click('#mesa-start');
@@ -2227,20 +2229,22 @@ test('e2e · A12 listas prontas: filtrar, adicionar e escolher o modo na tela de
   const opt = await page.$$eval('.deck-picker__lista .deck-item__nome', os => os.map(o => o.textContent));
   assert.ok(opt.some(o => /Boros Bully/.test(o)), 'a lista adicionada aparece na tela de jogar: ' + JSON.stringify(opt));
   await page.click('.deck-picker__lista >> text=Pauper Boros Bully'); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
-  await page.waitForFunction(() => /100% completo/.test(document.querySelector('#mesa-coverage')?.innerText || ''), null, { timeout: 8000 });
-  assert.match(await page.innerText('#mesa-engine-version'), /motor v\d+/, 'a tela mostra a versão do motor');
+  await page.waitForFunction(() => /Motor\s+100%/.test(document.querySelector('#mesa-coverage')?.innerText || ''), null, { timeout: 8000 }); // I3 · expectativa mudou de propósito: o estado da lista virou uma linha de ícones (Motor N% · Reserva N · Offline); a frase inteira abre na folha
+  await page.click('#mesa-estado'); await page.waitForSelector('#mesa-engine-version');
+  assert.match(await page.innerText('#mesa-engine-version'), /motor v\d+/, 'a folha do estado mostra a versão do motor');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   assert.equal(await page.locator('[data-mode="full"]').isDisabled(), false, 'motor completo liberado');
 
   // S64 · aqui a Scryfall falsa não conhece as cartas desta lista: só os básicos embutidos
   // ficam guardados (sozinhos, pelo guardião offline da leva 70 — antes começava em "0 de N"),
   // a tela diz quantos faltam e o botão continua lá para tentar de novo quando a rede souber
   await page.waitForSelector('#mesa-offline-falta');
-  await page.waitForFunction(() => /\d+ de \d+ cartas guardadas/.test((document.querySelector('#mesa-offline-falta') || {}).innerText || ''), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(() => /\d+\/\d+/.test((document.querySelector('#mesa-offline-falta') || {}).innerText || ''), null, { timeout: 8000 }).catch(() => {}); // I3 · ladrilho "Offline N/M"
   const falta = await page.innerText('#mesa-offline-falta');
-  const m = falta.match(/(\d+) de (\d+) cartas guardadas/);
+  const m = falta.match(/(\d+)\/(\d+)/);
   assert.ok(m && Number(m[1]) < Number(m[2]), 'lista parcialmente guardada: ' + falta);
   await page.click('#mesa-offline-pin');
-  await page.waitForFunction(() => /\d+ de \d+ cartas guardadas/.test((document.querySelector('#mesa-offline-falta') || {}).innerText || ''), null, { timeout: 10000 });
+  await page.waitForFunction(() => /\d+\/\d+/.test((document.querySelector('#mesa-offline-falta') || {}).innerText || ''), null, { timeout: 10000 });
   assert.equal(await page.locator('#mesa-offline-ok').count(), 0, 'tentar de novo sem a rede saber não inventa carta');
   assert.deepEqual(errors, []);
 });
@@ -3068,7 +3072,7 @@ test('e2e · E51 reserva nas listas já salvas: migração ao abrir, aviso com s
   // a partida carrega só o deck: 60 cartas da Elves
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
   await escolheLista(page, 'mesa-mine', 'velha1');
-  assert.match(await page.innerText('#mesa-reserva'), /Reserva: 15 carta/);
+  assert.match((await page.innerText('#mesa-reserva')).replace(/\s+/g, ' '), /Reserva 15/); // I3 · ladrilho; a frase está na folha do estado
   await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
   const n = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return Object.values(s.objects).filter(o => o.owner === 0 && !o.token && !o.ability).length; });
   assert.equal(n, 60, 'grimório + mão = 60, sem a reserva');
@@ -7237,5 +7241,58 @@ test('e2e · I2 listas com busca e filtros como a coleção: texto (lista ou car
   await page.click('#col-filters'); await page.waitForSelector('#col-filters-body');
   assert.equal(await page.$eval('#col-filters-body .ds-field__label', e => e.textContent.trim()), 'Formato');
   assert.ok(await page.locator('#col-filters-body [data-formato="pauper"]').count() === 1 && await page.locator('#col-filters-body [data-formato="commander"]').count() === 1);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- I3 · tela Jogar sem texto solto ---------------- */
+test('e2e · I3 tela Jogar: o estado da lista é uma linha de ícones com folha de detalhe; Série, Paradas e Semente explicam por dica a um toque; nenhuma frase solta sob os campos', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell\n\nSideboard\n4 Lightning Bolt', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-estado');
+  // 1 · estado da lista: três itens com ícone e rótulo curto, numa linha de 44 px
+  const itens = await page.$$eval('#mesa-estado .ds-estado__item', is => is.map(i => ({ id: i.id, icone: (i.querySelector('.ds-icon') || { dataset: {} }).dataset.icone, texto: i.querySelector('.ds-estado__rotulo').textContent.trim() + ' ' + i.querySelector('.ds-estado__valor').textContent.trim(), tom: i.dataset.tom, x: Math.round(i.getBoundingClientRect().left), w: Math.round(i.getBoundingClientRect().width) })));
+  assert.deepEqual(itens.map(i => i.id.replace(/-(ok|falta)$/, '')), ['mesa-motor', 'mesa-reserva', 'mesa-offline']);
+  assert.deepEqual(itens.slice(0, 2).map(i => i.texto), ['Motor 100%', 'Reserva 4']); assert.match(itens[2].texto, /^Offline (Pronta|\d+\/\d+)$/);
+  assert.ok(itens[0].x < itens[1].x && itens[1].x < itens[2].x && Math.abs(itens[0].w - itens[2].w) <= 2, 'três ladrilhos iguais, lado a lado: ' + JSON.stringify(itens.map(i => [i.x, i.w])));
+  assert.match(await page.getAttribute('#mesa-estado', 'aria-label'), /^Sua lista: Motor 100%, Reserva 4, .*sem internet/); assert.ok(itens.every(i => i.icone), 'cada estado com ícone');
+  const cabe = async () => page.$eval('#mesa-estado', e => ({ h: Math.round(e.getBoundingClientRect().height), ok: e.scrollWidth <= e.clientWidth + 1 && [...e.querySelectorAll('.ds-estado__rotulo, .ds-estado__valor')].every(x => x.scrollWidth <= x.clientWidth + 1) }));
+  const linha = await cabe(); assert.ok(linha.h >= 44 && linha.h <= 76 && linha.ok, 'ladrilhos sem corte em 360 px: ' + JSON.stringify(linha));
+  // a fonte do CI é mais larga que a deste container: os ladrilhos continuam inteiros
+  await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150);
+  const larga = await cabe(); assert.ok(larga.ok, 'ladrilhos sem corte com fonte larga: ' + JSON.stringify(larga));
+  // 2 · nada de frase solta: os textos antigos não estão na tela
+  const tela = await page.innerText('#app, main, body');
+  for (const re of [/ficam de fora da partida/, /Guardada para jogar sem internet/, /motor v\d+/, /Vence quem ganhar duas/, /a mesa para em todos os passos/, /reproduz a partida/]) assert.doesNotMatch(tela, re, 'frase solta fora da tela: ' + re);
+  assert.equal(await page.locator('#mesa-coverage .ds-field__hint, .ds-surface--shelf > .ds-stack > .ds-field > .ds-field__hint').count(), 0, 'sem dica escrita sob os campos');
+  await auditaTela(page, 'Jogar sem texto solto (escuro)');
+  // 3 · a folha do estado traz as frases inteiras e a versão do motor
+  await page.click('#mesa-estado'); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(350);
+  const folha = await page.innerText('.ds-dialog');
+  assert.match(folha, /Motor 100% completo/); assert.match(folha, /motor v\d+/); assert.match(folha, /4 carta\(s\) na reserva ficam de fora da partida/); assert.match(folha, /joga sem internet|para jogar esta lista sem internet/);
+  await auditaTela(page, 'folha do estado da lista');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // 4 · dicas: três "i" de 44 px; um toque abre o texto logo abaixo do rótulo, outro fecha; toque fora e Esc também
+  const dicas = await page.$$eval('.ds-surface--shelf .ds-dica', bs => bs.map(b => ({ fala: b.getAttribute('aria-label'), w: Math.round(b.getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height), aberto: b.getAttribute('aria-expanded'), icone: (b.querySelector('.ds-icon') || { dataset: {} }).dataset.icone })));
+  assert.deepEqual(dicas.map(d => d.fala), ['Sobre Série', 'Sobre Paradas', 'Sobre Semente']);
+  assert.ok(dicas.every(d => d.w >= 44 && d.h >= 44 && d.aberto === 'false' && d.icone === 'info'), JSON.stringify(dicas));
+  const serie = page.locator('.ds-dica[aria-label="Sobre Série"]');
+  const antes = await page.$eval('#mesa-serie', e => Math.round(e.getBoundingClientRect().top));
+  await serie.click();
+  const balao = page.locator('.ds-dica[aria-label="Sobre Série"] + .ds-dica__balao');
+  await balao.waitFor({ state: 'visible' }); await page.waitForTimeout(300); // a dica entra com movimento curto: mede depois dele
+  assert.match(await balao.innerText(), /vence quem ganhar duas/); assert.equal(await serie.getAttribute('aria-expanded'), 'true');
+  const geo = await page.evaluate(() => { const b = document.querySelector('.ds-dica[aria-label="Sobre Série"] + .ds-dica__balao').getBoundingClientRect(), c = document.querySelector('#mesa-serie').getBoundingClientRect(); return { baixo: Math.round(b.bottom), chips: Math.round(c.top), esq: Math.round(b.left), dir: Math.round(b.right), tela: innerWidth }; });
+  assert.ok(geo.baixo <= geo.chips + 1 && geo.esq >= 0 && geo.dir <= geo.tela, 'a dica abre entre o rótulo e o controle, dentro da tela: ' + JSON.stringify(geo));
+  assert.ok(geo.chips > antes, 'em fluxo: empurra o controle, não cobre');
+  await auditaTela(page, 'Jogar com a dica aberta');
+  await serie.click(); await balao.waitFor({ state: 'hidden' });
+  await serie.click(); await balao.waitFor({ state: 'visible' }); await page.locator('h1').dispatchEvent('pointerdown'); await balao.waitFor({ state: 'hidden' });
+  await serie.click(); await balao.waitFor({ state: 'visible' }); await page.keyboard.press('Escape'); await balao.waitFor({ state: 'hidden' });
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Sobre Série', 'Esc devolve o foco ao "i"');
+  // a dica não aciona o controle do campo: tocar no "i" da Semente não muda nem foca o campo
+  await page.locator('.ds-dica[aria-label="Sobre Semente"]').click();
+  assert.notEqual(await page.evaluate(() => document.activeElement.id), 'mesa-seed');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'Jogar sem texto solto (claro)');
   assert.deepEqual(errors, []);
 });
