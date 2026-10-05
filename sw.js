@@ -44,16 +44,47 @@ function selfOrigin() {
 }
 
 /** O2 · a mesma URL pedida em modo CORS: resposta legível e sem acolchoamento de cota. */
-function corsRequest(request) {
-  try { return new Request(request.url, { mode: 'cors', credentials: 'omit', headers: { Accept: 'image/*,*/*;q=0.8' } }); }
+function corsRequest(request, cache = 'default') {
+  try { return new Request(request.url, { mode: 'cors', credentials: 'omit', cache, headers: { Accept: 'image/*,*/*;q=0.8' } }); }
   catch (e) { return request; }
 }
-/** O2 · busca a imagem: CORS primeiro; se falhar (CDN sem CORS), a requisição original (opaca). */
+/** H7 · a imagem chegou inteira? Download cortado no meio (sinal fraco) deixa a carta pintada só numa tira do topo,
+    e uma resposta cortada guardada no cache repetiria o defeito para sempre. Confere o tamanho anunciado e o fecho do
+    formato: JPEG termina em FFD9, PNG em IEND, WebP tem o tamanho no cabeçalho. Formato desconhecido passa. */
+function imagemInteira(bytes, { tamanho = null } = {}) {
+  const n = bytes ? bytes.length : 0;
+  if (!n) return false;
+  if (tamanho != null && tamanho > 0 && n !== tamanho) return false;
+  const fim = bytes.subarray(Math.max(0, n - 64));
+  const tem = seq => { for (let i = fim.length - seq.length; i >= 0; i--) { let ok = true; for (let j = 0; j < seq.length; j++) if (fim[i + j] !== seq[j]) { ok = false; break; } if (ok) return true; } return false; };
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8) return tem([0xFF, 0xD9]);
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return tem([0x49, 0x45, 0x4E, 0x44]);
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && n >= 12) return n >= ((bytes[4] | bytes[5] << 8 | bytes[6] << 16 | bytes[7] << 24) >>> 0) + 8;
+  return true;
+}
+/** H7 · lê o corpo e devolve uma resposta nova com ele se veio inteiro; null se veio cortado. Opaca não dá para ler: passa. */
+async function corpoConferido(res) {
+  if (!res || res.type === 'opaque') return res;
+  let buf; try { buf = await res.arrayBuffer(); } catch (e) { return null; }
+  const tamanho = !res.headers.get('content-encoding') ? Number(res.headers.get('content-length')) || null : null;
+  if (!imagemInteira(new Uint8Array(buf), { tamanho })) return null;
+  return new Response(buf, { status: res.status, statusText: res.statusText, headers: new Headers(res.headers) });
+}
+/** O2 · busca a imagem: CORS primeiro; se falhar (CDN sem CORS), a requisição original (opaca).
+    H7 · a resposta CORS só vale inteira: cortada, pede de novo sem o cache do navegador; cortada outra vez,
+    entrega o que der e NÃO guarda (`guardar: false`), para a próxima tentativa buscar de novo. */
 async function fetchImagem(request, plan) {
+  let cortada = false;
   if (plan.cors) {
-    try { const r = await fetch(corsRequest(request)); if (r.ok) return r; } catch (e) { /* tenta opaca */ }
+    for (const modo of ['default', 'reload']) {
+      try {
+        const r = await fetch(corsRequest(request, modo)); if (!r.ok) break;
+        const inteira = await corpoConferido(r); if (inteira) return { res: inteira, guardar: true };
+        cortada = true;
+      } catch (e) { break; /* tenta opaca */ }
+    }
   }
-  return fetch(request);
+  return { res: await fetch(request), guardar: !cortada };
 }
 
 /** Arquivos que precisam existir antes do primeiro uso offline. */
@@ -88,8 +119,10 @@ self.addEventListener('fetch', event => {
 
     if (plan.strategy === 'cache-first') {
       const hit = await cache.match(key);
-      if (hit) return hit;
-      try { const res = await fetchImagem(event.request, plan); if (res.ok || (plan.opaque && res.type === 'opaque')) cache.put(key, res.clone()); return res; }
+      // H7 · cópia guardada cortada (de antes desta conferência) é apagada e buscada de novo: o defeito não fica para sempre
+      if (hit && plan.cors && hit.type !== 'opaque') { const inteira = await corpoConferido(hit); if (inteira) return inteira; await cache.delete(key); }
+      else if (hit) return hit;
+      try { const { res, guardar } = await fetchImagem(event.request, plan); if (guardar && (res.ok || (plan.opaque && res.type === 'opaque'))) event.waitUntil(cache.put(key, res.clone()).catch(() => {})); return res; }
       catch (e) { return new Response('', { status: 504 }); }
     }
 

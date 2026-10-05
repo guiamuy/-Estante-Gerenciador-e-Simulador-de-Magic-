@@ -2101,10 +2101,12 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
     const p = __m18.explicaPilha(s, { oracleDe: n => n === 'Prodigal Sorcerer' ? '{T}: Prodigal Sorcerer deals 1 damage to any target.' : '' });
     const el = __m17.StackPanel({ itens: p.itens, prioridade: p.prioridade, imgOf: n => n === 'Prodigal Sorcerer' ? 'https://cards.scryfall.io/small/front/x/prodigal.png' : null });
     const it = el.querySelector('.tb-stack__card');
-    return { hab: (it.querySelector('.tb-stack__hab') || {}).textContent, texto: it.textContent, img: (it.querySelector('.tb-card__face img') || {}).getAttribute ? it.querySelector('.tb-card__face img').getAttribute('src') : null, what: it.querySelector('.tb-stack__what').textContent, lang: it.querySelector('.tb-stack__what').getAttribute('lang') };
+    return { hab: (it.querySelector('.tb-stack__hab') || {}).textContent, texto: it.textContent, img: (it.querySelector('.tb-card__face img') || {}).getAttribute ? (it.querySelector('.tb-card__face img').dataset.fonte || it.querySelector('.tb-card__face img').getAttribute('src')) : null, what: it.querySelector('.tb-stack__what').textContent, lang: it.querySelector('.tb-stack__what').getAttribute('lang') };
   });
   assert.equal(painel.hab, 'habilidade');
   assert.doesNotMatch(painel.texto, /hab\./);
+  // H7 · expectativa mudou de propósito: a imagem da pilha passa pelo dono das imagens da mesa; enquanto ela chega o <img>
+  // ainda não tem src, e o endereço escolhido fica em data-fonte
   assert.match(String(painel.img), /prodigal\.png$/, 'a carta de origem na pilha');
   assert.match(painel.what, /deals 1 damage to any target/, 'linha oficial em inglês');
   assert.equal(painel.lang, 'en');
@@ -4395,8 +4397,13 @@ test('e2e · Leva 123 diálogo prende o foco e devolve a quem abriu; aviso com a
   // 3 · carta com imagem na mesa leva srcset e sizes (nítida em tela 3×); se o CDN falha, cai no src simples;
   //     carta sem imagem continua em texto
   await drawUntil(page, 'Delver of Secrets');
-  const img = await page.$eval('.tb-hand .tb-card[aria-label^="Delver of Secrets"] img', async i => { let ok = true; try { await i.decode(); } catch (e) { ok = false; } return { srcset: i.getAttribute('srcset') || '', sizes: i.getAttribute('sizes'), ok, w: i.naturalWidth }; });
-  assert.match(img.srcset, /small\/front\/x\/delver\.png 146w/); assert.match(img.srcset, /normal\/front\/x\/delver\.png 488w/); assert.equal(img.sizes, '110px'); assert.ok(img.ok, 'a imagem decodifica: ' + JSON.stringify(img));
+  // H7 · expectativa mudou de propósito: com o CDN respondendo, a mesa baixa a imagem uma vez, guarda os bytes e pinta dali
+  // (`data-imagem="guardada"`, endereço blob:), em vez de deixar o <img> ir à rede com srcset a cada redesenho. O tamanho
+  // certo para a densidade da tela é escolhido pela mesma conta (unidade `fonteParaLargura`); o srcset continua sendo o
+  // caminho quando não dá para ler a imagem (conferido logo abaixo, com o CDN fora do ar).
+  await page.waitForFunction(() => { const i = document.querySelector('.tb-hand .tb-card[aria-label^="Delver of Secrets"] img'); return i && i.dataset.imagem === 'guardada' && i.complete; }, null, { timeout: 10000 });
+  const img = await page.$eval('.tb-hand .tb-card[aria-label^="Delver of Secrets"] img', async i => { let ok = true; try { await i.decode(); } catch (e) { ok = false; } return { fonte: i.dataset.fonte, src: i.getAttribute('src'), srcset: i.getAttribute('srcset'), ok, w: i.naturalWidth }; });
+  assert.match(img.fonte, /(small|normal)\/front\/x\/delver\.png/); assert.match(img.src, /^blob:/); assert.equal(img.srcset, null); assert.ok(img.ok && img.w > 0, 'a imagem decodifica: ' + JSON.stringify(img));
   await page.unroute('https://**.scryfall.io/**');
   // CDN fora do ar: o srcset sai e o src simples fica (o mesmo caminho que a mesa já tinha)
   const caiu = await page.evaluate(() => new Promise(res => { const el = __m17.TableCard({ name: 'x', image: 'https://cards.scryfall.io/normal/front/x/nada.png', images: { small: 'https://cards.scryfall.io/small/front/x/nada.png', normal: 'https://cards.scryfall.io/normal/front/x/nada.png' } }, { size: 'hand' });
@@ -6684,8 +6691,9 @@ test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanho
   }
   assert.ok(conjurada, 'a Veteran voltou do cemitério por disturb');
   await page.waitForSelector('.tb-board .tb-card[aria-label^="Luminous Phantom"]');
-  const noCampo = await page.$eval('.tb-board .tb-card[aria-label^="Luminous Phantom"] img', i => [i.getAttribute('src'), i.getAttribute('srcset')]);
-  assert.match(noCampo[0], /normal\/back\/x\/vet\.png/, 'a carta transformada mostra a imagem do verso (antes: só o nome, sem imagem)'); assert.match(noCampo[1], /large\/back\/x\/vet\.png/);
+  // H7 · expectativa mudou de propósito: a mesa pinta dos bytes guardados (blob:); o endereço escolhido fica em data-fonte
+  const noCampo = await page.$eval('.tb-board .tb-card[aria-label^="Luminous Phantom"] img', i => i.dataset.fonte);
+  assert.match(noCampo, /(small|normal)\/back\/x\/vet\.png/, 'a carta transformada mostra a imagem do verso (antes: só o nome, sem imagem)');
   await page.locator('.tb-board .tb-card[aria-label^="Luminous Phantom"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img');
   assert.equal(await page.$eval('.ds-dialog .tb-sheet__img', i => i.alt), 'Luminous Phantom', 'a folha da transformada abre no verso'); assert.match(await page.innerText('.ds-dialog .tb-sheet__texto'), /Flying/);
   await page.click('#tb-sheet-virar'); assert.equal(await page.$eval('.ds-dialog .tb-sheet__img', i => i.alt), 'Lunarch Veteran');
@@ -6991,4 +6999,45 @@ test('e2e · H3 melhor de 3 online: a série nasce nos dois lados, desistir de u
   assert.equal(await B.locator('#tb-serie-next').count(), 0);
   assert.equal((await salaDe(A)).estado, 'encerrada');
   assert.deepEqual(errors, []); assert.deepEqual(errosB, []);
+});
+
+/* ---------------- H7 · imagens firmes na partida ---------------- */
+test('e2e · H7 imagens da partida: a que falha ou chega cortada volta sozinha e inteira, as da lista chegam antes de irem à mesa e redesenhar não baixa nada de novo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Com imagem', '24 Mountain\n36 Delver of Secrets', 'livre');   // as duas cartas têm imagem nos dados de teste
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  // sinal ruim: o 1º pedido de cada imagem cai, o 2º chega cortado pela metade, do 3º em diante vem inteira
+  const pedidos = new Map(); const total = () => [...pedidos].filter(([u]) => u.includes('/small/')).reduce((a, [, n]) => a + n, 0);   // o tamanho que a mesa escolhe nesta tela (1×)
+  await page.route('https://**.scryfall.io/**', r => { const u = r.request().url(); const n = (pedidos.get(u) || 0) + 1; pedidos.set(u, n);
+    if (n === 1) return r.abort('internetdisconnected');
+    return r.fulfill({ status: 200, contentType: 'image/png', body: n === 2 ? PNG.subarray(0, 70) : PNG, headers: { 'access-control-allow-origin': '*' } }); });
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  assert.ok(await page.locator('.tb-hand .tb-card img').count() >= 6, 'mão com imagens');
+  assert.equal(await page.locator('.tb-card img[loading="lazy"]').count(), 0, 'carta da mesa não espera rolagem para carregar');
+  // 1 · sem nenhum toque, toda carta da mão ganha a imagem inteira, guardada no aparelho
+  await page.waitForFunction(() => { const is = [...document.querySelectorAll('.tb-hand .tb-card img')]; return is.length > 0 && is.every(i => i.dataset.imagem === 'guardada' && i.complete && i.naturalWidth > 0 && !i.dataset.falhou); }, null, { timeout: 30000 });
+  const TAM = PNG.length;
+  const m1 = await page.$$eval('.tb-hand .tb-card img', (is, TAM) => Promise.all(is.map(async i => ({ blob: /^blob:/.test(i.src), bytes: (await (await fetch(i.src)).blob()).size }))), TAM);
+  assert.ok(m1.every(x => x.blob && x.bytes === TAM), `imagem inteira (${TAM} bytes), não a metade que chegou no meio: ` + JSON.stringify(m1));
+  // 2 · as cartas da lista estão seguras na memória, sem depender de estarem à vista; a cortada não foi aceita
+  await page.waitForFunction(() => { const r = window.__estanteMesa.imagens(); return ['mountain', 'delver'].every(n => r.some(x => x.src.includes(n))) && r.every(x => x.estado === 'ok'); }, null, { timeout: 30000 });
+  const retidas = await page.evaluate(() => window.__estanteMesa.imagens());
+  assert.ok(retidas.every(x => x.guardada && x.esperando === 0), JSON.stringify(retidas));
+  assert.ok(retidas.some(x => x.pedidos >= 2), 'houve nova tentativa sozinha depois da falha: ' + JSON.stringify(retidas));
+  assert.ok([...pedidos].filter(([u]) => u.includes('/small/')).every(([, n]) => n >= 3), 'cada imagem que a mesa escolheu passou por falha, cortada (pedida de novo na hora) e inteira: ' + JSON.stringify([...pedidos]));
+  // 3 · redesenhar a mesa (jogar terreno, passar a vez, comprar carta) não vai mais à rede e nenhuma carta fica sem imagem
+  const antes = total();
+  for (let i = 0; i < 6; i++) {
+    const terreno = page.locator('.tb-hand .tb-card[aria-label^="Mountain"]').first();
+    if (i === 0 && await terreno.count()) { await terreno.click(); await page.waitForTimeout(150); if (await page.locator('.ds-dialog').count()) await page.keyboard.press('Escape'); }
+    else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
+    await page.waitForTimeout(120);
+    const agora = await page.$$eval('.tb-hand .tb-card img, .tb-board .tb-card img', is => is.map(x => x.dataset.imagem === 'guardada' && x.complete && x.naturalWidth > 0));
+    assert.ok(agora.length > 0 && agora.every(Boolean), `redesenho ${i + 1}: toda carta à vista já está pintada`);
+  }
+  assert.equal(total(), antes, 'nenhum download novo das cartas da mesa ao redesenhar');
+  assert.deepEqual(errors, []);
 });

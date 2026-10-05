@@ -1236,6 +1236,7 @@ body {
   transition: transform var(--dur-2) var(--ease-out);
 }
 .tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
+.tb-card__face img[data-falhou="true"], .tb-leque__camada img[data-falhou="true"] { visibility: hidden; }   /* H7 · imagem que falhou não mostra ícone quebrado; volta sozinha */
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
 .tb-card[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
@@ -3412,6 +3413,29 @@ const __m8 = (function () {
    (este e o do worker) e o <img> nunca lia deste. */
 const CACHE_NAME = 'estante-img-v1';
 
+/** H7 · a imagem chegou inteira? Download cortado no meio (sinal fraco) deixa a carta pintada só numa tira do topo,
+    e uma resposta cortada guardada no cache repetiria o defeito para sempre. Confere o tamanho anunciado e o fecho do
+    formato: JPEG termina em FFD9, PNG em IEND, WebP tem o tamanho no cabeçalho. Formato desconhecido passa. */
+function imagemInteira(bytes, { tamanho = null } = {}) {
+  const n = bytes ? bytes.length : 0;
+  if (!n) return false;
+  if (tamanho != null && tamanho > 0 && n !== tamanho) return false;
+  const fim = bytes.subarray(Math.max(0, n - 64));
+  const tem = seq => { for (let i = fim.length - seq.length; i >= 0; i--) { let ok = true; for (let j = 0; j < seq.length; j++) if (fim[i + j] !== seq[j]) { ok = false; break; } if (ok) return true; } return false; };
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8) return tem([0xFF, 0xD9]);
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return tem([0x49, 0x45, 0x4E, 0x44]);
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && n >= 12) return n >= ((bytes[4] | bytes[5] << 8 | bytes[6] << 16 | bytes[7] << 24) >>> 0) + 8;
+  return true;
+}
+/** H7 · devolve a própria resposta se o corpo veio inteiro; null se veio cortado. Resposta opaca (ou de teste, sem corpo legível) passa. */
+async function respostaInteira(res) {
+  if (!res || typeof res.arrayBuffer !== 'function' || res.type === 'opaque') return res;
+  let buf; try { buf = await res.clone().arrayBuffer(); } catch (e) { return null; }
+  const hd = res.headers && typeof res.headers.get === 'function' ? res.headers : null;
+  const tamanho = hd && !hd.get('content-encoding') ? Number(hd.get('content-length')) || null : null;
+  return imagemInteira(new Uint8Array(buf), { tamanho }) ? res : null;
+}
+
 function createImageCache({ caches, fetch: doFetch, pausa = 80, espera = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
   const available = !!(caches && typeof caches.open === 'function');
   // Q10 · abre o cache a cada operação: guardar o objeto aberto fazia o app escrever num cache
@@ -3439,6 +3463,11 @@ function createImageCache({ caches, fetch: doFetch, pausa = 80, espera = ms => n
           if (await c.match(url)) { n++; continue; }
           let res = null;
           try { res = await doFetch(url, { mode: 'cors', credentials: 'omit' }); if (!res.ok) res = null; } catch (e) { res = null; }
+          // H7 · veio cortada: pede de novo sem o cache do navegador; cortada outra vez, não guarda (a próxima passada tenta)
+          if (res && !(await respostaInteira(res))) {
+            try { res = await doFetch(url, { mode: 'cors', credentials: 'omit', cache: 'reload' }); res = res.ok ? await respostaInteira(res) : null; } catch (e) { res = null; }
+            if (!res) continue;
+          }
           if (!res) res = await doFetch(url, { mode: 'no-cors' });
           await c.put(url, res.clone ? res.clone() : res);
           n++;
@@ -3455,7 +3484,7 @@ function createImageCache({ caches, fetch: doFetch, pausa = 80, espera = ms => n
     async purge() { if (available && caches.delete) await caches.delete(CACHE_NAME); }
   };
 }
-return { createImageCache };
+return { createImageCache, imagemInteira, respostaInteira };
 })();
 
 /* ==== src/data/local.js ==== */
@@ -13603,11 +13632,87 @@ const { h, Text, Button, Row, Badge, Icone, srcsetDaCarta } = __m3;
 /** leva 123 · largura em CSS px com que a carta aparece, por tamanho; o navegador multiplica pela densidade e escolhe a fonte. */
 const SIZES_DA_MESA = { sm: '60px', hand: '110px', campo: '92px' };
 /** <img> da carta na mesa: com `card.images` (o objeto da Scryfall) leva srcset; sem ele, só o src. Se o srcset falhar, cai no src. */
+/* H7 · imagens que ficam. A mesa redesenha a cada jogada e cada desenho cria <img> novos: com sinal fraco, o download
+   que estava no meio era abandonado e recomeçava, e a carta ficava em branco ou pintada só numa tira do topo. Agora cada
+   imagem da partida tem um dono que não sai da memória: ele baixa uma vez, confere que veio inteira (`imagemInteira`),
+   guarda os bytes no aparelho (endereço `blob:`) e todo <img> da mesa pinta dali, sem rede e sem depender do cache do
+   navegador. O que falhou é pedido de novo sozinho (espera crescente e quando a rede volta) e a imagem volta às cartas
+   que ficaram sem ela. Sem leitura direta (CDN sem CORS, navegador antigo), vale o caminho de antes: src + srcset. */
+const RETIDAS = new Map();
+const ESPERAS_DE_IMAGEM = [1500, 4000, 10000, 30000];
+const RETIDAS_MAX = 600, TENTATIVAS_MAX = 12;
+const podeReter = () => typeof fetch === 'function' && typeof Blob !== 'undefined' && typeof Image !== 'undefined' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function';
+/** Qual tamanho pedir para uma carta de `cssPx` de largura numa tela de densidade `dpr`: o menor que cobre os pixels
+    da tela (sem o PNG, pesado demais para a mesa); se nenhum cobre, o maior. */
+function fonteParaLargura(im, cssPx, dpr = 1) {
+  if (!im || typeof im !== 'object') return null;
+  const pares = [[im.small, 146], [im.normal, 488], [im.large, 672]].filter(([u]) => u);
+  if (!pares.length) return im.png || null;
+  const precisa = cssPx * Math.min(3, Math.max(1, dpr || 1));
+  return (pares.find(([, w]) => w >= precisa) || pares[pares.length - 1])[0];
+}
+function retemImagem(src) {
+  if (!src || !podeReter()) return null;
+  let r = RETIDAS.get(src);
+  if (r) { if (r.estado === 'falhou' && !r.relogio && !r.buscando && Date.now() - r.ultima > ESPERAS_DE_IMAGEM[ESPERAS_DE_IMAGEM.length - 1]) r.pede(); return r; }
+  r = { src, estado: 'indo', url: null, tentativas: 0, pedidos: 0, img: null, esperando: new Set(), relogio: null, ultima: 0, buscando: false };
+  const avisa = () => { for (const el of [...r.esperando]) { if (!el.isConnected) { r.esperando.delete(el); continue; } if (el.__pinta) el.__pinta(); } if (r.estado === 'ok') r.esperando.clear(); };
+  const busca = async cache => {
+    const res = await fetch(src, { mode: 'cors', credentials: 'omit', cache }); if (!res.ok) throw new Error('http-' + res.status);
+    const blob = await res.blob(); const bytes = new Uint8Array(await blob.arrayBuffer());
+    const tamanho = !res.headers.get('content-encoding') ? Number(res.headers.get('content-length')) || null : null;
+    return __m8.imagemInteira(bytes, { tamanho }) ? blob : null;
+  };
+  r.pede = async () => {
+    if (r.buscando || r.estado === 'ok') return;
+    r.relogio = null; r.buscando = true; r.pedidos++; r.ultima = Date.now();
+    try {
+      let blob = await busca('default'); if (!blob) blob = await busca('reload');   // cortada: de novo, sem o cache do navegador
+      if (!blob) throw new Error('cortada');
+      r.url = URL.createObjectURL(blob); r.img = new Image(); r.img.src = r.url;    // o Image segura a imagem já decodificada
+      r.estado = 'ok'; r.tentativas = 0;
+    } catch (e) {
+      r.estado = 'falhou'; r.tentativas++;
+      if (r.tentativas <= TENTATIVAS_MAX) r.relogio = setTimeout(r.pede, ESPERAS_DE_IMAGEM[Math.min(r.tentativas - 1, ESPERAS_DE_IMAGEM.length - 1)]);
+    }
+    r.buscando = false; avisa();
+  };
+  if (RETIDAS.size >= RETIDAS_MAX) { const velha = RETIDAS.keys().next().value; const v = RETIDAS.get(velha); if (v) { if (v.relogio) clearTimeout(v.relogio); if (v.url) URL.revokeObjectURL(v.url); } RETIDAS.delete(velha); }
+  RETIDAS.set(src, r); r.pede();
+  return r;
+}
+if (typeof addEventListener === 'function') addEventListener('online', () => { for (const r of RETIDAS.values()) if (r.estado === 'falhou') { if (r.relogio) clearTimeout(r.relogio); r.tentativas = 0; r.pede(); } });
+const PX_DA_MESA = size => parseInt(SIZES_DA_MESA[size] || SIZES_DA_MESA.campo, 10);
+const densidade = () => (typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1);
+const fonteDaMesa = (card, size) => fonteParaLargura(card.images, PX_DA_MESA(size), densidade()) || card.image || null;
+/** Começa a buscar (e segura) a imagem de uma carta nos tamanhos pedidos, antes de ela aparecer na mesa. */
+function retemImagemDaCarta(card, tamanhos = ['campo', 'hand']) { for (const t of tamanhos) retemImagem(fonteDaMesa(card, t)); }
+/** Para teste e diagnóstico: o que a mesa está segurando. */
+const imagensRetidas = () => [...RETIDAS.values()].map(r => ({ src: r.src, estado: r.estado, guardada: !!r.url, tentativas: r.tentativas, pedidos: r.pedidos, esperando: r.esperando.size }));
+/** <img> da carta na mesa. `data-imagem` diz de onde ela pinta: "guardada" (bytes no aparelho), "espera" (chegando) ou
+    "rede" (caminho antigo: src + srcset, com queda para o src simples). `data-fonte` é o endereço escolhido. */
 function imgDaMesa(card, size) {
   const im = card.images && typeof card.images === 'object' ? card.images : null;
-  const img = h('img', { src: card.image, alt: '', loading: 'lazy', decoding: 'async',
-    srcset: im ? srcsetDaCarta(im) || null : null, sizes: im ? (SIZES_DA_MESA[size] || SIZES_DA_MESA.campo) : null });
-  if (im) img.addEventListener('error', () => { if (img.hasAttribute('srcset')) { img.removeAttribute('srcset'); img.removeAttribute('sizes'); img.src = card.image; } }, { once: true });
+  const fonte = fonteDaMesa(card, size);
+  const srcset = im ? srcsetDaCarta(im) || null : null, sizes = im ? (SIZES_DA_MESA[size] || SIZES_DA_MESA.campo) : null;
+  const dono = retemImagem(fonte);
+  // sem `loading: lazy`: carta da mesa está à vista (ou a um toque) e não pode depender de rolagem para carregar
+  const img = h('img', { alt: '', decoding: 'async', dataset: { fonte: fonte || '' } });
+  let modo = '';
+  img.__pinta = () => {
+    const quer = dono && dono.estado === 'ok' ? 'guardada' : dono && dono.estado === 'indo' ? 'espera' : 'rede';
+    if (quer === modo) return;
+    modo = quer; img.dataset.imagem = quer; delete img.dataset.falhou;
+    if (quer === 'guardada') { img.removeAttribute('srcset'); img.removeAttribute('sizes'); img.decoding = 'sync'; img.src = dono.url; }
+    else if (quer === 'rede') { if (srcset) { img.setAttribute('sizes', sizes); img.setAttribute('srcset', srcset); } img.src = card.image || fonte; }
+  };
+  img.addEventListener('error', () => {
+    if (modo === 'rede' && img.hasAttribute('srcset')) { img.removeAttribute('srcset'); img.removeAttribute('sizes'); img.src = card.image || fonte; return; }
+    img.dataset.falhou = 'true';                     // some o ícone quebrado; o nome da carta continua na etiqueta
+  });
+  img.addEventListener('load', () => { delete img.dataset.falhou; });
+  if (dono && dono.estado !== 'ok') dono.esperando.add(img);
+  img.__pinta();
   return img;
 }
 
@@ -13769,7 +13874,7 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek }) {
   const cartao = it => {
     const b = h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
       // E50 P6 · a habilidade mostra a carta de onde veio (antes: um cartão escrito "hab.")
-      h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && imgOf(it.imagemDe) ? h('img', { src: imgOf(it.imagemDe), alt: '', loading: 'lazy' }) : h('span', { class: 'tb-card__name' }, it.imagemDe || it.nome)),
+      h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && imgOf(it.imagemDe) ? imgDaMesa({ image: imgOf(it.imagemDe), images: null }, 'sm') : h('span', { class: 'tb-card__name' }, it.imagemDe || it.nome)),
         it.habilidade ? h('span', { class: 'tb-card__pill tb-stack__hab' }, 'habilidade') : null),
       h('span', { class: 'tb-stack__text' },
         h('span', { class: 'tb-stack__title' }, it.nome, it.topo ? h('span', { class: 'tb-pill tb-pill--estado' }, 'resolve a seguir') : null),
@@ -13841,7 +13946,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
+return { retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
 })();
 
 
@@ -15676,6 +15781,20 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */
   const imagensOf = name => { const c = card(name); if (!c) return null; return c.images || (c.faces && c.faces[0] && c.faces[0].images) || null; };
   const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
+  /** H7 · ao abrir a mesa, as imagens de todas as cartas da partida (frente e verso) começam a chegar, quatro por vez,
+      e ficam seguras na memória: a carta comprada no turno 8 já está pronta, e nenhum redesenho recomeça download. */
+  function aqueceImagensDaMesa() {
+    const cartas = Object.values((table.setup && table.setup.cards) || {}); let i = 0;
+    const passo = () => {
+      if (!root.isConnected && i > 0) return;
+      for (let k = 0; k < 4 && i < cartas.length; k++, i++) {
+        const c = cartas[i]; const faces = [c.images || (c.faces && c.faces[0] && c.faces[0].images), ...((c.faces || []).slice(1).map(f => f.images))].filter(Boolean);
+        for (const im of faces) __m17.retemImagemDaCarta({ image: im.normal || im.small || im.large || null, images: im });
+      }
+      if (i < cartas.length) setTimeout(passo, 250);
+    };
+    setTimeout(passo, 300);
+  }
 
   // A16 · resumo do turno que acabou: aparece no começo do turno seguinte, some com um toque ou no próximo resumo
   // H4 · o balão aberto entre as mesas virou uma faixa de 44 px: ícone, o turno e os sinais do que aconteceu (ícone + número).
@@ -15719,7 +15838,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
-    manaManual: sim => { manaManual = !!sim; }, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
+    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -15906,6 +16025,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
         online.sala.marcarPresenca(o.codigo, o.assento).catch(() => {});
       } else table = T.restoreTable(data);
       if (!sinc && table.guardaPassos && table.options && table.options.bot) table.guardaPassos(true); // H5
+      aqueceImagensDaMesa(); // H7
     }
     catch (e) {
       return mount(root, Stack(pad(), Note(e.message === 'versao-do-motor'

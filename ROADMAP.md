@@ -424,6 +424,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ba ✅ | H5 ver o oponente jogar: o turno do bot passa quadro a quadro, com legenda, a tela indo até onde acontece, som e efeito por passo, Pular e liga/desliga (leva 175) | H | 1 | teste no aparelho |
 | 16º-bb ✅ | H6 pagar com as manas que eu escolho: folha de pagamento com a sugestão do motor, contador por fonte e cor, conferência a cada toque (certo, falta, sobra) (leva 176) | H | 1 | teste no aparelho |
 | 16º-bc ✅ | H3 melhor de 3 online: quem cria a sala escolhe a série; trocas com a reserva em cada aparelho, a partida seguinte abre sozinha nos dois lados, desistir de uma partida não fecha a sala (leva 177) | H | 1 | teste no aparelho com dois celulares |
+| 16º-bd ✅ | H7 imagens que não somem na partida: cada imagem baixa uma vez, é conferida inteira e fica no aparelho; a que falha ou chega cortada volta sozinha; redesenhar a mesa não vai à rede (leva 180) | H | 1 | teste no aparelho com sinal fraco |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4891,6 +4892,7 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
 | H4 | Registro recolhível | o resumo entre as mesas vira uma linha com ícone, que abre e fecha |
 | H5 | Ver o oponente jogar | o turno do oponente passa jogada a jogada, com a tela indo até onde acontece |
 | H6 | Pagar com as manas que eu escolho | folha de pagamento com validação antes de conjurar |
+| H7 | Imagens que não somem | cada imagem da partida baixa uma vez, inteira, e fica no aparelho |
 
 **H1 · Imagens nítidas: verso de dupla face e troca de reserva** ✅ (leva 171, 04/10/2026)
 - **Defeito 1 (verso):** quando a carta transforma, o motor troca o nome do objeto para o da face de trás (Lunarch
@@ -5034,6 +5036,36 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   impossível; partida intocada pela conferência; não abre quando a reserva já paga; terreno de duas cores com a cor
   certa; grupos); e2e "H6" (folha com sugestão, 44 px, falta, cor errada, sobra, contador no limite, pagar vira o
   escolhido, cancelar, Automático, desligar e lembrar; `auditaTela`). O harness dos e2e desliga a folha por padrão.
+
+**H7 · Imagens que não somem na partida** ✅ (leva 180, 04/10/2026)
+- **Relato (capturas do aparelho, 04/10 21h, em roaming):** na mesa, cartas em branco ou pintadas só numa tira do
+  topo (Plains na mão e no campo, Squadron Hawk), enquanto outras apareciam inteiras.
+- **Causa (três, somadas):** (1) a mesa cria `<img>` novos a cada jogada; com sinal fraco, o download que estava no
+  meio era abandonado e recomeçava, e a carta ficava parada na tira que já tinha chegado; (2) uma resposta cortada
+  podia ser guardada no cache do aparelho e repetir o defeito para sempre (o cache responde antes da rede);
+  (3) imagem que falhava não era pedida de novo, e as cartas da mesa esperavam rolagem para carregar (`lazy`).
+- **Agora:**
+  - cada imagem da partida tem **um dono que não sai da memória**: baixa uma vez, confere que veio **inteira**,
+    guarda os bytes no aparelho e toda carta da mesa pinta dali — redesenhar não vai à rede;
+  - ao abrir a mesa, as imagens de **todas as cartas da partida** (frente e verso) começam a chegar, quatro por vez:
+    a carta comprada no turno 8 já está pronta;
+  - **o que falha volta sozinho**: nova tentativa em 1,5 s, 4 s, 10 s e 30 s, e na hora em que a rede volta; a
+    carta recebe a imagem sem toque. Enquanto isso fica o nome (sem ícone quebrado);
+  - **imagem cortada não é aceita nem guardada**: é pedida de novo sem o cache do navegador; a cópia cortada que já
+    estiver no aparelho é apagada e trocada na próxima vez que for usada (service worker e aquecimento offline).
+- **Como confere "inteira":** tamanho anunciado pelo servidor e fecho do formato (JPEG termina em FFD9, PNG em
+  IEND, WebP traz o tamanho no cabeçalho). Formato desconhecido passa.
+- **Tamanho pedido:** o menor que cobre os pixels da tela (campo 92 px e mão 110 px num celular 3× = "normal", 488
+  px), nunca o PNG. A conta que o `srcset` fazia passou para `fonteParaLargura`; o `srcset` continua sendo o caminho
+  quando a imagem não pode ser lida (CDN sem CORS, navegador antigo).
+- **Limites declarados:** (1) não reproduzi o defeito no aparelho: a causa foi deduzida das capturas e coberta por
+  simulação (primeiro pedido cai, segundo chega pela metade); (2) vale para as cartas da mesa (campo, mão, pilha,
+  zonas); a carta grande ao segurar e a folha da carta continuam indo ao cache do navegador; (3) resposta opaca
+  (sem CORS) não pode ser conferida; (4) as imagens ficam na memória enquanto o app está aberto (até 600).
+- **Testes:** U `offline.unit` ×5 (`imagemInteira`; aquecimento não guarda cortada; service worker de verdade com
+  rede e cache falsos: cortada na rede, cortada no cache, cortada sempre; `fonteParaLargura`); e2e "H7" (falha →
+  cortada → inteira sem toque, lista inteira na memória, seis redesenhos sem download). Expectativa mudada de
+  propósito nos e2e "Leva 123" e "H1": a carta da mesa pinta de `blob:` e diz o endereço em `data-fonte`.
 
 ### P · Plataforma
 

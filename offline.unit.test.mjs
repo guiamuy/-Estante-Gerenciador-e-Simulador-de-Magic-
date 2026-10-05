@@ -285,3 +285,84 @@ test('Q10 · cache de imagens apagado pelo navegador com o app aberto: o app nã
   await c.warm(['a']);
   assert.equal(atual.has('a'), true, 'guardado de novo no cache de verdade');
 });
+
+/* ---------------- H7 · imagem inteira ou nada: download cortado não fica guardado ---------------- */
+const JPEG_H7 = n => { const b = new Uint8Array(n); b[0] = 0xFF; b[1] = 0xD8; for (let i = 2; i < n - 2; i++) b[i] = (i * 7) % 251; b[n - 2] = 0xFF; b[n - 1] = 0xD9; return b; };
+const PNG_H7 = () => new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 0, 0, 0, 0, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82]);
+test('H7 · imagemInteira: JPEG sem o fecho, PNG sem IEND, WebP menor que o cabeçalho diz e tamanho diferente do anunciado são cortadas', () => {
+  const { imagemInteira } = loadModules().imagesMod;
+  const j = JPEG_H7(4000);
+  assert.equal(imagemInteira(j), true);
+  assert.equal(imagemInteira(j.subarray(0, 1500)), false, 'JPEG cortado no meio (a tira do topo na tela)');
+  assert.equal(imagemInteira(j, { tamanho: 4000 }), true);
+  assert.equal(imagemInteira(j, { tamanho: 9000 }), false, 'menos bytes do que o servidor anunciou');
+  const p = PNG_H7();
+  assert.equal(imagemInteira(p), true); assert.equal(imagemInteira(p.subarray(0, 14)), false);
+  const w = new Uint8Array(40); w.set([0x52, 0x49, 0x46, 0x46, 32, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+  assert.equal(imagemInteira(w), true); assert.equal(imagemInteira(w.subarray(0, 20)), false);
+  assert.equal(imagemInteira(new Uint8Array(0)), false); assert.equal(imagemInteira(null), false);
+  assert.equal(imagemInteira(new Uint8Array([1, 2, 3])), true, 'formato desconhecido não é barrado');
+});
+
+test('H7 · aquecer imagens: resposta cortada é pedida de novo sem o cache do navegador; cortada duas vezes não é guardada', async () => {
+  const { createImageCache } = loadModules().imagesMod;
+  const cacheMem = new Map(); const pedidos = [];
+  const caches = { open: async () => ({ match: async u => cacheMem.get(u), put: async (u, r) => { cacheMem.set(u, r); } }) };
+  const inteira = JPEG_H7(3000), cortada = inteira.subarray(0, 900);
+  const resp = b => new Response(b, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+  const fetch = async (u, o) => { pedidos.push(u + ':' + (o.cache || 'normal')); if (u === 'ruim') return resp(cortada); if (u === 'volta') return resp(o.cache === 'reload' ? inteira : cortada); return resp(inteira); };
+  const c = createImageCache({ caches, fetch, pausa: 0 });
+  assert.equal(await c.warm(['boa', 'volta', 'ruim']), 2);
+  assert.deepEqual(pedidos, ['boa:normal', 'volta:normal', 'volta:reload', 'ruim:normal', 'ruim:reload']);
+  assert.deepEqual([...cacheMem.keys()], ['boa', 'volta'], 'a cortada não entra no cache');
+  assert.equal(new Uint8Array(await cacheMem.get('volta').arrayBuffer()).length, 3000, 'o que ficou guardado é a imagem inteira');
+});
+
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ROOT = dirname(fileURLToPath(import.meta.url));
+/** O service worker de verdade (sw.js) num contexto com cache e rede falsos. */
+function workerH7({ rede }) {
+  const ouvintes = {}; const guardado = new Map(); const pedidos = []; const esperas = [];
+  const cache = { match: async k => { const r = guardado.get(k.url || k); return r ? r.clone() : undefined; }, put: async (k, r) => { guardado.set(k.url || k, r); }, delete: async k => guardado.delete(k.url || k) };
+  const ctx = vm.createContext({ self: { location: { origin: 'https://guiamuy.github.io' }, addEventListener: (t, f) => { ouvintes[t] = f; }, skipWaiting() {}, clients: { claim() {} } },
+    URL, Request, Response, Headers, Uint8Array, caches: { open: async () => cache, keys: async () => [], delete: async () => true },
+    fetch: async req => { pedidos.push((req.mode || '') + ':' + (req.cache || '')); return rede(req, pedidos.length); } });
+  vm.runInContext(readFileSync(join(ROOT, 'sw.js'), 'utf8'), ctx);
+  const pede = async url => { let resposta; ouvintes.fetch({ request: new Request(url), respondWith: p => { resposta = p; }, waitUntil: p => esperas.push(p) }); const r = await resposta; await Promise.all(esperas); return r; };
+  return { pede, guardado, pedidos };
+}
+test('H7 · service worker: imagem cortada na rede é buscada de novo e só a inteira é entregue e guardada', async () => {
+  const inteira = JPEG_H7(5000);
+  const sw = workerH7({ rede: async (req, n) => new Response(n === 1 ? inteira.subarray(0, 1200) : inteira, { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '5000' } }) });
+  const r = await sw.pede('https://cards.scryfall.io/normal/front/a/b/plains.jpg');
+  assert.equal(new Uint8Array(await r.arrayBuffer()).length, 5000, 'a tela recebe a imagem inteira');
+  assert.deepEqual(sw.pedidos, ['cors:default', 'cors:reload'], 'a segunda busca ignora o cache do navegador');
+  assert.equal(new Uint8Array(await sw.guardado.get('https://cards.scryfall.io/normal/front/a/b/plains.jpg').clone().arrayBuffer()).length, 5000);
+  await sw.pede('https://cards.scryfall.io/normal/front/a/b/plains.jpg');
+  assert.equal(sw.pedidos.length, 2, 'guardada inteira: a próxima vez nem vai à rede');
+});
+test('H7 · service worker: cópia cortada que já estava no cache é apagada e trocada pela inteira; cortada sempre, nada é guardado', async () => {
+  const inteira = JPEG_H7(5000), url = 'https://cards.scryfall.io/normal/front/a/b/hawk.jpg';
+  const sw = workerH7({ rede: async () => new Response(inteira, { status: 200, headers: { 'content-type': 'image/jpeg' } }) });
+  sw.guardado.set(url, new Response(inteira.subarray(0, 800), { status: 200, headers: { 'content-type': 'image/jpeg' } }));
+  const r = await sw.pede(url);
+  assert.equal(new Uint8Array(await r.arrayBuffer()).length, 5000, 'não serve a tira guardada');
+  assert.equal(new Uint8Array(await sw.guardado.get(url).clone().arrayBuffer()).length, 5000, 'o cache se conserta');
+  const ruim = workerH7({ rede: async () => new Response(inteira.subarray(0, 800), { status: 200, headers: { 'content-type': 'image/jpeg' } }) });
+  await ruim.pede(url);
+  assert.equal(ruim.guardado.size, 0, 'cortada duas vezes: não guarda, a próxima abertura tenta de novo');
+});
+test('H7 · tamanho da imagem da mesa pela densidade da tela: o menor que cobre os pixels; nunca o PNG; sem tamanho que cubra, o maior', () => {
+  const { fonteParaLargura } = loadModules().mesaUi;
+  const im = { small: 's', normal: 'n', large: 'l', png: 'p' };
+  assert.equal(fonteParaLargura(im, 92, 1), 's', 'campo em tela 1×: 92 px cabem na pequena (146)');
+  assert.equal(fonteParaLargura(im, 92, 3), 'n', 'campo no celular 3×: 276 px pedem a normal (488)');
+  assert.equal(fonteParaLargura(im, 110, 2.625), 'n', 'mão no Galaxy (2,6×)');
+  assert.equal(fonteParaLargura(im, 240, 3), 'l', 'nada cobre 720 px: a maior, sem ir ao PNG');
+  assert.equal(fonteParaLargura(im, 110, 8), 'n', 'densidade absurda é tratada como 3×');
+  assert.equal(fonteParaLargura({ normal: 'n' }, 60, 1), 'n'); assert.equal(fonteParaLargura({ png: 'p' }, 60, 1), 'p');
+  assert.equal(fonteParaLargura(null, 92, 3), null);
+});
