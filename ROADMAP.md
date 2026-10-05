@@ -146,6 +146,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R7 Jund Wildfire carta a carta: 23 cartas revisadas, custos de sacrifício por extenso, as sete listas Pauper 100% sem rede (leva 148, motor v69 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R8 Walls Combo carta a carta: 24 cartas revisadas, Freed from the Real utilizável pela tela; **as sete listas Pauper revisadas carta a carta** (leva 165, motor v69 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R9 homologação independente das sete listas Pauper: sete revisores sem acesso às levas R1–R8, 10 divergências de regra corrigidas com teste (leva 178, motor v70) | 🟡 |
+| R · Revisão carta a carta | Proteção contra a cor à escolha pela tela (relato do aparelho): Mother of Runes, Benevolent Bodyguard e Alseid protegem a criatura tocada, com a cor tocada (leva 179, motor v70 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R9b tela da homologação: registro, pilha explicada e rótulos apontados pelos revisores | ▶ |
 | R · Revisão carta a carta | R10–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -388,6 +389,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-n 🟡 | Rakdos Madness carta a carta: pagamento automático sem virar terreno à toa (motor v65), decisões escritas na bandeja, escolha tocando na carta (leva 125) | R2 | 1 | teste no aparelho; partidas salvas da v64 não abrem |
 | 16º-n2 ▶ | Revisão carta a carta das outras seis listas Pauper e homologação (R3–R9) | R | 6 a 8 | uma leva por lista; homologação independente no fim |
 | 16º-r9 🟡 | Homologação independente das Pauper: perturbar e presságio cobrados, Hallow só no turno, Lembas, Masked Vandal sem alvo, insanidade na limpeza, Utopia Sprawl + Abundant Growth, Hydra concedida, virada para baixo sem tipo, Flagbearer (leva 178) | R9 | 1 | teste no aparelho |
+| 16º-prot 🟡 | Proteção contra a cor à escolha: botão por criatura e pergunta da cor; regra fixada no motor com fonte multicolorida e incolor (leva 179) | R | 1 | teste no aparelho |
 | 16º-r9b ▶ | Tela da homologação: registro que mente ("anulou", "indestrutível"), pilha explicada com a linha errada, sobrecarga "sem pagar mana", "Disturb", ward chamado de vigilância, seta solta sem alvo, descrições de reserva em inglês | R9 | 1 | — |
 | 16º-r9c ○ | Estruturas apontadas pela homologação: regra das lendas, atacante divide o dano entre bloqueadores, escolha de como pagar (mana flutuante e fontes), busca que pode não achar, reciclar e rajada pela pilha | R12 | 3 a 5 | decisão por estrutura |
 | 16º-r8 🟡 | Walls Combo carta a carta: habilidades de mesmo custo com nomes diferentes na folha (Freed from the Real não desvirava pela tela); fecha as sete listas Pauper (leva 165) | R8 | 1 | teste no aparelho |
@@ -2486,6 +2488,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Texto oficial:** nenhum revisor achou texto truncado ou marcado incerto nas 154 cartas.
 - **Testes:** `homologacao.regras` (10). Portão completo verde.
 - **Fora:** as histórias 16º-r9b (tela) e 16º-r9c (estruturas); nenhuma partida guiada nova pela tela nesta leva.
+
+**Proteção contra a cor à escolha pela tela** 🟡 (leva 179, motor v70 sem mudança) — relato do aparelho: "escolhi proteção contra uma cor em resposta a uma mágica de dano daquela cor e tomei o dano".
+- **Causa (tela, classe do rótulo repetido):** a habilidade "a criatura alvo ganha proteção contra a cor à sua escolha" (Mother of Runes, Benevolent Bodyguard, Alseid of Life's Bounty) traz a cor na ação, como a mana de qualquer cor. A folha desenhava "Gerar {W}", "Gerar {U}"… — cinco botões que juntavam todos os alvos e executavam o primeiro: a proteção ia sempre para a primeira criatura da lista (em geral a própria Mother), não para a que ia levar o dano.
+- **Correção:** um botão por criatura ("Proteger de uma cor ({T}) → Thraben Inspector"); tocado, a folha pergunta "Contra qual cor?" com as cinco cores. Ações que só diferem na cor nunca mais são executadas pela primeira (`escolher` → `escolherCor`).
+- **Motor conferido, sem mudança:** `protecao.regras` (5 testes) fixa a regra 702.16 — mágica com alvo perde o alvo; dano sem alvo (Breath Weapon) é prevenido só na protegida; combate; **fonte multicolorida barra com qualquer uma das cores** (Terminate preta e vermelha; Slippery Bogle verde e azul); fonte incolor (Writhing Chrysalis) passa; criatura da cor não bloqueia a protegida. Esses cinco já passavam antes: são guarda-corpo, não reprodução.
+- **Texto oficial:** Mother of Runes conferida em casualplaneswalker.com em 04/10/2026.
+- **Testes:** e2e "proteção contra cor · Mother of Runes" (falhava: a folha mostrava cinco "Gerar"); `protecao.regras` (5).
+- **Simplificação declarada:** a cor é escolhida ao ativar (pela regra, na resolução); o oponente vê a cor antes de responder.
+- **Fora:** Benevolent Bodyguard e Alseid usam o mesmo caminho e não têm teste de tela próprio.
 
 **R10 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
 - **R10 · Plano do lote:** texto oficial das 105 cartas sem texto conferido, ficha de leitura e triagem em três baldes (só script · primitiva nova · lacuna estrutural), com a matriz primitiva × cartas. Sem isso a ordem é palpite. 1 leva.

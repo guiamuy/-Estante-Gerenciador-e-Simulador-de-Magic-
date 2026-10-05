@@ -16040,10 +16040,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
   const enxugaAlvos = (lista, efeitosDe) => T.enxugaAlvos(table.state, lista, efeitosDe).map(d => d.grupos ? { ...d, abre: () => escolherAlvo(d.titulo, d.grupos.map(g => g.action), { sempre: !!d.semEfeito,
     // escolhido o alvo, se há mais de uma forma de pagar (qual Floresta volta, qual criatura vira), a pergunta seguinte é essa
     executa: a => { const g = d.grupos.find(x => x.action === a); return g && g.opcoes.length > 1 ? escolher(g.label, g.opcoes) : act(a); } }) } : d);
+  const CORES_DA_ESCOLHA = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']];
   function escolher(titulo, opcoes) {
     const s = table.state;
     const xs = [...new Set(opcoes.map(a => a.x).filter(x => x != null))].sort((p, q) => p - q);
     if (xs.length > 1) return escolherX(titulo, opcoes, xs);
+    // ações que só diferem na cor escolhida: a pergunta é a cor (antes a folha executava a primeira, sempre branco)
+    const cores = CORES_DA_ESCOLHA.filter(([c]) => opcoes.some(a => a.color === c));
+    if (cores.length > 1 && opcoes.every(a => a.color)) return escolherCor(titulo, opcoes, cores);
     const campos = CAMPOS_PAGAMENTO.filter(([c]) => opcoes.some(a => a.pay && a.pay[c] != null));
     if (!campos.length && !opcoes.some(a => a.add === null)) return act(opcoes[0]);
     // uma pergunta só quando todas as opções pagam do mesmo jeito; senão, "como você paga?"
@@ -16064,6 +16068,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     Dialog({ title: titulo, body: Stack({},
       h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-escolha-pergunta' }, pergunta(qtd)),
       h('div', { class: 'tb-sheet__actions', id: 'tb-escolha' }, ...opcoes.map((a, i) => Button(finais[i], { block: true, variant: 'primary', onClick: () => { closeDialog(); act(a); } })))),
+      actions: [Button('Voltar', { onClick: closeDialog })] });
+  }
+  function escolherCor(titulo, opcoes, cores) {
+    Dialog({ title: titulo, body: Stack({},
+      h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'Contra qual cor?'),
+      h('div', { class: 'tb-sheet__actions', id: 'tb-escolha-cor' }, ...cores.map(([c, nome]) => Button(nome, { block: true, variant: 'primary', dataset: { color: c },
+        onClick: () => { closeDialog(); escolher(titulo, opcoes.filter(a => a.color === c)); } })))),
       actions: [Button('Voltar', { onClick: closeDialog })] });
   }
   function escolherCarta(titulo, [campo, pergunta, verbo], opcoes) {
@@ -16332,6 +16343,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     for (const act of E.legalActions(s, v).filter(x => x.t === 'activate' && x.oid === oid)) {
       const ab = allAbilities[act.index || 0] || {};
       if (ab.loyalty != null) { legal.push(doBtn(ab.label || `${ab.loyalty > 0 ? '+' : ''}${ab.loyalty}`, act, { variant: 'primary' })); continue; }
+      // Proteção contra a cor à escolha (Mother of Runes, Benevolent Bodyguard, Alseid): a cor vem na ação, como na mana de qualquer
+      // cor, e o botão saía "Gerar {W}" — cinco botões que juntavam todos os alvos e protegiam sempre o primeiro (a própria Mother).
+      // Agora: um botão por criatura; as cinco cores ficam juntas nele e a folha pergunta a cor em seguida (escolher → escolherCor).
+      if (act.color && (ab.effects || []).some(e => e.do === 'protection')) { const c0 = custoDaHabilidade(ab);
+        legal.push(doBtn(`Proteger de uma cor${c0 ? ` (${c0})` : ''}${act.targets ? ` → ${act.targets.map(x => targetName(s, x)).join(' + ')}` : ''}`, act, { variant: 'primary' })); continue; }
       if (act.color) { legal.push(doBtn(`Gerar {${act.color}}`, act)); continue; }
       // R5 · habilidade que só gera mana de símbolo fixo (ficha Eldrazi Spawn: "Sacrifice this creature: Add {C}") diz a mana, não "Ativar"
       const soMana = (ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana' && Array.isArray(e.symbols));

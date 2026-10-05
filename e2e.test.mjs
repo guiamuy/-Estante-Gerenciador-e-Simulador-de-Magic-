@@ -3997,11 +3997,11 @@ const OFICIAIS_121 = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais.jso
 // .listas/oficiais.json guarda só o texto: as linhas que são só palavras-chave ("Defender", "Flying, haste") viram o campo.
 const PALAVRAS_121 = ['Flying', 'Reach', 'Trample', 'Deathtouch', 'Lifelink', 'Vigilance', 'Haste', 'First strike', 'Double strike', 'Menace', 'Defender', 'Indestructible', 'Flash', 'Hexproof', 'Shroud', 'Changeling'];
 const palavrasDoTexto = texto => [...new Set(String(texto || '').split('\n').flatMap(l => { const ps = l.replace(/\s*\(.*\)\s*$/, '').split(/,\s*/).map(x => x.trim()); return ps.every(x => PALAVRAS_121.some(k => k.toLowerCase() === x.toLowerCase())) ? ps.map(x => PALAVRAS_121.find(k => k.toLowerCase() === x.toLowerCase())) : []; }))];
-function comOficiais(page, nomes, { imagens = false, cores = false } = {}) {
+function comOficiais(page, nomes, { imagens = false, cores = false, extras = [] } = {}) { // `extras`: cartas fora das listas Pauper, com o texto oficial dado pelo teste
   // R6 · `cores`: a cor da carta sai do custo de mana (Battle Screech vira criaturas BRANCAS); sem a opção fica incolor, como antes
   const corDe = c => (cores ? [...new Set([...String(c.mana_cost || '').matchAll(/\{([WUBRG])\}/g)].map(m => m[1]))] : []);
   const BASICOS = { Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' };
-  const extra = Object.fromEntries(nomes.map(n => { const c = BASICOS[n] ? { name: n, type_line: `Basic Land — ${n}`, oracle_text: `({T}: Add {${BASICOS[n]}}.)` } : OFICIAIS_121.find(x => x.name === n); assert.ok(c, 'texto oficial de ' + n);
+  const extra = Object.fromEntries(nomes.map(n => { const c = BASICOS[n] ? { name: n, type_line: `Basic Land — ${n}`, oracle_text: `({T}: Add {${BASICOS[n]}}.)` } : [...extras, ...OFICIAIS_121].find(x => x.name === n); assert.ok(c, 'texto oficial de ' + n);
     return [n.toLowerCase(), { object: 'card', id: n, name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', oracle_text: c.oracle_text || '', colors: corDe(c), color_identity: [], cmc: 2, keywords: palavrasDoTexto(c.oracle_text), ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}),
       ...(imagens ? { image_uris: Object.fromEntries(['small', 'normal', 'large'].map(t => [t, `https://cards.scryfall.io/${t}/front/x/${encodeURIComponent(n)}.png`])) } : {}) }]; }));
   return page.route('https://api.scryfall.com/cards/collection', async r => {
@@ -5341,6 +5341,30 @@ test('e2e · R8 · Walls: Freed from the Real tem um botão para virar e outro p
   await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: 'desvira' }).click(); await page.waitForTimeout(300); e = await segueR6(M);
   assert.equal((await obj('Overgrown Battlement')).virada, false, 'a Battlement desvirou');
   await M.act({ t: 'tap_mana', p: 0, oid: ob.oid, option: 0 }); assert.equal((await pool()).G, 6, 'e gera mana de novo: cada volta rende');
+  assert.deepEqual(M.errors, []);
+});
+
+// Proteção contra cor pela tela (relato do aparelho, 04/10/2026). Texto oficial da Mother of Runes: "{T}: Target creature you control
+// gains protection from the color of your choice until end of turn." (casualplaneswalker.com, consulta de 04/10/2026).
+const MOTHER = { name: 'Mother of Runes', type_line: 'Creature — Human Cleric', mana_cost: '{W}', power: '1', toughness: '1', oracle_text: '{T}: Target creature you control gains protection from the color of your choice until end of turn.' };
+test('e2e · proteção contra cor · Mother of Runes: o botão diz proteção (não "Gerar {W}"), deixa escolher QUAL criatura e depois a cor; a proteção vai para a criatura tocada', { skip }, async t => {
+  const M = await comLista125(t, '24 Plains\n18 Mother of Runes\n18 Thraben Inspector', ['Plains', 'Mother of Runes', 'Thraben Inspector'], '3', { cores: true, extras: [MOTHER] });
+  const { page } = M; let e;
+  for (let i = 0; i < 20; i++) { const o = await M.oid('Plains'); if (o) await M.act({ t: 'play_land', p: 0, oid: o });
+    for (const n of ['Mother of Runes', 'Thraben Inspector']) { const v = await M.oid(n); if (v && !(await M.est()).campo.includes(n)) { const c = await M.legal(`a.t==='cast' && a.oid==='${v}'`); if (c.length) { await M.act(c[0]); await segueR6(M); } } }
+    e = await M.est(); const pronta = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const m = s.zones[0].battlefield.map(o => s.objects[o]).find(o => o.name === 'Mother of Runes'); return !!m && !m.sick && !m.tapped; });
+    if (pronta && e.campo.includes('Thraben Inspector')) break; await M.proximo(); }
+  e = await M.est(); assert.ok(e.campo.includes('Mother of Runes') && e.campo.includes('Thraben Inspector'), 'mesa pronta: ' + JSON.stringify(e));
+  const f = await folha131(page, 'Mother of Runes', '.tb-side');
+  assert.ok(!f.some(b => /^Gerar/.test(b.txt)), 'a habilidade não gera mana: ' + JSON.stringify(f.map(b => b.txt)));
+  const alvos = f.filter(b => /^Proteger de uma cor \(\{T\}\) → /.test(b.txt)).map(b => b.txt.split(' → ')[1]);
+  assert.ok(alvos.some(x => /^Thraben Inspector/.test(x)) && alvos.some(x => /^Mother of Runes/.test(x)), 'um botão por criatura: ' + JSON.stringify(f.map(b => b.txt)));
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /→ Thraben Inspector/ }).first().click(); await page.waitForSelector('#tb-escolha-cor');
+  assert.deepEqual(await page.locator('#tb-escolha-cor button').evaluateAll(bs => bs.map(b => b.innerText.trim())), ['Branco', 'Azul', 'Preto', 'Vermelho', 'Verde']);
+  assert.equal(await auditaTela(page, 'escolha da cor da proteção'), undefined);
+  await page.locator('#tb-escolha-cor button[data-color="R"]').click(); await page.waitForTimeout(250); await segueR6(M);
+  const prot = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const de = n => (s.zones[0].battlefield.map(o => s.objects[o]).find(o => o.name === n) || {}).tempProtection || []; return { inspector: de('Thraben Inspector'), mother: de('Mother of Runes') }; });
+  assert.deepEqual(prot, { inspector: ['R'], mother: [] }, 'a proteção vai para a criatura tocada, com a cor tocada');
   assert.deepEqual(M.errors, []);
 });
 
