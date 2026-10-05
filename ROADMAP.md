@@ -432,6 +432,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bg ✅ | I2 coleção e listas no mesmo padrão: contagem só no Painel; listas com busca (lista ou carta), filtros de formato, cor, posse e ordem; Formato em primeiro na coleção (leva 185) | I | 1 | teste no aparelho |
 | 16º-bh ✅ | I3 tela Jogar sem texto solto: estado da lista em ladrilhos (motor, reserva, offline) com folha de detalhe; dica a um toque em Série, Paradas e Semente; componente Dica no design system (leva 186) | I | 1 | teste no aparelho |
 | 16º-bi ✅ | I4 fichas do seu jeito: Perfil › Fichas lista as fichas que as cartas criam (ícone, cores), busca as artes na Scryfall, guarda opções e imagens e a mesa usa a escolhida; offline troca entre as já baixadas (leva 187) | I | 1 | teste no aparelho |
+| 16º-bj ✅ | I5 histórico e estatísticas de partidas: Perfil › Partidas com ladrilhos, medidor de resultados, últimas 20, barras por oponente e lista (que filtram), quem começou, colunas por semana e a lista; vai no backup (leva 188) | I | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5220,6 +5221,38 @@ mesmo padrão de design".
 - **Testes:** U `fichas.unit` ×3; e2e "I4" (entrada no Perfil, lista com ícone e cores, busca, mesma arte não
   repete, escolha guardada e usada na mesa, ficha sem arte, offline com e sem opções, padrão; `auditaTela` em 360 px
   claro e escuro).
+
+**I5 · Histórico e estatísticas de partidas** ✅ (leva 188, 05/10/2026)
+- **Onde:** Perfil › **Partidas** (rota `/perfil/partidas`); o atalho no Perfil já diz "N · X% de vitória".
+- **O que entra:** toda partida do **motor completo** que termina (Goldfish, Shark, a dois e online), do ponto de
+  vista de quem joga neste aparelho: resultado, oponente, sua lista e as cores dela, formato, turno em que acabou,
+  motivo (vida a zero, grimório vazio, dano de comandante, desistência), quem começou, duração e, na série, "jogo 2
+  de 3". Uma vez por partida: recarregar a mesa não duplica; **desfazer o fim** (contra o bot) tira o registro e o
+  novo fim grava de novo.
+- **Painel (formas escolhidas pelo que o número faz):**
+  - três **ladrilhos**: partidas, % de vitórias, sequência atual;
+  - **Resultados:** um medidor de uma barra só (vitórias · empates · derrotas, com 2 px de respiro) e a legenda com
+    **ícone e número** de cada um — nunca só cor; as **últimas 20** em casas de forma diferente por resultado (cheia,
+    vazada, traço); melhor sequência, média de turnos e de minutos;
+  - **Por oponente** e **Por lista:** barras de um tom só com a taxa de vitória e o total ao lado; a barra do
+    oponente **filtra** o painel inteiro (número é filtro); chips de oponente quando há mais de um;
+  - **Quem começou:** a taxa quando você começa e quando o oponente começa;
+  - **Por semana:** oito colunas (partidas), com as vitórias em destaque na base, legenda, e o toque numa coluna
+    diz os números da semana;
+  - **Histórico:** a lista (a visão em tabela de tudo), a mais nova primeiro, em lotes de 30.
+- **Estados:** vazio com "Jogar"; **Limpar histórico** pede confirmação e tem Desfazer.
+- **Por conta:** fica no aparelho (`partidas.historico`, até 500 partidas) e **vai no backup v3** junto do perfil —
+  é o que acompanha a conta hoje. Texto usa as cores de texto; as cores de estado (positivo, negativo) só marcam
+  resultado, sempre com ícone.
+- **Limites declarados:** (1) partidas anteriores a esta leva não existem no histórico; (2) a mesa assistida de teste
+  não conta; (3) a dois no mesmo aparelho conta do ponto de vista do primeiro jogador; (4) abandonar uma partida sem
+  terminá-la (Descartar) não entra; (5) o motor registra a desistência como "vida": o histórico corrige olhando a
+  última jogada; (6) sem estatística por carta (ficou fora: pede registrar a partida inteira).
+- **Modelo e serviço (`src/data/partidas.js`, `__m35`):** `daMesa`, `registra`, `remove`, `normaliza`,
+  `estatisticas`, `createPartidas`. A mesa guarda `options.iniciada` e `options.minhaLista`. Ícone novo: `trofeu`.
+- **Testes:** U `partidas.unit` ×4; e2e "I5" (vazio, registro, desfazer o fim, não duplicar, ladrilhos, medidor
+  proporcional, legenda com ícone, últimas, barras com 44 px que filtram, colunas, lista, limpar com Desfazer;
+  `auditaTela` em 360 px claro, escuro e com a fonte larga do CI).
 
 ### P · Plataforma
 

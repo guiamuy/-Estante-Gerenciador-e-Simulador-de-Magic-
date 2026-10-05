@@ -7374,3 +7374,80 @@ test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na i
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'fichas · artes (claro)');
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- I5 · histórico e estatísticas de partidas ---------------- */
+test('e2e · I5 Perfil › Partidas: a partida que termina entra no histórico (e sai se eu desfizer o fim); painel com ladrilhos, medidor, últimas, barras que filtram, colunas por semana e a lista; vazio, limpar com desfazer', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Azul de teste', '30 Island\n30 Counterspell', 'livre');
+  // vazio: sem partida, a tela convida a jogar
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-partidas');
+  assert.match(await page.innerText('#perfil-partidas'), /Partidas/); assert.match(await page.innerText('#perfil-partidas'), /Histórico e estatísticas/);
+  await page.click('#perfil-partidas'); await page.waitForSelector('#partidas-vazio');
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Jogar');
+  await auditaTela(page, 'partidas · vazio');
+  const comeca = async () => { await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
+    await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn, #tb-concede'); };
+  const acaba = async quemPerde => { await page.evaluate(q => window.__estanteMesa.act({ t: 'concede', p: q }), quemPerde); await page.waitForSelector('#tb-new'); await page.evaluate(() => window.__estanteMesa.gravado()); await page.waitForTimeout(150); };
+  const total = async () => { await page.goto(base + '#/perfil/partidas'); await page.waitForSelector('#partidas-total, #partidas-vazio'); return (await page.locator('#partidas-total').count()) ? Number(await page.$eval('#partidas-total b', e => e.textContent)) : 0; };
+  // 1 · perdi (desisti): entra uma derrota; desfazer o fim tira o registro; terminar de novo grava de novo
+  await comeca(); await acaba(0);
+  assert.equal(await total(), 1);
+  await page.goto(base + '#/partida'); await page.waitForSelector('#tb-new');
+  if (await page.locator('#tb-undo:not([disabled])').count()) {
+    await page.click('#tb-undo'); await page.waitForFunction(() => window.__estanteMesa.estado().status === 'playing'); await page.waitForTimeout(200);
+    assert.equal(await total(), 0, 'desfazer o fim da partida tira o registro');
+    await page.goto(base + '#/partida'); await page.waitForSelector('#tb-concede'); await acaba(0); assert.equal(await total(), 1, 'terminar de novo grava uma vez só');
+  }
+  // 2 e 3 · duas vitórias (o oponente perde)
+  await page.goto(base + '#/partida'); await page.waitForSelector('#tb-new'); await page.click('#tb-new'); await comeca(); await acaba(1);
+  await page.click('#tb-new'); await comeca(); await acaba(1);
+  // recarregar a mesa de uma partida terminada não duplica
+  await page.reload(); await page.waitForSelector('#tb-new'); await page.waitForTimeout(200);
+  // 2 · Perfil resume; o painel abre
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-partidas');
+  assert.match((await page.innerText('#perfil-partidas')).replace(/\s+/g, ' '), /3 · 67% de vitória/);
+  await page.click('#perfil-partidas'); await page.waitForSelector('#partidas-total');
+  const lad = await page.$$eval('.pt-ladrilho', ls => ls.map(l => l.textContent.replace(/\s+/g, ' ').trim()));
+  assert.deepEqual(lad, ['3partidas', '67%vitórias', '2 vitóriassequência']);
+  assert.equal(await page.getAttribute('#partidas-medidor .pt-medidor', 'aria-label'), '2 vitória(s), 0 empate(s) e 1 derrota(s) em 3 partida(s)');
+  const trechos = await page.$$eval('#partidas-medidor .pt-medidor__trecho', ts => ts.map(x => [x.dataset.r, Math.round(x.getBoundingClientRect().width)]));
+  assert.deepEqual(trechos.map(x => x[0]), ['vitoria', 'derrota']); assert.ok(trechos[0][1] > trechos[1][1] * 1.6, 'o trecho das vitórias é o dobro do das derrotas: ' + JSON.stringify(trechos));
+  const leg = await page.$$eval('#partidas-medidor .pt-legenda__item', is => is.map(i => [i.dataset.r, !!i.querySelector('.ds-icon'), i.textContent.replace(/\s+/g, ' ').trim()]));
+  assert.deepEqual(leg, [['vitoria', true, 'Vitórias2'], ['empate', true, 'Empates0'], ['derrota', true, 'Derrota1']], 'legenda com ícone e número, não só cor');
+  assert.deepEqual(await page.$$eval('#partidas-ultimas .pt-ultimas__casa', cs => cs.map(c => c.dataset.r)), ['derrota', 'vitoria', 'vitoria'], 'da mais antiga para a mais nova');
+  assert.match(await page.getAttribute('#partidas-ultimas', 'aria-label'), /Últimas 3, da mais antiga para a mais nova: derrota, vitória, vitória/);
+  // barras: um tom só, rótulo, taxa e total; a do oponente filtra
+  const barras = await page.$$eval('.pt-barra', bs => bs.map(b => ({ rot: b.querySelector('.pt-barra__rotulo').textContent.trim(), val: b.querySelector('.pt-barra__valor').textContent.trim(), fio: Math.round(100 * b.querySelector('.pt-barra__fio').getBoundingClientRect().width / b.querySelector('.pt-barra__trilho').getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height), botao: b.tagName === 'BUTTON' })));
+  const de = r => barras.find(b => b.rot === r);
+  assert.deepEqual([de('Goldfish').val, de('Goldfish').botao, de('Azul de teste').val], ['67% · 3', true, '67% · 3']);
+  assert.ok(Math.abs(de('Goldfish').fio - 67) <= 2 && barras.every(b => b.h >= 44), 'a barra mede a taxa e tem 44 px: ' + JSON.stringify(barras));
+  assert.ok(await page.locator('#partidas-comecou .pt-barra').count() >= 1 && barras.every(b => b.rot.length <= 16), 'quem começou, com rótulos curtos: ' + JSON.stringify(barras.map(b => b.rot)));
+  assert.ok(await page.$$eval('.pt-barra__rotulo > span', ss => ss.every(x => x.scrollWidth <= x.clientWidth + 1)), 'nenhum rótulo de barra cortado');
+  // colunas por semana: oito, a última com as três partidas; o toque diz os números
+  const cols = await page.$$eval('#partidas-semanas .pt-coluna', cs => cs.map(c => Number(c.dataset.total)));
+  assert.deepEqual(cols, [0, 0, 0, 0, 0, 0, 0, 3]);
+  assert.match(await page.innerText('#partidas-semana-detalhe'), /Toque numa coluna/);
+  await page.click('#partidas-semanas .pt-coluna:last-child');
+  assert.match(await page.innerText('#partidas-semana-detalhe'), /3 partida\(s\), 2 vitória\(s\) \(67%\)/);
+  // a lista é a visão em tabela: três linhas, a mais nova primeiro, com ícone do resultado, oponente, lista e turno
+  const linhas = await page.$$eval('#partidas-lista .pt-linha', ls => ls.map(l => ({ r: l.dataset.resultado, icone: l.querySelector('.pt-linha__res .ds-icon').dataset.icone, t: l.querySelector('.pt-linha__texto').textContent.replace(/\s+/g, ' ').trim() })));
+  assert.deepEqual(linhas.map(l => l.r), ['vitoria', 'vitoria', 'derrota']); assert.deepEqual(linhas.map(l => l.icone), ['marcar', 'marcar', 'fechar']);
+  assert.match(linhas[2].t, /Derrota contra Goldfish.*Azul de teste · Livre · turno \d+ · desistência/);
+  assert.doesNotMatch(await page.innerText('body'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await auditaTela(page, 'partidas · painel (escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i5-painel.png', fullPage: true });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'partidas · painel (claro)');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // a fonte do CI é mais larga: nada sai da tela nem se sobrepõe
+  await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'partidas · painel com fonte larga');
+  // 3 · filtrar por oponente pela barra: a seção some (o filtro está ligado) e os números ficam os do recorte
+  await page.click('.pt-barra[data-oponente="goldfish"]');
+  assert.equal(await page.locator('#partidas-oponentes').count(), 0); assert.equal(await page.locator('#partidas-lista .pt-linha').count(), 3);
+  // 4 · limpar pede confirmação e tem Desfazer
+  await page.click('#partidas-limpar'); await page.waitForSelector('#partidas-limpar-confirma'); assert.match(await page.innerText('.ds-dialog'), /3 partida\(s\) saem deste aparelho/);
+  await page.click('#partidas-limpar-confirma'); await page.waitForSelector('#partidas-vazio');
+  await page.click('.ds-toast__acao'); await page.waitForSelector('#partidas-total'); assert.equal(await page.$eval('#partidas-total b', e => e.textContent), '3', 'Desfazer devolve o histórico');
+  assert.deepEqual(errors, []);
+});

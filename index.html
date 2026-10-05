@@ -1043,6 +1043,64 @@ body {
 .deck-reserva-aviso .ds-btn { align-self: flex-start; }
 .deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
 .deck-slot { position: relative; }
+/* I5 · partidas: ladrilhos, medidor de resultados, barras de um tom, colunas por semana e a lista do histórico */
+.pt-ladrilhos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.pt-ladrilho { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-3) var(--space-2); border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); min-width: 0; }
+.pt-ladrilho__valor { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); color: var(--fg); font-variant-numeric: tabular-nums; text-align: center; }
+.pt-ladrilho__valor b { font-weight: var(--weight-regular); }
+.pt-ladrilho__valor > .ds-icon { color: var(--accent); }
+.pt-ladrilho__rotulo { font-size: var(--text-xs); color: var(--fg-muted); }
+.pt-filtros { align-self: flex-start; max-width: 100%; }
+.pt-medidor { display: flex; gap: 2px; height: 12px; border-radius: var(--radius-1); overflow: hidden; }
+.pt-medidor__trecho { flex: var(--n) 1 0; min-width: 4px; border-radius: var(--radius-1); background: var(--fg-subtle); }
+.pt-medidor__trecho[data-r="vitoria"] { background: var(--positive); }
+.pt-medidor__trecho[data-r="derrota"] { background: var(--negative); }
+.pt-legenda { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
+.pt-legenda__item { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pt-legenda__item b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.pt-legenda__marca { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: var(--radius-full); color: var(--bg); background: var(--fg-subtle); }
+.pt-legenda__item[data-r="vitoria"] .pt-legenda__marca { background: var(--positive); }
+.pt-legenda__item[data-r="derrota"] .pt-legenda__marca { background: var(--negative); }
+.pt-legenda__cor { width: 12px; height: 12px; border-radius: var(--radius-1); background: var(--accent); }
+.pt-legenda__cor[data-r="resto"] { background: var(--border-strong); }
+.pt-ultimas { display: flex; flex-wrap: wrap; gap: 4px; }
+.pt-ultimas__casa { width: 12px; height: 12px; border-radius: var(--radius-1); box-sizing: border-box; background: var(--positive); }
+.pt-ultimas__casa[data-r="derrota"] { background: transparent; border: 2px solid var(--negative); }
+.pt-ultimas__casa[data-r="empate"] { background: transparent; border-bottom: 2px solid var(--fg-subtle); border-radius: 0; }
+.pt-barras { display: flex; flex-direction: column; gap: var(--space-1); }
+.pt-barra { display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--tap-min); padding: 0 var(--space-1); border: 0; border-radius: var(--radius-2); background: transparent; color: var(--fg); font: inherit; text-align: left; }
+.pt-barra[aria-pressed="true"] { background: var(--accent-soft); }
+.pt-barra:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pt-barra__rotulo { display: flex; align-items: center; gap: var(--space-1); min-width: 0; font-size: var(--text-sm); }
+.pt-barra__rotulo > .ds-icon { flex: none; color: var(--fg-muted); }
+.pt-barra__rotulo > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-barra__trilho { height: 8px; border-radius: var(--radius-1); background: var(--bg-elev-3); overflow: hidden; }
+.pt-barra__fio { display: block; height: 100%; width: var(--v); min-width: 2px; border-radius: var(--radius-1); background: var(--accent); }
+.pt-barra__valor { font-size: var(--text-sm); color: var(--fg-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pt-barra__valor b { color: var(--fg); font-weight: var(--weight-medium); }
+.pt-colunas { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-1); align-items: end; height: 148px; }
+.pt-coluna { display: grid; grid-template-rows: 16px minmax(0, 1fr) 16px; gap: 2px; height: 100%; min-width: 0; padding: 0; border: 0; border-radius: var(--radius-1); background: transparent; color: var(--fg-muted); font: inherit; }
+.pt-coluna[aria-pressed="true"] { background: var(--accent-soft); }
+.pt-coluna:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pt-coluna__n { font-size: var(--text-xs); line-height: 16px; color: var(--fg); font-variant-numeric: tabular-nums; }
+.pt-coluna__pilha { align-self: end; justify-self: center; display: flex; flex-direction: column; gap: 2px; width: 60%; max-width: 24px; height: var(--h); min-height: 2px; border-bottom: 1px solid var(--border-strong); }
+.pt-coluna__resto, .pt-coluna__vit { flex: var(--n) 1 0; min-height: 2px; border-radius: var(--radius-1) var(--radius-1) 0 0; background: var(--border-strong); }
+.pt-coluna__vit { background: var(--accent); border-radius: 0; }
+.pt-coluna__pilha > :first-child { border-radius: var(--radius-1) var(--radius-1) 0 0; }
+.pt-coluna__dia { font-size: var(--text-3xs); line-height: 16px; white-space: nowrap; overflow: hidden; }
+.pt-lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.pt-linha { display: flex; align-items: center; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.pt-linha:last-child { border-bottom: 0; }
+.pt-linha__res { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-full); color: var(--bg); background: var(--fg-subtle); }
+.pt-linha__res[data-r="vitoria"] { background: var(--positive); }
+.pt-linha__res[data-r="derrota"] { background: var(--negative); }
+.pt-linha__texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pt-linha__titulo { font-size: var(--text-md); color: var(--fg); overflow-wrap: anywhere; }
+.pt-linha__titulo b { font-weight: var(--weight-medium); }
+.pt-linha__sub { display: flex; align-items: flex-start; gap: var(--space-1); font-size: var(--text-xs); color: var(--fg-muted); }
+.pt-linha__sub > .ds-icon { flex: none; margin-top: 1px; }
+.pt-linha__sub > span { min-width: 0; overflow-wrap: anywhere; }
+.pt-linha__data { flex: none; font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 /* I4 · fichas: linha da lista (miniatura ou ícone, nome, cores, estado) e grade de artes */
 .perfil-atalho { text-align: left; color: var(--fg); font: inherit; }
 .ficha-linha { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: calc(var(--tap-min) + var(--space-3)); text-align: left; }
@@ -2387,6 +2445,7 @@ const ICONES = {
   garras: '<path d="M7 4.5c2 4.5 2 10.5 0 15"/><path d="M12 3.5c2 5 2 12 0 17"/><path d="M17 4.5c2 4.5 2 10.5 0 15"/>',
   gema: '<path d="M7.5 4.5h9l4 5-8.5 10-8.5-10z"/><path d="M3.5 9.5h17"/><path d="M9.5 4.5 8 9.5l4 10 4-10-1.5-5"/>',
   ficha: '<rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M9 16h6"/>',
+  trofeu: '<path d="M8 4.5h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5c0 2.6 1 4 2.9 4.4M16 6h2.5c0 2.6-1 4-2.9 4.4"/><path d="M12 13.5v3.5M8.5 20h7M10 17h4"/>', // I5 · histórico de partidas
   fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   editar: '<path d="M4.5 19.5l1-4.2L15.8 5a1.9 1.9 0 0 1 2.7 0l.5.5a1.9 1.9 0 0 1 0 2.7L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>',
   lixeira: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7"/><path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/><path d="M10.2 11v5.5M13.8 11v5.5"/>',
@@ -6713,7 +6772,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -7732,6 +7791,78 @@ async function folha({ servico, tipo = 'cartas', chaves = [], titulo = 'Etiqueta
 return { createEtiquetas, normaliza, limpaNome, proximaCor, cria, edita, apaga, marca, esquece, de, estadoNaSelecao, contagem, vazio, folha, Ponto, Pontos, Pilulas, ChipEtiqueta, CORES, TIPOS, NOME_MAX, LIMITE, CHAVE };
 })();
 
+/* ==== src/data/partidas.js ==== */
+const __m35 = (function () {
+/* =====================================================================
+   I5 · HISTÓRICO E ESTATÍSTICAS DE PARTIDAS
+   Cada partida do motor completo que termina vira um registro pequeno, do ponto de vista de quem joga neste aparelho:
+     { id, em, formato, resultado: 'vitoria'|'derrota'|'empate', motivo, turnos, duracao (ms|null), comecou (bool|null),
+       vida: [minha, dele], eu: { nome, lista, cores }, oponente: { tipo: 'shark'|'goldfish'|'a-dois'|'online', nome },
+       serie: { jogo, melhorDe } | null }
+   Fica no aparelho (`partidas.historico`) e vai no backup, junto do perfil. Tudo aqui é puro, menos o serviço no fim.
+   ===================================================================== */
+const CHAVE = 'partidas.historico';
+const LIMITE = 500;
+const OPONENTES = [['shark', 'Shark', 'tubarao'], ['goldfish', 'Goldfish', 'peixe'], ['a-dois', 'A dois', 'pessoas'], ['online', 'Online', 'globo']];
+const RESULTADOS = { vitoria: ['Vitória', 'marcar'], derrota: ['Derrota', 'fechar'], empate: ['Empate', 'menos'] };
+const SEMANA = 7 * 24 * 3600 * 1000;
+/** Só o que tem forma de registro; o mais novo primeiro; no máximo LIMITE. */
+function normaliza(bruto) {
+  return (Array.isArray(bruto) ? bruto : []).filter(p => p && typeof p.id === 'string' && RESULTADOS[p.resultado] && Number.isFinite(p.em))
+    .sort((a, b) => b.em - a.em).slice(0, LIMITE);
+}
+/** Põe (ou troca, pelo id) a partida no histórico. Não muta. */
+function registra(lista, partida) { return normaliza([partida, ...normaliza(lista).filter(p => p.id !== partida.id)]); }
+const remove = (lista, id) => normaliza(lista).filter(p => p.id !== id);
+/** O registro de uma partida que acabou. `s` é o estado final do motor; `eu` é o assento de quem joga neste aparelho. */
+function daMesa({ s, eu = 0, setup = {}, options = {}, serie = null, agora = Date.now(), cores = null, primeiro = null, desistiu = false }) {
+  const outro = s.players.findIndex((_, i) => i !== eu);
+  const tipo = options.online ? 'online' : options.bot ? 'shark' : (setup.players || [])[outro] && setup.players[outro].dummy ? 'goldfish' : 'a-dois';
+  const iniciada = Number(options.iniciada) || null;
+  const perdedor = s.players.find(p => p.lost);
+  const duracao = iniciada && agora > iniciada && agora - iniciada < 6 * 3600 * 1000 ? agora - iniciada : null;
+  return { id: `${iniciada || 'x'}-${(setup.seed >>> 0) || 0}-${serie ? serie.jogo : 1}`, em: agora, formato: setup.format || '', resultado: s.winner == null ? 'empate' : s.winner === eu ? 'vitoria' : 'derrota',
+    // o motor marca a desistência como vida a zero; quem chama sabe se a última jogada foi desistir
+    motivo: desistiu ? 'desistência' : perdedor ? (perdedor.lossReason === 'vida' ? 'vida a zero' : String(perdedor.lossReason || '')) : '', turnos: s.turn.number || 0, duracao, comecou: primeiro == null ? null : primeiro === eu,
+    vida: [s.players[eu].life, outro >= 0 ? s.players[outro].life : 0], eu: { nome: s.players[eu].name, lista: options.minhaLista || '', cores: cores || '' },
+    oponente: { tipo, nome: outro >= 0 ? s.players[outro].name : '' }, serie: serie && serie.melhorDe > 1 ? { jogo: serie.jogo, melhorDe: serie.melhorDe } : null };
+}
+const conta = ps => { const v = ps.filter(p => p.resultado === 'vitoria').length, d = ps.filter(p => p.resultado === 'derrota').length; return { total: ps.length, v, d, e: ps.length - v - d, taxa: ps.length ? Math.round(100 * v / ps.length) : 0 }; };
+const media = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+/** Tudo o que o painel mostra, de uma vez. `tipo` recorta por oponente; `agora` fixa a régua das semanas. */
+function estatisticas(lista, { tipo = '', agora = Date.now(), semanas = 8 } = {}) {
+  const todas = normaliza(lista);
+  const ps = tipo ? todas.filter(p => p.oponente && p.oponente.tipo === tipo) : todas;
+  // sequência atual (do mais novo para trás, enquanto o resultado se repete; empate quebra) e a melhor de vitórias
+  let atual = { resultado: null, n: 0 };
+  for (const p of ps) { if (p.resultado === 'empate') break; if (!atual.resultado) atual = { resultado: p.resultado, n: 1 }; else if (p.resultado === atual.resultado) atual.n++; else break; }
+  let melhor = 0, corre = 0; for (const p of ps.slice().reverse()) { corre = p.resultado === 'vitoria' ? corre + 1 : 0; melhor = Math.max(melhor, corre); }
+  const grupo = (chave, rotulo) => { const m = new Map(); for (const p of ps) { const k = chave(p); if (!m.has(k)) m.set(k, []); m.get(k).push(p); }
+    return [...m.entries()].map(([k, xs]) => ({ chave: k, rotulo: rotulo(k), ...conta(xs) })).sort((a, b) => b.total - a.total || a.rotulo.localeCompare(b.rotulo)); };
+  const inicio = agora - semanas * SEMANA;
+  const porSemana = Array.from({ length: semanas }, (_, i) => { const de = inicio + i * SEMANA, ate = de + SEMANA; return { de, ate, ...conta(ps.filter(p => p.em > de && p.em <= ate)) }; });
+  const comDur = ps.filter(p => p.duracao);
+  return { ...conta(ps), todas: todas.length, atual, melhor,
+    porOponente: OPONENTES.map(([k, rotulo, icone]) => ({ chave: k, rotulo, icone, ...conta(todas.filter(p => p.oponente && p.oponente.tipo === k)) })).filter(x => x.total),
+    porLista: grupo(p => (p.eu && p.eu.lista) || '', k => k || 'Sem nome').slice(0, 6),
+    porFormato: grupo(p => p.formato || '', k => k || 'Sem formato'),
+    porSemana, ultimas: ps.slice(0, 20).reverse().map(p => ({ id: p.id, resultado: p.resultado })),
+    comecando: { primeiro: conta(ps.filter(p => p.comecou === true)), segundo: conta(ps.filter(p => p.comecou === false)) },
+    turnosMedios: Math.round(media(ps.map(p => p.turnos || 0)) * 10) / 10, minutosMedios: comDur.length ? Math.max(1, Math.round(media(comDur.map(p => p.duracao)) / 60000)) : null };
+}
+function createPartidas({ store, agora = () => Date.now() }) {
+  const le = async () => { try { return normaliza(await store.get(CHAVE)); } catch (e) { return []; } };
+  return {
+    agora, lista: le,
+    async registra(p) { const l = registra(await le(), p); await store.set(CHAVE, l); return l; },
+    async remove(id) { const l = remove(await le(), id); await store.set(CHAVE, l); return l; },
+    async limpa() { const antes = await le(); await store.set(CHAVE, []); return antes; },
+    async repoe(l) { await store.set(CHAVE, normaliza(l)); }
+  };
+}
+return { CHAVE, LIMITE, OPONENTES, RESULTADOS, normaliza, registra, remove, daMesa, estatisticas, createPartidas };
+})();
+
 /* ==== src/data/fichas.js ==== */
 const __m34 = (function () {
 /* =====================================================================
@@ -7990,7 +8121,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -8214,6 +8345,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar })),
         fotoInput)),
       secaoAparencia(),
+      // I5 · histórico e estatísticas das partidas deste perfil
+      partidas ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-partidas', onClick: () => go('/perfil/partidas') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('trofeu', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Partidas'),
+        h('span', { class: 'ds-expansivel__resumo' }, st.partidas && st.partidas.total ? `${st.partidas.total} · ${st.partidas.taxa}% de vitória` : 'Histórico e estatísticas'), Icone('seguir', { tamanho: 20 })) : null,
       // I4 · fichas: uma área só para escolher a arte de cada ficha
       fichas ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-fichas', onClick: () => go('/perfil/fichas') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('ficha', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Fichas'),
@@ -8238,9 +8373,88 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     catch (e) { st.erro = e; }
     if (conta) { try { st.conta = await conta.get(); } catch (e) { st.conta = null; } }
     if (fichas) { try { st.fichasEscolhidas = Object.keys((await fichas.estado()).escolhas).length; } catch (e) { st.fichasEscolhidas = 0; } }
+    if (partidas) { try { st.partidas = __m35.estatisticas(await partidas.lista()); } catch (e) { st.partidas = null; } }
     paint();
   }
   carrega();
+  return root;
+}
+
+/* ---------------- I5 · /perfil/partidas ---------------- */
+/** Histórico e estatísticas. Formas: números de cabeça em ladrilhos; a taxa como medidor de uma barra (vitória, empate,
+    derrota, com ícone e número na legenda — nunca só cor); barras de um tom só para comparar oponentes e listas (e cada
+    barra é um filtro); colunas por semana com as vitórias em destaque; a lista é a visão em tabela de tudo. */
+function createPartidasScreen({ partidas }) {
+  const P = __m35;
+  const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo o histórico…', { size: 'sm', tone: 'muted' })));
+  const st = { lista: [], tipo: '', limite: 30, semana: null };
+  const data = ts => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const pct = x => `${x.taxa}%`;
+  const ladrilho = (valor, rotulo, id, icone) => h('div', { class: 'pt-ladrilho', id }, h('span', { class: 'pt-ladrilho__valor' }, icone ? Icone(icone, { tamanho: 18 }) : null, h('b', {}, String(valor))), h('span', { class: 'pt-ladrilho__rotulo' }, rotulo));
+  const secao = (titulo, id, ...filhos) => Surface({ class: 'ds-surface--pad pt-secao', id }, Stack({ style: { gap: 'var(--space-2)' } }, Text(titulo, { size: 'sm', caps: true, as: 'h2' }), ...filhos));
+  /** Barra de comparação: rótulo, trilho com a taxa de vitória, e "67% · 9" ao lado. Com `onClick`, a barra filtra. */
+  function barra(x, { icone = null, ligado = false, onClick = null, ds = {} } = {}) {
+    const fala = `${x.rotulo}: ${x.v} vitória(s) em ${x.total} partida(s), ${x.taxa}%`;
+    return h(onClick ? 'button' : 'div', { class: 'pt-barra', type: onClick ? 'button' : null, 'aria-pressed': onClick ? String(ligado) : null, 'aria-label': onClick ? fala + (ligado ? '. Filtro ligado' : '. Toque para filtrar') : null, title: fala, dataset: ds, onClick,
+      style: { '--v': x.taxa + '%' } },
+      h('span', { class: 'pt-barra__rotulo' }, icone ? Icone(icone, { tamanho: 16 }) : null, h('span', {}, x.rotulo)),
+      h('span', { class: 'pt-barra__trilho', 'aria-hidden': 'true' }, h('span', { class: 'pt-barra__fio' })),
+      h('span', { class: 'pt-barra__valor' }, h('b', {}, pct(x)), ` · ${x.total}`));
+  }
+  function pinta() {
+    const e = P.estatisticas(st.lista, { tipo: st.tipo, agora: partidas.agora() });
+    const cab = Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'partidas-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('Partidas', { size: '2xl', display: true, as: 'h1' }));
+    if (!e.todas) return mount(root, cab, Empty('As partidas que você terminar aparecem aqui, com as estatísticas.', Button('Jogar', { variant: 'primary', icone: 'jogar', id: 'partidas-jogar', onClick: () => go('/mesa') }), { icone: 'trofeu', titulo: 'Nenhuma partida ainda', hero: true, id: 'partidas-vazio' }));
+    const filtros = h('div', { class: 'ds-segmentado pt-filtros', role: 'group', 'aria-label': 'Oponente', id: 'partidas-filtro' },
+      Chip('Todas', { pressed: !st.tipo, dataset: { tipo: '' }, onClick: () => { st.tipo = ''; st.limite = 30; pinta(); } }),
+      ...e.porOponente.map(o => Chip(o.rotulo, { icone: o.icone, pressed: st.tipo === o.chave, dataset: { tipo: o.chave }, onClick: () => { st.tipo = st.tipo === o.chave ? '' : o.chave; st.limite = 30; pinta(); } })));
+    const seq = e.atual.n ? `${e.atual.n} ${e.atual.resultado === 'vitoria' ? (e.atual.n > 1 ? 'vitórias' : 'vitória') : (e.atual.n > 1 ? 'derrotas' : 'derrota')}` : '—';
+    // medidor: uma barra só, três trechos com 2 px de respiro; a legenda diz o número e leva o ícone de cada resultado
+    const trecho = (k, n) => n ? h('span', { class: 'pt-medidor__trecho', dataset: { r: k }, style: { '--n': String(n) } }) : null;
+    const legenda = (k, n) => h('span', { class: 'pt-legenda__item', dataset: { r: k } }, h('span', { class: 'pt-legenda__marca' }, Icone(P.RESULTADOS[k][1], { tamanho: 12 })), h('span', {}, `${P.RESULTADOS[k][0]}${n === 1 ? '' : 's'}`), h('b', {}, String(n)));
+    const medidor = h('div', { class: 'pt-medidor-bloco', id: 'partidas-medidor' },
+      h('div', { class: 'pt-medidor', role: 'img', 'aria-label': `${e.v} vitória(s), ${e.e} empate(s) e ${e.d} derrota(s) em ${e.total} partida(s)` }, trecho('vitoria', e.v), trecho('empate', e.e), trecho('derrota', e.d)),
+      h('div', { class: 'pt-legenda' }, legenda('vitoria', e.v), legenda('empate', e.e), legenda('derrota', e.d)));
+    // últimas: do mais antigo para o mais novo; forma diferente por resultado (cheio, traço, vazado), não só cor
+    const ultimas = h('div', { class: 'pt-ultimas', id: 'partidas-ultimas', role: 'img', 'aria-label': `Últimas ${e.ultimas.length}, da mais antiga para a mais nova: ` + e.ultimas.map(u => P.RESULTADOS[u.resultado][0].toLowerCase()).join(', ') },
+      ...e.ultimas.map(u => h('span', { class: 'pt-ultimas__casa', dataset: { r: u.resultado } })));
+    // por semana: colunas de um tom (partidas), com as vitórias em destaque na base; o toque diz os números da semana
+    const maxSem = Math.max(1, ...e.porSemana.map(x => x.total));
+    const semana = st.semana != null ? e.porSemana[st.semana] : null;
+    const colunas = h('div', { class: 'pt-colunas', id: 'partidas-semanas' }, ...e.porSemana.map((x, i) => h('button', { class: 'pt-coluna', type: 'button', 'aria-pressed': String(st.semana === i), dataset: { semana: String(i), total: String(x.total) },
+      'aria-label': `Semana até ${data(x.ate)}: ${x.total} partida(s), ${x.v} vitória(s)`, title: `Semana até ${data(x.ate)}: ${x.total} partida(s), ${x.v} vitória(s)`, onClick: () => { st.semana = st.semana === i ? null : i; pinta(); } },
+      h('span', { class: 'pt-coluna__n' }, x.total ? String(x.total) : ''),
+      h('span', { class: 'pt-coluna__pilha', style: { '--h': Math.round(100 * x.total / maxSem) + '%' } },
+        x.total - x.v ? h('span', { class: 'pt-coluna__resto', style: { '--n': String(x.total - x.v) } }) : null, x.v ? h('span', { class: 'pt-coluna__vit', style: { '--n': String(x.v) } }) : null),
+      h('span', { class: 'pt-coluna__dia' }, data(x.ate)))));
+    const visiveis = (st.tipo ? st.lista.filter(p => p.oponente && p.oponente.tipo === st.tipo) : st.lista);
+    const linha = p => { const [rot, ic] = P.RESULTADOS[p.resultado]; const op = P.OPONENTES.find(([k]) => k === (p.oponente || {}).tipo) || ['', (p.oponente || {}).nome || '', 'pessoa'];
+      return h('li', { class: 'pt-linha', dataset: { resultado: p.resultado, id: p.id } },
+        h('span', { class: 'pt-linha__res', dataset: { r: p.resultado }, title: rot }, Icone(ic, { tamanho: 16 })),
+        h('span', { class: 'pt-linha__texto' },
+          h('span', { class: 'pt-linha__titulo' }, h('b', {}, rot), h('span', {}, ` contra ${p.oponente && p.oponente.nome ? p.oponente.nome : op[1]}`)),
+          h('span', { class: 'pt-linha__sub' }, Icone(op[2], { tamanho: 14 }), h('span', {}, [(p.eu && p.eu.lista) || null, FORMATS[p.formato] || p.formato || null, `turno ${p.turnos}`, p.serie ? `jogo ${p.serie.jogo} de ${p.serie.melhorDe}` : null, p.motivo || null].filter(Boolean).join(' · ')))),
+        h('span', { class: 'pt-linha__data' }, data(p.em))); };
+    mount(root, cab,
+      h('div', { class: 'pt-ladrilhos' }, ladrilho(e.total, e.total === 1 ? 'partida' : 'partidas', 'partidas-total'), ladrilho(pct(e), 'vitórias', 'partidas-taxa', 'trofeu'), ladrilho(seq, 'sequência', 'partidas-seq')),
+      e.porOponente.length > 1 ? filtros : null,
+      secao('Resultados', 'partidas-resultados', medidor, Text(`Últimas ${e.ultimas.length}`, { size: 'xs', tone: 'muted' }), ultimas,
+        Text([`Melhor sequência: ${e.melhor} vitória(s)`, `média de ${String(e.turnosMedios).replace('.', ',')} turnos`, e.minutosMedios ? `${e.minutosMedios} min por partida` : null].filter(Boolean).join(' · '), { size: 'xs', tone: 'muted', attrs: { id: 'partidas-medias' } })),
+      !st.tipo && e.porOponente.length ? secao('Por oponente', 'partidas-oponentes', h('div', { class: 'pt-barras' }, ...e.porOponente.map(o => barra(o, { icone: o.icone, ds: { oponente: o.chave }, onClick: () => { st.tipo = o.chave; st.limite = 30; pinta(); } })))) : null,
+      e.porLista.length ? secao('Por lista', 'partidas-listas', h('div', { class: 'pt-barras' }, ...e.porLista.map(l => barra(l, { ds: { lista: l.chave } })))) : null,
+      e.comecando.primeiro.total + e.comecando.segundo.total ? secao('Quem começou', 'partidas-comecou', h('div', { class: 'pt-barras' },
+        e.comecando.primeiro.total ? barra({ rotulo: 'Você', ...e.comecando.primeiro }) : null, e.comecando.segundo.total ? barra({ rotulo: 'Oponente', ...e.comecando.segundo }) : null)) : null,
+      secao('Por semana', 'partidas-por-semana', colunas,
+        h('div', { class: 'pt-legenda' }, h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'vit' } }), 'Vitórias'), h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'resto' } }), 'Outras')),
+        Text(semana ? `Semana até ${data(semana.ate)}: ${semana.total} partida(s), ${semana.v} vitória(s) (${semana.taxa}%).` : 'Toque numa coluna para ver os números da semana.', { size: 'xs', tone: 'muted', attrs: { id: 'partidas-semana-detalhe', 'aria-live': 'polite' } })),
+      secao('Histórico', 'partidas-historico',
+        h('ul', { class: 'pt-lista', id: 'partidas-lista' }, ...visiveis.slice(0, st.limite).map(linha)),
+        visiveis.length > st.limite ? Row({}, Button('Mostrar mais', { id: 'partidas-mais', icone: 'descer', onClick: () => { st.limite += 30; pinta(); } })) : null),
+      Row({ style: { justifyContent: 'center' } }, Button('Limpar histórico', { variant: 'ghost', icone: 'lixeira', id: 'partidas-limpar', onClick: () => Dialog({ title: 'Limpar o histórico?', body: Text(`${e.todas} partida(s) saem deste aparelho. As listas e a coleção não mudam.`, { tone: 'muted' }),
+        actions: [Button('Cancelar', { onClick: closeDialog }), Button('Limpar', { variant: 'danger', id: 'partidas-limpar-confirma', onClick: async () => { closeDialog(); const antes = await partidas.limpa(); st.lista = []; pinta();
+          toast('Histórico limpo', 5000, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await partidas.repoe(antes); st.lista = await partidas.lista(); pinta(); } } }); } })] }) })));
+  }
+  (async () => { st.lista = await partidas.lista(); pinta(); })();
   return root;
 }
 
@@ -9568,7 +9782,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, DeckLinha };
+return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createPartidasScreen, DeckLinha };
 })();
 
 
@@ -14644,7 +14858,7 @@ function chaveDaRepeticao(s) {
 function createTable(setup, { log = [], marks = null, options: opts = {} } = {}) {
   // B3 · um assento pode ser dirigido pelo bot: { nivel, seat }
   // U10 · um bot só: partidas salvas contra o "amador" ou o "profissional" continuam como Shark
-  const options = { autoPass: opts.autoPass !== false, bot: opts.bot ? { nivel: 'shark', seat: opts.bot.seat } : null };
+  const options = { autoPass: opts.autoPass !== false, bot: opts.bot ? { nivel: 'shark', seat: opts.bot.seat } : null, ...(opts.iniciada ? { iniciada: Number(opts.iniciada) } : {}), ...(opts.minhaLista ? { minhaLista: String(opts.minhaLista) } : {}) }; // I5 · quando começou e com que lista (para o histórico)
   if (options.bot) {
     const assento = (setup.players || [])[options.bot.seat];
     if (assento && /^Bot (amador|profissional)$/.test(assento.name || '')) setup = { ...setup, players: setup.players.map((pl, i) => i === options.bot.seat ? { ...pl, name: __m25.NOME_DO_BOT } : pl) };
@@ -15977,7 +16191,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     }
     async function guardarEIr(setup, assento, codigo, serieDe = null) {
       const mesa = T.createTable(setup, { options: { autoPass: true } });
-      await store.set(T.SAVE_KEY, { ...mesa.serialize(), options: { autoPass: true, bot: null, online: { codigo, assento, modo: online.modo } } });
+      await store.set(T.SAVE_KEY, { ...mesa.serialize(), options: { autoPass: true, bot: null, online: { codigo, assento, modo: online.modo }, iniciada: Date.now(), minhaLista: (byId(state.mine) || {}).name || '' } });
       // duas abas do mesmo aparelho dividem o store: o assento desta aba fica na sessão dela
       try { sessionStorage.setItem('estante.online.assento', JSON.stringify({ codigo, assento })); } catch (e) { /* sem sessão */ }
       // H3 · melhor de 3 online: a série nasce nos dois aparelhos com as duas listas (a troca de reserva parte delas)
@@ -16114,10 +16328,10 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         if (keeper && keeper.guardarLista) { for (const d of [mine, theirs].filter(Boolean)) keeper.guardarLista(d).catch(() => {}); }
         else cardRepo.pin(names).catch(() => {});
         const table = T.createTable(T.buildSetup({ format, seed: state.seed, seats, cards, manaCheck: state.mana, mode: state.mode }),
-          { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null } });
+          { options: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null, iniciada: Date.now(), minhaLista: mine.name } }); // I5 · o histórico diz quando e com que lista
         await store.set(T.SAVE_KEY, table.serialize());
         // Leva 114 · série: melhor de 3 guarda as listas (deck e reserva) de cada assento; partida única não guarda nada
-        if (state.melhorDe > 1) await store.set(T.SERIE_KEY, T.novaSerie({ melhorDe: state.melhorDe, formato: format, semente: state.seed, opcoes: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null, mode: state.mode, manaCheck: state.mana },
+        if (state.melhorDe > 1) await store.set(T.SERIE_KEY, T.novaSerie({ melhorDe: state.melhorDe, formato: format, semente: state.seed, opcoes: { autoPass: !state.stopAll, bot: comBot ? { nivel: 'shark', seat: 1 } : null, mode: state.mode, manaCheck: state.mana, minhaLista: mine.name },
           assentos: seats.map((st, i) => ({ name: st.name, dummy: !!st.dummy, bot: comBot && i === 1, deckId: st.deck && st.deck.id, entries: st.deck ? st.deck.entries : [] })) }));
         else await store.remove(T.SERIE_KEY);
         if (unknown) toast(`${unknown} carta(s) não reconhecida(s) entram como mágica genérica`, 3600);
@@ -16164,7 +16378,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
 }
 
 /* ---------------- A1–A9 · a mesa ---------------- */
-function createTableScreen({ store, perfil = null, online = null, som = null }) {
+function createTableScreen({ store, perfil = null, online = null, som = null, partidas = null }) {
   const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
   // G4 · som da partida: o que mudou entre a última mesa desenhada e esta vira som. Desfazer e abrir a partida não tocam.
   let estadoOuvido = null, eventosDaJogada = [], semSentidos = false, sentidosAgora = [];
@@ -16602,6 +16816,20 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     try { serie = await store.get(T.SERIE_KEY); } catch (e) { serie = null; }
     paint();
   })();
+  /** I5 · a partida do motor completo que termina entra no histórico, do ponto de vista de quem joga neste aparelho. Uma
+      vez por fim; desfazer para fora do fim (contra o bot) tira o registro, e o novo fim grava de novo. */
+  let noHistorico = null;
+  function historicoDaPartida(s, v) {
+    if (!partidas || table.setup.mode !== 'full') return;
+    if (s.status !== 'over') { if (noHistorico) { const id = noHistorico; noHistorico = null; partidas.remove(id).catch(() => {}); } return; }
+    if (noHistorico) return;
+    const eu = sinc ? sinc.assento : 0;
+    let primeiro = null; try { primeiro = E.createMatch(table.setup).state.turn.active; } catch (e) { /* sem como saber: fica fora da estatística */ }
+    let cores = ''; try { cores = __m14.coresDaLista(((table.setup.players[eu] || {}).deck || []), new Map(Object.entries(table.setup.cards || {}).map(([n, c]) => [norm(n), c]))) || ''; } catch (e) { /* sem dados: sem cor */ }
+    const ult = table.log && table.log[table.log.length - 1];
+    const p = __m35.daMesa({ s, eu, setup: table.setup, options: table.options || {}, serie, cores, primeiro, desistiu: !!(ult && ult.t === 'concede') });
+    noHistorico = p.id; partidas.registra(p).catch(() => {});
+  }
   /** Leva 114 · fim de partida numa série: registra uma vez e guarda. */
   let serie = null;
   function fechaJogoDaSerie(s) {
@@ -17220,6 +17448,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null }) 
     const compacto = !(s.pending && s.pending.kind === 'pick' && s.pending.p === v);
     const PriorityBanner = o => __m17.PriorityBanner({ ...(compacto ? { momento: T.momentoDaBandeja(s, v) } : {}), ...o });
     let banner;
+    historicoDaPartida(s, v); // I5
     if (s.status === 'over') {
       // Leva 114 · numa série, o fim da partida leva às trocas com a reserva; a série fecha com duas vitórias
       fechaJogoDaSerie(s);
@@ -17697,7 +17926,7 @@ function createSeriesScreen({ store, online = null }) {
         const seats = serie.assentos.map(a => a.dummy ? { name: a.name, dummy: true } : { name: a.name, deck: { entries: a.atual } });
         const proxima = T.proximoJogo(serie, st.primeiro);
         const table = T.createTable(T.buildSetup({ format: serie.formato, seed: (serie.semente + proxima.jogo * 7919) >>> 0, seats, cards: cartas, manaCheck: o.manaCheck !== false, mode: o.mode || 'full', first: st.primeiro }),
-          { options: { autoPass: o.autoPass !== false, bot: o.bot || null } });
+          { options: { autoPass: o.autoPass !== false, bot: o.bot || null, iniciada: Date.now(), minhaLista: o.minhaLista || '' } });
         await store.set(T.SAVE_KEY, table.serialize());
         await store.set(T.SERIE_KEY, proxima);
         go('/partida');
@@ -17717,7 +17946,7 @@ function createSeriesScreen({ store, online = null }) {
         const setup = { ...jogo.setup, cards: cartas };
         const proxima = T.proximoJogo({ ...serie, assentos: serie.assentos.map((a, i) => ({ ...a, atual: ((setup.players[i] || {}).deck || a.atual).map(e => ({ ...e })) })) }, setup.first != null ? setup.first : null);
         const mesa = T.createTable(setup, { options: { autoPass: true } });
-        await store.set(T.SAVE_KEY, { ...mesa.serialize(), options: { autoPass: true, bot: null, online: { ...salvo.options.online, jogo: N } } });
+        await store.set(T.SAVE_KEY, { ...mesa.serialize(), options: { autoPass: true, bot: null, online: { ...salvo.options.online, jogo: N }, iniciada: Date.now(), minhaLista: (salvo.options || {}).minhaLista || '' } });
         await store.set(T.SERIE_KEY, proxima);
         go('/partida');
       } catch (e) { st.indo = false; st.erro = 'Não foi possível abrir a próxima partida: ' + (e.message || e); paint(); }
@@ -19805,7 +20034,7 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen } = __m15;
+const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createPartidasScreen } = __m15;
 const { createTableSetup, createTableScreen, createSeriesScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
@@ -19862,6 +20091,7 @@ const backup = {
 const names = createNameIndex({ store: platform.store, scryfall });
 const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
 const fichas = __m34.createFichas({ store: platform.store, scryfall, images }); // I4
+const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
 __m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
@@ -19886,10 +20116,11 @@ const ROUTES = [
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
-  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som }) },
+  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks }) }, // I4
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, apresentacao: () => mostraApresentacao(),
+  { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, partidas, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),
