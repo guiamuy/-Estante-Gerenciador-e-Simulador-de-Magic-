@@ -1043,6 +1043,17 @@ body {
 .deck-reserva-aviso .ds-btn { align-self: flex-start; }
 .deck-group__head { align-items: baseline; border-bottom: 2px solid var(--shelf-edge); padding-bottom: var(--space-1); }
 .deck-slot { position: relative; }
+/* L8 · cores da lista: por cor, duas barras na mesma escala (fatia dos símbolos de custo, fatia das fontes) */
+.deck-cores { display: flex; flex-direction: column; gap: var(--space-2); }
+.deck-cores__linha { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-3); }
+.deck-cores__cor { display: inline-flex; }
+.deck-cores__barras { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.deck-cores__par { display: grid; grid-template-columns: minmax(0, 1fr) 5.5em; align-items: center; gap: var(--space-2); }
+.deck-cores__barra { display: block; height: 8px; border-radius: var(--radius-1); background: var(--bg-elev-3); overflow: hidden; }
+.deck-cores__barra > span { display: block; height: 100%; width: var(--v); min-width: 2px; border-radius: var(--radius-1); background: var(--accent); }
+.deck-cores__barra[data-serie="fontes"] > span { background: var(--border-strong); }
+.deck-cores__valor { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.deck-cores__valor b { color: var(--fg); font-weight: var(--weight-medium); }
 /* I5 · partidas: ladrilhos, medidor de resultados, barras de um tom, colunas por semana e a lista do histórico */
 .pt-ladrilhos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .pt-ladrilho { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-3) var(--space-2); border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); min-width: 0; }
@@ -6261,6 +6272,53 @@ function planCollectionImport(items, { existentes = new Set(), conhecidos = null
     as cores das cartas do deck principal (terrenos não têm cor). `cards` é Map(nome normalizado -> carta).
     Devolve null quando falta o dado de qualquer carta que conta (ou só há terrenos guardados): melhor não
     mostrar cor do que mostrar a cor errada ou "incolor" por engano. */
+/* ---------------- L8 · estatísticas da lista ---------------- */
+const TERRENO_BASICO = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
+/** As cores de mana que uma carta gera, lidas do tipo (Plains, Island…) e do texto ("{T}: Add {G}", "any color").
+    É leitura de texto, não regra: serve para contar fontes, não para pagar custo. Devolve letras em WUBRGC. */
+function coresQueGera(card) {
+  if (!card) return [];
+  const cores = new Set();
+  const tipo = typeOf(card).toLowerCase();
+  for (const [nome, cor] of Object.entries(TERRENO_BASICO)) if (new RegExp('\\b' + nome + '\\b').test(tipo)) cores.add(cor);
+  const texto = oracleNoReminder(card);
+  for (const m of texto.matchAll(/\badds?\b([^.\n]*)/gi)) {
+    const trecho = m[1];
+    if (/\bany (one )?(color|type)\b|\bany combination of colors\b|\bof any of\b/i.test(trecho)) [...'WUBRG'].forEach(c => cores.add(c));
+    for (const sym of trecho.match(/\{[WUBRGC](?:\/[WUBRGCP])?\}/g) || []) for (const c of sym.replace(/[{}]/g, '').split('/')) if ('WUBRGC'.includes(c)) cores.add(c);
+  }
+  return [...'WUBRGC'].filter(c => cores.has(c));
+}
+/** Os números da lista para o painel de estatísticas (deck e comandante; reserva e companheiro ficam fora):
+    por tipo, curva separando criaturas das outras mágicas, símbolos de cor nos custos contra fontes de cada cor,
+    terrenos e custo médio. `semDados` conta as cópias de cartas ainda não guardadas (ficam fora das contas). Puro. */
+function estatisticasDaLista(deck, cards) {
+  const tipos = new Map(), curva = Array.from({ length: 7 }, (_, i) => ({ custo: i, criaturas: 0, outras: 0 }));
+  const simbolos = { W: 0, U: 0, B: 0, R: 0, G: 0 }, fontes = { W: 0, U: 0, B: 0, R: 0, G: 0 }, fontesTerreno = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  let total = 0, terrenos = 0, magicas = 0, somaCusto = 0, semDados = 0;
+  for (const e of (deck && deck.entries) || []) {
+    if (e.zone === 'side' || e.zone === 'companion') continue;
+    total += e.qty;
+    const c = cards.get(norm(e.name));
+    if (!c) { semDados += e.qty; continue; }
+    const cat = categoryOf({ zone: 'main' }, c);
+    tipos.set(cat, (tipos.get(cat) || 0) + e.qty);
+    const terreno = isLandCard(c);
+    if (terreno) terrenos += e.qty;
+    else {
+      magicas += e.qty; somaCusto += (c.cmc || 0) * e.qty;
+      curva[Math.min(6, Math.floor(c.cmc || 0))][/\bcreature\b/i.test(typeOf(c)) ? 'criaturas' : 'outras'] += e.qty;
+      for (const sym of symbols(String(c.mana_cost || '').split('//')[0])) for (const cor of sym.replace(/[{}]/g, '').split('/')) if (simbolos[cor] != null) simbolos[cor] += e.qty;
+    }
+    for (const cor of coresQueGera(c)) if (fontes[cor] != null) { fontes[cor] += e.qty; if (terreno) fontesTerreno[cor] += e.qty; }
+  }
+  const somaS = Object.values(simbolos).reduce((a, b) => a + b, 0), somaF = Object.values(fontes).reduce((a, b) => a + b, 0);
+  const cores = [...'WUBRG'].map(cor => ({ cor, simbolos: simbolos[cor], fontes: fontes[cor], terrenos: fontesTerreno[cor],
+    pctSimbolos: somaS ? Math.round(100 * simbolos[cor] / somaS) : 0, pctFontes: somaF ? Math.round(100 * fontes[cor] / somaF) : 0 })).filter(x => x.simbolos || x.fontes);
+  const porTipo = CATEGORIES.map(([k, rotulo]) => ({ chave: k, rotulo, n: tipos.get(k) || 0 })).filter(x => x.n).sort((a, b) => b.n - a.n);
+  return { total, terrenos, magicas, semDados, custoMedio: magicas ? Math.round(100 * somaCusto / magicas) / 100 : 0, pctTerrenos: total - semDados ? Math.round(100 * terrenos / (total - semDados)) : 0, porTipo, curva, cores };
+}
+
 /* ---------------- L7 · edição rápida ---------------- */
 /** Soma `delta` cópias de `nome` na `zona` e devolve uma lista nova (não muta). Chegou a zero, a entrada sai;
     carta que não estava entra no fim, com a grafia dada. */
@@ -6306,7 +6364,7 @@ function coresDaLista(entries, cards) {
   return [...ORD].filter(x => cor.has(x)).join('');
 }
 
-return { ajustaEntrada, sugereNomes, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
+return { coresQueGera, estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
   parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
@@ -7979,7 +8037,7 @@ const __m15 = (function () {
    ===================================================================== */
 const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem } = __m3;
 const { norm } = __m7;
-const { ajustaEntrada, sugereNomes, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
+const { estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
 const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
@@ -8698,6 +8756,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     filtro: __m27.novoFiltro(), texto: '',
     etq: __m32.vazio(), // G2 · etiquetas desta lista
     ajustando: false, zonaNova: 'main', // L7 · edição rápida
+    stats: false, statsCusto: null, // L8 · bloco de estatísticas (aberto?) e a coluna da curva tocada
     taxas: undefined }; // G3 · cotação do dólar (undefined = buscando, null = sem cotação)
 
   async function load() {
@@ -8706,6 +8765,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     if (!state.deck) return mount(root, Empty('Lista não encontrada.', Button('Ver listas', { icone: 'voltar', onClick: () => go('/listas') })));
     if (store) store.set('ui.ultimaLista', { id, nome: state.deck.name, em: Date.now() }).catch(() => {}); // D3 · a tela inicial oferece "continuar" nesta lista
     state.owned = await collection.all();
+    if (store) { try { state.stats = (await store.get('decks.estatisticas')) === true; } catch (e) { /* sem armazenamento: fechado */ } } // L8 · aberto ou fechado, lembrado no aparelho
     cardRepo.stats.degraded = false;
     const progress = Text('Buscando cartas…', { size: 'sm', tone: 'muted' });
     mount(root, Row({}, Spinner(), progress));
@@ -8821,6 +8881,48 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       Field('Adicionar carta', h('div', { class: 'col-add' }, addIn, addBtn)),
       sugBox, zonas,
       Text(semBase ? 'Sem a base de nomes neste aparelho: escreva o nome inteiro e toque em +.' : 'Escolha uma sugestão ou escreva o nome inteiro. Em cada carta, + e − mudam a quantidade.', { size: 'xs', tone: 'subtle', attrs: { id: 'deck-ajuste-dica' } })));
+  }
+
+  /* ---- L8 · estatísticas: por tipo, curva por tipo e cores (custo × fontes). As formas vêm do que o número faz:
+     ladrilhos para os três números de cabeça; barras de um tom para comparar tipos; colunas com as criaturas em destaque
+     na base; e, por cor, duas barras na mesma escala (% dos símbolos de custo e % das fontes) para ver se a base paga. ---- */
+  function blocoEstatisticas() {
+    const cab = { titulo: 'Estatísticas', icone: 'painel', aberto: state.stats, id: 'deck-stats', toggleId: 'deck-stats-toggle', onToggle: () => { state.stats = !state.stats; if (store) store.set('decks.estatisticas', state.stats).catch(() => {}); paint(); } };
+    const e = estatisticasDaLista(state.deck, state.cards);
+    cab.resumo = e.total - e.semDados ? [`${e.terrenos} terrenos · custo médio ${String(e.custoMedio).replace('.', ',')}`] : '';
+    if (!state.stats) return Expansivel(cab);
+    if (!(e.total - e.semDados)) return Expansivel(cab, Empty('Sem os dados das cartas ainda. Conecte-se para a lista buscar as cartas.', null, { icone: 'semRede' }));
+    const ladrilho = (valor, rotulo, id) => h('div', { class: 'pt-ladrilho', id }, h('span', { class: 'pt-ladrilho__valor' }, h('b', {}, String(valor))), h('span', { class: 'pt-ladrilho__rotulo' }, rotulo));
+    const maxTipo = Math.max(1, ...e.porTipo.map(x => x.n));
+    const tipos = h('div', { class: 'pt-barras', id: 'deck-stats-tipos' }, ...e.porTipo.map(x => h('div', { class: 'pt-barra', dataset: { tipo: x.chave }, title: `${x.rotulo}: ${x.n} carta(s)`, style: { '--v': Math.round(100 * x.n / maxTipo) + '%' } },
+      h('span', { class: 'pt-barra__rotulo' }, h('span', {}, x.rotulo)), h('span', { class: 'pt-barra__trilho', 'aria-hidden': 'true' }, h('span', { class: 'pt-barra__fio' })), h('span', { class: 'pt-barra__valor' }, h('b', {}, String(x.n))))));
+    const maxCurva = Math.max(1, ...e.curva.map(x => x.criaturas + x.outras));
+    const tocada = state.statsCusto != null ? e.curva[state.statsCusto] : null;
+    const curva = h('div', { class: 'pt-colunas', id: 'deck-stats-curva' }, ...e.curva.map((x, i) => { const n = x.criaturas + x.outras, rot = i === 6 ? '6 ou mais' : String(i);
+      return h('button', { class: 'pt-coluna', type: 'button', 'aria-pressed': String(state.statsCusto === i), dataset: { custo: String(i), total: String(n) }, 'aria-label': `Custo ${rot}: ${n} carta(s), ${x.criaturas} criatura(s)`, title: `Custo ${rot}: ${n} carta(s), ${x.criaturas} criatura(s)`,
+        onClick: () => { state.statsCusto = state.statsCusto === i ? null : i; paint(); } },
+        h('span', { class: 'pt-coluna__n' }, n ? String(n) : ''),
+        h('span', { class: 'pt-coluna__pilha', style: { '--h': Math.round(100 * n / maxCurva) + '%' } },
+          x.outras ? h('span', { class: 'pt-coluna__resto', style: { '--n': String(x.outras) } }) : null, x.criaturas ? h('span', { class: 'pt-coluna__vit', style: { '--n': String(x.criaturas) } }) : null),
+        h('span', { class: 'pt-coluna__dia' }, i === 6 ? '6+' : String(i))); }));
+    const NOME_COR = { W: 'Branco', U: 'Azul', B: 'Preto', R: 'Vermelho', G: 'Verde' };
+    const cores = e.cores.length ? h('div', { class: 'deck-cores', id: 'deck-stats-cores' }, ...e.cores.map(x => h('div', { class: 'deck-cores__linha', dataset: { cor: x.cor }, role: 'img',
+      'aria-label': `${NOME_COR[x.cor]}: ${x.pctSimbolos}% dos símbolos de custo (${x.simbolos}) e ${x.pctFontes}% das fontes (${x.fontes}, ${x.terrenos} terreno(s))` },
+      h('span', { class: 'deck-cores__cor' }, Simbolo(x.cor)),
+      h('span', { class: 'deck-cores__barras' },
+        h('span', { class: 'deck-cores__par' }, h('span', { class: 'deck-cores__barra', dataset: { serie: 'custo' }, style: { '--v': x.pctSimbolos + '%' } }, h('span', {})), h('span', { class: 'deck-cores__valor' }, h('b', {}, `${x.pctSimbolos}%`), ` · ${x.simbolos}`)),
+        h('span', { class: 'deck-cores__par' }, h('span', { class: 'deck-cores__barra', dataset: { serie: 'fontes' }, style: { '--v': x.pctFontes + '%' } }, h('span', {})), h('span', { class: 'deck-cores__valor' }, h('b', {}, `${x.pctFontes}%`), ` · ${x.fontes}`)))))) : null;
+    const sub = t => Text(t, { size: 'sm', caps: true, as: 'h2' }); // h2: logo abaixo do h1 da tela (o axe mede a ordem dos títulos)
+    return Expansivel(cab,
+      h('div', { class: 'pt-ladrilhos' }, ladrilho(e.total, 'cartas', 'deck-stats-total'), ladrilho(`${e.terrenos} · ${e.pctTerrenos}%`, 'terrenos', 'deck-stats-terrenos'), ladrilho(String(e.custoMedio).replace('.', ','), 'custo médio', 'deck-stats-custo')),
+      e.semDados ? Text(`${e.semDados} carta(s) sem dados guardados ficam fora das contas.`, { size: 'xs', tone: 'subtle', attrs: { id: 'deck-stats-sem-dados' } }) : null,
+      sub('Por tipo'), tipos,
+      sub('Curva por tipo'), curva,
+      h('div', { class: 'pt-legenda' }, h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'vit' } }), 'Criaturas'), h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'resto' } }), 'Outras mágicas')),
+      Text(tocada ? `Custo ${state.statsCusto === 6 ? '6 ou mais' : state.statsCusto}: ${tocada.criaturas + tocada.outras} carta(s), ${tocada.criaturas} criatura(s) e ${tocada.outras} outra(s).` : 'Toque numa coluna para ver os números do custo.', { size: 'xs', tone: 'muted', attrs: { id: 'deck-stats-curva-detalhe', 'aria-live': 'polite' } }),
+      cores ? sub('Cores: custo e fontes') : null, cores,
+      cores ? h('div', { class: 'pt-legenda' }, h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'vit' } }), 'Símbolos nos custos'), h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'resto' } }), 'Fontes de mana')) : null,
+      cores ? Text('Em cada cor: a fatia dos símbolos de custo e a fatia das cartas que geram essa mana. Fatias parecidas, base equilibrada. As fontes são lidas do texto da carta.', { size: 'xs', tone: 'subtle' }) : null);
   }
 
   function curveView(curve) {
@@ -8955,6 +9057,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           Text(`${stats.have}/${stats.need}`, { size: '3xl', display: true }),
           Text(stats.missing ? `faltam ${stats.missing} carta(s)` : 'coleção completa', { size: 'sm', tone: stats.missing ? 'muted' : 'positive' })),
         curveView(stats.curve)),
+      blocoEstatisticas(), // L8
       // G3 · quanto vale a lista (e quanto falta comprar), nas três moedas
       (() => {
         const v = __m31.valorDaLista(d.entries, { cardDe: entryCard, chave: e => norm(e.name), owned: state.owned, taxas: state.taxas || null });

@@ -7195,10 +7195,11 @@ test('e2e · I2 listas com busca e filtros como a coleção: texto (lista ou car
   await auditaTela(page, 'listas com busca e filtros (escuro)');
   // 1 · texto: nome da lista ou de uma carta dela; o foco fica no campo enquanto digita
   await page.click('#decks-filter'); await page.keyboard.type('sol');
-  await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 1);
+  await page.waitForFunction(() => { const is = [...document.querySelectorAll('#decks-list .deck-item')]; return is.length === 1 && /Mesa do Sol/.test(is[0].textContent); });
   assert.ok(await tem('Mesa do Sol')); assert.equal(await page.evaluate(() => document.activeElement.id), 'decks-filter', 'digitar não perde o foco');
   assert.match(await page.innerText('#decks-count-text'), /1 de 3 lista\(s\)/);
-  await page.fill('#decks-filter', 'lightning'); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 1);
+  // Leva 190 · corrida do próprio teste: a contagem já era 1 (a lista do filtro anterior) antes de a nova pintura chegar; espera a lista certa
+  await page.fill('#decks-filter', 'lightning'); await page.waitForFunction(() => { const is = [...document.querySelectorAll('#decks-list .deck-item')]; return is.length === 1 && /Montanhas/.test(is[0].textContent); });
   assert.ok(await tem('Montanhas'), 'achou pela carta');
   await page.click('#decks-filters-clear'); await page.waitForFunction(() => document.querySelectorAll('#decks-list .deck-item').length === 3);
   assert.equal(await page.inputValue('#decks-filter'), '');
@@ -7449,5 +7450,41 @@ test('e2e · I5 Perfil › Partidas: a partida que termina entra no histórico (
   await page.click('#partidas-limpar'); await page.waitForSelector('#partidas-limpar-confirma'); assert.match(await page.innerText('.ds-dialog'), /3 partida\(s\) saem deste aparelho/);
   await page.click('#partidas-limpar-confirma'); await page.waitForSelector('#partidas-vazio');
   await page.click('.ds-toast__acao'); await page.waitForSelector('#partidas-total'); assert.equal(await page.$eval('#partidas-total b', e => e.textContent), '3', 'Desfazer devolve o histórico');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- L8 · estatísticas da lista ---------------- */
+test('e2e · L8 estatísticas da lista: bloco que abre e lembra, ladrilhos, barras por tipo, curva por tipo com detalhe ao toque e cores (custo × fontes) com legenda', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Azul e branco', '10 Island\n6 Plains\n4 Prodigal Sorcerer\n4 Thraben Inspector\n\nSideboard\n3 Prodigal Sorcerer', 'livre');
+  // fechado por padrão: o cabeçalho já resume
+  await page.waitForSelector('#deck-stats-toggle');
+  assert.equal(await page.getAttribute('#deck-stats-toggle', 'aria-expanded'), 'false');
+  assert.match((await page.innerText('#deck-stats-toggle')).replace(/\s+/g, ' '), /Estatísticas 16 terrenos · custo médio 2/);
+  await page.click('#deck-stats-toggle'); await page.waitForSelector('#deck-stats-tipos');
+  // ladrilhos
+  assert.deepEqual(await page.$$eval('#deck-stats .pt-ladrilho', ls => ls.map(l => l.textContent.replace(/\s+/g, ' ').trim())), ['24cartas', '16 · 67%terrenos', '2custo médio'], 'a reserva fica fora');
+  // por tipo: do maior para o menor, a barra mede a contagem
+  const tipos = await page.$$eval('#deck-stats-tipos .pt-barra', bs => bs.map(b => [b.dataset.tipo, b.querySelector('.pt-barra__valor').textContent.trim(), Math.round(100 * b.querySelector('.pt-barra__fio').getBoundingClientRect().width / b.querySelector('.pt-barra__trilho').getBoundingClientRect().width)]));
+  assert.deepEqual(tipos.map(x => x.slice(0, 2)), [['land', '16'], ['creature', '8']]); assert.ok(tipos[0][2] >= 98 && Math.abs(tipos[1][2] - 50) <= 2, JSON.stringify(tipos));
+  // curva por tipo: sete colunas; custo 1 e custo 3 com quatro criaturas cada; o toque diz os números
+  assert.deepEqual(await page.$$eval('#deck-stats-curva .pt-coluna', cs => cs.map(c => Number(c.dataset.total))), [0, 4, 0, 4, 0, 0, 0]);
+  assert.match(await page.innerText('#deck-stats-curva-detalhe'), /Toque numa coluna/);
+  await page.click('#deck-stats-curva .pt-coluna[data-custo="3"]');
+  assert.match(await page.innerText('#deck-stats-curva-detalhe'), /Custo 3: 4 carta\(s\), 4 criatura\(s\) e 0 outra\(s\)/);
+  // cores: branco e azul, cada um com as duas barras e os números; nome falado completo
+  const cores = await page.$$eval('#deck-stats-cores .deck-cores__linha', ls => ls.map(l => ({ cor: l.dataset.cor, fala: l.getAttribute('aria-label'), barras: [...l.querySelectorAll('.deck-cores__barra')].map(b => b.dataset.serie), vals: [...l.querySelectorAll('.deck-cores__valor')].map(v => v.textContent.trim()) })));
+  assert.deepEqual(cores.map(c => c.cor), ['W', 'U']);
+  assert.deepEqual(cores[0].barras, ['custo', 'fontes']); assert.deepEqual(cores[0].vals, ['50% · 4', '38% · 6']); assert.deepEqual(cores[1].vals, ['50% · 4', '63% · 10']);
+  assert.equal(cores[1].fala, 'Azul: 50% dos símbolos de custo (4) e 63% das fontes (10, 10 terreno(s))');
+  assert.equal(await page.locator('#deck-stats .pt-legenda').count(), 2, 'legenda nas duas formas de duas séries');
+  await auditaTela(page, 'lista com estatísticas (escuro)');
+  if (process.env.SHOTS) { await page.evaluate(() => document.querySelector('#deck-stats').scrollIntoView({ block: 'start' })); await page.screenshot({ path: process.env.SHOTS + '/l8-estatisticas.png', fullPage: true }); }
+  await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'lista com estatísticas (fonte larga)');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'lista com estatísticas (claro)');
+  // lembra aberto ao voltar
+  await page.reload(); await page.waitForSelector('#deck-stats-toggle');
+  assert.equal(await page.getAttribute('#deck-stats-toggle', 'aria-expanded'), 'true', 'aberto ou fechado fica lembrado');
   assert.deepEqual(errors, []);
 });

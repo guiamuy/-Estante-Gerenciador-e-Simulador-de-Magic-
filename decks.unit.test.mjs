@@ -722,3 +722,39 @@ test('L7 · sugereNomes: começa com o texto, depois palavra que começa, depois
   assert.deepEqual(J(sugereNomes(nomes, 'c')), [], 'uma letra não sugere');
   assert.deepEqual(J(sugereNomes(null, 'count')), []); assert.deepEqual(J(sugereNomes(nomes, 'zzz')), []);
 });
+
+/* ---------------- L8 · estatísticas da lista ---------------- */
+test('L8 · coresQueGera: tipo de terreno básico, "{T}: Add {G}", duas cores, qualquer cor e incolor; texto de lembrete não conta', () => {
+  const { coresQueGera } = loadModules().decks;
+  const J = x => JSON.parse(JSON.stringify(x));
+  const g = (type_line, oracle_text = '') => J(coresQueGera({ type_line, oracle_text }));
+  assert.deepEqual(g('Basic Land — Forest', '({T}: Add {G}.)'), ['G'], 'pelo tipo; o lembrete entre parênteses é ignorado');
+  assert.deepEqual(g('Land — Island Swamp'), ['U', 'B']);
+  assert.deepEqual(g('Land', '{T}: Add {R} or {W}.'), ['W', 'R'], 'na ordem WUBRG');
+  assert.deepEqual(g('Creature — Elf Druid', '{T}: Add {G}.'), ['G'], 'criatura de mana é fonte');
+  assert.deepEqual(g('Artifact', '{T}: Add one mana of any color.'), ['W', 'U', 'B', 'R', 'G']);
+  assert.deepEqual(g('Artifact', '{T}: Add {C}{C}.'), ['C']);
+  assert.deepEqual(g('Instant', 'Counter target spell.'), []); assert.deepEqual(J(coresQueGera(null)), []);
+});
+test('L8 · estatisticasDaLista: por tipo, curva separando criaturas, símbolos de custo contra fontes por cor, terrenos e custo médio; reserva e carta sem dados ficam fora', () => {
+  const { estatisticasDaLista } = loadModules().decks;
+  const J = x => JSON.parse(JSON.stringify(x));
+  const c = (name, type_line, mana_cost, cmc, oracle_text = '') => [name.toLowerCase(), { name, type_line, mana_cost, cmc, oracle_text }];
+  const cards = new Map([c('Forest', 'Basic Land — Forest', '', 0), c('Mountain', 'Basic Land — Mountain', '', 0), c('Llanowar Elves', 'Creature — Elf Druid', '{G}', 1, '{T}: Add {G}.'),
+    c('Lightning Bolt', 'Instant', '{R}', 1), c('Burning-Tree Emissary', 'Creature — Human Shaman', '{R/G}{R/G}', 2), c('Fireblast', 'Instant', '{4}{R}{R}', 6), c('Colossus', 'Artifact Creature — Golem', '{8}', 8)]);
+  const deck = { entries: [{ name: 'Forest', qty: 10, zone: 'main' }, { name: 'Mountain', qty: 8, zone: 'main' }, { name: 'Llanowar Elves', qty: 4, zone: 'main' }, { name: 'Lightning Bolt', qty: 4, zone: 'main' },
+    { name: 'Burning-Tree Emissary', qty: 4, zone: 'main' }, { name: 'Fireblast', qty: 2, zone: 'main' }, { name: 'Colossus', qty: 1, zone: 'main' }, { name: 'Carta Sem Dados', qty: 3, zone: 'main' }, { name: 'Lightning Bolt', qty: 3, zone: 'side' }] };
+  const e = estatisticasDaLista(deck, cards);
+  assert.deepEqual([e.total, e.terrenos, e.magicas, e.semDados, e.pctTerrenos], [36, 18, 15, 3, 55], 'a reserva não conta; sem dados é contado à parte');
+  assert.equal(e.custoMedio, 2.4, '(4×1 + 4×1 + 4×2 + 2×6 + 1×8) / 15');
+  assert.deepEqual(J(e.porTipo.map(x => [x.chave, x.n])), [['land', 18], ['creature', 9], ['instant', 6]], 'do maior para o menor; criatura artefato é criatura');
+  assert.deepEqual(J(e.curva.map(x => [x.criaturas, x.outras])), [[0, 0], [4, 4], [4, 0], [0, 0], [0, 0], [0, 0], [1, 2]], 'custo 6 ou mais junta 6 e 8');
+  const cor = k => e.cores.find(x => x.cor === k);
+  assert.deepEqual(J(e.cores.map(x => x.cor)), ['R', 'G'], 'só as cores que aparecem');
+  assert.deepEqual([cor('R').simbolos, cor('G').simbolos], [16, 12], 'híbrido conta para as duas cores: R = 4 + 8 + 4, G = 4 + 8');
+  assert.deepEqual([cor('R').fontes, cor('R').terrenos, cor('G').fontes, cor('G').terrenos], [8, 8, 14, 10], 'o elfo é fonte de verde, mas não terreno');
+  assert.deepEqual([cor('R').pctSimbolos, cor('G').pctSimbolos, cor('R').pctFontes, cor('G').pctFontes], [57, 43, 36, 64]);
+  const z = estatisticasDaLista({ entries: [] }, new Map());
+  assert.deepEqual([z.total, z.custoMedio, z.pctTerrenos, z.porTipo.length, z.cores.length], [0, 0, 0, 0, 0]);
+  assert.equal(estatisticasDaLista(null, new Map()).total, 0);
+});

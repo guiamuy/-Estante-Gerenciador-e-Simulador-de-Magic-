@@ -434,6 +434,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bh ✅ | I3 tela Jogar sem texto solto: estado da lista em ladrilhos (motor, reserva, offline) com folha de detalhe; dica a um toque em Série, Paradas e Semente; componente Dica no design system (leva 186) | I | 1 | teste no aparelho |
 | 16º-bi ✅ | I4 fichas do seu jeito: Perfil › Fichas lista as fichas que as cartas criam (ícone, cores), busca as artes na Scryfall, guarda opções e imagens e a mesa usa a escolhida; offline troca entre as já baixadas (leva 187) | I | 1 | teste no aparelho |
 | 16º-bj ✅ | I5 histórico e estatísticas de partidas: Perfil › Partidas com ladrilhos, medidor de resultados, últimas 20, barras por oponente e lista (que filtram), quem começou, colunas por semana e a lista; vai no backup (leva 188) | I | 1 | teste no aparelho |
+| 16º-bk ✅ | L8 estatísticas da lista: ladrilhos, barras por tipo, curva por tipo com as criaturas em destaque e, por cor, símbolos de custo contra fontes de mana (leva 190) | L | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -3781,10 +3782,26 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Depende de:** L3.
 - **Fora:** arrastar carta entre zonas; editar a impressão (V1).
 
-**L8 · Estatísticas** ○
+**L8 · Estatísticas** ✅ (leva 190, 05/10/2026)
 - **Valor:** entender a lista como no Archidekt.
-- **Aceite:** distribuição por tipo, símbolos de custo contra fontes de mana por cor e curva por tipo.
-- **Testes:** U, I.
+- **Entregue:** na tela da lista, o bloco **Estatísticas** (abre e fecha; fechado, o cabeçalho já diz terrenos e
+  custo médio; aberto ou fechado fica lembrado no aparelho):
+  - três **ladrilhos**: cartas, terrenos (número e %), custo médio das mágicas;
+  - **Por tipo:** barras de um tom, do maior para o menor (terrenos, criaturas, instantâneas…);
+  - **Curva por tipo:** sete colunas (0 a 6+), com as **criaturas em destaque** na base e as outras mágicas em cima,
+    legenda, e o toque numa coluna diz os números daquele custo;
+  - **Cores: custo e fontes:** para cada cor da lista, duas barras na mesma escala — a fatia dos **símbolos de cor
+    nos custos** e a fatia das **cartas que geram essa mana** — com o percentual e a contagem ao lado. Fatias
+    parecidas, base equilibrada.
+- **Conta:** deck e comandante; **reserva e companheiro ficam fora**. Carta ainda sem dados guardados é contada à
+  parte e avisada. Símbolo híbrido conta para as duas cores.
+- **Limites declarados:** as fontes de mana são **lidas do tipo e do texto da carta** ("{T}: Add {G}", "any color",
+  Forest/Island…), não das regras do motor: carta que gera mana de jeito incomum pode ficar de fora ou contar a mais;
+  não há sugestão de corte nem de quantos terrenos usar (escopo negativo).
+- **Modelo (puro, `decks`):** `estatisticasDaLista(deck, cards)`, `coresQueGera(card)`.
+- **Testes:** U `decks.unit` ×2; e2e "L8" (fechado com resumo, ladrilhos, barras proporcionais, curva com detalhe,
+  cores com as duas séries e nome falado, legenda, lembrar aberto; `auditaTela` em 360 px claro, escuro e com a
+  fonte larga do CI).
 - **Depende de:** L3.
 - **Fora:** sugestão de corte (escopo negativo).
 
