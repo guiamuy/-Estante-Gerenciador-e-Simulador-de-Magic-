@@ -446,7 +446,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bm ✅ | J1 ficar onde está (app): tocar num controle não move a tela — `mount` devolve a rolagem e a âncora do toque segura o controle; guarda-corpo `semSalto` e contrato dos pontos que rolam (leva 195) | J | 1 | teste no aparelho |
 | 16º-bn ✅ | J2 ficar onde está (mesa): fileiras e página não voltam ao começo ao agir; a mesa só anda para mostrar o que está fora da vista (`levaSeEscondido`) (leva 197) | J | 1 | teste no aparelho |
 | 16º-bo ✅ | J3 leque das viradas: atacantes iguais sem bloqueio ficam num leque só, dos dois lados (os terrenos virados já juntavam) (leva 199) | J | 1 | teste no aparelho |
-| 16º-bp ○ | J4 carregamento com identidade (`Carregando` e esqueletos) | J | 1 | — |
+| 16º-bp ✅ | J4 carregamento com identidade: `Carregando` (cartas que se arrumam na prateleira, três tamanhos) e `Esqueleto` de lista, trocados nas esperas de tela e de bloco (leva 203) | J | 1 | teste no aparelho |
 | 16º-bq ○ | J5 abertura que termina no logo | J | 1 | — |
 | 16º-br ○ | J6 botão de ação flutuante: componente, Listas, Lista e Coleção | J | 1 | — |
 | 16º-bs ○ | J7 botão de ação no resto do app | J | 1 | — |
@@ -5552,15 +5552,28 @@ pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento n
 - **Pendência com o usuário:** se ainda houver cópias viradas espalhadas em outra situação, uma captura da mesa mostra
   qual estado as separa (marcador, anexo, efeito do turno).
 
-**J4 · Carregamento com identidade** ○
+**J4 · Carregamento com identidade** ✅ (leva 203, 06/10/2026)
 - **Valor:** esperar sem achar que travou, com a cara do app.
-- **Aceite:** componente `Carregando` no design system (cartas que se alinham na prateleira, em traço e latão, só
-  com tokens), em três tamanhos: tela inteira, bloco e em linha. Substitui o anel genérico nas esperas de tela
-  (abrir lista, buscar cartas, preparar partida, impressões, fichas); esperas de lista usam esqueleto no formato do
-  conteúdo. Diz o que está fazendo em uma linha e o progresso quando existe. Movimento reduzido: quadro estático.
-- **Testes:** contrato visual (tokens, movimento reduzido); e2e nas telas trocadas (aparece, some, nada pula ao
-  chegar o conteúdo); entrada no `/ds` nos dois temas.
-- **Depende de:** J1. · **Estimativa:** 1 leva.
+- **Entregue:**
+  - `Carregando(texto, { tamanho })` no design system: **três cartas se arrumam na prateleira**, uma depois da outra,
+    em traço no acento do tema, com a prateleira e o lábio dela (só tokens; ciclo de 1,68 s, `--dur-arruma`). Três
+    tamanhos: **tela** (120×90, ocupa 46% da altura: nada pula quando o conteúdo chega), **bloco** (72×54) e
+    **linha** (32×24, ao lado do texto). Sempre diz o que está fazendo; o texto pode mudar no lugar (progresso
+    "Buscando cartas… 12 de 60"). `role="status"`, anunciado ao leitor de tela;
+  - `Esqueleto({ linhas })`: a espera de uma lista já tem a forma da lista (selo + dois traços, pulsando devagar);
+  - **trocado nas esperas de tela**: abrir lista e buscar cartas, Perfil, Partidas, Fichas, Terrenos, Jogar, a mesa,
+    a série e os diálogos de lista; **em bloco**: buscar artes, impressões, edições, conferir nomes; **em linha**:
+    cobertura do motor e o painel offline da tela inicial; **esqueleto**: Listas e Coleção.
+- **Movimento reduzido** (Aparência › Menos movimento ou a preferência do sistema): quadro parado com as três cartas
+  no lugar; o esqueleto não pulsa.
+- **O anel continua** onde a espera é do tamanho de um botão: ao lado de "Mais artes", na busca de cartas, na edição
+  do scanner e nas esperas pelo outro jogador (online e série).
+- **Testes:** contrato visual (tokens, sem cor literal; os dois componentes no `/ds`); e2e "J4" (três tamanhos e
+  medidas, três cartas com entradas defasadas, traço = acento, texto embaixo ou ao lado, esqueleto, dois temas com
+  `auditaTela`, movimento reduzido pelos dois caminhos, lista com a rede lenta: a espera de tela aparece, diz o que
+  faz, ocupa a tela, não usa o anel e some; nenhuma tela nasce com o anel solto).
+- **Depende de:** J1.
+- **Fora:** esqueleto em forma de grade de cartas (a lista aberta usa a espera de tela); barra de progresso.
 
 **J5 · Abertura** ○
 - **Valor:** o app abre como um objeto bem-feito: as cartas se arrumam na estante e viram o logo.

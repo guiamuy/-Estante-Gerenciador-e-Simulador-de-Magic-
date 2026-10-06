@@ -7868,3 +7868,57 @@ test('e2e · I6 Perfil › Terrenos: os doze básicos com ícone e cor, artes da
   await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'fichas · lotes (fonte larga)');
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- J4 · carregamento com identidade ---------------- */
+test('e2e · J4 carregamento com identidade: cartas que se arrumam na prateleira em três tamanhos, esqueleto de lista, quadro parado com movimento reduzido, e a espera de tela ao abrir uma lista com a rede lenta', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // 1 · catálogo: os três tamanhos e o esqueleto
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-carregando-tela');
+  const mede = () => page.evaluate(() => ['tela', 'bloco', 'linha'].map(t => { const el = document.querySelector('#ds-carregando-' + t), arte = el.querySelector('.ds-carregando__arte'), cartas = [...el.querySelectorAll('.ds-carregando__carta')];
+    const a = arte.getBoundingClientRect(), txt = el.querySelector('.ds-carregando__texto').getBoundingClientRect();
+    return { t, papel: el.getAttribute('role'), vivo: el.getAttribute('aria-live'), w: Math.round(a.width), h: Math.round(a.height), cartas: cartas.length, anima: [...new Set(cartas.map(c => getComputedStyle(c).animationName))].join(','), atrasos: new Set(cartas.map(c => getComputedStyle(c).animationDelay)).size,
+      aoLado: txt.left >= a.right - 1, embaixo: txt.top >= a.bottom - 1, traco: getComputedStyle(cartas[0]).stroke, texto: el.textContent.trim() }; }));
+  let m = await mede();
+  assert.deepEqual(m.map(x => [x.t, x.w, x.h, x.cartas, x.papel, x.vivo]), [['tela', 120, 90, 3, 'status', 'polite'], ['bloco', 72, 54, 3, 'status', 'polite'], ['linha', 32, 24, 3, 'status', 'polite']]);
+  assert.ok(m.every(x => x.anima === 'ds-arruma' && x.atrasos === 3), 'as três cartas entram uma depois da outra: ' + JSON.stringify(m.map(x => [x.anima, x.atrasos])));
+  assert.ok(m[0].embaixo && m[1].embaixo && m[2].aoLado, 'na tela e no bloco o texto fica embaixo; na linha, ao lado');
+  assert.deepEqual(m.map(x => x.texto), ['Abrindo lista…', 'Buscando artes…', 'Esperando o outro jogador…']);
+  const acento = await page.evaluate(() => { const p = document.createElement('span'); p.style.color = 'var(--accent)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; });
+  assert.equal(m[0].traco, acento, 'o traço das cartas é o acento do tema');
+  assert.equal(await page.locator('#ds-esqueleto .ds-esqueleto__linha').count(), 3); assert.equal(await page.getAttribute('#ds-esqueleto', 'role'), 'status');
+  assert.ok(await page.$eval('#ds-esqueleto .ds-esqueleto__linha', e => e.getBoundingClientRect().height >= 44 && getComputedStyle(e).animationName === 'ds-pulsa-esqueleto'));
+  await page.locator('#ds-carregando').scrollIntoViewIfNeeded(); await auditaTela(page, 'ds · carregando');
+  if (process.env.SHOTS) await page.locator('#ds-carregando').screenshot({ path: process.env.SHOTS + '/j4-carregando.png' });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')); await auditaTela(page, 'ds · carregando (outro tema)');
+  if (process.env.SHOTS) await page.locator('#ds-carregando').screenshot({ path: process.env.SHOTS + '/j4-carregando-outro.png' });
+  // 2 · movimento reduzido: quadro parado, as três cartas no lugar
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  const parado = await page.evaluate(() => [...document.querySelectorAll('#ds-carregando-tela .ds-carregando__carta, #ds-esqueleto .ds-esqueleto__linha')].map(c => [getComputedStyle(c).animationName, getComputedStyle(c).opacity]));
+  assert.ok(parado.every(([a, o]) => a === 'none' && o === '1'), JSON.stringify(parado));
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await page.$eval('#ds-carregando-bloco .ds-carregando__carta', c => getComputedStyle(c).animationName), 'none', 'a preferência do sistema também para');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // 3 · numa tela de verdade: abrir uma lista com a rede lenta mostra a espera de tela, com o que está fazendo, e ela some quando a lista chega
+  await createDeck(page, base, 'Lenta', PAUPER); const daLista = '#' + page.url().split('#')[1];
+  await page.route('https://api.scryfall.com/cards/collection', async r => { await new Promise(x => setTimeout(x, 600)); r.fallback(); });
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  // a espera pode durar pouco (as cartas já estão guardadas): um observador anota tudo o que passou pela tela
+  await page.evaluate(() => { window.__esperas = []; const o = document.querySelector('#outlet');
+    const olha = () => { const e = o.querySelector('.ds-carregando[data-tamanho="tela"]'); if (e) window.__esperas.push({ texto: e.textContent.trim(), alta: e.getBoundingClientRect().height >= innerHeight * 0.4, anel: !!o.querySelector('.ds-spinner') }); };
+    new MutationObserver(olha).observe(o, { childList: true, subtree: true, characterData: true }); });
+  await page.evaluate(h => { location.hash = h; }, daLista);
+  await page.waitForSelector('.deck-slot, .deck-summary', { timeout: 20000 });
+  assert.equal(await page.locator('#outlet .ds-carregando[data-tamanho="tela"]').count(), 0, 'some quando a lista chega');
+  const esperas = await page.evaluate(() => window.__esperas);
+  assert.ok(esperas.length >= 1, 'a espera de tela apareceu');
+  assert.ok(esperas.every(e => /^(Abrindo lista…|Buscando cartas…( \d+ de \d+)?)$/.test(e.texto)), 'diz o que está fazendo: ' + JSON.stringify(esperas.map(e => e.texto)));
+  assert.ok(esperas.every(e => e.alta && !e.anel), 'ocupa a tela (nada pula quando o conteúdo chega) e não usa mais o anel');
+  // 4 · nenhuma tela nasce com o anel solto: Listas, Coleção, Jogar, Perfil, Partidas, Fichas, Terrenos
+  for (const rota of ['#/listas', '#/colecao', '#/mesa', '#/perfil', '#/perfil/partidas', '#/perfil/fichas', '#/perfil/terrenos']) {
+    await page.goto(base + rota); await page.waitForTimeout(350);
+    assert.equal(await page.locator('#outlet > * > .ds-row > .ds-spinner:only-child').count(), 0, rota + ': sem anel sozinho na raiz');
+  }
+  assert.deepEqual(errors, []);
+});

@@ -75,6 +75,7 @@
   --dur-fx-longo: 900ms; /* G5 · número que sobe do marcador de vida */
   --dur-pulso-lento: 2400ms; /* D10 · pulso lento e discreto (sem internet na barra) */
   --dur-brilho: 1200ms; /* D10 · brilho de carregamento que atravessa a moldura */
+  --dur-arruma: 1680ms; /* J4 · um ciclo do carregamento: três cartas se arrumam na prateleira */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
   --ease-in-out: cubic-bezier(.45, .05, .55, .95);
 
@@ -967,6 +968,41 @@ a { color: var(--accent); }
   animation: ds-spin var(--dur-giro) linear infinite;
 }
 @keyframes ds-spin { to { transform: rotate(360deg) } }
+/* J4 · carregamento com identidade: três cartas se arrumam na prateleira, uma depois da outra, e o ciclo recomeça.
+   Três tamanhos: tela (a tela inteira espera), bloco (um trecho espera) e linha (ao lado de um texto curto). */
+.ds-carregando { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); text-align: center; }
+.ds-carregando[data-tamanho="tela"] { min-height: 46vh; padding: var(--space-6) var(--space-4); }
+.ds-carregando[data-tamanho="bloco"] { padding: var(--space-5) var(--space-3); }
+.ds-carregando[data-tamanho="linha"] { flex-direction: row; justify-content: flex-start; gap: var(--space-2); text-align: left; min-height: var(--space-6); }
+.ds-carregando__figura { display: inline-flex; flex: none; }
+.ds-carregando__arte { flex: none; width: 72px; height: 54px; overflow: visible; }
+.ds-carregando[data-tamanho="tela"] .ds-carregando__arte { width: 120px; height: 90px; }
+.ds-carregando[data-tamanho="linha"] .ds-carregando__arte { width: 32px; height: 24px; }
+.ds-carregando__texto { min-width: 0; overflow-wrap: anywhere; }
+.ds-carregando__prateleira { fill: none; stroke: var(--border-strong); stroke-width: 2; stroke-linecap: round; }
+.ds-carregando__labio { fill: none; stroke: var(--border); stroke-width: 2; stroke-linecap: round; }
+.ds-carregando__carta { fill: var(--bg-elev-1); stroke: var(--accent); stroke-width: 1.75; stroke-linejoin: round; transform-box: fill-box; transform-origin: 50% 100%;
+  animation: ds-arruma var(--dur-arruma) var(--ease-out) infinite both; }
+.ds-carregando__carta:nth-of-type(2) { animation-delay: calc(var(--dur-arruma) * .12); }
+.ds-carregando__carta:nth-of-type(3) { animation-delay: calc(var(--dur-arruma) * .24); fill: var(--accent-soft); }
+@keyframes ds-arruma { 0% { opacity: 0; transform: translate(-7px, -9px) rotate(-22deg); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(2px); } }
+/* movimento reduzido: o quadro parado, com as três cartas no lugar */
+@media (prefers-reduced-motion: reduce) { .ds-carregando__carta { animation: none; } }
+:root[data-movimento="reduzido"] .ds-carregando__carta { animation: none !important; }
+/* J4 · esqueleto: a espera de uma lista já tem a forma da lista (selo + duas linhas), pulsando devagar */
+.ds-esqueleto { display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-esqueleto__linha { display: flex; align-items: center; gap: var(--space-3); min-height: calc(var(--tap-min) + var(--space-3)); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-1); }
+.ds-esqueleto__selo { flex: none; width: var(--tap-min); height: var(--tap-min); border-radius: var(--radius-2); background: var(--bg-elev-3); }
+.ds-esqueleto__texto { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--space-2); }
+.ds-esqueleto__texto > span { height: var(--space-3); border-radius: var(--radius-1); background: var(--bg-elev-3); }
+.ds-esqueleto__texto > span:last-child { width: 46%; height: var(--space-2); background: var(--bg-elev-2); }
+.ds-esqueleto__linha { animation: ds-pulsa-esqueleto var(--dur-pulso) var(--ease-out) infinite alternate; }
+.ds-esqueleto__linha:nth-child(2) { animation-delay: calc(var(--dur-pulso) * .2); }
+.ds-esqueleto__linha:nth-child(3) { animation-delay: calc(var(--dur-pulso) * .4); }
+.ds-esqueleto__linha:nth-child(n+4) { animation-delay: calc(var(--dur-pulso) * .6); }
+@keyframes ds-pulsa-esqueleto { from { opacity: 1; } to { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .ds-esqueleto__linha { animation: none; } }
+:root[data-movimento="reduzido"] .ds-esqueleto__linha { animation: none !important; }
 
 /* ---------------- carta ---------------- */
 .ds-card {
@@ -2836,6 +2872,21 @@ function confirmaBotao(btn, { texto = 'Feito', ms = 1200 } = {}) {
   setTimeout(() => { btn.replaceChildren(...filhos); if (rotuloAntes == null) btn.removeAttribute('aria-label'); else btn.setAttribute('aria-label', rotuloAntes); delete btn.dataset.confirmado; }, ms);
 }
 const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-label': 'carregando' });
+/** J4 · espera com a cara do app: três cartas se arrumam na prateleira. `texto` diz o que está sendo feito (pode ser um
+    elemento, para o progresso mudar no lugar). Tamanhos: 'tela' (a tela inteira espera), 'bloco' e 'linha'.
+    O anel (`Spinner`) continua para o que é do tamanho de um botão. */
+const ARTE_CARREGANDO = '<path class="ds-carregando__labio" d="M9 43.500h46"/><path class="ds-carregando__prateleira" d="M6 40h52"/>' +
+  [13.5, 27, 40.5].map(x => `<rect class="ds-carregando__carta" x="${x}" y="20.500" width="10" height="18" rx="1.800"/>`).join('');
+function Carregando(texto = 'Carregando…', { tamanho = 'bloco', id = null } = {}) {
+  const arte = h('span', { class: 'ds-carregando__figura', html: `<svg class="ds-carregando__arte" viewBox="0 0 64 48" aria-hidden="true" focusable="false">${ARTE_CARREGANDO}</svg>` });
+  return h('div', { class: 'ds-carregando', id, role: 'status', 'aria-live': 'polite', dataset: { tamanho: ['tela', 'bloco', 'linha'].includes(tamanho) ? tamanho : 'bloco' } },
+    arte, typeof texto === 'string' ? h('span', { class: 'ds-carregando__texto' }, texto) : texto);
+}
+/** J4 · a espera de uma lista com a forma da lista: `linhas` linhas de selo + dois traços. */
+function Esqueleto({ linhas = 4, id = null, fala = 'Carregando…' } = {}) {
+  return h('div', { class: 'ds-esqueleto', id, role: 'status', 'aria-label': fala },
+    ...Array.from({ length: Math.max(1, linhas) }, () => h('div', { class: 'ds-esqueleto__linha', 'aria-hidden': 'true' }, h('span', { class: 'ds-esqueleto__selo' }), h('span', { class: 'ds-esqueleto__texto' }, h('span', {}), h('span', {})))));
+}
 /** Leva 149 · bloco que abre e fecha. O cabeçalho inteiro é o botão: selo com o ícone do conceito, título, resumo
     opcional (o que o bloco guarda quando está fechado) e a seta. Quem usa guarda o estado e redesenha. */
 function Expansivel({ titulo, icone, aberto = true, onToggle, id, toggleId, resumo = '' } = {}, ...conteudo) {
@@ -2977,7 +3028,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -3264,7 +3315,10 @@ function renderDS() {
       Note('Nota informativa com <b>ênfase</b>.'),
       Note('Atenção: algo exige decisão.', 'warning'),
       Note('Erro: a operação não pôde ser concluída.', 'negative'),
-      Row({}, Spinner(), Text('Carregando…', { size: 'sm', tone: 'muted' }))),
+      Row({}, Spinner(), Text('Carregando…', { size: 'sm', tone: 'muted' })),
+      // J4 · espera com identidade, nos três tamanhos, e o esqueleto de lista
+      h('div', { id: 'ds-carregando' }, __m3.Carregando('Abrindo lista…', { tamanho: 'tela', id: 'ds-carregando-tela' }), __m3.Carregando('Buscando artes…', { tamanho: 'bloco', id: 'ds-carregando-bloco' }), __m3.Carregando('Esperando o outro jogador…', { tamanho: 'linha', id: 'ds-carregando-linha' })),
+      __m3.Esqueleto({ linhas: 3, id: 'ds-esqueleto' })),
 
     Section('Sobreposições',
       Row({ class: 'ds-row--wrap' },
@@ -8333,7 +8387,7 @@ function abrirFiltrosDeListas({ filtro, formatos, onChange, onLimpar }) {
   aplica();
 }
 function createDecksHome({ decks, collection, files, cardRepo, backup = null, etiquetas = null }) {
-  const list = h('div', { id: 'decks-list' }, Row({}, Spinner()));
+  const list = h('div', { id: 'decks-list' }, __m3.Esqueleto({ linhas: 4, fala: 'Abrindo as listas…' })); // J4 · a espera já tem a forma da estante
   // I2 · busca e filtros da estante, no padrão da coleção: campo de texto, botão Filtros com o número de critérios, contagem e Limpar
   const FLL = __m27;
   let fl = filtroDasListas || FLL.novoFiltroDeListas();
@@ -8432,7 +8486,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
 function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null }) {
-  const root = Stack(pad(), Row({}, Spinner()));
+  const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
   const fotoInput = h('input', { type: 'file', accept: 'image/*', class: 'ds-hidden', id: 'perfil-foto-arquivo' });
@@ -8701,7 +8755,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     barra é um filtro); colunas por semana com as vitórias em destaque; a lista é a visão em tabela de tudo. */
 function createPartidasScreen({ partidas }) {
   const P = __m35;
-  const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo o histórico…', { size: 'sm', tone: 'muted' })));
+  const root = Stack(pad(), __m3.Carregando('Abrindo o histórico…', { tamanho: 'tela' }));
   const st = { lista: [], tipo: '', limite: 30, semana: null };
   const data = ts => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   const pct = x => `${x.taxa}%`;
@@ -8779,7 +8833,7 @@ function createPartidasScreen({ partidas }) {
    em lotes de 6. `C` traz os textos, a rota e o prefixo dos ids; `itens()` devolve a lista. */
 function telaDeArtes({ galeria: fichas, itens, C }) {
   const F = __m34;
-  const root = Stack(pad(), Row({}, Spinner(), Text(C.abrindo, { size: 'sm', tone: 'muted' })));
+  const root = Stack(pad(), __m3.Carregando(C.abrindo, { tamanho: 'tela' }));
   const st = { lista: [], estado: { escolhas: {}, opcoes: {} }, aberta: q().get('f') || '', buscando: false, erro: '', run: 0 };
   const online = () => fichas.temRede();
   const simbolos = cores => h('span', { class: 'ficha-linha__cores' }, ...cores.map(c => Simbolo(c)));
@@ -8839,7 +8893,7 @@ function telaDeArtes({ galeria: fichas, itens, C }) {
       // só com internet se buscam artes novas; as já baixadas continuam à mão
       !online() ? AvisoRede(opcoes.length ? 'Sem internet: estas são as artes já baixadas. Para ver outras, conecte-se.' : C.semRedeSemArtes, { id: C.id + '-sem-rede' }) : null,
       st.erro === 'falha' ? (() => { const n = Note('<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.', 'negative'); n.id = C.id + '-erro'; return n; })() : null,
-      st.buscando && !opcoes.length ? Row({ id: C.id + '-buscando' }, Spinner(), Text('Buscando artes…', { size: 'sm', tone: 'muted' })) : null,
+      st.buscando && !opcoes.length ? __m3.Carregando('Buscando artes…', { tamanho: 'bloco', id: C.id + '-buscando' }) : null,
       semNada && online() && !st.erro ? Empty(C.semArte, null, { icone: it.icone, titulo: 'Sem arte disponível', id: C.id + '-sem-arte' }) : null,
       opcoes.length ? h('div', { class: 'ds-cardgrid ficha-grade', id: C.id + '-opcoes' }, padrao, ...opcoes.map(opcao)) : null,
       // I6 · de 6 em 6: o botão fica depois da grade (quem toca continua vendo as artes que acabaram de chegar)
@@ -8880,7 +8934,7 @@ function createTerrenosScreen({ terrenos, decks }) {
 /** Listas que vêm com o app. Um toque põe a lista na estante; o texto passa
     pela mesma leitura de uma lista colada à mão. */
 function createStarterDecks({ decks, cardRepo = null }) {
-  const root = Stack(pad(), Row({}, Spinner()));
+  const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const state = { format: 'all', minhas: [], busy: false, erro: null, cartas: new Map() };
   const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander']];
 
@@ -8955,7 +9009,7 @@ function createStarterDecks({ decks, cardRepo = null }) {
 function createDeckEditor({ decks, collection }) {
   const id = q().get('id');
   const state = { name: '', format: 'commander', text: '', ownAll: false };
-  const root = Stack(pad(), Row({}, Spinner()));
+  const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
 
   (async () => {
     const d = id ? await decks.get(id) : null;
@@ -9004,7 +9058,7 @@ function createDeckEditor({ decks, collection }) {
 /* ---------------- /lista?id= ---------------- */
 function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null, names = null, scryfall = null }) {
   const id = q().get('id');
-  const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo lista…', { size: 'sm', tone: 'muted' })));
+  const root = Stack(pad(), __m3.Carregando('Abrindo lista…', { tamanho: 'tela' }));
   const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false,
     // C12b · o mesmo motor de filtro da coleção, sobre as cartas da lista
     filtro: __m27.novoFiltro(), texto: '',
@@ -9021,8 +9075,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     state.owned = await collection.all();
     if (store) { try { state.stats = (await store.get('decks.estatisticas')) === true; } catch (e) { /* sem armazenamento: fechado */ } } // L8 · aberto ou fechado, lembrado no aparelho
     cardRepo.stats.degraded = false;
-    const progress = Text('Buscando cartas…', { size: 'sm', tone: 'muted' });
-    mount(root, Row({}, Spinner(), progress));
+    const progress = h('span', { class: 'ds-carregando__texto' }, 'Buscando cartas…');
+    mount(root, __m3.Carregando(progress, { tamanho: 'tela' })); // J4 · o progresso muda no lugar
     state.cards = await cardRepo.byNames(state.deck.entries.map(e => e.name),
       (done, total) => { progress.textContent = `Buscando cartas… ${done} de ${total}`; });
     state.degraded = !!cardRepo.stats.degraded;
@@ -9075,7 +9129,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       mount(body,
         !temRede() ? AvisoRede(e.print ? 'Sem internet: dá para voltar à impressão padrão. Para ver as outras, conecte-se.' : 'Sem internet: as impressões aparecem quando houver conexão.', { id: 'deck-prints-sem-rede' }) : null,
         st.erro ? (() => { const n = Note('<b>Não foi possível buscar as impressões.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'deck-prints-erro'; return n; })() : null,
-        st.buscando ? Row({ id: 'deck-prints-buscando' }, Spinner(), Text('Buscando impressões…', { size: 'sm', tone: 'muted' })) : null,
+        st.buscando ? __m3.Carregando('Buscando impressões…', { tamanho: 'bloco', id: 'deck-prints-buscando' }) : null,
         lista && !lista.length ? Empty('A Scryfall não tem outra impressão com imagem desta carta.', null, { icone: 'camadas', titulo: 'Só a padrão', id: 'deck-prints-vazio' }) : null,
         lista && lista.length ? Text(lista.length >= IMPRESSOES_MAX ? `As ${IMPRESSOES_MAX} impressões mais recentes` : `${lista.length} ${lista.length === 1 ? 'impressão' : 'impressões'}, da mais recente à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-prints-conta' } }) : null,
         opcoes.length || e.print ? h('div', { class: 'ds-cardgrid ficha-grade', id: 'deck-prints-opcoes' }, telha(null, { padrao: true }), ...opcoes.map(o => telha(o))) : null,
@@ -9498,7 +9552,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const descreve = f => FL.descreveFiltro(f, { nomesEtiquetas: new Map(state.etq.lista.map(e => [e.id, e.nome])) });
   const undoBar = h('div', { id: 'col-undo' });
   const pendingBox = h('div', { id: 'col-pending' });
-  const listEl = h('div', { id: 'col-list' }, Row({}, Spinner(), Text('Abrindo coleção…', { size: 'sm', tone: 'muted' })));
+  const listEl = h('div', { id: 'col-list' }, __m3.Esqueleto({ linhas: 5, fala: 'Abrindo coleção…' })); // J4
   const care = h('div', { id: 'col-care' });
   const selectionBar = h('div', { id: 'col-selection' });
   const countLine = h('div', { id: 'col-count' });
@@ -9607,7 +9661,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const selectOf = (opts, value, id) => Select(opts.map(([v, l]) => ({ value: v, label: l })), { id, value });
   async function addPrinting(g) {
     closeDialog();
-    Dialog({ title: `Nova impressão de ${g.name}`, body: Row({}, Spinner(), Text('Buscando edições…', { size: 'sm', tone: 'muted' })), actions: [Button('Cancelar', { onClick: closeDialog })] });
+    Dialog({ title: `Nova impressão de ${g.name}`, body: __m3.Carregando('Buscando edições…', { tamanho: 'bloco' }), actions: [Button('Cancelar', { onClick: closeDialog })] });
     let prints = [];
     try { prints = await scryfall.search(`!"${g.name}"`, { unique: 'prints', order: 'released' }); } catch (e) { prints = []; }
     closeDialog();
@@ -9712,7 +9766,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const parsed = parseCollectionText(texto);
     if (!parsed.items.length && !parsed.skipped.length) return toast('Nada para importar');
     closeDialog();
-    const box = h('div', {}, Row({}, Spinner(), Text('Conferindo os nomes…', { size: 'sm', tone: 'muted' })));
+    const box = h('div', {}, __m3.Carregando('Conferindo os nomes…', { tamanho: 'bloco' }));
     Dialog({ title: 'Conferência', body: box, actions: [Button('Cancelar', { onClick: closeDialog })] });
     const rec = await reconhecer(parsed.items);
     const plano = planCollectionImport(parsed.items, rec);
@@ -16564,7 +16618,7 @@ const randomSeed = () => {
 
 /* ---------------- A2 · preparar partida ---------------- */
 function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null, online = null }) {
-  const root = Stack(pad(), Row({}, Spinner()));
+  const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   // Leva 113 · um modo só: o motor completo. Lista que o motor não resolve 100% não joga, e a tela diz por quê.
   // DEV: a mesa assistida continua no motor para os testes de mesa (ajuste manual de estado); só aparece com
   // window.__MESA_DEV, que o app publicado nunca liga.
@@ -16638,7 +16692,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     async function paintCoverage() {
       const run = ++covRun; // troca de lista: só a última resposta vale
       const d = byId(state.mine); if (!d) return mount(covBox);
-      mount(covBox, Row({}, Spinner(), Text('Conferindo a cobertura do motor…', { size: 'sm', tone: 'muted' })));
+      mount(covBox, __m3.Carregando('Conferindo a cobertura do motor…', { tamanho: 'linha' }));
       let cards = new Map();
       try { cards = await cardRepo.byNames(d.entries.map(e => e.name)); } catch (e) { /* sem rede: sem cobertura */ }
       if (run !== covRun) return;
@@ -16942,7 +16996,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
 
 /* ---------------- A1–A9 · a mesa ---------------- */
 function createTableScreen({ store, perfil = null, online = null, som = null, partidas = null }) {
-  const root = h('div', { class: 'tb', id: 'tb' }, Row({ class: 'ds-wrap' }, Spinner()));
+  const root = h('div', { class: 'tb', id: 'tb' }, __m3.Carregando('Abrindo a mesa…', { tamanho: 'tela' }));
   // G4 · som da partida: o que mudou entre a última mesa desenhada e esta vira som. Desfazer e abrir a partida não tocam.
   let estadoOuvido = null, eventosDaJogada = [], semSentidos = false, sentidosAgora = [];
   if (som) root.addEventListener('pointerdown', () => som.destrava(), { passive: true });
@@ -18444,7 +18498,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
    para o outro; a barra do topo diz se os limites do formato valem e o que entrou e saiu. Segurar a carta mostra
    a carta inteira. O Shark não troca cartas (declarado no ROADMAP). */
 function createSeriesScreen({ store, online = null }) {
-  const root = Stack(pad(), Row({}, Spinner()));
+  const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   (async () => {
     let serie = null, salvo = null;
     try { serie = await store.get(T.SERIE_KEY); salvo = await store.get(T.SAVE_KEY); } catch (e) { /* cai no vazio */ }
@@ -20834,7 +20888,7 @@ async function painelContinuar() {
 
 /* O1 · o que já funciona sem internet, e o botão que prepara o resto */
 function offlinePanel() {
-  const box = Surface({ class: 'ds-surface--pad', id: 'home-offline' }, Row({}, Spinner(), Text('Conferindo o que já está guardado…', { size: 'sm', tone: 'muted' })));
+  const box = Surface({ class: 'ds-surface--pad', id: 'home-offline' }, __m3.Carregando('Conferindo o que já está guardado…', { tamanho: 'linha' }));
   let aberto = false; // D3 · com tudo guardado e rede, o painel é uma linha; "Detalhes" abre o resto no lugar
   // U4 · cada item com ícone e estado desenhado; o anel resume o quanto já está guardado
   const ESTADO = { pronto: ['marcar', 'pronto'], parcial: ['meia', 'em parte'], falta: ['baixar', 'falta baixar'], vazio: ['menos', 'nada a guardar'] };
