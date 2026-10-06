@@ -7596,6 +7596,7 @@ const CONTROLES_J1 = '.ds-chip, [role="switch"], [role="tab"], .ds-tab, button[a
 // um toque só, num controle escolhido: devolve quanto ele andou na janela
 async function tocaSemSalto(page, seletor) {
   const antes = await page.evaluate(sel => { const el = [...document.querySelectorAll(sel)].filter(e => e.getClientRects().length).pop(); if (!el) return null;
+    window.__chaveJ1 = window.__chaveJ1 || (e => e.id ? '#' + e.id : [e.tagName, ...[...e.attributes].filter(x => x.name.startsWith('data-')).map(x => x.name + '=' + x.value), (e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 40)].join('|'));
     window.dispatchEvent(new Event('wheel')); el.scrollIntoView({ block: 'center' }); window.__j1 = window.__chaveJ1(el); const y = el.getBoundingClientRect().top; el.click(); return { y, sy: scrollY }; }, seletor);
   assert.ok(antes, 'controle na tela: ' + seletor); assert.ok(antes.sy > 0, 'a página estava rolada: ' + seletor);
   await quietaJ1(page);
@@ -7774,4 +7775,93 @@ test('e2e · J3 leque das viradas: terrenos virados e atacantes iguais ficam em 
   assert.match(await page.innerText('.ds-dialog'), /Sky Pike/); await page.keyboard.press('Escape');
   for (const [w, hh] of [[384, 832], [390, 844], [412, 891]]) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, 'leque de atacantes ' + w); }
   assert.deepEqual(M.errors, []);
+});
+
+/* ---------------- I6 · terrenos do seu jeito e artes em lotes de 6 ---------------- */
+test('e2e · I6 Perfil › Terrenos: os doze básicos com ícone e cor, artes da internet de 6 em 6 com "Mais artes", escolha guardada e usada na partida, sem internet só o que já foi baixado; fichas também de 6 em 6', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  const imagens = []; await page.route('https://**.scryfall.io/**', r => { imagens.push(r.request().url()); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }); });
+  const arte = (nome, tipo, id, set, n) => ({ object: 'card', id, name: nome, type_line: tipo, layout: 'normal', oracle_text: '', colors: [], color_identity: [], cmc: 0, keywords: [], set, set_name: 'Edição ' + set.toUpperCase(), collector_number: String(n),
+    image_uris: Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`])) });
+  const buscas = [];
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const u = new URL(r.request().url()), q = u.searchParams.get('q') || '';
+    if (q === '!"Forest"') { buscas.push(`${q} ${u.searchParams.get('unique')} ${u.searchParams.get('order')}`); return r.fulfill({ json: { object: 'list', has_more: false, data: Array.from({ length: 14 }, (_, i) => arte('Forest', 'Basic Land — Forest', 'forest-' + i, 's' + i, 280 + i)) } }); }
+    if (q === '!"Wastes"') return r.fulfill({ json: { object: 'list', has_more: false, data: [] } });
+    if (/^!"Clue" t:token/.test(q)) return r.fulfill({ json: { object: 'list', has_more: false, data: Array.from({ length: 8 }, (_, i) => arte('Clue', 'Token Artifact — Clue', 'clue-' + i, 'c' + i, i)) } });
+    return r.fallback(); });
+  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'livre');
+  // 1 · a entrada fica no Perfil, numa área só dela
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-terrenos');
+  assert.match(await page.innerText('#perfil-terrenos'), /Terrenos/); assert.match(await page.innerText('#perfil-terrenos'), /Escolher a arte/);
+  assert.ok(await page.$eval('#perfil-terrenos', e => e.getBoundingClientRect().height >= 44));
+  await page.click('#perfil-terrenos'); await page.waitForSelector('#terrenos-lista');
+  // 2 · a lista: os doze, o da minha lista primeiro; cada um com ícone, nome, símbolo da cor e estado
+  const linhas = await page.$$eval('#terrenos-lista .ficha-linha', ls => ls.map(l => ({ chave: l.dataset.terreno, nome: l.querySelector('.ficha-linha__nome span').textContent, icone: l.querySelector('.ficha-linha__nome .ds-icon').dataset.icone,
+    cores: l.querySelectorAll('.ficha-linha__cores > *').length, sub: l.querySelector('.ficha-linha__sub').textContent.trim(), h: Math.round(l.getBoundingClientRect().height), fala: l.getAttribute('aria-label') })));
+  assert.match(await page.innerText('#terrenos-nota'), /pede internet/, 'a tela diz que buscar artes depende de conexão');
+  assert.equal(linhas.length, 12); assert.equal(linhas[0].chave, 'forest', 'o terreno das minhas listas vem primeiro');
+  assert.deepEqual(await page.$$eval('#terrenos-lista .ds-list__group', gs => gs.map(g => g.textContent)), ['Nas suas listas', 'Outros terrenos']);
+  assert.ok(linhas.every(l => l.icone && l.cores === 1 && l.h >= 44 && /Padrão/.test(l.sub)), JSON.stringify(linhas.slice(0, 2)));
+  assert.deepEqual(linhas.slice(0, 7).map(l => l.icone), ['floresta', 'planicie', 'ilha', 'pantano', 'montanha', 'ermo', 'planicie']);
+  assert.match(linhas[0].fala, /Forest, Terreno básico · Floresta\. Arte padrão/);
+  assert.doesNotMatch(await page.innerText('#terrenos-lista'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await auditaTela(page, 'terrenos · lista');
+  // 3 · abrir a Forest: busca sozinha, uma por arte, e baixa só as 6 primeiras
+  await page.click('.ficha-linha[data-terreno="forest"]'); await page.waitForSelector('#terreno-opcoes', { timeout: 15000 });
+  assert.match(page.url(), /perfil\/terrenos\?f=forest/); assert.deepEqual(buscas, ['!"Forest" art released']);
+  const opcoes = () => page.$$eval('#terreno-opcoes .ficha-opcao', os => os.map(o => o.dataset.opcao || 'padrao'));
+  assert.deepEqual(await opcoes(), ['padrao', ...Array.from({ length: 6 }, (_, i) => 'forest-' + i)]);
+  assert.equal(await page.getAttribute('#terreno-padrao', 'aria-pressed'), 'true');
+  assert.match(await page.innerText('#terreno-conta'), /^6 artes baixadas$/);
+  await page.waitForFunction(() => [...document.querySelectorAll('#terreno-opcoes .ficha-opcao__img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });
+  assert.ok(!imagens.some(u => /forest-(6|7|13)\./.test(u)), 'as artes do lote seguinte ainda não foram pedidas');
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 0, 'nenhum primário disputando com as artes');
+  await auditaTela(page, 'terrenos · primeiras 6 artes');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i6-artes.png', fullPage: true });
+  // 4 · "Mais artes": mais 6 de cada vez, sem nova busca e sem a tela pular; no fim o botão some
+  assert.equal((await page.innerText('#terreno-mais')).trim(), 'Mais artes'); assert.ok(await page.$eval('#terreno-mais', e => e.getBoundingClientRect().height >= 44));
+  assert.ok(Math.abs(await tocaSemSalto(page, '#terreno-mais')) <= 2, 'o botão fica onde está e as artes novas entram acima dele');
+  await page.waitForFunction(() => document.querySelectorAll('#terreno-opcoes .ficha-opcao').length === 13);
+  assert.equal((await opcoes()).length, 13); assert.match(await page.innerText('#terreno-conta'), /^12 artes baixadas$/); assert.equal(buscas.length, 1);
+  await page.click('#terreno-mais'); await page.waitForFunction(() => document.querySelectorAll('#terreno-opcoes .ficha-opcao').length === 15);
+  assert.match(await page.innerText('#terreno-conta'), /14 artes baixadas · são todas/); assert.equal(await page.locator('#terreno-mais').count(), 0);
+  // 5 · escolher: marca na hora, avisa que ficou guardada, e sobrevive a recarregar
+  await page.click('.ficha-opcao[data-opcao="forest-9"]');
+  await page.waitForFunction(() => document.querySelector('.ficha-opcao[data-opcao="forest-9"]').getAttribute('aria-pressed') === 'true');
+  assert.match(await page.innerText('#ds-toast'), /Forest: arte guardada para jogar sem internet/);
+  await page.reload(); await page.waitForSelector('#terreno-opcoes');
+  assert.equal(await page.getAttribute('.ficha-opcao[data-opcao="forest-9"]', 'aria-pressed'), 'true'); assert.equal((await opcoes()).length, 15, 'as 14 baixadas continuam à mão');
+  await page.click('#terreno-voltar'); await page.waitForSelector('#terrenos-lista');
+  assert.match(await page.$eval('.ficha-linha[data-terreno="forest"] .ficha-linha__sub', e => e.textContent), /Sua arte/);
+  await page.click('#terrenos-voltar'); await page.waitForSelector('#perfil-terrenos'); assert.match(await page.innerText('#perfil-terrenos'), /1 com a sua arte/);
+  // 6 · terreno sem arte na Scryfall: estado vazio desenhado
+  await page.goto(base + '#/perfil/terrenos?f=wastes'); await page.waitForSelector('#terreno-sem-arte', { timeout: 15000 }); assert.equal(await page.locator('#terreno-opcoes').count(), 0);
+  // 7 · sem internet: avisa, mostra o que já foi baixado, deixa trocar, não oferece buscar; terreno nunca aberto só avisa
+  await page.context().setOffline(true); const antes = buscas.length;
+  await page.goto(base + '#/perfil/terrenos'); await page.waitForSelector('#terrenos-sem-rede');
+  await page.click('.ficha-linha[data-terreno="forest"]'); await page.waitForSelector('#terreno-sem-rede');
+  assert.match(await page.innerText('#terreno-sem-rede'), /artes já baixadas/); assert.equal(await page.locator('#terreno-opcoes .ficha-opcao[data-opcao]').count(), 14); assert.equal(await page.locator('#terreno-mais, #terreno-atualizar').count(), 0);
+  await page.click('.ficha-opcao[data-opcao="forest-2"]'); await page.waitForFunction(() => document.querySelector('.ficha-opcao[data-opcao="forest-2"]').getAttribute('aria-pressed') === 'true');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')); await auditaTela(page, 'terrenos · sem internet (outro tema)');
+  await page.goto(base + '#/perfil/terrenos?f=island'); await page.waitForSelector('#terreno-sem-rede');
+  assert.match(await page.innerText('#terreno-sem-rede'), /aparecem quando houver conexão/); assert.equal(await page.locator('#terreno-opcoes, #terreno-buscando').count(), 0);
+  assert.equal(buscas.length, antes, 'sem internet nada é pedido');
+  await page.context().setOffline(false);
+  // 8 · a partida usa a arte escolhida (forest-2), na mão e em campo
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-hand .tb-card[aria-label^="Forest"] img', { timeout: 10000 });
+  assert.match(await page.locator('#tb-hand .tb-card[aria-label^="Forest"] img').first().getAttribute('data-fonte'), /front\/x\/forest-2\.png$/, 'a Forest da partida é a arte que eu escolhi');
+  // 9 · voltar ao padrão
+  await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('#terreno-opcoes'); await page.click('#terreno-padrao');
+  await page.waitForFunction(() => document.querySelector('#terreno-padrao').getAttribute('aria-pressed') === 'true'); assert.match(await page.innerText('#ds-toast'), /voltou à arte padrão/);
+  // 10 · as fichas seguem a mesma mecânica: 6 e depois "Mais artes"
+  await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:clue')); await page.waitForSelector('#ficha-opcoes', { timeout: 15000 });
+  assert.equal(await page.locator('#ficha-opcoes .ficha-opcao[data-opcao]').count(), 6); assert.match(await page.innerText('#ficha-conta'), /^6 artes baixadas$/);
+  await page.click('#ficha-mais'); await page.waitForFunction(() => document.querySelectorAll('#ficha-opcoes .ficha-opcao[data-opcao]').length === 8);
+  assert.equal(await page.locator('#ficha-mais').count(), 0); assert.match(await page.innerText('#ficha-conta'), /8 artes baixadas · são todas/);
+  await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'fichas · lotes (fonte larga)');
+  assert.deepEqual(errors, []);
 });

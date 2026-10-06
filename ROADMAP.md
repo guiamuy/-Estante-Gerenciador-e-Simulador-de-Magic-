@@ -454,6 +454,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bv ○ | N3 filtros por fonte e tema, novas, atualizar | N | 1 | — |
 | 16º-bw ○ | N4 guardar e compartilhar notícia | N | 1 | — |
 | 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
+| 16º-by ✅ | I6 terrenos do seu jeito: Perfil › Terrenos com os doze básicos (ícone, cor), artes da Scryfall em lotes de 6 com "Mais artes", escolha guardada e usada na partida; fichas na mesma mecânica (leva 200) | I | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5421,6 +5422,40 @@ mesmo padrão de design".
 - **Testes:** U `partidas.unit` ×4; e2e "I5" (vazio, registro, desfazer o fim, não duplicar, ladrilhos, medidor
   proporcional, legenda com ícone, últimas, barras com 44 px que filtram, colunas, lista, limpar com Desfazer;
   `auditaTela` em 360 px claro, escuro e com a fonte larga do CI).
+
+**I6 · Terrenos do seu jeito e artes de 6 em 6** ✅ (leva 200, 06/10/2026 · pedido de 06/10/2026)
+- **Valor:** jogar com a arte que eu gosto em cada terreno básico, e escolher artes sem baixar dezenas de imagens.
+- **Entregue:**
+  - **Perfil › Terrenos** (área só disso, rota `/perfil/terrenos`): a lista dos **doze terrenos básicos** — Plains,
+    Island, Swamp, Mountain, Forest, Wastes e os seis nevados — cada um com um ícone próprio (planície, ilha,
+    pântano, montanha, floresta, ermo), o nome, o símbolo de mana da cor e o estado (padrão, baixadas, sua arte); os
+    que estão nas suas listas vêm primeiro;
+  - abrir um terreno busca as artes na Scryfall (`!"nome"`, uma por arte, da mais recente) e mostra **as 6 primeiras**;
+    **"Mais artes"** baixa mais 6 por vez, sem nova busca, até acabarem (teto de 120 por terreno); o contador diz
+    quantas já foram baixadas e quando são todas;
+  - tocar numa arte a escolhe: fica guardada no aparelho (`terrenos.escolhas`, vai no backup), a imagem grande é
+    baixada e **a partida passa a usá-la** — na mão, em campo e na folha da carta, inclusive na partida em andamento;
+    "Padrão" volta à impressão de sempre;
+  - **as fichas (I4) passaram à mesma mecânica**: 6 artes e "Mais artes" (antes baixava até 36 de uma vez).
+- **Internet:** buscar e baixar artes só com conexão, e a tela diz isso sempre (nota na lista com internet; aviso
+  desenhado sem internet). Sem internet as artes **já baixadas** continuam à mão e dá para trocar entre elas;
+  terreno nunca aberto só avisa. Erro de busca tem "Repetir busca".
+- **Desenho:** a mesma tela das fichas (`telaDeArtes`), com o botão **depois** da grade: quem toca em "Mais artes"
+  fica onde está (J1) e as artes novas entram acima do botão. As artes aparecem na hora e cada imagem se completa
+  quando chega.
+- **Limites declarados:** a escolha vale **na partida** (mesa); listas, coleção, a troca de reserva entre jogos e o
+  texto exportado seguem na impressão padrão (ou na escolhida por lista, V1); a escolha é uma por terreno, igual
+  para todas as listas e para os dois lados da mesa neste aparelho; terrenos não básicos ficam fora; as candidatas
+  de uma busca valem enquanto o app está aberto (reabrir e pedir mais refaz a busca, sem baixar de novo o que já tem).
+- **Modelo:** `src/data/terrenos.js` (`__m36`: `TERRENOS`, `listaDeTerrenos`, `cartaComTerreno`, `createTerrenos`);
+  em `fichas.js`, a galeria comum `criaGaleria` (`mais`, `temMais`, `escolher`) e o puro `proximoLote`.
+- **Testes:** U `terrenos.unit` ×4 (lista dos doze; lotes: próximas 6, sem repetir, teto, fim; serviço: uma busca,
+  6 por pedido, só com internet, guardado, escolha e carta da partida; fichas de 6 em 6); e2e "I6" (entrada no perfil,
+  lista com ícone e cor, 6 artes e só as imagens delas pedidas, "Mais artes" sem saltar e sem nova busca, fim,
+  escolha guardada, vazio, sem internet, **a Forest da partida com a arte escolhida**, padrão, fichas em lotes;
+  `auditaTela` nos dois temas e com a fonte larga); e2e I4 segue verde.
+- **Depende de:** I4, V1, J1.
+- **Fora:** terrenos não básicos; arte por lista para a mesa (V1 na mesa).
 
 ### J · Fluidez e orientação (E57, pedido de 06/10/2026)
 

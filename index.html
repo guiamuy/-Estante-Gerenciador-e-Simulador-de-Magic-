@@ -2533,6 +2533,13 @@ const ICONES = {
   alerta: '<path d="M12 4 3 19.5h18Z"/><path d="M12 9.5V14"/><path d="M12 16.8v.2"/>', // D8 · aviso (linha de estado)
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.6v.2"/>', // I3 · dica (explicação a um toque)
   // I4 · fichas: criatura (três garras), artefato (gema lapidada) e a ficha genérica (carta com selo)
+  // I6 · terrenos básicos: planície (sol no horizonte), ilha (gota), pântano (caveira), montanha (pico), floresta (árvore), ermo (losango)
+  planicie: '<path d="M3 17.5h18"/><path d="M7 17.5a5 5 0 0 1 10 0"/><path d="M12 8.5v-2M6.3 11.8L4.9 10.400M17.700 11.8l1.4-1.4"/>',
+  ilha: '<path d="M12 3.5c3.2 4 5.5 6.900 5.5 10a5.5 5.5 0 0 1-11 0c0-3.100 2.300-6 5.500-10z"/>',
+  pantano: '<path d="M6 11a6 6 0 1 1 12 0c0 1.900-.8 3.300-2 4.200V18a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.800C6.800 14.300 6 12.900 6 11z"/><circle cx="9.700" cy="11.200" r="1.200"/><circle cx="14.300" cy="11.200" r="1.200"/><path d="M11 19v-2M13 19v-2"/>',
+  montanha: '<path d="M3 19.5l9-15 9 15z"/><path d="M8.600 10.200l3.400 2.600 3.400-2.600"/>',
+  floresta: '<path d="M12 3.5l5 6.500h-2.600l4.100 5.500H5.500L9.600 10H7z"/><path d="M12 15.500v5"/>',
+  ermo: '<path d="M12 3.500l6.500 8.500-6.500 8.500L5.500 12z"/><path d="M5.500 12h13"/>',
   garras: '<path d="M7 4.5c2 4.5 2 10.5 0 15"/><path d="M12 3.5c2 5 2 12 0 17"/><path d="M17 4.5c2 4.5 2 10.5 0 15"/>',
   gema: '<path d="M7.5 4.5h9l4 5-8.5 10-8.5-10z"/><path d="M3.5 9.5h17"/><path d="M9.5 4.5 8 9.5l4 10 4-10-1.5-5"/>',
   ficha: '<rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M9 16h6"/>',
@@ -7008,7 +7015,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -8152,36 +8159,103 @@ function opcoesDeArte(cartas, max = OPCOES_MAX) {
 }
 const rotuloDaOpcao = o => [String(o.set || '').toUpperCase(), o.collector_number ? '#' + o.collector_number : ''].filter(Boolean).join(' · ') || 'sem edição';
 
-function createFichas({ store, scryfall, images = null, temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false }) {
+/* I6 · artes em lotes de 6. A busca traz as candidatas (uma chamada); o app baixa e guarda 6 por vez, e só mais 6 quando
+   a pessoa pede. O que foi baixado fica no aparelho e continua à mão sem internet. */
+const LOTE = 6;
+/** As próximas `lote` candidatas que ainda não estão baixadas, sem passar do teto; e quantas ficam para depois. Puro. */
+function proximoLote(baixadas, candidatas, { lote = LOTE, teto = OPCOES_MAX } = {}) {
+  const tem = new Set((baixadas || []).map(o => o.id));
+  const vaga = Math.max(0, teto - tem.size), novas = [];
+  for (const c of candidatas || []) { if (novas.length >= Math.min(lote, vaga)) break; if (c && c.id && !tem.has(c.id)) { tem.add(c.id); novas.push(c); } }
+  return { novas, restam: tem.size >= teto ? 0 : (candidatas || []).filter(c => c && c.id && !tem.has(c.id)).length };
+}
+/** Uma galeria de artes escolhíveis (fichas, terrenos): estado guardado, lotes, escolha.
+    `chave(def)` identifica o item; `candidatas(def)` busca na rede as opções possíveis (já no formato guardado). */
+function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCOES: K_OPCOES, chave, candidatas, teto = OPCOES_MAX }) {
   const le = async (k) => { try { return (await store.get(k)) || {}; } catch (e) { return {}; } };
   const aquece = async urls => { if (images && images.available) { try { await images.warm(urls.filter(Boolean)); } catch (e) { /* imagem é conforto */ } } };
-  return {
-    temRede,
+  const fila = new Map(), restam = new Map(); // desta visita: candidatas por item e quantas ainda não foram baixadas
+  const api = {
+    temRede, LOTE, teto,
     /** { escolhas: { chave: carta }, opcoes: { chave: [carta] } } */
-    async estado() { return { escolhas: await le(ESCOLHAS), opcoes: await le(OPCOES) }; },
-    /** Busca as artes da ficha na Scryfall (só com internet), guarda a lista e as imagens para escolher depois sem rede.
-        Erros: 'sem-rede' (aparelho offline) e o que a busca lançar. Lista vazia quando a Scryfall não tem a ficha. */
-    async buscar(def) {
+    async estado() { return { escolhas: await le(K_ESCOLHAS), opcoes: await le(K_OPCOES) }; },
+    /** Baixa o próximo lote de artes do item (só com internet) e devolve tudo o que já está baixado.
+        Erros: 'sem-rede' (aparelho offline) e o que a busca lançar. */
+    async mais(def) {
       if (!temRede()) throw new Error('sem-rede');
-      let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints' });
-      if (!cartas.length && (def.colors || []).length) cartas = await scryfall.search(consultaDaFicha(def, { comCor: false }), { pages: 2, unique: 'prints' });
-      const lista = opcoesDeArte(cartas);
-      const todas = await le(OPCOES); todas[chaveDaFicha(def)] = lista;
-      await store.set(OPCOES, todas);
-      await aquece(lista.flatMap(o => [o.images.normal, o.images.small]));
-      return lista;
+      const k = chave(def);
+      if (!fila.has(k)) fila.set(k, await candidatas(def));
+      const todas = await le(K_OPCOES), tinha = todas[k] || [];
+      const { novas, restam: r } = proximoLote(tinha, fila.get(k), { teto });
+      restam.set(k, r);
+      // as imagens do lote descem em segundo plano: as artes aparecem já, e cada uma se completa quando chega
+      if (novas.length) { todas[k] = [...tinha, ...novas]; await store.set(K_OPCOES, todas); aquece(novas.flatMap(o => [o.images.normal, o.images.small])); }
+      return todas[k] || [];
     },
+    /** Pode haver mais artes para baixar? Sim enquanto não se buscou nesta visita ou a busca deixou candidatas de fora. */
+    temMais(k, baixadas = 0) { return baixadas < teto && (!restam.has(k) || restam.get(k) > 0); },
+    /** Nome de antes dos lotes (I4): o primeiro lote. */
+    buscar(def) { return api.mais(def); },
     /** Guarda a arte escolhida (ou volta ao padrão com `null`) e baixa a imagem grande dela para a mesa e a folha. */
     async escolher(def, opcao) {
-      const todas = await le(ESCOLHAS), chave = chaveDaFicha(def);
-      if (opcao) todas[chave] = opcao; else delete todas[chave];
-      await store.set(ESCOLHAS, todas);
+      const todas = await le(K_ESCOLHAS), k = chave(def);
+      if (opcao) todas[k] = opcao; else delete todas[k];
+      await store.set(K_ESCOLHAS, todas);
       if (opcao) await aquece([opcao.images.normal, opcao.images.large, opcao.images.small]);
       return todas;
     }
   };
+  return api;
 }
-return { chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX };
+const temRedePadrao = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+function createFichas({ store, scryfall, images = null, temRede = temRedePadrao }) {
+  return criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDaFicha, teto: OPCOES_MAX,
+    async candidatas(def) {
+      let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints' });
+      if (!cartas.length && (def.colors || []).length) cartas = await scryfall.search(consultaDaFicha(def, { comCor: false }), { pages: 2, unique: 'prints' });
+      return opcoesDeArte(cartas);
+    } });
+}
+return { chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX, LOTE, proximoLote, criaGaleria, temRedePadrao };
+})();
+
+/* ==== src/data/terrenos.js ==== */
+const __m36 = (function () {
+/* =====================================================================
+   I6 · TERRENOS DO SEU JEITO
+   Para cada terreno básico (os seis, e os seis nevados), o usuário escolhe a arte que aparece nas partidas. A escolha
+   fica no aparelho (`terrenos.escolhas`, vai no backup) e a mesa a usa no lugar da impressão padrão. As artes são
+   buscadas na Scryfall (uma por arte, da mais recente) e baixadas em lotes de 6; o que foi baixado fica guardado
+   (`terrenos.opcoes`) para trocar sem internet.
+   ===================================================================== */
+const { norm } = __m7;
+const ESCOLHAS = 'terrenos.escolhas', OPCOES = 'terrenos.opcoes';
+const TETO = 120;
+const BASE = [['Plains', 'Planície', 'planicie', 'W', 'Planície nevada'], ['Island', 'Ilha', 'ilha', 'U', 'Ilha nevada'], ['Swamp', 'Pântano', 'pantano', 'B', 'Pântano nevado'],
+  ['Mountain', 'Montanha', 'montanha', 'R', 'Montanha nevada'], ['Forest', 'Floresta', 'floresta', 'G', 'Floresta nevada'], ['Wastes', 'Ermos', 'ermo', 'C', 'Ermos nevados']];
+/** Os doze terrenos básicos, na ordem WUBRG e incolor: primeiro os comuns, depois os nevados. */
+const TERRENOS = [false, true].flatMap(nevado => BASE.map(([nome, pt, icone, cor, ptNevado]) => ({ name: nevado ? 'Snow-Covered ' + nome : nome, pt: nevado ? ptNevado : pt, icone, colors: [cor], nevado })));
+const chaveDoTerreno = t => norm(t.name);
+const consultaDoTerreno = t => `!"${t.name}"`;
+/** A lista da tela: cada terreno com ícone, cor e descrição; os que estão nas listas do usuário vêm marcados. Puro. */
+function listaDeTerrenos(nomesDasListas = []) {
+  const meus = new Set((nomesDasListas || []).map(norm));
+  return TERRENOS.map(def => ({ chave: chaveDoTerreno(def), def, nome: def.name, pt: '', icone: def.icone, cores: def.colors, descricao: `Terreno básico · ${def.pt}`, suaLista: meus.has(chaveDoTerreno(def)), nevado: def.nevado }));
+}
+/** A carta como a partida a mostra: com a arte escolhida para o terreno, se houver. */
+function cartaComTerreno(card, escolhas) {
+  const e = card && escolhas && escolhas[norm(card.name)];
+  return e && e.images ? __m14.cartaNaImpressao(card, e) : card;
+}
+function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRedePadrao }) {
+  return __m34.criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDoTerreno, teto: TETO,
+    // uma por arte, da mais recente; só o que a mesa precisa fica guardado (sem preço nem endereço)
+    async candidatas(def) {
+      const cartas = await scryfall.search(consultaDoTerreno(def), { pages: 1, unique: 'art', order: 'released' });
+      return __m14.opcoesDeImpressao(cartas, 175).map(o => ({ id: o.id, name: def.name, set: o.set, set_name: o.set_name, collector_number: o.collector_number, images: o.images, faces: [] }));
+    } });
+}
+return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, createTerrenos };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -8357,7 +8431,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
 
 /* ---------------- Leva 128 · /perfil ---------------- */
 /** Nome e foto de quem usa o aparelho, e o backup completo. Tudo local; a foto é reduzida aqui mesmo antes de guardar. */
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null }) {
   const root = Stack(pad(), Row({}, Spinner()));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -8589,6 +8663,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       fichas ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-fichas', onClick: () => go('/perfil/fichas') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('ficha', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Fichas'),
         h('span', { class: 'ds-expansivel__resumo' }, st.fichasEscolhidas ? `${st.fichasEscolhidas} com a sua arte` : 'Escolher a arte'), Icone('seguir', { tamanho: 20 })) : null,
+      // I6 · terrenos básicos: uma área só para escolher a arte de cada um nas partidas
+      terrenos ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-terrenos', onClick: () => go('/perfil/terrenos') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('terreno', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Terrenos'),
+        h('span', { class: 'ds-expansivel__resumo' }, st.terrenosEscolhidos ? `${st.terrenosEscolhidos} com a sua arte` : 'Escolher a arte'), Icone('seguir', { tamanho: 20 })) : null,
       // D5 · Dados: tudo que é administração num lugar só — backup por arquivo, conta (nuvem), base local de cartas, espaço
       Text('Dados', { size: 'lg', display: true, as: 'h2', attrs: { id: 'perfil-dados' } }),
       Surface({ class: 'ds-surface--pad', id: 'perfil-backup' }, Stack({},
@@ -8609,6 +8687,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     catch (e) { st.erro = e; }
     if (conta) { try { st.conta = await conta.get(); } catch (e) { st.conta = null; } }
     if (fichas) { try { st.fichasEscolhidas = Object.keys((await fichas.estado()).escolhas).length; } catch (e) { st.fichasEscolhidas = 0; } }
+    if (terrenos) { try { st.terrenosEscolhidos = Object.keys((await terrenos.estado()).escolhas).length; } catch (e) { st.terrenosEscolhidos = 0; } }
     if (partidas) { try { st.partidas = __m35.estatisticas(await partidas.lista()); } catch (e) { st.partidas = null; } }
     paint();
   }
@@ -8696,9 +8775,11 @@ function createPartidasScreen({ partidas }) {
 
 /* ---------------- I4 · /perfil/fichas ---------------- */
 /** Fichas do seu jeito: a lista das fichas que as cartas criam e, em cada uma, as artes para escolher. */
-function createFichasScreen({ fichas, decks }) {
+/* I4 + I6 · a mesma tela serve às fichas e aos terrenos: lista de itens (ícone, nome, cores) e, dentro de cada um, as artes
+   em lotes de 6. `C` traz os textos, a rota e o prefixo dos ids; `itens()` devolve a lista. */
+function telaDeArtes({ galeria: fichas, itens, C }) {
   const F = __m34;
-  const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo as fichas…', { size: 'sm', tone: 'muted' })));
+  const root = Stack(pad(), Row({}, Spinner(), Text(C.abrindo, { size: 'sm', tone: 'muted' })));
   const st = { lista: [], estado: { escolhas: {}, opcoes: {} }, aberta: q().get('f') || '', buscando: false, erro: '', run: 0 };
   const online = () => fichas.temRede();
   const simbolos = cores => h('span', { class: 'ficha-linha__cores' }, ...cores.map(c => Simbolo(c)));
@@ -8707,9 +8788,9 @@ function createFichasScreen({ fichas, decks }) {
 
   function linha(it) {
     const escolhida = !!st.estado.escolhas[it.chave], n = (st.estado.opcoes[it.chave] || []).length;
-    return h('button', { class: 'ds-list__item ficha-linha', type: 'button', dataset: { ficha: it.chave, escolhida: String(escolhida) },
+    return h('button', { class: 'ds-list__item ficha-linha', type: 'button', dataset: { [C.id]: it.chave, escolhida: String(escolhida) },
       'aria-label': `${it.nome}${it.pt ? ' ' + it.pt : ''}, ${it.descricao}. ${escolhida ? 'Arte escolhida por você' : n ? `${n} arte(s) baixada(s), arte padrão em uso` : 'Arte padrão'}`,
-      onClick: () => { st.aberta = it.chave; st.erro = ''; go('/perfil/fichas?f=' + encodeURIComponent(it.chave)); } },
+      onClick: () => { st.aberta = it.chave; st.erro = ''; go(C.rota + '?f=' + encodeURIComponent(it.chave)); } },
       miniatura(it),
       h('span', { class: 'ficha-linha__texto' },
         h('span', { class: 'ficha-linha__nome' }, Icone(it.icone, { tamanho: 16 }), h('span', { lang: 'en' }, it.nome), it.pt ? h('b', {}, it.pt) : null),
@@ -8720,16 +8801,18 @@ function createFichasScreen({ fichas, decks }) {
   function pintaLista() {
     const minhas = st.lista.filter(x => x.suaLista), outras = st.lista.filter(x => !x.suaLista);
     mount(root,
-      Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'fichas-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('Fichas', { size: '2xl', display: true, as: 'h1' })),
-      online() ? null : AvisoRede('Sem internet: dá para trocar entre as artes já baixadas. Para ver outras, conecte-se.', { id: 'fichas-sem-rede' }),
-      st.lista.length ? h('div', { class: 'ds-list', id: 'fichas-lista' },
+      Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: C.id + 's-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text(C.titulo, { size: '2xl', display: true, as: 'h1' })),
+      // I6 · a regra fica dita mesmo com internet: buscar artes pede conexão; o que foi baixado fica no aparelho
+      online() ? Text('Buscar artes novas pede internet. As que você baixar ficam no aparelho.', { size: 'sm', tone: 'muted', attrs: { id: C.id + 's-nota' } })
+        : AvisoRede('Sem internet: dá para trocar entre as artes já baixadas. Para ver outras, conecte-se.', { id: C.id + 's-sem-rede' }),
+      st.lista.length ? h('div', { class: 'ds-list', id: C.id + 's-lista' },
         ...(minhas.length ? [h('div', { class: 'ds-list__group' }, 'Nas suas listas'), ...minhas.map(linha)] : []),
-        ...(outras.length ? [h('div', { class: 'ds-list__group' }, minhas.length ? 'Outras fichas' : 'Fichas'), ...outras.map(linha)] : []))
-        : Empty('Nenhuma carta com ficha por enquanto.', null, { icone: 'ficha', titulo: 'Sem fichas' }));
+        ...(outras.length ? [h('div', { class: 'ds-list__group' }, minhas.length ? C.outras : C.titulo), ...outras.map(linha)] : []))
+        : Empty(C.vazio, null, { icone: C.icone, titulo: C.vazioTitulo }));
   }
   async function busca(it) {
     const run = ++st.run; st.buscando = true; st.erro = ''; pintaFicha(it);
-    try { const lista = await fichas.buscar(it.def); if (run !== st.run) return; st.estado.opcoes[it.chave] = lista; }
+    try { const lista = await fichas.mais(it.def); if (run !== st.run) return; st.estado.opcoes[it.chave] = lista; }
     catch (e) { if (run !== st.run) return; st.erro = e.message === 'sem-rede' ? 'sem-rede' : 'falha'; }
     st.buscando = false; if (st.aberta === it.chave && root.isConnected) pintaFicha(it);
   }
@@ -8745,20 +8828,24 @@ function createFichasScreen({ fichas, decks }) {
         ImagemCarta(o.images, { sizes: '(min-width: 400px) 120px, 104px', classe: 'ficha-opcao__img', onFalha: el => el.replaceWith(h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 }))) }) || h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 })),
         h('span', { class: 'ficha-opcao__rotulo' }, F.rotuloDaOpcao(o)),
         emUso ? h('span', { class: 'ficha-opcao__marca' }, Icone('marcar', { tamanho: 16 })) : null); };
-    const padrao = h('button', { class: 'ficha-opcao ficha-opcao--padrao', type: 'button', id: 'ficha-padrao', 'aria-pressed': String(!atual), 'aria-label': 'Arte padrão do app' + (!atual ? ', em uso' : ''), onClick: () => escolhe(it, null) },
+    const padrao = h('button', { class: 'ficha-opcao ficha-opcao--padrao', type: 'button', id: C.id + '-padrao', 'aria-pressed': String(!atual), 'aria-label': 'Arte padrão do app' + (!atual ? ', em uso' : ''), onClick: () => escolhe(it, null) },
       h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 })), h('span', { class: 'ficha-opcao__rotulo' }, 'Padrão'), !atual ? h('span', { class: 'ficha-opcao__marca' }, Icone('marcar', { tamanho: 16 })) : null);
     const semNada = !opcoes.length && !st.buscando;
+    const maisArtes = fichas.temMais(it.chave, opcoes.length);
     mount(root,
-      Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar às fichas', { id: 'ficha-voltar', variant: 'ghost', onClick: () => { st.aberta = ''; st.run++; go('/perfil/fichas'); } }),
+      Row({ class: 'ds-row--wrap' }, IconButton('voltar', C.voltar, { id: C.id + '-voltar', variant: 'ghost', onClick: () => { st.aberta = ''; st.run++; go(C.rota); } }),
         Stack({ style: { gap: '2px', minWidth: '0' } }, Text(it.nome, { size: '2xl', display: true, as: 'h1', attrs: { lang: 'en' } }),
           Row({ class: 'ficha-cab' }, Icone(it.icone, { tamanho: 16 }), simbolos(it.cores), Text(it.descricao, { size: 'sm', tone: 'muted' })))),
       // só com internet se buscam artes novas; as já baixadas continuam à mão
-      !online() ? AvisoRede(opcoes.length ? 'Sem internet: estas são as artes já baixadas. Para ver outras, conecte-se.' : 'Sem internet: as artes desta ficha aparecem quando houver conexão.', { id: 'ficha-sem-rede' }) : null,
-      st.erro === 'falha' ? (() => { const n = Note('<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'ficha-erro'; return n; })() : null,
-      st.buscando ? Row({ id: 'ficha-buscando' }, Spinner(), Text('Buscando artes…', { size: 'sm', tone: 'muted' })) : null,
-      semNada && online() && !st.erro ? Empty('A Scryfall não tem imagem desta ficha. A mesa usa a carta em texto.', null, { icone: it.icone, titulo: 'Sem arte disponível', id: 'ficha-sem-arte' }) : null,
-      opcoes.length ? h('div', { class: 'ds-cardgrid ficha-grade', id: 'ficha-opcoes' }, padrao, ...opcoes.map(opcao)) : null,
-      online() && !st.buscando && (opcoes.length || st.erro) ? Row({}, Button(st.erro ? 'Tentar de novo' : 'Atualizar', { icone: 'atualizar', id: 'ficha-atualizar', onClick: () => busca(it) })) : null);
+      !online() ? AvisoRede(opcoes.length ? 'Sem internet: estas são as artes já baixadas. Para ver outras, conecte-se.' : C.semRedeSemArtes, { id: C.id + '-sem-rede' }) : null,
+      st.erro === 'falha' ? (() => { const n = Note('<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.', 'negative'); n.id = C.id + '-erro'; return n; })() : null,
+      st.buscando && !opcoes.length ? Row({ id: C.id + '-buscando' }, Spinner(), Text('Buscando artes…', { size: 'sm', tone: 'muted' })) : null,
+      semNada && online() && !st.erro ? Empty(C.semArte, null, { icone: it.icone, titulo: 'Sem arte disponível', id: C.id + '-sem-arte' }) : null,
+      opcoes.length ? h('div', { class: 'ds-cardgrid ficha-grade', id: C.id + '-opcoes' }, padrao, ...opcoes.map(opcao)) : null,
+      // I6 · de 6 em 6: o botão fica depois da grade (quem toca continua vendo as artes que acabaram de chegar)
+      opcoes.length ? Text(`${opcoes.length} ${opcoes.length === 1 ? 'arte baixada' : 'artes baixadas'}` + (online() && !maisArtes ? ' · são todas' : ''), { size: 'xs', tone: 'muted', attrs: { id: C.id + '-conta' } }) : null,
+      online() && opcoes.length && (maisArtes || st.buscando) ? Row({}, Button('Mais artes', { icone: 'mais', id: C.id + '-mais', disabled: st.buscando, onClick: () => busca(it) }), st.buscando ? Spinner() : null) : null,
+      online() && !st.buscando && st.erro ? Row({}, Button('Repetir busca', { icone: 'atualizar', id: C.id + '-atualizar', onClick: () => busca(it) })) : null);
   }
   function pinta() {
     const it = st.aberta ? st.lista.find(x => x.chave === st.aberta) : null;
@@ -8768,9 +8855,7 @@ function createFichasScreen({ fichas, decks }) {
     if (online() && !(st.estado.opcoes[it.chave] || []).length && !st.buscando && !st.erro) busca(it);
   }
   (async () => {
-    let nomes = [];
-    try { nomes = (await decks.list()).flatMap(d => d.entries.map(e => e.name)); } catch (e) { /* sem listas: todas juntas */ }
-    st.lista = F.listaDeFichas(nomes);
+    try { st.lista = await itens(); } catch (e) { st.lista = []; }
     try { st.estado = await fichas.estado(); } catch (e) { /* sem armazenamento: começa do padrão */ }
     pinta();
   })();
@@ -8778,6 +8863,17 @@ function createFichasScreen({ fichas, decks }) {
   const aoMudarRede = () => { if (!root.isConnected) { removeEventListener('online', aoMudarRede); removeEventListener('offline', aoMudarRede); return; } if (st.lista.length) pinta(); };
   if (typeof addEventListener === 'function') { addEventListener('online', aoMudarRede); addEventListener('offline', aoMudarRede); }
   return root;
+}
+function createFichasScreen({ fichas, decks }) {
+  return telaDeArtes({ galeria: fichas, C: { id: 'ficha', rota: '/perfil/fichas', titulo: 'Fichas', outras: 'Outras fichas', icone: 'ficha', abrindo: 'Abrindo as fichas…', voltar: 'Voltar às fichas',
+      vazio: 'Nenhuma carta com ficha por enquanto.', vazioTitulo: 'Sem fichas', semRedeSemArtes: 'Sem internet: as artes desta ficha aparecem quando houver conexão.', semArte: 'A Scryfall não tem imagem desta ficha. A mesa usa a carta em texto.' },
+    async itens() { let nomes = []; try { nomes = (await decks.list()).flatMap(d => d.entries.map(e => e.name)); } catch (e) { /* sem listas: todas juntas */ } return __m34.listaDeFichas(nomes); } });
+}
+/* I6 · Perfil › Terrenos: a arte de cada terreno básico nas partidas */
+function createTerrenosScreen({ terrenos, decks }) {
+  return telaDeArtes({ galeria: terrenos, C: { id: 'terreno', rota: '/perfil/terrenos', titulo: 'Terrenos', outras: 'Outros terrenos', icone: 'terreno', abrindo: 'Abrindo os terrenos…', voltar: 'Voltar aos terrenos',
+      vazio: 'Nenhum terreno básico por enquanto.', vazioTitulo: 'Sem terrenos', semRedeSemArtes: 'Sem internet: as artes deste terreno aparecem quando houver conexão.', semArte: 'A Scryfall não tem imagem deste terreno. A mesa usa a carta em texto.' },
+    async itens() { let nomes = []; try { nomes = (await decks.list()).flatMap(d => d.entries.map(e => e.name)); } catch (e) { /* sem listas: todos juntos */ } return __m36.listaDeTerrenos(nomes); } });
 }
 
 /* ---------------- A12 · /listas/prontas ---------------- */
@@ -10119,7 +10215,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createPartidasScreen, DeckLinha };
+return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha };
 })();
 
 
@@ -16998,7 +17094,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
 
   let gravando = Promise.resolve(); // a última gravação em curso (o teste espera por ela antes de recarregar a página)
   const save = () => (gravando = store.set(T.SAVE_KEY, table.serialize()).catch(() => {}));
-  const card = name => T.cartaDaMesa(table.setup.cards, name); // H1 · o verso de uma dupla face acha a própria imagem
+  // I6 · a arte que o usuário escolheu para cada terreno básico (Perfil › Terrenos) vale em toda partida, inclusive a que já começou
+  let terrenosEscolhidos = null;
+  store.get('terrenos.escolhas').then(x => { if (x && Object.keys(x).length) { terrenosEscolhidos = x; if (table && root.isConnected) paint(); } }).catch(() => {});
+  const card = name => __m36.cartaComTerreno(T.cartaDaMesa(table.setup.cards, name), terrenosEscolhidos); // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */
@@ -20505,7 +20604,7 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createPartidasScreen } = __m15;
+const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen } = __m15;
 const { createTableSetup, createTableScreen, createSeriesScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
@@ -20562,6 +20661,7 @@ const backup = {
 const names = createNameIndex({ store: platform.store, scryfall });
 const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
 const fichas = __m34.createFichas({ store: platform.store, scryfall, images }); // I4
+const terrenos = __m36.createTerrenos({ store: platform.store, scryfall, images }); // I6
 const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
@@ -20590,8 +20690,9 @@ const ROUTES = [
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks }) }, // I4
+  { path: '/perfil/terrenos', title: 'Terrenos', render: () => createTerrenosScreen({ terrenos, decks }) }, // I6
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, partidas, apresentacao: () => mostraApresentacao(),
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, partidas, terrenos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
       espaco: async () => ({ texto: descreveEspaco(await platform.persistence.estimate()), protecao: await platform.persistence.status() }),
