@@ -437,6 +437,18 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bj ✅ | I5 histórico e estatísticas de partidas: Perfil › Partidas com ladrilhos, medidor de resultados, últimas 20, barras por oponente e lista (que filtram), quem começou, colunas por semana e a lista; vai no backup (leva 188) | I | 1 | teste no aparelho |
 | 16º-bk ✅ | L8 estatísticas da lista: ladrilhos, barras por tipo, curva por tipo com as criaturas em destaque e, por cor, símbolos de custo contra fontes de mana (leva 190) | L | 1 | teste no aparelho |
 | 16º-bl ✅ | V1 impressões e arte por carta: a carta da lista abre as impressões da Scryfall e a escolhida vale no deck e na reserva, guardada na lista e offline (leva 192) | V | 1 | teste no aparelho; destrava C4 |
+| 16º-bm ○ | J1 ficar onde está (app): tocar num controle não move a tela; guarda-corpo `semSalto` | J | 1 | — |
+| 16º-bn ○ | J2 ficar onde está (mesa de jogo) | J | 1 | — |
+| 16º-bo ○ | J3 leque das cópias viradas | J | 1 | — |
+| 16º-bp ○ | J4 carregamento com identidade (`Carregando` e esqueletos) | J | 1 | — |
+| 16º-bq ○ | J5 abertura que termina no logo | J | 1 | — |
+| 16º-br ○ | J6 botão de ação flutuante: componente, Listas, Lista e Coleção | J | 1 | — |
+| 16º-bs ○ | J7 botão de ação no resto do app | J | 1 | — |
+| 16º-bt ○ | N1 coletor de notícias (fluxo agendado, ramo `noticias`) | N | 1 | ADR-08 aceito |
+| 16º-bu ○ | N2 tela Notícias com rolagem infinita e estados desenhados | N | 1 | — |
+| 16º-bv ○ | N3 filtros por fonte e tema, novas, atualizar | N | 1 | — |
+| 16º-bw ○ | N4 guardar e compartilhar notícia | N | 1 | — |
+| 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5316,6 +5328,167 @@ mesmo padrão de design".
 - **Testes:** U `partidas.unit` ×4; e2e "I5" (vazio, registro, desfazer o fim, não duplicar, ladrilhos, medidor
   proporcional, legenda com ícone, últimas, barras com 44 px que filtram, colunas, lista, limpar com Desfazer;
   `auditaTela` em 360 px claro, escuro e com a fonte larga do CI).
+
+### J · Fluidez e orientação (E57, pedido de 06/10/2026)
+
+**Pedido (cinco pontos, 06/10/2026):** quem toca num controle fica onde está para ver o resultado (a tela só anda
+quando a jornada pede); cópias iguais **viradas** empilhadas em leque como as desviradas; carregamento com animação
+própria do design system; abertura do app com animação que termina no logo; botão flutuante no canto inferior
+direito com as ações principais da tela (referência: ManaBox).
+
+**Conduta do épico:** conduta de design (capturas antes e depois em 360×780 e 390×844, clara e escura; medida em
+pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento novo com regra de
+`prefers-reduced-motion`; nada atrasa o uso (animação nunca segura o app pronto); componente novo entra no `/ds`.
+
+**J1 · Ficar onde está (app)** ○
+- **Valor:** tocar num chip, numa chave, num filtro ou num botão e ver o resultado ali mesmo, sem a tela pular.
+- **Aceite:** em Listas, Lista, Coleção, Cartas, Jogar, Perfil, Fichas e Partidas, depois de qualquer seleção,
+  configuração ou CTA que não muda de tela, o controle tocado continua na mesma posição da janela (tolerância de
+  2 px) e o foco não se perde. A tela só anda em três casos, declarados no código por `data-leva`: troca de tela;
+  a ação abre uma decisão seguinte em outra região; o que foi tocado sai da tela (item removido).
+- **Diagnóstico a confirmar na execução:** o roteador chama `scrollTo(0, 0)` em toda navegação, inclusive quando só
+  muda o parâmetro; telas que repintam inteiras (`mount(root, …)`) perdem a rolagem quando a altura muda no meio.
+- **Testes:** U (regra pura "esta navegação leva ao topo?"); e2e guarda-corpo `semSalto(page, ação)` que mede a
+  posição do controle antes e depois, aplicado a um catálogo de interações por tela; contrato: todo
+  `scrollIntoView`/`scrollTo` do arquivo precisa estar na lista de exceções com motivo.
+- **Depende de:** — · **Fora:** a mesa de jogo (J2).
+- **Estimativa:** 1 leva.
+
+**J2 · Ficar onde está (mesa)** ○
+- **Valor:** na partida, agir numa carta ou na bandeja sem o campo correr.
+- **Aceite:** conjurar, virar, passar, declarar atacante ou bloqueador, abrir e fechar balões, Registro e resumo não
+  mudam a rolagem do campo nem das fileiras. Exceções declaradas e mantidas: "acompanhar o oponente" (H5) e a
+  decisão que nasce fora da vista (alvo, bloqueio pedido) continuam levando o olhar até lá.
+- **Testes:** e2e `semSalto` nas ações da mesa (rolagem vertical do campo e horizontal das fileiras).
+- **Depende de:** J1. · **Estimativa:** 1 leva.
+
+**J3 · Leque das viradas** ○
+- **Valor:** quatro terrenos virados ocupam o lugar de um leque, não de quatro cartas.
+- **Aceite:** cópias iguais viradas aparecem em leque parcial, com a mesma regra de quem entra no leque das
+  desviradas (H9): a da frente é o toque, até três bordas atrás, selo ×N; viradas e desviradas da mesma carta ficam
+  em dois leques vizinhos. A largura ocupada por N viradas é medida e declarada em 360 px. Nome legível na
+  horizontal; nada sobrepõe a fileira vizinha.
+- **Diagnóstico a confirmar na execução:** o modelo já agrupa por estado (`agrupaLeque`); o desenho do leque virado
+  gira e encolhe as camadas (`rotate(90deg) scale(.78)`) e o resultado não se lê como pilha.
+- **Testes:** U `table.unit` (agrupamento por estado); e2e com 4 e 8 terrenos virados (largura, bordas visíveis,
+  toque na da frente, sem sobreposição nas quatro larguras).
+- **Depende de:** U5, H9. · **Estimativa:** 1 leva.
+
+**J4 · Carregamento com identidade** ○
+- **Valor:** esperar sem achar que travou, com a cara do app.
+- **Aceite:** componente `Carregando` no design system (cartas que se alinham na prateleira, em traço e latão, só
+  com tokens), em três tamanhos: tela inteira, bloco e em linha. Substitui o anel genérico nas esperas de tela
+  (abrir lista, buscar cartas, preparar partida, impressões, fichas); esperas de lista usam esqueleto no formato do
+  conteúdo. Diz o que está fazendo em uma linha e o progresso quando existe. Movimento reduzido: quadro estático.
+- **Testes:** contrato visual (tokens, movimento reduzido); e2e nas telas trocadas (aparece, some, nada pula ao
+  chegar o conteúdo); entrada no `/ds` nos dois temas.
+- **Depende de:** J1. · **Estimativa:** 1 leva.
+
+**J5 · Abertura** ○
+- **Valor:** o app abre como um objeto bem-feito: as cartas se arrumam na estante e viram o logo.
+- **Aceite:** na abertura fria, animação plana com sombra curta (a mesma dos botões), de até 1,2 s, que termina
+  exatamente no ícone do app e passa para a tela inicial sem corte. Nunca segura o app: se tudo já carregou, um
+  toque pula; se o carregamento passar de 1,2 s, a animação entrega para o `Carregando` (J4). Não aparece ao trocar
+  de tela nem ao voltar do segundo plano. Movimento reduzido: logo parado com esmaecer. Vale também sem internet.
+- **Testes:** e2e (aparece só na abertura fria, termina no logo, pula ao toque, tempo máximo, movimento reduzido,
+  sem erro de console); medida do tempo até a primeira tela antes e depois (não pode piorar).
+- **Depende de:** J4. · **Estimativa:** 1 leva.
+
+**J6 · Botão de ação (componente e telas de gestão)** ○
+- **Valor:** a ação principal da tela sempre ao alcance do polegar.
+- **Aceite:** componente `BotaoDeAcao` no `/ds`: 56 px, canto inferior direito, respeita a área segura, acima de
+  avisos e abaixo de diálogos. Uma ação → toca e faz; várias → abre para cima uma lista curta (até quatro) com
+  ícone e rótulo de até duas palavras, fecha no toque fora e no Esc. O fim da página ganha respiro para o botão
+  não cobrir a última linha. Entra em **Listas** (nova, colar, prontas), **Lista** (jogar, ajustar, editar) e
+  **Coleção** (adicionar, scanner, importar). O botão passa a ser o primário da tela: os CTAs que ele substitui saem
+  do topo (declarado tela a tela, com os pixels que a tela ganha).
+- **Testes:** contrato visual; e2e por tela (ações certas, 44 px, não cobre conteúdo no fim da rolagem, teclado,
+  nome falado, quatro larguras e dois temas); `semSalto` ao abrir e fechar.
+- **Depende de:** J1. · **Fora:** a mesa de jogo (a bandeja já é o lugar da ação).
+- **Estimativa:** 1 a 2 levas.
+
+**J7 · Botão de ação (resto do app)** ○
+- **Valor:** o mesmo gesto em todo lugar.
+- **Aceite:** Início, Cartas, Jogar, Perfil › Partidas e Notícias (N2) com as ações de cada uma; tela sem ação
+  principal fica sem botão (não se inventa ação).
+- **Testes:** e2e por tela. · **Depende de:** J6. · **Estimativa:** 1 leva.
+
+**Fora do épico:** tablet e paisagem; sons; animação entre telas; botão flutuante na partida.
+
+### N · Notícias (E58, pedido de 06/10/2026)
+
+**Pedido (06/10/2026):** feed de notícias de Magic com rolagem infinita, só com internet, com tela estática
+bem-feita quando não houver o que carregar, juntando as melhores fontes, no design system do app e com as
+mecânicas dos melhores leitores de notícia.
+
+**Decisão de arquitetura (ADR-08, a confirmar com o usuário antes da N1):** o navegador não consegue ler o RSS de
+outros sites (bloqueio de origem) e o app não tem servidor. Um **fluxo agendado do GitHub Actions** lê as fontes de
+hora em hora, normaliza e publica páginas JSON prontas num **ramo próprio (`noticias`)**, que o app lê. O `main`
+não recebe esses commits (a guarda de agregação e o histórico das levas ficam intactos). Custo: zero; atraso
+máximo de uma hora. Alternativa descartada: serviço de terceiros que converte RSS (limite de uso, chave exposta,
+some sem aviso).
+
+**Conteúdo e direito autoral:** o app mostra título, fonte, autor, data, imagem de capa (endereço da própria
+fonte) e um resumo de até 280 caracteres; **o texto completo abre no site da fonte**. Nada de copiar artigo.
+
+**Fontes:** conferidas em 06/10/2026: MTGGoldfish (Atom, 25 itens) e EDHREC (RSS, com imagem). Candidatas a conferir
+na N1, uma a uma (só entra a que tiver feed público e estável): Wizards of the Coast (anúncios), Star City Games,
+Card Kingdom, Hipsters of the Coast, MTG Arena Zone, e uma fonte em português. Fonte sem feed conferido fica fora
+e registrada aqui.
+
+**N1 · Coletor de notícias** ○
+- **Valor:** as notícias chegam sozinhas, de várias fontes, numa linha do tempo só.
+- **Aceite:** `noticias.mjs` (Node, sem dependência nova) lê RSS e Atom, normaliza cada item (`id`, `titulo`,
+  `resumo` ≤ 280 sem HTML, `url`, `fonte`, `autor`, `data` ISO, `imagem`, `idioma`, `temas`), descarta repetidos
+  (mesmo endereço ou mesmo título no mesmo dia), ordena por data, corta em páginas de 20 (`pagina-1.json`…,
+  `indice.json` com total, páginas e hora da coleta) e mantém os últimos 30 dias. Fonte fora do ar não derruba a
+  coleta: as outras entram e a falha fica no índice. Fluxo agendado (de hora em hora) publica no ramo `noticias`.
+- **Testes:** U com feeds de exemplo guardados no repositório (RSS, Atom, HTML no resumo, data inválida, item sem
+  imagem, repetido, fonte que falha, paginação, janela de 30 dias); o portão não depende da rede.
+- **Depende de:** ADR-08 aceito. · **Trilha:** `geral`, com um arquivo de fluxo novo (avisar a trilha `infra`).
+- **Estimativa:** 1 leva.
+
+**N2 · Tela Notícias** ○
+- **Valor:** saber o que está acontecendo no Magic sem sair do app.
+- **Aceite:** rota `/noticias`, com entrada na tela inicial e na navegação (medir se cabe em 360 px; se não
+  couber, entra pela Início e pelo botão de ação). Linha do tempo em uma coluna: cartão com capa 16:9 (moldura
+  reservada, nada pula ao carregar), selo da fonte, tempo relativo ("há 3 h"), título em serifada (até três linhas)
+  e resumo (até duas). A primeira notícia é o destaque; as demais alternam cartão cheio e linha compacta com
+  miniatura. **Rolagem infinita** por lotes (a página seguinte é buscada antes do fim; esqueleto enquanto chega;
+  "Você está em dia" no fim). Tocar abre a matéria no navegador. Títulos ficam no idioma da fonte (`lang`).
+- **Estados:** carregando (esqueleto); **sem internet** e **sem notícias**: tela estática desenhada (ilustração em
+  traço do conjunto do app, uma linha dizendo o que houve e o que funciona, botão de tentar de novo); erro de uma
+  página no meio da rolagem com "Tentar de novo" ali mesmo; imagem que falha vira capa em traço com o selo da fonte.
+- **Testes:** U (modelo puro: tempo relativo, lote seguinte, junção de páginas sem repetir); e2e com páginas
+  falsas (três lotes, fim, erro no meio, sem internet, vazio, volta da matéria no mesmo ponto da rolagem,
+  `auditaTela` nas quatro larguras e dois temas, 60 cartões sem travar).
+- **Depende de:** N1, J4. · **Estimativa:** 1 a 2 levas.
+
+**N3 · Ler do seu jeito** ○
+- **Valor:** ver só o que interessa e não perder o ponto.
+- **Aceite:** chips de **fonte** e de **tema** (Commander, Pauper, lançamentos, competitivo, Arena) que filtram
+  sem sair do lugar; marca "novas" no que chegou desde a última visita e contador na entrada da tela inicial;
+  atualizar puxando para baixo e por botão; ao voltar para a tela, a rolagem está onde ficou.
+- **Testes:** U (temas pelo título e pelas categorias do feed; novas desde a visita); e2e (filtros, novas,
+  atualizar, posição guardada).
+- **Depende de:** N2. · **Estimativa:** 1 leva.
+
+**N4 · Guardar e compartilhar** ○
+- **Valor:** separar o que ler depois.
+- **Aceite:** em cada notícia, **Guardar** (lista "Guardadas", que mostra título, fonte e data também sem internet;
+  a matéria em si continua pedindo conexão, e isso é dito) e **Compartilhar** (folha do sistema; sem ela, copia o
+  endereço). Guardadas entram no backup.
+- **Testes:** U, e2e. · **Depende de:** N2. · **Estimativa:** 1 leva.
+
+**N5 · Lançamentos na linha do tempo** ○
+- **Valor:** saber que coleção está chegando sem depender de matéria.
+- **Aceite:** cartões "Coleção nova" montados a partir das coleções da Scryfall (nome, símbolo, data de
+  lançamento), intercalados pela data; tocar abre a busca de cartas daquela coleção no app.
+- **Testes:** U, e2e. · **Depende de:** N2. · **Estimativa:** 1 leva.
+
+**Fora do épico (escopo negativo mantido):** ranking de metagame e listas de torneio como dado do app (a notícia
+pode falar disso; o app não monta ranking); comentários, curtidas e conta em rede social; notificação por push
+(precisa de servidor); leitura da matéria inteira dentro do app; vídeo embutido.
 
 ### P · Plataforma
 
