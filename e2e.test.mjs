@@ -7583,3 +7583,95 @@ test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na in
   await page.context().setOffline(false);
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- J1 · ficar onde está ---------------- */
+// Guarda-corpo: percorre os controles de estado de uma tela (chips, chaves, abas, blocos que abrem, seletores),
+// toca em cada um com a página rolada e mede se o controle tocado continua no mesmo lugar da janela.
+// Devolve os saltos acima da tolerância. O controle é reencontrado pela chave (id, ou atributos data-* + texto),
+// porque muitas telas repintam inteiras.
+// espera a tela parar de mudar (350 ms sem mexer no documento, no máximo 3 s): o resultado de um toque pode chegar depois
+const quietaJ1 = page => page.evaluate(() => new Promise(ok => { let t = setTimeout(fim, 350); const o = new MutationObserver(() => { clearTimeout(t); t = setTimeout(fim, 350); }); o.observe(document.body, { childList: true, subtree: true, attributes: true }); const teto = setTimeout(fim, 3000); function fim() { o.disconnect(); clearTimeout(t); clearTimeout(teto); ok(); } }));
+const CONTROLES_J1 = '.ds-chip, [role="switch"], [role="tab"], .ds-tab, button[aria-pressed], button[aria-expanded], [data-dica-botao], select.ds-select, button[id$="-filter"], button[id$="-filters"]';
+// um toque só, num controle escolhido: devolve quanto ele andou na janela
+async function tocaSemSalto(page, seletor) {
+  const antes = await page.evaluate(sel => { const el = [...document.querySelectorAll(sel)].filter(e => e.getClientRects().length).pop(); if (!el) return null;
+    window.dispatchEvent(new Event('wheel')); el.scrollIntoView({ block: 'center' }); window.__j1 = window.__chaveJ1(el); const y = el.getBoundingClientRect().top; el.click(); return { y, sy: scrollY }; }, seletor);
+  assert.ok(antes, 'controle na tela: ' + seletor); assert.ok(antes.sy > 0, 'a página estava rolada: ' + seletor);
+  await quietaJ1(page);
+  const y = await page.evaluate(sel => { const el = [...document.querySelectorAll(sel)].find(e => window.__chaveJ1(e) === window.__j1 && e.getClientRects().length); return el ? el.getBoundingClientRect().top : null; }, seletor);
+  assert.notEqual(y, null, 'o controle continua na tela: ' + seletor);
+  return Math.round(y - antes.y);
+}
+async function semSalto(page, { ignora = '', tolerancia = 2, max = 60 } = {}) {
+  const chaves = await page.evaluate(({ sel, ignora }) => {
+    window.__chaveJ1 = el => el.id ? '#' + el.id : [el.tagName, ...[...el.attributes].filter(a => a.name.startsWith('data-') && !/estado|carregando/.test(a.name)).map(a => a.name + '=' + a.value), (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 40)].join('|');
+    window.__achaJ1 = (sel, chave) => [...document.querySelectorAll(sel)].find(e => window.__chaveJ1(e) === chave && e.getClientRects().length && !e.closest('.ds-dialog, .ds-overlay'));
+    const vis = e => e.getClientRects().length && !e.disabled && !e.closest('.ds-dialog, .ds-overlay, .ds-appbar') && (!ignora || !e.closest(ignora));
+    return [...new Set([...document.querySelectorAll(sel)].filter(vis).map(window.__chaveJ1))];
+  }, { sel: CONTROLES_J1, ignora });
+  const saltos = []; let medidos = 0;
+  const rota = () => page.evaluate(() => location.hash.split('?')[0]);
+  const aqui = await rota();
+  for (const chave of chaves.slice(0, max)) {
+    // rola até o controle, mede e toca no mesmo passo: nada muda de lugar entre a medida e o toque
+    const antes = await page.evaluate(({ sel, chave }) => { const el = window.__achaJ1 && window.__achaJ1(sel, chave); if (!el) return null;
+      window.dispatchEvent(new Event('wheel')); // a rolagem do teste conta como rolagem da pessoa: solta a âncora do toque anterior
+      el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); const m = { y: r.top, sy: scrollY, max: document.documentElement.scrollHeight - innerHeight };
+      if (el.tagName === 'SELECT') { if (el.options.length < 2) return null; el.selectedIndex = (el.selectedIndex + 1) % el.options.length; el.dispatchEvent(new Event('change', { bubbles: true })); }
+      else el.click();
+      return m; }, { sel: CONTROLES_J1, chave });
+    if (!antes) continue;
+    await quietaJ1(page);
+    if (await rota() !== aqui) { await page.goBack(); await page.waitForTimeout(400); continue; } // navegou: não é controle de estado
+    const abriuDialogo = await page.locator('.ds-overlay[data-open="true"]').count();
+    if (abriuDialogo) { await page.keyboard.press('Escape'); await page.waitForTimeout(380); }
+    const depois = await page.evaluate(({ sel, chave }) => { const el = window.__achaJ1(sel, chave); return { y: el ? el.getBoundingClientRect().top : null, sy: scrollY, max: document.documentElement.scrollHeight - innerHeight }; }, { sel: CONTROLES_J1, chave });
+    medidos++;
+    const d = depois.y == null ? depois.sy - antes.sy : depois.y - antes.y;
+    if (Math.abs(d) > tolerancia) saltos.push(`${chave} ${depois.y == null ? '(sumiu) rolagem' : 'andou'} ${Math.round(d)} px${abriuDialogo ? ' ao fechar o diálogo' : ''} (rolagem ${Math.round(antes.sy)}→${Math.round(depois.sy)}, fim ${Math.round(antes.max)}→${Math.round(depois.max)})`);
+  }
+  return { saltos, medidos, total: chaves.length };
+}
+const LISTA_J1 = '8 Island\n4 Delver of Secrets\n4 Preordain\n4 Counterspell\n4 Sky Pike\n4 Wall Guard\n4 Prodigal Sorcerer\n4 Lightning Bolt\n4 Grizzly Bear\n4 Elvish Visionary\n4 Thraben Inspector\n4 Jaspera Sentinel\n4 Duress\n4 Mountain\n\nSideboard\n3 Fiery Temper\n3 Grab the Prize\n3 Utopia Sprawl';
+test('e2e · J1 ficar onde está: tocar num chip, chave, aba, bloco ou seletor não move a tela (Listas, Lista, Coleção, Cartas, Jogar, Perfil, Fichas, Partidas)', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/listas/editar'); await page.fill('#deck-name', 'Longa'); await page.selectOption('#deck-format', 'livre'); await page.fill('#deck-text', LISTA_J1);
+  await page.click('[data-ownall]'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
+  const daLonga = '#' + page.url().split('#')[1];
+  await createDeck(page, base, 'Outra', PAUPER);
+  const telas = [[daLonga, '.deck-slot'], ['#/listas', '#decks-filter'], ['#/colecao', '#col-dash-toggle'], ['#/cartas', '#outlet .ds-stack'], ['#/mesa', '#mesa-start'], ['#/perfil', '#perfil-fichas']];
+  // 1 · varredura: todo controle de estado de cada tela, tocado com a página rolada
+  const minimo = { [daLonga]: 3, '#/listas': 1, '#/colecao': 9, '#/cartas': 8, '#/mesa': 15, '#/perfil': 24 };
+  for (const [rota, pronto] of telas) {
+    await page.goto(base + rota);
+    await page.waitForSelector(pronto, { timeout: 15000 }); await page.waitForTimeout(500);
+    const r = await semSalto(page);
+    assert.deepEqual(r.saltos, [], `${rota}: o controle tocado fica onde está`);
+    assert.ok(r.medidos >= (minimo[rota] || 0), `${rota}: ${r.medidos} de ${r.total} controles medidos (mínimo ${minimo[rota] || 0})`);
+  }
+  // 2 · casos escolhidos na lista: somar cópia (L7), marcar que tenho, abrir estatísticas e tocar numa coluna da curva
+  await page.goto(base + daLonga); await page.waitForSelector('.deck-slot');
+  await page.click('#deck-ajustar'); await page.waitForSelector('.deck-slot__passo');
+  assert.ok(Math.abs(await tocaSemSalto(page, '.deck-slot[data-name="Duress"] [data-passo="1"]')) <= 2, 'somar uma cópia não move a tela');
+  assert.ok(Math.abs(await tocaSemSalto(page, '.deck-slot[data-name="Duress"] [data-passo="-1"]')) <= 2, 'tirar uma cópia não move a tela');
+  await page.click('#deck-ajustar'); await page.click('#deck-mark');
+  assert.ok(Math.abs(await tocaSemSalto(page, '.deck-slot[data-name="Mountain"] .ds-card')) <= 2, 'marcar que tenho não move a tela');
+  await page.click('#deck-mark');
+  if (await page.getAttribute('#deck-stats-toggle', 'aria-expanded') !== 'true') await page.click('#deck-stats-toggle');
+  await page.waitForSelector('#deck-stats-curva');
+  assert.ok(Math.abs(await tocaSemSalto(page, '#deck-stats-curva button, #deck-stats-curva [role="button"]')) <= 2, 'tocar numa coluna da curva não move a tela');
+  // 3 · fim da página: quando a tela encolhe e não sobra rolagem, o controle ainda fica onde está
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-fichas'); await page.waitForTimeout(400);
+  assert.ok(Math.abs(await tocaSemSalto(page, '[data-densidade="compacta"]')) <= 2, 'encolher a página não puxa o controle');
+  assert.ok(Math.abs(await tocaSemSalto(page, '[data-escala="grande"]')) <= 2); assert.ok(Math.abs(await tocaSemSalto(page, '[data-escala="pequena"]')) <= 2);
+  // 4 · levar de propósito continua valendo: "Adicionar carta" na coleção leva até o campo
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-ir-adicionar');
+  await page.evaluate(() => { window.dispatchEvent(new Event('wheel')); window.scrollTo(0, document.documentElement.scrollHeight); });
+  if (await page.locator('#col-ir-adicionar').isVisible()) { const antes = await page.evaluate(() => scrollY); await page.evaluate(() => document.querySelector('#col-ir-adicionar').click()); await page.waitForTimeout(900);
+    assert.ok(await page.evaluate(() => { const r = document.querySelector('#col-add').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), 'o campo de adicionar fica à vista (rolagem ' + antes + ' → ' + await page.evaluate(() => scrollY) + ')'); }
+  // 5 · trocar de tela continua começando do topo
+  await page.goto(base + daLonga); await page.waitForSelector('.deck-slot'); await page.evaluate(() => window.scrollTo(0, 900)); await page.click('#nav-collection'); await page.waitForSelector('#col-dash-toggle');
+  assert.equal(await page.evaluate(() => Math.round(scrollY)), 0);
+  assert.deepEqual(errors, []);
+});

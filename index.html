@@ -2373,7 +2373,70 @@ function h(tag, props = {}, ...children) {
   return el;
 }
 const clear = el => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
-const mount = (el, ...kids) => { clear(el); kids.flat(9).filter(Boolean).forEach(k => el.appendChild(k)); return el; };
+/* J1 · ficar onde está: repintar a tela inteira não pode mover quem está nela. Ao esvaziar a raiz de uma tela (filha
+   direta de #outlet) a página encolhe e o navegador puxa a rolagem para cima; por isso a rolagem é guardada antes e
+   devolvida depois de o conteúdo novo entrar. Só vale para a raiz da tela: o resto do app monta sem ler o layout. */
+const mount = (el, ...kids) => {
+  const raizDeTela = typeof window !== 'undefined' && el.parentNode && el.parentNode.id === 'outlet';
+  const rolagem = raizDeTela ? window.scrollY : 0;
+  clear(el); kids.flat(9).filter(Boolean).forEach(k => el.appendChild(k));
+  if (rolagem > 0 && window.scrollY !== rolagem) window.scrollTo(0, rolagem);
+  return el;
+};
+/* J1 · âncora do toque. Quem toca num controle fica olhando para ele: se a tela mudar de tamanho acima dele (um bloco
+   que abre, um aviso que entra, a letra que cresce), a rolagem compensa e o controle continua no mesmo lugar da janela.
+   A âncora vale até o próximo gesto (o resultado de um toque pode chegar depois, quando a rede responde) e solta
+   quando: a tela troca; o app leva o olhar de propósito (`levaAte`); a pessoa rola ou toca de novo; ou o controle
+   tocado sai da tela. Na partida não vale (a mesa tem as próprias regras — J2). */
+function deveAncorar({ tela = '', rotaAntes = '', rotaDepois = '', levou = false, rolouNaMao = false, delta = 0, tolerancia = 1 } = {}) {
+  if (tela === 'partida') return false;
+  if (rotaAntes !== rotaDepois || levou || rolouNaMao) return false;
+  return Math.abs(delta) > tolerancia;
+}
+const CONTROLE_ANCORA = 'button, select, summary, [role="switch"], [role="tab"], input[type="checkbox"], input[type="radio"], input[type="range"]';
+const chaveDoControle = el => el.id ? '#' + el.id : [el.tagName, ...[...el.attributes].filter(x => x.name.startsWith('data-')).map(x => x.name + '=' + x.value), (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 40)].join('|');
+let ancora = null;
+const soltaAncora = () => { if (!ancora) return; ancora.obs.disconnect(); ancora = null; };
+function instalaAncora(outlet) {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+  const acha = () => ancora.el.isConnected ? ancora.el : [...outlet.querySelectorAll(CONTROLE_ANCORA)].find(e => chaveDoControle(e) === ancora.chave) || null;
+  const ajusta = () => {
+    if (!ancora) return;
+    const el = acha(); if (!el || !el.getClientRects().length) return;
+    const delta = el.getBoundingClientRect().top - ancora.topo;
+    if (!deveAncorar({ tela: document.body.dataset.tela, rotaAntes: ancora.rota, rotaDepois: location.hash, levou: ancora.levou, rolouNaMao: ancora.rolou, delta })) return;
+    window.scrollTo(0, window.scrollY + delta);
+    // a página encolheu e não há mais rolagem para compensar (o controle estava perto do fim): a tela guarda a altura
+    // que falta até a próxima troca de tela, em vez de puxar o controle para baixo
+    const falta = el.getBoundingClientRect().top - ancora.topo;
+    if (falta > 1) { outlet.style.minHeight = Math.ceil(outlet.getBoundingClientRect().height + falta) + 'px'; window.scrollTo(0, window.scrollY + falta); }
+  };
+  const prende = e => {
+    soltaAncora();
+    const el = e.target && e.target.closest ? e.target.closest(CONTROLE_ANCORA) : null;
+    if (!el || !outlet.contains(el) || document.body.dataset.tela === 'partida') return;
+    const obs = new MutationObserver(ajusta);
+    ancora = { el, chave: chaveDoControle(el), topo: el.getBoundingClientRect().top, rota: location.hash, levou: false, rolou: false, obs, desde: Date.now() };
+    obs.observe(outlet, { childList: true, subtree: true, attributes: true, characterData: true });
+    obs.observe(document.documentElement, { attributes: true }); // tema, letra e densidade mudam a página inteira
+    // o que entra ou sai com animação muda a altura sem mudar o documento: confere a cada quadro nos primeiros 700 ms
+    const minha = ancora, quadro = () => { if (ancora !== minha || minha.rolou || Date.now() - minha.desde > 700) return; ajusta(); requestAnimationFrame(quadro); };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(quadro);
+  };
+  document.addEventListener('click', prende, true);
+  document.addEventListener('change', prende, true);
+  const rolou = () => { if (ancora) { ancora.rolou = true; ancora.obs.disconnect(); } };
+  for (const ev of ['wheel', 'touchmove', 'pointerdown']) window.addEventListener(ev, rolou, { passive: true, capture: true }); // um toque novo também solta: o clique dele prende de novo
+  window.addEventListener('keydown', e => { if (['PageDown', 'PageUp', 'Home', 'End', 'ArrowDown', 'ArrowUp', 'Tab', ' '].includes(e.key)) rolou(); }, true);
+  window.addEventListener('hashchange', () => { soltaAncora(); outlet.style.minHeight = ''; });
+}
+/** J1 · o único jeito de o app levar o olhar a outro lugar depois de um toque: a ação pede uma decisão seguinte em
+    outra região. Solta a âncora do toque e rola até o elemento. */
+function levaAte(el, { block = 'center' } = {}) {
+  if (ancora) ancora.levou = true;
+  const parado = typeof document !== 'undefined' && (document.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+  if (el && el.scrollIntoView) el.scrollIntoView({ block, behavior: parado ? 'auto' : 'smooth' });
+}
 
 /* ---------------- primitivas ---------------- */
 const Stack = (props, ...kids) => h('div', { ...props, class: ['ds-stack', props?.class].filter(Boolean).join(' ') }, ...kids);
@@ -2890,7 +2953,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -9863,7 +9926,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
         Row({ class: 'ds-row--wrap' }, Button('Escanear', { variant: 'primary', icone: 'scanner', id: 'col-scan-vazio', onClick: () => go('/scanner') }), importBtn),
         // D4 · as outras portas ficam discretas: CSV, digitar o nome (abre a seção no lugar) e a busca
         h('div', { class: 'ds-empty__mais' }, csvBtn,
-          Button('Pelo nome', { variant: 'ghost', icone: 'editar', id: 'col-pelo-nome', onClick: () => { secaoAdicionar.dataset.aberta = 'true'; paintAdd(); secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
+          Button('Pelo nome', { variant: 'ghost', icone: 'editar', id: 'col-pelo-nome', onClick: () => { secaoAdicionar.dataset.aberta = 'true'; paintAdd(); __m3.levaAte(secaoAdicionar); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
           Button('Buscar', { variant: 'ghost', icone: 'buscar', id: 'col-buscar-vazio', onClick: () => go('/cartas') }))),
       { icone: 'colecao', titulo: 'Sua coleção está vazia', hero: true, id: 'col-vazio' })); }
     // C12 · o motor de filtro decide o recorte; a ordenação vem depois
@@ -10019,7 +10082,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     Row({ class: 'col-topo' }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
       IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }),
       // Leva 149 · o atalho abre o bloco de adicionar (logo abaixo do painel) e põe o foco no campo
-      IconButton('mais', 'Adicionar carta', { id: 'col-ir-adicionar', onClick: () => { abreAdicionar(true); secaoAdicionar.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
+      IconButton('mais', 'Adicionar carta', { id: 'col-ir-adicionar', onClick: () => { abreAdicionar(true); __m3.levaAte(secaoAdicionar); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
       Button('Escanear', { variant: 'primary', id: 'col-scan', icone: 'scanner', onClick: () => go('/scanner') })),
     // Leva 149 · ordem pedida: painel, adicionar carta, depois filtro e visões da coleção; ações da lista e backup no fim
     dashboard,
@@ -20661,6 +20724,7 @@ async function boot(root) {
   const bar = appBar();
   const outlet = h('main', { id: 'outlet' });
   mount(root, bar, outlet);
+  __m3.instalaAncora(outlet); // J1 · quem toca num controle fica onde está
   const router = createRouter(ROUTES, ({ route }) => {
     __m3.fechaToast(); // D1 · o aviso da tela anterior não atravessa para esta
     document.title = 'Estante · ' + (route.title || '');

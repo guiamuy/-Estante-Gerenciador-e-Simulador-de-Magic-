@@ -440,7 +440,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bj ✅ | I5 histórico e estatísticas de partidas: Perfil › Partidas com ladrilhos, medidor de resultados, últimas 20, barras por oponente e lista (que filtram), quem começou, colunas por semana e a lista; vai no backup (leva 188) | I | 1 | teste no aparelho |
 | 16º-bk ✅ | L8 estatísticas da lista: ladrilhos, barras por tipo, curva por tipo com as criaturas em destaque e, por cor, símbolos de custo contra fontes de mana (leva 190) | L | 1 | teste no aparelho |
 | 16º-bl ✅ | V1 impressões e arte por carta: a carta da lista abre as impressões da Scryfall e a escolhida vale no deck e na reserva, guardada na lista e offline (leva 192) | V | 1 | teste no aparelho; destrava C4 |
-| 16º-bm ○ | J1 ficar onde está (app): tocar num controle não move a tela; guarda-corpo `semSalto` | J | 1 | — |
+| 16º-bm ✅ | J1 ficar onde está (app): tocar num controle não move a tela — `mount` devolve a rolagem e a âncora do toque segura o controle; guarda-corpo `semSalto` e contrato dos pontos que rolam (leva 195) | J | 1 | teste no aparelho |
 | 16º-bn ○ | J2 ficar onde está (mesa de jogo) | J | 1 | — |
 | 16º-bo ○ | J3 leque das cópias viradas | J | 1 | — |
 | 16º-bp ○ | J4 carregamento com identidade (`Carregando` e esqueletos) | J | 1 | — |
@@ -5410,19 +5410,33 @@ direito com as ações principais da tela (referência: ManaBox).
 pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento novo com regra de
 `prefers-reduced-motion`; nada atrasa o uso (animação nunca segura o app pronto); componente novo entra no `/ds`.
 
-**J1 · Ficar onde está (app)** ○
+**J1 · Ficar onde está (app)** ✅ (leva 195, 06/10/2026)
 - **Valor:** tocar num chip, numa chave, num filtro ou num botão e ver o resultado ali mesmo, sem a tela pular.
-- **Aceite:** em Listas, Lista, Coleção, Cartas, Jogar, Perfil, Fichas e Partidas, depois de qualquer seleção,
-  configuração ou CTA que não muda de tela, o controle tocado continua na mesma posição da janela (tolerância de
-  2 px) e o foco não se perde. A tela só anda em três casos, declarados no código por `data-leva`: troca de tela;
-  a ação abre uma decisão seguinte em outra região; o que foi tocado sai da tela (item removido).
-- **Diagnóstico a confirmar na execução:** o roteador chama `scrollTo(0, 0)` em toda navegação, inclusive quando só
-  muda o parâmetro; telas que repintam inteiras (`mount(root, …)`) perdem a rolagem quando a altura muda no meio.
-- **Testes:** U (regra pura "esta navegação leva ao topo?"); e2e guarda-corpo `semSalto(page, ação)` que mede a
-  posição do controle antes e depois, aplicado a um catálogo de interações por tela; contrato: todo
-  `scrollIntoView`/`scrollTo` do arquivo precisa estar na lista de exceções com motivo.
-- **Depende de:** — · **Fora:** a mesa de jogo (J2).
-- **Estimativa:** 1 leva.
+- **Medido antes (360×780, página rolada):** na Lista, "Marcar as minhas" e "Ajustar" jogavam a tela 1 531 px para
+  o topo e "Estatísticas" 230 px; no Perfil, **todos** os 24 controles de aparência voltavam ao topo (136 a 366 px);
+  em Jogar, a série andava 98 px.
+- **Causa:** as telas repintam inteiras; ao esvaziar a raiz a página encolhe e o navegador puxa a rolagem para cima.
+  E quando o que muda fica **acima** do controle (letra maior, densidade, um bloco que abre), ele é empurrado.
+- **Entregue (duas peças centrais, valem para toda tela, inclusive as futuras):**
+  - `mount` devolve a rolagem depois de repintar a raiz de uma tela;
+  - **âncora do toque** (`instalaAncora`): o controle tocado continua no mesmo lugar da janela enquanto a tela
+    muda — na hora, durante animações (700 ms, quadro a quadro) e quando o resultado chega depois (rede), até o
+    próximo gesto. No fim da página, a tela guarda a altura que falta em vez de puxar o controle.
+- **A tela só anda quando:** troca de tela (começa do topo); o app leva o olhar de propósito por `levaAte(el)`
+  (hoje: "Adicionar carta" e "Pelo nome" na Coleção, que respeitam movimento reduzido); a pessoa rola ou toca de
+  novo; ou o controle tocado sai da tela.
+- **Divergência do planejado:** o roteador continua indo ao topo também quando só o parâmetro muda (`/lista?id=`,
+  `/perfil/fichas?f=` são telas novas); a exceção é declarada por `levaAte`, não por atributo `data-leva`.
+- **Limites declarados:** a âncora não vale na partida (J2); vale para botões, chips, chaves, abas e seletores dentro
+  da tela (não para a barra do topo nem para diálogos); controle sem `id` cujo rótulo muda ao tocar não é
+  reencontrado depois de repintar (fica só a rolagem devolvida pelo `mount`).
+- **Testes:** U `ds.unit` ×2 (regra pura `deveAncorar`; **contrato**: todo ponto do arquivo que move a rolagem está
+  numa lista com o motivo — ponto novo quebra o portão); e2e "J1" com o guarda-corpo `semSalto` (varre os controles
+  de estado de Lista, Listas, Coleção, Cartas, Jogar e Perfil — 60 ou mais — com a página rolada, tolerância de
+  2 px) e `tocaSemSalto` (somar e tirar cópia, marcar que tenho, coluna da curva, fim da página, levar de propósito,
+  troca de tela no topo).
+- **Depende de:** — · **Fora:** a mesa de jogo (J2); Fichas e Partidas não têm controle de estado na varredura
+  (as linhas navegam) e ficam cobertas pela regra central.
 
 **J2 · Ficar onde está (mesa)** ○
 - **Valor:** na partida, agir numa carta ou na bandeja sem o campo correr.

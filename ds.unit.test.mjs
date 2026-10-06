@@ -77,3 +77,36 @@ test('D10 · vibração por evento: um padrão por significado, sequência para 
   h.ligar(false); assert.equal(h.evento('alerta'), false); assert.equal(chamadas.length, 4, 'desligada: não chama o aparelho');
   assert.deepEqual(Object.keys(F2.EVENTOS_HAPTICOS), ['toque', 'confirmacao', 'alerta', 'turno']);
 });
+
+/* ---------------- J1 · ficar onde está ---------------- */
+test('J1 · a âncora do toque só compensa quando faz sentido: mesma tela, sem o app levar de propósito, sem a pessoa rolar, fora da partida', () => {
+  const base = { tela: 'perfil', rotaAntes: '#/perfil', rotaDepois: '#/perfil', levou: false, rolouNaMao: false, delta: 40 };
+  assert.equal(F5.deveAncorar(base), true);
+  assert.equal(F5.deveAncorar({ ...base, delta: -40 }), true, 'para cima ou para baixo');
+  assert.equal(F5.deveAncorar({ ...base, delta: 1 }), false, 'dentro da tolerância não mexe');
+  assert.equal(F5.deveAncorar({ ...base, rotaDepois: '#/listas' }), false, 'trocou de tela');
+  assert.equal(F5.deveAncorar({ ...base, levou: true }), false, 'o app levou o olhar de propósito');
+  assert.equal(F5.deveAncorar({ ...base, rolouNaMao: true }), false, 'a pessoa rolou');
+  assert.equal(F5.deveAncorar({ ...base, tela: 'partida' }), false, 'a mesa tem as próprias regras (J2)');
+  assert.equal(F5.deveAncorar(), false);
+});
+
+test('J1 · contrato: o app só move a rolagem nos pontos declarados, cada um com o seu motivo', async () => {
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  // trecho que identifica a linha → por que ela pode mover a tela. Ponto novo precisa entrar aqui (ou usar `levaAte`).
+  const DECLARADOS = [
+    ['if (rolagem > 0 && window.scrollY !== rolagem) window.scrollTo(0, rolagem);', 'mount: devolve a rolagem depois de repintar a tela'],
+    ['window.scrollTo(0, window.scrollY + delta);', 'âncora do toque: compensa o que mudou acima do controle'],
+    ['window.scrollTo(0, window.scrollY + falta);', 'âncora do toque: fim da página'],
+    ["if (el && el.scrollIntoView) el.scrollIntoView({ block, behavior: parado ? 'auto' : 'smooth' });", 'levaAte: a ação pede uma decisão em outra região'],
+    ["alvo.scrollIntoView({ block: 'center', inline: 'nearest', behavior: suave });", 'mesa: acompanhar a jogada do oponente (H5) — revisto na J2'],
+    ["meu.scrollIntoView({ block: 'nearest', behavior: menosMovimento() ? 'auto' : 'smooth' });", 'mesa: volta para o meu lado — revisto na J2'],
+    ["st.passo++; st.entregue = false; paint(); window.scrollTo(0, 0);", 'série: o passo seguinte da troca é uma tela nova'],
+    ['    window.scrollTo(0, 0);', 'roteador: tela nova começa do topo'],
+  ];
+  const linhas = html.split('\n').filter(l => /\.scrollIntoView\(|\bscrollTo\(|\bscrollBy\(|\.scrollTop\s*=[^=]/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l) && !/lista\.scrollTop = lista\.scrollHeight/.test(l));
+  const semMotivo = linhas.filter(l => !DECLARADOS.some(([trecho]) => l.includes(trecho)));
+  assert.deepEqual(semMotivo.map(l => l.trim().slice(0, 140)), [], 'rolagem movida sem declaração');
+  for (const [trecho] of DECLARADOS) assert.ok(html.includes(trecho), 'declarado e não existe mais: ' + trecho);
+});
