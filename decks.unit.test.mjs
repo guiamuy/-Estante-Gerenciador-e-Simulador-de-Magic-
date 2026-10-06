@@ -758,3 +758,41 @@ test('L8 · estatisticasDaLista: por tipo, curva separando criaturas, símbolos 
   assert.deepEqual([z.total, z.custoMedio, z.pctTerrenos, z.porTipo.length, z.cores.length], [0, 0, 0, 0, 0]);
   assert.equal(estatisticasDaLista(null, new Map()).total, 0);
 });
+
+/* ---------------- V1 · impressão por carta ---------------- */
+const eqV1 = (a, b, msg) => assert.deepEqual(JSON.parse(JSON.stringify(a)), b, msg); // o módulo roda noutro contexto: compara por valor
+test('V1 · impressões: só as que têm imagem, uma por id, com teto; rótulo; frente e verso guardados', () => {
+  const ims = x => ({ small: x + 's', normal: x + 'n', large: x + 'l', png: null, art: null });
+  const p = (id, set, n, extra = {}) => ({ id, name: 'Delver of Secrets', set, set_name: 'Edição ' + set, collector_number: n, rarity: 'common', uri: 'u/' + id, prices: { usd: '1.50' }, images: ims(id), faces: [], ...extra });
+  const dupla = p('d', 'mid', '47', { images: null, faces: [{ name: 'Frente', images: ims('df') }, { name: 'Verso', images: ims('dv') }] });
+  const ops = D.opcoesDeImpressao([p('a', 'isd', '51'), p('a', 'isd', '51'), { ...p('x', 'zzz', '1'), images: null }, dupla, null]);
+  eqV1(ops.map(o => o.id), ['a', 'd'], 'sem imagem e repetida ficam fora');
+  eqV1([ops[0].set, ops[0].collector_number, ops[0].prices.usd, ops[0].images.normal], ['isd', '51', '1.50', 'an']);
+  assert.equal(ops[1].images.normal, 'dfn', 'carta de duas faces: a frente é a imagem');
+  eqV1(ops[1].faces.map(f => f.images.normal), ['dfn', 'dvn'], 'e o verso fica guardado');
+  assert.equal(D.rotuloDaImpressao(ops[0]), 'ISD · #51'); assert.equal(D.rotuloDaImpressao({}), 'sem edição');
+  assert.equal(D.opcoesDeImpressao(Array.from({ length: 80 }, (_, i) => p('i' + i, 's', String(i)))).length, D.IMPRESSOES_MAX);
+  assert.equal(D.impressaoDe({ id: 'q', images: null, faces: [] }), null);
+});
+
+test('V1 · a escolha vale para a carta em todas as zonas, sobrevive a regravar o texto e a somar cópia; a carta aparece na impressão', () => {
+  const imp = { id: 'p2', set: 'mid', set_name: 'Midnight Hunt', collector_number: '47', rarity: 'uncommon', uri: 'u2', prices: { usd: '0.30' }, images: { small: 's2', normal: 'n2', large: null, png: null, art: null }, faces: [{ images: { normal: 'f2' } }, { images: { normal: 'v2' } }] };
+  const antes = [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }, { name: 'Island', qty: 16, zone: 'main' }, { name: 'delver of secrets', qty: 2, zone: 'side' }];
+  const com = D.comImpressao(antes, 'Delver of Secrets', imp);
+  eqV1(com.map(e => e.print ? e.print.id : null), ['p2', null, 'p2']);
+  assert.equal(antes[0].print, undefined, 'não muda as entradas recebidas');
+  eqV1(D.comImpressao(com, 'DELVER OF SECRETS', null).map(e => 'print' in e), [false, false, false], 'voltar ao padrão tira a marca');
+  // regravar pelo texto: quem continua mantém; carta nova não ganha; carta que saiu não volta
+  const novas = D.herdaImpressoes(D.parseDeckText('3 Delver of Secrets\n4 Preordain').entries, com);
+  eqV1(novas.map(e => [e.name, e.qty, e.print ? e.print.id : null]), [['Delver of Secrets', 3, 'p2'], ['Preordain', 4, null]]);
+  // somar a carta numa zona nova herda a impressão; carta sem impressão segue sem
+  const soma = D.ajustaEntrada([{ name: 'Delver of Secrets', qty: 4, zone: 'main', print: imp }], 'Delver of Secrets', 'side', 1);
+  assert.equal(soma[1].print.id, 'p2'); assert.equal(D.ajustaEntrada([], 'Island', 'main', 1)[0].print, undefined);
+  eqV1(D.impressoesDaLista({ entries: com }).map(x => x.id), ['p2']); eqV1(D.impressoesDaLista(null), []);
+  // a carta na impressão: imagens, edição e preço da escolhida; regras intactas; sem impressão, a mesma carta
+  const carta = { id: 'p1', name: 'Delver of Secrets', oracle_text: 'texto', set: 'isd', set_name: 'Innistrad', collector_number: '51', rarity: 'common', prices: { usd: '2.00' }, images: { small: 's1', normal: 'n1', large: 'l1' }, faces: [{ name: 'Frente', images: { normal: 'f1' } }, { name: 'Verso', images: { normal: 'v1' } }] };
+  const vista = D.cartaNaImpressao(carta, imp);
+  eqV1([vista.set, vista.set_name, vista.collector_number, vista.rarity, vista.prices.usd, vista.images.normal, vista.images.small, vista.images.large, vista.oracle_text], ['mid', 'Midnight Hunt', '47', 'uncommon', '0.30', 'n2', 's2', 'l1', 'texto']);
+  eqV1(vista.faces.map(f => [f.name, f.images.normal]), [['Frente', 'f2'], ['Verso', 'v2']]);
+  assert.equal(D.cartaNaImpressao(carta, null), carta); assert.equal(D.cartaNaImpressao(null, imp), null); assert.equal(carta.images.normal, 'n1');
+});

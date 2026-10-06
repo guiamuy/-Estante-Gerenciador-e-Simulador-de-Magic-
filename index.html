@@ -6352,10 +6352,59 @@ function ajustaEntrada(entries, nome, zona, delta) {
   const k = norm(nome), z = ZONES.includes(zona) ? zona : 'main';
   const out = (entries || []).map(e => ({ ...e }));
   const i = out.findIndex(e => norm(e.name) === k && (e.zone || 'main') === z);
-  if (i < 0) { if (delta > 0) out.push({ name: nome, qty: delta, zone: z }); return out; }
+  // V1 · cópia nova de carta que já está na lista (em outra zona) entra na impressão escolhida para ela
+  if (i < 0) { if (delta > 0) { const irma = out.find(e => norm(e.name) === k && e.print); out.push({ name: nome, qty: delta, zone: z, ...(irma ? { print: irma.print } : {}) }); } return out; }
   out[i].qty += delta;
   if (out[i].qty <= 0) out.splice(i, 1);
   return out;
+}
+/* ---------------- V1 · impressão por carta ----------------
+   A entrada da lista pode levar `print`: a impressão escolhida (edição, número, imagens da frente e do verso e o
+   preço do dia da escolha). Vale para a carta em todas as zonas da lista. Sem `print`, vale a impressão padrão. */
+const IMPRESSOES_MAX = 60;
+const soImagens = im => im ? { small: im.small || null, normal: im.normal || null, large: im.large || null, png: im.png || null, art: im.art || null } : null;
+/** O que a lista guarda de uma impressão; `null` quando a carta não tem imagem (não há o que escolher). */
+function impressaoDe(card) {
+  if (!card || !card.id) return null;
+  const im = card.images || (card.faces && card.faces[0] && card.faces[0].images);
+  if (!im || !im.normal) return null;
+  return { id: card.id, set: card.set || '', set_name: card.set_name || '', collector_number: card.collector_number || '', rarity: card.rarity || '', uri: card.uri || '',
+    prices: { ...(card.prices || {}) }, images: soImagens(im), faces: (card.faces || []).map(f => ({ images: soImagens(f.images) })) };
+}
+/** Das cartas que a busca devolveu, as impressões que dá para escolher: com imagem, uma por id, no máximo `max`. */
+function opcoesDeImpressao(cartas, max = IMPRESSOES_MAX) {
+  const vistas = new Set(), out = [];
+  for (const c of cartas || []) {
+    const o = impressaoDe(c); if (!o || vistas.has(o.id)) continue;
+    vistas.add(o.id); out.push(o); if (out.length >= max) break;
+  }
+  return out;
+}
+const rotuloDaImpressao = o => [String((o && o.set) || '').toUpperCase(), o && o.collector_number ? '#' + o.collector_number : ''].filter(Boolean).join(' · ') || 'sem edição';
+/** Escolhe (ou, com `null`, desfaz) a impressão de uma carta em todas as zonas. Não muda as entradas recebidas. */
+function comImpressao(entries, nome, impressao) {
+  const k = norm(nome);
+  return (entries || []).map(e => { if (norm(e.name) !== k) return { ...e }; const { print, ...resto } = e; return impressao ? { ...resto, print: impressao } : resto; });
+}
+/** Lista regravada a partir do texto: cada carta que continua na lista mantém a impressão que tinha. */
+function herdaImpressoes(novas, antigas) {
+  const tinha = new Map();
+  for (const e of antigas || []) if (e && e.print && !tinha.has(norm(e.name))) tinha.set(norm(e.name), e.print);
+  return (novas || []).map(e => (!e.print && tinha.has(norm(e.name))) ? { ...e, print: tinha.get(norm(e.name)) } : { ...e });
+}
+/** A carta como ela aparece na impressão escolhida: imagens (frente e verso), edição, número, raridade e preço. */
+function cartaNaImpressao(card, impressao) {
+  if (!card || !impressao || !impressao.images) return card;
+  return { ...card, id: impressao.id || card.id, set: impressao.set || card.set, set_name: impressao.set_name || card.set_name, collector_number: impressao.collector_number || card.collector_number,
+    rarity: impressao.rarity || card.rarity, uri: impressao.uri || card.uri, prices: impressao.prices && Object.keys(impressao.prices).length ? impressao.prices : card.prices,
+    images: { ...(card.images || {}), ...Object.fromEntries(Object.entries(impressao.images).filter(([, v]) => v)) },
+    faces: (card.faces || []).map((f, i) => { const im = impressao.faces && impressao.faces[i] && impressao.faces[i].images; return im && im.normal ? { ...f, images: im } : f; }) };
+}
+/** As impressões escolhidas numa lista, uma por id (o guardião offline baixa as imagens delas). */
+function impressoesDaLista(deck) {
+  const vistas = new Map();
+  for (const e of (deck && deck.entries) || []) if (e && e.print && e.print.id && !vistas.has(e.print.id)) vistas.set(e.print.id, e.print);
+  return [...vistas.values()];
 }
 /** Sugestões de nome para o que foi digitado (2 letras ou mais): primeiro os que começam com o texto, depois os que
     têm uma palavra começando com ele, depois os que o contêm; em cada faixa, os mais curtos antes. Sem acento e
@@ -6390,7 +6439,7 @@ function coresDaLista(entries, cards) {
   return [...ORD].filter(x => cor.has(x)).join('');
 }
 
-return { coresQueGera, estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
+return { impressaoDe, opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, coresQueGera, estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
   parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
@@ -8063,7 +8112,7 @@ const __m15 = (function () {
    ===================================================================== */
 const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem } = __m3;
 const { norm } = __m7;
-const { estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
+const { opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
 const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
@@ -8749,7 +8798,8 @@ function createDeckEditor({ decks, collection }) {
       const { entries } = parseDeckText(state.text);
       if (!state.name.trim()) return toast('Dê um nome para a lista');
       if (!entries.length) return toast('Cole ao menos uma carta');
-      const saved = await decks.save({ ...(d || {}), name: state.name.trim(), format: state.format, entries });
+      // V1 · a carta que continua na lista mantém a impressão escolhida (o texto não a carrega)
+      const saved = await decks.save({ ...(d || {}), name: state.name.trim(), format: state.format, entries: herdaImpressoes(entries, d ? d.entries : []) });
       // C8: a lista chega já marcada como possuída
       const marked = state.ownAll && collection ? await collection.markOwned(entries) : 0;
       toast((d ? 'Lista atualizada' : 'Lista criada') + (state.ownAll ? ` · ${marked} carta(s) adicionadas à coleção` : ''));
@@ -8774,7 +8824,7 @@ function createDeckEditor({ decks, collection }) {
 }
 
 /* ---------------- /lista?id= ---------------- */
-function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null, names = null }) {
+function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null, names = null, scryfall = null }) {
   const id = q().get('id');
   const root = Stack(pad(), Row({}, Spinner(), Text('Abrindo lista…', { size: 'sm', tone: 'muted' })));
   const state = { deck: null, cards: new Map(), owned: {}, marking: false, degraded: false,
@@ -8798,7 +8848,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     state.cards = await cardRepo.byNames(state.deck.entries.map(e => e.name),
       (done, total) => { progress.textContent = `Buscando cartas… ${done} de ${total}`; });
     state.degraded = !!cardRepo.stats.degraded;
-    if (images && images.available) images.warm([...state.cards.values()].filter(Boolean).map(c => c.images && c.images.normal));
+    if (images && images.available) images.warm([...[...state.cards.values()].filter(Boolean).map(c => c.images && c.images.normal), ...impressoesDaLista(state.deck).map(p => p.images.normal)]);
     paint();
   }
 
@@ -8813,10 +8863,65 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     paint();
   }
 
+  /* ---- V1 · impressões: a versão da carta que aparece nesta lista ---- */
+  const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  const impressoesVistas = new Map(); // por nome, enquanto a tela está aberta
+  const urlsDaImpressao = p => [p.images.normal, p.images.small, ...(p.faces || []).flatMap(f => f.images ? [f.images.normal, f.images.small] : [])].filter(Boolean);
+  async function escolheImpressao(e, impressao) {
+    const antes = state.deck.entries;
+    state.deck.entries = comImpressao(antes, e.name, impressao); await persist();
+    if (impressao && images && images.available) { try { images.warm(urlsDaImpressao(impressao)); } catch (err) { /* imagem é conforto */ } }
+    closeDialog(); paint();
+    toast(impressao ? `${e.name}: ${rotuloDaImpressao(impressao)}` : `${e.name}: impressão padrão`, 4200,
+      { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { state.deck.entries = antes; await persist(); paint(); } } });
+  }
+  function abrirImpressoes(e) {
+    const c0 = entryCard(e), k = norm(e.name);
+    const st = { buscando: false, erro: false, run: 0 };
+    const body = Stack({ id: 'deck-prints' });
+    const semImg = () => h('span', { class: 'ficha-opcao__semimg' }, Icone('camadas', { tamanho: 28 }));
+    const telha = (o, { padrao = false } = {}) => {
+      const emUso = padrao ? !e.print : !!e.print && e.print.id === o.id;
+      const ims = padrao ? (c0 && (c0.images || (c0.faces && c0.faces[0] && c0.faces[0].images))) : o.images;
+      return h('button', { class: 'ficha-opcao', type: 'button', 'aria-pressed': String(emUso), ...(padrao ? { id: 'deck-print-padrao' } : { dataset: { impressao: o.id } }),
+        'aria-label': (padrao ? 'Impressão padrão' : `Impressão ${rotuloDaImpressao(o).replace(' · ', ' ')}${o.set_name ? ', ' + o.set_name : ''}`) + (emUso ? ', em uso' : ''),
+        onClick: () => { if (emUso) return closeDialog(); escolheImpressao(e, padrao ? null : o); } },
+        (ims && ImagemCarta(ims, { sizes: '(min-width: 400px) 120px, 104px', classe: 'ficha-opcao__img', onFalha: el => el.replaceWith(semImg()) })) || semImg(),
+        h('span', { class: 'ficha-opcao__rotulo' }, padrao ? 'Padrão' : rotuloDaImpressao(o)),
+        emUso ? h('span', { class: 'ficha-opcao__marca' }, Icone('marcar', { tamanho: 16 })) : null);
+    };
+    const pinta = () => {
+      const lista = impressoesVistas.get(k) || null;
+      // sem a busca feita (sem internet, ou falhou), ainda dá para ver a escolhida e voltar ao padrão
+      const opcoes = lista || (e.print ? [e.print] : []);
+      mount(body,
+        !temRede() ? AvisoRede(e.print ? 'Sem internet: dá para voltar à impressão padrão. Para ver as outras, conecte-se.' : 'Sem internet: as impressões aparecem quando houver conexão.', { id: 'deck-prints-sem-rede' }) : null,
+        st.erro ? (() => { const n = Note('<b>Não foi possível buscar as impressões.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'deck-prints-erro'; return n; })() : null,
+        st.buscando ? Row({ id: 'deck-prints-buscando' }, Spinner(), Text('Buscando impressões…', { size: 'sm', tone: 'muted' })) : null,
+        lista && !lista.length ? Empty('A Scryfall não tem outra impressão com imagem desta carta.', null, { icone: 'camadas', titulo: 'Só a padrão', id: 'deck-prints-vazio' }) : null,
+        lista && lista.length ? Text(lista.length >= IMPRESSOES_MAX ? `As ${IMPRESSOES_MAX} impressões mais recentes` : `${lista.length} ${lista.length === 1 ? 'impressão' : 'impressões'}, da mais recente à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-prints-conta' } }) : null,
+        opcoes.length || e.print ? h('div', { class: 'ds-cardgrid ficha-grade', id: 'deck-prints-opcoes' }, telha(null, { padrao: true }), ...opcoes.map(o => telha(o))) : null,
+        st.erro && temRede() ? Row({}, Button('Repetir busca', { icone: 'atualizar', id: 'deck-prints-de-novo', onClick: busca })) : null);
+    };
+    async function busca() {
+      if (!scryfall || !temRede()) return pinta();
+      const run = ++st.run; st.buscando = true; st.erro = false; pinta();
+      try {
+        const cartas = await scryfall.search(`!"${(c0 && c0.name) || e.name}"`, { unique: 'prints', order: 'released' });
+        if (run !== st.run) return;
+        impressoesVistas.set(k, opcoesDeImpressao(cartas));
+      } catch (err) { if (run !== st.run) return; st.erro = true; }
+      st.buscando = false; if (body.isConnected) pinta();
+    }
+    Dialog({ title: `Impressões · ${e.name}`, body, actions: [Button('Voltar', { icone: 'voltar', id: 'deck-prints-voltar', onClick: () => { st.run++; closeDialog(); openEntry(e); } }), Button('Fechar', { variant: 'primary', onClick: () => { st.run++; closeDialog(); } })] });
+    if (impressoesVistas.has(k)) pinta(); else busca();
+  }
+
   function openEntry(e) {
-    const c = entryCard(e);
+    const c = cartaNaImpressao(entryCard(e), e.print);
     const have = state.owned[norm(e.name)] || 0;
     const extra = [
+      c ? Button('Impressões', { icone: 'camadas', id: 'deck-viewer-prints', onClick: () => { closeDialog(); abrirImpressoes(e); } }) : null,
       Button(have >= e.qty ? 'Não tenho' : 'Tenho', { onClick: async () => { closeDialog(); await toggleOwned(e, true); } }),
       state.deck.format === 'commander' && e.zone !== 'commander'
         ? Button('Definir como comandante', { onClick: async () => { e.zone = 'commander'; e.qty = 1; closeDialog(); await persist(); paint(); } }) : null,
@@ -8839,7 +8944,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       e.zone !== 'companion' && c && isCompanionCard(c) ? Button('Definir como companheiro', { id: 'deck-set-companion', onClick: async () => {
         const prev = state.deck.entries.find(x => x.zone === 'companion');
         if (prev) prev.zone = 'main';
-        if (e.qty > 1) { e.qty -= 1; state.deck.entries.push({ name: e.name, qty: 1, zone: 'companion' }); } else e.zone = 'companion';
+        if (e.qty > 1) { e.qty -= 1; state.deck.entries.push({ ...e, qty: 1, zone: 'companion' }); } else e.zone = 'companion';
         closeDialog(); await persist(); paint();
         toast(prev ? `${e.name} é o companheiro; ${prev.name} voltou para o deck` : `${e.name} é o companheiro`);
       } }) : null,
@@ -9016,8 +9121,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
           const lacking = have < e.qty;
           const cov = coverage(c || { name: e.name }, undefined, e.name); // S58 · nome da lista vale para achar o script
-          const face = CardFace({ name: e.name, image: img(c), mana_cost: c && c.mana_cost, type_line: c && c.type_line }, { botao: true });
-          const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level, zona: zonaDe(e) } }, face,
+          const face = CardFace({ name: e.name, image: img(cartaNaImpressao(c, e.print)), mana_cost: c && c.mana_cost, type_line: c && c.type_line }, { botao: true });
+          const slot = h('div', { class: 'deck-slot', dataset: { missing: String(lacking), name: e.name, coverage: cov.level, zona: zonaDe(e), ...(e.print ? { impressao: e.print.id } : {}) } }, face,
             h('span', { class: 'deck-slot__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}`, role: 'img', 'aria-label': `Motor: ${COVERAGE_PT[cov.level]}` }, Icone(COVERAGE_ICONE[cov.level], { tamanho: 14 })),
             e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
             lacking ? h('span', { class: 'deck-slot__flag' }, have ? `falta ${e.qty - have}` : 'falta') : null);
@@ -20048,7 +20153,13 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
   const api = {
     /** Lista salva: dados de todas as cartas + imagens do jogo. U12: a pequena (campo da mesa) e a
         grande (mão e zoom). Antes só a grande: sem rede, o campo da mesa aparecia sem imagem. */
-    guardarLista(deck) { return guardar(nomesDaLista(deck), ['small', 'normal']); },
+    /** V1 · a impressão escolhida para uma carta da lista também fica guardada (frente e verso). */
+    async guardarLista(deck) {
+      const r = await guardar(nomesDaLista(deck), ['small', 'normal']);
+      const escolhidas = __m14.impressoesDaLista(deck);
+      if (escolhidas.length) r.imagens = (r.imagens || 0) + await aquecer(escolhidas, ['small', 'normal']);
+      return r;
+    },
     /** Coleção: dados de todas as cartas + miniatura (a lista da coleção mostra a miniatura).
         H11 · uma passada por vez: pedido durante a passada marca "de novo" e roda uma só no fim. */
     guardarColecao() {
@@ -20282,7 +20393,7 @@ const ROUTES = [
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup, etiquetas }) },
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo }) },
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
-  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names }) },
+  { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names, scryfall }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },

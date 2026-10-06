@@ -436,6 +436,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bi ✅ | I4 fichas do seu jeito: Perfil › Fichas lista as fichas que as cartas criam (ícone, cores), busca as artes na Scryfall, guarda opções e imagens e a mesa usa a escolhida; offline troca entre as já baixadas (leva 187) | I | 1 | teste no aparelho |
 | 16º-bj ✅ | I5 histórico e estatísticas de partidas: Perfil › Partidas com ladrilhos, medidor de resultados, últimas 20, barras por oponente e lista (que filtram), quem começou, colunas por semana e a lista; vai no backup (leva 188) | I | 1 | teste no aparelho |
 | 16º-bk ✅ | L8 estatísticas da lista: ladrilhos, barras por tipo, curva por tipo com as criaturas em destaque e, por cor, símbolos de custo contra fontes de mana (leva 190) | L | 1 | teste no aparelho |
+| 16º-bl ✅ | V1 impressões e arte por carta: a carta da lista abre as impressões da Scryfall e a escolhida vale no deck e na reserva, guardada na lista e offline (leva 192) | V | 1 | teste no aparelho; destrava C4 |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -3742,12 +3743,29 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 
 ### V · Visualização
 
-**V1 · Impressões e arte por carta** ○
+**V1 · Impressões e arte por carta** ✅ (leva 192, 06/10/2026)
 - **Valor:** escolher a versão que aparece na lista.
-- **Aceite:** o visualizador lista as impressões (`/cards/search?unique=prints`) e a escolha é salva na entrada da lista.
-- **Testes:** I.
+- **Entregue:** na tela da lista, tocar na carta e em **Impressões** abre a grade com as impressões da Scryfall
+  (`/cards/search?unique=prints`, da mais recente à mais antiga, só as que têm imagem), cada uma com edição e número.
+  Tocar escolhe: a carta passa a aparecer nessa versão **no deck e na reserva**, o visualizador mostra a imagem
+  (frente e verso), a edição, a raridade e o preço dela, e a escolha fica **salva na entrada da lista** (`print`),
+  vai no backup e tem **Desfazer**. "Padrão" volta à impressão de sempre.
+- **Mantém a escolha:** editar a lista pelo texto, somar cópia (L7), mover entre deck e reserva e definir companheiro.
+- **Estados:** buscando; erro com "Repetir busca"; carta sem outra impressão com imagem; **sem internet** a busca não
+  é tentada, a escolhida continua aparecendo (o guardião offline baixa a pequena e a grande, frente e verso) e dá
+  para voltar ao padrão.
+- **Limites declarados:** as impressões só são buscadas **com internet** e a lista delas vale enquanto a tela está
+  aberta (não fica guardada); teto de **60** impressões, as mais recentes; a escolha vale para a **tela da lista e o
+  visualizador** — a **mesa de jogo**, a linha da lista em "Listas", o valor da lista e o texto exportado seguem na
+  impressão padrão; o preço mostrado é o **do dia da escolha**; importar texto com "(SET) 123" ainda não escolhe a
+  impressão sozinho.
+- **Modelo (puro, `decks`):** `impressaoDe`, `opcoesDeImpressao`, `rotuloDaImpressao`, `comImpressao`,
+  `herdaImpressoes`, `cartaNaImpressao`, `impressoesDaLista`.
+- **Testes:** U `decks.unit` ×2, `offline.unit` ×1; e2e "V1" (busca por impressão, grade, escolha no deck e na
+  reserva, guardada, visualizador, voltar, Desfazer, editar sem perder, vazio, erro e nova tentativa, sem internet;
+  `auditaTela` em 360 px nos dois temas e com a fonte larga do CI).
 - **Depende de:** D5, L1.
-- **Fora:** —
+- **Fora:** arte escolhida na mesa de jogo e na exportação (candidatas a história própria, junto com a C4).
 
 **V2 · Rulings** ○
 - **Valor:** tirar dúvida de regra na hora.

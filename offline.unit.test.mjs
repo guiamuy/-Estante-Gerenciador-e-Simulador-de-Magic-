@@ -366,3 +366,11 @@ test('H7 · tamanho da imagem da mesa pela densidade da tela: o menor que cobre 
   assert.equal(fonteParaLargura({ normal: 'n' }, 60, 1), 'n'); assert.equal(fonteParaLargura({ png: 'p' }, 60, 1), 'p');
   assert.equal(fonteParaLargura(null, 92, 3), null);
 });
+
+test('V1 · a impressão escolhida numa carta da lista também é baixada (pequena e grande, frente e verso)', async () => {
+  const m = await mundo();
+  const print = { id: 'p2', set: 'mid', images: { small: 'https://img/p2/s.jpg', normal: 'https://img/p2/n.jpg' }, faces: [{ images: { small: null, normal: 'https://img/p2/f.jpg' } }, { images: { small: null, normal: 'https://img/p2/v.jpg' } }] };
+  await m.keeper.guardarLista({ entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main', print }, { name: 'Delver of Secrets', qty: 2, zone: 'side', print }, { name: 'Island', qty: 16, zone: 'main' }] });
+  for (const u of ['https://img/p2/s.jpg', 'https://img/p2/n.jpg', 'https://img/p2/v.jpg', 'https://img/Delver of Secrets/n.jpg']) assert.ok(m.images.aquecidas.includes(u), 'aquecida: ' + u);
+  assert.equal(m.images.aquecidas.filter(u => u === 'https://img/p2/n.jpg').length, 1, 'uma vez por impressão');
+});

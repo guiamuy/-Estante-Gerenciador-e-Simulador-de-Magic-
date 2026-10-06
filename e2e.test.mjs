@@ -2770,7 +2770,9 @@ test('e2e · E50 X no topo de todo diálogo (fixo ao rolar, fecha, foco não vai
   const cx = await x.boundingBox(); assert.ok(cx.height >= 44 && cx.width >= 44, 'alvo de 44px');
   const topo = await page.locator('.ds-dialog').boundingBox();
   assert.ok(cx.y < topo.y + 70, 'X no topo do diálogo');
-  assert.equal(await page.evaluate(() => document.activeElement.id), '', 'o foco inicial não vai para o X');
+  // V1 (leva 192) · expectativa ajustada: a primeira ação da folha passou a ser "Impressões", que tem id; o que o teste
+  // garante continua igual — o foco inicial cai numa ação do diálogo, nunca no X
+  assert.ok(await page.evaluate(() => { const a = document.activeElement; return !!a && a.id !== 'ds-dialog-close' && !!a.closest('.ds-dialog'); }), 'o foco inicial não vai para o X');
   assert.notEqual(await page.evaluate(() => document.activeElement.id), 'ds-dialog-close');
   // rola o diálogo: o X continua visível, na mesma posição da tela
   await page.$eval('.ds-dialog', el => { el.scrollTop = 400; el.dispatchEvent(new Event('scroll')); });
@@ -3443,7 +3445,7 @@ const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false, qps = 10) => `
     return { setParameters: async p => { bloco = String(p && p.tessedit_pageseg_mode) === '6'; }, terminate: async () => { window.__ocrEncerrados = (window.__ocrEncerrados || 0) + 1; },
       recognize: async alvo => {
         const imgs = bloco ? window.__ocrImgsColecao : window.__ocrImgs, f = bloco ? window.__ocrColecao : window.__ocrQueue;
-        try { if (imgs.length < 12) imgs.push(alvo.toDataURL('image/png')); } catch (e) {}
+        try { if (imgs.length < 18) imgs.push(alvo.toDataURL('image/png')); } catch (e) {}
         if (bloco && window.__colecaoLenta) await new Promise(r => setTimeout(r, window.__colecaoLenta));
         if (!bloco) window.__leiturasDeNome = (window.__leiturasDeNome || 0) + 1;
         return { data: { text: f.length ? f.shift() : '' } };
@@ -3592,7 +3594,10 @@ test('e2e · X11 carta de cabeça para baixo: depois de três leituras sem nome,
   await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
   // o leitor falso nunca devolve nome: cada passada lê pelo contorno e, sem nome, pela moldura (duas imagens)
   await page.evaluate(() => { window.__ocrImgs.length = 0; });
-  await page.waitForFunction(() => window.__ocrImgs.length >= 12, null, { timeout: 20000 });
+  // leva 192 · a janela era de 12 imagens (6 passadas). O leitor alterna três passadas em pé e três viradas, e a janela
+  // começa em qualquer ponto desse ciclo: começando na segunda virada saía "S-S-------S-", sem três viradas seguidas,
+  // e o teste caía com o app certo. Com 18 imagens (9 passadas) sempre há um trecho de três viradas inteiro.
+  await page.waitForFunction(() => window.__ocrImgs.length >= 18, null, { timeout: 30000 });
   await page.click('[data-auto]');
   const diario = await page.evaluate(() => window.__scanDiario.lista());
   assert.ok(diario.some(x => x.via === 'carta' || x.via === 'moldura'), 'houve leituras: ' + JSON.stringify(diario.slice(0, 3)));
@@ -7486,5 +7491,95 @@ test('e2e · L8 estatísticas da lista: bloco que abre e lembra, ladrilhos, barr
   // lembra aberto ao voltar
   await page.reload(); await page.waitForSelector('#deck-stats-toggle');
   assert.equal(await page.getAttribute('#deck-stats-toggle', 'aria-expanded'), 'true', 'aberto ou fechado fica lembrado');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- V1 · impressões e arte por carta ---------------- */
+test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  // a Scryfall falsa tem quatro impressões do Delver: três com imagem e uma sem
+  const imp = (id, set, n, comImagem = true) => ({ object: 'card', id, name: 'Delver of Secrets', type_line: 'Creature — Human Wizard', oracle_text: '', colors: ['U'], color_identity: ['U'], cmc: 1, mana_cost: '{U}', power: '1', toughness: '1', rarity: 'common',
+    set, set_name: 'Edição ' + set.toUpperCase(), collector_number: n, legalities: { pauper: 'legal' }, prices: { usd: '0.50' },
+    ...(comImagem ? { image_uris: Object.fromEntries(['small', 'normal', 'large'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`])) } : {}) });
+  const buscas = []; let falha = false;
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const u = new URL(r.request().url()); const q = u.searchParams.get('q') || '';
+    if (q === '!"Delver of Secrets"') { buscas.push(u.searchParams.get('unique') + '/' + u.searchParams.get('order')); return r.fulfill({ json: { object: 'list', has_more: false, data: [imp('delver-mid', 'mid', '47'), imp('delver-sem', 'plst', '9', false), imp('delver-isd', 'isd', '51'), imp('delver-mid', 'mid', '47')] } }); }
+    if (q === '!"Island"') { if (falha) return r.abort('failed'); return r.fulfill({ json: { object: 'list', has_more: false, data: [] } }); }
+    return r.fallback(); });
+  await createDeck(page, base, 'Delver', '4 Delver of Secrets\n16 Island\n\nSideboard\n2 Delver of Secrets');
+  const slot = (nome, zona) => `.deck-slot[data-name="${nome}"][data-zona="${zona}"]`;
+  const abre = async (nome, zona = 'main') => { await page.click(slot(nome, zona) + ' .ds-card'); await page.waitForSelector('#deck-viewer-prints'); await page.click('#deck-viewer-prints'); await page.waitForSelector('#deck-prints'); };
+  // 1 · da carta para as impressões: busca sozinha, por impressão e da mais recente; sem imagem e repetida ficam fora
+  await abre('Delver of Secrets'); await page.waitForSelector('#deck-prints-opcoes', { timeout: 15000 });
+  assert.deepEqual(buscas, ['prints/released']);
+  assert.match(await page.innerText('.ds-dialog'), /Impressões · Delver of Secrets/);
+  assert.deepEqual(await page.$$eval('#deck-prints-opcoes .ficha-opcao', os => os.map(o => o.dataset.impressao || 'padrao')), ['padrao', 'delver-mid', 'delver-isd']);
+  assert.deepEqual(await page.$$eval('#deck-prints-opcoes .ficha-opcao__rotulo', rs => rs.map(r => r.textContent)), ['Padrão', 'MID · #47', 'ISD · #51']);
+  assert.equal(await page.getAttribute('#deck-print-padrao', 'aria-pressed'), 'true');
+  assert.equal(await page.getAttribute('.ficha-opcao[data-impressao="delver-isd"]', 'aria-label'), 'Impressão ISD #51, Edição ISD');
+  assert.match(await page.innerText('#deck-prints-conta'), /2 impressões, da mais recente à mais antiga/);
+  assert.ok((await page.$$eval('#deck-prints-opcoes .ficha-opcao', os => os.map(o => Math.round(o.getBoundingClientRect().height)))).every(h => h >= 44));
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário');
+  assert.doesNotMatch(await page.innerText('.ds-dialog'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await page.waitForFunction(() => [...document.querySelectorAll('#deck-prints-opcoes .ficha-opcao__img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 10000 });
+  await auditaTela(page, 'lista · impressões');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v1-impressoes.png' });
+  // 2 · escolher: fecha, avisa, e a carta muda no deck E na reserva
+  await page.click('.ficha-opcao[data-impressao="delver-isd"]');
+  await page.waitForFunction(() => document.querySelectorAll('.deck-slot[data-impressao="delver-isd"]').length === 2);
+  assert.match(await page.innerText('#ds-toast'), /Delver of Secrets: ISD · #51/);
+  assert.equal(await page.locator('#deck-prints').count() ? await page.locator('#deck-prints').isVisible() : false, false, 'o diálogo fecha');
+  assert.match(await page.getAttribute(slot('Delver of Secrets', 'main') + ' img', 'src'), /normal\/front\/x\/delver-isd\.png$/);
+  assert.match(await page.getAttribute(slot('Delver of Secrets', 'side') + ' img', 'src'), /delver-isd\.png$/);
+  assert.equal(await page.getAttribute(slot('Island', 'main'), 'data-impressao'), null, 'as outras cartas não mudam');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v1-lista.png' });
+  // 3 · fica guardada; o visualizador mostra a edição e a imagem da escolhida; a busca não se repete na mesma visita
+  await page.reload(); await page.waitForSelector('.deck-slot[data-impressao="delver-isd"]');
+  await page.click(slot('Delver of Secrets', 'main') + ' .ds-card'); await page.waitForSelector('#card-viewer');
+  assert.match(await page.innerText('#card-viewer'), /Edição ISD/);
+  assert.match(await page.getAttribute('#card-viewer .ds-visor__img', 'src'), /delver-isd\.png$/);
+  await page.click('#deck-viewer-prints'); await page.waitForSelector('#deck-prints-opcoes');
+  assert.equal(await page.getAttribute('.ficha-opcao[data-impressao="delver-isd"]', 'aria-pressed'), 'true'); assert.equal(await page.getAttribute('#deck-print-padrao', 'aria-pressed'), 'false');
+  // voltar leva de volta à carta
+  await page.click('#deck-prints-voltar'); await page.waitForSelector('#card-viewer'); await page.click('#deck-viewer-prints'); await page.waitForSelector('#deck-prints-opcoes');
+  assert.equal(buscas.length, 2, 'uma busca por visita à tela: ' + buscas.length);
+  // 4 · padrão com Desfazer
+  await page.click('#deck-print-padrao'); await page.waitForFunction(() => !document.querySelector('.deck-slot[data-impressao]'));
+  assert.match(await page.innerText('#ds-toast'), /Delver of Secrets: impressão padrão/);
+  assert.match(await page.getAttribute(slot('Delver of Secrets', 'main') + ' img', 'src'), /front\/x\/delver\.png$/);
+  await page.click('#ds-toast >> text=Desfazer'); await page.waitForFunction(() => document.querySelectorAll('.deck-slot[data-impressao="delver-isd"]').length === 2);
+  // 5 · editar a lista pelo texto não perde a escolha
+  await page.click('#deck-edit'); await page.waitForSelector('#deck-text');
+  assert.doesNotMatch(await page.inputValue('#deck-text'), /ISD|#51/, 'o texto não leva a edição');
+  await page.fill('#deck-text', '3 Delver of Secrets\n17 Island\n4 Preordain'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
+  await page.waitForSelector(slot('Preordain', 'main'));
+  assert.equal(await page.locator('.deck-slot[data-impressao="delver-isd"]').count(), 1); assert.equal(await page.getAttribute(slot('Preordain', 'main'), 'data-impressao'), null);
+  // 6 · carta sem outra impressão: vazio desenhado; falha de rede: erro com nova tentativa
+  await abre('Island'); await page.waitForSelector('#deck-prints-vazio', { timeout: 15000 }); assert.equal(await page.locator('#deck-prints-opcoes').count(), 0);
+  await page.keyboard.press('Escape'); await page.reload(); await page.waitForSelector(slot('Island', 'main'));
+  falha = true; await abre('Island'); await page.waitForSelector('#deck-prints-erro', { timeout: 15000 });
+  assert.equal(await page.locator('#deck-prints-buscando').count(), 0);
+  const outro = await page.evaluate(() => { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', t); return t; }); await auditaTela(page, 'lista · impressões com erro (' + outro + ')');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v1-erro.png' });
+  falha = false; await page.click('#deck-prints-de-novo'); await page.waitForSelector('#deck-prints-vazio', { timeout: 15000 }); assert.equal(await page.locator('#deck-prints-erro').count(), 0);
+  await page.keyboard.press('Escape');
+  // 7 · sem internet: nada é buscado; a escolhida aparece e dá para voltar ao padrão; carta sem escolha só avisa
+  await page.reload(); await page.waitForSelector('.deck-slot[data-impressao="delver-isd"]');
+  await page.context().setOffline(true); const antes = buscas.length;
+  await abre('Island'); await page.waitForSelector('#deck-prints-sem-rede');
+  assert.match(await page.innerText('#deck-prints-sem-rede'), /aparecem quando houver conexão/); assert.equal(await page.locator('#deck-prints-opcoes, #deck-prints-buscando').count(), 0);
+  await page.keyboard.press('Escape');
+  await abre('Delver of Secrets'); await page.waitForSelector('#deck-prints-sem-rede');
+  assert.match(await page.innerText('#deck-prints-sem-rede'), /voltar à impressão padrão/);
+  assert.deepEqual(await page.$$eval('#deck-prints-opcoes .ficha-opcao', os => os.map(o => o.dataset.impressao || 'padrao')), ['padrao', 'delver-isd']);
+  await auditaTela(page, 'lista · impressões sem internet');
+  await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'lista · impressões (fonte larga)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v1-sem-rede.png' });
+  await page.click('#deck-print-padrao'); await page.waitForFunction(() => !document.querySelector('.deck-slot[data-impressao]'));
+  assert.equal(buscas.length, antes, 'sem internet nada é pedido');
+  await page.context().setOffline(false);
   assert.deepEqual(errors, []);
 });
