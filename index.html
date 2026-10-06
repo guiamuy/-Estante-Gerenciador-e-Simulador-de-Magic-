@@ -2387,9 +2387,9 @@ const mount = (el, ...kids) => {
    que abre, um aviso que entra, a letra que cresce), a rolagem compensa e o controle continua no mesmo lugar da janela.
    A âncora vale até o próximo gesto (o resultado de um toque pode chegar depois, quando a rede responde) e solta
    quando: a tela troca; o app leva o olhar de propósito (`levaAte`); a pessoa rola ou toca de novo; ou o controle
-   tocado sai da tela. Na partida não vale (a mesa tem as próprias regras — J2). */
-function deveAncorar({ tela = '', rotaAntes = '', rotaDepois = '', levou = false, rolouNaMao = false, delta = 0, tolerancia = 1 } = {}) {
-  if (tela === 'partida') return false;
+   tocado sai da tela. J2 · vale também na partida: a mesa só anda para mostrar o que está fora da vista
+   (`levaSeEscondido`). */
+function deveAncorar({ rotaAntes = '', rotaDepois = '', levou = false, rolouNaMao = false, delta = 0, tolerancia = 1 } = {}) {
   if (rotaAntes !== rotaDepois || levou || rolouNaMao) return false;
   return Math.abs(delta) > tolerancia;
 }
@@ -2404,7 +2404,7 @@ function instalaAncora(outlet) {
     if (!ancora) return;
     const el = acha(); if (!el || !el.getClientRects().length) return;
     const delta = el.getBoundingClientRect().top - ancora.topo;
-    if (!deveAncorar({ tela: document.body.dataset.tela, rotaAntes: ancora.rota, rotaDepois: location.hash, levou: ancora.levou, rolouNaMao: ancora.rolou, delta })) return;
+    if (!deveAncorar({ rotaAntes: ancora.rota, rotaDepois: location.hash, levou: ancora.levou, rolouNaMao: ancora.rolou, delta })) return;
     window.scrollTo(0, window.scrollY + delta);
     // a página encolheu e não há mais rolagem para compensar (o controle estava perto do fim): a tela guarda a altura
     // que falta até a próxima troca de tela, em vez de puxar o controle para baixo
@@ -2414,7 +2414,7 @@ function instalaAncora(outlet) {
   const prende = e => {
     soltaAncora();
     const el = e.target && e.target.closest ? e.target.closest(CONTROLE_ANCORA) : null;
-    if (!el || !outlet.contains(el) || document.body.dataset.tela === 'partida') return;
+    if (!el || !outlet.contains(el)) return;
     const obs = new MutationObserver(ajusta);
     ancora = { el, chave: chaveDoControle(el), topo: el.getBoundingClientRect().top, rota: location.hash, levou: false, rolou: false, obs, desde: Date.now() };
     obs.observe(outlet, { childList: true, subtree: true, attributes: true, characterData: true });
@@ -2435,7 +2435,24 @@ function instalaAncora(outlet) {
 function levaAte(el, { block = 'center' } = {}) {
   if (ancora) ancora.levou = true;
   const parado = typeof document !== 'undefined' && (document.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
-  if (el && el.scrollIntoView) el.scrollIntoView({ block, behavior: parado ? 'auto' : 'smooth' });
+  if (el && el.scrollIntoView) el.scrollIntoView({ block, inline: 'nearest', behavior: parado ? 'auto' : 'smooth' });
+}
+/* J2 · a mesa (e qualquer tela com bandeja) só se move para mostrar o que não está à vista. À vista = inteiro dentro da
+   janela, acima da bandeja fixa e, se estiver numa fileira que rola de lado, dentro da fileira. */
+function oQueEsconde(caixa, { alturaDaJanela, topoDaDoca = null, fileira = null, naDoca = false } = {}) {
+  const base = !naDoca && topoDaDoca != null ? Math.min(alturaDaJanela, topoDaDoca) : alturaDaJanela;
+  const vertical = caixa.top < -1 || caixa.bottom > base + 1;
+  const lateral = !!fileira && (caixa.left < fileira.left - 1 || caixa.right > fileira.right + 1);
+  return { vertical, lateral, escondido: vertical || lateral };
+}
+function levaSeEscondido(el) {
+  if (!el || !el.getBoundingClientRect || typeof window === 'undefined') return false;
+  const r = el.getBoundingClientRect(); if (!r.width && !r.height) return false;
+  const doca = document.querySelector('.tb-dock'), fila = el.closest('.tb-row');
+  const e = oQueEsconde(r, { alturaDaJanela: window.innerHeight, topoDaDoca: doca ? doca.getBoundingClientRect().top : null, fileira: fila ? fila.getBoundingClientRect() : null, naDoca: !!(doca && doca.contains(el)) });
+  if (!e.escondido) return false;
+  levaAte(el, { block: e.vertical ? 'center' : 'nearest' }); // só de lado: a rolagem da página não mexe
+  return true;
 }
 
 /* ---------------- primitivas ---------------- */
@@ -2926,7 +2943,7 @@ function closeDialog() {
   overlayEl.dataset.open = 'false'; clear(overlayEl);
   // leva 123 · o foco volta para quem abriu, se ainda estiver na tela
   const de = abriuDe; abriuDe = null;
-  if (de && de.isConnected && typeof de.focus === 'function') { try { de.focus(); } catch (e) { /* elemento sem foco */ } }
+  if (de && de.isConnected && typeof de.focus === 'function') { try { de.focus({ preventScroll: true }); } catch (e) { /* elemento sem foco */ } } // J2 · devolver o foco não move a tela
 }
 
 let toastEl = null, toastTimer = null;
@@ -2953,7 +2970,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -17027,9 +17044,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   store.get(VER_KEY).then(x => { if (x === false) verJogadas = false; }).catch(() => {});
   const visaoDaCena = (real, eu) => Object.create(real, { state: { get: () => (cena ? cena.estado : real.state) }, viewer: { value: () => eu }, canUndo: { value: () => false }, desfaziveis: { value: () => 0 } });
   function focaNaCena(q) {
-    const suave = menosMovimento() ? 'auto' : 'smooth';
     const alvo = root.querySelector('.tb-board .tb-fx') || (q.oid != null && root.querySelector(`.tb-board .tb-card[data-oid="${q.oid}"]`)) || root.querySelector(q.quem === cena.eu ? '#tb-life-me' : '#tb-life-opp');
-    if (alvo && alvo.scrollIntoView) alvo.scrollIntoView({ block: 'center', inline: 'nearest', behavior: suave });
+    __m3.levaSeEscondido(alvo); // J2 · só leva a tela se a jogada acontece fora da vista
   }
   function pintaLegenda(q) {
     const s = cena.estado, nome = q.quem === cena.eu ? 'Você' : s.players[q.quem].name, n = cena.quadros.length;
@@ -17066,7 +17082,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!root.isConnected) return;
     if (estadoOuvido !== table.state) semSentidos = true; // pulou: o fim é desenhado de uma vez, sem tocar todos os sons juntos
     paint();
-    const meu = root.querySelector('#tb-life-me'); if (meu && meu.scrollIntoView) meu.scrollIntoView({ block: 'nearest', behavior: menosMovimento() ? 'auto' : 'smooth' });
+    __m3.levaSeEscondido(root.querySelector('#tb-life-me')); // J2 · volta ao meu lado só se ele ficou fora da vista
   }
   const cenaLog = [];
   /** Depois de qualquer jogada: se o oponente jogou por causa dela, mostra passo a passo; senão desenha direto. */
@@ -18167,9 +18183,25 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     return doca;
   }
 
+  /* ---- J2 · ficar onde está na mesa: redesenhar não devolve as fileiras ao começo, e a mesa só anda para mostrar o que
+     entrou fora da vista (a permanente que acabei de pôr em campo, o motivo de uma recusa) ---- */
+  const chaveDaFileira = r => { const z = r.closest('.tb-zone'), dono = r.closest('[id]'); return (r.closest('.tb-side--me') ? 'eu' : r.closest('.tb-side') ? 'outro' : '') + '|' + (z ? z.dataset.zone || '' : '') + '|' + (z ? '' : dono ? dono.id : ''); };
+  const guardaFileiras = () => new Map([...root.querySelectorAll('.tb-row')].filter(r => r.scrollLeft > 0).map(r => [chaveDaFileira(r), r.scrollLeft]));
+  const devolveFileiras = m => { if (!m.size) return; for (const r of root.querySelectorAll('.tb-row')) { const x = m.get(chaveDaFileira(r)); if (x != null) r.scrollLeft = x; } };
+  let emCampoAntes = null, recusaMostrada = null;
+  function mostraNovidade(s, v) {
+    const meus = new Set(s.zones[v].battlefield);
+    const novas = emCampoAntes && emCampoAntes.v === v ? [...meus].filter(o => !emCampoAntes.oids.has(o)) : [];
+    emCampoAntes = { v, oids: meus };
+    if (cena) return; // a cena do oponente tem o próprio foco
+    if (recusa && recusa !== recusaMostrada) { recusaMostrada = recusa; if (__m3.levaSeEscondido(root.querySelector('#tb-recusa'))) return; }
+    if (!recusa) recusaMostrada = null;
+    if (novas.length) __m3.levaSeEscondido(root.querySelector(`.tb-side--me .tb-card[data-oid="${novas[novas.length - 1]}"]`));
+  }
   function paint() {
     const s = table.state;
     const v = table.viewer();
+    const fileiras = guardaFileiras();
     if (s.status === 'over') fechaJogoDaSerie(s); // antes de desenhar o placar
     const sentidos = ouve(s, v); // G4
     const cena = sentidos.length ? preparaEfeitos(sentidos, v) : null; // G5 · antes de redesenhar
@@ -18216,6 +18248,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         h('div', { class: 'tb-center' }, painelPilha, onlineBox(), recusaBox(), resumoBox(), adj),
         side(s, v, true)),
       dock(s, v));
+    devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     if (sinc) pintaChat(); // leva 137 · selo de mensagens novas
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar

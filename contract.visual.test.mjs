@@ -280,7 +280,7 @@ test('D12 · todo componente visual exportado pelo DS aparece no catálogo /ds, 
   const nomes = exportacao[0].replace(/^return \{|\};$/g, '').split(',').map(x => x.trim()).filter(Boolean);
   // o que não é visual (utilitários, símbolos de mana parseados, fechamento) fica fora da exigência
   const NAO_VISUAL = new Set(['h', 'clear', 'mount', 'closeDialog', 'fechaToast', 'reservaDoca', 'analisaSimbolos', 'SIMBOLO_RX', 'nomeDoSimbolo', 'simbolizar', 'srcsetDaCarta', 'ICONES', 'ImagemCarta',
-    'deveAncorar', 'instalaAncora', 'levaAte']); // J1 · comportamento de rolagem, sem desenho próprio
+    'deveAncorar', 'instalaAncora', 'levaAte', 'levaSeEscondido', 'oQueEsconde']); // J1 · comportamento de rolagem, sem desenho próprio
   const i = html.indexOf('const Section = (title, ...kids)'); const j = html.indexOf('\n}\n', html.indexOf('function renderDS()')); const catalogo = html.slice(i, j); // o módulo do catálogo inteiro (Section usa Surface)
   const faltam = nomes.filter(n => !NAO_VISUAL.has(n)).filter(n => !new RegExp(`\\b${n}\\(`).test(catalogo) && !catalogo.includes(`${n}(`));
   assert.deepEqual(faltam, [], 'componentes do DS fora do catálogo');

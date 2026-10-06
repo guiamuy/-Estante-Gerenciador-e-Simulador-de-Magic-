@@ -442,7 +442,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bk ✅ | L8 estatísticas da lista: ladrilhos, barras por tipo, curva por tipo com as criaturas em destaque e, por cor, símbolos de custo contra fontes de mana (leva 190) | L | 1 | teste no aparelho |
 | 16º-bl ✅ | V1 impressões e arte por carta: a carta da lista abre as impressões da Scryfall e a escolhida vale no deck e na reserva, guardada na lista e offline (leva 192) | V | 1 | teste no aparelho; destrava C4 |
 | 16º-bm ✅ | J1 ficar onde está (app): tocar num controle não move a tela — `mount` devolve a rolagem e a âncora do toque segura o controle; guarda-corpo `semSalto` e contrato dos pontos que rolam (leva 195) | J | 1 | teste no aparelho |
-| 16º-bn ○ | J2 ficar onde está (mesa de jogo) | J | 1 | — |
+| 16º-bn ✅ | J2 ficar onde está (mesa): fileiras e página não voltam ao começo ao agir; a mesa só anda para mostrar o que está fora da vista (`levaSeEscondido`) (leva 197) | J | 1 | teste no aparelho |
 | 16º-bo ○ | J3 leque das cópias viradas | J | 1 | — |
 | 16º-bp ○ | J4 carregamento com identidade (`Carregando` e esqueletos) | J | 1 | — |
 | 16º-bq ○ | J5 abertura que termina no logo | J | 1 | — |
@@ -5450,13 +5450,29 @@ pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento n
 - **Depende de:** — · **Fora:** a mesa de jogo (J2); Fichas e Partidas não têm controle de estado na varredura
   (as linhas navegam) e ficam cobertas pela regra central.
 
-**J2 · Ficar onde está (mesa)** ○
+**J2 · Ficar onde está (mesa)** ✅ (leva 197, 06/10/2026)
 - **Valor:** na partida, agir numa carta ou na bandeja sem o campo correr.
-- **Aceite:** conjurar, virar, passar, declarar atacante ou bloqueador, abrir e fechar balões, Registro e resumo não
-  mudam a rolagem do campo nem das fileiras. Exceções declaradas e mantidas: "acompanhar o oponente" (H5) e a
-  decisão que nasce fora da vista (alvo, bloqueio pedido) continuam levando o olhar até lá.
-- **Testes:** e2e `semSalto` nas ações da mesa (rolagem vertical do campo e horizontal das fileiras).
-- **Depende de:** J1. · **Estimativa:** 1 leva.
+- **Regra (ajuste do usuário, 06/10/2026):** a mesa **pode** se mover, mas só para mostrar algo que não está à vista e
+  que ajuda a jogar; se já está visível, fica parada.
+- **Medido antes (360×780, mesa com 6 permanentes diferentes e 6 cartas na mão):** qualquer ação que redesenha a mesa
+  (virar um terreno, passar) devolvia a fileira de permanentes e a mão ao começo (202 → 4 px e 264 → 4 px); fechar um
+  diálogo levava a tela até o botão que o abriu; a cena do oponente centralizava a jogada mesmo já estando na tela.
+- **Entregue:**
+  - redesenhar a mesa **mantém a rolagem lateral** de cada fileira (permanentes, terrenos, mão) e a rolagem da página;
+  - a âncora do toque (J1) vale também na partida: o que aparece acima (a pilha, um aviso) não empurra a carta tocada;
+  - fechar um diálogo devolve o foco **sem** mover a tela (vale no app inteiro);
+  - **a mesa só anda para mostrar o que está escondido** (`levaSeEscondido`): a jogada do oponente na cena (H5), o meu
+    lado ao fim da cena, a permanente que acabei de pôr em campo e o motivo de uma recusa. "À vista" = inteiro na
+    janela, **acima da bandeja** e dentro da fileira; escondido só de lado, só a fileira rola.
+- **Limites declarados:** quando a página encolhe e não sobra rolagem (ex.: a pilha some), o campo sobe o que faltar —
+  a bandeja, onde está o dedo, não se move; cópia nova que entra num leque já visível não é procurada (o leque
+  mostra o ×N); a mão não rola sozinha até a carta comprada.
+- **Modelo (puro, DS):** `oQueEsconde(caixa, { alturaDaJanela, topoDaDoca, fileira, naDoca })`.
+- **Testes:** U `ds.unit` (à vista ou escondido: janela, bandeja, fileira; âncora na partida — expectativa da J1
+  ajustada de propósito); contrato dos pontos que rolam (a mesa não chama mais `scrollIntoView` direto); e2e "J2"
+  (virar terreno, folhas de permanente e de carta da mão, Registro, passar: página e fileiras no mesmo lugar, 2 px;
+  permanente nova fora da vista é mostrada; com tudo à vista nada se move; `auditaTela`).
+- **Depende de:** J1.
 
 **J3 · Leque das viradas** ○
 - **Valor:** quatro terrenos virados ocupam o lugar de um leque, não de quatro cartas.

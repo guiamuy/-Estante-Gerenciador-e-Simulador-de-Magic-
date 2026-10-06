@@ -7675,3 +7675,57 @@ test('e2e · J1 ficar onde está: tocar num chip, chave, aba, bloco ou seletor n
   assert.equal(await page.evaluate(() => Math.round(scrollY)), 0);
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- J2 · ficar onde está na mesa ---------------- */
+const LISTA_J2 = '7 Island\n7 Mountain\n7 Forest\n7 Plains\n4 Sky Pike\n4 Wall Guard\n4 Grizzly Bear\n4 Thraben Inspector\n4 Voldaren Epicure\n4 Jaspera Sentinel\n4 Elvish Visionary\n4 Prodigal Sorcerer';
+// conjura a primeira carta que ainda não tenho em campo (uma fileira de permanentes diferentes, sem leque) e resolve
+const conjuraNovaJ2 = async M => {
+  const c = await M.page.evaluate(() => { const E = window.__estanteMesa, s = E.estado(); const a = E.legais().find(a => a.t === 'cast' && a.p === 0 && !s.zones[0].battlefield.some(o => s.objects[o].name === s.objects[a.oid].name)); if (!a) return null; try { E.act(a); return s.objects[a.oid].name; } catch (e) { return null; } });
+  if (!c) return null;
+  await M.page.waitForTimeout(80); await M.resolve();
+  for (let j = 0; j < 4 && await M.page.locator('#tb-adj-done, .ds-overlay[data-open="true"] #ds-dialog-close').count(); j++) { await M.page.locator('#tb-adj-done, #ds-dialog-close').first().click().catch(() => {}); await M.page.waitForTimeout(80); }
+  return c;
+};
+test('e2e · J2 ficar onde está na mesa: agir não devolve as fileiras ao começo nem move o campo; a mesa só anda para mostrar o que entrou fora da vista', { skip }, async t => {
+  const M = await comLista125(t, LISTA_J2, [], '11'); const { page } = M;
+  for (let turno = 0; turno < 9; turno++) {
+    for (const n of ['Island', 'Mountain', 'Forest', 'Plains']) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) break; }
+    for (let k = 0; k < 4 && await conjuraNovaJ2(M); k++);
+    await M.proximo();
+  }
+  const PERM = '.tb-side--me [data-zone="permanents"] .tb-row', MAO = '#tb-hand-body .tb-row';
+  const larguras = await page.evaluate(([a, b]) => [a, b].map(q => { const r = document.querySelector(q); return r ? r.scrollWidth - r.clientWidth : -1; }), [PERM, MAO]);
+  assert.ok(larguras[0] > 60 && larguras[1] > 60, 'as duas fileiras rolam de lado: ' + larguras);
+  const mede = () => page.evaluate(([a, b]) => ({ sy: Math.round(scrollY), perm: Math.round(document.querySelector(a).scrollLeft), mao: Math.round(document.querySelector(b).scrollLeft) }), [PERM, MAO]);
+  // tudo rolado: a página no fim, as fileiras no fim
+  const prepara = async () => { await page.evaluate(() => { window.dispatchEvent(new Event('wheel')); window.scrollTo(0, 99999); for (const r of document.querySelectorAll('.tb-row')) r.scrollLeft = 99999; }); await page.waitForTimeout(200); return mede(); };
+  const igual = (a, b, oque) => assert.ok(Math.abs(a.sy - b.sy) <= 2 && Math.abs(a.perm - b.perm) <= 2 && Math.abs(a.mao - b.mao) <= 2, `${oque}: ${JSON.stringify(a)} → ${JSON.stringify(b)}`);
+  // 1 · virar um terreno para mana redesenha a mesa: nada volta ao começo
+  let a = await prepara(); assert.ok(a.perm > 60 && a.mao > 60, JSON.stringify(a));
+  assert.ok(await page.evaluate(() => { const E = window.__estanteMesa; const x = E.legais().find(x => x.p === 0 && x.t === 'tap_mana'); if (x) E.act(x); return !!x; }), 'havia terreno para virar');
+  await page.waitForTimeout(400); igual(a, await mede(), 'virar terreno');
+  // 2 · abrir e fechar a folha de uma permanente e de uma carta da mão
+  a = await prepara(); await page.locator(PERM + ' .tb-card').last().click(); await page.waitForSelector('.ds-overlay[data-open="true"]'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); igual(a, await mede(), 'folha da permanente');
+  a = await prepara(); await page.locator(MAO + ' .tb-card').last().click(); await page.waitForSelector('.ds-overlay[data-open="true"]'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); igual(a, await mede(), 'folha da carta da mão');
+  // 3 · Registro: abrir e fechar devolve o foco ao botão sem levar a tela até ele
+  a = await prepara(); await page.evaluate(() => { const b = document.querySelector('#tb-log'); b.focus({ preventScroll: true }); b.click(); }); await page.waitForSelector('#tb-timeline, .ds-overlay[data-open="true"]'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); igual(a, await mede(), 'Registro');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'tb-log', 'o foco volta para quem abriu');
+  // 4 · passar a vez de um passo (bandeja): a fileira continua onde estava
+  a = await prepara(); await page.evaluate(() => { const E = window.__estanteMesa; E.act(E.legais().find(x => x.t === 'pass' && x.p === 0)); }); await page.waitForTimeout(400);
+  const d = await mede(); assert.ok(Math.abs(a.perm - d.perm) <= 2, `passar: ${JSON.stringify(a)} → ${JSON.stringify(d)}`);
+  // 5 · o que entra fora da vista é mostrado: fileira no começo, a permanente nova chega no fim dela
+  await meuPrincipal121(page);
+  let nova = null;
+  for (let i = 0; i < 6 && !nova; i++) { for (const n of ['Island', 'Mountain', 'Forest', 'Plains']) { const o = await M.oid(n); if (o && await M.act({ t: 'play_land', p: 0, oid: o }) === true) break; }
+    await page.evaluate(q => { window.dispatchEvent(new Event('wheel')); document.querySelector(q).scrollLeft = 0; }, PERM); await page.waitForTimeout(150);
+    nova = await conjuraNovaJ2(M); if (!nova) await M.proximo(); }
+  assert.ok(nova, 'conjurei uma permanente nova');
+  await page.waitForTimeout(700);
+  const vista = await page.evaluate(([q, nome]) => { const f = document.querySelector(q).getBoundingClientRect(); const c = [...document.querySelectorAll(q + ' .tb-card')].find(x => (x.getAttribute('aria-label') || '').startsWith(nome)); if (!c) return null; const r = c.getBoundingClientRect(); const doca = document.querySelector('.tb-dock').getBoundingClientRect().top;
+    return { dentro: r.left >= f.left - 1 && r.right <= f.right + 1, acima: r.bottom <= doca + 1 && r.top >= -1, rolou: Math.round(document.querySelector(q).scrollLeft) }; }, [PERM, nova]);
+  assert.ok(vista && vista.dentro && vista.acima && vista.rolou > 20, `${nova} entrou fora da vista e a mesa mostrou: ${JSON.stringify(vista)}`);
+  // 6 · e o que já está à vista não move nada: virar outro terreno com a novidade na tela
+  a = await mede(); if (await page.evaluate(() => { const E = window.__estanteMesa; const x = E.legais().find(x => x.p === 0 && x.t === 'tap_mana'); if (x) E.act(x); return !!x; })) { await page.waitForTimeout(400); igual(a, await mede(), 'com tudo à vista'); }
+  await auditaTela(page, 'mesa larga depois de agir');
+  assert.deepEqual(M.errors, []);
+});
