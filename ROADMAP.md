@@ -150,6 +150,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R9b tela da homologação: registro não diz mais "anulou"/"indestrutível" sem ter feito, pilha explicada com a linha do gatilho, sobrecarga e perturbar com o rótulo certo, ward como salvaguarda, 35 frases do dicionário de efeitos em português (leva 181, motor v70 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R10 plano do lote Commander: texto oficial das 158 cartas que faltavam, triagem das 164 em baldes (54 prontas · 24 A · 70 B · 16 C) e matriz primitiva × cartas (leva 184, sem mudança de motor) | ✅ |
 | R · Revisão carta a carta | R11.1 auditoria frase a frase das 59 cartas de Commander que o motor dava como prontas ou quase: 9 corrigidas, 3 terrenos rebaixados a parciais, 1 devolvida a manual (leva 189, motor v71) | 🟡 |
+| R · Revisão carta a carta | R11.2a terrenos e pedras de mana do Commander: 19 cartas completas (dano ao gerar cor, cor condicional, entra virado a menos que, sacrifício por mana); Killian 36% → 48%, Malcolm 50% → 57% (leva 191, motor v72) | 🟡 |
 | R · Revisão carta a carta | R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
@@ -2549,6 +2550,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Triagem depois da auditoria:** 55 prontas e auditadas · 19 A · 74 B · 16 C. Killian 26/13/40/9; Malcolm 34/6/34/7.
 - **Simplificação declarada:** nas cópias da Flusterstorm o "pague {1}" é perguntado cópia a cópia, na ordem da pilha (regra certa, muitos toques).
 - **Fora:** `medir.mjs` ainda não lê `oficiais-commander.json` para a coluna "com texto"; Command Tower e Exotic Orchard não tiveram teste novo (cobertos pelos testes M13 existentes); homologação independente das cartas de Commander fica para a R13.
+
+**R11.2a · Terrenos e pedras de mana do Commander** 🟡 (leva 191, motor v72) — 19 cartas passam a completas, todas com teste citando a frase do texto oficial (`commander.regras`, bloco R11.2, 8 testes).
+- **Dano ao gerar cor** (regra de mana nova, `manaRule`): Caves of Koilos, Shivan Reef, Talisman of Creativity, Talisman of Hierarchy — {C} de graça, cor custa 1 de dano. Os Talismãs antes só geravam uma das duas cores. **Vida para gerar cor, com condição:** Spire of Industry (um artefato). **Cor condicional:** Tainted Field (um Swamp).
+- **Entra virado a menos que você controle…:** Isolated Chapel (Plains ou Swamp), Sulfur Falls (Island ou Mountain). Só os seus terrenos contam.
+- **Só script:** Orzhov Basilica, Temple of Silence, Secluded Steppe, The Dross Pits, The Fair Basilica, Kher Keep (ficha Kobolds of Kher Keep 0/1 vermelha), Vault of the Archangel, Dwarven Ruins, Svyelunite Temple, Phyrexian Tower, Fetid Heath (três habilidades de mana: {W}{W}, {W}{B}, {B}{B}).
+- **Tela:** o botão diz o preço da cor — "Gerar {W} (1 de dano em você)", "Gerar {G} (paga 1 de vida)". Conferido no código da tela, sem partida guiada.
+- **Pagamento automático:** o genérico sai em {C} e nos básicos antes de ferir (teste: Mind Stone com Plains + Caves não custa vida; Thraben Inspector só com a Caves custa 1).
+- **Simplificações declaradas:** o dano dos terrenos de dor e Talismãs é aplicado como perda direta de vida (não passa por prevenção nem conta como dano para gatilhos); as habilidades de sacrificar por duas manas (Dwarven Ruins, Svyelunite Temple, Phyrexian Tower) e a Fetid Heath não entram no pagamento automático — o jogador ativa antes, como a Tinder Wall.
+- **Medição (`medir.mjs`):** Killian 36% → 48% (49 cópias manuais, 4 parciais); Malcolm + Kediss 50% → 57% (32 manuais, 11 parciais). Triagem: 74 prontas · 9 A · 65 B · 16 C.
+- **Golden:** regravadas só pela versão (71 → 72).
+- **Fora desta leva:** Shineshadow Snarl ("você pode revelar": pede decisão nova), Cephalid Coliseum (limiar: "ative somente se"), Saprazzan Skerry (marcador nomeado), Path of Ancestry (vidência ao gastar a mana), Windbrisk Heights (hideaway), Mishra's Factory e Blinkmoth Nexus (camadas). Os dois comandantes ficam para a R11.2b.
 
 **R11 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
 - **R10 · Plano do lote:** texto oficial das 105 cartas sem texto conferido, ficha de leitura e triagem em três baldes (só script · primitiva nova · lacuna estrutural), com a matriz primitiva × cartas. Sem isso a ordem é palpite. 1 leva.

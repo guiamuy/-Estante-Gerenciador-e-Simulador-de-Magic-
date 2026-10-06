@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { E, J, act, poe, legais, mesa, comMana, tudo, alvos, CARTAS } from './cmd.mjs';
 import { S } from './listas.mjs';
+import { readFileSync } from 'node:fs';
 const vidas = s => s.players.map(p => p.life).join('/');
 const noCampo = (s, p, n) => s.zones[p].battlefield.some(o => s.objects[o].name === n);
 
@@ -70,7 +71,84 @@ test('R11 · Flickering Ward: proteção contra a cor escolhida ao entrar, sem d
   s = tudo(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === w)[0])); assert.equal(s.objects[w].zone, 'hand'); assert.equal(s.players[0].pool.W, 0);
 });
 
-test('R11 · terrenos que o motor ainda não cumpre por inteiro ficam parciais, com o que falta escrito (nunca "completos" pelo texto)', () => {
-  for (const n of ['Caves of Koilos', 'Shivan Reef', 'Tainted Field']) { const c = S.coverage(CARTAS[n]); assert.equal(c.level, 'parcial', n); assert.match(c.reason, n === 'Tainted Field' ? /Swamp/ : /1 de dano/); }
+test('R11 · as cartas corrigidas na auditoria contam como completas', () => {
+  // R11.2 · expectativa ajustada: Caves of Koilos, Shivan Reef e Tainted Field eram cobradas aqui como parciais declaradas (leva 189);
+  // a regra de mana que faltava entrou, e os testes delas estão no bloco R11.2 abaixo.
   for (const n of ['Flusterstorm', 'Flickering Ward', 'Soul-Guide Lantern', 'Miscast', 'Utter End']) assert.equal(S.coverage(CARTAS[n]).level, 'completo', n);
+});
+
+/* ---------------- R11.2 · terrenos e pedras de mana ---------------- */
+const jogaTerreno = (s, n) => { let o; [s, o] = poe(s, 0, n, 'hand'); s = act(s, { t: 'play_land', p: 0, oid: o }); return [s, o]; };
+const prod = (s, o) => J(E.productions(s, s.objects[o])).map(x => x.join('')).sort();
+const gera = (s, o, cor) => act(s, { t: 'tap_mana', p: 0, oid: o, option: J(E.productions(s, s.objects[o])).findIndex(x => x.join('') === cor) });
+const completa = n => assert.equal(S.coverage(CARTAS[n]).level, 'completo', n + ' completa');
+
+test('R11.2 · Caves of Koilos, Shivan Reef e os Talismãs: gerar cor causa 1 de dano a você; {C} não', () => {
+  for (const [n, cor] of [['Caves of Koilos', 'W'], ['Caves of Koilos', 'B'], ['Shivan Reef', 'U'], ['Shivan Reef', 'R'], ['Talisman of Hierarchy', 'B'], ['Talisman of Hierarchy', 'W'], ['Talisman of Creativity', 'R'], ['Talisman of Creativity', 'U']]) {
+    let s = mesa([n], []), o; [s, o] = poe(s, 0, n);
+    const t = gera(s, o, cor); assert.equal(t.players[0].life, 19, `${n}: {${cor}} custa 1 de vida em dano`); assert.equal(t.players[0].pool[cor], 1);
+    const c = gera(s, o, 'C'); assert.equal(c.players[0].life, 20, n + ': {C} não fere'); completa(n);
+  }
+});
+
+test('R11.2 · pagamento automático não toma dano à toa: com a Caves, o genérico sai em {C}; só a cor exigida fere', () => {
+  { let s = mesa(['Caves of Koilos', 'Mind Stone'], []), c, m; [s, c] = poe(s, 0, 'Caves of Koilos'); [s] = poe(s, 0, 'Plains'); [s, m] = poe(s, 0, 'Mind Stone', 'hand');
+    s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === m)[0]); assert.equal(s.players[0].life, 20, 'Mind Stone {2}: Plains + {C} da Caves'); }
+  { let s = mesa(['Caves of Koilos', 'Thraben Inspector'], []), c, i; [s, c] = poe(s, 0, 'Caves of Koilos'); [s, i] = poe(s, 0, 'Thraben Inspector', 'hand');
+    s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === i)[0]); assert.equal(s.players[0].life, 19, 'Thraben Inspector {W}: só a Caves gera branco'); }
+});
+
+test('R11.2 · Tainted Field: cor só com um Swamp; Spire of Industry: cor só com um artefato, pagando 1 de vida', () => {
+  { let s = mesa(['Tainted Field'], []), o; [s, o] = poe(s, 0, 'Tainted Field'); assert.deepEqual(prod(s, o), ['C'], 'sem Swamp'); [s] = poe(s, 0, 'Swamp'); assert.deepEqual(prod(s, o), ['B', 'C', 'W']); assert.equal(gera(s, o, 'W').players[0].life, 20); completa('Tainted Field'); }
+  { let s = mesa(['Spire of Industry', 'Mind Stone'], []), o; [s, o] = poe(s, 0, 'Spire of Industry'); assert.deepEqual(prod(s, o), ['C'], 'sem artefato'); [s] = poe(s, 0, 'Mind Stone'); assert.deepEqual(prod(s, o), ['B', 'C', 'G', 'R', 'U', 'W']);
+    assert.equal(gera(s, o, 'G').players[0].life, 19); assert.equal(gera(s, o, 'C').players[0].life, 20); completa('Spire of Industry'); }
+});
+
+test('R11.2 · Isolated Chapel e Sulfur Falls: entram viradas a menos que você controle um dos dois tipos de terreno', () => {
+  for (const [n, tipo, outro] of [['Isolated Chapel', 'Swamp', 'Mountain'], ['Isolated Chapel', 'Plains', 'Island'], ['Sulfur Falls', 'Island', 'Plains'], ['Sulfur Falls', 'Mountain', 'Swamp']]) {
+    { let s = mesa([n, tipo, outro], []), o; [s] = poe(s, 0, outro); [s, o] = jogaTerreno(s, n); assert.equal(s.objects[o].tapped, true, `${n} com ${outro}: virada`); }
+    { let s = mesa([n, tipo, outro], []), o; [s] = poe(s, 0, tipo); [s, o] = jogaTerreno(s, n); assert.equal(s.objects[o].tapped, false, `${n} com ${tipo}: desvirada`); }
+    completa(n);
+  }
+  { let s = mesa(['Isolated Chapel', 'Swamp'], ['Swamp']), o; [s] = poe(s, 1, 'Swamp'); [s, o] = jogaTerreno(s, 'Isolated Chapel'); assert.equal(s.objects[o].tapped, true, 'o Swamp do oponente não conta'); }
+});
+
+test('R11.2 · Orzhov Basilica, Temple of Silence, Secluded Steppe, The Dross Pits e The Fair Basilica', () => {
+  { let s = mesa(['Orzhov Basilica'], []), o, p; [s, p] = poe(s, 0, 'Plains'); [s, o] = jogaTerreno(s, 'Orzhov Basilica'); assert.equal(s.objects[o].tapped, true);
+    s = tudo(s, x => legais(x, x.pending.p, y => y.oid === p)[0] || legais(x, x.pending.p)[0]); assert.equal(s.objects[p].zone, 'hand', 'devolve um terreno seu'); assert.deepEqual(prod(s, o), ['WB']); completa('Orzhov Basilica'); }
+  { let s = mesa(['Temple of Silence'], []), o; [s, o] = jogaTerreno(s, 'Temple of Silence'); assert.equal(s.objects[o].tapped, true);
+    for (let i = 0; i < 5 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority }); assert.equal(s.pending && s.pending.label, 'scry', 'vidência 1 ao entrar'); assert.deepEqual(prod(s, o), ['B', 'W']); completa('Temple of Silence'); }
+  { let s = mesa(['Secluded Steppe'], []), o, h; [s, h] = poe(s, 0, 'Secluded Steppe', 'hand'); s = comMana(s, 'W'); const mao = s.zones[0].hand.length;
+    const t = tudo(act(s, legais(s, 0, x => x.t === 'cycle' && x.oid === h)[0])); assert.equal(t.zones[0].hand.length, mao, 'reciclar {W}: troca por outra'); assert.equal(t.objects[h].zone, 'graveyard');
+    [s, o] = jogaTerreno(s, 'Secluded Steppe'); assert.equal(s.objects[o].tapped, true); assert.deepEqual(prod(s, o), ['W']); completa('Secluded Steppe'); }
+  for (const [n, cor] of [['The Dross Pits', 'B'], ['The Fair Basilica', 'W']]) { let s = mesa([n], []), o, e; [s, e] = jogaTerreno(s, n); assert.equal(s.objects[e].tapped, true, n + ' entra virada');
+    [s, o] = poe(s, 0, n); assert.deepEqual(prod(s, o), [cor]); assert.equal(legais(s, 0, x => x.t === 'activate' && x.oid === o).length, 0, 'sem mana não ativa');
+    s = comMana(s, 'C' + cor); const mao = s.zones[0].hand.length; s = tudo(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === o)[0]));
+    assert.equal(s.zones[0].hand.length, mao + 1); assert.equal(s.objects[o].zone, 'graveyard'); completa(n); }
+});
+
+test('R11.2 · Kher Keep cria a ficha Kobolds of Kher Keep 0/1 vermelha; Vault of the Archangel dá toque mortífero e vínculo com a vida às suas criaturas', () => {
+  { let s = mesa(['Kher Keep'], []), o; [s, o] = poe(s, 0, 'Kher Keep'); s = comMana(s, 'CR'); s = tudo(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === o)[0]));
+    const k = s.zones[0].battlefield.map(x => s.objects[x]).find(x => x.token); assert.equal(k.name, 'Kobolds of Kher Keep'); const st = E.stats(s, k); assert.deepEqual([st.power, st.toughness], [0, 1]);
+    assert.deepEqual(J(s.facts[k.name].colors), ['R']); assert.match(s.facts[k.name].typeText, /Kobold/); assert.equal(s.objects[o].tapped, true); completa('Kher Keep'); }
+  { let s = mesa(['Vault of the Archangel', 'Thraben Inspector'], ['Faerie Seer']), o, i, d; [s, o] = poe(s, 0, 'Vault of the Archangel'); [s, i] = poe(s, 0, 'Thraben Inspector'); [s, d] = poe(s, 1, 'Faerie Seer'); s = comMana(s, 'CCWB');
+    s = tudo(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === o)[0]));
+    for (const k of ['deathtouch', 'lifelink']) { assert.ok(E.hasKeyword(s, s.objects[i], k), k); assert.equal(E.hasKeyword(s, s.objects[d], k), false, 'só as suas'); } completa('Vault of the Archangel'); }
+});
+
+test('R11.2 · Dwarven Ruins, Svyelunite Temple e Phyrexian Tower: sacrifício por duas manas; Fetid Heath filtra {W/B} em duas', () => {
+  for (const [n, cor] of [['Dwarven Ruins', 'R'], ['Svyelunite Temple', 'U']]) { let s = mesa([n], []), e, o; [s, e] = jogaTerreno(s, n); assert.equal(s.objects[e].tapped, true, n + ' entra virado');
+    [s, o] = poe(s, 0, n); assert.deepEqual(prod(s, o), [cor]); s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === o)[0]);
+    assert.equal(s.players[0].pool[cor], 2); assert.equal(s.objects[o].zone, 'graveyard'); assert.equal(s.stack.length, 0, 'habilidade de mana não usa a pilha'); completa(n); }
+  { let s = mesa(['Phyrexian Tower', 'Thraben Inspector'], []), o, i; [s, o] = poe(s, 0, 'Phyrexian Tower'); assert.deepEqual(prod(s, o), ['C']); assert.equal(legais(s, 0, x => x.t === 'activate' && x.oid === o).length, 0, 'sem criatura para sacrificar');
+    [s, i] = poe(s, 0, 'Thraben Inspector'); s = act(s, legais(s, 0, x => x.t === 'activate' && x.oid === o)[0]); assert.equal(s.players[0].pool.B, 2); assert.equal(s.objects[i].zone, 'graveyard'); assert.equal(s.objects[o].tapped, true); completa('Phyrexian Tower'); }
+  { let s = mesa(['Fetid Heath'], []), o; [s, o] = poe(s, 0, 'Fetid Heath'); assert.deepEqual(prod(s, o), ['C']); assert.equal(legais(s, 0, x => x.t === 'activate' && x.oid === o).length, 0, 'sem {W/B} não filtra');
+    for (const paga of ['W', 'B']) { const t = comMana(s, paga); const as = legais(t, 0, x => x.t === 'activate' && x.oid === o); assert.equal(as.length, 3, 'WW, WB ou BB');
+      const saidas = J(as).map(a => { const r = act(t, a); return 'W'.repeat(r.players[0].pool.W) + 'B'.repeat(r.players[0].pool.B); }).sort(); assert.deepEqual(saidas, ['BB', 'WB', 'WW'], 'pagando ' + paga); }
+    completa('Fetid Heath'); }
+});
+
+test('R11.2 · a folha avisa o preço da cor: "Gerar {W} (1 de dano em você)" e "(paga 1 de vida)" (conferido no código da tela, sem partida guiada)', () => {
+  const src = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  assert.match(src, /`Gerar \$\{opt\.map\(c => `\{\$\{c\}\}`\)\.join\(''\)\}\$\{custoDaMana\(f, opt\)\}`/); assert.match(src, /de dano em você\)/); assert.match(src, /\(paga \$\{r\.life\} de vida\)/);
 });

@@ -4607,7 +4607,8 @@ function validateScript(sc) {
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
   if (sc && sc.morph && !sc.morph.mana) errs.push('metamorfose sem custo de mana');
-  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null) errs.push('entra virado a menos que: condição desconhecida');
+  if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype)) errs.push('entra virado a menos que: condição desconhecida');
+  if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
   for (const ab of (sc && sc.abilities) || []) for (const [i, m] of (ab.modes || []).entries()) errs.push(...effectErrors(m.effects, `modo do gatilho ${i + 1}`));
   for (const ab of (sc && sc.abilities) || []) for (const m of ab.modes || []) if (!m.label) errs.push('modo do gatilho sem rótulo');
@@ -4854,9 +4855,40 @@ const RAW_SCRIPTS = [
   { name: 'Terminate', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
   // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
   // R11 · estes três eram contados como completos só pelo texto de mana; falta uma frase que muda a partida (primitivas na R11.2)
-  { name: 'Caves of Koilos', produces: [['C'], ['W'], ['B']], covers: 'partial', note: 'gerar {W} ou {B} deveria causar 1 de dano a você; o motor ainda não cobra', example: { action: 'etb', target: 'none', expect: { attached: false } } },
-  { name: 'Shivan Reef', produces: [['C'], ['U'], ['R']], covers: 'partial', note: 'gerar {U} ou {R} deveria causar 1 de dano a você; o motor ainda não cobra', example: { action: 'etb', target: 'none', expect: { attached: false } } },
-  { name: 'Tainted Field', produces: [['C'], ['W'], ['B']], covers: 'partial', note: 'gerar {W} ou {B} só deveria valer se você controla um Swamp; o motor ainda não confere', example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // R11.2 · texto em .listas/oficiais-commander.json (consultas de 05/10/2026)
+  // "{T}: Add {C}. / {T}: Add {W} or {B}. This land deals 1 damage to you."
+  { name: 'Caves of Koilos', produces: [['C'], ['W'], ['B']], manaRule: { colors: 'WB', damage: 1 }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Shivan Reef', produces: [['C'], ['U'], ['R']], manaRule: { colors: 'UR', damage: 1 }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "{T}: Add {W} or {B}. Activate only if you control a Swamp."
+  { name: 'Tainted Field', produces: [['C'], ['W'], ['B']], manaRule: { colors: 'WB', needsSubtype: 'Swamp' }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "{T}, Pay 1 life: Add one mana of any color. Activate only if you control an artifact."
+  { name: 'Spire of Industry', produces: [['C'], ['W'], ['U'], ['B'], ['R'], ['G']], manaRule: { colors: 'WUBRG', life: 1, needsType: 'artifact' }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "This land enters tapped unless you control a Plains or a Swamp." / "…an Island or a Mountain."
+  { name: 'Isolated Chapel', produces: [['W'], ['B']], entersTappedUnless: { controlsSubtype: ['Plains', 'Swamp'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Sulfur Falls', produces: [['U'], ['R']], entersTappedUnless: { controlsSubtype: ['Island', 'Mountain'] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Orzhov Basilica', entersTapped: true, produces: [['W', 'B']],
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'return_chosen', target: 'self', filter: { types: ['land'] } }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Temple of Silence', entersTapped: true, produces: [['W'], ['B']], abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'scry', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Secluded Steppe', entersTapped: true, produces: [['W']], cycling: { mana: '{W}' }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'The Dross Pits', entersTapped: true, produces: [['B']], abilities: [{ kind: 'activated', cost: { mana: '{1}{B}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
+  { name: 'The Fair Basilica', entersTapped: true, produces: [['W']], abilities: [{ kind: 'activated', cost: { mana: '{1}{W}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
+    example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
+  // "{1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep."
+  { name: 'Kher Keep', produces: [['C']], abilities: [{ kind: 'activated', cost: { mana: '{1}{R}', tap: true },
+    effects: [{ do: 'token', amount: 1, token: { name: 'Kobolds of Kher Keep', types: ['creature'], subtypes: ['Kobold'], colors: ['R'], power: 0, toughness: 1 } }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "{2}{W}{B}, {T}: Creatures you control gain deathtouch and lifelink until end of turn."
+  { name: 'Vault of the Archangel', produces: [['C']], abilities: [{ kind: 'activated', cost: { mana: '{2}{W}{B}', tap: true },
+    effects: [{ do: 'keyword', keyword: 'deathtouch', target: 'each-own-creature' }, { do: 'keyword', keyword: 'lifelink', target: 'each-own-creature' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "{T}, Sacrifice this land: Add {R}{R}." / "{U}{U}." — habilidade de mana, sem pilha, como a Tinder Wall
+  { name: 'Dwarven Ruins', entersTapped: true, produces: [['R']], abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['R', 'R'] }] }],
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 2 } } },
+  { name: 'Svyelunite Temple', entersTapped: true, produces: [['U']], abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['U', 'U'] }] }],
+    example: { action: 'activate:0', target: 'none', expect: { poolAdded: 2 } } },
+  // "{T}, Sacrifice a creature: Add {B}{B}."
+  { name: 'Phyrexian Tower', produces: [['C']], abilities: [{ kind: 'activated', cost: { tap: true, sacrificeOther: { types: ['creature'] } }, effects: [{ do: 'add_mana', symbols: ['B', 'B'] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "{W/B}, {T}: Add {W}{W}, {W}{B}, or {B}{B}." — uma habilidade por resultado, para a folha dizer o que cada botão gera
+  { name: 'Fetid Heath', produces: [['C']], abilities: [['W', 'W'], ['W', 'B'], ['B', 'B']].map(symbols => ({ kind: 'activated', cost: { mana: '{W/B}', tap: true }, effects: [{ do: 'add_mana', symbols }] })), example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Utter End', effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }], // "target nonland permanent": mirava terreno
     example: { target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Anguished Unmaking', effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }, { do: 'lose', amount: 3 }], example: { target: 'enemy-creature', expect: { gone: true, selfLife: -3 } } },
@@ -5173,16 +5205,10 @@ const RAW_SCRIPTS = [
   // Regras oficiais: dois comandantes somam as identidades; incolor ou sem comandante não produz nada (nem {C}).
   { name: 'Arcane Signet', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', anyColor: true, identity: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
-  { name: 'Talisman of Creativity', abilities: [
-    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] },
-    { kind: 'activated', cost: { tap: true, life: 1 }, effects: [{ do: 'add_mana', symbols: ['U'] }] }],
-    covers: 'partial', note: 'a opção de gerar vermelho pagando 1 de vida ainda não entra',
-    example: { action: 'activate:1', target: 'none', expect: { poolAdded: 1, selfLife: -1 } } },
-  { name: 'Talisman of Hierarchy', abilities: [
-    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] },
-    { kind: 'activated', cost: { tap: true, life: 1 }, effects: [{ do: 'add_mana', symbols: ['W'] }] }],
-    covers: 'partial', note: 'a opção de gerar preto pagando 1 de vida ainda não entra',
-    example: { action: 'activate:1', target: 'none', expect: { poolAdded: 1, selfLife: -1 } } },
+  // R11.2 · "{T}: Add {C}. / {T}: Add {U} or {R}. This artifact deals 1 damage to you." (antes só uma das cores, como custo de vida)
+  { name: 'Talisman of Creativity', produces: [['C'], ['U'], ['R']], manaRule: { colors: 'UR', damage: 1 }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // R11.2 · "{T}: Add {C}. / {T}: Add {W} or {B}. This artifact deals 1 damage to you." (antes só uma das cores, como custo de vida)
+  { name: 'Talisman of Hierarchy', produces: [['C'], ['W'], ['B']], manaRule: { colors: 'WB', damage: 1 }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // M13b · texto conferido em 30/09/2026 (Hareruya; mesmo texto do Exotic Orchard na Scryfall):
   // "{T}: Add one mana of any color that a land an opponent controls could produce."
   { name: 'Fellwar Stone', abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', anyColor: true, opponentLands: true }] }],
@@ -9923,7 +9949,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 71;
+const ENGINE_VERSION = 72;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -10166,6 +10192,7 @@ function createGame(setup) {
     if (sc.transmute) f.script.transmute = sc.transmute;
     if (sc.entersTapped) f.script.entersTapped = true;
     if (sc.entersTappedUnless) f.script.entersTappedUnless = sc.entersTappedUnless; // S56
+    if (sc.manaRule) f.script.manaRule = sc.manaRule; // R11.2
     if (sc.grantsAll) f.script.grantsAll = sc.grantsAll; // S56
     if (sc.back) { f.script.back = sc.back.name; f.script.disturb = sc.disturb; f.script.omen = sc.omen; }
   }
@@ -10257,7 +10284,9 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // S56 · "entra virado a menos que um jogador tenha 13 ou menos de vida"
   const semVirar = (s.facts[o.name].script || {}).entersTappedUnless;
   if (to === 'battlefield' && semVirar) {
-    const livre = semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost);
+    const livre = (semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost)) ||
+      // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
+      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(s.facts[x.name].typeText || ''))));
     o.tapped = !livre;
   }
   // S34 · permanente que entra com marcadores +1/+1
@@ -10382,6 +10411,11 @@ function productions(s, o, visto) {
       if (extra.length) opts = opts.flatMap(base => extra.map(c => base.concat([c])));
     }
   }
+  // R11.2 · cor que só sai com uma condição de campo (Tainted Field: um Swamp; Spire of Industry: um artefato)
+  const regra = (s.facts[o.name].script || {}).manaRule;
+  if (regra && (regra.needsSubtype || regra.needsType) && !battlefield(s).some(x => x.controller === o.controller &&
+    (regra.needsSubtype ? new RegExp('\\b' + regra.needsSubtype + '\\b').test(s.facts[x.name].typeText || '') : s.facts[x.name].types.includes(regra.needsType))))
+    opts = opts.filter(x => !x.some(c => regra.colors.includes(c)));
   const seen = new Set();
   return opts.filter(x => { const k = x.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
 }
@@ -10497,6 +10531,9 @@ function tapForMana(s, oid, option, mana) {
   if (!o.tapped) noteEnchantedEvent(s, o);
   if (!opt) throw new RuleError('mana', 'essa fonte não produz essa mana');
   o.tapped = true; opt.forEach(c => { s.players[o.controller].pool[c]++; });
+  // R11.2 · "This land deals 1 damage to you" (terrenos de dor, Talismãs) e "Pay 1 life" (Spire of Industry) ao gerar cor
+  const regra = (s.facts[o.name].script || {}).manaRule;
+  if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) s.players[o.controller].life -= (regra.damage || regra.life);
 }
 /** Paga o custo (tocando fontes se preciso) ou lança RuleError. */
 function payCost(s, p, cost, extra = 0) {
@@ -17277,6 +17314,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!ts.length) return 'sacrificar outra';
     return ts.length === 1 ? `sacrificar ${ts[0] === 'criatura' ? 'uma' : 'um'} ${ts[0]}` : `sacrificar ${ts.slice(0, -1).join(', ')} ou ${ts[ts.length - 1]}`;
   }
+  /** R11.2 · o que gerar aquela cor custa além de virar: terreno de dor e Talismã ("1 de dano em você"), Spire of Industry ("paga 1 de vida"). */
+  function custoDaMana(f, opt) {
+    const r = (f.script || {}).manaRule; if (!r || !(r.damage || r.life) || !opt.some(c => r.colors.includes(c))) return '';
+    return r.damage ? ` (${r.damage} de dano em você)` : ` (paga ${r.life} de vida)`;
+  }
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
@@ -17357,7 +17399,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const comCombo = E.legalActions(s, v).find(a => a.t === 'tap_mana' && a.oid === oid && a.combo > 1);
     if (o.zone === 'battlefield' && comCombo) legal.push({ label: `Gerar ${comCombo.combo} manas`, variant: 'primary', abre: () => dividirMana(oid, comCombo.combo) });
     else if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
-      E.productions(s, o).forEach((opt, k) => legal.push(doBtn(opt.length > 4 && opt.every(c => c === opt[0]) ? `Gerar ${opt.length} × {${opt[0]}}` : `Gerar ${opt.map(c => `{${c}}`).join('')}`, { t: 'tap_mana', p: v, oid, option: k }))); // Leva 136 · nove {G} em fila viram "9 × {G}"
+      E.productions(s, o).forEach((opt, k) => legal.push(doBtn(opt.length > 4 && opt.every(c => c === opt[0]) ? `Gerar ${opt.length} × {${opt[0]}}` : `Gerar ${opt.map(c => `{${c}}`).join('')}${custoDaMana(f, opt)}`, { t: 'tap_mana', p: v, oid, option: k }))); // Leva 136 · nove {G} em fila viram "9 × {G}"
     // S24: faces duplas
     for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
       legal.push(doBtn(x.disturb ? `Perturbar · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
