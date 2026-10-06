@@ -1,11 +1,12 @@
 {
- "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde.",
+ "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde. R11.1 (05/10/2026): as cartas \"ok\" foram auditadas frase a frase; quatro saíram do balde A para ok, três terrenos saíram de ok para B (o texto de mana escondia uma frase) e a Curiosity foi para B.",
  "cartas": [
   {
    "name": "Abrade",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Accursed Marauder",
@@ -20,23 +21,23 @@
    "name": "Alseid of Life's Bounty",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "An Offer You Can't Refuse",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Angelic Gift",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "A",
-   "primitivas": [
-    "reauditar"
-   ],
-   "obs": "igual à Setessan Training; a nota do script está velha"
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "auditada e corrigida na R11.1",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Angelic Renewal",
@@ -51,7 +52,8 @@
    "name": "Anguished Unmaking",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Animate Dead",
@@ -76,7 +78,8 @@
    "name": "Arcane Signet",
    "listas": "KM",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Ascend from Avernus",
@@ -133,7 +136,8 @@
    "name": "Benevolent Bodyguard",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Blinkmoth Nexus",
@@ -149,7 +153,8 @@
    "name": "Bojuka Bog",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Bounty Agent",
@@ -165,7 +170,8 @@
    "name": "Brainstorm",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Call of the Death-Dweller",
@@ -180,8 +186,12 @@
   {
    "name": "Caves of Koilos",
    "listas": "K",
-   "motor": "completo",
-   "balde": "ok"
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-com-dano"
+   ],
+   "obs": "era contada como pronta só pelo texto de mana"
   },
   {
    "name": "Cephalid Coliseum",
@@ -216,13 +226,15 @@
    "name": "Chromatic Sphere",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Chromatic Star",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Combat Research",
@@ -239,41 +251,46 @@
    "name": "Command Tower",
    "listas": "KM",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Consider",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Corpse Knight",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Counterspell",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Cruel Celebrant",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Curiosity",
    "listas": "M",
    "motor": "manual",
-   "balde": "A",
+   "balde": "B",
    "primitivas": [
-    "reauditar"
+    "gatilho-dano-a-oponente"
    ],
-   "obs": "gatilho enchanted-deals-damage; só contra oponente; 'pode'"
+   "obs": "o gatilho de dano da encantada não sabe quem recebeu o dano; mesma classe do Malcolm"
   },
   {
    "name": "Dark Confidant",
@@ -297,7 +314,8 @@
    "name": "Daze",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Delay",
@@ -322,13 +340,15 @@
    "name": "Dispel",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Dragon Fodder",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Dwarven Ruins",
@@ -363,7 +383,8 @@
    "name": "Exotic Orchard",
    "listas": "KM",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Expressive Iteration",
@@ -378,13 +399,15 @@
    "name": "Faithless Looting",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Fellwar Stone",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Fetid Heath",
@@ -398,22 +421,18 @@
   {
    "name": "Flickering Ward",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "A",
-   "primitivas": [
-    "reauditar"
-   ],
-   "obs": "como Benevolent Blessing, mais {W}: volta para a mão"
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "auditada e corrigida na R11.1",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Flusterstorm",
    "listas": "M",
-   "motor": "parcial",
-   "balde": "A",
-   "primitivas": [
-    "reauditar"
-   ],
-   "obs": "rajada já existe; a nota está velha"
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "auditada e corrigida na R11.1",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Foil",
@@ -429,7 +448,8 @@
    "name": "Forbidden Friendship",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Frantic Search",
@@ -464,7 +484,8 @@
    "name": "Hard Evidence",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "High Priest of Penance",
@@ -498,13 +519,15 @@
    "name": "Idyllic Tutor",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Impulse",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Into the Roil",
@@ -529,7 +552,8 @@
    "name": "Izzet Signet",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Jirina, Dauntless General",
@@ -545,7 +569,8 @@
    "name": "Kami of False Hope",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Kaya's Ghostform",
@@ -597,7 +622,8 @@
    "name": "Krenko's Command",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Kytheon, Hero of Akros",
@@ -651,7 +677,8 @@
    "name": "Lotus Petal",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Lukka, Coppercoat Outcast",
@@ -697,13 +724,15 @@
    "name": "Mind Stone",
    "listas": "KM",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Miscast",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Mishra's Bauble",
@@ -749,7 +778,8 @@
    "name": "Mother of Runes",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Mystic Remora",
@@ -765,7 +795,8 @@
    "name": "Mystical Tutor",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Narset, Parter of Veils",
@@ -781,7 +812,8 @@
    "name": "Negate",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Norn's Wellspring",
@@ -806,7 +838,8 @@
    "name": "Opt",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Orzhov Basilica",
@@ -820,7 +853,8 @@
    "name": "Orzhov Signet",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Patch Up",
@@ -876,7 +910,8 @@
    "name": "Preordain",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Priest of Fell Rites",
@@ -943,7 +978,8 @@
    "name": "Resculpt",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Reweave",
@@ -1024,13 +1060,15 @@
    "name": "Selfless Savior",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Selfless Spirit",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Sevinne's Reclamation",
@@ -1056,14 +1094,19 @@
   {
    "name": "Shivan Reef",
    "listas": "M",
-   "motor": "completo",
-   "balde": "ok"
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-com-dano"
+   ],
+   "obs": "era contada como pronta só pelo texto de mana"
   },
   {
    "name": "Shore Up",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Silverquill Command",
@@ -1109,7 +1152,8 @@
    "name": "Sleight of Hand",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Slip Out the Back",
@@ -1144,13 +1188,15 @@
    "name": "Sol Ring",
    "listas": "KM",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Solve the Equation",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Sorin of House Markov",
@@ -1166,12 +1212,10 @@
   {
    "name": "Soul-Guide Lantern",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "A",
-   "primitivas": [
-    "reauditar"
-   ],
-   "obs": "os alvos e custos já existem; nota velha"
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "auditada e corrigida na R11.1",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Speaker of the Heavens",
@@ -1186,13 +1230,15 @@
    "name": "Spell Pierce",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Spell Snare",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Spire of Industry",
@@ -1209,7 +1255,8 @@
    "name": "Springleaf Drum",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Stream of Thought",
@@ -1252,8 +1299,12 @@
   {
    "name": "Tainted Field",
    "listas": "K",
-   "motor": "completo",
-   "balde": "ok"
+   "motor": "parcial",
+   "balde": "B",
+   "primitivas": [
+    "mana-condicional"
+   ],
+   "obs": "só gera cor se você controla um Swamp"
   },
   {
    "name": "Talisman of Creativity",
@@ -1317,19 +1368,22 @@
    "name": "Unearth",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Unsubstantiate",
    "listas": "M",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Utter End",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   },
   {
    "name": "Vault of the Archangel",
@@ -1381,7 +1435,8 @@
    "name": "Zulaport Cutthroat",
    "listas": "K",
    "motor": "completo",
-   "balde": "ok"
+   "balde": "ok",
+   "auditada": "R11.1 · 05/10/2026"
   }
  ],
  "matriz": {
@@ -1403,12 +1458,13 @@
    "Sevinne's Reclamation",
    "Silverquill Command"
   ],
-  "reauditar": [
-   "Angelic Gift",
-   "Curiosity",
-   "Flickering Ward",
-   "Flusterstorm",
-   "Soul-Guide Lantern"
+  "mana-com-dano": [
+   "Caves of Koilos",
+   "Cephalid Coliseum",
+   "Shivan Reef",
+   "Spire of Industry",
+   "Talisman of Creativity",
+   "Talisman of Hierarchy"
   ],
   "ative-somente-se": [
    "Ayli, Eternal Pilgrim",
@@ -1435,12 +1491,6 @@
    "Profane Command",
    "Silverquill Command",
    "Wretched Confluence"
-  ],
-  "mana-com-dano": [
-   "Cephalid Coliseum",
-   "Spire of Industry",
-   "Talisman of Creativity",
-   "Talisman of Hierarchy"
   ],
   "custo-alternativo-novo": [
    "Foil",
@@ -1539,6 +1589,9 @@
   ],
   "contagem-vida-perdida": [
    "Children of Korlis"
+  ],
+  "gatilho-dano-a-oponente": [
+   "Curiosity"
   ],
   "revela-topo-para-a-mao": [
    "Dark Confidant"
@@ -1656,6 +1709,9 @@
   ],
   "embaralhar-do-cemiterio": [
    "Stream of Thought"
+  ],
+  "mana-condicional": [
+   "Tainted Field"
   ],
   "hideaway": [
    "Windbrisk Heights"

@@ -4379,7 +4379,7 @@ const EFFECTS = {
   // Leva 131 · "tap or untap target creature" (Sewer-veillance Cam): o alvo é da pilha, virar ou desvirar se escolhe na resolução;
   // com `optional` ("you may"), recusar é a terceira saída da mesma pergunta
   tap_or_untap: { fields: [], targets: ['creature', 'permanent'] },
-  exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all'] },
+  exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all', 'each-opponent'] },
   // S37 · o oponente revela a mão e você escolhe o que ele descarta
   discard_chosen: { fields: ['amount'], targets: ['opponent', 'player'] },
   attach: { fields: [], targets: ['creature-you-control', 'permanent-you-control'] },
@@ -4717,6 +4717,7 @@ function effectErrors(effects, label, opcional) {
     if (e.targetMv != null && !Number.isInteger(e.targetMv)) errs.push(`${label} ${i + 1}: valor de mana do alvo precisa ser inteiro`);
     // S38 · filtro de cor no alvo, varredura que poupa um subtipo e "até N alvos"
     if (e.targetNotColor != null && !'WUBRG'.includes(e.targetNotColor)) errs.push(`${label} ${i + 1}: cor excluída do alvo precisa ser WUBRG`);
+    if (e.targetTypes != null && !(Array.isArray(e.targetTypes) && e.targetTypes.length && e.targetTypes.every(x => FILTER_TYPES.includes(x)))) errs.push(`${label} ${i + 1}: tipos do alvo precisam ser tipos de carta`);
     if (e.exceptSubtype != null) {
       if (typeof e.exceptSubtype !== 'string' || !e.exceptSubtype.trim()) errs.push(`${label} ${i + 1}: subtipo poupado precisa ser um nome`);
       if (!String(e.target || '').startsWith('each-')) errs.push(`${label} ${i + 1}: subtipo poupado só vale em varredura`);
@@ -4840,8 +4841,14 @@ const RAW_SCRIPTS = [
   { name: 'Sleep Spell', effects: [{ do: 'tap', target: 'creature' }], example: { target: 'enemy-creature', expect: { tapped: true } } },
   // cartas das listas do usuário (E11)
   { name: 'Terminate', effects: [{ do: 'destroy', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
-  { name: 'Utter End', effects: [{ do: 'exile', target: 'permanent' }], example: { target: 'enemy-creature', expect: { gone: true } } },
-  { name: 'Anguished Unmaking', effects: [{ do: 'exile', target: 'permanent' }, { do: 'lose', amount: 3 }], example: { target: 'enemy-creature', expect: { gone: true, selfLife: -3 } } },
+  // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
+  // R11 · estes três eram contados como completos só pelo texto de mana; falta uma frase que muda a partida (primitivas na R11.2)
+  { name: 'Caves of Koilos', produces: [['C'], ['W'], ['B']], covers: 'partial', note: 'gerar {W} ou {B} deveria causar 1 de dano a você; o motor ainda não cobra', example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Shivan Reef', produces: [['C'], ['U'], ['R']], covers: 'partial', note: 'gerar {U} ou {R} deveria causar 1 de dano a você; o motor ainda não cobra', example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Tainted Field', produces: [['C'], ['W'], ['B']], covers: 'partial', note: 'gerar {W} ou {B} só deveria valer se você controla um Swamp; o motor ainda não confere', example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Utter End', effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }], // "target nonland permanent": mirava terreno
+    example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Anguished Unmaking', effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }, { do: 'lose', amount: 3 }], example: { target: 'enemy-creature', expect: { gone: true, selfLife: -3 } } },
   // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "…deals 1 damage to each opponent and each creature and planeswalker they control." (antes queimava as suas)
   { name: 'End the Festivities', effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }, { do: 'damage', amount: 1, target: 'each-opponent-creature-planeswalker' }], example: { target: 'none', expect: { damaged: true, opponentLife: -1 } } },
   { name: 'Rally the Peasants', effects: [{ do: 'pump', power: 2, toughness: 0, target: 'each-own-creature' }], flashback: { mana: '{2}{R}' },
@@ -4869,15 +4876,18 @@ const RAW_SCRIPTS = [
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   { name: 'Lifelink', aura: { enchant: 'creature' }, grants: { keywords: ['lifelink'] },
     example: { action: 'aura', target: 'own-creature', expect: { keyword: 'lifelink' } } },
+  // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
   { name: 'Angelic Gift', aura: { enchant: 'creature' }, grants: { keywords: ['flying'] },
-    covers: 'partial', note: 'comprar uma carta ao entrar depende do gatilho com alvo',
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'aura', target: 'own-creature', expect: { keyword: 'flying' } } },
   { name: 'Skullclamp', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: -1 },
     covers: 'partial', note: 'comprar duas cartas quando a criatura morre depende de gatilho de outra permanente',
     example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 1] } } },
-  { name: 'Flickering Ward', aura: { enchant: 'creature' }, grants: { keywords: [] },
-    covers: 'partial', note: 'proteção de cor e devolver para a mão ainda não entram',
-    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
+  // "As this Aura enters, choose a color. / Enchanted creature has protection from the chosen color. This effect doesn't remove this Aura. / {W}: Return this Aura to its owner's hand."
+  { name: 'Flickering Ward', aura: { enchant: 'creature' }, choose: 'color', grants: { protection: 'chosen', mantemASi: true },
+    abilities: [{ kind: 'activated', cost: { mana: '{W}' }, effects: [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { protected: true } } },
   // S11b · restante do GW Bogles
   // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "Enchant Forest" (antes aceitava qualquer terreno seu)
   { name: 'Utopia Sprawl', aura: { enchant: 'land', subtype: 'Forest' }, choose: 'color', grants: { extraMana: 'chosen' },
@@ -5175,9 +5185,13 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] },
     { kind: 'triggered', when: 'dies', effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'none', expect: { poolAdded: 1 } } },
-  { name: 'Soul-Guide Lantern', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] }],
-    covers: 'partial', note: 'o exílio ao entrar e a habilidade de {1} ainda não entram',
-    example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
+  // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
+  // "When this artifact enters, exile target card from a graveyard. / {T}, Sacrifice this artifact: Exile each opponent's graveyard. / {1}, {T}, Sacrifice this artifact: Draw a card."
+  { name: 'Soul-Guide Lantern', abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'exile', target: 'card-in-any-graveyard' }] },
+    { kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'each-opponent' }] },
+    { kind: 'activated', cost: { mana: '{1}', tap: true, sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }],
+    example: { action: 'activate:1', target: 'none', expect: { handDelta: 1 } } },
   { name: 'Nihil Spellbomb', abilities: [
     { kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'exile_graveyard', target: 'player' }] },
     { kind: 'triggered', when: 'dies', mayPay: { mana: '{B}' }, effects: [{ do: 'draw', amount: 1 }] }],
@@ -5375,24 +5389,31 @@ const RAW_SCRIPTS = [
     example: { action: 'alt:0', target: 'enemy-spell', expect: { countered: true } } },
   { name: 'Spell Pierce', effects: [{ do: 'counter', target: 'noncreature-spell', unless: { mana: '{2}' } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
-  { name: 'Miscast', effects: [{ do: 'counter', target: 'noncreature-spell', unless: { mana: '{1}' } }],
+  // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
+  // "Counter target instant or sorcery spell unless its controller pays {3}." (o script cobrava {1} e mirava qualquer mágica que não fosse de criatura)
+  { name: 'Miscast', effects: [{ do: 'counter', target: 'spell', targetTypes: ['instant', 'sorcery'], unless: { mana: '{3}' } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
   { name: 'Lose Focus', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{1}' } }],
     covers: 'partial', note: 'replicar ainda não entra',
     example: { target: 'enemy-spell', expect: { countered: true } } },
-  { name: 'Flusterstorm', effects: [{ do: 'counter', target: 'instant-spell', unless: { mana: '{1}' } }],
-    covers: 'partial', note: 'tempestade e mirar feitiços e habilidades ainda não entram',
+  // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
+  { name: 'Flusterstorm', storm: true, effects: [{ do: 'counter', target: 'spell', targetTypes: ['instant', 'sorcery'], unless: { mana: '{1}' } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
   { name: 'Foil', effects: [{ do: 'counter', target: 'spell' }],
     alt: [{ label: 'Descartar uma Ilha e outra carta', cost: { discard: 2 } }],
     covers: 'partial', note: 'na carta real a primeira carta descartada precisa ser uma Ilha',
     example: { action: 'alt:0', target: 'enemy-spell', expect: { countered: true } } },
   // S15 · gatilhos de outras permanentes e gatilhos com alvo
+  // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
+  // "Whenever this creature or another creature you control dies": a própria morte não disparava
   { name: 'Zulaport Cutthroat', abilities: [{ kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] },
-    effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] }],
+    effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] },
+    { kind: 'triggered', when: 'dies', effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] }],
     example: { action: 'etb', target: 'none', expect: { selfLife: 0 } } },
-  { name: 'Cruel Celebrant', abilities: [{ kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] },
-    effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] }],
+  // "Whenever this creature or another creature or planeswalker you control dies"
+  { name: 'Cruel Celebrant', abilities: [{ kind: 'triggered', when: 'other-dies', filter: { anyTypes: ['creature', 'planeswalker'] },
+    effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] },
+    { kind: 'triggered', when: 'dies', effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }, { do: 'gain', amount: 1 }] }],
     example: { action: 'etb', target: 'none', expect: { selfLife: 0 } } },
   { name: 'Corpse Knight', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] },
     effects: [{ do: 'lose', amount: 1, target: 'each-opponent' }] }],
@@ -9799,7 +9820,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 70;
+const ENGINE_VERSION = 71;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -10274,6 +10295,7 @@ const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src
 const protecaoDerruba = (s, host, anexo) => (host.tempProtection || []).concat(attachedTo(s, host).flatMap(x => {
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
   if (g.mantemOsSeus && x.controller === anexo.controller) return [];
+  if (g.mantemASi && x.oid === anexo.oid) return []; // R11 · Flickering Ward: "This effect doesn't remove this Aura"
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
 })).some(c => colorsOf(s, anexo).includes(c));
 /** S30 · escudo do turno: nenhum dano de fonte das cores escolhidas passa. */
@@ -10885,6 +10907,8 @@ function targetAllowed(s, eff, tgt, src) {
   if (!o) return true;
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && f.legendary) return false;
+  if (eff.targetNotLand && (f.types || []).includes('land')) return false; // R11 · "nonland permanent"
+  if (eff.targetTypes && !eff.targetTypes.some(x => (f.types || []).includes(x))) return false; // R11 · "instant or sorcery spell"
   if (eff.targetNotColor && (f.colors || []).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta"
   if (eff.targetMv != null && (f.cmc || 0) !== eff.targetMv) return false;
   if (eff.targetMvMax != null) {
@@ -11133,7 +11157,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: eff.amount }); break;
     }
     case 'exile_graveyard': {
-      const alvos = eff.target === 'all' ? s.players.map((_, i) => i) : [playerOf()];
+      const alvos = eff.target === 'all' ? s.players.map((_, i) => i) : eff.target === 'each-opponent' ? s.players.map((_, i) => i).filter(i => i !== ctrl) : [playerOf()]; // R11 · Soul-Guide Lantern
       alvos.forEach(who => [...s.zones[who].graveyard].forEach(x => moveObject(s, x, 'exile')));
       note({}); break;
     }
@@ -11166,7 +11190,7 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'to_hand': { // S44 · a própria carta pode voltar para a mão (Rancor)
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       // Leva 107 · Rancor: "return Rancor to its owner's hand" só se ele ainda estiver no cemitério (400.7)
-      if (alvo && eff.target === 'self-source' && alvo.zone !== 'graveyard') { note({ failed: true }); break; }
+      if (alvo && eff.target === 'self-source' && alvo.zone !== (eff.from || 'graveyard')) { note({ failed: true }); break; } // R11 · `from: 'battlefield'`: habilidade ativada no campo (Flickering Ward)
       if (alvo) moveObject(s, alvo.oid, 'hand');
       note({}); break;
     }
@@ -11573,6 +11597,7 @@ function matchesTriggerFilter(s, o, filter) {
   if (!filter) return true;
   const f = s.facts[o.name];
   if ((filter.types || []).some(x => !f.types.includes(x))) return false;
+  if (filter.anyTypes && !filter.anyTypes.some(x => f.types.includes(x))) return false; // R11 · "creature or planeswalker" (Cruel Celebrant)
   if (filter.noncreature && f.types.includes('creature')) return false;
   if (o.faceDown) return false; // S54 · virada para baixo não combina com filtro de carta
   if (filter.subtype && !isChangeling(s, o) && !new RegExp('\\b' + filter.subtype + '\\b', 'i').test(f.typeText || '')) return false;

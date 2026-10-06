@@ -149,6 +149,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | Proteção contra a cor à escolha pela tela (relato do aparelho): Mother of Runes, Benevolent Bodyguard e Alseid protegem a criatura tocada, com a cor tocada (leva 179, motor v70 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R9b tela da homologação: registro não diz mais "anulou"/"indestrutível" sem ter feito, pilha explicada com a linha do gatilho, sobrecarga e perturbar com o rótulo certo, ward como salvaguarda, 35 frases do dicionário de efeitos em português (leva 181, motor v70 sem mudança) | 🟡 |
 | R · Revisão carta a carta | R10 plano do lote Commander: texto oficial das 158 cartas que faltavam, triagem das 164 em baldes (54 prontas · 24 A · 70 B · 16 C) e matriz primitiva × cartas (leva 184, sem mudança de motor) | ✅ |
+| R · Revisão carta a carta | R11.1 auditoria frase a frase das 59 cartas de Commander que o motor dava como prontas ou quase: 9 corrigidas, 3 terrenos rebaixados a parciais, 1 devolvida a manual (leva 189, motor v71) | 🟡 |
 | R · Revisão carta a carta | R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
@@ -2532,6 +2533,21 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Decisão pendente do dono do produto:** hoje lista com carta parcial ou manual não joga (modo único, leva 113). Com essa regra, nenhuma lista de Commander joga antes de ~12 levas. Alternativa: deixar a lista jogar quando só restarem cartas do balde C, com essas cartas marcadas "manual" na mesa (o jogador aplica o efeito). Não foi feito; fica registrado para decidir.
 - **Testes:** `commander.lote.unit` (2): toda carta das listas tem texto com fonte e data; a triagem cobre as mesmas cartas e toda B ou C diz o que falta.
 - **Fora:** nenhum script escrito ou alterado nesta leva; `medir.mjs` ainda conta "sem texto conferido" só por `oficiais.json` (passa a ler os dois arquivos na auditoria da R11).
+
+**R11.1 · Auditoria das cartas de Commander "prontas"** 🟡 (leva 189, motor v71) — as 54 cartas com cobertura completa e as 5 de nota velha, lidas frase a frase contra `.listas/oficiais-commander.json` (consultas de 05/10/2026). 46 conferem. **13 divergiam:**
+- **Corrigidas, com teste que falhava (`commander.regras`, 8 testes):**
+  - **Anguished Unmaking, Utter End** — "target nonland permanent": miravam terreno.
+  - **Miscast** — "instant or sorcery spell unless its controller pays {3}": o script cobrava {1} e mirava qualquer mágica que não fosse de criatura.
+  - **Flusterstorm** — só mirava instantânea e não tinha rajada. Agora instantânea ou feitiço, com rajada.
+  - **Zulaport Cutthroat, Cruel Celebrant** — "this creature or another creature you control dies": a própria morte não disparava; a Celebrant conta também planeswalker.
+  - **Soul-Guide Lantern** — a habilidade de exilar pedia um jogador alvo (podia ser você); o texto exila o cemitério de cada oponente, sem alvo. Entraram o exílio de uma carta ao entrar e a habilidade de {1} que compra.
+  - **Angelic Gift** — faltava comprar ao entrar. **Flickering Ward** — faltava tudo menos anexar: cor ao entrar, proteção sem derrubar a si mesma, {W} volta para a mão.
+- **Rebaixadas a parcial, com o que falta escrito** (eram "completas" só porque o motor lia a linha de mana): **Caves of Koilos, Shivan Reef** (gerar cor deveria causar 1 de dano a você) e **Tainted Field** (cor só com um Swamp). Primitivas na R11.2.
+- **Devolvida a manual:** **Curiosity** — o gatilho de dano da criatura encantada não sabe quem recebeu o dano ("to an opponent"); mesma classe do Malcolm.
+- **Motor:** filtros de alvo `targetNotLand` e `targetTypes`; exílio do cemitério de cada oponente; filtro "criatura ou planeswalker" em gatilho; devolver para a mão a partir do campo; proteção que não derruba a própria Aura. Versão 70 → 71 (as cartas acima mudam de comportamento); as quatro partidas-referência regravadas só pela versão.
+- **Triagem depois da auditoria:** 55 prontas e auditadas · 19 A · 74 B · 16 C. Killian 26/13/40/9; Malcolm 34/6/34/7.
+- **Simplificação declarada:** nas cópias da Flusterstorm o "pague {1}" é perguntado cópia a cópia, na ordem da pilha (regra certa, muitos toques).
+- **Fora:** `medir.mjs` ainda não lê `oficiais-commander.json` para a coluna "com texto"; Command Tower e Exotic Orchard não tiveram teste novo (cobertos pelos testes M13 existentes); homologação independente das cartas de Commander fica para a R13.
 
 **R11 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
 - **R10 · Plano do lote:** texto oficial das 105 cartas sem texto conferido, ficha de leitura e triagem em três baldes (só script · primitiva nova · lacuna estrutural), com a matriz primitiva × cartas. Sem isso a ordem é palpite. 1 leva.
