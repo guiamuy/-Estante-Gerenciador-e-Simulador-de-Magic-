@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 74,
+ "motor": 75,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -8709,17 +8709,20 @@
    "regra": "State-Based Actions",
    "titulo": "SBA ignoram o meio da resolução",
    "status": "parcial",
-   "evidencia": "há checagem só ao fim em alguns caminhos (apply 12812)",
-   "falta": "BUG reproduzido: resolveScript chama stateBased depois de CADA efeito da mágica (index.html:11703; idem 11545, 12423). Sonda p7b/sba3-7b.mjs: Lightning Helix em si mesmo com 3 de vida → jogador perde por \"vida\" com a vida final em 3. Mesma coisa para criatura com resistência 0 no meio da resolução (exemplo do Maro).",
-   "esforco": "P"
+   "evidencia": "há checagem só ao fim em alguns caminhos (apply 12812) · CR2a (motor v75): resolveScript, resolveAbility, resumeEffects e o \"pagou\" de gatilho não chamam mais stateBased entre os efeitos; a checagem roda depois da resolução (apply); teste de conformidade em cr.conformidade",
+   "falta": "Quando a resolução para numa escolha do jogador (pick, descarte, sacrifício), apply ainda confere as ações de estado antes de a resolução ser retomada",
+   "esforco": "P",
+   "testes": [
+    "CR 704.4 · ações de estado não são conferidas no meio da resolução: 3 de dano em si mesmo com 3 de vida e depois ganhar 3 não perde o jogo"
+   ]
   },
   {
    "n": "704.5",
    "regra": "State-Based Actions",
    "titulo": "Lista das ações baseadas em estado",
    "status": "parcial",
-   "evidencia": "stateBased (12091-12136) + sondas p7b/sba-7b.mjs e sba2-7b.mjs: 5a vida ≤0 perde (e os dois a 0 = empate); 5b comprar de grimório vazio (drewFromEmpty 10318); 5d ficha fora do campo some (12104; rules.unit \"M12 · ficha que sai do campo deixa de existir\"); 5f resistência 0 morre mesmo indestrutível; 5g dano letal, indestrutível sobrevive; 5h toque mortífero (deathtouched 10804/12131); 5i lealdade 0; 5m aura cujo hospedeiro saiu vai ao cemitério; 5n equipamento solta quando o hospedeiro sai; engine.unit \"M5 · vida zero, grimório vazio e 21 de dano de comandante\"",
-   "falta": "5j: regra das lendas não existe (pede decisão de qual fica). 5c: não há marcador de veneno. 5n: equipamento ou fortificação anexado a algo ilegal não desanexa. 5q e 5m (Aura) corrigidos na leva CR1a. 5g/h: sem regeneração. Demais subitens (batalha, Saga, papel, masmorra completa) dependem de tipos que não existem.",
+   "evidencia": "stateBased (12091-12136) + sondas p7b/sba-7b.mjs e sba2-7b.mjs: 5a vida ≤0 perde (e os dois a 0 = empate); 5b comprar de grimório vazio (drewFromEmpty 10318); 5d ficha fora do campo some (12104; rules.unit \"M12 · ficha que sai do campo deixa de existir\"); 5f resistência 0 morre mesmo indestrutível; 5g dano letal, indestrutível sobrevive; 5h toque mortífero (deathtouched 10804/12131); 5i lealdade 0; 5m aura cujo hospedeiro saiu vai ao cemitério; 5n equipamento solta quando o hospedeiro sai; engine.unit \"M5 · vida zero, grimório vazio e 21 de dano de comandante\" · CR2a (motor v75): 5j regra das lendas (lendasRepetidas → decisão pendente \"legend\", ação choose_legend; as outras vão para o cemitério sem destruir) e 5n Equipamento em não-criatura se solta; testes de conformidade em cr.conformidade",
+   "falta": "5c: não há marcador de veneno. 5n: fortificação não existe. 5g/h: sem regeneração. 5j: a escolha é pedida depois das outras ações da mesma checagem, não junto. Demais subitens (batalha, Saga, papel, masmorra completa) dependem de tipos que não existem.",
    "esforco": "M",
    "depende": [
     "122",
@@ -8731,7 +8734,9 @@
    ],
    "testes": [
     "CR 704.5 · marcadores +1/+1 e −1/−1 na mesma permanente se anulam aos pares (704.5q)",
-    "CR 704.5 · Aura no campo sem estar anexada, ou anexada a algo que ela não pode encantar, vai para o cemitério (704.5m)"
+    "CR 704.5 · Aura no campo sem estar anexada, ou anexada a algo que ela não pode encantar, vai para o cemitério (704.5m)",
+    "CR 704.5 · regra das lendas (704.5j): duas lendárias de mesmo nome com o mesmo controlador — ele escolhe uma, a outra vai para o cemitério, mesmo indestrutível",
+    "CR 704.5 · Equipamento anexado a permanente que não é criatura se solta e fica no campo (704.5n)"
    ]
   },
   {

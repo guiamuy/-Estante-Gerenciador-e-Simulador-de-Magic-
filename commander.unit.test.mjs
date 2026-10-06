@@ -210,7 +210,9 @@ test('Q10 · comandante devolvido no meio da resolução: o resto da mágica con
   s = act(s, { t: 'cast', p: a, oid: snag, targets: [{ oid: cmd }] });
   s = act(s, { t: 'pass', p: a }); s = act(s, { t: 'pass', p: d });
   assert.equal(s.pending && s.pending.kind, 'commander_zone', 'o comandante foi devolvido: o dono decide');
-  assert.equal(s.players[d].life, 40, 'a perda de vida ainda não aconteceu (vem depois da decisão)');
+  // CR 704.4 + 903.9a (leva CR2a.1): devolver o comandante é ação de estado, e ação de estado só roda depois de a mágica resolver inteira —
+  // a perda de vida acontece ANTES da decisão (a expectativa antiga, 40, vinha da checagem no meio da resolução)
+  assert.equal(s.players[d].life, 39, 'a mágica resolveu inteira antes da decisão do comandante');
   const sim = act(s, { t: 'commander_zone', p: d, yes: true });
   assert.equal(sim.objects[cmd].zone, 'command');
   assert.equal(sim.players[d].life, 39, 'o resto da mágica continuou');

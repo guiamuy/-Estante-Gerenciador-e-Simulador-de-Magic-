@@ -10232,7 +10232,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 74;
+const ENGINE_VERSION = 75;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11867,8 +11867,7 @@ function resumeEffects(s, events) {
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
     else if (eff.target === 'first-target') tgt = r.alvo || null;
     else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
-    applyEffect(s, src, eff, tgt, events);
-    stateBased(s, events);
+    applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
     if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
   }
 }
@@ -12026,7 +12025,7 @@ function resolveScript(s, o, events) {
       // S4 · varredura: todas as criaturas, só as do oponente ou só as suas
       for (const x of sweepTargets(s, o, eff)) applyEffect(s, o, eff, { oid: x.oid }, events);
     } else applyEffect(s, o, eff, null, events);
-    stateBased(s, events);
+    // CR 704.4 · as ações de estado esperam a mágica terminar de resolver (antes rodavam entre um efeito e outro)
   }
   if (s.pending) s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: [] };
 }
@@ -12455,7 +12454,8 @@ function stateBased(s, events) {
       // Leva 106 · 702.16c: proteção contra a cor da aura ou do equipamento também solta (Benevolent Blessing, Mask of Law and Grace)
       // Leva 107 · "Enchant creature you control" (Setessan Training): se outro jogador passa a controlar a criatura, a aura cai
       const soSua = String(((s.facts[o.name].script || {}).aura || {}).enchant || '').endsWith('you-control');
-      if (host && host.zone === 'battlefield' && !protecaoDerruba(s, host, o) && !(soSua && host.controller !== o.controller)) continue;
+      const equipFora = !!(s.facts[o.name].script || {}).equip && host && host.zone === 'battlefield' && !isCreature(s, host); // CR 704.5n · Equipamento só fica em criatura
+      if (host && host.zone === 'battlefield' && !protecaoDerruba(s, host, o) && !(soSua && host.controller !== o.controller) && !equipFora) continue;
       if (o.bestowed) { delete o.bestowed; delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); } // volta a ser criatura
       else if (s.facts[o.name].script && s.facts[o.name].script.aura) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); }
       else { delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); }
@@ -12483,6 +12483,8 @@ function stateBased(s, events) {
     }
     if (!changed) break;
   }
+  // CR 704.5j · regra das lendas: o controlador escolhe qual fica; as outras vão para o cemitério
+  if (!s.pending && s.status === 'playing') { const g = lendasRepetidas(s); if (g) { s.pending = { kind: 'legend', p: g.p, name: g.name, options: g.oids }; events.push({ kind: 'choice', what: 'qual lendária fica', name: g.name, amount: 1 }); } }
   // M13 · 903.9a/b: o dono decide se o comandante volta para a zona de comando, um de cada vez
   if (s.voltaComando) {
     s.voltaComando = s.voltaComando.filter(oid => s.objects[oid] && VOLTA_COMANDO.includes(s.objects[oid].zone) && !s.players[s.objects[oid].owner].lost);
@@ -12497,6 +12499,17 @@ function stateBased(s, events) {
   if (s.status !== 'over' && s.players.length > 1 && left.length <= 1) {
     s.status = 'over'; s.winner = left.length ? left[0] : null; s.pending = null; events.push({ kind: 'over', winner: s.winner });
   }
+}
+/** CR 704.5j · primeiro grupo de permanentes lendárias de mesmo nome sob o mesmo controlador (virada para baixo não tem nome). */
+function lendasRepetidas(s) {
+  for (let p = 0; p < s.players.length; p++) {
+    if (s.players[p].lost) continue;
+    const porNome = {};
+    for (const o of battlefield(s)) if (o.controller === p && !o.faceDown && s.facts[o.name] && s.facts[o.name].legendary) (porNome[o.name] = porNome[o.name] || []).push(o.oid);
+    const nome = Object.keys(porNome).find(n => porNome[n].length > 1);
+    if (nome) return { p, name: nome, oids: porNome[nome] };
+  }
+  return null;
 }
 function removePlayer(s, p) {
   s.stack.filter(oid => s.objects[oid].owner === p).forEach(oid => moveObject(s, oid, 'exile'));
@@ -12772,7 +12785,7 @@ const HANDLERS = {
         const alvo = SC.isTargeted(eff) ? (pk.then.targets || [])[ti++] : null;
         if (!effectAllowed(s, s.objects[pk.then.source], eff)) continue;
         if (SC.isTargeted(eff) && !alvo) continue;
-        applyEffect(s, src, eff, alvo, ev); stateBased(s, ev);
+        applyEffect(s, src, eff, alvo, ev);
       }
       return resumeEffects(s, ev);
     }
@@ -12893,6 +12906,13 @@ const HANDLERS = {
     finishPick(s, ev);
   },
   /** M10/S11b · escolhe a cor que a permanente pediu ao entrar. */
+  choose_legend(s, a, ev) { // CR 704.5j · fica a escolhida; as outras de mesmo nome vão para o cemitério (não é destruir nem sacrificar)
+    if (!s.pending || s.pending.kind !== 'legend' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma lendária a escolher');
+    const pk = s.pending;
+    if (!pk.options.includes(a.oid)) throw new RuleError('escolha', 'escolha uma das lendárias repetidas');
+    s.pending = null;
+    for (const oid of pk.options) { const o = s.objects[oid]; if (oid === a.oid || !o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); ev.push({ kind: 'died', oid, name: o.name, why: 'regra das lendas' }); }
+  },
   choose_pair(s, a, ev) { // S51 · escolhe com quem a criatura de vínculo de alma se emparelha
     if (!s.pending || s.pending.kind !== 'choose_pair' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum par a escolher');
     const pk = s.pending;
@@ -13137,7 +13157,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
+const PENDING_ACTIONS = { commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], legend: ['choose_legend', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -13151,6 +13171,7 @@ function apply(state, action) {
       : k === 'commander_zone' ? 'decida se o comandante volta para a zona de comando primeiro'
       : k === 'choose_type' ? 'escolha o tipo de criatura primeiro'
       : k === 'choose_pair' ? 'escolha o par do vínculo de alma primeiro'
+      : k === 'legend' ? 'escolha qual lendária fica primeiro'
       : k === 'choose_mode' ? 'escolha o que o gatilho faz primeiro'
       : k === 'free_cast' ? 'decida se conjura sem pagar primeiro'
       : k === 'unless' ? 'decida se paga ou perde vida primeiro'
@@ -13228,6 +13249,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       out.push({ t: 'decline', p });
     }
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
+    if (k === 'legend') s.pending.options.forEach(oid => out.push({ t: 'choose_legend', p, oid })); // CR 704.5j
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
     if (k === 'choose_mode') { (s.pending.options || []).forEach((label, index) => { if (!s.pending.legais || s.pending.legais.includes(index)) out.push({ t: 'choose_mode', p, index, label }); }); // S56 · CR 700.2b
       if (s.pending.naResolucao && s.pending.optional) out.push({ t: 'choose_mode', p, decline: true }); } // Leva 131 · "you may"
@@ -13590,7 +13612,6 @@ function resolveAbility(s, o, events) {
     else if (String(eff.target || '').startsWith('each-')) {
       sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
     } else applyEffect(s, o, eff, null, events);
-    stateBased(s, events);
     if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti) }; return; }
   }
 }
@@ -15321,6 +15342,7 @@ function describe(before, a, events, after) {
       L.push(`${P} ativou ${nameOf(before, a.oid)}${alvo ? ` · alvo: ${alvo}` : ''}`); break;
     }
     case 'order_trigger': L.push(`${P} ordenou os gatilhos na pilha`); break;
+    case 'choose_legend': L.push(`${P} ficou com uma ${nameOf(before, a.oid)} (regra das lendas)`); break; // CR 704.5j
     case 'add_mana': L.push(`${P} ${(a.delta || 1) > 0 ? 'adicionou' : 'tirou'} {${a.color}} ${(a.delta || 1) > 0 ? 'à' : 'da'} reserva`); break;
     default: break;
   }
@@ -15339,7 +15361,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
     if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${TRIGGER_PT[ev.when] || ev.when})`);
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
-    if (ev.kind === 'died') L.push(`${ev.name} morreu`);
+    if (ev.kind === 'died') L.push(ev.why === 'regra das lendas' ? `${ev.name} foi para o cemitério pela regra das lendas` : `${ev.name} morreu`);
     if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu a partida: ${REASON_PT[ev.reason] || ev.reason}`);
     if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim da partida: empate' : `Fim da partida: ${who(after, ev.winner)} venceu`);
   }
@@ -15511,6 +15533,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'commander_zone' ? { t: 'commander_zone', p: pd.p, yes: true } // M13
           : pd.kind === 'choose_type' ? { t: 'choose_type', p: pd.p, index: 0 }
           : pd.kind === 'choose_pair' ? { t: 'choose_pair', p: pd.p, index: 0 }
+          : pd.kind === 'legend' ? { t: 'choose_legend', p: pd.p, oid: pd.options[0] }
           : pd.kind === 'choose_mode' ? { t: 'choose_mode', p: pd.p, index: 0 }
           : pd.kind === 'free_cast' ? { t: 'decline_free', p: pd.p } // S61 · o goldfish não conjura de graça
           : pd.kind === 'unless' ? { t: 'take_loss', p: pd.p } // S60 · o goldfish aceita perder a vida
@@ -15792,7 +15815,7 @@ const MOMENTO_PASSO = { untap: ['virar', 'Desvirar'], upkeep: ['sol', 'Manutenç
   combat_end: ['espada', 'Combate'], main2: ['jogar', 'Principal 2'], end: ['lua', 'Final'], cleanup: ['lua', 'Limpeza'] };
 const MOMENTO_DECISAO = { attackers: ['espada', 'Atacar'], blockers: ['escudo', 'Bloquear'], discard: ['mao', 'Descartar'], madness: ['raio', 'Insanidade'],
   may_pay: ['ampulheta', 'Decidir'], unless: ['ampulheta', 'Decidir'], pick: ['alvo', 'Escolher'], pick_target: ['alvo', 'Alvo'], choose_color: ['alvo', 'Cor'],
-  choose_type: ['alvo', 'Tipo'], choose_mode: ['alvo', 'Modo'], choose_pair: ['anexo', 'Emparelhar'], choose_dungeon: ['seguir', 'Masmorra'], choose_room: ['seguir', 'Sala'],
+  choose_type: ['alvo', 'Tipo'], choose_mode: ['alvo', 'Modo'], choose_pair: ['anexo', 'Emparelhar'], legend: ['alvo', 'Lendária'], choose_dungeon: ['seguir', 'Masmorra'], choose_room: ['seguir', 'Sala'],
   triggers: ['camadas', 'Gatilhos'], sacrifice: ['lixeira', 'Sacrificar'], commander_zone: ['voltar', 'Comandante'], free_cast: ['jogar', 'Conjurar'] };
 function momentoDaBandeja(s, v) {
   const de = ([icone, curto], tom = 'normal') => ({ icone, curto, tom });
@@ -18105,6 +18128,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Para qual sala avançar?', hint: 'O efeito da sala vai para a pilha.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
           Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-room', onClick: () => act({ t: 'choose_room', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'legend' && s.pending.p === v) { // CR 704.5j
+      banner = PriorityBanner({ title: `Qual ${s.pending.name} fica?`, hint: 'Regra das lendas: você só pode ter uma permanente lendária com esse nome. As outras vão para o cemitério.', tone: 'warning',
+        actions: (s.pending.options || []).slice(0, 6).map((oid, index) => { const o = s.objects[oid]; const marca = [o.tapped ? 'virada' : null, o.sick ? 'entrou agora' : null, o.damage ? `${o.damage} de dano` : null].filter(Boolean).join(', ');
+          return Button(`Ficar com a ${index + 1}ª${marca ? ` (${marca})` : ''}`, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-legend', onClick: () => act({ t: 'choose_legend', p: v, oid }) }); }) });
     } else if (s.pending && s.pending.kind === 'choose_pair' && s.pending.p === v) {
       banner = PriorityBanner({ title: 'Com quem emparelhar?', hint: 'Vínculo de alma: as duas criaturas ganham a habilidade. Você pode recusar.', tone: 'warning',
         actions: [...(s.pending.options || []).slice(0, 6).map((oid, index) =>

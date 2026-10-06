@@ -154,7 +154,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR0 mapa regra × motor: os 1.174 itens numerados das regras de 25/09/2026 classificados contra o motor v72 com evidência — 204 cobertos, 211 parciais, 475 ausentes, 108 só definição, 176 fora de escopo; 23% do aplicável (leva 194) | ✅ |
 | CR · Conformidade com as Comprehensive Rules | CR1a 14 bugs da auditoria corrigidos com teste de conformidade: custos de vida, mana phyrexiana, carta sem custo, X no valor de mana, dano 0, busca e topo do grimório, 2/2 virada para baixo, marcadores que se anulam, Aura solta, fim de combate, limpeza, conceder, Veículo comandante (leva 196, motor v73) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR1b resto dos bugs da auditoria que não pedem estrutura: fração de segundo, proteção impressa contra cor, medo, intimidar, sombra, esgueirar e travessias, gatilho modal sem modo ilegal, condição em gatilho de outra permanente, gerar mana durante um pagamento pedido por efeito (motor v74) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2a zonas, objeto novo ao mudar de zona e ações de estado completas (704, 400.7, 608.2) | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2a.1 ações de estado: regra das lendas com escolha do jogador, nada de checagem no meio da resolução, Equipamento em não-criatura se solta (motor v75) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2a.2 objeto novo ao mudar de zona (400.7) e última informação conhecida (704.8, 608.2h) | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2644,6 +2645,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Aceite:** cada item acima tem teste com o número da regra no título; `combat.audit` K12 exige cenário para toda palavra-chave que o motor declara.
 - **Golden:** regravadas só pela versão (73 → 74).
 - **Fora (segue no épico):** jogador que sai numa mesa de três (800.4) vai para a CR6; os bugs que pedem estrutura seguem na CR2.
+
+**CR2a.1 · Ações de estado** 🟡 (motor v75) — 3 testes de conformidade novos, todos falhavam antes.
+- **Valor:** partidas com lendárias (todo Commander) e mágicas de dois efeitos passam a terminar como a regra manda.
+- **704.5j** regra das lendas: com duas permanentes lendárias de mesmo nome sob o mesmo controlador, ele escolhe qual fica; as outras vão para o cemitério (indestrutível não salva; gatilhos de morte disparam). Virada para baixo não conta. Tela: faixa "Qual … fica?" com um botão por cópia; o registro diz "foi para o cemitério pela regra das lendas".
+- **704.4** as ações de estado não rodam mais entre um efeito e outro da mesma mágica ou habilidade (antes: 3 de dano em si mesmo com 3 de vida e "ganhe 3" perdia o jogo). **Parcial:** se a resolução para numa escolha do jogador, a checagem ainda roda antes de retomar.
+- **704.5n** Equipamento preso a algo que não é criatura se solta e fica no campo.
+- **Simplificação declarada:** a escolha da lenda é pedida logo depois das outras ações da mesma checagem, não no mesmo instante (704.3). Muda o resultado só se um gatilho depender dessa simultaneidade.
+- **Golden:** regravadas só pela versão (74 → 75); os registros das quatro partidas são idênticos.
+- **Fora (segue na CR2a):** objeto novo ao mudar de zona (400.7), última informação conhecida (704.8), laço de checagem com gatilhos (704.3), veneno e regeneração.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

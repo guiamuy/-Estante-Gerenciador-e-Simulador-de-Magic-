@@ -18,6 +18,9 @@ const INVENTADAS = {
   Sombrio: c('Sombrio', 'Creature — Spirit', '{U}', { power: '2', toughness: '2', keywords: ['Shadow'] }), 'Anda Ilha': c('Anda Ilha', 'Creature — Merfolk', '{U}', { power: '2', toughness: '2', keywords: ['Islandwalk'] }),
   Furtivo: c('Furtivo', 'Creature — Rogue', '{U}', { power: '1', toughness: '1', keywords: ['Skulk'] }),
   Modal: c('Modal', 'Enchantment', '{0}'), 'Modal Sem Saida': c('Modal Sem Saida', 'Enchantment', '{0}'), Condicional: c('Condicional', 'Enchantment', '{0}'),
+  // CR2a
+  Helice: c('Helice', 'Instant', '{0}', { colors: ['R', 'W'] }), Lenda: c('Lenda', 'Legendary Creature — Hero', '{W}', { power: '2', toughness: '2' }), 'Lenda Eterna': c('Lenda Eterna', 'Legendary Creature — God', '{W}', { power: '2', toughness: '2', keywords: ['Indestructible'] }),
+  Porrete: c('Porrete', 'Artifact — Equipment', '{1}'),
   'Dano Contado': c('Dano Contado', 'Instant', '{0}', { colors: ['R'] }), Vigia: c('Vigia', 'Enchantment — Aura', '{0}'), 'Fim de Combate': c('Fim de Combate', 'Creature — Spirit', '{1}', { power: '1', toughness: '1' }),
 };
 const SCRIPTS = {
@@ -32,6 +35,8 @@ const SCRIPTS = {
   Modal: { name: 'Modal', abilities: [{ kind: 'triggered', when: 'etb', modes: [{ label: 'destruir', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'comprar', effects: [{ do: 'draw', amount: 1 }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   'Modal Sem Saida': { name: 'Modal Sem Saida', abilities: [{ kind: 'triggered', when: 'etb', modes: [{ label: 'destruir', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'ferir', effects: [{ do: 'damage', amount: 1, target: 'creature' }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Condicional: { name: 'Condicional', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, condition: { lifeGained: 3 }, effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Helice: { name: 'Helice', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'gain', amount: 3 }], example: { target: 'opponent', expect: { opponentLife: 17 } } },
+  Porrete: { name: 'Porrete', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 3] } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
   Vigia: { name: 'Vigia', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   'Fim de Combate': { name: 'Fim de Combate', abilities: [{ kind: 'triggered', when: 'end-of-combat', effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -208,4 +213,26 @@ test('CR 605.3 · habilidade de mana pode ser ativada enquanto um efeito pede pa
   assert.equal(s.pending.kind, 'may_pay'); assert.equal(legais(s, 0, a => a.t === 'tap_mana').length, 2, 'as duas fontes são oferecidas');
   s = act(s, { t: 'tap_mana', p: 0, oid: sw, option: 0 }); assert.equal(s.pending.kind, 'may_pay', 'a decisão continua pendente'); s = act(s, { t: 'pay', p: 0 });
   assert.equal(s.objects[pl].tapped, false, 'pagou com a mana que o jogador escolheu gerar'); assert.equal(s.objects[u].zone === 'graveyard', false);
+});
+
+// ---------------------------------------------------------------- CR2a
+test('CR 704.4 · ações de estado não são conferidas no meio da resolução: 3 de dano em si mesmo com 3 de vida e depois ganhar 3 não perde o jogo', () => {
+  let s = mesa(['Helice']), h; [s, h] = poe(s, 0, 'Helice', 'hand'); s = comVida(s, 3);
+  s = tudo(act(s, conj(s, h, a => a.targets[0].player === 0)[0])); assert.equal(s.players[0].lost || false, false); assert.equal(s.players[0].life, 3); assert.equal(s.status, 'playing');
+});
+
+test('CR 704.5 · regra das lendas (704.5j): duas lendárias de mesmo nome com o mesmo controlador — ele escolhe uma, a outra vai para o cemitério, mesmo indestrutível', () => {
+  { let s = mesa(['Lenda Eterna']), a, b; [s, a] = poe(s, 0, 'Lenda Eterna'); [s, b] = poe(s, 0, 'Lenda Eterna'); s = act(s, { t: 'pass', p: 0 });
+    assert.equal(s.pending.kind, 'legend'); assert.deepEqual(J(legais(s, 0, x => x.t === 'choose_legend').map(x => x.oid)).sort(), [a, b].sort());
+    assert.throws(() => act(s, { t: 'pass', p: 0 }), /lendária/); s = act(s, { t: 'choose_legend', p: 0, oid: b });
+    assert.equal(s.objects[b].zone, 'battlefield'); assert.equal(s.objects[a].zone, 'graveyard', 'não é destruição: indestrutível não salva'); assert.equal(s.pending, null); }
+  { let s = mesa(['Lenda'], ['Lenda']), a, b; [s, a] = poe(s, 0, 'Lenda'); [s, b] = poe(s, 1, 'Lenda'); s = act(s, { t: 'pass', p: 0 }); assert.equal(s.pending, null, 'controladores diferentes: as duas ficam'); assert.equal(s.objects[a].zone, 'battlefield'); assert.equal(s.objects[b].zone, 'battlefield'); }
+  { let s = mesa(['Lenda']), a, b; [s, a] = poe(s, 0, 'Lenda'); [s, b] = poe(s, 0, 'Lenda', 'battlefield', { faceDown: true }); s = act(s, { t: 'pass', p: 0 }); assert.equal(s.pending, null, 'virada para baixo não tem nome nem supertipo (708.2)'); }
+  { let s = mesa(['Lenda']), ids = []; for (let i = 0; i < 3; i++) { let o; [s, o] = poe(s, 0, 'Lenda'); ids.push(o); } s = act(s, { t: 'pass', p: 0 }); s = act(s, { t: 'choose_legend', p: 0, oid: ids[1] });
+    assert.deepEqual(ids.map(o => s.objects[o].zone), ['graveyard', 'battlefield', 'graveyard'], 'três cópias: fica uma'); }
+});
+
+test('CR 704.5 · Equipamento anexado a permanente que não é criatura se solta e fica no campo (704.5n)', () => {
+  let s = mesa(['Porrete']), e, l; [s, l] = poe(s, 0, 'Plains'); [s, e] = poe(s, 0, 'Porrete'); s = J(s); s.objects[e].attachedTo = l;
+  s = act(s, { t: 'pass', p: 0 }); assert.equal(s.objects[e].zone, 'battlefield'); assert.equal(s.objects[e].attachedTo ?? null, null);
 });
