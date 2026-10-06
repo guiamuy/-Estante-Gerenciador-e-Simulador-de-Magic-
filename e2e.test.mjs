@@ -5206,7 +5206,7 @@ test('e2e · R5 · Bogles: Armadillo Cloak e Spirit Link ganham a vida dos dois 
   assert.ok(e.campo.includes('Sheltering Landscape'));
   f = await folha131(page, 'Sheltering Landscape', '.tb-side'); assert.deepEqual(f.map(b => b.txt), ['Gerar {C}', 'Ativar ({T}, sacrificar)']);
   await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Ativar/ }).click(); await page.waitForTimeout(300); e = await M.resolve();
-  assert.equal(e.pend, 'pick'); assert.equal(await M.decisao(), 'Sheltering Landscape · Vasculhar o grimório | Toque na carta.');
+  assert.equal(e.pend, 'pick'); assert.equal(await M.decisao(), 'Sheltering Landscape · Vasculhar o grimório | Toque na carta. Você pode confirmar sem pegar nenhuma.'); // CR 701.23b (leva CR1a): expectativa ajustada, a busca por tipo de terreno deixou de ser obrigatória
   const achadas = await page.locator('#tb-pick-cards .tb-card').evaluateAll(cs => cs.map(c => c.getAttribute('aria-label').replace(/, \d+ cópias/, ', N cópias')));
   assert.deepEqual(achadas.slice().sort(), ['Forest, N cópias', 'Plains, N cópias'], 'uma carta por nome, com a contagem (antes: nove cartas em fila)');
   await auditaTela(page, 'busca da Sheltering Landscape');

@@ -3824,7 +3824,9 @@ function mzGame(seed = 1) {
 function fechaEscolha(s) {
   for (let i = 0; i < 12 && s.pending && s.pending.kind === 'pick'; i++) {
     const pk = s.pending;
-    if ((pk.picked || []).length < (pk.min || 0)) {
+    // CR 701.23b (leva CR1a): busca por característica deixou de ser obrigatória (min 0); o apoio continua achando a carta,
+    // como antes, para o percurso da masmorra não mudar
+    if ((pk.picked || []).length < Math.max(pk.min || 0, pk.label === 'vasculhar' ? 1 : 0)) {
       const livre = pk.from.find(x => !(pk.picked || []).includes(x));
       s = act(s, { t: 'pick', p: pk.p, oid: livre });
     } else s = settle(act(s, { t: 'pick_done', p: pk.p }));

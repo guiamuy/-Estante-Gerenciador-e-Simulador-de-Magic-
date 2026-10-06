@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 72,
+ "motor": 73,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -201,10 +201,13 @@
    "regra": "Ending the Game",
    "titulo": "Formas de perder",
    "status": "parcial",
-   "evidencia": "a: concede a qualquer hora, inclusive no mulligan e com decisão pendente (index.html:12747, 12786-12787; sonda); b: vida <= 0; c: compra de grimório vazio (drewFromEmpty index.html:10318); j: 21 de dano de comandante (index.html:12096-12099; engine.unit M5)",
-   "falta": "104.3d: não existem marcadores de veneno em jogador (0 ocorrências de \"poison\"; Phyresis e Skrelv estão na base de cartas); 104.3e: não há efeito \"perde o jogo\"; 104.3f sem uso por isso. Conceder é feito zerando a vida e o motivo registrado vira \"vida\" em vez de \"desistência\" (sonda). g,h,i,k fora.",
+   "evidencia": "a: concede a qualquer hora, inclusive no mulligan e com decisão pendente (index.html:12747, 12786-12787; sonda); b: vida <= 0; c: compra de grimório vazio (drewFromEmpty index.html:10318); j: 21 de dano de comandante (index.html:12096-12099; engine.unit M5) · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "104.3d: não existem marcadores de veneno em jogador; 104.3e: não há efeito \"perde o jogo\"; 104.3f sem uso por isso. g, h, i, k fora.",
    "esforco": "M",
-   "cartas": "veneno: comum (infect/toxic)"
+   "cartas": "veneno: comum (infect/toxic)",
+   "testes": [
+    "CR 104.3 · quem concede perde por desistência, não por vida"
+   ]
   },
   {
    "n": "104.4",
@@ -420,10 +423,13 @@
    "regra": "Numbers and Symbols",
    "titulo": "Símbolos de mana",
    "status": "parcial",
-   "evidencia": "parseCost (index.html:10007-10021) e payFrom (index.html:10348-10371): colorido só com a cor, genérico com qualquer, {C} só com incolor, híbrido, {2/W}, phyrexiano e híbrido phyrexiano; rules.unit 'M7 · custo: genérico, colorido, híbrido, phyrexiano e X', 'M7 · híbrido paga com qualquer das cores'",
-   "falta": "107.4f: o jogador não escolhe entre mana e 2 de vida — com a reserva vazia o motor paga vida mesmo havendo terreno desvirado, e deixa pagar com vida 1 (sondas, ver bugs). 107.4e: {2/W} tenta primeiro as 2 genéricas. 107.4h: {S} vira genérico comum. A escolha de qual mana paga o genérico é automática.",
+   "evidencia": "parseCost (index.html:10007-10021) e payFrom (index.html:10348-10371): colorido só com a cor, genérico com qualquer, {C} só com incolor, híbrido, {2/W}, phyrexiano e híbrido phyrexiano; rules.unit 'M7 · custo: genérico, colorido, híbrido, phyrexiano e X', 'M7 · híbrido paga com qualquer das cores' · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "107.4f: o jogador ainda não escolhe entre mana e 2 de vida (o motor paga com mana se puder, senão com vida, nunca mais do que tem). 107.4e: {2/W} tenta primeiro as 2 genéricas. 107.4h: {S} vira genérico comum. A escolha de qual mana paga o genérico é automática.",
    "esforco": "M",
-   "cartas": "phyrexiano: comum; neve: rara"
+   "cartas": "phyrexiano: comum; neve: rara",
+   "testes": [
+    "CR 107.4 · mana phyrexiana: com a cor disponível o motor paga com mana, não com vida; sem mana paga 2 de vida, e só se tiver 2"
+   ]
   },
   {
    "n": "107.5",
@@ -1375,10 +1381,11 @@
    "n": "119.4",
    "regra": "Life",
    "titulo": "Pagar vida",
-   "status": "parcial",
-   "evidencia": "custo de vida em habilidade e custo alternativo desconta do total (index.html:11996, 10630)",
-   "falta": "BUG: exige vida estritamente maior que o custo (sonda B: 3 de vida não paga 3). Mana phyrexiana paga 2 sem conferir (sonda A2: de 1 para -1). Terreno \"pague 1 de vida\" (manaRule.life, index.html:10536) também não confere. 119.4a é equipe (fora).",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "custos de vida comparam com < (index.html, payAlt/canPayAlt/payAbility); phyrexiano limitado à vida do jogador (planTaps); manaRule.life confere a vida em productions. 119.4a (equipes) fora de escopo.",
+   "testes": [
+    "CR 119.4 · pagar vida exige ter pelo menos aquela vida: com exatamente 3, \"pague 3 de vida\" é permitido; com 2, não"
+   ]
   },
   {
    "n": "119.5",
@@ -1515,10 +1522,11 @@
    "n": "120.8",
    "regra": "Damage",
    "titulo": "Dano 0 não é dano",
-   "status": "parcial",
-   "evidencia": "combate pula poder <= 0 (index.html:10781); vínculo com a vida e Auras de \"causou dano\" exigem n > 0 (causouDano index.html:11557)",
-   "falta": "BUG: dano 0 de efeito ainda conta como \"recebeu dano\" para a Aura observadora (noteEnchantedEvent sem conferir n, index.html:11124). Sonda Q: mágica que causa 0 de dano dispara \"quando a criatura encantada recebe dano\".",
-   "esforco": "P"
+   "status": "coberta",
+   "evidencia": "efeito de dano só marca e avisa a Aura observadora com n > 0 (applyEffect 'damage' e dano de combate)",
+   "testes": [
+    "CR 120.8 · dano 0 não é dano: não dispara \"quando a criatura encantada recebe dano\""
+   ]
   },
   {
    "n": "120.9",
@@ -1852,11 +1860,14 @@
    "regra": "Mana Cost and Color",
    "titulo": "Custo de mana e como pagá-lo",
    "status": "parcial",
-   "evidencia": "parseCost/payFrom (index.html:10007, 10348) exigem cor, incolor e genérico; teste rules.unit \"M7 · custo: genérico, colorido, híbrido, phyrexiano e X\"",
-   "falta": "202.1b: carta sem custo de mana (Lotus Bloom, Ancestral Vision, Living End) vira custo zero e é conjurável de graça — sonda: artefato com mana_cost \"\" recebe ação \"cast\". Deveria ser custo impagável.",
+   "evidencia": "parseCost/payFrom (index.html:10007, 10348) exigem cor, incolor e genérico; teste rules.unit \"M7 · custo: genérico, colorido, híbrido, phyrexiano e X\" · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "202.1b cumprida no modo completo quando o dado da carta traz valor de mana 0 e nenhum custo; registro leve sem o campo de custo e com valor 0 seria tratado como sem custo. Falta conjurar por custo alternativo uma carta sem custo (suspender, cascata: dependem de 702.62 e 702.85).",
    "esforco": "P",
    "depende": [
     "118.6"
+   ],
+   "testes": [
+    "CR 202.1 · carta sem custo de mana não pode ser conjurada pelo custo normal (não é custo zero)"
    ]
   },
   {
@@ -1876,12 +1887,15 @@
    "regra": "Mana Cost and Color",
    "titulo": "Valor de mana",
    "status": "parcial",
-   "evidencia": "f.cmc vem do dado (index.html:10054) e é usado em alvos e buscas (index.html:11053, 11206); teste \"S17 · ... Spell Snare só pega valor 2\"",
-   "falta": "202.3e: X pago não conta na pilha — sonda: Nyxborn Hydra com X=1 (valor 2) não é alvo de Spell Snare, e Kor Skyfisher (valor 2) é. 202.3b: a face de trás nasce com cmc 0 (index.html:10152) em vez do valor da frente. 202.3d (split) não existe.",
+   "evidencia": "f.cmc vem do dado (index.html:10054) e é usado em alvos e buscas (index.html:11053, 11206); teste \"S17 · ... Spell Snare só pega valor 2\" · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "202.3b: a face de trás nasce com valor 0 em vez do valor da frente. 202.3d (cartas divididas) não existe. 202.3e cumprida para filtros de alvo; contagens que leem valor de mana fora de alvo ainda usam o valor impresso.",
    "esforco": "P",
    "depende": [
     "709",
     "712"
+   ],
+   "testes": [
+    "CR 202.3 · o X pago conta no valor de mana da mágica na pilha: Spell Snare (valor 2) mira {X}{G} com X=1 e não com X=2"
    ]
   },
   {
@@ -3933,12 +3947,15 @@
    "regra": "End of Combat Step",
    "titulo": "Gatilhos de fim de combate; \"até o fim do combate\"",
    "status": "parcial",
-   "evidencia": "enterStep enfileira 'end-of-combat' ao entrar no passo (index.html:10690); sonda p5/t3.mjs G1; rules.unit 'S25 · transforma no fim do combate com três atacantes'",
-   "falta": "Só dispara para permanentes do jogador ATIVO (filtro controller === a): na sonda G1 o defensor tinha a mesma criatura com \"no fim do combate\" e o gatilho dele não subiu. Efeito \"até o fim do combate\" não existe (500.5a). Gatilho atrasado \"no fim do combate\" (\"destrua-a no fim do combate\") também não.",
+   "evidencia": "enterStep enfileira 'end-of-combat' ao entrar no passo (index.html:10690); sonda p5/t3.mjs G1; rules.unit 'S25 · transforma no fim do combate com três atacantes' · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "efeito \"até o fim do combate\" não existe (500.5a); gatilho atrasado \"no fim do combate\" também não (603.7).",
    "esforco": "P",
    "depende": [
     "603.7",
     "500.5"
+   ],
+   "testes": [
+    "CR 511.2 · \"no fim do combate\" dispara para as permanentes de todos os jogadores, não só do ativo"
    ]
   },
   {
@@ -3988,12 +4005,10 @@
    "n": "514.2",
    "regra": "Cleanup Step",
    "titulo": "Dano sai e efeitos de \"até o fim do turno\" acabam juntos",
-   "status": "parcial",
-   "evidencia": "finishCleanup apaga pump/tempKeywords/tempProtection/prevenções e zera o dano na mesma chamada, sem ações de estado no meio (index.html:10715-10720); sonda p5/t6.mjs: 2/2 com +3/+3 e 3 de dano sobrevive e volta a 2/2 sem dano; scripts.unit 'S4 · efeito até o fim do turno acaba na limpeza'",
-   "falta": "Quando a limpeza dá prioridade (insanidade), o motor NÃO executa este passo antes: o dano e os bônus do turno continuam marcados durante a prioridade e só saem na limpeza seguinte. Sonda t5.mjs L3b: 5/5 com 2 de dano levou Fiery Temper (3) por insanidade na limpeza e morreu; pela regra o dano já tinha saído e ela sobreviveria.",
-   "esforco": "P",
-   "depende": [
-    "514.3"
+   "status": "coberta",
+   "evidencia": "fimDosEfeitosDoTurno roda antes da prioridade da limpeza (afterMadness) e de novo no fim (finishCleanup)",
+   "testes": [
+    "CR 514.2 · na limpeza o dano sai e os efeitos \"até o fim do turno\" acabam ANTES de alguém receber prioridade (514.3a)"
    ]
   },
   {
@@ -5631,24 +5646,30 @@
    "regra": "Keyword Actions",
    "titulo": "Search",
    "status": "parcial",
-   "evidencia": "case search (index.html:11196-11203) e transmute_busca: só cartas do filtro, embaralha depois, embaralha mesmo sem achar; rules.unit \"S13 · vasculhar: só cartas do filtro, e o grimório é embaralhado\"; pauper.regras \"Leva 108 · buscar sem achar nada ainda embaralha\"",
-   "falta": "busca obrigatória por qualidade não deixa \"falhar em achar\" (701.23b): min = amount e pick_done é recusado (sonda: Mystical Tutor → \"escolha 1 carta(s)\"); só busca no grimório (sem cemitério/mão, exemplo Splinter); sem buscar fora do jogo (701.23j); sem substituição de busca (701.23f)",
+   "evidencia": "case search (index.html:11196-11203) e transmute_busca: só cartas do filtro, embaralha depois, embaralha mesmo sem achar; rules.unit \"S13 · vasculhar: só cartas do filtro, e o grimório é embaralhado\"; pauper.regras \"Leva 108 · buscar sem achar nada ainda embaralha\" · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "só busca no grimório (sem cemitério nem mão); sem buscar fora do jogo (701.23j); sem substituição de busca (701.23f).",
    "esforco": "P",
    "depende": [
     "701.24",
     "400.11"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 701.23 · busca por característica em zona oculta: o jogador pode não achar"
+   ]
   },
   {
    "n": "701.24",
    "regra": "Keyword Actions",
    "titulo": "Shuffle",
    "status": "parcial",
-   "evidencia": "shuffle() com PRNG semeado (index.html:9999), chamado na busca (11201, 11516) e em to_library_shuffled (11426); rules.unit \"S13 · vasculhar ... o grimório é embaralhado\"",
-   "falta": "BUG 701.24b: busca com destino no topo (to: library-top + shuffle) embaralha a carta achada junto — Mystical Tutor nunca deixa a carta no topo (sonda: 0 de 12); 701.24c: to_library_shuffled não embaralha se a carta já saiu da zona esperada (11425-11426); sem gatilho de \"embaralhar\" (b, e, f)",
+   "evidencia": "shuffle() com PRNG semeado (index.html:9999), chamado na busca (11201, 11516) e em to_library_shuffled (11426); rules.unit \"S13 · vasculhar ... o grimório é embaralhado\" · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "701.24c: to_library_shuffled não embaralha se a carta já saiu da zona esperada; sem gatilho de \"embaralhar\" (b, e, f).",
    "esforco": "P",
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 701.24 · buscar e pôr no topo: embaralha e DEPOIS põe a carta no topo (Mystical Tutor)"
+   ]
   },
   {
    "n": "701.25",
@@ -8672,7 +8693,7 @@
    "titulo": "Lista das ações baseadas em estado",
    "status": "parcial",
    "evidencia": "stateBased (12091-12136) + sondas p7b/sba-7b.mjs e sba2-7b.mjs: 5a vida ≤0 perde (e os dois a 0 = empate); 5b comprar de grimório vazio (drewFromEmpty 10318); 5d ficha fora do campo some (12104; rules.unit \"M12 · ficha que sai do campo deixa de existir\"); 5f resistência 0 morre mesmo indestrutível; 5g dano letal, indestrutível sobrevive; 5h toque mortífero (deathtouched 10804/12131); 5i lealdade 0; 5m aura cujo hospedeiro saiu vai ao cemitério; 5n equipamento solta quando o hospedeiro sai; engine.unit \"M5 · vida zero, grimório vazio e 21 de dano de comandante\"",
-   "falta": "BUG 5j: regra das lendas não existe (sonda: dois \"Leonardo, Big Brother\" e duas \"Jirina\" do mesmo jogador ficam no campo, sem decisão). 5c: não há marcador de veneno. 5q: +1/+1 e −1/−1 não se anulam (sonda: {p1p1:3,m1m1:2} fica igual; hoje nenhum efeito põe −1/−1). 5m: Aura sem anexo ou anexada a objeto ilegal fica (sonda: Rancor em terreno; só cai se o hospedeiro sai, por proteção ou \"you control\"). 5n: equipamento em não-criatura fica anexado (sonda: Skullclamp em Drossforge Bridge). 5p: criatura anexada não solta. 5g/5h: sem regeneração. 5e: cópias de mágica são gatilhos, sem checagem própria. Ausentes: 5k mundo, 5r limite de marcadores, 5s Sagas, 5t masmorra completa sair do jogo (só marca done, 11770), 5u, 5v-5y batalhas, 5z Papéis, 5aa velocidade.",
+   "falta": "5j: regra das lendas não existe (pede decisão de qual fica). 5c: não há marcador de veneno. 5n: equipamento ou fortificação anexado a algo ilegal não desanexa. 5q e 5m (Aura) corrigidos na leva CR1a. 5g/h: sem regeneração. Demais subitens (batalha, Saga, papel, masmorra completa) dependem de tipos que não existem.",
    "esforco": "M",
    "depende": [
     "122",
@@ -8681,6 +8702,10 @@
     "701.19",
     "714",
     "310"
+   ],
+   "testes": [
+    "CR 704.5 · marcadores +1/+1 e −1/−1 na mesma permanente se anulam aos pares (704.5q)",
+    "CR 704.5 · Aura no campo sem estar anexada, ou anexada a algo que ela não pode encantar, vai para o cemitério (704.5m)"
    ]
   },
   {
@@ -8995,13 +9020,16 @@
    "regra": "Face-Down Spells and Permanents",
    "titulo": "Virada para baixo: 2/2 sem nome, tipo nem habilidade",
    "status": "parcial",
-   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136",
-   "falta": "só metamorfose; 708.2a (disfarce com ward {2}, manifestar, camuflar) não existe; o objeto continua com o nome real em o.name e a cor vem dos fatos da carta (não vi checagem de incolor em protecaoDerruba/colorPrevented).",
+   "evidencia": "power/toughness = 2 (index.html:10340-10341), has() nega palavras-chave (10065), abilitiesOf vazio (10901), sem subtipo/custo (10089, 10118, 11742, 11876); rules.unit \"S54 · metamorfose: entra virada para baixo como 2/2 sem nada\"; elves.regras Leva 136 · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "só metamorfose; 708.2a (disfarce com ward {2}, manifestar, camuflar) não existe; o objeto guarda o nome real em o.name (a tela esconde). Cor e bônus de anexo corrigidos.",
    "esforco": "M",
    "depende": [
     "702.37",
     "701.40",
     "613"
+   ],
+   "testes": [
+    "CR 708.2 · permanente virada para baixo é 2/2 incolor: a cor impressa não vale, e bônus de Aura valem"
    ]
   },
   {
@@ -11287,12 +11315,15 @@
    "regra": "Commander",
    "titulo": "Quem pode ser comandante; a marca acompanha a carta",
    "status": "parcial",
-   "evidencia": "Marca o.commander posta na criação (index.html:10215) e mantida entre zonas (commander.unit \"continua comandante\"); ficha/cópia não recebe a marca. validateDeck (6172) aceita criatura lendária, \"can be your commander\" (903.3a) e Antecedente com Choose a Background.",
-   "falta": "BUG reproduzido (sonda-8-9b.mjs): Veículo lendário sem a frase \"can be your commander\" dá erro \"não pode ser comandante\" — 903.3(b) permite Veículo e 903.3(c) Espaçonave com P/R. Faltam também: fusão (903.3b), mutação/mescla (903.3c), efeitos \"se você controla um comandante\"/\"conjurar comandante\" (903.3d) e \"característica do seu comandante\" (903.3e).",
+   "evidencia": "Marca o.commander posta na criação (index.html:10215) e mantida entre zonas (commander.unit \"continua comandante\"); ficha/cópia não recebe a marca. validateDeck (6172) aceita criatura lendária, \"can be your commander\" (903.3a) e Antecedente com Choose a Background. · teste de conformidade em cr.conformidade (leva CR1a)",
+   "falta": "faltam fusão (903.3b), mutação e mescla (903.3c), efeitos \"se você controla um comandante\" (903.3d) e \"característica do seu comandante\" (903.3e).",
    "esforco": "P",
    "depende": [
     "712 meld",
     "729 merge"
+   ],
+   "testes": [
+    "CR 903.3 · Veículo lendário pode ser comandante"
    ]
   },
   {
