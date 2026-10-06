@@ -155,7 +155,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR1a 14 bugs da auditoria corrigidos com teste de conformidade: custos de vida, mana phyrexiana, carta sem custo, X no valor de mana, dano 0, busca e topo do grimório, 2/2 virada para baixo, marcadores que se anulam, Aura solta, fim de combate, limpeza, conceder, Veículo comandante (leva 196, motor v73) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR1b resto dos bugs da auditoria que não pedem estrutura: fração de segundo, proteção impressa contra cor, medo, intimidar, sombra, esgueirar e travessias, gatilho modal sem modo ilegal, condição em gatilho de outra permanente, gerar mana durante um pagamento pedido por efeito (motor v74) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2a.1 ações de estado: regra das lendas com escolha do jogador, nada de checagem no meio da resolução, Equipamento em não-criatura se solta (motor v75) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2a.2 objeto novo ao mudar de zona (400.7) e última informação conhecida (704.8, 608.2h) | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2a.2 objeto novo ao mudar de zona: o alvo não segue a carta que saiu e voltou (400.7, motor v76) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2a.3 última informação conhecida (704.8, 608.2h) e mortes simultâneas (603.10a) | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2654,6 +2655,12 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Simplificação declarada:** a escolha da lenda é pedida logo depois das outras ações da mesma checagem, não no mesmo instante (704.3). Muda o resultado só se um gatilho depender dessa simultaneidade.
 - **Golden:** regravadas só pela versão (74 → 75); os registros das quatro partidas são idênticos.
 - **Fora (segue na CR2a):** objeto novo ao mudar de zona (400.7), última informação conhecida (704.8), laço de checagem com gatilhos (704.3), veneno e regeneração.
+
+**CR2a.2 · Objeto novo ao mudar de zona** 🟡 (motor v76) — 1 teste de conformidade novo, falhava antes.
+- **Valor:** salvar uma criatura devolvendo-a à mão (ou piscando) em resposta a uma remoção passa a funcionar: a remoção perde o alvo.
+- **400.7** cada objeto conta as mudanças de zona; mágica e habilidade guardam, em cada alvo, qual "encarnação" miraram. Na resolução, alvo de outra encarnação é ilegal (a mágica é anulada se não sobrar alvo).
+- **Parcial:** vale para alvos. Outras referências (fonte da habilidade, "ela" de um gatilho, efeito retomado depois de uma escolha) ainda seguem a carta; ficam para a CR2a.3 junto com a última informação conhecida.
+- **Golden:** regravadas (75 → 76); os registros das partidas são idênticos.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

@@ -21,6 +21,7 @@ const INVENTADAS = {
   // CR2a
   Helice: c('Helice', 'Instant', '{0}', { colors: ['R', 'W'] }), Lenda: c('Lenda', 'Legendary Creature — Hero', '{W}', { power: '2', toughness: '2' }), 'Lenda Eterna': c('Lenda Eterna', 'Legendary Creature — God', '{W}', { power: '2', toughness: '2', keywords: ['Indestructible'] }),
   Porrete: c('Porrete', 'Artifact — Equipment', '{1}'),
+  'Urso Veloz': c('Urso Veloz', 'Creature — Bear', '{0}', { power: '2', toughness: '2', keywords: ['Flash'], colors: ['G'] }), Devolve: c('Devolve', 'Instant', '{0}', { colors: ['U'] }),
   'Dano Contado': c('Dano Contado', 'Instant', '{0}', { colors: ['R'] }), Vigia: c('Vigia', 'Enchantment — Aura', '{0}'), 'Fim de Combate': c('Fim de Combate', 'Creature — Spirit', '{1}', { power: '1', toughness: '1' }),
 };
 const SCRIPTS = {
@@ -36,6 +37,7 @@ const SCRIPTS = {
   'Modal Sem Saida': { name: 'Modal Sem Saida', abilities: [{ kind: 'triggered', when: 'etb', modes: [{ label: 'destruir', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'ferir', effects: [{ do: 'damage', amount: 1, target: 'creature' }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Condicional: { name: 'Condicional', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, condition: { lifeGained: 3 }, effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Helice: { name: 'Helice', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'gain', amount: 3 }], example: { target: 'opponent', expect: { opponentLife: 17 } } },
+  Devolve: { name: 'Devolve', effects: [{ do: 'bounce', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
   Porrete: { name: 'Porrete', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 3] } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
   Vigia: { name: 'Vigia', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
@@ -235,4 +237,13 @@ test('CR 704.5 · regra das lendas (704.5j): duas lendárias de mesmo nome com o
 test('CR 704.5 · Equipamento anexado a permanente que não é criatura se solta e fica no campo (704.5n)', () => {
   let s = mesa(['Porrete']), e, l; [s, l] = poe(s, 0, 'Plains'); [s, e] = poe(s, 0, 'Porrete'); s = J(s); s.objects[e].attachedTo = l;
   s = act(s, { t: 'pass', p: 0 }); assert.equal(s.objects[e].zone, 'battlefield'); assert.equal(s.objects[e].attachedTo ?? null, null);
+});
+
+test('CR 400.7 · objeto que muda de zona vira objeto novo: a mágica que mirava a criatura não acerta a mesma carta depois que ela saiu e voltou', () => {
+  let s = mesa(['Raio Verde'], ['Urso Veloz', 'Devolve']), r, u, d; [s, r] = poe(s, 0, 'Raio Verde', 'hand'); [s, u] = poe(s, 1, 'Urso Veloz'); [s, d] = poe(s, 1, 'Devolve', 'hand'); s = comMana(s, 'G');
+  s = act(s, conj(s, r, a => a.targets[0].oid === u)[0]); s = act(s, { t: 'pass', p: 0 });
+  s = act(s, legais(s, 1, a => a.t === 'cast' && a.oid === d && a.targets[0].oid === u)[0]); s = act(act(s, { t: 'pass', p: 1 }), { t: 'pass', p: 0 }); assert.equal(s.objects[u].zone, 'hand');
+  while (s.turn.priority !== 1) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = act(s, legais(s, 1, a => a.t === 'cast' && a.oid === u)[0]); s = resolveUm(s); assert.equal(s.objects[u].zone, 'battlefield'); assert.ok(s.stack.includes(r), 'o raio ainda está na pilha');
+  s = tudo(s); assert.equal(s.objects[u].zone, 'battlefield', 'a criatura que voltou é outro objeto'); assert.equal(s.objects[u].damage, 0); assert.equal(s.objects[r].zone, 'graveyard');
 });

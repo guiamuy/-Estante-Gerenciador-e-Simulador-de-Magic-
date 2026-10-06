@@ -10286,7 +10286,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 75;
+const ENGINE_VERSION = 76;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -10611,6 +10611,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to !== 'battlefield' && to !== 'stack') flipToFront(s, o);
   const from = zoneList(s, o, o.zone);
   const i = from.indexOf(oid); if (i >= 0) from.splice(i, 1);
+  if (to !== fromZone) o.zc = (o.zc || 0) + 1; // CR 400.7 · "encarnação": o alvo que mirou a anterior não vale para esta (mesmaEncarnacao)
   // 400.7: objeto novo ao mudar de zona; sai do combate
   const xPago = o.xPaid || 0; // S50 · o X pago sobrevive à mudança de zona só para os marcadores de entrada
   // Leva 105 · 400.7: o que foi escolhido ao conjurar vale da mão para a pilha e da pilha para o campo;
@@ -11436,7 +11437,10 @@ function targetAllowed(s, eff, tgt, src) {
 const sameTarget = (a, b) => a && b && a.oid === b.oid && a.player === b.player;
 // Leva 106 · a condição extra do alvo (valor de mana, cor, lendária) é conferida de novo na resolução (608.2b),
 // contando pelo controlador de quem mira (Spellstutter Sprite: Fadas de quem conjurou, não do dono do alvo)
-const targetStillLegal = (s, p, kind, tgt, selfOid, color, eff, src) => legalTargets(s, p, kind, selfOid, color).some(x => sameTarget(x, tgt)) && (!eff || targetAllowed(s, eff, tgt, src || { controller: p }));
+/** CR 400.7 · o alvo guarda em `z` a encarnação do objeto que mirou; se o objeto mudou de zona desde então, é outro objeto. */
+const carimbaAlvos = (s, alvos) => (alvos || []).map(t => t && t.oid != null && t.z == null && s.objects[t.oid] && !s.objects[t.oid].ability ? { ...t, z: s.objects[t.oid].zc || 0 } : t);
+const mesmaEncarnacao = (s, t) => !(t && t.oid != null && t.z != null && s.objects[t.oid] && (s.objects[t.oid].zc || 0) !== t.z);
+const targetStillLegal = (s, p, kind, tgt, selfOid, color, eff, src) => mesmaEncarnacao(s, tgt) && legalTargets(s, p, kind, selfOid, color).some(x => sameTarget(x, tgt)) && (!eff || targetAllowed(s, eff, tgt, src || { controller: p }));
 
 /* ---------------- S19 · valores dinâmicos ---------------- */
 /** Um valor de efeito pode ser um número ou uma contagem do campo. */
@@ -12091,7 +12095,7 @@ const isAbility = o => !!(o && o.ability);
 function makeAbility(s, source, ab, targets, blockedAt = source.blocking) {
   const oid = 'ab' + (s.nextAbility++);
   s.objects[oid] = { oid, ability: true, name: source.name, source: source.oid, effects: ab.effects, owner: source.controller,
-    controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: targets || [],
+    controller: source.controller, zone: 'stack', tapped: false, sick: false, damage: 0, counters: {}, targets: carimbaAlvos(s, targets),
     ...(blockedAt ? { blockedAt } : {}) }; // Q11 · Tinder Wall: quem ela bloqueava, mesmo depois de sacrificada (última informação conhecida)
   s.stack.push(oid);
   return oid;
@@ -12699,7 +12703,7 @@ const HANDLERS = {
     }
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     moveObject(s, a.oid, 'stack');
-    if (need.length) s.objects[a.oid].targets = chosen;
+    if (need.length) s.objects[a.oid].targets = carimbaAlvos(s, chosen);
     if (modes.length) s.objects[a.oid].mode = a.mode;
     if (a.alt != null && (altCosts(s, o)[a.alt] || {}).effects) s.objects[a.oid].altIndex = a.alt; // Q11 · sobrecarga
     // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
@@ -13119,7 +13123,7 @@ const HANDLERS = {
     s.pending = null;
     moveObject(s, oid, 'stack');
     s.objects[oid].controller = a.p;
-    if (need.length) s.objects[oid].targets = chosen;
+    if (need.length) s.objects[oid].targets = carimbaAlvos(s, chosen);
     // Leva 108 · conjurar pela insanidade é conjurar: conta para tempestade, dispara "quando você conjura" e cobra ward
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
     queueTriggers(s, 'cast-self', [s.objects[oid]]);
