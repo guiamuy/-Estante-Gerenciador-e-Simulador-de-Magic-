@@ -444,7 +444,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bl ✅ | V1 impressões e arte por carta: a carta da lista abre as impressões da Scryfall e a escolhida vale no deck e na reserva, guardada na lista e offline (leva 192) | V | 1 | teste no aparelho; destrava C4 |
 | 16º-bm ✅ | J1 ficar onde está (app): tocar num controle não move a tela — `mount` devolve a rolagem e a âncora do toque segura o controle; guarda-corpo `semSalto` e contrato dos pontos que rolam (leva 195) | J | 1 | teste no aparelho |
 | 16º-bn ✅ | J2 ficar onde está (mesa): fileiras e página não voltam ao começo ao agir; a mesa só anda para mostrar o que está fora da vista (`levaSeEscondido`) (leva 197) | J | 1 | teste no aparelho |
-| 16º-bo ○ | J3 leque das cópias viradas | J | 1 | — |
+| 16º-bo ✅ | J3 leque das viradas: atacantes iguais sem bloqueio ficam num leque só, dos dois lados (os terrenos virados já juntavam) (leva 199) | J | 1 | teste no aparelho |
 | 16º-bp ○ | J4 carregamento com identidade (`Carregando` e esqueletos) | J | 1 | — |
 | 16º-bq ○ | J5 abertura que termina no logo | J | 1 | — |
 | 16º-br ○ | J6 botão de ação flutuante: componente, Listas, Lista e Coleção | J | 1 | — |
@@ -5485,17 +5485,27 @@ pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento n
   permanente nova fora da vista é mostrada; com tudo à vista nada se move; `auditaTela`).
 - **Depende de:** J1.
 
-**J3 · Leque das viradas** ○
-- **Valor:** quatro terrenos virados ocupam o lugar de um leque, não de quatro cartas.
-- **Aceite:** cópias iguais viradas aparecem em leque parcial, com a mesma regra de quem entra no leque das
-  desviradas (H9): a da frente é o toque, até três bordas atrás, selo ×N; viradas e desviradas da mesma carta ficam
-  em dois leques vizinhos. A largura ocupada por N viradas é medida e declarada em 360 px. Nome legível na
-  horizontal; nada sobrepõe a fileira vizinha.
-- **Diagnóstico a confirmar na execução:** o modelo já agrupa por estado (`agrupaLeque`); o desenho do leque virado
-  gira e encolhe as camadas (`rotate(90deg) scale(.78)`) e o resultado não se lê como pilha.
-- **Testes:** U `table.unit` (agrupamento por estado); e2e com 4 e 8 terrenos virados (largura, bordas visíveis,
-  toque na da frente, sem sobreposição nas quatro larguras).
-- **Depende de:** U5, H9. · **Estimativa:** 1 leva.
+**J3 · Leque das viradas** ✅ (leva 199, 06/10/2026)
+- **Valor:** quatro cópias viradas ocupam o lugar de um leque, não de quatro cartas.
+- **Diagnóstico (diferente do planejado):** terrenos e permanentes iguais **já** se juntavam quando virados (U5, H9) —
+  medido: 7 Island viradas num leque de 148 px. O que ficava espalhado era o **ataque**: cada atacante saía do leque
+  enquanto estivesse atacando. Quatro Sky Pike atacando ocupavam 4 × 108 px (≈ 460 px numa fileira de 302 px, que
+  passava a rolar). E havia uma assimetria: quem atacava o jogador 0 juntava por acaso (o zero passava por "sem valor");
+  quem atacava o jogador 1, não.
+- **Entregue:** atacantes iguais, **ainda sem bloqueio e atacando o mesmo alvo**, ficam num leque só (148 px para
+  quatro; a da frente leva o anel de ataque, até três bordas atrás e o selo ×N), dos dois lados da mesa. Continuam com
+  toque próprio: quem ainda pode ser escolhida para atacar ou bloquear, a atacante bloqueada e quem bloqueia.
+  Atacando em pé (vigilância) junta à parte das viradas.
+- **Não mudou:** o desenho do leque virado (camadas giradas, passo de 14 px) e o agrupamento de terrenos.
+- **Testes:** U `leque.unit` ×2 (atacantes juntas nos dois lados, alvo diferente e quem ficou em casa separados,
+  vigilância; bloqueada, bloqueadora e escolhível fora do leque); e2e "J3" (terrenos: dois leques vizinhos e depois
+  um só com ×N e nome falado; ataque com a partida parando em todos os passos: uma por uma na escolha, um leque
+  depois de declarar, largura ≤ 160 px e fileira sem rolar, toque abre a da frente; `auditaTela` nas quatro larguras).
+  O e2e cai no código anterior ("1 !== 4").
+- **Depende de:** U5, H9.
+- **Fora:** juntar cartas de nomes diferentes; leque para atacantes bloqueadas.
+- **Pendência com o usuário:** se ainda houver cópias viradas espalhadas em outra situação, uma captura da mesa mostra
+  qual estado as separa (marcador, anexo, efeito do turno).
 
 **J4 · Carregamento com identidade** ○
 - **Valor:** esperar sem achar que travou, com a cara do app.

@@ -15766,9 +15766,13 @@ function agrupaLeque(s, oids, { separa } = {}) {
   for (const oid of oids) {
     const o = s.objects[oid]; if (!o) continue;
     const criatura = (((s.facts || {})[o.name] || {}).types || []).includes('creature');
-    const unico = anexados.has(oid) || Object.values(o.counters || {}).some(Boolean) || o.damage || o.attachedTo ||
-      MODIFICADORES.some(k => temValor(o[k])) || (separa && separa(oid));
-    const chave = unico ? `${o.name}|${oid}` : `${o.name}|${o.tapped ? 1 : 0}|${criatura && o.sick ? 1 : 0}|${o.controller}`;
+    // J3 · atacar não tira mais do leque: atacantes iguais, ainda sem bloqueio e atacando o mesmo alvo, ficam juntos
+    // (quatro fichas viradas no ataque ocupavam quatro lugares). Quem foi bloqueada, bloqueia ou ainda vai ser
+    // escolhida (`separa`) continua com o seu próprio toque. Antes só juntava quem atacava o jogador 0 (o zero passava
+    // por "sem valor"); agora vale para os dois lados.
+    const unico = anexados.has(oid) || Object.values(o.counters || {}).some(Boolean) || o.damage || o.attachedTo || o.blocked ||
+      MODIFICADORES.some(k => k !== 'attacking' && temValor(o[k])) || (separa && separa(oid));
+    const chave = unico ? `${o.name}|${oid}` : `${o.name}|${o.tapped ? 1 : 0}|${criatura && o.sick ? 1 : 0}|${o.controller}|${o.attacking != null && o.attacking !== false ? 'ataca' + o.attacking : ''}`;
     const cur = pilhas.get(chave) || { name: o.name, oids: [], total: 0, viradas: 0, primeira: null, primeiraDesvirada: null };
     cur.oids.push(oid); cur.total++; if (o.tapped) cur.viradas++; else if (cur.primeiraDesvirada == null) cur.primeiraDesvirada = oid;
     if (cur.primeira == null) cur.primeira = oid;

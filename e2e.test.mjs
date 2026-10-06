@@ -4474,6 +4474,7 @@ const comLista125 = async (t, texto, nomes, semente, opcoes = {}) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await createDeck(page, base, 'R2', texto, 'livre');
   await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', semente);
+  if (opcoes.paradas) await page.click('[data-stopall]'); // J3 · parar em todos os passos (o combate fica na tela)
   await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
   await meuPrincipal121(page);
   const M = {
@@ -7727,5 +7728,50 @@ test('e2e · J2 ficar onde está na mesa: agir não devolve as fileiras ao come�
   // 6 · e o que já está à vista não move nada: virar outro terreno com a novidade na tela
   a = await mede(); if (await page.evaluate(() => { const E = window.__estanteMesa; const x = E.legais().find(x => x.p === 0 && x.t === 'tap_mana'); if (x) E.act(x); return !!x; })) { await page.waitForTimeout(400); igual(a, await mede(), 'com tudo à vista'); }
   await auditaTela(page, 'mesa larga depois de agir');
+  assert.deepEqual(M.errors, []);
+});
+
+/* ---------------- J3 · leque das viradas ---------------- */
+test('e2e · J3 leque das viradas: terrenos virados e atacantes iguais ficam em leque (a da frente é o toque, bordas atrás, ×N), sem estourar a fileira', { skip }, async t => {
+  const M = await comLista125(t, '24 Island\n36 Sky Pike', [], '5', { paradas: true }); const { page } = M;
+  // a partida para em todos os passos: depois de declarar, as atacantes continuam atacando com a prioridade comigo
+  // põe terrenos e Sky Pikes em campo até ter quatro que já podem atacar
+  const prontas = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].battlefield.filter(o => s.objects[o].name === 'Sky Pike' && !s.objects[o].sick).length; });
+  for (let turno = 0; turno < 14 && await prontas() < 4; turno++) {
+    const o = await M.oid('Island'); if (o) await M.act({ t: 'play_land', p: 0, oid: o });
+    for (let k = 0; k < 3; k++) { const c = await page.evaluate(() => { const E = window.__estanteMesa, s = E.estado(); const a = E.legais().find(a => a.t === 'cast' && a.p === 0 && s.objects[a.oid].name === 'Sky Pike'); if (!a) return false; try { E.act(a); return true; } catch (e) { return false; } }); if (!c) break; await page.waitForTimeout(60); await M.resolve(); }
+    await M.proximo();
+  }
+  assert.ok(await prontas() >= 4, 'quatro Sky Pike prontas');
+  const fileira = zona => page.evaluate(z => { const r = document.querySelector(`.tb-side--me [data-zone="${z}"] .tb-row`); if (!r) return null;
+    return { cabe: r.scrollWidth <= r.clientWidth + 1, largura: r.clientWidth, itens: [...r.children].map(e => { const c = e.classList.contains('tb-leque') ? e.querySelector('.tb-card') : e; const b = e.getBoundingClientRect();
+      return { leque: e.dataset.leque ? Number(e.dataset.leque) : 1, virada: c.dataset.tapped === 'true', w: Math.round(b.width + parseFloat(getComputedStyle(e).marginLeft) + parseFloat(getComputedStyle(e).marginRight)), bordas: e.querySelectorAll('.tb-leque__camada').length, selo: (e.querySelector('[data-marca="pilha"]') || {}).textContent || '', fala: c.getAttribute('aria-label') }; }) }; }, zona);
+  // 1 · terrenos: viro todos; viradas e desviradas da mesma carta são dois leques vizinhos, depois um só
+  const ilhas = (await M.est()).campo.filter(n => n === 'Island').length; assert.ok(ilhas >= 4);
+  await page.evaluate(() => { const E = window.__estanteMesa; for (let i = 0; i < 2; i++) { const x = E.legais().find(x => x.p === 0 && x.t === 'tap_mana'); if (x) E.act(x); } }); await page.waitForTimeout(300);
+  let f = await fileira('lands');
+  assert.deepEqual(f.itens.map(x => [x.leque, x.virada]).sort((a, b) => a[0] - b[0]), [[2, true], [ilhas - 2, false]].sort((a, b) => a[0] - b[0]), 'dois leques: ' + JSON.stringify(f.itens));
+  await page.evaluate(() => { const E = window.__estanteMesa; for (let i = 0; i < 30; i++) { const x = E.legais().find(x => x.p === 0 && x.t === 'tap_mana'); if (!x) break; E.act(x); } }); await page.waitForTimeout(300);
+  f = await fileira('lands');
+  assert.equal(f.itens.length, 1); assert.deepEqual([f.itens[0].leque, f.itens[0].virada, f.itens[0].bordas, f.itens[0].selo.trim()], [ilhas, true, 3, '×' + ilhas]);
+  assert.match(f.itens[0].fala, new RegExp(`Island, ${ilhas} cópias, virada`));
+  assert.ok(f.itens[0].w <= 160 && f.cabe, `${ilhas} terrenos virados ocupam ${f.itens[0].w} px`);
+  // 2 · ataque: enquanto escolho, cada atacante tem o seu toque; declarado, as quatro viram um leque só
+  for (let i = 0; i < 6; i++) { const e = await M.est(); if (e.pend === 'attackers') break; await page.locator('#tb-pass').click().catch(() => {}); await page.waitForTimeout(120); }
+  assert.equal((await M.est()).pend, 'attackers');
+  f = await fileira('permanents'); const quantas = f.itens.filter(x => x.leque === 1).length; assert.ok(quantas >= 4, 'na escolha, uma por uma: ' + JSON.stringify(f.itens.map(x => x.leque)));
+  await page.evaluate(() => { const E = window.__estanteMesa, s = E.estado(); const a = E.legais().filter(a => a.t === 'attack').sort((x, y) => y.attackers.length - x.attackers.length)[0]; E.act(a); }); await page.waitForTimeout(400);
+  const emCombate = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { passo: s.turn.step, atacando: s.zones[0].battlefield.filter(o => s.objects[o].attacking != null).length }; });
+  assert.ok(emCombate.atacando >= 4, 'as atacantes ainda estão atacando (é o caso que antes não juntava): ' + JSON.stringify(emCombate));
+  f = await fileira('permanents');
+  const ataque = f.itens.find(x => x.virada); assert.ok(ataque, JSON.stringify(f.itens));
+  assert.equal(ataque.leque, quantas, 'as atacantes juntas: ' + JSON.stringify(f.itens)); assert.equal(ataque.bordas, Math.min(3, quantas - 1)); assert.equal(ataque.selo.trim(), '×' + quantas);
+  assert.ok(ataque.w <= 160 && f.cabe, `${quantas} atacantes ocupam ${ataque.w} px e a fileira não rola`);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j3-ataque.png' });
+  await auditaTela(page, 'mesa com leque de atacantes');
+  // tocar no leque abre a carta da frente
+  await page.locator('.tb-side--me [data-zone="permanents"] .tb-leque[data-tapped="true"] > .tb-card').click(); await page.waitForSelector('.ds-overlay[data-open="true"]');
+  assert.match(await page.innerText('.ds-dialog'), /Sky Pike/); await page.keyboard.press('Escape');
+  for (const [w, hh] of [[384, 832], [390, 844], [412, 891]]) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, 'leque de atacantes ' + w); }
   assert.deepEqual(M.errors, []);
 });

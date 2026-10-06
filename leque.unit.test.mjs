@@ -71,3 +71,30 @@ test('U5 · tudo virado: o toque vai para a primeira; mesa sem fatos não quebra
   assert.equal(T.agrupaLeque(semFatos, ['a', 'fantasma']).length, 1, 'oid inexistente é ignorado');
   assert.deepEqual(J(T.agrupaTerrenos(s, ['a', 'b'])), J(T.agrupaLeque(s, ['a', 'b'])), 'nome antigo dá o mesmo resultado');
 });
+
+/* ---------------- J3 · leque das viradas ---------------- */
+test('J3 · atacantes iguais ficam num leque só (viradas, mesmo alvo, sem bloqueio), dos dois lados da mesa', () => {
+  const pikes = (extra, n = 4) => Array.from({ length: n }, (_, i) => ({ oid: 'p' + i, name: 'Sky Pike', tapped: true, ...extra }));
+  // eu ataco o jogador 1: antes cada atacante ficava sozinho
+  let p = T.agrupaLeque(mesa(pikes({ attacking: 1 })), ['p0', 'p1', 'p2', 'p3']);
+  assert.deepEqual(resumo(p), [['Sky Pike', 4, 4]]);
+  // o oponente me ataca (jogador 0): continua junto
+  p = T.agrupaLeque(mesa(pikes({ attacking: 0, controller: 1 })), ['p0', 'p1', 'p2', 'p3']);
+  assert.deepEqual(resumo(p), [['Sky Pike', 4, 4]]);
+  // quem ataca não se mistura com quem ficou em casa, nem com quem ataca outro alvo
+  const s = mesa([...pikes({ attacking: 1 }, 2), { oid: 'c', name: 'Sky Pike', tapped: true }, { oid: 'd', name: 'Sky Pike', tapped: true, attacking: 'pw9' }]);
+  assert.deepEqual(resumo(T.agrupaLeque(s, ['p0', 'p1', 'c', 'd'])), [['Sky Pike', 2, 2], ['Sky Pike', 1, 1], ['Sky Pike', 1, 1]]);
+  // vigilância: atacando em pé também junta, separado das viradas
+  const v = mesa([{ oid: 'a', name: 'Sky Pike', attacking: 1 }, { oid: 'b', name: 'Sky Pike', attacking: 1 }, { oid: 'c', name: 'Sky Pike', attacking: 1, tapped: true }]);
+  assert.deepEqual(resumo(T.agrupaLeque(v, ['a', 'b', 'c'])), [['Sky Pike', 2, 0], ['Sky Pike', 1, 1]]);
+});
+
+test('J3 · atacante bloqueada, bloqueadora e quem ainda vai ser escolhida saem do leque', () => {
+  const s = mesa([{ oid: 'a', name: 'Sky Pike', tapped: true, attacking: 1 }, { oid: 'b', name: 'Sky Pike', tapped: true, attacking: 1, blocked: true, blockedBy: ['x'] },
+    { oid: 'c', name: 'Sky Pike', tapped: true, attacking: 1 }, { oid: 'd', name: 'Sky Pike', tapped: true, attacking: 1, blocked: true },
+    { oid: 'x', name: 'Wall Guard', controller: 1, blocking: 'b' }, { oid: 'y', name: 'Wall Guard', controller: 1 }, { oid: 'z', name: 'Wall Guard', controller: 1 }]);
+  assert.deepEqual(J(T.agrupaLeque(s, ['a', 'b', 'c', 'd']).map(p => p.oids)), [['a', 'c'], ['b'], ['d']], 'bloqueada (com ou sem bloqueadora viva) fica sozinha');
+  assert.deepEqual(J(T.agrupaLeque(s, ['x', 'y', 'z']).map(p => p.oids)), [['x'], ['y', 'z']], 'quem bloqueia fica sozinha');
+  // durante a escolha, a tela separa quem pode ser tocada
+  assert.deepEqual(J(T.agrupaLeque(s, ['a', 'c'], { separa: o => o === 'c' }).map(p => p.oids)), [['a'], ['c']]);
+});
