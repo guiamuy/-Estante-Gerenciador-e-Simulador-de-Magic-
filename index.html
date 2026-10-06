@@ -4449,7 +4449,9 @@ const __m23 = (function () {
 
 /** Palavras-chave que o motor resolve sozinho (M6 e regras de alvo). */
 const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigilance', 'haste', 'first strike',
-  'double strike', 'menace', 'defender', 'indestructible', 'flash', 'hexproof', 'shroud'];
+  'double strike', 'menace', 'defender', 'indestructible', 'flash', 'hexproof', 'shroud',
+  // CR1b · evasões de 702.13/.14/.28/.36/.118 (canBlock)
+  'fear', 'intimidate', 'shadow', 'skulk', 'islandwalk', 'swampwalk', 'forestwalk', 'mountainwalk', 'plainswalk'];
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
@@ -10134,7 +10136,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 73;
+const ENGINE_VERSION = 74;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -10228,6 +10230,18 @@ function parseProduction(card) {
 }
 
 /* ---------------- catálogo mínimo ---------------- */
+/** CR 702.16 · proteção impressa: cores lidas da linha de palavra-chave "Protection from <cor> [and from <cor>]".
+ * Só cores; qualidades que não são cor (tipo, "everything", multicolorido, jogador) ainda não entram. */
+function protecaoImpressa(card) {
+  const CORES = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  const txt = String((card && (card.oracle_text || (card.faces && card.faces[0] && card.faces[0].oracle_text))) || '');
+  const out = [];
+  for (const linha of txt.split('\n')) for (const parte of linha.replace(/\([^)]*\)/g, '').split(/[,;]/)) {
+    const m = /^\s*protection from (.+?)\s*$/i.exec(parte); if (!m) continue;
+    for (const q of m[1].split(/\s+and\s+/i)) { const cor = CORES[q.replace(/^from\s+/i, '').trim().toLowerCase()]; if (cor) out.push(cor); }
+  }
+  return [...new Set(out)];
+}
 function cardFacts(card) {
   const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
   const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => tl.includes(t));
@@ -10236,7 +10250,7 @@ function cardFacts(card) {
   return {
     types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw,
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
-    cmc: (card && card.cmc) || 0,
+    cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
     // CR 202.1b / 118.6: carta sem custo de mana (Living End, Lotus Bloom) tem custo impagável, não custo zero
     // (só quando o dado diz valor de mana 0: registro sem o campo de custo mas com valor de mana conhecido não é "sem custo")
     semCusto: !tl.includes('land') && !((card && card.cmc) > 0) && !String((card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))) || '').trim(),
@@ -10610,7 +10624,8 @@ function productions(s, o, visto) {
   return opts.filter(x => { const k = x.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 /** Proteção concedida por auras: lista de cores. */
-const protections = (s, o) => (o.tempProtection || []).concat(attachedTo(s, o).flatMap(x => {
+const protImpressa = (s, o) => (o && !o.faceDown && s.facts[o.name] && s.facts[o.name].prot) || []; // CR 702.16 · a da própria carta
+const protections = (s, o) => protImpressa(s, o).concat(o.tempProtection || [], attachedTo(s, o).flatMap(x => {
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
 }));
@@ -10619,7 +10634,7 @@ const colorsOf = (s, src) => (src && !src.faceDown && s.facts[src.name] ? s.fact
 const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
 /** Leva 108 · proteção que derruba anexos (702.16c), menos a que diz "não remove as auras e equipamentos que você
  * controla e que já estavam anexados" (Benevolent Blessing) quando o anexo é do mesmo controlador da fonte. */
-const protecaoDerruba = (s, host, anexo) => (host.tempProtection || []).concat(attachedTo(s, host).flatMap(x => {
+const protecaoDerruba = (s, host, anexo) => protImpressa(s, host).concat(host.tempProtection || [], attachedTo(s, host).flatMap(x => {
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
   if (g.mantemOsSeus && x.controller === anexo.controller) return [];
   if (g.mantemASi && x.oid === anexo.oid) return []; // R11 · Flickering Ward: "This effect doesn't remove this Aura"
@@ -10955,15 +10970,27 @@ function eligibleAttackers(s, p) {
 function eligibleBlockers(s, p) {
   return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped).map(o => o.oid);
 }
-function canBlock(s, blocker, attacker) {
+const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
+/** Por que `blocker` não pode bloquear `attacker` (texto para a mesa), ou null quando pode. */
+function porQueNaoBloqueia(s, blocker, attacker) {
   const b = s.objects[blocker], a = s.objects[attacker];
-  if (has(s, a, 'flying') && !has(s, b, 'flying') && !has(s, b, 'reach')) return false;
+  if (has(s, a, 'flying') && !has(s, b, 'flying') && !has(s, b, 'reach')) return 'voar';
   const ev = evasionOf(s, a); // S11b · evasão estática
-  if (ev === 'flying-only' && !has(s, b, 'flying')) return false;
-  if (ev === 'power-less' && power(s, b) < power(s, a)) return false;
-  if (protections(s, a).some(c => (s.facts[b.name].colors || []).includes(c))) return false;
-  return true;
+  if (ev === 'flying-only' && !has(s, b, 'flying')) return 'só criaturas com voar bloqueiam';
+  if (ev === 'power-less' && power(s, b) < power(s, a)) return 'poder menor que o da atacante';
+  if (protections(s, a).some(c => colorsOf(s, b).includes(c))) return 'proteção contra a cor do bloqueador';
+  // CR1b · evasões por palavra-chave
+  const artefato = !b.faceDown && s.facts[b.name].types.includes('artifact');
+  if (has(s, a, 'fear') && !artefato && !colorsOf(s, b).includes('B')) return 'medo: só criatura artefato ou preta bloqueia'; // 702.36b
+  if (has(s, a, 'intimidate') && !artefato && !colorsOf(s, b).some(c => colorsOf(s, a).includes(c))) return 'intimidar: só criatura artefato ou da mesma cor bloqueia'; // 702.13b
+  if (has(s, a, 'shadow') !== has(s, b, 'shadow')) return has(s, a, 'shadow') ? 'sombra: só criatura com sombra bloqueia' : 'sombra: essa criatura só bloqueia quem tem sombra'; // 702.28b
+  if (has(s, a, 'skulk') && power(s, b) > power(s, a)) return 'esgueirar: poder maior que o da atacante'; // 702.118b
+  for (const [k, tipo] of TRAVESSIAS) // 702.14c · o defensor controla um terreno daquele tipo
+    if (has(s, a, k) && battlefield(s).some(l => l.controller === b.controller && !l.faceDown && s.facts[l.name].types.includes('land') && new RegExp('\\b' + tipo + '\\b', 'i').test(s.facts[l.name].typeText || ''))) return PALAVRA_DA_TRAVESSIA[k];
+  return null;
 }
+const PALAVRA_DA_TRAVESSIA = { islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
+const canBlock = (s, blocker, attacker) => !porQueNaoBloqueia(s, blocker, attacker);
 /** Dano de combate em duas passadas: iniciativa (first/double strike) e normal. */
 function dealCombatDamage(s) {
   const c = s.combat; if (!c) return;
@@ -12002,9 +12029,10 @@ function queueTriggers(s, when, objects, controller) {
         // Q11 · "whenever another Elf enters" (Elvish Vanguard) dispara para Elfos de qualquer jogador; o padrão continua "sua"
         if (w.controller !== ctrl && !ab.anyController) continue;
         if (!matchesTriggerFilter(s, o, ab.filter)) continue;
+        if (!triggerConditionMet(s, w, ab.condition)) continue; // CR 603.4 · o "se" vale também no gatilho de outra permanente
         // S66 · o gatilho de "outra permanente" carrega as mesmas marcas do gatilho
         // próprio: sem isto, "você pode" virava obrigatório e o custo opcional sumia
-        s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: other,
+        s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: other, ...(ab.condition ? { condition: ab.condition } : {}),
           ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}),
           ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
       }
@@ -12042,12 +12070,20 @@ function marcasDoGatilho(s, q, oid) {
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
 }
+/** CR 700.2b · índices dos modos do gatilho que têm alvo legal para cada efeito com alvo. */
+function modosLegais(s, q) {
+  const src = s.objects[q.source] || { controller: q.controller };
+  return q.modes.map((m, i) => i).filter(i => (q.modes[i].effects || []).filter(SC.isTargeted).every(eff =>
+    legalTargets(s, q.controller, eff.target, q.source, eff.targetColor).some(x => targetAllowed(s, eff, x, src))));
+}
 /** S15 · põe um gatilho na pilha, escolhendo o alvo quando ele exige um. */
 function putTriggerOnStack(s, q, events) {
   s.queued = s.queued.filter(x => x !== q);
   // S56 · gatilho com modos ("vire OU desvire"): quem controla escolhe antes de ir para a pilha
   if ((q.modes || []).length && !q.effects) {
-    s.pending = { kind: 'choose_mode', p: q.controller, trigger: q, options: q.modes.map(m => m.label || 'opção'), name: q.name };
+    const legais = modosLegais(s, q); // CR 700.2b · modo sem alvo legal não pode ser escolhido; sem modo, o gatilho sai da pilha
+    if (!legais.length) { events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; }
+    s.pending = { kind: 'choose_mode', p: q.controller, trigger: q, options: q.modes.map(m => m.label || 'opção'), legais, name: q.name };
     return false;
   }
   if (q.cost) { // S32 · gatilho com custo opcional: sem como pagar, ele não acontece
@@ -12431,7 +12467,7 @@ const HANDLERS = {
     s.turn.passes = 0;
   },
   cast(s, a) {
-    noPending(s); holder(s, a.p);
+    noPending(s); holder(s, a.p); semFracao(s);
     const o = s.objects[a.oid];
     const fromGraveyard = (a.flashback || a.disturb || a.escape) && o && o.zone === 'graveyard';
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
@@ -12539,7 +12575,8 @@ const HANDLERS = {
   },
   /** M7 · habilidade de mana: não usa a pilha. */
   tap_mana(s, a) {
-    holder(s, a.p);
+    // CR 605.3a · habilidade de mana também quando um efeito pede pagamento a quem decide (sem depender da prioridade)
+    if (s.pending) { if (s.pending.p !== a.p) throw new RuleError('pendente', 'a decisão é do outro jogador'); } else holder(s, a.p);
     const o = s.objects[a.oid];
     if (!o || o.zone !== 'battlefield' || o.controller !== a.p || o.tapped) throw new RuleError('objeto', 'fonte indisponível');
     if (!sources(s, a.p).includes(o)) throw new RuleError('mana', 'essa permanente não gera mana agora');
@@ -12568,7 +12605,7 @@ const HANDLERS = {
     for (const [b, atk] of blocks) {
       if (!ok.has(b) || used.has(b)) throw new RuleError('bloqueio', 'bloqueador inválido');
       if (!s.combat.attackers.includes(atk)) throw new RuleError('bloqueio', 'não está atacando');
-      if (!canBlock(s, b, atk)) throw new RuleError('bloqueio', 'não pode bloquear essa criatura (voar)');
+      { const motivo = porQueNaoBloqueia(s, b, atk); if (motivo) throw new RuleError('bloqueio', `não pode bloquear essa criatura (${motivo})`); }
       used.add(b);
     }
     const per = {}; blocks.forEach(([, atk]) => { per[atk] = (per[atk] || 0) + 1; });
@@ -12586,6 +12623,7 @@ const HANDLERS = {
     if (!a.fromHand && o.controller !== a.p) throw new RuleError('objeto', 'a permanente não é sua');
     const base = abilitiesOf(s, o).filter(x => x.kind === 'activated')[a.index || 0];
     if (!base) throw new RuleError('habilidade', 'essa permanente não tem essa habilidade');
+    if (!ehHabilidadeDeMana(base)) semFracao(s);
     // S23 · mana de qualquer cor: a cor escolhida vem na ação
     if ((base.cost || {}).fromHand && !a.fromHand) throw new RuleError('habilidade', 'esta habilidade só funciona com a carta na mão');
     if ((base.effects || []).some(e => e.do === 'add_mana' && e.identity)) {
@@ -12673,11 +12711,12 @@ const HANDLERS = {
     }
     const modo = (pk.trigger.modes || [])[a.index || 0];
     if (!modo) throw new RuleError('escolha', 'modo inválido');
+    if (pk.legais && !pk.legais.includes(a.index || 0)) throw new RuleError('escolha', 'essa opção está sem alvo: escolha outra');
     s.pending = null;
     putTriggerOnStack(s, { ...pk.trigger, effects: modo.effects, modes: null }, ev);
   },
   cast_free(s, a, ev) { // S61 · Covil do Mago Louco: conjura uma das compradas sem pagar
-    if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para conjurar sem pagar');
+    if (!s.pending || s.pending.kind !== 'free_cast' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada para conjurar sem pagar'); semFracao(s);
     const pk = s.pending;
     if (!(pk.options || []).includes(a.oid)) throw new RuleError('objeto', 'essa carta não veio deste efeito');
     if (s.facts[s.objects[a.oid].name].types.includes('land')) throw new RuleError('tipo', 'terreno é jogado, não conjurado');
@@ -12854,7 +12893,7 @@ const HANDLERS = {
   },
   /** S22 · ciclar: paga o custo, descarta a carta e compra outra. */
   cycle(s, a) {
-    noPending(s); holder(s, a.p);
+    noPending(s); holder(s, a.p); semFracao(s);
     const o = owns(s, a.p, a.oid, 'hand');
     const cy = (s.facts[o.name].script || {}).cycling;
     if (!cy) throw new RuleError('ciclar', 'esta carta não tem ciclar');
@@ -12867,7 +12906,7 @@ const HANDLERS = {
   },
   /** S18 · ninjutsu: troca um atacante não bloqueado pelo ninja da mão. */
   ninjutsu(s, a) {
-    noPending(s); holder(s, a.p);
+    noPending(s); holder(s, a.p); semFracao(s);
     const ninja = owns(s, a.p, a.oid, 'hand');
     // S54 · esgueirar-se entra pelo mesmo caminho: devolve um atacante sem bloqueio e entra virada e atacando
     const nj = a.sneak ? (s.facts[ninja.name].script || {}).sneak : ninjutsuOf(s, ninja);
@@ -12896,7 +12935,7 @@ const HANDLERS = {
   },
   /** S18 · insanidade: conjura do exílio pelo custo de insanidade. */
   cast_madness(s, a) {
-    if (!s.pending || s.pending.kind !== 'madness' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada em insanidade');
+    if (!s.pending || s.pending.kind !== 'madness' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada em insanidade'); semFracao(s);
     const oid = s.pending.oid; const o = s.objects[oid];
     const md = madnessOf(s, o);
     if (s.manaCheck && !a.free) payCost(s, a.p, parseCost(md.mana));
@@ -13002,7 +13041,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'concede'], madness: ['cast_madness', 'decline_madness', 'concede'] };
+const PENDING_ACTIONS = { commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -13037,7 +13076,15 @@ function apply(state, action) {
 }
 
 /** Todas as ações legais agora para o jogador p. */
+/** CR 702.61 · há mágica com fração de segundo na pilha (virada para baixo não tem a habilidade). */
+const fracaoDeSegundo = s => s.stack.some(oid => { const o = s.objects[oid]; return o && !isAbility(o) && !o.faceDown && s.facts[o.name] && s.facts[o.name].kw.includes('split second'); });
+const ehHabilidadeDeMana = ab => (ab.effects || []).length > 0 && ab.effects.every(e => e.do === 'add_mana') && !ab.effects.some(SC.isTargeted) && ab.adapt == null;
+const semFracao = s => { if (fracaoDeSegundo(s)) throw new RuleError('tempo', 'fração de segundo: enquanto essa mágica estiver na pilha, ninguém conjura mágicas nem ativa habilidades que não sejam de mana'); };
+const PARADAS_PELA_FRACAO = new Set(['cast', 'cycle', 'transmute', 'ninjutsu', 'cast_madness', 'cast_free']);
+const semAsParadasPelaFracao = (s, out) => (!out.length || !fracaoDeSegundo(s)) ? out
+  : out.filter(a => !PARADAS_PELA_FRACAO.has(a.t) && !(a.t === 'activate' && !ehHabilidadeDeMana((abilitiesOf(s, s.objects[a.oid]).filter(x => x.kind === 'activated')[a.index || 0]) || {})));
 function legalActions(s, p, { adjudication = false } = {}) {
+  return semAsParadasPelaFracao(s, (() => { // CR 702.61 · o filtro vale para todas as saídas abaixo
   const out = [];
   if (s.status === 'over' || !s.players[p] || s.players[p].lost) return out;
   if (s.status === 'mulligan') {
@@ -13049,6 +13096,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   if (s.pending) {
     const k = s.pending.kind;
     if (s.pending.p !== p) return out;
+    if (['may_pay', 'unless', 'madness'].includes(k)) for (const o of sources(s, p)) { const n = comboDe(s, o); out.push({ t: 'tap_mana', p, oid: o.oid, option: 0, ...(n > 1 ? { combo: n } : {}) }); } // CR 605.3a
     if (k === 'discard') s.zones[p].hand.forEach(oid => out.push({ t: 'discard', p, oid }));
     if (k === 'attackers') {
       const el = eligibleAttackers(s, p);
@@ -13085,7 +13133,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     }
     if (k === 'choose_type') (s.pending.options || []).forEach((subtype, index) => out.push({ t: 'choose_type', p, index, subtype })); // S50
     if (k === 'choose_pair') { (s.pending.options || []).forEach((oid, index) => out.push({ t: 'choose_pair', p, index, oid })); out.push({ t: 'choose_pair', p, decline: true }); } // S51
-    if (k === 'choose_mode') { (s.pending.options || []).forEach((label, index) => out.push({ t: 'choose_mode', p, index, label })); // S56
+    if (k === 'choose_mode') { (s.pending.options || []).forEach((label, index) => { if (!s.pending.legais || s.pending.legais.includes(index)) out.push({ t: 'choose_mode', p, index, label }); }); // S56 · CR 700.2b
       if (s.pending.naResolucao && s.pending.optional) out.push({ t: 'choose_mode', p, decline: true }); } // Leva 131 · "you may"
     // S61 · conjurar sem pagar: uma opção por carta, com os alvos possíveis
     if (k === 'free_cast') {
@@ -13374,6 +13422,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     out.push({ t: 'draw', p });
   }
   return out;
+  })());
 }
 
 /** A6 · prévia do dano de combate para uma proposta de bloqueio (sem mudar nada). */
@@ -15762,7 +15811,8 @@ const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each
   'creature-enchantment-you-control': 'uma criatura ou encantamento seu', 'other-creature-you-control': 'outra criatura sua', 'creature-you-control': 'uma criatura sua', 'creature-opponent-controls': 'uma criatura de um oponente',
   'first-target': 'o mesmo alvo', 'spell-or-creature': 'uma mágica ou criatura', 'spell-or-ability': 'uma mágica ou habilidade', 'target-controller': 'quem controlava o alvo', 'self-source': 'esta permanente', self: 'você',
   'creature-blocked-by-source': 'a criatura que ela bloqueia', all: 'tudo', enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
-const PALAVRA_PT = { indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo' };
+const PALAVRA_PT = { indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
+  fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */

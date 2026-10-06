@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 73,
+ "motor": 74,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4181,9 +4181,12 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Cláusula \"se\" intermediária",
    "status": "parcial",
-   "evidencia": "triggerConditionMet no disparo (index.html:11788) e de novo na resolução (resolveAbility :13187-13193, condição levada por marcasDoGatilho :11837); faeries.regras:70 (Faerie Miscreant), rules.unit \"S25 · transforma na fase pós-combate só se ganhou vida suficiente\", \"S28 · gatilho só dispara com outra permanente de mesmo nome\"",
-   "falta": "Gatilhos de \"outra permanente\" (other-etb/other-dies/other-cast/other-leaves) não conferem nem carregam a condição (index.html:11796-11806). Se a fonte saiu do campo a reconferência é pulada. Só cinco condições existem (vida ganha, atacantes, mesmo nome, barganha, provas).",
-   "esforco": "P"
+   "evidencia": "triggerConditionMet no disparo (index.html:11788) e de novo na resolução (resolveAbility :13187-13193, condição levada por marcasDoGatilho :11837); faeries.regras:70 (Faerie Miscreant), rules.unit \"S25 · transforma na fase pós-combate só se ganhou vida suficiente\", \"S28 · gatilho só dispara com outra permanente de mesmo nome\" · CR1b (motor v74): gatilhos de \"outra permanente\" conferem a condição ao disparar e a levam para a resolução; teste de conformidade em cr.conformidade",
+   "falta": "Se a fonte saiu do campo a reconferência na resolução é pulada (devia usar a última informação conhecida). Só cinco condições existem (vida ganha, atacantes, mesmo nome, barganha, provas).",
+   "esforco": "P",
+   "testes": [
+    "CR 603.4 · \"se\" intermediário em gatilho de outra permanente: sem a condição não dispara; com ela, dispara"
+   ]
   },
   {
    "n": "603.5",
@@ -4343,9 +4346,12 @@
    "regra": "Mana Abilities",
    "titulo": "Ativar habilidade de mana: sem pilha, a qualquer momento de pagamento",
    "status": "parcial",
-   "evidencia": "tap_mana não usa pilha nem exige pilha vazia (index.html:12323-12329); sonda sonda-6a-c.mjs 3 (Llanowar Elves: pilha 0, {G} na reserva); pagamento de custo vira fontes sozinho (payCost :10539); rules.unit \"M7 · reserva de mana esvazia ao trocar de passo; tocar fonte gera mana\"",
-   "falta": "605.3a: durante um pagamento pedido por efeito (pagar para não ser anulada, vigilância, \"você pode pagar\") o jogador não pode ativar habilidade de mana — sonda 2d: tap_mana recusado com \"decida se paga primeiro\"; o motor escolhe as fontes. Na conjuração a escolha manual só vale se feita antes.",
-   "esforco": "P"
+   "evidencia": "tap_mana não usa pilha nem exige pilha vazia (index.html:12323-12329); sonda sonda-6a-c.mjs 3 (Llanowar Elves: pilha 0, {G} na reserva); pagamento de custo vira fontes sozinho (payCost :10539); rules.unit \"M7 · reserva de mana esvazia ao trocar de passo; tocar fonte gera mana\" · CR1b (motor v74): 605.3a — tap_mana é ação legal de quem decide durante \"pagar para não ser anulada\", \"você pode pagar\", \"a menos que pague\" e insanidade; teste de conformidade em cr.conformidade",
+   "falta": "Durante a conjuração e a ativação a escolha manual das fontes só vale se feita antes de anunciar (o motor não abre o passo de pagamento 601.2g); sacrifício pendente e conjurar sem pagar não aceitam habilidade de mana",
+   "esforco": "P",
+   "testes": [
+    "CR 605.3 · habilidade de mana pode ser ativada enquanto um efeito pede pagamento (\"a menos que pague\")"
+   ]
   },
   {
    "n": "605.4",
@@ -5234,13 +5240,16 @@
    "regra": "General",
    "titulo": "Mágicas e habilidades modais",
    "status": "parcial",
-   "evidencia": "(a) COBERTA: modo vai na ação de conjurar (cast exige a.mode, index.html:12239-12240; grava o.mode 12286; spellEffects 10823-10828); sonda: Abrade com mesa vazia não gera ação, só com criatura oferece só o modo 0, e forçar modo 1 é recusado (\"escolha 1 alvo(s)\"/\"alvo ilegal\"). (c) COBERTA: alvos saem só do modo escolhido (12244); boros.regras \"R6 · Thraben Charm\" (modo 2 com 1 ou 2 jogadores, modos 0/1 com alvo próprio). (f) COBERTA na 1ª frase (alvo por modo, mesma evidência); 2ª frase sem efeito alcançável (não existe troca de alvo no motor). (b) PARCIAL: gatilho modal escolhe o modo antes de ir à pilha (putTriggerOnStack 11845-11848, choose_mode 12439-12459; rules.unit \"S56 · gatilho com modos\"), mas oferece modo ilegal. Nove mágicas modais nos scripts (Abrade, Hydroblast, Pyroblast, REB, BEB, Thraben Charm, Winding Way, Cast into the Fire, Steel Sabotage).",
-   "falta": "(b) BUG: choose_mode lista todos os modos sem conferir alvo; escolher o modo sem alvo legal faz o gatilho sumir (\"trigger-fizzled\") mesmo havendo outro modo legal — a regra proíbe escolher o modo ilegal. (d) AUSENTE: só um modo por mágica (a.mode é um índice); sem \"choose two\", \"one or both\", \"any number\", nem modo repetido. (e) AUSENTE: outro jogador escolhe o modo. (g) AUSENTE: não há cópia de mágica modal (a única cópia é tempestade, 12292-12293, que usa script.effects e ignoraria o modo). (h) AUSENTE: modo com custo adicional (Spree). (i) AUSENTE: modos com {P} (Season of...). Habilidade ATIVADA modal: nenhum tratamento de modes em activate (12364-12438).",
+   "evidencia": "(a) COBERTA: modo vai na ação de conjurar (cast exige a.mode, index.html:12239-12240; grava o.mode 12286; spellEffects 10823-10828); sonda: Abrade com mesa vazia não gera ação, só com criatura oferece só o modo 0, e forçar modo 1 é recusado (\"escolha 1 alvo(s)\"/\"alvo ilegal\"). (c) COBERTA: alvos saem só do modo escolhido (12244); boros.regras \"R6 · Thraben Charm\" (modo 2 com 1 ou 2 jogadores, modos 0/1 com alvo próprio). (f) COBERTA na 1ª frase (alvo por modo, mesma evidência); 2ª frase sem efeito alcançável (não existe troca de alvo no motor). (b) PARCIAL: gatilho modal escolhe o modo antes de ir à pilha (putTriggerOnStack 11845-11848, choose_mode 12439-12459; rules.unit \"S56 · gatilho com modos\"), mas oferece modo ilegal. Nove mágicas modais nos scripts (Abrade, Hydroblast, Pyroblast, REB, BEB, Thraben Charm, Winding Way, Cast into the Fire, Steel Sabotage). · CR1b (motor v74): (b) COBERTA no gatilho — modosLegais só oferece modo com alvo legal, recusa o ilegal e tira o gatilho da pilha quando nenhum modo serve; teste de conformidade em cr.conformidade",
+   "falta": "(d) AUSENTE: só um modo por mágica (a.mode é um índice); sem \"choose two\", \"one or both\", \"any number\", nem modo repetido. (e) AUSENTE: outro jogador escolhe o modo. (g) AUSENTE: não há cópia de mágica modal (a única cópia é tempestade, 12292-12293, que usa script.effects e ignoraria o modo). (h) AUSENTE: modo com custo adicional (Spree). (i) AUSENTE: modos com {P} (Season of...). Habilidade ATIVADA modal: nenhum tratamento de modes em activate (12364-12438).",
    "esforco": "M",
    "depende": [
     "601.2b",
     "603.3c",
     "707.10"
+   ],
+   "testes": [
+    "CR 700.2 · gatilho modal: modo sem alvo legal não pode ser escolhido; sem nenhum modo legal o gatilho sai da pilha (700.2b)"
    ]
   },
   {
@@ -6327,25 +6336,31 @@
    "n": "702.13",
    "regra": "Keyword Abilities",
    "titulo": "Intimidate",
-   "status": "ausente",
-   "falta": "Palavra não está em KEYWORDS nem em canBlock (index.html:10760-10768); sonda sonda-702a.mjs: 2/2 verde bloqueia criatura preta com intimidar. Falta 702.13b (só artefato ou criatura que compartilha cor bloqueia)",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "509.1b"
    ],
-   "cartas": "comum (antiga evergreen, descontinuada)"
+   "cartas": "comum (antiga evergreen, descontinuada)",
+   "evidencia": "canBlock: atacante com intimidate só é bloqueado por criatura artefato ou que compartilha cor (colorsOf) · teste de conformidade em cr.conformidade (leva CR1b, motor v74)",
+   "testes": [
+    "CR 702.13 · intimidar: só criatura artefato ou que compartilha cor com ela bloqueia"
+   ]
   },
   {
    "n": "702.14",
    "regra": "Keyword Abilities",
    "titulo": "Landwalk",
-   "status": "ausente",
-   "falta": "Sem implementação; sonda sonda-702a.mjs: criatura com travessia de ilha é bloqueada mesmo com o defensor controlando Island. Falta 702.14c (imbloqueável se o defensor controla terreno do tipo)",
+   "status": "parcial",
+   "falta": "Travessia de terreno não básico, lendário, da neve, do deserto e de outros tipos (702.14a com qualquer qualidade); \"perde a travessia\" e efeitos que a ignoram",
    "esforco": "P",
    "depende": [
     "509.1b"
    ],
-   "cartas": "comum (antiga, descontinuada)"
+   "cartas": "comum (antiga, descontinuada)",
+   "evidencia": "canBlock + TRAVESSIAS: travessia de ilha, pântano, floresta, montanha e planície tornam a criatura imbloqueável quando o defensor controla terreno daquele tipo · teste de conformidade em cr.conformidade (leva CR1b, motor v74)",
+   "testes": [
+    "CR 702.14 · travessia: não pode ser bloqueada se o defensor controla terreno daquele tipo"
+   ]
   },
   {
    "n": "702.15",
@@ -6364,13 +6379,16 @@
    "regra": "Keyword Abilities",
    "titulo": "Protection",
    "status": "parcial",
-   "evidencia": "Só proteção contra COR vinda de aura/equipamento (grants.protection) ou efeito temporário (tempProtection): protections/protectedFrom (index.html:10423-10429) valem em alvo (10916), bloqueio (10766), dano de combate (10803) e fora dele (11122), e derrubam anexos (protecaoDerruba 10432, SBA 12114) com as exceções de 702.16n/p; protecao.regras.test.mjs, pauper.regras Leva 108 (Benevolent Blessing), R11 Flickering Ward",
-   "falta": "Proteção IMPRESSA na carta não existe: o esquema de script não tem self.protection e o motor não lê o texto — sonda sonda-702a.mjs/sonda2-702a.mjs: criatura \"Protection from red\" é mirada por Lightning Bolt, bloqueada por criatura vermelha e morre para ela. Faltam também qualidades que não são cor (tipo, \"tudo\", jogador, multicolorido — 702.16a, j, k) e proteção de jogador (702.16b-e)",
+   "evidencia": "Só proteção contra COR vinda de aura/equipamento (grants.protection) ou efeito temporário (tempProtection): protections/protectedFrom (index.html:10423-10429) valem em alvo (10916), bloqueio (10766), dano de combate (10803) e fora dele (11122), e derrubam anexos (protecaoDerruba 10432, SBA 12114) com as exceções de 702.16n/p; protecao.regras.test.mjs, pauper.regras Leva 108 (Benevolent Blessing), R11 Flickering Ward · CR1b (motor v74): proteção IMPRESSA contra cor é lida da linha de palavra-chave do texto (protecaoImpressa em cardFacts → protImpressa), vale em alvo, bloqueio, dano e anexos, e some com a carta virada para baixo; teste de conformidade em cr.conformidade",
+   "falta": "Qualidades que não são cor (tipo de carta, subtipo, \"tudo\", multicolorido, monocolorido, jogador — 702.16a, j, k) e proteção de jogador (702.16b-e); proteção impressa na face de trás de carta dupla",
    "esforco": "M",
    "depende": [
     "613"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 702.16 · proteção impressa na carta: não é alvo, não é bloqueada e não recebe dano de fonte daquela cor; outra cor passa"
+   ]
   },
   {
    "n": "702.17",
@@ -6504,13 +6522,15 @@
    "n": "702.28",
    "regra": "Keyword Abilities",
    "titulo": "Shadow",
-   "status": "ausente",
-   "falta": "Sem implementação; sonda sonda-702a.mjs: criatura sem sombra bloqueia a com sombra e vice-versa (702.28b)",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "509.1b"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "canBlock: sombra de um lado só — atacante com sombra pede bloqueador com sombra, e bloqueador com sombra só bloqueia sombra · teste de conformidade em cr.conformidade (leva CR1b, motor v74)",
+   "testes": [
+    "CR 702.28 · sombra: só sombra bloqueia sombra, e sombra só bloqueia sombra"
+   ]
   },
   {
    "n": "702.29",
@@ -6604,13 +6624,15 @@
    "n": "702.36",
    "regra": "Keyword Abilities",
    "titulo": "Fear",
-   "status": "ausente",
-   "falta": "Sem implementação; sonda sonda-702a.mjs: 2/2 verde bloqueia criatura com medo (702.36b: só artefato ou criatura preta)",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "509.1b"
    ],
-   "cartas": "comum (antiga evergreen, descontinuada)"
+   "cartas": "comum (antiga evergreen, descontinuada)",
+   "evidencia": "canBlock: atacante com fear só é bloqueado por criatura artefato ou preta; a palavra entra em KEYWORDS (pode ser concedida) · teste de conformidade em cr.conformidade (leva CR1b, motor v74)",
+   "testes": [
+    "CR 702.36 · medo: só criatura artefato ou preta bloqueia"
+   ]
   },
   {
    "n": "702.37",
@@ -6918,14 +6940,16 @@
    "n": "702.61",
    "regra": "Keyword Abilities",
    "titulo": "Split Second",
-   "status": "ausente",
-   "falta": "Nada impede conjurar mágicas e ativar habilidades que não sejam de mana enquanto a mágica está na pilha (702.61a-b). BUG reproduzido: Krosan Grip tem script sem marca de parcial (index.html:4834) e, com ela na pilha, o oponente recebe cast:Counterspell e activate:Tormod's Crypt como ações legais (sonda-702b.mjs).",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "605",
     "116.2"
    ],
-   "cartas": "rara (Time Spiral e poucas; presente em Commander)"
+   "cartas": "rara (Time Spiral e poucas; presente em Commander)",
+   "evidencia": "fracaoDeSegundo lê a palavra-chave da mágica na pilha (virada para baixo não conta); legalActions tira conjurar, reciclar, transmutar, ninjutsu, insanidade, conjurar sem pagar e toda habilidade ativada que não seja de mana, e os handlers recusam com \"fração de segundo\"; tap_mana, virar para cima e gatilhos continuam · teste de conformidade em cr.conformidade (leva CR1b, motor v74)",
+   "testes": [
+    "CR 702.61 · fração de segundo: com a mágica na pilha ninguém conjura nem ativa habilidade que não seja de mana; mana continua"
+   ]
   },
   {
    "n": "702.62",
@@ -7635,13 +7659,15 @@
    "n": "702.118",
    "regra": "Keyword Abilities",
    "titulo": "Skulk",
-   "status": "ausente",
-   "falta": "Sem a restrição \"não pode ser bloqueada por criatura de poder maior\" (702.118b). EVASIONS só tem flying-only e power-less (index.html:4546).",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "509.1b restrições de bloqueio"
    ],
-   "cartas": "rara (Shadows over Innistrad)"
+   "cartas": "rara (Shadows over Innistrad)",
+   "evidencia": "canBlock: atacante com skulk não é bloqueado por criatura de poder maior · teste de conformidade em cr.conformidade (leva CR1b, motor v74)",
+   "testes": [
+    "CR 702.118 · esgueirar: não pode ser bloqueada por criatura de poder maior"
+   ]
   },
   {
    "n": "702.119",

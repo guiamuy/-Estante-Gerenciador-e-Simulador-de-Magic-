@@ -153,7 +153,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R11.2a terrenos e pedras de mana do Commander: 19 cartas completas (dano ao gerar cor, cor condicional, entra virado a menos que, sacrifício por mana); Killian 36% → 48%, Malcolm 50% → 57% (leva 191, motor v72) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR0 mapa regra × motor: os 1.174 itens numerados das regras de 25/09/2026 classificados contra o motor v72 com evidência — 204 cobertos, 211 parciais, 475 ausentes, 108 só definição, 176 fora de escopo; 23% do aplicável (leva 194) | ✅ |
 | CR · Conformidade com as Comprehensive Rules | CR1a 14 bugs da auditoria corrigidos com teste de conformidade: custos de vida, mana phyrexiana, carta sem custo, X no valor de mana, dano 0, busca e topo do grimório, 2/2 virada para baixo, marcadores que se anulam, Aura solta, fim de combate, limpeza, conceder, Veículo comandante (leva 196, motor v73) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR1b resto dos bugs da auditoria que não pedem estrutura (fração de segundo, proteção impressa, evasões, gatilho modal, condição de gatilho de outra permanente) | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR1b resto dos bugs da auditoria que não pedem estrutura: fração de segundo, proteção impressa contra cor, medo, intimidar, sombra, esgueirar e travessias, gatilho modal sem modo ilegal, condição em gatilho de outra permanente, gerar mana durante um pagamento pedido por efeito (motor v74) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2a zonas, objeto novo ao mudar de zona e ações de estado completas (704, 400.7, 608.2) | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2632,6 +2633,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Expectativa ajustada com justificativa:** o apoio de teste das masmorras (`rules.unit`, `fechaEscolha`) passou a pegar a carta numa busca, porque a busca deixou de ser obrigatória.
 - **Ficam para a CR1b:** fração de segundo (702.61), proteção impressa (702.16), medo, intimidar, sombra e travessia, gatilho modal com modo sem alvo (700.2b), condição de gatilho de outra permanente (603.4), `tap_mana` durante "a menos que pague" (605.3a), jogador que sai numa mesa de três (800.4).
 - **Ficam para a CR2 (pedem estrutura ou decisão nova):** regra das lendas (704.5j), objeto novo ao mudar de zona (400.7), ações de estado no meio da resolução (704.3), mortes simultâneas (603.10a), segundo passo de dano (510.4), divisão de dano (510.1c), fichas por instância (111.3).
+
+**CR1b · Segunda leva de correções** 🟡 (motor v74) — 10 testes de conformidade novos em `cr.conformidade.test.mjs` (todos falhavam antes) e o cenário K12b em `combat.audit`. Placar: 207 → 212 cobertos, 475 → 469 ausentes (24%).
+- **Valor:** mágicas e criaturas com essas palavras passam a jogar como o texto manda, sem script por carta: o motor lê a palavra-chave do dado da carta.
+- **702.61** fração de segundo: com a mágica na pilha ninguém conjura, recicla, usa ninjutsu ou insanidade, nem ativa habilidade que não seja de mana; gerar mana, virar para cima e gatilhos continuam. Vale para a Krosan Grip sem mexer no script.
+- **702.16** proteção impressa contra cor ("Protection from black and from red"), lida da linha de palavra-chave do texto: alvo, bloqueio, dano e anexos. **Parcial:** só cores; proteção contra tipo, "tudo", multicolorido e de jogador ficam para a CR4.
+- **702.36** medo, **702.13** intimidar, **702.28** sombra, **702.118** esgueirar e **702.14** travessia de ilha, pântano, floresta, montanha e planície. **Parcial em 702.14:** travessia de terreno não básico, lendário e da neve não entra. A recusa de bloqueio agora diz o motivo (antes dizia sempre "voar").
+- **700.2b** gatilho modal: modo sem alvo legal não é oferecido nem aceito; sem nenhum modo legal o gatilho sai. **603.4** gatilho "se" de outra permanente confere a condição ao disparar e ao resolver. **605.3a** quem decide um "pague ou…", um "você pode pagar" ou a insanidade pode gerar mana antes de responder, escolhendo as fontes.
+- **Aceite:** cada item acima tem teste com o número da regra no título; `combat.audit` K12 exige cenário para toda palavra-chave que o motor declara.
+- **Golden:** regravadas só pela versão (73 → 74).
+- **Fora (segue no épico):** jogador que sai numa mesa de três (800.4) vai para a CR6; os bugs que pedem estrutura seguem na CR2.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

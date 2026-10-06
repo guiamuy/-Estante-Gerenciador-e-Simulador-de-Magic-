@@ -223,6 +223,34 @@ test('K11 · ilusão protege do oponente; véu protege de todo mundo', () => {
   assert.equal(E.targetable(s, d, s.objects[velada]), false, 'e a do oponente também');
 });
 
+test('K12b · evasões por palavra-chave: medo, intimidar, sombra, esgueirar e as cinco travessias recusam o bloqueio errado e aceitam o certo', () => {
+  const terra = n => ({ name: n, type_line: `Basic Land — ${n}`, mana_cost: '', cmc: 0, colors: [], keywords: [], oracle_text: '' });
+  const cartas = { ...CARDS, Preta: cre('Preta', 2, 2, [], { colors: ['B'] }), Golem: cre('Golem', 2, 2, [], { colors: [], type_line: 'Artifact Creature — Golem' }), Forte: cre('Forte', 3, 3),
+    Medo: cre('Medo', 2, 2, ['Fear'], { colors: ['B'] }), Intimida: cre('Intimida', 2, 2, ['Intimidate'], { colors: ['R'] }), Rubra: cre('Rubra', 2, 2, [], { colors: ['R'] }),
+    Sombra: cre('Sombra', 2, 2, ['Shadow']), Esgueira: cre('Esgueira', 2, 2, ['Skulk']) };
+  const TERRAS = { islandwalk: 'Island', swampwalk: 'Swamp', forestwalk: 'Forest', mountainwalk: 'Mountain', plainswalk: 'Plains' };
+  for (const [k, n] of Object.entries(TERRAS)) { cartas[n] = terra(n); cartas['Anda ' + n] = cre('Anda ' + n, 2, 2, [k[0].toUpperCase() + k.slice(1)]); }
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  const base = () => { let s = E.createGame({ format: 'livre', seed: 31, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+    for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority }); return s; };
+  // [palavra, atacante, quem NÃO bloqueia, quem bloqueia, terreno do defensor]
+  const casos = [['fear', 'Medo', 'Urso', 'Preta'], ['fear', 'Medo', 'Urso', 'Golem'], ['intimidate', 'Intimida', 'Urso', 'Rubra'], ['intimidate', 'Intimida', 'Urso', 'Golem'],
+    ['shadow', 'Sombra', 'Urso', 'Sombra'], ['skulk', 'Esgueira', 'Forte', 'Urso'], ...Object.entries(TERRAS).map(([k, n]) => [k, 'Anda ' + n, 'Urso', null, n])];
+  for (const [k, atacante, naoPode, pode, terreno] of casos) {
+    cobre(k);
+    let s = base(); const a = s.turn.active, d = 1 - a; let atk, ruim, bom;
+    [s, atk] = poe(s, a, atacante); [s, ruim] = poe(s, d, naoPode); if (pode) [s, bom] = poe(s, d, pode); if (terreno) [s] = poe(s, d, terreno);
+    s = ateBloqueio(s, [atk]);
+    assert.throws(() => act(s, { t: 'block', p: d, blocks: [[ruim, atk]] }), /não pode bloquear/, `${k}: ${naoPode} não bloqueia ${atacante}`);
+    if (pode) assert.equal(act(s, { t: 'block', p: d, blocks: [[bom, atk]] }).objects[bom].blocking, atk, `${k}: ${pode} bloqueia ${atacante}`);
+    if (terreno) { let t = base(); [t, atk] = poe(t, a, atacante); [t, ruim] = poe(t, d, naoPode); t = ateBloqueio(t, [atk]); // sem o terreno, a travessia não faz nada
+      assert.equal(act(t, { t: 'block', p: d, blocks: [[ruim, atk]] }).objects[ruim].blocking, atk, `${k}: sem ${terreno} o bloqueio vale`); }
+  }
+  // sombra do outro lado: criatura com sombra não bloqueia quem não tem
+  { let s = base(); const a = s.turn.active, d = 1 - a; let atk, sb; [s, atk] = poe(s, a, 'Urso'); [s, sb] = poe(s, d, 'Sombra'); s = ateBloqueio(s, [atk]);
+    assert.throws(() => act(s, { t: 'block', p: d, blocks: [[sb, atk]] }), /sombra/); }
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));

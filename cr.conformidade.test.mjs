@@ -9,12 +9,29 @@ const c = (name, type_line, mana_cost, extra = {}) => ({ name, type_line, mana_c
 const INVENTADAS = {
   Urso: c('Urso', 'Creature — Bear', '{1}{G}', { power: '2', toughness: '2', cmc: 2 }), Grande: c('Grande', 'Creature — Giant', '{4}{R}', { power: '5', toughness: '5', cmc: 5 }),
   'Paga Vida': c('Paga Vida', 'Artifact', '{0}'), 'Sonda Phyrexiana': c('Sonda Phyrexiana', 'Sorcery', '{U/P}', { cmc: 1 }), 'Sem Custo': c('Sem Custo', 'Sorcery', ''),
+  // CR1b
+  Fracao: c('Fracao', 'Instant', '{0}', { keywords: ['Split second'], oracle_text: 'Split second' }), Resposta: c('Resposta', 'Instant', '{0}'), Taxa: c('Taxa', 'Instant', '{0}'),
+  Paladino: c('Paladino', 'Creature — Knight', '{W}', { power: '2', toughness: '2', keywords: ['Protection'], oracle_text: 'Protection from black and from red' }),
+  Zumbi: c('Zumbi', 'Creature — Zombie', '{B}', { power: '2', toughness: '2' }), Golem: c('Golem', 'Artifact Creature — Golem', '{2}', { power: '2', toughness: '2' }), Pequeno: c('Pequeno', 'Creature — Kithkin', '{W}', { power: '1', toughness: '1' }),
+  'Raio Negro': c('Raio Negro', 'Instant', '{B}'), 'Raio Verde': c('Raio Verde', 'Instant', '{G}'),
+  Medroso: c('Medroso', 'Creature — Horror', '{B}', { power: '2', toughness: '2', keywords: ['Fear'] }), Intimidador: c('Intimidador', 'Creature — Ogre', '{R}', { power: '2', toughness: '2', keywords: ['Intimidate'] }),
+  Sombrio: c('Sombrio', 'Creature — Spirit', '{U}', { power: '2', toughness: '2', keywords: ['Shadow'] }), 'Anda Ilha': c('Anda Ilha', 'Creature — Merfolk', '{U}', { power: '2', toughness: '2', keywords: ['Islandwalk'] }),
+  Furtivo: c('Furtivo', 'Creature — Rogue', '{U}', { power: '1', toughness: '1', keywords: ['Skulk'] }),
+  Modal: c('Modal', 'Enchantment', '{0}'), 'Modal Sem Saida': c('Modal Sem Saida', 'Enchantment', '{0}'), Condicional: c('Condicional', 'Enchantment', '{0}'),
   'Dano Contado': c('Dano Contado', 'Instant', '{0}', { colors: ['R'] }), Vigia: c('Vigia', 'Enchantment — Aura', '{0}'), 'Fim de Combate': c('Fim de Combate', 'Creature — Spirit', '{1}', { power: '1', toughness: '1' }),
 };
 const SCRIPTS = {
   'Paga Vida': { name: 'Paga Vida', abilities: [{ kind: 'activated', cost: { life: 3 }, effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'activate:0', target: 'none', expect: { handDelta: 1 } } },
   'Sonda Phyrexiana': { name: 'Sonda Phyrexiana', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } },
   'Sem Custo': { name: 'Sem Custo', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } },
+  Fracao: { name: 'Fracao', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } },
+  Resposta: { name: 'Resposta', effects: [{ do: 'draw', amount: 1 }], example: { target: 'none', expect: { handDelta: 1 } } },
+  Taxa: { name: 'Taxa', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{1}' } }], example: { target: 'enemy-spell', expect: { countered: true } } },
+  'Raio Negro': { name: 'Raio Negro', effects: [{ do: 'damage', amount: 3, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 3 } } },
+  'Raio Verde': { name: 'Raio Verde', effects: [{ do: 'damage', amount: 3, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 3 } } },
+  Modal: { name: 'Modal', abilities: [{ kind: 'triggered', when: 'etb', modes: [{ label: 'destruir', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'comprar', effects: [{ do: 'draw', amount: 1 }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  'Modal Sem Saida': { name: 'Modal Sem Saida', abilities: [{ kind: 'triggered', when: 'etb', modes: [{ label: 'destruir', effects: [{ do: 'destroy', target: 'creature' }] }, { label: 'ferir', effects: [{ do: 'damage', amount: 1, target: 'creature' }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Condicional: { name: 'Condicional', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, condition: { lifeGained: 3 }, effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
   Vigia: { name: 'Vigia', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   'Fim de Combate': { name: 'Fim de Combate', abilities: [{ kind: 'triggered', when: 'end-of-combat', effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -118,4 +135,77 @@ test('CR 903.3 · Veículo lendário pode ser comandante', () => {
   const M = new Map([k('Motor Lendario', 'Legendary Artifact — Vehicle', ['U'], { power: '8', toughness: '8' }), k('Encanto Lendario', 'Legendary Enchantment', ['U']), k('Island', 'Basic Land — Island', ['U'])].map(x => [x.name.toLowerCase(), x]));
   const erros = cmd => D.validateDeck({ format: 'commander', entries: [{ name: cmd, qty: 1, zone: 'commander' }, { name: 'Island', qty: 99, zone: 'main' }] }, M).filter(i => i.level === 'error' && /não pode ser comandante/.test(i.message)).length;
   assert.equal(erros('Motor Lendario'), 0); assert.equal(erros('Encanto Lendario'), 1, 'encantamento lendário continua recusado');
+});
+
+// ---------------------------------------------------------------- CR1b
+/** Quem pode bloquear `atk` sozinho: nomes dos bloqueadores oferecidos ao defensor. */
+function bloqueiam(s, atk) {
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: [atk] }); s = passaAte(s, x => x.pending && x.pending.kind === 'blockers');
+  return [s, [...new Set(legais(s, 1, a => a.t === 'block' && a.blocks.length === 1).map(a => s.objects[a.blocks[0][0]].name))].sort()];
+}
+const campo = (s, p, ...nomes) => { const ids = []; for (const n of nomes) { let o; [s, o] = poe(s, p, n); ids.push(o); } return [s, ...ids]; };
+
+test('CR 702.61 · fração de segundo: com a mágica na pilha ninguém conjura nem ativa habilidade que não seja de mana; mana continua', () => {
+  let s = mesa(['Fracao', 'Resposta'], ['Resposta', 'Paga Vida', 'Island']), f, r0, r1, pv, i;
+  [s, f] = poe(s, 0, 'Fracao', 'hand'); [s, r0] = poe(s, 0, 'Resposta', 'hand'); [s, r1] = poe(s, 1, 'Resposta', 'hand'); [s, pv] = poe(s, 1, 'Paga Vida'); [s, i] = poe(s, 1, 'Island');
+  s = act(s, conj(s, f)[0]);
+  assert.equal(legais(s, 0, a => a.t === 'cast').length, 0, 'nem quem conjurou responde');
+  s = act(s, { t: 'pass', p: 0 });
+  assert.deepEqual([...new Set(legais(s, 1).map(a => a.t))].sort(), ['concede', 'pass', 'tap_mana'].filter(t => legais(s, 1).some(a => a.t === t)));
+  assert.equal(legais(s, 1, a => a.t === 'tap_mana' && a.oid === i).length, 1, 'habilidade de mana continua');
+  assert.throws(() => act(s, { t: 'cast', p: 1, oid: r1 }), /fração de segundo/); assert.throws(() => act(s, { t: 'activate', p: 1, oid: pv, index: 0 }), /fração de segundo/);
+  s = act(s, { t: 'pass', p: 1 }); assert.equal(legais(s, 0, a => a.t === 'cast' && a.oid === r0).length, 1, 'resolvida a mágica, volta ao normal');
+});
+
+test('CR 702.16 · proteção impressa na carta: não é alvo, não é bloqueada e não recebe dano de fonte daquela cor; outra cor passa', () => {
+  { let s = mesa(['Raio Negro', 'Raio Verde'], ['Paladino']), n, v, p; [s, n] = poe(s, 0, 'Raio Negro', 'hand'); [s, v] = poe(s, 0, 'Raio Verde', 'hand'); [s, p] = poe(s, 1, 'Paladino'); s = comMana(s, 'BG');
+    assert.deepEqual(alvos(s, 0, n), [], 'mágica preta não mira'); assert.deepEqual(alvos(s, 0, v), ['Paladino'], 'mágica verde mira'); }
+  { let s = mesa(['Paladino'], ['Zumbi', 'Urso']), p; [s, p] = campo(s, 0, 'Paladino'); [s] = campo(s, 1, 'Zumbi', 'Urso'); let q; [s, q] = bloqueiam(s, p); assert.deepEqual(q, ['Urso'], 'criatura preta não bloqueia'); }
+  { let s = mesa(['Zumbi'], ['Paladino']), z, p; [s, z] = campo(s, 0, 'Zumbi'); [s, p] = campo(s, 1, 'Paladino'); [s] = bloqueiam(s, z);
+    s = act(s, { t: 'block', p: 1, blocks: [[p, z]] }); s = passaAte(s, x => x.turn.step === 'main2'); assert.equal(s.objects[p].zone, 'battlefield', 'o dano de combate da fonte preta é prevenido'); assert.equal(s.objects[z].zone, 'graveyard'); }
+});
+
+test('CR 702.36 · medo: só criatura artefato ou preta bloqueia', () => {
+  let s = mesa(['Medroso'], ['Urso', 'Zumbi', 'Golem']), m, q; [s, m] = campo(s, 0, 'Medroso'); [s] = campo(s, 1, 'Urso', 'Zumbi', 'Golem'); [s, q] = bloqueiam(s, m); assert.deepEqual(q, ['Golem', 'Zumbi']);
+});
+
+test('CR 702.13 · intimidar: só criatura artefato ou que compartilha cor com ela bloqueia', () => {
+  let s = mesa(['Intimidador'], ['Urso', 'Grande', 'Golem']), m, q; [s, m] = campo(s, 0, 'Intimidador'); [s] = campo(s, 1, 'Urso', 'Grande', 'Golem'); [s, q] = bloqueiam(s, m); assert.deepEqual(q, ['Golem', 'Grande']);
+});
+
+test('CR 702.28 · sombra: só sombra bloqueia sombra, e sombra só bloqueia sombra', () => {
+  { let s = mesa(['Sombrio'], ['Urso', 'Sombrio']), m, q; [s, m] = campo(s, 0, 'Sombrio'); [s] = campo(s, 1, 'Urso', 'Sombrio'); [s, q] = bloqueiam(s, m); assert.deepEqual(q, ['Sombrio']); }
+  { let s = mesa(['Urso'], ['Urso', 'Sombrio']), m, q; [s, m] = campo(s, 0, 'Urso'); [s] = campo(s, 1, 'Urso', 'Sombrio'); [s, q] = bloqueiam(s, m); assert.deepEqual(q, ['Urso']); }
+});
+
+test('CR 702.14 · travessia: não pode ser bloqueada se o defensor controla terreno daquele tipo', () => {
+  { let s = mesa(['Anda Ilha'], ['Urso']), m, q; [s, m] = campo(s, 0, 'Anda Ilha'); [s] = campo(s, 1, 'Urso', 'Island'); [s, q] = bloqueiam(s, m); assert.deepEqual(q, []); }
+  { let s = mesa(['Anda Ilha'], ['Urso']), m, q; [s, m] = campo(s, 0, 'Anda Ilha'); [s] = campo(s, 1, 'Urso', 'Mountain'); [s, q] = bloqueiam(s, m); assert.deepEqual(q, ['Urso']); }
+});
+
+test('CR 702.118 · esgueirar: não pode ser bloqueada por criatura de poder maior', () => {
+  let s = mesa(['Furtivo'], ['Urso', 'Pequeno']), m, q; [s, m] = campo(s, 0, 'Furtivo'); [s] = campo(s, 1, 'Urso', 'Pequeno'); [s, q] = bloqueiam(s, m); assert.deepEqual(q, ['Pequeno']);
+});
+
+test('CR 700.2 · gatilho modal: modo sem alvo legal não pode ser escolhido; sem nenhum modo legal o gatilho sai da pilha (700.2b)', () => {
+  { let s = mesa(['Modal']), m; [s, m] = poe(s, 0, 'Modal', 'hand'); s = passaAte(act(s, conj(s, m)[0]), x => !!x.pending); assert.equal(s.pending.kind, 'choose_mode');
+    assert.deepEqual(J(legais(s, 0, a => a.t === 'choose_mode').map(a => a.label)), ['comprar'], 'sem criatura na mesa, "destruir" não é oferecido');
+    assert.throws(() => act(s, { t: 'choose_mode', p: 0, index: 0 }), /sem alvo/); const mao = s.zones[0].hand.length; s = tudo(act(s, { t: 'choose_mode', p: 0, index: 1 })); assert.equal(s.zones[0].hand.length, mao + 1); }
+  { let s = mesa(['Modal Sem Saida']), m; [s, m] = poe(s, 0, 'Modal Sem Saida', 'hand'); s = passaAte(act(s, conj(s, m)[0]), x => !!x.pending || (!x.stack.length && x.objects[m].zone === 'battlefield'));
+    assert.equal(s.pending, null, 'nenhum modo legal: nada a escolher'); assert.equal(s.stack.length, 0); }
+});
+
+test('CR 603.4 · "se" intermediário em gatilho de outra permanente: sem a condição não dispara; com ela, dispara', () => {
+  for (const [ganhou, compra] of [[0, 0], [3, 1]]) {
+    let s = mesa(['Condicional', 'Urso']), u; [s] = poe(s, 0, 'Condicional'); [s, u] = poe(s, 0, 'Urso', 'hand'); s = comMana(s, 'GG'); s.players[0].lifeGained = ganhou;
+    const mao = s.zones[0].hand.length; s = tudo(act(s, conj(s, u)[0])); assert.equal(s.zones[0].hand.length, mao - 1 + compra, 'vida ganha no turno: ' + ganhou);
+  }
+});
+
+test('CR 605.3 · habilidade de mana pode ser ativada enquanto um efeito pede pagamento ("a menos que pague")', () => {
+  let s = mesa(['Urso'], ['Taxa']), u, t, pl, sw; [s, u] = poe(s, 0, 'Urso', 'hand'); [s, t] = poe(s, 1, 'Taxa', 'hand'); [s, pl] = poe(s, 0, 'Plains'); [s, sw] = poe(s, 0, 'Swamp'); s = comMana(s, 'GG');
+  s = act(s, conj(s, u)[0]); s = act(s, { t: 'pass', p: 0 }); s = act(s, legais(s, 1, a => a.t === 'cast' && a.oid === t)[0]); s = passaAte(s, x => !!x.pending);
+  assert.equal(s.pending.kind, 'may_pay'); assert.equal(legais(s, 0, a => a.t === 'tap_mana').length, 2, 'as duas fontes são oferecidas');
+  s = act(s, { t: 'tap_mana', p: 0, oid: sw, option: 0 }); assert.equal(s.pending.kind, 'may_pay', 'a decisão continua pendente'); s = act(s, { t: 'pay', p: 0 });
+  assert.equal(s.objects[pl].tapped, false, 'pagou com a mana que o jogador escolheu gerar'); assert.equal(s.objects[u].zone === 'graveyard', false);
 });
