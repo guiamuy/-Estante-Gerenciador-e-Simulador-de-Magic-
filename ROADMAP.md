@@ -151,7 +151,10 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | R · Revisão carta a carta | R10 plano do lote Commander: texto oficial das 158 cartas que faltavam, triagem das 164 em baldes (54 prontas · 24 A · 70 B · 16 C) e matriz primitiva × cartas (leva 184, sem mudança de motor) | ✅ |
 | R · Revisão carta a carta | R11.1 auditoria frase a frase das 59 cartas de Commander que o motor dava como prontas ou quase: 9 corrigidas, 3 terrenos rebaixados a parciais, 1 devolvida a manual (leva 189, motor v71) | 🟡 |
 | R · Revisão carta a carta | R11.2a terrenos e pedras de mana do Commander: 19 cartas completas (dano ao gerar cor, cor condicional, entra virado a menos que, sacrifício por mana); Killian 36% → 48%, Malcolm 50% → 57% (leva 191, motor v72) | 🟡 |
-| R · Revisão carta a carta | R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
+| CR · Conformidade com as Comprehensive Rules | CR0 mapa regra × motor: os 1.174 itens numerados das regras de 25/09/2026 classificados contra o motor v72 com evidência — 204 cobertos, 211 parciais, 475 ausentes, 108 só definição, 176 fora de escopo; 23% do aplicável (leva 194) | ✅ |
+| CR · Conformidade com as Comprehensive Rules | CR1 bugs reproduzidos pela auditoria (cerca de 30) | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
+| R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
 
 **Dívida registrada.** Os IDs F1 e F3 não aparecem no código e não são rastreáveis. Os testes originais de F, D e W não estavam no repositório. A história **Q7** pagou essa dívida.
@@ -2574,6 +2577,73 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição (`medir.mjs`):** Killian 36% → 48% (49 cópias manuais, 4 parciais); Malcolm + Kediss 50% → 57% (32 manuais, 11 parciais). Triagem: 74 prontas · 9 A · 65 B · 16 C.
 - **Golden:** regravadas só pela versão (71 → 72).
 - **Fora desta leva:** Shineshadow Snarl ("você pode revelar": pede decisão nova), Cephalid Coliseum (limiar: "ative somente se"), Saprazzan Skerry (marcador nomeado), Path of Ancestry (vidência ao gastar a mana), Windbrisk Heights (hideaway), Mishra's Factory e Blinkmoth Nexus (camadas). Os dois comandantes ficam para a R11.2b.
+
+## Épico CR · Conformidade com as Comprehensive Rules
+
+**Decisão de 06/10/2026 (dono do produto):** a evolução do motor deixa de ser guiada lista a lista e passa a ser guiada pelas regras: construir, implementar, revisar por simulação, corrigir e consolidar até o motor contemplar as Comprehensive Rules inteiras (documento de 25/09/2026, 147 regras, 1.174 itens numerados, 1.991 subitens de letra). A homologação final é do dono do produto, jogando com várias listas e relatando os bugs.
+
+**O que "100%" quer dizer aqui, e o que não quer.** O motor não interpreta texto de carta (ADR do motor): cumprir uma regra significa que existe a primitiva e que ela se comporta como a regra manda. Para uma carta jogar, alguém ainda escreve o script dela com essas primitivas. Conformidade de regras e cobertura de cartas são duas medidas; este épico cuida da primeira e torna a segunda barata.
+
+**Instrumentos (ficam no repositório):**
+- `.regras/indice.json` — número e título de cada regra e item (o texto das regras não é copiado para cá).
+- `.regras/mapa.json` — cada item com `status` (coberta · parcial · ausente · definicao · fora), `evidencia` (linha de código, teste ou sonda), `falta`, `esforco` (P · M · G), `depende` e, para 701 e 702, a frequência em cartas. Quando um item muda de status, o teste que prova entra em `testes`.
+- `node .regras/medir.mjs [--fases] [--falta NNN]` — o placar. `regras.mapa.unit` derruba o portão se o mapa ficar para trás do índice, afirmar cobertura sem evidência ou a cobertura cair.
+- Testes de conformidade levam o número da regra no nome: `test('CR 704.5j · …')`.
+
+**CR0 · Mapa regra × motor** ✅ (leva 194, motor v72 sem mudança) — 14 auditores independentes, um por trecho das regras, cada um obrigado a mostrar evidência vista e a escolher o nível mais baixo na dúvida.
+
+| Fase | Cobertos | Parciais | Ausentes | Definição | Fora | Cobertos ÷ aplicáveis |
+|---|---|---|---|---|---|---|
+| CR2a · zonas, objetos e ações de estado (400–408, 608, 703, 704, 733) | 30 | 16 | 10 | 7 | 5 | 54% |
+| CR2b · gatilhos e estáticas (603, 604) | 4 | 8 | 3 | 3 | 1 | 27% |
+| CR2c · conjurar, ativar e pagar (113–118, 600–602, 605–609, 700) | 29 | 35 | 22 | 10 | 1 | 34% |
+| CR2d · efeitos contínuos e camadas (610–613) | 1 | 9 | 18 | 0 | 1 | 4% |
+| CR2e · substituição e prevenção (614–616) | 4 | 9 | 18 | 1 | 0 | 13% |
+| CR2f · cópia (707) | 0 | 2 | 11 | 1 | 0 | 0% |
+| CR2g · turno e combate (500–514) | 19 | 21 | 16 | 4 | 2 | 34% |
+| CR2h · conceitos do jogo (100–123 restantes, 200–213) | 44 | 47 | 48 | 30 | 22 | 32% |
+| CR3 · ações de palavra-chave (701) | 13 | 12 | 39 | 1 | 6 | 20% |
+| CR4 · habilidades de palavra-chave (702) | 19 | 21 | 150 | 1 | 4 | 10% |
+| CR5 · tipos e formatos de carta (300–315, 705–732) | 36 | 23 | 96 | 40 | 66 | 23% |
+| CR6 · multijogador e variantes (800–905) | 5 | 8 | 44 | 10 | 68 | 9% |
+| **Total** | **204** | **211** | **475** | **108** | **176** | **23%** |
+
+- **Onde o motor é raso de verdade:** camadas (613: poder e resistência são uma soma solta; não existe "vira N/N", perder habilidade, mudar tipo, cor ou controle), substituição (614: cada caso é um `if`; nada de regeneração, "em vez de", escudos de prevenção), cópia (707: só a rajada, e como gatilho), gatilho atrasado e reflexivo (603.7, 603.12), pagamento com escolha (601.2: híbrido, phyrexiano, mana com restrição, custos que outra carta aumenta ou reduz), combate (510.4 sem segundo passo de dano para iniciativa; 510.1c o atacante não divide o dano; 506/508 não se ataca planeswalker nem batalha) e mesa de três ou mais jogadores.
+- **As dependências mais citadas pelos auditores:** 601 (70 itens), 613 (61), 614 (58), mais de dois jogadores (50), 603 (43), 707 (42). São essas seis estruturas que destravam o resto: por isso a CR2 vem antes das palavras-chave.
+- **Tamanho estimado pelos auditores dos 686 itens parciais ou ausentes:** 318 pequenos, 292 médios, 76 grandes.
+- **Escopo marcado "fora" (176 itens), a confirmar pelo dono do produto:** adesivos e Atrações (Unfinity), aposta, Planechase, Vanguard, Archenemy, Conspiracy, equipes e Gigante de Duas Cabeças, subjogos. Podem voltar; estão no mapa com o motivo.
+
+**CR1 · Bugs reproduzidos pela auditoria** ▶ — cada um vira teste com o número da regra antes da correção. 2 a 3 levas.
+- **Resultado de partida errado hoje:** ações de estado rodam no meio da resolução (704.3, 608.2: "cada oponente perde 1, você perde 1" com os dois em 1 de vida dá vitória em vez de empate); objeto que sai e volta continua sendo alvo da mágica antiga (400.7); duas mortes simultâneas não se veem (603.10a: dois Zulaport Cutthroat geram 3 gatilhos, não 4); iniciativa e golpe duplo sem prioridade entre os dois danos (510.4); atacante não divide o dano (510.1c); dano prevenido da limpeza com insanidade (514.2); gatilho de fim de combate só do jogador ativo (511.2).
+- **Custos:** mana phyrexiana paga 2 de vida sem perguntar e sem conferir a vida (107.4f, 118.13, 119.4); pagar vida exige vida estritamente maior que o custo (119.4); carta sem custo de mana é conjurada de graça (202.1b, 118.6); X pago não entra no valor de mana na pilha (202.3e).
+- **Ações de estado:** regra das lendas (704.5j); anexo ilegal não cai, Aura que entra sem ser conjurada fica solta (704.5m, 704.5n, 303.4f); +1/+1 e −1/−1 não se anulam (704.5q); o laço não repete até estabilizar (704.3).
+- **Fichas e cartas:** fichas de mesmo nome dividem as características (111.3: o Bird 2/2 azul da Swan Song sai 1/1 branco depois de uma Battle Screech); Krosan Grip ignora a própria fração de segundo (702.61); proteção impressa na carta não existe (702.16); medo, intimidar, sombra e travessia são ignorados (702.36, 702.13, 702.28, 702.14); carta virada para baixo mantém a cor e ignora bônus de Aura (708.2, 613.4c).
+- **Buscas e efeitos:** Mystical Tutor embaralha a carta que devia ficar no topo (701.24b); busca por característica não deixa "não achar" (701.23b); dano 0 conta como dano (120.8); gatilho modal oferece modo sem alvo legal (700.2b); gatilho "se" de outra permanente não confere a condição (603.4); `tap_mana` recusado durante "a menos que pague" (605.3a).
+- **Commander e mesa:** Veículo lendário recusado como comandante (903.3); jogador que sai numa mesa de três deixa as permanentes no campo (800.4); motivo da derrota ao conceder sai como "vida".
+
+**CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
+- **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
+- **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
+- **CR2c** conjurar, ativar e pagar: passos da 601.2 com escolha do jogador (modos múltiplos, X em tudo, híbrido e phyrexiano, divisão entre alvos), custos que outra permanente altera, habilidades de mana durante qualquer pagamento, mana com fonte e restrição (106), "não pode" e "ative somente se", mudança de alvo. 9 a 11 levas.
+- **CR2d** efeitos contínuos em camadas (613) com carimbo de tempo e dependência, mudança de controle, estáticos de qualquer forma (611, 604). 9 a 12 levas. É a maior obra do épico.
+- **CR2e** arcabouço de substituição e prevenção (614–616): "em vez de", "entra com", regeneração, escudos por quantidade, ordem escolhida pelo afetado. 7 a 9 levas.
+- **CR2f** cópia de mágica e de permanente, ficha-cópia (707). 4 a 6 levas.
+- **CR2g** turno e combate: passo de dano de iniciativa, divisão de dano, atacar planeswalker e batalha, exigências, restrições e custos de atacar e bloquear, gatilhos de bloqueio, turnos, fases e combates extras, pular. 7 a 9 levas.
+- **CR2h** conceitos: veneno e marcadores nomeados em jogador e permanente (122), emblemas (114), vencer, perder e empatar por efeito, laço obrigatório (104), X (107.3), fichas por instância e fichas predefinidas (111), APNAP em escolhas (101.4), ações de mão inicial (103). 10 a 13 levas.
+
+**CR3 · Ações de palavra-chave (701)** ○ — 39 ausentes e 12 parciais; primeiro as comuns (lutar, trocar, dobrar, proliferar, regenerar, manifestar, descartar ao acaso, buscar e embaralhar completos). 12 a 16 levas.
+
+**CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
+
+**CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
+
+**CR6 · Multijogador e variantes** ○ — mesa de três e quatro (800–803, 806), Commander de mesa (903.2), Brawl (903.12); as variantes hoje "fora" só entram por decisão. 10 a 14 levas.
+
+**CR7 · Consolidação** ○ (em paralelo a partir da CR2) — a cada fase: fuzz em modo completo com listas reais, homologação por revisor independente relendo a seção das regras contra o motor, e rodada de simulação do dono do produto. 6 a 8 levas ao todo.
+
+**Estimativa do épico inteiro: 160 a 220 levas.** Apoio: nas levas recentes, estrutura nova rendeu de 1 a 3 itens por leva e primitiva pequena de 4 a 8. É estimativa, não medição; o placar do `medir.mjs` diz o progresso real a cada leva.
+
+**Riscos declarados:** (1) a CR2d mexe no cálculo de toda criatura e pede regravar partidas-referência; (2) cada mudança de regra sobe a versão do motor e invalida partida salva — vale agrupar; (3) regra implementada sem carta que a exercite só é testada por carta sintética: a homologação por simulação do dono do produto é o que fecha; (4) o documento das regras muda a cada coleção: o índice precisa ser refeito quando sair versão nova.
 
 **R11 a R13 · Commander** ○ — Orzhov Killian (88 cartas; 60 cópias manuais, 8 parciais) e Malcolm + Kediss (81; 38 manuais, 13 parciais).
 - **R10 · Plano do lote:** texto oficial das 105 cartas sem texto conferido, ficha de leitura e triagem em três baldes (só script · primitiva nova · lacuna estrutural), com a matriz primitiva × cartas. Sem isso a ordem é palpite. 1 leva.
