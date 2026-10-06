@@ -476,6 +476,9 @@ test('e2e · U1 tema em dois estados: um toque alterna, a escolha sobrevive à r
   const depois = await tema();
   assert.notEqual(depois, inicial);
   assert.match(await page.getAttribute('#theme-toggle', 'aria-label'), depois === 'light' ? /claro · toque para o escuro/ : /escuro · toque para o claro/);
+  // leva 201 · o tema é gravado em segundo plano; recarregar no mesmo instante do toque perdia a gravação no CI
+  // ("a escolha ficou guardada" caiu uma vez com o app certo). Ninguém recarrega em menos de 300 ms: o teste espera.
+  await page.waitForTimeout(300);
   await page.reload(); await page.waitForSelector('#theme-toggle');
   assert.equal(await tema(), depois, 'a escolha ficou guardada');
   assert.deepEqual(await iconeVisivel(), [depois === 'light' ? 'sol' : 'lua'], 'ícone certo depois de recarregar');
