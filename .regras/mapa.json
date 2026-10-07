@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 77,
+ "motor": 78,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4147,7 +4147,7 @@
    "regra": "Activating Activated Abilities",
    "titulo": "Restrições de ativação (enjoo, uma vez por turno, tempo de feitiço)",
    "status": "parcial",
-   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\"",
+   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\" · CR2a.4 (v78): \"Activate only if you have at least N life more than your starting life total\" (onlyIfLifeOverStart, na oferta e na ativação)",
    "falta": "602.5a: símbolo de desvirar {Q} não existe e o enjoo olha o tipo impresso, não o tipo atual. 602.5b/c: \"uma vez por turno\" é uma marca única por permanente (usedThisTurn), compartilhada entre habilidades diferentes e concedidas. Não há \"não pode ser ativada\" nem \"ative somente se/durante…\" (ROADMAP:2532 lista como pendente).",
    "esforco": "M"
   },
@@ -4244,8 +4244,8 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos que \"olham para trás\"",
    "status": "parcial",
-   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade",
-   "falta": "603.10a fora das ações de estado: varreduras que destroem, exilam ou devolvem várias permanentes e sacrifícios múltiplos ainda saem uma a uma. 603.10b-e (sair de fase, desanexar, perder controle, mágica anulada) ausentes; 603.10f-g não se aplicam a dois jogadores.",
+   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade · CR2a.4 (v78): \"cada jogador sacrifica\" escolhe em ordem e sacrifica em lote (sacrifice_each, continuaEdito); commander.regras Accursed Marauder",
+   "falta": "603.10a fora das ações de estado: varreduras que destroem, exilam ou devolvem várias permanentes ainda saem uma a uma (não há primitiva de varredura que mova permanentes). 603.10b-e (sair de fase, desanexar, perder controle, mágica anulada) ausentes; 603.10f-g não se aplicam a dois jogadores.",
    "esforco": "M",
    "depende": [
     "704 (mortes simultâneas num só evento)"
@@ -4474,8 +4474,8 @@
    "regra": "Resolving Spells and Abilities",
    "titulo": "Resolução de instantânea, feitiço ou habilidade",
    "status": "parcial",
-   "evidencia": "resolveScript (index.html:11666-11707) e resolveAbility (:13185-13235): \"se\" do gatilho reconferido (:13187), alvos reconferidos e mágica anulada só se todos ficaram ilegais, efeito parcial com alvo ilegal pulado (:11686-11688), instruções na ordem, escolhas na resolução com retomada (resume/resumeEffects :11531), conjurar durante a resolução (cast_free :12461), controlador do alvo por última informação (:11689), mágica ao cemitério no fim (resolveTop :12080). Testes: rules.unit \"M9 · habilidade com alvo que some é anulada\", \"S38 · até dois alvos\", \"S47 · mágica de até dois alvos … resolve sem anular\", \"S38 · destruir o artefato e o dano vai para quem o controlava\", \"S60 · correção: descarte pedido por um efeito retoma o resto do efeito\", \"S61 · Covil do Mago Louco: compra três e conjura uma sem pagar\"; scripts.unit:213 (608.2b)",
-   "falta": "608.2c: ações de estado são conferidas entre um efeito e outro da mesma mágica (stateBased dentro do laço, :11703 e :13232), o que a regra 704.3 não permite. 608.2d: sem dividir entre não-alvos. 608.2e: em \"cada jogador decide\" a ordem é controlador primeiro (:11365), não APNAP, e cada um age antes de o próximo decidir. 608.2g: pagamento de mana na resolução é automático (sem ativar habilidades de mana à mão). 608.2h: última informação conhecida só em casos pontuais (blockedAt, dono do alvo, criatura encantada no disparo, entrou neste turno); contagens leem a fonte atual. 608.2n: quando a resolução para numa escolha, a carta já foi ao cemitério antes do resto do efeito. 608.2p: sem gatilho de \"quando resolver\".",
+   "evidencia": "resolveScript (index.html:11666-11707) e resolveAbility (:13185-13235): \"se\" do gatilho reconferido (:13187), alvos reconferidos e mágica anulada só se todos ficaram ilegais, efeito parcial com alvo ilegal pulado (:11686-11688), instruções na ordem, escolhas na resolução com retomada (resume/resumeEffects :11531), conjurar durante a resolução (cast_free :12461), controlador do alvo por última informação (:11689), mágica ao cemitério no fim (resolveTop :12080). Testes: rules.unit \"M9 · habilidade com alvo que some é anulada\", \"S38 · até dois alvos\", \"S47 · mágica de até dois alvos … resolve sem anular\", \"S38 · destruir o artefato e o dano vai para quem o controlava\", \"S60 · correção: descarte pedido por um efeito retoma o resto do efeito\", \"S61 · Covil do Mago Louco: compra três e conjura uma sem pagar\"; scripts.unit:213 (608.2b) · CR2a.1/CR2a.4 (v75, v78): 608.2c — nenhuma ação de estado entre os efeitos de uma resolução, nem quando ela para numa escolha; 608.2h — \"X = resistência da criatura sacrificada\" lê a foto da permanente (Ayli)",
+   "falta": "608.2d: sem dividir entre não-alvos. 608.2e: em \"cada jogador decide\" a ordem é controlador primeiro (:11365), não APNAP, e cada um age antes de o próximo decidir. 608.2g: pagamento de mana na resolução é automático (sem ativar habilidades de mana à mão). 608.2h: última informação conhecida só em casos pontuais (blockedAt, dono do alvo, criatura encantada no disparo, entrou neste turno); contagens leem a fonte atual. 608.2n: quando a resolução para numa escolha, a carta já foi ao cemitério antes do resto do efeito. 608.2p: sem gatilho de \"quando resolver\".",
    "esforco": "M",
    "depende": [
     "704.3",
@@ -8715,12 +8715,11 @@
    "n": "704.4",
    "regra": "State-Based Actions",
    "titulo": "SBA ignoram o meio da resolução",
-   "status": "parcial",
-   "evidencia": "há checagem só ao fim em alguns caminhos (apply 12812) · CR2a (motor v75): resolveScript, resolveAbility, resumeEffects e o \"pagou\" de gatilho não chamam mais stateBased entre os efeitos; a checagem roda depois da resolução (apply); teste de conformidade em cr.conformidade",
-   "falta": "Quando a resolução para numa escolha do jogador (pick, descarte, sacrifício), apply ainda confere as ações de estado antes de a resolução ser retomada",
-   "esforco": "P",
+   "status": "coberta",
+   "evidencia": "há checagem só ao fim em alguns caminhos (apply 12812) · CR2a (motor v75): resolveScript, resolveAbility, resumeEffects e o \"pagou\" de gatilho não chamam mais stateBased entre os efeitos; a checagem roda depois da resolução (apply); teste de conformidade em cr.conformidade · CR2a.4 (motor v78): com a resolução parada numa escolha (s.resume), stateBased não roda; apply retoma a resolução antes da checagem; teste de conformidade \"resolução parada numa escolha\"",
    "testes": [
-    "CR 704.4 · ações de estado não são conferidas no meio da resolução: 3 de dano em si mesmo com 3 de vida e depois ganhar 3 não perde o jogo"
+    "CR 704.4 · ações de estado não são conferidas no meio da resolução: 3 de dano em si mesmo com 3 de vida e depois ganhar 3 não perde o jogo",
+    "CR 704.4 · resolução parada numa escolha do jogador também não confere ações de estado: dano, descarte escolhido e só então o ganho de vida"
    ]
   },
   {
@@ -8769,13 +8768,13 @@
    "regra": "State-Based Actions",
    "titulo": "Última informação conhecida vem de antes das SBA",
    "status": "parcial",
-   "falta": "Nenhum efeito lê ainda marcadores ou poder da foto (não existe primitiva \"X = marcadores/poder da fonte que saiu\"); o exemplo do Young Wolf depende de persistir/imortal (702.79/702.93), que não existem.",
+   "falta": "Só a resistência da permanente sacrificada no custo é lida da foto; marcadores e poder ainda não têm primitiva. O exemplo do Young Wolf depende de imortal (702.93).",
    "esforco": "P",
    "depende": [
     "603.10",
     "608.2h"
    ],
-   "evidencia": "CR2a.3 (motor v77): moveObject fotografa a permanente antes de zerar (o.ultima: controlador, face, virada, marcadores, poder e resistência) e os gatilhos de saída leem a foto para a face e o controlador; cr.conformidade \"CR 603.10 · gatilho de saída olha para trás…\"",
+   "evidencia": "CR2a.3 (motor v77): moveObject fotografa a permanente antes de zerar (o.ultima: controlador, face, virada, marcadores, poder e resistência) e os gatilhos de saída leem a foto para a face e o controlador; cr.conformidade \"CR 603.10 · gatilho de saída olha para trás…\" · CR2a.4 (v78): a foto é lida por um efeito — { per: \"sacrificed-toughness\" } (Ayli, Eternal Pilgrim)",
    "testes": [
     "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima"
    ]

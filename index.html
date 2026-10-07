@@ -4733,6 +4733,7 @@ const EFFECTS = {
   // S60 · "cada jogador perde N a menos que ..." e "sacrifique uma permanente do tipo"
   lose_unless: { fields: ['amount'], targets: ['each-player'] },
   sacrifice_own: { fields: [], targets: ['self'] },
+  sacrifice_each: { fields: [], targets: ['self'] }, // CR2a.4 · "each player sacrifices a <tipo> of their choice": escolhem em ordem, sacrificam juntos
   // S61 · Masmorra do Mago Louco
   cant_attack: { fields: [], targets: ['creature'] },
   exile_top_playable: { fields: ['amount'], targets: ['self'] },
@@ -4830,7 +4831,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control']; // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents'];
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`])
@@ -5044,7 +5045,7 @@ function effectErrors(effects, label, opcional) {
       if (c.discard != null && !Number.isInteger(c.discard)) errs.push(`${label} ${i + 1}: descartar precisa de um número`);
       for (const t of c.sacrifice || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido no sacrifício`);
     }
-    if (e.do === 'sacrifice_own') {
+    if (e.do === 'sacrifice_own' || e.do === 'sacrifice_each') {
       if (!(e.types || []).length) errs.push(`${label} ${i + 1}: sacrificar precisa dos tipos aceitos`);
       for (const t of e.types || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido no sacrifício`);
     }
@@ -5429,6 +5430,13 @@ const RAW_SCRIPTS = [
     { do: 'search', amount: 1, target: 'target-controller', optional: true, filter: { types: ['land'], basic: true }, to: 'battlefield-tapped' },
     { do: 'draw', amount: 1 }],
     example: { target: 'own-land', expect: { gone: true, picked: true } } },
+  // CR2a.4 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Accursed Marauder', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'sacrifice_each', types: ['creature'], nontoken: true }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Ayli, Eternal Pilgrim', abilities: [
+    { kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['creature'] } }, effects: [{ do: 'gain', amount: { per: 'sacrificed-toughness' } }] },
+    { kind: 'activated', cost: { mana: '{1}{W}{B}', sacrificeOther: { types: ['creature'] } }, onlyIfLifeOverStart: 10, effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }] }],
+    example: { action: 'activate:0', target: 'none', expect: { attached: false } } },
   { name: 'Makeshift Munitions', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['artifact', 'creature'] } },
     effects: [{ do: 'damage', amount: 1, target: 'any' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -1 } } },
@@ -10546,7 +10554,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 77;
+const ENGINE_VERSION = 78;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -10810,7 +10818,7 @@ function createGame(setup) {
   }
 
   setup.players.forEach((pl, pi) => {
-    s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, lost: false, lossReason: null,
+    s.players.push({ name: pl.name || `Jogador ${pi + 1}`, life: rules.life, startLife: rules.life, lost: false, lossReason: null,
       landsPlayed: 0, mulligans: 0, kept: false, drewFromEmpty: false, commanderCasts: {}, commanderDamage: {},
       pool: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, companionUsed: false,
       dungeon: null, dungeonsDone: 0 }); // S57 · masmorra na zona de comando
@@ -11713,6 +11721,8 @@ function amountOf(s, src, v) {
   if (v && typeof v === 'object' && (v.subtype || v.per)) {
     // S48 · o valor que o gatilho trouxe mora na habilidade, não na permanente que a gerou
     if (v.per === 'trigger-value') return (src.triggerValue || 0) * (v.times || 1);
+    // CR2a.4 · 608.2h/113.7a: a resistência que a criatura sacrificada no custo tinha no campo
+    if (v.per === 'sacrificed-toughness') return (src.sacrificados || []).reduce((n, x) => n + Math.max(0, x.toughness || 0), 0) * (v.times || 1);
     const base = src.ability ? (s.objects[src.source] || src) : src;
     return countFor(s, base, v.subtype ? v : v.per) * (v.times || 1);
   }
@@ -12014,6 +12024,12 @@ function applyEffect(s, src, eff, tgt, events) {
       continueUnless(s, events);
       break;
     }
+    case 'sacrifice_each': { // CR2a.4 · édito para todos: quem está na vez escolhe primeiro, depois os outros; saem ao mesmo tempo (701.21, 603.10a)
+      const vez = s.turn.active;
+      s.edito = { fila: [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)].filter(i => !s.players[i].lost), escolhidas: [], types: eff.types, nontoken: !!eff.nontoken, name: src.name };
+      continuaEdito(s, events);
+      break;
+    }
     case 'sacrifice_own': { // S60 · você escolhe o que sacrificar, dentro do tipo pedido
       const cands = sacrificeOptions(s, ctrl, eff.types);
       if (!cands.length) { note({ amount: 0 }); break; }
@@ -12246,6 +12262,21 @@ function queueZoneTriggers(s, p, when) {
 }
 
 /** S60 · permanentes suas que servem para um sacrifício de tipo pedido. */
+/** CR2a.4 · próximo jogador do édito escolhe; com todos decididos, as escolhidas são sacrificadas juntas. Devolve true se ficou decisão pendente. */
+function continuaEdito(s, events) {
+  const ed = s.edito; if (!ed) return false;
+  while (ed.fila.length) {
+    const p = ed.fila[0];
+    const opts = sacrificeOptions(s, p, ed.types).filter(oid => !(ed.nontoken && s.objects[oid].token));
+    if (opts.length > 1) { s.pending = { kind: 'sacrifice', p, options: opts, types: ed.types, name: ed.name, edito: true }; return true; }
+    if (opts.length === 1) ed.escolhidas.push(opts[0]);
+    ed.fila.shift();
+  }
+  s.edito = null; s.saindoJuntas = ed.escolhidas.slice();
+  for (const oid of ed.escolhidas) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; const nome = o.name; sacrifice(s, oid, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: ed.name, target: nome }); }
+  delete s.saindoJuntas;
+  return false;
+}
 function sacrificeOptions(s, p, types) {
   return battlefield(s).filter(o => o.controller === p && (types || []).some(t => s.facts[o.name].types.includes(t))).map(o => o.oid);
 }
@@ -12618,6 +12649,8 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     const oid = (pay && pay.sacrifice) || extraCostCandidates(s, p, cost.sacrificeOther, selfOid)[0];
     if (!oid || !extraCostCandidates(s, p, cost.sacrificeOther, selfOid).includes(oid)) throw new RuleError('custo', 'sacrifique uma permanente que sirva de custo');
     sacrifice(s, oid);
+    // CR2a.4 · a habilidade pode perguntar depois como era a permanente sacrificada (Ayli): guarda a foto, não o objeto (ficha some)
+    (s.sacrificadosNoCusto = s.sacrificadosNoCusto || []).push({ oid, ...((s.objects[oid] || {}).ultima || {}) });
   }
   if (cost.exileFromGraveyard) {
     // S32 · exilar do próprio cemitério como custo; sem carta que sirva, a habilidade não acontece
@@ -12664,6 +12697,8 @@ function payAbilityCost(s, p, source, ab) {
   if (cost.tap) { if (!source.tapped) noteEnchantedEvent(s, source); source.tapped = true; } // Leva 106 · "becomes tapped" de qualquer origem
   if (cost.sacrifice) sacrifice(s, source.oid);
 }
+/** "at least N life more than your starting life total" (Ayli). Estado antigo sem `startLife` usa a vida do formato. */
+const vidaAcimaDaInicial = (s, p, n) => s.players[p].life >= (s.players[p].startLife != null ? s.players[p].startLife : ((FORMAT_RULES[s.format] || {}).life || 20)) + n;
 const canPayAbility = (s, p, source, ab) => {
   const cost = ab.cost || {};
   if (ab.loyalty != null) {
@@ -12673,6 +12708,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (cost.tap && (source.tapped || (s.facts[source.name].types.includes('creature') && source.sick && !has(s, source, 'haste')))) return false;
   if (!canPayExtra(s, p, cost, source.oid)) return false;
   if (ab.oncePerTurn && source.usedThisTurn) return false;
+  if (ab.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, p, ab.onlyIfLifeOverStart)) return false; // CR 602.5 · "Activate only if…"
   if (cost.life && s.players[p].life < cost.life) return false;
   return !(cost.mana && s.manaCheck) || canPay(s, p, parseCost(cost.mana));
 };
@@ -12757,7 +12793,10 @@ function resolveTop(s, events = []) {
 
 /* ---------------- M5 · ações baseadas em estado ---------------- */
 function stateBased(s, events) {
-  for (let guard = 0; guard < 50; guard++) {
+  // CR 704.4 · resolução parada numa escolha do jogador (há decisão pendente e efeitos por retomar): nada de ação de estado
+  // até ela terminar. Só o fim de jogo por desistência continua valendo, lá embaixo.
+  const suspensa = !!s.resume; // `apply` garante que resolução sem decisão pendente é retomada antes de chegar aqui
+  for (let guard = 0; guard < (suspensa ? 0 : 50); guard++) {
     let changed = false;
     s.players.forEach((pl, i) => {
       if (pl.lost) return;
@@ -12829,6 +12868,7 @@ function stateBased(s, events) {
       events.push({ kind: 'choice', what: 'levar o comandante para a zona de comando', name: o.name, amount: 1 });
     }
   }
+  if (suspensa) s.players.forEach((pl, i) => { if (!pl.lost && pl.lossReason === 'desistência') { pl.lost = true; events.push({ kind: 'lost', p: i, reason: 'desistência' }); removePlayer(s, i); } });
   const left = alive(s);
   if (s.status !== 'over' && s.players.length > 1 && left.length <= 1) {
     s.status = 'over'; s.winner = left.length ? left[0] : null; s.pending = null; events.push({ kind: 'over', winner: s.winner });
@@ -13091,6 +13131,8 @@ const HANDLERS = {
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, o)) throw new RuleError('alvo', 'alvo ilegal'); });
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
+    if (base.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, a.p, base.onlyIfLifeOverStart)) throw new RuleError('vida', `só ativa com pelo menos ${base.onlyIfLifeOverStart} de vida acima da inicial`);
+    delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
     // S33/Leva 106 · adaptar usa a pilha (701.46a): os marcadores entram na resolução, se ela ainda não tiver nenhum
@@ -13100,8 +13142,10 @@ const HANDLERS = {
     } else { // S41 · vigilância do alvo · S43 · a cor escolhida viaja com a habilidade
       const abOid = makeAbility(s, o, ab.adapt != null ? { ...ab, effects: [{ do: 'adapt', amount: ab.adapt }, ...(ab.effects || [])] } : ab, chosen, bloqueavaAntes);
       if (a.color) s.objects[abOid].chosenColor = a.color;
+      if (s.sacrificadosNoCusto) s.objects[abOid].sacrificados = s.sacrificadosNoCusto;
       chargeWard(s, a.p, abOid, chosen);
     }
+    delete s.sacrificadosNoCusto;
     s.turn.passes = 0;
   },
   /** S16 · pagar (ou não) para a mágica não ser anulada. */
@@ -13191,6 +13235,7 @@ const HANDLERS = {
     const pk = s.pending;
     if (!(pk.options || []).includes(a.oid)) throw new RuleError('sacrificio', 'essa permanente não serve para este sacrifício');
     s.pending = null;
+    if (pk.edito) { s.edito.escolhidas.push(a.oid); s.edito.fila.shift(); if (!continuaEdito(s, ev)) resumeEffects(s, ev); return; } // CR2a.4 · a escolha fica guardada; ninguém sai antes de todos escolherem
     sacrifice(s, a.oid, ev);
     stateBased(s, ev);
     if (!continueUnless(s, ev)) resumeEffects(s, ev);
@@ -13518,6 +13563,7 @@ function apply(state, action) {
   const s = clone(state);
   const events = [];
   HANDLERS[action.t](s, action, events);
+  if (!s.pending && s.resume) resumeEffects(s, events); // CR 704.4 · a decisão acabou: o resto da resolução vem antes de qualquer ação de estado
   stateBased(s, events);
   flushTriggers(s, events); // M9: gatilhos entram na pilha antes de alguém receber prioridade
   stateBased(s, events);
@@ -13855,7 +13901,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
       let combos = [[]];
       for (const eff of need) {
-        const opts = limitaAlvos(legalTargets(s, p, eff.target, o.oid), need.length);
+        const opts = limitaAlvos(legalTargets(s, p, eff.target, o.oid).filter(x => targetAllowed(s, eff, x, o)), need.length); // CR2a.4 · as restrições do efeito ("nonland") valem também na oferta de alvos de habilidade
         if (!opts.length) { if (eff.upTo) continue; return; } // S45 · "até N alvos"
         combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
       }
@@ -16304,6 +16350,7 @@ function descreveEfeito(e) {
     case 'counters': return `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
     case 'keyword': return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
+    case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
     case 'reanimate': case 'reanimate_tapped': return 'devolve uma criatura do cemitério ao campo';

@@ -152,3 +152,35 @@ test('R11.2 · a folha avisa o preço da cor: "Gerar {W} (1 de dano em você)" e
   const src = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   assert.match(src, /`Gerar \$\{opt\.map\(c => `\{\$\{c\}\}`\)\.join\(''\)\}\$\{custoDaMana\(f, opt\)\}`/); assert.match(src, /de dano em você\)/); assert.match(src, /\(paga \$\{r\.life\} de vida\)/);
 });
+
+// ---------------------------------------------------------------- CR2a.4 · cartas que as estruturas da leva destravam (decisão 7)
+test('CR2a.4 · Accursed Marauder: "each player sacrifices a nontoken creature of their choice" — quem está na vez escolhe primeiro, depois o outro, e as escolhidas saem juntas', () => {
+  let s = mesa(['Accursed Marauder', 'Faerie Seer'], ['Faerie Seer', 'Zulaport Cutthroat']), m, fa, fb, zb; [s, m] = poe(s, 0, 'Accursed Marauder', 'hand'); [s, fa] = poe(s, 0, 'Faerie Seer');
+  [s, fb] = poe(s, 1, 'Faerie Seer'); [s, zb] = poe(s, 1, 'Zulaport Cutthroat'); s = comMana(s, 'BB');
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === m)[0]); for (let i = 0; i < 6 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority }); // resolve até a primeira decisão
+  assert.equal(s.pending.kind, 'sacrifice'); assert.equal(s.pending.p, 0, 'o jogador da vez escolhe primeiro'); assert.deepEqual(J(s.pending.options).sort(), [m, fa].sort(), 'pode sacrificar a própria Marauder');
+  s = act(s, { t: 'sacrifice', p: 0, oid: fa }); assert.equal(s.objects[fa].zone, 'battlefield', 'nada sai antes de todos escolherem'); assert.equal(s.pending.p, 1);
+  s = act(s, { t: 'sacrifice', p: 1, oid: fb }); assert.deepEqual([fa, fb, zb, m].map(o => s.objects[o].zone), ['graveyard', 'graveyard', 'battlefield', 'battlefield']);
+  s = tudo(s); assert.equal(vidas(s), '19/21', 'o Zulaport de B viu a criatura de B morrer: A perde 1 e B ganha 1');
+});
+
+test('CR2a.4 · Accursed Marauder: ficha não serve ("nontoken") e quem só tem uma criatura que serve não escolhe', () => {
+  let s = mesa(['Accursed Marauder'], ['Faerie Seer', 'Zulaport Cutthroat']), m, fb, zb; [s, m] = poe(s, 0, 'Accursed Marauder', 'hand'); [s, fb] = poe(s, 1, 'Faerie Seer', 'battlefield', { token: true }); [s, zb] = poe(s, 1, 'Zulaport Cutthroat'); s = comMana(s, 'BB');
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === m)[0]); s = tudo(s);
+  assert.equal(s.objects[m].zone, 'graveyard', 'sozinha, a Marauder é sacrificada'); assert.equal(s.objects[zb].zone, 'graveyard'); assert.equal(s.objects[fb].zone, 'battlefield', 'a ficha fica');
+});
+
+test('CR2a.4 · Ayli, Eternal Pilgrim: "You gain life equal to the sacrificed creature\'s toughness" lê a resistência que a criatura tinha no campo', () => {
+  let s = mesa(['Ayli, Eternal Pilgrim', 'Faerie Seer']), a, z; [s, a] = poe(s, 0, 'Ayli, Eternal Pilgrim'); [s, z] = poe(s, 0, 'Faerie Seer'); s = comMana(s, 'C'); s = J(s); s.objects[z].counters = { p1p1: 2 };
+  assert.equal(s.facts['Ayli, Eternal Pilgrim'].kw.includes('deathtouch'), true, 'Deathtouch');
+  const hab = legais(s, 0, x => x.t === 'activate' && x.oid === a && x.index === 0); assert.equal(hab.length, 1, '{1}, sacrificar outra criatura: a única outra é a Faerie Seer'); assert.equal(hab[0].pay.sacrifice, z);
+  s = tudo(act(s, hab[0])); assert.equal(s.objects[z].zone, 'graveyard'); assert.equal(vidas(s), '23/20', 'resistência 1 + dois marcadores +1/+1 = 3');
+});
+
+test('CR2a.4 · Ayli, Eternal Pilgrim: a segunda habilidade exila permanente que não é terreno e só ativa com 10 de vida acima da inicial', () => {
+  let s = mesa(['Ayli, Eternal Pilgrim', 'Zulaport Cutthroat'], ['Faerie Seer']), a, z, f; [s, a] = poe(s, 0, 'Ayli, Eternal Pilgrim'); [s, z] = poe(s, 0, 'Zulaport Cutthroat'); [s, f] = poe(s, 1, 'Faerie Seer'); [s] = poe(s, 1, 'Island'); s = comMana(s, 'CWB');
+  const seg = t => legais(t, 0, x => x.t === 'activate' && x.oid === a && x.index === 1);
+  s = J(s); s.players[0].life = 29; assert.equal(seg(s).length, 0, 'com 29 (inicial 20) não ativa'); assert.throws(() => act(s, { t: 'activate', p: 0, oid: a, index: 1, pay: { sacrifice: z }, targets: [{ oid: f }] }), /vida/);
+  s.players[0].life = 30; const as = seg(s); assert.ok(as.length >= 1); assert.equal(as.some(x => E.cardFacts && s.facts[s.objects[x.targets[0].oid].name].types.includes('land')), false, 'terreno não é alvo');
+  s = tudo(act(s, as.find(x => x.targets[0].oid === f))); assert.equal(s.objects[f].zone, 'exile'); assert.equal(s.objects[z].zone, 'graveyard');
+});
