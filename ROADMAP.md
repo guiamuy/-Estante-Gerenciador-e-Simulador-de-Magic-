@@ -5515,6 +5515,12 @@ mesmo padrão de design".
   esperando com a animação, pequena primeiro, botão desligado e "Chegando 6 artes…", nítida por cima, dois toques =
   um lote, nenhuma imagem pedida de novo, escolha marcada em menos de 600 ms com a espera no selo, a grande baixada,
   última escolha vale, a Forest da partida com a arte escolhida); e2e J5, I4 e I6 ajustados às mudanças pedidas.
+- **Ajuste (leva 207):** a mesa passa a ler as artes escolhidas **antes do primeiro desenho** (a carta já nasce com a
+  arte certa, sem redesenhar depois); a âncora do toque (J1) ficou mais barata — guarda o controle reencontrado, conta
+  as mudanças de um mesmo quadro uma vez só e solta quando o controle some de vez. Motivo: o CI caiu duas vezes no
+  passo "a Forest da partida com a arte escolhida" (I6 e I7) e duas no teste do Shark (H2), sempre em testes da mesa e
+  nunca neste ambiente (nem com o processador 8× mais lento). **A causa não foi identificada**: o log do CI não é
+  legível daqui. O passo agora espera 30 s e, se cair, a mensagem traz o estado da mesa.
 - **Depende de:** I6, J4, J5.
 
 ### J · Fluidez e orientação (E57, pedido de 06/10/2026)

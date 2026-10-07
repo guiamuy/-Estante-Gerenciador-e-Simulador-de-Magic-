@@ -2483,10 +2483,13 @@ let ancora = null;
 const soltaAncora = () => { if (!ancora) return; ancora.obs.disconnect(); ancora = null; };
 function instalaAncora(outlet) {
   if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
-  const acha = () => ancora.el.isConnected ? ancora.el : [...outlet.querySelectorAll(CONTROLE_ANCORA)].find(e => chaveDoControle(e) === ancora.chave) || null;
+  // I7 · a âncora não pode pesar: o controle reencontrado fica guardado (não se varre a tela a cada mudança), as mudanças
+  // de um mesmo quadro contam uma vez só, e quando o controle some de vez (três procuras sem achar) ela solta
+  const acha = () => { if (ancora.el.isConnected) return ancora.el; const el = [...outlet.querySelectorAll(CONTROLE_ANCORA)].find(e => chaveDoControle(e) === ancora.chave) || null; if (el) ancora.el = el; return el; };
   const ajusta = () => {
     if (!ancora) return;
-    const el = acha(); if (!el || !el.getClientRects().length) return;
+    const el = acha(); if (!el) { if (++ancora.sumiu >= 3) soltaAncora(); return; }
+    ancora.sumiu = 0; if (!el.getClientRects().length) return;
     const delta = el.getBoundingClientRect().top - ancora.topo;
     if (!deveAncorar({ rotaAntes: ancora.rota, rotaDepois: location.hash, levou: ancora.levou, rolouNaMao: ancora.rolou, delta })) return;
     window.scrollTo(0, window.scrollY + delta);
@@ -2499,8 +2502,9 @@ function instalaAncora(outlet) {
     soltaAncora();
     const el = e.target && e.target.closest ? e.target.closest(CONTROLE_ANCORA) : null;
     if (!el || !outlet.contains(el)) return;
-    const obs = new MutationObserver(ajusta);
-    ancora = { el, chave: chaveDoControle(el), topo: el.getBoundingClientRect().top, rota: location.hash, levou: false, rolou: false, obs, desde: Date.now() };
+    let marcado = false;
+    const obs = new MutationObserver(() => { if (marcado) return; marcado = true; (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(() => { marcado = false; ajusta(); }); });
+    ancora = { el, chave: chaveDoControle(el), topo: el.getBoundingClientRect().top, rota: location.hash, levou: false, rolou: false, obs, desde: Date.now(), sumiu: 0 };
     obs.observe(outlet, { childList: true, subtree: true, attributes: true, characterData: true });
     obs.observe(document.documentElement, { attributes: true }); // tema, letra e densidade mudam a página inteira
     // o que entra ou sai com animação muda a altura sem mudar o documento: confere a cada quadro nos primeiros 700 ms
@@ -17356,8 +17360,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // I6 · a arte que o usuário escolheu para cada terreno básico (Perfil › Terrenos) vale em toda partida, inclusive a que já começou
   // I7 · e a de cada ficha (Perfil › Fichas): as duas valem para qualquer lista, dos dois lados da mesa
   const artes = { terrenos: null, fichas: null };
-  for (const [qual, chave] of [['terrenos', 'terrenos.escolhas'], ['fichas', 'fichas.escolhas']])
-    store.get(chave).then(x => { if (x && Object.keys(x).length) { artes[qual] = x; if (table && root.isConnected) paint(); } }).catch(() => {});
+  // lidas antes do primeiro desenho da mesa (ver o carregamento da partida): a carta já nasce com a arte certa
+  const carregaArtes = async () => { for (const [qual, chave] of [['terrenos', 'terrenos.escolhas'], ['fichas', 'fichas.escolhas']]) { try { const x = await store.get(chave); artes[qual] = x && Object.keys(x).length ? x : null; } catch (e) { /* sem escolhas: arte padrão */ } } };
   const card = name => __m36.cartaComEscolhas(T.cartaDaMesa(table.setup.cards, name), artes); // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
@@ -17581,6 +17585,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
 
   (async () => {
+    await carregaArtes(); // I7
     const data = await store.get(T.SAVE_KEY);
     if (!data) return mount(root, Stack(pad(), Text('Mesa', { size: '2xl', display: true, as: 'h1' }),
       Empty('Nenhuma partida em andamento.', Button('Preparar partida', { variant: 'primary', onClick: () => go('/mesa') }))));

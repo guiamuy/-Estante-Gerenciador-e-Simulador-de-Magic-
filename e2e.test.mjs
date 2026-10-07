@@ -7781,6 +7781,17 @@ test('e2e · J3 leque das viradas: terrenos virados e atacantes iguais ficam em 
 });
 
 /* ---------------- I6 · terrenos do seu jeito e artes em lotes de 6 ---------------- */
+// I7 · este passo caiu duas vezes no CI (nunca aqui, nem com o processador 8× mais lento) e o log do CI não é legível
+// deste ambiente: se cair de novo, a própria mensagem diz o que a mesa tinha na hora
+async function forestNaMaoI7(page) {
+  try { await page.waitForSelector('#tb-hand .tb-card[aria-label^="Forest"] img', { timeout: 30000 }); }
+  catch (e) {
+    const d = await page.evaluate(async () => { const E = window.__estanteMesa, s = E && E.estado && E.estado();
+      return { hash: location.hash, status: s && s.status, mao: s ? s.zones[0].hand.map(o => s.objects[o].name).join(',') : null, cartasNaTela: [...document.querySelectorAll('#tb-hand .tb-card')].map(c => (c.getAttribute('aria-label') || '').slice(0, 12) + (c.querySelector('img') ? '+img' : '')).join('|'),
+        tb: (document.querySelector('#tb') || {}).childElementCount, dialogo: (document.querySelector('.ds-overlay[data-open="true"]') || { textContent: '' }).textContent.slice(0, 60), keep: !!document.querySelector('#tb-keep') }; }).catch(x => ({ erro: String(x) }));
+    throw new Error('Forest sem imagem na mão em 30 s · ' + JSON.stringify(d));
+  }
+}
 test('e2e · I6 Perfil › Terrenos: os doze básicos com ícone e cor, artes da internet de 6 em 6 com "Mais artes", escolha guardada e usada na partida, sem internet só o que já foi baixado; fichas também de 6 em 6', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
@@ -7855,7 +7866,7 @@ test('e2e · I6 Perfil › Terrenos: os doze básicos com ícone e cor, artes da
   await page.context().setOffline(false);
   // 8 · a partida usa a arte escolhida (forest-2), na mão e em campo
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
-  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-hand .tb-card[aria-label^="Forest"] img', { timeout: 10000 });
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await forestNaMaoI7(page);
   assert.match(await page.locator('#tb-hand .tb-card[aria-label^="Forest"] img').first().getAttribute('data-fonte'), /front\/x\/forest-2\.png$/, 'a Forest da partida é a arte que eu escolhi');
   // 9 · voltar ao padrão
   await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('#terreno-opcoes'); await page.click('#terreno-padrao');
@@ -8061,7 +8072,7 @@ test('e2e · I7 toque sem realce do navegador em todo o app; artes: a pequena ch
   await page.reload(); await page.waitForSelector('#terreno-opcoes'); assert.equal(await page.getAttribute('.ficha-opcao[data-opcao="forest-1"]', 'aria-pressed'), 'true', 'a última escolha ficou guardada');
   // 5 · a troca de reserva e a partida usam a arte escolhida (aqui: a Forest na mão)
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
-  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-hand .tb-card[aria-label^="Forest"] img', { timeout: 10000 });
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await forestNaMaoI7(page);
   assert.match(await page.locator('#tb-hand .tb-card[aria-label^="Forest"] img').first().getAttribute('data-fonte'), /front\/x\/forest-1\.png$/);
   assert.deepEqual(errors, []);
 });
