@@ -3457,7 +3457,17 @@ const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false, qps = 10) => `
         try { if (imgs.length < 18) imgs.push(alvo.toDataURL('image/png')); } catch (e) {}
         if (bloco && window.__colecaoLenta) await new Promise(r => setTimeout(r, window.__colecaoLenta));
         if (!bloco) window.__leiturasDeNome = (window.__leiturasDeNome || 0) + 1;
-        return { data: { text: f.length ? f.shift() : '' } };
+        // Leva M-211 · leitor de mentira que olha o recorte (ligado por __ocrSoLegivel). O laço do scanner tenta, em rodízio, a
+        // linha do nome pelo contorno, pela moldura guia e pelo contorno de cabeça para baixo; o leitor antigo entregava o nome
+        // da fila a QUALQUER tentativa. Quando caía na de cabeça para baixo, o app passava a ler a carta invertida (linha de
+        // coleção do lado errado) e o portão ficava vermelho por sorteio. Um OCR de verdade só lê o recorte em pé e retificado:
+        // tinta à esquerda (o nome) e quase nada à direita. Medido nesta foto: em pé 0,19 / 0,03; os outros até 0,04 / 0,05.
+        // __ocrFixo: enquanto a carta está parada o nome continua sendo lido, em vez de "sumir" quando a fila acaba.
+        const legivel = () => { try { const w = alvo.width, h = alvo.height, d = alvo.getContext('2d').getImageData(0, 0, w, h).data; let e = 0, ne = 0, r = 0, nr = 0;
+          for (let y = 0; y < h; y += 3) for (let x = 0; x < w; x += 3) { const escuro = d[(y * w + x) * 4] < 128; if (x < w / 2) { ne++; if (escuro) e++; } else { nr++; if (escuro) r++; } }
+          return e / ne >= 0.10 && r / nr <= 0.08; } catch (err) { return true; } };
+        if (!bloco && window.__ocrSoLegivel && !legivel()) return { data: { text: '' } };
+        return { data: { text: f.length ? f.shift() : (!bloco && window.__ocrFixo) || '' } };
       } };
   } };
   const gum = async () => {
@@ -3482,7 +3492,7 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
   // duas leituras iguais (porteiro) e, depois do aceite, a linha de coleção
   // X14 · uma leitura exata pelo contorno basta; a linha de coleção é lida pelo segundo leitor
-  await page.evaluate(() => { window.__ocrImgs.length = 0; window.__ocrColecao.push('267/330 U\nMH2 • EN'); window.__ocrQueue.push('Counterspell'); });
+  await page.evaluate(() => { window.__ocrImgs.length = 0; window.__ocrSoLegivel = true; window.__ocrFixo = 'Counterspell'; window.__ocrColecao.push('267/330 U\nMH2 • EN'); window.__ocrQueue.push('Counterspell'); });
   await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 15000 }).catch(async e => { throw new Error('diario: ' + JSON.stringify(await page.evaluate(() => window.__scanDiario.lista().slice(0, 4)))); });
   assert.match(await page.innerText('#scan-ok'), /Counterspell/);
   // o contorno é um quadrilátero desenhado sobre a carta (inclinada 12°): quatro pontos, e não um retângulo reto

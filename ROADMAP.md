@@ -2631,7 +2631,9 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Correção no scanner:** faixa de coleção com 22% da altura; o seletor só aceita linha cuja margem de cima também é escura (o texto fica dentro da borda preta).
 - **Medição:** conjunto de 27 fotos — nome 27/27 (igual), edição 22/27 → 24/27. O e2e passou 10 de 10 rodadas seguidas (antes, 5 de 8).
 - **No teste:** a conferência com OCR de verdade olha todos os recortes distintos que o leitor recebeu (até 18), não só os quatro primeiros do nome e o primeiro da coleção; a afirmação é a mesma.
-- **Fora:** com duas cópias do teste rodando ao mesmo tempo, "a carta parada não entra de novo" contou 2 uma vez — fica para a trilha do scanner investigar.
+- **Correção do diagnóstico (leva M-211):** a causa principal do vermelho por sorteio estava no leitor de mentira do teste, não no scanner. O laço tenta em rodízio a linha do nome pelo contorno, pela moldura guia e pelo contorno de cabeça para baixo; o leitor de mentira entregava o nome a qualquer tentativa. Quando caía na de cabeça para baixo, o app passava a tratar a carta como invertida e lia a linha de coleção do lado errado. E, com a fila vazia, três leituras sem nome valiam "a carta saiu", e a mesma carta entrava de novo depois da espera de 2,5 s ("2 !== 1", visto no portão da M-210).
+- **No teste (M-211):** o leitor de mentira passa a olhar o recorte (só "lê" o que está em pé e retificado, como um OCR de verdade) e continua lendo a carta parada. 15 de 15 rodadas, nove delas com três cópias ao mesmo tempo. As mudanças da M-207 no scanner ficam: a melhora de 22/27 para 24/27 foi medida no conjunto de fotos, sem depender desse teste.
+- **Fora:** o teste da foto de cabeça para baixo usa o mesmo leitor de mentira no modo antigo; se voltar a falhar, liga-se o mesmo modo nele.
 
 **CR0 · Mapa regra × motor** ✅ (leva 194, motor v72 sem mudança) — 14 auditores independentes, um por trecho das regras, cada um obrigado a mostrar evidência vista e a escolher o nível mais baixo na dúvida.
 
