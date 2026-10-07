@@ -10546,7 +10546,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 76;
+const ENGINE_VERSION = 77;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -10877,6 +10877,10 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // Leva 105 · 400.7: o que foi escolhido ao conjurar vale da mão para a pilha e da pilha para o campo;
   // qualquer outra mudança de zona cria um objeto novo, sem X pago, conceder, provas, face para baixo etc.
   // Leva 107 · o que esta permanente exilou vira "devolver ao sair" só para o gatilho de saída; qualquer outra mudança limpa
+  // CR 603.10 / 704.8 / 113.7a · última informação conhecida: como a permanente era no campo, para os gatilhos que olham para trás
+  const ultima = fromZone === 'battlefield' && to !== 'battlefield' ? { controller: fromController, faceDown: !!o.faceDown, tapped: !!o.tapped, counters: { ...(o.counters || {}) },
+    ...(isCreature(s, o) ? { power: power(s, o), toughness: toughness(s, o) } : {}) } : null;
+  delete o.ultima;
   const segurava = fromZone === 'battlefield' ? o.holding : null;
   delete o.holding; delete o.devolverAoSair;
   if (segurava) o.devolverAoSair = segurava;
@@ -10887,6 +10891,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
+  if (ultima) o.ultima = ultima;
   o.zone = to;
   const dest = zoneList(s, o, to);
   // M13 · 903.9: comandante que vai para cemitério, exílio, mão ou grimório pode voltar à zona de comando
@@ -12426,7 +12431,9 @@ function queueTriggers(s, when, objects, controller) {
   for (const o of objects) {
     if (isAbility(o) || !s.facts[o.name]) continue;
     const ctrl = controller != null ? controller : o.controller;
-    for (const ab of abilitiesOf(s, o)) {
+    const saiu = when === 'dies' || when === 'leaves-battlefield';
+    // CR 603.10a · saiu virada para baixo: no campo ela não tinha as habilidades da face de cima, então nenhuma dispara
+    for (const ab of (saiu && o.ultima && o.ultima.faceDown ? [] : abilitiesOf(s, o))) {
       if (ab.kind !== 'triggered' || ab.when !== when) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
       s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.condition ? { condition: ab.condition } : {}), ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
@@ -12435,17 +12442,20 @@ function queueTriggers(s, when, objects, controller) {
     if (!['etb', 'dies', 'cast-self', 'leaves-battlefield'].includes(when)) continue;
     const other = when === 'etb' ? 'other-etb' : when === 'dies' ? 'other-dies'
       : when === 'leaves-battlefield' ? 'other-leaves-battlefield' : 'other-cast'; // S52 · Luminous Phantom
-    for (const w of battlefield(s)) {
+    // CR 603.10a · quem saiu do campo NO MESMO evento (s.saindoJuntas) também observa, como era no campo
+    const juntas = saiu ? (s.saindoJuntas || []).map(x => s.objects[x]).filter(w => w && w.zone !== 'battlefield' && w.ultima && !w.ultima.faceDown) : [];
+    for (const w of battlefield(s).concat(juntas)) {
       if (w.oid === o.oid) continue;
+      const wCtrl = w.zone === 'battlefield' ? w.controller : w.ultima.controller;
       for (const ab of abilitiesOf(s, w)) {
         if (ab.kind !== 'triggered' || ab.when !== other) continue;
         // Q11 · "whenever another Elf enters" (Elvish Vanguard) dispara para Elfos de qualquer jogador; o padrão continua "sua"
-        if (w.controller !== ctrl && !ab.anyController) continue;
+        if (wCtrl !== ctrl && !ab.anyController) continue;
         if (!matchesTriggerFilter(s, o, ab.filter)) continue;
         if (!triggerConditionMet(s, w, ab.condition)) continue; // CR 603.4 · o "se" vale também no gatilho de outra permanente
         // S66 · o gatilho de "outra permanente" carrega as mesmas marcas do gatilho
         // próprio: sem isto, "você pode" virava obrigatório e o custo opcional sumia
-        s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: other, ...(ab.condition ? { condition: ab.condition } : {}),
+        s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: other, ...(ab.condition ? { condition: ab.condition } : {}),
           ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}),
           ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
       }
@@ -12788,16 +12798,22 @@ function stateBased(s, events) {
       if (host && host.zone === 'battlefield' && auraPodeEncantar(s, au, host)) continue;
       if (host && host.zone === 'battlefield' ? true : !o.attachedTo) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); changed = true; }
     }
+    // CR 704.3 / 603.10a · tudo o que morre nesta checagem morre ao mesmo tempo: primeiro a lista, depois as mudanças de zona,
+    // com `saindoJuntas` dizendo aos gatilhos quem saiu no mesmo evento
+    const morrem = [];
     for (const o of battlefield(s)) {
       // S21 · planeswalker sem lealdade vai para o cemitério
-      if (s.facts[o.name].types.includes('planeswalker') && (o.counters.loyalty || 0) <= 0) { moveObject(s, o.oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid: o.oid, name: o.name }); continue; }
-    }
-    for (const o of battlefield(s)) {
+      if (s.facts[o.name].types.includes('planeswalker') && (o.counters.loyalty || 0) <= 0) { morrem.push(o.oid); continue; }
       const f = s.facts[o.name];
       if (!isCreature(s, o) || f.toughness == null) continue;
       const t = toughness(s, o);
       const lethal = (o.damage > 0 && o.damage >= t) || (o.deathtouched && o.damage > 0);
-      if (t <= 0 || (lethal && !has(s, o, 'indestructible'))) { moveObject(s, o.oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid: o.oid, name: o.name }); }
+      if (t <= 0 || (lethal && !has(s, o, 'indestructible'))) morrem.push(o.oid);
+    }
+    if (morrem.length) {
+      s.saindoJuntas = morrem;
+      for (const oid of morrem) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; moveObject(s, oid, 'graveyard'); changed = true; events.push({ kind: 'died', oid, name: o.name }); }
+      delete s.saindoJuntas;
     }
     if (!changed) break;
   }

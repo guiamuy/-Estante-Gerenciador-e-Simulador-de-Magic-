@@ -157,7 +157,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2a.1 ações de estado: regra das lendas com escolha do jogador, nada de checagem no meio da resolução, Equipamento em não-criatura se solta (motor v75) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2a.2 objeto novo ao mudar de zona: o alvo não segue a carta que saiu e voltou (400.7, motor v76) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | Decisões do dono registradas (06/10/2026), texto das regras no repositório e numeração de leva por trilha (Q13, leva M-206) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2a.3 última informação conhecida (704.8, 608.2h) e mortes simultâneas (603.10a) | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2a.3 mortes simultâneas se enxergam e a permanente que sai deixa a última informação conhecida (603.10a, 704.8; leva M-208, motor v77) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2a.4 varreduras e sacrifícios em lote; "X = marcadores ou poder da fonte que saiu"; resolução que para numa escolha sem checagem no meio (704.4) | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2696,6 +2697,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **400.7** cada objeto conta as mudanças de zona; mágica e habilidade guardam, em cada alvo, qual "encarnação" miraram. Na resolução, alvo de outra encarnação é ilegal (a mágica é anulada se não sobrar alvo).
 - **Parcial:** vale para alvos. Outras referências (fonte da habilidade, "ela" de um gatilho, efeito retomado depois de uma escolha) ainda seguem a carta; ficam para a CR2a.3 junto com a última informação conhecida.
 - **Golden:** regravadas (75 → 76); os registros das partidas são idênticos.
+
+**CR2a.3 · Mortes simultâneas e última informação conhecida** 🟡 (leva M-208, motor v77) — 2 testes de conformidade novos, os dois falhavam antes.
+- **Valor:** numa troca em que várias criaturas suas morrem juntas, cada "sempre que outra criatura sua morrer" conta todas as outras (Zulaport Cutthroat, Cruel Celebrant); carta que morre virada para baixo deixa de disparar a habilidade da face escondida.
+- **603.10a** as mortes de uma mesma checagem de estado saem em lote: quem morre junto também observa. **704.8 / 113.7a** a permanente que sai do campo guarda a última informação conhecida (controlador, face, virada, marcadores, poder e resistência).
+- **Bug real corrigido:** criatura virada para baixo que morria disparava o gatilho "quando morrer" da face de cima.
+- **Cartas das listas (decisão 7):** nenhum script novo — Zulaport Cutthroat e Cruel Celebrant já tinham script e passam a contar certo; nenhuma carta pendente das duas listas dependia só desta estrutura.
+- **Parcial:** o lote vale para ações de estado (dano letal, resistência 0, planeswalker sem lealdade). Varredura que destrói ou exila e sacrifício múltiplo ainda saem uma a uma; nenhum efeito lê ainda marcadores ou poder da foto.
+- **Golden:** regravadas (76 → 77); registros conferidos na entrega.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

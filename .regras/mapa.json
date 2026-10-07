@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 76,
+ "motor": 77,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -930,7 +930,7 @@
    "regra": "Abilities",
    "titulo": "Fonte da habilidade e última informação conhecida",
    "status": "parcial",
-   "evidencia": "a habilidade guarda source e existe sem ela (makeAbility index.html:11712; rules.unit \"M9 · habilidade ativada: custo de virar, mana e sacrifício\"); blockedAt guarda quem a fonte bloqueava (index.html:11716)",
+   "evidencia": "a habilidade guarda source e existe sem ela (makeAbility index.html:11712; rules.unit \"M9 · habilidade ativada: custo de virar, mana e sacrifício\"); blockedAt guarda quem a fonte bloqueava (index.html:11716) · CR2a.3 (motor v77): o.ultima guarda a última informação conhecida da permanente que saiu do campo",
    "falta": "113.7a: a última informação conhecida só existe para casos pontuais (blockedAt, entrouNoTurno, revealed). amountOf lê o objeto vivo depois da mudança de zona (index.html:11071): marcadores zerados e controlador devolvido ao dono (moveObject index.html:10273), então \"X = marcadores/poder da fonte\" de uma fonte que já saiu dá 0.",
    "esforco": "M",
    "depende": [
@@ -4244,11 +4244,15 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos que \"olham para trás\"",
    "status": "parcial",
-   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\"",
-   "falta": "603.10a: em mortes simultâneas o observador que morre primeiro não vê as outras — BUG reproduzido (sonda-6a-gatilhos.mjs A: dois Zulaport Cutthroat mortos por Breath Weapon geram 3 gatilhos, a regra dá 4). As marcas da conjuração (faceDown, bestowed) são apagadas antes de enfileirar o gatilho de morte (:10268-10270 antes de :10309), então a criatura virada para baixo dispararia a habilidade da face de cima (lido no código, não reproduzido). 603.10b-e (sair de fase, desanexar, perder controle, mágica anulada) ausentes; 603.10f-g não se aplicam a dois jogadores.",
+   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade",
+   "falta": "603.10a fora das ações de estado: varreduras que destroem, exilam ou devolvem várias permanentes e sacrifícios múltiplos ainda saem uma a uma. 603.10b-e (sair de fase, desanexar, perder controle, mágica anulada) ausentes; 603.10f-g não se aplicam a dois jogadores.",
    "esforco": "M",
    "depende": [
     "704 (mortes simultâneas num só evento)"
+   ],
+   "testes": [
+    "CR 603.10 · mortes simultâneas: quem observa \"outra criatura sua morre\" e morre junto vê as outras (603.10a)",
+    "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima"
    ]
   },
   {
@@ -8764,12 +8768,16 @@
    "n": "704.8",
    "regra": "State-Based Actions",
    "titulo": "Última informação conhecida vem de antes das SBA",
-   "status": "ausente",
-   "falta": "não há última informação conhecida: moveObject zera marcadores e dano ao sair do campo (index.html:10270) antes de os gatilhos de morte serem lidos; exemplo do Young Wolf (undying) não é representável.",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "Nenhum efeito lê ainda marcadores ou poder da foto (não existe primitiva \"X = marcadores/poder da fonte que saiu\"); o exemplo do Young Wolf depende de persistir/imortal (702.79/702.93), que não existem.",
+   "esforco": "P",
    "depende": [
     "603.10",
     "608.2h"
+   ],
+   "evidencia": "CR2a.3 (motor v77): moveObject fotografa a permanente antes de zerar (o.ultima: controlador, face, virada, marcadores, poder e resistência) e os gatilhos de saída leem a foto para a face e o controlador; cr.conformidade \"CR 603.10 · gatilho de saída olha para trás…\"",
+   "testes": [
+    "CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima"
    ]
   },
   {

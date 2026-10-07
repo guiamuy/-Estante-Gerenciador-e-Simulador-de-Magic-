@@ -21,6 +21,7 @@ const INVENTADAS = {
   // CR2a
   Helice: c('Helice', 'Instant', '{0}', { colors: ['R', 'W'] }), Lenda: c('Lenda', 'Legendary Creature — Hero', '{W}', { power: '2', toughness: '2' }), 'Lenda Eterna': c('Lenda Eterna', 'Legendary Creature — God', '{W}', { power: '2', toughness: '2', keywords: ['Indestructible'] }),
   Porrete: c('Porrete', 'Artifact — Equipment', '{1}'),
+  Carpideira: c('Carpideira', 'Creature — Cleric', '{B}', { power: '1', toughness: '1' }), Mortico: c('Mortico', 'Creature — Spirit', '{B}', { power: '2', toughness: '2' }),
   'Urso Veloz': c('Urso Veloz', 'Creature — Bear', '{0}', { power: '2', toughness: '2', keywords: ['Flash'], colors: ['G'] }), Devolve: c('Devolve', 'Instant', '{0}', { colors: ['U'] }),
   'Dano Contado': c('Dano Contado', 'Instant', '{0}', { colors: ['R'] }), Vigia: c('Vigia', 'Enchantment — Aura', '{0}'), 'Fim de Combate': c('Fim de Combate', 'Creature — Spirit', '{1}', { power: '1', toughness: '1' }),
 };
@@ -38,6 +39,8 @@ const SCRIPTS = {
   Condicional: { name: 'Condicional', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, condition: { lifeGained: 3 }, effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Helice: { name: 'Helice', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'gain', amount: 3 }], example: { target: 'opponent', expect: { opponentLife: 17 } } },
   Devolve: { name: 'Devolve', effects: [{ do: 'bounce', target: 'creature' }], example: { target: 'enemy-creature', expect: { gone: true } } },
+  Carpideira: { name: 'Carpideira', abilities: [{ kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Mortico: { name: 'Mortico', abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'gain', amount: 3 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Porrete: { name: 'Porrete', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 3] } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
   Vigia: { name: 'Vigia', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
@@ -246,4 +249,20 @@ test('CR 400.7 · objeto que muda de zona vira objeto novo: a mágica que mirava
   while (s.turn.priority !== 1) s = act(s, { t: 'pass', p: s.turn.priority });
   s = act(s, legais(s, 1, a => a.t === 'cast' && a.oid === u)[0]); s = resolveUm(s); assert.equal(s.objects[u].zone, 'battlefield'); assert.ok(s.stack.includes(r), 'o raio ainda está na pilha');
   s = tudo(s); assert.equal(s.objects[u].zone, 'battlefield', 'a criatura que voltou é outro objeto'); assert.equal(s.objects[u].damage, 0); assert.equal(s.objects[r].zone, 'graveyard');
+});
+
+test('CR 603.10 · mortes simultâneas: quem observa "outra criatura sua morre" e morre junto vê as outras (603.10a)', () => {
+  let s = mesa(['Carpideira', 'Urso']), a, b, u; [s, a] = poe(s, 0, 'Carpideira'); [s, b] = poe(s, 0, 'Carpideira'); [s, u] = poe(s, 0, 'Urso');
+  s = J(s); for (const o of [a, b, u]) s.objects[o].damage = 5;
+  s = tudo(act(s, { t: 'pass', p: 0 }), x => legais(x, x.pending.p)[0]);
+  assert.deepEqual([a, b, u].map(o => s.objects[o].zone), ['graveyard', 'graveyard', 'graveyard']);
+  assert.equal(s.players[0].life, 24, 'cada Carpideira vê a outra e o Urso: quatro gatilhos');
+});
+
+test('CR 603.10 · gatilho de saída olha para trás: criatura que morre virada para baixo não dispara a habilidade da face de cima', () => {
+  for (const [faceDown, vida] of [[true, 20], [false, 23]]) {
+    let s = mesa(['Mortico']), m; [s, m] = poe(s, 0, 'Mortico', 'battlefield', faceDown ? { faceDown: true } : {}); s = J(s); s.objects[m].damage = 2;
+    s = tudo(act(s, { t: 'pass', p: 0 })); assert.equal(s.objects[m].zone, 'graveyard'); assert.equal(s.players[0].life, vida, faceDown ? 'virada para baixo' : 'de frente');
+    assert.equal(s.objects[m].ultima.faceDown, faceDown, 'a última informação conhecida fica guardada no objeto');
+  }
 });
