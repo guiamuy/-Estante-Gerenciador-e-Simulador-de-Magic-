@@ -156,6 +156,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR1b resto dos bugs da auditoria que não pedem estrutura: fração de segundo, proteção impressa contra cor, medo, intimidar, sombra, esgueirar e travessias, gatilho modal sem modo ilegal, condição em gatilho de outra permanente, gerar mana durante um pagamento pedido por efeito (motor v74) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2a.1 ações de estado: regra das lendas com escolha do jogador, nada de checagem no meio da resolução, Equipamento em não-criatura se solta (motor v75) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2a.2 objeto novo ao mudar de zona: o alvo não segue a carta que saiu e voltou (400.7, motor v76) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | Decisões do dono registradas (06/10/2026), texto das regras no repositório e numeração de leva por trilha (Q13, leva M-206) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2a.3 última informação conhecida (704.8, 608.2h) e mortes simultâneas (603.10a) | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2591,10 +2592,36 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 **O que "100%" quer dizer aqui, e o que não quer.** O motor não interpreta texto de carta (ADR do motor): cumprir uma regra significa que existe a primitiva e que ela se comporta como a regra manda. Para uma carta jogar, alguém ainda escreve o script dela com essas primitivas. Conformidade de regras e cobertura de cartas são duas medidas; este épico cuida da primeira e torna a segunda barata.
 
 **Instrumentos (ficam no repositório):**
-- `.regras/indice.json` — número e título de cada regra e item (o texto das regras não é copiado para cá).
+- `.regras/indice.json` — número e título de cada regra e item.
+- `.regras/cr-2026-09-25.txt` — o texto integral da edição em que o mapa se apoia (decisão 10b de 06/10/2026). Edição nova entra como arquivo novo, ao lado.
 - `.regras/mapa.json` — cada item com `status` (coberta · parcial · ausente · definicao · fora), `evidencia` (linha de código, teste ou sonda), `falta`, `esforco` (P · M · G), `depende` e, para 701 e 702, a frequência em cartas. Quando um item muda de status, o teste que prova entra em `testes`.
 - `node .regras/medir.mjs [--fases] [--falta NNN]` — o placar. `regras.mapa.unit` derruba o portão se o mapa ficar para trás do índice, afirmar cobertura sem evidência ou a cobertura cair.
 - Testes de conformidade levam o número da regra no nome: `test('CR 704.5j · …')`.
+
+**Decisões do dono do produto (06/10/2026)** — respondidas uma a uma; valem até nova decisão.
+
+| # | Assunto | Decisão | Efeito no plano |
+|---|---|---|---|
+| 1 | Fora de escopo | Planechase, Archenemy, Vanguard, Conspiracy, Unfinity, aposta, subjogos, equipes e itens de jogo físico ficam fora | As 176 regras "fora" não voltam |
+| 2 | Mesa de três e quatro jogadores | No fim, na CR6 | CR2g faz combate de dois; a CR6 remexe combate e prioridade (10 a 14 levas) |
+| 3 | Lista com carta manual | Modo único mantido: só joga lista 100% | Commander só joga quando as listas fecharem |
+| 4 | Ordem das palavras-chave | Pelos formatos do dono (Pauper e Commander), frequência geral como desempate | Ordem da CR4 |
+| 5 | Partida salva entre versões | Como está: versão nova invalida a partida salva | Sem trabalho extra |
+| 6 | Teste em aparelho | Só no fim do épico | O épico não para por teste; a CR7 abre com roteiro de homologação |
+| 6b | Relato de bug | Botão "Relatar" na mesa (copia a partida e o registro) | 1 leva, feita na véspera da homologação (CR7) |
+| 7 | Scripts de carta durante o épico | Regras e, na mesma leva, as cartas das listas que cada estrutura destrava | Cerca de 15% mais levas; R11.2b em diante deixa de estar pausado e passa a andar a reboque das fases |
+| 8 | Regras × cartas | Scripts sob demanda agora; leitor de texto com revisão depois da CR2 | 8 a 12 levas depois da CR2 |
+| 9 | Numeração das levas | Prefixo por trilha: `Leva M-206` | Feita nesta leva (Q13) |
+| 10a | Edição nova das regras | Atualizar a cada edição | Meia leva por edição |
+| 10b | Texto das regras | No repositório | `.regras/cr-2026-09-25.txt` |
+
+- **Divergências registradas (par técnico):** 3 e 6 juntas adiam todo teste real para o fim, e a homologação virá com bugs antigos e novos misturados; 10b republica num repositório público um texto que a Wizards distribui de graça — se virar problema, o arquivo sai para os documentos do Projeto sem outra mudança.
+- **Estimativa refeita:** de 160–220 para 185–255 levas (decisão 7, botão "Relatar" e meia leva do prefixo).
+
+**Q13 · Numeração de leva por trilha** 🟡 — a guarda de agregação aceita `Leva <P>-<n>`, em que `<P>` é a inicial da trilha (motor M, bot B, geral G, design D, scanner S, infra I). Cada trilha conta a sua; a contagem antiga, sem prefixo, continua valendo para quem não migrou e segue barrando repetição.
+- **Valor:** o número deixa de colidir entre trilhas (na trilha do motor, 9 colisões em 12 levas, cada uma repetindo o portão de 25 minutos).
+- **Aceite:** `Leva M-10` do motor passa ao lado da `Leva 10` e da `Leva B-10` do bot; prefixo de outra trilha é barrado com o prefixo certo na mensagem.
+- **Testes:** `agregacao.unit` Q13 (2). **Fora:** renumerar o histórico; obrigar as outras trilhas a migrar (cada uma adota quando quiser, a partir do maior número publicado).
 
 **CR0 · Mapa regra × motor** ✅ (leva 194, motor v72 sem mudança) — 14 auditores independentes, um por trecho das regras, cada um obrigado a mostrar evidência vista e a escolher o nível mais baixo na dúvida.
 

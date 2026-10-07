@@ -153,6 +153,31 @@ test('Q12 · número de leva repetido entre trilhas é barrado, com a próxima l
   } finally { r.fim(); }
 });
 
+test('Q13 · leva com prefixo da trilha ("Leva M-10") tem contagem própria: não colide com a leva 10 de outra trilha nem com a B-10', () => {
+  const { r, bot } = comBotPublicado();
+  try {
+    r.escreve('regras.test.mjs', ['// teste novo da trilha do motor']);
+    const motor = r.commit('Leva M-10 · mana em combinação\n\nTrilha: motor');
+    assert.deepEqual(conferirFaixa(bot, motor, { cwd: r.dir }).achados, []);
+    r.escreve('bot.test.mjs', ['// teste novo do bot']);
+    const b10 = r.commit('Leva B-10 · bot bloqueia melhor\n\nTrilha: bot');
+    assert.deepEqual(conferirFaixa(motor, b10, { cwd: r.dir }).achados, []);
+    assert.deepEqual(lerRodapes('Leva M-10 · x\n\nTrilha: motor'), { trilha: 'motor', sobrescreve: [], semMotivo: false, leva: 10, prefixo: 'M' });
+    assert.equal(lerRodapes('Leva 10 · x\n\nTrilha: motor').prefixo, '');
+  } finally { r.fim(); }
+});
+
+test('Q13 · prefixo que não é o da trilha é barrado, com o prefixo certo na mensagem', () => {
+  const { r, bot } = comBotPublicado();
+  try {
+    r.escreve('regras.test.mjs', ['// teste novo da trilha do motor']);
+    const motor = r.commit('Leva B-11 · mana em combinação\n\nTrilha: motor');
+    const { achados } = conferirFaixa(bot, motor, { cwd: r.dir });
+    assert.equal(achados.length, 1); assert.equal(achados[0].tipo, 'prefixo-errado'); assert.equal(achados[0].certo, 'M');
+    assert.match(relatar(achados), /Leva M-11/);
+  } finally { r.fim(); }
+});
+
 test('Q12 · rebase sem conflito soma as duas trilhas; ROADMAP em conflito fica com os dois lados', () => {
   const { r, base, bot } = comBotPublicado();
   try {
@@ -206,7 +231,7 @@ test('Q12 · gancho de pre-push: deixa passar o que soma, barra push forçado e 
 
 test('Q12 · leitura dos rodapés e das linhas', () => {
   const r = lerRodapes('Leva 123 · algo\n\ncorpo\n\nTrilha: Motor\nSobrescreve: abc1234, 0123456789abcdef — placar passou para o balão');
-  assert.deepEqual(r, { trilha: 'motor', sobrescreve: ['abc1234', '0123456'], semMotivo: false, leva: 123 });
+  assert.deepEqual(r, { trilha: 'motor', sobrescreve: ['abc1234', '0123456'], semMotivo: false, leva: 123, prefixo: '' }); // Q13 · o rodapé passou a devolver o prefixo da leva (vazio na contagem antiga)
   assert.equal(lerRodapes('ROADMAP · leva 106 entregue').leva, null);
   assert.equal(linhaConta('    });'), false);
   assert.equal(linhaConta('const x = calcular(estado);'), true);

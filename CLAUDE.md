@@ -39,7 +39,8 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 
 ## Numeração
 
-- Leva: confira `git log origin/main` logo antes do commit; o número é o maior publicado + 1. A guarda barra número repetido entre trilhas e diz o próximo livre.
+- Leva com prefixo da trilha (decisão de 06/10/2026): `Leva M-206 · …` para o motor, `B-` bot, `G-` geral, `D-` design, `S-` scanner, `I-` infra — a inicial do rodapé `Trilha:`. Cada trilha conta a sua: o número é o maior `Leva <P>-N` dela em `git log origin/main` + 1 (na primeira vez, o maior número publicado + 1). Não colide com ninguém; a guarda só barra prefixo que não é o da trilha.
+- Leva sem prefixo (contagem antiga, ainda aceita): o número é o maior publicado + 1, conferido em `git log origin/main` logo antes do commit. A guarda barra número repetido entre trilhas e diz o próximo livre.
 - Na tabela "ordem por dependência" do ROADMAP, cada trilha usa a próxima letra livre de `16º-x`. O portão barra id repetido.
 
 ## O que a guarda faz e o que não faz

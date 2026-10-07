@@ -93,6 +93,9 @@ export function lerDiff(texto) {
   return porArquivo;
 }
 
+/** Q13 · prefixo de leva de cada trilha: a inicial do nome, em maiúscula (motor → M, bot → B, geral → G, design → D, scanner → S, infra → I). */
+export const prefixoDa = (trilha) => (String(trilha || '').match(/\p{L}/u) || [''])[0].toUpperCase();
+
 /** Rodapés da mensagem de commit. */
 export function lerRodapes(mensagem) {
   const trilha = (mensagem.match(/^Trilha:\s*([\p{L}\p{N}_-]+)/imu) || [])[1] || '';
@@ -105,8 +108,9 @@ export function lerRodapes(mensagem) {
     if (motivo.length < 10) semMotivo = true;
     else sobrescreve.push(...shas.map((s) => s.slice(0, 7)));
   }
-  const leva = (mensagem.match(/^Leva (\d+)\b/) || [])[1];
-  return { trilha: trilha.toLowerCase(), sobrescreve, semMotivo, leva: leva ? Number(leva) : null };
+  // Q13 · "Leva M-206": prefixo da trilha, cada trilha com a sua contagem. Sem prefixo, a contagem é a antiga, comum a todas.
+  const [, prefixo = '', leva] = mensagem.match(/^Leva (?:([A-Z])-)?(\d+)\b/) || [];
+  return { trilha: trilha.toLowerCase(), sobrescreve, semMotivo, leva: leva ? Number(leva) : null, prefixo };
 }
 
 /**
@@ -150,10 +154,14 @@ export function conferir({ novos, janela, linhasDe, levasPublicadas = [] }) {
       }
       if (apagadas.length) achados.push({ tipo: 'sobrescrita', commit: d, de: c, apagadas, devolvidas });
     }
-    if (d.leva != null) {
-      const choque = levasPublicadas.find((p) => p.leva === d.leva && !(p.trilha && d.trilha && p.trilha === d.trilha));
+    if (d.leva != null && d.prefixo) {
+      // Q13 · a contagem com prefixo é só da trilha: basta o prefixo ser o dela
+      const certo = prefixoDa(d.trilha);
+      if (certo && d.prefixo !== certo) achados.push({ tipo: 'prefixo-errado', commit: d, certo });
+    } else if (d.leva != null) {
+      const choque = levasPublicadas.find((p) => !p.prefixo && p.leva === d.leva && !(p.trilha && d.trilha && p.trilha === d.trilha));
       if (choque) {
-        const usadas = [...levasPublicadas.map((p) => p.leva), ...novos.map((n) => n.leva || 0)];
+        const usadas = [...levasPublicadas.filter((p) => !p.prefixo).map((p) => p.leva), ...novos.filter((n) => !n.prefixo).map((n) => n.leva || 0)];
         achados.push({ tipo: 'leva-repetida', commit: d, de: choque, livre: Math.max(...usadas) + 1 });
       }
     }
@@ -184,6 +192,9 @@ export function relatar(achados) {
     } else if (a.tipo === 'leva-repetida') {
       out.push(`✗ LEVA REPETIDA  ${quem}`);
       out.push(`  a leva ${a.commit.leva} já foi publicada em ${a.de.sha.slice(0, 7)}${a.de.trilha ? ` [trilha ${a.de.trilha}]` : ''}. Próxima livre: ${a.livre}. Renumere no commit e no ROADMAP.`);
+    } else if (a.tipo === 'prefixo-errado') {
+      out.push(`✗ PREFIXO DE OUTRA TRILHA  ${quem}`);
+      out.push(`  a trilha ${a.commit.trilha} numera as levas com "${a.certo}-". Use: Leva ${a.certo}-${a.commit.leva} (a contagem é só da sua trilha: maior "Leva ${a.certo}-N" publicado + 1).`);
     } else {
       out.push(`✗ ${quem}: ${a.texto}`);
     }
@@ -247,7 +258,7 @@ export function conferirFaixa(base, topo, { cwd } = {}) {
   const levasPublicadas = lista(['log', '--format=%h%x00%B%x01', base]).join('\n').split('\x01').map((bloco) => {
     const [h, corpo = ''] = bloco.trim().split('\0');
     const r = lerRodapes(corpo);
-    return r.leva == null ? null : { leva: r.leva, sha: h, trilha: r.trilha || LEGADO[h.slice(0, 7)] || '' };
+    return r.leva == null ? null : { leva: r.leva, prefixo: r.prefixo, sha: h, trilha: r.trilha || LEGADO[h.slice(0, 7)] || '' };
   }).filter(Boolean);
   const achados = conferir({ novos, janela, linhasDe: linhasDoGit(cwd), levasPublicadas });
   return { achados, novos, janela };
