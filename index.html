@@ -9012,7 +9012,9 @@ function createPartidasScreen({ partidas }) {
         visiveis.length > st.limite ? Row({}, Button('Mostrar mais', { id: 'partidas-mais', icone: 'descer', onClick: () => { st.limite += 30; pinta(); } })) : null),
       Row({ style: { justifyContent: 'center' } }, Button('Limpar histórico', { variant: 'ghost', icone: 'lixeira', id: 'partidas-limpar', onClick: () => Dialog({ title: 'Limpar o histórico?', body: Text(`${e.todas} partida(s) saem deste aparelho. As listas e a coleção não mudam.`, { tone: 'muted' }),
         actions: [Button('Cancelar', { onClick: closeDialog }), Button('Limpar', { variant: 'danger', id: 'partidas-limpar-confirma', onClick: async () => { closeDialog(); const antes = await partidas.limpa(); st.lista = []; pinta();
-          toast('Histórico limpo', 5000, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await partidas.repoe(antes); st.lista = await partidas.lista(); pinta(); } } }); } })] }) })));
+          toast('Histórico limpo', 5000, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await partidas.repoe(antes); st.lista = await partidas.lista(); pinta(); } } }); } })] }) })),
+      // J7 · a ação desta tela é jogar a próxima
+      __m3.BotaoDeAcao([{ icone: 'jogar', rotulo: 'Jogar', id: 'partidas-jogar', onClick: () => go('/mesa') }], { id: 'partidas-fab' }));
   }
   (async () => { st.lista = await partidas.lista(); pinta(); })();
   return root;
@@ -9653,9 +9655,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
             Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'deck-etiquetas', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', chaves: [d.id], titulo: d.name, onMuda: e => { state.etq = e; paint(); } }) })) : null),
         h('div', { class: 'ds-grow' }),
         Row({ class: 'ds-row--wrap' },
-          // U2 · editar e exportar com ícone; excluir vira ícone discreto (continua pedindo confirmação)
-          Button('Editar', { id: 'deck-edit', icone: 'editar', onClick: () => go('/listas/editar?id=' + d.id) }),
-          Button('Exportar', { id: 'deck-export', icone: 'exportar', onClick: exportDialog }),
+          // J7 · Editar e Exportar moram no botão de ação (com Jogar); no topo fica só o excluir, discreto e com confirmação
           IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); if (etiquetas) await etiquetas.esquece('listas', d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
       // D8 · estado da lista numa linha: sem rede, avisos e erros de validação (ou "válida"); o toque abre a folha com tudo
@@ -9702,13 +9702,18 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           h('div', { class: 'deck-reserva-aviso__texto' }, Icone('pilhas', { tamanho: 20 }),
             h('span', {}, h('strong', {}, `${stats.main} cartas no deck e nenhuma na reserva.`), ' ',
               sug ? `A lista pronta ${sug.pronta} tem ${sug.movidas} delas na reserva.` : 'Toque numa carta e use "Mover para a reserva", ou edite a lista e ponha a reserva sob "Sideboard".')),
-          sug ? Button('Separar reserva', { variant: 'primary', icone: 'pilhas', id: 'deck-reserva-separar', onClick: async () => {
+          sug ? Button('Separar reserva', { icone: 'pilhas', id: 'deck-reserva-separar', onClick: async () => {
             state.deck = await decks.save({ ...state.deck, entries: sug.entries }); toast(`${sug.movidas} carta(s) foram para a reserva`); paint(); } }) : null);
       })() : null,
       Row({ class: 'ds-row--wrap' }, markChip, ajustarChip,
         state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : state.ajustando ? null : Text('Um toque abre a carta. Dois toques marcam que você a tem.', { size: 'sm', tone: 'muted' })),
       state.ajustando ? blocoAjuste() : null,
       linhaFiltro,
+      // J7 · botão de ação da lista: jogar com ela, editar, exportar. No modo Ajustar ele sai: o campo de adicionar é a ação
+      state.ajustando ? null : __m3.BotaoDeAcao([
+        { icone: 'jogar', rotulo: 'Jogar', id: 'deck-jogar', onClick: () => go('/mesa?lista=' + encodeURIComponent(d.id)) },
+        { icone: 'editar', rotulo: 'Editar', id: 'deck-edit', onClick: () => go('/listas/editar?id=' + d.id) },
+        { icone: 'exportar', rotulo: 'Exportar', id: 'deck-export', onClick: exportDialog }], { id: 'deck-fab', rotulo: 'Ações da lista' }),
       ...(groups.length ? groups : [Empty(filtrando ? 'Nenhuma carta da lista passa por esses filtros.' : 'Lista vazia.')]));    if (focoNoAdd && state.ajustando) addIn.focus({ preventScroll: true }); // L7 · redesenhar não tira o foco de quem está digitando a carta
   }
   /** Redesenhar a tela toda a cada letra perderia o foco do campo: guarda e devolve. */
@@ -16964,12 +16969,14 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
             Button('Ver prontas', { variant: 'primary', id: 'mesa-starter', icone: 'caixa', title: 'Ver listas prontas', onClick: () => go('/listas/prontas') }),
             Button('Criar lista', { icone: 'mais', onClick: () => go('/listas/editar') }))));
     }
-    state.mine = all[0].id; state.theirs = all[0].id;
+    // J7 · "Jogar" na tela de uma lista traz a lista já escolhida (#/mesa?lista=<id>); id desconhecido cai na primeira
+    const pedida = all.find(d => String(d.id) === new URLSearchParams((location.hash.split('?')[1]) || '').get('lista')) || all[0];
+    state.mine = pedida.id; state.theirs = (all.find(d => d.format === pedida.format) || pedida).id;
     const byId = id => all.find(d => d.id === id);
     // A12 · modo de jogo: filtra as listas pelo formato, e o formato da partida vem da sua lista
     // Leva 149 · sem "Todos": a partida sempre tem um formato. Começa no formato da primeira lista da estante.
     const FORMAT_KEYS = [...new Set(['pauper', 'commander', 'livre', ...all.map(d => d.format)])].filter(k => all.some(d => d.format === k));
-    state.format = all[0].format;
+    state.format = pedida.format;
     const visiveis = () => all.filter(d => d.format === state.format);
     // E50 P5 · o rótulo diz quantas cartas entram no grimório; a reserva fica de fora e é dita à parte
     const contaDeck = d => { let main = 0, side = 0; for (const e of d.entries) { if (e.zone === 'side') side += e.qty; else main += e.qty; } return { main, side }; };

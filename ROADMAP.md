@@ -453,7 +453,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bp ✅ | J4 carregamento com identidade: `Carregando` (cartas que se arrumam na prateleira, três tamanhos) e `Esqueleto` de lista, trocados nas esperas de tela e de bloco (leva 203) | J | 1 | teste no aparelho |
 | 16º-bq ✅ | J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, três cartas) em 1,2 s, sem segurar o app nem receber toque; uma vez por sessão (leva 205) | J | 1 | teste no aparelho |
 | 16º-br ✅ | J6 botão de ação: componente `BotaoDeAcao`, Listas (Nova lista, Prontas) e Coleção (Escanear, Adicionar, Colar lista); o bot joga com a arte padrão (leva 208) | J | 1 | teste no aparelho |
-| 16º-bs ○ | J7 botão de ação no resto do app | J | 1 | — |
+| 16º-bs ✅ | J7 botão de ação na Lista (Jogar, Editar, Exportar; Jogar abre o preparo com a lista escolhida) e em Partidas (Jogar); Início, Cartas e Jogar sem botão, com o motivo (leva G-209) | J | 1 | teste no aparelho |
 | 16º-bt ○ | N1 coletor de notícias (fluxo agendado, ramo `noticias`) | N | 1 | ADR-08 aceito |
 | 16º-bu ○ | N2 tela Notícias com rolagem infinita e estados desenhados | N | 1 | — |
 | 16º-bv ○ | N3 filtros por fonte e tema, novas, atualizar | N | 1 | — |
@@ -5743,11 +5743,26 @@ pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento n
 - **Testes:** U `terrenos.unit` (regra `valeArteDoUsuario`: bot, online, a dois, dono desconhecido); e2e "J6 arte
   escolhida só do meu lado" (contra o Shark com a mesma lista: a minha Forest na arte escolhida, a do bot não).
 
-**J7 · Botão de ação (resto do app)** ○
+**J7 · Botão de ação (resto do app)** ✅ (leva G-209, 07/10/2026)
 - **Valor:** o mesmo gesto em todo lugar.
-- **Aceite:** **Lista** (jogar com esta lista, editar, exportar — vinda da J6), Início, Cartas, Jogar, Perfil › Partidas e Notícias (N2) com as ações de cada uma; tela sem ação
-  principal fica sem botão (não se inventa ação).
-- **Testes:** e2e por tela. · **Depende de:** J6. · **Estimativa:** 1 leva.
+- **Entregue · Lista:** botão de ação com *Jogar*, *Editar* e *Exportar* (ícone e uma palavra, 44 px cada). **Editar e
+  Exportar saíram do topo**: a linha do título ficou com o nome e o excluir (ícone discreto, com confirmação). O botão
+  é o único primário da tela ("Separar reserva" deixou de ser primário); no modo **Ajustar** ele sai, porque ali a
+  ação é o campo de adicionar, e volta ao sair do modo.
+- **Entregue · Jogar com esta lista:** *Jogar* abre o preparo da partida com **a lista já escolhida** e o formato dela
+  (`#/mesa?lista=<id>`; id desconhecido cai na primeira lista, sem erro). Lista que o motor ainda não resolve chega
+  ao preparo do mesmo jeito, e é ele que diz o que falta (uma regra só, num lugar só).
+- **Entregue · Perfil › Partidas:** com partidas no histórico, botão de ação único *Jogar* (uma ação: o botão a
+  executa, sem abrir lista). No histórico vazio continua o convite da própria tela.
+- **Divergência do planejado (decisão de design):** **Início, Cartas e Jogar ficam sem botão.** No Início o atalho
+  Jogar já é o primário e os outros atalhos são as ações (o botão só repetiria); em Cartas a ação é Buscar, colada ao
+  campo; em Jogar a ação é "Começar partida", que precisa do rótulo e fica no fim do formulário. Um botão flutuante
+  nessas telas seria um segundo primário. Notícias recebe o dela na N2.
+- **Testes:** e2e "J7" (posição e medida nas quatro larguras e dois temas, único primário, três ações com ícone e
+  uma palavra, fonte larga, fim da página, Jogar com cada uma de duas listas, id desconhecido, Editar, Exportar,
+  some no Ajustar, Início e Cartas sem botão; `auditaTela`); e2e I5 ganhou o botão de Partidas (medida, fim da
+  página, leva a Jogar); e2e antigos da Lista ajustados com justificativa (as ações mudaram de lugar).
+- **Depende de:** J6. · **Fora:** atalho "jogar contra o Shark" direto da lista (hoje o oponente se escolhe no preparo).
 
 **Fora do épico:** tablet e paisagem; sons; animação entre telas; botão flutuante na partida.
 
