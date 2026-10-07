@@ -162,7 +162,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.1 gatilho atrasado "no início da manutenção do próximo turno" (603.7); Arcane Denial e Mishra's Bauble completas; "cada jogador" de sala de masmorra sem criatura na mesa (leva M-210, motor v79) | 🟡 |
 | Q · Qualidade e publicação | Q14 portão em duas fases, segunda chance para teste de tela instável e publicar que interrompe quando o main anda (leva M-212) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.2 gatilho atrasado no passo final e no fim do combate, preso a um objeto (603.7c), e gatilho reflexivo (603.12 coberta); leva M-213, motor v80 | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2b.3 pontos de disparo que faltam (todos os passos, de todos os jogadores) e gatilhos com mais de um alvo (603.2, 603.3d), com as cartas das listas que destravarem | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilhos com mais de um alvo (603.3d), gatilhos de passo que faltam (passo final, início do combate, manutenção de qualquer jogador) e "sempre que um oponente conjura/descarta", com as cartas que destravarem | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2749,6 +2750,20 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Cartas das listas (decisão 7):** nenhuma carta pendente das duas listas depende só destas duas estruturas; os testes usam cartas inventadas.
 - **Golden:** regravadas (79 → 80); registros conferidos na entrega.
 - **Fora:** gatilho atrasado de evento ("quando ela morrer neste turno"), duração que expira sem disparar e gatilho criado por efeito de substituição (603.7d).
+
+**CR2b.3 · Pontos de disparo novos e a carta lembrada** 🟡 (leva M-214, motor v81) — 5 testes de carta, todos falhavam antes.
+- **603.2 / 603.6e / 603.10a** gatilhos novos: "sempre que esta criatura receber dano" (uma vez por instância, mesmo letal); "quando a permanente anexada morrer" e "morrer ou for exilada" (o Equipamento ou a Aura olha para trás); "sempre que uma criatura de um oponente entrar"; "sempre que uma criatura for posta no seu cemitério vinda do campo" (vale o dono, não quem controlava).
+- **"That card":** o gatilho lembra a carta que saiu, na encarnação nova. Se ela deixou o cemitério ou o exílio antes de a habilidade resolver, fica onde está; ficha não volta.
+- **Cartas das listas (decisão 7), texto oficial de `oficiais-commander.json` (consulta de 05/10/2026), todas completas:**
+  - **Skullclamp** (antes parcial): compra duas quando a criatura equipada morre.
+  - **High Priest of Penance:** pode destruir uma permanente que não é terreno a cada dano recebido.
+  - **Authority of the Consuls:** criaturas dos oponentes entram viradas; cada uma que entra dá 1 de vida.
+  - **Kaya's Ghostform:** só encanta criatura ou planeswalker seu; a permanente que morre ou é exilada volta sob o seu controle.
+  - **Angelic Renewal:** pode sacrificar o encantamento para devolver a criatura; com várias mortes juntas, uma devolução só.
+- **Também novo:** custo opcional "sacrificar esta permanente" em gatilho (`mayPay: { sacrificeSelf: true }`), alvo de Aura "criatura ou planeswalker que você controla", regra estática `opponent-creatures-enter-tapped`.
+- **Medição:** triagem 83 prontas · 9 A · 56 B · 16 C.
+- **Golden:** regravadas (80 → 81); registros conferidos na entrega.
+- **Fora:** quando existir "destruir todas", a varredura precisa sair em lote para a Aura ver a saída junto com a permanente (anotado na triagem do Kaya's Ghostform); gatilhos com mais de um alvo.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

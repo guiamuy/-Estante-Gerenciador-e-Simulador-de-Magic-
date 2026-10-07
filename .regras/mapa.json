@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 80,
+ "motor": 81,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4163,9 +4163,14 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Quando um gatilho dispara",
    "status": "parcial",
-   "evidencia": "queueTriggers (index.html:11782-11810) chamado em moveObject (:10307-10311), enterStep (:10688-10690), cast (:12300), dano de combate (:10811) e marcadores; dispara uma vez por ocorrência (rules.unit \"S15 · gatilho de outra criatura sua que morre\", v69 Lunarch Veteran com dois Pássaros); dano prevenido não dispara (continue antes de :10811; rules.unit \"S29 · Fog\")",
-   "falta": "603.2b: só existem \"na sua manutenção\", \"na sua 2ª fase principal\" e \"no fim do combate\", e só para permanentes do jogador ativo — não há gatilho de passo final, de início de combate, de compra, nem \"em cada manutenção\"/\"na manutenção do oponente\". 603.2d (dispara vezes adicionais) e 603.2h (\"faça isso só uma vez por turno\") ausentes. 603.2e: \"torna-se virada\" só para a aura que observa a criatura encantada; \"torna-se bloqueada/anexada/alvo\" não existem. Gatilho de \"outra permanente\" só enxerga as suas (anyController é a exceção) e não há \"sempre que um oponente…\".",
-   "esforco": "M"
+   "evidencia": "queueTriggers (index.html:11782-11810) chamado em moveObject (:10307-10311), enterStep (:10688-10690), cast (:12300), dano de combate (:10811) e marcadores; dispara uma vez por ocorrência (rules.unit \"S15 · gatilho de outra criatura sua que morre\", v69 Lunarch Veteran com dois Pássaros); dano prevenido não dispara (continue antes de :10811; rules.unit \"S29 · Fog\") · CR2b.3 (motor v81): gatilhos novos — \"recebe dano\" (dealt-damage, um por instância, mesmo letal), \"a permanente anexada morre / morre ou é exilada\" (o anexo olha para trás), e o escopo de quem o gatilho de outra permanente observa: sua, de um oponente (controller: opponent) ou \"no seu cemitério\" (ownerIsYou); commander.regras CR2b.3",
+   "falta": "603.2b: só existem \"na sua manutenção\", \"na sua 2ª fase principal\" e \"no fim do combate\", e só para permanentes do jogador ativo — não há gatilho de passo final, de início de combate, de compra, nem \"em cada manutenção\"/\"na manutenção do oponente\". 603.2d (dispara vezes adicionais) e 603.2h (\"faça isso só uma vez por turno\") ausentes. 603.2e: \"torna-se virada\" só para a aura que observa a criatura encantada; \"torna-se bloqueada/anexada/alvo\" não existem. Falta \"sempre que um oponente conjura/compra/descarta\".",
+   "esforco": "M",
+   "testes": [
+    "CR2b.3 · Skullclamp: \"Whenever equipped creature dies, draw two cards\"",
+    "CR2b.3 · High Priest of Penance: \"Whenever this creature is dealt damage, you may destroy target nonland permanent\" — dispara mesmo com dano letal",
+    "CR2b.3 · Authority of the Consuls: criaturas dos oponentes entram viradas e cada uma que entra dá 1 de vida; as suas não"
+   ]
   },
   {
    "n": "603.3",
@@ -4203,11 +4208,14 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos de mudança de zona (entra/sai do campo)",
    "status": "parcial",
-   "evidencia": "moveObject enfileira etb, dies e leaves-battlefield (index.html:10304-10311); \"entra virado/com marcadores/escolhe cor\" são estáticos aplicados na entrada (:10283-10300), não gatilhos; efeito em \"esta carta\" confere se ela ainda está na zona de destino (to_hand/to_library :11423-11426); rules.unit \"M9 · gatilho de entrada vai para a pilha\", \"S44 · a aura volta para a mão quando vai para o cemitério\", \"S48 · o encantamento exila a criatura e devolve quando sai do campo\", \"S22 · terreno que entra virado\"",
-   "falta": "603.6a: permanentes que entram juntas (fichas, varredura de reanimação) entram uma a uma, então a primeira não vê as seguintes. 603.6: a carta que saiu e voltou à zona continua sendo o \"mesmo\" objeto (oid fixo) e seria achada. 603.6e: não há gatilho de aura para \"quando a criatura encantada morre/sai\". 603.6c: sem \"de qualquer lugar\".",
+   "evidencia": "moveObject enfileira etb, dies e leaves-battlefield (index.html:10304-10311); \"entra virado/com marcadores/escolhe cor\" são estáticos aplicados na entrada (:10283-10300), não gatilhos; efeito em \"esta carta\" confere se ela ainda está na zona de destino (to_hand/to_library :11423-11426); rules.unit \"M9 · gatilho de entrada vai para a pilha\", \"S44 · a aura volta para a mão quando vai para o cemitério\", \"S48 · o encantamento exila a criatura e devolve quando sai do campo\", \"S22 · terreno que entra virado\" · CR2b.3 (motor v81): 603.6e — gatilho de Aura ou Equipamento para \"quando a permanente anexada morre/é exilada\", com a carta lembrada na encarnação nova (\"that card\" só volta se ainda está onde caiu); commander.regras Kaya's Ghostform, Skullclamp, Angelic Renewal",
+   "falta": "603.6a: permanentes que entram juntas (fichas, varredura de reanimação) entram uma a uma, então a primeira não vê as seguintes. 603.6: a carta que saiu e voltou à zona continua sendo o \"mesmo\" objeto (oid fixo) e seria achada. 603.6c: sem \"de qualquer lugar\".",
    "esforco": "M",
    "depende": [
     "400.7"
+   ],
+   "testes": [
+    "CR2b.3 · Angelic Renewal: criatura sua vai do campo para o seu cemitério — você pode sacrificar o encantamento para devolvê-la; uma devolução só"
    ]
   },
   {

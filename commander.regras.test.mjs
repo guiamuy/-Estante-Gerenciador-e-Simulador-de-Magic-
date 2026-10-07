@@ -209,3 +209,53 @@ test("CR2b.1 · Mishra's Bauble: olha o topo do grimório do jogador alvo e comp
   assert.equal(s.zones[1].library[0], topo, 'a carta continua no topo'); assert.equal(s.zones[0].hand.length, mao, 'nada de compra agora');
   s = passaAte(s, x => x.turn.number === turno + 1 && x.turn.step === 'upkeep' && x.stack.length > 0); const naManutencao = s.zones[0].hand.length; s = tudo(s); assert.equal(s.zones[0].hand.length, naManutencao + 1, 'Draw a card at the beginning of the next turn\'s upkeep');
 });
+
+// ---------------------------------------------------------------- CR2b.3 · pontos de disparo novos
+const anexa = (s, aura, host) => { s = J(s); s.objects[aura].attachedTo = host; return s; };
+const ateDecisao = s => { for (let i = 0; i < 10 && !s.pending && (s.stack.length || s.queued.length); i++) s = act(s, { t: 'pass', p: s.turn.priority }); return s; };
+
+test('CR2b.3 · Skullclamp: "Whenever equipped creature dies, draw two cards"', () => {
+  let s = mesa(['Skullclamp', 'Cruel Celebrant']), k, c; [s, k] = poe(s, 0, 'Skullclamp'); [s, c] = poe(s, 0, 'Cruel Celebrant'); s = anexa(s, k, c); s.objects[c].damage = 1; // 1/2 com +1/-1 vira 2/1
+  const mao = s.zones[0].hand.length; s = tudo(act(s, { t: 'pass', p: 0 }));
+  assert.equal(s.objects[c].zone, 'graveyard'); assert.equal(s.objects[k].zone, 'battlefield', 'o Equipamento fica'); assert.equal(s.zones[0].hand.length, mao + 2);
+});
+
+test('CR2b.3 · High Priest of Penance: "Whenever this creature is dealt damage, you may destroy target nonland permanent" — dispara mesmo com dano letal', () => {
+  let s = mesa(['High Priest of Penance', 'Lightning Bolt'], ['Faerie Seer', 'Zulaport Cutthroat']), h, b, f; [s, h] = poe(s, 0, 'High Priest of Penance'); [s, b] = poe(s, 0, 'Lightning Bolt', 'hand'); [s, f] = poe(s, 1, 'Faerie Seer'); [s] = poe(s, 1, 'Zulaport Cutthroat'); [s] = poe(s, 1, 'Island'); s = comMana(s, 'R');
+  s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === b && x.targets[0].oid === h)[0]); s = ateDecisao(s);
+  assert.equal(s.pending.kind, 'pick_target'); assert.equal(s.pending.options.some(o => s.facts[s.objects[o.oid].name].types.includes('land')), false, 'terreno não é alvo');
+  s = act(s, { t: 'pick_target', p: 0, index: s.pending.options.findIndex(o => o.oid === f) }); s = ateDecisao(s); assert.equal(s.pending.kind, 'may_pay', '"you may"');
+  s = tudo(act(s, { t: 'pay', p: 0 })); assert.equal(s.objects[f].zone, 'graveyard'); assert.equal(s.objects[h].zone, 'graveyard', 'o sacerdote morreu do raio e a habilidade resolveu assim mesmo');
+});
+
+test('CR2b.3 · Authority of the Consuls: criaturas dos oponentes entram viradas e cada uma que entra dá 1 de vida; as suas não', () => {
+  let s = mesa(['Authority of the Consuls', 'Faerie Seer'], ['Faerie Seer']), fa, fb; [s] = poe(s, 0, 'Authority of the Consuls'); [s, fa] = poe(s, 0, 'Faerie Seer', 'hand'); [s, fb] = poe(s, 1, 'Faerie Seer', 'hand'); s = comMana(s, 'U');
+  s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === fa)[0]), x => legais(x, x.pending.p, y => y.t === 'pick_done')[0] || legais(x, x.pending.p)[0]);
+  assert.equal(s.objects[fa].tapped, false, 'a sua entra desvirada'); assert.equal(vidas(s), '20/20');
+  s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1' && !x.stack.length && !x.pending); s = comMana(s, 'U', 1);
+  s = tudo(act(s, legais(s, 1, x => x.t === 'cast' && x.oid === fb)[0]), x => legais(x, x.pending.p, y => y.t === 'pick_done')[0] || legais(x, x.pending.p)[0]);
+  assert.equal(s.objects[fb].tapped, true, 'Creatures your opponents control enter tapped'); assert.equal(vidas(s), '21/20', 'you gain 1 life');
+});
+
+test("CR2b.3 · Kaya's Ghostform: a permanente encantada morre ou é exilada e volta ao campo sob o seu controle; só encanta criatura ou planeswalker seu", () => {
+  { let s = mesa(["Kaya's Ghostform", 'Faerie Seer'], ['Faerie Seer']), g, f; [s, g] = poe(s, 0, "Kaya's Ghostform", 'hand'); [s, f] = poe(s, 0, 'Faerie Seer'); [s] = poe(s, 1, 'Faerie Seer'); s = comMana(s, 'B');
+    assert.deepEqual(alvos(s, 0, g), ['Faerie Seer'].filter(() => true)); assert.equal(legais(s, 0, x => x.t === 'cast' && x.oid === g).every(x => s.objects[x.targets[0].oid].controller === 0), true, 'só permanente sua'); }
+  for (const [carta, zona, mana, vida] of [['Lightning Bolt', 'graveyard', 'R', '20/20'], ['Anguished Unmaking', 'exile', 'WBC', '17/20']]) {
+    let s = mesa(["Kaya's Ghostform", 'Faerie Seer', carta]), g, f, r; [s, g] = poe(s, 0, "Kaya's Ghostform"); [s, f] = poe(s, 0, 'Faerie Seer'); s = anexa(s, g, f); [s, r] = poe(s, 0, carta, 'hand'); s = comMana(s, mana);
+    s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === r && x.targets[0].oid === f)[0]), x => legais(x, x.pending.p, y => y.t === 'pick_done')[0] || legais(x, x.pending.p)[0]);
+    assert.equal(s.objects[f].zone, 'battlefield', `${carta}: a carta voltou do ${zona}`); assert.equal(s.objects[f].controller, 0); assert.equal(s.objects[g].zone, 'graveyard', 'a Aura foi para o cemitério'); assert.equal(vidas(s), vida);
+  }
+  { let s = mesa(["Kaya's Ghostform", 'Faerie Seer']), g, f; [s, g] = poe(s, 0, "Kaya's Ghostform"); [s, f] = poe(s, 0, 'Faerie Seer', 'battlefield', { token: true }); s = anexa(s, g, f); s.objects[f].damage = 1;
+    s = tudo(act(s, { t: 'pass', p: 0 })); assert.equal(s.objects[f], undefined, 'ficha não volta'); }
+});
+
+test('CR2b.3 · Angelic Renewal: criatura sua vai do campo para o seu cemitério — você pode sacrificar o encantamento para devolvê-la; uma devolução só', () => {
+  const base = n => { let s = mesa(['Angelic Renewal', 'Faerie Seer', 'Cruel Celebrant'], ['Faerie Seer']), r, ids = []; [s, r] = poe(s, 0, 'Angelic Renewal'); for (const c of ['Faerie Seer', 'Cruel Celebrant'].slice(0, n)) { let o; [s, o] = poe(s, 0, c); ids.push(o); } s = J(s); for (const o of ids) s.objects[o].damage = 5; return { s, r, ids }; };
+  { let { s, r, ids } = base(1); s = ateDecisao(act(s, { t: 'pass', p: 0 })); assert.equal(s.pending.kind, 'may_pay'); s = tudo(act(s, { t: 'pay', p: 0 }));
+    assert.equal(s.objects[r].zone, 'graveyard', 'sacrificou o encantamento'); assert.equal(s.objects[ids[0]].zone, 'battlefield', 'return that card to the battlefield'); assert.equal(s.objects[ids[0]].damage, 0); }
+  { let { s, r, ids } = base(1); s = ateDecisao(act(s, { t: 'pass', p: 0 })); s = tudo(act(s, { t: 'decline', p: 0 })); assert.equal(s.objects[r].zone, 'battlefield'); assert.equal(s.objects[ids[0]].zone, 'graveyard'); }
+  { let { s, r, ids } = base(2); s = tudo(act(s, { t: 'pass', p: 0 }), x => legais(x, x.pending.p, y => y.t === 'pay')[0] || legais(x, x.pending.p)[0]);
+    assert.equal(ids.filter(o => s.objects[o].zone === 'battlefield').length, 1, 'duas morrem juntas: dois gatilhos, uma devolução'); assert.equal(s.objects[r].zone, 'graveyard'); }
+  { let s = mesa(['Angelic Renewal'], ['Faerie Seer']), r, f; [s, r] = poe(s, 0, 'Angelic Renewal'); [s, f] = poe(s, 1, 'Faerie Seer'); s = J(s); s.objects[f].damage = 5; s = act(s, { t: 'pass', p: 0 });
+    assert.equal(s.pending, null, 'criatura do oponente não dispara'); assert.equal(s.stack.length, 0); }
+});
