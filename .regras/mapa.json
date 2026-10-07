@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 81,
+ "motor": 82,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4147,7 +4147,7 @@
    "regra": "Activating Activated Abilities",
    "titulo": "Restrições de ativação (enjoo, uma vez por turno, tempo de feitiço)",
    "status": "parcial",
-   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\" · CR2a.4 (v78): \"Activate only if you have at least N life more than your starting life total\" (onlyIfLifeOverStart, na oferta e na ativação)",
+   "evidencia": "enjoo para {T} sem ímpeto (index.html:11991-11994, 12013), oncePerTurn fica na permanente (:11997-12000), sorceryOnly (:12386); rules.unit \"M9 · … enjoo impede {T}\", \"S29 · devolver Floresta como custo, uma vez por turno\", \"S11 · equipar só na sua fase principal\" · CR2a.4 (v78): \"Activate only if you have at least N life more than your starting life total\" (onlyIfLifeOverStart, na oferta e na ativação) · CR2b.4 (v82): \"Activate only if this creature is attacking\" (onlyIfAttacking)",
    "falta": "602.5a: símbolo de desvirar {Q} não existe e o enjoo olha o tipo impresso, não o tipo atual. 602.5b/c: \"uma vez por turno\" é uma marca única por permanente (usedThisTurn), compartilhada entre habilidades diferentes e concedidas. Não há \"não pode ser ativada\" nem \"ative somente se/durante…\" (ROADMAP:2532 lista como pendente).",
    "esforco": "M"
   },
@@ -4163,7 +4163,7 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Quando um gatilho dispara",
    "status": "parcial",
-   "evidencia": "queueTriggers (index.html:11782-11810) chamado em moveObject (:10307-10311), enterStep (:10688-10690), cast (:12300), dano de combate (:10811) e marcadores; dispara uma vez por ocorrência (rules.unit \"S15 · gatilho de outra criatura sua que morre\", v69 Lunarch Veteran com dois Pássaros); dano prevenido não dispara (continue antes de :10811; rules.unit \"S29 · Fog\") · CR2b.3 (motor v81): gatilhos novos — \"recebe dano\" (dealt-damage, um por instância, mesmo letal), \"a permanente anexada morre / morre ou é exilada\" (o anexo olha para trás), e o escopo de quem o gatilho de outra permanente observa: sua, de um oponente (controller: opponent) ou \"no seu cemitério\" (ownerIsYou); commander.regras CR2b.3",
+   "evidencia": "queueTriggers (index.html:11782-11810) chamado em moveObject (:10307-10311), enterStep (:10688-10690), cast (:12300), dano de combate (:10811) e marcadores; dispara uma vez por ocorrência (rules.unit \"S15 · gatilho de outra criatura sua que morre\", v69 Lunarch Veteran com dois Pássaros); dano prevenido não dispara (continue antes de :10811; rules.unit \"S29 · Fog\") · CR2b.3 (motor v81): gatilhos novos — \"recebe dano\" (dealt-damage, um por instância, mesmo letal), \"a permanente anexada morre / morre ou é exilada\" (o anexo olha para trás), e o escopo de quem o gatilho de outra permanente observa: sua, de um oponente (controller: opponent) ou \"no seu cemitério\" (ownerIsYou); commander.regras CR2b.3 · CR2b.4 (v82): \"sempre que você descartar\" (you-discard, inclusive descarte como custo, reciclar e insanidade) e \"a criatura encantada causa dano a um oponente\" (só dano em jogador, oponente de quem controla a Aura)",
    "falta": "603.2b: só existem \"na sua manutenção\", \"na sua 2ª fase principal\" e \"no fim do combate\", e só para permanentes do jogador ativo — não há gatilho de passo final, de início de combate, de compra, nem \"em cada manutenção\"/\"na manutenção do oponente\". 603.2d (dispara vezes adicionais) e 603.2h (\"faça isso só uma vez por turno\") ausentes. 603.2e: \"torna-se virada\" só para a aura que observa a criatura encantada; \"torna-se bloqueada/anexada/alvo\" não existem. Falta \"sempre que um oponente conjura/compra/descarta\".",
    "esforco": "M",
    "testes": [
@@ -4177,11 +4177,14 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilho vai à pilha: APNAP, ordem, modo e alvo",
    "status": "parcial",
-   "evidencia": "flushTriggers (index.html:11812-11831) roda em todo apply antes da prioridade (:12814), jogador ativo primeiro; sonda sonda-6a-gatilhos.mjs B/C: com A ativo a pilha fica [A, B] e com B ativo [B, A] (o do não ativo resolve primeiro); controlador = quem controlava a fonte ao disparar (fromController :10309); rules.unit \"M10 · dois gatilhos ao mesmo tempo: o controlador escolhe a ordem\", \"S15 · gatilho com alvo: a mesa pergunta qual, e sem alvo legal o gatilho some\", \"S56 · gatilho com modos\"",
-   "falta": "603.3d: gatilho com mais de um alvo não entra (validador index.html:4562; putTriggerOnStack usa só targeted[0] :11856) e \"até N alvos\" em gatilho some se não houver alvo. 603.3c: não descarta modo ilegal por falta de alvo. 603.3b: gatilhos nascidos na última conferência de estado do apply (:12816) só vão à pilha na ação seguinte.",
+   "evidencia": "flushTriggers (index.html:11812-11831) roda em todo apply antes da prioridade (:12814), jogador ativo primeiro; sonda sonda-6a-gatilhos.mjs B/C: com A ativo a pilha fica [A, B] e com B ativo [B, A] (o do não ativo resolve primeiro); controlador = quem controlava a fonte ao disparar (fromController :10309); rules.unit \"M10 · dois gatilhos ao mesmo tempo: o controlador escolhe a ordem\", \"S15 · gatilho com alvo: a mesa pergunta qual, e sem alvo legal o gatilho some\", \"S56 · gatilho com modos\" · CR2b.4 (motor v82): 603.3d — gatilho com vários alvos: putTriggerOnStack escolhe um alvo por efeito, em ordem, todos diferentes, antes de a habilidade ir à pilha; CR1b: 603.3c descarta modo sem alvo; teste de conformidade em cr.conformidade",
+   "falta": "\"Até N alvos\" em gatilho some se não houver alvo (603.3d, alvo opcional). 603.3b: gatilhos nascidos na última conferência de estado do apply só vão à pilha na ação seguinte.",
    "esforco": "M",
    "depende": [
     "601.2c"
+   ],
+   "testes": [
+    "CR 603.3 · gatilho com dois alvos: cada alvo é escolhido ao pôr a habilidade na pilha, e cada efeito age no seu (603.3d)"
    ]
   },
   {

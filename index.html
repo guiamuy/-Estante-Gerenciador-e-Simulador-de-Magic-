@@ -4891,7 +4891,9 @@ const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equ
 
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
   // CR2b.3 · recebe dano (ela mesma); a permanente anexada morre / morre ou é exilada (Equipamento e Aura olham para trás)
-  'dealt-damage', 'attached-dies', 'attached-dies-or-exiled'];
+  'dealt-damage', 'attached-dies', 'attached-dies-or-exiled',
+  // CR2b.4 · a criatura encantada causa dano a um oponente (de quem controla a Aura); você descarta uma carta
+  'enchanted-damages-opponent', 'you-discard'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control']; // Q11 · Setessan Training
@@ -4908,7 +4910,7 @@ const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
-  'combat-damage': 'quando causa dano de combate a um jogador', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
+  'combat-damage': 'quando causa dano de combate a um jogador', 'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
@@ -4925,7 +4927,6 @@ function validateScript(sc) {
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
-    if (ab.kind === 'triggered' && (ab.effects || []).filter(isTargeted).length > 1) errs.push(`${tag}: gatilho com mais de um alvo ainda não entra`);
     if (ab.kind === 'activated') {
       const cost = ab.cost || {};
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
@@ -5521,6 +5522,12 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['creature'] } }, effects: [{ do: 'gain', amount: { per: 'sacrificed-toughness' } }] },
     { kind: 'activated', cost: { mana: '{1}{W}{B}', sacrificeOther: { types: ['creature'] } }, onlyIfLifeOverStart: 10, effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { attached: false } } },
+  // CR2b.4 · texto oficial em .listas/oficiais.json e oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Curiosity', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'enchanted-damages-opponent', optional: true, effects: [{ do: 'draw', amount: 1 }] }],
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  { name: 'Glint-Horn Buccaneer', abilities: [{ kind: 'triggered', when: 'you-discard', effects: [{ do: 'damage', amount: 1, target: 'each-opponent' }] },
+    { kind: 'activated', cost: { mana: '{1}{R}', discard: 1 }, onlyIfAttacking: true, effects: [{ do: 'draw', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Makeshift Munitions', abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['artifact', 'creature'] } },
     effects: [{ do: 'damage', amount: 1, target: 'any' }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { opponentLife: -1 } } },
@@ -10962,7 +10969,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 81;
+const ENGINE_VERSION = 82;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11343,6 +11350,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     if (((s.facts[o.name].script || {}).choose) === 'color' && !o.chosenColor) s.queuedChoices = (s.queuedChoices || []).concat([{ oid, p: o.controller, kind: 'color' }]);
     queueTriggers(s, 'etb', [o]);
   }
+  if (fromZone === 'hand' && to === 'graveyard') noteDiscard(s, o.owner); // CR2b.4 · da mão para o cemitério é descarte
   if (fromZone === 'battlefield' && to === 'graveyard') queueTriggers(s, 'dies', [o], fromController);
   // CR2b.3 · 603.10a: o Equipamento ou a Aura que estava nela vê a saída (o anexo só se solta na próxima checagem de estado)
   if (fromZone === 'battlefield' && (to === 'graveyard' || to === 'exile')) {
@@ -11708,10 +11716,15 @@ const madnessOf = (s, o) => (s.facts[o.name].script || {}).madness;
 /** Leva 105 · 702.35a: descartar uma carta com insanidade a exila e o dono decide se conjura. Descarte que
  * acontece no meio de outra ação (custo, escolha de Duress) entra numa fila; a decisão aparece assim que a
  * ação termina (apply). Antes esses descartes iam direto para o cemitério. */
+/** CR2b.4 · "Whenever you discard a card": avisa as permanentes de quem descartou. */
+function noteDiscard(s, p) {
+  for (const w of battlefield(s)) if (w.controller === p) for (const ab of abilitiesOf(s, w)) if (ab.kind === 'triggered' && ab.when === 'you-discard')
+    s.queued.push({ source: w.oid, name: w.name, controller: p, effects: ab.effects, when: ab.when, ...(ab.optional ? { optional: true } : {}) });
+}
 function descartaCarta(s, oid) {
   const o = s.objects[oid]; const md = madnessOf(s, o);
   if (!md) { moveObject(s, oid, 'graveyard'); return; }
-  moveObject(s, oid, 'exile');
+  moveObject(s, oid, 'exile'); noteDiscard(s, o.owner); // com insanidade a carta vai ao exílio, mas foi descartada
   (s.filaInsanidade = s.filaInsanidade || []).push({ p: o.owner, oid, cost: md.mana });
 }
 function abreInsanidadeDaFila(s) {
@@ -11885,7 +11898,7 @@ function dealCombatDamage(s) {
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
       if (has(s, src, 'lifelink')) { s.players[src.controller].life += amt; s.players[src.controller].lifeGained = (s.players[src.controller].lifeGained || 0) + amt; }
-      noteEnchantedDealt(s, src, amt); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
+      noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
       if (player != null && !obj) queueTriggers(s, 'combat-damage', [src]); // S18 · dano de combate ao jogador
     }
     for (const [src] of hits) src.struck = true;
@@ -12201,14 +12214,14 @@ function applyEffect(s, src, eff, tgt, events) {
         // Leva 105 · a prevenção (Prismatic Strands, Hallow) vale também para o dano a cada oponente
         if (eff.target === 'each-opponent') {
           const bloqueado = colorPrevented(s, src);
-          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { pl.life -= n; causouDano(s, src, n); } });
+          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { pl.life -= n; causouDano(s, src, n, i); } });
           note({ amount: n, ...(bloqueado ? { prevented: true } : {}) }); break;
         }
         if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protegeDoDano(s, obj, src)))) { ganhaVida(n); note({ amount: n, prevented: true }); break; }
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; }
         if (obj && n > 0) { obj.damage += n; noteEnchantedEvent(s, obj); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
         else s.players[playerOf()].life -= n;
-        causouDano(s, src, n); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
+        causouDano(s, src, n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
         note({ amount: n }); } break;
     case 'destroy': {
       const alvoD = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // Leva 108 · Cryoshatter sem alvo
@@ -12670,17 +12683,19 @@ function resumeEffects(s, events) {
 /** Leva 106 · a proteção previne dano (702.16e), e "Damage can't be prevented" (Flaring Pain) vale para ela também. */
 const protegeDoDano = (s, o, src) => !s.noPrevention && protectedFrom(s, o, src);
 /** Leva 106 · uma fonte causou dano fora do combate: vínculo com a vida (702.15b) e auras que observam o dano. */
-function causouDano(s, src, n) {
+function causouDano(s, src, n, aJogador = null) {
   const fonte = src && src.ability ? s.objects[src.source] : src;
   if (!fonte || !(n > 0)) return;
   if (has(s, fonte, 'lifelink')) { const c = fonte.controller; s.players[c].life += n; s.players[c].lifeGained = (s.players[c].lifeGained || 0) + n; }
-  if (fonte.zone === 'battlefield') noteEnchantedDealt(s, fonte, n);
+  if (fonte.zone === 'battlefield') noteEnchantedDealt(s, fonte, n, aJogador);
 }
-function noteEnchantedDealt(s, host, amount) {
+function noteEnchantedDealt(s, host, amount, aJogador = null) {
+  if (!(amount > 0)) return;
   for (const x of attachedTo(s, host)) {
     for (const ab of abilitiesOf(s, x)) {
-      if (ab.kind !== 'triggered' || ab.when !== 'enchanted-deals-damage') continue;
-      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when, value: amount });
+      // CR2b.4 · "to an opponent" é oponente de quem controla a Aura, e só dano em jogador (Curiosity)
+      if (ab.kind !== 'triggered' || !(ab.when === 'enchanted-deals-damage' || (ab.when === 'enchanted-damages-opponent' && aJogador != null && aJogador !== x.controller))) continue;
+      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when, value: amount, ...(ab.optional ? { optional: true } : {}) });
     }
   }
 }
@@ -13004,20 +13019,22 @@ function putTriggerOnStack(s, q, events) {
     s.pending = { kind: 'choose_mode', p: q.controller, trigger: q, options: q.modes.map(m => m.label || 'opção'), legais, name: q.name };
     return false;
   }
-  if (q.cost) { // S32 · gatilho com custo opcional: sem como pagar, ele não acontece
+  if (q.cost && !q.custoPago) { // S32 · gatilho com custo opcional: sem como pagar, ele não acontece
     if (!canPayExtra(s, q.controller, q.cost, q.source)) { events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; }
     payExtraCosts(s, q.controller, q.cost, null, q.source);
+    q = { ...q, custoPago: true };
   }
+  // CR 603.3d · um alvo por efeito com alvo, escolhidos em ordem antes de a habilidade ir à pilha (q.alvos guarda os já escolhidos)
   const targeted = (q.effects || []).filter(SC.isTargeted);
-  let targets = [];
-  if (targeted.length) {
-    const eff = targeted[0];
-    const src = s.objects[q.source] || { controller: q.controller };
+  let targets = (q.alvos || []).slice();
+  const src = s.objects[q.source] || { controller: q.controller };
+  for (let i = targets.length; i < targeted.length; i++) {
+    const eff = targeted[i];
     const opts = legalTargets(s, q.controller, eff.target, q.source, eff.targetColor)
-      .filter(x => targetAllowed(s, eff, x, src));
+      .filter(x => targetAllowed(s, eff, x, src) && !targets.some(y => y && sameChoice(x, y))); // 601.2c: alvos diferentes
     if (!opts.length) { events.push({ kind: 'trigger-fizzled', name: q.name, when: q.when }); return false; }
-    if (opts.length > 1) { s.pending = { kind: 'pick_target', p: q.controller, trigger: q, options: opts, name: q.name }; return false; }
-    targets = [opts[0]];
+    if (opts.length > 1) { s.pending = { kind: 'pick_target', p: q.controller, trigger: { ...q, alvos: targets }, options: opts, name: q.name, ...(targeted.length > 1 ? { qual: i + 1, de: targeted.length } : {}) }; return false; }
+    targets.push(opts[0]);
   }
   const oid = makeAbility(s, { oid: q.source, name: q.name, controller: q.controller }, { effects: q.effects }, targets);
   marcasDoGatilho(s, q, oid);
@@ -13173,6 +13190,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (!canPayExtra(s, p, cost, source.oid)) return false;
   if (ab.oncePerTurn && source.usedThisTurn) return false;
   if (ab.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, p, ab.onlyIfLifeOverStart)) return false; // CR 602.5 · "Activate only if…"
+  if (ab.onlyIfAttacking && source.attacking == null) return false; // "Activate only if this creature is attacking"
   if (cost.life && s.players[p].life < cost.life) return false;
   return !(cost.mana && s.manaCheck) || canPay(s, p, parseCost(cost.mana));
 };
@@ -13597,6 +13615,7 @@ const HANDLERS = {
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, o)) throw new RuleError('alvo', 'alvo ilegal'); });
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     if (base.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, a.p, base.onlyIfLifeOverStart)) throw new RuleError('vida', `só ativa com pelo menos ${base.onlyIfLifeOverStart} de vida acima da inicial`);
+    if (base.onlyIfAttacking && o.attacking == null) throw new RuleError('tempo', 'só ativa enquanto esta criatura está atacando');
     delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
@@ -13737,9 +13756,7 @@ const HANDLERS = {
     const tgt = pk.options[a.index || 0];
     if (!tgt) throw new RuleError('alvo', 'alvo inválido');
     s.pending = null;
-    const oid = makeAbility(s, { oid: pk.trigger.source, name: pk.trigger.name, controller: pk.p }, { effects: pk.trigger.effects }, [tgt]);
-    marcasDoGatilho(s, pk.trigger, oid);
-    ev.push({ kind: 'trigger', name: pk.trigger.name, when: pk.trigger.when, oid });
+    putTriggerOnStack(s, { ...pk.trigger, alvos: [...(pk.trigger.alvos || []), tgt] }, ev); // CR 603.3d · pode haver outro alvo a escolher
   },
   /** S13/S14 · escolhe uma carta da lista revelada. */
   pick(s, a, ev) {
@@ -13961,7 +13978,7 @@ const HANDLERS = {
     }
     // S18 · insanidade: a carta descartada vai para o exílio e o dono decide
     if (madness) {
-      moveObject(s, o.oid, 'exile');
+      moveObject(s, o.oid, 'exile'); noteDiscard(s, a.p);
       s.pendingAfterMadness = after;
       s.pending = { kind: 'madness', p: a.p, oid: o.oid, cost: madness.mana };
       return;
@@ -19014,7 +19031,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           Button('Não emparelhar', { id: 'tb-choose-pair-no', onClick: () => act({ t: 'choose_pair', p: v, decline: true }) })] });
     } else if (s.pending && s.pending.kind === 'pick_target' && s.pending.p === v) {
       const fazO = T.descreveEfeitos((s.pending.trigger || {}).effects); // Leva 125 · o que o gatilho vai fazer no alvo
-      banner = PriorityBanner({ title: `${s.pending.name}: escolha o alvo`, hint: (fazO ? `O gatilho faz: ${fazO}.` : 'Escolha onde o efeito vai.') + (s.pending.options.some(x => x.oid != null && s.objects[x.oid].zone === 'battlefield') ? ' Toque na carta ou escolha aqui.' : ''), tone: 'warning',
+      banner = PriorityBanner({ title: `${s.pending.name}: escolha o ${s.pending.de ? `${s.pending.qual}º alvo (de ${s.pending.de})` : 'alvo'}`, hint: (fazO ? `O gatilho faz: ${fazO}.` : 'Escolha onde o efeito vai.') + (s.pending.options.some(x => x.oid != null && s.objects[x.oid].zone === 'battlefield') ? ' Toque na carta ou escolha aqui.' : ''), tone: 'warning',
         // Leva 125 · nenhum alvo vem como "o principal": com o Bojuka Bog o botão dourado era "Você" (exilar o próprio cemitério)
         // Leva 131 · antes só os seis primeiros alvos tinham botão (o sétimo não podia ser escolhido) e cópias iguais
         // repetiam o mesmo nome. Agora: um botão por alvo diferente, dizendo de quem é quando o nome repete; passou de

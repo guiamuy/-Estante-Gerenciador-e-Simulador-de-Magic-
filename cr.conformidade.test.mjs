@@ -22,6 +22,7 @@ const INVENTADAS = {
   Helice: c('Helice', 'Instant', '{0}', { colors: ['R', 'W'] }), Lenda: c('Lenda', 'Legendary Creature — Hero', '{W}', { power: '2', toughness: '2' }), 'Lenda Eterna': c('Lenda Eterna', 'Legendary Creature — God', '{W}', { power: '2', toughness: '2', keywords: ['Indestructible'] }),
   Porrete: c('Porrete', 'Artifact — Equipment', '{1}'),
   Promessa: c('Promessa', 'Instant', '{0}'),
+  Bifronte: c('Bifronte', 'Creature — Giant', '{0}', { power: '1', toughness: '1' }),
   Emprestimo: c('Emprestimo', 'Instant', '{0}'), 'Grito de Guerra': c('Grito de Guerra', 'Instant', '{0}'), Manticora: c('Manticora', 'Creature — Manticore', '{0}', { power: '2', toughness: '2' }),
   'Helice Lenta': c('Helice Lenta', 'Instant', '{0}', { colors: ['R', 'W'] }),
   Carpideira: c('Carpideira', 'Creature — Cleric', '{B}', { power: '1', toughness: '1' }), Mortico: c('Mortico', 'Creature — Spirit', '{B}', { power: '2', toughness: '2' }),
@@ -48,6 +49,7 @@ const SCRIPTS = {
   Emprestimo: { name: 'Emprestimo', effects: [{ do: 'pump', power: 1, toughness: 0, target: 'creature' }, { do: 'delayed', when: 'next-end-step', target: 'first-target', effects: [{ do: 'bounce', target: 'delayed-object' }] }], example: { target: 'own-creature', expect: { pump: [1, 0] } } },
   'Grito de Guerra': { name: 'Grito de Guerra', effects: [{ do: 'delayed', when: 'end-of-combat', effects: [{ do: 'gain', amount: 2 }] }], example: { target: 'none', expect: { selfLife: 0 } } },
   Manticora: { name: 'Manticora', abilities: [{ kind: 'triggered', when: 'etb', mayPay: { mana: '{1}' }, effects: [{ do: 'reflexive', effects: [{ do: 'damage', amount: 2, target: 'any' }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Bifronte: { name: 'Bifronte', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'creature' }, { do: 'damage', amount: 2, target: 'any' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Promessa: { name: 'Promessa', effects: [{ do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 1 }] }], example: { target: 'none', expect: { handDelta: 0 } } },
   Porrete: { name: 'Porrete', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 3] } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
@@ -318,4 +320,13 @@ test('CR 603.12 · gatilho reflexivo: "você pode pagar; quando fizer, cause 2 d
   // sem pagar, não há segunda habilidade
   let t = mesa(['Manticora'], ['Urso']), m2; [t, m2] = poe(t, 0, 'Manticora', 'hand'); t = comMana(t, 'C'); t = act(t, conj(t, m2)[0]); for (let k = 0; k < 8 && !t.pending; k++) t = act(t, { t: 'pass', p: t.turn.priority });
   t = act(t, { t: 'decline', p: 0 }); assert.equal(t.pending, null); assert.equal(t.stack.length, 0);
+});
+
+test('CR 603.3 · gatilho com dois alvos: cada alvo é escolhido ao pôr a habilidade na pilha, e cada efeito age no seu (603.3d)', () => {
+  let s = mesa(['Bifronte'], ['Urso', 'Grande']), b, u, g; [s, b] = poe(s, 0, 'Bifronte', 'hand'); [s, u] = poe(s, 1, 'Urso'); [s, g] = poe(s, 1, 'Grande');
+  s = act(s, conj(s, b)[0]); for (let i = 0; i < 8 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.pending.kind, 'pick_target'); s = act(s, { t: 'pick_target', p: 0, index: s.pending.options.findIndex(o => o.oid === g) });
+  assert.equal(s.pending.kind, 'pick_target', 'segundo alvo'); assert.equal(s.stack.length, 0, 'só vai à pilha com os dois escolhidos');
+  s = act(s, { t: 'pick_target', p: 0, index: s.pending.options.findIndex(o => o.oid === u) }); assert.equal(s.stack.length, 1); assert.deepEqual(J(s.objects[s.stack[0]].targets.map(x => x.oid)), [g, u]);
+  s = tudo(s); assert.equal(s.objects[g].tapped, true, 'o primeiro efeito virou o primeiro alvo'); assert.equal(s.objects[u].zone, 'graveyard', 'o segundo causou 2 de dano no segundo alvo');
 });

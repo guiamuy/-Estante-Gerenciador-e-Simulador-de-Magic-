@@ -259,3 +259,25 @@ test('CR2b.3 · Angelic Renewal: criatura sua vai do campo para o seu cemitério
   { let s = mesa(['Angelic Renewal'], ['Faerie Seer']), r, f; [s, r] = poe(s, 0, 'Angelic Renewal'); [s, f] = poe(s, 1, 'Faerie Seer'); s = J(s); s.objects[f].damage = 5; s = act(s, { t: 'pass', p: 0 });
     assert.equal(s.pending, null, 'criatura do oponente não dispara'); assert.equal(s.stack.length, 0); }
 });
+
+// ---------------------------------------------------------------- CR2b.4
+test('CR2b.4 · Curiosity: "Whenever enchanted creature deals damage to an opponent, you may draw a card" — dano a oponente (de combate ou não), não a criatura', () => {
+  let s = mesa(['Curiosity', 'Faerie Seer'], ['Zulaport Cutthroat']), c, f; [s, c] = poe(s, 0, 'Curiosity'); [s, f] = poe(s, 0, 'Faerie Seer'); s = anexa(s, c, f); [s] = poe(s, 1, 'Zulaport Cutthroat');
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: [f] });
+  s = passaAte(s, x => x.pending && x.pending.kind === 'blockers'); s = act(s, { t: 'block', p: 1, blocks: [] }); s = ateDecisao(passaAte(s, x => x.players[1].life === 19));
+  assert.equal(s.pending.kind, 'may_pay', '"you may draw"'); assert.equal(s.pending.p, 0); const mao = s.zones[0].hand.length; s = act(s, { t: 'pay', p: 0 }); assert.equal(s.zones[0].hand.length, mao + 1);
+  // bloqueada: o dano vai na criatura, não no oponente — não dispara
+  let t = mesa(['Curiosity', 'Faerie Seer'], ['Faerie Seer']), c2, f2, b2; [t, c2] = poe(t, 0, 'Curiosity'); [t, f2] = poe(t, 0, 'Faerie Seer'); t = anexa(t, c2, f2); [t, b2] = poe(t, 1, 'Faerie Seer');
+  t = passaAte(t, x => x.pending && x.pending.kind === 'attackers'); t = act(t, { t: 'attack', p: 0, attackers: [f2] }); t = passaAte(t, x => x.pending && x.pending.kind === 'blockers'); t = act(t, { t: 'block', p: 1, blocks: [[b2, f2]] });
+  t = passaAte(t, x => x.turn.step === 'main2' || !!x.pending); assert.equal(t.pending, null, 'dano em criatura não dispara'); assert.equal(t.players[1].life, 20);
+});
+
+test('CR2b.4 · Glint-Horn Buccaneer: ímpeto; cada descarte seu causa 1 de dano a cada oponente; "{1}{R}, Discard a card: Draw a card" só enquanto ataca', () => {
+  let s = mesa(['Glint-Horn Buccaneer', 'Faerie Seer']), g, d; [s, g] = poe(s, 0, 'Glint-Horn Buccaneer', 'battlefield', { sick: true }); [s, d] = poe(s, 0, 'Faerie Seer', 'hand'); s = comMana(s, 'CR');
+  assert.equal(s.facts['Glint-Horn Buccaneer'].kw.includes('haste'), true, 'Haste');
+  assert.equal(legais(s, 0, x => x.t === 'activate' && x.oid === g).length, 0, 'fora do ataque não ativa'); assert.throws(() => act(s, { t: 'activate', p: 0, oid: g, index: 0, pay: { discard: [d] } }), /atacando/);
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: [g] }); s = comMana(s, 'CR');
+  const hab = legais(s, 0, x => x.t === 'activate' && x.oid === g && x.pay && x.pay.discard.includes(d)); assert.ok(hab.length >= 1, 'atacando, ativa'); const mao = s.zones[0].hand.length;
+  s = act(s, hab[0]); assert.equal(s.objects[d].zone, 'graveyard', 'descartou como custo'); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 });
+  assert.equal(s.players[1].life, 19, 'o descarte causou 1 de dano ao oponente'); assert.equal(s.zones[0].hand.length, mao - 1 + 1, 'Draw a card');
+});

@@ -163,7 +163,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | Q · Qualidade e publicação | Q14 portão em duas fases, segunda chance para teste de tela instável e publicar que interrompe quando o main anda (leva M-212) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.2 gatilho atrasado no passo final e no fim do combate, preso a um objeto (603.7c), e gatilho reflexivo (603.12 coberta); leva M-213, motor v80 | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilhos com mais de um alvo (603.3d), gatilhos de passo que faltam (passo final, início do combate, manutenção de qualquer jogador) e "sempre que um oponente conjura/descarta", com as cartas que destravarem | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24) e "sempre que um oponente conjurar… a menos que ele pague" (Mystic Remora); gatilhos de passo que faltam (passo final, início do combate, manutenção de qualquer jogador) | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2764,6 +2765,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** triagem 83 prontas · 9 A · 56 B · 16 C.
 - **Golden:** regravadas (80 → 81); registros conferidos na entrega.
 - **Fora:** quando existir "destruir todas", a varredura precisa sair em lote para a Aura ver a saída junto com a permanente (anotado na triagem do Kaya's Ghostform); gatilhos com mais de um alvo.
+
+**CR2b.4 · Vários alvos num gatilho, descarte e dano a oponente** 🟡 (leva M-215, motor v82) — 1 teste de conformidade e 2 de carta, todos falhavam antes.
+- **603.3d** gatilho com mais de um alvo: cada alvo é escolhido em ordem (a mesa diz "1º alvo (de 2)"), todos diferentes, e a habilidade só vai à pilha com todos escolhidos. O validador deixou de recusar esses scripts.
+- **603.2** "sempre que você descartar uma carta" (vale descarte por efeito, como custo, reciclar e insanidade) e "sempre que a criatura encantada causar dano a um oponente" (só dano em jogador; oponente é o de quem controla a Aura). **602.5** "ative somente se esta criatura estiver atacando".
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026, completas:** **Curiosity** (antes manual) e **Glint-Horn Buccaneer**.
+- **Medição:** triagem 85 prontas · 9 A · 54 B · 16 C.
+- **Golden:** regravadas (81 → 82); registros conferidos na entrega.
+- **Fora:** "até N alvos" opcional em gatilho; Mystic Remora (pede manutenção cumulativa e "a menos que aquele jogador pague").
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
