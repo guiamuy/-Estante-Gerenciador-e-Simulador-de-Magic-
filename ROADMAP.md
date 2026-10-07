@@ -457,7 +457,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-br ✅ | J6 botão de ação: componente `BotaoDeAcao`, Listas (Nova lista, Prontas) e Coleção (Escanear, Adicionar, Colar lista); o bot joga com a arte padrão (leva 208) | J | 1 | teste no aparelho |
 | 16º-bs ✅ | J7 botão de ação na Lista (Jogar, Editar, Exportar; Jogar abre o preparo com a lista escolhida) e em Partidas (Jogar); Início, Cartas e Jogar sem botão, com o motivo (leva G-209) | J | 1 | teste no aparelho |
 | 16º-bt ✅ | N1 coletor de notícias: `noticias.mjs` lê seis fontes (RSS e Atom), normaliza, tira repetidos, guarda 30 dias em páginas de 20; fluxo agendado de hora em hora publica no ramo `noticias` (leva G-210) | N | 1 | primeira coleta conferida no ramo |
-| 16º-bu ○ | N2 tela Notícias com rolagem infinita e estados desenhados | N | 1 | — |
+| 16º-bu ✅ | N2 tela Notícias: linha do tempo com destaque, rolagem infinita e estados desenhados; idioma por bandeiras (português, inglês ou os dois); duas fontes em português no coletor, com capa buscada na página (leva G-211) | N | 1 | teste no aparelho |
 | 16º-bv ○ | N3 filtros por fonte e tema, novas, atualizar | N | 1 | — |
 | 16º-bw ○ | N4 guardar e compartilhar notícia | N | 1 | — |
 | 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
@@ -5817,10 +5817,20 @@ fonte) e um resumo de até 280 caracteres; **o texto completo abre no site da fo
 | Card Kingdom | `blog.cardkingdom.com/feed/` | RSS | capa dentro do resumo |
 | Hipsters of the Coast | `hipstersofthecoast.com/feed/` | RSS | publica também D&D: filtrado |
 | MTG Arena Zone | `mtgazone.com/feed/` | RSS | tema fixo Arena |
+| **Cards Realm** (português) | `mtg.cardsrealm.com/pt-br/pt/feed.rss` | RSS | cerca de 12 matérias por semana, só Magic; o feed não manda capa nem autor: a capa vem da página (og:image) |
+| **O Vício** (português) | `ovicio.com.br/tag/magic-the-gathering/feed/` | RSS | portal geral, só a etiqueta de Magic; cerca de uma matéria por mês; com capa e autor |
 
-**Ficaram fora (sem feed público localizável em 07/10/2026):** Wizards of the Coast (o endereço antigo de RSS
-responde 404), Cards Realm e LigaMagic (português). **Não há fonte em português por enquanto**; entra quando houver
-um feed conferido. Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
+**Pesquisa de fontes em português (07/10/2026, mais de 60 candidatos conferidos um a um):** o que existe em
+português com feed público, vivo e de Magic são as duas da tabela. O resto:
+- **Sem feed ou bloqueado para leitura automática:** LigaMagic (403 em tudo; só entraria com acordo), Wizards em
+  pt-BR (página de notícias ativa, sem feed), Bazar de Bagdá, Magic Domain, MTG Brasil, Epic Game, Mana Fix (403),
+  Iluro (sem feed), Eternal Magic (laço de redirecionamento).
+- **Feed existe, mas o site proíbe a coleta:** Deck Certo (o `robots.txt` veda reuso automático sem permissão).
+- **Feed de etiqueta de Magic parado há mais de 60 dias:** Mox Land (jul/2026, reavaliar se voltar), Diviny Games,
+  Critical Hits, Olhar Digital, Adrenaline, MeuPlayStation, PróximoNível, Salão de Jogos, e outros mortos há anos.
+- **Não conferidos (bloqueados para a ferramenta de pesquisa):** boletins no Substack, IGN Brasil, Tecmundo,
+  The Enemy, Google Notícias. Ficam como candidatos.
+Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
 
 **N1 · Coletor de notícias** ✅ (leva G-210, 07/10/2026)
 - **Valor:** as notícias chegam sozinhas, de várias fontes, numa linha do tempo só.
@@ -5851,21 +5861,44 @@ um feed conferido. Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
 - **Depende de:** ADR-08 aceito. · **Trilha:** `geral`, com um arquivo de fluxo novo — **aviso à trilha `infra`:**
   `noticias.yml` é independente do Portão de release e só escreve no ramo `noticias`.
 
-**N2 · Tela Notícias** ○
-- **Valor:** saber o que está acontecendo no Magic sem sair do app.
-- **Aceite:** rota `/noticias`, com entrada na tela inicial e na navegação (medir se cabe em 360 px; se não
-  couber, entra pela Início e pelo botão de ação). Linha do tempo em uma coluna: cartão com capa 16:9 (moldura
-  reservada, nada pula ao carregar), selo da fonte, tempo relativo ("há 3 h"), título em serifada (até três linhas)
-  e resumo (até duas). A primeira notícia é o destaque; as demais alternam cartão cheio e linha compacta com
-  miniatura. **Rolagem infinita** por lotes (a página seguinte é buscada antes do fim; esqueleto enquanto chega;
-  "Você está em dia" no fim). Tocar abre a matéria no navegador. Títulos ficam no idioma da fonte (`lang`).
-- **Estados:** carregando (esqueleto); **sem internet** e **sem notícias**: tela estática desenhada (ilustração em
-  traço do conjunto do app, uma linha dizendo o que houve e o que funciona, botão de tentar de novo); erro de uma
-  página no meio da rolagem com "Tentar de novo" ali mesmo; imagem que falha vira capa em traço com o selo da fonte.
-- **Testes:** U (modelo puro: tempo relativo, lote seguinte, junção de páginas sem repetir); e2e com páginas
-  falsas (três lotes, fim, erro no meio, sem internet, vazio, volta da matéria no mesmo ponto da rolagem,
-  `auditaTela` nas quatro larguras e dois temas, 60 cartões sem travar).
-- **Depende de:** N1, J4. · **Estimativa:** 1 a 2 levas.
+**N2 · Tela Notícias** ✅ (leva G-211, 07/10/2026)
+- **Valor:** saber o que está acontecendo no Magic sem sair do app, no idioma que eu leio.
+- **Entregue · tela:** rota `/noticias`, com entrada pela Início (atalho largo "Notícias", no fim). Linha do tempo em
+  uma coluna: a primeira notícia é o **destaque** (capa 16:9 com moldura reservada — nada pula quando a imagem
+  chega —, fonte, tempo relativo, título em serifada até três linhas, resumo até duas); a cada seis, uma notícia com
+  capa ganha o cartão cheio; as demais são linhas compactas com miniatura (sem capa, a linha é só texto). Tocar abre
+  a matéria no navegador, em outra aba. Título e resumo ficam no idioma da fonte (`lang`).
+- **Entregue · rolagem infinita:** a página seguinte é pedida uma tela e meia antes do fim; esqueleto enquanto
+  chega; o que já está na tela não é redesenhado; "Você está em dia" no fim. Erro no meio: aviso ali mesmo, com
+  "Tentar de novo", e o que já chegou continua.
+- **Entregue · idioma por bandeiras (pedido de 07/10/2026):** dois botões de 44 px no topo, **Português** (bandeira
+  do Brasil) e **English** (bandeira dos Estados Unidos), ligados ou desligados cada um — dá para ler só em
+  português, só em inglês ou os dois (padrão). O último ligado não desliga, e a tela diz. A escolha fica no aparelho
+  (`noticias.idiomas`, vai no backup). Com os dois ligados, cada notícia leva a bandeirinha do idioma. As bandeiras
+  são desenho do conjunto do app (componente `Bandeira`, no `/ds`), em cores por token, nunca emoji.
+- **Entregue · coletor:** duas fontes em português (tabela acima); **séries por idioma** (`pt-pagina-N.json`,
+  `en-pagina-N.json`, e `idiomas` no índice) para quem lê num idioma só não atravessar as páginas do outro; **capa
+  pela página** para a fonte que não a manda no feed (og:image, até 15 matérias por coleta, uma vez por notícia);
+  temas com as palavras em português; notícia de Magic que cita outro jogo no título fica.
+- **Estados:** carregando (esqueleto); **sem internet**, **notícias fora do ar** e **nada publicado**: tela parada
+  desenhada (ícone em traço, uma linha dizendo o que houve e o que funciona, "Tentar de novo"); a internet voltando,
+  as notícias chegam sozinhas; capa que falha vira capa em traço no mesmo espaço.
+- **Segurança:** o que vem do ramo é tratado como dado: só entra notícia com endereço `http(s)`, capa só `https`,
+  título e resumo são escritos como texto (HTML não vira elemento), a matéria abre com `noopener noreferrer` e a
+  imagem é pedida sem informar de onde (`no-referrer`).
+- **Divergências do planejado:** sem entrada na barra de navegação (em 360 px ela já está cheia; entra pela
+  Início); "alternar cartão cheio e linha" virou "um cartão cheio a cada seis" (mais notícia por tela); "voltar à
+  tela no mesmo ponto da rolagem" fica na N3, com as novas e o atualizar.
+- **Limites declarados:** nada é guardado para ler sem internet (a N4 guarda título e endereço); em português há
+  hoje cerca de 12 matérias por semana, quase todas de uma fonte só; a bandeira dos Estados Unidos é simplificada
+  (sete faixas, oito pontos) para caber em 21×14 px.
+- **Testes:** U `noticias.unit` (português, séries por idioma, capa pela página com teto e sem repetir pedido);
+  U `noticias.tela.unit` (idiomas, série a ler, tempo relativo, junção de páginas, forma, serviço); e2e "N2" com o
+  ramo de mentira (entrada, destaque, capa 16:9, capa que falha, endereço perigoso e HTML no título, três páginas
+  até o fim sem repetir, só português pela série própria com o botão no lugar, último idioma não desliga, escolha
+  guardada, erro no meio, índice antigo, sem internet e volta, falha, vazio; `auditaTela` nas quatro larguras, dois
+  temas e fonte larga; sem emoji).
+- **Depende de:** N1, J4.
 
 **N3 · Ler do seu jeito** ○
 - **Valor:** ver só o que interessa e não perder o ponto.

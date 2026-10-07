@@ -91,6 +91,8 @@
   --tap-min: 44px;
 
   /* ---- cor das manas: constante entre temas, é identidade de Magic ---- */
+  /* N2 · bandeiras do seletor de idioma: cores da própria bandeira, as mesmas nos dois temas */
+  --bandeira-verde: #1f9a4c; --bandeira-amarelo: #f6cf2f; --bandeira-azul: #23408f; --bandeira-vermelho: #c0343f; --bandeira-branco: #f4f1ea;
   --mana-w: #f5e6c8;
   --mana-u: #4a7fb5;
   --mana-b: #4b4453;
@@ -1020,6 +1022,33 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .ds-fab__item.ds-btn { animation: none; } .ds-fab__principal .ds-icon { transition: none; } }
 :root[data-movimento="reduzido"] .ds-fab__item.ds-btn { animation: none !important; }
 #outlet:has(.ds-fab) { padding-bottom: calc(56px + var(--space-6)); }
+/* N2 · bandeira (ícone do conjunto, em cores da bandeira) e a linha do tempo de notícias */
+.ds-bandeira { display: inline-flex; flex: none; line-height: 0; border-radius: var(--radius-1); overflow: hidden; box-shadow: 0 0 0 1px var(--border-strong); }
+.nt-idiomas { flex: 0 0 auto; align-self: stretch; }
+.nt-idiomas .ds-chip { gap: var(--space-2); }
+.nt-lista { display: flex; flex-direction: column; gap: var(--space-3); }
+.nt-cartao { display: flex; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-3); background: var(--bg-elev-1); color: var(--fg); text-decoration: none; transition: transform var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
+.nt-cartao:active { transform: scale(.99); border-color: var(--border-strong); }
+.nt-cartao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nt-cartao--destaque, .nt-cartao--cheio { flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
+.nt-cartao--destaque .nt-corpo, .nt-cartao--cheio .nt-corpo { padding: var(--space-3) var(--space-4) var(--space-4); }
+.nt-capa { position: relative; flex: none; display: grid; place-items: center; overflow: hidden; background: var(--bg-elev-3); color: var(--fg-subtle); }
+.nt-cartao--destaque .nt-capa, .nt-cartao--cheio .nt-capa { width: 100%; aspect-ratio: 16 / 9; }
+.nt-cartao--linha .nt-capa { order: 2; width: 96px; height: 72px; border-radius: var(--radius-2); }
+.nt-capa img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.nt-corpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.nt-meta { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
+.nt-fonte { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: .05em; }
+.nt-quando { flex: none; white-space: nowrap; }
+.nt-titulo { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--lh-lg); }
+.nt-cartao--destaque .nt-titulo { font-size: var(--text-xl); line-height: var(--lh-xl); }
+.nt-resumo { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg-muted); }
+.nt-pe { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-3); min-height: var(--tap-min); padding-top: var(--space-3); }
+.nt-pe > .ds-btn { align-self: center; }
+.nt-fim { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--tap-min); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.nt-sentinela { display: block; height: 1px; }
+@media (prefers-reduced-motion: reduce) { .nt-cartao { transition: none; } .nt-cartao:active { transform: none; } }
+:root[data-movimento="reduzido"] .nt-cartao { transition: none !important; } :root[data-movimento="reduzido"] .nt-cartao:active { transform: none !important; }
 /* J4 · carregamento com identidade: três cartas se arrumam na prateleira, uma depois da outra, e o ciclo recomeça.
    Três tamanhos: tela (a tela inteira espera), bloco (um trecho espera) e linha (ao lado de um texto curto). */
 .ds-carregando { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); text-align: center; }
@@ -2652,6 +2681,7 @@ const ICONES = {
   gema: '<path d="M7.5 4.5h9l4 5-8.5 10-8.5-10z"/><path d="M3.5 9.5h17"/><path d="M9.5 4.5 8 9.5l4 10 4-10-1.5-5"/>',
   ficha: '<rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M9 16h6"/>',
   trofeu: '<path d="M8 4.5h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5c0 2.6 1 4 2.9 4.4M16 6h2.5c0 2.6-1 4-2.9 4.4"/><path d="M12 13.5v3.5M8.5 20h7M10 17h4"/>', // I5 · histórico de partidas
+  jornal: '<path d="M5 5h11.5v12.5a1.5 1.5 0 0 0 3 0V9H16.5"/><path d="M5 5v12a2 2 0 0 0 2 2h11"/><path d="M8 9h5.5M8 12.5h5.5M8 16h3.5"/>', // N2 · notícias
   fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   editar: '<path d="M4.5 19.5l1-4.2L15.8 5a1.9 1.9 0 0 1 2.7 0l.5.5a1.9 1.9 0 0 1 0 2.7L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>',
   lixeira: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7"/><path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/><path d="M10.2 11v5.5M13.8 11v5.5"/>',
@@ -2992,6 +3022,17 @@ function BotaoDeAcao(acoes, { id = 'acao', rotulo = 'Ações' } = {}) {
   el.append(menu, principal);
   return reservaDoca(el);
 }
+/** N2 · bandeira de país, do conjunto do app (nunca emoji): desenho chapado, 3:2, com as cores da bandeira por token.
+    É enfeite de um rótulo que já diz o idioma: não tem nome falado. `tamanho` é a altura. */
+const BANDEIRAS = {
+  br: '<rect width="24" height="16" style="fill:var(--bandeira-verde)"/><path d="M12 2.2 21.2 8 12 13.8 2.8 8Z" style="fill:var(--bandeira-amarelo)"/><circle cx="12" cy="8" r="3.3" style="fill:var(--bandeira-azul)"/>',
+  us: '<rect width="24" height="16" style="fill:var(--bandeira-branco)"/><path d="M0 0h24v2.29H0zM0 4.57h24v2.29H0zM0 9.14h24v2.29H0zM0 13.71h24V16H0z" style="fill:var(--bandeira-vermelho)"/><rect width="10.5" height="9.14" style="fill:var(--bandeira-azul)"/><path d="M2.2 2.2h.01M5.25 2.2h.01M8.3 2.2h.01M3.7 4.6h.01M6.8 4.6h.01M2.2 7h.01M5.25 7h.01M8.3 7h.01" style="stroke:var(--bandeira-branco);stroke-width:1.1;stroke-linecap:round"/>',
+};
+function Bandeira(pais, { tamanho = 14 } = {}) {
+  const el = h('span', { class: 'ds-bandeira', 'aria-hidden': 'true', dataset: { bandeira: pais } });
+  el.innerHTML = `<svg viewBox="0 0 24 16" width="${Math.round(tamanho * 1.5)}" height="${tamanho}" focusable="false">${BANDEIRAS[pais] || ''}</svg>`;
+  return el;
+}
 /** J4 · a espera de uma lista com a forma da lista: `linhas` linhas de selo + dois traços. */
 function Esqueleto({ linhas = 4, id = null, fala = 'Carregando…' } = {}) {
   return h('div', { class: 'ds-esqueleto', id, role: 'status', 'aria-label': fala },
@@ -3138,7 +3179,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao, Bandeira };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -3465,6 +3506,8 @@ function renderDS() {
       // J6 · botão de ação: no catálogo ele aparece no canto da tela, como numa tela de verdade (uma ação e várias)
       Text('BotaoDeAcao: canto inferior direito desta tela — toque para abrir as ações', { size: 'sm', tone: 'muted', attrs: { id: 'ds-fab-nota' } }),
       __m3.BotaoDeAcao([{ icone: 'mais', rotulo: 'Nova lista', onClick: () => toast('Nova lista') }, { icone: 'caixa', rotulo: 'Prontas', onClick: () => toast('Prontas') }, { icone: 'scanner', rotulo: 'Escanear', onClick: () => toast('Escanear') }], { id: 'ds-fab', rotulo: 'Ações do catálogo' }),
+      // N2 · bandeiras do seletor de idioma
+      Row({ id: 'ds-bandeiras' }, __m3.Bandeira('br'), __m3.Bandeira('us'), __m3.Bandeira('br', { tamanho: 10 }), __m3.Bandeira('us', { tamanho: 10 }), Text('Bandeira: enfeite de um rótulo que já diz o idioma', { size: 'sm', tone: 'muted' })),
       Row({ id: 'ds-arte-de-espera' }, __m3.ArteDeEspera(), Text('ArteDeEspera: o desenho sozinho, dentro de uma arte que ainda não chegou', { size: 'sm', tone: 'muted' }))),
 
     Section('Sobreposições',
@@ -7236,7 +7279,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -8505,6 +8548,201 @@ function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRed
     } });
 }
 return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, cartaComEscolhas, valeArteDoUsuario, createTerrenos };
+})();
+
+/* ==== src/app/noticias.js ==== */
+const __m37 = (function () {
+/* =====================================================================
+   N2 · NOTÍCIAS
+   Linha do tempo de notícias de Magic. As páginas chegam prontas do ramo `noticias` do repositório (coletor
+   `noticias.mjs`, ADR-08): o app só lê JSON. Só com internet — nada aqui é guardado para depois, e a tela diz isso.
+   O que fica no aparelho é a escolha de idioma (`noticias.idiomas`, vai no backup).
+   O modelo (`N.*`) é puro e tem teste sem navegador; a tela só desenha.
+   ===================================================================== */
+const { h, mount, Stack, Row, Text, Button, Empty, Icone, Esqueleto, Bandeira, AvisoRede } = __m3;
+const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/noticias/';
+const CHAVE_IDIOMAS = 'noticias.idiomas';
+/** Idiomas das fontes: [código, nome na tela (no próprio idioma), bandeira, nome falado, `lang` do texto]. */
+const IDIOMAS = [['pt', 'Português', 'br', 'Notícias em português', 'pt-BR'], ['en', 'English', 'us', 'Notícias em inglês', 'en']];
+const CODIGOS = IDIOMAS.map(i => i[0]);
+const langDe = cod => (IDIOMAS.find(i => i[0] === cod) || [])[4] || 'en';
+
+/** A escolha guardada, limpa: só idiomas conhecidos, na ordem da tela; vazia ou estragada vira "os dois". */
+function idiomasValidos(v) { const s = new Set(Array.isArray(v) ? v : []); const out = CODIGOS.filter(c => s.has(c)); return out.length ? out : [...CODIGOS]; }
+/** Liga ou desliga um idioma. O último ligado não desliga: devolve a mesma lista (a tela avisa). */
+function alternaIdioma(atuais, cod) {
+  if (!CODIGOS.includes(cod)) return atuais;
+  if (!atuais.includes(cod)) return CODIGOS.filter(c => c === cod || atuais.includes(c));
+  return atuais.length > 1 ? atuais.filter(c => c !== cod) : atuais;
+}
+/** Que série de páginas ler: um idioma só usa a série dele (`pt-`), se o índice a tiver; senão a geral, filtrada aqui. */
+function planoDeLeitura(indice, idiomas) {
+  const um = idiomas.length === 1 ? idiomas[0] : null, doIdioma = um && indice && indice.idiomas && indice.idiomas[um];
+  if (doIdioma) return { prefixo: um + '-', paginas: doIdioma.paginas | 0, total: doIdioma.total | 0, filtra: false };
+  return { prefixo: '', paginas: (indice && indice.paginas) | 0, total: um ? null : (indice && indice.total) | 0, filtra: !!um };
+}
+/** "agora", "há 12 min", "há 3 h", "ontem", "há 4 dias" e, depois de uma semana, a data. */
+function tempoRelativo(iso, agora = Date.now()) {
+  const t = Date.parse(iso); if (!Number.isFinite(t)) return '';
+  const min = Math.max(0, Math.floor((agora - t) / 60000));
+  if (min < 1) return 'agora'; if (min < 60) return `há ${min} min`;
+  const horas = Math.floor(min / 60); if (horas < 24) return `há ${horas} h`;
+  const dias = Math.floor(horas / 24); if (dias === 1) return 'ontem'; if (dias < 7) return `há ${dias} dias`;
+  const d = new Date(t); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+}
+const https = u => { try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; } };
+const http = u => { try { const x = new URL(String(u || '')); return x.protocol === 'https:' || x.protocol === 'http:' ? x.href : ''; } catch (e) { return ''; } };
+/** O que veio da rede é dado, não confiança: só entra notícia com id, título e endereço http(s); capa só https. */
+function limpaItem(it) {
+  if (!it || typeof it !== 'object') return null;
+  const url = http(it.url), titulo = String(it.titulo || '').trim(), id = String(it.id || '');
+  if (!url || !titulo || !id) return null;
+  return { id, titulo: titulo.slice(0, 200), resumo: String(it.resumo || '').slice(0, 300), url, fonte: String(it.fonte || ''), autor: String(it.autor || '').slice(0, 80),
+    data: String(it.data || ''), imagem: https(it.imagem), idioma: CODIGOS.includes(it.idioma) ? it.idioma : 'en', temas: Array.isArray(it.temas) ? it.temas.map(String) : [] };
+}
+/** Junta um lote ao que já está na tela, sem repetir notícia (a coleta pode andar entre uma página e outra). */
+function junta(lista, novos, { idiomas = null } = {}) {
+  const vistos = new Set(lista.map(i => i.id)), out = [...lista];
+  for (const cru of novos || []) { const it = limpaItem(cru); if (!it || vistos.has(it.id) || (idiomas && !idiomas.includes(it.idioma))) continue; vistos.add(it.id); out.push(it); }
+  return out;
+}
+/** A forma de cada notícia na coluna: a primeira é o destaque; a cada seis, uma com capa ganha o cartão cheio; o resto é linha. */
+const formaDe = (i, it) => (i === 0 ? 'destaque' : i % 6 === 0 && it.imagem ? 'cheio' : 'linha');
+
+function createNoticias({ store = null, busca = null, base = BASE, prazo = 12000 } = {}) {
+  const pede = async caminho => {
+    const f = busca || (typeof fetch === 'function' ? fetch.bind(globalThis) : null); if (!f) throw new Error('sem rede');
+    const c = typeof AbortController === 'function' ? new AbortController() : null; const t = c ? setTimeout(() => c.abort(), prazo) : null;
+    try { const r = await f(base + caminho, c ? { signal: c.signal } : {}); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+    finally { if (t) clearTimeout(t); }
+  };
+  return {
+    indice: async () => { const i = await pede('indice.json'); if (!i || typeof i !== 'object' || !Array.isArray(i.fontes)) throw new Error('índice ilegível'); return i; },
+    pagina: async (prefixo, n) => { const p = await pede(`${prefixo}pagina-${n}.json`); if (!p || !Array.isArray(p.itens)) throw new Error('página ilegível'); return p.itens; },
+    idiomas: async () => { try { return idiomasValidos(store ? await store.get(CHAVE_IDIOMAS) : null); } catch (e) { return [...CODIGOS]; } },
+    guardaIdiomas: async v => { try { if (store) await store.set(CHAVE_IDIOMAS, idiomasValidos(v)); } catch (e) { /* preferência: sem disco, vale só nesta visita */ } },
+  };
+}
+
+/* ---------------- tela ---------------- */
+const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
+const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+
+/** O cartão de uma notícia. É um link de verdade: abre a matéria no site da fonte, em outra aba. */
+function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false } = {}) {
+  const quando = tempoRelativo(it.data, agora);
+  const capa = (() => {
+    if (!it.imagem && forma === 'linha') return null; // linha sem capa é só texto: mais notícia por tela
+    const el = h('span', { class: 'nt-capa', 'aria-hidden': 'true' });
+    const traco = () => { el.classList.add('nt-capa--traco'); el.replaceChildren(Icone('jornal', { tamanho: forma === 'linha' ? 24 : 40 })); };
+    if (!it.imagem) { traco(); return el; }
+    const img = h('img', { src: it.imagem, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' });
+    img.addEventListener('error', traco, { once: true });
+    el.appendChild(img); return el;
+  })();
+  return h('a', { class: 'nt-cartao nt-cartao--' + forma, href: it.url, target: '_blank', rel: 'noopener noreferrer', dataset: { noticia: it.id, idioma: it.idioma, forma },
+    'aria-label': `${it.titulo}. ${fonte}${quando ? ', ' + quando : ''}. Abre no navegador` },
+    capa,
+    h('span', { class: 'nt-corpo' },
+      h('span', { class: 'nt-meta' }, bandeira ? Bandeira((IDIOMAS.find(i => i[0] === it.idioma) || IDIOMAS[1])[2], { tamanho: 10 }) : null,
+        h('span', { class: 'nt-fonte' }, fonte), quando ? h('span', { class: 'nt-quando' }, '· ' + quando) : null),
+      h('span', { class: 'nt-titulo', lang: langDe(it.idioma), role: 'heading', 'aria-level': '2' }, it.titulo),
+      it.resumo && forma !== 'linha' ? h('span', { class: 'nt-resumo', lang: langDe(it.idioma) }, it.resumo) : null));
+}
+
+function createNoticiasScreen({ noticias }) {
+  const st = { idiomas: [...CODIGOS], indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0 };
+  const lista = h('div', { class: 'nt-lista', id: 'noticias-lista', role: 'feed', 'aria-label': 'Notícias' });
+  const pe = h('div', { class: 'nt-pe', id: 'noticias-pe' });
+  const corpo = h('div', { id: 'noticias-corpo' });
+  const chips = IDIOMAS.map(([cod, nome, pais, fala]) => h('button', { class: 'ds-chip ds-chip--icone', type: 'button', id: 'noticias-idioma-' + cod, 'aria-pressed': 'true', 'aria-label': fala, title: fala, dataset: { idioma: cod }, onClick: () => troca(cod) },
+    Bandeira(pais), h('span', { class: 'ds-chip__rotulo', lang: langDe(cod) }, nome)));
+  const seletor = h('div', { class: 'ds-segmentado nt-idiomas', role: 'group', 'aria-label': 'Idioma das notícias', id: 'noticias-idiomas' }, ...chips);
+  const nota = Text('', { size: 'xs', tone: 'subtle', attrs: { id: 'noticias-nota', role: 'status' } });
+  const root = Stack({ ...pad(), id: 'noticias' }, Text('Notícias', { size: '2xl', display: true, as: 'h1' }), seletor, nota, corpo);
+  const marcaChips = () => chips.forEach(c => c.setAttribute('aria-pressed', String(st.idiomas.includes(c.dataset.idioma))));
+  const nomeDaFonte = id => { const f = st.indice && st.indice.fontes.find(x => x.id === id); return (f && f.nome) || id; };
+
+  let olho = null;
+  const sentinela = h('span', { class: 'nt-sentinela', 'aria-hidden': 'true' });
+  function vigia() {
+    if (olho) olho.disconnect();
+    if (typeof IntersectionObserver !== 'function') return;
+    // a página seguinte é pedida antes de o fim chegar à tela (uma tela e meia de folga)
+    olho = new IntersectionObserver(es => { if (!root.isConnected) return olho.disconnect(); if (es.some(e => e.isIntersecting)) mais(); }, { rootMargin: '0px 0px 1200px 0px' });
+    olho.observe(sentinela);
+  }
+  /** Tela parada e desenhada, para quando não há linha do tempo: sem internet, falha, ou nada publicado. */
+  function parada({ id, icone, titulo, texto, botao = true }) {
+    if (olho) olho.disconnect();
+    mount(corpo, Empty(texto, botao ? Button('Tentar de novo', { variant: 'primary', icone: 'atualizar', id: 'noticias-tentar', onClick: () => abre() }) : null, { icone, titulo, hero: true, id }));
+  }
+  function pintaPe() {
+    const acabou = st.plano && st.proxima > st.plano.paginas;
+    if (st.erro) return mount(pe, AvisoRede('Não deu para buscar mais notícias.', { id: 'noticias-erro' }), Button('Tentar de novo', { icone: 'atualizar', id: 'noticias-de-novo', onClick: () => mais() }));
+    if (st.buscando) return mount(pe, Esqueleto({ linhas: 2, id: 'noticias-chegando', fala: 'Buscando mais notícias…' }));
+    if (acabou) return mount(pe, h('span', { class: 'nt-fim', id: 'noticias-fim', role: 'status' }, Icone('marcar', { tamanho: 18 }), h('span', {}, 'Você está em dia')));
+    // sem observador de rolagem (navegador antigo), o botão pede a página seguinte
+    mount(pe, sentinela, typeof IntersectionObserver === 'function' ? null : Button('Mais notícias', { icone: 'descer', id: 'noticias-mais', onClick: () => mais() }));
+  }
+  /** Só acrescenta o que chegou: o que já está na tela não é redesenhado (a rolagem e as imagens ficam onde estão). */
+  function acrescenta(de) {
+    const agora = Date.now(), dois = st.idiomas.length > 1;
+    for (let i = de; i < st.itens.length; i++) lista.appendChild(CartaoNoticia(st.itens[i], { forma: formaDe(i, st.itens[i]), fonte: nomeDaFonte(st.itens[i].fonte), agora, bandeira: dois }));
+    lista.setAttribute('aria-busy', 'false');
+  }
+  async function mais() {
+    if (st.buscando || !st.plano || st.proxima > st.plano.paginas) return;
+    const vez = st.vez; st.buscando = true; st.erro = false; pintaPe(); lista.setAttribute('aria-busy', 'true');
+    try {
+      // lendo a série geral com um idioma só (índice antigo), uma página pode não trazer nada dele: segue até trazer
+      for (;;) {
+        const crus = await noticias.pagina(st.plano.prefixo, st.proxima);
+        if (vez !== st.vez || !root.isConnected) return;
+        const antes = st.itens.length; st.itens = junta(st.itens, crus, { idiomas: st.plano.filtra ? st.idiomas : null }); st.proxima++;
+        acrescenta(antes);
+        if (st.itens.length > antes || st.proxima > st.plano.paginas) break;
+      }
+      st.buscando = false;
+      if (!st.itens.length) return vazio();
+      pintaPe(); vigia();
+    } catch (e) { if (vez !== st.vez || !root.isConnected) return; st.buscando = false; st.erro = true; lista.setAttribute('aria-busy', 'false'); pintaPe(); if (!st.itens.length) falha(); }
+  }
+  const vazio = () => { const um = st.idiomas.length === 1 ? IDIOMAS.find(i => i[0] === st.idiomas[0]) : null;
+    parada({ id: 'noticias-vazio', icone: 'jornal', titulo: 'Nada por aqui ainda', botao: false,
+      texto: um ? `Nenhuma notícia em ${um[0] === 'pt' ? 'português' : 'inglês'} nos últimos 30 dias. Ligue o outro idioma para ver mais.` : 'Nenhuma notícia nos últimos 30 dias. Volte mais tarde.' }); };
+  const falha = () => (temRede()
+    ? parada({ id: 'noticias-falha', icone: 'alerta', titulo: 'As notícias não chegaram', texto: 'Não deu para buscar as notícias agora. O resto do app funciona normalmente.' })
+    : parada({ id: 'noticias-sem-rede', icone: 'semRede', titulo: 'Sem internet', texto: 'As notícias chegam pela internet. Listas, coleção e partidas funcionam sem ela.' }));
+  /** Abre (ou reabre) a linha do tempo do zero, para os idiomas escolhidos. */
+  async function abre() {
+    const vez = ++st.vez; st.itens = []; st.proxima = 1; st.erro = false; st.buscando = false; st.plano = null;
+    if (olho) olho.disconnect();
+    if (!temRede()) return falha();
+    lista.replaceChildren(); mount(corpo, Esqueleto({ linhas: 5, id: 'noticias-abrindo', fala: 'Buscando as notícias…' }));
+    try {
+      const indice = await noticias.indice();
+      if (vez !== st.vez || !root.isConnected) return;
+      st.indice = indice; st.plano = planoDeLeitura(indice, st.idiomas);
+      if (!st.plano.paginas || st.plano.total === 0) return vazio();
+      mount(corpo, lista, pe);
+      await mais();
+    } catch (e) { if (vez === st.vez && root.isConnected) falha(); }
+  }
+  async function troca(cod) {
+    const novo = alternaIdioma(st.idiomas, cod);
+    if (novo === st.idiomas) { nota.textContent = 'Pelo menos um idioma fica ligado.'; return; }
+    nota.textContent = ''; st.idiomas = novo; marcaChips(); noticias.guardaIdiomas(novo); abre();
+  }
+  // a internet voltou com a tela parada no aviso: busca sozinha
+  const voltou = () => { if (!root.isConnected) return window.removeEventListener('online', voltou); if (root.querySelector('#noticias-sem-rede')) abre(); };
+  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('online', voltou);
+  mount(corpo, Esqueleto({ linhas: 5, id: 'noticias-abrindo', fala: 'Buscando as notícias…' }));
+  noticias.idiomas().then(v => { st.idiomas = v; marcaChips(); abre(); });
+  return root;
+}
+
+return { BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -21137,6 +21375,7 @@ const names = createNameIndex({ store: platform.store, scryfall });
 const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
 const fichas = __m34.createFichas({ store: platform.store, scryfall, images }); // I4
 const terrenos = __m36.createTerrenos({ store: platform.store, scryfall, images }); // I6
+const noticias = __m37.createNoticias({ store: platform.store }); // N2
 const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
@@ -21166,6 +21405,7 @@ const ROUTES = [
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks }) }, // I4
   { path: '/perfil/terrenos', title: 'Terrenos', render: () => createTerrenosScreen({ terrenos, decks }) }, // I6
+  { path: '/noticias', title: 'Notícias', render: () => __m37.createNoticiasScreen({ noticias }) }, // N2
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
   { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, partidas, terrenos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
@@ -21233,12 +21473,14 @@ function renderHome() {
       Atalho('Listas', { icone: 'listas', id: 'go-decks', detalhe: 'Montar e importar', onClick: () => { location.hash = '#/listas'; } }),
       Atalho('Coleção', { icone: 'colecao', id: 'go-collection', detalhe: 'O que você tem', onClick: () => { location.hash = '#/colecao'; } }),
       Atalho('Escanear', { icone: 'scanner', id: 'go-scanner', detalhe: 'Pela câmera', onClick: () => { location.hash = '#/scanner'; } }),
-      Atalho('Buscar', { icone: 'buscar', id: 'go-cards', detalhe: 'Todas as cartas', onClick: () => { location.hash = '#/cartas'; } })),
+      Atalho('Buscar', { icone: 'buscar', id: 'go-cards', detalhe: 'Todas as cartas', onClick: () => { location.hash = '#/cartas'; } }),
+      // N2 · notícias: atalho largo no fim (cinco atalhos pequenos deixariam um sozinho na última linha)
+      Atalho('Notícias', { icone: 'jornal', id: 'go-news', detalhe: 'O que há de novo no Magic', onClick: () => { location.hash = '#/noticias'; } })),
     h('div', { style: { height: 'var(--space-5)' } }),
     offlinePanel(),
     h('div', { class: 'ds-row', style: { justifyContent: 'center', marginTop: 'var(--space-4)' } },
       Button('Componentes', { variant: 'ghost', icone: 'camadas', id: 'go-ds', title: 'Catálogo de componentes', onClick: () => { location.hash = '#/ds'; } })));
-  el.querySelector('#go-play').classList.add('ds-atalho--largo');
+  el.querySelector('#go-play').classList.add('ds-atalho--largo'); el.querySelector('#go-news').classList.add('ds-atalho--largo');
   perfil.get().then(p => {
     nomeDoPerfil = p && p.nome ? p.nome : null;
     titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';

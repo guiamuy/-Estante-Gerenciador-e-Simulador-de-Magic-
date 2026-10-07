@@ -29,7 +29,13 @@ export const FONTES = [
   { id: 'cardkingdom', nome: 'Card Kingdom', site: 'https://blog.cardkingdom.com', feed: 'https://blog.cardkingdom.com/feed/', idioma: 'en', temas: [] },
   { id: 'hipsters', nome: 'Hipsters of the Coast', site: 'https://www.hipstersofthecoast.com', feed: 'https://www.hipstersofthecoast.com/feed/', idioma: 'en', temas: [] },
   { id: 'mtgazone', nome: 'MTG Arena Zone', site: 'https://mtgazone.com', feed: 'https://mtgazone.com/feed/', idioma: 'en', temas: ['arena'] },
+  // N2 · português (pesquisa de 07/10/2026: só estas duas têm feed público, vivo e de Magic). O feed do Cards Realm não
+  // manda capa: `capaDaPagina` busca a imagem de divulgação (og:image) na página da matéria, uma vez por notícia.
+  { id: 'cardsrealm', nome: 'Cards Realm', site: 'https://mtg.cardsrealm.com/pt-br/', feed: 'https://mtg.cardsrealm.com/pt-br/pt/feed.rss', idioma: 'pt', temas: [], capaDaPagina: true },
+  { id: 'ovicio', nome: 'O Vício', site: 'https://ovicio.com.br', feed: 'https://ovicio.com.br/tag/magic-the-gathering/feed/', idioma: 'pt', temas: [] },
 ];
+export const IDIOMAS = ['pt', 'en'];
+export const CAPAS_POR_COLETA = 15; // páginas de matéria abertas por coleta para achar a capa (educado com a fonte)
 
 /* ---------------- texto ---------------- */
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', hellip: '…', mdash: '—', ndash: '–', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“', eacute: 'é', copy: '©', reg: '®', trade: '™' };
@@ -111,8 +117,8 @@ const TEMAS = [
   ['commander', /\b(commander|c?edh|brawl)\b/],
   ['pauper', /\bpauper\b/],
   ['arena', /\b(arena|mtga|midweek magic|historic|alchemy|explorer|timeless)\b/],
-  ['lancamentos', /\b(spoilers?|previews?|prerelease|set reviews?|revealed|first look|release notes|collecting)\b/],
-  ['competitivo', /\b(pro tour|grand prix|regional championship|world championship|tournaments?|metagame|qualifiers?|standard|modern|pioneer|legacy|top 8)\b/],
+  ['lancamentos', /\b(spoilers?|previews?|prerelease|set reviews?|revealed|first look|release notes|collecting)\b|(^|[^\p{L}])(lançamentos?|prévias?|pré-lançamento|revelad[oa]s?|nova coleção)(?![\p{L}])/u],
+  ['competitivo', /\b(pro tour|grand prix|regional championship|world championship|tournaments?|metagame|qualifiers?|standard|modern|pioneer|legacy|top 8)\b|(^|[^\p{L}])(torneios?|campeonatos?|mundial|classificatório)(?![\p{L}])/u],
 ];
 export const TEMAS_VALIDOS = TEMAS.map(t => t[0]);
 /** Temas pelo título e pelas categorias do feed, mais os fixos da fonte. Ordem estável; sem tema, lista vazia. */
@@ -123,7 +129,8 @@ export function temasDe({ titulo = '', categorias = [] } = {}, fixos = []) {
 // Sites de Magic também publicam sobre outros jogos; isso fica fora da linha do tempo. Limite declarado: matéria de
 // Magic marcada com a categoria de outro jogo (uma coleção cruzada, por exemplo) sai junto.
 const OUTRO_JOGO = /\b(riftbound|lorcana|pok[eé]mon|flesh and blood|star wars:? unlimited|one piece|dungeons (&|and) dragons|d&d|dnd|yu-?gi-?oh|digimon)\b/i;
-export const foraDoTema = ({ titulo = '', categorias = [] } = {}) => OUTRO_JOGO.test(titulo) || categorias.some(c => OUTRO_JOGO.test(c));
+// (título que fala de Magic fica, mesmo citando outro jogo: "D&D e Magic anunciam…")
+export const foraDoTema = ({ titulo = '', categorias = [] } = {}) => !/\b(magic|mtg)\b/i.test(titulo) && (OUTRO_JOGO.test(titulo) || categorias.some(c => OUTRO_JOGO.test(c)));
 
 /** Item cru → item publicado, ou `null` com o motivo em `aoDescartar` (sem título, sem endereço, data inválida ou no
     futuro, outro jogo). */
@@ -139,7 +146,9 @@ export function normaliza(cru, fonte, { agora = Date.now(), aoDescartar = () => 
   if (foraDoTema({ titulo, categorias })) { aoDescartar('outro jogo'); return null; }
   let resumo = resume(cru.resumoHtml);
   if (resumo.toLowerCase() === titulo.toLowerCase()) resumo = '';
-  return { id: idDe(url), titulo, resumo, url, fonte: fonte.id, autor: textoSemHtml(cru.autor).slice(0, 80), data: new Date(Math.min(ms, agora)).toISOString(),
+  let autor = textoSemHtml(cru.autor).slice(0, 80);
+  if (autor.toLowerCase() === String(fonte.nome || '').toLowerCase()) autor = ''; // "por Cards Realm" no Cards Realm não diz nada
+  return { id: idDe(url), titulo, resumo, url, fonte: fonte.id, autor, data: new Date(Math.min(ms, agora)).toISOString(),
     imagem: enderecoSeguro(cru.imagem, { soHttps: true }), idioma: fonte.idioma || 'en', temas: temasDe({ titulo, categorias }, fonte.temas || []) };
 }
 
@@ -187,15 +196,24 @@ export function monta({ fontes = FONTES, feeds = {}, anteriores = [], agora = Da
   const itens = linhaDoTempo(anteriores.filter(it => it && conhecidas.has(it.fonte)), novos, { agora, dias });
   const pags = emPaginas(itens, porPagina);
   for (const l of relato) l.itens = itens.filter(it => it.fonte === l.id).length;
+  // N2 · além da série com tudo, uma série por idioma (`pt-pagina-N.json`, `en-pagina-N.json`): quem lê só em
+  // português não precisa atravessar cinco páginas em inglês para achar a notícia seguinte.
+  const empacota = ps => ps.map((p, i) => ({ versao: VERSAO, pagina: i + 1, paginas: ps.length, itens: p }));
+  const porIdioma = {}, idiomas = {};
+  for (const l of [...new Set(fontes.map(f => f.idioma || 'en'))]) {
+    const ps = emPaginas(itens.filter(it => it.idioma === l), porPagina);
+    porIdioma[l] = empacota(ps); idiomas[l] = { total: ps.reduce((n, p) => n + p.length, 0), paginas: ps.length };
+  }
   return {
-    indice: { versao: VERSAO, coletadoEm: new Date(agora).toISOString(), total: itens.length, paginas: pags.length, porPagina, dias, temas: TEMAS_VALIDOS, fontes: relato },
-    paginas: pags.map((p, i) => ({ versao: VERSAO, pagina: i + 1, paginas: pags.length, itens: p })),
+    indice: { versao: VERSAO, coletadoEm: new Date(agora).toISOString(), total: itens.length, paginas: pags.length, porPagina, dias, temas: TEMAS_VALIDOS, idiomas, fontes: relato },
+    paginas: empacota(pags), porIdioma, itens,
   };
 }
 /** Vale regravar? Sim se a lista de notícias mudou, se o estado de alguma fonte mudou, ou se o índice publicado está
     velho. Sem isso, cada hora viraria um commit só com a hora nova. */
 export function mudou(antes, depois, idsAntes, idsDepois, { horas = HORAS_SEM_MUDANCA } = {}) {
   if (!antes) return true;
+  if (JSON.stringify(antes.idiomas || null) !== JSON.stringify(depois.idiomas || null)) return true; // formato novo, ou idioma novo
   if (idsAntes.join() !== idsDepois.join()) return true;
   const estado = i => (i.fontes || []).map(f => f.id + ':' + (f.ok ? 1 : 0)).join();
   if (estado(antes) !== estado(depois)) return true;
@@ -204,12 +222,13 @@ export function mudou(antes, depois, idsAntes, idsDepois, { horas = HORAS_SEM_MU
 
 /* ---------------- rede e disco ---------------- */
 const TETO_BYTES = 3 * 1024 * 1024;
+const AGENTE = 'EstanteNoticias/1 (+https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-)';
 /** Busca os feeds em paralelo; cada um tem 20 s e 3 MB. Nunca lança: a falha de uma fonte vira `{ erro }`. */
 export async function coleta(fontes = FONTES, { busca = globalThis.fetch, prazo = 20000 } = {}) {
   const pares = await Promise.all(fontes.map(async f => {
     const c = new AbortController(); const t = setTimeout(() => c.abort(), prazo);
     try {
-      const r = await busca(f.feed, { signal: c.signal, redirect: 'follow', headers: { 'user-agent': 'EstanteNoticias/1 (+https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-)', accept: 'application/atom+xml, application/rss+xml, application/xml;q=0.9, text/xml;q=0.8' } });
+      const r = await busca(f.feed, { signal: c.signal, redirect: 'follow', headers: { 'user-agent': AGENTE, accept: 'application/atom+xml, application/rss+xml, application/xml;q=0.9, text/xml;q=0.8' } });
       if (!r.ok) return [f.id, { erro: 'HTTP ' + r.status }];
       const xml = await r.text();
       if (xml.length > TETO_BYTES) return [f.id, { erro: 'feed grande demais' }];
@@ -219,6 +238,32 @@ export async function coleta(fontes = FONTES, { busca = globalThis.fetch, prazo 
   }));
   return Object.fromEntries(pares);
 }
+/** A imagem de divulgação declarada na página da matéria (og:image, ou twitter:image). Só https; sem ela, ''. */
+export function capaDaPagina(html) {
+  const metas = vazias(String(html || '').slice(0, 400000), 'meta');
+  for (const chave of ['og:image:secure_url', 'og:image', 'twitter:image', 'twitter:image:src']) {
+    const m = metas.find(a => (a.property || a.name || '').toLowerCase() === chave && a.content);
+    const u = m && enderecoSeguro(m.content, { soHttps: true }); if (u && !NAO_E_CAPA.test(u)) return u;
+  }
+  return '';
+}
+/** Completa a capa das notícias que vieram sem ela, das fontes marcadas com `capaDaPagina`: até `teto` páginas por
+    coleta, das mais novas para as mais antigas. Página que respondeu e não tem capa fica marcada (`semCapa`) para não
+    ser pedida de novo; página que não respondeu é tentada na próxima coleta. Muda os itens no lugar. */
+export async function completaCapas(itens, fontes = FONTES, { busca = globalThis.fetch, teto = CAPAS_POR_COLETA, prazo = 12000 } = {}) {
+  const quais = new Set(fontes.filter(f => f.capaDaPagina).map(f => f.id));
+  const fila = itens.filter(it => quais.has(it.fonte) && !it.imagem && !it.semCapa).slice(0, teto);
+  await Promise.all(fila.map(async it => {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), prazo);
+    try {
+      const r = await busca(it.url, { signal: c.signal, redirect: 'follow', headers: { 'user-agent': AGENTE, accept: 'text/html' } });
+      if (!r.ok) return;
+      const capa = capaDaPagina(await r.text());
+      if (capa) it.imagem = capa; else it.semCapa = true;
+    } catch (e) { /* fica para a próxima coleta */ } finally { clearTimeout(t); }
+  }));
+  return fila.length;
+}
 async function leJson(caminho) { try { return JSON.parse(await readFile(caminho, 'utf8')); } catch (e) { return null; } }
 /** Lê o que está publicado em `pasta`, coleta, monta e grava. Devolve o que fez (para o fluxo decidir se publica). */
 export async function publica(pasta, { fontes = FONTES, busca = globalThis.fetch, agora = Date.now() } = {}) {
@@ -226,11 +271,15 @@ export async function publica(pasta, { fontes = FONTES, busca = globalThis.fetch
   const antes = await leJson(join(pasta, 'indice.json'));
   const anteriores = [];
   for (let i = 1; antes && i <= (antes.paginas || 0); i++) { const p = await leJson(join(pasta, `pagina-${i}.json`)); if (p && Array.isArray(p.itens)) anteriores.push(...p.itens); }
-  const { indice, paginas } = monta({ fontes, feeds: await coleta(fontes, { busca }), anteriores, agora });
-  const ids = ps => ps.flatMap(p => (Array.isArray(p) ? p : p.itens).map(it => it.id));
-  if (!mudou(antes, indice, ids([anteriores]), ids(paginas))) return { gravou: false, indice: antes };
-  for (const p of paginas) await writeFile(join(pasta, `pagina-${p.pagina}.json`), JSON.stringify(p) + '\n');
-  for (const nome of await readdir(pasta)) { const m = /^pagina-(\d+)\.json$/.exec(nome); if (m && Number(m[1]) > paginas.length) await rm(join(pasta, nome)); }
+  const marca = lista => lista.map(it => it.id + (it.imagem ? '+' : '') + (it.semCapa ? '-' : ''));
+  const marcaDeAntes = marca(anteriores); // antes de completar as capas: os itens publicados são mudados no lugar
+  const { indice, paginas, porIdioma, itens } = monta({ fontes, feeds: await coleta(fontes, { busca }), anteriores, agora });
+  await completaCapas(itens, fontes, { busca }); // os itens das páginas são estes mesmos objetos
+  if (!mudou(antes, indice, marcaDeAntes, marca(itens))) return { gravou: false, indice: antes };
+  const series = [['', paginas], ...Object.entries(porIdioma).map(([l, ps]) => [l + '-', ps])];
+  for (const [prefixo, ps] of series) for (const p of ps) await writeFile(join(pasta, `${prefixo}pagina-${p.pagina}.json`), JSON.stringify(p) + '\n');
+  const quantas = Object.fromEntries(series.map(([prefixo, ps]) => [prefixo, ps.length]));
+  for (const nome of await readdir(pasta)) { const m = /^([a-z]{2}-)?pagina-(\d+)\.json$/.exec(nome); if (m && Number(m[2]) > (quantas[m[1] || ''] || 0)) await rm(join(pasta, nome)); }
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice, null, 1) + '\n');
   return { gravou: true, indice };
 }

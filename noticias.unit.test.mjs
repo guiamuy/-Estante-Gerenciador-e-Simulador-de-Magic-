@@ -119,7 +119,7 @@ test('N1 · coleta e publica (rede e disco falsos): uma fonte cai, as outras ent
   assert.match(pedidos[0][1], /^EstanteNoticias\//, 'o coletor se identifica para a fonte');
   // 1ª publicação
   const r1 = await N.publica(pasta, { fontes: [A, B, C], busca: busca(rede), agora: AGORA });
-  assert.equal(r1.gravou, true); assert.deepEqual((await readdir(pasta)).sort(), ['indice.json', 'pagina-1.json']);
+  assert.equal(r1.gravou, true); assert.deepEqual((await readdir(pasta)).sort(), ['en-pagina-1.json', 'indice.json', 'pagina-1.json']);
   const indice = JSON.parse(await readFile(join(pasta, 'indice.json'), 'utf8')), p1 = JSON.parse(await readFile(join(pasta, 'pagina-1.json'), 'utf8'));
   assert.equal(indice.total, 5); assert.equal(p1.itens.length, 5); assert.equal(indice.fontes.find(f => f.id === 'c').ok, false);
   // uma hora depois, nada novo: não regrava (não vira um commit por hora); seis horas depois, regrava a hora
@@ -133,4 +133,59 @@ test('N1 · coleta e publica (rede e disco falsos): uma fonte cai, as outras ent
   // 31 dias depois, com as fontes mudas: tudo sai da janela e a página que sobrou é apagada
   const r5 = await N.publica(pasta, { fontes: [A, B, C], busca: busca({}), agora: AGORA + 40 * 86400e3 });
   assert.equal(r5.indice.total, 0); assert.deepEqual(await readdir(pasta), ['indice.json']);
+});
+
+/* ---------------- N2 · português, séries por idioma e capa pela página ---------------- */
+const PT = { id: 'p', nome: 'Fonte PT', site: 'https://pt.test', feed: 'https://pt.test/feed.rss', idioma: 'pt', temas: [], capaDaPagina: true };
+const RSS_PT = `<?xml version="1.0"?><rss version="2.0"><channel><language>pt-br</language>
+<item><title>Pauper: prévia da nova coleção</title><link>https://pt.test/articles/previa</link><pubDate>Wed, 07 Oct 2026 10:05:05 GMT</pubDate><author>Fonte PT</author><description>Tudo o que foi revelado até agora.</description><category>Magic: the Gathering</category></item>
+<item><title>Funcionários de Dungeons &amp; Dragons e Magic de mesa anunciam sindicalização</title><link>https://pt.test/articles/sindicato</link><pubDate>Tue, 06 Oct 2026 22:50:15 GMT</pubDate><description>Notícia de Magic que cita outro jogo.</description></item>
+<item><title>Torneio de Commander no sábado</title><link>https://pt.test/articles/torneio</link><pubDate>Mon, 05 Oct 2026 12:00:00 GMT</pubDate><description>Sem capa na página.</description></item>
+</channel></rss>`;
+
+test('N2 · fontes em português: entram com idioma pt, temas pelas palavras em português, autor igual ao nome da fonte some, e notícia de Magic que cita outro jogo fica', () => {
+  const pt = N.FONTES.filter(f => f.idioma === 'pt'); assert.deepEqual(pt.map(f => f.id), ['cardsrealm', 'ovicio']);
+  assert.deepEqual([...new Set(N.FONTES.map(f => f.idioma))].sort(), ['en', 'pt']); assert.deepEqual(N.IDIOMAS, ['pt', 'en']);
+  const its = N.leFeed(RSS_PT).map(c => N.normaliza(c, PT, { agora: AGORA }));
+  assert.deepEqual(its.map(i => i && [i.idioma, i.autor, i.temas.join()]), [['pt', '', 'pauper,lancamentos'], ['pt', '', ''], ['pt', '', 'commander,competitivo']]);
+  assert.equal(N.foraDoTema({ titulo: 'Dungeons & Dragons e Magic anunciam' }), false); assert.equal(N.foraDoTema({ titulo: 'Dungeons & Dragons anuncia' }), true);
+  assert.deepEqual(N.temasDe({ titulo: 'Relançamentos e prévias' }), ['lancamentos'], 'palavra com acento conta inteira');
+  assert.deepEqual(N.temasDe({ titulo: 'Mundialmente famoso' }), [], 'pedaço de palavra não conta');
+});
+
+test('N2 · séries por idioma: o índice diz total e páginas de cada idioma e cada série tem as próprias páginas, na mesma ordem da série geral', () => {
+  const muitos = Array.from({ length: 23 }, (_, i) => item(i + 200, 1, { idioma: i % 4 === 0 ? 'pt' : 'en', fonte: i % 4 === 0 ? 'p' : 'a' }));
+  const { indice, paginas, porIdioma } = N.monta({ fontes: [A, PT], feeds: { a: { erro: 'x' }, p: { erro: 'x' } }, anteriores: muitos, agora: AGORA, porPagina: 5 });
+  assert.deepEqual(indice.idiomas, { en: { total: 17, paginas: 4 }, pt: { total: 6, paginas: 2 } }); assert.equal(indice.total, 23); assert.equal(paginas.length, 5);
+  assert.deepEqual(porIdioma.pt.map(p => [p.pagina, p.paginas, p.itens.length]), [[1, 2, 5], [2, 2, 1]]);
+  const geral = paginas.flatMap(p => p.itens.map(i => i.id));
+  for (const l of ['pt', 'en']) { const ids = porIdioma[l].flatMap(p => p.itens.map(i => i.id)); assert.deepEqual(ids, geral.filter(id => ids.includes(id))); assert.ok(porIdioma[l].every(p => p.itens.every(i => i.idioma === l))); }
+});
+
+test('N2 · capa pela página: og:image (ou twitter:image) em https; publica completa a capa uma vez por notícia, marca a que não tem e tenta de novo a que não respondeu', async t => {
+  assert.equal(N.capaDaPagina('<head><meta property="og:image" content="https://cdn.test/a.jpg?w=1&amp;h=2"><meta name="twitter:image" content="https://cdn.test/b.jpg"></head>'), 'https://cdn.test/a.jpg?w=1&h=2');
+  assert.equal(N.capaDaPagina("<meta content='https://cdn.test/b.jpg' name='twitter:image'>"), 'https://cdn.test/b.jpg');
+  assert.equal(N.capaDaPagina('<meta property="og:image" content="http://cdn.test/inseguro.jpg">'), ''); assert.equal(N.capaDaPagina('<meta property="og:image" content="javascript:alert(1)">'), ''); assert.equal(N.capaDaPagina(''), '');
+  const pasta = await mkdtemp(join(tmpdir(), 'noticias-pt-')); t.after(() => rm(pasta, { recursive: true, force: true }));
+  const pedidos = [];
+  const rede = { 'https://pt.test/feed.rss': RSS_PT, 'https://pt.test/articles/previa': '<meta property="og:image" content="https://cdn.test/previa.jpg">', 'https://pt.test/articles/torneio': '<html><head><title>sem capa</title></head></html>', [A.feed]: RSS };
+  const busca = async url => { pedidos.push(url); const r = rede[url]; if (r == null) return { ok: false, status: 503, text: async () => '' }; return { ok: true, status: 200, text: async () => r }; };
+  const r1 = await N.publica(pasta, { fontes: [A, PT], busca, agora: AGORA });
+  assert.equal(r1.gravou, true); assert.deepEqual(r1.indice.idiomas, { en: { total: 3, paginas: 1 }, pt: { total: 3, paginas: 1 } });
+  assert.deepEqual((await readdir(pasta)).sort(), ['en-pagina-1.json', 'indice.json', 'pagina-1.json', 'pt-pagina-1.json']);
+  const le = async nome => JSON.parse(await readFile(join(pasta, nome), 'utf8')).itens;
+  const pt1 = await le('pt-pagina-1.json');
+  assert.deepEqual(pt1.map(i => [i.titulo.slice(0, 7), i.imagem, !!i.semCapa]), [['Pauper:', 'https://cdn.test/previa.jpg', false], ['Funcion', '', false], ['Torneio', '', true]]);
+  assert.deepEqual((await le('pagina-1.json')).filter(i => i.idioma === 'pt'), pt1, 'a série geral e a do idioma levam a mesma notícia, com a mesma capa');
+  assert.ok(!pedidos.some(u => u.startsWith('https://exemplo.test/') && u !== A.feed), 'fonte que não pede capa pela página não tem a matéria aberta');
+  // coleta seguinte: só a matéria que não respondeu é pedida de novo; quando responde, a capa entra e o arquivo é regravado
+  pedidos.length = 0; rede['https://pt.test/articles/sindicato'] = '<meta property="og:image" content="https://cdn.test/sindicato.jpg">';
+  const r2 = await N.publica(pasta, { fontes: [A, PT], busca, agora: AGORA + 3600e3 });
+  assert.deepEqual(pedidos.filter(u => u.includes('/articles/')), ['https://pt.test/articles/sindicato']); assert.equal(r2.gravou, true);
+  assert.equal((await le('pt-pagina-1.json'))[1].imagem, 'https://cdn.test/sindicato.jpg');
+  pedidos.length = 0; const r3 = await N.publica(pasta, { fontes: [A, PT], busca, agora: AGORA + 2 * 3600e3 });
+  assert.deepEqual(pedidos.filter(u => u.includes('/articles/')), []); assert.equal(r3.gravou, false);
+  // teto por coleta
+  const muitos = Array.from({ length: 40 }, (_, i) => item(i + 300, 1, { fonte: 'p', idioma: 'pt' })); let n = 0;
+  assert.equal(await N.completaCapas(muitos, [PT], { busca: async () => { n++; return { ok: true, text: async () => '' }; } }), N.CAPAS_POR_COLETA); assert.equal(n, N.CAPAS_POR_COLETA);
 });

@@ -2581,7 +2581,7 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   const barra = await audita('.ds-appbar button'); confere(barra, 'barra');
   assert.ok(barra.filter(b => ['nav-play', 'nav-decks', 'nav-collection', 'theme-toggle'].includes(b.id)).every(b => b.svgs >= 1), 'destinos da barra têm ícone');
   const atalhos = await audita('#home-atalhos button'); confere(atalhos, 'atalhos', { maxPalavras: 1 });
-  assert.deepEqual(atalhos.map(a => a.id), ['go-play', 'go-decks', 'go-collection', 'go-scanner', 'go-cards']);
+  assert.deepEqual(atalhos.map(a => a.id), ['go-play', 'go-decks', 'go-collection', 'go-scanner', 'go-cards', 'go-news']); // N2 · Notícias entrou no fim
   assert.ok(atalhos.every(a => a.svgs === 1), 'cada atalho tem um ícone');
   confere(await audita('#home button'), 'início inteiro');
   // atalho principal ocupa a largura toda; os outros, duas colunas lado a lado
@@ -8291,5 +8291,114 @@ test('e2e · J6 arte escolhida só do meu lado: contra o Shark, a minha Forest s
   const fontes = await page.evaluate(() => ({ eu: [...document.querySelectorAll('.tb-side--me .tb-card[aria-label^="Forest"] img')].map(i => i.dataset.fonte), bot: [...document.querySelectorAll('.tb-side:not(.tb-side--me) .tb-card[aria-label^="Forest"]')].map(c => (c.querySelector('img') || { dataset: {} }).dataset.fonte || 'texto') }));
   assert.ok(fontes.eu.length && fontes.eu.every(f => /front\/x\/forest-1\.png$/.test(f)), 'a minha Forest está na arte escolhida: ' + JSON.stringify(fontes));
   assert.ok(fontes.bot.length && fontes.bot.every(f => !/forest-1\.png/.test(f)), 'a Forest do bot fica na arte padrão da plataforma: ' + JSON.stringify(fontes));
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- N2 · Notícias ---------------- */
+// O ramo `noticias` de mentira: 60 notícias (15 em português), em três páginas gerais, uma série pt e uma en.
+function ramoN2() {
+  const agora = Date.now();
+  const itens = Array.from({ length: 60 }, (_, i) => { const pt = i % 4 === 1; return { id: 'n' + i, titulo: (pt ? 'Notícia em português número ' : 'English headline number ') + i + (i === 2 ? ' <b>sem</b> HTML e com um título bem comprido para quebrar em várias linhas sem sair do cartão' : ''),
+    resumo: pt ? 'Resumo curto da matéria, em duas linhas no máximo, para dar o gosto do que vem.' : 'A short summary of the story that fits in two lines at most.', url: 'https://fonte.test/materia/' + i, fonte: pt ? 'cr' : (i % 3 ? 'gf' : 'ed'), autor: 'Autora',
+    data: new Date(agora - i * 47 * 60e3).toISOString(), imagem: i % 3 === 2 ? '' : `https://img.test/${i === 6 ? 'quebrada' : 'capa'}-${i}.png`, idioma: pt ? 'pt' : 'en', temas: [] }; });
+  const corta = l => { const ps = []; for (let i = 0; i < l.length; i += 20) ps.push(l.slice(i, i + 20)); return ps; };
+  const arquivos = {}, series = { '': itens, 'pt-': itens.filter(i => i.idioma === 'pt'), 'en-': itens.filter(i => i.idioma === 'en') };
+  for (const [pre, l] of Object.entries(series)) corta(l).forEach((p, i, ps) => { arquivos[`${pre}pagina-${i + 1}.json`] = { versao: 1, pagina: i + 1, paginas: ps.length, itens: p }; });
+  arquivos['pagina-1.json'].itens.splice(3, 0, { ...itens[0], id: 'perigosa', url: 'javascript:alert(1)' });
+  arquivos['indice.json'] = { versao: 1, coletadoEm: new Date(agora).toISOString(), total: 60, paginas: 3, porPagina: 20, dias: 30, temas: [],
+    idiomas: { pt: { total: 15, paginas: 1 }, en: { total: 45, paginas: 3 } }, fontes: [{ id: 'cr', nome: 'Cards Realm', idioma: 'pt', ok: true }, { id: 'gf', nome: 'MTGGoldfish', idioma: 'en', ok: true }, { id: 'ed', nome: 'EDHREC', idioma: 'en', ok: true }] };
+  return arquivos;
+}
+const PNG_N2 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capas com moldura reservada e rolagem infinita até "Você está em dia"; idioma por bandeiras (pt, en ou os dois) sem sair do lugar e guardado; erro no meio com tentar de novo; sem internet, falha e vazio com tela parada desenhada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  let arquivos = ramoN2(); const pedidos = []; const cai = new Set(); let fora = false;
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); pedidos.push(nome);
+    if (fora || cai.has(nome) || !(nome in arquivos)) { cai.delete(nome); return r.abort('failed'); }
+    return r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }); });
+  await page.route('https://img.test/**', r => (r.request().url().includes('quebrada') ? r.abort('failed') : r.fulfill({ body: PNG_N2, contentType: 'image/png' })));
+  const cartoes = () => page.locator('#noticias-lista .nt-cartao').count();
+  const ateOFim = async () => { for (let i = 0; i < 40 && !await page.locator('#noticias-fim, #noticias-erro').count(); i++) { await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(120); } };
+  // 1 · a entrada: atalho largo na Início, com ícone, que leva à tela
+  await page.goto(base + '#/'); await page.waitForSelector('#go-news');
+  const [news, jogar] = [await page.locator('#go-news').boundingBox(), await page.locator('#go-play').boundingBox()];
+  assert.ok(Math.abs(news.width - jogar.width) < 2 && news.height >= 44, 'atalho largo, como o Jogar'); await auditaTela(page, 'início com Notícias');
+  await page.click('#go-news'); await page.waitForSelector('#noticias-lista .nt-cartao'); assert.match(page.url(), /#\/noticias$/);
+  // 2 · a primeira página: 20 notícias (a de endereço perigoso não entra), a primeira em destaque
+  assert.equal(await cartoes(), 20); assert.deepEqual(pedidos, ['indice.json', 'pagina-1.json']);
+  assert.equal(await page.locator('[data-noticia="perigosa"]').count(), 0);
+  const d = await page.evaluate(() => { const c = document.querySelector('.nt-cartao'), capa = c.querySelector('.nt-capa').getBoundingClientRect(), t = c.querySelector('.nt-titulo');
+    return { forma: c.dataset.forma, razao: +(capa.width / capa.height).toFixed(2), alvo: c.target, rel: c.rel, href: c.href, lang: t.lang, fonte: c.querySelector('.nt-fonte').textContent, quando: c.querySelector('.nt-quando').textContent, serifada: getComputedStyle(t).fontFamily === getComputedStyle(document.querySelector('h1')).fontFamily, fala: c.getAttribute('aria-label') }; });
+  assert.deepEqual(d, { forma: 'destaque', razao: 1.78, alvo: '_blank', rel: 'noopener noreferrer', href: 'https://fonte.test/materia/0', lang: 'en', fonte: 'EDHREC', quando: '· agora', serifada: true, fala: 'English headline number 0. EDHREC, agora. Abre no navegador' });
+  assert.deepEqual(await page.$$eval('.nt-cartao', cs => [...new Set(cs.map(c => c.dataset.forma))]), ['destaque', 'linha', 'cheio']);
+  assert.equal(await page.$eval('[data-noticia="n1"] .nt-titulo', e => e.lang), 'pt-BR'); assert.equal(await page.locator('[data-noticia="n2"] .nt-titulo b').count(), 0, 'título é texto: HTML não vira elemento');
+  assert.match(await page.innerText('[data-noticia="n2"] .nt-titulo'), /<b>sem<\/b> HTML/);
+  assert.ok(await page.$$eval('.nt-cartao', cs => cs.every(c => c.getBoundingClientRect().height >= 44)), 'cada notícia é um alvo de 44 px ou mais');
+  assert.equal(await page.locator('[data-noticia="n5"] .nt-capa').count(), 0, 'linha sem capa é só texto'); assert.equal(await page.locator('[data-noticia="n1"] .nt-capa img').count(), 1);
+  await page.waitForFunction(() => document.querySelector('[data-noticia="n6"] .nt-capa--traco'), null, { timeout: 5000 }); // capa que falha vira capa em traço, no mesmo espaço
+  assert.equal(await page.locator('[data-noticia="n6"] .nt-capa img').count(), 0); assert.equal(await page.locator('[data-noticia="n6"] .nt-capa svg').count(), 1);
+  // seletor de idioma: dois botões de 44 px com a bandeira desenhada (sem emoji) e o nome do idioma; os dois ligados; cada notícia leva a bandeira
+  const chips = await page.$$eval('#noticias-idiomas button', bs => bs.map(b => ({ id: b.id, texto: b.textContent.trim(), ligado: b.getAttribute('aria-pressed'), fala: b.getAttribute('aria-label'), h: Math.round(b.getBoundingClientRect().height), bandeira: (b.querySelector('.ds-bandeira') || { dataset: {} }).dataset.bandeira, svg: !!b.querySelector('.ds-bandeira svg') })));
+  assert.deepEqual(chips, [{ id: 'noticias-idioma-pt', texto: 'Português', ligado: 'true', fala: 'Notícias em português', h: 44, bandeira: 'br', svg: true }, { id: 'noticias-idioma-en', texto: 'English', ligado: 'true', fala: 'Notícias em inglês', h: 44, bandeira: 'us', svg: true }]);
+  assert.doesNotMatch(await page.innerText('#noticias'), /\p{Extended_Pictographic}|\p{Regional_Indicator}/u, 'sem emoji (nem bandeira de emoji)');
+  assert.equal(await page.$eval('[data-noticia="n1"] .nt-meta .ds-bandeira', e => e.dataset.bandeira), 'br'); assert.equal(await page.$eval('[data-noticia="n0"] .nt-meta .ds-bandeira', e => e.dataset.bandeira), 'us');
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 0, 'lendo notícias não há botão primário disputando atenção');
+  await auditaTela(page, 'notícias · primeira página');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n2-noticias.png' });
+  // 3 · rolagem infinita: as páginas seguintes chegam sozinhas, uma vez cada, sem repetir notícia, até o fim
+  await ateOFim(); await page.waitForSelector('#noticias-fim'); assert.equal(await page.innerText('#noticias-fim'), 'Você está em dia');
+  assert.equal(await cartoes(), 60); assert.deepEqual(pedidos, ['indice.json', 'pagina-1.json', 'pagina-2.json', 'pagina-3.json']);
+  assert.equal(new Set(await page.$$eval('.nt-cartao', cs => cs.map(c => c.dataset.noticia))).size, 60);
+  await auditaTela(page, 'notícias · fim da linha do tempo');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n2-fim.png' });
+  // 4 · só português: o botão tocado fica onde está, a série pt é lida (uma página, 15 notícias) e a bandeira some das notícias
+  await page.evaluate(() => window.scrollTo(0, 0)); pedidos.length = 0;
+  const topo = () => page.$eval('#noticias-idioma-en', e => Math.round(e.getBoundingClientRect().top));
+  const antes = await topo(); await page.click('#noticias-idioma-en'); assert.equal(await topo(), antes, 'o botão de idioma não sai do lugar');
+  await page.waitForFunction(() => document.querySelectorAll('.nt-cartao').length === 15 && document.querySelector('#noticias-fim'));
+  assert.deepEqual(pedidos, ['indice.json', 'pt-pagina-1.json']); assert.ok(await page.$$eval('.nt-cartao', cs => cs.every(c => c.dataset.idioma === 'pt')));
+  assert.deepEqual(await page.$$eval('#noticias-idiomas button', bs => bs.map(b => b.getAttribute('aria-pressed'))), ['true', 'false']); assert.equal(await page.locator('.nt-meta .ds-bandeira').count(), 0);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n2-portugues.png' });
+  // o último idioma não desliga: a tela diz, e nada muda
+  await page.click('#noticias-idioma-pt'); assert.equal(await page.innerText('#noticias-nota'), 'Pelo menos um idioma fica ligado.'); assert.equal(await cartoes(), 15);
+  // a escolha fica guardada
+  await page.reload(); await page.waitForFunction(() => document.querySelectorAll('.nt-cartao').length === 15);
+  assert.deepEqual(await page.$$eval('#noticias-idiomas button', bs => bs.map(b => b.getAttribute('aria-pressed'))), ['true', 'false']);
+  // 5 · só inglês, com a segunda página caindo: o erro aparece ali mesmo, o que já chegou fica, e "Tentar de novo" continua de onde parou
+  cai.add('en-pagina-2.json'); await page.click('#noticias-idioma-en'); await page.click('#noticias-idioma-pt');
+  await page.waitForFunction(() => document.querySelectorAll('.nt-cartao').length === 20); await ateOFim(); await page.waitForSelector('#noticias-de-novo');
+  assert.equal(await cartoes(), 20); assert.match(await page.innerText('#noticias-erro'), /Não deu para buscar mais notícias/); await auditaTela(page, 'notícias · erro no meio');
+  await page.click('#noticias-de-novo'); await page.waitForFunction(() => document.querySelectorAll('.nt-cartao').length >= 40); await ateOFim(); await page.waitForSelector('#noticias-fim'); assert.equal(await cartoes(), 45);
+  // índice antigo, sem as séries por idioma: lê a geral e filtra no aparelho
+  { const { idiomas, ...antigo } = arquivos['indice.json']; arquivos = { ...arquivos, 'indice.json': antigo }; pedidos.length = 0; }
+  await page.reload(); await page.waitForSelector('#noticias-lista .nt-cartao'); await ateOFim(); await page.waitForSelector('#noticias-fim');
+  assert.equal(await cartoes(), 45); assert.ok(pedidos.includes('pagina-3.json') && !pedidos.some(p => p.startsWith('en-')));
+  arquivos = ramoN2();
+  // 6 · as quatro larguras, os dois temas e a fonte larga do CI, com os dois idiomas
+  await page.click('#noticias-idioma-pt'); await page.waitForFunction(() => document.querySelectorAll('.nt-cartao').length === 20 && document.querySelector('.nt-meta .ds-bandeira'));
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(80); await auditaTela(page, `notícias ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  { const larga = await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'notícias · fonte larga'); await larga.evaluate(el => el.remove()); }
+  if (process.env.SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: process.env.SHOTS + '/n2-claro.png' }); }
+  // 7 · sem internet: tela parada, desenhada, com um primário; a internet volta e as notícias chegam sozinhas
+  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news');
+  await page.context().setOffline(true); await page.click('#go-news'); await page.waitForSelector('#noticias-sem-rede');
+  assert.match(await page.innerText('#noticias-sem-rede'), /Sem internet[\s\S]*As notícias chegam pela internet\. Listas, coleção e partidas funcionam sem ela\./);
+  assert.equal(await page.locator('#noticias-sem-rede svg').count() >= 1, true); assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1); assert.equal(await page.innerText('#noticias-tentar'), 'Tentar de novo');
+  assert.equal(await page.locator('#noticias-idiomas').isVisible(), true, 'o seletor de idioma continua lá'); await auditaTela(page, 'notícias · sem internet');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n2-sem-internet.png' });
+  await page.context().setOffline(false); await page.waitForSelector('#noticias-lista .nt-cartao');
+  // 8 · com internet e o ramo fora do ar: outra frase, o mesmo caminho de volta
+  fora = true; await page.reload(); await page.waitForSelector('#noticias-falha'); assert.match(await page.innerText('#noticias-falha'), /As notícias não chegaram/); await auditaTela(page, 'notícias · falha');
+  fora = false; await page.click('#noticias-tentar'); await page.waitForSelector('#noticias-lista .nt-cartao');
+  // 9 · nada publicado: tela parada; com um idioma só, a frase diz qual e o que fazer
+  arquivos = { 'indice.json': { ...arquivos['indice.json'], total: 0, paginas: 0, idiomas: { pt: { total: 0, paginas: 0 }, en: { total: 0, paginas: 0 } } } };
+  await page.reload(); await page.waitForSelector('#noticias-vazio'); assert.match(await page.innerText('#noticias-vazio'), /Nada por aqui ainda[\s\S]*Nenhuma notícia nos últimos 30 dias/);
+  await page.click('#noticias-idioma-en'); await page.waitForFunction(() => /em português/.test((document.querySelector('#noticias-vazio') || {}).textContent || ''));
+  assert.match(await page.innerText('#noticias-vazio'), /Ligue o outro idioma para ver mais\./); await auditaTela(page, 'notícias · vazio');
+  await page.click('#noticias-idioma-en'); // volta aos dois, para não deixar a escolha no contexto
+  // catálogo: as bandeiras estão no /ds
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-bandeiras'); assert.equal(await page.locator('#ds-bandeiras .ds-bandeira svg').count(), 4);
   assert.deepEqual(errors, []);
 });
