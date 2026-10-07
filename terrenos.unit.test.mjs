@@ -106,3 +106,12 @@ test('I7 · na partida, a arte escolhida vale para terreno e para ficha, em qual
   assert.equal(TR.cartaComEscolhas(forest, artes).images.normal, 'f9/n'); assert.equal(TR.cartaComEscolhas(clue, artes).images.normal, 'c2/n');
   assert.equal(TR.cartaComEscolhas(forest, {}), forest); assert.equal(TR.cartaComEscolhas(null, artes), null);
 });
+
+test('J6 · a arte escolhida vale só para quem a escolheu: o bot e o oponente online ficam na arte padrão', () => {
+  assert.equal(TR.valeArteDoUsuario(0, { assentoDoBot: 1 }), true, 'meu lado contra o bot');
+  assert.equal(TR.valeArteDoUsuario(1, { assentoDoBot: 1 }), false, 'o bot joga com a arte padrão');
+  assert.equal(TR.valeArteDoUsuario(0, { assentoDoBot: 0 }), false, 'em qualquer assento');
+  assert.equal(TR.valeArteDoUsuario(1, {}), true, 'a dois no mesmo aparelho: os dois lados são do aparelho');
+  assert.equal(TR.valeArteDoUsuario(1, { meuAssentoOnline: 1 }), true); assert.equal(TR.valeArteDoUsuario(0, { meuAssentoOnline: 1 }), false, 'online: só o meu assento');
+  assert.equal(TR.valeArteDoUsuario(null, { assentoDoBot: 1 }), true, 'sem saber de quem é, vale'); assert.equal(TR.valeArteDoUsuario(undefined), true);
+});

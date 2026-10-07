@@ -610,6 +610,8 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // listas: a lista abre com os dados das cartas
   await page.goto(base + '#/listas');
   // U2 parte 2 · sem internet as ações das listas continuam com ícone (SVG do próprio arquivo)
+  // J6 (leva 208) · "Nova" mora no botão de ação, que entra na tela quando as listas terminam de carregar
+  await page.waitForSelector('#decks-fab-abrir'); assert.equal(await page.locator('#decks-fab-abrir svg').count(), 1, 'botão de ação com ícone sem internet');
   assert.equal(await page.locator('#deck-new svg').count(), 1, 'Nova com ícone sem internet');
   await page.click('text=Delver');
   await page.waitForSelector('.deck-summary');
@@ -2690,7 +2692,8 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   // listas: Prontas e Nova na linha do título, com ícone; item com seta
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
   await temIcone('#deck-starter'); await temIcone('#deck-new'); // D5 · o backup saiu de Listas (vive em Perfil › Dados)
-  await mesmaLinha('main h1', '#deck-new', 'Nova na linha do título');
+  // J6 (leva 208) · expectativa mudou de propósito: a ação saiu do topo e mora no botão de ação (canto inferior direito)
+  assert.equal(await page.locator('#decks-fab-abrir').isVisible(), true, 'Nova e Prontas no botão de ação');
   assert.equal(await page.locator('#decks-list .ds-list__item .ds-list__seta svg').count(), 1);
   await audita('listas');
   // lista: editar, exportar e excluir (ícone) na mesma linha; excluir confirma; marcar alterna
@@ -2717,7 +2720,8 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   await page.click('#col-import'); await page.fill('#col-import-text', '1 Sol Ring\n2 Counterspell');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   await page.waitForSelector('.col-row[data-name="Counterspell"]'); await page.waitForTimeout(300);
-  await mesmaLinha('main h1', '#col-scan', 'Escanear na linha do título'); await mesmaLinha('main h1', '#col-search', 'Buscar na linha do título');
+  // J6 (leva 208) · expectativa mudou de propósito: a ação saiu do topo e mora no botão de ação (canto inferior direito)
+  assert.equal(await page.locator('#col-fab-abrir').isVisible(), true, 'Escanear no botão de ação'); await mesmaLinha('main h1', '#col-search', 'Buscar na linha do título');
   assert.equal(await page.getAttribute('#col-search', 'aria-label'), 'Buscar cartas');
   // I2 · expectativa mudou de propósito: a contagem sob o título saiu (repetia o Painel); o cabeçalho do Painel a mostra numa linha só
   assert.equal(await page.locator('#col-summary').count(), 0); assert.match(await contagemDaColecao(page), /^\d+ carta\(s\) · \d+ cópia\(s\)$/);
@@ -3929,7 +3933,7 @@ test('e2e · leva 113/134 coleção: painel primeiro, adicionar carta logo abaix
   assert.ok(ordem.backup != null, 'com carta e sem backup, o aviso aparece');
   // o atalho do topo leva até o campo
   await page.evaluate(() => scrollTo(0, 0));
-  await page.click('#col-ir-adicionar');
+  await acaoJ6(page, 'col-fab', '#col-ir-adicionar'); // J6 · a ação mora no botão de ação
   await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add');
   await auditaTela(page, 'coleção reordenada');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/colecao.png', fullPage: true });
@@ -5799,7 +5803,7 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   assert.equal(await page.locator('#decks-vazio .ds-empty__icone svg').count(), 1);
   assert.match(await page.innerText('#decks-vazio'), /Nenhuma lista ainda/);
   assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
-  assert.equal(await page.locator('#deck-new').isVisible(), false);
+  assert.equal(await page.locator('#decks-fab-abrir').count(), 0); // J6 · estante vazia: sem botão de ação (os convites são o primário)
   assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), 'listas vazia cabe sem rolagem');
   await page.click('#decks-mais'); await page.waitForSelector('.ds-dialog #decks-backup-restore-folha');
   await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
@@ -5807,12 +5811,12 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   // com uma lista, o título recupera Prontas e Nova e o backup volta
   await createDeck(page, base, 'Delver', PAUPER);
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item');
-  assert.equal(await page.locator('#deck-new').isVisible(), true);
+  assert.equal(await page.locator('#decks-fab-abrir').isVisible(), true); // J6 · com listas, as ações moram no botão de ação
   // Coleção vazia: Escanear e Colar lista; CSV, Pelo nome e Buscar discretos; filtro e seção de adicionar escondidos
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
   assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
   assert.equal(await page.locator('#col-filter').isVisible(), false); assert.equal(await page.locator('#col-adicionar').isVisible(), false);
-  assert.equal(await page.locator('#col-scan').isVisible(), false, 'o Escanear do título sai: o do cartão é o primário');
+  assert.equal(await page.locator('#col-fab-abrir').count(), 0, 'coleção vazia: sem botão de ação; o Escanear do cartão é o primário'); // J6
   assert.equal(await page.locator('#col-csv-import').isVisible(), true, 'Abrir CSV continua alcançável (discreto)');
   assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), 'coleção vazia cabe sem rolagem');
   await auditaTela(page, 'coleção vazia');
@@ -5821,7 +5825,7 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add', null, { timeout: 3000 });
   await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
-  assert.equal(await page.locator('#col-scan').isVisible(), true); assert.equal(await page.locator('#col-filter').isVisible(), true);
+  assert.equal(await page.locator('#col-fab-abrir').isVisible(), true); assert.equal(await page.locator('#col-filter').isVisible(), true); // J6
   assert.equal(await page.locator('#col-adicionar .col-acoes #col-import').count(), 1, 'Colar lista voltou para a grade de ações');
   assert.equal(await page.locator('#col-csv-import').evaluate(el => el.classList.contains('ds-btn--ghost')), false);
   assert.deepEqual(errors, []);
@@ -5918,7 +5922,7 @@ test('e2e · leva 149 coleção: painel e adicionar carta são blocos expansíve
   assert.equal(await page.locator('#col-add').count(), 0, 'adicionar carta continua fechado');
   assert.equal(await page.locator('#col-dash-cartas').count(), 0, 'painel continua fechado');
   // o atalho "+" do topo abre o bloco e põe o foco no campo; abrir pelo cabeçalho também foca
-  await page.click('#col-ir-adicionar');
+  await acaoJ6(page, 'col-fab', '#col-ir-adicionar'); // J6 · a ação mora no botão de ação
   await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add');
   assert.equal(await page.getAttribute('#col-add-toggle', 'aria-expanded'), 'true');
   await page.click('#col-add-toggle'); await page.click('#col-add-toggle');
@@ -6757,6 +6761,19 @@ test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanho
   assert.deepEqual(errors, []);
 });
 
+// leva 208 · este teste caiu no CI quatro vezes em seis execuções (tempo esgotado esperando um elemento) e nunca aqui, nem
+// com o processador 10× mais lento; o log do CI não é legível deste ambiente. Cada espera passa a dizer, na própria
+// mensagem, o que havia na tela quando o tempo acabou.
+async function esperaH2(page, sel) {
+  try { await page.waitForSelector(sel, { timeout: 30000 }); }
+  catch (e) {
+    const d = await page.evaluate(() => { const E = window.__estanteMesa, s = E && E.estado && E.estado();
+      return { hash: location.hash, status: s && s.status, turno: s && s.turn && [s.turn.number, s.turn.active, s.turn.step, s.turn.priority], pend: s && s.pending && s.pending.kind, cena: (document.querySelector('#tb') || { dataset: {} }).dataset.cena || '',
+        botoes: [...document.querySelectorAll('.tb-dock button, #mesa-start, .ds-dialog button')].filter(b => b.getClientRects().length).map(b => (b.id || b.textContent.trim().slice(0, 12)) + (b.disabled ? '(off)' : '')).slice(0, 12).join(','),
+        espera: (document.querySelector('.ds-carregando__texto') || { textContent: '' }).textContent, shark: (document.querySelector('[data-opponent="shark"]') || {}).disabled }; }).catch(x => ({ erro: String(x) }));
+    throw new Error(`H2 parou esperando ${sel} · ` + JSON.stringify(d));
+  }
+}
 test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão desfaz uma a uma atravessando compra e turno do bot, e o registro volta ao começo de um turno com confirmação', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
@@ -6764,11 +6781,11 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   await createDeck(page, base, 'Delver', PAUPER);
   await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
   await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
-  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.click('[data-opponent="shark"]'); await esperaH2(page, '#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
-  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await esperaH2(page, '#tb-keep');
   assert.equal(await page.isDisabled('#tb-undo'), true, 'antes da primeira decisão não há o que voltar');
-  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await page.click('#tb-keep'); await esperaH2(page, '#tb-pass');
   assert.equal(await page.isEnabled('#tb-undo'), true, 'contra o bot, manter a mão também se desfaz (a dois, não)');
   const est = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return { turno: s.turn.number, mao: s.zones[0].hand.length, grimorio: s.zones[0].library.length, vida: s.players.map(p => p.life), status: s.status }; });
   // joga até o turno 4: cada passo meu fica guardado com o estado de antes
@@ -6783,7 +6800,7 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   const fim = await est(); assert.ok(fim.turno >= 4 && fotos.length >= 5, JSON.stringify(fim));
   assert.ok(fim.grimorio < fotos[0].grimorio, 'houve compra no caminho');
   // o registro: cada turno com jogada minha tem "Voltar"; confirma antes
-  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline'); await page.waitForTimeout(350);
+  await page.click('#tb-log'); await esperaH2(page, '#tb-timeline'); await page.waitForTimeout(350);
   const botoes = await page.$$eval('#tb-timeline [data-volta-turno]', bs => bs.map(b => ({ turno: Number(b.dataset.voltaTurno), texto: b.textContent.trim(), h: b.getBoundingClientRect().height, icone: (b.querySelector('.ds-icon') || { dataset: {} }).dataset.icone })));
   assert.ok(botoes.length >= 2, 'há turnos para voltar: ' + JSON.stringify(botoes)); assert.ok(botoes.every(b => b.texto === 'Voltar' && b.h >= 44 && b.icone === 'desfazer'), JSON.stringify(botoes));
   await auditaTela(page, 'registro com voltar ao turno');
@@ -6791,7 +6808,7 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   await page.click(`#tb-timeline [data-volta-turno="${alvo}"]`); await page.waitForSelector('#tb-volta-confirma');
   assert.equal(await page.innerText('#ds-dialog-title'), `Voltar ao turno ${alvo}?`);
   // cancelar não mexe na partida e devolve o registro
-  const antes = await est(); await page.locator('.ds-dialog__actions button', { hasText: 'Cancelar' }).click(); await page.waitForSelector('#tb-timeline'); assert.deepEqual(await est(), antes);
+  const antes = await est(); await page.locator('.ds-dialog__actions button', { hasText: 'Cancelar' }).click(); await esperaH2(page, '#tb-timeline'); assert.deepEqual(await est(), antes);
   await page.click(`#tb-timeline [data-volta-turno="${alvo}"]`); await page.click('#tb-volta-confirma'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   assert.deepEqual(await est(), fotos[idx], `voltou ao estado em que o turno ${alvo} chegou para mim`);
   // o botão: três toques, três jogadas para trás, cada uma no estado exato de antes (atravessa compra e o turno do bot)
@@ -6800,9 +6817,9 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   assert.equal(await page.isEnabled('#tb-undo'), true, 'e continua podendo voltar');
   // até o começo: o botão volta tudo e só então apaga
   for (let i = 0; i < 40 && await page.isEnabled('#tb-undo'); i++) { await page.click('#tb-undo'); await page.waitForTimeout(60); }
-  await page.waitForSelector('#tb-keep'); assert.equal(await page.isDisabled('#tb-undo'), true, 'de volta à mão inicial: nada mais a desfazer');
+  await esperaH2(page, '#tb-keep'); assert.equal(await page.isDisabled('#tb-undo'), true, 'de volta à mão inicial: nada mais a desfazer');
   // recarregar não perde a possibilidade de voltar
-  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass'); await page.reload(); await page.waitForSelector('#tb-pass');
+  await page.click('#tb-keep'); await esperaH2(page, '#tb-pass'); await page.reload(); await esperaH2(page, '#tb-pass');
   assert.equal(await page.isEnabled('#tb-undo'), true, 'partida reaberta: as jogadas continuam desfazíveis');
   assert.deepEqual(errors, []);
 });
@@ -7588,6 +7605,12 @@ test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na in
   assert.deepEqual(errors, []);
 });
 
+// J6 · abre o botão de ação da tela (se ainda não estiver aberto) e toca na ação pedida
+async function acaoJ6(page, fab, acao) {
+  await page.waitForSelector(`#${fab}-abrir`);
+  if (await page.getAttribute(`#${fab}-abrir`, 'aria-expanded') !== 'true') await page.click(`#${fab}-abrir`);
+  await page.click(acao);
+}
 /* ---------------- J1 · ficar onde está ---------------- */
 // Guarda-corpo: percorre os controles de estado de uma tela (chips, chaves, abas, blocos que abrem, seletores),
 // toca em cada um com a página rolada e mede se o controle tocado continua no mesmo lugar da janela.
@@ -7671,9 +7694,9 @@ test('e2e · J1 ficar onde está: tocar num chip, chave, aba, bloco ou seletor n
   assert.ok(Math.abs(await tocaSemSalto(page, '[data-densidade="compacta"]')) <= 2, 'encolher a página não puxa o controle');
   assert.ok(Math.abs(await tocaSemSalto(page, '[data-escala="grande"]')) <= 2); assert.ok(Math.abs(await tocaSemSalto(page, '[data-escala="pequena"]')) <= 2);
   // 4 · levar de propósito continua valendo: "Adicionar carta" na coleção leva até o campo
-  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-ir-adicionar');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-fab-abrir');
   await page.evaluate(() => { window.dispatchEvent(new Event('wheel')); window.scrollTo(0, document.documentElement.scrollHeight); });
-  if (await page.locator('#col-ir-adicionar').isVisible()) { const antes = await page.evaluate(() => scrollY); await page.evaluate(() => document.querySelector('#col-ir-adicionar').click()); await page.waitForTimeout(900);
+  { const antes = await page.evaluate(() => scrollY); await page.evaluate(() => document.querySelector('#col-ir-adicionar').click()); await page.waitForTimeout(900);
     assert.ok(await page.evaluate(() => { const r = document.querySelector('#col-add').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), 'o campo de adicionar fica à vista (rolagem ' + antes + ' → ' + await page.evaluate(() => scrollY) + ')'); }
   // 5 · trocar de tela continua começando do topo
   await page.goto(base + daLonga); await page.waitForSelector('.deck-slot'); await page.evaluate(() => window.scrollTo(0, 900)); await page.click('#nav-collection'); await page.waitForSelector('#col-dash-toggle');
@@ -8074,5 +8097,106 @@ test('e2e · I7 toque sem realce do navegador em todo o app; artes: a pequena ch
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
   await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await forestNaMaoI7(page);
   assert.match(await page.locator('#tb-hand .tb-card[aria-label^="Forest"] img').first().getAttribute('data-fonte'), /front\/x\/forest-1\.png$/);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- J6 · botão de ação ---------------- */
+test('e2e · J6 botão de ação: no canto inferior direito de Listas e Coleção, é o único primário, abre as ações para cima (ícone e rótulo curto), fecha no toque fora e no Esc, não cobre o fim da página e some na tela vazia e na seleção', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // 1 · estante vazia: sem botão de ação (os convites da tela vazia são o primário)
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
+  assert.equal(await page.locator('.ds-fab').count(), 0);
+  // duas listas, com as cartas marcadas como minhas (para a coleção ter o que mostrar)
+  await page.goto(base + '#/listas/editar'); await page.fill('#deck-name', 'Longa'); await page.selectOption('#deck-format', 'livre'); await page.fill('#deck-text', LISTA_J1); await page.click('[data-ownall]'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
+  await createDeck(page, base, 'Outra', PAUPER);
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir'); await page.waitForTimeout(350);
+  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - b.bottom) }; });
+  // 2 · onde fica e o que é: 56 px, 16 px das bordas, o único primário da tela; as ações saíram do topo
+  assert.deepEqual(await geo(), { w: 56, h: 56, direita: 16, baixo: 16 });
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o botão de ação');
+  assert.equal(await page.getAttribute('#decks-fab-abrir', 'aria-expanded'), 'false'); assert.equal(await page.getAttribute('#decks-fab-abrir', 'aria-label'), 'Ações das listas');
+  assert.equal(await page.locator('#deck-new').isVisible(), false); assert.equal(await page.locator('main h1 ~ .ds-btn, .decks-home > .ds-row .ds-btn').count(), 0, 'o topo ficou só com o título');
+  // 3 · abrir: as ações sobem em lista, à direita, cada uma com ícone e rótulo de até duas palavras e 44 px
+  await page.click('#decks-fab-abrir'); await page.waitForSelector('#deck-new');
+  assert.equal(await page.getAttribute('#decks-fab-abrir', 'aria-expanded'), 'true');
+  const itens = await page.$$eval('#decks-fab .ds-fab__item', (is) => { const p = document.querySelector('#decks-fab-abrir').getBoundingClientRect(); return is.map(i => { const r = i.getBoundingClientRect(); return { id: i.id, rotulo: i.querySelector('.ds-fab__rotulo').textContent, icone: !!i.querySelector('svg'), h: Math.round(r.height), acima: r.bottom <= p.top + 1, direita: Math.round(innerWidth - r.right), papel: i.getAttribute('role') }; }); });
+  assert.deepEqual(itens.map(i => [i.id, i.rotulo]), [['deck-new', 'Nova lista'], ['deck-starter', 'Prontas']]);
+  assert.ok(itens.every(i => i.icone && i.h >= 44 && i.acima && i.direita === 16 && i.papel === 'menuitem' && i.rotulo.split(' ').length <= 2), JSON.stringify(itens));
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'deck-new', 'o foco vai para a primeira ação');
+  assert.doesNotMatch(await page.innerText('#decks-fab'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await page.waitForTimeout(300); await auditaTela(page, 'listas · botão de ação aberto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j6-listas-aberto.png' });
+  // fechar: Esc devolve o foco ao botão; toque fora fecha; abrir e fechar não move a tela
+  await page.keyboard.press('Escape'); assert.equal(await page.getAttribute('#decks-fab-abrir', 'aria-expanded'), 'false'); assert.equal(await page.evaluate(() => document.activeElement.id), 'decks-fab-abrir');
+  assert.equal(await page.locator('#deck-new').isVisible(), false);
+  await page.click('#decks-fab-abrir'); await page.mouse.click(60, 300); assert.equal(await page.getAttribute('#decks-fab-abrir', 'aria-expanded'), 'false', 'toque fora fecha'); assert.match(page.url(), /#\/listas$/, 'e o toque que fechou não abriu a lista que estava embaixo');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j6-listas.png' });
+  // teclado: Enter abre, a ação escolhida navega
+  await page.focus('#decks-fab-abrir'); await page.keyboard.press('Enter'); await page.waitForSelector('#deck-starter'); await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => /#\/listas\/prontas/.test(location.hash)); await page.goBack(); await page.waitForSelector('#decks-fab-abrir');
+  await acaoJ6(page, 'decks-fab', '#deck-new'); await page.waitForSelector('#deck-text'); assert.match(page.url(), /#\/listas\/editar/);
+  // 4 · o fim da página tem respiro: rolando até o fim, a última linha fica acima do botão; o aviso flutuante sobe
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir'); await page.waitForTimeout(350);
+  const fim = await page.evaluate(() => { window.scrollTo(0, document.documentElement.scrollHeight); const ult = [...document.querySelectorAll('#decks-list .ds-list__item, #decks-list > * > *')].filter(e => e.getClientRects().length).pop().getBoundingClientRect(); const b = document.querySelector('.ds-fab__principal').getBoundingClientRect();
+    return { ultima: Math.round(ult.bottom), botao: Math.round(b.top), doca: getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim() }; });
+  assert.ok(fim.ultima <= fim.botao, 'a última lista fica acima do botão: ' + JSON.stringify(fim)); assert.equal(fim.doca, '56px', 'o aviso flutuante sobe para cima do botão');
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.click('#decks-fab-abrir'); await auditaTela(page, `listas · ação aberta ${w} ${tema}`); assert.deepEqual(await geo(), { w: 56, h: 56, direita: 16, baixo: 16 }); await page.keyboard.press('Escape'); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  // 5 · coleção: três ações; Adicionar abre o bloco e leva ao campo; Colar lista abre a folha; some durante a seleção
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-fab-abrir'); await page.waitForTimeout(350);
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1); assert.equal(await page.locator('#col-search').isVisible(), true);
+  await page.click('#col-fab-abrir');
+  assert.deepEqual(await page.$$eval('#col-fab .ds-fab__item', is => is.map(i => [i.id, i.querySelector('.ds-fab__rotulo').textContent])), [['col-scan', 'Escanear'], ['col-ir-adicionar', 'Adicionar'], ['col-colar', 'Colar lista']]);
+  await page.waitForTimeout(300); await auditaTela(page, 'coleção · botão de ação aberto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j6-colecao-aberto.png' });
+  await page.click('#col-ir-adicionar'); await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add', null, { timeout: 4000 });
+  assert.ok(await page.evaluate(() => { const r = document.querySelector('#col-add').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), 'o campo de adicionar fica à vista');
+  await acaoJ6(page, 'col-fab', '#col-colar'); await page.waitForSelector('#col-import-text'); await page.keyboard.press('Escape');
+  await page.locator('#col-select').scrollIntoViewIfNeeded(); await page.click('#col-select'); await page.waitForSelector('#col-select-off');
+  assert.equal(await page.locator('.ds-fab').count(), 0, 'na seleção a barra dela ocupa o pé: sem botão de ação');
+  await page.click('#col-select-off'); await page.waitForSelector('#col-fab-abrir');
+  // trocar de tela com a lista de ações aberta não deixa nada para trás: o primeiro toque na tela seguinte vale
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir'); await page.click('#decks-fab-abrir'); await page.waitForSelector('#deck-new');
+  await page.evaluate(() => { location.hash = '#/perfil'; }); await page.waitForSelector('[data-acento="cobre"]');
+  await page.click('[data-acento="cobre"]'); await page.waitForFunction(() => document.documentElement.getAttribute('data-acento') === 'cobre' || (document.querySelector('[data-acento="cobre"]') || { getAttribute() {} }).getAttribute('aria-pressed') === 'true', null, { timeout: 4000 }); // o toque não foi engolido pelo botão da tela anterior
+  // 6 · trocar de tela não deixa botão para trás; tela sem ação principal não tem botão
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-fichas'); assert.equal(await page.locator('.ds-fab').count(), 0);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim()), '', 'a reserva do pé some com o botão');
+  // catálogo
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-fab-abrir'); await page.click('#ds-fab-abrir'); assert.equal(await page.locator('#ds-fab .ds-fab__item').count(), 3);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- J6 · o bot joga com a arte padrão ---------------- */
+test('e2e · J6 arte escolhida só do meu lado: contra o Shark, a minha Forest sai na arte que escolhi e a do bot na arte padrão da plataforma', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; window.__SEM_CENA = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const q = new URL(r.request().url()).searchParams.get('q') || '';
+    if (q === '!"Forest"') return r.fulfill({ json: { object: 'list', has_more: false, data: [0, 1].map(i => ({ object: 'card', id: 'forest-' + i, name: 'Forest', type_line: 'Basic Land — Forest', layout: 'normal', set: 's' + i, set_name: 'E' + i, collector_number: String(i), image_uris: Object.fromEntries(['small', 'normal', 'large'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/forest-${i}.png`])) })) } });
+    return r.fallback(); });
+  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'livre');
+  await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('.ficha-opcao[data-opcao="forest-1"]', { timeout: 15000 }); await page.click('.ficha-opcao[data-opcao="forest-1"]');
+  await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="forest-1"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false'; }, null, { timeout: 12000 });
+  // partida contra o Shark, os dois com a mesma lista
+  await page.goto(base + '#/mesa'); await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 15000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 15000 });
+  await page.click('[data-mode="full"]'); await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 30000 }); await page.click('#tb-keep');
+  // joga terrenos e passa turnos até os dois lados terem Forest em campo
+  const campo = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return [0, 1].map(p => s.zones[p].battlefield.filter(o => s.objects[o].name === 'Forest').length); });
+  for (let i = 0; i < 40; i++) {
+    const [eu, bot] = await campo(); if (eu && bot) break;
+    await page.evaluate(() => { const E = window.__estanteMesa, s = E.estado(); if (s.status !== 'playing') return; const a = E.legais().find(a => a.p === 0 && a.t === 'play_land') || E.legais().find(a => a.p === 0 && (a.t === 'attack' && !a.attackers.length)) || E.legais().find(a => a.p === 0 && a.t === 'block') || E.legais().find(a => a.p === 0 && a.t === 'pass'); if (a) { try { E.act(a); } catch (e) { /* segue */ } } });
+    await page.waitForTimeout(120);
+  }
+  const lados = await campo(); assert.ok(lados[0] > 0 && lados[1] > 0, 'os dois lados têm Forest em campo: ' + lados);
+  await page.waitForTimeout(600);
+  const fontes = await page.evaluate(() => ({ eu: [...document.querySelectorAll('.tb-side--me .tb-card[aria-label^="Forest"] img')].map(i => i.dataset.fonte), bot: [...document.querySelectorAll('.tb-side:not(.tb-side--me) .tb-card[aria-label^="Forest"]')].map(c => (c.querySelector('img') || { dataset: {} }).dataset.fonte || 'texto') }));
+  assert.ok(fontes.eu.length && fontes.eu.every(f => /front\/x\/forest-1\.png$/.test(f)), 'a minha Forest está na arte escolhida: ' + JSON.stringify(fontes));
+  assert.ok(fontes.bot.length && fontes.bot.every(f => !/forest-1\.png/.test(f)), 'a Forest do bot fica na arte padrão da plataforma: ' + JSON.stringify(fontes));
   assert.deepEqual(errors, []);
 });

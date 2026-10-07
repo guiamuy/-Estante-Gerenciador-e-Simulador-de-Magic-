@@ -1000,6 +1000,26 @@ a { color: var(--accent); }
 /* movimento reduzido: o logo parado, que só esmaece */
 .abertura[data-parada="true"] .abertura__ladrilho, .abertura[data-parada="true"] .ab-moldura, .abertura[data-parada="true"] .ab-tabua, .abertura[data-parada="true"] .ab-carta { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .abertura__ladrilho, .ab-moldura, .ab-tabua, .ab-carta { animation: none; } }
+/* J6 · botão de ação: a ação principal da tela ao alcance do polegar, no canto inferior direito. Uma ação: toca e faz.
+   Várias: abre para cima uma lista curta de ícone + rótulo. É o primário da tela (usa o desenho do botão primário).
+   Fica acima do conteúdo e abaixo de diálogos e avisos; a página ganha respiro no fim para ele não cobrir a última linha. */
+.ds-fab { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-3); pointer-events: none; }
+.ds-fab > * { pointer-events: auto; }
+.ds-fab__principal.ds-btn { width: var(--fab); min-width: var(--fab); height: var(--fab); padding: 0; border-radius: var(--radius-3); box-shadow: var(--btn-rest), var(--shadow-2); }
+.ds-fab { --fab: 56px; }
+.ds-fab__principal .ds-icon { transition: transform var(--dur-2) var(--ease-out); }
+.ds-fab[data-aberto="true"] .ds-fab__mais { transform: rotate(45deg); }
+.ds-fab__lista { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
+.ds-fab[data-aberto="false"] .ds-fab__lista { display: none; }
+.ds-fab__item.ds-btn { min-height: var(--tap-min); padding: 0 var(--space-3) 0 var(--space-4); gap: var(--space-3); border-radius: var(--radius-full); box-shadow: var(--btn-rest), var(--shadow-2); animation: ds-fab-sobe var(--dur-2) var(--ease-out) both; }
+.ds-fab__item:nth-last-child(2) { animation-delay: calc(var(--dur-1) * .4); }
+.ds-fab__item:nth-last-child(3) { animation-delay: calc(var(--dur-1) * .8); }
+.ds-fab__item:nth-last-child(n+4) { animation-delay: calc(var(--dur-1) * 1.2); }
+.ds-fab__selo { display: inline-flex; color: var(--accent); }
+@keyframes ds-fab-sobe { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-fab__item.ds-btn { animation: none; } .ds-fab__principal .ds-icon { transition: none; } }
+:root[data-movimento="reduzido"] .ds-fab__item.ds-btn { animation: none !important; }
+#outlet:has(.ds-fab) { padding-bottom: calc(56px + var(--space-6)); }
 /* J4 · carregamento com identidade: três cartas se arrumam na prateleira, uma depois da outra, e o ciclo recomeça.
    Três tamanhos: tela (a tela inteira espera), bloco (um trecho espera) e linha (ao lado de um texto curto). */
 .ds-carregando { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); text-align: center; }
@@ -2937,6 +2957,41 @@ function Carregando(texto = 'Carregando…', { tamanho = 'bloco', id = null } = 
   return h('div', { class: 'ds-carregando', id, role: 'status', 'aria-live': 'polite', dataset: { tamanho: ['tela', 'bloco', 'linha'].includes(tamanho) ? tamanho : 'bloco' } },
     arte, typeof texto === 'string' ? h('span', { class: 'ds-carregando__texto' }, texto) : texto);
 }
+/** J6 · botão de ação da tela. `acoes`: [{ icone, rotulo, onClick, id }] (nulos são ignorados; sem ação, sem botão).
+    Uma ação: o botão a executa. Várias (até quatro): o botão abre a lista para cima; toque fora, Esc ou escolher fecham.
+    `rotulo` é o nome falado do botão quando ele abre a lista. */
+function BotaoDeAcao(acoes, { id = 'acao', rotulo = 'Ações' } = {}) {
+  const lista = (acoes || []).filter(Boolean).slice(0, 4);
+  if (!lista.length) return null;
+  const el = h('div', { class: 'ds-fab', id, dataset: { aberto: 'false', sobrepoe: 'acao', acoes: String(lista.length) } });
+  if (lista.length === 1) {
+    const a = lista[0];
+    el.appendChild(h('button', { class: 'ds-btn ds-btn--primary ds-fab__principal', type: 'button', id: a.id || null, 'aria-label': a.rotulo, title: a.rotulo, onClick: a.onClick }, Icone(a.icone, { tamanho: 24 })));
+    return reservaDoca(el);
+  }
+  let principal = null;
+  // toque fora só fecha a lista: o clique desse mesmo toque é engolido, para não acionar o que está embaixo
+  const engole = e => { e.stopPropagation(); e.preventDefault(); };
+  // (se a tela trocou com a lista aberta, o botão já não existe: só desliga os ouvintes, sem engolir toque nenhum)
+  const fora = e => { if (!el.isConnected) return fecha(); if (el.contains(e.target)) return; fecha(); document.addEventListener('click', engole, { capture: true, once: true }); setTimeout(() => document.removeEventListener('click', engole, true), 400); };
+  const tecla = e => { if (!el.isConnected) return fecha(); if (e.key === 'Escape') { fecha(); principal.focus({ preventScroll: true }); } };
+  function fecha() {
+    if (el.dataset.aberto !== 'true') return;
+    el.dataset.aberto = 'false'; principal.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', fora, true); document.removeEventListener('keydown', tecla, true);
+  }
+  function abre() {
+    el.dataset.aberto = 'true'; principal.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', fora, true); document.addEventListener('keydown', tecla, true);
+    const primeiro = menu.querySelector('.ds-fab__item'); if (primeiro) primeiro.focus({ preventScroll: true });
+  }
+  const menu = h('div', { class: 'ds-fab__lista', role: 'menu', id: id + '-lista' }, ...lista.map(a =>
+    h('button', { class: 'ds-btn ds-fab__item', type: 'button', role: 'menuitem', id: a.id || null, onClick: () => { fecha(); a.onClick(); } }, h('span', { class: 'ds-fab__rotulo' }, a.rotulo), h('span', { class: 'ds-fab__selo', 'aria-hidden': 'true' }, Icone(a.icone, { tamanho: 20 })))));
+  principal = h('button', { class: 'ds-btn ds-btn--primary ds-fab__principal', type: 'button', id: id + '-abrir', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-controls': id + '-lista', 'aria-label': rotulo, title: rotulo,
+    onClick: () => (el.dataset.aberto === 'true' ? fecha() : abre()) }, Icone('mais', { tamanho: 24, classe: 'ds-fab__mais' }));
+  el.append(menu, principal);
+  return reservaDoca(el);
+}
 /** J4 · a espera de uma lista com a forma da lista: `linhas` linhas de selo + dois traços. */
 function Esqueleto({ linhas = 4, id = null, fala = 'Carregando…' } = {}) {
   return h('div', { class: 'ds-esqueleto', id, role: 'status', 'aria-label': fala },
@@ -3083,7 +3138,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -3407,6 +3462,9 @@ function renderDS() {
       // J4 · espera com identidade, nos três tamanhos, e o esqueleto de lista
       h('div', { id: 'ds-carregando' }, __m3.Carregando('Abrindo lista…', { tamanho: 'tela', id: 'ds-carregando-tela' }), __m3.Carregando('Buscando artes…', { tamanho: 'bloco', id: 'ds-carregando-bloco' }), __m3.Carregando('Esperando o outro jogador…', { tamanho: 'linha', id: 'ds-carregando-linha' })),
       __m3.Esqueleto({ linhas: 3, id: 'ds-esqueleto' }),
+      // J6 · botão de ação: no catálogo ele aparece no canto da tela, como numa tela de verdade (uma ação e várias)
+      Text('BotaoDeAcao: canto inferior direito desta tela — toque para abrir as ações', { size: 'sm', tone: 'muted', attrs: { id: 'ds-fab-nota' } }),
+      __m3.BotaoDeAcao([{ icone: 'mais', rotulo: 'Nova lista', onClick: () => toast('Nova lista') }, { icone: 'caixa', rotulo: 'Prontas', onClick: () => toast('Prontas') }, { icone: 'scanner', rotulo: 'Escanear', onClick: () => toast('Escanear') }], { id: 'ds-fab', rotulo: 'Ações do catálogo' }),
       Row({ id: 'ds-arte-de-espera' }, __m3.ArteDeEspera(), Text('ArteDeEspera: o desenho sozinho, dentro de uma arte que ainda não chegou', { size: 'sm', tone: 'muted' }))),
 
     Section('Sobreposições',
@@ -3727,10 +3785,11 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     },
     /** E50 P3 · dados e imagem das fichas (Scryfall guarda ficha como carta com tipo "Token"). Cache primeiro, fixado
         para sempre; a busca é "!nome t:token", com força/resistência quando é criatura. Devolve Map chave→carta|null. */
-    async fichas(defs, { onlineOnly = false } = {}) {
+    async fichas(defs, { onlineOnly = false, padrao = false } = {}) {
       const out = new Map();
       // I4 · a arte que o usuário escolheu em Perfil › Fichas vale antes de tudo (fica no aparelho e no backup)
-      let escolhas = {}; try { escolhas = (await store.get('fichas.escolhas')) || {}; } catch (e) { /* sem armazenamento: sem escolhas */ }
+      // J6 · `padrao`: quem monta a partida pede a ficha da plataforma (a escolha do usuário entra na mesa, só do lado dele)
+      let escolhas = {}; if (!padrao) { try { escolhas = (await store.get('fichas.escolhas')) || {}; } catch (e) { /* sem armazenamento: sem escolhas */ } }
       for (const t of defs || []) {
         const chave = 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
         if (escolhas[chave] && escolhas[chave].images) { out.set(chave, escolhas[chave]); continue; }
@@ -8412,6 +8471,14 @@ function cartaComFicha(card, escolhas) {
   return e && e.images ? { ...card, images: e.images } : card;
 }
 const cartaComEscolhas = (card, { terrenos = null, fichas = null } = {}) => cartaComFicha(cartaComTerreno(card, terrenos), fichas);
+/** J6 · de quem é a carta decide se as artes do usuário valem: nunca para o bot (ele joga com a arte padrão da
+    plataforma) nem, numa partida online, para o lado de quem está no outro aparelho. Dono desconhecido: valem. */
+function valeArteDoUsuario(dono, { assentoDoBot = null, meuAssentoOnline = null } = {}) {
+  if (dono == null) return true;
+  if (assentoDoBot != null && dono === assentoDoBot) return false;
+  if (meuAssentoOnline != null && dono !== meuAssentoOnline) return false;
+  return true;
+}
 function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRedePadrao }) {
   return __m34.criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDoTerreno, teto: TETO,
     // uma por arte, da mais recente; só o que a mesa precisa fica guardado (sem preço nem endereço)
@@ -8420,7 +8487,7 @@ function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRed
       return __m14.opcoesDeImpressao(cartas, 175).map(o => ({ id: o.id, name: def.name, set: o.set, set_name: o.set_name, collector_number: o.collector_number, images: o.images, faces: [] }));
     } });
 }
-return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, cartaComEscolhas, createTerrenos };
+return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, cartaComEscolhas, valeArteDoUsuario, createTerrenos };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -8499,6 +8566,11 @@ function abrirFiltrosDeListas({ filtro, formatos, onChange, onLimpar }) {
 }
 function createDecksHome({ decks, collection, files, cardRepo, backup = null, etiquetas = null }) {
   const list = h('div', { id: 'decks-list' }, __m3.Esqueleto({ linhas: 4, fala: 'Abrindo as listas…' })); // J4 · a espera já tem a forma da estante
+  // J6 · o botão de ação só existe quando há listas (a estante vazia tem os próprios convites, e um primário só)
+  const acaoDaTela = h('div', { id: 'decks-acao' });
+  const pintaAcao = tem => mount(acaoDaTela, tem ? __m3.BotaoDeAcao([
+    { icone: 'mais', rotulo: 'Nova lista', id: 'deck-new', onClick: () => go('/listas/editar') },
+    { icone: 'caixa', rotulo: 'Prontas', id: 'deck-starter', onClick: () => go('/listas/prontas') }], { id: 'decks-fab', rotulo: 'Ações das listas' }) : null);
   // I2 · busca e filtros da estante, no padrão da coleção: campo de texto, botão Filtros com o número de critérios, contagem e Limpar
   const FLL = __m27;
   let fl = filtroDasListas || FLL.novoFiltroDeListas();
@@ -8541,6 +8613,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     mount(etqRow, all.length && etq.lista.length ? Row({ class: 'ds-row--wrap col-etiquetas' },
       ...etq.lista.filter(e => contaEtq.get(e.id)).map(e => __m32.ChipEtiqueta(e, { pressed: etqLigadas.has(e.id), conta: contaEtq.get(e.id), onClick: () => { if (etqLigadas.has(e.id)) etqLigadas.delete(e.id); else etqLigadas.add(e.id); paint(); } })),
       Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'decks-etiquetas-gerir', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', existe: new Set(all.map(d => d.id)), onMuda: () => paint() }) })) : null);
+    pintaAcao(all.length > 0);
     if (!all.length) { mount(valorRow, null); mount(filtroRow, null); mount(contagemRow, null); }
     if (!all.length) return mount(list, Empty('Comece por uma lista pronta ou cole uma lista do Moxfield, Archidekt ou Arena.',
       h('div', { class: 'ds-empty__acoes' },
@@ -8583,11 +8656,10 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     })));
   }
   const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
-    Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
-      Button('Prontas', { id: 'deck-starter', icone: 'caixa', title: 'Listas prontas', onClick: () => go('/listas/prontas') }),
-      Button('Nova', { variant: 'primary', id: 'deck-new', icone: 'mais', title: 'Nova lista', onClick: () => go('/listas/editar') })),
+    // J6 · "Nova" e "Prontas" saíram do topo: moram no botão de ação (canto inferior direito), que é o primário da tela
+    Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' })),
     filtroRow, etqRow, contagemRow, valorRow,
-    list,
+    list, acaoDaTela,
     // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
     fileInput);
   paint();
@@ -10201,6 +10273,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   function toggleSelected(g) { if (state.selected.has(g.key)) state.selected.delete(g.key); else state.selected.add(g.key); paint(); }
   function paintSelection() {
+    pintaAcaoDaColecao();
     if (!state.selecting) return mount(selectionBar, null);
     const n = state.selected.size;
     // G2 · duas fileiras: contagem, Todas e sair em cima; as ações sobre a seleção (etiquetar, exportar) embaixo
@@ -10378,7 +10451,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   const addIn = Input({ id: 'col-add', placeholder: 'Nome da carta, em inglês', onInput: e => { addState.name = e.target.value; } });
   addIn.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
-  const addBtn = IconButton('mais', 'Adicionar carta', { variant: 'primary', id: 'col-add-btn', onClick: add });
+  const addBtn = IconButton('mais', 'Adicionar carta', { id: 'col-add-btn', onClick: add }); // J6 · deixou de ser primário: o primário da tela é o botão de ação
   const filterIn = Input({ id: 'col-filter', placeholder: 'Nome ou texto da carta', value: state.filter, onInput: e => { state.filter = e.target.value; paint(); } });
   filterBtn = Button('Filtros', { id: 'col-filters', icone: 'filtro', onClick: openFilters }); paintFilterBtn();
 
@@ -10423,18 +10496,23 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   paintExport();
   let root = null;
   /** D4 · coleção vazia: título e cartão de primeiro uso; botões do título, filtro e seção de adicionar saem (voltam com a primeira carta ou por "Pelo nome"). */
+  // J6 · botão de ação da coleção: escanear, adicionar pelo nome (abre o bloco e leva até o campo) e colar uma lista.
+  // Não aparece na coleção vazia (ela tem os próprios convites) nem durante a seleção de cartas (a barra dela ocupa o pé).
+  const acaoDaColecao = h('div', { id: 'col-acao' });
+  const pintaAcaoDaColecao = () => mount(acaoDaColecao, state.items.length && !state.selecting ? __m3.BotaoDeAcao([
+    { icone: 'scanner', rotulo: 'Escanear', id: 'col-scan', onClick: () => go('/scanner') },
+    { icone: 'mais', rotulo: 'Adicionar', id: 'col-ir-adicionar', onClick: () => { abreAdicionar(true); __m3.levaAte(secaoAdicionar); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } },
+    { icone: 'importar', rotulo: 'Colar lista', id: 'col-colar', onClick: () => openImportList() }], { id: 'col-fab', rotulo: 'Ações da coleção' }) : null);
   function pintaVazia(vazia) {
-    if (root) root.dataset.vazia = String(vazia);
+    if (root) root.dataset.vazia = String(vazia); pintaAcaoDaColecao();
     csvBtn.classList.toggle('ds-btn--ghost', vazia);
     if (!vazia) { if (importBtn.parentElement !== colAcoes) colAcoes.prepend(importBtn, csvBtn); if (secaoAdicionar.dataset.aberta) { delete secaoAdicionar.dataset.aberta; paintAdd(); } }
   }
   load();
   root = Stack({ ...pad(), class: 'ds-wrap col-root' },
     Row({ class: 'col-topo' }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
-      IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }),
-      // Leva 149 · o atalho abre o bloco de adicionar (logo abaixo do painel) e põe o foco no campo
-      IconButton('mais', 'Adicionar carta', { id: 'col-ir-adicionar', onClick: () => { abreAdicionar(true); __m3.levaAte(secaoAdicionar); setTimeout(() => addIn.focus({ preventScroll: true }), 350); } }),
-      Button('Escanear', { variant: 'primary', id: 'col-scan', icone: 'scanner', onClick: () => go('/scanner') })),
+      // J6 · "Adicionar" e "Escanear" saíram do topo: moram no botão de ação, que é o primário da tela; a busca fica
+      IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') })),
     // Leva 149 · ordem pedida: painel, adicionar carta, depois filtro e visões da coleção; ações da lista e backup no fim
     dashboard,
     secaoAdicionar,
@@ -10443,7 +10521,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     Row({ class: 'ds-row--wrap col-filtro' },
       h('div', { class: 'ds-grow', style: { minWidth: '180px' } }, filterIn),
       filterBtn),
-    etqRow, toolbar, viewsRow, countLine, listEl, selectionBar,
+    etqRow, toolbar, viewsRow, countLine, listEl, selectionBar, acaoDaColecao,
     csvInput, listInput,
     care);
   return root;
@@ -16989,7 +17067,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const names = [...new Set(entries.map(e => e.name))];
       const found = await cardRepo.byNames(names);
       const cards = {}; for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; }
-      try { const defs = __m23.fichasDasCartas(names); if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c) cards[c.name] = c; } } } catch (e) { /* sem ficha guardada */ }
+      try { const defs = __m23.fichasDasCartas(names); if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { padrao: true, onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c) cards[c.name] = c; } } } catch (e) { /* sem ficha guardada */ }
       return cards;
     }
     async function guardarEIr(setup, assento, codigo, serieDe = null) {
@@ -17114,7 +17192,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         // E50 P3 · as fichas que essas cartas criam entram no mapa pelo nome da ficha (imagem e texto na mesa)
         try {
           const defs = __m23.fichasDasCartas(names);
-          if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c && !cards[t.name]) cards[t.name] = c; } }
+          if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { padrao: true, onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c && !cards[t.name]) cards[t.name] = c; } }
         } catch (e) { /* sem ficha guardada: a mesa mostra o nome */ }
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : (state.meuNome || 'Você'), deck: mine },
@@ -17362,7 +17440,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   const artes = { terrenos: null, fichas: null };
   // lidas antes do primeiro desenho da mesa (ver o carregamento da partida): a carta já nasce com a arte certa
   const carregaArtes = async () => { for (const [qual, chave] of [['terrenos', 'terrenos.escolhas'], ['fichas', 'fichas.escolhas']]) { try { const x = await store.get(chave); artes[qual] = x && Object.keys(x).length ? x : null; } catch (e) { /* sem escolhas: arte padrão */ } } };
-  const card = name => __m36.cartaComEscolhas(T.cartaDaMesa(table.setup.cards, name), artes); // H1 · o verso de uma dupla face acha a própria imagem
+  // J6 · `x` é o nome ou o objeto da mesa: com o objeto dá para saber de quem é a carta, e a arte escolhida só vale para
+  // quem a escolheu — o bot (e o oponente online) ficam com a arte padrão
+  const donoDe = x => (x && typeof x === 'object') ? (x.owner != null ? x.owner : x.controller != null ? x.controller : null) : null;
+  const valeArte = dono => __m36.valeArteDoUsuario(dono, { assentoDoBot: table.options && table.options.bot ? table.options.bot.seat : null, meuAssentoOnline: sinc ? sinc.assento : null });
+  const card = x => { const c = T.cartaDaMesa(table.setup.cards, typeof x === 'string' ? x : x && x.name); return valeArte(donoDe(x)) ? __m36.cartaComEscolhas(c, artes) : c; }; // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */
@@ -17468,7 +17550,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function pintaLegenda(q) {
     const s = cena.estado, nome = q.quem === cena.eu ? 'Você' : s.players[q.quem].name, n = cena.quadros.length;
     const carta = q.oid != null && s.objects[q.oid] && !ocultaDe(s, s.objects[q.oid]) ? s.objects[q.oid].name : null;
-    const img = carta ? imgOf(carta, 'small') : null;
+    const img = carta ? imgOf({ name: carta, owner: s.objects[q.oid].owner, controller: s.objects[q.oid].controller }, 'small') : null; // J6 · a carta do bot na legenda fica na arte padrão
     if (!cena.el) cena.el = h('div', { class: 'tb-cena', id: 'tb-cena', role: 'status', 'aria-live': 'polite', dataset: { sobrepoe: 'true' } });
     cena.el.dataset.quem = q.quem === cena.eu ? 'eu' : 'oponente'; cena.el.dataset.quadro = String(cena.i + 1);
     mount(cena.el,
@@ -17700,16 +17782,17 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
 
   /* ---- folhas de ação ---- */
-  function sheet(name, buttons, extra) {
+  function sheet(name, buttons, extra, dono = null) {
+    const deQuem = x => (dono == null ? x : { name: x, owner: dono }); // J6 · a folha mostra a arte de quem é a carta
     // H1 · a carta grande da folha sai nítida (todos os tamanhos, o navegador escolhe; antes só a "normal", borrada em tela 3×)
     // e a carta de duas faces vira na própria folha: a outra face aparece inteira, com o texto dela
-    const c = card(name), inteira = c && c.faceDe ? card(c.faceDe) : c;
+    const c = card(deQuem(name)), inteira = c && c.faceDe ? card(deQuem(c.faceDe)) : c;
     const faces = inteira && (inteira.faces || []).length > 1 && inteira.faces.every(f => f.images) ? inteira.faces : [];
     let face = c && c.face != null ? c.face : 0;
     const foto = h('div', { class: 'tb-sheet__foto' }), texto = h('div', { class: 'tb-sheet__texto' });
     const pinta = () => {
       const f = faces.length ? faces[face] : null;
-      const ims = f ? f.images : imagensOf(name), nome = f ? f.name : name, regras = f ? (f.oracle_text || '') : oracleOf(name);
+      const ims = f ? f.images : imagensOf(deQuem(name)), nome = f ? f.name : name, regras = f ? (f.oracle_text || '') : oracleOf(name);
       // Q10 · sem imagem: a folha fica só com o texto
       mount(foto, __m3.ImagemCarta(ims, { alt: nome, sizes: '240px', lazy: false, classe: 'tb-sheet__img', onFalha: el => el.remove() }));
       foto.dataset.face = String(face);
@@ -17809,7 +17892,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       if (!grupos.has(chave)) grupos.set(chave, { o, oid, acao: a, ids: new Set() }); grupos.get(chave).ids.add(oid); }
     for (const g of grupos.values()) g.total = g.ids.size; // Leva 136 · conta cartas, não ações (o mesmo terreno aparecia uma vez por alvo)
     const cartas = [...grupos.values()].map(g => {
-      const c = TableCard({ ...g.o, tapped: false, image: imgOf(g.o.name, 'normal'), images: imagensOf(g.o.name) }, { ...(g.total > 1 ? { pilha: { total: g.total, viradas: 0 } } : {}), ...comPeek(g.oid),
+      const c = TableCard({ ...g.o, tapped: false, image: imgOf(g.o, 'normal'), images: imagensOf(g.o) }, { ...(g.total > 1 ? { pilha: { total: g.total, viradas: 0 } } : {}), ...comPeek(g.oid),
         ...(g.o.zone === 'battlefield' && g.o.tapped ? { tags: ['virada'] } : {}),
         onClick: () => { closeDialog(); act(g.acao); } });
       const alvoDoNome = c.matches('button') ? c : (c.querySelector('button') || c);
@@ -17843,7 +17926,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     function pinta() {
       conta.textContent = `${pergunta(qtd)} Toque nas cartas: ${escolhidos().length} de ${qtd}.`;
       grade.replaceChildren(...lista.map(g => {
-        const c = TableCard({ ...g.o, tapped: false, image: imgOf(g.o.name, 'normal'), images: imagensOf(g.o.name) }, { ...(g.ids.length > 1 ? { pilha: { total: g.ids.length, viradas: 0 } } : {}), ...comPeek(g.ids[0]),
+        const c = TableCard({ ...g.o, tapped: false, image: imgOf(g.o, 'normal'), images: imagensOf(g.o) }, { ...(g.ids.length > 1 ? { pilha: { total: g.ids.length, viradas: 0 } } : {}), ...comPeek(g.ids[0]),
           selected: g.n > 0, tags: [g.o.sick && g.o.zone === 'battlefield' ? 'enjoo' : null, g.n > 0 && g.ids.length > 1 ? `${g.n} de ${g.ids.length}` : null].filter(Boolean), onClick: () => toca(g) });
         const b = c.matches('button') ? c : (c.querySelector('button') || c);
         b.setAttribute('aria-label', `${verbo} ${g.o.name}${g.ids.length > 1 ? `, ${g.ids.length} cópias iguais` : ''}${g.n ? `, ${g.n} escolhida(s)` : ''}`); b.setAttribute('aria-pressed', String(g.n > 0)); c.dataset.escolha = g.o.name;
@@ -17976,7 +18059,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
-    sheet(ocultaDe(table.state, d.o) ? VERSO_NOME : d.o.name, d.acoes.map(toButton), d.where); // D7 · a folha também não revela a carta do outro
+    sheet(ocultaDe(table.state, d.o) ? VERSO_NOME : d.o.name, d.acoes.map(toButton), d.where, d.o.owner != null ? d.o.owner : d.o.controller); // D7 · a folha também não revela a carta do outro
   }
   /** A15 · tudo que a carta pode fazer agora, como descrições, e a linha de contexto. */
   function acoesDe(oid) {
@@ -18138,7 +18221,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const est = T.estadoDaCarta(s, o, plan);
     if (peekEl) peekEl.remove();
     const oculta = ocultaDe(s, o); // D7 · espiar a carta virada do outro mostra só o que é público (2/2, virada para baixo)
-    peekEl = CardPeek({ name: oculta ? VERSO_NOME : o.name, image: oculta ? null : imgOf(o.name, 'normal'), tipo: oculta ? 'Criatura' : est.tipo, pt: est.pt, custo: oculta ? null : (d.costTxt || null), zona: T.ZONE_PT[o.zone] || null,
+    peekEl = CardPeek({ name: oculta ? VERSO_NOME : o.name, image: oculta ? null : imgOf(o, 'normal'), tipo: oculta ? 'Criatura' : est.tipo, pt: est.pt, custo: oculta ? null : (d.costTxt || null), zona: T.ZONE_PT[o.zone] || null,
       marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.map(m => m.rotulo || m.texto)], oracle: oculta ? null : oracleOf(o.name),
       acoes: d.acoes.filter(a => !a.disabled) });
     simbolizar(peekEl); // U3
@@ -18151,7 +18234,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const s = table.state;
     const ids = s.zones[p][zone];
     Dialog({ title: `${label} de ${s.players[p].name}`, body: ids.length
-      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name), images: imagensOf(s.objects[oid].name) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
+      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid]), images: imagensOf(s.objects[oid]) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
         ...(zone === 'exile' && s.objects[oid].plotted != null ? { estado: T.estadoDaCarta(s, s.objects[oid]) } : {}) })))
       : Empty('Vazio.'), actions: [Button('Fechar', { onClick: closeDialog })] });
   }
@@ -18203,7 +18286,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   let vistos = new Set();
   const entrou = oid => !vistos.has(oid);
   const alvoPendente = (s, oid) => !!(s.pending && s.pending.kind === 'pick_target' && s.pending.p === table.viewer() && (s.pending.options || []).some(x => x.oid === oid)); // Leva 131
-  const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name), images: imagensOf(s.objects[oid].name) },
+  const cardsOf = (s, ids, onClick) => ids.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid]), images: imagensOf(s.objects[oid]) },
     { onClick: () => onBoardTap(oid) || onClick(oid), estado: T.estadoDaCarta(s, s.objects[oid], plan), entrou: entrou(oid), selected: plan.attack.has(oid) || plan.blocks.has(oid), eligible: plan.eligible.has(oid) || alvoPendente(s, oid), ...comPeek(oid) }));
   /** U5 · iguais em leque: tocar age na primeira desvirada (ou na primeira, se todas viradas).
       No combate, quem pode atacar ou bloquear sai do leque para ter o seu próprio toque. */
@@ -18214,7 +18297,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   const landPiles = (s, ids, onClick) => T.agrupaLeque(s, ids, { separa: separaNoCombate }).map(pilha => {
     const alvo = pilha.primeiraDesvirada != null ? pilha.primeiraDesvirada : pilha.primeira;
     if (ocultaDe(s, s.objects[alvo])) return TableCard({ ...s.objects[alvo], name: VERSO_NOME, image: null, images: null }, { verso: true, onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), onPeek: comPeek(alvo).onPeek, size: undefined });
-    return TableCard({ ...s.objects[alvo], image: imgOf(pilha.name), images: imagensOf(pilha.name) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo) || alvoPendente(s, alvo), ...comPeek(alvo) });
+    return TableCard({ ...s.objects[alvo], image: imgOf(s.objects[alvo]), images: imagensOf(s.objects[alvo]) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo) || alvoPendente(s, alvo), ...comPeek(alvo) });
   });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
 
@@ -18497,7 +18580,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         }));
       const cards = grupos[modo].map(oid => {
         const o = s.objects[oid];
-        return TableCard({ ...o, tapped: false, image: imgOf(o.name, 'normal'), images: imagensOf(o.name) }, { size: 'hand', selected: trocaPor.oid === oid, ...comPeek(oid),
+        return TableCard({ ...o, tapped: false, image: imgOf(o, 'normal'), images: imagensOf(o) }, { size: 'hand', selected: trocaPor.oid === oid, ...comPeek(oid),
           onClick: () => { trocaPor = { chave, modo, oid: trocaPor.oid === oid ? null : oid }; paint(); } });
       });
       const escolhida = trocaPor.oid != null ? s.objects[trocaPor.oid] : null;
@@ -18531,7 +18614,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         const o = s.objects[oid];
         const serve = pk.from.includes(oid) && pegaveis.has(oid);
         // Leva 125 · na fileira de escolha a carta aparece em pé: terreno virado saía girado e menor que os outros
-        const c = TableCard({ ...o, tapped: false, image: imgOf(o.name, 'normal'), images: imagensOf(o.name) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
+        const c = TableCard({ ...o, tapped: false, image: imgOf(o, 'normal'), images: imagensOf(o) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
           ...(juntar && copias[chaveDe(oid)] > 1 ? { pilha: { total: copias[chaveDe(oid)], viradas: 0 } } : {}), ...(juntar && o.zone === 'battlefield' && o.tapped ? { tags: ['virada'] } : {}),
           onClick: () => { if (serve && !pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
         if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, ${pk.mostrar && !pk.from.includes(oid) ? 'revelada, ' : ''}não pode ser escolhida`); }
@@ -18543,7 +18626,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         semBotaoDeTexto(banner),
         h('div', { class: 'tb-hand', id: 'tb-pick-cards' }, h('div', { class: 'tb-row' }, ...cards)));
     }
-    const hand = s.zones[v].hand.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal'), images: imagensOf(s.objects[oid].name) }, {
+    const hand = s.zones[v].hand.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid], 'normal'), images: imagensOf(s.objects[oid]) }, {
       size: 'hand', selected: bottomPick.has(oid), ...comPeek(oid),
       onClick: () => {
         if (s.status === 'mulligan' && pl.mulligans) { bottomPick.has(oid) ? bottomPick.delete(oid) : bottomPick.size < pl.mulligans && bottomPick.add(oid); return paint(); }
@@ -18553,7 +18636,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     }));
     // Leva 121 · cartas tramadas (plot) ficam no exílio, mas é da bandeja que se conjura: aparecem antes da mão, com o selo
     const tramadas = s.zones[v].exile.filter(oid => s.objects[oid].plotted != null && s.objects[oid].owner === v).map(oid => {
-      const c = TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid].name, 'normal'), images: imagensOf(s.objects[oid].name) }, { size: 'hand', estado: T.estadoDaCarta(s, s.objects[oid]), ...comPeek(oid), onClick: () => openObject(oid) });
+      const c = TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid], 'normal'), images: imagensOf(s.objects[oid]) }, { size: 'hand', estado: T.estadoDaCarta(s, s.objects[oid]), ...comPeek(oid), onClick: () => openObject(oid) });
       c.classList.add('tb-card--tramada'); c.dataset.pronta = String(s.objects[oid].plotted < s.turn.number); return c;
     });
     hand.unshift(...tramadas); // primeiro: com a mão cheia, no fim da fileira elas ficavam fora da tela

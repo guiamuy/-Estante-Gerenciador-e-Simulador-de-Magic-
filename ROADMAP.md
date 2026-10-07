@@ -450,7 +450,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bo ✅ | J3 leque das viradas: atacantes iguais sem bloqueio ficam num leque só, dos dois lados (os terrenos virados já juntavam) (leva 199) | J | 1 | teste no aparelho |
 | 16º-bp ✅ | J4 carregamento com identidade: `Carregando` (cartas que se arrumam na prateleira, três tamanhos) e `Esqueleto` de lista, trocados nas esperas de tela e de bloco (leva 203) | J | 1 | teste no aparelho |
 | 16º-bq ✅ | J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, três cartas) em 1,2 s, sem segurar o app nem receber toque; uma vez por sessão (leva 205) | J | 1 | teste no aparelho |
-| 16º-br ○ | J6 botão de ação flutuante: componente, Listas, Lista e Coleção | J | 1 | — |
+| 16º-br ✅ | J6 botão de ação: componente `BotaoDeAcao`, Listas (Nova lista, Prontas) e Coleção (Escanear, Adicionar, Colar lista); o bot joga com a arte padrão (leva 208) | J | 1 | teste no aparelho |
 | 16º-bs ○ | J7 botão de ação no resto do app | J | 1 | — |
 | 16º-bt ○ | N1 coletor de notícias (fluxo agendado, ramo `noticias`) | N | 1 | ADR-08 aceito |
 | 16º-bu ○ | N2 tela Notícias com rolagem infinita e estados desenhados | N | 1 | — |
@@ -5683,22 +5683,42 @@ pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento n
 - **Depende de:** J4.
 - **Fora:** animação entre telas; o ícone voar até a barra.
 
-**J6 · Botão de ação (componente e telas de gestão)** ○
+**J6 · Botão de ação (componente, Listas e Coleção)** ✅ (leva 208, 07/10/2026)
 - **Valor:** a ação principal da tela sempre ao alcance do polegar.
-- **Aceite:** componente `BotaoDeAcao` no `/ds`: 56 px, canto inferior direito, respeita a área segura, acima de
-  avisos e abaixo de diálogos. Uma ação → toca e faz; várias → abre para cima uma lista curta (até quatro) com
-  ícone e rótulo de até duas palavras, fecha no toque fora e no Esc. O fim da página ganha respiro para o botão
-  não cobrir a última linha. Entra em **Listas** (nova, colar, prontas), **Lista** (jogar, ajustar, editar) e
-  **Coleção** (adicionar, scanner, importar). O botão passa a ser o primário da tela: os CTAs que ele substitui saem
-  do topo (declarado tela a tela, com os pixels que a tela ganha).
-- **Testes:** contrato visual; e2e por tela (ações certas, 44 px, não cobre conteúdo no fim da rolagem, teclado,
-  nome falado, quatro larguras e dois temas); `semSalto` ao abrir e fechar.
+- **Entregue — componente `BotaoDeAcao(acoes, { id, rotulo })` (no `/ds`):** botão de 56 px no canto inferior direito, a
+  16 px das bordas (mais a área segura), com o desenho do botão primário. **Uma ação:** toca e faz. **Várias (até
+  quatro):** abre para cima uma lista de pílulas com rótulo de até duas palavras e ícone, 44 px cada; o "+" gira para
+  "×". Fecha ao escolher, no Esc (o foco volta ao botão) e no toque fora — e **o toque que fecha não aciona o que
+  está embaixo**. Fica acima do conteúdo e abaixo de diálogos e avisos; o aviso flutuante sobe para cima dele; a
+  página ganha 88 px de respiro no fim para ele não cobrir a última linha. Movimento reduzido: sem animação.
+- **Listas:** "Nova" e "Prontas" **saíram do topo** (a linha do título ficou só com o título) e moram no botão:
+  *Nova lista*, *Prontas*. Sem botão na estante vazia (os convites dela são o primário).
+- **Coleção:** "Adicionar" e "Escanear" saíram do topo (a busca ficou); o botão traz *Escanear*, *Adicionar* (abre o
+  bloco e leva até o campo) e *Colar lista*. Sem botão na coleção vazia e durante a seleção de cartas (a barra da
+  seleção ocupa o pé). O "+" do bloco "Adicionar carta" deixou de ser primário: um primário por tela.
+- **Divergência do planejado:** a tela da **Lista** ficou para a J7 (junto com "Jogar com esta lista", que ainda não
+  existe como atalho e é a ação principal dela).
+- **Testes:** contrato visual (tokens; componente no `/ds`); e2e "J6" (posição e medida nas quatro larguras e dois
+  temas, único primário, ações com ícone e até duas palavras, foco, Esc, toque fora sem acionar o fundo, teclado,
+  fim da página, reserva do aviso, coleção com três ações, some na tela vazia e na seleção, não fica para trás ao
+  trocar de tela; `auditaTela`); e2e antigos de Listas e Coleção ajustados com justificativa (as ações mudaram de lugar).
 - **Depende de:** J1. · **Fora:** a mesa de jogo (a bandeja já é o lugar da ação).
-- **Estimativa:** 1 a 2 levas.
+
+**J6b · O bot joga com a arte padrão** ✅ (leva 208, 07/10/2026 · pedido de 07/10/2026)
+- **Valor:** as artes que escolhi são minhas; o oponente automático não as usa.
+- **Entregue:** a arte escolhida de terreno e de ficha vale só para as cartas **de quem a escolheu**: contra o Shark,
+  o meu lado sai na arte escolhida e **o lado do bot na arte padrão da plataforma** (em campo, na folha da carta e
+  na legenda da cena). Numa partida online, o lado de quem está no outro aparelho também fica na arte padrão. A dois
+  no mesmo aparelho, os dois lados usam as artes do aparelho. As fichas passam a ser guardadas na partida na arte
+  padrão; a escolhida entra ao desenhar, só do lado certo.
+- **Limite declarado:** partida começada antes desta leva guardou a ficha já na arte escolhida: nela, a ficha do bot
+  só volta ao padrão numa partida nova.
+- **Testes:** U `terrenos.unit` (regra `valeArteDoUsuario`: bot, online, a dois, dono desconhecido); e2e "J6 arte
+  escolhida só do meu lado" (contra o Shark com a mesma lista: a minha Forest na arte escolhida, a do bot não).
 
 **J7 · Botão de ação (resto do app)** ○
 - **Valor:** o mesmo gesto em todo lugar.
-- **Aceite:** Início, Cartas, Jogar, Perfil › Partidas e Notícias (N2) com as ações de cada uma; tela sem ação
+- **Aceite:** **Lista** (jogar com esta lista, editar, exportar — vinda da J6), Início, Cartas, Jogar, Perfil › Partidas e Notícias (N2) com as ações de cada uma; tela sem ação
   principal fica sem botão (não se inventa ação).
 - **Testes:** e2e por tela. · **Depende de:** J6. · **Estimativa:** 1 leva.
 
