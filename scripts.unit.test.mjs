@@ -364,6 +364,9 @@ function runExample(sc) {
     // S61 · conjuração gratuita oferecida por um efeito: o cenário recusa
     if (pd && pd.kind === 'free_cast') { s = act(s, { t: 'decline_free', p: pd.p }); continue; }
     // S60 · perder ou pagar, e o que sacrificar
+    // CR2b.1 · o descarte do cenário pode cair numa carta com insanidade (depende do sorteio, que muda a cada script novo na
+    // biblioteca — Foil travou assim com a entrada do Mishra's Bauble): o cenário recusa a insanidade e segue
+    if (pd && pd.kind === 'madness') { s = act(s, { t: 'decline_madness', p: pd.p }); continue; }
     if (pd && pd.kind === 'unless') { s = act(s, { t: 'take_loss', p: pd.p }); continue; }
     if (pd && pd.kind === 'sacrifice') { s = act(s, { t: 'sacrifice', p: pd.p, oid: (pd.options || [])[0] }); continue; }
     // S57 · masmorra: escolhe a primeira masmorra e a primeira sala oferecida

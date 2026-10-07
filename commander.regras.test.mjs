@@ -2,7 +2,7 @@
 // 05/10/2026). Cada teste cita a frase que o script precisa cumprir.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { E, J, act, poe, legais, mesa, comMana, tudo, alvos, CARTAS } from './cmd.mjs';
+import { E, J, act, poe, legais, mesa, comMana, tudo, alvos, passaAte, CARTAS } from './cmd.mjs';
 import { S } from './listas.mjs';
 import { readFileSync } from 'node:fs';
 const vidas = s => s.players.map(p => p.life).join('/');
@@ -183,4 +183,29 @@ test('CR2a.4 · Ayli, Eternal Pilgrim: a segunda habilidade exila permanente que
   s = J(s); s.players[0].life = 29; assert.equal(seg(s).length, 0, 'com 29 (inicial 20) não ativa'); assert.throws(() => act(s, { t: 'activate', p: 0, oid: a, index: 1, pay: { sacrifice: z }, targets: [{ oid: f }] }), /vida/);
   s.players[0].life = 30; const as = seg(s); assert.ok(as.length >= 1); assert.equal(as.some(x => E.cardFacts && s.facts[s.objects[x.targets[0].oid].name].types.includes('land')), false, 'terreno não é alvo');
   s = tudo(act(s, as.find(x => x.targets[0].oid === f))); assert.equal(s.objects[f].zone, 'exile'); assert.equal(s.objects[z].zone, 'graveyard');
+});
+
+// ---------------------------------------------------------------- CR2b.1 · gatilho atrasado
+test('CR2b.1 · Arcane Denial: anula; na manutenção do próximo turno o dono da mágica anulada escolhe comprar 0, 1 ou 2 e quem conjurou compra 1', () => {
+  for (const [rotulo, compradas] of [['Comprar 2', 2], ['Comprar 1', 1], ['Não comprar', 0]]) {
+    let s = mesa(['Arcane Denial'], ['Faerie Seer']), d, f; [s, d] = poe(s, 0, 'Arcane Denial', 'hand'); [s, f] = poe(s, 1, 'Faerie Seer', 'hand');
+    s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1' && !x.stack.length && !x.pending); s = comMana(comMana(s, 'UU'), 'U', 1);
+    s = act(s, legais(s, 1, x => x.t === 'cast' && x.oid === f)[0]); s = act(s, { t: 'pass', p: 1 }); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === d)[0]);
+    s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); assert.equal(s.objects[f].zone, 'graveyard', 'Counter target spell'); assert.equal(s.atrasados.length, 2);
+    const turno = s.turn.number;
+    s = passaAte(s, x => x.turn.number === turno + 1 && x.turn.step === 'upkeep' && (x.stack.length > 0 || !!x.pending));
+    const maoA = s.zones[0].hand.length, maoB = s.zones[1].hand.length; assert.equal(s.stack.length + s.queued.length, 2, 'dois gatilhos atrasados no começo da manutenção (quem conjurou escolhe a ordem)'); // mãos medidas aqui: a limpeza do turno anterior já descartou
+    s = tudo(s, x => x.pending.kind === 'choose_mode' ? (assert.equal(x.pending.p, 1, 'quem escolhe é o dono da mágica anulada'), legais(x, 1, y => y.t === 'choose_mode' && y.label === rotulo)[0]) : legais(x, x.pending.p)[0]);
+    assert.equal(s.turn.step, 'upkeep'); assert.equal(s.zones[0].hand.length, maoA + 1, 'You draw a card'); assert.equal(s.zones[1].hand.length, maoB + compradas, rotulo);
+  }
+});
+
+test("CR2b.1 · Mishra's Bauble: olha o topo do grimório do jogador alvo e compra uma carta na manutenção do próximo turno", () => {
+  let s = mesa(["Mishra's Bauble"], []), b; [s, b] = poe(s, 0, "Mishra's Bauble");
+  const hab = legais(s, 0, x => x.t === 'activate' && x.oid === b); assert.deepEqual(J(hab.map(x => x.targets[0].player)).sort(), [0, 1], 'target player');
+  const topo = s.zones[1].library[0]; const mao = s.zones[0].hand.length, turno = s.turn.number;
+  s = act(s, hab.find(x => x.targets[0].player === 1)); assert.equal(s.objects[b].zone, 'graveyard', '{T}, Sacrifice'); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 });
+  assert.equal(s.pending.kind, 'pick'); assert.equal(s.pending.p, 0); assert.deepEqual(J(s.pending.mostrar), [topo], 'só quem ativou vê a carta do topo'); s = act(s, { t: 'pick_done', p: 0 });
+  assert.equal(s.zones[1].library[0], topo, 'a carta continua no topo'); assert.equal(s.zones[0].hand.length, mao, 'nada de compra agora');
+  s = passaAte(s, x => x.turn.number === turno + 1 && x.turn.step === 'upkeep' && x.stack.length > 0); const naManutencao = s.zones[0].hand.length; s = tudo(s); assert.equal(s.zones[0].hand.length, naManutencao + 1, 'Draw a card at the beginning of the next turn\'s upkeep');
 });

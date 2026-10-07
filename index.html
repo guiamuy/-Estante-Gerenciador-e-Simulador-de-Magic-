@@ -4733,7 +4733,11 @@ const EFFECTS = {
   // S60 · "cada jogador perde N a menos que ..." e "sacrifique uma permanente do tipo"
   lose_unless: { fields: ['amount'], targets: ['each-player'] },
   sacrifice_own: { fields: [], targets: ['self'] },
-  sacrifice_each: { fields: [], targets: ['self'] }, // CR2a.4 · "each player sacrifices a <tipo> of their choice": escolhem em ordem, sacrificam juntos
+  sacrifice_each: { fields: [], targets: ['self'] },
+  // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
+  delayed: { fields: [], targets: ['self', 'target-controller'] },
+  draw_up_to: { fields: ['amount'], targets: ['self', 'delayed-player'] }, // "may draw up to N": quem compra escolhe quantas, antes de comprar
+  look_top: { fields: [], targets: ['player'] }, // olhar a carta do topo do grimório do jogador alvo (só quem controla o efeito vê) // CR2a.4 · "each player sacrifices a <tipo> of their choice": escolhem em ordem, sacrificam juntos
   // S61 · Masmorra do Mago Louco
   cant_attack: { fields: [], targets: ['creature'] },
   exile_top_playable: { fields: ['amount'], targets: ['self'] },
@@ -5002,6 +5006,7 @@ function validateScript(sc) {
   if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
   return errs.concat(exampleErrors(sc));
 }
+const ATRASOS = ['next-upkeep']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
 function effectErrors(effects, label, opcional) {
   const errs = [];
   if (!Array.isArray(effects)) return label === 'efeito' || opcional ? [] : [`${label}: sem efeitos`];
@@ -5011,6 +5016,7 @@ function effectErrors(effects, label, opcional) {
     if (!spec) return errs.push(`efeito ${i + 1}: "${e.do}" desconhecido`);
     for (const f of spec.fields) errs.push(...valueErrors(e[f], `${label} ${i + 1} (${e.do}): ${f}`));
     if (e.do === 'token') errs.push(...tokenErrors(e.token, `${label} ${i + 1}`));
+    if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
     if (['search', 'look'].includes(e.do)) {
       if (e.to && !PICK_DESTS.includes(e.to)) errs.push(`${label} ${i + 1}: destino "${e.to}" desconhecido`);
@@ -5340,8 +5346,11 @@ const RAW_SCRIPTS = [
     { do: 'token', amount: 2, target: 'target-controller', token: { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [],
       abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'add_mana', anyColor: true }] }] } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
-  { name: 'Arcane Denial', effects: [{ do: 'counter', target: 'spell' }],
-    covers: 'partial', note: 'as compras no início do próximo turno (duas para o dono da mágica, uma para você) não entram',
+  // CR2b.1 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: "Mishra's Bauble", abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, effects: [{ do: 'look_top', target: 'player' },
+    { do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 1 }] }] }], example: { action: 'activate:0', target: 'opponent', expect: { handDelta: 0 } } },
+  { name: 'Arcane Denial', effects: [{ do: 'counter', target: 'spell' }, { do: 'delayed', when: 'next-upkeep', target: 'target-controller', effects: [{ do: 'draw_up_to', amount: 2, target: 'delayed-player' }] },
+    { do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 1 }] }],
     example: { target: 'enemy-spell', expect: { countered: true } } },
   { name: 'Delay', effects: [{ do: 'counter', target: 'spell' }],
     covers: 'partial', note: 'a mágica vai para o cemitério; exilar com três marcadores de tempo e ganhar suspender não entra',
@@ -10559,7 +10568,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 78;
+const ENGINE_VERSION = 79;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11324,6 +11333,11 @@ function enterStep(s, step) {
     return enterStep(s, 'upkeep');
   }
   if (step === 'upkeep') queueTriggers(s, 'upkeep', battlefield(s).filter(o => o.controller === a));
+  if (step === 'upkeep' && (s.atrasados || []).length) { // CR 603.7 · "no início da manutenção do próximo turno": dispara uma vez e some
+    const agora = s.atrasados.filter(d => d.when === 'next-upkeep' && s.turn.number > d.turno);
+    s.atrasados = s.atrasados.filter(d => !agora.includes(d));
+    for (const d of agora) if (!s.players[d.controller].lost) s.queued.push({ source: d.source, name: d.name, controller: d.controller, effects: d.effects, when: 'delayed', jogador: d.jogador });
+  }
   if (step === 'main2') queueTriggers(s, 'main2', battlefield(s).filter(o => o.controller === a));
   if (step === 'combat_end') queueTriggers(s, 'end-of-combat', battlefield(s)); // CR 511.2: de todos os jogadores, não só do ativo
   if (step === 'draw') {
@@ -12029,6 +12043,24 @@ function applyEffect(s, src, eff, tgt, events) {
       continueUnless(s, events);
       break;
     }
+    case 'delayed': { // CR 603.7 · gatilho atrasado: fica guardado até o momento; quem controla é quem controlava a mágica ou habilidade (603.7e)
+      (s.atrasados = s.atrasados || []).push({ when: eff.when, turno: s.turn.number, controller: ctrl, jogador: tgt && tgt.player != null ? tgt.player : ctrl,
+        name: src.name, source: src.ability ? src.source : src.oid, effects: eff.effects });
+      note({ amount: 1 }); break;
+    }
+    case 'draw_up_to': { // "may draw up to N cards": escolhe o número antes de comprar
+      const who = playerOf(), max = amountOf(s, src, eff.amount);
+      if (s.players[who].lost || max <= 0) { note({ amount: 0 }); break; }
+      s.pending = { kind: 'choose_mode', p: who, name: src.name, compra: { who, max }, pergunta: `Comprar até ${max} ${max === 1 ? 'carta' : 'cartas'}?`,
+        options: Array.from({ length: max + 1 }, (_, i) => max - i).map(n => n ? `Comprar ${n}` : 'Não comprar') };
+      break;
+    }
+    case 'look_top': { // só quem controla o efeito vê; a carta fica onde está
+      const who = playerOf(), topo = s.zones[who].library[0];
+      if (!topo) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: [], mostrar: [topo], min: 0, max: 0, to: 'hand', rest: 'stay', label: 'olhar o topo', source: src.name }, events);
+      break;
+    }
     case 'sacrifice_each': { // CR2a.4 · édito para todos: quem está na vez escolhe primeiro, depois os outros; saem ao mesmo tempo (701.21, 603.10a)
       const vez = s.turn.active;
       s.edito = { fila: [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)].filter(i => !s.players[i].lost), escolhidas: [], types: eff.types, nontoken: !!eff.nontoken, name: src.name };
@@ -12379,7 +12411,7 @@ function resolveScript(s, o, events) {
       const t = firstTarget;
       const who = t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
       applyEffect(s, o, eff, { player: who }, events);
-    } else if (eff.target === 'each-opponent') { applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
+    } else if (eff.target === 'each-opponent' || eff.target === 'each-player') { applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
     } else if (String(eff.target || '').startsWith('each-')) {
       // S4 · varredura: todas as criaturas, só as do oponente ou só as suas
       for (const x of sweepTargets(s, o, eff)) applyEffect(s, o, eff, { oid: x.oid }, events);
@@ -12526,6 +12558,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.optional) s.objects[oid].optionalTrigger = true; // S49 · gatilho opcional sem custo
   if (q.condition) s.objects[oid].condicao = q.condition; // Leva 107 · "se" do gatilho é conferido de novo na resolução (603.4)
   if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
+  if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
 }
@@ -13187,6 +13220,13 @@ const HANDLERS = {
   choose_mode(s, a, ev) { // S56 · escolhe o modo do gatilho e segue
     if (!s.pending || s.pending.kind !== 'choose_mode' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhum gatilho esperando escolha');
     const pk = s.pending;
+    if (pk.compra) { // CR2b.1 · "may draw up to N": a opção escolhida diz quantas
+      const n = pk.compra.max - (a.index || 0);
+      if (!(n >= 0 && n <= pk.compra.max)) throw new RuleError('escolha', 'quantidade inválida');
+      s.pending = null; draw(s, pk.compra.who, n); ev.push({ kind: 'effect', do: 'draw', name: pk.name, amount: n, target: s.players[pk.compra.who].name });
+      if (!s.pending) resumeEffects(s, ev);
+      return;
+    }
     if (pk.naResolucao) { // Leva 131 · virar ou desvirar o alvo, decidido na resolução; recusar só quando o texto diz "may"
       if (a.decline && !pk.optional) throw new RuleError('escolha', 'esta escolha não pode ser recusada');
       if (!a.decline && ![0, 1].includes(a.index)) throw new RuleError('escolha', 'modo inválido');
@@ -13993,7 +14033,8 @@ function resolveAbility(s, o, events) {
     if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) primeiro = t; if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
-    else if (eff.target === 'each-opponent') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
+    else if (eff.target === 'each-opponent' || eff.target === 'each-player') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas (CR2b.1: "cada jogador" caía na varredura de criaturas e sumia sem criatura na mesa)
+    else if (eff.target === 'delayed-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.1
     else if (String(eff.target || '').startsWith('each-')) {
       sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
     } else applyEffect(s, o, eff, null, events);
@@ -16356,6 +16397,9 @@ function descreveEfeito(e) {
     case 'keyword': return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
+    case 'delayed': return `no início da manutenção do próximo turno: ${descreveEfeitos(e.effects)}`;
+    case 'draw_up_to': return `pode comprar até ${plural(n, 'carta', 'cartas')}`;
+    case 'look_top': return 'olha a carta do topo do grimório do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
     case 'reanimate': case 'reanimate_tapped': return 'devolve uma criatura do cemitério ao campo';
@@ -18627,7 +18671,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       return h('div', { class: 'tb-dock tb-troca', id: 'tb-modo', role: 'group', 'aria-label': `${pk.name}: escolha o que o gatilho faz` },
         h('div', { class: 'tb-troca__cab' }, Icone('alvo', { tamanho: 20, classe: 'tb-troca__icone' }),
           h('div', { class: 'tb-troca__texto' }, h('strong', { lang: 'en' }, pk.name),
-            h('span', { id: 'tb-modo-pergunta' }, alvoPk ? `O que fazer com ${alvoPk.name}${alvoPk.controller === v ? '' : ` de ${s.players[alvoPk.controller].name}`}? Ela está ${alvoPk.tapped ? 'virada' : 'desvirada'}.` : 'O que o gatilho faz?'))),
+            h('span', { id: 'tb-modo-pergunta' }, pk.pergunta ? pk.pergunta : alvoPk ? `O que fazer com ${alvoPk.name}${alvoPk.controller === v ? '' : ` de ${s.players[alvoPk.controller].name}`}? Ela está ${alvoPk.tapped ? 'virada' : 'desvirada'}.` : 'O que o gatilho faz?'))),
         h('div', { class: pk.naResolucao ? 'tb-modo__linha' : 'tb-modo__lista' }, ...(pk.options || []).map((rot, index) =>
           Button(rot, { block: !pk.naResolucao, variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-mode', dataset: { modo: String(index) }, onClick: () => act({ t: 'choose_mode', p: v, index }) })),
           pk.naResolucao && pk.optional ? Button('Nada', { variant: 'ghost', id: 'tb-choose-mode-no', onClick: () => act({ t: 'choose_mode', p: v, decline: true }) }) : null));

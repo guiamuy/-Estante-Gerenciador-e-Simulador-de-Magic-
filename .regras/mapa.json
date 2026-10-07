@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 78,
+ "motor": 79,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4214,11 +4214,15 @@
    "n": "603.7",
    "regra": "Handling Triggered Abilities",
    "titulo": "Habilidades desencadeadas atrasadas",
-   "status": "ausente",
-   "falta": "Não há estrutura de gatilho atrasado no motor (nenhum registro \"no início do próximo passo final/manutenção\", \"quando esta criatura sair\"); só existem durações (até o fim do turno, até o seu próximo turno). Bloqueia piscar com retorno no fim do turno, fichas sacrificadas no fim do turno, ricochete, dash/blitz, desenterrar. ROADMAP:2532 lista \"gatilho atrasado\" como pendente.",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "Só o momento \"início da manutenção do próximo turno\". Faltam: próximo passo final, fim do combate, \"quando esta permanente sair/morrer\", duração \"neste turno\" (603.7c), gatilho atrasado que acompanha um objeto e para de valer se ele muda de zona (603.7c), e gatilho atrasado criado por efeito de substituição (603.7d).",
+   "esforco": "M",
    "depende": [
     "603.2b (gatilho de passo final)"
+   ],
+   "evidencia": "CR2b.1 (motor v79): efeito `delayed` registra o gatilho em s.atrasados na resolução (603.7a); enterStep o põe na fila uma vez, no início da manutenção do próximo turno, e o apaga (603.7b); quem controla é quem controlava a mágica ou habilidade (603.7e), mesmo que a fonte tenha saído (Mishra's Bauble); cr.conformidade \"CR 603.7 · gatilho atrasado…\", commander.regras Arcane Denial e Mishra's Bauble",
+   "testes": [
+    "CR 603.7 · gatilho atrasado: criado na resolução, dispara uma vez só no início da manutenção do PRÓXIMO turno, controlado por quem conjurou a mágica"
    ]
   },
   {

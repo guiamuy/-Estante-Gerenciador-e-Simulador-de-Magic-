@@ -159,7 +159,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | Decisões do dono registradas (06/10/2026), texto das regras no repositório e numeração de leva por trilha (Q13, leva M-206) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2a.3 mortes simultâneas se enxergam e a permanente que sai deixa a última informação conhecida (603.10a, 704.8; leva M-208, motor v77) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2a.4 resolução parada numa escolha sem checagem no meio (704.4 coberta), "cada jogador sacrifica" em lote e efeito que lê a criatura sacrificada; Accursed Marauder e Ayli completas (leva M-209, motor v78) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2b.1 gatilhos atrasados (603.7) e reflexivos (603.12), com as cartas das listas que destravarem | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2b.1 gatilho atrasado "no início da manutenção do próximo turno" (603.7); Arcane Denial e Mishra's Bauble completas; "cada jogador" de sala de masmorra sem criatura na mesa (leva M-210, motor v79) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2b.2 demais momentos de gatilho atrasado (passo final, fim do combate, "quando sair") e gatilho reflexivo (603.12) | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2716,6 +2717,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Killian 48% → 50%. Triagem: 76 prontas · 9 A · 63 B · 16 C.
 - **Golden:** regravadas (77 → 78); registros conferidos na entrega.
 - **Fora:** varredura que destrói ou exila tudo (não existe a primitiva; entra com "destruir todas" na CR3), marcadores e poder lidos da foto, Benalish Sleeper (pede reforço/kicker), Priest of Forgotten Gods (alvo "qualquer número de jogadores").
+
+**CR2b.1 · Gatilho atrasado** 🟡 (leva M-210, motor v79) — 1 teste de conformidade, 2 de carta e 1 de regressão.
+- **603.7 (parcial)** uma mágica ou habilidade pode deixar uma promessa para depois: o gatilho é criado na resolução, vai à pilha uma vez no início da manutenção do próximo turno (de quem for) e é controlado por quem controlava a mágica, mesmo com a fonte já fora do campo. Dá para responder a ele.
+- **Cartas das listas (decisão 7), texto oficial de `oficiais-commander.json` (consulta de 05/10/2026):**
+  - **Arcane Denial** completa (antes parcial): o dono da mágica anulada escolhe comprar 0, 1 ou 2 na manutenção do próximo turno, e quem conjurou compra 1.
+  - **Mishra's Bauble** completa (antes manual): só quem ativou vê a carta do topo do grimório do jogador alvo; a compra vem na manutenção do próximo turno.
+- **Bug corrigido:** efeito de sala de masmorra "cada jogador perde vida a menos que…" não acontecia quando quem controlava não tinha criatura na mesa (caía na varredura de criaturas).
+- **Medição:** triagem 78 prontas · 9 A · 61 B · 16 C.
+- **Golden:** regravadas (78 → 79); registros conferidos na entrega.
+- **Fora:** outros momentos de gatilho atrasado e o gatilho reflexivo (603.12) — nenhuma carta das duas listas depende deles hoje; seguem na CR2b.2.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

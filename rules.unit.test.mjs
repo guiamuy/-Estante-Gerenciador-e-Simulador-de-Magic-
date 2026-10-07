@@ -4036,6 +4036,18 @@ test('S60 · Véus do Medo: cada jogador decide descartar ou perder 2, um por ve
   assert.equal(s.pending, null, 'a fila acabou');
 });
 
+test('CR2b.1 · Véus do Medo com zero ou várias criaturas de quem controla: "cada jogador" é perguntado uma vez só, com ou sem criatura na mesa', () => {
+  for (const ursos of [0, 2]) {
+    let s = mzGame(31); const a = s.turn.active, d = 1 - a; let porta; [s, porta] = put(s, a, 'Porta'); for (let i = 0; i < ursos; i++) [s] = put(s, a, 'Bear');
+    s = aventura(s, a, porta, 2); s = aventura(s, a, porta);
+    if (!ursos) { s = J(s); s.zones[a].battlefield.splice(s.zones[a].battlefield.indexOf(porta), 1); s.zones[a].graveyard.push(porta); s.objects[porta].zone = 'graveyard'; } // quem controla fica sem criatura nenhuma
+    s = settle(act(s, { t: 'choose_room', p: a, index: 0 }));
+    assert.ok(s.pending && s.pending.kind === 'unless' && s.pending.p === a, `com ${ursos} urso(s): pergunta para quem controla`);
+    s = settle(act(s, { t: 'take_loss', p: a })); assert.ok(s.pending && s.pending.kind === 'unless' && s.pending.p === d, `com ${ursos} urso(s): depois o oponente`);
+    s = settle(act(s, { t: 'take_loss', p: d })); assert.equal(s.pending, null, `com ${ursos} urso(s): a fila acabou`); assert.deepEqual(J(s.players.map(p => p.life)), [17, 17]);
+  }
+});
+
 test('S60 · Oubliette: descarta e sacrifica criatura, artefato e terreno, escolhidos por você', () => {
   let s = mzGame(32); const a = s.turn.active;
   let porta, urso, floresta;

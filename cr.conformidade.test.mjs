@@ -21,6 +21,7 @@ const INVENTADAS = {
   // CR2a
   Helice: c('Helice', 'Instant', '{0}', { colors: ['R', 'W'] }), Lenda: c('Lenda', 'Legendary Creature — Hero', '{W}', { power: '2', toughness: '2' }), 'Lenda Eterna': c('Lenda Eterna', 'Legendary Creature — God', '{W}', { power: '2', toughness: '2', keywords: ['Indestructible'] }),
   Porrete: c('Porrete', 'Artifact — Equipment', '{1}'),
+  Promessa: c('Promessa', 'Instant', '{0}'),
   'Helice Lenta': c('Helice Lenta', 'Instant', '{0}', { colors: ['R', 'W'] }),
   Carpideira: c('Carpideira', 'Creature — Cleric', '{B}', { power: '1', toughness: '1' }), Mortico: c('Mortico', 'Creature — Spirit', '{B}', { power: '2', toughness: '2' }),
   'Urso Veloz': c('Urso Veloz', 'Creature — Bear', '{0}', { power: '2', toughness: '2', keywords: ['Flash'], colors: ['G'] }), Devolve: c('Devolve', 'Instant', '{0}', { colors: ['U'] }),
@@ -43,6 +44,7 @@ const SCRIPTS = {
   Carpideira: { name: 'Carpideira', abilities: [{ kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Mortico: { name: 'Mortico', abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'gain', amount: 3 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   'Helice Lenta': { name: 'Helice Lenta', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'discard', amount: 1 }, { do: 'gain', amount: 3 }], example: { target: 'opponent', expect: { opponentLife: 17 } } },
+  Promessa: { name: 'Promessa', effects: [{ do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 1 }] }], example: { target: 'none', expect: { handDelta: 0 } } },
   Porrete: { name: 'Porrete', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 3] } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
   Vigia: { name: 'Vigia', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'enchanted-tapped-or-damaged', effects: [{ do: 'draw', amount: 1 }] }], example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
@@ -274,4 +276,15 @@ test('CR 704.4 · resolução parada numa escolha do jogador também não confer
   s = act(s, conj(s, h, a => a.targets[0].player === 0)[0]); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 });
   assert.equal(s.pending.kind, 'discard'); assert.equal(s.players[0].life, 0, 'no meio da resolução a vida está em 0'); assert.equal(s.status, 'playing', 'e ninguém perdeu ainda');
   s = act(s, legais(s, 0, a => a.t === 'discard')[0]); assert.equal(s.players[0].life, 3); assert.equal(s.players[0].lost || false, false); assert.equal(s.resume, null);
+});
+
+// ---------------------------------------------------------------- CR2b
+test('CR 603.7 · gatilho atrasado: criado na resolução, dispara uma vez só no início da manutenção do PRÓXIMO turno, controlado por quem conjurou a mágica', () => {
+  let s = mesa(['Promessa']), pr; [s, pr] = poe(s, 0, 'Promessa', 'hand');
+  s = tudo(act(s, conj(s, pr)[0])); assert.equal(s.atrasados.length, 1, 'a promessa fica registrada'); const turno = s.turn.number;
+  const mao = () => s.zones[0].hand.length; let antes = mao();
+  s = passaAte(s, x => x.turn.number === turno + 1 && x.turn.step === 'upkeep' && x.stack.length > 0); // manutenção do oponente
+  assert.equal(s.turn.active, 1); const ab = s.objects[s.stack[s.stack.length - 1]]; assert.equal(ab.controller, 0, 'quem conjurou controla o gatilho (603.7e)'); assert.equal(ab.name, 'Promessa');
+  assert.equal(mao(), antes, 'ainda na pilha: dá para responder'); s = tudo(s); assert.equal(mao(), antes + 1); assert.equal((s.atrasados || []).length, 0, 'dispara uma vez só (603.7b)');
+  antes = mao(); s = passaAte(s, x => x.turn.number === turno + 2 && x.turn.step === 'upkeep'); assert.equal(s.stack.length, 0, 'na manutenção seguinte não dispara de novo');
 });
