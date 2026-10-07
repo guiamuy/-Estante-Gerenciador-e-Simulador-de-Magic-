@@ -22,6 +22,7 @@ const INVENTADAS = {
   Helice: c('Helice', 'Instant', '{0}', { colors: ['R', 'W'] }), Lenda: c('Lenda', 'Legendary Creature — Hero', '{W}', { power: '2', toughness: '2' }), 'Lenda Eterna': c('Lenda Eterna', 'Legendary Creature — God', '{W}', { power: '2', toughness: '2', keywords: ['Indestructible'] }),
   Porrete: c('Porrete', 'Artifact — Equipment', '{1}'),
   Promessa: c('Promessa', 'Instant', '{0}'),
+  Emprestimo: c('Emprestimo', 'Instant', '{0}'), 'Grito de Guerra': c('Grito de Guerra', 'Instant', '{0}'), Manticora: c('Manticora', 'Creature — Manticore', '{0}', { power: '2', toughness: '2' }),
   'Helice Lenta': c('Helice Lenta', 'Instant', '{0}', { colors: ['R', 'W'] }),
   Carpideira: c('Carpideira', 'Creature — Cleric', '{B}', { power: '1', toughness: '1' }), Mortico: c('Mortico', 'Creature — Spirit', '{B}', { power: '2', toughness: '2' }),
   'Urso Veloz': c('Urso Veloz', 'Creature — Bear', '{0}', { power: '2', toughness: '2', keywords: ['Flash'], colors: ['G'] }), Devolve: c('Devolve', 'Instant', '{0}', { colors: ['U'] }),
@@ -44,6 +45,9 @@ const SCRIPTS = {
   Carpideira: { name: 'Carpideira', abilities: [{ kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Mortico: { name: 'Mortico', abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'gain', amount: 3 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   'Helice Lenta': { name: 'Helice Lenta', effects: [{ do: 'damage', amount: 3, target: 'any' }, { do: 'discard', amount: 1 }, { do: 'gain', amount: 3 }], example: { target: 'opponent', expect: { opponentLife: 17 } } },
+  Emprestimo: { name: 'Emprestimo', effects: [{ do: 'pump', power: 1, toughness: 0, target: 'creature' }, { do: 'delayed', when: 'next-end-step', target: 'first-target', effects: [{ do: 'bounce', target: 'delayed-object' }] }], example: { target: 'own-creature', expect: { pump: [1, 0] } } },
+  'Grito de Guerra': { name: 'Grito de Guerra', effects: [{ do: 'delayed', when: 'end-of-combat', effects: [{ do: 'gain', amount: 2 }] }], example: { target: 'none', expect: { selfLife: 0 } } },
+  Manticora: { name: 'Manticora', abilities: [{ kind: 'triggered', when: 'etb', mayPay: { mana: '{1}' }, effects: [{ do: 'reflexive', effects: [{ do: 'damage', amount: 2, target: 'any' }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Promessa: { name: 'Promessa', effects: [{ do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 1 }] }], example: { target: 'none', expect: { handDelta: 0 } } },
   Porrete: { name: 'Porrete', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 3] } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
@@ -287,4 +291,31 @@ test('CR 603.7 · gatilho atrasado: criado na resolução, dispara uma vez só n
   assert.equal(s.turn.active, 1); const ab = s.objects[s.stack[s.stack.length - 1]]; assert.equal(ab.controller, 0, 'quem conjurou controla o gatilho (603.7e)'); assert.equal(ab.name, 'Promessa');
   assert.equal(mao(), antes, 'ainda na pilha: dá para responder'); s = tudo(s); assert.equal(mao(), antes + 1); assert.equal((s.atrasados || []).length, 0, 'dispara uma vez só (603.7b)');
   antes = mao(); s = passaAte(s, x => x.turn.number === turno + 2 && x.turn.step === 'upkeep'); assert.equal(s.stack.length, 0, 'na manutenção seguinte não dispara de novo');
+});
+
+test('CR 603.7 · gatilho atrasado preso a um objeto: no início do próximo passo final ele age naquela criatura; se ela saiu e voltou, é outro objeto e nada acontece (603.7c)', () => {
+  { let s = mesa(['Emprestimo', 'Urso']), e, u; [s, e] = poe(s, 0, 'Emprestimo', 'hand'); [s, u] = poe(s, 0, 'Urso');
+    s = tudo(act(s, conj(s, e, a => a.targets[0].oid === u)[0])); assert.equal(s.objects[u].zone, 'battlefield'); const turno = s.turn.number;
+    s = passaAte(s, x => x.turn.step === 'end' && x.stack.length > 0); assert.equal(s.turn.number, turno, 'o passo final DESTE turno'); s = tudo(s); assert.equal(s.objects[u].zone, 'hand', 'devolvida no passo final'); assert.equal((s.atrasados || []).length, 0); }
+  { let s = mesa(['Emprestimo', 'Urso Veloz', 'Devolve']), e, u, d; [s, e] = poe(s, 0, 'Emprestimo', 'hand'); [s, u] = poe(s, 0, 'Urso Veloz'); [s, d] = poe(s, 0, 'Devolve', 'hand');
+    s = tudo(act(s, conj(s, e, a => a.targets[0].oid === u)[0])); s = tudo(act(s, conj(s, d, a => a.targets[0].oid === u)[0])); s = tudo(act(s, conj(s, u)[0])); assert.equal(s.objects[u].zone, 'battlefield', 'saiu e voltou');
+    s = passaAte(s, x => x.turn.step === 'cleanup' || (x.turn.step === 'end' && x.stack.length > 0)); s = tudo(s); assert.equal(s.objects[u].zone, 'battlefield', 'o gatilho não acha mais o objeto que mirou'); }
+});
+
+test('CR 603.7 · "no fim do combate": o gatilho atrasado dispara no próximo passo de fim de combate, uma vez', () => {
+  let s = mesa(['Grito de Guerra', 'Urso']), g; [s, g] = poe(s, 0, 'Grito de Guerra', 'hand'); [s] = poe(s, 0, 'Urso'); s = tudo(act(s, conj(s, g)[0]));
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: [] });
+  s = passaAte(s, x => x.turn.step === 'main2' && !x.stack.length); assert.equal(s.players[0].life, 22); assert.equal((s.atrasados || []).length, 0);
+});
+
+test('CR 603.12 · gatilho reflexivo: "você pode pagar; quando fizer, cause 2 de dano a qualquer alvo" — o alvo é escolhido depois de pagar, e a nova habilidade vai à pilha', () => {
+  let s = mesa(['Manticora'], ['Urso']), m, u; [s, m] = poe(s, 0, 'Manticora', 'hand'); [s, u] = poe(s, 1, 'Urso'); s = comMana(s, 'C');
+  s = act(s, conj(s, m)[0]); for (let i = 0; i < 8 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.pending.kind, 'may_pay', 'primeiro a decisão de pagar, ainda sem alvo'); s = act(s, { t: 'pay', p: 0 });
+  assert.equal(s.pending.kind, 'pick_target', 'pagou: agora escolhe o alvo da habilidade reflexiva'); const i = s.pending.options.findIndex(o => o.oid === u); assert.ok(i >= 0);
+  s = act(s, { t: 'pick_target', p: 0, index: i }); assert.equal(s.stack.length, 1, 'a reflexiva está na pilha: dá para responder'); assert.equal(s.objects[u].zone, 'battlefield');
+  s = tudo(s); assert.equal(s.objects[u].zone, 'graveyard');
+  // sem pagar, não há segunda habilidade
+  let t = mesa(['Manticora'], ['Urso']), m2; [t, m2] = poe(t, 0, 'Manticora', 'hand'); t = comMana(t, 'C'); t = act(t, conj(t, m2)[0]); for (let k = 0; k < 8 && !t.pending; k++) t = act(t, { t: 'pass', p: t.turn.priority });
+  t = act(t, { t: 'decline', p: 0 }); assert.equal(t.pending, null); assert.equal(t.stack.length, 0);
 });

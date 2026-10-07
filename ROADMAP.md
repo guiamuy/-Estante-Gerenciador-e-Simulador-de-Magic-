@@ -161,7 +161,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2a.4 resolução parada numa escolha sem checagem no meio (704.4 coberta), "cada jogador sacrifica" em lote e efeito que lê a criatura sacrificada; Accursed Marauder e Ayli completas (leva M-209, motor v78) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.1 gatilho atrasado "no início da manutenção do próximo turno" (603.7); Arcane Denial e Mishra's Bauble completas; "cada jogador" de sala de masmorra sem criatura na mesa (leva M-210, motor v79) | 🟡 |
 | Q · Qualidade e publicação | Q14 portão em duas fases, segunda chance para teste de tela instável e publicar que interrompe quando o main anda (leva M-212) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2b.2 demais momentos de gatilho atrasado (passo final, fim do combate, "quando sair") e gatilho reflexivo (603.12) | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2b.2 gatilho atrasado no passo final e no fim do combate, preso a um objeto (603.7c), e gatilho reflexivo (603.12 coberta); leva M-213, motor v80 | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2b.3 pontos de disparo que faltam (todos os passos, de todos os jogadores) e gatilhos com mais de um alvo (603.2, 603.3d), com as cartas das listas que destravarem | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2741,6 +2742,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** triagem 78 prontas · 9 A · 61 B · 16 C.
 - **Golden:** regravadas (78 → 79); registros conferidos na entrega.
 - **Fora:** outros momentos de gatilho atrasado e o gatilho reflexivo (603.12) — nenhuma carta das duas listas depende deles hoje; seguem na CR2b.2.
+
+**CR2b.2 · Mais gatilhos atrasados e o gatilho reflexivo** 🟡 (leva M-213, motor v80) — 3 testes de conformidade novos.
+- **603.7** o gatilho atrasado também dispara "no início do próximo passo final" e "no fim do combate". Quando ele fala de uma permanente ("devolva-a", "sacrifique-a"), guarda qual era; se a carta saiu e voltou, não a acha mais (603.7c).
+- **603.12 (coberta)** gatilho reflexivo: "você pode pagar; quando fizer, …" cria uma segunda habilidade, com alvo escolhido depois de pagar, que vai à pilha e pode ser respondida. "Se fizer" (sem "quando") continua resolvendo dentro da mesma habilidade, como a regra manda.
+- **Cartas das listas (decisão 7):** nenhuma carta pendente das duas listas depende só destas duas estruturas; os testes usam cartas inventadas.
+- **Golden:** regravadas (79 → 80); registros conferidos na entrega.
+- **Fora:** gatilho atrasado de evento ("quando ela morrer neste turno"), duração que expira sem disparar e gatilho criado por efeito de substituição (603.7d).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

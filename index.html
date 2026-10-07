@@ -4779,6 +4779,7 @@ const EFFECTS = {
   sacrifice_each: { fields: [], targets: ['self'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
+  reflexive: { fields: [], targets: ['self'] }, // CR 603.12 · "quando você fizer isso, …": outra habilidade vai à pilha, com alvo escolhido nessa hora
   draw_up_to: { fields: ['amount'], targets: ['self', 'delayed-player'] }, // "may draw up to N": quem compra escolhe quantas, antes de comprar
   look_top: { fields: [], targets: ['player'] }, // olhar a carta do topo do grimório do jogador alvo (só quem controla o efeito vê) // CR2a.4 · "each player sacrifices a <tipo> of their choice": escolhem em ordem, sacrificam juntos
   // S61 · Masmorra do Mago Louco
@@ -5049,7 +5050,7 @@ function validateScript(sc) {
   if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
   return errs.concat(exampleErrors(sc));
 }
-const ATRASOS = ['next-upkeep']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
+const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
 function effectErrors(effects, label, opcional) {
   const errs = [];
   if (!Array.isArray(effects)) return label === 'efeito' || opcional ? [] : [`${label}: sem efeitos`];
@@ -5059,6 +5060,7 @@ function effectErrors(effects, label, opcional) {
     if (!spec) return errs.push(`efeito ${i + 1}: "${e.do}" desconhecido`);
     for (const f of spec.fields) errs.push(...valueErrors(e[f], `${label} ${i + 1} (${e.do}): ${f}`));
     if (e.do === 'token') errs.push(...tokenErrors(e.token, `${label} ${i + 1}`));
+    if (e.do === 'reflexive') errs.push(...effectErrors(e.effects, `${label} ${i + 1} (reflexivo)`));
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
     if (['search', 'look'].includes(e.do)) {
@@ -5111,7 +5113,7 @@ function effectErrors(effects, label, opcional) {
     // S42 · "no mesmo alvo": reaproveita o alvo já escolhido por um efeito anterior
     if (t === 'first-target') {
       if (!effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): "no mesmo alvo" precisa de um alvo escolhido antes`);
-    } else if (t !== 'self' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
+    } else if (t !== 'self' && t !== 'delayed-object' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
   });
   return errs;
 }
@@ -10806,7 +10808,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 79;
+const ENGINE_VERSION = 80;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11571,10 +11573,13 @@ function enterStep(s, step) {
     return enterStep(s, 'upkeep');
   }
   if (step === 'upkeep') queueTriggers(s, 'upkeep', battlefield(s).filter(o => o.controller === a));
-  if (step === 'upkeep' && (s.atrasados || []).length) { // CR 603.7 · "no início da manutenção do próximo turno": dispara uma vez e some
-    const agora = s.atrasados.filter(d => d.when === 'next-upkeep' && s.turn.number > d.turno);
+  // CR 603.7 · gatilhos atrasados: disparam uma vez, no próximo começo do passo pedido, e somem. A manutenção é "do próximo
+  // turno"; o passo final e o fim do combate são os próximos a começar (criado dentro do próprio passo, espera o seguinte)
+  const momento = { upkeep: 'next-upkeep', end: 'next-end-step', combat_end: 'end-of-combat' }[step];
+  if (momento && (s.atrasados || []).length) {
+    const agora = s.atrasados.filter(d => d.when === momento && (momento !== 'next-upkeep' || s.turn.number > d.turno));
     s.atrasados = s.atrasados.filter(d => !agora.includes(d));
-    for (const d of agora) if (!s.players[d.controller].lost) s.queued.push({ source: d.source, name: d.name, controller: d.controller, effects: d.effects, when: 'delayed', jogador: d.jogador });
+    for (const d of agora) if (!s.players[d.controller].lost) s.queued.push({ source: d.source, name: d.name, controller: d.controller, effects: d.effects, when: 'delayed', jogador: d.jogador, ...(d.objeto ? { objeto: d.objeto } : {}) });
   }
   if (step === 'main2') queueTriggers(s, 'main2', battlefield(s).filter(o => o.controller === a));
   if (step === 'combat_end') queueTriggers(s, 'end-of-combat', battlefield(s)); // CR 511.2: de todos os jogadores, não só do ativo
@@ -12283,7 +12288,13 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'delayed': { // CR 603.7 · gatilho atrasado: fica guardado até o momento; quem controla é quem controlava a mágica ou habilidade (603.7e)
       (s.atrasados = s.atrasados || []).push({ when: eff.when, turno: s.turn.number, controller: ctrl, jogador: tgt && tgt.player != null ? tgt.player : ctrl,
+        // 603.7c · o gatilho que fala de "ela" guarda o objeto E a encarnação: se a carta mudar de zona, ele não a acha mais
+        ...(tgt && tgt.oid != null && s.objects[tgt.oid] ? { objeto: { oid: tgt.oid, z: s.objects[tgt.oid].zc || 0 } } : {}),
         name: src.name, source: src.ability ? src.source : src.oid, effects: eff.effects });
+      note({ amount: 1 }); break;
+    }
+    case 'reflexive': { // CR 603.12 · dispara ao acontecer a ação; entra na pilha na próxima vez que alguém receberia prioridade
+      s.queued.push({ source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl, effects: eff.effects, when: 'reflexive' });
       note({ amount: 1 }); break;
     }
     case 'draw_up_to': { // "may draw up to N cards": escolhe o número antes de comprar
@@ -12796,6 +12807,7 @@ function marcasDoGatilho(s, q, oid) {
   if (q.optional) s.objects[oid].optionalTrigger = true; // S49 · gatilho opcional sem custo
   if (q.condition) s.objects[oid].condicao = q.condition; // Leva 107 · "se" do gatilho é conferido de novo na resolução (603.4)
   if (q.value != null) s.objects[oid].triggerValue = q.value; // S48 · o valor que o gatilho trouxe
+  if (q.objeto) s.objects[oid].objetoAtrasado = q.objeto; // CR2b.2 · "ela", com a encarnação mirada
   if (q.jogador != null) s.objects[oid].jogadorAtrasado = q.jogador; // CR2b.1 · o "jogador daquela mágica" do gatilho atrasado
   if (q.host) s.objects[oid].hostOid = q.host; // Leva 108 · a criatura encantada no momento do disparo
   chargeWard(s, q.controller, oid, s.objects[oid].targets); // Leva 107 · proteção (ward) vale contra gatilho também
@@ -14272,6 +14284,7 @@ function resolveAbility(s, o, events) {
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) primeiro = t; if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
     else if (eff.target === 'each-opponent' || eff.target === 'each-player') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas (CR2b.1: "cada jogador" caía na varredura de criaturas e sumia sem criatura na mesa)
+    else if (eff.target === 'delayed-object') { const d = o.objetoAtrasado; if (d && mesmaEncarnacao(s, d) && s.objects[d.oid]) applyEffect(s, o, eff, { oid: d.oid }, events); } // 603.7c
     else if (eff.target === 'delayed-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.1
     else if (String(eff.target || '').startsWith('each-')) {
       sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
@@ -16635,7 +16648,8 @@ function descreveEfeito(e) {
     case 'keyword': return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
-    case 'delayed': return `no início da manutenção do próximo turno: ${descreveEfeitos(e.effects)}`;
+    case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
+    case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
     case 'draw_up_to': return `pode comprar até ${plural(n, 'carta', 'cartas')}`;
     case 'look_top': return 'olha a carta do topo do grimório do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;

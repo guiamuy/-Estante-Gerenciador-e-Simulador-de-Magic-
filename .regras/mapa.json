@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 79,
+ "motor": 80,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4215,14 +4215,16 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Habilidades desencadeadas atrasadas",
    "status": "parcial",
-   "falta": "Só o momento \"início da manutenção do próximo turno\". Faltam: próximo passo final, fim do combate, \"quando esta permanente sair/morrer\", duração \"neste turno\" (603.7c), gatilho atrasado que acompanha um objeto e para de valer se ele muda de zona (603.7c), e gatilho atrasado criado por efeito de substituição (603.7d).",
-   "esforco": "M",
+   "falta": "Faltam: \"quando esta permanente sair/morrer\" como gatilho atrasado de evento (não de passo), duração \"neste turno\" que expira sem disparar (603.7c, segunda parte), e gatilho atrasado criado por efeito de substituição (603.7d).",
+   "esforco": "P",
    "depende": [
     "603.2b (gatilho de passo final)"
    ],
-   "evidencia": "CR2b.1 (motor v79): efeito `delayed` registra o gatilho em s.atrasados na resolução (603.7a); enterStep o põe na fila uma vez, no início da manutenção do próximo turno, e o apaga (603.7b); quem controla é quem controlava a mágica ou habilidade (603.7e), mesmo que a fonte tenha saído (Mishra's Bauble); cr.conformidade \"CR 603.7 · gatilho atrasado…\", commander.regras Arcane Denial e Mishra's Bauble",
+   "evidencia": "CR2b.1 (motor v79): efeito `delayed` registra o gatilho em s.atrasados na resolução (603.7a); enterStep o põe na fila uma vez, no início da manutenção do próximo turno, e o apaga (603.7b); quem controla é quem controlava a mágica ou habilidade (603.7e), mesmo que a fonte tenha saído (Mishra's Bauble); cr.conformidade \"CR 603.7 · gatilho atrasado…\", commander.regras Arcane Denial e Mishra's Bauble · CR2b.2 (motor v80): momentos \"próximo passo final\" e \"fim do combate\" (enterStep), e gatilho preso a um objeto com a encarnação guardada — se a carta mudou de zona ele não age (603.7c); testes de conformidade em cr.conformidade",
    "testes": [
-    "CR 603.7 · gatilho atrasado: criado na resolução, dispara uma vez só no início da manutenção do PRÓXIMO turno, controlado por quem conjurou a mágica"
+    "CR 603.7 · gatilho atrasado: criado na resolução, dispara uma vez só no início da manutenção do PRÓXIMO turno, controlado por quem conjurou a mágica",
+    "CR 603.7 · gatilho atrasado preso a um objeto: no início do próximo passo final ele age naquela criatura; se ela saiu e voltou, é outro objeto e nada acontece (603.7c)",
+    "CR 603.7 · \"no fim do combate\": o gatilho atrasado dispara no próximo passo de fim de combate, uma vez"
    ]
   },
   {
@@ -4269,11 +4271,13 @@
    "n": "603.12",
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos reflexivos (\"quando fizer isso\")",
-   "status": "ausente",
-   "falta": "Não há gatilho reflexivo: \"você pode pagar/fazer; se fizer, …\" resolve dentro da mesma habilidade (may_pay + then, index.html:13198-13214) com alvo escolhido ao pôr o gatilho original na pilha, sem novo objeto na pilha nem janela de resposta. Cartas \"When you do, … any target\" (Heart-Piercer Manticore) ficam erradas.",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "603.7"
+   ],
+   "evidencia": "CR2b.2 (motor v80): efeito `reflexive` — ao acontecer a ação (por exemplo, pagar o custo opcional), uma nova habilidade entra na fila de gatilhos e vai à pilha com alvo escolhido nessa hora, podendo ser respondida; sem a ação, não existe. \"Se fizer\" (sem \"quando\") continua resolvendo dentro da mesma habilidade, como manda a regra; teste de conformidade em cr.conformidade",
+   "testes": [
+    "CR 603.12 · gatilho reflexivo: \"você pode pagar; quando fizer, cause 2 de dano a qualquer alvo\" — o alvo é escolhido depois de pagar, e a nova habilidade vai à pilha"
    ]
   },
   {
