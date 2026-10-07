@@ -460,7 +460,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bs ✅ | J7 botão de ação na Lista (Jogar, Editar, Exportar; Jogar abre o preparo com a lista escolhida) e em Partidas (Jogar); Início, Cartas e Jogar sem botão, com o motivo (leva G-209) | J | 1 | teste no aparelho |
 | 16º-bt ✅ | N1 coletor de notícias: `noticias.mjs` lê seis fontes (RSS e Atom), normaliza, tira repetidos, guarda 30 dias em páginas de 20; fluxo agendado de hora em hora publica no ramo `noticias` (leva G-210) | N | 1 | primeira coleta conferida no ramo |
 | 16º-bu ✅ | N2 tela Notícias: linha do tempo com destaque, rolagem infinita e estados desenhados; idioma por bandeiras (português, inglês ou os dois); duas fontes em português no coletor, com capa buscada na página (leva G-211) | N | 1 | teste no aparelho |
-| 16º-bv ○ | N3 filtros por fonte e tema, novas, atualizar | N | 1 | — |
+| 16º-bv ✅ | N3 notícias do seu jeito: filtros por tema e fonte, marca de novas com contador na Início, atualizar pelo botão e puxando, volta à tela no mesmo ponto com aviso de novas (leva G-212) | N | 1 | teste no aparelho |
 | 16º-bw ○ | N4 guardar e compartilhar notícia | N | 1 | — |
 | 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
 | 16º-by ✅ | I6 terrenos do seu jeito: Perfil › Terrenos com os doze básicos (ícone, cor), artes da Scryfall em lotes de 6 com "Mais artes", escolha guardada e usada na partida; fichas na mesma mecânica (leva 200) | I | 1 | teste no aparelho |
@@ -5923,14 +5923,34 @@ Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
   temas e fonte larga; sem emoji).
 - **Depende de:** N1, J4.
 
-**N3 · Ler do seu jeito** ○
+**N3 · Ler do seu jeito** ✅ (leva G-212, 07/10/2026)
 - **Valor:** ver só o que interessa e não perder o ponto.
-- **Aceite:** chips de **fonte** e de **tema** (Commander, Pauper, lançamentos, competitivo, Arena) que filtram
-  sem sair do lugar; marca "novas" no que chegou desde a última visita e contador na entrada da tela inicial;
-  atualizar puxando para baixo e por botão; ao voltar para a tela, a rolagem está onde ficou.
-- **Testes:** U (temas pelo título e pelas categorias do feed; novas desde a visita); e2e (filtros, novas,
-  atualizar, posição guardada).
-- **Depende de:** N2. · **Estimativa:** 1 leva.
+- **Entregue · filtros:** botão **Filtros** (com o número de critérios ligados, como em Listas e Coleção) abre a
+  folha com os **temas** (Commander, Pauper, Lançamentos, Competitivo, Arena) e as **fontes** dos idiomas ligados.
+  Passa quem tem algum dos temas ligados **e** é de alguma das fontes ligadas. Filtrar redesenha o que já foi lido
+  e busca as páginas seguintes sozinho até encher a tela ou acabar; a primeira que passa vira o destaque. Quando
+  nada passa, a tela diz e oferece "Limpar filtros". A escolha fica no aparelho (`noticias.filtro`, vai no backup).
+- **Entregue · novas:** a notícia mais nova já mostrada fica guardada (`noticias.vista`); na visita seguinte, o que
+  chegou depois leva o selo **Nova** e a tela diz quantas são ("3 novas"). Na **Início**, o atalho Notícias troca a
+  frase por "3 novas" (olha só a primeira página, nos idiomas e filtros escolhidos; "20+" quando a página inteira é
+  nova). Quem nunca abriu Notícias não tem "novas" e a Início não pede nada à rede.
+- **Entregue · atualizar:** botão de atualizar e **puxar para baixo no topo** (o gesto do navegador de recarregar a
+  página fica desligado nesta tela). Busca por cima da cópia do navegador e diz o resultado ("3 notícias novas" ou
+  "Nada de novo por enquanto"). Puxão curto ou com a página rolada não faz nada.
+- **Entregue · voltar no mesmo ponto:** sair da tela e voltar em até 30 minutos devolve a linha do tempo já lida e
+  o ponto da rolagem, sem buscar as páginas de novo. Se chegou notícia nesse meio-tempo, a leitura fica onde estava
+  e um **aviso flutuante** ("3 novas") leva ao topo e atualiza.
+- **Limites declarados:** os temas vêm das palavras do título e das categorias do feed (uma notícia sem palavra
+  conhecida fica sem tema e só aparece sem filtro de tema); o contador da Início conta até a primeira página; o
+  ramo é servido com cópia de até cinco minutos pelo próprio GitHub, então "atualizar" pode não mostrar o que foi
+  coletado no último minuto; a linha do tempo guardada para a volta vive só enquanto o app está aberto.
+- **Testes:** U `noticias.tela.unit` (filtro limpo e regra de passar, contar novas, data mais nova, rótulos,
+  serviço: guardar filtro e visita, atualizar sem cópia, novas para a Início); contrato de rolagem (`ds.unit`: o
+  ponto novo está declarado); e2e "N3" (ferramentas de 44 px, filtros por tema e fonte com interseção, guardados,
+  nada passa e limpar, voltar no mesmo ponto sem novas buscas, contador na Início, aviso flutuante, selo Nova,
+  atualizar pelo botão, puxar curto, puxar inteiro e puxar com a página rolada, visita seguinte sem novas;
+  `auditaTela` nas quatro larguras, dois temas e fonte larga).
+- **Depende de:** N2.
 
 **N4 · Guardar e compartilhar** ○
 - **Valor:** separar o que ler depois.

@@ -8402,3 +8402,92 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-bandeiras'); assert.equal(await page.locator('#ds-bandeiras .ds-bandeira svg').count(), 4);
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- N3 · ler do seu jeito ---------------- */
+test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com saída quando nada passa), marca de novas e contador na Início, atualizar pelo botão e puxando, e a volta à tela no mesmo ponto com aviso de novas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const arquivos = ramoN2(); const pedidos = [];
+  // temas no ramo de mentira: Commander a cada 5, Pauper a cada 7 (os objetos são os mesmos nas três séries)
+  for (const p of Object.values(arquivos)) for (const it of p.itens || []) { const n = Number(it.id.slice(1)); it.temas = [...(n % 5 === 0 ? ['commander'] : []), ...(n % 7 === 0 ? ['pauper'] : [])]; }
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); pedidos.push(nome); return nome in arquivos ? r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }) : r.abort('failed'); });
+  await page.route('https://img.test/**', r => r.fulfill({ body: PNG_N2, contentType: 'image/png' }));
+  const cartoes = () => page.locator('#noticias-lista .nt-cartao').count();
+  const quando = n => page.waitForFunction(q => document.querySelectorAll('#noticias-lista .nt-cartao').length === q, n, { timeout: 8000 });
+  const aviso = async rx => { await page.waitForFunction(r => new RegExp(r).test((document.querySelector('#ds-toast') || {}).textContent || ''), rx.source, { timeout: 8000 }); };
+  // 1 · primeira visita: nada é "novo"; ferramentas com alvos de 44 px; a Início não pediu nada à rede antes
+  await page.goto(base + '#/'); await page.waitForSelector('#go-news'); await page.waitForTimeout(200); assert.deepEqual(pedidos, []);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY), 'auto');
+  await page.click('#go-news'); await quando(20);
+  assert.equal(await page.locator('[data-nova]').count(), 0); assert.equal(await page.innerText('#noticias-novas'), '');
+  const f = await page.$$eval('#noticias-ferramentas button', bs => bs.map(b => ({ id: b.id, fala: b.getAttribute('aria-label'), h: Math.round(b.getBoundingClientRect().height), w: Math.round(b.getBoundingClientRect().width), icone: !!b.querySelector('svg') })));
+  assert.deepEqual(f.map(b => [b.id, b.fala, b.icone]), [['noticias-filtros', 'Filtros', true], ['noticias-atualizar', 'Atualizar', true]]); assert.ok(f.every(b => b.h >= 44 && b.w >= 44), JSON.stringify(f));
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY), 'contain', 'puxar não recarrega a página nesta tela');
+  await auditaTela(page, 'notícias · ferramentas');
+  // 2 · filtros: tema Commander → só Commander, buscando as páginas seguintes sozinho até o fim; mais a fonte EDHREC → interseção
+  await page.click('#noticias-filtros'); await page.waitForSelector('#noticias-filtros-corpo'); await page.waitForTimeout(350); // o diálogo termina de abrir antes de medir
+  assert.deepEqual(await page.$$eval('#noticias-filtros-corpo [data-tema]', cs => cs.map(c => c.textContent)), ['Commander', 'Pauper', 'Lançamentos', 'Competitivo', 'Arena']);
+  assert.deepEqual(await page.$$eval('#noticias-filtros-corpo [data-fonte]', cs => cs.map(c => c.textContent)), ['Cards Realm', 'MTGGoldfish', 'EDHREC']);
+  assert.ok(await page.$$eval('#noticias-filtros-corpo .ds-chip', cs => cs.every(c => c.getBoundingClientRect().height >= 44)));
+  assert.equal(await page.innerText('#noticias-filtros-conta'), 'Sem filtro: todas as notícias.'); await auditaTela(page, 'notícias · filtros');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-filtros.png' });
+  await page.click('[data-tema="commander"]'); assert.equal(await page.getAttribute('[data-tema="commander"]', 'aria-pressed'), 'true');
+  await page.click('#noticias-filtros-mostrar'); await page.waitForSelector('#noticias-fim'); assert.equal(await cartoes(), 12);
+  assert.ok(await page.$$eval('.nt-cartao', cs => cs.every(c => Number(c.dataset.noticia.slice(1)) % 5 === 0))); assert.equal(await page.$eval('.nt-cartao', c => c.dataset.forma), 'destaque', 'a primeira que passa vira o destaque');
+  assert.deepEqual(await page.$eval('#noticias-filtros', b => [b.dataset.ativos, b.getAttribute('aria-label'), b.querySelector('.ds-btn__conta').textContent]), ['1', 'Filtros, 1 ativo(s)', '1']);
+  await page.click('#noticias-filtros'); await page.click('[data-fonte="ed"]'); assert.match(await page.innerText('#noticias-filtros-conta'), /^3 notícia\(s\) na tela com esses filtros\.$/);
+  await page.click('#noticias-filtros-mostrar'); assert.deepEqual(await page.$$eval('.nt-cartao', cs => cs.map(c => c.dataset.noticia)), ['n0', 'n15', 'n30']);
+  // guardado: recarregar mantém os filtros
+  await page.reload(); await page.waitForSelector('#noticias-fim'); assert.equal(await cartoes(), 3); assert.equal(await page.$eval('#noticias-filtros', b => b.dataset.ativos), '2');
+  // nada passa: a tela diz e oferece limpar
+  await page.click('#noticias-filtros'); await page.click('[data-tema="commander"]'); await page.click('[data-tema="arena"]'); await page.click('#noticias-filtros-mostrar');
+  await page.waitForSelector('#noticias-sem-filtro'); assert.equal(await cartoes(), 0); assert.match(await page.innerText('#noticias-pe'), /Nenhuma notícia passa por esses filtros\./); await auditaTela(page, 'notícias · nada passa');
+  await page.click('#noticias-limpar'); await quando(60); assert.equal(await page.$eval('#noticias-filtros', b => b.dataset.ativos), '0'); assert.equal(await page.locator('#noticias-filtros .ds-btn__conta').isVisible(), false);
+  // 3 · sair e voltar: a linha do tempo e o ponto da leitura estão onde ficaram, sem buscar as páginas de novo
+  await page.evaluate(() => window.scrollTo(0, 1500)); await page.waitForTimeout(200); pedidos.length = 0;
+  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news'); await page.waitForTimeout(250);
+  assert.equal(await page.getAttribute('#go-news', 'data-novas'), null, 'nada novo: o atalho continua com a frase dele'); assert.equal(await page.evaluate(() => window.scrollY), 0);
+  await page.click('#go-news'); await quando(60); await page.waitForFunction(() => Math.abs(window.scrollY - 1500) < 3, null, { timeout: 4000 });
+  assert.ok(!pedidos.includes('pagina-2.json') && !pedidos.includes('pagina-3.json'), 'voltar não busca as páginas de novo: ' + pedidos.join());
+  assert.equal(await page.locator('#noticias-ver-novas').count(), 0);
+  // 4 · chegam três notícias: a Início conta, e na volta a leitura fica onde estava com um aviso flutuante das novas
+  const agora = Date.now();
+  const frescas = [0, 1, 2].map(i => ({ id: 'f' + i, titulo: 'Notícia que acabou de chegar ' + i, resumo: 'Fresca.', url: 'https://fonte.test/fresca/' + i, fonte: 'gf', autor: '', data: new Date(agora + 3000 - i * 1000).toISOString(), imagem: '', idioma: 'en', temas: [] }));
+  arquivos['pagina-1.json'] = { ...arquivos['pagina-1.json'], itens: [...frescas, ...arquivos['pagina-1.json'].itens] }; arquivos['en-pagina-1.json'] = { ...arquivos['en-pagina-1.json'], itens: [...frescas, ...arquivos['en-pagina-1.json'].itens] };
+  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news[data-novas="3"]');
+  assert.equal(await page.innerText('#go-news .ds-atalho__detalhe'), '3 novas'); assert.equal(await page.getAttribute('#go-news', 'aria-label'), 'Notícias, 3 novas'); await auditaTela(page, 'início com novas');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-inicio.png' });
+  await page.click('#go-news'); await quando(60); await page.waitForSelector('#noticias-ver-novas'); await page.waitForFunction(() => Math.abs(window.scrollY - 1500) < 3, null, { timeout: 4000 });
+  const pil = await page.$eval('#noticias-ver-novas', b => { const r = b.getBoundingClientRect(), barra = document.querySelector('.ds-appbar').getBoundingClientRect(); return { texto: b.textContent.trim(), h: Math.round(r.height), centro: Math.abs((r.left + r.right) / 2 - innerWidth / 2) < 2, abaixoDaBarra: r.top >= Math.min(barra.bottom, innerHeight) - 1 || barra.bottom <= 0, naTela: r.top >= 0 && r.bottom <= innerHeight }; });
+  assert.deepEqual(pil, { texto: '3 novas', h: 44, centro: true, abaixoDaBarra: true, naTela: true }); await auditaTela(page, 'notícias · aviso de novas');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-aviso.png' });
+  await page.click('#noticias-ver-novas'); await aviso(/3 notícias novas/); await quando(23); await page.waitForFunction(() => window.scrollY < 5, null, { timeout: 4000 });
+  assert.equal(await page.locator('#noticias-ver-novas').count(), 0); assert.deepEqual(await page.$$eval('[data-nova]', cs => cs.map(c => c.dataset.noticia)), ['f0', 'f1', 'f2']);
+  assert.equal(await page.innerText('#noticias-novas'), '3 novas'); assert.equal(await page.textContent('[data-noticia="f0"] .nt-nova'), 'Nova'); assert.match(await page.getAttribute('[data-noticia="f0"]', 'aria-label'), /^Nova\. /);
+  await auditaTela(page, 'notícias · com novas');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-novas.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(80); await auditaTela(page, `notícias com novas ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  { const larga = await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'notícias com novas · fonte larga'); await larga.evaluate(el => el.remove()); }
+  // 5 · atualizar pelo botão sem nada novo: a tela diz; as marcas de "nova" continuam nesta visita
+  pedidos.length = 0; await page.click('#noticias-atualizar'); await aviso(/Nada de novo por enquanto/); await quando(23);
+  assert.deepEqual(pedidos.slice(0, 2), ['indice.json', 'pagina-1.json']); assert.equal(await page.locator('[data-nova]').count(), 3); assert.equal(await page.isEnabled('#noticias-atualizar'), true);
+  // 6 · puxar para baixo no topo: pouco não faz nada; passando do ponto, "Solte para atualizar" e, ao soltar, atualiza
+  const toque = (tipo, y) => page.evaluate(([tipo, y]) => { const e = new Event(tipo, { bubbles: true }); Object.defineProperty(e, 'touches', { value: y == null ? [] : [{ clientY: y }] }); document.querySelector('#noticias').dispatchEvent(e); }, [tipo, y]);
+  await page.evaluate(() => window.scrollTo(0, 0)); pedidos.length = 0;
+  await toque('touchstart', 200); await toque('touchmove', 260);
+  assert.deepEqual(await page.$eval('#noticias-puxar', p => [p.dataset.pronto, p.textContent, Math.round(p.getBoundingClientRect().height)]), ['false', 'Puxe para atualizar', 30]);
+  await toque('touchend', null); await page.waitForTimeout(150); assert.deepEqual(pedidos, [], 'puxão curto não atualiza');
+  await toque('touchstart', 200); await toque('touchmove', 420);
+  assert.deepEqual(await page.$eval('#noticias-puxar', p => [p.dataset.pronto, p.textContent, Math.round(p.getBoundingClientRect().height)]), ['true', 'Solte para atualizar', 72]);
+  await toque('touchend', null); for (let i = 0; i < 100 && pedidos.length < 2; i++) await page.waitForTimeout(50); // (o aviso da vez anterior ainda está na tela: espera pelos pedidos)
+  assert.deepEqual(pedidos.slice(0, 2), ['indice.json', 'pagina-1.json']); await quando(23);
+  await page.waitForFunction(() => document.querySelector('#noticias-puxar').getBoundingClientRect().height < 1, null, { timeout: 3000 });
+  // rolada para baixo, o gesto é só rolagem
+  await page.evaluate(() => window.scrollTo(0, 400)); pedidos.length = 0; await toque('touchstart', 200); await toque('touchmove', 420); await toque('touchend', null); await page.waitForTimeout(150); assert.deepEqual(pedidos, []);
+  // 7 · visita seguinte: as três já foram vistas, nada é novo, e a Início volta à frase dela
+  await page.reload(); await quando(23); assert.equal(await page.locator('[data-nova]').count(), 0); assert.equal(await page.innerText('#noticias-novas'), '');
+  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news'); await page.waitForTimeout(300); assert.equal(await page.getAttribute('#go-news', 'data-novas'), null);
+  assert.equal(await page.innerText('#go-news .ds-atalho__detalhe'), 'O que há de novo no Magic');
+  assert.deepEqual(errors, []);
+});

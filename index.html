@@ -1047,6 +1047,22 @@ a { color: var(--accent); }
 .nt-pe > .ds-btn { align-self: center; }
 .nt-fim { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--tap-min); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
 .nt-sentinela { display: block; height: 1px; }
+/* N3 · ferramentas, marca de nova, filtros e puxar para atualizar */
+.nt-ferramentas { display: flex; align-items: center; gap: var(--space-2); }
+.nt-novas { flex: 1 1 auto; min-width: 0; text-align: right; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--accent); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-nova { flex: none; margin-left: auto; padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--accent-soft); color: var(--accent); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: .05em; }
+.nt-filtro__chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.nt-puxar { display: flex; align-items: center; justify-content: center; gap: var(--space-2); height: 0; overflow: hidden; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); transition: height var(--dur-2) var(--ease-out); }
+.nt-puxar[data-puxando="true"] { transition: none; }
+.nt-puxar[data-pronto="true"] { color: var(--accent); }
+.nt-puxar .ds-icon { transition: transform var(--dur-2) var(--ease-out); }
+.nt-puxar[data-pronto="true"] .ds-icon { transform: rotate(180deg); }
+html:has(#noticias) { overscroll-behavior-y: contain; }
+.nt-pilula.ds-btn { position: fixed; left: 50%; transform: translateX(-50%); z-index: var(--z-sticky); border-radius: var(--radius-full); box-shadow: var(--btn-rest), var(--shadow-2); }
+.nt-pilula.ds-btn:active { transform: translateX(-50%) scale(.97); }
+.ds-atalho[data-novas] .ds-atalho__detalhe { opacity: 1; font-weight: var(--weight-bold); }
+@media (prefers-reduced-motion: reduce) { .nt-puxar, .nt-puxar .ds-icon { transition: none; } }
+:root[data-movimento="reduzido"] .nt-puxar, :root[data-movimento="reduzido"] .nt-puxar .ds-icon { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .nt-cartao { transition: none; } .nt-cartao:active { transform: none; } }
 :root[data-movimento="reduzido"] .nt-cartao { transition: none !important; } :root[data-movimento="reduzido"] .nt-cartao:active { transform: none !important; }
 /* J4 · carregamento com identidade: três cartas se arrumam na prateleira, uma depois da outra, e o ciclo recomeça.
@@ -7295,7 +7311,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas', 'noticias.filtro'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -8575,9 +8591,15 @@ const __m37 = (function () {
    O que fica no aparelho é a escolha de idioma (`noticias.idiomas`, vai no backup).
    O modelo (`N.*`) é puro e tem teste sem navegador; a tela só desenha.
    ===================================================================== */
-const { h, mount, Stack, Row, Text, Button, Empty, Icone, Esqueleto, Bandeira, AvisoRede } = __m3;
+const { h, mount, Stack, Row, Text, Button, IconButton, Field, Chip, Dialog, closeDialog, toast, Empty, Icone, Esqueleto, Bandeira, AvisoRede, levaAte } = __m3;
 const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/noticias/';
 const CHAVE_IDIOMAS = 'noticias.idiomas';
+const CHAVE_FILTRO = 'noticias.filtro'; // N3 · temas e fontes escolhidos (vai no backup)
+const CHAVE_VISTA = 'noticias.vista';   // N3 · data da notícia mais nova já mostrada neste aparelho (é o que separa as "novas")
+/** N3 · temas que o coletor marca, com o nome na tela. */
+const TEMAS = [['commander', 'Commander'], ['pauper', 'Pauper'], ['lancamentos', 'Lançamentos'], ['competitivo', 'Competitivo'], ['arena', 'Arena']];
+const MEMORIA_MS = 30 * 60 * 1000; // voltar à tela dentro de meia hora devolve a linha do tempo e o ponto da leitura
+let memoria = null;
 /** Idiomas das fontes: [código, nome na tela (no próprio idioma), bandeira, nome falado, `lang` do texto]. */
 const IDIOMAS = [['pt', 'Português', 'br', 'Notícias em português', 'pt-BR'], ['en', 'English', 'us', 'Notícias em inglês', 'en']];
 const CODIGOS = IDIOMAS.map(i => i[0]);
@@ -8622,22 +8644,54 @@ function junta(lista, novos, { idiomas = null } = {}) {
   for (const cru of novos || []) { const it = limpaItem(cru); if (!it || vistos.has(it.id) || (idiomas && !idiomas.includes(it.idioma))) continue; vistos.add(it.id); out.push(it); }
   return out;
 }
+/** N3 · o filtro guardado, limpo: só temas conhecidos (na ordem da tela) e fontes como texto, sem repetir. */
+function filtroValido(v) {
+  const t = new Set(v && Array.isArray(v.temas) ? v.temas : []), f = v && Array.isArray(v.fontes) ? v.fontes : [];
+  return { temas: TEMAS.map(x => x[0]).filter(k => t.has(k)), fontes: [...new Set(f.filter(x => typeof x === 'string' && x))].slice(0, 30) };
+}
+const filtroVazio = f => !f.temas.length && !f.fontes.length;
+const contaFiltro = f => f.temas.length + f.fontes.length;
+/** Passa quem tem algum dos temas ligados E é de alguma das fontes ligadas (grupo sem nada ligado não restringe). */
+const passa = (it, f) => (!f.temas.length || it.temas.some(t => f.temas.includes(t))) && (!f.fontes.length || f.fontes.includes(it.fonte));
+/** Quantas são mais novas que a última já mostrada. Sem visita anterior, nenhuma é "nova" (tudo seria). */
+function contaNovas(itens, vista) { const t = Date.parse(vista); return Number.isFinite(t) ? itens.filter(it => Date.parse(it.data) > t).length : 0; }
+/** A data mais nova entre as notícias e a marca atual. */
+const maisNova = (itens, atual = '') => itens.reduce((m, it) => (Number.isFinite(Date.parse(it.data)) && (!m || Date.parse(it.data) > Date.parse(m)) ? it.data : m), Number.isFinite(Date.parse(atual)) ? atual : '');
+/** "1 nova", "7 novas", "20+ novas" (quando tudo o que foi lido é novo e ainda há mais); zero não escreve nada. */
+const rotuloNovas = (n, { mais = false } = {}) => (n > 0 ? `${n}${mais ? '+' : ''} ${n === 1 && !mais ? 'nova' : 'novas'}` : '');
 /** A forma de cada notícia na coluna: a primeira é o destaque; a cada seis, uma com capa ganha o cartão cheio; o resto é linha. */
 const formaDe = (i, it) => (i === 0 ? 'destaque' : i % 6 === 0 && it.imagem ? 'cheio' : 'linha');
 
 function createNoticias({ store = null, busca = null, base = BASE, prazo = 12000 } = {}) {
-  const pede = async caminho => {
+  // `fresco` (atualizar): passa por cima da cópia que o navegador guardou
+  const pede = async (caminho, { fresco = false } = {}) => {
     const f = busca || (typeof fetch === 'function' ? fetch.bind(globalThis) : null); if (!f) throw new Error('sem rede');
     const c = typeof AbortController === 'function' ? new AbortController() : null; const t = c ? setTimeout(() => c.abort(), prazo) : null;
-    try { const r = await f(base + caminho, c ? { signal: c.signal } : {}); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+    try { const r = await f(base + caminho, { ...(c ? { signal: c.signal } : {}), ...(fresco ? { cache: 'no-store' } : {}) }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
     finally { if (t) clearTimeout(t); }
   };
-  return {
-    indice: async () => { const i = await pede('indice.json'); if (!i || typeof i !== 'object' || !Array.isArray(i.fontes)) throw new Error('índice ilegível'); return i; },
-    pagina: async (prefixo, n) => { const p = await pede(`${prefixo}pagina-${n}.json`); if (!p || !Array.isArray(p.itens)) throw new Error('página ilegível'); return p.itens; },
-    idiomas: async () => { try { return idiomasValidos(store ? await store.get(CHAVE_IDIOMAS) : null); } catch (e) { return [...CODIGOS]; } },
-    guardaIdiomas: async v => { try { if (store) await store.set(CHAVE_IDIOMAS, idiomasValidos(v)); } catch (e) { /* preferência: sem disco, vale só nesta visita */ } },
+  const le = async (k, padrao) => { try { const v = store ? await store.get(k) : null; return v == null ? padrao : v; } catch (e) { return padrao; } };
+  const grava = async (k, v) => { try { if (store) await store.set(k, v); } catch (e) { /* preferência: sem disco, vale só nesta visita */ } };
+  const api = {
+    indice: async (o) => { const i = await pede('indice.json', o); if (!i || typeof i !== 'object' || !Array.isArray(i.fontes)) throw new Error('índice ilegível'); return i; },
+    pagina: async (prefixo, n, o) => { const p = await pede(`${prefixo}pagina-${n}.json`, o); if (!p || !Array.isArray(p.itens)) throw new Error('página ilegível'); return p.itens; },
+    idiomas: async () => idiomasValidos(await le(CHAVE_IDIOMAS, null)),
+    guardaIdiomas: v => grava(CHAVE_IDIOMAS, idiomasValidos(v)),
+    filtro: async () => filtroValido(await le(CHAVE_FILTRO, null)),
+    guardaFiltro: v => grava(CHAVE_FILTRO, filtroValido(v)),
+    vista: async () => { const v = await le(CHAVE_VISTA, ''); return typeof v === 'string' && Number.isFinite(Date.parse(v)) ? v : ''; },
+    guardaVista: iso => grava(CHAVE_VISTA, String(iso || '')),
+    /** N3 · para a tela inicial: quantas notícias novas há desde a última visita, olhando só a primeira página (nos
+        idiomas e com os filtros escolhidos). Quem nunca abriu Notícias não tem "novas". `mais`: a página inteira é nova. */
+    novas: async () => {
+      const vista = await api.vista(); if (!vista) return { n: 0, mais: false };
+      const idiomas = await api.idiomas(), filtro = await api.filtro(), plano = planoDeLeitura(await api.indice(), idiomas);
+      if (!plano.paginas) return { n: 0, mais: false };
+      const lidas = junta([], await api.pagina(plano.prefixo, 1), { idiomas: plano.filtra ? idiomas : null }), n = contaNovas(lidas.filter(it => passa(it, filtro)), vista);
+      return { n, mais: n > 0 && contaNovas(lidas, vista) === lidas.length && plano.paginas > 1 };
+    },
   };
+  return api;
 }
 
 /* ---------------- tela ---------------- */
@@ -8645,7 +8699,7 @@ const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', pa
 const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 
 /** O cartão de uma notícia. É um link de verdade: abre a matéria no site da fonte, em outra aba. */
-function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false } = {}) {
+function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false, nova = false } = {}) {
   const quando = tempoRelativo(it.data, agora);
   const capa = (() => {
     if (!it.imagem && forma === 'linha') return null; // linha sem capa é só texto: mais notícia por tela
@@ -8656,18 +8710,18 @@ function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), ba
     img.addEventListener('error', traco, { once: true });
     el.appendChild(img); return el;
   })();
-  return h('a', { class: 'nt-cartao nt-cartao--' + forma, href: it.url, target: '_blank', rel: 'noopener noreferrer', dataset: { noticia: it.id, idioma: it.idioma, forma },
-    'aria-label': `${it.titulo}. ${fonte}${quando ? ', ' + quando : ''}. Abre no navegador` },
+  return h('a', { class: 'nt-cartao nt-cartao--' + forma, href: it.url, target: '_blank', rel: 'noopener noreferrer', dataset: { noticia: it.id, idioma: it.idioma, forma, ...(nova ? { nova: 'true' } : {}) },
+    'aria-label': `${nova ? 'Nova. ' : ''}${it.titulo}. ${fonte}${quando ? ', ' + quando : ''}. Abre no navegador` },
     capa,
     h('span', { class: 'nt-corpo' },
       h('span', { class: 'nt-meta' }, bandeira ? Bandeira((IDIOMAS.find(i => i[0] === it.idioma) || IDIOMAS[1])[2], { tamanho: 10 }) : null,
-        h('span', { class: 'nt-fonte' }, fonte), quando ? h('span', { class: 'nt-quando' }, '· ' + quando) : null),
+        h('span', { class: 'nt-fonte' }, fonte), quando ? h('span', { class: 'nt-quando' }, '· ' + quando) : null, nova ? h('span', { class: 'nt-nova' }, 'Nova') : null),
       h('span', { class: 'nt-titulo', lang: langDe(it.idioma), role: 'heading', 'aria-level': '2' }, it.titulo),
       it.resumo && forma !== 'linha' ? h('span', { class: 'nt-resumo', lang: langDe(it.idioma) }, it.resumo) : null));
 }
 
 function createNoticiasScreen({ noticias }) {
-  const st = { idiomas: [...CODIGOS], indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0 };
+  const st = { idiomas: [...CODIGOS], filtro: filtroValido(null), indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0, vista: '', nVis: 0 };
   const lista = h('div', { class: 'nt-lista', id: 'noticias-lista', role: 'feed', 'aria-label': 'Notícias' });
   const pe = h('div', { class: 'nt-pe', id: 'noticias-pe' });
   const corpo = h('div', { id: 'noticias-corpo' });
@@ -8675,9 +8729,28 @@ function createNoticiasScreen({ noticias }) {
     Bandeira(pais), h('span', { class: 'ds-chip__rotulo', lang: langDe(cod) }, nome)));
   const seletor = h('div', { class: 'ds-segmentado nt-idiomas', role: 'group', 'aria-label': 'Idioma das notícias', id: 'noticias-idiomas' }, ...chips);
   const nota = Text('', { size: 'xs', tone: 'subtle', attrs: { id: 'noticias-nota', role: 'status' } });
-  const root = Stack({ ...pad(), id: 'noticias' }, Text('Notícias', { size: '2xl', display: true, as: 'h1' }), seletor, nota, corpo);
+  // N3 · ferramentas: filtros (com o número de critérios), quantas são novas e atualizar
+  const filtrosBtn = Button('Filtros', { id: 'noticias-filtros', icone: 'filtro', onClick: () => abreFiltros() });
+  const novasTxt = h('span', { class: 'nt-novas', id: 'noticias-novas', role: 'status' });
+  const atualizarBtn = IconButton('atualizar', 'Atualizar', { id: 'noticias-atualizar', variant: 'ghost', onClick: () => atualiza() });
+  const ferramentas = h('div', { class: 'nt-ferramentas', id: 'noticias-ferramentas' }, filtrosBtn, novasTxt, atualizarBtn);
+  const puxar = h('div', { class: 'nt-puxar', id: 'noticias-puxar', 'aria-hidden': 'true', dataset: { pronto: 'false' } }, Icone('atualizar', { tamanho: 20 }), h('span', {}, 'Puxe para atualizar'));
+  const root = Stack({ ...pad(), id: 'noticias' }, Text('Notícias', { size: '2xl', display: true, as: 'h1' }), seletor, nota, ferramentas, puxar, corpo);
   const marcaChips = () => chips.forEach(c => c.setAttribute('aria-pressed', String(st.idiomas.includes(c.dataset.idioma))));
   const nomeDaFonte = id => { const f = st.indice && st.indice.fontes.find(x => x.id === id); return (f && f.nome) || id; };
+  const acabou = () => !!st.plano && st.proxima > st.plano.paginas;
+  function pintaFerramentas() {
+    const n = contaFiltro(st.filtro);
+    // o número de filtros ligados vira um selo ao lado do rótulo, como em Listas e Coleção
+    let selo = filtrosBtn.querySelector('.ds-btn__conta');
+    if (!selo) { selo = h('span', { class: 'ds-btn__conta' }); filtrosBtn.appendChild(selo); }
+    selo.textContent = n ? String(n) : ''; selo.hidden = !n;
+    filtrosBtn.dataset.ativos = String(n); filtrosBtn.setAttribute('aria-label', n ? `Filtros, ${n} ativo(s)` : 'Filtros');
+    const vis = st.itens.filter(it => passa(it, st.filtro)), novas = contaNovas(vis, st.vista);
+    novasTxt.textContent = rotuloNovas(novas, { mais: novas > 0 && novas === vis.length && !acabou() });
+  }
+  /** O que precisa sobreviver a sair da tela e voltar: a linha do tempo já lida e o ponto da leitura. */
+  const lembra = () => { memoria = { chave: st.idiomas.join(), itens: st.itens, proxima: st.proxima, indice: st.indice, plano: st.plano, vista: st.vista, rolagem: typeof window !== 'undefined' ? window.scrollY : 0, quando: Date.now() }; };
 
   let olho = null;
   const sentinela = h('span', { class: 'nt-sentinela', 'aria-hidden': 'true' });
@@ -8691,37 +8764,43 @@ function createNoticiasScreen({ noticias }) {
   /** Tela parada e desenhada, para quando não há linha do tempo: sem internet, falha, ou nada publicado. */
   function parada({ id, icone, titulo, texto, botao = true }) {
     if (olho) olho.disconnect();
+    memoria = null; novasTxt.textContent = '';
     mount(corpo, Empty(texto, botao ? Button('Tentar de novo', { variant: 'primary', icone: 'atualizar', id: 'noticias-tentar', onClick: () => abre() }) : null, { icone, titulo, hero: true, id }));
   }
   function pintaPe() {
-    const acabou = st.plano && st.proxima > st.plano.paginas;
     if (st.erro) return mount(pe, AvisoRede('Não deu para buscar mais notícias.', { id: 'noticias-erro' }), Button('Tentar de novo', { icone: 'atualizar', id: 'noticias-de-novo', onClick: () => mais() }));
     if (st.buscando) return mount(pe, Esqueleto({ linhas: 2, id: 'noticias-chegando', fala: 'Buscando mais notícias…' }));
-    if (acabou) return mount(pe, h('span', { class: 'nt-fim', id: 'noticias-fim', role: 'status' }, Icone('marcar', { tamanho: 18 }), h('span', {}, 'Você está em dia')));
+    // os filtros não deixaram passar nada do que há: a tela diz e oferece a saída
+    if (acabou() && !st.nVis) return mount(pe, h('span', { class: 'nt-fim', id: 'noticias-sem-filtro', role: 'status' }, 'Nenhuma notícia passa por esses filtros.'), Button('Limpar filtros', { icone: 'fechar', id: 'noticias-limpar', onClick: () => mudaFiltro(filtroValido(null)) }));
+    if (acabou()) return mount(pe, h('span', { class: 'nt-fim', id: 'noticias-fim', role: 'status' }, Icone('marcar', { tamanho: 18 }), h('span', {}, 'Você está em dia')));
     // sem observador de rolagem (navegador antigo), o botão pede a página seguinte
     mount(pe, sentinela, typeof IntersectionObserver === 'function' ? null : Button('Mais notícias', { icone: 'descer', id: 'noticias-mais', onClick: () => mais() }));
   }
   /** Só acrescenta o que chegou: o que já está na tela não é redesenhado (a rolagem e as imagens ficam onde estão). */
   function acrescenta(de) {
-    const agora = Date.now(), dois = st.idiomas.length > 1;
-    for (let i = de; i < st.itens.length; i++) lista.appendChild(CartaoNoticia(st.itens[i], { forma: formaDe(i, st.itens[i]), fonte: nomeDaFonte(st.itens[i].fonte), agora, bandeira: dois }));
-    lista.setAttribute('aria-busy', 'false');
+    const agora = Date.now(), dois = st.idiomas.length > 1, limite = Date.parse(st.vista);
+    for (let i = de; i < st.itens.length; i++) { const it = st.itens[i]; if (!passa(it, st.filtro)) continue;
+      lista.appendChild(CartaoNoticia(it, { forma: formaDe(st.nVis, it), fonte: nomeDaFonte(it.fonte), agora, bandeira: dois, nova: Number.isFinite(limite) && Date.parse(it.data) > limite })); st.nVis++; }
+    lista.setAttribute('aria-busy', 'false'); pintaFerramentas();
   }
-  async function mais() {
-    if (st.buscando || !st.plano || st.proxima > st.plano.paginas) return;
-    const vez = st.vez; st.buscando = true; st.erro = false; pintaPe(); lista.setAttribute('aria-busy', 'true');
+  const redesenha = () => { lista.replaceChildren(); st.nVis = 0; acrescenta(0); };
+  async function mais({ fresco = false } = {}) {
+    if (st.buscando || !st.plano || acabou()) return;
+    const vez = st.vez, primeira = st.proxima === 1; st.buscando = true; st.erro = false; pintaPe(); lista.setAttribute('aria-busy', 'true');
     try {
-      // lendo a série geral com um idioma só (índice antigo), uma página pode não trazer nada dele: segue até trazer
+      // uma página pode não trazer nada que passe (filtro ligado, ou série geral com um idioma só): segue até trazer
       for (;;) {
-        const crus = await noticias.pagina(st.plano.prefixo, st.proxima);
+        const crus = await noticias.pagina(st.plano.prefixo, st.proxima, { fresco });
         if (vez !== st.vez || !root.isConnected) return;
-        const antes = st.itens.length; st.itens = junta(st.itens, crus, { idiomas: st.plano.filtra ? st.idiomas : null }); st.proxima++;
+        const antes = st.itens.length, vistas = st.nVis; st.itens = junta(st.itens, crus, { idiomas: st.plano.filtra ? st.idiomas : null }); st.proxima++;
         acrescenta(antes);
-        if (st.itens.length > antes || st.proxima > st.plano.paginas) break;
+        if (st.nVis > vistas || acabou()) break;
       }
       st.buscando = false;
       if (!st.itens.length) return vazio();
-      pintaPe(); vigia();
+      // a mais nova que apareceu vira a marca para a próxima visita (nesta, as "novas" continuam marcadas)
+      if (primeira) { const topo = maisNova(st.itens, st.vista); if (topo !== st.vista) noticias.guardaVista(topo); }
+      lembra(); pintaPe(); vigia();
     } catch (e) { if (vez !== st.vez || !root.isConnected) return; st.buscando = false; st.erro = true; lista.setAttribute('aria-busy', 'false'); pintaPe(); if (!st.itens.length) falha(); }
   }
   const vazio = () => { const um = st.idiomas.length === 1 ? IDIOMAS.find(i => i[0] === st.idiomas[0]) : null;
@@ -8730,19 +8809,23 @@ function createNoticiasScreen({ noticias }) {
   const falha = () => (temRede()
     ? parada({ id: 'noticias-falha', icone: 'alerta', titulo: 'As notícias não chegaram', texto: 'Não deu para buscar as notícias agora. O resto do app funciona normalmente.' })
     : parada({ id: 'noticias-sem-rede', icone: 'semRede', titulo: 'Sem internet', texto: 'As notícias chegam pela internet. Listas, coleção e partidas funcionam sem ela.' }));
-  /** Abre (ou reabre) a linha do tempo do zero, para os idiomas escolhidos. */
-  async function abre() {
-    const vez = ++st.vez; st.itens = []; st.proxima = 1; st.erro = false; st.buscando = false; st.plano = null;
+  /** Abre (ou reabre) a linha do tempo do zero, para os idiomas escolhidos. `fresco` passa por cima da cópia do navegador. */
+  async function abre({ fresco = false, aoChegar = null } = {}) {
+    const vez = ++st.vez; st.itens = []; st.proxima = 1; st.erro = false; st.buscando = false; st.plano = null; st.nVis = 0; memoria = null;
     if (olho) olho.disconnect();
+    { const aviso = root.querySelector('#noticias-ver-novas'); if (aviso) aviso.remove(); }
     if (!temRede()) return falha();
     lista.replaceChildren(); mount(corpo, Esqueleto({ linhas: 5, id: 'noticias-abrindo', fala: 'Buscando as notícias…' }));
     try {
-      const indice = await noticias.indice();
+      const indice = await noticias.indice({ fresco });
       if (vez !== st.vez || !root.isConnected) return;
       st.indice = indice; st.plano = planoDeLeitura(indice, st.idiomas);
+      // fonte que saiu do ar da lista não fica presa no filtro
+      const fontes = new Set(indice.fontes.map(f => f.id)); if (st.filtro.fontes.some(f => !fontes.has(f))) st.filtro = { ...st.filtro, fontes: st.filtro.fontes.filter(f => fontes.has(f)) };
       if (!st.plano.paginas || st.plano.total === 0) return vazio();
       mount(corpo, lista, pe);
-      await mais();
+      await mais({ fresco });
+      if (aoChegar && vez === st.vez && root.isConnected) aoChegar();
     } catch (e) { if (vez === st.vez && root.isConnected) falha(); }
   }
   async function troca(cod) {
@@ -8750,15 +8833,72 @@ function createNoticiasScreen({ noticias }) {
     if (novo === st.idiomas) { nota.textContent = 'Pelo menos um idioma fica ligado.'; return; }
     nota.textContent = ''; st.idiomas = novo; marcaChips(); noticias.guardaIdiomas(novo); abre();
   }
+  /** N3 · filtrar é redesenhar o que já foi lido; se sobrar pouco na tela, as páginas seguintes vêm sozinhas. */
+  function mudaFiltro(f) {
+    st.filtro = f; noticias.guardaFiltro(f);
+    if (!st.plano || !root.querySelector('#noticias-lista')) return pintaFerramentas();
+    redesenha(); pintaPe(); if (!acabou()) vigia();
+  }
+  function abreFiltros() {
+    const grupo = (rotulo, opcoes, campo) => Field(rotulo, h('div', { class: 'nt-filtro__chips', role: 'group', 'aria-label': rotulo }, ...opcoes.map(([valor, nome]) => {
+      const c = Chip(nome, { pressed: st.filtro[campo].includes(valor), dataset: { [campo === 'temas' ? 'tema' : 'fonte']: valor }, onClick: () => {
+        const tem = st.filtro[campo].includes(valor); mudaFiltro(filtroValido({ ...st.filtro, [campo]: tem ? st.filtro[campo].filter(v => v !== valor) : [...st.filtro[campo], valor] }));
+        c.setAttribute('aria-pressed', String(!tem)); conta(); } }); return c; })));
+    const fontes = ((st.indice && st.indice.fontes) || []).filter(f => st.idiomas.includes(f.idioma || 'en') && (f.itens == null || f.itens > 0)).map(f => [f.id, f.nome || f.id]);
+    const contador = Text('', { size: 'sm', tone: 'muted', attrs: { id: 'noticias-filtros-conta', role: 'status' } });
+    const conta = () => { contador.textContent = filtroVazio(st.filtro) ? 'Sem filtro: todas as notícias.' : `${st.nVis} notícia(s) na tela com esses filtros${acabou() ? '.' : ', e contando.'}`; };
+    conta();
+    Dialog({ title: 'Filtrar notícias', body: Stack({ id: 'noticias-filtros-corpo' }, contador, grupo('Tema', TEMAS, 'temas'), fontes.length ? grupo('Fonte', fontes, 'fontes') : null),
+      actions: [Button('Limpar', { id: 'noticias-filtros-limpar', onClick: () => { closeDialog(); mudaFiltro(filtroValido(null)); } }), Button('Mostrar', { variant: 'primary', id: 'noticias-filtros-mostrar', onClick: closeDialog })] });
+  }
+  /** N3 · atualizar: busca de novo, por cima da cópia do navegador, e diz quantas chegaram. */
+  function atualiza() {
+    if (st.buscando) return;
+    if (!temRede()) { toast('Sem internet: não dá para atualizar agora'); return; }
+    const tinha = new Set(st.itens.map(i => i.id)), havia = st.itens.length > 0;
+    atualizarBtn.disabled = true;
+    abre({ fresco: true, aoChegar: () => { const n = havia ? st.itens.filter(i => !tinha.has(i.id) && passa(i, st.filtro)).length : 0; toast(n === 1 ? '1 notícia nova' : n ? `${n} notícias novas` : 'Nada de novo por enquanto'); } })
+      .finally(() => { atualizarBtn.disabled = false; });
+  }
+  function avisaNovas(rotulo) {
+    const barra = document.querySelector('.ds-appbar'), velho = root.querySelector('#noticias-ver-novas'); if (velho) velho.remove();
+    const b = h('button', { class: 'ds-btn ds-btn--primary nt-pilula', type: 'button', id: 'noticias-ver-novas', dataset: { sobrepoe: 'novas' }, onClick: () => { b.remove(); atualiza(); levaAte(root, { block: 'start' }); } }, Icone('atualizar', { tamanho: 18 }), h('span', { class: 'ds-btn__rotulo' }, rotulo));
+    b.style.top = Math.max(8, (barra ? barra.getBoundingClientRect().bottom : 0) + 8) + 'px';
+    root.appendChild(b);
+  }
+  // puxar para baixo no topo da página atualiza (o gesto do navegador de recarregar a página fica desligado nesta tela)
+  let y0 = null;
+  const solta = () => { puxar.style.height = ''; puxar.dataset.pronto = 'false'; puxar.dataset.puxando = 'false'; y0 = null; };
+  root.addEventListener('touchstart', e => { y0 = window.scrollY <= 0 && !st.buscando && e.touches && e.touches.length === 1 ? e.touches[0].clientY : null; }, { passive: true });
+  root.addEventListener('touchmove', e => { if (y0 == null || !e.touches || !e.touches.length) return; const d = (e.touches[0].clientY - y0) * 0.5;
+    if (d <= 0 || window.scrollY > 0) return solta(); puxar.dataset.puxando = 'true'; puxar.style.height = Math.min(72, d) + 'px'; const pronto = d >= 56; puxar.dataset.pronto = String(pronto); puxar.lastChild.textContent = pronto ? 'Solte para atualizar' : 'Puxe para atualizar'; }, { passive: true });
+  root.addEventListener('touchend', () => { const pronto = puxar.dataset.pronto === 'true'; solta(); if (pronto) atualiza(); }, { passive: true });
+  root.addEventListener('touchcancel', solta, { passive: true });
   // a internet voltou com a tela parada no aviso: busca sozinha
   const voltou = () => { if (!root.isConnected) return window.removeEventListener('online', voltou); if (root.querySelector('#noticias-sem-rede')) abre(); };
-  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('online', voltou);
+  // o ponto da leitura é guardado enquanto a tela está aberta, para a volta
+  const rolou = () => { if (!root.isConnected) return window.removeEventListener('scroll', rolou); if (memoria) memoria.rolagem = window.scrollY; };
+  if (typeof window !== 'undefined' && window.addEventListener) { window.addEventListener('online', voltou); window.addEventListener('scroll', rolou, { passive: true }); }
   mount(corpo, Esqueleto({ linhas: 5, id: 'noticias-abrindo', fala: 'Buscando as notícias…' }));
-  noticias.idiomas().then(v => { st.idiomas = v; marcaChips(); abre(); });
+  Promise.all([noticias.idiomas(), noticias.filtro(), noticias.vista()]).then(([idiomas, filtro, vista]) => {
+    st.idiomas = idiomas; st.filtro = filtro; st.vista = vista; marcaChips(); pintaFerramentas();
+    const m = memoria;
+    // N3 · voltou à tela há pouco, com os mesmos idiomas: a linha do tempo e o ponto da leitura estão onde ficaram
+    if (m && m.chave === idiomas.join() && Date.now() - m.quando < MEMORIA_MS && m.itens.length && temRede()) {
+      Object.assign(st, { itens: m.itens, proxima: m.proxima, indice: m.indice, plano: m.plano, vista: m.vista }); st.vez++;
+      mount(corpo, lista, pe); redesenha(); pintaPe(); if (!acabou()) vigia();
+      const alvo = m.rolagem | 0;
+      if (alvo > 0) requestAnimationFrame(() => { if (root.isConnected) window.scrollTo(0, alvo); });
+      // chegou notícia enquanto a tela estava fechada: a leitura fica onde estava e um aviso flutuante oferece as novas
+      noticias.novas().then(({ n, mais }) => { if (n > 0 && root.isConnected && memoria === m) avisaNovas(rotuloNovas(n, { mais })); }).catch(() => {});
+      return;
+    }
+    abre();
+  });
   return root;
 }
 
-return { BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
+return { TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -21538,6 +21678,9 @@ function renderHome() {
     h('div', { class: 'ds-row', style: { justifyContent: 'center', marginTop: 'var(--space-4)' } },
       Button('Componentes', { variant: 'ghost', icone: 'camadas', id: 'go-ds', title: 'Catálogo de componentes', onClick: () => { location.hash = '#/ds'; } })));
   el.querySelector('#go-play').classList.add('ds-atalho--largo'); el.querySelector('#go-news').classList.add('ds-atalho--largo');
+  // N3 · notícias novas desde a última visita, dito no próprio atalho (só com internet; quem nunca abriu Notícias não pede nada à rede)
+  if (temRede()) noticias.novas().then(({ n, mais }) => { const r = __m37.rotuloNovas(n, { mais }); if (!r) return; const b = el.querySelector('#go-news');
+    b.querySelector('.ds-atalho__detalhe').textContent = r; b.dataset.novas = String(n); b.setAttribute('aria-label', 'Notícias, ' + r); }).catch(() => {});
   perfil.get().then(p => {
     nomeDoPerfil = p && p.nome ? p.nome : null;
     titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';

@@ -57,3 +57,38 @@ test('N2 · serviço: lê índice e páginas do ramo de notícias, recusa respos
   assert.deepEqual(lista(await s.idiomas()), ['pt', 'en']); await s.guardaIdiomas(['en', 'lixo']); assert.deepEqual(lista(guardado.get('noticias.idiomas')), ['en']); assert.deepEqual(lista(await s.idiomas()), ['en']);
   assert.match(N.BASE, /^https:\/\/raw\.githubusercontent\.com\/.+\/noticias\/$/);
 });
+
+/* ---------------- N3 · filtros, novas e atualizar ---------------- */
+test('N3 · filtro: o guardado é limpo (temas conhecidos na ordem da tela, fontes sem repetir); passa quem tem algum tema ligado E é de alguma fonte ligada', () => {
+  assert.deepEqual(lista(N.filtroValido({ temas: ['arena', 'xx', 'commander'], fontes: ['a', 'a', '', 7, 'b'] })), { temas: ['commander', 'arena'], fontes: ['a', 'b'] });
+  for (const ruim of [null, undefined, 'x', {}, { temas: 'commander' }]) assert.deepEqual(lista(N.filtroValido(ruim)), { temas: [], fontes: [] });
+  assert.equal(N.filtroVazio(N.filtroValido(null)), true); assert.equal(N.contaFiltro(N.filtroValido({ temas: ['pauper'], fontes: ['a', 'b'] })), 3);
+  const a = it(1, { temas: ['commander'], fonte: 'x' }), b = it(2, { temas: ['pauper', 'competitivo'], fonte: 'y' }), c = it(3, { temas: [], fonte: 'x' });
+  const quem = f => [a, b, c].filter(i => N.passa(i, N.filtroValido(f))).map(i => i.id);
+  assert.deepEqual(quem(null), ['n1', 'n2', 'n3']); assert.deepEqual(quem({ temas: ['commander', 'pauper'] }), ['n1', 'n2']);
+  assert.deepEqual(quem({ fontes: ['x'] }), ['n1', 'n3']); assert.deepEqual(quem({ temas: ['competitivo'], fontes: ['x'] }), []); assert.deepEqual(quem({ temas: ['commander'], fontes: ['x'] }), ['n1']);
+  assert.deepEqual(lista(N.TEMAS.map(t => t[1])), ['Commander', 'Pauper', 'Lançamentos', 'Competitivo', 'Arena']);
+});
+
+test('N3 · novas: conta o que é mais novo que a última visita (sem visita, nada é novo), acha a data mais nova e escreve "1 nova", "7 novas", "20+ novas"', () => {
+  const its = [it(1, { data: '2026-10-07T12:00:00Z' }), it(2, { data: '2026-10-07T10:00:00Z' }), it(3, { data: '2026-10-06T10:00:00Z' }), it(4, { data: 'ruim' })];
+  assert.equal(N.contaNovas(its, '2026-10-07T09:00:00Z'), 2); assert.equal(N.contaNovas(its, '2026-10-07T12:00:00Z'), 0); assert.equal(N.contaNovas(its, ''), 0); assert.equal(N.contaNovas(its, 'lixo'), 0);
+  assert.equal(N.maisNova(its), '2026-10-07T12:00:00Z'); assert.equal(N.maisNova(its, '2026-10-08T00:00:00Z'), '2026-10-08T00:00:00Z'); assert.equal(N.maisNova([], 'lixo'), ''); assert.equal(N.maisNova([it(4, { data: 'ruim' })]), '');
+  assert.deepEqual([0, 1, 7].map(n => N.rotuloNovas(n)), ['', '1 nova', '7 novas']); assert.equal(N.rotuloNovas(20, { mais: true }), '20+ novas'); assert.equal(N.rotuloNovas(1, { mais: true }), '1+ novas');
+});
+
+test('N3 · serviço: filtro e última visita guardados e limpos; atualizar pede sem a cópia do navegador; a Início sabe quantas são novas pela primeira página, nos idiomas e filtros escolhidos', async () => {
+  const pedidos = [], guardado = new Map();
+  const p1 = [it(1, { data: '2026-10-07T12:00:00Z', idioma: 'pt', temas: ['pauper'] }), it(2, { data: '2026-10-07T11:00:00Z' }), it(3, { data: '2026-10-07T08:00:00Z', idioma: 'pt' })];
+  const respostas = { 'indice.json': { fontes: [], total: 3, paginas: 2, idiomas: { pt: { total: 2, paginas: 1 }, en: { total: 1, paginas: 1 } } }, 'pagina-1.json': { itens: p1 }, 'pt-pagina-1.json': { itens: p1.filter(i => i.idioma === 'pt') } };
+  const busca = async (url, opt) => { const nome = url.split('/').pop(); pedidos.push([nome, (opt && opt.cache) || '']); return nome in respostas ? { ok: true, json: async () => respostas[nome] } : { ok: false, status: 404 }; };
+  const s = N.createNoticias({ busca, base: 'https://b.test/n/', store: { get: async k => guardado.get(k), set: async (k, v) => { guardado.set(k, v); } } });
+  assert.deepEqual(lista(await s.novas()), { n: 0, mais: false }); assert.deepEqual(pedidos, [], 'quem nunca abriu Notícias não pede nada à rede');
+  assert.equal(await s.vista(), ''); await s.guardaVista('2026-10-07T09:00:00Z'); assert.equal(await s.vista(), '2026-10-07T09:00:00Z');
+  guardado.set('noticias.vista', 'lixo'); assert.equal(await s.vista(), ''); await s.guardaVista('2026-10-07T09:00:00Z');
+  assert.deepEqual(lista(await s.novas()), { n: 2, mais: false }); assert.deepEqual(pedidos, [['indice.json', ''], ['pagina-1.json', '']]);
+  await s.guardaIdiomas(['pt']); assert.deepEqual(lista(await s.novas()), { n: 1, mais: false }); assert.equal(pedidos.at(-1)[0], 'pt-pagina-1.json');
+  await s.guardaFiltro({ temas: ['commander', 'lixo'] }); assert.deepEqual(lista(await s.filtro()), { temas: ['commander'], fontes: [] }); assert.deepEqual(lista(await s.novas()), { n: 0, mais: false });
+  await s.guardaFiltro(null); await s.guardaIdiomas(['pt', 'en']); await s.guardaVista('2026-10-01T00:00:00Z'); assert.deepEqual(lista(await s.novas()), { n: 3, mais: true }, 'a página inteira é nova e há mais páginas: "3+"');
+  pedidos.length = 0; await s.indice({ fresco: true }); await s.pagina('', 1, { fresco: true }); assert.deepEqual(pedidos, [['indice.json', 'no-store'], ['pagina-1.json', 'no-store']]);
+});
