@@ -76,7 +76,7 @@
   --dur-pulso-lento: 2400ms; /* D10 · pulso lento e discreto (sem internet na barra) */
   --dur-brilho: 1200ms; /* D10 · brilho de carregamento que atravessa a moldura */
   --dur-arruma: 1680ms; /* J4 · um ciclo do carregamento: três cartas se arrumam na prateleira */
-  --dur-abertura: 1200ms; /* J5 · a abertura inteira: o ladrilho pousa, a estante aparece e as três cartas caem no lugar */
+  --dur-abertura: 2000ms; /* J5 · a abertura inteira: o ladrilho pousa, a estante aparece e as três cartas caem no lugar (I7: de 1,2 s para 2 s) */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
   --ease-in-out: cubic-bezier(.45, .05, .55, .95);
 
@@ -271,6 +271,12 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 /* ---------------- reset e base ---------------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
+/* I7 · o toque só mostra a reação que o app desenhou. O navegador do celular pinta um retângulo azulado sobre o que foi
+   tocado (realce de toque) e, ao segurar, seleciona o rótulo ou abre o menu da imagem: nada disso vale em controle.
+   A propriedade é herdada, então vale para tudo; o foco de teclado (`:focus-visible`) continua desenhado. */
+html { -webkit-tap-highlight-color: transparent; }
+:focus:not(:focus-visible) { outline: none; }
+button, summary, label, [role="button"], [role="tab"], [role="switch"], .ds-chip, .ds-card, .ds-list__item, .tb-card, .ficha-opcao { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 body {
   background: var(--bg);
   color: var(--fg);
@@ -878,6 +884,7 @@ a { color: var(--accent); }
 .ds-overlay {
   position: fixed; inset: 0; z-index: var(--z-modal);
   background: var(--overlay); backdrop-filter: blur(3px);
+  box-shadow: 0 0 0 100vmax var(--overlay); /* I7 · sem faixa descoberta embaixo quando a barra do navegador recolhe */
   display: none; align-items: center; justify-content: center;
   padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   animation: ds-fade var(--dur-2) var(--ease-out);
@@ -972,16 +979,20 @@ a { color: var(--accent); }
 /* J5 · abertura: ao abrir o app, o ícone se monta — o ladrilho pousa, a moldura e a tábua da estante aparecem e as três
    cartas caem no lugar, a de latão por último, inclinada. O último quadro é exatamente o ícone do app. A camada não
    recebe toque (o app por baixo já funciona); qualquer toque ou tecla a dispensa. */
-.abertura { position: fixed; inset: 0; z-index: var(--z-toast); display: flex; align-items: center; justify-content: center; background: var(--bg); pointer-events: none; opacity: 1; transition: opacity var(--dur-2) var(--ease-out); }
+.abertura { position: fixed; inset: 0; z-index: var(--z-toast); display: flex; align-items: center; justify-content: center; background: var(--bg); pointer-events: none; opacity: 1; transition: opacity var(--dur-3) var(--ease-out);
+  /* I7 · no celular a barra do navegador muda a altura visível e sobrava uma faixa do app embaixo da camada: a sombra sem
+     desfoque estende o fundo para além da caixa, para todos os lados */
+  box-shadow: 0 0 0 100vmax var(--bg); }
 .abertura[data-fim="true"] { opacity: 0; }
-.abertura__ladrilho { display: inline-flex; border-radius: 23.5%; box-shadow: var(--shadow-3); animation: ab-pousa var(--dur-3) var(--ease-out) both; }
-.abertura__ladrilho svg { display: block; border-radius: 23.5%; }
-.ab-moldura { animation: ab-surge var(--dur-3) var(--ease-out) calc(var(--dur-abertura) * .12) both; }
-.ab-tabua { transform-box: fill-box; transform-origin: 50% 50%; animation: ab-estende var(--dur-3) var(--ease-out) calc(var(--dur-abertura) * .18) both; }
-.ab-carta { transform-box: fill-box; transform-origin: 50% 100%; animation: ab-cai var(--dur-4) var(--ease-out) both; }
+/* I7 · maior: pouco mais da metade da largura da tela (202 px em 360), com teto para telas largas */
+.abertura__ladrilho { display: block; width: min(56vw, 240px); aspect-ratio: 1; border-radius: 23.5%; box-shadow: var(--shadow-3); animation: ab-pousa calc(var(--dur-abertura) * .16) var(--ease-out) both; }
+.abertura__ladrilho svg { display: block; width: 100%; height: 100%; border-radius: 23.5%; }
+.ab-moldura { animation: ab-surge calc(var(--dur-abertura) * .16) var(--ease-out) calc(var(--dur-abertura) * .12) both; }
+.ab-tabua { transform-box: fill-box; transform-origin: 50% 50%; animation: ab-estende calc(var(--dur-abertura) * .16) var(--ease-out) calc(var(--dur-abertura) * .18) both; }
+.ab-carta { transform-box: fill-box; transform-origin: 50% 100%; animation: ab-cai calc(var(--dur-abertura) * .26) var(--ease-out) both; }
 .ab-carta--1 { animation-delay: calc(var(--dur-abertura) * .30); }
-.ab-carta--2 { animation-delay: calc(var(--dur-abertura) * .42); }
-.ab-carta--3 { animation-delay: calc(var(--dur-abertura) * .54); }
+.ab-carta--2 { animation-delay: calc(var(--dur-abertura) * .44); }
+.ab-carta--3 { animation-delay: calc(var(--dur-abertura) * .58); }
 @keyframes ab-pousa { from { opacity: 0; transform: translateY(6px) scale(.9); } to { opacity: 1; transform: none; } }
 @keyframes ab-surge { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ab-estende { from { opacity: 0; transform: scaleX(.2); } to { opacity: 1; transform: none; } }
@@ -1191,6 +1202,22 @@ body {
 .ficha-opcao[aria-pressed="true"] .ficha-opcao__rotulo { color: var(--fg); }
 .ficha-opcao__marca { position: absolute; top: var(--space-2); right: var(--space-2); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); }
 .ficha-opcao:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+/* I7 · cada arte tem a própria moldura: enquanto a imagem não chega, a espera do app fica desenhada dentro dela */
+.ficha-opcao__quadro { position: relative; display: block; width: 100%; aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); box-shadow: var(--shadow-1); }
+.ficha-opcao__quadro > .ficha-opcao__img, .ficha-opcao__quadro > .ficha-opcao__semimg { height: 100%; box-shadow: none; border-radius: 0; outline: 0 !important; }
+.ficha-opcao__quadro > .ficha-opcao__img { opacity: 1; transition: opacity var(--dur-2) var(--ease-out); }
+.ficha-opcao__quadro[data-carregando="true"] > .ficha-opcao__img { opacity: 0; }
+.ficha-opcao__quadro > .ficha-opcao__nitida { position: absolute; inset: 0; width: 100%; }
+.ficha-opcao__espera { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.ficha-opcao__quadro[data-carregando="false"] > .ficha-opcao__espera { display: none; }
+.ficha-opcao__espera .ds-carregando__arte { width: 48px; height: 36px; }
+.ficha-opcao[aria-pressed="true"] .ficha-opcao__quadro { outline: 3px solid var(--accent); outline-offset: 2px; }
+.ficha-espera { display: flex; flex-direction: column; gap: var(--space-1); text-align: center; }
+.ficha-espera .ficha-opcao__rotulo::before { content: "\00a0"; }
+/* a escolha sendo guardada: o selo mostra a espera no lugar do visto */
+.ficha-opcao__marca[data-salvando="true"] { background: var(--bg-elev-1); border: 1px solid var(--border-strong); width: 30px; }
+.ficha-opcao__marca[data-salvando="true"] .ds-carregando__arte { width: 22px; height: 16px; }
+@media (prefers-reduced-motion: reduce) { .ficha-opcao__quadro > .ficha-opcao__img { transition: none; } }
 /* L7 · edição rápida: − e + sob a carta (dois alvos de 44 px cabem na coluna de 104) e sugestões de nome */
 .deck-slot__passo { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); margin-top: var(--space-1); }
 .deck-slot__passo .ds-btn { min-width: 0; width: 100%; padding-inline: 0; }
@@ -1592,7 +1619,7 @@ body {
 .tb-pares__seta { color: var(--fg-subtle); }
 .tb-pares__dica { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--fg-muted); line-height: var(--lh-xs); }
 /* A15 · espiar a carta: sobreposição que só existe enquanto o dedo segura */
-.tb-peek { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--overlay); pointer-events: none; }
+.tb-peek { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--overlay); box-shadow: 0 0 0 100vmax var(--overlay); pointer-events: none; }
 .tb-peek__card { display: grid; grid-template-columns: minmax(120px, 42%) 1fr; gap: var(--space-3); width: min(100%, 560px); max-height: 92vh; overflow: hidden; padding: var(--space-3); background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
 .tb-peek__img { width: 100%; border-radius: var(--radius-card); display: block; }
 .tb-peek__semimagem { display: grid; place-items: center; aspect-ratio: 63 / 88; background: var(--bg-elev-3); border-radius: var(--radius-card); padding: var(--space-2); text-align: center; }
@@ -2898,8 +2925,11 @@ const Spinner = () => h('span', { class: 'ds-spinner', role: 'status', 'aria-lab
     O anel (`Spinner`) continua para o que é do tamanho de um botão. */
 const ARTE_CARREGANDO = '<path class="ds-carregando__labio" d="M9 43.500h46"/><path class="ds-carregando__prateleira" d="M6 40h52"/>' +
   [13.5, 27, 40.5].map(x => `<rect class="ds-carregando__carta" x="${x}" y="20.500" width="10" height="18" rx="1.800"/>`).join('');
+/** I7 · só o desenho da espera (as três cartas na prateleira), para pôr dentro de outra coisa: uma arte que ainda não
+    chegou, o selo de uma escolha sendo guardada. Sem texto e sem papel: quem a usa diz o que está acontecendo. */
+const ArteDeEspera = () => h('span', { class: 'ds-carregando__figura', 'aria-hidden': 'true', html: `<svg class="ds-carregando__arte" viewBox="0 0 64 48" aria-hidden="true" focusable="false">${ARTE_CARREGANDO}</svg>` });
 function Carregando(texto = 'Carregando…', { tamanho = 'bloco', id = null } = {}) {
-  const arte = h('span', { class: 'ds-carregando__figura', html: `<svg class="ds-carregando__arte" viewBox="0 0 64 48" aria-hidden="true" focusable="false">${ARTE_CARREGANDO}</svg>` });
+  const arte = ArteDeEspera();
   return h('div', { class: 'ds-carregando', id, role: 'status', 'aria-live': 'polite', dataset: { tamanho: ['tela', 'bloco', 'linha'].includes(tamanho) ? tamanho : 'bloco' } },
     arte, typeof texto === 'string' ? h('span', { class: 'ds-carregando__texto' }, texto) : texto);
 }
@@ -3049,7 +3079,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -3101,14 +3131,15 @@ function logoLockup(size = 30) {
 function iconeDoApp({ tamanho = 64, ladrilho = true, animado = false } = {}) {
   // J5 · `animado` embrulha cada parte da marca num grupo com classe, para a abertura montar o ícone; o desenho é o mesmo
   const parte = (classe, svg) => animado ? `<g class="${classe}">${svg}</g>` : svg;
-  const u = 'estante-icone';
+  // I7 · o ícone animado tem ids próprios: o filtro dele tem região fixa e não pode ser confundido com o do ícone da barra
+  const u = animado ? 'estante-abertura' : 'estante-icone';
   const defs = `<defs>
 <linearGradient id="${u}-fundo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2d1f"/><stop offset=".55" stop-color="#231b13"/><stop offset="1" stop-color="#15100b"/></linearGradient>
 <linearGradient id="${u}-brilho" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2d6" stop-opacity=".34"/><stop offset=".45" stop-color="#fff2d6" stop-opacity=".04"/><stop offset="1" stop-color="#fff2d6" stop-opacity="0"/></linearGradient>
 <linearGradient id="${u}-latao" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0d68a"/><stop offset=".5" stop-color="#cfa851"/><stop offset="1" stop-color="#a8822f"/></linearGradient>
 <linearGradient id="${u}-marfim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf4e4"/><stop offset="1" stop-color="#e2d5bb"/></linearGradient>
 <linearGradient id="${u}-verniz" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2d6" stop-opacity=".12"/><stop offset=".4" stop-color="#fff2d6" stop-opacity="0"/><stop offset=".7" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient>
-<filter id="${u}-sombra" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="1.2" stdDeviation="1" flood-color="#000" flood-opacity=".55"/></filter>
+<filter id="${u}-sombra" ${animado ? 'filterUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"' : 'x="-20%" y="-20%" width="140%" height="160%"'}><feDropShadow dx="0" dy="1.2" stdDeviation="1" flood-color="#000" flood-opacity=".55"/></filter>
 </defs>`;
   const fundo = ladrilho ? `<rect width="64" height="64" rx="15" fill="url(#${u}-fundo)"/>
 <rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1"/>
@@ -3133,7 +3164,7 @@ function installFavicon(doc) {
   return link;
 }
 /* ---------------- J5 · abertura ---------------- */
-const ABERTURA_MS = 1200, ABERTURA_PARADA_MS = 500, ABERTURA_CHAVE = 'estante.abertura';
+const ABERTURA_MS = 2000, ABERTURA_PARADA_MS = 500, ABERTURA_CHAVE = 'estante.abertura';
 /** A abertura aparece uma vez por sessão do app (abrir o app ou a aba), nunca ao recarregar nem ao trocar de tela. */
 const deveAbrir = ({ jaAbriu = false, desligada = false } = {}) => !jaAbriu && !desligada;
 /** Quanto tempo ela fica: a animação inteira, ou meio segundo de logo parado com movimento reduzido. */
@@ -3149,14 +3180,14 @@ function mostraAbertura(win = typeof window !== 'undefined' ? window : null) {
   const reduzido = doc.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const el = doc.createElement('div');
   el.id = 'abertura'; el.className = 'abertura'; el.setAttribute('aria-hidden', 'true'); el.dataset.parada = String(reduzido);
-  el.innerHTML = `<span class="abertura__ladrilho">${iconeDoApp({ tamanho: 112, animado: true })}</span>`;
+  el.innerHTML = `<span class="abertura__ladrilho">${iconeDoApp({ tamanho: 240, animado: true })}</span>`;
   doc.body.appendChild(el);
   const EVENTOS = ['pointerdown', 'keydown'];
   let acabou = false, relogio = null;
   const fim = () => {
     if (acabou) return; acabou = true; win.clearTimeout(relogio);
     for (const ev of EVENTOS) win.removeEventListener(ev, fim, true);
-    el.dataset.fim = 'true'; win.setTimeout(() => el.remove(), 220);
+    el.dataset.fim = 'true'; win.setTimeout(() => el.remove(), 320);
   };
   for (const ev of EVENTOS) win.addEventListener(ev, fim, true);
   relogio = win.setTimeout(fim, duracaoDaAbertura(reduzido));
@@ -3371,7 +3402,8 @@ function renderDS() {
       Row({}, Spinner(), Text('Carregando…', { size: 'sm', tone: 'muted' })),
       // J4 · espera com identidade, nos três tamanhos, e o esqueleto de lista
       h('div', { id: 'ds-carregando' }, __m3.Carregando('Abrindo lista…', { tamanho: 'tela', id: 'ds-carregando-tela' }), __m3.Carregando('Buscando artes…', { tamanho: 'bloco', id: 'ds-carregando-bloco' }), __m3.Carregando('Esperando o outro jogador…', { tamanho: 'linha', id: 'ds-carregando-linha' })),
-      __m3.Esqueleto({ linhas: 3, id: 'ds-esqueleto' })),
+      __m3.Esqueleto({ linhas: 3, id: 'ds-esqueleto' }),
+      Row({ id: 'ds-arte-de-espera' }, __m3.ArteDeEspera(), Text('ArteDeEspera: o desenho sozinho, dentro de uma arte que ainda não chegou', { size: 'sm', tone: 'muted' }))),
 
     Section('Sobreposições',
       Row({ class: 'ds-row--wrap' },
@@ -3811,7 +3843,7 @@ async function respostaInteira(res) {
   return imagemInteira(new Uint8Array(buf), { tamanho }) ? res : null;
 }
 
-function createImageCache({ caches, fetch: doFetch, pausa = 80, espera = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
+function createImageCache({ caches, fetch: doFetch, pausa: pausaPadrao = 80, espera = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
   const available = !!(caches && typeof caches.open === 'function');
   // Q10 · abre o cache a cada operação: guardar o objeto aberto fazia o app escrever num cache
   // fantasma depois de o navegador apagar o de verdade (e "has" dizia que estava tudo lá)
@@ -3826,11 +3858,13 @@ function createImageCache({ caches, fetch: doFetch, pausa = 80, espera = ms => n
     /** Garante que a imagem esteja em cache. Silencioso em caso de falha:
         imagem é conforto, não correção. CORS primeiro (resposta normal, sem o
         acolchoamento de cota da resposta opaca); opaca só se o CDN não deixar. */
-    warm(urls) {
+    warm(urls, { ja = false } = {}) {
       if (!available || !doFetch) return Promise.resolve(0);
+      // I7 · `ja`: o que a pessoa acabou de escolher não espera na fila do que desce em segundo plano, nem faz pausa
+      if (ja) return this._warm(urls, 0);
       return emSerie(() => this._warm(urls));
     },
-    async _warm(urls) {
+    async _warm(urls, pausa = pausaPadrao) {
       const c = await open();
       let n = 0;
       for (const url of [...new Set(urls.filter(Boolean))]) {
@@ -8279,36 +8313,48 @@ function proximoLote(baixadas, candidatas, { lote = LOTE, teto = OPCOES_MAX } = 
 /** Uma galeria de artes escolhíveis (fichas, terrenos): estado guardado, lotes, escolha.
     `chave(def)` identifica o item; `candidatas(def)` busca na rede as opções possíveis (já no formato guardado). */
 function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCOES: K_OPCOES, chave, candidatas, teto = OPCOES_MAX }) {
+  const K_FILA = K_OPCOES + '.fila'; // I7 · as candidatas da última busca ficam guardadas: pedir mais não volta à Scryfall
   const le = async (k) => { try { return (await store.get(k)) || {}; } catch (e) { return {}; } };
-  const aquece = async urls => { if (images && images.available) { try { await images.warm(urls.filter(Boolean)); } catch (e) { /* imagem é conforto */ } } };
-  const fila = new Map(), restam = new Map(); // desta visita: candidatas por item e quantas ainda não foram baixadas
+  const aquece = async (urls, opcoes) => { if (images && images.available) { try { await images.warm(urls.filter(Boolean), opcoes); } catch (e) { /* imagem é conforto */ } } };
+  const fila = new Map(), restam = new Map(); // candidatas por item e quantas ainda não foram baixadas
+  const CAMPOS = ['id', 'name', 'type_line', 'oracle_text', 'power', 'toughness', 'colors', 'color_identity', 'keywords', 'layout', 'set', 'set_name', 'collector_number', 'images', 'faces', 'mana_cost', 'cmc'];
+  const enxuta = o => Object.fromEntries(CAMPOS.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
   const api = {
     temRede, LOTE, teto,
     /** { escolhas: { chave: carta }, opcoes: { chave: [carta] } } */
     async estado() { return { escolhas: await le(K_ESCOLHAS), opcoes: await le(K_OPCOES) }; },
-    /** Baixa o próximo lote de artes do item (só com internet) e devolve tudo o que já está baixado.
+    /** Libera o próximo lote de artes do item (só com internet) e devolve tudo o que já está liberado. A busca na
+        Scryfall acontece uma vez por item e fica guardada; as imagens quem baixa é a tela, ao mostrá-las (pequena
+        primeiro, nítida em seguida) — `guardar` confirma depois que ficaram no aparelho.
         Erros: 'sem-rede' (aparelho offline) e o que a busca lançar. */
     async mais(def) {
       if (!temRede()) throw new Error('sem-rede');
       const k = chave(def);
-      if (!fila.has(k)) fila.set(k, await candidatas(def));
+      if (!fila.has(k)) {
+        const guardadas = await le(K_FILA);
+        if (Array.isArray(guardadas[k]) && guardadas[k].length) fila.set(k, guardadas[k]);
+        else { const novas = (await candidatas(def)).slice(0, teto).map(enxuta); fila.set(k, novas); guardadas[k] = novas; try { await store.set(K_FILA, guardadas); } catch (e) { /* sem espaço: busca de novo na próxima */ } }
+      }
       const todas = await le(K_OPCOES), tinha = todas[k] || [];
       const { novas, restam: r } = proximoLote(tinha, fila.get(k), { teto });
       restam.set(k, r);
-      // as imagens do lote descem em segundo plano: as artes aparecem já, e cada uma se completa quando chega
-      if (novas.length) { todas[k] = [...tinha, ...novas]; await store.set(K_OPCOES, todas); aquece(novas.flatMap(o => [o.images.normal, o.images.small])); }
+      if (novas.length) { todas[k] = [...tinha, ...novas]; await store.set(K_OPCOES, todas); }
       return todas[k] || [];
     },
-    /** Pode haver mais artes para baixar? Sim enquanto não se buscou nesta visita ou a busca deixou candidatas de fora. */
+    /** Confirma no aparelho as imagens destas artes (pequena e nítida), em segundo plano e sem pressa. */
+    guardar(opcoes) { return aquece((opcoes || []).flatMap(o => o && o.images ? [o.images.small, o.images.normal] : [])); },
+    /** Pode haver mais artes para liberar? Sim enquanto não se buscou ou a busca deixou candidatas de fora. */
     temMais(k, baixadas = 0) { return baixadas < teto && (!restam.has(k) || restam.get(k) > 0); },
     /** Nome de antes dos lotes (I4): o primeiro lote. */
     buscar(def) { return api.mais(def); },
-    /** Guarda a arte escolhida (ou volta ao padrão com `null`) e baixa a imagem grande dela para a mesa e a folha. */
-    async escolher(def, opcao) {
+    /** Guarda a arte escolhida (ou volta ao padrão com `null`) e responde na hora. A imagem grande dela (mesa e folha)
+        desce em seguida, com prioridade sobre o que estiver na fila; `aoGuardar` avisa quando ficou no aparelho. */
+    async escolher(def, opcao, { aoGuardar = null } = {}) {
       const todas = await le(K_ESCOLHAS), k = chave(def);
       if (opcao) todas[k] = opcao; else delete todas[k];
       await store.set(K_ESCOLHAS, todas);
-      if (opcao) await aquece([opcao.images.normal, opcao.images.large, opcao.images.small]);
+      const pronto = opcao ? aquece([opcao.images.normal, opcao.images.large, opcao.images.small], { ja: true }) : Promise.resolve();
+      pronto.then(() => { if (aoGuardar) aoGuardar(); });
       return todas;
     }
   };
@@ -8354,6 +8400,14 @@ function cartaComTerreno(card, escolhas) {
   const e = card && escolhas && escolhas[norm(card.name)];
   return e && e.images ? __m14.cartaNaImpressao(card, e) : card;
 }
+/** I7 · o mesmo para a ficha: a arte escolhida em Perfil › Fichas vale na partida que já começou (a chave leva força e
+    resistência, como no repositório). Só mexe em carta que é ficha. */
+function cartaComFicha(card, escolhas) {
+  if (!card || !escolhas || !(/\btoken\b/i.test(card.type_line || '') || card.layout === 'token')) return card;
+  const e = escolhas['ficha:' + norm(card.name) + (card.power != null ? ` ${card.power}/${card.toughness}` : '')];
+  return e && e.images ? { ...card, images: e.images } : card;
+}
+const cartaComEscolhas = (card, { terrenos = null, fichas = null } = {}) => cartaComFicha(cartaComTerreno(card, terrenos), fichas);
 function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRedePadrao }) {
   return __m34.criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDoTerreno, teto: TETO,
     // uma por arte, da mais recente; só o que a mesa precisa fica guardado (sem preço nem endereço)
@@ -8362,7 +8416,7 @@ function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRed
       return __m14.opcoesDeImpressao(cartas, 175).map(o => ({ id: o.id, name: def.name, set: o.set, set_name: o.set_name, collector_number: o.collector_number, images: o.images, faces: [] }));
     } });
 }
-return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, createTerrenos };
+return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, cartaComEscolhas, createTerrenos };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -8917,28 +8971,96 @@ function telaDeArtes({ galeria: fichas, itens, C }) {
         ...(outras.length ? [h('div', { class: 'ds-list__group' }, minhas.length ? C.outras : C.titulo), ...outras.map(linha)] : []))
         : Empty(C.vazio, null, { icone: C.icone, titulo: C.vazioTitulo }));
   }
+  /* I7 · as artes ficam na tela como elementos vivos: escolher e pedir mais mexem só no que mudou (nada é desenhado nem
+     baixado de novo). Cada arte mostra a própria espera até a imagem chegar: a pequena primeiro, a nítida em seguida.
+     Um lote por vez: enquanto o lote busca ou as imagens dele chegam, "Mais artes" fica desligado. */
+  const telhas = new Map();    // item + arte → o botão da arte
+  const esperando = new Set(); // artes cuja primeira imagem ainda não chegou
+  let refs = null;             // o que a tela aberta precisa atualizar no lugar: { it, mais, ocupado }
+  const arteDeEspera = () => h('span', { class: 'ficha-opcao__espera', 'aria-hidden': 'true' }, __m3.ArteDeEspera());
+  const pendentes = it => { let n = 0; for (const k of esperando) if (k.startsWith(it.chave + '|')) n++; return n; };
+  function telha(it, o) {
+    const k = it.chave + '|' + o.id; if (telhas.has(k)) return telhas.get(k);
+    const semImg = () => h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 }));
+    const quadro = h('span', { class: 'ficha-opcao__quadro', dataset: { carregando: 'true' } });
+    const chegou = () => { if (quadro.dataset.carregando === 'false') return; quadro.dataset.carregando = 'false'; esperando.delete(k); aoChegar(it); };
+    const im = o.images || {}, primeira = im.small || im.normal || im.large;
+    if (primeira) {
+      const img = h('img', { class: 'ds-carta-img ficha-opcao__img', alt: '', src: primeira, decoding: 'async', draggable: 'false' });
+      img.addEventListener('load', () => {
+        chegou();
+        // a nítida entra por cima quando chega; se falhar, a pequena fica
+        // (por cima, e não trocando o endereço da pequena: trocar deixaria a moldura vazia enquanto a nítida não desenha)
+        if (im.normal && im.normal !== primeira && img.dataset.nitida !== 'true') { img.dataset.nitida = 'true';
+          const g = h('img', { class: 'ds-carta-img ficha-opcao__img ficha-opcao__nitida', alt: '', decoding: 'async', draggable: 'false' });
+          g.addEventListener('load', () => { if (quadro.isConnected || telhas.has(k)) quadro.insertBefore(g, img.nextSibling); }); g.src = im.normal; }
+      });
+      img.addEventListener('error', () => { if (im.normal && im.normal !== primeira && img.dataset.tentou !== 'true') { img.dataset.tentou = 'true'; img.dataset.nitida = 'true'; img.src = im.normal; return; } img.replaceWith(semImg()); chegou(); });
+      esperando.add(k); quadro.append(img, arteDeEspera());
+    } else { quadro.dataset.carregando = 'false'; quadro.append(semImg()); }
+    const el = h('button', { class: 'ficha-opcao', type: 'button', 'aria-pressed': 'false', dataset: { opcao: o.id }, onClick: () => escolhe(it, o) }, quadro, h('span', { class: 'ficha-opcao__rotulo' }, F.rotuloDaOpcao(o)));
+    el._arte = o; telhas.set(k, el); return el;
+  }
+  /** A marca de "em uso" muda no lugar, sem redesenhar a grade. */
+  function marcaEscolha(it) {
+    const atual = st.estado.escolhas[it.chave] || null;
+    for (const el of root.querySelectorAll('.ficha-opcao')) {
+      const o = el._arte || null, emUso = o ? !!atual && atual.id === o.id : !atual;
+      el.setAttribute('aria-pressed', String(emUso));
+      el.setAttribute('aria-label', (o ? `Arte ${F.rotuloDaOpcao(o)}${o.set_name ? ', ' + o.set_name : ''}` : 'Arte padrão do app') + (emUso ? ', em uso' : ''));
+      const velha = el.querySelector('.ficha-opcao__marca'); if (velha) velha.remove();
+      if (!emUso) continue;
+      const salvando = !!o && st.salvando === it.chave + '|' + o.id;
+      el.appendChild(h('span', { class: 'ficha-opcao__marca', dataset: { salvando: String(salvando) }, title: salvando ? 'Guardando no aparelho…' : null }, salvando ? __m3.ArteDeEspera() : Icone('marcar', { tamanho: 16 })));
+    }
+  }
+  function atualizaMais(it) {
+    if (!refs || refs.it !== it) return;
+    const n = pendentes(it), ocupado = st.buscando || n > 0;
+    if (refs.mais) refs.mais.disabled = ocupado;
+    if (refs.ocupado) { refs.ocupado.classList.toggle('ds-hidden', !ocupado); const t = refs.ocupado.querySelector('.ds-carregando__texto'); if (t) t.textContent = st.buscando ? 'Buscando artes…' : `Chegando ${n} ${n === 1 ? 'arte' : 'artes'}…`; }
+  }
+  function aoChegar(it) {
+    atualizaMais(it);
+    // o lote inteiro chegou: confirma as imagens no aparelho, em segundo plano
+    if (!pendentes(it) && st.lote && st.lote.it === it.chave) { const lote = st.lote.artes; st.lote = null; if (lote.length && fichas.guardar) fichas.guardar(lote); }
+  }
   async function busca(it) {
+    if (st.buscando || pendentes(it) > 0) return; // um lote por vez
     const run = ++st.run; st.buscando = true; st.erro = ''; pintaFicha(it);
-    try { const lista = await fichas.mais(it.def); if (run !== st.run) return; st.estado.opcoes[it.chave] = lista; }
+    const tinha = new Set((st.estado.opcoes[it.chave] || []).map(o => o.id));
+    try { const lista = await fichas.mais(it.def); if (run !== st.run) return; st.estado.opcoes[it.chave] = lista; st.lote = { it: it.chave, artes: lista.filter(o => !tinha.has(o.id)) }; }
     catch (e) { if (run !== st.run) return; st.erro = e.message === 'sem-rede' ? 'sem-rede' : 'falha'; }
     st.buscando = false; if (st.aberta === it.chave && root.isConnected) pintaFicha(it);
   }
   async function escolhe(it, opcao) {
-    st.estado.escolhas = await fichas.escolher(it.def, opcao);
-    toast(opcao ? `${it.nome}: arte guardada para jogar sem internet` : `${it.nome}: voltou à arte padrão`);
-    pintaFicha(it);
+    const antes = st.estado.escolhas[it.chave] || null;
+    if ((antes && opcao && antes.id === opcao.id) || (!antes && !opcao)) return;
+    // a marca muda no toque; gravar e baixar a imagem grande seguem por trás, com a espera desenhada no selo da própria arte
+    const k = opcao ? it.chave + '|' + opcao.id : '';
+    const poe = o => { st.estado.escolhas = { ...st.estado.escolhas }; if (o) st.estado.escolhas[it.chave] = o; else delete st.estado.escolhas[it.chave]; };
+    poe(opcao); st.salvando = k; marcaEscolha(it);
+    try {
+      await fichas.escolher(it.def, opcao, { aoGuardar: () => {
+        if (st.salvando !== k) return; st.salvando = '';
+        if (root.isConnected && st.aberta === it.chave) marcaEscolha(it);
+        toast(opcao ? `${it.nome}: arte guardada para jogar sem internet` : `${it.nome}: voltou à arte padrão`);
+      } });
+    } catch (e) { poe(antes); st.salvando = ''; marcaEscolha(it); toast('Não deu para guardar a escolha'); }
   }
   function pintaFicha(it) {
-    const opcoes = st.estado.opcoes[it.chave] || [], atual = st.estado.escolhas[it.chave] || null;
-    const opcao = o => { const emUso = !!atual && atual.id === o.id;
-      return h('button', { class: 'ficha-opcao', type: 'button', 'aria-pressed': String(emUso), dataset: { opcao: o.id }, 'aria-label': `Arte ${F.rotuloDaOpcao(o)}${o.set_name ? ', ' + o.set_name : ''}${emUso ? ', em uso' : ''}`, onClick: () => escolhe(it, o) },
-        ImagemCarta(o.images, { sizes: '(min-width: 400px) 120px, 104px', classe: 'ficha-opcao__img', onFalha: el => el.replaceWith(h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 }))) }) || h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 })),
-        h('span', { class: 'ficha-opcao__rotulo' }, F.rotuloDaOpcao(o)),
-        emUso ? h('span', { class: 'ficha-opcao__marca' }, Icone('marcar', { tamanho: 16 })) : null); };
-    const padrao = h('button', { class: 'ficha-opcao ficha-opcao--padrao', type: 'button', id: C.id + '-padrao', 'aria-pressed': String(!atual), 'aria-label': 'Arte padrão do app' + (!atual ? ', em uso' : ''), onClick: () => escolhe(it, null) },
-      h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 })), h('span', { class: 'ficha-opcao__rotulo' }, 'Padrão'), !atual ? h('span', { class: 'ficha-opcao__marca' }, Icone('marcar', { tamanho: 16 })) : null);
+    const opcoes = st.estado.opcoes[it.chave] || [];
+    // as artes já desenhadas mudam de grade ao redesenhar: a tela segura a própria altura enquanto isso, para a página
+    // não encolher no meio do caminho (encolher puxaria a rolagem para o topo)
+    root.style.minHeight = root.offsetHeight + 'px';
+    const padrao = h('button', { class: 'ficha-opcao ficha-opcao--padrao', type: 'button', id: C.id + '-padrao', 'aria-pressed': 'false', onClick: () => escolhe(it, null) },
+      h('span', { class: 'ficha-opcao__semimg' }, Icone(it.icone, { tamanho: 28 })), h('span', { class: 'ficha-opcao__rotulo' }, 'Padrão'));
+    // enquanto o lote não chega, seis lugares já aparecem na grade, cada um com a espera desenhada
+    const lugares = st.buscando && opcoes.length ? Array.from({ length: fichas.LOTE || 6 }, () => h('span', { class: 'ficha-espera', 'aria-hidden': 'true' }, h('span', { class: 'ficha-opcao__quadro', dataset: { carregando: 'true' } }, arteDeEspera()), h('span', { class: 'ficha-opcao__rotulo' }))) : [];
     const semNada = !opcoes.length && !st.buscando;
     const maisArtes = fichas.temMais(it.chave, opcoes.length);
+    const mais = online() && opcoes.length && (maisArtes || st.buscando) ? Button('Mais artes', { icone: 'mais', id: C.id + '-mais', onClick: () => busca(it) }) : null;
+    const ocupado = mais ? __m3.Carregando('Buscando artes…', { tamanho: 'linha', id: C.id + '-ocupado' }) : null;
     mount(root,
       Row({ class: 'ds-row--wrap' }, IconButton('voltar', C.voltar, { id: C.id + '-voltar', variant: 'ghost', onClick: () => { st.aberta = ''; st.run++; go(C.rota); } }),
         Stack({ style: { gap: '2px', minWidth: '0' } }, Text(it.nome, { size: '2xl', display: true, as: 'h1', attrs: { lang: 'en' } }),
@@ -8948,11 +9070,14 @@ function telaDeArtes({ galeria: fichas, itens, C }) {
       st.erro === 'falha' ? (() => { const n = Note('<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.', 'negative'); n.id = C.id + '-erro'; return n; })() : null,
       st.buscando && !opcoes.length ? __m3.Carregando('Buscando artes…', { tamanho: 'bloco', id: C.id + '-buscando' }) : null,
       semNada && online() && !st.erro ? Empty(C.semArte, null, { icone: it.icone, titulo: 'Sem arte disponível', id: C.id + '-sem-arte' }) : null,
-      opcoes.length ? h('div', { class: 'ds-cardgrid ficha-grade', id: C.id + '-opcoes' }, padrao, ...opcoes.map(opcao)) : null,
+      opcoes.length ? h('div', { class: 'ds-cardgrid ficha-grade', id: C.id + '-opcoes' }, padrao, ...opcoes.map(o => telha(it, o)), ...lugares) : null,
       // I6 · de 6 em 6: o botão fica depois da grade (quem toca continua vendo as artes que acabaram de chegar)
       opcoes.length ? Text(`${opcoes.length} ${opcoes.length === 1 ? 'arte baixada' : 'artes baixadas'}` + (online() && !maisArtes ? ' · são todas' : ''), { size: 'xs', tone: 'muted', attrs: { id: C.id + '-conta' } }) : null,
-      online() && opcoes.length && (maisArtes || st.buscando) ? Row({}, Button('Mais artes', { icone: 'mais', id: C.id + '-mais', disabled: st.buscando, onClick: () => busca(it) }), st.buscando ? Spinner() : null) : null,
+      mais ? Row({ class: 'ds-row--wrap' }, mais, ocupado) : null,
       online() && !st.buscando && st.erro ? Row({}, Button('Repetir busca', { icone: 'atualizar', id: C.id + '-atualizar', onClick: () => busca(it) })) : null);
+    root.style.minHeight = '';
+    refs = { it, mais, ocupado };
+    marcaEscolha(it); atualizaMais(it);
   }
   function pinta() {
     const it = st.aberta ? st.lista.find(x => x.chave === st.aberta) : null;
@@ -17229,9 +17354,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   let gravando = Promise.resolve(); // a última gravação em curso (o teste espera por ela antes de recarregar a página)
   const save = () => (gravando = store.set(T.SAVE_KEY, table.serialize()).catch(() => {}));
   // I6 · a arte que o usuário escolheu para cada terreno básico (Perfil › Terrenos) vale em toda partida, inclusive a que já começou
-  let terrenosEscolhidos = null;
-  store.get('terrenos.escolhas').then(x => { if (x && Object.keys(x).length) { terrenosEscolhidos = x; if (table && root.isConnected) paint(); } }).catch(() => {});
-  const card = name => __m36.cartaComTerreno(T.cartaDaMesa(table.setup.cards, name), terrenosEscolhidos); // H1 · o verso de uma dupla face acha a própria imagem
+  // I7 · e a de cada ficha (Perfil › Fichas): as duas valem para qualquer lista, dos dois lados da mesa
+  const artes = { terrenos: null, fichas: null };
+  for (const [qual, chave] of [['terrenos', 'terrenos.escolhas'], ['fichas', 'fichas.escolhas']])
+    store.get(chave).then(x => { if (x && Object.keys(x).length) { artes[qual] = x; if (table && root.isConnected) paint(); } }).catch(() => {});
+  const card = name => __m36.cartaComEscolhas(T.cartaDaMesa(table.setup.cards, name), artes); // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */
@@ -18564,9 +18691,11 @@ function createSeriesScreen({ store, online = null }) {
         Empty('Não há série esperando a próxima partida.', Button('Preparar partida', { variant: 'primary', icone: 'jogar', onClick: () => go('/mesa') })));
     }
     const cartas = salvo.setup.cards || {};
+    // I7 · a troca de reserva entre os jogos também mostra a arte escolhida para cada terreno básico
+    let terrenosDaSerie = null; try { terrenosDaSerie = await store.get('terrenos.escolhas'); } catch (e) { /* sem escolhas */ }
     // H1 · as cartas da partida guardada estão no formato do app (images/faces); a tela lia o formato cru da Scryfall
     // (image_uris/card_faces) e por isso nunca achava imagem: todas as cartas saíam só com o nome
-    const imagens = nome => { const c = T.cartaDaMesa(cartas, nome); return c ? (c.images || (c.faces && c.faces[0] && c.faces[0].images) || null) : null; };
+    const imagens = nome => { const c = __m36.cartaComTerreno(T.cartaDaMesa(cartas, nome), terrenosDaSerie); return c ? (c.images || (c.faces && c.faces[0] && c.faces[0].images) || null) : null; };
     const humanos = serie.assentos.map((a, i) => ({ a, i })).filter(x => !x.a.dummy && !x.a.bot);
     // H3 · série online: cada aparelho troca só a própria reserva; a mesa da próxima partida é montada pelo anfitrião
     const on = online && salvo.options && salvo.options.online ? { ...salvo.options.online } : null;

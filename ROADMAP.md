@@ -457,6 +457,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bw ○ | N4 guardar e compartilhar notícia | N | 1 | — |
 | 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
 | 16º-by ✅ | I6 terrenos do seu jeito: Perfil › Terrenos com os doze básicos (ícone, cor), artes da Scryfall em lotes de 6 com "Mais artes", escolha guardada e usada na partida; fichas na mesma mecânica (leva 200) | I | 1 | teste no aparelho |
+| 16º-bz ✅ | I7 acabamento: artes com espera própria e pequena primeiro, um lote por vez, escolha na hora, artes de terreno e ficha em toda partida, abertura de 2 s e maior, toque sem realce do navegador (leva 206) | I | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5473,6 +5474,48 @@ mesmo padrão de design".
   `auditaTela` nos dois temas e com a fonte larga); e2e I4 segue verde.
 - **Depende de:** I4, V1, J1.
 - **Fora:** terrenos não básicos; arte por lista para a mesa (V1 na mesa).
+
+**I7 · Acabamento: artes rápidas, escolha na hora, abertura maior e toque sem realce** ✅ (leva 206, 06/10/2026 · pedido de 06/10/2026)
+- **Valor:** escolher arte sem esperar, ver o que está carregando, e tocar na tela vendo só a reação do app.
+- **Causas encontradas:**
+  - *escolher demorava*: guardar a escolha **esperava** o download de três imagens numa fila em série, atrás das
+    doze do lote, com 80 ms de pausa entre cada uma;
+  - *o lote demorava a aparecer*: cada arte pedia direto a imagem nítida (488 px), e a tela inteira era redesenhada
+    (e as imagens recriadas) a cada lote e a cada escolha;
+  - *pedir mais depois de reabrir* refazia a busca na Scryfall.
+- **Entregue — artes (fichas e terrenos):**
+  - cada arte tem a própria moldura com **a espera do app desenhada dentro** (as três cartas na prateleira) até a
+    imagem chegar; a **pequena chega primeiro** e a nítida entra por cima em seguida (a moldura nunca fica vazia);
+  - **um lote por vez**: enquanto o lote busca ou as imagens dele chegam, "Mais artes" fica desligado, com
+    "Chegando N artes…" ao lado; dois toques seguidos pedem um lote só;
+  - escolher e pedir mais **mexem só no que mudou**: as artes já desenhadas não são redesenhadas nem baixadas de novo;
+  - a busca fica guardada no aparelho: "Mais artes" não volta à Scryfall, nem depois de reabrir o app;
+  - **escolher marca na hora**; gravar e baixar a imagem grande seguem por trás, com prioridade sobre a fila, e o
+    **selo da própria arte mostra a espera** até ficar guardada (aí vira o visto e vem o aviso). Trocar de novo
+    durante a espera vale a última.
+- **Entregue — artes na partida:** a arte escolhida de **terreno e de ficha** vale para **todas as listas**, dos dois
+  lados da mesa, inclusive na partida que já começou (antes a ficha só mudava em partida nova), e na troca de reserva
+  entre os jogos de uma série.
+- **Entregue — abertura (J5):** de 1,2 s para **2 s**; o ícone passa de 112 px para **pouco mais da metade da largura
+  da tela** (202 px em 360, teto de 240). Duas causas prováveis da falha na parte de baixo, corrigidas: a sombra do
+  ícone tinha a região calculada pela caixa das cartas, que muda a cada quadro enquanto elas caem (agora é fixa); e a
+  camada cobria só a caixa da janela, deixando uma faixa do app embaixo quando a barra do navegador recolhe (agora o
+  fundo se estende para além da caixa). A mesma extensão foi aplicada aos diálogos e à carta espiada na mesa.
+- **Entregue — toque:** o realce azulado que o navegador pinta sobre o que é tocado foi desligado no app inteiro;
+  tocar não desenha contorno de foco (o teclado continua desenhando); segurar um controle não seleciona o rótulo nem
+  abre o menu da imagem.
+- **Limites declarados:** a falha da abertura **não foi reproduzida** no ambiente de teste (só aparece no aparelho):
+  as duas causas acima são as que o código explica; se persistir, uma gravação de tela mostra onde. O tamanho
+  "proporcional à pré-tela" foi lido como o ícone da tela de abertura do sistema; a medida exata dela varia por
+  aparelho. A imagem nítida de cada arte ainda é baixada (é ela que fica guardada para jogar sem internet).
+- **Testes:** U `terrenos.unit` +2 (busca guardada entre aberturas do app, escolher responde antes do download e com
+  prioridade; ficha e terreno na carta da partida), `icone.unit` (sombra de região fixa só no ícone animado; 2 s),
+  `ds.unit` (contrato: realce desligado na raiz; toda camada de tela inteira com fundo tem a extensão); e2e "I7"
+  (mais de 150 controles em dez telas sem realce e sem rótulo selecionável; com a rede de imagem lenta: seis artes
+  esperando com a animação, pequena primeiro, botão desligado e "Chegando 6 artes…", nítida por cima, dois toques =
+  um lote, nenhuma imagem pedida de novo, escolha marcada em menos de 600 ms com a espera no selo, a grande baixada,
+  última escolha vale, a Forest da partida com a arte escolhida); e2e J5, I4 e I6 ajustados às mudanças pedidas.
+- **Depende de:** I6, J4, J5.
 
 ### J · Fluidez e orientação (E57, pedido de 06/10/2026)
 

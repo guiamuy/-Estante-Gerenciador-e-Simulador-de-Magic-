@@ -38,12 +38,14 @@ test('I6 · serviço dos terrenos: uma busca, 6 artes por pedido, só com intern
   assert.equal(tr.temMais('forest', 0), true, 'antes de buscar, pode haver');
   let ops = await tr.mais(forest);
   assert.deepEqual(J(pedidos), [['!"Forest"', 'art', 'released']], 'uma por arte, da mais recente');
-  assert.equal(ops.length, 6); assert.equal(aquecidas.length, 12, 'só as 6 do lote são baixadas (grande e pequena)');
+  // I7 (leva 206) · expectativa mudou: liberar o lote não baixa nada; a tela baixa ao mostrar e `guardar` confirma depois
+  assert.equal(ops.length, 6); assert.equal(aquecidas.length, 0, 'liberar o lote não espera download');
+  await tr.guardar(ops); assert.equal(aquecidas.length, 12, 'confirmar guarda só as 6 do lote (pequena e nítida)');
   assert.deepEqual(J(Object.keys(ops[0]).sort()), ['collector_number', 'faces', 'id', 'images', 'name', 'set', 'set_name'], 'só o que a mesa precisa fica guardado');
   assert.equal(tr.temMais('forest', 6), true);
   ops = await tr.mais(forest); assert.equal(ops.length, 12); assert.equal(pedidos.length, 1, 'o segundo lote não volta à Scryfall');
   ops = await tr.mais(forest); assert.equal(ops.length, 14); assert.equal(tr.temMais('forest', 14), false, 'acabaram as artes');
-  assert.equal(aquecidas.length, 28);
+  await tr.guardar(ops.slice(6)); assert.equal(aquecidas.length, 28);
   // sem internet: pedir mais recusa; o que já foi baixado continua guardado
   rede = false; await assert.rejects(tr.mais(forest), /sem-rede/); assert.equal((await tr.estado()).opcoes.forest.length, 14);
   // escolher e voltar ao padrão
@@ -62,6 +64,45 @@ test('I6 · as fichas também vêm de 6 em 6', async () => {
   const store = P.memoryStore(); const aquecidas = [];
   const fx = FX.createFichas({ store, scryfall: { async search() { return Array.from({ length: 9 }, (_, i) => carta(i)); } }, images: { available: true, async warm(u) { aquecidas.push(...u); } }, temRede: () => true });
   const clue = { name: 'Clue', types: ['artifact'], colors: [] };
-  assert.equal((await fx.buscar(clue)).length, 6, 'o primeiro pedido traz 6'); assert.equal(aquecidas.length, 12); assert.equal(fx.temMais('ficha:clue', 6), true);
+  assert.equal((await fx.buscar(clue)).length, 6, 'o primeiro pedido traz 6'); assert.equal(aquecidas.length, 0); assert.equal(fx.temMais('ficha:clue', 6), true);
   assert.equal((await fx.mais(clue)).length, 9); assert.equal(fx.temMais('ficha:clue', 9), false);
+});
+
+test('I7 · rápido: a busca fica guardada (pedir mais depois de reabrir não volta à Scryfall) e escolher responde antes de a imagem descer, com prioridade', async () => {
+  const arte = i => ({ id: 'f' + i, name: 'Forest', set: 's' + i, set_name: 'E' + i, collector_number: String(i), images: { small: `i${i}/s`, normal: `i${i}/n`, large: `i${i}/l` }, faces: [] });
+  let buscas = 0; const scryfall = { async search() { buscas++; return Array.from({ length: 20 }, (_, i) => arte(i)); } };
+  const store = P.memoryStore(); const pedidos = []; let solta = null;
+  const images = { available: true, warm(urls, o) { pedidos.push({ urls, ja: !!(o && o.ja) }); return new Promise(r => { solta = r; }); } };
+  const forest = TR.TERRENOS.find(t => t.name === 'Forest');
+  const a = TR.createTerrenos({ store, scryfall, images, temRede: () => true });
+  assert.equal((await a.mais(forest)).length, 6); assert.equal(buscas, 1); assert.equal(pedidos.length, 0, 'nenhum download segura a liberação do lote');
+  // app reaberto: outra instância, mesmo aparelho
+  const b = TR.createTerrenos({ store, scryfall, images, temRede: () => true });
+  assert.equal((await b.mais(forest)).length, 12); assert.equal(buscas, 1, 'as candidatas vieram do aparelho');
+  assert.equal(b.temMais('forest', 12), true);
+  // escolher: a resposta chega com o download ainda em curso; o aviso de "guardada" só depois
+  let guardada = false; const ops = (await b.estado()).opcoes.forest;
+  const escolhas = await b.escolher(forest, ops[2], { aoGuardar: () => { guardada = true; } });
+  assert.equal(escolhas.forest.id, 'f2'); assert.equal(guardada, false, 'respondeu sem esperar a imagem');
+  assert.deepEqual(J(pedidos.at(-1)), { urls: ['i2/n', 'i2/l', 'i2/s'], ja: true }, 'a imagem da escolhida passa na frente da fila');
+  solta(); await new Promise(r => setTimeout(r, 0)); assert.equal(guardada, true);
+  // voltar ao padrão não baixa nada e avisa na hora
+  let voltou = false; await b.escolher(forest, null, { aoGuardar: () => { voltou = true; } }); await new Promise(r => setTimeout(r, 0)); assert.equal(voltou, true);
+});
+
+test('I7 · na partida, a arte escolhida vale para terreno e para ficha, em qualquer lista: só a imagem muda', () => {
+  const clue = { name: 'Clue', type_line: 'Token Artifact — Clue', layout: 'token', oracle_text: 'x', images: { normal: 'padrao/n' } };
+  const bird = { name: 'Bird', type_line: 'Token Creature — Bird', power: '1', toughness: '1', images: { normal: 'b/n' } };
+  const fichas = { 'ficha:clue': { id: 'c2', images: { normal: 'c2/n', small: 'c2/s' } }, 'ficha:bird 2/2': { id: 'b2', images: { normal: 'b22/n' } } };
+  const a = TR.cartaComFicha(clue, fichas);
+  assert.deepEqual([a.images.normal, a.oracle_text, a.name], ['c2/n', 'x', 'Clue']); assert.equal(clue.images.normal, 'padrao/n', 'não muda a carta recebida');
+  assert.equal(TR.cartaComFicha(bird, fichas), bird, 'a ficha 1/1 não pega a arte escolhida para a 2/2');
+  assert.equal(TR.cartaComFicha({ ...bird, power: '2', toughness: '2' }, fichas).images.normal, 'b22/n');
+  assert.equal(TR.cartaComFicha({ name: 'Clue', type_line: 'Artifact', images: { normal: 'carta/n' } }, fichas).images.normal, 'carta/n', 'carta de verdade com o mesmo nome não é ficha');
+  assert.equal(TR.cartaComFicha(clue, null), clue); assert.equal(TR.cartaComFicha(null, fichas), null);
+  // as duas juntas, como a mesa usa
+  const forest = { name: 'Forest', type_line: 'Basic Land — Forest', images: { normal: 'f/n' } };
+  const artes = { terrenos: { forest: { id: 'f9', images: { normal: 'f9/n' } } }, fichas };
+  assert.equal(TR.cartaComEscolhas(forest, artes).images.normal, 'f9/n'); assert.equal(TR.cartaComEscolhas(clue, artes).images.normal, 'c2/n');
+  assert.equal(TR.cartaComEscolhas(forest, {}), forest); assert.equal(TR.cartaComEscolhas(null, artes), null);
 });

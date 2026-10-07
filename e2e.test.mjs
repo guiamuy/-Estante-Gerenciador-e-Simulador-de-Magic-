@@ -7349,7 +7349,7 @@ test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na i
   // 4 · escolher: marca na hora, avisa que ficou guardada, e sobrevive a recarregar
   await page.click('.ficha-opcao[data-opcao="clue-b"]');
   await page.waitForFunction(() => document.querySelector('.ficha-opcao[data-opcao="clue-b"]').getAttribute('aria-pressed') === 'true');
-  assert.match(await page.innerText('#ds-toast'), /Clue: arte guardada para jogar sem internet/); assert.equal(await page.getAttribute('#ficha-padrao', 'aria-pressed'), 'false');
+  await page.waitForFunction(n => new RegExp(n + ': arte guardada para jogar sem internet').test((document.querySelector('#ds-toast') || {}).textContent || ''), 'Clue', { timeout: 8000 }); // I7 · o aviso chega quando a imagem ficou no aparelho assert.equal(await page.getAttribute('#ficha-padrao', 'aria-pressed'), 'false');
   await page.reload(); await page.waitForSelector('#ficha-opcoes');
   assert.equal(await page.getAttribute('.ficha-opcao[data-opcao="clue-b"]', 'aria-pressed'), 'true', 'a escolha fica guardada');
   await page.click('#ficha-voltar'); await page.waitForSelector('#fichas-lista');
@@ -7380,7 +7380,7 @@ test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na i
   // 8 · voltar ao padrão
   await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:clue')); await page.waitForSelector('#ficha-opcoes');
   await page.click('#ficha-padrao'); await page.waitForFunction(() => document.querySelector('#ficha-padrao').getAttribute('aria-pressed') === 'true');
-  assert.match(await page.innerText('#ds-toast'), /voltou à arte padrão/);
+  await page.waitForFunction(() => /voltou à arte padrão/.test((document.querySelector('#ds-toast') || {}).textContent || ''), null, { timeout: 8000 });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'fichas · artes (claro)');
   assert.deepEqual(errors, []);
 });
@@ -7834,7 +7834,7 @@ test('e2e · I6 Perfil › Terrenos: os doze básicos com ícone e cor, artes da
   // 5 · escolher: marca na hora, avisa que ficou guardada, e sobrevive a recarregar
   await page.click('.ficha-opcao[data-opcao="forest-9"]');
   await page.waitForFunction(() => document.querySelector('.ficha-opcao[data-opcao="forest-9"]').getAttribute('aria-pressed') === 'true');
-  assert.match(await page.innerText('#ds-toast'), /Forest: arte guardada para jogar sem internet/);
+  await page.waitForFunction(n => new RegExp(n + ': arte guardada para jogar sem internet').test((document.querySelector('#ds-toast') || {}).textContent || ''), 'Forest', { timeout: 8000 }); // I7 · o aviso chega quando a imagem ficou no aparelho
   await page.reload(); await page.waitForSelector('#terreno-opcoes');
   assert.equal(await page.getAttribute('.ficha-opcao[data-opcao="forest-9"]', 'aria-pressed'), 'true'); assert.equal((await opcoes()).length, 15, 'as 14 baixadas continuam à mão');
   await page.click('#terreno-voltar'); await page.waitForSelector('#terrenos-lista');
@@ -7859,7 +7859,7 @@ test('e2e · I6 Perfil › Terrenos: os doze básicos com ícone e cor, artes da
   assert.match(await page.locator('#tb-hand .tb-card[aria-label^="Forest"] img').first().getAttribute('data-fonte'), /front\/x\/forest-2\.png$/, 'a Forest da partida é a arte que eu escolhi');
   // 9 · voltar ao padrão
   await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('#terreno-opcoes'); await page.click('#terreno-padrao');
-  await page.waitForFunction(() => document.querySelector('#terreno-padrao').getAttribute('aria-pressed') === 'true'); assert.match(await page.innerText('#ds-toast'), /voltou à arte padrão/);
+  await page.waitForFunction(() => document.querySelector('#terreno-padrao').getAttribute('aria-pressed') === 'true'); await page.waitForFunction(() => /voltou à arte padrão/.test((document.querySelector('#ds-toast') || {}).textContent || ''), null, { timeout: 8000 });
   // 10 · as fichas seguem a mesma mecânica: 6 e depois "Mais artes"
   await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:clue')); await page.waitForSelector('#ficha-opcoes', { timeout: 15000 });
   assert.equal(await page.locator('#ficha-opcoes .ficha-opcao[data-opcao]').count(), 6); assert.match(await page.innerText('#ficha-conta'), /^6 artes baixadas$/);
@@ -7930,7 +7930,7 @@ test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, t
   // um observador anota a vida da abertura desde o primeiro instante da página
   await page.addInitScript(() => { window.__ab = { nasceu: 0, sumiu: 0, comApp: null, quadros: [] };
     const o = new MutationObserver(() => { const a = document.querySelector('#abertura');
-      if (a && !window.__ab.nasceu) { window.__ab.nasceu = performance.now(); window.__ab.html = a.innerHTML; window.__ab.parada = a.dataset.parada; window.__ab.eventos = getComputedStyle(a).pointerEvents; window.__ab.cobre = a.getBoundingClientRect().width >= innerWidth && a.getBoundingClientRect().height >= innerHeight;
+      if (a && !window.__ab.nasceu) { window.__ab.nasceu = performance.now(); window.__ab.html = a.innerHTML; window.__ab.parada = a.dataset.parada; window.__ab.eventos = getComputedStyle(a).pointerEvents; window.__ab.cobre = a.getBoundingClientRect().width >= innerWidth && a.getBoundingClientRect().height >= innerHeight; window.__ab.lado = a.querySelector('.abertura__ladrilho').offsetWidth; window.__ab.sangra = getComputedStyle(a).boxShadow;
         window.__ab.anima = [...a.querySelectorAll('.ab-carta, .ab-moldura, .ab-tabua, .abertura__ladrilho')].map(e => getComputedStyle(e).animationName); window.__ab.atrasos = [...a.querySelectorAll('.ab-carta')].map(e => parseFloat(getComputedStyle(e).animationDelay)); }
       if (a && window.__ab.comApp == null && document.querySelector('#home-atalhos')) window.__ab.comApp = true;
       if (!a && window.__ab.nasceu && !window.__ab.sumiu) window.__ab.sumiu = performance.now(); });
@@ -7943,12 +7943,16 @@ test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, t
   const ab = await page.evaluate(() => window.__ab);
   assert.equal(ab.comApp, true, 'a tela inicial chegou com a abertura ainda visível');
   assert.equal(ab.eventos, 'none', 'a camada não recebe toque: o app por baixo responde'); assert.equal(ab.cobre, true); assert.equal(ab.parada, 'false');
-  const vida = ab.sumiu - ab.nasceu; assert.ok(vida >= 1100 && vida <= 1700, `dura a animação (1,2 s) mais o esmaecer: ${Math.round(vida)} ms`);
+  // I7 (leva 206) · a abertura passou de 1,2 s para 2 s e de 112 px para pouco mais da metade da largura
+  const vida = ab.sumiu - ab.nasceu; assert.ok(vida >= 1900 && vida <= 2700, `dura a animação (2 s) mais o esmaecer: ${Math.round(vida)} ms`);
+  assert.ok(ab.lado >= 195 && ab.lado <= 210, 'o ícone ocupa pouco mais da metade da largura em 360 px: ' + ab.lado);
+  assert.match(ab.html, /filterUnits="userSpaceOnUse"/, 'a sombra tem região fixa: não treme enquanto as cartas caem');
   // 2 · o que ela monta: o ícone do app, parte por parte, a de latão por último
   assert.deepEqual(ab.anima.sort(), ['ab-cai', 'ab-cai', 'ab-cai', 'ab-estende', 'ab-pousa', 'ab-surge']);
   assert.ok(ab.atrasos[0] < ab.atrasos[1] && ab.atrasos[1] < ab.atrasos[2], 'as cartas caem uma depois da outra: ' + ab.atrasos);
-  assert.ok(ab.atrasos[2] * 1000 + 420 <= 1200, 'a última carta pousa antes de a abertura sair');
-  const iguais = await page.evaluate(html => { const limpa = h => h.replace(/<g class="ab-[^"]*">(<rect[^>]*>)(<\/rect>)?<\/g>/g, '$1$2').replace(/\s(width|height)="\d+"/g, ''); const t = document.createElement('div'); t.innerHTML = html;
+  assert.ok(ab.atrasos[2] * 1000 + 520 <= 2000, 'a última carta pousa antes de a abertura sair');
+  assert.notEqual(ab.sangra, 'none', 'o fundo se estende além da caixa: sem faixa do app embaixo');
+  const iguais = await page.evaluate(html => { const limpa = h => h.replace(/<g class="ab-[^"]*">(<rect[^>]*>)(<\/rect>)?<\/g>/g, '$1$2').replace(/<filter[^>]*>/, '<filter>').replaceAll('estante-abertura', 'estante-icone').replace(/\s(width|height)="\d+"/g, ''); const t = document.createElement('div'); t.innerHTML = html;
     const meu = limpa(t.querySelector('svg').outerHTML), barra = limpa(document.querySelector('.ds-appbar .brand-tile svg').outerHTML); return meu === barra; }, ab.html);
   assert.equal(iguais, true, 'o último quadro é o ícone do app (o mesmo desenho da barra)');
   assert.equal(await page.locator('#abertura').count(), 0); assert.equal(await page.locator('#home-atalhos').isVisible(), true);
@@ -7962,7 +7966,7 @@ test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, t
   await page.evaluate(() => sessionStorage.clear()); await page.goto(base + '#/'); await page.reload(); await page.waitForSelector('#abertura'); await page.waitForSelector('#nav-decks');
   const t0 = Date.now(); await page.click('#nav-decks'); await page.waitForSelector('#decks-list');
   await page.waitForFunction(() => !document.querySelector('#abertura'), null, { timeout: 2000 });
-  assert.ok(Date.now() - t0 < 900, 'o toque dispensou antes do fim da animação: ' + (Date.now() - t0) + ' ms');
+  assert.ok(Date.now() - t0 < 1400, 'o toque dispensou antes do fim da animação: ' + (Date.now() - t0) + ' ms');
   assert.match(page.url(), /#\/listas/, 'e o toque chegou ao app');
   // 5 · movimento reduzido: logo parado, sem animação, some em meio segundo
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.evaluate(() => sessionStorage.clear()); await page.reload(); await page.waitForFunction(() => window.__ab.nasceu > 0);
@@ -7975,5 +7979,89 @@ test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, t
   await page.context().setOffline(true); await page.evaluate(() => sessionStorage.clear()); await page.reload().catch(() => {});
   if (await page.locator('#app').count()) { await page.waitForFunction(() => window.__ab && window.__ab.nasceu > 0, null, { timeout: 5000 }).catch(() => {}); }
   await page.context().setOffline(false);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- I7 · acabamento: toque sem realce, artes rápidas com espera própria, escolha na hora ---------------- */
+test('e2e · I7 toque sem realce do navegador em todo o app; artes: a pequena chega primeiro, cada arte tem a própria espera, um lote por vez, nada é baixado de novo; escolher marca na hora e mostra a espera no selo até a imagem ficar guardada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  // rede de imagem lenta: a pequena demora 500 ms, a nítida e a grande 1,5 s
+  const pedidas = []; await page.route('https://**.scryfall.io/**', async r => { const u = r.request().url(); pedidas.push(u.replace(/^.*scryfall\.io\//, ''));
+    await new Promise(x => setTimeout(x, /\/small\//.test(u) ? 500 : 1500)); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }).catch(() => {}); });
+  const arte = (id, set, n) => ({ object: 'card', id, name: 'Forest', type_line: 'Basic Land — Forest', layout: 'normal', oracle_text: '', colors: [], color_identity: [], cmc: 0, keywords: [], set, set_name: 'Edição ' + set.toUpperCase(), collector_number: String(n),
+    image_uris: Object.fromEntries(['small', 'normal', 'large'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`])) });
+  let buscas = 0;
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const q = new URL(r.request().url()).searchParams.get('q') || '';
+    if (q === '!"Forest"') { buscas++; return r.fulfill({ json: { object: 'list', has_more: false, data: Array.from({ length: 14 }, (_, i) => arte('forest-' + i, 's' + i, 280 + i)) } }); }
+    return r.fallback(); });
+  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'livre');
+  // 1 · toque: nenhum controle mostra o realce do navegador, e o rótulo não é selecionável ao segurar
+  const semRealce = () => page.evaluate(() => { const t = c => /rgba\(0, 0, 0, 0\)|transparent/.test(c);
+    const els = [...document.querySelectorAll('button, a[href], [role="button"], .ds-chip, .ds-card, .ds-list__item, select, input, label, summary, .tb-card, .ficha-opcao')].filter(e => e.getClientRects().length);
+    const ruins = els.filter(e => !t(getComputedStyle(e).webkitTapHighlightColor)).map(e => e.id || e.className).slice(0, 5);
+    const selecionaveis = els.filter(e => e.matches('button, .ds-chip, .ds-card, .ds-list__item, .tb-card, .ficha-opcao') && getComputedStyle(e).userSelect !== 'none' && getComputedStyle(e).webkitUserSelect !== 'none').map(e => e.id || e.className).slice(0, 5);
+    return { n: els.length, ruins, selecionaveis, raiz: t(getComputedStyle(document.documentElement).webkitTapHighlightColor) }; });
+  let medidos = 0;
+  for (const rota of ['#/', '#/listas', '#/colecao', '#/cartas', '#/mesa', '#/perfil', '#/perfil/partidas', '#/perfil/fichas', '#/perfil/terrenos', '#/ds']) {
+    await page.goto(base + rota); await page.waitForTimeout(450);
+    const r = await semRealce(); medidos += r.n;
+    assert.equal(r.raiz, true); assert.deepEqual(r.ruins, [], rota + ': controle com realce de toque'); assert.deepEqual(r.selecionaveis, [], rota + ': rótulo de controle selecionável');
+  }
+  assert.ok(medidos > 150, 'controles medidos: ' + medidos);
+  // o clique do mouse ou do dedo não deixa contorno de foco; o teclado deixa
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-terrenos');
+  await page.click('[data-acento="cobre"]'); assert.equal(await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'none', 'tocar não desenha contorno');
+  await page.keyboard.press('Tab'); assert.notEqual(await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'none', 'o foco do teclado continua desenhado');
+  // 2 · artes: abre a Forest com a rede de imagem lenta
+  await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('#terreno-opcoes', { timeout: 15000 });
+  const quadros = () => page.$$eval('#terreno-opcoes .ficha-opcao[data-opcao] .ficha-opcao__quadro', qs => qs.map(q => q.dataset.carregando));
+  let q = await quadros(); assert.equal(q.length, 6); assert.ok(q.every(x => x === 'true'), 'as seis artes nascem esperando: ' + q);
+  const espera = await page.$eval('#terreno-opcoes .ficha-opcao[data-opcao] .ficha-opcao__espera', e => ({ visivel: getComputedStyle(e).display !== 'none', anima: getComputedStyle(e.querySelector('.ds-carregando__carta')).animationName, cartas: e.querySelectorAll('.ds-carregando__carta').length, img: getComputedStyle(e.parentNode.querySelector('img')).opacity }));
+  assert.deepEqual(espera, { visivel: true, anima: 'ds-arruma', cartas: 3, img: '0' }, 'cada arte mostra a espera do app enquanto a imagem não chega');
+  assert.equal(await page.isDisabled('#terreno-mais'), true, 'com o lote chegando, não dá para pedir outro');
+  assert.match(await page.innerText('#terreno-ocupado'), /Chegando 6 artes…/); assert.equal(await page.locator('#terreno-ocupado').isVisible(), true);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i7-chegando.png', fullPage: true });
+  await auditaTela(page, 'terrenos · artes chegando');
+  { const daForest = pedidas.filter(u => /forest-\d+\./.test(u)); assert.ok(daForest.length >= 6 && daForest.slice(0, 6).every(u => u.startsWith('small/')) && !daForest.some(u => /forest-(6|7|13)\./.test(u)), 'de cada arte, a primeira imagem pedida é a pequena, e só das 6 do lote: ' + JSON.stringify(daForest)); }
+  // a pequena chega: a espera some, o botão libera; a nítida entra por cima depois
+  await page.waitForFunction(() => [...document.querySelectorAll('#terreno-opcoes .ficha-opcao[data-opcao] .ficha-opcao__quadro')].every(x => x.dataset.carregando === 'false'), null, { timeout: 8000 });
+  assert.equal(await page.isDisabled('#terreno-mais'), false); assert.equal(await page.locator('#terreno-ocupado').isVisible(), false);
+  assert.match(await page.getAttribute('.ficha-opcao[data-opcao="forest-0"] img', 'src'), /small\/front\/x\/forest-0\.png$/);
+  await page.waitForFunction(() => { const n = document.querySelector('.ficha-opcao[data-opcao="forest-0"] img.ficha-opcao__nitida'); return n && /normal\/front\/x\/forest-0\.png$/.test(n.getAttribute('src')) && n.naturalWidth > 0; }, null, { timeout: 8000 });
+  assert.equal(await page.$eval('.ficha-opcao[data-opcao="forest-0"] img:not(.ficha-opcao__nitida)', i => i.naturalWidth > 0 && /small\//.test(i.src)), true, 'a nítida entra por cima; a pequena continua embaixo (a moldura nunca fica vazia)');
+  // 3 · mais um lote: dois toques seguidos pedem um lote só; as artes que já estavam não são desenhadas nem baixadas de novo
+  await page.evaluate(() => { window.__img0 = document.querySelector('.ficha-opcao[data-opcao="forest-0"] img.ficha-opcao__nitida'); });
+  const antes = pedidas.filter(u => /forest-0\./.test(u)).length;
+  await page.evaluate(() => { const b = document.querySelector('#terreno-mais'); b.click(); b.click(); });
+  await page.waitForFunction(() => document.querySelectorAll('#terreno-opcoes .ficha-opcao[data-opcao]').length >= 12);
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('#terreno-opcoes .ficha-opcao[data-opcao]').count(), 12, 'um lote só');
+  assert.equal(await page.isDisabled('#terreno-mais'), true); assert.equal(buscas, 1, 'pedir mais não volta à Scryfall');
+  assert.equal(await page.evaluate(() => window.__img0 === document.querySelector('.ficha-opcao[data-opcao="forest-0"] img.ficha-opcao__nitida') && window.__img0.isConnected), true, 'a arte que já estava é o mesmo elemento');
+  await page.waitForFunction(() => !document.querySelector('#terreno-mais').disabled, null, { timeout: 8000 });
+  assert.equal(pedidas.filter(u => /forest-0\./.test(u)).length, antes, 'nenhuma imagem da primeira leva foi pedida de novo');
+  // 4 · escolher: a marca muda no toque (com a imagem grande ainda descendo), o selo mostra a espera e depois o visto
+  const t0 = Date.now(); await page.click('.ficha-opcao[data-opcao="forest-3"]');
+  await page.waitForFunction(() => document.querySelector('.ficha-opcao[data-opcao="forest-3"]').getAttribute('aria-pressed') === 'true');
+  assert.ok(Date.now() - t0 < 600, 'marcou na hora: ' + (Date.now() - t0) + ' ms');
+  const selo = await page.$eval('.ficha-opcao[data-opcao="forest-3"] .ficha-opcao__marca', m => ({ salvando: m.dataset.salvando, espera: m.querySelectorAll('.ds-carregando__carta').length, visto: !!m.querySelector('[data-icone="marcar"]') }));
+  assert.deepEqual(selo, { salvando: 'true', espera: 3, visto: false }, 'enquanto guarda, o selo mostra a espera do app');
+  assert.equal(await page.getAttribute('#terreno-padrao', 'aria-pressed'), 'false');
+  assert.equal(await page.evaluate(() => window.__img0 === document.querySelector('.ficha-opcao[data-opcao="forest-0"] img.ficha-opcao__nitida')), true, 'escolher não redesenha as outras artes');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/i7-guardando.png' });
+  await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="forest-3"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false' && m.querySelector('[data-icone="marcar"]'); }, null, { timeout: 12000 });
+  await page.waitForFunction(() => /Forest: arte guardada para jogar sem internet/.test((document.querySelector('#ds-toast') || {}).textContent || ''), null, { timeout: 4000 });
+  assert.ok(pedidas.some(u => u === 'large/front/x/forest-3.png'), 'a imagem grande da escolhida foi baixada');
+  // trocar de novo durante a espera: vale a última
+  await page.click('.ficha-opcao[data-opcao="forest-5"]'); await page.click('.ficha-opcao[data-opcao="forest-1"]');
+  await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="forest-1"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false'; }, null, { timeout: 12000 });
+  assert.equal(await page.locator('.ficha-opcao[aria-pressed="true"]').count(), 1); assert.equal(await page.locator('.ficha-opcao__marca').count(), 1);
+  await page.reload(); await page.waitForSelector('#terreno-opcoes'); assert.equal(await page.getAttribute('.ficha-opcao[data-opcao="forest-1"]', 'aria-pressed'), 'true', 'a última escolha ficou guardada');
+  // 5 · a troca de reserva e a partida usam a arte escolhida (aqui: a Forest na mão)
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-hand .tb-card[aria-label^="Forest"] img', { timeout: 10000 });
+  assert.match(await page.locator('#tb-hand .tb-card[aria-label^="Forest"] img').first().getAttribute('data-fonte'), /front\/x\/forest-1\.png$/);
   assert.deepEqual(errors, []);
 });

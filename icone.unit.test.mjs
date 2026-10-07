@@ -39,6 +39,11 @@ test('J5 · o ícone que a abertura monta é o mesmo ícone do app: só ganha um
   for (const c of ['ab-moldura', 'ab-tabua', 'ab-carta ab-carta--1', 'ab-carta ab-carta--2', 'ab-carta ab-carta--3']) assert.equal(animado.split(`<g class="${c}">`).length, 2, 'uma vez: ' + c);
   // tirando os grupos, sobra exatamente o ícone
   let limpo = animado; for (let i = 0; i < 5; i++) limpo = limpo.replace(/<g class="ab-[^"]*">(<rect[^>]*\/>)<\/g>/, '$1');
+  // I7 (leva 206) · o ícone animado ganhou ids próprios e a sombra com região fixa (a região pela caixa do grupo mudava a
+  // cada quadro e a sombra tremia embaixo): fora isso, é o ícone
+  assert.match(animado, /<filter id="estante-abertura-sombra" filterUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">/);
+  assert.doesNotMatch(parado, /userSpaceOnUse/, 'o ícone do app e os arquivos gerados não mudam');
+  limpo = limpo.replaceAll('estante-abertura', 'estante-icone').replace('filterUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"', 'x="-20%" y="-20%" width="140%" height="160%"');
   assert.equal(limpo, parado, 'a geometria e as cores são as do ícone');
   assert.ok(animado.indexOf('ab-carta--3') > animado.indexOf('rotate(11 42 29)'), 'a carta de latão cai já dentro da inclinação dela');
 });
@@ -46,6 +51,7 @@ test('J5 · o ícone que a abertura monta é o mesmo ícone do app: só ganha um
 test('J5 · a abertura aparece uma vez por sessão e dura a animação inteira, ou meio segundo com movimento reduzido', () => {
   assert.equal(B.deveAbrir({}), true); assert.equal(B.deveAbrir({ jaAbriu: true }), false, 'recarregar não repete');
   assert.equal(B.deveAbrir({ desligada: true }), false); assert.equal(B.deveAbrir(), true);
-  assert.equal(B.duracaoDaAbertura(false), 1200); assert.equal(B.duracaoDaAbertura(true), 500); assert.equal(B.ABERTURA_MS, 1200);
+  // I7 (leva 206) · de 1,2 s para 2 s, a pedido: dá para ver a animação
+  assert.equal(B.duracaoDaAbertura(false), 2000); assert.equal(B.duracaoDaAbertura(true), 500); assert.equal(B.ABERTURA_MS, 2000);
   assert.equal(B.mostraAbertura(null), null, 'sem janela (teste, servidor) não faz nada');
 });

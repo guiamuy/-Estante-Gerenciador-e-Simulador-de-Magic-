@@ -82,7 +82,10 @@ test('I4 · serviço: buscar só com internet, guarda opções e imagens; escolh
   const clue = { name: 'Clue', types: ['artifact'], colors: [] };
   const ops = await fx.buscar(clue);
   assert.deepEqual(J(ops.map(o => o.id)), ['1', '2']); assert.deepEqual(J(pedidos), ['!"Clue" t:token']);
-  assert.deepEqual(J(aquecidas), ['a1/n', 'a1/s', 'a2/n', 'a2/s'], 'as imagens das opções ficam guardadas');
+  // I7 (leva 206) · expectativa mudou de propósito: liberar o lote não baixa mais nada (a tela baixa ao mostrar, a pequena
+  // primeiro); `guardar` confirma no aparelho depois, em segundo plano
+  assert.deepEqual(J(aquecidas), [], 'liberar as artes não espera download nenhum');
+  await fx.guardar(ops); assert.deepEqual(J(aquecidas), ['a1/s', 'a1/n', 'a2/s', 'a2/n'], 'as imagens das opções ficam guardadas');
   assert.deepEqual(J((await fx.estado()).opcoes['ficha:clue'].map(o => o.id)), ['1', '2'], 'as opções ficam no aparelho');
   // sem internet: buscar recusa; o que já foi baixado continua à mão
   rede = false; await assert.rejects(fx.buscar(clue), /sem-rede/); assert.equal((await fx.estado()).opcoes['ficha:clue'].length, 2);

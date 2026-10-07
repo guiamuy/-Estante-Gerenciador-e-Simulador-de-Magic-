@@ -124,3 +124,17 @@ test('J2 · à vista ou escondido: dentro da janela, acima da bandeja e dentro d
   assert.deepEqual(e(caixa(650), { alturaDaJanela: 780 }), [false, false, false], 'tela sem bandeja nem fileira');
   assert.deepEqual(e(caixa(700), { alturaDaJanela: 780 }), [true, false, true]);
 });
+
+/* ---------------- I7 · acabamento ---------------- */
+test('I7 · contrato: o toque não mostra realce do navegador, e toda camada de tela inteira com fundo se estende além da caixa', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('./index.html', import.meta.url), 'utf8').split('</style>')[0];
+  assert.match(css, /\nhtml \{ -webkit-tap-highlight-color: transparent; \}/, 'realce de toque desligado na raiz (a propriedade é herdada)');
+  assert.match(css, /:focus:not\(:focus-visible\) \{ outline: none; \}/, 'tocar não desenha contorno; o teclado desenha');
+  // camada fixa que cobre a tela e tem fundo: sem a sombra de 100vmax sobra uma faixa do app embaixo quando a barra do
+  // navegador recolhe. Camada sem fundo (efeitos da mesa) não precisa.
+  const regras = css.match(/[^{}\n]+\{[^{}]*position: fixed; inset: 0;[^{}]*\}/g) || [];
+  assert.ok(regras.length >= 4, 'camadas de tela inteira encontradas: ' + regras.length);
+  const semSangria = regras.filter(r => /background(-color)?:/.test(r) && !/box-shadow: 0 0 0 100vmax/.test(r)).map(r => r.split('{')[0].trim());
+  assert.deepEqual(semSangria, [], 'camada com fundo e sem a sangria');
+});
