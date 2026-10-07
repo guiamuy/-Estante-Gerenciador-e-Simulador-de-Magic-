@@ -2623,6 +2623,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Aceite:** `Leva M-10` do motor passa ao lado da `Leva 10` e da `Leva B-10` do bot; prefixo de outra trilha é barrado com o prefixo certo na mensagem.
 - **Testes:** `agregacao.unit` Q13 (2). **Fora:** renumerar o histórico; obrigar as outras trilhas a migrar (cada uma adota quando quiser, a partir do maior número publicado).
 
+**X11 · Linha de coleção estável (correção pedida pelo dono, feita pela trilha do motor)** 🟡 (leva M-207) — o teste `e2e · X11 scanner com foto de carta inclinada` derrubava o portão de todas as trilhas em cerca de uma rodada a cada três. Não era só o teste: o scanner entregava ao leitor, em parte dos quadros, a beira da moldura no lugar da linha de coleção, e a edição não saía.
+- **Causa:** com carta de borda preta sobre fundo escuro, o contorno alterna entre a borda de fora e a moldura de dentro; a faixa de coleção (17% da altura) cortava a segunda linha, e o seletor de linha escolhia a moldura hachurada de tom médio, que passava por "borda preta".
+- **Correção no scanner:** faixa de coleção com 22% da altura; o seletor só aceita linha cuja margem de cima também é escura (o texto fica dentro da borda preta).
+- **Medição:** conjunto de 27 fotos — nome 27/27 (igual), edição 22/27 → 24/27. O e2e passou 10 de 10 rodadas seguidas (antes, 5 de 8).
+- **No teste:** a conferência com OCR de verdade olha todos os recortes distintos que o leitor recebeu (até 18), não só os quatro primeiros do nome e o primeiro da coleção; a afirmação é a mesma.
+- **Fora:** com duas cópias do teste rodando ao mesmo tempo, "a carta parada não entra de novo" contou 2 uma vez — fica para a trilha do scanner investigar.
+
 **CR0 · Mapa regra × motor** ✅ (leva 194, motor v72 sem mudança) — 14 auditores independentes, um por trecho das regras, cada um obrigado a mostrar evidência vista e a escolher o nível mais baixo na dúvida.
 
 | Fase | Cobertos | Parciais | Ausentes | Definição | Fora | Cobertos ÷ aplicáveis |

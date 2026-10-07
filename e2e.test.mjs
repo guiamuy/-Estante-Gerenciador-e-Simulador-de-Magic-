@@ -3523,13 +3523,23 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
     // primeiro depois de zerar a lista era sempre a linha do nome; com a máquina carregada o laço está no meio do
     // rodízio e o primeiro é outro recorte. A afirmação continua a mesma — a linha do nome que o leitor recebeu é
     // legível pelo OCR de verdade — conferida nos primeiros recortes distintos, na ordem em que chegaram.
-    const distintos = [...new Map(imgs.map(b => [b.toString('base64'), b])).values()].slice(0, 4);
+    // Leva M-207 · o rodízio tem sete recortes (medido: nome, vazios, um trecho da arte, vazios); começando no meio dele a
+    // linha do nome pode ser o quinto recorte distinto, e o corte em quatro dava falso vermelho. Confere todos os que o
+    // leitor guardou (até 18, mais de duas voltas do rodízio) e para no primeiro legível.
+    const distintos = [...new Map(imgs.map(b => [b.toString('base64'), b])).values()];
     const lidas = []; for (const im of distintos) { lidas.push((await worker.recognize(im)).data.text.trim()); if (/Counterspell/.test(lidas.at(-1))) break; }
     const nome = lidas.find(x => /Counterspell/.test(x)) || lidas.join(' | ');
     assert.match(nome, /Counterspell/, 'a linha que saiu do navegador tem o nome legível: "' + nome + '"');
     await worker.setParameters({ tessedit_pageseg_mode: '6' });
-    const col = (await worker.recognize(imgsColecao[0])).data.text;
-    assert.match(col, /267/, 'número de coleção legível: "' + col.trim() + '"'); assert.match(col, /MH2/, 'edição legível: "' + col.trim() + '"');
+    // Leva M-207 · mesma corrida da leva 182, agora no segundo leitor (portão vermelho em 3 de 6 rodadas em 06–07/10, sempre
+    // com lixo do tipo "ON WE EE NE NE UE WE"): `imgsColecao[0]` supunha que o primeiro recorte entregue era o da linha de
+    // coleção já enquadrada; com a máquina carregada chega antes um recorte de outro quadro. A afirmação não muda — o
+    // recorte da linha de coleção que o leitor recebeu é legível pelo OCR de verdade (número E edição no mesmo recorte) —,
+    // conferida nos primeiros recortes distintos, na ordem em que chegaram.
+    const distintosCol = [...new Map(imgsColecao.map(b => [b.toString('base64'), b])).values()];
+    const lidasCol = []; for (const im of distintosCol) { lidasCol.push((await worker.recognize(im)).data.text.trim()); if (/267/.test(lidasCol.at(-1)) && /MH2/.test(lidasCol.at(-1))) break; }
+    const col = lidasCol.find(x => /267/.test(x) && /MH2/.test(x)) || lidasCol.join(' | ');
+    assert.match(col, /267/, 'número de coleção legível: "' + col + '"'); assert.match(col, /MH2/, 'edição legível: "' + col + '"');
   } finally { await worker.terminate(); }
 });
 

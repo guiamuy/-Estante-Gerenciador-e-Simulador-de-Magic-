@@ -19871,7 +19871,7 @@ function linhaDoNome(d, w, h, { altMin = ALTURA_NOME.min / FAIXA_NOME.h, altMax 
   const { abs, max, round, sqrt } = Math;
   const g = new Float32Array(w * h);
   for (let i = 0, j = 0; j < w * h; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-  const S = new Float64Array(h + 1);
+  const S = new Float64Array(h + 1), E = new Float64Array(h + 1); // E: fração escura acumulada por linha (só em sobreEscuro)
   // sobreEscuro (linha de coleção): só contam as linhas em que o fundo é a borda preta; a textura da moldura
   // e a beira da caixa de texto também têm traços, mas sobre fundo claro
   let corte = 0;
@@ -19880,7 +19880,7 @@ function linhaDoNome(d, w, h, { altMin = ALTURA_NOME.min / FAIXA_NOME.h, altMax 
     let s = 0, escuros = 0;
     for (let x = 2; x < w - 2; x++) { s += abs(g[y * w + x + 1] - g[y * w + x - 1]); if (g[y * w + x] < corte) escuros++; }
     const peso = sobreEscuro ? max(0, (escuros / (w - 4) - 0.5) * 2) : 1;
-    S[y + 1] = S[y] + s / w * peso;
+    S[y + 1] = S[y] + s / w * peso; E[y + 1] = E[y] + escuros / (w - 4);
   }
   const media = (a, b) => (S[b] - S[a]) / max(1, b - a);
   let melhor = null;
@@ -19888,6 +19888,10 @@ function linhaDoNome(d, w, h, { altMin = ALTURA_NOME.min / FAIXA_NOME.h, altMax 
   for (let a = max(4, round(h * altMin)); a <= round(h * altMax); a += passo) {
     const m = max(2, round(a * 0.3));
     for (let y0 = 0; y0 + a <= h; y0++) {
+      // Leva M-207 · na linha de coleção o texto fica DENTRO da borda preta: a margem de cima também é preta. Uma moldura de
+      // tom médio com hachura (escura para o corte, cheia de traços) tem a caixa de texto clara logo acima e ganhava do
+      // texto quando a faixa cortava a segunda linha — o leitor recebia a beira da moldura (portão vermelho no e2e X11)
+      if (sobreEscuro && y0 - m >= 0 && (E[y0] - E[y0 - m]) / m < 0.5) continue;
       const dentroM = media(y0, y0 + a);
       // quem encosta na borda da faixa não tem "calma" daquele lado: conta como igual ao de dentro
       const cima = y0 - m >= 0 ? media(y0 - m, y0) : dentroM, baixo = y0 + a + m <= h ? media(y0 + a, y0 + a + m) : dentroM;
@@ -19968,7 +19972,9 @@ function recorteDaFaixa(cantosFr, F, vw, vh, folga = 4) {
 }
 /** Linha de coleção na carta retificada (canto de baixo, à esquerda). Passa da borda de propósito: o
     quadrilátero achado pode ser a moldura de dentro, e aí o texto fica abaixo dele. */
-const FAIXA_COLECAO = { x: -0.02, y: 0.90, w: 0.56, h: 0.17 };
+// Leva M-207 · altura 0,17 → 0,22: com carta de borda preta sobre fundo escuro o contorno às vezes para na moldura de dentro,
+// e a faixa antiga cortava a segunda linha (edição). Medido no conjunto de fotos: edição 22/27 → 24/27.
+const FAIXA_COLECAO = { x: -0.02, y: 0.90, w: 0.56, h: 0.22 };
 const ALTURA_COLECAO = { min: 0.024, max: 0.052 };   // as duas linhas juntas, em frações da altura da carta
 /** O mesmo caminho do nome para a linha de coleção: retifica o canto de baixo, acha o bloco de duas linhas
     miúdas, binariza (texto claro sobre a borda preta vira preto no branco) e limpa as bordas. */
