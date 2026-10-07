@@ -454,7 +454,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bq ✅ | J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, três cartas) em 1,2 s, sem segurar o app nem receber toque; uma vez por sessão (leva 205) | J | 1 | teste no aparelho |
 | 16º-br ✅ | J6 botão de ação: componente `BotaoDeAcao`, Listas (Nova lista, Prontas) e Coleção (Escanear, Adicionar, Colar lista); o bot joga com a arte padrão (leva 208) | J | 1 | teste no aparelho |
 | 16º-bs ✅ | J7 botão de ação na Lista (Jogar, Editar, Exportar; Jogar abre o preparo com a lista escolhida) e em Partidas (Jogar); Início, Cartas e Jogar sem botão, com o motivo (leva G-209) | J | 1 | teste no aparelho |
-| 16º-bt ○ | N1 coletor de notícias (fluxo agendado, ramo `noticias`) | N | 1 | ADR-08 aceito |
+| 16º-bt ✅ | N1 coletor de notícias: `noticias.mjs` lê seis fontes (RSS e Atom), normaliza, tira repetidos, guarda 30 dias em páginas de 20; fluxo agendado de hora em hora publica no ramo `noticias` (leva G-210) | N | 1 | primeira coleta conferida no ramo |
 | 16º-bu ○ | N2 tela Notícias com rolagem infinita e estados desenhados | N | 1 | — |
 | 16º-bv ○ | N3 filtros por fonte e tema, novas, atualizar | N | 1 | — |
 | 16º-bw ○ | N4 guardar e compartilhar notícia | N | 1 | — |
@@ -5772,7 +5772,7 @@ pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento n
 bem-feita quando não houver o que carregar, juntando as melhores fontes, no design system do app e com as
 mecânicas dos melhores leitores de notícia.
 
-**Decisão de arquitetura (ADR-08, a confirmar com o usuário antes da N1):** o navegador não consegue ler o RSS de
+**Decisão de arquitetura (ADR-08, aceita pelo dono em 07/10/2026):** o navegador não consegue ler o RSS de
 outros sites (bloqueio de origem) e o app não tem servidor. Um **fluxo agendado do GitHub Actions** lê as fontes de
 hora em hora, normaliza e publica páginas JSON prontas num **ramo próprio (`noticias`)**, que o app lê. O `main`
 não recebe esses commits (a guarda de agregação e o histórico das levas ficam intactos). Custo: zero; atraso
@@ -5782,22 +5782,49 @@ some sem aviso).
 **Conteúdo e direito autoral:** o app mostra título, fonte, autor, data, imagem de capa (endereço da própria
 fonte) e um resumo de até 280 caracteres; **o texto completo abre no site da fonte**. Nada de copiar artigo.
 
-**Fontes:** conferidas em 06/10/2026: MTGGoldfish (Atom, 25 itens) e EDHREC (RSS, com imagem). Candidatas a conferir
-na N1, uma a uma (só entra a que tiver feed público e estável): Wizards of the Coast (anúncios), Star City Games,
-Card Kingdom, Hipsters of the Coast, MTG Arena Zone, e uma fonte em português. Fonte sem feed conferido fica fora
-e registrada aqui.
+**Fontes (conferidas uma a uma em 07/10/2026, feed público respondendo):**
 
-**N1 · Coletor de notícias** ○
+| Fonte | Feed | Formato | Observação |
+|---|---|---|---|
+| MTGGoldfish | `mtggoldfish.com/feed` | Atom | sem capa no feed |
+| EDHREC | `edhrec.com/articles/feed` | RSS | capa dentro do resumo; tema fixo Commander |
+| Star City Games | `articles.starcitygames.com/magic-the-gathering/feed/` | RSS | usa o feed só de Magic (o geral traz outros jogos) |
+| Card Kingdom | `blog.cardkingdom.com/feed/` | RSS | capa dentro do resumo |
+| Hipsters of the Coast | `hipstersofthecoast.com/feed/` | RSS | publica também D&D: filtrado |
+| MTG Arena Zone | `mtgazone.com/feed/` | RSS | tema fixo Arena |
+
+**Ficaram fora (sem feed público localizável em 07/10/2026):** Wizards of the Coast (o endereço antigo de RSS
+responde 404), Cards Realm e LigaMagic (português). **Não há fonte em português por enquanto**; entra quando houver
+um feed conferido. Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
+
+**N1 · Coletor de notícias** ✅ (leva G-210, 07/10/2026)
 - **Valor:** as notícias chegam sozinhas, de várias fontes, numa linha do tempo só.
-- **Aceite:** `noticias.mjs` (Node, sem dependência nova) lê RSS e Atom, normaliza cada item (`id`, `titulo`,
-  `resumo` ≤ 280 sem HTML, `url`, `fonte`, `autor`, `data` ISO, `imagem`, `idioma`, `temas`), descarta repetidos
-  (mesmo endereço ou mesmo título no mesmo dia), ordena por data, corta em páginas de 20 (`pagina-1.json`…,
-  `indice.json` com total, páginas e hora da coleta) e mantém os últimos 30 dias. Fonte fora do ar não derruba a
-  coleta: as outras entram e a falha fica no índice. Fluxo agendado (de hora em hora) publica no ramo `noticias`.
-- **Testes:** U com feeds de exemplo guardados no repositório (RSS, Atom, HTML no resumo, data inválida, item sem
-  imagem, repetido, fonte que falha, paginação, janela de 30 dias); o portão não depende da rede.
-- **Depende de:** ADR-08 aceito. · **Trilha:** `geral`, com um arquivo de fluxo novo (avisar a trilha `infra`).
-- **Estimativa:** 1 leva.
+- **Entregue:** `noticias.mjs` (Node, sem dependência nova) lê RSS 2.0 e Atom, normaliza cada item (`id`, `titulo`,
+  `resumo` ≤ 280 em texto puro, `url`, `fonte`, `autor`, `data` ISO, `imagem`, `idioma`, `temas`), junta com o que já
+  estava publicado, descarta repetidos (mesmo endereço — com rastreio, âncora ou barra a mais — ou mesmo título no
+  mesmo dia), mantém os últimos 30 dias, ordena da mais nova para a mais antiga e corta em páginas de 20
+  (`pagina-1.json`…, `indice.json` com total, páginas, hora da coleta, temas e o estado de cada fonte).
+  Fonte fora do ar ou ilegível não derruba a coleta: as outras entram, o que ela já tinha continua e a falha fica
+  no índice. Se todas caem, o que estava publicado continua no ar e o fluxo acusa.
+- **Fluxo:** `.github/workflows/noticias.yml`, de hora em hora (minuto 17) e por disparo manual, publica no ramo
+  **`noticias`**. O `main` não recebe commit. Sem notícia nova o índice só é regravado a cada 6 h (não vira um
+  commit por hora).
+- **Segurança e direito autoral:** só endereço `http(s)` entra (capa só `https`); título e resumo saem sem HTML e
+  sem script; o corpo da matéria nunca é guardado; o rodapé automático do feed ("The post … appeared first on …") sai.
+- **Temas** (para a N3): `commander`, `pauper`, `arena`, `lancamentos`, `competitivo`, pelo título e pelas
+  categorias do feed, mais o tema fixo da fonte.
+- **Limites declarados:** matéria de outro jogo (D&D, Lorcana, Riftbound, Pokémon…) fica fora pelo título e pela
+  categoria — uma matéria de Magic marcada com a categoria de outro jogo sai junto; o leitor de XML é o mínimo para
+  RSS e Atom (não é um leitor geral de XML); item com data inválida é descartado; fonte que não manda capa fica
+  sem capa (a N2 desenha a capa em traço); as palavras dos temas são em inglês (todas as fontes são).
+- **Como o app vai ler (N2):** `https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/noticias/indice.json`
+  e `pagina-N.json` (o endereço aceita leitura de outra origem).
+- **Testes:** U `noticias.unit` com feeds de exemplo inventados em `.noticias/` (RSS, Atom, HTML e script no
+  resumo, entidade dentro de entidade, data inválida e no futuro, item sem imagem, pixel de rastreio, capa em http,
+  endereço perigoso, outro jogo, repetido, fonte que falha e fonte ilegível, paginação, janela de 30 dias, não
+  regravar sem novidade, página que sobra some); o portão não depende da rede.
+- **Depende de:** ADR-08 aceito. · **Trilha:** `geral`, com um arquivo de fluxo novo — **aviso à trilha `infra`:**
+  `noticias.yml` é independente do Portão de release e só escreve no ramo `noticias`.
 
 **N2 · Tela Notícias** ○
 - **Valor:** saber o que está acontecendo no Magic sem sair do app.

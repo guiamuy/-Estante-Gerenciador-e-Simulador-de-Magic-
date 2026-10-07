@@ -1,0 +1,51 @@
+# N1 · Notícias (ADR-08). De hora em hora lê os feeds das fontes e publica JSON pronto no ramo `noticias`.
+# O `main` não recebe commit daqui: a guarda de agregação e o histórico das levas ficam como estão.
+# O push com o GITHUB_TOKEN não dispara outros fluxos (o Portão de release não roda para o ramo `noticias`).
+# Trilha: geral (arquivo de fluxo novo; a trilha infra foi avisada no ROADMAP, história N1).
+name: Notícias
+
+on:
+  schedule:
+    - cron: '17 * * * *'   # de hora em hora, fora do minuto cheio (o GitHub atrasa menos)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: noticias
+  cancel-in-progress: false
+
+jobs:
+  coleta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Trazer o que já está publicado (ou começar o ramo vazio)
+        run: |
+          if git ls-remote --exit-code --heads origin noticias > /dev/null; then
+            git fetch --depth 1 origin noticias
+            git worktree add saida FETCH_HEAD
+            git -C saida switch -c noticias
+          else
+            git worktree add --detach saida
+            git -C saida switch --orphan noticias
+            printf '%s\n' '# Estante · notícias' '' 'Ramo gerado pelo fluxo "Notícias" (`noticias.mjs`, no `main`). Não edite à mão: cada coleta regrava os arquivos.' > saida/README.md
+          fi
+      - name: Coletar
+        id: coleta
+        run: node noticias.mjs --saida saida
+      # Roda também quando a coleta acusa (todas as fontes fora do ar): o índice com as falhas é publicado e o que
+      # já estava no ar continua lá.
+      - name: Publicar no ramo noticias
+        if: always() && steps.coleta.conclusion != 'skipped'
+        run: |
+          cd saida
+          git add -A
+          if git diff --cached --quiet; then echo "sem mudança"; exit 0; fi
+          git -c user.name="estante-noticias" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit --quiet -m "Notícias · coleta de $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin noticias

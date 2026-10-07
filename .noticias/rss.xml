@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Feed de exemplo (inventado) no formato dos feeds RSS 2.0 de WordPress conferidos em 07/10/2026. Usado só pelos testes. -->
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
+<channel>
+  <title>Exemplo RSS</title>
+  <atom:link href="https://exemplo.test/feed/" rel="self" type="application/rss+xml" />
+  <link>https://exemplo.test</link>
+  <item>
+    <title>Budget Lifegain &amp;#8211; A Commander Deck Tech</title>
+    <link>https://exemplo.test/budget-lifegain/?utm_source=rss&amp;utm_medium=feed</link>
+    <dc:creator><![CDATA[Ana Autora]]></dc:creator>
+    <pubDate>Tue, 06 Oct 2026 10:30:59 +0000</pubDate>
+    <category><![CDATA[Articles]]></category>
+    <category><![CDATA[Deck Techs]]></category>
+    <guid isPermaLink="false">https://exemplo.test/?p=101</guid>
+    <description><![CDATA[<p><img width="1" height="1" src="https://exemplo.test/pixel.gif" /><img src="https://exemplo.test/capa-lifegain.jpg" alt="" />Gaining life is <strong>fun</strong> &amp; cheap. <script>alert(1)</script>Here&#8217;s how to build it. [&#8230;]</p>
+<p>The post <a href="https://exemplo.test/budget-lifegain/">Budget Lifegain</a> appeared first on <a href="https://exemplo.test">Exemplo</a>.</p>]]></description>
+    <content:encoded><![CDATA[<p>Texto inteiro da matéria, que nunca deve sair do coletor.</p>]]></content:encoded>
+  </item>
+  <item>
+    <title>Pauper Metagame Update</title>
+    <link>https://exemplo.test/pauper-metagame/</link>
+    <dc:creator>Bruno</dc:creator>
+    <pubDate>Mon, 05 Oct 2026 18:46:11 +0000</pubDate>
+    <category>Pauper</category>
+    <media:content url="https://exemplo.test/capa-pauper.png" medium="image" />
+    <description>The metagame keeps shifting week after week and this report walks through every deck that matters. The metagame keeps shifting week after week and this report walks through every deck that matters. The metagame keeps shifting week after week and this report walks through every deck that matters. The metagame keeps shifting week after week and this report walks through every deck that matters. The metagame keeps shifting week after week and this report walks through every deck that matters.</description>
+  </item>
+  <item>
+    <title>Sem imagem e sem autor</title>
+    <link>https://exemplo.test/sem-imagem/</link>
+    <pubDate>Sun, 04 Oct 2026 09:00:00 +0000</pubDate>
+    <description>Uma nota curta.</description>
+  </item>
+  <item>
+    <title>Data que não é data</title>
+    <link>https://exemplo.test/data-ruim/</link>
+    <pubDate>ontem à tarde</pubDate>
+    <description>Não entra.</description>
+  </item>
+  <item>
+    <title>Getting Ready for Dungeons &amp; Dragons Night</title>
+    <link>https://exemplo.test/outro-jogo/</link>
+    <pubDate>Mon, 05 Oct 2026 16:00:56 +0000</pubDate>
+    <category>dnd</category>
+    <description>Outro jogo: fica fora.</description>
+  </item>
+  <item>
+    <title>Budget Lifegain – A Commander Deck Tech</title>
+    <link>https://exemplo.test/budget-lifegain-republicado/</link>
+    <pubDate>Tue, 06 Oct 2026 22:00:00 +0000</pubDate>
+    <description>O mesmo título no mesmo dia: repetido.</description>
+  </item>
+  <item>
+    <title>Endereço perigoso</title>
+    <link>javascript:alert(1)</link>
+    <pubDate>Tue, 06 Oct 2026 08:00:00 +0000</pubDate>
+    <description>Não entra.</description>
+  </item>
+  <item>
+    <title>Notícia velha</title>
+    <link>https://exemplo.test/velha/</link>
+    <pubDate>Mon, 03 Aug 2026 08:00:00 +0000</pubDate>
+    <enclosure url="http://exemplo.test/capa-insegura.jpg" type="image/jpeg" length="1" />
+    <description>Fora da janela de 30 dias.</description>
+  </item>
+</channel>
+</rss>

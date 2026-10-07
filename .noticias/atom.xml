@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Feed de exemplo (inventado) no formato Atom conferido em 07/10/2026. Usado só pelos testes. -->
+<feed xml:lang="en-US" xmlns="http://www.w3.org/2005/Atom">
+  <id>tag:atom.test,2005:/feed</id>
+  <link rel="alternate" type="text/html" href="https://atom.test"/>
+  <link rel="self" type="application/atom+xml" href="https://atom.test/feed"/>
+  <title>Exemplo Atom</title>
+  <updated>2026-10-07T15:00:03Z</updated>
+  <entry>
+    <id>tag:atom.test,2005:Article/2</id>
+    <published>2026-10-07T15:00:03Z</published>
+    <updated>2026-10-07T16:00:00Z</updated>
+    <link rel="alternate" type="text/html" href="https://atom.test/articles/mill-is-card-draw"/>
+    <title>When Every Card You Mill Is Card Draw | Against the Odds</title>
+    <summary>Is it crazy enough to bring back an old favorite in Standard?</summary>
+    <content type="html">&lt;p&gt;&lt;img src="https://atom.test/capa-mill.jpg"&gt;Is it crazy enough?&lt;/p&gt;</content>
+    <author><name>Carla</name></author>
+    <category term="Against the Odds"/>
+  </entry>
+  <entry>
+    <id>tag:atom.test,2005:Article/1</id>
+    <updated>2026-10-06T12:00:00Z</updated>
+    <link href="https://atom.test/articles/set-preview#comentarios"/>
+    <title type="html">New Set Preview: &lt;em&gt;First Look&lt;/em&gt;</title>
+    <summary type="html">&lt;p&gt;A first look at the next set.&lt;/p&gt;</summary>
+    <author><name>Davi</name></author>
+  </entry>
+</feed>
