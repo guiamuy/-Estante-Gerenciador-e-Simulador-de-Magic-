@@ -7922,3 +7922,58 @@ test('e2e · J4 carregamento com identidade: cartas que se arrumam na prateleira
   }
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- J5 · abertura ---------------- */
+test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, três cartas) e some sozinho em até 1,2 s; não segura o app, não recebe toque, um toque dispensa, não repete ao recarregar nem ao trocar de tela; parada com movimento reduzido', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // um observador anota a vida da abertura desde o primeiro instante da página
+  await page.addInitScript(() => { window.__ab = { nasceu: 0, sumiu: 0, comApp: null, quadros: [] };
+    const o = new MutationObserver(() => { const a = document.querySelector('#abertura');
+      if (a && !window.__ab.nasceu) { window.__ab.nasceu = performance.now(); window.__ab.html = a.innerHTML; window.__ab.parada = a.dataset.parada; window.__ab.eventos = getComputedStyle(a).pointerEvents; window.__ab.cobre = a.getBoundingClientRect().width >= innerWidth && a.getBoundingClientRect().height >= innerHeight;
+        window.__ab.anima = [...a.querySelectorAll('.ab-carta, .ab-moldura, .ab-tabua, .abertura__ladrilho')].map(e => getComputedStyle(e).animationName); window.__ab.atrasos = [...a.querySelectorAll('.ab-carta')].map(e => parseFloat(getComputedStyle(e).animationDelay)); }
+      if (a && window.__ab.comApp == null && document.querySelector('#home-atalhos')) window.__ab.comApp = true;
+      if (!a && window.__ab.nasceu && !window.__ab.sumiu) window.__ab.sumiu = performance.now(); });
+    document.addEventListener('DOMContentLoaded', () => o.observe(document.body, { childList: true, subtree: true })); });
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  // 1 · o app já está montado por baixo enquanto a abertura ainda está na tela (ela não segura nada)
+  assert.equal(await page.locator('#abertura').count(), 1, 'a abertura está na tela');
+  if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/j5-meio.png' }); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/j5-fim.png' }); }
+  await page.waitForFunction(() => window.__ab.sumiu > 0, null, { timeout: 5000 });
+  const ab = await page.evaluate(() => window.__ab);
+  assert.equal(ab.comApp, true, 'a tela inicial chegou com a abertura ainda visível');
+  assert.equal(ab.eventos, 'none', 'a camada não recebe toque: o app por baixo responde'); assert.equal(ab.cobre, true); assert.equal(ab.parada, 'false');
+  const vida = ab.sumiu - ab.nasceu; assert.ok(vida >= 1100 && vida <= 1700, `dura a animação (1,2 s) mais o esmaecer: ${Math.round(vida)} ms`);
+  // 2 · o que ela monta: o ícone do app, parte por parte, a de latão por último
+  assert.deepEqual(ab.anima.sort(), ['ab-cai', 'ab-cai', 'ab-cai', 'ab-estende', 'ab-pousa', 'ab-surge']);
+  assert.ok(ab.atrasos[0] < ab.atrasos[1] && ab.atrasos[1] < ab.atrasos[2], 'as cartas caem uma depois da outra: ' + ab.atrasos);
+  assert.ok(ab.atrasos[2] * 1000 + 420 <= 1200, 'a última carta pousa antes de a abertura sair');
+  const iguais = await page.evaluate(html => { const limpa = h => h.replace(/<g class="ab-[^"]*">(<rect[^>]*>)(<\/rect>)?<\/g>/g, '$1$2').replace(/\s(width|height)="\d+"/g, ''); const t = document.createElement('div'); t.innerHTML = html;
+    const meu = limpa(t.querySelector('svg').outerHTML), barra = limpa(document.querySelector('.ds-appbar .brand-tile svg').outerHTML); return meu === barra; }, ab.html);
+  assert.equal(iguais, true, 'o último quadro é o ícone do app (o mesmo desenho da barra)');
+  assert.equal(await page.locator('#abertura').count(), 0); assert.equal(await page.locator('#home-atalhos').isVisible(), true);
+  // 3 · não repete: recarregar na mesma sessão e trocar de tela não mostram de novo
+  await page.evaluate(() => { window.__viu = 0; new MutationObserver(() => { if (document.querySelector('#abertura')) window.__viu++; }).observe(document.body, { childList: true }); });
+  await page.click('#nav-decks'); await page.waitForSelector('#decks-list'); await page.click('#nav-collection'); await page.waitForTimeout(200);
+  assert.equal(await page.evaluate(() => window.__viu), 0, 'trocar de tela não abre de novo');
+  await page.reload(); await page.waitForSelector('#col-dash-toggle, #col-vazio'); await page.waitForTimeout(150);
+  assert.equal(await page.evaluate(() => window.__ab.nasceu), 0, 'recarregar na mesma sessão não abre de novo');
+  // 4 · sessão nova: abre de novo, e um toque dispensa na hora — o mesmo toque já vale no app por baixo
+  await page.evaluate(() => sessionStorage.clear()); await page.goto(base + '#/'); await page.reload(); await page.waitForSelector('#abertura'); await page.waitForSelector('#nav-decks');
+  const t0 = Date.now(); await page.click('#nav-decks'); await page.waitForSelector('#decks-list');
+  await page.waitForFunction(() => !document.querySelector('#abertura'), null, { timeout: 2000 });
+  assert.ok(Date.now() - t0 < 900, 'o toque dispensou antes do fim da animação: ' + (Date.now() - t0) + ' ms');
+  assert.match(page.url(), /#\/listas/, 'e o toque chegou ao app');
+  // 5 · movimento reduzido: logo parado, sem animação, some em meio segundo
+  await page.emulateMedia({ reducedMotion: 'reduce' }); await page.evaluate(() => sessionStorage.clear()); await page.reload(); await page.waitForFunction(() => window.__ab.nasceu > 0);
+  await page.waitForFunction(() => window.__ab.sumiu > 0, null, { timeout: 4000 });
+  const parada = await page.evaluate(() => window.__ab);
+  assert.equal(parada.parada, 'true'); assert.ok(parada.anima.every(a => a === 'none'), 'nada se move: ' + parada.anima);
+  assert.ok(parada.sumiu - parada.nasceu <= 1000, 'meio segundo de logo parado: ' + Math.round(parada.sumiu - parada.nasceu) + ' ms');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // 6 · sem internet também abre (nada vem da rede)
+  await page.context().setOffline(true); await page.evaluate(() => sessionStorage.clear()); await page.reload().catch(() => {});
+  if (await page.locator('#app').count()) { await page.waitForFunction(() => window.__ab && window.__ab.nasceu > 0, null, { timeout: 5000 }).catch(() => {}); }
+  await page.context().setOffline(false);
+  assert.deepEqual(errors, []);
+});

@@ -31,3 +31,21 @@ test('E50 · o PNG de instalação existe em 512×512 e não é o antigo (gerado
   assert.equal(png.readUInt32BE(16), 512); assert.equal(png.readUInt32BE(20), 512);
   assert.ok(png.length > 20000, 'o ícone com relevo tem degradês e sombra; o antigo, chapado, tinha 3 KB');
 });
+
+/* ---------------- J5 · abertura ---------------- */
+test('J5 · o ícone que a abertura monta é o mesmo ícone do app: só ganha um grupo com classe em volta de cada parte', () => {
+  const parado = B.iconeDoApp({ tamanho: 112 }), animado = B.iconeDoApp({ tamanho: 112, animado: true });
+  assert.notEqual(animado, parado);
+  for (const c of ['ab-moldura', 'ab-tabua', 'ab-carta ab-carta--1', 'ab-carta ab-carta--2', 'ab-carta ab-carta--3']) assert.equal(animado.split(`<g class="${c}">`).length, 2, 'uma vez: ' + c);
+  // tirando os grupos, sobra exatamente o ícone
+  let limpo = animado; for (let i = 0; i < 5; i++) limpo = limpo.replace(/<g class="ab-[^"]*">(<rect[^>]*\/>)<\/g>/, '$1');
+  assert.equal(limpo, parado, 'a geometria e as cores são as do ícone');
+  assert.ok(animado.indexOf('ab-carta--3') > animado.indexOf('rotate(11 42 29)'), 'a carta de latão cai já dentro da inclinação dela');
+});
+
+test('J5 · a abertura aparece uma vez por sessão e dura a animação inteira, ou meio segundo com movimento reduzido', () => {
+  assert.equal(B.deveAbrir({}), true); assert.equal(B.deveAbrir({ jaAbriu: true }), false, 'recarregar não repete');
+  assert.equal(B.deveAbrir({ desligada: true }), false); assert.equal(B.deveAbrir(), true);
+  assert.equal(B.duracaoDaAbertura(false), 1200); assert.equal(B.duracaoDaAbertura(true), 500); assert.equal(B.ABERTURA_MS, 1200);
+  assert.equal(B.mostraAbertura(null), null, 'sem janela (teste, servidor) não faz nada');
+});

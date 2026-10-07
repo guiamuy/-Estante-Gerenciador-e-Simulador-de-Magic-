@@ -448,7 +448,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bn ✅ | J2 ficar onde está (mesa): fileiras e página não voltam ao começo ao agir; a mesa só anda para mostrar o que está fora da vista (`levaSeEscondido`) (leva 197) | J | 1 | teste no aparelho |
 | 16º-bo ✅ | J3 leque das viradas: atacantes iguais sem bloqueio ficam num leque só, dos dois lados (os terrenos virados já juntavam) (leva 199) | J | 1 | teste no aparelho |
 | 16º-bp ✅ | J4 carregamento com identidade: `Carregando` (cartas que se arrumam na prateleira, três tamanhos) e `Esqueleto` de lista, trocados nas esperas de tela e de bloco (leva 203) | J | 1 | teste no aparelho |
-| 16º-bq ○ | J5 abertura que termina no logo | J | 1 | — |
+| 16º-bq ✅ | J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, três cartas) em 1,2 s, sem segurar o app nem receber toque; uma vez por sessão (leva 205) | J | 1 | teste no aparelho |
 | 16º-br ○ | J6 botão de ação flutuante: componente, Listas, Lista e Coleção | J | 1 | — |
 | 16º-bs ○ | J7 botão de ação no resto do app | J | 1 | — |
 | 16º-bt ○ | N1 coletor de notícias (fluxo agendado, ramo `noticias`) | N | 1 | ADR-08 aceito |
@@ -5582,15 +5582,30 @@ pixels; `auditaTela` nas quatro larguras e com a fonte larga do CI); movimento n
 - **Depende de:** J1.
 - **Fora:** esqueleto em forma de grade de cartas (a lista aberta usa a espera de tela); barra de progresso.
 
-**J5 · Abertura** ○
+**J5 · Abertura** ✅ (leva 205, 06/10/2026)
 - **Valor:** o app abre como um objeto bem-feito: as cartas se arrumam na estante e viram o logo.
-- **Aceite:** na abertura fria, animação plana com sombra curta (a mesma dos botões), de até 1,2 s, que termina
-  exatamente no ícone do app e passa para a tela inicial sem corte. Nunca segura o app: se tudo já carregou, um
-  toque pula; se o carregamento passar de 1,2 s, a animação entrega para o `Carregando` (J4). Não aparece ao trocar
-  de tela nem ao voltar do segundo plano. Movimento reduzido: logo parado com esmaecer. Vale também sem internet.
-- **Testes:** e2e (aparece só na abertura fria, termina no logo, pula ao toque, tempo máximo, movimento reduzido,
-  sem erro de console); medida do tempo até a primeira tela antes e depois (não pode piorar).
-- **Depende de:** J4. · **Estimativa:** 1 leva.
+- **Entregue:** ao abrir o app, sobre o fundo do tema, **o ícone se monta**: o ladrilho pousa (com a sombra dele), a
+  moldura e a tábua da estante aparecem e as três cartas caem no lugar, uma depois da outra — a de latão por último,
+  já inclinada. Plano, com a sombra curta e o relevo do próprio ícone. **O último quadro é exatamente o ícone do
+  app** (o mesmo desenho da barra, medido no teste). Dura 1,2 s (`--dur-abertura`) e esmaece em 180 ms.
+- **Não segura o app:** a tela inicial é montada por baixo enquanto a abertura roda; a camada **não recebe toque**
+  (o app por baixo já responde) e **qualquer toque ou tecla a dispensa** na hora — o mesmo toque já vale no app. Se
+  o carregamento passar de 1,2 s, o que aparece em seguida é a espera do app (`Carregando`, J4).
+- **Quando aparece:** uma vez por sessão (abrir o app instalado ou a aba). Não repete ao recarregar, ao trocar de
+  tela nem ao voltar do segundo plano. Nada vem da rede: vale sem internet.
+- **Movimento reduzido:** o logo parado, sem animação, que esmaece em meio segundo.
+- **Divergência do planejado:** "um toque pula" virou "a camada não recebe toque": o toque vai direto para o app e
+  dispensa a abertura — não há um toque gasto só para pular.
+- **Limite declarado:** a abertura começa depois de o tema ser lido (para não piscar do escuro para o claro); antes
+  disso a tela fica alguns milissegundos no fundo padrão.
+- **Modelo (`brand`):** `iconeDoApp({ animado: true })` (o mesmo ícone com um grupo por parte), `deveAbrir`,
+  `duracaoDaAbertura`, `mostraAbertura`; gancho de teste `window.__SEM_ABERTURA`.
+- **Testes:** U `icone.unit` ×2 (o ícone animado, sem os grupos, é idêntico ao ícone; uma vez por sessão e
+  durações); e2e "J5" (a tela inicial chega com a abertura ainda visível; camada sem toque; duração; as seis
+  animações e a ordem das cartas; último quadro = ícone da barra; não repete ao trocar de tela nem ao recarregar;
+  o toque dispensa e chega ao app; movimento reduzido; sem internet; sem erro de console).
+- **Depende de:** J4.
+- **Fora:** animação entre telas; o ícone voar até a barra.
 
 **J6 · Botão de ação (componente e telas de gestão)** ○
 - **Valor:** a ação principal da tela sempre ao alcance do polegar.

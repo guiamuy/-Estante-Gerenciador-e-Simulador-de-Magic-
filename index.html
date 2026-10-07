@@ -76,6 +76,7 @@
   --dur-pulso-lento: 2400ms; /* D10 · pulso lento e discreto (sem internet na barra) */
   --dur-brilho: 1200ms; /* D10 · brilho de carregamento que atravessa a moldura */
   --dur-arruma: 1680ms; /* J4 · um ciclo do carregamento: três cartas se arrumam na prateleira */
+  --dur-abertura: 1200ms; /* J5 · a abertura inteira: o ladrilho pousa, a estante aparece e as três cartas caem no lugar */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
   --ease-in-out: cubic-bezier(.45, .05, .55, .95);
 
@@ -968,6 +969,26 @@ a { color: var(--accent); }
   animation: ds-spin var(--dur-giro) linear infinite;
 }
 @keyframes ds-spin { to { transform: rotate(360deg) } }
+/* J5 · abertura: ao abrir o app, o ícone se monta — o ladrilho pousa, a moldura e a tábua da estante aparecem e as três
+   cartas caem no lugar, a de latão por último, inclinada. O último quadro é exatamente o ícone do app. A camada não
+   recebe toque (o app por baixo já funciona); qualquer toque ou tecla a dispensa. */
+.abertura { position: fixed; inset: 0; z-index: var(--z-toast); display: flex; align-items: center; justify-content: center; background: var(--bg); pointer-events: none; opacity: 1; transition: opacity var(--dur-2) var(--ease-out); }
+.abertura[data-fim="true"] { opacity: 0; }
+.abertura__ladrilho { display: inline-flex; border-radius: 23.5%; box-shadow: var(--shadow-3); animation: ab-pousa var(--dur-3) var(--ease-out) both; }
+.abertura__ladrilho svg { display: block; border-radius: 23.5%; }
+.ab-moldura { animation: ab-surge var(--dur-3) var(--ease-out) calc(var(--dur-abertura) * .12) both; }
+.ab-tabua { transform-box: fill-box; transform-origin: 50% 50%; animation: ab-estende var(--dur-3) var(--ease-out) calc(var(--dur-abertura) * .18) both; }
+.ab-carta { transform-box: fill-box; transform-origin: 50% 100%; animation: ab-cai var(--dur-4) var(--ease-out) both; }
+.ab-carta--1 { animation-delay: calc(var(--dur-abertura) * .30); }
+.ab-carta--2 { animation-delay: calc(var(--dur-abertura) * .42); }
+.ab-carta--3 { animation-delay: calc(var(--dur-abertura) * .54); }
+@keyframes ab-pousa { from { opacity: 0; transform: translateY(6px) scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes ab-surge { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ab-estende { from { opacity: 0; transform: scaleX(.2); } to { opacity: 1; transform: none; } }
+@keyframes ab-cai { 0% { opacity: 0; transform: translateY(-14px) rotate(-16deg); } 70% { opacity: 1; transform: translateY(.6px) rotate(3deg); } 100% { opacity: 1; transform: none; } }
+/* movimento reduzido: o logo parado, que só esmaece */
+.abertura[data-parada="true"] .abertura__ladrilho, .abertura[data-parada="true"] .ab-moldura, .abertura[data-parada="true"] .ab-tabua, .abertura[data-parada="true"] .ab-carta { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .abertura__ladrilho, .ab-moldura, .ab-tabua, .ab-carta { animation: none; } }
 /* J4 · carregamento com identidade: três cartas se arrumam na prateleira, uma depois da outra, e o ciclo recomeça.
    Três tamanhos: tela (a tela inteira espera), bloco (um trecho espera) e linha (ao lado de um texto curto). */
 .ds-carregando { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); text-align: center; }
@@ -3077,7 +3098,9 @@ function logoLockup(size = 30) {
     porque o ícone de instalação é o mesmo nos dois temas. É a fonte única de icon.svg, icon-512.png
     (gerados por `node gerar-icone.mjs`) e do favicon. Tudo cabe na zona segura de ícone mascarável
     (80% centrais): a marca ocupa de 14 a 50 em 64. */
-function iconeDoApp({ tamanho = 64, ladrilho = true } = {}) {
+function iconeDoApp({ tamanho = 64, ladrilho = true, animado = false } = {}) {
+  // J5 · `animado` embrulha cada parte da marca num grupo com classe, para a abertura montar o ícone; o desenho é o mesmo
+  const parte = (classe, svg) => animado ? `<g class="${classe}">${svg}</g>` : svg;
   const u = 'estante-icone';
   const defs = `<defs>
 <linearGradient id="${u}-fundo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2d1f"/><stop offset=".55" stop-color="#231b13"/><stop offset="1" stop-color="#15100b"/></linearGradient>
@@ -3092,11 +3115,11 @@ function iconeDoApp({ tamanho = 64, ladrilho = true } = {}) {
 <rect x="1.5" y="1.5" width="61" height="61" rx="13.5" fill="none" stroke="url(#${u}-brilho)" stroke-width="1.5"/>
 <rect width="64" height="64" rx="15" fill="url(#${u}-verniz)"/>` : '';
   const marca = `<g filter="url(#${u}-sombra)">
-<rect x="14" y="16" width="36" height="30" rx="4" fill="none" stroke="#f1e8d7" stroke-width="2.4" opacity=".5"/>
-<rect x="19" y="21" width="7.5" height="16" rx="1.6" fill="url(#${u}-marfim)"/>
-<rect x="28.5" y="21" width="7.5" height="16" rx="1.6" fill="url(#${u}-marfim)" opacity=".72"/>
-<g transform="rotate(11 42 29)"><rect x="38" y="19" width="8" height="18" rx="1.6" fill="url(#${u}-latao)" stroke="#5c4415" stroke-width=".6"/></g>
-<rect x="14" y="38" width="36" height="4" rx="2" fill="#f1e8d7"/>
+${parte('ab-moldura', `<rect x="14" y="16" width="36" height="30" rx="4" fill="none" stroke="#f1e8d7" stroke-width="2.4" opacity=".5"/>`)}
+${parte('ab-carta ab-carta--1', `<rect x="19" y="21" width="7.5" height="16" rx="1.6" fill="url(#${u}-marfim)"/>`)}
+${parte('ab-carta ab-carta--2', `<rect x="28.5" y="21" width="7.5" height="16" rx="1.6" fill="url(#${u}-marfim)" opacity=".72"/>`)}
+<g transform="rotate(11 42 29)">${parte('ab-carta ab-carta--3', `<rect x="38" y="19" width="8" height="18" rx="1.6" fill="url(#${u}-latao)" stroke="#5c4415" stroke-width=".6"/>`)}</g>
+${parte('ab-tabua', `<rect x="14" y="38" width="36" height="4" rx="2" fill="#f1e8d7"/>`)}
 </g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="${tamanho}" height="${tamanho}" role="img" aria-label="Estante">${defs}${fundo}${marca}</svg>`;
 }
@@ -3109,7 +3132,37 @@ function installFavicon(doc) {
   link.href = faviconHref();
   return link;
 }
-return { logoSvg, logoLockup, faviconHref, installFavicon, iconeDoApp };
+/* ---------------- J5 · abertura ---------------- */
+const ABERTURA_MS = 1200, ABERTURA_PARADA_MS = 500, ABERTURA_CHAVE = 'estante.abertura';
+/** A abertura aparece uma vez por sessão do app (abrir o app ou a aba), nunca ao recarregar nem ao trocar de tela. */
+const deveAbrir = ({ jaAbriu = false, desligada = false } = {}) => !jaAbriu && !desligada;
+/** Quanto tempo ela fica: a animação inteira, ou meio segundo de logo parado com movimento reduzido. */
+const duracaoDaAbertura = reduzido => (reduzido ? ABERTURA_PARADA_MS : ABERTURA_MS);
+/** Mostra a abertura por cima do app que carrega embaixo. Não segura nada: some sozinha no fim da animação, ou antes,
+    no primeiro toque ou tecla. Devolve { el, fim } ou null quando não é o caso de abrir. */
+function mostraAbertura(win = typeof window !== 'undefined' ? window : null) {
+  if (!win || !win.document || !win.document.body) return null;
+  const doc = win.document;
+  let jaAbriu = false; try { jaAbriu = win.sessionStorage.getItem(ABERTURA_CHAVE) === '1'; } catch (e) { /* sem sessão: abre */ }
+  if (!deveAbrir({ jaAbriu, desligada: !!win.__SEM_ABERTURA })) return null;
+  try { win.sessionStorage.setItem(ABERTURA_CHAVE, '1'); } catch (e) { /* sem sessão: abre de novo na próxima */ }
+  const reduzido = doc.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const el = doc.createElement('div');
+  el.id = 'abertura'; el.className = 'abertura'; el.setAttribute('aria-hidden', 'true'); el.dataset.parada = String(reduzido);
+  el.innerHTML = `<span class="abertura__ladrilho">${iconeDoApp({ tamanho: 112, animado: true })}</span>`;
+  doc.body.appendChild(el);
+  const EVENTOS = ['pointerdown', 'keydown'];
+  let acabou = false, relogio = null;
+  const fim = () => {
+    if (acabou) return; acabou = true; win.clearTimeout(relogio);
+    for (const ev of EVENTOS) win.removeEventListener(ev, fim, true);
+    el.dataset.fim = 'true'; win.setTimeout(() => el.remove(), 220);
+  };
+  for (const ev of EVENTOS) win.addEventListener(ev, fim, true);
+  relogio = win.setTimeout(fim, duracaoDaAbertura(reduzido));
+  return { el, fim };
+}
+return { logoSvg, logoLockup, faviconHref, installFavicon, iconeDoApp, deveAbrir, duracaoDaAbertura, mostraAbertura, ABERTURA_MS };
 })();
 
 /* ==== src/app/ds.js ==== */
@@ -21024,6 +21077,7 @@ async function boot(root) {
     onNovaVersao: () => toast('Nova versão pronta', 0, { acao: { rotulo: 'Atualizar', icone: 'atualizar', onClick: () => location.reload() } })
   });
   await theme.init();
+  __m4.mostraAbertura(); // J5 · com o tema já aplicado; o resto do app carrega por baixo
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteTema = theme; // D1 · gancho de teste
   detectEnvironment({
     location: typeof location !== 'undefined' ? location : null,
