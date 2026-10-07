@@ -43,6 +43,16 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 - Leva sem prefixo (contagem antiga, ainda aceita): o número é o maior publicado + 1, conferido em `git log origin/main` logo antes do commit. A guarda barra número repetido entre trilhas e diz o próximo livre.
 - Na tabela "ordem por dependência" do ROADMAP, cada trilha usa a próxima letra livre de `16º-x`. O portão barra id repetido.
 
+## O portão (`npm test`) tem duas fases
+
+`portao.mjs` roda a **fase rápida** (tudo menos o navegador, um processo por núcleo) e, se ela passar, a **fase de tela** (`e2e.test.mjs` sozinho). `npm run test:rapido` e `npm run test:e2e` rodam uma fase só.
+
+- Teste de tela que cai roda de novo, **sozinho, uma vez**. Passou: o portão passa e o nome sai na lista **INSTÁVEIS** (no CI, como aviso do job). Caiu de novo: portão vermelho. Mais de cinco quedas na mesma rodada não são repetidas.
+- Instável não é "resolvido": é dívida da trilha dona do teste. Conserte a causa (espera explícita, estado que sobra do teste anterior, leitor de mentira que não olha o que recebe) e registre na história.
+- A fase rápida nunca é repetida. `PORTAO_SEM_REPETIR=1 npm test` desliga a segunda chance, para caçar instabilidade.
+- Arquivo de teste novo que abre navegador entra na fase de tela (hoje só `e2e.test.mjs`; `portao.unit` barra navegador na fase rápida).
+- O `npm run publicar` olha o `main` a cada dois minutos durante o portão: se outra trilha publicar no meio, ele interrompe a fase e recomeça em cima do `main` novo, em vez de terminar um portão que não serviria.
+
 ## O que a guarda faz e o que não faz
 
 `agregacao.mjs` roda em três pontos: dentro do `npm run publicar`, no gancho de pre-push e no CI a cada push. Ela barra: linhas de outra trilha apagadas sem declaração (linha movida ou que só ganhou conteúdo não conta), cópia antiga por cima de nova, leva repetida, histórico reescrito. Ela **não** enxerga conflito de comportamento (duas trilhas mudando a mesma regra em linhas diferentes): isso é trabalho do portão, por isso o portão roda depois do rebase, sobre o código já somado.

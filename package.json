@@ -4,7 +4,9 @@
   "type": "module",
   "description": "Estante — coleção, listas e mesa de Magic: The Gathering. PWA sem build: index.html é a fonte.",
   "scripts": {
-    "test": "node --test",
+    "test": "node portao.mjs",
+    "test:rapido": "node portao.mjs rapido",
+    "test:e2e": "node portao.mjs e2e",
     "test:fuzz:full": "FUZZ_GAMES=3000 node --test engine.fuzz.test.mjs",
     "golden:update": "node generate.mjs",
     "publicar": "node publicar.mjs",

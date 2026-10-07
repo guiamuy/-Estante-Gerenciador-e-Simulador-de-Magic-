@@ -11,7 +11,7 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40   # Q14 · as fases rodam em sequência
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,13 +24,22 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
-      - name: Unidade, fuzz, golden, integração e contrato visual
+      # Q14 · duas fases (portao.mjs). A rápida roda em paralelo e, se cair, poupa a de tela. A de tela roda sozinha:
+      # sem o fuzz e os torneios do bot disputando o processador, os testes que dependem de tempo deixam de cair por sorteio.
+      # Teste de tela que cai roda de novo, sozinho, uma vez; se passar, o portão passa e o nome sai como aviso (instável).
+      - name: Fase rápida · unidade, fuzz, golden e contrato visual
         run: |
           set -o pipefail
-          npm test 2>&1 | tee portao.log
+          npm run -s test:rapido 2>&1 | tee portao.log
         env:
           CI: 'true'
           FUZZ_GAMES: ${{ github.event_name == 'schedule' && '3000' || '250' }}
+      - name: Fase de tela · navegador, sozinha
+        run: |
+          set -o pipefail
+          npm run -s test:e2e 2>&1 | tee -a portao.log
+        env:
+          CI: 'true'
       # Quando o portão cai, o nome de cada teste que falhou e a primeira linha do erro viram anotação do job:
       # dá para ler pela API (gh api repos/<repo>/check-runs/<id do job>/annotations) sem baixar o log inteiro.
       - name: Testes que falharam
@@ -38,3 +47,12 @@ jobs:
         run: |
           test -f portao.log || exit 0
           awk '/^not ok/ { nome=$0; pega=1; next } pega && /error:/ { getline l1; getline l2; gsub(/^ +/, "", l1); gsub(/^ +/, "", l2); print "::error title=" substr(nome, 1, 120) "::" nome " — " $0 " " l1 " " l2; pega=0 }' portao.log | head -10
+      # Q14 · o log inteiro fica guardado quando o portão cai: dá para ler a queda toda, não só a anotação
+      - name: Guardar o log do portão
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portao-log
+          path: portao.log
+          if-no-files-found: ignore
+          retention-days: 7

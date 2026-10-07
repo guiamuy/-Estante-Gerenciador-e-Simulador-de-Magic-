@@ -8,16 +8,29 @@
      npm run publicar                 fluxo completo
      npm run publicar -- --conferir   até a guarda; não roda o portão nem envia
    ===================================================================== */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync, spawn } from 'node:child_process';
 import { conferirFaixa, relatar } from './agregacao.mjs';
 
 const soConferir = process.argv.includes('--conferir');
-const MAX_VOLTAS = 4;
+const MAX_VOLTAS = 6; // Q14 · a volta ficou barata (a fase é interrompida quando o main anda)
 
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 30 }).trim();
 const roda = (cmd, args) => spawnSync(cmd, args, { stdio: 'inherit' }).status === 0;
 const para = (msg) => { console.error(`\n✗ ${msg}\nNada foi publicado.`); process.exit(1); };
 const passo = (n, t) => console.log(`\n── ${n} · ${t}`);
+/** Q14 · roda uma fase do portão olhando o main a cada dois minutos. Se outra trilha publicar no meio, a fase é interrompida
+    na hora: o resultado não serviria (o portão precisa rodar sobre o código somado) e esperar o fim custava até 25 minutos. */
+const VIGIA_MS = 120000;
+function rodaVigiando(args) {
+  return new Promise((resolve) => {
+    const filho = spawn('npm', args, { stdio: 'inherit', detached: true });
+    let andou = false;
+    const vigia = setInterval(() => {
+      try { if (!roda('git', ['fetch', '--quiet', 'origin', 'main'])) return; if (Number(git('rev-list', '--count', 'HEAD..origin/main'))) { andou = true; try { process.kill(-filho.pid, 'SIGTERM'); } catch (e) { filho.kill('SIGTERM'); } } } catch (e) { /* sem rede agora: a conferência final decide */ }
+    }, VIGIA_MS);
+    filho.on('close', (codigo) => { clearInterval(vigia); resolve(andou ? 'main-andou' : codigo === 0 ? 'ok' : 'falhou'); });
+  });
+}
 
 function buscar() {
   const raso = git('rev-parse', '--is-shallow-repository') === 'true';
@@ -55,8 +68,15 @@ for (let volta = 1; volta <= MAX_VOLTAS; volta++) {
   console.log(`agregação ✓ ${novos.length} commit(s) só somam ao main`);
   if (soConferir) { console.log('\n--conferir: parei antes do portão e do envio.'); process.exit(0); }
 
-  passo(4, 'portão de release (npm test)');
-  if (!roda('npm', ['test'])) para('Portão vermelho.');
+  // Q14 · o mesmo portão do `npm test`, em duas fases (portao.mjs): a rápida primeiro, a de tela sozinha depois
+  let recomeca = false;
+  for (const [fase, nome] of [['test:rapido', 'fase rápida'], ['test:e2e', 'fase de tela']]) {
+    passo(4, `portão de release · ${nome} (npm run ${fase})`);
+    const r = await rodaVigiando(['run', '-s', fase]);
+    if (r === 'main-andou') { console.log(`\nOutra trilha publicou durante a ${nome}: interrompi e recomeço em cima do main novo.`); recomeca = true; break; }
+    if (r !== 'ok') para('Portão vermelho.');
+  }
+  if (recomeca) continue;
 
   passo(5, 'enviar');
   buscar();
