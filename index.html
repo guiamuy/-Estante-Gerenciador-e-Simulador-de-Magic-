@@ -5128,7 +5128,7 @@ const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countere
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'mode:2', 'mode:3', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
-const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
+const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
   // CR2b.3 · recebe dano (ela mesma); a permanente anexada morre / morre ou é exilada (Equipamento e Aura olham para trás)
   'dealt-damage', 'attached-dies', 'attached-dies-or-exiled',
   // CR2b.4 · a criatura encantada causa dano a um oponente (de quem controla a Aura); você descarta uma carta
@@ -5149,7 +5149,7 @@ const valueErrors = (v, label) => isCount(v) ? (v.subtype || PER_COUNTS.includes
 const EVASIONS = ['flying-only', 'power-less'];
 const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
-const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
+const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca', blocks: 'quando bloqueia',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
   'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
   'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
@@ -5172,7 +5172,8 @@ function validateScript(sc) {
     if (ab.kind === 'activated') {
       const cost = ab.cost || {};
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
-      if (!cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
+      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf) errs.push(`${tag}: habilidade ativada sem custo`);
       if (cost.revealColor && !'WUBRG'.includes(cost.revealColor)) errs.push(`${tag}: revelar precisa de uma cor WUBRG`);
       if (cost.life != null && !Number.isInteger(cost.life)) errs.push(`${tag}: custo de vida precisa ser inteiro`);
       for (const k of ['sacrificeOther', 'tapOther']) if (cost[k] && !Array.isArray((cost[k] || {}).types)) errs.push(`${tag}: ${k} precisa de uma lista de tipos`);
@@ -5379,7 +5380,7 @@ function effectErrors(effects, label, opcional) {
     }
     if (e.do === 'animate') { const b = e.becomes || {}; // CR2d.2
       if (!(b.types || []).length || b.types.some(x => !FILTER_TYPES.includes(x))) errs.push(`${label} ${i + 1}: virar criatura precisa de tipos conhecidos`);
-      if (!(Array.isArray(b.base) && b.base.length === 2 && b.base.every(Number.isInteger))) errs.push(`${label} ${i + 1}: virar criatura precisa do P/T base`);
+      if (b.base != null && !(Array.isArray(b.base) && b.base.length === 2 && b.base.every(Number.isInteger))) errs.push(`${label} ${i + 1}: P/T base precisa de dois inteiros`); // sem base: vale o impresso (Veículo)
       for (const k of b.keywords || []) if (!KEYWORDS.includes(k)) errs.push(`${label} ${i + 1}: palavra-chave "${k}" não é resolvida pelo motor`);
     }
     if (e.targetSubtype != null && typeof e.targetSubtype !== 'string') errs.push(`${label} ${i + 1}: subtipo do alvo precisa ser texto`);
@@ -5823,6 +5824,13 @@ const RAW_SCRIPTS = [
     { label: '−X/−X', effects: [{ do: 'pump', power: { per: 'x', times: -1 }, toughness: { per: 'x', times: -1 }, target: 'creature' }] },
     { label: 'Até X criaturas ganham medo', effects: [{ do: 'keyword', keyword: 'fear', target: 'creature', upTo: true, targetCount: { per: 'x' } }] }],
     example: { action: 'mode:0', target: 'self-player', expect: { selfLife: 0 } } },
+  // CR2d.3 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026); voar e o 3/3 vêm do texto da carta
+  { name: "Smuggler's Copter", abilities: [
+    { kind: 'activated', label: 'Tripular 1', cost: { crew: 1 }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], addTypes: true } }] },
+    { kind: 'triggered', when: 'attacks', optional: true, effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1 }] },
+    { kind: 'triggered', when: 'blocks', optional: true, effects: [{ do: 'draw', amount: 1 }, { do: 'discard', amount: 1 }] }],
+    note: 'tripular oferece os grupos mínimos de criaturas (sem tripulante sobrando)',
+    example: { action: 'activate:0', target: 'none', expect: { selfStats: [3, 3] } } },
   // CR2d.2 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026); o {T}: Add {C} vem do texto da carta
   { name: "Mishra's Factory", abilities: [
     { kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], subtypes: ['Assembly-Worker'], base: [2, 2], addTypes: true } }] },
@@ -11629,7 +11637,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 91;
+const ENGINE_VERSION = 92;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -13954,7 +13962,7 @@ function combinacoes(lista, k, limite = LIMITE_PAGAMENTOS) {
 function pagamentosDe(s, p, cost, selfOid) {
   if (!cost) return [{}];
   let out = [{}];
-  const usados = pay => [].concat(pay.tapOther || [], pay.sacrifice || [], pay.land || []);
+  const usados = pay => [].concat(pay.tapOther || [], pay.sacrifice || [], pay.land || [], pay.crew || []);
   const multiplica = (opcoes, campo) => {
     const novo = [];
     for (const base of out) for (const v of opcoes) {
@@ -13964,6 +13972,7 @@ function pagamentosDe(s, p, cost, selfOid) {
     }
     out = novo;
   };
+  if (cost.crew != null) multiplica(formasDeTripular(s, p, cost.crew, selfOid), 'crew'); // CR2d.3
   if (cost.sacrificeOther) multiplica(extraCostCandidates(s, p, cost.sacrificeOther, selfOid), 'sacrifice');
   if (cost.tapOther) multiplica(combinacoes(extraCostCandidates(s, p, cost.tapOther, selfOid, true), cost.tapOther.amount || 1), 'tapOther');
   if (cost.discard) multiplica(combinacoes(s.zones[p].hand.filter(x => x !== selfOid), cost.discard).filter(l => descarteServe(s, cost, [].concat(l))), 'discard'); // CR2c.4 · Foil: só as combinações com Ilha
@@ -13985,6 +13994,13 @@ function pagamentosDe(s, p, cost, selfOid) {
 }
 const comPagamento = pay => (pay && Object.keys(pay).length ? { pay } : {});
 function payExtraCosts(s, p, cost, pay, selfOid) {
+  if (cost.crew != null) { // CR2d.3 · tripular: confere e vira as escolhidas
+    const lista = (pay && pay.crew) || formasDeTripular(s, p, cost.crew, selfOid)[0] || [];
+    const ok = lista.every(x => { const o = s.objects[x]; return o && o.zone === 'battlefield' && o.controller === p && x !== selfOid && !o.tapped && isCreature(s, o); }) && new Set(lista).size === lista.length;
+    if (!ok || lista.reduce((n, x) => n + Math.max(0, power(s, s.objects[x])), 0) < cost.crew) throw new RuleError('custo', `vire criaturas suas com poder total ${cost.crew} ou mais`);
+    for (const x of lista) { const o = s.objects[x]; noteEnchantedEvent(s, o); o.tapped = true; }
+    if (s.objects[selfOid]) s.objects[selfOid].crewedBy = lista.slice(); // 702.122c
+  }
   if (cost.discardSelf) moveObject(s, selfOid, 'graveyard');
   if (cost.exileSelf) moveObject(s, selfOid, 'exile');
   if (cost.revealColor) {
@@ -14029,7 +14045,22 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     escolha.forEach(x => { if (!s.objects[x].tapped) noteEnchantedEvent(s, s.objects[x]); s.objects[x].tapped = true; }); // Leva 106 · Cryoshatter
   }
 }
+/** CR2d.3 · 702.122a "Crew N": vire qualquer número de OUTRAS criaturas desviradas suas com poder total N ou mais.
+ * A mesa oferece os grupos mínimos (sem tripulante sobrando); criatura com enjoo pode tripular (não é habilidade {T} dela). */
+function formasDeTripular(s, p, n, selfOid) {
+  const cands = battlefield(s).filter(o => o.controller === p && o.oid !== selfOid && !o.tapped && isCreature(s, o)).map(o => ({ oid: o.oid, f: Math.max(0, power(s, o)) }))
+    .sort((a, b) => b.f - a.f || (a.oid < b.oid ? -1 : 1));
+  const out = [];
+  (function busca(i, escolhidos, soma) {
+    if (out.length >= LIMITE_PAGAMENTOS) return;
+    if (soma >= n && escolhidos.length) { if (escolhidos.every(x => soma - x.f < n)) out.push(escolhidos.map(x => x.oid)); return; }
+    if (n <= 0 && !escolhidos.length) { out.push([]); return; }
+    for (let j = i; j < cands.length && escolhidos.length < 5; j++) busca(j + 1, escolhidos.concat([cands[j]]), soma + cands[j].f);
+  })(0, [], 0);
+  return out;
+}
 const canPayExtra = (s, p, cost, selfOid) =>
+  (cost.crew == null || formasDeTripular(s, p, cost.crew, selfOid).length > 0) &&
   (!cost.exileFromGraveyard || s.zones[p].graveyard.some(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))) &&
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
   (!cost.discard || s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard) &&
@@ -14489,6 +14520,7 @@ const HANDLERS = {
       s.objects[b].blocking = atk;
       const A = s.objects[atk]; A.blocked = true; (A.blockedBy = A.blockedBy || []).push(b);
     }
+    queueTriggers(s, 'blocks', blocks.map(([b]) => s.objects[b])); // CR2d.3 · "whenever this creature blocks"
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
   },
   /** M9 · ativa uma habilidade da permanente; vai para a pilha como objeto próprio. */
@@ -19430,6 +19462,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     ['land', () => 'Qual terreno volta para a mão?', 'Devolver'],
     ['exileHand', () => 'Qual carta da mão você exila para pagar?', 'Exilar'], // CR2c.4 · Snapback
     ['retrace', () => 'Qual terreno você descarta para retraçar?', 'Descartar'], // M-222
+    ['crew', () => 'Quais criaturas tripulam?', 'Virar'], // CR2d.3
     ['exile', () => 'Qual carta do cemitério é exilada?', 'Exilar'],
     ['bargain', () => 'O que você sacrifica na barganha?', 'Sacrificar'],
     ['exileGrave', () => 'Quais cartas do cemitério você exila?', 'Exilar'],

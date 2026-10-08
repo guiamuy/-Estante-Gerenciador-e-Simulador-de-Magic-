@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 91,
+ "motor": 92,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -2196,12 +2196,15 @@
    "n": "301.7",
    "regra": "Artifacts",
    "titulo": "Veículo",
-   "status": "ausente",
-   "falta": "sem tripular: Smuggler's Copter está sem script (ROADMAP:2525) e fica como artefato inerte; 301.7a-b dependem de virar criatura.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "613",
     "702.122"
+   ],
+   "evidencia": "CR2d.3 (v92): Veículo é artefato com P/T impresso que só é criatura depois de tripulado (animate sem base: vale o impresso); 301.7a-b via enjoado()/isCreature. commander.regras \"CR2d.3 · …\"",
+   "testes": [
+    "CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.6)"
    ]
   },
   {
@@ -7759,15 +7762,19 @@
    "n": "702.122",
    "regra": "Keyword Abilities",
    "titulo": "Crew",
-   "status": "ausente",
-   "falta": "Sem veículos: \"vire criaturas desviradas suas com poder total N ou mais: vira criatura artefato até o fim do turno\" (702.122a), sem \"tripular\" como ação/gatilho (702.122b-c) nem custo que só vale para tripular (702.122d-e). Smuggler's Copter está nas listas de Commander sem script.",
+   "status": "parcial",
+   "falta": "A mesa oferece só grupos mínimos de tripulantes (não dá para virar criatura a mais de propósito); sem \"quando for tripulado\" (702.122e) nem \"não pode tripular\" (702.122d).",
    "esforco": "M",
    "depende": [
     "301.7 veículos",
     "613 camada 4 (tipo) até o fim do turno",
     "602 custo de virar outras criaturas"
    ],
-   "cartas": "muito comum (Kaladesh em diante, recorrente)"
+   "cartas": "muito comum (Kaladesh em diante, recorrente)",
+   "evidencia": "CR2d.3 (v92): custo crew N (formasDeTripular: outras criaturas desviradas suas com poder total ≥ N, enjoo não impede), vira criatura artefato até o fim do turno; crewedBy guardado (702.122c)",
+   "testes": [
+    "CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.6)"
+   ]
   },
   {
    "n": "702.123",

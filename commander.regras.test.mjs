@@ -636,3 +636,29 @@ test('CR2d.2 · terreno que entrou neste turno e virou criatura não ataca nem u
   s = tudo(act(comMana(s, 'C'), legais(comMana(s, 'C'), 0, x => x.t === 'activate' && x.oid === mf && !x.targets)[0]));
   assert.equal(E.eligibleAttackers(s, 0).includes(mf), false, 'entrou agora: não ataca'); assert.equal(legais(s, 0, x => x.t === 'activate' && x.oid === mf && x.targets).length, 0, '{T} de criatura com enjoo');
 });
+
+// ---------------------------------------------------------------- CR2d.3 · Veículo e tripular (702.122, 301.7)
+test("CR2d.3 · Smuggler's Copter: tripular 1 vira as outras criaturas com poder total 1 ou mais e o Veículo vira criatura artefato até o fim do turno", () => {
+  let s = semMao(mesa(["Smuggler's Copter", 'Faerie Seer'], []), 0), cp, fs; [s, cp] = poe(s, 0, "Smuggler's Copter"); [s, fs] = poe(s, 0, 'Faerie Seer'); s = veterano(s, cp); s = J(s); s.objects[fs].sick = true; // a Faerie Seer acabou de entrar
+  assert.equal(E.isCreature(s, s.objects[cp]), false, 'Veículo sem tripular não é criatura');
+  const trip = legais(s, 0, x => x.t === 'activate' && x.oid === cp); assert.equal(trip.length, 1); assert.deepEqual(J(trip[0].pay.crew), [fs], 'criatura com enjoo pode tripular');
+  s = tudo(act(s, trip[0])); assert.ok(s.objects[fs].tapped, 'a tripulante foi virada'); assert.ok(E.isCreature(s, s.objects[cp]));
+  assert.equal(`${E.stats(s, s.objects[cp]).power}/${E.stats(s, s.objects[cp]).toughness}`, '3/3', 'P/T impresso'); assert.ok(E.hasKeyword(s, s.objects[cp], 'flying'));
+  assert.equal(legais(s, 0, x => x.t === 'activate' && x.oid === cp).length, 0, '"other untapped creatures": ele não tripula a si mesmo');
+  assert.ok(E.eligibleAttackers(s, 0).includes(cp));
+  const turno = s.turn.number; s = passaAte(s, x => x.turn.number > turno); assert.equal(E.isCreature(s, s.objects[cp]), false, 'no fim do turno volta a ser só artefato');
+});
+
+test("CR2d.3 · Smuggler's Copter: ao atacar, você pode comprar uma carta; se comprar, descarta uma", () => {
+  let s = semMao(mesa(["Smuggler's Copter", 'Faerie Seer', 'Opt'], []), 0), cp, fs, op; [s, cp] = poe(s, 0, "Smuggler's Copter"); [s, fs] = poe(s, 0, 'Faerie Seer'); [s, op] = poe(s, 0, 'Opt', 'hand'); s = veterano(s, cp);
+  s = tudo(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === cp)[0]));
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: [cp] }); s = ateDecisao(s);
+  assert.equal(s.pending.kind, 'may_pay', '"you may draw a card"'); const mao = s.zones[0].hand.length; s = act(s, { t: 'pay', p: 0 });
+  assert.equal(s.zones[0].hand.length, mao + 1, 'comprou'); assert.equal(s.pending.kind, 'discard', 'If you do, discard a card'); s = act(s, { t: 'discard', p: 0, oid: op });
+  assert.equal(s.zones[0].hand.length, mao); assert.equal(s.objects[op].zone, 'graveyard');
+});
+
+test('CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.6)', () => {
+  let s = semMao(mesa(["Smuggler's Copter", 'Faerie Seer'], []), 0), cp; [s, cp] = poe(s, 0, "Smuggler's Copter"); [s] = poe(s, 0, 'Faerie Seer'); s = J(s); s.objects[cp].entrouNoTurno = s.turn.number;
+  s = tudo(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === cp)[0])); assert.ok(E.isCreature(s, s.objects[cp])); assert.equal(E.eligibleAttackers(s, 0).includes(cp), false);
+});

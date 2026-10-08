@@ -66,7 +66,8 @@ export const combatSetup = (seed = 1, { mode = 'assisted', manaCheck = true, for
 
 /** S62 · linha de tipo real das cartas com script, conferida carta a carta.
     Usada pelos cenários S8 e pela auditoria das listas Pauper. */
-export const PERM_TYPES = { 'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal Sorcerer': 'Creature — Human Wizard', 'Cunning Sparkmage': 'Creature — Human Shaman',
+export const PERM_TYPES = { "Smuggler's Copter": 'Artifact — Vehicle', // CR2d.3
+  'Elvish Visionary': 'Creature — Elf Shaman', 'Prodigal Sorcerer': 'Creature — Human Wizard', 'Cunning Sparkmage': 'Creature — Human Shaman',
   'Rod of Ruin': 'Artifact', 'Icy Manipulator': 'Artifact', 'Aether Spellbomb': 'Artifact', 'Mind Stone': 'Artifact',
   'Ichor Wellspring': 'Artifact', "Tormod's Crypt": 'Artifact',
   'Rancor': 'Enchantment — Aura', 'Ethereal Armor': 'Enchantment — Aura', 'Ancestral Mask': 'Enchantment — Aura',

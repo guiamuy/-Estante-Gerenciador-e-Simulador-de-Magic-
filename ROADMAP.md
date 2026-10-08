@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2d.2 terreno que vira criatura até o fim do turno (613, 205.1b) com enjoo pelo ruling (302.6); Mishra's Factory e Blinkmoth Nexus completas (leva M-224, motor v91) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2d.3 Veículo e tripular (301.7, 702.122) e gatilho de bloqueio; Smuggler's Copter completa (leva M-225, motor v92) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2870,6 +2870,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Malcolm 73% (antes 71%), Killian 65%. Triagem 108 prontas · 9 A · 35 B · 12 C.
 - **Para a trilha do bot:** o Shark decide "é criatura" pelo tipo impresso (`ehCriatura`), então ainda não ataca com terreno animado nem o conta como bloqueador.
 - **Golden:** regravadas (90 → 91); registros das quatro partidas iguais.
+
+**CR2d.3 · Veículo e tripular** 🟡 (leva M-225, motor v92) — 3 testes, todos falhavam antes.
+- **301.7 / 702.122** Veículo é artefato com P/T impresso que só vira criatura depois de tripulado. "Tripular N": vire outras criaturas desviradas suas com poder total N ou mais (criatura com enjoo pode tripular; o Veículo não tripula a si mesmo) e ele vira criatura artefato até o fim do turno, com o P/T e as habilidades impressos. Veículo que entrou neste turno não ataca (302.6). A tela pergunta quais criaturas tripulam.
+- **Gatilho novo:** "sempre que esta criatura bloqueia".
+- **Carta da lista (decisão 7), texto oficial consultado em 05/10/2026, completa:** **Smuggler's Copter** (tripular 1, voar, "ao atacar ou bloquear, pode comprar uma carta; se comprar, descarta uma").
+- **Medição:** Killian 66% (antes 65%), Malcolm 73%. Triagem 109 prontas · 9 A · 35 B · 11 C.
+- **Simplificação declarada:** a mesa oferece só os grupos mínimos de tripulantes — não dá para virar uma criatura a mais de propósito ao tripular.
+- **Para a trilha do bot:** o Shark não sabe tripular para atacar nem conta o Veículo como bloqueador.
+- **Golden:** regravadas (91 → 92); registros das quatro partidas iguais.
+- **Fora:** "quando for tripulado" (702.122e), "não pode tripular" (702.122d).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
