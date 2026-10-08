@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 85,
+ "motor": 86,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -413,7 +413,7 @@
    "regra": "Numbers and Symbols",
    "titulo": "X",
    "status": "parcial",
-   "evidencia": "{X} no custo de mana e no de conceder: quem conjura escolhe 0..20 (valoresDeX index.html:10547, cast index.html:12243), paga X vezes e a permanente entra com X marcadores (index.html:10298); rules.unit 'S50 · custo X'. 107.3g: cmc dos fatos conta X como 0.",
+   "evidencia": "{X} no custo de mana e no de conceder: quem conjura escolhe 0..20 (valoresDeX index.html:10547, cast index.html:12243), paga X vezes e a permanente entra com X marcadores (index.html:10298); rules.unit 'S50 · custo X'. 107.3g: cmc dos fatos conta X como 0. · CR2c.3 (v86): contagem {per:\"x\"} = X pago, o mesmo valor em todo o texto (107.3a), também negativo (−X/−X)",
    "falta": "Nenhum efeito de mágica lê X (dano X, -X/-X, comprar X: Profane Command, March of Swirling Mist, Ascend from Avernus ficam sem script); X em custo de habilidade ativada e [-X] de lealdade não existem (107.3a,k); 107.3b (X=0 ao conjurar sem pagar) não é imposto; 107.3c-f,h,j,m,n ausentes; teto artificial de X=20.",
    "esforco": "M",
    "cartas": "muito comum"
@@ -4039,8 +4039,8 @@
    "regra": "Casting Spells",
    "titulo": "Passos para conjurar uma mágica",
    "status": "parcial",
-   "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h)",
-   "falta": "601.2b: só um modo por mágica (sem \"escolha dois\"), sem kicker/buyback/splice; híbrido e phyrexiano são decididos pelo motor (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: proíbe o mesmo alvo em instâncias diferentes de \"alvo\" (:12247, a regra permite); número variável de alvos só como \"até N\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
+   "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h) · CR2c.3 (v86): o X escolhido entra na escolha de alvos — \"valor de mana X ou menos\" (targetMvMax {per:\"x\"}) na oferta, na conjuração e na resolução, e \"até X alvos\" (targetCount) com X instâncias opcionais; commander.regras \"CR2c.3 · Profane Command\"",
+   "falta": "601.2b: sem buyback/splice (vários modos e reforço feitos na CR2c.1); híbrido e phyrexiano são decididos pelo motor (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: o mesmo alvo em instâncias diferentes só vale entre modos (CR2c.1); número variável de alvos só como \"até N\" e \"até X\" (CR2c.3), sem \"qualquer número de alvos\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
    "esforco": "G",
    "depende": [
     "700.2",

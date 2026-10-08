@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { E, J, act, poe, legais, mesa, comMana, tudo, alvos, passaAte, CARTAS } from './cmd.mjs';
-import { S } from './listas.mjs';
+import { S, T } from './listas.mjs';
 import { readFileSync } from 'node:fs';
 const vidas = s => s.players.map(p => p.life).join('/');
 const noCampo = (s, p, n) => s.zones[p].battlefield.some(o => s.objects[o].name === n);
@@ -386,4 +386,37 @@ test('CR2c.2 · Silverquill Command: +3/+3 e voar; criatura de valor 2 ou menos 
     for (let i = 0; i < 8 && !(s.pending && s.pending.kind === 'sacrifice'); i++) s = act(s, legais(s, s.turn.priority, x => x.t === 'pass')[0]);
     assert.equal(s.objects[minha].zone, 'graveyard', 'o Bolt matou o alvo do +3/+3');
     assert.equal(s.pending && s.pending.kind, 'sacrifice', 'o modo do sacrifício ainda acontece'); assert.deepEqual(J(s.pending.options).sort(), [le, f2].sort()); }
+});
+
+// ---------------------------------------------------------------- CR2c.3 · X decide o alvo e quantos alvos cabem
+test('CR2c.3 · Profane Command: o X escolhido decide quais cartas o modo de devolver pode mirar ("mana value X or less") e quantos alvos cabem ("up to X")', () => {
+  const base = (mana) => { let s = mesa(['Profane Command', 'Faerie Seer', 'Zulaport Cutthroat', 'Kitchen Imp', 'Llanowar Elves'], ['Zulaport Cutthroat']), o = {}; [s, o.p] = poe(s, 0, 'Profane Command', 'hand');
+    [s, o.fs] = poe(s, 0, 'Faerie Seer', 'graveyard'); [s, o.zc] = poe(s, 0, 'Zulaport Cutthroat', 'graveyard'); [s, o.imp] = poe(s, 0, 'Kitchen Imp', 'graveyard'); [s, o.le] = poe(s, 0, 'Llanowar Elves'); [s, o.inimiga] = poe(s, 1, 'Zulaport Cutthroat');
+    return { s: comMana(s, mana), ...o }; };
+  const conj = (s, p, f) => legais(s, 0, x => x.t === 'cast' && x.oid === p && f(x));
+  { let { s, p, fs, zc, imp } = base('BBCCCC');
+    const devolve = x => conj(s, p, a => a.x === x && a.modes.includes(1)).map(a => a.targets[a.modes.indexOf(1)].oid);
+    assert.deepEqual([...new Set(devolve(1))], [fs], 'X = 1: só a Faerie Seer (valor 1)');
+    assert.deepEqual([...new Set(devolve(2))].sort(), [fs, zc].sort(), 'X = 2: também a Zulaport (valor 2)');
+    assert.ok([...new Set(devolve(4))].includes(imp), 'X = 4: a Kitchen Imp (valor 4) entra');
+    assert.throws(() => act(s, { t: 'cast', p: 0, oid: p, x: 1, modes: [0, 1], targets: [{ player: 1 }, { oid: zc }] }), /alvo ilegal/, 'conferido também na conjuração');
+    const t = tudo(act(s, conj(s, p, a => a.x === 2 && J(a.modes).join() === '0,1' && a.targets[0].player === 1 && a.targets[1].oid === zc)[0]));
+    assert.equal(t.objects[zc].zone, 'battlefield'); assert.equal(t.players[1].life, 18, 'Target player loses X life'); }
+  { let { s, p, le, inimiga } = base('BBCC');
+    const medo = x => [...new Set(conj(s, p, a => a.x === x && J(a.modes).join() === '0,3' && a.targets[0].player === 1).map(a => a.targets.length - 1))].sort();
+    assert.deepEqual(medo(0), [0], 'X = 0: nenhum alvo de medo'); assert.deepEqual(medo(1), [0, 1], 'X = 1: até um'); assert.deepEqual(medo(2), [0, 1, 2], 'X = 2: até dois');
+    assert.throws(() => act(s, { t: 'cast', p: 0, oid: p, x: 1, modes: [0, 3], targets: [{ player: 1 }, { oid: le }, { oid: inimiga }] }), /alvo/, 'X = 1 não aceita dois alvos de medo');
+    const t = tudo(act(s, conj(s, p, a => a.x === 2 && J(a.modes).join() === '0,3' && a.targets[0].player === 1 && a.targets.length === 3)[0]));
+    assert.ok(E.hasKeyword(t, t.objects[le], 'fear') && E.hasKeyword(t, t.objects[inimiga], 'fear'), 'Up to X target creatures gain fear'); assert.equal(t.players[1].life, 18); }
+  { let { s, p, inimiga } = base('BBCC'); const t = tudo(act(s, conj(s, p, a => a.x === 2 && J(a.modes).join() === '0,2' && a.targets[0].player === 1 && a.targets[1].oid === inimiga)[0]));
+    assert.equal(t.objects[inimiga].zone, 'graveyard', 'Target creature gets -X/-X: a 2/2 morre com X = 2'); }
+});
+
+test('CR2c.3 · texto dos modos na folha da carta: "todas as criaturas", "−X/−X", "de valor de mana X ou menos" e "até X criaturas"', () => {
+  const d = (n, i) => T.descreveEfeitos(S.SCRIPTS[n].modes[i].effects);
+  assert.equal(d('Austere Command', 2), 'destrói todas as criaturas de valor de mana 3 ou menos', 'a M-218 escrevia "todos os criaturas"');
+  assert.equal(d('Austere Command', 0), 'destrói todos os artefatos');
+  assert.equal(d('Profane Command', 1), 'devolve uma criatura de valor de mana X ou menos do cemitério ao campo');
+  assert.equal(d('Profane Command', 2), 'uma criatura recebe −X/−X até o fim do turno', 'antes saía "+X/+X"');
+  assert.equal(d('Profane Command', 3), 'até X criaturas ganham medo até o fim do turno');
 });

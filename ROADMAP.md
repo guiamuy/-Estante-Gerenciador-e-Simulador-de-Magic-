@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro saindo juntas (701.8, 603.10a) e "oponente alvo sacrifica" (701.21a); Austere Command e Silverquill Command completas (leva M-218, motor v85) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2c.3 o X escolhido decide o alvo ("valor de mana X ou menos") e quantos alvos cabem ("até X"); Profane Command completa (leva M-219, motor v86) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2808,7 +2808,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Killian 59%, Malcolm 63%. Triagem 92 prontas · 9 A · 47 B · 16 C.
 - **Apoio de teste:** o cenário automático de carta com "escolha dois" sem repetição usa o modo pedido com um companheiro que a mesa oferece (de preferência sem alvo); antes ele repetia o modo, o que só vale com repetição.
 - **Golden:** regravadas (84 → 85); registros das quatro partidas iguais.
-- **Fora:** **Profane Command** — X precisa decidir o alvo ("valor de mana X ou menos") e o número de alvos ("até X alvos"); hoje o motor escolhe alvos antes do X. Fica para a CR2c.3.
+- **Fora:** **Profane Command** — X precisa decidir o alvo ("valor de mana X ou menos") e o número de alvos ("até X alvos"); hoje o motor escolhe alvos antes do X. Feita na CR2c.3.
+
+**CR2c.3 · X decide o alvo e quantos alvos cabem** 🟡 (leva M-219, motor v86) — 2 testes, os dois falhavam antes.
+- **107.3a / 601.2c** o X escolhido vale em todo o texto (inclusive negativo, −X/−X) e entra na escolha de alvos: "valor de mana X ou menos" é conferido na oferta, na conjuração e na resolução com o X daquela conjuração; "até X alvos" vira X alvos opcionais (X = 0: nenhum). A mesa monta os alvos para cada X possível só nas cartas em que o X decide alvo.
+- **Carta das listas (decisão 7), texto oficial consultado em 05/10/2026, completa:** **Profane Command**.
+- **Correção de tela (bug da M-218, virou teste):** a folha da carta dizia "destrói todos os criaturas"; agora "todas as criaturas". E "−X/−X" saía como "+X/+X".
+- **Medição:** Killian 60%, Malcolm 63%. Triagem 93 prontas · 9 A · 46 B · 16 C.
+- **Custo declarado:** com a Profane na mão e a mesa sem cobrar mana (X de 0 a 20), a mesa oferece cerca de mil formas de conjurar (agrupadas por X na tela); com mana cobrada, só os X pagáveis (cerca de 350 com seis manas). As combinações de alvo continuam cortadas no limite do motor (16 por par de modos).
+- **Golden:** regravadas (85 → 86); registros das quatro partidas iguais.
+- **Fora:** "qualquer número de alvos", X em habilidade ativada que decide alvo, dividir dano entre alvos (601.2d).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
