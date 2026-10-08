@@ -5022,6 +5022,7 @@ const EFFECTS = {
   // M-222 · 701.20 "reveal cards from the top … until you reveal …" (referência: o primeiro alvo, pela última informação conhecida),
   // "put target permanent … on the bottom of your library" e "target permanent's controller sacrifices it"
   reveal_until: { fields: [], targets: ['first-target'] },
+  animate: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
   to_bottom: { fields: [], targets: ['permanent-you-own'] },
   sacrifice_it: { fields: [], targets: ['permanent'] },
   exile_self: { fields: [], targets: ['self'] },
@@ -5376,6 +5377,12 @@ function effectErrors(effects, label, opcional) {
       if (!['shuffle', 'bottom-random'].includes(e.rest)) errs.push(`${label} ${i + 1}: revelar até precisa dizer o que fazer com o resto`);
       if (e.who != null && !['self', 'controller'].includes(e.who)) errs.push(`${label} ${i + 1}: quem revela é "self" ou "controller"`);
     }
+    if (e.do === 'animate') { const b = e.becomes || {}; // CR2d.2
+      if (!(b.types || []).length || b.types.some(x => !FILTER_TYPES.includes(x))) errs.push(`${label} ${i + 1}: virar criatura precisa de tipos conhecidos`);
+      if (!(Array.isArray(b.base) && b.base.length === 2 && b.base.every(Number.isInteger))) errs.push(`${label} ${i + 1}: virar criatura precisa do P/T base`);
+      for (const k of b.keywords || []) if (!KEYWORDS.includes(k)) errs.push(`${label} ${i + 1}: palavra-chave "${k}" não é resolvida pelo motor`);
+    }
+    if (e.targetSubtype != null && typeof e.targetSubtype !== 'string') errs.push(`${label} ${i + 1}: subtipo do alvo precisa ser texto`);
     if (e.do === 'counter_choice' && !KEYWORD_COUNTERS.includes(e.kind)) errs.push(`${label} ${i + 1}: marcador "${e.kind}" não é de palavra-chave`);
     if (e.do === 'destroy_all') { // CR2c.2
       if (!(e.types || []).length) errs.push(`${label} ${i + 1}: destruir todas precisa dos tipos`);
@@ -5816,6 +5823,15 @@ const RAW_SCRIPTS = [
     { label: '−X/−X', effects: [{ do: 'pump', power: { per: 'x', times: -1 }, toughness: { per: 'x', times: -1 }, target: 'creature' }] },
     { label: 'Até X criaturas ganham medo', effects: [{ do: 'keyword', keyword: 'fear', target: 'creature', upTo: true, targetCount: { per: 'x' } }] }],
     example: { action: 'mode:0', target: 'self-player', expect: { selfLife: 0 } } },
+  // CR2d.2 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026); o {T}: Add {C} vem do texto da carta
+  { name: "Mishra's Factory", abilities: [
+    { kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], subtypes: ['Assembly-Worker'], base: [2, 2], addTypes: true } }] },
+    { kind: 'activated', cost: { tap: true }, effects: [{ do: 'pump', power: 1, toughness: 1, target: 'creature', targetSubtype: 'Assembly-Worker' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { selfStats: [2, 2] } } },
+  { name: 'Blinkmoth Nexus', abilities: [
+    { kind: 'activated', cost: { mana: '{1}' }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], subtypes: ['Blinkmoth'], base: [1, 1], keywords: ['flying'], addTypes: true } }] },
+    { kind: 'activated', cost: { mana: '{1}', tap: true }, effects: [{ do: 'pump', power: 1, toughness: 1, target: 'creature', targetSubtype: 'Blinkmoth' }] }],
+    example: { action: 'activate:0', target: 'none', expect: { selfStats: [1, 1] } } },
   // CR2d.1 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
   { name: 'Darksteel Mutation', aura: { enchant: 'creature', becomes: { types: ['artifact', 'creature'], subtypes: ['Insect'], base: [0, 1], keywords: ['indestructible'], loseAbilities: true } },
     note: 'subtipos de artefato que a criatura já tinha (Equipamento) não são mantidos',
@@ -11613,7 +11629,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 90;
+const ENGINE_VERSION = 91;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11766,20 +11782,28 @@ const attachedTo = (s, o) => s.zones.flatMap(z => z.battlefield).map(oid => s.ob
 const relogio = s => (s.relogio = (s.relogio || 0) + 1);
 function mutacao(s, o) {
   if (!o || o.zone !== 'battlefield' || !o.mutavel) return null; // atalho: só quem já recebeu uma Aura dessas (o cálculo é chamado a cada consulta de habilidade)
-  const auras = attachedTo(s, o).filter(a => ((s.facts[a.name].script || {}).aura || {}).becomes).sort((a, b) => (a.anexadaEm || 0) - (b.anexadaEm || 0));
-  if (!auras.length) return null;
-  let m = null;
-  for (const a of auras) { const b = s.facts[a.name].script.aura.becomes;
-    m = { types: b.types || (m && m.types), subtypes: b.subtypes || (m && m.subtypes) || [], base: b.base || (m && m.base), perde: !!b.loseAbilities || !!(m && m.perde),
-      corte: b.loseAbilities ? (a.anexadaEm || 0) : (m ? m.corte : -1), keywords: [...(b.loseAbilities || !m ? [] : m.keywords), ...(b.keywords || [])] }; }
+  // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
+  const efeitos = attachedTo(s, o).filter(a => ((s.facts[a.name].script || {}).aura || {}).becomes).map(a => ({ ts: a.anexadaEm || 0, b: s.facts[a.name].script.aura.becomes }))
+    .concat((o.vira || []).map(v => ({ ts: v.ts || 0, b: v }))).sort((x, y) => x.ts - y.ts);
+  if (!efeitos.length) return null;
+  const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
+  let m = { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
+  for (const { ts, b } of efeitos) {
+    m = { types: b.addTypes ? [...new Set([...m.types, ...(b.types || [])])] : (b.types || m.types),
+      subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
+      perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])] };
+  }
   return m;
 }
+/** CR2d.2 · 302.6: criatura que não está sob seu controle desde o começo do seu turno mais recente. A permanente que não era
+ * criatura ao entrar (terreno que vira criatura) não ganhou `sick`: vale ter entrado neste turno. */
+const enjoado = (s, o) => !!o.sick || (o.entrouNoTurno != null && o.entrouNoTurno === s.turn.number && !s.facts[o.name].types.includes('creature'));
 /** Sem as habilidades impressas (virada para baixo ou Aura que tira tudo). */
 const semImpressas = (s, o) => !!o && (!!o.faceDown || !!(mutacao(s, o) || {}).perde);
 /** Tipos de carta agora (camada 4). */
 const tiposDe = (s, o) => { const m = mutacao(s, o); return (m && m.types) || s.facts[o.name].types; };
 /** Linha de tipo agora, para subtipos (camada 4): "Artifact Creature — Insect". */
-const linhaDeTipo = (s, o) => { const m = mutacao(s, o); if (!m || !m.types) return s.facts[o.name].typeText || '';
+const linhaDeTipo = (s, o) => { const m = mutacao(s, o); if (!m) return s.facts[o.name].typeText || '';
   const cap = x => x.charAt(0).toUpperCase() + x.slice(1); return `${m.types.map(cap).join(' ')}${m.subtypes.length ? ' — ' + m.subtypes.join(' ') : ''}`; };
 function bonus(s, host) {
   let p = 0, tgh = 0;
@@ -11992,7 +12016,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
@@ -12225,7 +12249,7 @@ function combinacoesUteis(n, cost) {
 }
 function sources(s, p) {
   return battlefield(s).filter(o => o.controller === p && !o.tapped && productions(s, o).length &&
-    !(s.facts[o.name].types.includes('creature') && o.sick && !has(s, o, 'haste')));
+    !(isCreature(s, o) && enjoado(s, o) && !has(s, o, 'haste'))); // CR2d.2 · criatura de agora (terreno animado)
 }
 /** Escolhe fontes desviradas para completar o pagamento. Busca limitada e determinística. */
 // CR 107.4f / 119.4 · símbolo phyrexiano: o plano tenta primeiro pagar tudo com mana (antes pagava 2 de vida com a Ilha desvirada);
@@ -12521,7 +12545,7 @@ function enterStep(s, step) {
 }
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
+  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.vira; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
   delete s.fogged; delete s.preventedColors; delete s.noPrevention;
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -12564,7 +12588,7 @@ function mustAttack(s, p) {
 function eligibleAttackers(s, p) {
   return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped &&
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
-    (!o.sick || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
+    (!enjoado(s, o) || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
   return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped).map(o => o.oid);
@@ -12890,7 +12914,8 @@ function targetAllowed(s, eff, tgt, src) {
   if (!o) return true;
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && f.legendary) return false;
-  if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false; // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
+  if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false;
+  if (eff.targetSubtype && !(o.zone === 'battlefield' && (isChangeling(s, o) || new RegExp('\\b' + eff.targetSubtype + '\\b').test(linhaDeTipo(s, o))))) return false; // CR2d.2 · "target Assembly-Worker creature" // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
   if (eff.targetNotLand && (f.types || []).includes('land')) return false; // R11 · "nonland permanent"
   if (eff.targetTypes && !eff.targetTypes.some(x => (f.types || []).includes(x))) return false; // R11 · "instant or sorcery spell"
   if (eff.targetNotColor && (f.colors || []).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta"
@@ -13189,6 +13214,11 @@ function applyEffect(s, src, eff, tgt, events) {
       note({}); break;
     }
     case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); note({}); break; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'animate': { // CR2d.2 · vira criatura até o fim do turno, com carimbo de tempo próprio (613.7); a limpeza apaga
+      const alvo = src.ability ? s.objects[src.source] : src;
+      if (alvo && alvo.zone === 'battlefield') { alvo.vira = [...(alvo.vira || []), { ...eff.becomes, ts: relogio(s) }]; alvo.mutavel = true; note({ target: alvo.name }); }
+      break;
+    }
     case 'to_bottom': { // M-222 · no fundo do grimório do dono
       if (obj && obj.zone === 'battlefield') { moveObject(s, obj.oid, 'library', { top: false }); note({}); } else note({ failed: true });
       break;
@@ -14018,7 +14048,7 @@ function payAbilityCost(s, p, source, ab) {
   }
   if (cost.tap) {
     if (source.tapped) throw new RuleError('custo', 'a permanente já está virada');
-    if (s.facts[source.name].types.includes('creature') && source.sick && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
+    if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
   }
   if (cost.mana && s.manaCheck) payCost(s, p, parseCost(cost.mana));
   if (cost.life) { if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente'); s.players[p].life -= cost.life; }
@@ -14038,7 +14068,7 @@ const canPayAbility = (s, p, source, ab) => {
     if (source.loyaltyTurn === s.turn.number) return false; // uma por turno
     return (source.counters.loyalty || 0) + ab.loyalty >= 0;
   }
-  if (cost.tap && (source.tapped || (s.facts[source.name].types.includes('creature') && source.sick && !has(s, source, 'haste')))) return false;
+  if (cost.tap && (source.tapped || (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')))) return false;
   if (!canPayExtra(s, p, cost, source.oid)) return false;
   if (ab.oncePerTurn && source.usedThisTurn) return false;
   if (ab.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, p, ab.onlyIfLifeOverStart)) return false; // CR 602.5 · "Activate only if…"
@@ -15491,7 +15521,7 @@ function invariants(s, expectedObjects) {
 }
 
 return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
-  stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, productions, protections, prevented, canBlock,
+  stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
@@ -17061,6 +17091,7 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
+    case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
     case 'reveal_until': return `${t} revelou ${n} carta(s) (${(ev.nomes || []).join(', ')})${ev.achada ? ` e pôs ${ev.achada} no campo` : ' sem achar o que procurava'} (${ev.name})`; // M-222
     case 'to_bottom': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t} foi para o fundo do grimório (${ev.name})`;
     case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${ev.name}: ${ev.name2 || t} foi sacrificada`;
@@ -17530,7 +17561,8 @@ function restoreTable(data) {
 function estadoDaCarta(s, o, plano = null) {
   const facts = (s.facts && s.facts[o.name]) || {};
   const tipos = facts.types || [];
-  const criatura = tipos.includes('creature') || !!o.faceDown;
+  let criatura = tipos.includes('creature') || !!o.faceDown;
+  if (!criatura && o.zone === 'battlefield') { try { criatura = E.isCreature(s, o); } catch (e) { /* estado antigo */ } } // CR2d.2 · terreno que virou criatura mostra P/T
   let pt = null;
   if (criatura) { try { const st = E.stats(s, o); pt = { p: st.power, t: st.toughness }; } catch (e) { pt = null; } }
   const marcas = [];
@@ -17814,6 +17846,7 @@ function descreveEfeito(e) {
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
+    case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
     case 'sacrifice_it': return 'o controlador sacrifica a permanente alvo';

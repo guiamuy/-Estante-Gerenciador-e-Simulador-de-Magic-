@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2d.1 camadas 4, 6 e 7b com carimbo de tempo (613) para Aura que redefine a criatura; Darksteel Mutation e Reprobation completas (leva M-223, motor v90) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2d.2 terreno que vira criatura até o fim do turno (613, 205.1b) com enjoo pelo ruling (302.6); Mishra's Factory e Blinkmoth Nexus completas (leva M-224, motor v91) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2861,6 +2861,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Apoio de teste:** o cenário automático de busca por nome (Squadron Hawk) passa a manter as outras cópias no grimório (o sorteio da mão mudou com os scripts novos).
 - **Golden:** regravadas (89 → 90); registros das quatro partidas iguais.
 - **Próximas da CR2d:** terreno que vira criatura até o fim do turno (Mishra's Factory, Blinkmoth Nexus), Veículo e tripular (Smuggler's Copter), Animate Dead, Kytheon (transformar).
+
+**CR2d.2 · Terreno que vira criatura até o fim do turno** 🟡 (leva M-224, motor v91) — 3 testes, todos falhavam antes.
+- **613 / 205.1b** "esta terra vira uma criatura artefato N/N <subtipo> até o fim do turno. Ela continua sendo terreno": tipos e subtipos somados aos que ela tinha, P/T base, palavras-chave dadas pelo efeito, tudo com carimbo de tempo próprio, na mesma ordem das Auras da CR2d.1; acaba na limpeza do turno. A tela mostra o P/T dela enquanto é criatura.
+- **302.6** (ruling das duas cartas): a permanente que entrou neste turno sem ser criatura e virou criatura tem enjoo — não ataca nem usa {T} de criatura.
+- **Alvo por subtipo:** "Assembly-Worker alvo", "Blinkmoth alvo" (metamorfo conta).
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026, completas:** **Mishra's Factory** e **Blinkmoth Nexus** (eram parciais: só geravam {C}).
+- **Medição:** Malcolm 73% (antes 71%), Killian 65%. Triagem 108 prontas · 9 A · 35 B · 12 C.
+- **Para a trilha do bot:** o Shark decide "é criatura" pelo tipo impresso (`ehCriatura`), então ainda não ataca com terreno animado nem o conta como bloqueador.
+- **Golden:** regravadas (90 → 91); registros das quatro partidas iguais.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

@@ -606,3 +606,33 @@ test('CR2d.1 · carimbo de tempo (613.7): o +3/+3 de antes continua (7c), o voar
     s = encanta(s, rp, z, 'WC'); assert.equal(st(s, z), '3/4', '0/1 base + 3/3 do Comando'); assert.equal(E.hasKeyword(s, s.objects[z], 'flying'), false, 'o voar veio antes da Aura: perdido'); }
   { let { s, rp, sc, z } = base(); s = encanta(s, rp, z, 'WC'); s = comando(s, sc, z); assert.equal(st(s, z), '3/4'); assert.ok(E.hasKeyword(s, s.objects[z], 'flying'), 'o voar veio depois da Aura: fica'); }
 });
+
+// ---------------------------------------------------------------- CR2d.2 · terreno que vira criatura até o fim do turno (camadas 4, 6 e 7b, "It's still a land")
+const veterano = (s, oid) => { s = J(s); s.objects[oid].entrouNoTurno = s.turn.number - 1; s.objects[oid].sick = false; return s; }; // no campo desde antes deste turno
+
+test("CR2d.2 · Mishra's Factory: {1} vira uma criatura artefato Assembly-Worker 2/2 até o fim do turno e continua terreno; {T}: Assembly-Worker alvo recebe +1/+1", () => {
+  let s = semMao(mesa(["Mishra's Factory"], ['Faerie Seer']), 0), mf, fs; [s, mf] = poe(s, 0, "Mishra's Factory"); [s, fs] = poe(s, 1, 'Faerie Seer'); s = veterano(s, mf);
+  assert.equal(E.eligibleAttackers(s, 0).includes(mf), false, 'antes: só terreno');
+  const vira = legais(comMana(s, 'C'), 0, x => x.t === 'activate' && x.oid === mf && !x.targets); assert.equal(vira.length, 1, '{1}: vira criatura');
+  s = tudo(act(comMana(s, 'C'), vira[0])); const v = E.stats(s, s.objects[mf]);
+  assert.equal(`${v.power}/${v.toughness}`, '2/2'); assert.ok(E.eligibleAttackers(s, 0).includes(mf), 'pode atacar: estava sob seu controle desde o começo do turno');
+  assert.ok(E.productions(s, s.objects[mf]).length > 0, "It's still a land: continua gerando {C}");
+  const pump = legais(s, 0, x => x.t === 'activate' && x.oid === mf && x.targets); assert.deepEqual(J(pump.map(x => x.targets[0].oid)), [mf], 'Target Assembly-Worker creature: a Faerie Seer não é alvo');
+  s = tudo(act(s, pump[0])); const w = E.stats(s, s.objects[mf]); assert.equal(`${w.power}/${w.toughness}`, '3/3'); assert.ok(s.objects[mf].tapped);
+  const turno = s.turn.number; s = passaAte(s, x => x.turn.number > turno); assert.equal(E.eligibleAttackers(s, 0).includes(mf), false); const c = E.stats(s, s.objects[mf]);
+  assert.ok(!E.legalTargets(s, 1, 'creature').some(x => x.oid === mf), 'no fim do turno deixa de ser criatura');
+});
+
+test('CR2d.2 · Blinkmoth Nexus: {1} vira uma criatura artefato Blinkmoth 1/1 com voar até o fim do turno; {1},{T}: Blinkmoth alvo recebe +1/+1', () => {
+  let s = semMao(mesa(['Blinkmoth Nexus'], []), 0), bn; [s, bn] = poe(s, 0, 'Blinkmoth Nexus'); s = veterano(s, bn);
+  s = tudo(act(comMana(s, 'C'), legais(comMana(s, 'C'), 0, x => x.t === 'activate' && x.oid === bn && !x.targets)[0]));
+  assert.equal(`${E.stats(s, s.objects[bn]).power}/${E.stats(s, s.objects[bn]).toughness}`, '1/1'); assert.ok(E.hasKeyword(s, s.objects[bn], 'flying'), 'with flying');
+  const pump = legais(comMana(s, 'C'), 0, x => x.t === 'activate' && x.oid === bn && x.targets); assert.equal(pump.length, 1, 'ruling: ela pode mirar a si mesma');
+  s = tudo(act(comMana(s, 'C'), pump[0])); assert.equal(E.stats(s, s.objects[bn]).power, 2);
+});
+
+test('CR2d.2 · terreno que entrou neste turno e virou criatura não ataca nem usa {T} de criatura (ruling: controle contínuo desde o começo do turno)', () => {
+  let s = semMao(mesa(["Mishra's Factory"], []), 0), mf; [s, mf] = poe(s, 0, "Mishra's Factory"); s = J(s); s.objects[mf].entrouNoTurno = s.turn.number;
+  s = tudo(act(comMana(s, 'C'), legais(comMana(s, 'C'), 0, x => x.t === 'activate' && x.oid === mf && !x.targets)[0]));
+  assert.equal(E.eligibleAttackers(s, 0).includes(mf), false, 'entrou agora: não ataca'); assert.equal(legais(s, 0, x => x.t === 'activate' && x.oid === mf && x.targets).length, 0, '{T} de criatura com enjoo');
+});

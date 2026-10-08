@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 90,
+ "motor": 91,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -1929,8 +1929,8 @@
    "regra": "Type Line",
    "titulo": "Linha de tipo e efeitos que mudam tipo",
    "status": "parcial",
-   "evidencia": "cardFacts lê tipos da linha de tipo (index.html:10047-10048) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\"",
-   "falta": "205.1a-b: só Auras definem tipo/subtipo (camada 4 via aura.becomes); efeito que acrescenta tipo (terreno que vira criatura, Veículo) ainda não; subtipos de artefato antigos não são mantidos pela Darksteel Mutation.",
+   "evidencia": "cardFacts lê tipos da linha de tipo (index.html:10047-10048) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\" · CR2d.2 (v91): efeito animate (o.vira com carimbo, addTypes) — tipos e subtipos somados, P/T base, palavras-chave; some na limpeza",
+   "falta": "205.1a-b: só Auras definem tipo/subtipo (camada 4 via aura.becomes); terreno que vira criatura mantendo o tipo terreno (CR2d.2, \"It's still a land\"); Veículo ainda não; subtipos de artefato antigos não são mantidos pela Darksteel Mutation.",
    "esforco": "G",
    "depende": [
     "613"
@@ -2248,7 +2248,7 @@
    "regra": "Creatures",
    "titulo": "Enjoo de invocação",
    "status": "coberta",
-   "evidencia": "sick ao entrar e limpo no desvirar do controlador (index.html:10275, 10685); barra ataque (10755), {T} (11993, 12011) e mana (10482); testes \"M6 · quem pode atacar: enjoo não, ímpeto sim\", \"M9 · ... enjoo impede {T}\", \"S62 · virar outra criatura como custo não se importa com enjoo\". Não há troca de controle no motor."
+   "evidencia": "sick ao entrar e limpo no desvirar do controlador (index.html:10275, 10685); barra ataque (10755), {T} (11993, 12011) e mana (10482); testes \"M6 · quem pode atacar: enjoo não, ímpeto sim\", \"M9 · ... enjoo impede {T}\", \"S62 · virar outra criatura como custo não se importa com enjoo\". Não há troca de controle no motor. · CR2d.2 (v91): permanente que não era criatura ao entrar e vira criatura no mesmo turno também tem enjoo (enjoado(): entrouNoTurno), para atacar e para {T}; teste commander.regras \"CR2d.2 · terreno que entrou neste turno…\""
   },
   {
    "n": "302.7",
@@ -4776,7 +4776,7 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Características calculadas por camadas",
    "status": "parcial",
-   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\"",
+   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\" · CR2d.2 (v91): efeito de habilidade \"vira criatura até o fim do turno\" entra na mesma ordenação por carimbo que as Auras",
    "falta": "Camada 1: só virada para baixo, embutida em power/has/isCreature. Camada 2 (controle): nenhum efeito; o.controller é escrito direto. Camada 3: nada. Camada 4: conceder e Aura que redefine o tipo (CR2d.1), sem \"vira criatura\"/\"perde tipos\". Camada 5: só devoid gravado nos fatos (:10166). Camada 6: só soma de palavras-chave; não existe perder habilidade nem \"não pode ter\". Camada 7: só soma (7c). Construir exige um registro de efeitos (fonte, camada, duração, afetados, carimbo) e uma função única de características.",
    "esforco": "G",
    "depende": [
