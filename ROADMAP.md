@@ -474,6 +474,11 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cd ✅ | K4 Início redesenhada: data e saudação, Jogar em destaque, quatro destinos numa linha, notícias integradas (destaque e duas) com Ver todas (leva G-216) | K | 1 | teste no aparelho |
 | 16º-ce ✅ | L9 versões da lista: salvar como está e comparar duas versões (entrou e saiu, por zona), guardadas na lista e no backup (leva G-218) | L | 1 | teste no aparelho |
 | 16º-cf ✅ | V2 rulings na carta: seção que abre e lembra, data e fonte, guardados no aparelho com prazo, sem internet mostra a cópia (leva G-219) | V | 1 | teste no aparelho |
+| 16º-cg ✅ | Y1 relatar de qualquer tela: Relatar no botão de ação ou botão discreto, formulário com tipo e urgência, carimbo, tela Relatos (leva G-222) | Y | 1 | teste no aparelho |
+| 16º-ch ○ | Y2 relatar na partida: aba flutuante na borda e a partida anexada | Y | 1 | — |
+| 16º-ci ○ | Y3 relatos para fora: filtros e exportar | Y | 1 | — |
+| 16º-cj ○ | Z1–Z4 catálogo de listas: coletor (MTGJSON), catálogo por formato, detalhe com visões e estatísticas, importar e jogar | Z | 4 | ADR-09 |
+| 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6255,6 +6260,85 @@ prioridade, que é da mesa e conversa com o motor); K4 em uma ou duas levas.
   seção com destaque 16:9 e duas linhas, bandeiras com os dois idiomas, Ver todas, só português, fora do ar e tentar
   de novo, sem internet e volta, nada publicado; `auditaTela` nas quatro larguras, dois temas e fonte larga); e2e U2,
   N2 e N3 ajustados com justificativa (a entrada de Notícias e os destinos mudaram de forma).
+
+### Y · Relatos (E60, pedido de 08/10/2026)
+
+**Pedido (08/10/2026):** registrar feedback de forma visual, estruturada e fluida, dentro e fora da partida: um atalho
+a qualquer momento (opção do botão flutuante de cada área; na partida, uma solução flutuante elegante que não atrapalhe
+o jogo); formulário com a descrição livre, tipo e urgência escolhidos em listas suspensas, data e hora carimbadas pelo
+app; tudo guardado de forma estruturada para a correção depois.
+
+**Ordem e tamanho:** Y1 (formulário, armazenamento e atalho fora da partida, com a tela Relatos) · Y2 (aba flutuante na
+mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
+
+**Y1 · Relatar de qualquer tela** ✅ (leva G-222, 08/10/2026)
+- **Valor:** guardar um erro, uma regra que não bateu ou uma ideia no instante em que acontece, sem sair do que se faz.
+- **Entregue:**
+  - **onde:** todo botão de ação com menu ganha **Relatar** como último item (Listas, Lista, Coleção…); nas telas sem
+    botão de ação (Início, Cartas, Jogar, Notícias, Perfil…), um **botão discreto** de 48 px no mesmo canto — superfície
+    elevada, ícone apagado, não é primário; com botão de ação de uma ação só, ele fica logo acima. Some na mesa (Y2
+    traz o dela), no scanner e na própria tela Relatos;
+  - **formulário "Relatar":** **Tipo** (Erro, Regra ou carta, Visual, Ideia, Lentidão, Outro) e **Urgência** (Impede o
+    uso, Alta, Média, Baixa) em listas suspensas lado a lado; **O que aconteceu** (texto livre, até 2000, com contagem);
+    o **carimbo** mostra data, hora e a área ("08/10/2026 20:11 · Lista") e diz o que vai junto. Salvar vazio aponta
+    cada campo e põe o foco no primeiro; fechar sem salvar **guarda o rascunho**;
+  - **ao salvar:** data e hora em ISO pelo relógio do app, a área e a rota, e o contexto sozinho (versão do motor, tema,
+    tamanho da tela, se havia internet); aviso "Relato salvo · data hora" com **Ver**;
+  - **Perfil › Relatos:** abertos primeiro, depois a urgência maior, depois o mais recente; cada relato com urgência,
+    tipo, data, área e texto; **Resolvido/Reabrir**, **Copiar** (texto pronto para colar na conversa de correção) e
+    **Excluir** com Desfazer; **Copiar abertos** junta todos; no Perfil, "N abertos de M".
+- **Armazenamento:** `relatos.itens` no aparelho (até 500), no **backup completo**.
+- **Correção no caminho:** o aviso com ação cobria o botão discreto; o aviso agora sobe acima dele (`--relatar-h`), como
+  já subia acima do botão de ação.
+- **Modelo (puro, `__m38`):** `confere`, `novoRelato`, `ordena`, `areaDaRota`, `textoDoRelato`, `textoDosRelatos`,
+  `createRelatos`; `__m3.usaRelatar` liga o item do botão de ação. Ícone novo `relato`.
+- **Testes:** U `relatos.unit` ×6; e2e "Y1" (posição e tamanho, formulário com erros e foco, rascunho, carimbo, item do
+  menu com a área, botão em cima do de uma ação, some na mesa, Relatos com ordem, resolvido, copiar, desfazer, recarga;
+  `auditaTela` nas quatro medidas e nos dois temas); J6 e J7 passam a esperar Relatar por último no menu.
+- **Fora:** foto da tela anexada; enviar para fora do aparelho (Y3 exporta).
+
+**Y2 · Relatar na partida** ○
+- **Valor:** relatar a regra ou o erro da mesa no momento, com o estado da partida junto para reproduzir.
+- **Aceite:** aba flutuante discreta na borda direita (alvo de 44 px, parte visível estreita, arrastável na vertical,
+  posição lembrada; some durante a cena do oponente e com diálogo aberto); também no menu da faixa; o relato leva modo,
+  oponente, turno, fase, de quem é a prioridade, as últimas linhas do registro e, marcado por padrão, **a partida
+  anexada** (semente e jogadas) para abrir igual depois; o jogo não anda com o formulário aberto.
+- **Testes:** U (contexto da partida), I (aba não cobre carta nem botão nas quatro medidas, arrasto, relato com
+  partida). **Depende de:** Y1.
+
+**Y3 · Relatos para fora** ○
+- **Valor:** levar os relatos para a correção sem copiar um a um.
+- **Aceite:** filtros por tipo, urgência, área e situação; exportar o recorte em texto (Markdown), JSON e CSV; abrir a
+  partida anexada de um relato.
+- **Testes:** U, I. **Depende de:** Y1, Y2.
+
+### Z · Catálogo de listas (E61, pedido de 08/10/2026)
+
+**Pedido (08/10/2026):** importar listas disponíveis por API para o app — para gerenciar ou jogar sem internet —, com
+uma experiência excelente de ver as opções por formato de jogo e, em cada lista, a descrição que a fonte der, as cartas
+em várias visões (lista, agregado, galeria) e as estatísticas (tipos, volumes, curva de mana, cores).
+
+**Fontes (pesquisa de 08/10/2026):** o navegador não alcança Moxfield, Archidekt nem MTGJSON direto (sem CORS — mesma
+barreira da L10). O caminho é o da ADR-08: um **coletor agendado** busca no servidor do GitHub e publica JSON pronto
+num ramo, que o app lê. Fontes: **MTGJSON** (listas oficiais lançadas pela Wizards — Commander, Challenger, Starter…;
+licença MIT, sem chave) e **TopDeck.gg** (listas de torneio por formato — EDH, Pauper, Modern, Standard, Pioneer,
+Legacy…; API gratuita com chave e crédito visível obrigatório). **Bloqueio do usuário:** criar a chave em
+topdeck.gg/developers e guardá-la como segredo `TOPDECK_KEY` do repositório (Z5).
+**Escopo negativo respeitado:** catálogo para ler, importar e jogar; sem ranking de metagame, sem porcentagens de
+presença, sem sugestão de cartas.
+
+**Ordem e tamanho:** Z1 → Z2 → Z3 → Z4 (uma leva cada), Z5 quando houver a chave. Cinco levas.
+
+**Z1 · Coletor e ADR-09** ○ — fluxo semanal `listas.yml` + `catalogo.mjs`: MTGJSON → formato normalizado (nome, formato,
+fonte, tipo, data, descrição, comandante, cartas por zona), publicado no ramo `catalogo` (índice por formato + uma lista
+por arquivo). Testes U do coletor com amostra gravada.
+**Z2 · Catálogo por formato** ○ — tela a partir de Listas: formatos em controle segmentado, cartões com cores em
+símbolos, comandante ou carta de destaque, tipo, data e fonte; busca; vazio, carregando, erro e sem internet.
+**Z3 · Detalhe da lista do catálogo** ○ — descrição da fonte, visões Lista (por tipo), Agregado (por custo e cor) e
+Galeria, estatísticas da L8, folha da carta (rulings e preço).
+**Z4 · Importar e jogar** ○ — "Salvar" cria a lista nas suas com a origem marcada (repetida abre a existente), as
+cartas e imagens ficam guardadas para jogar sem internet; "Jogar" direto contra o Shark.
+**Z5 · Listas de torneio (TopDeck.gg)** ⛔ — evento, colocação e jogador, com o crédito visível; depende da chave.
 
 ### P · Plataforma
 

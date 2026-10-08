@@ -7696,6 +7696,81 @@ test('e2e · V2 rulings na carta: seção fechada que só busca ao abrir, lista 
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- Y1 · relatos ---------------- */
+test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão de ação, Relatar no menu de quem tem, formulário com tipo e urgência em listas, carimbo de data e hora, rascunho que não se perde e a tela Relatos com resolvido, copiar e desfazer', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  // 1 · Início não tem botão de ação: o Relatar discreto fica no canto, 48 px, sem ser primário
+  const geo = sel => page.$eval(sel, b => { const r = b.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - r.bottom), top: Math.round(r.top), left: Math.round(r.left) }; });
+  assert.deepEqual(await geo('#relatar-abrir'), { w: 48, h: 48, direita: 16, baixo: 16, top: 780 - 16 - 48, left: 360 - 16 - 48 });
+  assert.equal(await page.getAttribute('#relatar-abrir', 'aria-label'), 'Relatar um problema ou uma ideia');
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'continua um primário: Jogar');
+  await auditaTela(page, 'início com relatar');
+  // 2 · o formulário: salvar vazio aponta os três campos e põe o foco no primeiro
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Relatar');
+  assert.deepEqual(await page.$$eval('#relato-tipo option', os => os.map(o => o.textContent)), ['Escolha…', 'Erro', 'Regra ou carta', 'Visual', 'Ideia', 'Lentidão', 'Outro']);
+  assert.deepEqual(await page.$$eval('#relato-urgencia option', os => os.map(o => o.textContent)), ['Escolha…', 'Impede o uso', 'Alta', 'Média', 'Baixa']);
+  assert.match(await page.innerText('#relato-carimbo'), /\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · Início/);
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário: Salvar');
+  await page.click('#relato-salvar');
+  assert.deepEqual(await page.$$eval('#relato-form .ds-field--invalid .ds-field__hint', hs => hs.map(x => x.textContent)), ['Escolha o tipo.', 'Escolha a urgência.', 'Conte em poucas palavras o que aconteceu.']);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'relato-tipo');
+  await page.selectOption('#relato-tipo', 'erro'); assert.equal(await page.locator('#relato-form .ds-field--invalid').count(), 2, 'o erro do campo sai quando ele é preenchido');
+  await page.selectOption('#relato-urgencia', 'alta');
+  await page.fill('#relato-descricao', 'A imagem da Island não aparece na lista.');
+  assert.equal(await page.innerText('#relato-conta'), '40/2000');
+  await auditaTela(page, 'relatar · formulário (escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y1-relatar.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatar ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 3 · fechar sem salvar não perde o que foi escrito
+  await page.click('#ds-dialog-close'); await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  assert.equal(await page.inputValue('#relato-descricao'), 'A imagem da Island não aparece na lista.'); assert.equal(await page.inputValue('#relato-tipo'), 'erro');
+  // 4 · salvar: carimba, avisa com Ver e limpa o rascunho
+  await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  assert.match(await page.innerText('#ds-toast'), /Relato salvo · \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form'); assert.equal(await page.inputValue('#relato-descricao'), ''); await page.keyboard.press('Escape');
+  // 5 · lista com quatro ações: o discreto sai e Relatar é o último item do menu; a área vai junto
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.waitForSelector('#deck-fab-abrir'); assert.equal(await page.locator('#relatar-abrir').isVisible(), false);
+  await acaoJ6(page, 'deck-fab', '#deck-fab-relatar'); await page.waitForSelector('#relato-form');
+  assert.match(await page.innerText('#relato-carimbo'), / · Lista/);
+  await page.selectOption('#relato-tipo', 'ideia'); await page.selectOption('#relato-urgencia', 'baixa'); await page.fill('#relato-descricao', 'Mostrar o valor da reserva separado.');
+  await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  // 6 · botão de ação de uma ação só (como Partidas com histórico): o discreto fica em cima, sem encostar
+  await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-search');
+  await page.evaluate(() => document.querySelector('#outlet').appendChild(__m3.BotaoDeAcao([{ icone: 'jogar', rotulo: 'Jogar', id: 'y1-uma-acao', onClick: () => {} }], { id: 'y1-fab' })));
+  await page.waitForTimeout(250);
+  const fab = await geo('#y1-uma-acao'), rel = await geo('#relatar-abrir');
+  assert.ok(rel.top + rel.h <= fab.top - 8 && rel.direita === 20, 'Relatar em cima do botão de ação: ' + JSON.stringify({ fab, rel }));
+  await auditaTela(page, 'relatar em cima do botão de uma ação');
+  // 7 · a mesa não mostra o discreto (Y2 traz o dela)
+  await page.goto(base + '#/partida'); await page.waitForTimeout(300); assert.equal(await page.locator('#relatar-abrir').isVisible(), false);
+  // 8 · Perfil › Relatos: resumo, ordem (urgência), resolvido, copiar, excluir com desfazer
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-relatos');
+  assert.match(await page.innerText('#perfil-relatos'), /Relatos\s*2 abertos de 2/);
+  await page.click('#perfil-relatos'); await page.waitForSelector('#relatos-lista');
+  assert.equal(await page.locator('#relatar-abrir').isVisible(), false, 'a tela já tem o Relatar dela');
+  const itens = () => page.$$eval('#relatos-lista .relato-item', is => is.map(i => [i.dataset.urgencia, i.dataset.status, i.querySelector('.relato-item__texto').textContent]));
+  assert.deepEqual(await itens(), [['alta', 'aberto', 'A imagem da Island não aparece na lista.'], ['baixa', 'aberto', 'Mostrar o valor da reserva separado.']]);
+  assert.match(await page.innerText('#relatos-resumo'), /2 relatos · 2 abertos/);
+  assert.match(await page.innerText('#relatos-lista .relato-item'), /Erro[\s\S]*\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · Início/);
+  await auditaTela(page, 'relatos (escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y1-relatos.png' });
+  await page.click('#relatos-lista .relato-item [data-acao="status"]'); await page.waitForFunction(() => document.querySelector('#relatos-lista .relato-item:last-child').dataset.status === 'resolvido');
+  assert.deepEqual((await itens()).map(i => i[1]), ['aberto', 'resolvido'], 'resolvido desce para o fim');
+  // o aviso de "Relato salvo" (com ação) atravessa as telas; o de copiar chega depois da área de transferência responder
+  await page.click('#relatos-copiar'); await page.waitForFunction(() => /1 relato\(s\) copiado\(s\)|Não foi possível copiar/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
+  await page.click('#relatos-lista .relato-item [data-acao="excluir"]'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 1);
+  await page.click('#ds-toast button'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 2);
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos ${w} ${tema}`); } }
+  // 9 · guardados no aparelho
+  await page.reload(); await page.waitForSelector('#relatos-lista'); assert.equal((await itens()).length, 2);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
@@ -8302,7 +8377,8 @@ test('e2e · J6 botão de ação: no canto inferior direito de Listas e Coleçã
   await page.click('#decks-fab-abrir'); await page.waitForSelector('#deck-new');
   assert.equal(await page.getAttribute('#decks-fab-abrir', 'aria-expanded'), 'true');
   const itens = await page.$$eval('#decks-fab .ds-fab__item', (is) => { const p = document.querySelector('#decks-fab-abrir').getBoundingClientRect(); return is.map(i => { const r = i.getBoundingClientRect(); return { id: i.id, rotulo: i.querySelector('.ds-fab__rotulo').textContent, icone: !!i.querySelector('svg'), h: Math.round(r.height), acima: r.bottom <= p.top + 1, direita: Math.round(innerWidth - r.right), papel: i.getAttribute('role') }; }); });
-  assert.deepEqual(itens.map(i => [i.id, i.rotulo]), [['deck-new', 'Nova lista'], ['deck-starter', 'Prontas']]);
+  // Y1 (leva G-222) · todo botão de ação com menu ganha Relatar por último
+  assert.deepEqual(itens.map(i => [i.id, i.rotulo]), [['deck-new', 'Nova lista'], ['deck-starter', 'Prontas'], ['decks-fab-relatar', 'Relatar']]);
   assert.ok(itens.every(i => i.icone && i.h >= 44 && i.acima && i.direita === 16 && i.papel === 'menuitem' && i.rotulo.split(' ').length <= 2), JSON.stringify(itens));
   assert.equal(await page.evaluate(() => document.activeElement.id), 'deck-new', 'o foco vai para a primeira ação');
   assert.doesNotMatch(await page.innerText('#decks-fab'), /\p{Extended_Pictographic}/u, 'sem emoji');
@@ -8328,7 +8404,7 @@ test('e2e · J6 botão de ação: no canto inferior direito de Listas e Coleçã
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-fab-abrir'); await page.waitForTimeout(350);
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1); assert.equal(await page.locator('#col-search').isVisible(), true);
   await page.click('#col-fab-abrir');
-  assert.deepEqual(await page.$$eval('#col-fab .ds-fab__item', is => is.map(i => [i.id, i.querySelector('.ds-fab__rotulo').textContent])), [['col-scan', 'Escanear'], ['col-ir-adicionar', 'Adicionar'], ['col-colar', 'Colar lista']]);
+  assert.deepEqual(await page.$$eval('#col-fab .ds-fab__item', is => is.map(i => [i.id, i.querySelector('.ds-fab__rotulo').textContent])), [['col-scan', 'Escanear'], ['col-ir-adicionar', 'Adicionar'], ['col-colar', 'Colar lista'], ['col-fab-relatar', 'Relatar']]); // Y1 · Relatar por último
   await page.waitForTimeout(300); await auditaTela(page, 'coleção · botão de ação aberto');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j6-colecao-aberto.png' });
   await page.click('#col-ir-adicionar'); await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add', null, { timeout: 4000 });
@@ -8345,7 +8421,7 @@ test('e2e · J6 botão de ação: no canto inferior direito de Listas e Coleçã
   await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-fichas'); assert.equal(await page.locator('.ds-fab').count(), 0);
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim()), '', 'a reserva do pé some com o botão');
   // catálogo
-  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-fab-abrir'); await page.click('#ds-fab-abrir'); assert.equal(await page.locator('#ds-fab .ds-fab__item').count(), 3);
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-fab-abrir'); await page.click('#ds-fab-abrir'); assert.equal(await page.locator('#ds-fab .ds-fab__item').count(), 4, 'três de exemplo e Relatar (Y1)');
   assert.deepEqual(errors, []);
 });
 
@@ -8372,7 +8448,7 @@ test('e2e · J7 botão de ação da Lista: Jogar, Editar e Exportar no canto inf
   await page.click('#deck-fab-abrir'); await page.waitForSelector('#deck-jogar');
   const itens = await page.$$eval('#deck-fab .ds-fab__item', is => is.map(i => ({ id: i.id, rotulo: i.querySelector('.ds-fab__rotulo').textContent, icone: !!i.querySelector('svg'), h: Math.round(i.getBoundingClientRect().height) })));
   // L9 · a quarta ação é Versões (leva G-218)
-  assert.deepEqual(itens.map(i => [i.id, i.rotulo]), [['deck-jogar', 'Jogar'], ['deck-edit', 'Editar'], ['deck-export', 'Exportar'], ['deck-versoes', 'Versões']]);
+  assert.deepEqual(itens.map(i => [i.id, i.rotulo]), [['deck-jogar', 'Jogar'], ['deck-edit', 'Editar'], ['deck-export', 'Exportar'], ['deck-versoes', 'Versões'], ['deck-fab-relatar', 'Relatar']]); // Y1 · Relatar por último
   assert.ok(itens.every(i => i.icone && i.h >= 44), JSON.stringify(itens));
   assert.doesNotMatch(await page.innerText('#deck-fab'), /\p{Extended_Pictographic}/u, 'sem emoji');
   await page.waitForTimeout(300); await auditaTela(page, 'lista · botão de ação aberto');
