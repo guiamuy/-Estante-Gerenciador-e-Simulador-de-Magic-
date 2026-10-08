@@ -7564,6 +7564,63 @@ test('e2e · L8 estatísticas da lista: bloco que abre e lembra, ladrilhos, barr
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- L9 · versões da lista ---------------- */
+test('e2e · L9 versões da lista: salvar como está, igual não duplica, editar e comparar (o que entrou e o que saiu, com a reserva e a quantidade que mudou), escolher De e Para, guardado ao recarregar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', '4 Delver of Secrets\n16 Island\n4 Ponder\n\nSideboard\n2 Hydroblast', 'livre');
+  const id = await page.evaluate(() => new URLSearchParams(location.hash.split('?')[1]).get('id'));
+  const abre = async () => { await acaoJ6(page, 'deck-fab', '#deck-versoes'); await page.waitForSelector('#deck-versoes-folha'); };
+  const linhas = sel => page.$$eval(sel + ' .deck-dif__linha', ls => ls.map(l => [l.querySelector('.deck-dif__qtd').textContent, l.querySelector('.deck-dif__nome').textContent, (l.querySelector('.deck-dif__de') || {}).textContent || '', (l.querySelector('.ds-badge') || {}).textContent || '']));
+  // 1 · nenhuma versão: estado vazio e um primário, Salvar versão
+  await abre();
+  assert.match(await page.innerText('.ds-dialog'), /Versões · Delver/);
+  await page.waitForSelector('#deck-versoes-vazio');
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário');
+  assert.equal(await page.innerText('#deck-versoes-salvar'), 'Salvar versão');
+  assert.doesNotMatch(await page.innerText('.ds-dialog'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await auditaTela(page, 'versões · vazio');
+  // 2 · salvar: v1; igual à atual, o botão sai e a frase diz por quê
+  await page.click('#deck-versoes-salvar'); await page.waitForSelector('#deck-versoes-estado');
+  assert.match(await page.innerText('#ds-toast'), /Versão v1 salva/);
+  assert.match(await page.innerText('#deck-versoes-estado'), /igual à v1/);
+  assert.equal(await page.locator('#deck-versoes-salvar').count(), 0, 'igual à última: nada a salvar');
+  assert.match(await page.innerText('#deck-versoes-resumo'), /v1 e Atual são iguais/);
+  assert.match(await page.innerText('#deck-versoes-conta'), /1 versão salva/);
+  await page.click('#deck-versoes-fechar');
+  // 3 · editar a lista (o editor guarda as versões) e comparar com a v1
+  await page.goto(base + '#/listas/editar?id=' + id); await page.waitForSelector('#deck-text');
+  await page.fill('#deck-text', '4 Delver of Secrets\n15 Island\n4 Brainstorm\n\nSideboard\n2 Hydroblast\n3 Pyroblast'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
+  await abre();
+  assert.match(await page.innerText('#deck-versoes-estado'), /mudou desde a v1/);
+  assert.equal(await page.inputValue('#deck-versoes-de'), '1'); assert.equal(await page.inputValue('#deck-versoes-para'), 'atual');
+  assert.match(await page.innerText('#deck-versoes-resumo'), /De v1 para Atual: 7 cópia\(s\) entraram e 5 saíram/);
+  assert.deepEqual(await linhas('#deck-versoes-entrou'), [['+4', 'Brainstorm', '', ''], ['+3', 'Pyroblast', '', 'Reserva']]);
+  assert.deepEqual(await linhas('#deck-versoes-saiu'), [['−1', 'Island', '16 → 15', ''], ['−4', 'Ponder', '', '']]);
+  assert.equal(await page.getAttribute('#deck-versoes-entrou .deck-dif__qtd', 'aria-label'), 'mais 4', 'o sinal tem nome falado');
+  assert.equal(await page.getAttribute('#deck-versoes-entrou .deck-dif__nome', 'lang'), 'en');
+  await auditaTela(page, 'versões · comparando (escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/l9-versoes.png' });
+  // 4 · salvar a v2: o padrão passa a ser v1 → v2
+  await page.click('#deck-versoes-salvar'); await page.waitForSelector('#deck-versoes-estado:has-text("igual à v2")');
+  assert.equal(await page.inputValue('#deck-versoes-de'), '1'); assert.equal(await page.inputValue('#deck-versoes-para'), '2');
+  assert.match(await page.innerText('#deck-versoes-resumo'), /De v1 para v2/);
+  // 5 · escolher De e Para: o caminho de volta é o espelho; a mesma dos dois lados pede outra
+  await page.selectOption('#deck-versoes-de', '2');
+  assert.match(await page.innerText('#deck-versoes-resumo'), /Escolha duas versões diferentes/);
+  await page.selectOption('#deck-versoes-para', '1');
+  assert.match(await page.innerText('#deck-versoes-resumo'), /De v2 para v1: 5 cópia\(s\) entraram e 7 saíram/);
+  assert.deepEqual((await linhas('#deck-versoes-entrou')).map(l => l[1]), ['Island', 'Ponder']);
+  // 6 · as quatro medidas, nos dois temas, e a fonte larga do CI
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `versões ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  { const larga = await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'versões · fonte larga'); await larga.evaluate(el => el.remove()); }
+  // 7 · guardado no aparelho
+  await page.keyboard.press('Escape'); await page.reload(); await page.waitForSelector('.deck-summary');
+  await abre(); assert.match(await page.innerText('#deck-versoes-conta'), /2 versões salvas/);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
@@ -8239,7 +8296,8 @@ test('e2e · J7 botão de ação da Lista: Jogar, Editar e Exportar no canto inf
   // 2 · as três ações, com ícone, uma palavra e 44 px; a primeira é Jogar
   await page.click('#deck-fab-abrir'); await page.waitForSelector('#deck-jogar');
   const itens = await page.$$eval('#deck-fab .ds-fab__item', is => is.map(i => ({ id: i.id, rotulo: i.querySelector('.ds-fab__rotulo').textContent, icone: !!i.querySelector('svg'), h: Math.round(i.getBoundingClientRect().height) })));
-  assert.deepEqual(itens.map(i => [i.id, i.rotulo]), [['deck-jogar', 'Jogar'], ['deck-edit', 'Editar'], ['deck-export', 'Exportar']]);
+  // L9 · a quarta ação é Versões (leva G-218)
+  assert.deepEqual(itens.map(i => [i.id, i.rotulo]), [['deck-jogar', 'Jogar'], ['deck-edit', 'Editar'], ['deck-export', 'Exportar'], ['deck-versoes', 'Versões']]);
   assert.ok(itens.every(i => i.icone && i.h >= 44), JSON.stringify(itens));
   assert.doesNotMatch(await page.innerText('#deck-fab'), /\p{Extended_Pictographic}/u, 'sem emoji');
   await page.waitForTimeout(300); await auditaTela(page, 'lista · botão de ação aberto');

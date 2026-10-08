@@ -472,6 +472,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cb ✅ | K2 feltros do escuro com presença: verde novo, Oceano e Vinho, todos separados das zonas e com texto AA (leva G-214) | K | ½ | teste no aparelho |
 | 16º-cc ✅ | K3 parar sempre por etapa: Paradas no balão da faixa, chaves do seu turno e do oponente; sem a chave, a mesa só para com ação ou resposta possível (leva G-215) | K | 1 | teste no aparelho |
 | 16º-cd ✅ | K4 Início redesenhada: data e saudação, Jogar em destaque, quatro destinos numa linha, notícias integradas (destaque e duas) com Ver todas (leva G-216) | K | 1 | teste no aparelho |
+| 16º-ce ✅ | L9 versões da lista: salvar como está e comparar duas versões (entrou e saiu, por zona), guardadas na lista e no backup (leva G-218) | L | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4145,12 +4146,29 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Depende de:** L3.
 - **Fora:** sugestão de corte (escopo negativo).
 
-**L9 · Versões da lista** ○
+**L9 · Versões da lista** ✅ (leva G-218, 08/10/2026)
 - **Valor:** comparar a v2 com a v3.
-- **Aceite:** salvar como nova versão e ver o diff (entrou e saiu).
-- **Testes:** U, I.
+- **Entregue:** na tela da lista, o botão de ação ganha **Versões** (quarta ação, depois de Exportar), que abre a folha:
+  - sem versão: estado vazio com **Salvar versão** (único primário);
+  - **Salvar versão** guarda a lista como está (v1, v2, v3…) e avisa; igual à última, o botão sai e a frase diz
+    "A lista está igual à v3. Mude cartas para salvar outra versão." (não duplica);
+  - **De** e **Para** (versões pela data, e Atual): o padrão é a última versão contra a lista atual quando ela mudou,
+    senão as duas últimas; a mesma dos dois lados pede outra;
+  - a diferença em duas partes, **Entrou** e **Saiu**: sinal e quantidade antes do nome (+4 Brainstorm, −1 Island),
+    "16 → 15" quando só a quantidade mudou, selo Reserva, Comandante ou Companheiro; resumo em cópias numa linha.
+- **Regras:** a versão é foto de nome, quantidade e zona — **a impressão (V1) não conta**, trocar a arte não é versão
+  nova; mover entre deck e reserva é sair de uma zona e entrar na outra; ficam as **30 mais recentes** (a mais antiga
+  sai, com aviso), numeração sem reaproveitar número.
+- **Onde mora:** dentro da própria lista (`versoes`), então vai e volta no **backup** sem formato novo; o editor e o
+  Ajustar preservam as versões. Versão quebrada vinda de backup é ignorada.
+- **Modelo (puro, `decks`):** `fotoDaLista`, `versoesDa`, `salvaVersao`, `diffListas`, `rotuloDaVersao`, `VERSOES_MAX`.
+  Ícone novo `historico` no `/ds`.
+- **Testes:** U `decks.unit` ×3 (foto, não duplica, limite, versão quebrada; diferença por zona com de/para e espelho;
+  backup ida e volta e editor que preserva); e2e "L9" (vazio, salvar, igual não duplica, editar e comparar, De/Para,
+  espelho, recarga; `auditaTela` nas quatro medidas, nos dois temas e com a fonte larga); J7 passa a esperar quatro ações.
 - **Depende de:** L1.
-- **Fora:** —
+- **Fora:** **restaurar** uma versão (mexe na lista e pede desfazer: história própria se fizer falta), dar nome à
+  versão, apagar versão, comparar impressões.
 
 **L10 · Importar por URL** ⛔
 - Moxfield e Archidekt não liberam CORS para o navegador.

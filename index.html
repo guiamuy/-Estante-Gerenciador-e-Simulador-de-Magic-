@@ -1348,6 +1348,16 @@ body {
 .deck-slot__passo { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); margin-top: var(--space-1); }
 .deck-slot__passo .ds-btn { min-width: 0; width: 100%; padding-inline: 0; }
 .deck-slot--passo .deck-slot__flag { bottom: calc(var(--tap-min) + var(--space-1) + var(--space-2)); }   /* o selo "falta" fica sobre a carta, não sobre os botões */
+/* L9 · versões: o par De/Para lado a lado e a diferença em linhas curtas (sinal e número antes do nome) */
+.deck-versoes__par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.deck-versoes__par .ds-select { width: 100%; min-width: 0; }
+.deck-dif__linha { display: grid; grid-template-columns: 3.2em minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2); min-height: 32px; padding: var(--space-1) 0; border-bottom: 1px solid var(--border); font-size: var(--text-md); }
+.deck-dif__linha:last-child { border-bottom: none; }
+.deck-dif__qtd { font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
+.deck-dif__linha[data-sinal="entrou"] .deck-dif__qtd { color: var(--positive); }
+.deck-dif__linha[data-sinal="saiu"] .deck-dif__qtd { color: var(--negative); }
+.deck-dif__nome { overflow-wrap: anywhere; }
+.deck-dif__de { color: var(--fg-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .deck-sug { max-height: calc(var(--tap-min) * 6.5); overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-2); }
 .deck-sug[hidden] { display: none; }
 .deck-sug .ds-list__item { min-height: var(--tap-min); width: 100%; text-align: left; }
@@ -2730,6 +2740,7 @@ const ICONES = {
   camadas: '<path d="M12 3.5l8.5 4.5-8.5 4.5-8.5-4.5z"/><path d="M3.5 12.2l8.5 4.5 8.5-4.5"/><path d="M3.5 16.4l8.5 4.5 8.5-4.5"/>',
   desfazer: '<path d="M9 13.5L4.5 9 9 4.5"/><path d="M4.5 9H14a5.5 5.5 0 0 1 0 11h-3.5"/>',
   // registro: linhas com marcadores
+  historico: '<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M12 7.5V12l3 2"/>', // L9 · versões da lista
   registro: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="2.6"/>',
   // desistir: bandeira branca
   desistir: '<path d="M5.5 21V3.8"/><path d="M5.5 4.5h12.2l-2.6 4.3 2.6 4.3H5.5"/>',
@@ -7028,6 +7039,56 @@ function sugereNomes(nomes, texto, limite = 6) {
   return faixas.flatMap(f => f.sort(ordem)).slice(0, limite);
 }
 
+/* ---------------- L9 · versões da lista ----------------
+   A versão é uma foto do que a lista tinha: nome, quantidade e zona de cada carta (a impressão escolhida não conta:
+   trocar a arte não muda a lista). Mora dentro da própria lista (`versoes`), então vai e volta no backup sem
+   formato novo. Numeração sem buraco reaproveitado: v1, v2, v3… mesmo depois que as mais antigas saem do limite. */
+const VERSOES_MAX = 30;
+const ORDEM_DAS_ZONAS = ['commander', 'companion', 'main', 'side'];
+/** Foto da lista: cartas somadas por zona e nome, em ordem fixa (zona, depois nome). */
+function fotoDaLista(entries) {
+  const m = new Map();
+  for (const e of entries || []) {
+    if (!e || !e.name || !(e.qty > 0)) continue;
+    const zona = ORDEM_DAS_ZONAS.includes(e.zone) ? e.zone : 'main', k = zona + '|' + norm(e.name);
+    if (m.has(k)) m.get(k).qty += e.qty; else m.set(k, { name: e.name, qty: e.qty, zone: zona });
+  }
+  return [...m.values()].sort((a, b) => ORDEM_DAS_ZONAS.indexOf(a.zone) - ORDEM_DAS_ZONAS.indexOf(b.zone) || norm(a.name).localeCompare(norm(b.name)));
+}
+/** As versões guardadas na lista, válidas e da mais antiga para a mais nova (o que veio quebrado de um backup fica de fora). */
+function versoesDa(deck) {
+  const vs = deck && Array.isArray(deck.versoes) ? deck.versoes : [];
+  return vs.filter(v => v && Number.isInteger(v.n) && v.n > 0 && Array.isArray(v.entries)).sort((a, b) => a.n - b.n);
+}
+const mesmaFoto = (a, b) => { const x = fotoDaLista(a), y = fotoDaLista(b); return x.length === y.length && x.every((e, i) => e.zone === y[i].zone && e.qty === y[i].qty && norm(e.name) === norm(y[i].name)); };
+/** Salva a lista como está numa versão nova. Igual à última: nada muda (`igual: true`). Passou do limite: a mais
+    antiga sai (`saiu`). Devolve a lista nova, sem mexer na recebida. */
+function salvaVersao(deck, agora = Date.now()) {
+  const vs = versoesDa(deck), ultima = vs[vs.length - 1] || null;
+  if (ultima && mesmaFoto(ultima.entries, deck.entries)) return { deck, versao: ultima, igual: true, saiu: null };
+  const versao = { n: ultima ? ultima.n + 1 : 1, em: agora, entries: fotoDaLista(deck.entries) };
+  const todas = [...vs, versao], saiu = todas.length > VERSOES_MAX ? todas[0] : null;
+  return { deck: { ...deck, versoes: saiu ? todas.slice(1) : todas }, versao, igual: false, saiu };
+}
+const rotuloDaVersao = v => (v && v.n ? 'v' + v.n : 'Atual');
+/** O que mudou de `antes` para `depois` (listas de entradas): o que entrou e o que saiu, por zona e nome. Carta que
+    só mudou de quantidade entra (ou sai) com a diferença e leva `de` e `para`; trocar de zona é sair de uma e entrar
+    na outra. */
+function diffListas(antes, depois) {
+  const a = new Map(fotoDaLista(antes).map(e => [e.zone + '|' + norm(e.name), e]));
+  const b = new Map(fotoDaLista(depois).map(e => [e.zone + '|' + norm(e.name), e]));
+  const entrou = [], saiu = [];
+  let iguais = 0;
+  for (const k of new Set([...a.keys(), ...b.keys()])) {
+    const x = a.get(k), y = b.get(k), de = x ? x.qty : 0, para = y ? y.qty : 0, e = y || x;
+    if (de === para) { iguais++; continue; }
+    (para > de ? entrou : saiu).push({ name: e.name, zone: e.zone, qty: Math.abs(para - de), de, para });
+  }
+  const ordem = (p, q) => ORDEM_DAS_ZONAS.indexOf(p.zone) - ORDEM_DAS_ZONAS.indexOf(q.zone) || norm(p.name).localeCompare(norm(q.name));
+  const soma = l => l.reduce((t, e) => t + e.qty, 0);
+  return { entrou: entrou.sort(ordem), saiu: saiu.sort(ordem), iguais, copiasEntraram: soma(entrou), copiasSairam: soma(saiu), igual: !entrou.length && !saiu.length };
+}
+
 function coresDaLista(entries, cards) {
   const ORD = 'WUBRG', cor = new Set();
   const cmd = entries.filter(e => e.zone === 'commander');
@@ -7045,7 +7106,7 @@ function coresDaLista(entries, cards) {
   return [...ORD].filter(x => cor.has(x)).join('');
 }
 
-return { impressaoDe, opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, coresQueGera, estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
+return { impressaoDe, opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, coresQueGera, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, fotoDaLista, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
   parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
@@ -9332,7 +9393,7 @@ const __m15 = (function () {
    ===================================================================== */
 const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem } = __m3;
 const { norm } = __m7;
-const { opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, estatisticasDaLista, ajustaEntrada, sugereNomes, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
+const { opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
 const { STARTER_DECKS } = __m24;
 const { openCardViewer } = __m12;
@@ -10404,6 +10465,53 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     ] });
   }
 
+  /* ---- L9 · versões: salvar a lista como está e comparar duas versões (o que entrou e o que saiu) ---- */
+  const ROTULO_DA_ZONA = { commander: 'Comandante', companion: 'Companheiro', side: 'Reserva' };
+  // só o dia: com a hora, o rótulo não cabe na metade da folha em 360 px
+  const quando = em => new Date(em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  function versoesDialog(escolha = null) {
+    const d = state.deck, vs = versoesDa(d), ultima = vs[vs.length - 1] || null;
+    const mudou = !ultima || !diffListas(ultima.entries, d.entries).igual;
+    const entriesDe = n => (n === 'atual' ? d.entries : (vs.find(v => v.n === n) || { entries: [] }).entries);
+    const rotulo = n => (n === 'atual' ? 'Atual' : 'v' + n);
+    // o que comparar: a última com a atual quando mudou; senão as duas últimas
+    const sel = escolha || (ultima && mudou ? { de: ultima.n, para: 'atual' } : vs.length >= 2 ? { de: vs[vs.length - 2].n, para: ultima.n } : { de: ultima ? ultima.n : 'atual', para: 'atual' });
+    const opcoes = [{ value: 'atual', label: 'Atual' }, ...[...vs].reverse().map(v => ({ value: String(v.n), label: `v${v.n} · ${quando(v.em)}` }))];
+    const valor = x => (x === 'atual' ? 'atual' : Number(x));
+    const seletor = (lado, rot) => Field(rot, Select(opcoes, { id: 'deck-versoes-' + lado, value: String(sel[lado]), onChange: e => versoesDialog({ ...sel, [lado]: valor(e.target.value) }) }));
+    const linha = (e, sinal) => h('div', { class: 'deck-dif__linha', dataset: { zona: e.zone, sinal: sinal === '+' ? 'entrou' : 'saiu' } },
+      h('span', { class: 'deck-dif__qtd', 'aria-label': `${sinal === '+' ? 'mais' : 'menos'} ${e.qty}` }, `${sinal === '+' ? '+' : '−'}${e.qty}`),
+      h('span', { class: 'deck-dif__nome', lang: 'en' }, e.name),
+      e.de && e.para ? h('span', { class: 'deck-dif__de', title: `De ${e.de} para ${e.para}` }, `${e.de} → ${e.para}`) : null,
+      ROTULO_DA_ZONA[e.zone] ? Badge(ROTULO_DA_ZONA[e.zone]) : null);
+    const bloco = (titulo, itens, sinal, id) => itens.length ? Stack({ class: 'deck-dif', id, style: { gap: 'var(--space-1)' } },
+      Text(titulo, { size: 'sm', caps: true, as: 'h3' }), ...itens.map(e => linha(e, sinal))) : null;
+    let corpo;
+    if (!vs.length) {
+      corpo = Empty('Salve a lista como está agora. Depois de mudar cartas, salve de novo e veja o que entrou e o que saiu.', null, { icone: 'historico', titulo: 'Nenhuma versão', id: 'deck-versoes-vazio' });
+    } else {
+      const dif = diffListas(entriesDe(sel.de), entriesDe(sel.para)), mesma = sel.de === sel.para;
+      const resumo = mesma ? 'Escolha duas versões diferentes.' : dif.igual ? `${rotulo(sel.de)} e ${rotulo(sel.para)} são iguais.`
+        : `De ${rotulo(sel.de)} para ${rotulo(sel.para)}: ${dif.copiasEntraram} cópia(s) entraram e ${dif.copiasSairam} saíram.`;
+      corpo = Stack({ style: { gap: 'var(--space-3)' } },
+        Text(mudou ? `A lista mudou desde a v${ultima.n}.` : `A lista está igual à v${ultima.n}. Mude cartas para salvar outra versão.`, { size: 'sm', tone: 'muted', attrs: { id: 'deck-versoes-estado' } }),
+        h('div', { class: 'deck-versoes__par' }, seletor('de', 'De'), seletor('para', 'Para')),
+        Text(resumo, { size: 'sm', attrs: { id: 'deck-versoes-resumo', 'aria-live': 'polite' } }),
+        mesma ? null : bloco(`Entrou · ${dif.entrou.length}`, dif.entrou, '+', 'deck-versoes-entrou'),
+        mesma ? null : bloco(`Saiu · ${dif.saiu.length}`, dif.saiu, '−', 'deck-versoes-saiu'),
+        Text(`${vs.length} ${vs.length === 1 ? 'versão salva' : 'versões salvas'} · ficam as ${VERSOES_MAX} mais recentes, também no backup.`, { size: 'xs', tone: 'subtle', attrs: { id: 'deck-versoes-conta' } }));
+    }
+    Dialog({ title: `Versões · ${d.name}`, body: Stack({ id: 'deck-versoes-folha' }, corpo), actions: [
+      mudou ? Button('Salvar versão', { variant: 'primary', icone: 'historico', id: 'deck-versoes-salvar', onClick: async () => {
+        const r = salvaVersao(state.deck);
+        if (r.igual) return versoesDialog();
+        state.deck = await decks.save(r.deck);
+        toast(`Versão v${r.versao.n} salva` + (r.saiu ? ` · a v${r.saiu.n} saiu (ficam ${VERSOES_MAX})` : ''));
+        versoesDialog();
+      } }) : null,
+      Button('Fechar', { id: 'deck-versoes-fechar', onClick: closeDialog })].filter(Boolean) });
+  }
+
   function paint() {
     const d = state.deck;
     const focoNoAdd = typeof document !== 'undefined' && document.activeElement === addIn;
@@ -10537,7 +10645,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       state.ajustando ? null : __m3.BotaoDeAcao([
         { icone: 'jogar', rotulo: 'Jogar', id: 'deck-jogar', onClick: () => go('/mesa?lista=' + encodeURIComponent(d.id)) },
         { icone: 'editar', rotulo: 'Editar', id: 'deck-edit', onClick: () => go('/listas/editar?id=' + d.id) },
-        { icone: 'exportar', rotulo: 'Exportar', id: 'deck-export', onClick: exportDialog }], { id: 'deck-fab', rotulo: 'Ações da lista' }),
+        { icone: 'exportar', rotulo: 'Exportar', id: 'deck-export', onClick: exportDialog },
+        { icone: 'historico', rotulo: 'Versões', id: 'deck-versoes', onClick: () => versoesDialog() }], { id: 'deck-fab', rotulo: 'Ações da lista' }),
       ...(groups.length ? groups : [Empty(filtrando ? 'Nenhuma carta da lista passa por esses filtros.' : 'Lista vazia.')]));    if (focoNoAdd && state.ajustando) addIn.focus({ preventScroll: true }); // L7 · redesenhar não tira o foco de quem está digitando a carta
   }
   /** Redesenhar a tela toda a cada letra perderia o foco do campo: guarda e devolve. */

@@ -796,3 +796,78 @@ test('V1 · a escolha vale para a carta em todas as zonas, sobrevive a regravar 
   eqV1(vista.faces.map(f => [f.name, f.images.normal]), [['Frente', 'f2'], ['Verso', 'v2']]);
   assert.equal(D.cartaNaImpressao(carta, null), carta); assert.equal(D.cartaNaImpressao(null, imp), null); assert.equal(carta.images.normal, 'n1');
 });
+
+/** L9 · compara pelo valor (os objetos vêm de outro contexto do vm). */
+const eqJ = (a, b, m) => assert.deepEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)), m);
+
+test('L9 · versões: salvar foto da lista (sem impressão, somada, em ordem), igual à última não duplica, numeração sem buraco, limite tira a mais antiga e não mexe na lista recebida', () => {
+  const { salvaVersao, versoesDa, fotoDaLista, rotuloDaVersao, VERSOES_MAX } = loadModules().decks;
+  const lista = { id: 'x', name: 'Delver', format: 'pauper', entries: [
+    { name: 'Island', qty: 10, zone: 'main' }, { name: 'Delver of Secrets', qty: 4, zone: 'main', print: { id: 'mid' } },
+    { name: 'Pyroblast', qty: 2, zone: 'side' }, { name: 'island', qty: 6, zone: 'main' }] };
+  const antes = JSON.stringify(lista);
+  eqJ(fotoDaLista(lista.entries), [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }, { name: 'Island', qty: 16, zone: 'main' }, { name: 'Pyroblast', qty: 2, zone: 'side' }]);
+  const r1 = salvaVersao(lista, 1000);
+  assert.equal(JSON.stringify(lista), antes, 'a lista recebida fica como estava');
+  assert.equal(r1.igual, false); assert.equal(r1.versao.n, 1); assert.equal(r1.versao.em, 1000); assert.equal(rotuloDaVersao(r1.versao), 'v1');
+  eqJ(r1.versao.entries, fotoDaLista(lista.entries));
+  assert.equal(r1.deck.entries, lista.entries, 'a lista continua com as cartas (e impressões) dela');
+  // igual à última: não duplica, mesmo com a impressão trocada
+  const trocaArte = { ...r1.deck, entries: r1.deck.entries.map(e => e.name === 'Delver of Secrets' ? { ...e, print: { id: 'isd' } } : e) };
+  const r2 = salvaVersao(trocaArte, 2000);
+  assert.equal(r2.igual, true); assert.equal(r2.versao.n, 1); assert.equal(r2.deck, trocaArte);
+  // mudou: v2
+  const r3 = salvaVersao({ ...r1.deck, entries: [...r1.deck.entries, { name: 'Counterspell', qty: 4, zone: 'main' }] }, 3000);
+  eqJ(versoesDa(r3.deck).map(v => v.n), [1, 2]);
+  // limite: a mais antiga sai e a numeração segue
+  let d = r3.deck;
+  for (let i = 0; i < VERSOES_MAX; i++) d = salvaVersao({ ...d, entries: [{ name: 'Island', qty: 20 + i, zone: 'main' }] }, 4000 + i).deck;
+  const ns = versoesDa(d).map(v => v.n);
+  assert.equal(ns.length, VERSOES_MAX); assert.equal(ns[0], 3); assert.equal(ns[ns.length - 1], VERSOES_MAX + 2);
+  // versão quebrada (backup antigo ou editado à mão) fica de fora; ordem pelo número
+  eqJ(versoesDa({ versoes: [{ n: 2, entries: [] }, null, { n: 'x', entries: [] }, { n: 1 }, { n: 1, entries: [] }] }).map(v => v.n), [1, 2]);
+  eqJ(versoesDa({}), []); eqJ(versoesDa(null), []);
+  assert.equal(rotuloDaVersao(null), 'Atual');
+});
+
+test('L9 · diffListas: o que entrou e o que saiu por zona, quantidade que mudou leva de/para, troca de zona é sair de uma e entrar na outra, iguais contadas', () => {
+  const { diffListas } = loadModules().decks;
+  const v2 = [{ name: 'Island', qty: 16, zone: 'main' }, { name: 'Delver of Secrets', qty: 4, zone: 'main' }, { name: 'Ponder', qty: 4, zone: 'main' },
+    { name: 'Hydroblast', qty: 2, zone: 'side' }, { name: 'Counterspell', qty: 2, zone: 'main' }];
+  const v3 = [{ name: 'Island', qty: 15, zone: 'main' }, { name: 'Delver of Secrets', qty: 4, zone: 'main' }, { name: 'Brainstorm', qty: 4, zone: 'main' },
+    { name: 'Hydroblast', qty: 2, zone: 'main' }, { name: 'counterspell', qty: 4, zone: 'main' }, { name: 'Pyroblast', qty: 3, zone: 'side' }];
+  const d = diffListas(v2, v3);
+  eqJ(d.entrou, [
+    { name: 'Brainstorm', zone: 'main', qty: 4, de: 0, para: 4 }, { name: 'counterspell', zone: 'main', qty: 2, de: 2, para: 4 },
+    { name: 'Hydroblast', zone: 'main', qty: 2, de: 0, para: 2 }, { name: 'Pyroblast', zone: 'side', qty: 3, de: 0, para: 3 }]);
+  eqJ(d.saiu, [
+    { name: 'Island', zone: 'main', qty: 1, de: 16, para: 15 }, { name: 'Ponder', zone: 'main', qty: 4, de: 4, para: 0 },
+    { name: 'Hydroblast', zone: 'side', qty: 2, de: 2, para: 0 }]);
+  assert.equal(d.iguais, 1); assert.equal(d.copiasEntraram, 11); assert.equal(d.copiasSairam, 7); assert.equal(d.igual, false);
+  // o caminho de volta é o espelho
+  const volta = diffListas(v3, v2);
+  eqJ(volta.entrou.map(e => e.name + e.qty), d.saiu.map(e => e.name + e.qty));
+  eqJ(volta.saiu.map(e => e.name.toLowerCase() + e.qty), d.entrou.map(e => e.name.toLowerCase() + e.qty), 'o nome vem da lista de destino; a grafia não muda a carta');
+  assert.equal(volta.copiasEntraram, 7); assert.equal(volta.copiasSairam, 11);
+  // iguais
+  const igual = diffListas(v2, [...v2].reverse());
+  assert.equal(igual.igual, true); assert.equal(igual.iguais, 5);
+  assert.equal(diffListas([], []).igual, true);
+});
+
+test('L9 · versões vão e voltam no backup: a lista exportada leva as versões e a restaurada as devolve', async () => {
+  const { createDeckStore, createCollection, salvaVersao, versoesDa } = loadModules().decks;
+  const mem = () => P.memoryStore();
+  const a = mem(), decksA = createDeckStore({ store: a }), colA = createCollection({ store: a });
+  let d = await decksA.save({ name: 'Delver', format: 'pauper', entries: [{ name: 'Island', qty: 16, zone: 'main' }] });
+  d = await decksA.save(salvaVersao(d, 1).deck);
+  d = await decksA.save(salvaVersao({ ...d, entries: [{ name: 'Island', qty: 15, zone: 'main' }] }, 2).deck);
+  // editar a lista (como o editor faz: espalha a lista antiga) não perde as versões
+  d = await decksA.save({ ...d, name: 'Delver v3', entries: [{ name: 'Island', qty: 14, zone: 'main' }] });
+  eqJ(versoesDa(await decksA.get(d.id)).map(v => v.n), [1, 2]);
+  const texto = await decksA.exportAll(colA);
+  const b = mem(), decksB = createDeckStore({ store: b }), colB = createCollection({ store: b });
+  await decksB.importAll(texto, colB);
+  const volta = await decksB.get(d.id);
+  eqJ(versoesDa(volta).map(v => [v.n, v.entries[0].qty]), [[1, 16], [2, 15]]);
+});
