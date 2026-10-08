@@ -73,6 +73,8 @@ async function open(t, { dev = true, apresentacao = false, cena = false } = {}) 
   await ctx.route(/^https:\/\/[^/]*\bscryfall\.io\//, r => r.abort('internetdisconnected'));
   // leva 163 · a cotação do dólar não sai do aparelho nos testes: cada teste que precisa dela responde por rota própria
   await ctx.route(/^https:\/\/(economia\.awesomeapi\.com\.br|api\.frankfurter\.dev|open\.er-api\.com)\//, r => r.abort('internetdisconnected'));
+  // K4 (leva G-216) · a Início lê as notícias do ramo `noticias`: nos testes ele fica fora do ar, salvo no teste que o simula (rota da página)
+  await ctx.route(/^https:\/\/raw\.githubusercontent\.com\//, r => r.abort('internetdisconnected'));
   // D4b (leva 145) · a apresentação de primeira abertura só aparece no teste que a pede: os outros (e as abas que abrem
   // a partir do mesmo contexto, como as da partida online) começam direto na tela
   if (!apresentacao) await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; });
@@ -2585,32 +2587,32 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   const barra = await audita('.ds-appbar button'); confere(barra, 'barra');
   assert.ok(barra.filter(b => ['nav-play', 'nav-decks', 'nav-collection', 'theme-toggle'].includes(b.id)).every(b => b.svgs >= 1), 'destinos da barra têm ícone');
   const atalhos = await audita('#home-atalhos button'); confere(atalhos, 'atalhos', { maxPalavras: 1 });
-  assert.deepEqual(atalhos.map(a => a.id), ['go-play', 'go-decks', 'go-collection', 'go-scanner', 'go-cards', 'go-news']); // N2 · Notícias entrou no fim
+  assert.deepEqual(atalhos.map(a => a.id), ['go-play', 'go-decks', 'go-collection', 'go-scanner', 'go-cards']); // K4 (leva G-216) · Notícias virou seção da Início, com "Ver todas"
   assert.ok(atalhos.every(a => a.svgs === 1), 'cada atalho tem um ícone');
   confere(await audita('#home button'), 'início inteiro');
-  // atalho principal ocupa a largura toda; os outros, duas colunas lado a lado
+  // atalho principal ocupa a largura toda; K4 (leva G-216) · expectativa mudou de propósito: os outros quatro numa linha só
   const caixa = id => page.locator(id).boundingBox();
-  const [jogar, listas, colecao] = [await caixa('#go-play'), await caixa('#go-decks'), await caixa('#go-collection')];
+  const [jogar, listas, colecao, buscar] = [await caixa('#go-play'), await caixa('#go-decks'), await caixa('#go-collection'), await caixa('#go-cards')];
   assert.ok(jogar.width > listas.width * 1.8, 'Jogar em destaque, largura toda');
-  assert.ok(Math.abs(listas.y - colecao.y) < 2 && colecao.x > listas.x + listas.width - 1, 'Listas e Coleção na mesma linha');
+  assert.ok(Math.abs(listas.y - colecao.y) < 2 && Math.abs(listas.y - buscar.y) < 2 && colecao.x > listas.x + listas.width - 1, 'Listas, Coleção, Escanear e Buscar na mesma linha');
   // nada marcado na barra no início; marcado ao entrar
   assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 0);
   // profundidade: em repouso tem sombra; pressionado afunda (encolhe e sombra interna); solto, volta
-  const estilo = sel => page.$eval(sel, el => ({ sombra: getComputedStyle(el).boxShadow, transf: getComputedStyle(el).transform }));
-  const repouso = await estilo('#go-decks');
+  const estilo = sel => page.$eval(sel, el => ({ sombra: getComputedStyle(el).boxShadow, transf: getComputedStyle(el).transform })); // K4 (leva G-216) · mede no Jogar: os quatro destinos da Início ficaram leves (sem caixa)
+  const repouso = await estilo('#go-play');
   assert.notEqual(repouso.sombra, 'none', 'botão em repouso tem sombra'); assert.equal(repouso.transf, 'none');
-  const bx = await caixa('#go-decks');
+  const bx = await caixa('#go-play');
   await page.mouse.move(bx.x + 20, bx.y + 20); await page.mouse.down(); await page.waitForTimeout(200);
-  const apertado = await estilo('#go-decks');
+  const apertado = await estilo('#go-play');
   assert.match(apertado.sombra, /inset/, 'pressionado: sombra interna');
   const escala = Number((apertado.transf.match(/matrix\(([^,]+)/) || [])[1]);
   assert.ok(escala > 0.9 && escala < 1, 'pressionado: encolhe um pouco (' + apertado.transf + ')');
   await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up(); await page.waitForTimeout(200);
-  assert.equal((await estilo('#go-decks')).transf, 'none', 'solto: volta');
+  assert.equal((await estilo('#go-play')).transf, 'none', 'solto: volta');
   // movimento reduzido: afunda só na sombra, sem se mexer
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.mouse.move(bx.x + 20, bx.y + 20); await page.mouse.down();
-  const reduzido = await estilo('#go-decks');
+  const reduzido = await estilo('#go-play');
   assert.equal(reduzido.transf, 'none', 'movimento reduzido: sem deslocamento'); assert.match(reduzido.sombra, /inset/);
   await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -5772,7 +5774,9 @@ test('e2e · D3 início que lembra de você: "Olá, Nome", cartão Continuar (pa
   assert.equal(await page.locator('#home-continuar').count(), 0, 'sem cartão quando não há o que continuar');
   const antes = 209; // leva 139: topo do atalho Jogar em 360×780 (medido antes da D3)
   const semPerfil = await topo('#go-play');
-  assert.ok(semPerfil <= antes - 50, `Jogar subiu ≥ 50 px sem perfil (${antes} → ${semPerfil})`);
+  // K4 (leva G-216) · expectativa mudou de propósito: a data entrou acima do título (cerca de 20 px); o ganho sobre a
+  // leva 139 passa a ser de 30 px sem perfil e 55 px com perfil (antes 50 e 75)
+  assert.ok(semPerfil <= antes - 30, `Jogar subiu ≥ 30 px sem perfil (${antes} → ${semPerfil})`);
   // com perfil: "Olá, Nome", a frase sai e o atalho sobe mais
   await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
   await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar'); await page.waitForSelector('#ds-toast[data-open="true"]');
@@ -5780,7 +5784,7 @@ test('e2e · D3 início que lembra de você: "Olá, Nome", cartão Continuar (pa
   await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Olá, Gui');
   assert.equal(await page.locator('#home-frase').isVisible(), false);
   const comPerfil = await topo('#go-play');
-  assert.ok(comPerfil <= antes - 75, `Jogar subiu ≥ 75 px com perfil (${antes} → ${comPerfil})`);
+  assert.ok(comPerfil <= antes - 55, `Jogar subiu ≥ 55 px com perfil (${antes} → ${comPerfil})`); // K4 · ver acima
   console.log(`D3 · topo de Jogar: ${antes} → ${semPerfil} (sem perfil) → ${comPerfil} (com perfil)`);
   assert.ok(await page.locator('#go-play').evaluate(el => el.classList.contains('ds-btn--primary')), 'sem partida salva, Jogar é o primário');
   // última lista aberta vira uma linha do cartão; o toque abre a lista
@@ -8328,8 +8332,10 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   const ateOFim = async () => { for (let i = 0; i < 40 && !await page.locator('#noticias-fim, #noticias-erro').count(); i++) { await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(120); } };
   // 1 · a entrada: atalho largo na Início, com ícone, que leva à tela
   await page.goto(base + '#/'); await page.waitForSelector('#go-news');
+  // K4 (leva G-216) · a entrada virou a seção Notícias da Início, com "Ver todas" (antes: um atalho largo como o Jogar)
   const [news, jogar] = [await page.locator('#go-news').boundingBox(), await page.locator('#go-play').boundingBox()];
-  assert.ok(Math.abs(news.width - jogar.width) < 2 && news.height >= 44, 'atalho largo, como o Jogar'); await auditaTela(page, 'início com Notícias');
+  assert.ok(news.height >= 44 && jogar.height >= 44 && await page.locator('#home-noticias-titulo').count() === 1, 'seção Notícias com título e Ver todas'); await auditaTela(page, 'início com Notícias');
+  pedidos.length = 0; // K4 · a Início já leu o índice e a primeira página para a seção dela
   await page.click('#go-news'); await page.waitForSelector('#noticias-lista .nt-cartao'); assert.match(page.url(), /#\/noticias$/);
   // 2 · a primeira página: 20 notícias (a de endereço perigoso não entra), a primeira em destaque
   assert.equal(await cartoes(), 20); assert.deepEqual(pedidos, ['indice.json', 'pagina-1.json']);
@@ -8422,7 +8428,7 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   const quando = n => page.waitForFunction(q => document.querySelectorAll('#noticias-lista .nt-cartao').length === q, n, { timeout: 8000 });
   const aviso = async rx => { await page.waitForFunction(r => new RegExp(r).test((document.querySelector('#ds-toast') || {}).textContent || ''), rx.source, { timeout: 8000 }); };
   // 1 · primeira visita: nada é "novo"; ferramentas com alvos de 44 px; a Início não pediu nada à rede antes
-  await page.goto(base + '#/'); await page.waitForSelector('#go-news'); await page.waitForTimeout(200); assert.deepEqual(pedidos, []);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-noticias .nt-cartao'); assert.deepEqual(pedidos, ['indice.json', 'pagina-1.json'], 'K4 · a Início lê só o índice e a primeira página'); pedidos.length = 0;
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY), 'auto');
   await page.click('#go-news'); await quando(20);
   assert.equal(await page.locator('[data-nova]').count(), 0); assert.equal(await page.innerText('#noticias-novas'), '');
@@ -8452,7 +8458,7 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   // 3 · sair e voltar: a linha do tempo e o ponto da leitura estão onde ficaram, sem buscar as páginas de novo
   await page.evaluate(() => window.scrollTo(0, 1500)); await page.waitForTimeout(200); pedidos.length = 0;
   await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news'); await page.waitForTimeout(250);
-  assert.equal(await page.getAttribute('#go-news', 'data-novas'), null, 'nada novo: o atalho continua com a frase dele'); assert.equal(await page.evaluate(() => window.scrollY), 0);
+  assert.equal(await page.getAttribute('#go-news', 'data-novas'), null, 'nada novo: a seção não conta novas'); assert.equal(await page.evaluate(() => window.scrollY), 0); pedidos.length = 0; // K4 · a Início leu a primeira página
   await page.click('#go-news'); await quando(60); await page.waitForFunction(() => Math.abs(window.scrollY - 1500) < 3, null, { timeout: 4000 });
   assert.ok(!pedidos.includes('pagina-2.json') && !pedidos.includes('pagina-3.json'), 'voltar não busca as páginas de novo: ' + pedidos.join());
   assert.equal(await page.locator('#noticias-ver-novas').count(), 0);
@@ -8461,7 +8467,9 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   const frescas = [0, 1, 2].map(i => ({ id: 'f' + i, titulo: 'Notícia que acabou de chegar ' + i, resumo: 'Fresca.', url: 'https://fonte.test/fresca/' + i, fonte: 'gf', autor: '', data: new Date(agora + 3000 - i * 1000).toISOString(), imagem: '', idioma: 'en', temas: [] }));
   arquivos['pagina-1.json'] = { ...arquivos['pagina-1.json'], itens: [...frescas, ...arquivos['pagina-1.json'].itens] }; arquivos['en-pagina-1.json'] = { ...arquivos['en-pagina-1.json'], itens: [...frescas, ...arquivos['en-pagina-1.json'].itens] };
   await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news[data-novas="3"]');
-  assert.equal(await page.innerText('#go-news .ds-atalho__detalhe'), '3 novas'); assert.equal(await page.getAttribute('#go-news', 'aria-label'), 'Notícias, 3 novas'); await auditaTela(page, 'início com novas');
+  // K4 (leva G-216) · a contagem mora no título da seção Notícias da Início, e as três chegam ali com o selo Nova
+  assert.equal(await page.innerText('#home-noticias-novas'), '3 novas'); assert.equal(await page.getAttribute('#go-news', 'aria-label'), 'Ver todas as notícias, 3 novas'); await auditaTela(page, 'início com novas');
+  assert.deepEqual(await page.$$eval('#home-noticias .nt-cartao', cs => cs.map(c => [c.dataset.noticia, c.dataset.nova || ''])), [['f0', 'true'], ['f1', 'true'], ['f2', 'true']]);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-inicio.png' });
   await page.click('#go-news'); await quando(60); await page.waitForSelector('#noticias-ver-novas'); await page.waitForFunction(() => Math.abs(window.scrollY - 1500) < 3, null, { timeout: 4000 });
   const pil = await page.$eval('#noticias-ver-novas', b => { const r = b.getBoundingClientRect(), barra = document.querySelector('.ds-appbar').getBoundingClientRect(); return { texto: b.textContent.trim(), h: Math.round(r.height), centro: Math.abs((r.left + r.right) / 2 - innerWidth / 2) < 2, abaixoDaBarra: r.top >= Math.min(barra.bottom, innerHeight) - 1 || barra.bottom <= 0, naTela: r.top >= 0 && r.bottom <= innerHeight }; });
@@ -8493,8 +8501,8 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   await page.evaluate(() => window.scrollTo(0, 400)); pedidos.length = 0; await toque('touchstart', 200); await toque('touchmove', 420); await toque('touchend', null); await page.waitForTimeout(150); assert.deepEqual(pedidos, []);
   // 7 · visita seguinte: as três já foram vistas, nada é novo, e a Início volta à frase dela
   await page.reload(); await quando(23); assert.equal(await page.locator('[data-nova]').count(), 0); assert.equal(await page.innerText('#noticias-novas'), '');
-  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news'); await page.waitForTimeout(300); assert.equal(await page.getAttribute('#go-news', 'data-novas'), null);
-  assert.equal(await page.innerText('#go-news .ds-atalho__detalhe'), 'O que há de novo no Magic');
+  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#home-noticias .nt-cartao'); assert.equal(await page.getAttribute('#go-news', 'data-novas'), null);
+  assert.equal(await page.innerText('#home-noticias-novas'), ''); // K4 · nada novo: a seção não diz contagem
   assert.deepEqual(errors, []);
 });
 
@@ -8674,5 +8682,55 @@ test('e2e · K3 parar sempre por etapa: Paradas no balão da faixa abre as chave
   assert.deepEqual((await chaves()).filter(c => c.endsWith(':true')), ['meu:main1:true', 'meu:main2:true']); await page.keyboard.press('Escape');
   // catálogo: a chave no /ds
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-chaves'); assert.equal(await page.locator('#ds-chaves [role="switch"]').count(), 2);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- K4 · Início com notícias integradas ---------------- */
+test('e2e · K4 Início: data e saudação, Jogar como único primário, quatro destinos numa linha, e as notícias integradas (destaque e duas, idiomas escolhidos, Ver todas) com sem internet, falha e vazio numa linha', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  let arquivos = ramoN2(); let fora = false; const pedidos = [];
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); pedidos.push(nome); return !fora && nome in arquivos ? r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }) : r.abort('failed'); });
+  await page.route('https://img.test/**', r => r.fulfill({ body: PNG_N2, contentType: 'image/png' }));
+  await page.goto(base + '#/'); await page.waitForSelector('#home-noticias .nt-cartao');
+  // cabeçalho: a data (em português, dia da semana e mês) e o título
+  assert.match(await page.textContent('#home-data'), /^(domingo|segunda-feira|terça-feira|quarta-feira|quinta-feira|sexta-feira|sábado), \d{1,2} de [a-zç]+$/);
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Jogar'); assert.equal(await page.locator('#go-play.ds-btn--primary').count(), 1);
+  // os quatro destinos numa linha, cada um com ícone num círculo e uma palavra, alvo de 44 px ou mais
+  const rapidos = await page.$$eval('.inicio__rapidos .ds-atalho', bs => bs.map(b => { const r = b.getBoundingClientRect(), i = b.querySelector('.ds-atalho__icone').getBoundingClientRect(); return { id: b.id, texto: b.textContent.trim(), topo: Math.round(r.top), h: Math.round(r.height), w: Math.round(r.width), circulo: Math.round(i.width) === Math.round(i.height) && i.width >= 44 }; }));
+  assert.deepEqual(rapidos.map(r => [r.id, r.texto]), [['go-decks', 'Listas'], ['go-collection', 'Coleção'], ['go-scanner', 'Escanear'], ['go-cards', 'Buscar']]);
+  assert.ok(rapidos.every(r => r.topo === rapidos[0].topo && r.h >= 44 && r.w >= 44 && r.circulo), JSON.stringify(rapidos));
+  // notícias: título, Ver todas, o destaque com capa 16:9 e mais duas em linha, com bandeira (os dois idiomas)
+  assert.equal(await page.textContent('#home-noticias-titulo'), 'Notícias'); assert.equal(await page.textContent('#go-news'), 'Ver todas');
+  assert.deepEqual(await page.$$eval('#home-noticias .nt-cartao', cs => cs.map(c => c.dataset.forma)), ['destaque', 'linha', 'linha']);
+  assert.equal(await page.$eval('#home-noticias .nt-cartao .nt-capa', c => +(c.getBoundingClientRect().width / c.getBoundingClientRect().height).toFixed(2)), 1.78);
+  assert.equal(await page.locator('#home-noticias .nt-meta .ds-bandeira').count(), 3);
+  assert.deepEqual(pedidos, ['indice.json', 'pagina-1.json']);
+  await auditaTela(page, 'início nova');
+  if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/k4-inicio.png' }); await page.screenshot({ path: process.env.SHOTS + '/k4-inicio-inteira.png', fullPage: true }); }
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(80); await auditaTela(page, `início ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  { const larga = await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'início · fonte larga'); await larga.evaluate(el => el.remove()); }
+  // a matéria abre do cartão; Ver todas leva à tela de Notícias
+  assert.equal(await page.$eval('#home-noticias .nt-link', a => [a.href, a.target].join('|')), 'https://fonte.test/materia/0|_blank');
+  await page.click('#go-news'); await page.waitForSelector('#noticias-lista .nt-cartao'); assert.match(page.url(), /#\/noticias$/);
+  // só português: a Início mostra só as de português, sem bandeira
+  await page.click('#noticias-idioma-en'); await page.waitForFunction(() => document.querySelectorAll('#noticias-lista .nt-cartao').length === 15);
+  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#home-noticias .nt-cartao');
+  assert.ok(await page.$$eval('#home-noticias .nt-cartao', cs => cs.length === 3 && cs.every(c => c.dataset.idioma === 'pt'))); assert.equal(await page.locator('#home-noticias .ds-bandeira').count(), 0);
+  await page.goto(base + '#/noticias'); await page.waitForSelector('#noticias-idioma-en'); await page.click('#noticias-idioma-en');
+  // ramo fora do ar: uma linha com Tentar de novo, e a Início segue inteira
+  fora = true; await page.goto(base + '#/'); await page.waitForSelector('#home-noticias-falha');
+  assert.match(await page.innerText('#home-noticias-falha'), /As notícias não chegaram agora\./); assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1); await auditaTela(page, 'início · notícias fora do ar');
+  fora = false; await page.click('#home-noticias-tentar'); await page.waitForSelector('#home-noticias .nt-cartao');
+  // sem internet: uma linha, e quando a internet volta as notícias chegam sozinhas
+  await page.evaluate(() => { location.hash = '#/listas'; }); await page.waitForSelector('#decks-vazio, #decks-list');
+  await page.context().setOffline(true); await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#home-noticias-sem-rede');
+  assert.match(await page.innerText('#home-noticias-sem-rede'), /Sem internet: as notícias chegam quando a conexão voltar\./); await auditaTela(page, 'início · sem internet');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/k4-sem-internet.png' });
+  await page.context().setOffline(false); await page.waitForSelector('#home-noticias .nt-cartao');
+  // nada publicado: uma linha
+  arquivos = { 'indice.json': { ...arquivos['indice.json'], total: 0, paginas: 0, idiomas: { pt: { total: 0, paginas: 0 }, en: { total: 0, paginas: 0 } } } };
+  await page.reload(); await page.waitForSelector('#home-noticias-vazio'); assert.equal(await page.textContent('#home-noticias-vazio'), 'Nada novo por enquanto.');
   assert.deepEqual(errors, []);
 });

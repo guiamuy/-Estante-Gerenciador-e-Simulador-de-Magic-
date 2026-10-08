@@ -471,7 +471,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ca ✅ | K1 decisão que esconde a mão: seletor Escolha / Mão para alternar entre a decisão e a mão (leva G-214) | K | 1 | teste no aparelho |
 | 16º-cb ✅ | K2 feltros do escuro com presença: verde novo, Oceano e Vinho, todos separados das zonas e com texto AA (leva G-214) | K | ½ | teste no aparelho |
 | 16º-cc ✅ | K3 parar sempre por etapa: Paradas no balão da faixa, chaves do seu turno e do oponente; sem a chave, a mesa só para com ação ou resposta possível (leva G-215) | K | 1 | teste no aparelho |
-| 16º-cd ○ | K4 Início redesenhada, com as notícias integradas | K | 1–2 | — |
+| 16º-cd ✅ | K4 Início redesenhada: data e saudação, Jogar em destaque, quatro destinos numa linha, notícias integradas (destaque e duas) com Ver todas (leva G-216) | K | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6107,13 +6107,30 @@ prioridade, que é da mesa e conversa com o motor); K4 em uma ou duas levas.
   ligar Final e a mesa parar no final, guardado ao recarregar, Padrão, catálogo; `auditaTela` nas quatro larguras e
   dois temas).
 
-**K4 · Início com notícias integradas** ○
+**K4 · Início com notícias integradas** ✅ (leva G-216, 08/10/2026)
 - **Valor:** a primeira tela mostra o patamar do app e o que há de novo, sem parecer uma pilha de botões.
-- **Aceite:** Início redesenhada: cabeçalho com saudação e o que retomar; as ações principais em forma mais leve;
-  as notícias como parte da tela (destaque e as mais recentes, com rolagem própria e "Ver todas"), nos idiomas
-  escolhidos, com estados sem internet e sem notícias; um primário. Capturas antes e depois.
-- **Testes:** e2e com o ramo de notícias de mentira, `auditaTela` nas quatro larguras e dois temas, sem internet.
-  · **Estimativa:** 1 a 2 levas.
+- **Diagnóstico (antes, 360×780):** seis caixas iguais empilhadas (Jogar, quatro destinos em 2×2 e Notícias como mais
+  uma caixa), dois primários (Jogar e "Preparar tudo agora") e nada de conteúdo vivo acima da dobra.
+- **Entregue:** de cima para baixo — a **data** (dia da semana e mês, em caixa alta discreta) e a saudação; o cartão
+  **Continuar** quando há o que retomar; **Jogar** em destaque, único primário; **Listas, Coleção, Escanear e Buscar
+  numa linha só**, leves (ícone num círculo de 52 px e uma palavra, sem caixa); a seção **Notícias** integrada — título
+  com o ícone, quantas são novas e **Ver todas**, o destaque com capa 16:9 e as duas seguintes em linha, nos idiomas e
+  filtros escolhidos em Notícias, cada uma abrindo a matéria; depois o painel "Sem internet" e o catálogo.
+- **Estados da seção:** carregando (esqueleto no próprio lugar), **sem internet** (uma linha; quando a internet volta,
+  as notícias chegam sozinhas), **fora do ar** (uma linha com "Tentar de novo"), **nada publicado** (uma linha). A
+  seção nunca segura a Início.
+- **Também:** "Preparar tudo agora" (painel Sem internet) deixou de ser primário — um primário por tela.
+- **Custo em 360×780:** a data acima do título desce o Jogar uns 20 px em relação à D3 (209 → 175 px sem perfil,
+  150 com perfil; a D3 tinha chegado a 159 e 134). O guarda-corpo da D3 foi ajustado com essa justificativa.
+- **Para as outras trilhas:** `#go-news` passou a ser o "Ver todas" da seção (antes um atalho); a Início lê o índice e a
+  primeira página do ramo `noticias` a cada visita com internet — nos testes de navegador o ramo fica fora do ar por
+  padrão (rota no `open()`), salvo no teste que o simula.
+- **Fora:** o painel "Sem internet" continua como estava (recolhe numa linha quando tudo está guardado);
+  lançamentos de coleção na Início (vêm com a N5).
+- **Testes:** e2e "K4" (data em português, um primário, quatro destinos na mesma linha com círculo e 44 px ou mais,
+  seção com destaque 16:9 e duas linhas, bandeiras com os dois idiomas, Ver todas, só português, fora do ar e tentar
+  de novo, sem internet e volta, nada publicado; `auditaTela` nas quatro larguras, dois temas e fonte larga); e2e U2,
+  N2 e N3 ajustados com justificativa (a entrada de Notícias e os destinos mudaram de forma).
 
 ### P · Plataforma
 
