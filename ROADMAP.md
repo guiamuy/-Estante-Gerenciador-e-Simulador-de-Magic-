@@ -5407,6 +5407,11 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   demais para no começo, reabrir, hot-seat e goldfish inalterados); e2e "H2" (registro com Voltar de 44 px e ícone,
   cancelar não mexe, confirmar volta ao estado exato, três toques atravessando turno, até a mão inicial, reabrir).
 - **Fora:** refazer (avançar de novo o que foi desfeito); desfazer sem limite no goldfish e a dois.
+- **Instabilidade do teste e2e "H2" (leva G-221, 08/10/2026):** a queda de 08/10 mostrou a causa: Manter valeu, mas o teste
+  recarregava logo depois e corria contra a gravação da partida (IndexedDB, sem esperar), voltando na mão inicial — a
+  mesma corrida que a A8 teve na leva 183. Corrigido na classe: o `page.reload` dos testes de tela espera a gravação em
+  curso da mesa (`__estanteMesa.gravado()`) antes de recarregar. No aparelho, o mesmo só acontece fechando o app no
+  instante do toque (perde aquela jogada). O diagnóstico "TOQUE PERDIDO" continua no teste para a forma de 07/10, se voltar.
 
 **H3 · Melhor de 3 contra outra pessoa, também online** ✅ (leva 177, 04/10/2026)
 - **Antes:** a série já valia contra o Goldfish, contra o Shark e a dois no mesmo aparelho (leva 114). Na partida

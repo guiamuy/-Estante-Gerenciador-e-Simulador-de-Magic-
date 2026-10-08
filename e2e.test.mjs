@@ -89,6 +89,14 @@ async function open(t, { dev = true, apresentacao = false, cena = false } = {}) 
   // sem pagar), o que só existe na mesa assistida: ela fica ligada aqui por window.__MESA_DEV. Os testes do modo
   // único (leva 113 em diante) abrem com { dev: false }.
   if (dev) await page.addInitScript(() => { window.__MESA_DEV = true; });
+  // G-221 · recarregar com uma jogada ainda sendo gravada perde a jogada: a mesa grava no IndexedDB sem esperar, e o
+  // teste que recarrega logo depois de tocar corria contra essa gravação (H2 em 08/10: tocou Manter, recarregou e voltou
+  // à mão inicial; a A8 tinha a mesma corrida na leva 183). Todo reload espera a gravação em curso da mesa, se houver.
+  const recarregaDeFato = page.reload.bind(page);
+  page.reload = async (...args) => {
+    await page.evaluate(() => (window.__estanteMesa && window.__estanteMesa.gravado ? window.__estanteMesa.gravado() : null)).catch(() => {});
+    return recarregaDeFato(...args);
+  };
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   // recurso de rede que não carrega (imagem sem internet, host fora do alcance) é ambiente, não erro do app
@@ -6851,6 +6859,8 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   for (let i = 0; i < 40 && await page.isEnabled('#tb-undo'); i++) { await page.click('#tb-undo'); await page.waitForTimeout(60); }
   await esperaH2(page, '#tb-keep'); assert.equal(await page.isDisabled('#tb-undo'), true, 'de volta à mão inicial: nada mais a desfazer');
   // recarregar não perde a possibilidade de voltar
+  // leva G-221 · a queda de 08/10 mostrou a causa de uma das formas: Manter valeu, mas o recarregar logo depois correu
+  // contra a gravação da partida e a página voltou na mão inicial. O `page.reload` do `open` agora espera a gravação.
   // leva G-209 · a queda de 07/10 (no portão local, com o diagnóstico da 208): depois de voltar tudo, o toque em Manter não valeu
   // e a partida ficou na mão inicial. A causa ainda não é conhecida (cena do bot em curso? botão trocado entre apertar e soltar?):
   // o teste registra o que havia na tela nesse instante e toca de novo, para a próxima queda dizer a causa em vez de só cair.
