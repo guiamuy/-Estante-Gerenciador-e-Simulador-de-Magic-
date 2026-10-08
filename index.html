@@ -4888,7 +4888,7 @@ const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
-const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional'];
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -4996,7 +4996,7 @@ function validateScript(sc) {
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf) errs.push('custo opcional do gatilho sem custo');
@@ -5085,6 +5085,9 @@ function validateScript(sc) {
   }
   if (sc && sc.choose && !CHOICES.includes(sc.choose)) errs.push(`escolha "${sc.choose}" desconhecida`);
   if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
+  // CR2c.1 · reforço (702.33) e modal com vários modos (700.2d)
+  if (sc && sc.kicker && !/\{/.test(String(sc.kicker.mana || ''))) errs.push('reforço precisa de um custo de mana');
+  if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
   return errs.concat(exampleErrors(sc));
 }
@@ -5541,6 +5544,19 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['creature'] } }, effects: [{ do: 'gain', amount: { per: 'sacrificed-toughness' } }] },
     { kind: 'activated', cost: { mana: '{1}{W}{B}', sacrificeOther: { types: ['creature'] } }, onlyIfLifeOverStart: 10, effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { attached: false } } },
+  // CR2c.1 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Into the Roil', kicker: { mana: '{1}{U}' }, effects: [{ do: 'bounce', target: 'permanent', targetNotLand: true }, { do: 'draw', amount: 1, onlyIf: 'kicked' }],
+    example: { target: 'enemy-creature', expect: { bounced: true } } },
+  { name: 'Benalish Sleeper', kicker: { mana: '{B}' }, abilities: [{ kind: 'triggered', when: 'etb', condition: { kicked: true }, effects: [{ do: 'sacrifice_each', types: ['creature'] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Everflowing Chalice', kicker: { mana: '{2}', multi: true }, self: { chargePerKick: true },
+    abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', symbols: ['C'], perCounter: 'charge' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Wretched Confluence', modeCount: 3, modeRepeat: true, modes: [
+    { label: 'Compra e perde 1 de vida', effects: [{ do: 'draw', amount: 1, target: 'player' }, { do: 'lose', amount: 1, target: 'first-target' }] },
+    { label: '−2/−2', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'creature' }] },
+    { label: 'Criatura do cemitério para a mão', effects: [{ do: 'to_hand', target: 'creature-in-your-graveyard' }] }],
+    example: { action: 'mode:0', target: 'self-player', expect: { handDelta: 3, selfLife: -3 } } },
   // CR2b.5 · texto oficial em .listas/oficiais.json (consulta de 05/10/2026)
   { name: 'Mystic Remora', cumulativeUpkeep: { mana: '{1}' },
     abilities: [{ kind: 'triggered', when: 'other-cast', controller: 'opponent', filter: { noncreature: true }, effects: [{ do: 'unless_pays', target: 'that-player', cost: '{4}', effects: [{ do: 'draw_up_to', amount: 1 }] }] }],
@@ -11084,7 +11100,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 83;
+const ENGINE_VERSION = 84;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11319,6 +11335,8 @@ function createGame(setup) {
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
     if (sc.cumulativeUpkeep) f.script.cumulativeUpkeep = sc.cumulativeUpkeep; // CR 702.24
     if (sc.affinity) f.script.affinity = sc.affinity;
+    if (sc.kicker) f.script.kicker = sc.kicker; // CR2c.1
+    if (sc.modeCount) { f.script.modeCount = sc.modeCount; f.script.modeRepeat = !!sc.modeRepeat; }
     if (sc.storm) f.script.storm = true;
     if (sc.changeling) f.script.changeling = true;
     if (sc.bestow) f.script.bestow = sc.bestow;
@@ -11391,7 +11409,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'sneakAtaque']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'sneakAtaque', 'kicked', 'modes']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 function moveObject(s, oid, to, { top = true } = {}) {
   const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
@@ -11455,6 +11473,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     if (n) o.counters.p1p1 = (o.counters.p1p1 || 0) + n;
     // S50 · entra com X marcadores, sendo X o que foi pago na conjuração
     if (self.entersWithCountersX && xPago) o.counters.p1p1 = (o.counters.p1p1 || 0) + xPago;
+    if (self.chargePerKick && o.kicked) o.counters.charge = (o.counters.charge || 0) + o.kicked; // CR2c.1 · Everflowing Chalice
   }
   // S21 · planeswalker entra com sua lealdade inicial
   if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = s.facts[o.name].loyalty;
@@ -11721,6 +11740,9 @@ function payCost(s, p, cost, extra = 0) {
   s.players[p].pool = r.pool; s.players[p].life -= r.life;
 }
 const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
+/** CR2c.1 · custo somado (custo de mana + reforço pago n vezes). */
+const somaCusto = (a, b, n = 1) => { const c = { generic: a.generic + b.generic * n, colored: { ...a.colored }, hybrid: [...(a.hybrid || [])], x: a.x || 0 };
+  for (const [k, v] of Object.entries(b.colored || {})) c.colored[k] = (c.colored[k] || 0) + v * n; for (let i = 0; i < n; i++) c.hybrid.push(...(b.hybrid || [])); return c; };
 /** Leva 104 · valores de X que a mesa oferece: [null] sem X; senão 0..máximo pagável (teto LIMITE_X). */
 function valoresDeX(s, qtdX, pagavel) {
   if (!qtdX) return [null];
@@ -12041,6 +12063,8 @@ function spellEffects(s, o, mode) {
   if (o && o.altIndex != null && sc.alt && sc.alt[o.altIndex] && sc.alt[o.altIndex].effects) return sc.alt[o.altIndex].effects;
   const modes = sc.modes || [];
   if (!modes.length) return sc.effects || [];
+  // CR 700.2d · vários modos: na ordem impressa, cada instância com a marca do seu modo (o "mesmo alvo" vale dentro do modo)
+  if (o && Array.isArray(o.modes)) return o.modes.slice().sort((x, y) => x - y).flatMap((m, k) => ((modes[m] || {}).effects || []).map(e => ({ ...e, __modo: k })));
   const i = mode != null ? mode : (o.mode || 0);
   return (modes[i] || {}).effects || [];
 }
@@ -12308,6 +12332,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'source-entered-earlier') return !!fonte && (fonte.entrouNoTurno != null ? fonte.entrouNoTurno !== s.turn.number : !fonte.sick);
   if (eff.onlyIf === 'discarded-nonland') return !!fonte && !!fonte.discardedNonland;
   if (eff.onlyIf === 'paid-additional') return !!fonte && !!fonte.paidAdditional; // S53 · "se você fizer"
+  if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
   return true;
 }
 function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
@@ -12566,7 +12591,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'add_mana': {
       // M13 · identidade do comandante: sem cor válida, a habilidade não produz nada (nem {C})
       const restritas = coresPermitidas(s, ctrl, eff); // M13/M13b · identidade ou terrenos dos oponentes
-      const syms = eff.symbols || (restritas ? (eff.color && restritas.includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
+      let syms = eff.symbols || (restritas ? (eff.color && restritas.includes(eff.color) ? [eff.color] : []) : eff.anyColor ? [eff.color || 'C'] : []);
+      if (eff.perCounter) { const dono = src.ability ? s.objects[src.source] : src; const n = ((dono && dono.counters) || {})[eff.perCounter] || 0; syms = Array.from({ length: n }, () => syms).flat(); } // CR2c.1 · "for each charge counter"
       syms.forEach(c => { s.players[ctrl].pool[c] = (s.players[ctrl].pool[c] || 0) + 1; });
       note({ amount: syms.length }); break;
     }
@@ -12976,8 +13002,9 @@ function resolveScript(s, o, events) {
   // 608.2b · só anula se a mágica escolheu alvo e nenhum vale mais. Mágica de "até N alvos"
   // conjurada sem nenhum alvo resolve normalmente, sem fazer nada.
   if (chosen.length && stillLegal.slice(0, chosen.length).every(x => !x)) { events.push({ kind: 'fizzled', oid: o.oid, name: o.name }); return; }
-  let ti = 0, firstTarget = null, donoDoPrimeiro = null;
+  let ti = 0, firstTarget = null, donoDoPrimeiro = null, modoAtual = null;
   for (const [idx, eff] of effects.entries()) {
+    if (eff.__modo != null && eff.__modo !== modoAtual) { modoAtual = eff.__modo; firstTarget = null; donoDoPrimeiro = null; } // CR 700.2d · cada modo é uma frase própria
     // Q10 · a retomada leva o alvo junto: "perde 1 de vida" depois de devolver o comandante era cobrado de quem conjurou
     if (s.pending) { s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: effects.slice(idx), alvo: firstTarget, alvos: chosen.slice(ti) }; return; }
     if (!effectAllowed(s, o, eff)) continue; // S47/S49 · condição do próprio efeito
@@ -13022,6 +13049,7 @@ function triggerConditionMet(s, o, cond) {
   if (cond.lifeGained != null && (s.players[o.controller].lifeGained || 0) < cond.lifeGained) return false;
   if (cond.bargained && !o.bargained) return false;
   if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
+  if (cond.kicked && !o.kicked) return false; // CR 702.33d · "if it was kicked"
   if (cond.controlsOtherNamed && !battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && x.name === o.name)) return false;
   if (cond.attackersAtLeast != null) {
     const list = (s.combat && s.combat.attackers) || [];
@@ -13199,6 +13227,12 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     // Virar OUTRA criatura como custo aceita criatura que entrou agora — regra
     // confirmada na carta Jaspera Sentinel (consulta em 27/09/2026).
     (!needUntapped || !o.tapped)).map(o => o.oid);
+}
+/** CR 700.2d · conjuntos de k modos (com repetição quando a carta deixa), em ordem crescente. */
+function combinacoesDeModos(n, k, repete) {
+  const out = [];
+  const passo = (ini, atual) => { if (atual.length === k) { out.push(atual.slice()); return; } for (let i = ini; i < n; i++) { atual.push(i); passo(repete ? i : i + 1, atual); atual.pop(); } };
+  passo(0, []); return out;
 }
 /** Leva 104 · combinações de k elementos, na ordem da lista, até `limite`. */
 function combinacoes(lista, k, limite = LIMITE_PAGAMENTOS) {
@@ -13602,16 +13636,24 @@ const HANDLERS = {
     // S5: alvos escolhidos na conjuração e conferidos de novo na resolução
     // S11: a aura escolhe o que vai encantar já na conjuração
     const modes = (f.script && f.script.modes) || [];
-    if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
+    const nModos = (f.script && f.script.modeCount) || 0; // CR 700.2d · "choose two/three"
+    if (nModos) {
+      if (!Array.isArray(a.modes) || a.modes.length !== nModos || a.modes.some(m => !modes[m])) throw new RuleError('modo', `escolha ${nModos} modos`);
+      if (!f.script.modeRepeat && new Set(a.modes).size !== a.modes.length) throw new RuleError('modo', 'escolha modos diferentes');
+    } else if (modes.length && (a.mode == null || !modes[a.mode])) throw new RuleError('modo', 'escolha um modo');
+    // CR 702.33 · reforço: pago junto com o custo; multirreforço quantas vezes quiser
+    const reforco = f.script && f.script.kicker;
+    if (a.kick != null && !(Number.isInteger(a.kick) && a.kick >= 0 && (a.kick === 0 || (reforco && (reforco.multi || a.kick === 1))))) throw new RuleError('custo', reforco ? 'reforço inválido' : 'esta carta não tem reforço');
     const alvoAura = auraTarget(f, a.bestow);
     if (a.bestow && !bestowOf(s, o)) throw new RuleError('conceder', 'esta carta não tem conceder');
     if (a.x != null && !(Number.isInteger(a.x) && a.x >= 0 && a.x <= LIMITE_X)) throw new RuleError('custo', `X precisa ser um número inteiro de 0 a ${LIMITE_X}`);
-    const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, altIndex: a.alt != null ? a.alt : null }, a.mode).filter(SC.isTargeted);
+    const need = alvoAura ? [{ target: alvoAura }] : spellEffects(s, { name: o.name, mode: a.mode, ...(nModos ? { modes: a.modes } : {}), altIndex: a.alt != null ? a.alt : null }, a.mode).filter(SC.isTargeted);
     const chosen = a.targets || [];
     const minAlvos = need.filter(x => !x.upTo).length; // S38 · "até N alvos" aceita menos
     if (chosen.length < minAlvos || chosen.length > need.length) throw new RuleError('alvo', `escolha ${minAlvos === need.length ? need.length : `de ${minAlvos} a ${need.length}`} alvo(s)`);
     // 601.2c · dois alvos da mesma mágica ou habilidade precisam ser diferentes
-    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y)))) throw new RuleError('alvo', 'escolha alvos diferentes');
+    // CR 115.3 · em modos diferentes, cada "alvo" é uma instância própria: o mesmo objeto pode ser escolhido de novo
+    if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y) && (!nModos || need[i].__modo === need[j].__modo)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff)) throw new RuleError('alvo', 'alvo ilegal'); });
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     // S16 · custo alternativo, lampejo do passado ou o custo normal
@@ -13632,7 +13674,7 @@ const HANDLERS = {
     else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0)); }
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
-    else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim'); payCost(s, a.p, f.cost, castExtra(s, a.p, o, a.x || 0)); }
+    else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim'); payCost(s, a.p, a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost, castExtra(s, a.p, o, a.x || 0)); }
     // S20/S53 · custo adicional: uma opção, várias opções, ou nenhuma quando é opcional
     const addSpec2 = f.script && f.script.additional;
     const listaAdd = Array.isArray(addSpec2) ? addSpec2 : addSpec2 ? [addSpec2] : [];
@@ -13648,7 +13690,9 @@ const HANDLERS = {
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
     moveObject(s, a.oid, 'stack');
     if (need.length) s.objects[a.oid].targets = carimbaAlvos(s, chosen);
-    if (modes.length) s.objects[a.oid].mode = a.mode;
+    if (modes.length && !nModos) s.objects[a.oid].mode = a.mode;
+    if (nModos) s.objects[a.oid].modes = a.modes.slice().sort((x, y) => x - y);
+    if (a.kick) s.objects[a.oid].kicked = a.kick; // CR 702.33d
     if (a.alt != null && (altCosts(s, o)[a.alt] || {}).effects) s.objects[a.oid].altIndex = a.alt; // Q11 · sobrecarga
     // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
     if (a.x) s.objects[a.oid].xPaid = a.x; // S50 · quanto de X foi pago
@@ -14352,9 +14396,23 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const aura = auraTarget(f);
     if (aura) return castWith(o, [{ target: aura }]);
     const modes = (f.script && f.script.modes) || [];
+    const nModos = (f.script && f.script.modeCount) || 0;
+    if (nModos) return combinacoesDeModos(modes.length, nModos, !!f.script.modeRepeat).flatMap(ms => { // CR 700.2d
+      const need = spellEffects(s, { name: o.name, modes: ms }).filter(SC.isTargeted);
+      let combos = [[]];
+      for (const eff of need) {
+        const opts = limitaAlvos(legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length);
+        if (!opts.length) return []; // 700.2b · modo sem alvo legal não pode ser escolhido
+        combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+      }
+      return combos.map(targets => ({ t: 'cast', p, oid: o.oid, modes: ms, ...(need.length ? { targets } : {}) }));
+    });
     if (modes.length) return modes.flatMap((m, i) => castWith(o, (m.effects || []).filter(SC.isTargeted), i));
     return castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted));
   };
+  // CR 702.33 · quantas vezes o reforço cabe na mana (multirreforço até 5)
+  const reforcos = o => { const k = (s.facts[o.name].script || {}).kicker; if (!k) return [0]; const kc = parseCost(k.mana), out = [0];
+    for (let n = 1; n <= (k.multi ? 5 : 1); n++) { if (s.manaCheck && !canPay(s, p, somaCusto(s.facts[o.name].cost, kc, n), castExtra(s, p, o, 0))) break; out.push(n); } return out; };
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid], f = s.facts[o.name];
     if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); }
@@ -14362,7 +14420,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       // S50/Leva 104 · custo com X: quem conjura escolhe X (601.2b), de 0 até o que dá para pagar
       const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x)));
       const empurra = c => xs.forEach(x => out.push(x == null ? c : { ...c, x }));
-      adicionais(o).forEach(v => casts(o).forEach(x => empurra({ ...x, ...v })));
+      reforcos(o).forEach(n => adicionais(o).forEach(v => casts(o).forEach(x => empurra({ ...x, ...v, ...(n ? { kick: n } : {}) }))));
     }
   }
   // S61 · Cavernas das Runas: as cartas exiladas que você pode jogar
@@ -18789,7 +18847,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const costPago = desconto ? (costLabel(f.cost, (o.zone === 'command' ? E.commanderTax(s, v, oid) : 0) - desconto) || '{0}') + ' (com desconto)' : costTxt;
     // Leva 125 · dois alvos do mesmo efeito ("1 de dano a cada uma de até duas criaturas") vinham nas duas ordens
     // (A + B e B + A): a folha mostra a combinação uma vez só. O motor continua aceitando as duas.
-    const efeitosDe = a => ((f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].effects : (f.script && f.script.effects) || []).filter(e => __m23.isTargeted(e));
+    const efeitosDe = a => (Array.isArray(a.modes) ? a.modes.flatMap(m => (f.script.modes[m] || {}).effects || []) : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].effects : (f.script && f.script.effects) || []).filter(e => __m23.isTargeted(e));
     const simetrica = a => { const es = efeitosDe(a).map(e => JSON.stringify(e)); return es.length > 1 && es.every(x => x === es[0]); };
     // Leva 131 · alvos com o mesmo nome dizem de quem são (espelho) e se estão virados
     const chaveAlvo = x => (x.player != null ? 'p' + x.player : 'o' + x.oid);
@@ -18806,8 +18864,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
+          + (a.kick ? (a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);

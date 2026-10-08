@@ -322,6 +322,8 @@ function runExample(sc) {
       const found = E.legalActions(s, a).find(x => x.t === 'cast' && x.oid === oid && x.alt === Number(how.split(':')[1]));
       return found ? { ...found, ...(target ? { targets: [target] } : {}) } : { t: 'cast', p: a, oid, alt: Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) };
     })()
+    // CR2c.1 · "choose three, you may choose the same mode more than once": o cenário repete o modo, cada instância no alvo dele
+    : how.startsWith('mode') && sc.modeCount ? { t: 'cast', p: a, oid, modes: Array(sc.modeCount).fill(Number(how.split(':')[1])), ...(target ? { targets: Array(sc.modeCount).fill(target) } : {}) }
     : how.startsWith('mode') ? { t: 'cast', p: a, oid, mode: Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) }
     : how === 'equip' ? { t: 'activate', p: a, oid, index: equipIndex, targets: [{ oid: mine }] }
     : how.startsWith('activate') ? { t: 'activate', p: a, oid, index: Number(how.split(':')[1]), ...(soDaMao ? { fromHand: true } : {}), ...(target ? { targets: [target] } : {}), ...(porIdentidade ? { color: 'W' } : {}) }

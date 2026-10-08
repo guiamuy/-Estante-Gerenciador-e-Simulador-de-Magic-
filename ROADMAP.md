@@ -165,7 +165,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2c.1 conjurar e pagar: modal com mais de um modo (700.2d) e reforço/kicker (702.33), que destravam Austere Command, Silverquill Command, Benalish Sleeper e outras | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2c.1 reforço e multirreforço (702.33) e "escolha dois/três" com repetição (700.2d); Into the Roil, Benalish Sleeper, Everflowing Chalice e Wretched Confluence completas (leva M-217, motor v84) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2785,6 +2786,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** regravadas (82 → 83); registros conferidos na entrega.
 - **Tela:** o marcador de idade aparece na carta como "idade N"; a pergunta é "pagar {N} de manutenção cumulativa?".
 - **Fora:** passo de compra como gatilho.
+
+**CR2c.1 · Reforço e mágica com vários modos** 🟡 (leva M-217, motor v84) — 4 testes de carta, todos falhavam antes.
+- **702.33 (parcial)** reforço e multirreforço: a mesa oferece conjurar sem e com reforço (e quantas vezes couber, até 5, no multirreforço), cobrado junto com o custo. A mágica fica marcada como reforçada e leva isso para o campo; "se foi reforçada" vale em efeito e em gatilho. **Falta:** carta com dois custos de reforço, reforço junto com custo alternativo e cópia de mágica reforçada.
+- **700.2d** "escolha dois/três" (com repetição quando a carta deixa): só aparecem combinações de modos com alvo legal; cada "alvo" de cada modo é escolhido à parte (o mesmo objeto pode valer em modos diferentes); os efeitos saem na ordem impressa e "o mesmo alvo" vale dentro do modo. Na folha da carta o botão diz os modos ("−2/−2 + −2/−2 + Criatura do cemitério para a mão") e o reforço ("com reforço", "reforço ×2").
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026, completas:** **Into the Roil**, **Benalish Sleeper**, **Everflowing Chalice** e **Wretched Confluence**.
+- **Medição:** Killian 57%, Malcolm 63%. Triagem 90 prontas · 9 A · 49 B · 16 C.
+- **Simplificação declarada:** o pagamento automático não usa o Everflowing Chalice como fonte de mana (gera {C} só ativando à mão); com muitos modos e alvos, a lista de combinações oferecidas é cortada no limite de combinações do motor.
+- **Golden:** regravadas (83 → 84); registros conferidos na entrega.
+- **Fora:** "um ou ambos" / "qualquer número de modos"; Austere, Silverquill e Profane Command (pedem "destruir todas" por filtro e devolver do cemitério por valor de mana — próxima leva).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

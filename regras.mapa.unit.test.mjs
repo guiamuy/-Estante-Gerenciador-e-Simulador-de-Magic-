@@ -32,5 +32,5 @@ test('CR · toda regra cai numa fase do épico, e teste que cita "CR NNN.N" cita
 
 test('CR · o retrato da auditoria de 06/10/2026 (motor v72) é a linha de base: a cobertura só pode subir', () => {
   const c = conta(mapa.itens);
-  assert.ok(c.coberta >= 214, 'itens cobertos: ' + c.coberta); assert.ok(c.ausente <= 465, 'itens ausentes: ' + c.ausente); // piso sobe a cada leva do épico (CR2b.5: 214 / 465)
+  assert.ok(c.coberta >= 214, 'itens cobertos: ' + c.coberta); assert.ok(c.ausente <= 464, 'itens ausentes: ' + c.ausente); // piso sobe a cada leva do épico (CR2c.1: 214 / 464)
 });

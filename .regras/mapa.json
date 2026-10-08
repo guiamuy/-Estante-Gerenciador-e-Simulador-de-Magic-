@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 83,
+ "motor": 84,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -5267,8 +5267,8 @@
    "regra": "General",
    "titulo": "Mágicas e habilidades modais",
    "status": "parcial",
-   "evidencia": "(a) COBERTA: modo vai na ação de conjurar (cast exige a.mode, index.html:12239-12240; grava o.mode 12286; spellEffects 10823-10828); sonda: Abrade com mesa vazia não gera ação, só com criatura oferece só o modo 0, e forçar modo 1 é recusado (\"escolha 1 alvo(s)\"/\"alvo ilegal\"). (c) COBERTA: alvos saem só do modo escolhido (12244); boros.regras \"R6 · Thraben Charm\" (modo 2 com 1 ou 2 jogadores, modos 0/1 com alvo próprio). (f) COBERTA na 1ª frase (alvo por modo, mesma evidência); 2ª frase sem efeito alcançável (não existe troca de alvo no motor). (b) PARCIAL: gatilho modal escolhe o modo antes de ir à pilha (putTriggerOnStack 11845-11848, choose_mode 12439-12459; rules.unit \"S56 · gatilho com modos\"), mas oferece modo ilegal. Nove mágicas modais nos scripts (Abrade, Hydroblast, Pyroblast, REB, BEB, Thraben Charm, Winding Way, Cast into the Fire, Steel Sabotage). · CR1b (motor v74): (b) COBERTA no gatilho — modosLegais só oferece modo com alvo legal, recusa o ilegal e tira o gatilho da pilha quando nenhum modo serve; teste de conformidade em cr.conformidade",
-   "falta": "(d) AUSENTE: só um modo por mágica (a.mode é um índice); sem \"choose two\", \"one or both\", \"any number\", nem modo repetido. (e) AUSENTE: outro jogador escolhe o modo. (g) AUSENTE: não há cópia de mágica modal (a única cópia é tempestade, 12292-12293, que usa script.effects e ignoraria o modo). (h) AUSENTE: modo com custo adicional (Spree). (i) AUSENTE: modos com {P} (Season of...). Habilidade ATIVADA modal: nenhum tratamento de modes em activate (12364-12438).",
+   "evidencia": "(a) COBERTA: modo vai na ação de conjurar (cast exige a.mode, index.html:12239-12240; grava o.mode 12286; spellEffects 10823-10828); sonda: Abrade com mesa vazia não gera ação, só com criatura oferece só o modo 0, e forçar modo 1 é recusado (\"escolha 1 alvo(s)\"/\"alvo ilegal\"). (c) COBERTA: alvos saem só do modo escolhido (12244); boros.regras \"R6 · Thraben Charm\" (modo 2 com 1 ou 2 jogadores, modos 0/1 com alvo próprio). (f) COBERTA na 1ª frase (alvo por modo, mesma evidência); 2ª frase sem efeito alcançável (não existe troca de alvo no motor). (b) PARCIAL: gatilho modal escolhe o modo antes de ir à pilha (putTriggerOnStack 11845-11848, choose_mode 12439-12459; rules.unit \"S56 · gatilho com modos\"), mas oferece modo ilegal. Nove mágicas modais nos scripts (Abrade, Hydroblast, Pyroblast, REB, BEB, Thraben Charm, Winding Way, Cast into the Fire, Steel Sabotage). · CR1b (motor v74): (b) COBERTA no gatilho — modosLegais só oferece modo com alvo legal, recusa o ilegal e tira o gatilho da pilha quando nenhum modo serve; teste de conformidade em cr.conformidade · CR2c.1 (motor v84): (d) COBERTA — \"escolha dois/três\" (modeCount, com repetição quando modeRepeat): a mesa oferece só conjuntos de modos com alvo legal, cada instância de \"alvo\" é própria (o mesmo objeto pode ser escolhido em modos diferentes) e os efeitos saem na ordem impressa, com \"o mesmo alvo\" valendo dentro do modo; commander.regras Wretched Confluence",
+   "falta": "(d) \"um ou ambos\"/\"qualquer número\" (número variável de modos) ainda não.mode é um índice); sem \"choose two\", \"one or both\", \"any number\", nem modo repetido. (e) AUSENTE: outro jogador escolhe o modo. (g) AUSENTE: não há cópia de mágica modal (a única cópia é tempestade, 12292-12293, que usa script.effects e ignoraria o modo). (h) AUSENTE: modo com custo adicional (Spree). (i) AUSENTE: modos com {P} (Season of...). Habilidade ATIVADA modal: nenhum tratamento de modes em activate (12364-12438).",
    "esforco": "M",
    "depende": [
     "601.2b",
@@ -5276,7 +5276,8 @@
     "707.10"
    ],
    "testes": [
-    "CR 700.2 · gatilho modal: modo sem alvo legal não pode ser escolhido; sem nenhum modo legal o gatilho sai da pilha (700.2b)"
+    "CR 700.2 · gatilho modal: modo sem alvo legal não pode ser escolhido; sem nenhum modo legal o gatilho sai da pilha (700.2b)",
+    "CR2c.1 · Wretched Confluence: escolha três modos, podendo repetir; os efeitos saem na ordem impressa e cada modo tem o seu alvo"
    ]
   },
   {
@@ -6616,14 +6617,20 @@
    "n": "702.33",
    "regra": "Keyword Abilities",
    "titulo": "Kicker",
-   "status": "ausente",
-   "falta": "Nenhum custo de reforço: não há chave de script nem escolha ao conjurar, nem efeitos/alvos condicionados a \"foi reforçada\" (702.33a-g), nem multikicker (702.33c). Benalish Sleeper, Everflowing Chalice e Into the Roil estão nas listas sem script. Há base parecida para aproveitar (bargain/paidAdditional)",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "Faltam: carta com dois custos de reforço (702.33e, \"kicked with its {X} kicker\"), reforço junto com custo alternativo ou lampejo, e cópia de mágica reforçada (702.33g; não há cópia de mágica no motor).",
+   "esforco": "P",
    "depende": [
     "601.2b custo adicional opcional",
     "607 habilidades ligadas"
    ],
-   "cartas": "muito comum"
+   "cartas": "muito comum",
+   "evidencia": "CR2c.1 (motor v84): reforço (kicker) e multirreforço como opção de conjuração (a.kick), pago junto com o custo de mana; a mágica fica marcada (kicked, vai junto para o campo); condições \"se foi reforçada\" em efeito (onlyIf: kicked) e em gatilho (condition: { kicked }); marcadores por reforço (Everflowing Chalice); commander.regras Into the Roil, Benalish Sleeper, Everflowing Chalice",
+   "testes": [
+    "CR2c.1 · Into the Roil: devolve permanente que não é terreno; com reforço {1}{U} também compra uma carta",
+    "CR2c.1 · Benalish Sleeper: com reforço {B}, ao entrar cada jogador sacrifica uma criatura; sem reforço, nada",
+    "CR2c.1 · Everflowing Chalice: multirreforço {2} — entra com um marcador de carga por reforço pago e gera {C} por marcador"
+   ]
   },
   {
    "n": "702.34",

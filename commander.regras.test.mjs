@@ -302,3 +302,47 @@ test('CR2b.5 · Mystic Remora: "Cumulative upkeep {1}" — marcador de idade a c
   s = passaAte(s, x => x.turn.active === 0 && x.turn.number > turno && x.turn.step === 'draw'); assert.equal(s.objects[r].zone, 'graveyard', 'sem mana na manutenção: sacrificada');
   assert.equal(s.objects[r].ultima.counters.age, 1, 'o marcador de idade entrou antes');
 });
+
+// ---------------------------------------------------------------- CR2c.1 · reforço e modal com vários modos
+test('CR2c.1 · Into the Roil: devolve permanente que não é terreno; com reforço {1}{U} também compra uma carta', () => {
+  for (const reforco of [false, true]) {
+    let s = mesa(['Into the Roil'], ['Faerie Seer']), r, f; [s, r] = poe(s, 0, 'Into the Roil', 'hand'); [s, f] = poe(s, 1, 'Faerie Seer'); [s] = poe(s, 1, 'Island'); s = comMana(s, reforco ? 'UUCC' : 'UC');
+    const as = legais(s, 0, x => x.t === 'cast' && x.oid === r && !!x.kick === reforco); assert.ok(as.length >= 1, 'oferece ' + (reforco ? 'com' : 'sem') + ' reforço');
+    assert.equal(as.some(x => s.facts[s.objects[x.targets[0].oid].name].types.includes('land')), false, 'terreno não é alvo');
+    const mao = s.zones[0].hand.length; s = tudo(act(s, as.find(x => x.targets[0].oid === f)));
+    assert.equal(s.objects[f].zone, 'hand'); assert.equal(s.zones[0].hand.length, mao - 1 + (reforco ? 1 : 0), reforco ? 'If this spell was kicked, draw a card' : 'sem reforço, não compra');
+  }
+  let s = mesa(['Into the Roil'], ['Faerie Seer']), r; [s, r] = poe(s, 0, 'Into the Roil', 'hand'); [s] = poe(s, 1, 'Faerie Seer'); s = comMana(s, 'UC');
+  assert.equal(legais(s, 0, x => x.t === 'cast' && x.oid === r && x.kick).length, 0, 'sem mana para o reforço, só a versão sem');
+});
+
+test('CR2c.1 · Benalish Sleeper: com reforço {B}, ao entrar cada jogador sacrifica uma criatura; sem reforço, nada', () => {
+  for (const reforco of [false, true]) {
+    let s = mesa(['Benalish Sleeper'], ['Faerie Seer']), b, f; [s, b] = poe(s, 0, 'Benalish Sleeper', 'hand'); [s, f] = poe(s, 1, 'Faerie Seer'); s = comMana(s, reforco ? 'WBC' : 'WC');
+    s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === b && !!x.kick === reforco)[0]));
+    assert.equal(s.objects[f].zone, reforco ? 'graveyard' : 'battlefield'); assert.equal(s.objects[b].zone, reforco ? 'graveyard' : 'battlefield', reforco ? 'sozinha, ela mesma é sacrificada' : 'fica');
+  }
+});
+
+test('CR2c.1 · Everflowing Chalice: multirreforço {2} — entra com um marcador de carga por reforço pago e gera {C} por marcador', () => {
+  for (const vezes of [0, 1, 2]) {
+    let s = mesa(['Everflowing Chalice']), c; [s, c] = poe(s, 0, 'Everflowing Chalice', 'hand'); s = comMana(s, 'CCCC');
+    const a = legais(s, 0, x => x.t === 'cast' && x.oid === c && (x.kick || 0) === vezes)[0]; assert.ok(a, 'reforço ' + vezes + ' vezes'); s = tudo(act(s, a));
+    assert.equal(s.objects[c].counters.charge || 0, vezes, 'marcadores de carga'); assert.equal(s.players[0].pool.C, 4 - 2 * vezes);
+    s = J(s); s.players[0].pool.C = 0; const g = legais(s, 0, x => x.t === 'activate' && x.oid === c);
+    if (!g.length) { assert.equal(vezes, 0); continue; } s = act(s, g[0]); assert.equal(s.players[0].pool.C, vezes, '{T}: Add {C} for each charge counter');
+  }
+});
+
+test('CR2c.1 · Wretched Confluence: escolha três modos, podendo repetir; os efeitos saem na ordem impressa e cada modo tem o seu alvo', () => {
+  let s = mesa(['Wretched Confluence', 'Faerie Seer'], ['Faerie Seer', 'Zulaport Cutthroat']), w, minha, f, z; [s, w] = poe(s, 0, 'Wretched Confluence', 'hand'); [s, minha] = poe(s, 0, 'Faerie Seer', 'graveyard'); [s, f] = poe(s, 1, 'Faerie Seer'); [s, z] = poe(s, 1, 'Zulaport Cutthroat'); s = comMana(s, 'BBCCC');
+  const todas = legais(s, 0, x => x.t === 'cast' && x.oid === w); assert.ok(todas.every(x => Array.isArray(x.modes) && x.modes.length === 3), 'sempre três modos');
+  assert.ok(todas.some(x => J(x.modes).join() === '1,1,1'), 'pode repetir o mesmo modo');
+  // modo 2 (−2/−2) duas vezes, uma em cada criatura do oponente, e modo 3 (volta a minha criatura do cemitério para a mão)
+  const a = todas.find(x => J(x.modes).join() === '1,1,2' && x.targets[0].oid === f && x.targets[1].oid === z); assert.ok(a, 'cada modo com o próprio alvo');
+  s = tudo(act(s, a)); assert.deepEqual([f, z].map(o => s.objects[o].zone), ['graveyard', 'graveyard']); assert.equal(s.objects[minha].zone, 'hand');
+  // compra e perde 1 de vida: o "e perde" é do mesmo jogador do modo, não do primeiro alvo da mágica
+  let t = mesa(['Wretched Confluence'], ['Faerie Seer']), w2, f2; [t, w2] = poe(t, 0, 'Wretched Confluence', 'hand'); [t, f2] = poe(t, 1, 'Faerie Seer'); t = comMana(t, 'BBCCC');
+  const b = legais(t, 0, x => x.t === 'cast' && x.oid === w2 && J(x.modes).join() === '0,1,1' && x.targets[0].player === 1 && x.targets[1].oid === f2 && x.targets[2].oid === f2);
+  assert.equal(b.length, 1, 'o mesmo alvo vale em instâncias diferentes de "target"'); t = tudo(act(t, b[0])); assert.equal(t.players[1].life, 19); assert.equal(t.objects[f2].zone, 'graveyard');
+});
