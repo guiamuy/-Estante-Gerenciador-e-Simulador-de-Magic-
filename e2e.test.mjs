@@ -2895,10 +2895,11 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   const first = (await page.innerText('#tb-life-me')).includes('Ana') ? 'Ana' : 'Bia';
   await put(first === 'Ana' ? 'Sky Pike' : 'Wall Guard');
   // com Raios nos dois grimórios, a outra jogadora ganha paradas para responder: passa até chegar à principal da outra
-  for (let i = 0; i < 12 && !(await page.locator('#tb-pass-turn').count()); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
+  // K3 (leva G-215) · com mana livre o Raio é resposta possível em toda etapa: a mesa para em mais lugares, então o laço anda mais
+  for (let i = 0; i < 40 && !(await page.locator('#tb-pass-turn').count()); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); }
   await page.click('#tb-pass-turn'); await reveal(page); await toMyMain(page);
   await put(first === 'Ana' ? 'Wall Guard' : 'Sky Pike');
-  for (let i = 0; i < 16 && !(await page.locator('#tb-attack').count()); i++) {
+  for (let i = 0; i < 50 && !(await page.locator('#tb-attack').count()); i++) { // K3 (leva G-215) · mais paradas com o Raio de mana livre: mais voltas
     await reveal(page);
     if (await page.locator('#tb-no-attack').count() && !(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').count())) { await page.click('#tb-no-attack'); continue; }
     if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn'); else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
@@ -2968,7 +2969,8 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   assert.match(log, /conjurou Lightning Bolt/);
   assert.match(log, /Wall Guard morreu/, 'o bloqueador morreu (3 do Raio + 2 de combate ≥ 4)');
   assert.doesNotMatch(log, /\(20 → 18\)/, 'o Sky Pike continuou bloqueado: nada passou');
-  assert.equal(await page.innerText('#tb-life-opp'), vidaAntes);
+  // K3 (leva G-215) · com mais paradas, a vez pode estar com a defensora no fim: confere a vida dela pelo nome, não pelo lado da tela
+  { const [vida, nome] = vidaAntes.split('\n'); assert.equal(await page.evaluate(n => window.__estanteMesa.estado().players.find(p => p.name === n).life, nome.trim()), Number(vida)); }
   assert.deepEqual(errors, []);
 });
 
@@ -8632,5 +8634,45 @@ test('e2e · K1 decisão que toma o lugar da mão (vidência): o seletor Escolha
     await auditaTela(page, `mesa ${sup} escuro`);
     if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/o2-${sup}.png` });
   }
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- K3 · parar sempre por etapa ---------------- */
+test('e2e · K3 parar sempre por etapa: Paradas no balão da faixa abre as chaves do seu turno e do oponente (44 px, padrão principal 1 e 2), ligar Final faz a mesa parar no final, fica guardado, Padrão volta', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Ilhas', '60 Island', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '3'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  const passo = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return `${s.turn.active ? 'dele' : 'meu'}:${s.turn.step}`; });
+  const abre = async () => { await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-paradas'); await page.click('#tb-paradas'); await page.waitForSelector('#tb-paradas-corpo'); await page.waitForTimeout(350); };
+  const chaves = () => page.$$eval('#tb-paradas-corpo [role="switch"]', cs => cs.map(c => `${c.dataset.lado}:${c.dataset.etapa}:${c.getAttribute('aria-checked')}`));
+  // a folha: título, a regra numa frase, duas listas de cinco chaves de 44 px; o padrão é principal 1 e 2 do seu turno
+  await abre();
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Parar sempre');
+  assert.match(await page.innerText('#tb-paradas-nota'), /Ligada: a partida para em toda passagem pela etapa\. Desligada: só para quando você tem uma ação ou uma resposta possível\./);
+  assert.deepEqual(await chaves(), ['meu:inicio:false', 'meu:main1:true', 'meu:combate:false', 'meu:main2:true', 'meu:final:false', 'dele:inicio:false', 'dele:main1:false', 'dele:combate:false', 'dele:main2:false', 'dele:final:false']);
+  assert.deepEqual(await page.$$eval('#tb-paradas-meu [role="switch"]', cs => cs.map(c => c.querySelector('.ds-chave__rotulo').textContent)), ['Início', 'Principal 1', 'Combate', 'Principal 2', 'Final']);
+  assert.ok(await page.$$eval('#tb-paradas-corpo [role="switch"]', cs => cs.every(c => c.getBoundingClientRect().height >= 44)));
+  await auditaTela(page, 'paradas');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/k3-paradas.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(60); await auditaTela(page, `paradas ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  // ligar Final do seu turno: muda na hora e passa a valer; Pronto fecha
+  await page.click('[data-lado="meu"][data-etapa="final"]'); assert.equal(await page.getAttribute('[data-lado="meu"][data-etapa="final"]', 'aria-checked'), 'true');
+  await page.click('#tb-paradas-pronto'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.equal(await passo(), 'meu:main1');
+  await page.evaluate(() => { const M = window.__estanteMesa; M.act(M.legais().find(a => a.t === 'play_land')); }); // nada mais a fazer na principal 1 (ligada: ela espera)
+  assert.equal(await passo(), 'meu:main1');
+  await page.evaluate(() => window.__estanteMesa.act({ t: 'pass', p: 0 })); assert.equal(await passo(), 'meu:main2', 'combate desligado e sem ação: passou sozinho');
+  await page.evaluate(() => window.__estanteMesa.act({ t: 'pass', p: 0 })); assert.equal(await passo(), 'meu:end', 'Final ligado: a mesa parou no final, sem nada a fazer');
+  // guardado no aparelho: recarregar mantém
+  await page.reload(); await page.waitForSelector('#tb-vez-btn'); await abre(); assert.equal(await page.getAttribute('[data-lado="meu"][data-etapa="final"]', 'aria-checked'), 'true');
+  // Padrão volta a principal 1 e 2
+  await page.click('#tb-paradas-padrao'); await page.waitForFunction(() => document.querySelector('[data-lado="meu"][data-etapa="final"]').getAttribute('aria-checked') === 'false');
+  assert.deepEqual((await chaves()).filter(c => c.endsWith(':true')), ['meu:main1:true', 'meu:main2:true']); await page.keyboard.press('Escape');
+  // catálogo: a chave no /ds
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-chaves'); assert.equal(await page.locator('#ds-chaves [role="switch"]').count(), 2);
   assert.deepEqual(errors, []);
 });

@@ -1031,6 +1031,19 @@ a { color: var(--accent); }
 :root[data-movimento="reduzido"] .ds-fab__item.ds-btn { animation: none !important; }
 #outlet:has(.ds-fab) { padding-bottom: calc(56px + var(--space-6)); }
 /* N2 · bandeira (ícone do conjunto, em cores da bandeira) e a linha do tempo de notícias */
+.ds-chave { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; min-height: var(--tap-min); padding: var(--space-2) var(--space-1); border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.ds-chave + .ds-chave { border-top: 1px solid var(--border); }
+.ds-chave:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-2); }
+.ds-chave__texto { display: flex; flex-direction: column; min-width: 0; }
+.ds-chave__rotulo { font-size: var(--text-md); line-height: var(--lh-md); }
+.ds-chave__detalhe { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
+.ds-chave__trilho { position: relative; flex: none; width: 44px; height: 26px; border-radius: var(--radius-full); border: 1px solid var(--border-strong); background: var(--bg-elev-3); transition: background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out); }
+.ds-chave__botao { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: var(--radius-full); background: var(--fg-muted); transition: transform var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out); }
+.ds-chave[aria-checked="true"] .ds-chave__trilho { background: var(--accent); border-color: var(--accent); }
+.ds-chave[aria-checked="true"] .ds-chave__botao { transform: translateX(18px); background: var(--accent-fg); }
+@media (prefers-reduced-motion: reduce) { .ds-chave__trilho, .ds-chave__botao { transition: none; } }
+:root[data-movimento="reduzido"] .ds-chave__trilho, :root[data-movimento="reduzido"] .ds-chave__botao { transition: none !important; }
+.tb-paradas__grupo { display: flex; flex-direction: column; }
 .ds-bandeira { display: inline-flex; flex: none; line-height: 0; border-radius: var(--radius-1); overflow: hidden; box-shadow: 0 0 0 1px var(--border-strong); }
 .nt-idiomas { flex: 0 0 auto; align-self: stretch; }
 .nt-idiomas .ds-chip { gap: var(--space-2); }
@@ -3060,6 +3073,15 @@ function BotaoDeAcao(acoes, { id = 'acao', rotulo = 'Ações' } = {}) {
   el.append(menu, principal);
   return reservaDoca(el);
 }
+/** K3 · chave liga/desliga: a linha inteira é o botão (44 px), com o rótulo à esquerda e o trilho à direita.
+    `onMuda(ligada)` recebe o estado novo; o desenho troca na hora. */
+function Chave(rotulo, { ligada = false, id = null, detalhe = '', onMuda = null, dataset = null } = {}) {
+  const b = h('button', { class: 'ds-chave', type: 'button', role: 'switch', 'aria-checked': String(!!ligada), id, ...(dataset ? { dataset } : {}),
+    onClick: () => { const nova = b.getAttribute('aria-checked') !== 'true'; b.setAttribute('aria-checked', String(nova)); if (onMuda) onMuda(nova); } },
+    h('span', { class: 'ds-chave__texto' }, h('span', { class: 'ds-chave__rotulo' }, rotulo), detalhe ? h('span', { class: 'ds-chave__detalhe' }, detalhe) : null),
+    h('span', { class: 'ds-chave__trilho', 'aria-hidden': 'true' }, h('span', { class: 'ds-chave__botao' })));
+  return b;
+}
 /** N2 · bandeira de país, do conjunto do app (nunca emoji): desenho chapado, 3:2, com as cores da bandeira por token.
     É enfeite de um rótulo que já diz o idioma: não tem nome falado. `tamanho` é a altura. */
 const BANDEIRAS = {
@@ -3217,7 +3239,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
 return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao, Bandeira };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao, Bandeira, Chave };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -3544,6 +3566,8 @@ function renderDS() {
       // J6 · botão de ação: no catálogo ele aparece no canto da tela, como numa tela de verdade (uma ação e várias)
       Text('BotaoDeAcao: canto inferior direito desta tela — toque para abrir as ações', { size: 'sm', tone: 'muted', attrs: { id: 'ds-fab-nota' } }),
       __m3.BotaoDeAcao([{ icone: 'mais', rotulo: 'Nova lista', onClick: () => toast('Nova lista') }, { icone: 'caixa', rotulo: 'Prontas', onClick: () => toast('Prontas') }, { icone: 'scanner', rotulo: 'Escanear', onClick: () => toast('Escanear') }], { id: 'ds-fab', rotulo: 'Ações do catálogo' }),
+      // K3 · chave liga/desliga
+      h('div', { id: 'ds-chaves' }, __m3.Chave('Ligada', { ligada: true }), __m3.Chave('Desligada', { detalhe: 'com uma linha de detalhe' })),
       // N2 · bandeiras do seletor de idioma
       Row({ id: 'ds-bandeiras' }, __m3.Bandeira('br'), __m3.Bandeira('us'), __m3.Bandeira('br', { tamanho: 10 }), __m3.Bandeira('us', { tamanho: 10 }), Text('Bandeira: enfeite de um rótulo que já diz o idioma', { size: 'sm', tone: 'muted' })),
       Row({ id: 'ds-arte-de-espera' }, __m3.ArteDeEspera(), Text('ArteDeEspera: o desenho sozinho, dentro de uma arte que ainda não chegou', { size: 'sm', tone: 'muted' }))),
@@ -7389,7 +7413,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas', 'noticias.filtro', 'noticias.guardadas'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'mesa.paradas', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas', 'noticias.filtro', 'noticias.guardadas'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -16511,19 +16535,33 @@ function revealed(before, after) {
   return before.zones.some((z, p) => after.zones[p].library.length < z.library.length);
 }
 
-const ACTIVE_STOPS = new Set(['main1', 'combat_attackers', 'main2']);
-const RESPONSE_STOPS = new Set(['combat_attackers', 'end']);
-/** Onde um humano para: pilha com resposta possível, suas fases de ação
-    e, no turno alheio, ataque e passo final quando tem o que conjurar. */
-function shouldStop(s, i) {
-  const respond = E.legalActions(s, i).some(a => a.t !== 'pass' && a.t !== 'tap_mana'); // gerar mana sozinho não é resposta
-  if (s.stack.length) return respond;
-  // E50 P2 · depois dos bloqueios declarados, quem tem resposta (pump, remoção, habilidade) para antes do dano —
-  // o atacante primeiro (prioridade dele), depois o defensor. Antes o passo era pulado e o dano vinha direto.
-  if (s.turn.step === 'combat_blockers' && s.combat && (s.combat.attackers || []).length) return respond;
-  if (s.turn.active === i) return s.turn.step === 'combat_attackers' ? respond : ACTIVE_STOPS.has(s.turn.step); // a declaração em si já é uma parada (pendência)
-  if (s.players[s.turn.active].dummy && s.turn.step === 'combat_attackers') return false; // goldfish não ataca
-  return respond && RESPONSE_STOPS.has(s.turn.step);
+/* K3 · paradas por etapa (pedido de 08/10/2026). Cada etapa tem a chave "parar sempre", uma lista para o seu turno e
+   outra para o do oponente. Ligada: a partida para em toda passagem pela etapa. Desligada: só para quando quem tem a
+   prioridade tem uma ação ou resposta possível — e isso vale em qualquer etapa, ligada ou não. Sem nada a fazer, segue.
+   As chaves são do aparelho (`mesa.paradas`): o app as entrega por `usaParadas` antes de abrir qualquer mesa. */
+const GRUPOS_DE_PARADA = [['inicio', 'Início', ['upkeep', 'draw']], ['main1', 'Principal 1', ['main1']],
+  ['combate', 'Combate', ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']], ['main2', 'Principal 2', ['main2']], ['final', 'Final', ['end']]];
+const PARADAS_PADRAO = { meu: ['main1', 'main2'], dele: [] };
+/** As chaves guardadas, limpas: só etapas conhecidas, na ordem do turno; nada guardado (ou estragado) vira o padrão. */
+function paradasValidas(v) {
+  const ordem = GRUPOS_DE_PARADA.map(g => g[0]), lado = x => ordem.filter(k => Array.isArray(x) && x.includes(k));
+  return v && typeof v === 'object' && (Array.isArray(v.meu) || Array.isArray(v.dele)) ? { meu: lado(v.meu), dele: lado(v.dele) } : { meu: [...PARADAS_PADRAO.meu], dele: [...PARADAS_PADRAO.dele] };
+}
+const grupoDoPasso = step => (GRUPOS_DE_PARADA.find(g => g[2].includes(step)) || [null])[0];
+let paradasDoAparelho = paradasValidas(null);
+const usaParadas = v => { paradasDoAparelho = paradasValidas(v); return paradasDoAparelho; };
+const paradasAtuais = () => paradasValidas(paradasDoAparelho);
+/** Onde um humano para: sempre que tem ação ou resposta possível (gerar mana sozinho não conta); sem nenhuma, só na
+    etapa com "parar sempre" ligada, e nunca com a pilha cheia (passar ali é deixar resolver). */
+function shouldStop(s, i, paradas = paradasDoAparelho) {
+  // o motor lista a instantânea mesmo sem mana para ela (o pagamento é conferido ao conjurar): só conta o que daria
+  // para fazer de verdade agora — a ação é tentada numa cópia (o motor é puro) e a que o motor recusa não conta
+  const possivel = a => { try { E.apply(s, a); return true; } catch (e) { return false; } };
+  const respond = E.legalActions(s, i).some(a => a.t !== 'pass' && a.t !== 'tap_mana' && a.t !== 'concede' && possivel(a));
+  if (respond) return true;
+  if (s.stack.length) return false;
+  const g = grupoDoPasso(s.turn.step);
+  return !!g && ((paradas || {})[s.turn.active === i ? 'meu' : 'dele'] || []).includes(g);
 }
 
 /** Combo do Shark na mesa (trilha bot: o combo de mana infinita da leva 147 são dezenas de ações iguais).
@@ -16565,6 +16603,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
   // combo do Shark: uma linha só no registro para o laço inteiro, e o jogador que passou uma vez pela habilidade
   // repetida não é parado de novo por ela no mesmo turno
   let combo = null, cedidas = new Set(), perfilBot;
+  const paradasFixas = opts.paradas ? paradasValidas(opts.paradas) : null; // K3 · teste pode fixar as paradas; o app usa as do aparelho
   function reset() { match = E.createMatch(setup); lines = []; entradas = []; barrier = 0; humanMarks = []; motivosDoBot = []; turnoDoBot = null; foto = null; resumos = []; combo = null; cedidas = new Set(); }
   const anota = (textos, st) => { for (const texto of textos) entradas.push({ texto, turno: st.turn.number || 0, passo: st.status === 'mulligan' ? 'mulligan' : st.turn.step, ativo: (st.players[st.turn.active] || {}).name || '' }); };
   function fechaResumoDoBot() {
@@ -16679,7 +16718,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
         events.push(...record(acao));
         continue;
       }
-      if (options.autoPass && s.status === 'playing' && !s.pending && (!shouldStop(s, s.turn.priority) || cedidas.has(chaveDaRepeticao(s)))) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }
+      if (options.autoPass && s.status === 'playing' && !s.pending && (!shouldStop(s, s.turn.priority, paradasFixas || paradasDoAparelho) || cedidas.has(chaveDaRepeticao(s)))) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }
       break;
     }
     return events;
@@ -17412,7 +17451,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -18268,6 +18307,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // H6 · escolher as manas que pagam (desligado, o motor escolhe como antes)
     { const c = Chip('Escolher mana', { icone: 'terreno', pressed: manaManual, id: 'tb-mana-manual', onClick: () => { manaManual = !manaManual; store.set(MANA_KEY, manaManual).catch(() => {}); semSentidos = true; paint(); toast(manaManual ? 'Você escolhe as manas de cada pagamento' : 'O motor paga sozinho'); } });
       c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', manaManual ? 'Escolher as manas de cada pagamento: ligado' : 'Escolher as manas de cada pagamento: desligado'); vezPop.appendChild(c); }
+    // K3 · paradas por etapa: abre a folha com as chaves do seu turno e do turno do oponente
+    { const c = Chip('Paradas', { icone: 'pausa', id: 'tb-paradas', onClick: () => { abreVez(false); abreParadas(); } });
+      c.classList.add('tb-vez-pop__som'); c.removeAttribute('aria-pressed'); c.setAttribute('aria-haspopup', 'dialog'); c.setAttribute('aria-label', 'Paradas por etapa'); vezPop.appendChild(c); }
     // H5 · ver as jogadas do oponente uma a uma (só contra o bot)
     if (!sinc && table.options && table.options.bot) {
       const c = Chip('Ver jogadas', { icone: 'pular', pressed: verJogadas, id: 'tb-ver-jogadas', onClick: () => { verJogadas = !verJogadas; store.set(VER_KEY, verJogadas).catch(() => {}); semSentidos = true; paint(); toast(verJogadas ? 'As jogadas do oponente passam uma a uma' : 'O turno do oponente aparece de uma vez'); } });
@@ -18442,6 +18484,22 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
      Toda jogada em que o motor viraria fonte de mana por conta própria abre antes a folha de pagamento: as fontes já vêm
      marcadas como o motor faria (um toque em Pagar dá o mesmo resultado de antes), e dá para trocar quais viram e a cor de
      cada uma. A escolha é conferida no próprio motor a cada toque; só paga quando fecha a conta. */
+  /* K3 · a folha das paradas: uma chave por etapa, no seu turno e no do oponente. Muda na hora e fica no aparelho. */
+  const PARADAS_KEY = 'mesa.paradas';
+  function abreParadas() {
+    let atual = T.paradasAtuais();
+    const grava = () => { atual = T.usaParadas(atual); store.set(PARADAS_KEY, atual).catch(() => {}); };
+    const grupo = (lado, titulo) => h('div', { class: 'tb-paradas__grupo', role: 'group', 'aria-label': titulo, id: 'tb-paradas-' + lado },
+      Text(titulo, { size: 'sm', caps: true, as: 'h3' }),
+      ...T.GRUPOS_DE_PARADA.map(([k, nome]) => __m3.Chave(nome, { ligada: atual[lado].includes(k), dataset: { lado, etapa: k }, onMuda: sim => { atual = { ...atual, [lado]: sim ? [...atual[lado], k] : atual[lado].filter(x => x !== k) }; grava(); } })));
+    const corpo = () => Stack({ id: 'tb-paradas-corpo' },
+      Text('Ligada: a partida para em toda passagem pela etapa. Desligada: só para quando você tem uma ação ou uma resposta possível. Sem nada a fazer, ela segue sozinha.', { size: 'sm', tone: 'muted', attrs: { id: 'tb-paradas-nota' } }),
+      grupo('meu', 'Seu turno'), grupo('dele', 'Turno do oponente'));
+    const caixa = h('div', {}, corpo());
+    Dialog({ title: 'Parar sempre', body: caixa, actions: [
+      Button('Padrão', { id: 'tb-paradas-padrao', onClick: () => { atual = T.paradasValidas(null); grava(); mount(caixa, corpo()); toast('Paradas no padrão: Principal 1 e Principal 2 do seu turno'); } }),
+      Button('Pronto', { variant: 'primary', id: 'tb-paradas-pronto', onClick: closeDialog })] });
+  }
   const MANA_KEY = 'mesa.manaManual';
   let manaManual = !(typeof window !== 'undefined' && window.__SEM_PAGAMENTO);
   store.get(MANA_KEY).then(x => { if (x === false) manaManual = false; }).catch(() => {});
@@ -22163,6 +22221,7 @@ async function boot(root) {
     onNovaVersao: () => toast('Nova versão pronta', 0, { acao: { rotulo: 'Atualizar', icone: 'atualizar', onClick: () => location.reload() } })
   });
   await theme.init();
+  try { __m18.usaParadas(await platform.store.get('mesa.paradas')); } catch (e) { /* sem disco: o padrão */ } // K3
   __m4.mostraAbertura(); // J5 · com o tema já aplicado; o resto do app carrega por baixo
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteTema = theme; // D1 · gancho de teste
   detectEnvironment({

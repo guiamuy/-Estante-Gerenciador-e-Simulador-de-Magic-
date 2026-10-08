@@ -470,7 +470,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bz ✅ | I7 acabamento: artes com espera própria e pequena primeiro, um lote por vez, escolha na hora, artes de terreno e ficha em toda partida, abertura de 2 s e maior, toque sem realce do navegador (leva 206) | I | 1 | teste no aparelho |
 | 16º-ca ✅ | K1 decisão que esconde a mão: seletor Escolha / Mão para alternar entre a decisão e a mão (leva G-214) | K | 1 | teste no aparelho |
 | 16º-cb ✅ | K2 feltros do escuro com presença: verde novo, Oceano e Vinho, todos separados das zonas e com texto AA (leva G-214) | K | ½ | teste no aparelho |
-| 16º-cc ○ | K3 parar por etapa na partida, com parada automática quando há resposta possível | K | 1–1,5 | — |
+| 16º-cc ✅ | K3 parar sempre por etapa: Paradas no balão da faixa, chaves do seu turno e do oponente; sem a chave, a mesa só para com ação ou resposta possível (leva G-215) | K | 1 | teste no aparelho |
 | 16º-cd ○ | K4 Início redesenhada, com as notícias integradas | K | 1–2 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -6072,14 +6072,31 @@ prioridade, que é da mesa e conversa com o motor); K4 em uma ou duas levas.
 - **Testes:** contrato visual D7 (AA nos dois temas para as cinco superfícies); e2e "K2" (na partida, cada feltro do
   escuro a 1,5:1 ou mais das zonas e texto secundário AA, `auditaTela`); e2e D7 ajustado (seis superfícies).
 
-**K3 · Parar por etapa** ○
-- **Valor:** decidir em que etapas a partida espera por mim, sem perder a chance de responder.
-- **Aceite:** na partida, um controle que liga e desliga "parar sempre" para cada etapa do turno (manutenção,
-  compra, principal 1, combate, principal 2, final), guardado no aparelho. Ligado ou desligado, a partida **para
-  sempre que houver resposta ou ação possível** (mágica instantânea, habilidade ativada que se possa usar agora) e
-  **segue sozinha** quando não houver.
-- **Testes:** U do modelo de parada (etapa ligada, resposta possível, nada a fazer); e2e (liga e desliga, guarda,
-  para com resposta, segue sem resposta). · **Estimativa:** 1 a 1,5 leva.
+**K3 · Parar sempre por etapa** ✅ (leva G-215, 08/10/2026)
+- **Valor:** decidir em que etapas a partida espera por mim, sem perder a chance de jogar ou responder.
+- **Regra (definida pelo dono em 08/10/2026):** cada etapa tem a chave **"parar sempre"**. **Ligada:** a partida para
+  em toda passagem pela etapa. **Desligada:** só para quando você tem uma **ação ou resposta possível** ali. Sem nada
+  a fazer, segue sozinha. Há uma lista de chaves para o **seu turno** e outra para o **turno do oponente**, nas cinco
+  etapas da barra de fases (Início, Principal 1, Combate, Principal 2, Final). Padrão: Principal 1 e Principal 2 do
+  seu turno.
+- **Entregue:** **Paradas** no balão da faixa de vez abre a folha "Parar sempre" com as dez chaves (componente novo
+  `Chave`, no `/ds`) e o botão **Padrão**. Muda na hora, vale para a partida em andamento e para as próximas, e fica
+  no aparelho (`mesa.paradas`, vai no backup; entregue ao modelo da mesa no começo do app).
+- **"Ação possível" de verdade:** o motor lista a instantânea mesmo sem mana para ela (o pagamento é conferido ao
+  conjurar); a parada só conta a ação que o motor aceitaria agora — ela é tentada numa cópia do estado (motor puro).
+  Gerar mana sozinho não conta. Com a pilha cheia e nenhuma resposta possível, passar é deixar resolver: a chave da
+  etapa não segura a mesa ali.
+- **Mudança de comportamento (declarada):** antes as paradas eram fixas (principal 1, ataque e principal 2 do seu
+  turno; no turno alheio, só ataque e final, e só com resposta). Agora, **com uma instantânea e mana para ela, a
+  partida para em qualquer etapa** — inclusive na manutenção e na compra do oponente — porque há resposta possível.
+  Quem não quiser isso tem o "Passar o turno", que continua indo direto à sua próxima principal 1.
+- **Fora:** chave por passo fino (início de combate, bloqueio, dano separados); a escolha "Parar em todos os passos"
+  do preparo da partida continua como estava (desliga toda passagem automática).
+- **Testes:** U `table.unit` (chaves limpas e padrão, grupo de cada passo, ligada para nos dois turnos mesmo sem
+  nada a fazer, desligada segue sozinha, resposta possível para em qualquer etapa, instantânea sem mana não conta);
+  A9 e A4 ajustados com justificativa (a política mudou a pedido); e2e "K3" (folha, dez chaves de 44 px, padrão,
+  ligar Final e a mesa parar no final, guardado ao recarregar, Padrão, catálogo; `auditaTela` nas quatro larguras e
+  dois temas).
 
 **K4 · Início com notícias integradas** ○
 - **Valor:** a primeira tela mostra o patamar do app e o que há de novo, sem parecer uma pilha de botões.

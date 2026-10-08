@@ -29,20 +29,20 @@ test('A9 · goldfish mantém a mão sozinho, não compra e nunca fica com a prio
   assert.equal(t.state.players[1].lost, false, 'goldfish não perde por grimório vazio');
 });
 
-test('A9 · paradas automáticas: seu turno para na principal 1, no ataque e na principal 2', () => {
-  const t = goldfish(3);
+// K3 (leva G-215) · expectativa mudou de propósito, a pedido do dono (08/10/2026): a política de paradas fixa
+// (principal 1, ataque, principal 2; no turno alheio, ataque e final com resposta) virou "parar sempre" por etapa,
+// e com ação ou resposta possível a mesa para em qualquer etapa. Os testes "K3 ·" abaixo medem a regra nova.
+test('A9 · paradas automáticas: no padrão, seu turno para na principal 1 e na principal 2, e o turno do goldfish passa sozinho', () => {
+  const t = T.createTable(T.buildSetup({ format: 'livre', seed: 3, cards: CARDS, manaCheck: true, seats: [{ name: 'Você', deck: { entries: [{ name: 'Island', qty: 60, zone: 'main' }] } }, { name: 'Goldfish', dummy: true }] }), { options: { paradas: T.PARADAS_PADRAO } });
   t.act({ t: 'keep', p: 0, bottom: [] });
-  toMain(t);
-  const seen = [];
-  for (let i = 0; i < 3; i++) {
-    t.act({ t: 'pass', p: 0 });
-    while (t.state.pending) t.act({ t: 'discard', p: 0, oid: t.state.zones[0].hand[0] });
-    seen.push(t.state.turn.step);
-  }
-  assert.deepEqual(seen.slice(0, 2), ['combat_attackers', 'main2']);
-  const respond = E.legalActions(t.state, 0).some(x => x.t !== 'pass');
-  if (t.state.turn.active === 0) assert.equal(seen[2], 'main1', 'turno do goldfish passou sozinho até sua próxima principal 1');
-  else assert.ok(seen[2] === 'end' && respond, 'no turno do goldfish só para no passo final, e só se houver o que conjurar');
+  assert.deepEqual([t.state.turn.active, t.state.turn.step], [0, 'main1'], 'para na principal 1 (tem terreno para jogar)');
+  const turno = t.state.turn.number;
+  t.act({ t: 'play_land', p: 0, oid: t.state.zones[0].hand[0] });
+  assert.equal(t.state.turn.step, 'main1', 'sem mais nada a fazer, a principal 1 ligada segura a mesa');
+  t.act({ t: 'pass', p: 0 }); assert.equal(t.state.turn.step, 'main2');
+  t.act({ t: 'pass', p: 0 });
+  while (t.state.pending) t.act({ t: 'discard', p: 0, oid: t.state.zones[0].hand[0] });
+  assert.deepEqual([t.state.turn.active, t.state.turn.step, t.state.turn.number], [0, 'main1', turno + 2], 'o turno do goldfish e o seu começo passaram sozinhos');
 });
 
 test('A9 · "parar em todos os passos" desliga as paradas automáticas', () => {
@@ -65,6 +65,9 @@ test('A9 · hot-seat: a tela acompanha quem tem a prioridade', () => {
 test('A4 · pilha com resposta possível para o oponente; sem resposta, resolve sozinha', () => {
   const t = hotseat(2);
   t.act({ t: 'keep', p: 0, bottom: [] }); t.act({ t: 'keep', p: 1, bottom: [] });
+  // K3 (leva G-215) · sem conferência de mana (manaCheck desligado) toda instantânea na mão conta como resposta, então a
+  // mesa agora para já na manutenção de Ana; o teste anda até a principal 1 para conjurar ali, como antes
+  for (let i = 0; i < 10 && t.state.turn.step !== 'main1'; i++) t.act({ t: 'pass', p: t.state.turn.priority });
   const a = t.state.turn.active;
   assert.equal(a, 0, 'a semente fixa deve dar o primeiro turno para Ana');
   const s = t.state;
@@ -674,4 +677,48 @@ test('I1 · de quem é a linha: o nome que abre o texto, o mais longo primeiro; 
   assert.equal(T.donoDaLinha('Ana Maria atacou com Sky Pike', ['Ana', 'Ana Maria']), 1, '"Ana" não rouba a linha de "Ana Maria"');
   assert.equal(T.donoDaLinha('Wall Guard morreu', ['Ana', 'Bia']), -1); assert.equal(T.donoDaLinha('Anabela jogou', ['Ana', 'Bia']), -1, 'só nome inteiro');
   assert.equal(T.donoDaLinha('Vida: Ana 20 → 18', ['Ana', 'Bia']), -1); assert.equal(T.donoDaLinha('', ['Ana']), -1); assert.equal(T.donoDaLinha('Ana jogou', null), -1);
+});
+
+/* ---------------- K3 · parar sempre por etapa ---------------- */
+const soTerrenos = (paradas, seed = 3) => T.createTable(T.buildSetup({ format: 'livre', seed, cards: CARDS, manaCheck: true, seats: [{ name: 'Você', deck: { entries: [{ name: 'Island', qty: 60, zone: 'main' }] } }, { name: 'Goldfish', dummy: true }] }), { options: { paradas } });
+test('K3 · chaves limpas: só etapas conhecidas, na ordem do turno; nada guardado vira o padrão (principal 1 e 2 do seu turno); cada passo cai num grupo', () => {
+  assert.deepEqual(J(T.paradasValidas({ meu: ['final', 'main1', 'lixo'], dele: ['inicio'] })), { meu: ['main1', 'final'], dele: ['inicio'] });
+  for (const ruim of [null, undefined, 'x', {}, { meu: 'main1' }]) assert.deepEqual(J(T.paradasValidas(ruim)), { meu: ['main1', 'main2'], dele: [] });
+  assert.deepEqual(J(T.GRUPOS_DE_PARADA.map(g => [g[0], g[1]])), [['inicio', 'Início'], ['main1', 'Principal 1'], ['combate', 'Combate'], ['main2', 'Principal 2'], ['final', 'Final']]);
+  assert.deepEqual(['upkeep', 'draw', 'main1', 'combat_begin', 'combat_damage', 'main2', 'end', 'untap', 'cleanup'].map(T.grupoDoPasso), ['inicio', 'inicio', 'main1', 'combate', 'combate', 'main2', 'final', null, null]);
+  const antes = T.paradasAtuais(); assert.deepEqual(J(T.usaParadas({ meu: ['final'], dele: [] })), { meu: ['final'], dele: [] }); assert.deepEqual(J(T.paradasAtuais()), { meu: ['final'], dele: [] }); T.usaParadas(antes);
+});
+test('K3 · ligada é parar em toda passagem pela etapa, nos dois turnos, mesmo sem nada a fazer', () => {
+  const t = soTerrenos({ meu: ['main1', 'main2', 'final'], dele: ['inicio', 'final'] });
+  t.act({ t: 'keep', p: 0, bottom: [] });
+  // a semente dá o primeiro turno ao goldfish: a manutenção dele (ligada) já segura a mesa
+  assert.deepEqual([t.state.turn.active, t.state.turn.step, t.state.turn.priority], [1, 'upkeep', 0]);
+  toMain(t); t.act({ t: 'play_land', p: 0, oid: t.state.zones[0].hand[0] });
+  const paradas = [];
+  for (let i = 0; i < 8; i++) { t.act({ t: 'pass', p: 0 }); while (t.state.pending) t.act({ t: 'discard', p: 0, oid: t.state.zones[0].hand[0] }); paradas.push(`${t.state.turn.active ? 'dele' : 'meu'}:${t.state.turn.step}`); }
+  assert.deepEqual(paradas.slice(0, 6), ['meu:main2', 'meu:end', 'dele:upkeep', 'dele:draw', 'dele:end', 'meu:main1']);
+});
+test('K3 · desligada é seguir sozinho quando não há nada a fazer; tudo desligado, a mesa só para onde há ação (a principal com terreno na mão)', () => {
+  const t = soTerrenos({ meu: [], dele: [] });
+  t.act({ t: 'keep', p: 0, bottom: [] });
+  assert.deepEqual([t.state.turn.active, t.state.turn.step], [0, 'main1'], 'terreno para jogar: há ação');
+  const turno = t.state.turn.number;
+  t.act({ t: 'play_land', p: 0, oid: t.state.zones[0].hand[0] });
+  while (t.state.pending) t.act({ t: 'discard', p: 0, oid: t.state.zones[0].hand[0] });
+  assert.deepEqual([t.state.turn.active, t.state.turn.step, t.state.turn.number], [0, 'main1', turno + 2], 'sem ação possível, nem a principal desligada segura a mesa: o turno inteiro do goldfish passa e ela para na sua próxima principal 1');
+});
+test('K3 · com resposta possível a mesa para em qualquer etapa, ligada ou não (Lightning Bolt com terreno desvirado na manutenção do oponente)', () => {
+  // o Bolt das cartas de teste não tem custo; aqui ele custa {R}, como a carta, para a conferência de mana valer
+  const cartas = { ...CARDS, 'Lightning Bolt': { ...CARDS['Lightning Bolt'], mana_cost: '{R}' } };
+  const t = T.createTable(T.buildSetup({ format: 'livre', seed: 5, cards: cartas, manaCheck: true, seats: [{ name: 'Você', deck: { entries: [{ name: 'Mountain', qty: 30, zone: 'main' }, { name: 'Lightning Bolt', qty: 30, zone: 'main' }] } }, { name: 'Goldfish', dummy: true }] }), { options: { paradas: { meu: ['main1'], dele: [] } } });
+  t.act({ t: 'keep', p: 0, bottom: [] });
+  assert.deepEqual([t.state.turn.active, t.state.turn.step], [0, 'main1'], 'sem terreno em campo o Bolt não é resposta: a manutenção e a compra passaram sozinhas');
+  const s = t.state, temBolt = s.zones[0].hand.some(o => s.objects[o].name === 'Lightning Bolt'), monte = s.zones[0].hand.find(o => s.objects[o].name === 'Mountain');
+  assert.ok(temBolt && monte != null, 'a semente dá Mountain e Bolt na mão');
+  t.act({ t: 'play_land', p: 0, oid: monte });
+  t.act({ t: 'pass', p: 0 });
+  assert.equal(t.state.turn.active, 0, 'no seu turno, com Bolt e mana, para no combate e na principal 2 também');
+  for (let i = 0; i < 12 && t.state.turn.active === 0; i++) { t.act({ t: 'pass', p: 0 }); while (t.state.pending) t.act({ t: 'discard', p: 0, oid: t.state.zones[0].hand.find(o => t.state.objects[o].name === 'Mountain') || t.state.zones[0].hand[0] }); }
+  assert.deepEqual([t.state.turn.active, t.state.turn.step, t.state.turn.priority], [1, 'upkeep', 0], 'na manutenção do goldfish, com resposta possível, a mesa para para você');
+  assert.equal(T.shouldStop(t.state, 0, { meu: [], dele: [] }), true); assert.equal(T.shouldStop(t.state, 0, { meu: [], dele: ['inicio'] }), true);
 });
