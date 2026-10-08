@@ -8734,3 +8734,47 @@ test('e2e · K4 Início: data e saudação, Jogar como único primário, quatro 
   await page.reload(); await page.waitForSelector('#home-noticias-vazio'); assert.equal(await page.textContent('#home-noticias-vazio'), 'Nada novo por enquanto.');
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- N5 · coleções na linha do tempo ---------------- */
+test('e2e · N5 coleções: a que chega e a recém-lançada entram entre as notícias pela data, com símbolo (ou o código), tipo e tamanho; tocar abre as cartas da coleção na busca, com o selo que se tira; na Início, no máximo uma', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const arquivos = ramoN2(), dia = d => new Date(Date.now() + d * 86400e3).toISOString().slice(0, 10);
+  const sets = [{ code: 'cmd', name: 'Commander Que Chega', set_type: 'commander', released_at: dia(10), card_count: 100, icon_svg_uri: 'https://svgs.scryfall.io/sets/cmd.svg' },
+    { code: 'abc', name: 'Expansão Recém-Lançada', set_type: 'expansion', released_at: dia(-3), card_count: 281, icon_svg_uri: 'https://svgs.scryfall.io/sets/abc.svg' },
+    { code: 'dig', name: 'Só Digital', set_type: 'expansion', released_at: dia(-1), digital: true }, { code: 'tok', name: 'Fichas', set_type: 'token', released_at: dia(-1) }];
+  const buscas = [];
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); return nome in arquivos ? r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }) : r.abort('failed'); });
+  await page.route('https://img.test/**', r => r.fulfill({ body: PNG_N2, contentType: 'image/png' }));
+  await page.route('https://api.scryfall.com/sets', r => r.fulfill({ json: { object: 'list', data: sets, has_more: false } }));
+  await page.route('https://api.scryfall.com/cards/search**', r => { buscas.push(new URL(r.request().url()).searchParams.get('q')); return r.fulfill({ json: { object: 'list', data: Object.values(DB).slice(0, 2), has_more: false } }); });
+  await page.goto(base + '#/noticias'); await page.waitForSelector('#noticias-lista [data-colecao="cmd"]');
+  // a que chega fica no topo; a primeira notícia continua sendo o destaque
+  const topo = await page.$$eval('#noticias-lista .nt-cartao', cs => cs.slice(0, 3).map(c => [c.dataset.colecao || c.dataset.noticia, c.dataset.forma]));
+  assert.deepEqual(topo, [['cmd', 'colecao'], ['n0', 'destaque'], ['n1', 'linha']]);
+  const cmd = await page.$eval('[data-colecao="cmd"]', c => ({ meta: c.querySelector('.nt-meta').textContent, nome: c.querySelector('.nt-titulo').textContent, info: c.querySelector('.nt-colecao__info').textContent, href: c.querySelector('.nt-link').getAttribute('href'), lang: c.querySelector('.nt-titulo').lang, codigo: c.querySelector('.nt-colecao__codigo').textContent, h: Math.round(c.getBoundingClientRect().height) }));
+  assert.match(cmd.meta, /^Coleção a caminho· chega em \d\d\/\d\d$/); assert.equal(cmd.nome, 'Commander Que Chega'); assert.equal(cmd.info, 'Commander · 100 cartas');
+  assert.equal(cmd.href, '#/cartas?colecao=cmd&nome=Commander%20Que%20Chega'); assert.equal(cmd.lang, 'en'); assert.equal(cmd.codigo, 'CMD'); assert.ok(cmd.h >= 44);
+  assert.equal(await page.locator('[data-colecao="dig"], [data-colecao="tok"]').count(), 0, 'digital e fichas ficam fora');
+  assert.equal(await page.innerText('#noticias-novas'), '', 'coleção não conta como notícia nova');
+  await auditaTela(page, 'notícias com coleção');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n5-noticias.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(60); await auditaTela(page, `notícias com coleção ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  // a recém-lançada é mais velha que todas as notícias da linha: entra no fim, quando não há mais páginas
+  for (let i = 0; i < 40 && !await page.locator('#noticias-fim').count(); i++) { await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(120); }
+  assert.deepEqual(await page.$$eval('#noticias-lista .nt-cartao', cs => [cs.length, cs[cs.length - 1].dataset.colecao]), [62, 'abc']);
+  assert.match(await page.textContent('[data-colecao="abc"] .nt-meta'), /^Coleção nova· lançada em \d\d\/\d\d$/);
+  // tocar abre as cartas da coleção na busca do app, com o selo que se tira
+  await page.click('[data-colecao="abc"] .nt-link'); await page.waitForSelector('#cards-colecao-tirar'); await page.waitForSelector('#cards-results .deck-slot');
+  assert.equal(await page.textContent('#cards-colecao-tirar'), 'Coleção: Expansão Recém-Lançada'); assert.deepEqual(buscas, ['e:abc']);
+  await auditaTela(page, 'cartas da coleção');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n5-cartas.png' });
+  await page.click('#cards-colecao-tirar'); await page.waitForFunction(() => !document.querySelector('#cards-colecao-tirar') && !document.querySelector('#cards-results .deck-slot'));
+  // na Início: no máximo uma coleção entre as três
+  await page.goto(base + '#/'); await page.waitForSelector('#home-noticias .nt-cartao');
+  assert.deepEqual(await page.$$eval('#home-noticias .nt-cartao', cs => cs.map(c => c.dataset.colecao || c.dataset.forma)), ['cmd', 'destaque', 'linha']);
+  await auditaTela(page, 'início com coleção');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n5-inicio.png' });
+  assert.deepEqual(errors, []);
+});

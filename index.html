@@ -116,6 +116,7 @@
   --fg: #f1e8d7;
   --fg-muted: #bcab90;
   --fg-subtle: #9c8b71;
+  --simbolo-filtro: invert(.86) sepia(.2); /* N5 · o símbolo de coleção da Scryfall é preto: no escuro ele clareia */
   --fg-grupo: var(--accent); /* D11 · cabeçalho de grupo em latão no escuro (6,1:1) */
   --accent: #cfa851;
   --accent-hover: #e8c375;
@@ -159,6 +160,7 @@
   --fg: #241b0f;
   --fg-muted: #57492f;
   --fg-subtle: #5f4f36; /* D11 · AA sobre --bg-elev-2 (antes 4,44) */
+  --simbolo-filtro: none;
   --fg-grupo: var(--fg-muted); /* D11 · cabeçalho de grupo: no claro o latão não passa de 4,5 sobre a estante */
   --accent: #7a5a17;
   --accent-hover: #674b12;
@@ -199,6 +201,7 @@
     --fg: #241b0f;
     --fg-muted: #57492f;
     --fg-subtle: #5f4f36;
+    --simbolo-filtro: none;
     --fg-grupo: var(--fg-muted);
     --accent: #7a5a17;
     --accent-hover: #674b12;
@@ -600,6 +603,13 @@ a { color: var(--accent); }
 .inicio__rapidos .ds-atalho__icone { transition: transform var(--dur-1) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .inicio__rapidos .ds-atalho__icone { transition: none; } }
 :root[data-movimento="reduzido"] .inicio__rapidos .ds-atalho__icone { transition: none !important; }
+.nt-cartao--colecao { align-items: center; }
+.nt-colecao__simbolo { position: relative; flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--radius-3); border: 1px solid var(--border); background: var(--accent-soft); color: var(--accent); }
+.nt-colecao__simbolo img { position: absolute; inset: var(--space-2); width: calc(100% - var(--space-4)); height: calc(100% - var(--space-4)); object-fit: contain; filter: var(--simbolo-filtro); }
+.nt-colecao__simbolo--imagem .nt-colecao__codigo { visibility: hidden; }
+.nt-colecao__codigo { font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: var(--weight-bold); letter-spacing: .06em; }
+.nt-cartao--colecao .nt-fonte { color: var(--positive); }
+.nt-cartao--colecao[data-futura="true"] .nt-fonte { color: var(--accent); }
 .inicio-nt { display: flex; flex-direction: column; gap: var(--space-3); }
 .inicio-nt__cab { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .inicio-nt__icone { color: var(--accent); flex: none; }
@@ -3776,6 +3786,11 @@ function createScryfall(opts = {}) {
       const data = await schedule(() => request('/catalog/card-names'));
       return (data && data.data) || [];
     },
+    /** N5 · todas as coleções (nome, código, tipo, data de lançamento, símbolo). */
+    async sets() {
+      const data = await schedule(() => request('/sets'));
+      return (data && Array.isArray(data.data)) ? data.data : [];
+    },
     /** Uma carta pelo nome exato. null quando não existe. */
     async named(name) {
       const data = await schedule(() => request('/cards/named?exact=' + encodeURIComponent(name)));
@@ -3945,9 +3960,9 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     /** D4 · busca. Tenta a rede; se ela não existe ou falha, cai para a
         base local. Devolve {cards, source} para a tela poder dizer de onde
         veio o resultado, em vez de fingir que foi tudo igual. */
-    async search({ text = '', colors = [], type = '', rarity = '', format = '', pages = 1, offline = false } = {}) {
-      const criteria = { text, colors, type, rarity, format };
-      const hasCriteria = !!(text.trim() || colors.length || type || rarity || format);
+    async search({ text = '', colors = [], type = '', rarity = '', format = '', set = '', pages = 1, offline = false } = {}) {
+      const criteria = { text, colors, type, rarity, format, set };
+      const hasCriteria = !!(text.trim() || colors.length || type || rarity || format || set);
       if (!hasCriteria) return { cards: [], source: 'none' };
       if (!offline) {
         try {
@@ -3956,15 +3971,16 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
           return { cards, source: 'rede' };
         } catch (e) {
           if (!local) throw e;
-          const cards = await local.search(criteria);
+          const cards = daColecao(await local.search(criteria), set);
           return { cards, source: 'local', degraded: true, cause: e };
         }
       }
-      return { cards: local ? await local.search(criteria) : [], source: 'local' };
+      return { cards: local ? daColecao(await local.search(criteria), set) : [], source: 'local' };
     },
 
-    async _remoteSearch({ text = '', colors = [], type = '', rarity = '', format = '', pages = 1 } = {}) {
+    async _remoteSearch({ text = '', colors = [], type = '', rarity = '', format = '', set = '', pages = 1 } = {}) {
       const parts = [];
+      if (set) parts.push(`e:${set}`); // N5 · as cartas de uma coleção
       if (text.trim()) parts.push(`name:${JSON.stringify(text.trim())}`);
       if (colors.length) parts.push(`id<=${colors.join('')}`);
       if (type) parts.push(`t:${type}`);
@@ -3983,6 +3999,8 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
   };
 }
 
+/** N5 · na base do aparelho, só as cartas da coleção pedida (a carta guardada traz o código da coleção dela). */
+const daColecao = (cards, set) => (set ? cards.filter(c => String(c.set || '').toLowerCase() === String(set).toLowerCase()) : cards);
 /* Uma carta responde por vários nomes: completo, face da frente e cada face. */
 function nameKeys(c) {
   const ks = new Set([norm(c.name)]);
@@ -4549,21 +4567,23 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
     toast(!r.changed ? `Você tem ${r.before} — ajuste a quantidade em Coleção` : r.after ? `Na coleção: ${c.name}` : `Fora da coleção: ${c.name}`);
     paint();
   }
-  const state = { text: '', colors: new Set(), type: '', rarity: '', format: '', busy: false, results: null, error: null, source: null, localCount: 0 };
+  const state = { text: '', colors: new Set(), type: '', rarity: '', format: '', set: '', setNome: '', busy: false, results: null, error: null, source: null, localCount: 0 };
+  // N5 · "#/cartas?colecao=<código>&nome=<nome>" (vindo de uma coleção nova em Notícias) abre a busca já na coleção
+  { const q = new URLSearchParams((location.hash.split('?')[1]) || ''); if (/^[a-z0-9]{2,8}$/i.test(q.get('colecao') || '')) { state.set = q.get('colecao').toLowerCase(); state.setNome = (q.get('nome') || state.set.toUpperCase()).slice(0, 80); } }
 
   const results = h('div', { id: 'cards-results' });
   const status = h('div', { id: 'cards-status' });
 
   async function run() {
     if (state.busy) return;
-    if (!state.text.trim() && !state.colors.size && !state.type && !state.rarity && !state.format) {
+    if (!state.text.trim() && !state.colors.size && !state.type && !state.rarity && !state.format && !state.set) {
       state.results = null; state.error = 'Informe um termo ou ao menos um filtro.'; return paint();
     }
     state.busy = true; state.error = null; paint();
     try {
       const r = await repo.search({
         text: state.text, colors: [...state.colors], type: state.type,
-        rarity: state.rarity, format: state.format, pages: 1,
+        rarity: state.rarity, format: state.format, set: state.set, pages: 1,
         offline: env && !env.online
       });
       state.results = r.cards; state.source = r.source;
@@ -4618,6 +4638,10 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
     }));
 
   const input = Input({ id: 'cards-q', placeholder: 'Nome contém…', onInput: e => { state.text = e.target.value; } });
+  // N5 · o filtro de coleção aparece como um selo que se tira com um toque
+  const colecaoBox = h('div', { id: 'cards-colecao' });
+  const pintaColecao = () => mount(colecaoBox, state.set ? Row({ class: 'ds-row--wrap' }, Chip(`Coleção: ${state.setNome}`, { icone: 'fechar', pressed: true, id: 'cards-colecao-tirar', onClick: () => { state.set = ''; state.setNome = ''; pintaColecao(); state.results = null; paint(); } })) : null);
+  pintaColecao();
   input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 
   // U4 · sem internet é um aviso de uma linha com ícone; os outros ambientes (origem bloqueada, arquivo local) continuam explicados
@@ -4630,6 +4654,7 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
   const root = Stack({ class: 'ds-wrap', id: 'cards-screen', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
     Text('Cartas', { size: '2xl', display: true, as: 'h1' }),
     envWarning,
+    colecaoBox,
     Surface({ class: 'ds-surface--pad ds-surface--shelf' },
       Stack({},
         Field('Nome', input, { hint: 'Enter para buscar.' }),
@@ -4651,6 +4676,7 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
     results);
 
   refreshLocalCount();
+  if (state.set) run(); // N5
   return root;
 }
 
@@ -8806,9 +8832,9 @@ const contaFiltro = f => f.temas.length + f.fontes.length;
 /** Passa quem tem algum dos temas ligados E é de alguma das fontes ligadas (grupo sem nada ligado não restringe). */
 const passa = (it, f) => (!f.temas.length || it.temas.some(t => f.temas.includes(t))) && (!f.fontes.length || f.fontes.includes(it.fonte));
 /** Quantas são mais novas que a última já mostrada. Sem visita anterior, nenhuma é "nova" (tudo seria). */
-function contaNovas(itens, vista) { const t = Date.parse(vista); return Number.isFinite(t) ? itens.filter(it => Date.parse(it.data) > t).length : 0; }
+function contaNovas(itens, vista) { const t = Date.parse(vista); return Number.isFinite(t) ? itens.filter(it => it.tipo !== 'colecao' && Date.parse(it.data) > t).length : 0; } // N5 · coleção não é notícia nova
 /** A data mais nova entre as notícias e a marca atual. */
-const maisNova = (itens, atual = '') => itens.reduce((m, it) => (Number.isFinite(Date.parse(it.data)) && (!m || Date.parse(it.data) > Date.parse(m)) ? it.data : m), Number.isFinite(Date.parse(atual)) ? atual : '');
+const maisNova = (itens, atual = '') => itens.reduce((m, it) => (it.tipo !== 'colecao' && Number.isFinite(Date.parse(it.data)) && (!m || Date.parse(it.data) > Date.parse(m)) ? it.data : m), Number.isFinite(Date.parse(atual)) ? atual : '');
 /** "1 nova", "7 novas", "20+ novas" (quando tudo o que foi lido é novo e ainda há mais); zero não escreve nada. */
 const rotuloNovas = (n, { mais = false } = {}) => (n > 0 ? `${n}${mais ? '+' : ''} ${n === 1 && !mais ? 'nova' : 'novas'}` : '');
 /** N4 · as guardadas, limpas: cada uma passa pelo mesmo crivo de uma notícia da rede, sem repetir, até o teto.
@@ -8822,10 +8848,45 @@ function guardadasValidas(v) {
 /** Guardar põe no começo (a última guardada é a primeira da lista); guardar de novo só sobe a notícia. */
 function comGuardada(lista, it, { fonteNome = '', agora = Date.now() } = {}) { return guardadasValidas([{ ...it, fonteNome: fonteNome || it.fonteNome || it.fonte, guardadaEm: agora }, ...lista.filter(x => x.id !== it.id)]); }
 const semGuardada = (lista, id) => lista.filter(x => x.id !== id);
+/* N5 · coleções na linha do tempo: as lançadas nos últimos 30 dias e as que chegam nos próximos 60, das séries
+   de papel que importam para quem joga (expansão, básica, Masters, draft, Commander). Cada uma vira um item
+   `tipo: 'colecao'`, com a data que a põe na ordem: a do lançamento, ou "agora" para a que ainda vai chegar. */
+const TIPOS_DE_COLECAO = { expansion: 'Expansão', core: 'Coleção básica', masters: 'Masters', draft_innovation: 'Draft', commander: 'Commander' };
+const LANC_ATRAS = 30, LANC_FRENTE = 60, LANC_FUTURAS = 3;
+function lancamentosDe(sets, agora = Date.now()) {
+  const dia = 86400e3, out = [];
+  for (const x of Array.isArray(sets) ? sets : []) {
+    if (!x || x.digital || !TIPOS_DE_COLECAO[x.set_type] || !/^[a-z0-9]{2,8}$/i.test(x.code || '') || !/^\d{4}-\d{2}-\d{2}$/.test(x.released_at || '')) continue;
+    const t = Date.parse(x.released_at + 'T12:00:00Z');
+    if (!Number.isFinite(t) || t < agora - LANC_ATRAS * dia || t > agora + LANC_FRENTE * dia) continue;
+    const futura = t > agora;
+    out.push({ tipo: 'colecao', id: 'set:' + x.code.toLowerCase(), codigo: x.code.toLowerCase(), nome: String(x.name || x.code).slice(0, 80), icone: https(x.icon_svg_uri),
+      lancamento: x.released_at, futura, data: new Date(futura ? agora : t).toISOString(), cartas: Number(x.card_count) || 0, tipoDeColecao: TIPOS_DE_COLECAO[x.set_type],
+      fonte: 'scryfall', idioma: 'en', temas: ['lancamentos', ...(x.set_type === 'commander' ? ['commander'] : [])], titulo: String(x.name || x.code) });
+  }
+  // as que vão chegar: as mais próximas primeiro, no máximo três; as lançadas, da mais nova para a mais antiga
+  const futuras = out.filter(x => x.futura).sort((a, b) => (a.lancamento < b.lancamento ? -1 : 1)).slice(0, LANC_FUTURAS);
+  const lancadas = out.filter(x => !x.futura).sort((a, b) => (a.data < b.data ? 1 : -1));
+  return [...futuras, ...lancadas];
+}
+/** Põe as coleções entre as notícias de uma página, pela data: entra antes de cada notícia a coleção que é mais nova
+    que ela. Com `fim` (não há mais páginas), entra o que sobrou. Devolve a página misturada e o que ficou para depois. */
+function mesclaLancamentos(pagina, pendentes, { fim = false } = {}) {
+  const resto = [...pendentes], out = [];
+  for (const n of pagina) { while (resto.length && resto[0].data >= n.data) out.push(resto.shift()); out.push(n); }
+  if (fim) out.push(...resto.splice(0));
+  return { itens: out, pendentes: resto };
+}
+/** "chega em 14/11", "lançada hoje", "lançada em 26/09". */
+function quandoDaColecao(it, agora = Date.now()) {
+  const [a, m, d] = it.lancamento.split('-'), hoje = new Date(agora).toISOString().slice(0, 10);
+  return it.futura ? `chega em ${d}/${m}` : it.lancamento === hoje ? 'lançada hoje' : `lançada em ${d}/${m}`;
+}
 /** A forma de cada notícia na coluna: a primeira é o destaque; a cada seis, uma com capa ganha o cartão cheio; o resto é linha. */
 const formaDe = (i, it) => (i === 0 ? 'destaque' : i % 6 === 0 && it.imagem ? 'cheio' : 'linha');
 
-function createNoticias({ store = null, busca = null, base = BASE, prazo = 12000 } = {}) {
+function createNoticias({ store = null, busca = null, base = BASE, prazo = 12000, scryfall = null, agora = () => Date.now() } = {}) {
+  let colecoes = null; // N5 · as coleções da Scryfall, buscadas uma vez por abertura do app (guardadas no aparelho por um dia)
   // `fresco` (atualizar): passa por cima da cópia que o navegador guardou
   const pede = async (caminho, { fresco = false } = {}) => {
     const f = busca || (typeof fetch === 'function' ? fetch.bind(globalThis) : null); if (!f) throw new Error('sem rede');
@@ -8849,6 +8910,21 @@ function createNoticias({ store = null, busca = null, base = BASE, prazo = 12000
     guardaNoticia: async (it, fonteNome) => { const l = comGuardada(await api.guardadas(), it, { fonteNome }); await grava(CHAVE_GUARDADAS, l); return l; },
     tiraNoticia: async id => { const l = semGuardada(await api.guardadas(), id); await grava(CHAVE_GUARDADAS, l); return l; },
     repoeGuardadas: async l => { const v = guardadasValidas(l); await grava(CHAVE_GUARDADAS, v); return v; },
+    /** N5 · as coleções lançadas ou chegando, já como itens da linha do tempo. Sem Scryfall, ou se ela falhar, nenhuma
+        (as notícias seguem sem elas). Fica no aparelho por um dia. */
+    lancamentos: async () => {
+      try {
+        if (!colecoes) {
+          const guardado = await le('noticias.colecoes', null);
+          if (guardado && Array.isArray(guardado.sets) && agora() - guardado.em < 86400e3) colecoes = guardado.sets;
+          else if (scryfall && scryfall.sets) {
+            colecoes = (await scryfall.sets()).map(x => ({ code: x.code, name: x.name, set_type: x.set_type, released_at: x.released_at, digital: !!x.digital, icon_svg_uri: x.icon_svg_uri, card_count: x.card_count }));
+            await grava('noticias.colecoes', { em: agora(), sets: colecoes });
+          } else colecoes = [];
+        }
+        return lancamentosDe(colecoes, agora());
+      } catch (e) { return []; }
+    },
     /** N3 · para a tela inicial: quantas notícias novas há desde a última visita, olhando só a primeira página (nos
         idiomas e com os filtros escolhidos). Quem nunca abriu Notícias não tem "novas". `mais`: a página inteira é nova. */
     novas: async () => {
@@ -8892,6 +8968,21 @@ function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), ba
   marcaGuardada(cartao, guardada);
   return cartao;
 }
+/** N5 · uma coleção na linha do tempo: o símbolo, "Coleção nova" (ou "a caminho"), o nome, o tipo e o tamanho.
+    Tocar abre as cartas da coleção na busca do app (não sai do app). */
+function CartaoColecao(it, { agora = Date.now() } = {}) {
+  const sel = h('span', { class: 'nt-colecao__simbolo', 'aria-hidden': 'true' }, h('span', { class: 'nt-colecao__codigo' }, it.codigo.toUpperCase()));
+  if (it.icone) { const img = h('img', { src: it.icone, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' });
+    img.addEventListener('load', () => sel.classList.add('nt-colecao__simbolo--imagem'), { once: true }); img.addEventListener('error', () => img.remove(), { once: true }); sel.appendChild(img); }
+  const quando = quandoDaColecao(it, agora);
+  return h('article', { class: 'nt-cartao nt-cartao--colecao', dataset: { noticia: it.id, colecao: it.codigo, forma: 'colecao', futura: String(it.futura) } },
+    sel,
+    h('div', { class: 'nt-corpo' },
+      h('div', { class: 'nt-meta' }, h('span', { class: 'nt-fonte' }, it.futura ? 'Coleção a caminho' : 'Coleção nova'), h('span', { class: 'nt-quando' }, '· ' + quando)),
+      h('h2', { class: 'nt-titulo', lang: 'en' }, h('a', { class: 'nt-link', href: `#/cartas?colecao=${encodeURIComponent(it.codigo)}&nome=${encodeURIComponent(it.nome)}`,
+        'aria-label': `${it.nome}: ${it.futura ? 'coleção a caminho' : 'coleção nova'}, ${quando}. Ver as cartas da coleção` }, it.nome)),
+      h('p', { class: 'nt-resumo nt-colecao__info' }, [it.tipoDeColecao, it.cartas ? `${it.cartas} cartas` : null].filter(Boolean).join(' · '))));
+}
 /** Liga ou desliga o marcador de "guardada" num cartão que já está na tela (nada é redesenhado). */
 function marcaGuardada(cartao, sim) {
   const meta = cartao.querySelector('.nt-meta'), tem = meta.querySelector('.nt-guardada');
@@ -8919,7 +9010,7 @@ function folhaDaNoticia(it, { fonte = '', guardada = false, aoGuardar = () => {}
 }
 
 function createNoticiasScreen({ noticias, share = null }) {
-  const st = { guardadas: new Set(), idiomas: [...CODIGOS], filtro: filtroValido(null), indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0, vista: '', nVis: 0 };
+  const st = { nNot: 0, pendentes: [], lancamentos: null, guardadas: new Set(), idiomas: [...CODIGOS], filtro: filtroValido(null), indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0, vista: '', nVis: 0 };
   const lista = h('div', { class: 'nt-lista', id: 'noticias-lista', role: 'feed', 'aria-label': 'Notícias' });
   const pe = h('div', { class: 'nt-pe', id: 'noticias-pe' });
   const corpo = h('div', { id: 'noticias-corpo' });
@@ -8994,10 +9085,11 @@ function createNoticiasScreen({ noticias, share = null }) {
   function acrescenta(de) {
     const agora = Date.now(), dois = st.idiomas.length > 1, limite = Date.parse(st.vista);
     for (let i = de; i < st.itens.length; i++) { const it = st.itens[i]; if (!passa(it, st.filtro)) continue;
-      lista.appendChild(CartaoNoticia(it, { forma: formaDe(st.nVis, it), fonte: nomeDaFonte(it.fonte), agora, bandeira: dois, nova: Number.isFinite(limite) && Date.parse(it.data) > limite, guardada: st.guardadas.has(it.id), aoMais })); st.nVis++; }
+      lista.appendChild(it.tipo === 'colecao' ? CartaoColecao(it, { agora }) // N5
+        : CartaoNoticia(it, { forma: formaDe(st.nNot++, it), fonte: nomeDaFonte(it.fonte), agora, bandeira: dois, nova: Number.isFinite(limite) && Date.parse(it.data) > limite, guardada: st.guardadas.has(it.id), aoMais })); st.nVis++; } // a forma conta só as notícias: a primeira notícia é o destaque
     lista.setAttribute('aria-busy', 'false'); pintaFerramentas();
   }
-  const redesenha = () => { lista.replaceChildren(); st.nVis = 0; acrescenta(0); };
+  const redesenha = () => { lista.replaceChildren(); st.nVis = 0; st.nNot = 0; acrescenta(0); };
   async function mais({ fresco = false } = {}) {
     if (st.buscando || !st.plano || acabou()) return;
     const vez = st.vez, primeira = st.proxima === 1; st.buscando = true; st.erro = false; pintaPe(); lista.setAttribute('aria-busy', 'true');
@@ -9007,6 +9099,9 @@ function createNoticiasScreen({ noticias, share = null }) {
         const crus = await noticias.pagina(st.plano.prefixo, st.proxima, { fresco });
         if (vez !== st.vez || !root.isConnected) return;
         const antes = st.itens.length, vistas = st.nVis; st.itens = junta(st.itens, crus, { idiomas: st.plano.filtra ? st.idiomas : null }); st.proxima++;
+        // N5 · as coleções entram entre as notícias pela data (a primeira página espera por elas no máximo 1,5 s)
+        if (primeira && !st.lancamentos) { st.lancamentos = await Promise.race([noticias.lancamentos ? noticias.lancamentos() : [], new Promise(r => setTimeout(() => r(null), 1500))]) || []; st.pendentes = st.lancamentos.slice(); if (vez !== st.vez || !root.isConnected) return; }
+        if (st.pendentes.length) { const m = mesclaLancamentos(st.itens.slice(antes), st.pendentes, { fim: acabou() }); st.itens = st.itens.slice(0, antes).concat(m.itens); st.pendentes = m.pendentes; }
         acrescenta(antes);
         if (st.nVis > vistas || acabou()) break;
       }
@@ -9025,7 +9120,7 @@ function createNoticiasScreen({ noticias, share = null }) {
     : parada({ id: 'noticias-sem-rede', icone: 'semRede', titulo: 'Sem internet', texto: 'As notícias chegam pela internet. Listas, coleção e partidas funcionam sem ela.' }));
   /** Abre (ou reabre) a linha do tempo do zero, para os idiomas escolhidos. `fresco` passa por cima da cópia do navegador. */
   async function abre({ fresco = false, aoChegar = null } = {}) {
-    const vez = ++st.vez; st.itens = []; st.proxima = 1; st.erro = false; st.buscando = false; st.plano = null; st.nVis = 0; memoria = null;
+    const vez = ++st.vez; st.itens = []; st.proxima = 1; st.erro = false; st.buscando = false; st.plano = null; st.nVis = 0; st.nNot = 0; memoria = null; st.lancamentos = null; st.pendentes = [];
     if (olho) olho.disconnect();
     { const aviso = root.querySelector('#noticias-ver-novas'); if (aviso) aviso.remove(); }
     if (!temRede()) return falha();
@@ -9130,13 +9225,16 @@ function SecaoNoticias({ noticias, max = 3 }) {
       const [idiomas, filtro, vista, indice] = await Promise.all([noticias.idiomas(), noticias.filtro(), noticias.vista(), noticias.indice()]);
       const plano = planoDeLeitura(indice, idiomas);
       const lidas = plano.paginas ? junta([], await noticias.pagina(plano.prefixo, 1), { idiomas: plano.filtra ? idiomas : null }) : [];
-      const itens = lidas.filter(it => passa(it, filtro));
+      const lanc = noticias.lancamentos ? await Promise.race([noticias.lancamentos(), new Promise(r => setTimeout(() => r([]), 1500))]) : [];
+      // N5 · na Início, no máximo uma coleção entre as três, na posição da data dela
+      const itens = mesclaLancamentos(lidas, lanc.slice(0, 1), { fim: plano.paginas <= 1 }).itens.filter(it => passa(it, filtro));
       if (!itens.length) return mount(corpo, Text('Nada novo por enquanto.', { size: 'sm', tone: 'muted', attrs: { id: 'home-noticias-vazio' } }));
       const n = contaNovas(itens, vista), r = rotuloNovas(n, { mais: n > 0 && n === itens.length && plano.paginas > 1 });
       novas.textContent = r;
       if (n) { todas.dataset.novas = String(n); todas.setAttribute('aria-label', 'Ver todas as notícias, ' + r); } else { delete todas.dataset.novas; todas.removeAttribute('aria-label'); }
       const fonte = id => { const f = indice.fontes.find(x => x.id === id); return (f && f.nome) || id; }, agora = Date.now(), limite = Date.parse(vista);
-      mount(corpo, ...itens.slice(0, max).map((it, i) => CartaoNoticia(it, { forma: i === 0 ? 'destaque' : 'linha', fonte: fonte(it.fonte), agora, bandeira: idiomas.length > 1, nova: Number.isFinite(limite) && Date.parse(it.data) > limite })));
+      let nNot = 0;
+      mount(corpo, ...itens.slice(0, max).map(it => it.tipo === 'colecao' ? CartaoColecao(it, { agora }) : CartaoNoticia(it, { forma: nNot++ === 0 ? 'destaque' : 'linha', fonte: fonte(it.fonte), agora, bandeira: idiomas.length > 1, nova: Number.isFinite(limite) && Date.parse(it.data) > limite })));
     } catch (e) {
       mount(corpo, h('div', { class: 'inicio-nt__aviso', id: 'home-noticias-falha' }, Text('As notícias não chegaram agora.', { size: 'sm', tone: 'muted' }),
         Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'home-noticias-tentar', onClick: carrega })));
@@ -9176,7 +9274,7 @@ function createGuardadasScreen({ noticias, share = null }) {
   return root;
 }
 
-return { SecaoNoticias, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
+return { TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, SecaoNoticias, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -22096,7 +22194,7 @@ const names = createNameIndex({ store: platform.store, scryfall });
 const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
 const fichas = __m34.createFichas({ store: platform.store, scryfall, images }); // I4
 const terrenos = __m36.createTerrenos({ store: platform.store, scryfall, images }); // I6
-const noticias = __m37.createNoticias({ store: platform.store }); // N2
+const noticias = __m37.createNoticias({ store: platform.store, scryfall }); // N2 · N5 (coleções)
 const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador

@@ -465,7 +465,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bu ✅ | N2 tela Notícias: linha do tempo com destaque, rolagem infinita e estados desenhados; idioma por bandeiras (português, inglês ou os dois); duas fontes em português no coletor, com capa buscada na página (leva G-211) | N | 1 | teste no aparelho |
 | 16º-bv ✅ | N3 notícias do seu jeito: filtros por tema e fonte, marca de novas com contador na Início, atualizar pelo botão e puxando, volta à tela no mesmo ponto com aviso de novas (leva G-212) | N | 1 | teste no aparelho |
 | 16º-bw ✅ | N4 guardar e compartilhar: "Mais ações" em cada notícia (Guardar, Compartilhar, Abrir), marcador na guardada, tela Guardadas que abre sem internet, tirar com Desfazer (leva G-213) | N | 1 | teste no aparelho |
-| 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
+| 16º-bx ✅ | N5 coleções na linha do tempo: lançadas e a caminho, da Scryfall, entre as notícias pela data e na Início; tocar abre as cartas da coleção (leva G-217) | N | 1 | teste no aparelho |
 | 16º-by ✅ | I6 terrenos do seu jeito: Perfil › Terrenos com os doze básicos (ícone, cor), artes da Scryfall em lotes de 6 com "Mais artes", escolha guardada e usada na partida; fichas na mesma mecânica (leva 200) | I | 1 | teste no aparelho |
 | 16º-bz ✅ | I7 acabamento: artes com espera própria e pequena primeiro, um lote por vez, escolha na hora, artes de terreno e ficha em toda partida, abertura de 2 s e maior, toque sem realce do navegador (leva 206) | I | 1 | teste no aparelho |
 | 16º-ca ✅ | K1 decisão que esconde a mão: seletor Escolha / Mão para alternar entre a decisão e a mão (leva G-214) | K | 1 | teste no aparelho |
@@ -6046,11 +6046,27 @@ Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
   temas e fonte larga); e2e N2 e N3 ajustados com justificativa (o link passou a ser o título).
 - **Depende de:** N2.
 
-**N5 · Lançamentos na linha do tempo** ○
+**N5 · Lançamentos na linha do tempo** ✅ (leva G-217, 08/10/2026)
 - **Valor:** saber que coleção está chegando sem depender de matéria.
-- **Aceite:** cartões "Coleção nova" montados a partir das coleções da Scryfall (nome, símbolo, data de
-  lançamento), intercalados pela data; tocar abre a busca de cartas daquela coleção no app.
-- **Testes:** U, e2e. · **Depende de:** N2. · **Estimativa:** 1 leva.
+- **Entregue:** cartões de **coleção** montados com as coleções da Scryfall — as lançadas nos últimos 30 dias e as
+  que chegam nos próximos 60 (no máximo três a caminho, a mais próxima primeiro), só de papel e das séries que
+  importam para quem joga (expansão, básica, Masters, draft, Commander). Cada cartão traz o símbolo da coleção (ou o
+  código, quando o símbolo não carrega), "Coleção nova" ou "Coleção a caminho", "lançada em 06/10" ou "chega em
+  20/10", o nome, o tipo e o número de cartas. Em Notícias, as coleções entram **entre as notícias pela data** (a
+  que chega fica no topo, a primeira notícia continua sendo o destaque); na Início, no máximo uma entre as três.
+- **Tocar abre as cartas da coleção** na busca do app (`#/cartas?colecao=<código>&nome=<nome>`), com o selo
+  "Coleção: …" que se tira com um toque. Sem internet, a busca usa a base do aparelho, só com as cartas daquela
+  coleção.
+- **Detalhes:** coleção tem o tema Lançamentos (e Commander, quando é de Commander) para os filtros da N3; não conta
+  como notícia nova; fica fora quando há filtro de fonte; aparece nos dois idiomas (o nome é o da Scryfall, em
+  inglês). A lista de coleções é buscada uma vez por abertura e guardada no aparelho por um dia; sem Scryfall, as
+  notícias seguem sem coleções.
+- **Testes:** U `noticias.tela.unit` (quais coleções entram, a ordem das que chegam, a data de ordem, símbolo só
+  em https, a mistura com as notícias por página e no fim, coleção não conta como nova, cache de um dia, falha da
+  Scryfall); e2e "N5" (a que chega no topo e o destaque logo depois, digital e fichas fora, a recém-lançada no fim
+  da linha, tocar e buscar `e:<código>`, selo que se tira, Início com uma; `auditaTela` nas quatro larguras e dois
+  temas).
+- **Depende de:** N2.
 
 **Fora do épico (escopo negativo mantido):** ranking de metagame e listas de torneio como dado do app (a notícia
 pode falar disso; o app não monta ranking); comentários, curtidas e conta em rede social; notificação por push

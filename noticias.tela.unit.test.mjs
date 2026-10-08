@@ -109,3 +109,49 @@ test('N4 · guardadas: guardar põe no começo com o nome da fonte e a hora; gua
   assert.deepEqual(lista((await s.guardadas()).map(g => [g.id, g.fonteNome])), [['n2', 'Fonte Dois'], ['n1', 'Fonte Um']]); assert.equal(N.CHAVE_GUARDADAS, 'noticias.guardadas');
   assert.deepEqual(lista((await s.tiraNoticia('n2')).map(g => g.id)), ['n1']); assert.deepEqual(lista((await s.repoeGuardadas(dois)).map(g => g.id)), ['n2', 'n1']); assert.deepEqual(lista(disco.get('noticias.guardadas').map(g => g.id)), ['n2', 'n1']);
 });
+
+/* ---------------- N5 · coleções na linha do tempo ---------------- */
+const AGORA5 = Date.parse('2026-10-08T15:00:00Z');
+const SETS = [
+  { code: 'abc', name: 'Lançada Há Dois Dias', set_type: 'expansion', released_at: '2026-10-06', card_count: 281, icon_svg_uri: 'https://svgs.test/abc.svg' },
+  { code: 'cmd', name: 'Commander Que Chega', set_type: 'commander', released_at: '2026-10-20', card_count: 100 },
+  { code: 'far', name: 'Longe Demais', set_type: 'expansion', released_at: '2027-02-01' },
+  { code: 'old', name: 'Velha', set_type: 'core', released_at: '2026-08-01' },
+  { code: 'dig', name: 'Só Digital', set_type: 'expansion', released_at: '2026-10-01', digital: true },
+  { code: 'tok', name: 'Fichas', set_type: 'token', released_at: '2026-10-06' },
+  { code: 'mh9', name: 'Masters Hoje', set_type: 'masters', released_at: '2026-10-08', icon_svg_uri: 'http://inseguro.test/x.svg' },
+  { code: 'f1', name: 'Futura 1', set_type: 'expansion', released_at: '2026-10-10' }, { code: 'f2', name: 'Futura 2', set_type: 'expansion', released_at: '2026-11-01' }, { code: 'f3', name: 'Futura 3', set_type: 'core', released_at: '2026-12-01' },
+  null, { code: '', released_at: '2026-10-06', set_type: 'expansion' }, { code: 'bad', set_type: 'expansion', released_at: 'ontem' },
+];
+test('N5 · coleções: só papel e tipos que importam, lançadas nos últimos 30 dias ou chegando nos próximos 60 (no máximo três a caminho, a mais próxima primeiro), com tema, data de ordem e símbolo só em https', () => {
+  const l = lista(N.lancamentosDe(SETS, AGORA5));
+  assert.deepEqual(l.map(x => [x.codigo, x.futura, x.data.slice(0, 10)]), [['f1', true, '2026-10-08'], ['cmd', true, '2026-10-08'], ['f2', true, '2026-10-08'], ['mh9', false, '2026-10-08'], ['abc', false, '2026-10-06']]);
+  const abc = l.find(x => x.codigo === 'abc'), cmd = l.find(x => x.codigo === 'cmd');
+  assert.deepEqual([abc.tipo, abc.id, abc.nome, abc.tipoDeColecao, abc.cartas, abc.icone, abc.temas.join()], ['colecao', 'set:abc', 'Lançada Há Dois Dias', 'Expansão', 281, 'https://svgs.test/abc.svg', 'lancamentos']);
+  assert.deepEqual(cmd.temas, ['lancamentos', 'commander']); assert.equal(l.find(x => x.codigo === 'mh9').icone, '', 'símbolo em http não entra');
+  assert.deepEqual(lista(N.lancamentosDe(null, AGORA5)), []); assert.deepEqual(lista(N.lancamentosDe('x', AGORA5)), []);
+  assert.deepEqual([N.quandoDaColecao(cmd, AGORA5), N.quandoDaColecao(abc, AGORA5), N.quandoDaColecao(l.find(x => x.codigo === 'mh9'), AGORA5)], ['chega em 20/10', 'lançada em 06/10', 'lançada hoje']);
+});
+test('N5 · mistura: cada coleção entra antes da primeira notícia mais velha que ela; o que é mais velho que a página fica para a seguinte, e entra no fim quando não há mais páginas', () => {
+  const nt = (n, d) => it(n, { data: d });
+  const pagina = [nt(1, '2026-10-08T10:00:00Z'), nt(2, '2026-10-07T10:00:00Z'), nt(3, '2026-10-05T10:00:00Z')];
+  const sets = [{ id: 'set:a', data: '2026-10-08T15:00:00Z' }, { id: 'set:b', data: '2026-10-06T12:00:00Z' }, { id: 'set:c', data: '2026-09-20T12:00:00Z' }];
+  const m = N.mesclaLancamentos(pagina, sets);
+  assert.deepEqual(lista(m.itens.map(x => x.id)), ['set:a', 'n1', 'n2', 'set:b', 'n3']); assert.deepEqual(lista(m.pendentes.map(x => x.id)), ['set:c']);
+  assert.deepEqual(lista(N.mesclaLancamentos([], m.pendentes, { fim: true }).itens.map(x => x.id)), ['set:c']);
+  assert.equal(sets.length, 3, 'a lista recebida não é mudada');
+  // coleção não conta como notícia nova nem move a marca da visita
+  const comSet = [{ ...sets[0], tipo: 'colecao' }, nt(9, '2026-10-08T10:00:00Z')];
+  assert.equal(N.contaNovas(comSet, '2026-10-01T00:00:00Z'), 1); assert.equal(N.maisNova(comSet), '2026-10-08T10:00:00Z');
+});
+test('N5 · serviço: busca as coleções na Scryfall uma vez, guarda por um dia no aparelho, e sem Scryfall (ou com falha) devolve nenhuma', async () => {
+  let pedidas = 0, t = AGORA5; const disco = new Map();
+  const scryfall = { sets: async () => { pedidas++; return SETS.filter(Boolean); } };
+  const store = { get: async k => disco.get(k), set: async (k, v) => { disco.set(k, v); } };
+  const s = N.createNoticias({ store, scryfall, agora: () => t });
+  assert.equal((await s.lancamentos()).length, 5); await s.lancamentos(); assert.equal(pedidas, 1);
+  const s2 = N.createNoticias({ store, scryfall, agora: () => t + 3600e3 }); await s2.lancamentos(); assert.equal(pedidas, 1, 'o que está guardado vale por um dia');
+  const s3 = N.createNoticias({ store, scryfall, agora: () => t + 2 * 86400e3 }); await s3.lancamentos(); assert.equal(pedidas, 2, 'passado um dia, busca de novo');
+  assert.deepEqual(lista(await N.createNoticias({ store: null }).lancamentos()), []);
+  assert.deepEqual(lista(await N.createNoticias({ store: null, scryfall: { sets: async () => { throw new Error('fora do ar'); } } }).lancamentos()), []);
+});
