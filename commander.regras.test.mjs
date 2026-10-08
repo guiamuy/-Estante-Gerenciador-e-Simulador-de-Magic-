@@ -281,3 +281,24 @@ test('CR2b.4 · Glint-Horn Buccaneer: ímpeto; cada descarte seu causa 1 de dano
   s = act(s, hab[0]); assert.equal(s.objects[d].zone, 'graveyard', 'descartou como custo'); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 });
   assert.equal(s.players[1].life, 19, 'o descarte causou 1 de dano ao oponente'); assert.equal(s.zones[0].hand.length, mao - 1 + 1, 'Draw a card');
 });
+
+// ---------------------------------------------------------------- CR2b.5
+test('CR2b.5 · Mystic Remora: "Whenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}"', () => {
+  const base = (manaDeB) => { let s = mesa(['Mystic Remora', 'Lightning Bolt'], ['Lightning Bolt', 'Faerie Seer']), r, b, f, meu; [s, r] = poe(s, 0, 'Mystic Remora'); [s, b] = poe(s, 1, 'Lightning Bolt', 'hand'); [s, f] = poe(s, 1, 'Faerie Seer', 'hand'); [s, meu] = poe(s, 0, 'Lightning Bolt', 'hand');
+    s = act(s, { t: 'pass', p: 0 }); s = comMana(s, manaDeB, 1); return { s, r, b, f, meu }; };
+  const conjuraB = (s, oid) => ateDecisao(act(act(s, legais(s, 1, x => x.t === 'cast' && x.oid === oid && (!x.targets || x.targets[0].player === 0))[0]), { t: 'pass', p: 1 }));
+  { let { s, b } = base('RCCCC'); s = conjuraB(s, b); assert.equal(s.pending.kind, 'may_pay'); assert.equal(s.pending.p, 1, 'quem decide pagar é quem conjurou'); assert.equal(s.pending.cost, '{4}');
+    const mao = s.zones[0].hand.length; s = act(s, { t: 'decline', p: 1 }); assert.equal(s.pending.kind, 'choose_mode', '"you may draw"'); assert.equal(s.pending.p, 0);
+    s = act(s, legais(s, 0, x => x.t === 'choose_mode' && x.label === 'Comprar 1')[0]); assert.equal(s.zones[0].hand.length, mao + 1); }
+  { let { s, b } = base('RCCCC'); s = conjuraB(s, b); const mao = s.zones[0].hand.length; s = act(s, { t: 'pay', p: 1 }); assert.equal(s.pending, null, 'pagou {4}: ninguém compra'); assert.equal(s.zones[0].hand.length, mao); assert.equal(s.players[1].pool.C, 0); }
+  { let { s, b } = base('R'); s = conjuraB(s, b); assert.equal(s.pending.kind, 'choose_mode', 'sem {4}, vai direto para a escolha de quem controla a Remora'); assert.equal(s.pending.p, 0); }
+  { let { s, f } = base(''); s = passaAte(s, x => x.turn.active === 1 && x.turn.step === 'main1' && !x.stack.length && !x.pending); s = comMana(s, 'U', 1);
+    s = act(s, legais(s, 1, x => x.t === 'cast' && x.oid === f)[0]); assert.equal(s.stack.length, 1, 'mágica de criatura não dispara'); assert.equal(s.pending, null); }
+  { let s = mesa(['Mystic Remora', 'Lightning Bolt']), meu; [s] = poe(s, 0, 'Mystic Remora'); [s, meu] = poe(s, 0, 'Lightning Bolt', 'hand'); s = comMana(s, 'R'); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === meu)[0]); assert.equal(s.stack.length, 1, 'a sua mágica não dispara'); }
+});
+
+test('CR2b.5 · Mystic Remora: "Cumulative upkeep {1}" — marcador de idade a cada manutenção sua; sem pagar, é sacrificada', () => {
+  let s = mesa(['Mystic Remora']), r; [s, r] = poe(s, 0, 'Mystic Remora'); const turno = s.turn.number;
+  s = passaAte(s, x => x.turn.active === 0 && x.turn.number > turno && x.turn.step === 'draw'); assert.equal(s.objects[r].zone, 'graveyard', 'sem mana na manutenção: sacrificada');
+  assert.equal(s.objects[r].ultima.counters.age, 1, 'o marcador de idade entrou antes');
+});

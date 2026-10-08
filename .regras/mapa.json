@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 82,
+ "motor": 83,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4163,13 +4163,14 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Quando um gatilho dispara",
    "status": "parcial",
-   "evidencia": "queueTriggers (index.html:11782-11810) chamado em moveObject (:10307-10311), enterStep (:10688-10690), cast (:12300), dano de combate (:10811) e marcadores; dispara uma vez por ocorrência (rules.unit \"S15 · gatilho de outra criatura sua que morre\", v69 Lunarch Veteran com dois Pássaros); dano prevenido não dispara (continue antes de :10811; rules.unit \"S29 · Fog\") · CR2b.3 (motor v81): gatilhos novos — \"recebe dano\" (dealt-damage, um por instância, mesmo letal), \"a permanente anexada morre / morre ou é exilada\" (o anexo olha para trás), e o escopo de quem o gatilho de outra permanente observa: sua, de um oponente (controller: opponent) ou \"no seu cemitério\" (ownerIsYou); commander.regras CR2b.3 · CR2b.4 (v82): \"sempre que você descartar\" (you-discard, inclusive descarte como custo, reciclar e insanidade) e \"a criatura encantada causa dano a um oponente\" (só dano em jogador, oponente de quem controla a Aura)",
-   "falta": "603.2b: só existem \"na sua manutenção\", \"na sua 2ª fase principal\" e \"no fim do combate\", e só para permanentes do jogador ativo — não há gatilho de passo final, de início de combate, de compra, nem \"em cada manutenção\"/\"na manutenção do oponente\". 603.2d (dispara vezes adicionais) e 603.2h (\"faça isso só uma vez por turno\") ausentes. 603.2e: \"torna-se virada\" só para a aura que observa a criatura encantada; \"torna-se bloqueada/anexada/alvo\" não existem. Falta \"sempre que um oponente conjura/compra/descarta\".",
+   "evidencia": "queueTriggers (index.html:11782-11810) chamado em moveObject (:10307-10311), enterStep (:10688-10690), cast (:12300), dano de combate (:10811) e marcadores; dispara uma vez por ocorrência (rules.unit \"S15 · gatilho de outra criatura sua que morre\", v69 Lunarch Veteran com dois Pássaros); dano prevenido não dispara (continue antes de :10811; rules.unit \"S29 · Fog\") · CR2b.3 (motor v81): gatilhos novos — \"recebe dano\" (dealt-damage, um por instância, mesmo letal), \"a permanente anexada morre / morre ou é exilada\" (o anexo olha para trás), e o escopo de quem o gatilho de outra permanente observa: sua, de um oponente (controller: opponent) ou \"no seu cemitério\" (ownerIsYou); commander.regras CR2b.3 · CR2b.4 (v82): \"sempre que você descartar\" (you-discard, inclusive descarte como custo, reciclar e insanidade) e \"a criatura encantada causa dano a um oponente\" (só dano em jogador, oponente de quem controla a Aura) · CR2b.5 (v83): gatilhos de passo — \"no início do seu passo final\", \"no início de cada manutenção\" (de qualquer jogador) e \"no início do combate no seu turno\"; \"sempre que um oponente conjurar\" (other-cast com controller: opponent)",
+   "falta": "603.2b: faltam o passo de compra, \"no passo final de cada jogador\" e \"na manutenção de cada oponente\" como escopo separado. 603.2d (dispara vezes adicionais) e 603.2h (\"faça isso só uma vez por turno\") ausentes. 603.2e: \"torna-se virada\" só para a aura que observa a criatura encantada; \"torna-se bloqueada/anexada/alvo\" não existem. Falta \"sempre que um oponente compra/descarta\".",
    "esforco": "M",
    "testes": [
     "CR2b.3 · Skullclamp: \"Whenever equipped creature dies, draw two cards\"",
     "CR2b.3 · High Priest of Penance: \"Whenever this creature is dealt damage, you may destroy target nonland permanent\" — dispara mesmo com dano letal",
-    "CR2b.3 · Authority of the Consuls: criaturas dos oponentes entram viradas e cada uma que entra dá 1 de vida; as suas não"
+    "CR2b.3 · Authority of the Consuls: criaturas dos oponentes entram viradas e cada uma que entra dá 1 de vida; as suas não",
+    "CR 603.2 · gatilhos de passo: \"no início do seu passo final\", \"no início de cada manutenção\" (também na do oponente) e \"no início do combate no seu turno\""
    ]
   },
   {
@@ -6499,13 +6500,17 @@
    "n": "702.24",
    "regra": "Keyword Abilities",
    "titulo": "Cumulative Upkeep",
-   "status": "ausente",
-   "falta": "Sem marcador de idade nem \"pague o custo por marcador ou sacrifique\" (702.24a-b). Mystic Remora está na lista de Commander sem script",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "Só custo de mana fixo. Faltam custos com escolha por marcador (\"{W} ou {U}\"), custos que não são mana (\"sacrifique uma criatura\", \"pague 1 de vida\") e várias instâncias na mesma permanente (702.24b).",
+   "esforco": "P",
    "depende": [
     "gatilho de manutenção com custo opcional"
    ],
-   "cartas": "rara (Mystic Remora é comum em Commander)"
+   "cartas": "rara (Mystic Remora é comum em Commander)",
+   "evidencia": "CR2b.5 (motor v83): campo `cumulativeUpkeep` do script vira habilidade disparada da manutenção de quem controla; na resolução entra um marcador de idade e o controlador paga o custo de mana uma vez por marcador ou sacrifica (sem pagamento parcial; sem poder pagar, sacrifica direto); cr.conformidade \"CR 702.24 · manutenção cumulativa…\", commander.regras Mystic Remora",
+   "testes": [
+    "CR 702.24 · manutenção cumulativa: na sua manutenção entra um marcador de idade e você paga o custo uma vez por marcador, ou sacrifica; pagamento parcial não existe"
+   ]
   },
   {
    "n": "702.25",

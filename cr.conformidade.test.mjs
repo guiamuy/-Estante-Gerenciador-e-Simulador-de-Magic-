@@ -22,6 +22,7 @@ const INVENTADAS = {
   Helice: c('Helice', 'Instant', '{0}', { colors: ['R', 'W'] }), Lenda: c('Lenda', 'Legendary Creature — Hero', '{W}', { power: '2', toughness: '2' }), 'Lenda Eterna': c('Lenda Eterna', 'Legendary Creature — God', '{W}', { power: '2', toughness: '2', keywords: ['Indestructible'] }),
   Porrete: c('Porrete', 'Artifact — Equipment', '{1}'),
   Promessa: c('Promessa', 'Instant', '{0}'),
+  Geleira: c('Geleira', 'Enchantment', '{0}'), Sineiro: c('Sineiro', 'Enchantment', '{0}'), 'Vigia Noturno': c('Vigia Noturno', 'Enchantment', '{0}'), Tambor: c('Tambor', 'Enchantment', '{0}'),
   Bifronte: c('Bifronte', 'Creature — Giant', '{0}', { power: '1', toughness: '1' }),
   Emprestimo: c('Emprestimo', 'Instant', '{0}'), 'Grito de Guerra': c('Grito de Guerra', 'Instant', '{0}'), Manticora: c('Manticora', 'Creature — Manticore', '{0}', { power: '2', toughness: '2' }),
   'Helice Lenta': c('Helice Lenta', 'Instant', '{0}', { colors: ['R', 'W'] }),
@@ -50,6 +51,10 @@ const SCRIPTS = {
   'Grito de Guerra': { name: 'Grito de Guerra', effects: [{ do: 'delayed', when: 'end-of-combat', effects: [{ do: 'gain', amount: 2 }] }], example: { target: 'none', expect: { selfLife: 0 } } },
   Manticora: { name: 'Manticora', abilities: [{ kind: 'triggered', when: 'etb', mayPay: { mana: '{1}' }, effects: [{ do: 'reflexive', effects: [{ do: 'damage', amount: 2, target: 'any' }] }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Bifronte: { name: 'Bifronte', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'tap', target: 'creature' }, { do: 'damage', amount: 2, target: 'any' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Geleira: { name: 'Geleira', cumulativeUpkeep: { mana: '{1}' }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Sineiro: { name: 'Sineiro', abilities: [{ kind: 'triggered', when: 'end-step', effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  'Vigia Noturno': { name: 'Vigia Noturno', abilities: [{ kind: 'triggered', when: 'each-upkeep', effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  Tambor: { name: 'Tambor', abilities: [{ kind: 'triggered', when: 'begin-combat', effects: [{ do: 'gain', amount: 1 }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   Promessa: { name: 'Promessa', effects: [{ do: 'delayed', when: 'next-upkeep', effects: [{ do: 'draw', amount: 1 }] }], example: { target: 'none', expect: { handDelta: 0 } } },
   Porrete: { name: 'Porrete', equip: { enchant: 'creature', cost: { mana: '{1}' } }, grants: { power: 1, toughness: 1 }, example: { action: 'equip', target: 'own-creature', expect: { stats: [3, 3] } } },
   'Dano Contado': { name: 'Dano Contado', effects: [{ do: 'damage', amount: { per: 'defenders-you-control' }, target: 'creature' }], example: { target: 'enemy-creature', expect: { damaged: 0 } } },
@@ -329,4 +334,25 @@ test('CR 603.3 · gatilho com dois alvos: cada alvo é escolhido ao pôr a habil
   assert.equal(s.pending.kind, 'pick_target', 'segundo alvo'); assert.equal(s.stack.length, 0, 'só vai à pilha com os dois escolhidos');
   s = act(s, { t: 'pick_target', p: 0, index: s.pending.options.findIndex(o => o.oid === u) }); assert.equal(s.stack.length, 1); assert.deepEqual(J(s.objects[s.stack[0]].targets.map(x => x.oid)), [g, u]);
   s = tudo(s); assert.equal(s.objects[g].tapped, true, 'o primeiro efeito virou o primeiro alvo'); assert.equal(s.objects[u].zone, 'graveyard', 'o segundo causou 2 de dano no segundo alvo');
+});
+
+const manutencaoDeA = (s, depoisDoTurno) => passaAte(s, x => x.turn.active === 0 && x.turn.number > depoisDoTurno && x.turn.step === 'upkeep' && (!!x.pending || x.stack.length > 0));
+test('CR 702.24 · manutenção cumulativa: na sua manutenção entra um marcador de idade e você paga o custo uma vez por marcador, ou sacrifica; pagamento parcial não existe', () => {
+  let s = mesa(['Geleira']), g, pl; [s, g] = poe(s, 0, 'Geleira'); [s, pl] = poe(s, 0, 'Plains'); let turno = s.turn.number;
+  s = manutencaoDeA(s, turno); for (let i = 0; i < 4 && !s.pending; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[g].counters.age, 1, 'primeira manutenção: um marcador de idade'); assert.equal(s.pending.kind, 'may_pay'); assert.equal(s.pending.cost, '{1}');
+  s = act(s, { t: 'pay', p: 0 }); assert.equal(s.objects[g].zone, 'battlefield', 'pagou {1}: fica'); assert.equal(s.objects[pl].tapped, true);
+  turno = s.turn.number; s = manutencaoDeA(s, turno); for (let i = 0; i < 4 && !s.pending && s.objects[g].zone === 'battlefield'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  assert.equal(s.objects[g].zone, 'graveyard', 'segunda manutenção: dois marcadores, {2} com um terreno só não dá — sacrificada, sem pagamento parcial'); assert.equal(s.objects[pl].tapped, false);
+  // podendo pagar, recusar também sacrifica
+  let t = mesa(['Geleira']), g2; [t, g2] = poe(t, 0, 'Geleira'); [t] = poe(t, 0, 'Plains'); t = manutencaoDeA(t, t.turn.number); for (let i = 0; i < 4 && !t.pending; i++) t = act(t, { t: 'pass', p: t.turn.priority });
+  t = act(t, { t: 'decline', p: 0 }); assert.equal(t.objects[g2].zone, 'graveyard', '"If you don\'t, sacrifice it"');
+});
+
+test('CR 603.2 · gatilhos de passo: "no início do seu passo final", "no início de cada manutenção" (também na do oponente) e "no início do combate no seu turno"', () => {
+  let s = mesa(['Sineiro', 'Vigia Noturno', 'Tambor', 'Urso']); [s] = poe(s, 0, 'Sineiro'); [s] = poe(s, 0, 'Vigia Noturno'); [s] = poe(s, 0, 'Tambor'); [s] = poe(s, 0, 'Urso'); const t0 = s.turn.number;
+  s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); assert.equal(s.players[0].life, 21, 'Tambor: início do combate'); s = act(s, { t: 'attack', p: 0, attackers: [] });
+  s = passaAte(s, x => x.turn.number === t0 + 1 && x.turn.step === 'upkeep' && x.stack.length > 0); assert.equal(s.players[0].life, 22, 'Sineiro: passo final do seu turno');
+  s = tudo(s); assert.equal(s.players[0].life, 23, 'Vigia Noturno: manutenção do oponente');
+  s = passaAte(s, x => x.turn.number === t0 + 2 && x.turn.step === 'upkeep' && x.stack.length > 0); assert.equal(s.players[0].life, 23, 'Sineiro e Tambor não disparam no turno do oponente');
 });

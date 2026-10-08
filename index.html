@@ -4795,7 +4795,10 @@ const EFFECTS = {
   sacrifice_each: { fields: [], targets: ['self'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
-  reflexive: { fields: [], targets: ['self'] }, // CR 603.12 · "quando você fizer isso, …": outra habilidade vai à pilha, com alvo escolhido nessa hora
+  reflexive: { fields: [], targets: ['self'] },
+  // CR2b.5 · "…unless that player pays {N}": aquele jogador decide; se não pagar, os efeitos de dentro acontecem
+  unless_pays: { fields: [], targets: ['that-player'] },
+  cumulative_upkeep: { fields: [], targets: ['self'] }, // 702.24 · gerado pelo campo `cumulativeUpkeep` do script // CR 603.12 · "quando você fizer isso, …": outra habilidade vai à pilha, com alvo escolhido nessa hora
   draw_up_to: { fields: ['amount'], targets: ['self', 'delayed-player'] }, // "may draw up to N": quem compra escolhe quantas, antes de comprar
   look_top: { fields: [], targets: ['player'] }, // olhar a carta do topo do grimório do jogador alvo (só quem controla o efeito vê) // CR2a.4 · "each player sacrifices a <tipo> of their choice": escolhem em ordem, sacrificam juntos
   // S61 · Masmorra do Mago Louco
@@ -4893,7 +4896,9 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   // CR2b.3 · recebe dano (ela mesma); a permanente anexada morre / morre ou é exilada (Equipamento e Aura olham para trás)
   'dealt-damage', 'attached-dies', 'attached-dies-or-exiled',
   // CR2b.4 · a criatura encantada causa dano a um oponente (de quem controla a Aura); você descarta uma carta
-  'enchanted-damages-opponent', 'you-discard'];
+  'enchanted-damages-opponent', 'you-discard',
+  // CR2b.5 · passos: o seu passo final, cada manutenção (de qualquer jogador), início do combate no seu turno
+  'end-step', 'each-upkeep', 'begin-combat'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control']; // Q11 · Setessan Training
@@ -4910,7 +4915,8 @@ const CHOICES = ['color'];
 const STATIC_RULES = ['flagbearer', 'exile-instead-of-graveyard', 'opponent-creatures-enter-tapped'];
 const TRIGGER_PT = { etb: 'quando entra no campo', dies: 'quando morre', upkeep: 'na sua manutenção', attacks: 'quando ataca',
   'other-etb': 'quando outra criatura sua entra', 'other-dies': 'quando outra criatura sua morre',
-  'combat-damage': 'quando causa dano de combate a um jogador', 'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
+  'combat-damage': 'quando causa dano de combate a um jogador', 'end-step': 'no início do seu passo final', 'each-upkeep': 'no início de cada manutenção', 'begin-combat': 'no início do combate no seu turno',
+  'enchanted-damages-opponent': 'quando a criatura encantada causa dano a um oponente', 'you-discard': 'quando você descarta uma carta', 'dealt-damage': 'quando recebe dano', 'attached-dies': 'quando a criatura anexada morre', 'attached-dies-or-exiled': 'quando a permanente encantada morre ou é exilada',
   'other-sacrificed': 'quando você sacrifica outra permanente',
   'leaves-battlefield': 'quando sai do campo de batalha', 'other-leaves-battlefield': 'quando outra criatura sua sai do campo', 'enchanted-deals-damage': 'quando a criatura encantada causa dano',
   'counters-added': 'quando recebe marcadores +1/+1', 'third-draw': 'quando você compra a terceira carta do turno',
@@ -4923,7 +4929,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -5068,6 +5074,7 @@ function validateScript(sc) {
   }
   if (sc && sc.choose && !CHOICES.includes(sc.choose)) errs.push(`escolha "${sc.choose}" desconhecida`);
   if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
+  if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
   return errs.concat(exampleErrors(sc));
 }
 const ATRASOS = ['next-upkeep', 'next-end-step', 'end-of-combat']; // CR2b.1 · momentos de gatilho atrasado que o motor conhece
@@ -5080,6 +5087,7 @@ function effectErrors(effects, label, opcional) {
     if (!spec) return errs.push(`efeito ${i + 1}: "${e.do}" desconhecido`);
     for (const f of spec.fields) errs.push(...valueErrors(e[f], `${label} ${i + 1} (${e.do}): ${f}`));
     if (e.do === 'token') errs.push(...tokenErrors(e.token, `${label} ${i + 1}`));
+    if (e.do === 'unless_pays') { if (!String(e.cost || '').match(/\{/)) errs.push(`${label} ${i + 1}: "a menos que pague" precisa do custo`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (se não pagar)`)); }
     if (e.do === 'reflexive') errs.push(...effectErrors(e.effects, `${label} ${i + 1} (reflexivo)`));
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
@@ -5133,7 +5141,7 @@ function effectErrors(effects, label, opcional) {
     // S42 · "no mesmo alvo": reaproveita o alvo já escolhido por um efeito anterior
     if (t === 'first-target') {
       if (!effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): "no mesmo alvo" precisa de um alvo escolhido antes`);
-    } else if (t !== 'self' && t !== 'delayed-object' && t !== 'remembered' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
+    } else if (t !== 'self' && t !== 'delayed-object' && t !== 'remembered' && t !== 'that-player' && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
   });
   return errs;
 }
@@ -5522,6 +5530,10 @@ const RAW_SCRIPTS = [
     { kind: 'activated', cost: { mana: '{1}', sacrificeOther: { types: ['creature'] } }, effects: [{ do: 'gain', amount: { per: 'sacrificed-toughness' } }] },
     { kind: 'activated', cost: { mana: '{1}{W}{B}', sacrificeOther: { types: ['creature'] } }, onlyIfLifeOverStart: 10, effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }] }],
     example: { action: 'activate:0', target: 'none', expect: { attached: false } } },
+  // CR2b.5 · texto oficial em .listas/oficiais.json (consulta de 05/10/2026)
+  { name: 'Mystic Remora', cumulativeUpkeep: { mana: '{1}' },
+    abilities: [{ kind: 'triggered', when: 'other-cast', controller: 'opponent', filter: { noncreature: true }, effects: [{ do: 'unless_pays', target: 'that-player', cost: '{4}', effects: [{ do: 'draw_up_to', amount: 1 }] }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2b.4 · texto oficial em .listas/oficiais.json e oficiais-commander.json (consulta de 05/10/2026)
   { name: 'Curiosity', aura: { enchant: 'creature' }, abilities: [{ kind: 'triggered', when: 'enchanted-damages-opponent', optional: true, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
@@ -10969,7 +10981,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 82;
+const ENGINE_VERSION = 83;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11202,6 +11214,7 @@ function createGame(setup) {
     if (sc.self && Array.isArray(sc.self.keywords)) { for (const k of sc.self.keywords) if (!f.kw.includes(k)) f.kw.push(k); if (f.kw.includes('flash')) f.flash = true; }
     if (sc.choose) f.script.choose = sc.choose;
     if (sc.staticRule) f.script.staticRule = sc.staticRule;
+    if (sc.cumulativeUpkeep) f.script.cumulativeUpkeep = sc.cumulativeUpkeep; // CR 702.24
     if (sc.affinity) f.script.affinity = sc.affinity;
     if (sc.storm) f.script.storm = true;
     if (sc.changeling) f.script.changeling = true;
@@ -11716,6 +11729,13 @@ const madnessOf = (s, o) => (s.facts[o.name].script || {}).madness;
 /** Leva 105 · 702.35a: descartar uma carta com insanidade a exila e o dono decide se conjura. Descarte que
  * acontece no meio de outra ação (custo, escolha de Duress) entra numa fila; a decisão aparece assim que a
  * ação termina (apply). Antes esses descartes iam direto para o cemitério. */
+/** CR2b.5 · o que acontece quando "a menos que pague" não é pago: sacrificar a permanente (manutenção cumulativa) ou os efeitos guardados. */
+function aplicaSenao(s, senao, events) {
+  if (senao.sacrifica) { const o = s.objects[senao.sacrifica]; if (o && o.zone === 'battlefield') { sacrifice(s, o.oid, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: senao.name, target: senao.name }); } return; }
+  const src = { oid: senao.source, name: senao.name, controller: senao.controller, ability: true, source: senao.source };
+  const resto = (senao.effects || []).slice();
+  while (resto.length) { const eff = resto.shift(); applyEffect(s, src, eff, null, events); if (s.pending) { if (resto.length) s.resume = { oid: senao.source, name: senao.name, controller: senao.controller, effects: resto }; return; } }
+}
 /** CR2b.4 · "Whenever you discard a card": avisa as permanentes de quem descartou. */
 function noteDiscard(s, p) {
   for (const w of battlefield(s)) if (w.controller === p) for (const ab of abilitiesOf(s, w)) if (ab.kind === 'triggered' && ab.when === 'you-discard')
@@ -11761,6 +11781,9 @@ function enterStep(s, step) {
     s.atrasados = s.atrasados.filter(d => !agora.includes(d));
     for (const d of agora) if (!s.players[d.controller].lost) s.queued.push({ source: d.source, name: d.name, controller: d.controller, effects: d.effects, when: 'delayed', jogador: d.jogador, ...(d.objeto ? { objeto: d.objeto } : {}) });
   }
+  if (step === 'upkeep') queueTriggers(s, 'each-upkeep', battlefield(s)); // CR2b.5 · 603.2b: de todos os jogadores
+  if (step === 'combat_begin') queueTriggers(s, 'begin-combat', battlefield(s).filter(o => o.controller === a));
+  if (step === 'end') queueTriggers(s, 'end-step', battlefield(s).filter(o => o.controller === a));
   if (step === 'main2') queueTriggers(s, 'main2', battlefield(s).filter(o => o.controller === a));
   if (step === 'combat_end') queueTriggers(s, 'end-of-combat', battlefield(s)); // CR 511.2: de todos os jogadores, não só do ativo
   if (step === 'draw') {
@@ -11993,6 +12016,8 @@ const abilitiesOf = (s, o) => {
   const sc = scriptOf(s, o);
   if (!sc) return grantedAbilities(s, o);
   const list = (sc.abilities || []).slice();
+  // CR 702.24 · manutenção cumulativa é uma habilidade disparada da sua manutenção
+  if (sc.cumulativeUpkeep) list.push({ kind: 'triggered', when: 'upkeep', effects: [{ do: 'cumulative_upkeep', mana: sc.cumulativeUpkeep.mana }] });
   // S21 · cada habilidade de lealdade é uma ativada de tempo de feitiço, uma por turno
   for (const ab of sc.loyalty || []) list.push({ kind: 'activated', cost: {}, loyalty: ab.cost, label: ab.label, sorceryOnly: true, effects: ab.effects });
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
@@ -12473,6 +12498,23 @@ function applyEffect(s, src, eff, tgt, events) {
         ...(tgt && tgt.oid != null && s.objects[tgt.oid] ? { objeto: { oid: tgt.oid, z: s.objects[tgt.oid].zc || 0 } } : {}),
         name: src.name, source: src.ability ? src.source : src.oid, effects: eff.effects });
       note({ amount: 1 }); break;
+    }
+    case 'unless_pays': { // CR2b.5 · aquele jogador pode pagar; se não pagar (ou não puder), os efeitos de dentro acontecem
+      const pagador = playerOf();
+      const senao = { effects: eff.effects, source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl };
+      if (!s.players[pagador].lost && (!s.manaCheck || canPay(s, pagador, parseCost(eff.cost)))) { s.pending = { kind: 'may_pay', p: pagador, cost: eff.cost, name: src.name, senao }; events.push({ kind: 'choice', what: 'pagar para o efeito não acontecer', name: src.name, amount: 1 }); }
+      else aplicaSenao(s, senao, events);
+      break;
+    }
+    case 'cumulative_upkeep': { // CR 702.24a · marcador de idade; depois paga o custo uma vez por marcador, ou sacrifica
+      const perm = src.ability ? s.objects[src.source] : src;
+      if (!perm || perm.zone !== 'battlefield') { note({ amount: 0 }); break; }
+      perm.counters.age = (perm.counters.age || 0) + 1;
+      const custo = String(eff.mana).repeat(perm.counters.age);
+      const senao = { sacrifica: perm.oid, name: perm.name, controller: ctrl };
+      if (!s.manaCheck || canPay(s, ctrl, parseCost(custo))) { s.pending = { kind: 'may_pay', p: ctrl, cost: `{${parseCost(custo).generic}}`.replace('{0}', '') + Object.entries(parseCost(custo).colored).map(([c, n]) => `{${c}}`.repeat(n)).join('') || custo, name: perm.name, senao }; events.push({ kind: 'choice', what: 'pagar a manutenção cumulativa', name: perm.name, amount: perm.counters.age }); }
+      else aplicaSenao(s, senao, events);
+      break;
     }
     case 'reflexive': { // CR 603.12 · dispara ao acontecer a ação; entra na pilha na próxima vez que alguém receberia prioridade
       s.queued.push({ source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl, effects: eff.effects, when: 'reflexive' });
@@ -12962,7 +13004,7 @@ function queueTriggers(s, when, objects, controller) {
         if (!triggerConditionMet(s, w, ab.condition)) continue; // CR 603.4 · o "se" vale também no gatilho de outra permanente
         // S66 · o gatilho de "outra permanente" carrega as mesmas marcas do gatilho
         // próprio: sem isto, "você pode" virava obrigatório e o custo opcional sumia
-        s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: other, ...(saiu ? { lembrada: { oid: o.oid, z: o.zc || 0 } } : {}), ...(ab.condition ? { condition: ab.condition } : {}),
+        s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: other, jogador: ctrl, ...(saiu ? { lembrada: { oid: o.oid, z: o.zc || 0 } } : {}), ...(ab.condition ? { condition: ab.condition } : {}),
           ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}),
           ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
       }
@@ -13636,6 +13678,7 @@ const HANDLERS = {
   pay(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'may_pay' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a pagar');
     const pk = s.pending;
+    if (pk.senao) { payCost(s, a.p, parseCost(pk.cost)); s.pending = null; ev.push({ kind: 'effect', do: 'pay', name: pk.name, target: s.players[a.p].name }); return resumeEffects(s, ev); } // CR2b.5 · pagou: o "senão" não acontece
     if (pk.cost) payCost(s, a.p, parseCost(pk.cost)); // S49 · decisão sem custo é só um "sim"
     if (pk.extra && pk.extra.sacrificeSelf) { const f = pk.then && s.objects[pk.then.source]; if (!f || f.zone !== 'battlefield') throw new RuleError('custo', 'a permanente não está mais no campo para ser sacrificada'); sacrifice(s, f.oid, ev); }
     if (pk.extra) { if (!canPayExtra(s, a.p, pk.extra, null)) throw new RuleError('custo', 'não dá para pagar esse custo'); payExtraCosts(s, a.p, pk.extra, a.pay, null); }
@@ -13660,6 +13703,7 @@ const HANDLERS = {
   decline(s, a, ev) {
     if (!s.pending || s.pending.kind !== 'may_pay' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a recusar');
     const pk = s.pending; s.pending = null;
+    if (pk.senao) { aplicaSenao(s, pk.senao, ev); if (!s.pending) resumeEffects(s, ev); return; } // CR2b.5 · não pagou
     if (pk.then) return resumeEffects(s, ev); // S47 · não pagou: o gatilho não faz nada
     const obj = s.objects[pk.target];
     if (obj && obj.zone === 'stack') { moveObject(s, obj.oid, 'graveyard'); ev.push({ kind: 'effect', do: 'counter', name: pk.name, target: obj.name }); }
@@ -14484,6 +14528,7 @@ function resolveAbility(s, o, events) {
     else if (eff.target === 'each-opponent' || eff.target === 'each-player') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas (CR2b.1: "cada jogador" caía na varredura de criaturas e sumia sem criatura na mesa)
     else if (eff.target === 'remembered') { const d = o.lembrada; if (d && mesmaEncarnacao(s, d) && s.objects[d.oid]) applyEffect(s, o, eff, { oid: d.oid }, events); } // "that card": só se ainda está onde caiu
     else if (eff.target === 'delayed-object') { const d = o.objetoAtrasado; if (d && mesmaEncarnacao(s, d) && s.objects[d.oid]) applyEffect(s, o, eff, { oid: d.oid }, events); } // 603.7c
+    else if (eff.target === 'that-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.5 · quem conjurou a mágica que disparou
     else if (eff.target === 'delayed-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.1
     else if (String(eff.target || '').startsWith('each-')) {
       sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
@@ -15858,7 +15903,7 @@ function TableCard(card, opts = {}) {
     : h('span', { class: 'tb-pill' + (m.k === 'dano' ? ' tb-pill--neg' : m.k === 'ataca' || m.k === 'bloqueia' || m.k === 'alvo' ? ' tb-pill--estado' : ''), dataset: { marca: m.k } }, m.texto));
   else {
     for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' },
-      k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}`));
+      k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}`));
     if (card.damage) pills.push(h('span', { class: 'tb-pill tb-pill--neg' }, `${card.damage} dano`));
   }
   for (const t of opts.tags || []) pills.push(h('span', { class: 'tb-pill tb-pill--tag' }, t));
@@ -16603,7 +16648,7 @@ function estadoDaCarta(s, o, plano = null) {
   if (anexos.length) marcas.push({ k: 'encantada', texto: anexos.length === 1 ? `com ${s.objects[anexos[0]].name.split(',')[0]}` : `+${anexos.length} anexadas`, icone: 'anexo', qtd: anexos.length, rotulo: `Com ${nomes(anexos)}` });
   if (plano && plano.blocks && plano.blocks.has(o.oid)) { const alvo = s.objects[plano.blocks.get(o.oid)]; marcas.push({ k: 'bloqueia', texto: `→ ${alvo ? alvo.name.split(',')[0] : '?'}`, icone: 'escudo', rotulo: alvo ? `Bloqueia ${alvo.name}` : 'Bloqueando' }); anel = 'bloqueia'; }
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
-  for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : `${k} ${v}` }); }
+  for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); }
   if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
   let impeto = (facts.kw || []).includes('haste');
   try { impeto = impeto || !!E.hasKeyword(s, o, 'haste'); } catch (e) { impeto = impeto || (o.tempKeywords || []).includes('haste'); }   // H13
@@ -16849,6 +16894,8 @@ function descreveEfeito(e) {
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
     case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
+    case 'unless_pays': return `${descreveEfeitos(e.effects)}, a menos que aquele jogador pague ${e.cost}`;
+    case 'cumulative_upkeep': return `manutenção cumulativa ${e.mana}: põe um marcador de idade e paga por marcador, ou sacrifica`;
     case 'draw_up_to': return `pode comprar até ${plural(n, 'carta', 'cartas')}`;
     case 'look_top': return 'olha a carta do topo do grimório do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
@@ -18961,7 +19008,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const alvo = s.objects[s.pending.target];
       const efeito = !!s.pending.then; // S49 · custo opcional de gatilho, ou decisão sem custo
       const extra = s.pending.extra; // Leva 106 · custo opcional sem mana (Masked Vandal)
-      const titulo = !efeito ? `Pagar ${s.pending.cost} para ${alvo ? alvo.name : 'sua mágica'} não ser anulada?`
+      const senao = s.pending.senao; // CR2b.5 · "a menos que pague"
+      const titulo = senao ? (senao.sacrifica ? `${s.pending.name}: pagar ${s.pending.cost} de manutenção cumulativa?` : `${s.pending.name}: pagar ${s.pending.cost}?`)
+        : !efeito ? `Pagar ${s.pending.cost} para ${alvo ? alvo.name : 'sua mágica'} não ser anulada?`
         : extra && extra.sacrificeSelf ? `Sacrificar ${s.pending.name} para o efeito acontecer?` // CR2b.3 · Angelic Renewal
         : extra ? `${s.pending.name}: exilar uma carta de criatura do seu cemitério para o efeito acontecer?`
         : s.pending.cost ? `${s.pending.name}: pagar ${s.pending.cost}?`

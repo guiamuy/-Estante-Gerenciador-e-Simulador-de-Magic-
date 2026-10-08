@@ -164,7 +164,8 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.2 gatilho atrasado no passo final e no fim do combate, preso a um objeto (603.7c), e gatilho reflexivo (603.12 coberta); leva M-213, motor v80 | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24) e "sempre que um oponente conjurar… a menos que ele pague" (Mystic Remora); gatilhos de passo que faltam (passo final, início do combate, manutenção de qualquer jogador) | ▶ |
+| CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2c.1 conjurar e pagar: modal com mais de um modo (700.2d) e reforço/kicker (702.33), que destravam Austere Command, Silverquill Command, Benalish Sleeper e outras | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
 | Q · Qualidade | Q12 publicação aditiva entre trilhas: guarda de agregação, `npm run publicar`, pre-push e CI (leva 124) | ✅ |
@@ -2773,6 +2774,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** triagem 85 prontas · 9 A · 54 B · 16 C.
 - **Golden:** regravadas (81 → 82); registros conferidos na entrega.
 - **Fora:** "até N alvos" opcional em gatilho; Mystic Remora (pede manutenção cumulativa e "a menos que aquele jogador pague").
+
+**CR2b.5 · Manutenção cumulativa, "a menos que ele pague" e gatilhos de passo** 🟡 (leva M-216, motor v83) — 2 testes de conformidade e 2 de carta. Fecha a CR2b.
+- **702.24 (parcial)** manutenção cumulativa: na sua manutenção entra um marcador de idade e você paga o custo uma vez por marcador, ou sacrifica. Sem pagamento parcial; sem poder pagar, a permanente é sacrificada direto. **Falta:** custo que não é mana fixa ("{W} ou {U}", "sacrifique uma criatura") e mais de uma instância na mesma permanente.
+- **"A menos que aquele jogador pague {N}":** quem conjurou decide pagar; se não pagar ou não puder, o efeito acontece (`unless_pays`, com o jogador lembrado pelo gatilho).
+- **603.2** gatilhos novos: "sempre que um oponente conjurar", "no início do seu passo final", "no início de cada manutenção" (de qualquer jogador) e "no início do combate no seu turno".
+- **Carta das listas (decisão 7), texto oficial consultado em 05/10/2026:** **Mystic Remora** completa.
+- **Medição:** triagem 86 prontas · 9 A · 53 B · 16 C. Malcolm 61%.
+- **Para a trilha do bot:** diante de "pagar ou…" o Shark recusa por padrão — com a Remora em campo ele a sacrifica na primeira manutenção, e nunca paga {4} para negar a compra.
+- **Golden:** regravadas (82 → 83); registros conferidos na entrega.
+- **Tela:** o marcador de idade aparece na carta como "idade N"; a pergunta é "pagar {N} de manutenção cumulativa?".
+- **Fora:** passo de compra como gatilho.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
