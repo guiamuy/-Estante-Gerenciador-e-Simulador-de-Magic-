@@ -473,6 +473,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cc ✅ | K3 parar sempre por etapa: Paradas no balão da faixa, chaves do seu turno e do oponente; sem a chave, a mesa só para com ação ou resposta possível (leva G-215) | K | 1 | teste no aparelho |
 | 16º-cd ✅ | K4 Início redesenhada: data e saudação, Jogar em destaque, quatro destinos numa linha, notícias integradas (destaque e duas) com Ver todas (leva G-216) | K | 1 | teste no aparelho |
 | 16º-ce ✅ | L9 versões da lista: salvar como está e comparar duas versões (entrou e saiu, por zona), guardadas na lista e no backup (leva G-218) | L | 1 | teste no aparelho |
+| 16º-cf ✅ | V2 rulings na carta: seção que abre e lembra, data e fonte, guardados no aparelho com prazo, sem internet mostra a cópia (leva G-219) | V | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4089,12 +4090,27 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Depende de:** D5, L1.
 - **Fora:** arte escolhida na mesa de jogo e na exportação (candidatas a história própria, junto com a C4).
 
-**V2 · Rulings** ○
+**V2 · Rulings** ✅ (leva G-219, 08/10/2026)
 - **Valor:** tirar dúvida de regra na hora.
-- **Aceite:** rulings da Scryfall no visualizador, com cache e data.
-- **Testes:** U, I.
+- **Entregue:** no visualizador de carta (Cartas, lista, coleção e troca de reserva da série), logo abaixo do texto, a seção **Rulings**:
+  - **fechada por padrão** e não busca nada fechada; abrir busca na Scryfall e mostra cada ruling com **data e fonte**
+    (Wizards ou Scryfall), da mais antiga para a mais nova, com o texto original em inglês e os custos em símbolos;
+  - aberta ou fechada **fica lembrada** no aparelho; fechada, o cabeçalho já diz quantos (se estiverem guardados);
+  - **guardados no aparelho** por carta (vale para todas as impressões), com a data: "Da Scryfall · guardados em
+    08/10/2026"; depois de 30 dias a próxima abertura com internet busca de novo;
+  - **sem internet:** os guardados aparecem (com "a última cópia" se vencidos); sem cópia, aviso de uma linha;
+    **falha com internet:** nota de erro e **Repetir busca**; carta sem rulings: "Nenhum ruling publicado".
+- **Limites:** cartas sem id da Scryfall (os básicos embutidos, carta só pelo nome) não mostram a seção; o texto dos
+  rulings fica em inglês, como a Scryfall publica.
+- **Modelo e serviço (`cards`, `__m7`):** `limpaRulings`, `temRulings`, `createRulings` (`busca`, `guardados`,
+  `aberto`, `lembraAberto`); cliente `scryfall.rulings(id)` (`/cards/<id>/rulings`); chaves `rulings.<oracle_id>` e
+  `cartas.rulings`. O visualizador recebe o serviço por `__m12.usaRulings`.
+- **Testes:** U `rulings.unit` ×3 (limpeza e ordem, cliente, cache com prazo, outra impressão, forçar, cópia velha sem
+  rede, erro sem cópia, lembrar aberto); e2e "V2" (fechada não busca, abrir, ordem, data e fonte, símbolo, lembrado,
+  sem pedir de novo, erro com Repetir, vazio, sem internet com e sem cópia; `auditaTela` nas quatro medidas e nos dois
+  temas).
 - **Depende de:** D1.
-- **Fora:** —
+- **Fora:** tradução dos rulings; rulings dentro da mesa fora do visualizador (a folha de segurar a carta da mesa é outra).
 
 **V3 · Modos da lista** ○
 - **Valor:** galeria para ver, texto denso para editar.

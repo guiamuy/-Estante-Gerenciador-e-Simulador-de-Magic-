@@ -7621,6 +7621,67 @@ test('e2e · L9 versões da lista: salvar como está, igual não duplica, editar
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- V2 · rulings no visualizador ---------------- */
+test('e2e · V2 rulings na carta: seção fechada que só busca ao abrir, lista com data e fonte, lembrada aberta, guardada no aparelho (sem internet mostra a cópia), erro com nova tentativa e aviso sem internet', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // rulings falsos (dados de teste, não texto oficial): três para o Counterspell; o Delver falha até liberar
+  const pedidos = []; let delverFalha = true;
+  await page.route('https://api.scryfall.com/cards/*/rulings', r => { const id = decodeURIComponent(r.request().url().split('/cards/')[1].split('/')[0]); pedidos.push(id);
+    if (id === 'Delver of Secrets' && delverFalha) return r.abort('failed');
+    if (id === 'Island') return r.abort('internetdisconnected');
+    return r.fulfill({ json: { object: 'list', data: id === 'Counterspell' ? [
+      { object: 'ruling', source: 'wotc', published_at: '2021-03-19', comment: 'Ruling de teste B, da Wizards, com {U} no texto.' },
+      { object: 'ruling', source: 'scryfall', published_at: '2004-10-04', comment: 'Ruling de teste A, da Scryfall.' },
+      { object: 'ruling', source: 'wotc', published_at: '2021-03-19', comment: 'Ruling de teste C, mesmo dia.' }] : [] } }); });
+  await createDeck(page, base, 'Azul', '4 Counterspell\n4 Delver of Secrets\n12 Island', 'livre');
+  const abre = async nome => { await page.click(`.deck-slot[data-name="${nome}"] .ds-card`); await page.waitForSelector('#card-rulings-toggle'); };
+  const fecha = async () => { await page.click('#ds-dialog-close'); await page.waitForSelector('#card-viewer', { state: 'detached' }); };
+  // 1 · fechada por padrão: não busca nada
+  await abre('Counterspell');
+  assert.equal(await page.getAttribute('#card-rulings-toggle', 'aria-expanded'), 'false');
+  assert.ok((await page.$eval('#card-rulings-toggle', b => b.offsetHeight)) >= 44);
+  await page.waitForTimeout(200); assert.deepEqual(pedidos, [], 'fechada não busca');
+  // 2 · abrir busca e mostra, da mais antiga para a mais nova, com data e fonte; o texto é o inglês original
+  await page.click('#card-rulings-toggle'); await page.waitForSelector('#card-rulings-lista');
+  assert.deepEqual(pedidos, ['Counterspell']);
+  assert.deepEqual(await page.$$eval('#card-rulings-lista .ds-ruling', ls => ls.map(l => [l.querySelector('.ds-ruling__quando').textContent, l.querySelector('.ds-ruling__texto').textContent.trim()])), [
+    ['04/10/2004 · Scryfall', 'Ruling de teste A, da Scryfall.'], ['19/03/2021 · Wizards', 'Ruling de teste B, da Wizards, com {U} no texto.'], ['19/03/2021 · Wizards', 'Ruling de teste C, mesmo dia.']]);
+  assert.equal(await page.locator('#card-rulings-lista .ds-ruling__texto .ds-sym').count(), 1, 'o símbolo de mana vira símbolo');
+  assert.equal(await page.getAttribute('#card-rulings-lista .ds-ruling__texto', 'lang'), 'en');
+  assert.match(await page.innerText('#card-rulings-toggle'), /Rulings\s*3 rulings/);
+  assert.match(await page.innerText('#card-rulings-fonte'), /Da Scryfall · buscados agora/);
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário');
+  assert.doesNotMatch(await page.innerText('.ds-dialog'), /\p{Extended_Pictographic}/u, 'sem emoji');
+  await page.locator('#card-rulings').scrollIntoViewIfNeeded();
+  await auditaTela(page, 'carta · rulings (escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v2-rulings.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `rulings ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  // 3 · reabrir: já abre aberta (lembrado) e vem do aparelho, sem pedir de novo
+  await fecha(); await abre('Counterspell'); await page.waitForSelector('#card-rulings-lista');
+  assert.equal(await page.getAttribute('#card-rulings-toggle', 'aria-expanded'), 'true');
+  assert.match(await page.innerText('#card-rulings-fonte'), /guardados em \d{2}\/\d{2}\/\d{4}/);
+  assert.deepEqual(pedidos, ['Counterspell'], 'no prazo, não busca de novo');
+  // 4 · falha com internet: erro e Repetir busca, que traz a resposta (aqui, nenhuma)
+  await fecha(); await abre('Delver of Secrets'); await page.waitForSelector('#card-rulings-erro');
+  assert.ok((await page.$eval('#card-rulings-de-novo', b => b.offsetHeight)) >= 44, 'altura de layout (o diálogo pode estar na escala da entrada)');
+  delverFalha = false; await page.click('#card-rulings-de-novo'); await page.waitForSelector('#card-rulings-vazio');
+  assert.match(await page.innerText('#card-rulings-vazio'), /Nenhum ruling publicado/);
+  assert.match(await page.innerText('#card-rulings-toggle'), /nenhum/);
+  // 5 · sem internet: o que está guardado aparece; o que não está vira aviso
+  await fecha(); await page.context().setOffline(true);
+  await abre('Counterspell'); await page.waitForSelector('#card-rulings-lista'); await fecha();
+  await abre('Island'); await page.waitForSelector('#card-rulings-sem-rede');
+  assert.match(await page.innerText('#card-rulings-sem-rede'), /Sem internet: os rulings aparecem quando houver conexão/);
+  await page.context().setOffline(false);
+  // 6 · fechar a seção também fica lembrado
+  await page.click('#card-rulings-toggle'); await fecha(); await abre('Counterspell');
+  assert.equal(await page.getAttribute('#card-rulings-toggle', 'aria-expanded'), 'false');
+  assert.match(await page.innerText('#card-rulings-toggle'), /3 rulings/, 'fechada, a contagem vem do aparelho');
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);

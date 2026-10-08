@@ -1358,6 +1358,13 @@ body {
 .deck-dif__linha[data-sinal="saiu"] .deck-dif__qtd { color: var(--negative); }
 .deck-dif__nome { overflow-wrap: anywhere; }
 .deck-dif__de { color: var(--fg-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* V2 · rulings: data e fonte em cima, o texto oficial (em inglês) embaixo, separados por fio */
+.ds-rulings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ds-ruling { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.ds-ruling:first-child { padding-top: 0; }
+.ds-ruling:last-child { border-bottom: none; }
+.ds-ruling__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.ds-ruling__texto { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; }
 .deck-sug { max-height: calc(var(--tap-min) * 6.5); overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-2); }
 .deck-sug[hidden] { display: none; }
 .deck-sug .ds-list__item { min-height: var(--tap-min); width: 100%; text-align: left; }
@@ -3802,6 +3809,11 @@ function createScryfall(opts = {}) {
       const data = await schedule(() => request('/sets'));
       return (data && Array.isArray(data.data)) ? data.data : [];
     },
+    /** V2 · rulings de uma carta, pelo id da Scryfall (valem para todas as impressões). Lista vazia quando não há. */
+    async rulings(id) {
+      const data = await schedule(() => request('/cards/' + encodeURIComponent(id) + '/rulings'));
+      return data && Array.isArray(data.data) ? data.data : [];
+    },
     /** Uma carta pelo nome exato. null quando não existe. */
     async named(name) {
       const data = await schedule(() => request('/cards/named?exact=' + encodeURIComponent(name)));
@@ -4024,7 +4036,48 @@ async function bumpIndex(store, map) {
   cur.n = cur.n + [...map.values()].filter(Boolean).length;
   await store.set(INDEX, cur);
 }
-return { createCardRepo, norm, BASIC_CARDS };
+/* ---------------- V2 · rulings ----------------
+   Os esclarecimentos de regra da Wizards e da Scryfall para uma carta, como a Scryfall publica. São do texto da
+   carta (oracle), não da impressão: a chave é o `oracle_id`. Guardados no aparelho com a data em que foram buscados;
+   depois de 30 dias a próxima abertura com internet busca de novo, e sem internet vale a cópia guardada. */
+const RULINGS = k => 'rulings.' + k;
+const RULINGS_PRAZO_MS = 30 * 24 * 60 * 60 * 1000;
+const RULINGS_ABERTO = 'cartas.rulings';
+/** Só o que importa de cada ruling (data, fonte, texto), na ordem da Scryfall: da mais antiga para a mais nova. */
+function limpaRulings(lista) {
+  return (Array.isArray(lista) ? lista : [])
+    .filter(r => r && typeof r.comment === 'string' && r.comment.trim())
+    .map(r => ({ data: /^\d{4}-\d{2}-\d{2}$/.test(r.published_at || '') ? r.published_at : null, fonte: r.source === 'wotc' ? 'wotc' : 'scryfall', texto: r.comment.trim() }))
+    .map((r, i) => [r, i]).sort((a, b) => (a[0].data || '').localeCompare(b[0].data || '') || a[1] - b[1]).map(x => x[0]);
+}
+/** A carta tem rulings para buscar? Precisa do id da Scryfall (os básicos embutidos e cartas sem dados não têm). */
+const temRulings = card => !!(card && typeof card.id === 'string' && card.id && !card.id.startsWith('basic-'));
+const chaveDosRulings = card => (temRulings(card) ? card.oracle_id || card.id : null);
+function createRulings({ store, scryfall, agora = () => Date.now(), prazo = RULINGS_PRAZO_MS }) {
+  const le = async k => { try { const g = await store.get(RULINGS(k)); return g && Array.isArray(g.itens) && g.em ? g : null; } catch (e) { return null; } };
+  return {
+    /** O que está guardado (sem rede), ou null. */
+    async guardados(card) { const k = chaveDosRulings(card); return k ? le(k) : null; },
+    /** Guardados ainda no prazo; senão busca. Falhou a busca: devolve a cópia velha (`velho`) ou repassa o erro. */
+    async busca(card, { forcar = false } = {}) {
+      const k = chaveDosRulings(card);
+      if (!k) return { itens: [], em: null, semId: true };
+      const g = await le(k);
+      if (g && !forcar && agora() - g.em < prazo) return { ...g, origem: 'guardados' };
+      try {
+        const r = { itens: limpaRulings(await scryfall.rulings(card.id)), em: agora() };
+        try { await store.set(RULINGS(k), r); } catch (e) { /* sem disco: mostra assim mesmo */ }
+        return { ...r, origem: 'rede' };
+      } catch (e) {
+        if (g) return { ...g, origem: 'guardados', velho: true };
+        throw e;
+      }
+    },
+    async aberto() { try { return (await store.get(RULINGS_ABERTO)) === true; } catch (e) { return false; } },
+    lembraAberto(v) { store.set(RULINGS_ABERTO, !!v).catch(() => {}); }
+  };
+}
+return { createCardRepo, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS };
 })();
 
 /* ==== src/data/images.js ==== */
@@ -4729,11 +4782,65 @@ function painelBaseLocal({ local, files }) {
   return box;
 }
 
+/* ---------------- V2 · rulings no visualizador ----------------
+   O serviço (`__m7.createRulings`) chega pelo boot; sem ele (testes de unidade, telas de exemplo) a seção não aparece.
+   Fechada por padrão: abrir busca (ou lê os guardados) e fica lembrado no aparelho. */
+let rulings = null;
+function usaRulings(servico) { rulings = servico || null; }
+const dataDoRuling = d => (d ? d.split('-').reverse().join('/') : 'sem data');
+function secaoRulings(card) {
+  if (!rulings || !__m7.temRulings(card)) return null;
+  const box = h('div', { id: 'card-rulings-box' });
+  const st = { aberto: false, estado: 'parado', dado: null, run: 0 };
+  const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  async function carrega(forcar = false) {
+    const run = ++st.run;
+    st.estado = 'buscando'; pinta();
+    try {
+      const r = await rulings.busca(card, { forcar });
+      if (run !== st.run) return;
+      st.dado = r; st.estado = 'pronto';
+    } catch (e) {
+      if (run !== st.run) return;
+      st.estado = !temRede() ? 'semRede' : 'erro'; // sem internet é um aviso; com internet e sem resposta, erro com nova tentativa
+    }
+    pinta();
+  }
+  function conteudo() {
+    if (st.estado === 'buscando') return [__m3.Carregando('Buscando rulings…', { tamanho: 'bloco', id: 'card-rulings-buscando' })];
+    if (st.estado === 'semRede') return [AvisoRede('Sem internet: os rulings aparecem quando houver conexão.', { id: 'card-rulings-sem-rede' })];
+    if (st.estado === 'erro') { const n = Note('<b>Não foi possível buscar os rulings.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'card-rulings-erro';
+      return [n, Row({}, Button('Repetir busca', { icone: 'atualizar', id: 'card-rulings-de-novo', onClick: () => carrega(true) }))]; }
+    if (!st.dado) return [];
+    const itens = st.dado.itens;
+    return [
+      itens.length ? h('ol', { class: 'ds-rulings', id: 'card-rulings-lista' }, ...itens.map(r => h('li', { class: 'ds-ruling', dataset: { fonte: r.fonte } },
+        h('span', { class: 'ds-ruling__quando' }, `${dataDoRuling(r.data)} · ${r.fonte === 'wotc' ? 'Wizards' : 'Scryfall'}`),
+        h('p', { class: 'ds-ruling__texto', lang: 'en' }, ComSimbolos(r.texto)))))
+        : Text('Nenhum ruling publicado para esta carta.', { size: 'sm', tone: 'muted', attrs: { id: 'card-rulings-vazio' } }),
+      Text(`Da Scryfall · ${st.dado.origem === 'rede' ? 'buscados agora' : 'guardados em ' + new Date(st.dado.em).toLocaleDateString('pt-BR')}${st.dado.velho ? ' (sem internet: a última cópia)' : ''}`, { size: 'xs', tone: 'subtle', attrs: { id: 'card-rulings-fonte' } })];
+  }
+  function pinta() {
+    const n = st.dado ? st.dado.itens.length : null;
+    const resumo = n == null ? '' : n ? `${n} ${n === 1 ? 'ruling' : 'rulings'}` : 'nenhum';
+    mount(box, __m3.Expansivel({ titulo: 'Rulings', icone: 'info', aberto: st.aberto, id: 'card-rulings', toggleId: 'card-rulings-toggle', resumo,
+      onToggle: () => { st.aberto = !st.aberto; rulings.lembraAberto(st.aberto); if (st.aberto && st.estado !== 'pronto') carrega(); else pinta(); } }, ...conteudo()));
+  }
+  pinta();
+  // o que já está guardado dá a contagem sem rede; aberto da última vez, abre e busca
+  Promise.all([rulings.guardados(card), rulings.aberto()]).then(([g, aberto]) => {
+    if (g && st.estado === 'parado') st.dado = { ...g, origem: 'guardados' };
+    if (aberto) { st.aberto = true; carrega(); } else pinta();
+  }).catch(() => {});
+  return box;
+}
+
 /* ---------------- D5 · visualizador ---------------- */
 function openCardViewer(card, extra = [], { quantidade = null } = {}) {
   let face = 0;
   const hasFaces = (card.faces || []).length > 1;
   const body = h('div', { id: 'card-viewer' });
+  const rulingsBox = secaoRulings(card); // V2 · a mesma seção nas duas faces (os rulings são da carta)
 
   const paint = () => {
     const f = hasFaces ? card.faces[face] : null;
@@ -4787,6 +4894,8 @@ function openCardViewer(card, extra = [], { quantidade = null } = {}) {
         Row({ class: 'ds-row--wrap ds-visor__tipo' }, Text(typeLine || '', { size: 'sm', tone: 'muted' }), pt ? Badge(pt) : null, quantidade ? Badge(`você tem ${quantidade}`, { tone: 'accent' }) : null),
         oracle ? h('p', { class: 'ds-visor__oracle', lang: 'en' }, ComSimbolos(oracle))
                : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' })),
+      rulingsBox ? h('div', { style: { height: 'var(--space-3)' } }) : null,
+      rulingsBox,
       h('div', { style: { height: 'var(--space-4)' } }),
       Text('Legalidade', { size: 'sm', caps: true, as: 'h3' }),
       Stack({ style: { gap: 'var(--space-1)' } }, ...legal),
@@ -4809,7 +4918,7 @@ function openCardViewer(card, extra = [], { quantidade = null } = {}) {
 
   return Dialog({ title: card.name, body, actions });
 }
-return { createCardsScreen, openCardViewer, painelBaseLocal };
+return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings };
 })();
 
 /* ==== src/engine/scripts.js ==== */
@@ -22443,6 +22552,7 @@ const scryfall = createScryfall({});
 const images = createImageCache({ caches: typeof caches !== 'undefined' ? caches : null, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
 const localIndex = createLocalIndex({ store: platform.store });
 const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
+__m12.usaRulings(__m7.createRulings({ store: platform.store, scryfall })); // V2 · rulings no visualizador, guardados no aparelho
 const decks = createDeckStore({ store: platform.store });
 const collection = createCollection({ store: platform.store });
 // Leva 128 · perfil local e backup completo (listas + coleção + perfil + preferências), usado pelas telas Perfil e Listas
