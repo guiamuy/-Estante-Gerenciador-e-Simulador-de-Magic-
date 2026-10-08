@@ -4110,6 +4110,8 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
   sem pedir de novo, erro com Repetir, vazio, sem internet com e sem cópia; `auditaTela` nas quatro medidas e nos dois
   temas).
 - **Depende de:** D1.
+- **Correção (leva G-220):** a seção se redesenha sozinha ao abrir e tirava o foco do diálogo (o portão pegou no E50,
+  que passou como instável); agora o foco volta para ela, e todo diálogo abre no topo (o foco inicial não rola a folha).
 - **Fora:** tradução dos rulings; rulings dentro da mesa fora do visualizador (a folha de segurar a carta da mesa é outra).
 
 **V3 · Modos da lista** ○

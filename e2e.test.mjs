@@ -7661,6 +7661,10 @@ test('e2e · V2 rulings na carta: seção fechada que só busca ao abrir, lista 
   // 3 · reabrir: já abre aberta (lembrado) e vem do aparelho, sem pedir de novo
   await fecha(); await abre('Counterspell'); await page.waitForSelector('#card-rulings-lista');
   assert.equal(await page.getAttribute('#card-rulings-toggle', 'aria-expanded'), 'true');
+  // G-220 · a seção redesenha sozinha depois de abrir: o foco continua no diálogo (antes caía para fora) e a folha
+  // abre no topo, com a carta à vista (o foco inicial não rola)
+  assert.ok(await page.evaluate(() => !!document.activeElement.closest('.ds-dialog') && document.activeElement.id !== 'ds-dialog-close'), 'o foco fica no diálogo');
+  assert.equal(await page.$eval('.ds-dialog', d => d.scrollTop), 0, 'a folha abre no topo');
   assert.match(await page.innerText('#card-rulings-fonte'), /guardados em \d{2}\/\d{2}\/\d{4}/);
   assert.deepEqual(pedidos, ['Counterspell'], 'no prazo, não busca de novo');
   // 4 · falha com internet: erro e Repetir busca, que traz a resposta (aqui, nenhuma)

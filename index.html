@@ -3250,7 +3250,9 @@ function Dialog({ title, body, actions }) {
   overlayEl.dataset.open = 'true';
   overlayEl.setAttribute('aria-labelledby', 'ds-dialog-title');
   const first = dlg.querySelector('.ds-dialog__body button, .ds-dialog__body input, .ds-dialog__body select, .ds-dialog__body textarea, .ds-dialog__actions button') || dlg.querySelector('#ds-dialog-close');
-  if (first && first.focus) first.focus();
+  // V2 · o foco inicial não rola a folha: ela abre no topo (com a carta e o X à vista), mesmo quando o primeiro
+  // controle está lá embaixo
+  if (first && first.focus) first.focus({ preventScroll: true });
   const head = dlg.querySelector('.ds-dialog__head');
   dlg.addEventListener('scroll', () => { head.dataset.rolou = String(dlg.scrollTop > 4); }, { passive: true });
   return dlg;
@@ -4821,10 +4823,14 @@ function secaoRulings(card) {
       Text(`Da Scryfall · ${st.dado.origem === 'rede' ? 'buscados agora' : 'guardados em ' + new Date(st.dado.em).toLocaleDateString('pt-BR')}${st.dado.velho ? ' (sem internet: a última cópia)' : ''}`, { size: 'xs', tone: 'subtle', attrs: { id: 'card-rulings-fonte' } })];
   }
   function pinta() {
+    // redesenhar troca os botões: quem estava com o foco aqui dentro continua com ele (sem rolar a folha)
+    const foco = typeof document !== 'undefined' && box.contains(document.activeElement) ? document.activeElement.id : null;
     const n = st.dado ? st.dado.itens.length : null;
     const resumo = n == null ? '' : n ? `${n} ${n === 1 ? 'ruling' : 'rulings'}` : 'nenhum';
     mount(box, __m3.Expansivel({ titulo: 'Rulings', icone: 'info', aberto: st.aberto, id: 'card-rulings', toggleId: 'card-rulings-toggle', resumo,
       onToggle: () => { st.aberto = !st.aberto; rulings.lembraAberto(st.aberto); if (st.aberto && st.estado !== 'pronto') carrega(); else pinta(); } }, ...conteudo()));
+    const volta = foco && (box.querySelector('#' + foco) || box.querySelector('#card-rulings-toggle'));
+    if (volta) volta.focus({ preventScroll: true });
   }
   pinta();
   // o que já está guardado dá a contagem sem rede; aberto da última vez, abre e busca
