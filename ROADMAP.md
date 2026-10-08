@@ -463,7 +463,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bt ✅ | N1 coletor de notícias: `noticias.mjs` lê seis fontes (RSS e Atom), normaliza, tira repetidos, guarda 30 dias em páginas de 20; fluxo agendado de hora em hora publica no ramo `noticias` (leva G-210) | N | 1 | primeira coleta conferida no ramo |
 | 16º-bu ✅ | N2 tela Notícias: linha do tempo com destaque, rolagem infinita e estados desenhados; idioma por bandeiras (português, inglês ou os dois); duas fontes em português no coletor, com capa buscada na página (leva G-211) | N | 1 | teste no aparelho |
 | 16º-bv ✅ | N3 notícias do seu jeito: filtros por tema e fonte, marca de novas com contador na Início, atualizar pelo botão e puxando, volta à tela no mesmo ponto com aviso de novas (leva G-212) | N | 1 | teste no aparelho |
-| 16º-bw ○ | N4 guardar e compartilhar notícia | N | 1 | — |
+| 16º-bw ✅ | N4 guardar e compartilhar: "Mais ações" em cada notícia (Guardar, Compartilhar, Abrir), marcador na guardada, tela Guardadas que abre sem internet, tirar com Desfazer (leva G-213) | N | 1 | teste no aparelho |
 | 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
 | 16º-by ✅ | I6 terrenos do seu jeito: Perfil › Terrenos com os doze básicos (ícone, cor), artes da Scryfall em lotes de 6 com "Mais artes", escolha guardada e usada na partida; fichas na mesma mecânica (leva 200) | I | 1 | teste no aparelho |
 | 16º-bz ✅ | I7 acabamento: artes com espera própria e pequena primeiro, um lote por vez, escolha na hora, artes de terreno e ficha em toda partida, abertura de 2 s e maior, toque sem realce do navegador (leva 206) | I | 1 | teste no aparelho |
@@ -5973,12 +5973,34 @@ Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
   `auditaTela` nas quatro larguras, dois temas e fonte larga).
 - **Depende de:** N2.
 
-**N4 · Guardar e compartilhar** ○
+**N4 · Guardar e compartilhar** ✅ (leva G-213, 08/10/2026)
 - **Valor:** separar o que ler depois.
-- **Aceite:** em cada notícia, **Guardar** (lista "Guardadas", que mostra título, fonte e data também sem internet;
-  a matéria em si continua pedindo conexão, e isso é dito) e **Compartilhar** (folha do sistema; sem ela, copia o
-  endereço). Guardadas entram no backup.
-- **Testes:** U, e2e. · **Depende de:** N2. · **Estimativa:** 1 leva.
+- **Entregue · mais ações:** cada notícia ganhou o botão **Mais ações** (três pontos, 44 px, ao lado da fonte). Ele
+  abre a folha da notícia: fonte, manchete e três ações — **Guardar** (ou **Tirar**), **Compartilhar** e **Abrir**.
+  O resto do cartão continua abrindo a matéria com um toque.
+- **Entregue · guardar:** a notícia guardada ganha o marcador ao lado da fonte, no lugar (nada é redesenhado), e o
+  botão **Guardadas** das ferramentas mostra quantas são. Tirar tem **Desfazer**. Ficam no aparelho título, fonte,
+  data, endereço e o endereço da capa (`noticias.guardadas`, até 200, vai no backup).
+- **Entregue · Guardadas:** rota `/noticias/guardadas`, a última guardada primeiro. **Abre sem internet**: a lista
+  vem do aparelho, sem miniaturas, e a tela diz que a matéria abre quando a conexão voltar (a folha da notícia diz
+  o mesmo). Vazio: tela parada com "Ver notícias". Voltar leva às notícias no ponto em que a leitura estava.
+- **Entregue · compartilhar:** usa a folha de compartilhar do sistema (título e endereço); onde ela não existe, copia
+  o endereço e avisa. Quem fecha a folha do sistema sem escolher não vê aviso de erro.
+- **Mudança de estrutura (para as outras trilhas):** o cartão de notícia deixou de ser um link e virou um
+  `article`; o **título é o link**, esticado sobre o cartão inteiro, e o botão fica por cima. A auditoria de tela
+  (`auditaTela`) passou a medir o alvo de um link esticado pelo cartão que ele cobre, e só quando o link tem de
+  fato esse `::after` cobrindo o ancestral.
+- **Divergência do planejado:** Guardar e Compartilhar ficam a dois toques (três pontos → ação), não direto no
+  cartão: dois botões de 44 px por notícia não cabem na linha compacta em 360 px sem tirar largura do título.
+- **Limites declarados:** só o endereço e os dados da notícia ficam guardados — a matéria em si não é copiada (direito
+  autoral) e pede internet; a miniatura das guardadas também pede internet; o teto é de 200 guardadas (as mais
+  antigas saem).
+- **Testes:** U `noticias.tela.unit` (guardar no começo, guardar de novo, tirar, crivo do que vem do disco, teto,
+  serviço com repor para o Desfazer); e2e "N4" (botão de 44 px em cada notícia e cartão inteiro como link, folha
+  com três ações, marcador no lugar, contador, tirar e desfazer, abrir, compartilhar copiando, pela folha do
+  sistema e cancelando, lista de guardadas, sem internet, vazio, volta; `auditaTela` nas quatro larguras, dois
+  temas e fonte larga); e2e N2 e N3 ajustados com justificativa (o link passou a ser o título).
+- **Depende de:** N2.
 
 **N5 · Lançamentos na linha do tempo** ○
 - **Valor:** saber que coleção está chegando sem depender de matéria.

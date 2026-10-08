@@ -92,3 +92,20 @@ test('N3 · serviço: filtro e última visita guardados e limpos; atualizar pede
   await s.guardaFiltro(null); await s.guardaIdiomas(['pt', 'en']); await s.guardaVista('2026-10-01T00:00:00Z'); assert.deepEqual(lista(await s.novas()), { n: 3, mais: true }, 'a página inteira é nova e há mais páginas: "3+"');
   pedidos.length = 0; await s.indice({ fresco: true }); await s.pagina('', 1, { fresco: true }); assert.deepEqual(pedidos, [['indice.json', 'no-store'], ['pagina-1.json', 'no-store']]);
 });
+
+/* ---------------- N4 · guardadas ---------------- */
+test('N4 · guardadas: guardar põe no começo com o nome da fonte e a hora; guardar de novo só sobe; tirar; o que vem do disco passa pelo mesmo crivo da rede, sem repetir, até o teto', async () => {
+  const a = N.comGuardada([], it(1), { fonteNome: 'Fonte Um', agora: 100 });
+  assert.deepEqual(lista(a.map(g => [g.id, g.fonteNome, g.guardadaEm])), [['n1', 'Fonte Um', 100]]);
+  const b = N.comGuardada(a, it(2, { imagem: 'http://f.test/x.jpg' }), { agora: 200 }); assert.deepEqual(lista(b.map(g => [g.id, g.fonteNome, g.imagem])), [['n2', 'f', ''], ['n1', 'Fonte Um', '']]);
+  const c = N.comGuardada(b, it(1), { fonteNome: 'Fonte Um', agora: 300 }); assert.deepEqual(lista(c.map(g => [g.id, g.guardadaEm])), [['n1', 300], ['n2', 200]]);
+  assert.deepEqual(lista(N.semGuardada(c, 'n1').map(g => g.id)), ['n2']); assert.equal(c.length, 2, 'a lista recebida não é mudada');
+  assert.deepEqual(lista(N.guardadasValidas([it(1), it(1), it(3, { url: 'javascript:alert(1)' }), null, 'x', { ...it(4), fonteNome: 7 }]).map(g => [g.id, g.fonteNome])), [['n1', 'f'], ['n4', '7']]);
+  for (const ruim of [null, undefined, 'x', {}]) assert.deepEqual(lista(N.guardadasValidas(ruim)), []);
+  assert.equal(N.guardadasValidas(Array.from({ length: 260 }, (_, i) => it(i + 10))).length, N.GUARDADAS_MAX);
+  // serviço: guarda, tira e repõe (para o Desfazer), tudo no aparelho
+  const disco = new Map(); const s = N.createNoticias({ busca: async () => ({ ok: false, status: 500 }), store: { get: async k => disco.get(k), set: async (k, v) => { disco.set(k, v); } } });
+  assert.deepEqual(lista(await s.guardadas()), []); await s.guardaNoticia(it(1), 'Fonte Um'); const dois = await s.guardaNoticia(it(2), 'Fonte Dois');
+  assert.deepEqual(lista((await s.guardadas()).map(g => [g.id, g.fonteNome])), [['n2', 'Fonte Dois'], ['n1', 'Fonte Um']]); assert.equal(N.CHAVE_GUARDADAS, 'noticias.guardadas');
+  assert.deepEqual(lista((await s.tiraNoticia('n2')).map(g => g.id)), ['n1']); assert.deepEqual(lista((await s.repoeGuardadas(dois)).map(g => g.id)), ['n2', 'n1']); assert.deepEqual(lista(disco.get('noticias.guardadas').map(g => g.id)), ['n2', 'n1']);
+});

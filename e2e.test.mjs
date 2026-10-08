@@ -2263,10 +2263,14 @@ async function auditaTela(page, nome) {
   await page.waitForTimeout(350);   // deixa terminar a animação de entrada de diálogos e cartas
   const r = await page.evaluate(() => {
     const vis = el => { const b = el.getBoundingClientRect(); const st = getComputedStyle(el); return b.width > 0 && b.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
+    // N4 (leva G-213) · link esticado: o `::after` do link cobre o cartão inteiro (inset 0 sobre o ancestral posicionado),
+    // então o alvo de toque é o cartão, não a caixa do texto. Só vale para quem tem esse `::after` de verdade.
+    const alvoDe = el => { const d = getComputedStyle(el, '::after'); const esticado = d.content !== 'none' && d.position === 'absolute' && d.top === '0px' && d.bottom === '0px' && d.left === '0px' && d.right === '0px';
+      return (esticado && el.offsetParent ? el.offsetParent : el).getBoundingClientRect(); };
     const pequenos = [...document.querySelectorAll('button, [role="button"], a[href], input:not([type="hidden"]):not([type="file"]):not(.ds-hidden), select, textarea, .ds-chip')]
       .filter(el => vis(el) && !el.closest('.tb-card__pills') && !el.closest('.tb-peek') && !el.classList.contains('tb-peek__acao'))
-      .filter(el => el.getBoundingClientRect().height < 43.5)
-      .map(el => (el.id ? '#' + el.id : '') + '.' + String(el.className).split(' ')[0] + ' «' + (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24) + '» ' + Math.round(el.getBoundingClientRect().height) + 'px');
+      .filter(el => alvoDe(el).height < 43.5)
+      .map(el => (el.id ? '#' + el.id : '') + '.' + String(el.className).split(' ')[0] + ' «' + (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24) + '» ' + Math.round(alvoDe(el).height) + 'px');
     const larguraDoc = document.documentElement.scrollWidth, larguraTela = window.innerWidth;
     const vazou = [...document.querySelectorAll('body *')].filter(el => { if (!vis(el)) return false; const b = el.getBoundingClientRect(); if (b.right <= larguraTela + 1) return false; let p = el.parentElement; while (p) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll' || o === 'hidden') return false; p = p.parentElement; } return true; })
       .slice(0, 5).map(el => el.tagName + '.' + String(el.className).split(' ')[0] + ' → ' + Math.round(el.getBoundingClientRect().right));
@@ -8328,8 +8332,8 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   // 2 · a primeira página: 20 notícias (a de endereço perigoso não entra), a primeira em destaque
   assert.equal(await cartoes(), 20); assert.deepEqual(pedidos, ['indice.json', 'pagina-1.json']);
   assert.equal(await page.locator('[data-noticia="perigosa"]').count(), 0);
-  const d = await page.evaluate(() => { const c = document.querySelector('.nt-cartao'), capa = c.querySelector('.nt-capa').getBoundingClientRect(), t = c.querySelector('.nt-titulo');
-    return { forma: c.dataset.forma, razao: +(capa.width / capa.height).toFixed(2), alvo: c.target, rel: c.rel, href: c.href, lang: t.lang, fonte: c.querySelector('.nt-fonte').textContent, quando: c.querySelector('.nt-quando').textContent, serifada: getComputedStyle(t).fontFamily === getComputedStyle(document.querySelector('h1')).fontFamily, fala: c.getAttribute('aria-label') }; });
+  const d = await page.evaluate(() => { const c = document.querySelector('.nt-cartao'), capa = c.querySelector('.nt-capa').getBoundingClientRect(), t = c.querySelector('.nt-titulo'), a = c.querySelector('.nt-link'); // N4 (leva G-213) · o link passou a ser o título, esticado sobre o cartão
+    return { forma: c.dataset.forma, razao: +(capa.width / capa.height).toFixed(2), alvo: a.target, rel: a.rel, href: a.href, lang: t.lang, fonte: c.querySelector('.nt-fonte').textContent, quando: c.querySelector('.nt-quando').textContent, serifada: getComputedStyle(t).fontFamily === getComputedStyle(document.querySelector('h1')).fontFamily, fala: a.getAttribute('aria-label') }; });
   assert.deepEqual(d, { forma: 'destaque', razao: 1.78, alvo: '_blank', rel: 'noopener noreferrer', href: 'https://fonte.test/materia/0', lang: 'en', fonte: 'EDHREC', quando: '· agora', serifada: true, fala: 'English headline number 0. EDHREC, agora. Abre no navegador' });
   assert.deepEqual(await page.$$eval('.nt-cartao', cs => [...new Set(cs.map(c => c.dataset.forma))]), ['destaque', 'linha', 'cheio']);
   assert.equal(await page.$eval('[data-noticia="n1"] .nt-titulo', e => e.lang), 'pt-BR'); assert.equal(await page.locator('[data-noticia="n2"] .nt-titulo b').count(), 0, 'título é texto: HTML não vira elemento');
@@ -8421,7 +8425,7 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   await page.click('#go-news'); await quando(20);
   assert.equal(await page.locator('[data-nova]').count(), 0); assert.equal(await page.innerText('#noticias-novas'), '');
   const f = await page.$$eval('#noticias-ferramentas button', bs => bs.map(b => ({ id: b.id, fala: b.getAttribute('aria-label'), h: Math.round(b.getBoundingClientRect().height), w: Math.round(b.getBoundingClientRect().width), icone: !!b.querySelector('svg') })));
-  assert.deepEqual(f.map(b => [b.id, b.fala, b.icone]), [['noticias-filtros', 'Filtros', true], ['noticias-atualizar', 'Atualizar', true]]); assert.ok(f.every(b => b.h >= 44 && b.w >= 44), JSON.stringify(f));
+  assert.deepEqual(f.map(b => [b.id, b.fala, b.icone]), [['noticias-filtros', 'Filtros', true], ['noticias-guardadas', 'Guardadas', true], ['noticias-atualizar', 'Atualizar', true]]); // N4 · Guardadas entrou assert.ok(f.every(b => b.h >= 44 && b.w >= 44), JSON.stringify(f));
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY), 'contain', 'puxar não recarrega a página nesta tela');
   await auditaTela(page, 'notícias · ferramentas');
   // 2 · filtros: tema Commander → só Commander, buscando as páginas seguintes sozinho até o fim; mais a fonte EDHREC → interseção
@@ -8463,7 +8467,7 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-aviso.png' });
   await page.click('#noticias-ver-novas'); await aviso(/3 notícias novas/); await quando(23); await page.waitForFunction(() => window.scrollY < 5, null, { timeout: 4000 });
   assert.equal(await page.locator('#noticias-ver-novas').count(), 0); assert.deepEqual(await page.$$eval('[data-nova]', cs => cs.map(c => c.dataset.noticia)), ['f0', 'f1', 'f2']);
-  assert.equal(await page.innerText('#noticias-novas'), '3 novas'); assert.equal(await page.textContent('[data-noticia="f0"] .nt-nova'), 'Nova'); assert.match(await page.getAttribute('[data-noticia="f0"]', 'aria-label'), /^Nova\. /);
+  assert.equal(await page.innerText('#noticias-novas'), '3 novas'); assert.equal(await page.textContent('[data-noticia="f0"] .nt-nova'), 'Nova'); assert.match(await page.getAttribute('[data-noticia="f0"] .nt-link', 'aria-label'), /^Nova\. /);
   await auditaTela(page, 'notícias · com novas');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n3-novas.png' });
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(80); await auditaTela(page, `notícias com novas ${w} ${tema}`); } }
@@ -8489,5 +8493,87 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   await page.reload(); await quando(23); assert.equal(await page.locator('[data-nova]').count(), 0); assert.equal(await page.innerText('#noticias-novas'), '');
   await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#go-news'); await page.waitForTimeout(300); assert.equal(await page.getAttribute('#go-news', 'data-novas'), null);
   assert.equal(await page.innerText('#go-news .ds-atalho__detalhe'), 'O que há de novo no Magic');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- N4 · guardar e compartilhar ---------------- */
+test('e2e · N4 Notícias: "Mais ações" em cada notícia abre a folha com Guardar, Compartilhar e Abrir; a guardada ganha o marcador e entra em Guardadas, que abre sem internet; tirar tem Desfazer; compartilhar usa a folha do sistema ou copia o endereço', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const arquivos = ramoN2();
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); return nome in arquivos ? r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }) : r.abort('failed'); });
+  await page.route('https://img.test/**', r => r.fulfill({ body: PNG_N2, contentType: 'image/png' }));
+  // compartilhar e abrir de mentira: o teste lê o que o app pediu
+  await page.addInitScript(() => { window.__n4 = { abriu: [], compartilhou: [], copiou: [] }; window.open = (...a) => { window.__n4.abriu.push(a); return null; };
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async txt => { window.__n4.copiou.push(txt); } } }); });
+  const n4 = () => page.evaluate(() => window.__n4);
+  const aviso = rx => page.waitForFunction(r => new RegExp(r).test((document.querySelector('#ds-toast') || {}).textContent || ''), rx.source, { timeout: 8000 });
+  const folha = async id => { await page.click(`[data-mais="${id}"]`); await page.waitForSelector('#noticia-acoes'); await page.waitForTimeout(350); };
+  await page.goto(base + '#/noticias'); await page.waitForSelector('#noticias-lista .nt-cartao');
+  // 1 · cada notícia tem "Mais ações" (44 px, com nome falado), e o resto do cartão continua abrindo a matéria
+  const mais = await page.$$eval('.nt-cartao', cs => cs.map(c => { const b = c.querySelector('.nt-mais'), r = b.getBoundingClientRect(), k = c.getBoundingClientRect(); return { h: Math.round(r.height), w: Math.round(r.width), fala: b.getAttribute('aria-label'), dentro: r.right <= k.right + 1 && r.top >= k.top - 1, icone: !!b.querySelector('svg') }; }));
+  assert.equal(mais.length, 20); assert.ok(mais.every(m => m.h === 44 && m.w === 44 && m.dentro && m.icone && /^Mais ações: /.test(m.fala)), JSON.stringify(mais.slice(0, 3)));
+  assert.deepEqual(await page.evaluate(() => { const c = document.querySelector('[data-noticia="n1"]'), r = c.getBoundingClientRect(); const alvo = (x, y) => { const e = document.elementFromPoint(x, y); return e.closest('.nt-mais') ? 'mais' : e.closest('.nt-link') ? 'link' : e.className; };
+    const b = c.querySelector('.nt-mais').getBoundingClientRect(); return [alvo(r.left + 20, r.bottom - 12), alvo(r.right - 40, r.bottom - 20), alvo((b.left + b.right) / 2, (b.top + b.bottom) / 2)]; }), ['link', 'link', 'mais'], 'o cartão inteiro é o link; só o botão é o botão');
+  assert.equal(await page.locator('#noticias-guardadas').getAttribute('aria-label'), 'Guardadas'); assert.equal(await page.locator('#noticias-guardadas .ds-btn__conta').isVisible(), false);
+  await auditaTela(page, 'notícias · com mais ações');
+  // 2 · a folha: fonte no título, a manchete no idioma dela, três ações de até duas palavras com ícone, um primário
+  await folha('n1');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Cards Realm'); assert.equal(await page.$eval('#noticia-acoes-titulo', e => [e.textContent, e.lang].join('|')), 'Notícia em português número 1|pt-BR');
+  const acoes = await page.$$eval('.ds-dialog__actions button', bs => bs.map(b => ({ id: b.id, texto: b.textContent.trim(), h: Math.round(b.getBoundingClientRect().height), icone: !!b.querySelector('svg'), primario: b.classList.contains('ds-btn--primary') })));
+  assert.deepEqual(acoes.map(a => [a.id, a.texto, a.primario]), [['noticia-guardar', 'Guardar', false], ['noticia-compartilhar', 'Compartilhar', false], ['noticia-abrir', 'Abrir', true]]);
+  assert.ok(acoes.every(a => a.h >= 44 && a.icone)); await auditaTela(page, 'notícias · folha da notícia');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n4-folha.png' });
+  // guardar: fecha a folha, avisa, o cartão ganha o marcador no lugar (nada é redesenhado) e o botão Guardadas conta
+  await page.evaluate(() => { document.querySelector('[data-noticia="n1"]').__marca = true; });
+  await page.click('#noticia-guardar'); await aviso(/Guardada/); await page.waitForSelector('[data-noticia="n1"][data-guardada="true"] .nt-guardada');
+  assert.equal(await page.evaluate(() => document.querySelector('[data-noticia="n1"]').__marca), true, 'o mesmo cartão: só o marcador entrou');
+  assert.equal(await page.getAttribute('[data-noticia="n1"] .nt-guardada', 'aria-label'), 'Guardada');
+  assert.deepEqual(await page.$eval('#noticias-guardadas', b => [b.dataset.conta, b.getAttribute('aria-label'), b.querySelector('.ds-btn__conta').textContent]), ['1', 'Guardadas, 1', '1']);
+  await folha('n0'); await page.click('#noticia-guardar'); await page.waitForSelector('[data-noticia="n0"][data-guardada="true"]');
+  await folha('n5'); await page.click('#noticia-guardar'); await page.waitForSelector('[data-noticia="n5"][data-guardada="true"]');
+  await page.waitForTimeout(300); await auditaTela(page, 'notícias · com guardadas');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n4-marcadas.png' });
+  // a guardada abre a folha com "Tirar"; tirar tem Desfazer
+  await folha('n5'); assert.equal(await page.innerText('#noticia-guardar'), 'Tirar'); await page.click('#noticia-guardar'); await aviso(/Saiu das guardadas/);
+  assert.equal(await page.locator('[data-noticia="n5"] .nt-guardada').count(), 0); assert.equal(await page.$eval('#noticias-guardadas', b => b.dataset.conta), '2');
+  await page.click('.ds-toast__acao'); await page.waitForSelector('[data-noticia="n5"][data-guardada="true"]'); assert.equal(await page.$eval('#noticias-guardadas', b => b.dataset.conta), '3');
+  // 3 · abrir pela folha e compartilhar: sem a folha do sistema, o endereço é copiado e a tela diz
+  await folha('n0'); await page.click('#noticia-abrir'); assert.deepEqual((await n4()).abriu, [['https://fonte.test/materia/0', '_blank', 'noopener,noreferrer']]);
+  await folha('n0'); await page.click('#noticia-compartilhar'); await aviso(/Endereço copiado/); assert.deepEqual((await n4()).copiou, ['https://fonte.test/materia/0']);
+  await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // com a folha do sistema: título e endereço vão para ela, sem aviso de cópia; quem cancela não vê erro
+  await page.evaluate(() => { navigator.share = async d => { window.__n4.compartilhou.push(d); if (window.__n4.cancela) { const e = new Error('cancelou'); e.name = 'AbortError'; throw e; } }; });
+  await folha('n1'); await page.click('#noticia-compartilhar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.deepEqual((await n4()).compartilhou, [{ title: 'Notícia em português número 1', text: 'https://fonte.test/materia/1' }]); assert.equal((await n4()).copiou.length, 1);
+  await page.evaluate(() => { window.__n4.cancela = true; document.querySelector('#ds-toast').textContent = ''; }); await folha('n1'); await page.click('#noticia-compartilhar'); await page.waitForTimeout(200);
+  assert.equal(await page.locator('#noticia-acoes').count(), 1, 'cancelou: a folha continua aberta'); assert.equal(await page.$eval('#ds-toast', e => e.textContent), ''); await page.keyboard.press('Escape');
+  // 4 · Guardadas: a última guardada primeiro, com fonte, bandeira e tempo; volta para as notícias no mesmo ponto
+  await page.click('#noticias-guardadas'); await page.waitForSelector('#guardadas-lista .nt-cartao'); assert.match(page.url(), /#\/noticias\/guardadas$/);
+  assert.deepEqual(await page.$$eval('#guardadas-lista .nt-cartao', cs => cs.map(c => [c.dataset.noticia, c.dataset.forma, c.querySelector('.nt-fonte').textContent, c.querySelector('.nt-link').href, !!c.querySelector('.ds-bandeira'), !!c.querySelector('.nt-guardada')])),
+    [['n5', 'linha', 'Cards Realm', 'https://fonte.test/materia/5', true, true], ['n0', 'linha', 'EDHREC', 'https://fonte.test/materia/0', true, true], ['n1', 'linha', 'Cards Realm', 'https://fonte.test/materia/1', true, true]]);
+  assert.match(await page.innerText('#guardadas-nota'), /A matéria abre no site da fonte\./); assert.equal(await page.locator('.ds-btn--primary:visible').count(), 0); await auditaTela(page, 'guardadas');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n4-guardadas.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(60); await auditaTela(page, `guardadas ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  { const larga = await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans","Verdana",sans-serif !important}' }); await page.waitForTimeout(150); await auditaTela(page, 'guardadas · fonte larga'); await larga.evaluate(el => el.remove()); }
+  // tirar pela lista: some dali, com Desfazer
+  await folha('n0'); assert.equal(await page.innerText('#noticia-guardar'), 'Tirar'); await page.click('#noticia-guardar'); await aviso(/Saiu das guardadas/);
+  await page.waitForFunction(() => document.querySelectorAll('#guardadas-lista .nt-cartao').length === 2); await page.click('.ds-toast__acao'); await page.waitForFunction(() => document.querySelectorAll('#guardadas-lista .nt-cartao').length === 3);
+  // 5 · sem internet: a lista continua lá (só texto), a tela diz que a matéria pede conexão, e a folha também
+  await page.context().setOffline(true); await page.waitForSelector('#guardadas-sem-rede');
+  assert.equal(await page.locator('#guardadas-lista .nt-cartao').count(), 3); assert.equal(await page.locator('#guardadas-lista img').count(), 0, 'sem internet não se pede imagem');
+  assert.match(await page.innerText('#guardadas-sem-rede'), /Sem internet: a lista está aqui; as matérias abrem quando a conexão voltar\./);
+  await folha('n1'); assert.match(await page.innerText('#noticia-acoes-sem-rede'), /a matéria abre quando a conexão voltar/); await auditaTela(page, 'guardadas · sem internet'); await page.keyboard.press('Escape');
+  await page.reload().catch(() => {}); // (sem internet o servidor do teste não responde: a página fica; o que importa é a lista vir do aparelho)
+  await page.context().setOffline(false); await page.goto(base + '#/noticias/guardadas'); await page.waitForSelector('#guardadas-lista .nt-cartao'); assert.equal(await page.locator('#guardadas-lista .nt-cartao').count(), 3, 'as guardadas ficam no aparelho');
+  // voltar leva às notícias, com as marcas
+  await page.click('#guardadas-voltar'); await page.waitForSelector('#noticias-lista .nt-cartao'); assert.equal(await page.locator('#noticias-lista [data-guardada="true"]').count(), 3);
+  // 6 · vazio: tela parada com um primário que leva às notícias
+  await page.goto(base + '#/noticias/guardadas'); await page.waitForSelector('#guardadas-lista .nt-cartao');
+  for (const id of ['n5', 'n0', 'n1']) { await folha(id); await page.click('#noticia-guardar'); await page.waitForSelector(`#guardadas-corpo [data-noticia="${id}"]`, { state: 'detached' }); }
+  await page.waitForSelector('#guardadas-vazio'); assert.match(await page.innerText('#guardadas-vazio'), /Nada guardado[\s\S]*toque nos três pontos de uma matéria e escolha Guardar\./);
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1); await auditaTela(page, 'guardadas · vazio');
+  await page.click('#guardadas-ver'); await page.waitForSelector('#noticias-lista .nt-cartao'); assert.equal(await page.locator('#noticias-lista [data-guardada="true"]').count(), 0);
   assert.deepEqual(errors, []);
 });

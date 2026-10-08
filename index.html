@@ -1028,8 +1028,16 @@ a { color: var(--accent); }
 .nt-idiomas .ds-chip { gap: var(--space-2); }
 .nt-lista { display: flex; flex-direction: column; gap: var(--space-3); }
 .nt-cartao { display: flex; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-3); background: var(--bg-elev-1); color: var(--fg); text-decoration: none; transition: transform var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
-.nt-cartao:active { transform: scale(.99); border-color: var(--border-strong); }
-.nt-cartao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nt-cartao { position: relative; }
+.nt-cartao:has(.nt-link:active) { transform: scale(.99); border-color: var(--border-strong); }
+.nt-cartao:has(.nt-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nt-link { color: inherit; text-decoration: none; outline: none; }
+.nt-link::after { content: ""; position: absolute; inset: 0; }
+.nt-titulo, .nt-resumo { margin: 0; font-weight: var(--weight-regular); }
+.nt-mais.ds-btn { position: relative; z-index: 1; flex: none; margin: calc(var(--space-2) * -1) calc(var(--space-2) * -1) calc(var(--space-2) * -1) auto; color: var(--fg-muted); }
+.nt-nova + .nt-mais.ds-btn { margin-left: 0; }
+.nt-guardada { display: inline-flex; flex: none; color: var(--accent); }
+.nt-guardada .ds-icon svg { fill: currentColor; }
 .nt-cartao--destaque, .nt-cartao--cheio { flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
 .nt-cartao--destaque .nt-corpo, .nt-cartao--cheio .nt-corpo { padding: var(--space-3) var(--space-4) var(--space-4); }
 .nt-capa { position: relative; flex: none; display: grid; place-items: center; overflow: hidden; background: var(--bg-elev-3); color: var(--fg-subtle); }
@@ -1063,8 +1071,8 @@ html:has(#noticias) { overscroll-behavior-y: contain; }
 .ds-atalho[data-novas] .ds-atalho__detalhe { opacity: 1; font-weight: var(--weight-bold); }
 @media (prefers-reduced-motion: reduce) { .nt-puxar, .nt-puxar .ds-icon { transition: none; } }
 :root[data-movimento="reduzido"] .nt-puxar, :root[data-movimento="reduzido"] .nt-puxar .ds-icon { transition: none !important; }
-@media (prefers-reduced-motion: reduce) { .nt-cartao { transition: none; } .nt-cartao:active { transform: none; } }
-:root[data-movimento="reduzido"] .nt-cartao { transition: none !important; } :root[data-movimento="reduzido"] .nt-cartao:active { transform: none !important; }
+@media (prefers-reduced-motion: reduce) { .nt-cartao { transition: none; } .nt-cartao:has(.nt-link:active) { transform: none; } }
+:root[data-movimento="reduzido"] .nt-cartao { transition: none !important; } :root[data-movimento="reduzido"] .nt-cartao:has(.nt-link:active) { transform: none !important; }
 /* J4 · carregamento com identidade: três cartas se arrumam na prateleira, uma depois da outra, e o ciclo recomeça.
    Três tamanhos: tela (a tela inteira espera), bloco (um trecho espera) e linha (ao lado de um texto curto). */
 .ds-carregando { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); text-align: center; }
@@ -2698,6 +2706,9 @@ const ICONES = {
   ficha: '<rect x="5.5" y="3.5" width="13" height="17" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M9 16h6"/>',
   trofeu: '<path d="M8 4.5h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5c0 2.6 1 4 2.9 4.4M16 6h2.5c0 2.6-1 4-2.9 4.4"/><path d="M12 13.5v3.5M8.5 20h7M10 17h4"/>', // I5 · histórico de partidas
   jornal: '<path d="M5 5h11.5v12.5a1.5 1.5 0 0 0 3 0V9H16.5"/><path d="M5 5v12a2 2 0 0 0 2 2h11"/><path d="M8 9h5.5M8 12.5h5.5M8 16h3.5"/>', // N2 · notícias
+  marcador: '<path d="M7 4.5h10v15.2l-5-3.7-5 3.7z"/>', // N4 · guardar para ler depois
+  pontos: '<circle cx="12" cy="5.5" r=".9"/><circle cx="12" cy="12" r=".9"/><circle cx="12" cy="18.5" r=".9"/>', // N4 · mais ações
+  compartilhar: '<circle cx="17.5" cy="6" r="2.2"/><circle cx="6.5" cy="12" r="2.2"/><circle cx="17.5" cy="18" r="2.2"/><path d="M8.5 11l7-4M8.5 13l7 4"/>', // N4
   fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   editar: '<path d="M4.5 19.5l1-4.2L15.8 5a1.9 1.9 0 0 1 2.7 0l.5.5a1.9 1.9 0 0 1 0 2.7L8.7 18.5z"/><path d="M13.8 7l3.2 3.2"/>',
   lixeira: '<path d="M4.5 7h15"/><path d="M9.5 7V4.8a.8.8 0 0 1 .8-.8h3.4a.8.8 0 0 1 .8.8V7"/><path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7"/><path d="M10.2 11v5.5M13.8 11v5.5"/>',
@@ -7330,7 +7341,7 @@ const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas', 'noticias.filtro'];
+const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas', 'noticias.filtro', 'noticias.guardadas'];
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -8617,6 +8628,8 @@ const CHAVE_FILTRO = 'noticias.filtro'; // N3 · temas e fontes escolhidos (vai 
 const CHAVE_VISTA = 'noticias.vista';   // N3 · data da notícia mais nova já mostrada neste aparelho (é o que separa as "novas")
 /** N3 · temas que o coletor marca, com o nome na tela. */
 const TEMAS = [['commander', 'Commander'], ['pauper', 'Pauper'], ['lancamentos', 'Lançamentos'], ['competitivo', 'Competitivo'], ['arena', 'Arena']];
+const CHAVE_GUARDADAS = 'noticias.guardadas'; // N4 · notícias guardadas para ler depois (vão no backup)
+const GUARDADAS_MAX = 200;
 const MEMORIA_MS = 30 * 60 * 1000; // voltar à tela dentro de meia hora devolve a linha do tempo e o ponto da leitura
 let memoria = null;
 /** Idiomas das fontes: [código, nome na tela (no próprio idioma), bandeira, nome falado, `lang` do texto]. */
@@ -8678,6 +8691,17 @@ function contaNovas(itens, vista) { const t = Date.parse(vista); return Number.i
 const maisNova = (itens, atual = '') => itens.reduce((m, it) => (Number.isFinite(Date.parse(it.data)) && (!m || Date.parse(it.data) > Date.parse(m)) ? it.data : m), Number.isFinite(Date.parse(atual)) ? atual : '');
 /** "1 nova", "7 novas", "20+ novas" (quando tudo o que foi lido é novo e ainda há mais); zero não escreve nada. */
 const rotuloNovas = (n, { mais = false } = {}) => (n > 0 ? `${n}${mais ? '+' : ''} ${n === 1 && !mais ? 'nova' : 'novas'}` : '');
+/** N4 · as guardadas, limpas: cada uma passa pelo mesmo crivo de uma notícia da rede, sem repetir, até o teto.
+    Além dos campos da notícia, guardam o nome da fonte (sem internet não há índice para perguntar) e quando foi guardada. */
+function guardadasValidas(v) {
+  const vistos = new Set(), out = [];
+  for (const cru of Array.isArray(v) ? v : []) { const it = limpaItem(cru); if (!it || vistos.has(it.id)) continue; vistos.add(it.id);
+    out.push({ ...it, fonteNome: String((cru && cru.fonteNome) || it.fonte).slice(0, 60), guardadaEm: Number(cru && cru.guardadaEm) || 0 }); if (out.length >= GUARDADAS_MAX) break; }
+  return out;
+}
+/** Guardar põe no começo (a última guardada é a primeira da lista); guardar de novo só sobe a notícia. */
+function comGuardada(lista, it, { fonteNome = '', agora = Date.now() } = {}) { return guardadasValidas([{ ...it, fonteNome: fonteNome || it.fonteNome || it.fonte, guardadaEm: agora }, ...lista.filter(x => x.id !== it.id)]); }
+const semGuardada = (lista, id) => lista.filter(x => x.id !== id);
 /** A forma de cada notícia na coluna: a primeira é o destaque; a cada seis, uma com capa ganha o cartão cheio; o resto é linha. */
 const formaDe = (i, it) => (i === 0 ? 'destaque' : i % 6 === 0 && it.imagem ? 'cheio' : 'linha');
 
@@ -8700,6 +8724,11 @@ function createNoticias({ store = null, busca = null, base = BASE, prazo = 12000
     guardaFiltro: v => grava(CHAVE_FILTRO, filtroValido(v)),
     vista: async () => { const v = await le(CHAVE_VISTA, ''); return typeof v === 'string' && Number.isFinite(Date.parse(v)) ? v : ''; },
     guardaVista: iso => grava(CHAVE_VISTA, String(iso || '')),
+    // N4 · guardadas: ficam no aparelho (título, fonte, data e endereço); a matéria continua no site da fonte
+    guardadas: async () => guardadasValidas(await le(CHAVE_GUARDADAS, null)),
+    guardaNoticia: async (it, fonteNome) => { const l = comGuardada(await api.guardadas(), it, { fonteNome }); await grava(CHAVE_GUARDADAS, l); return l; },
+    tiraNoticia: async id => { const l = semGuardada(await api.guardadas(), id); await grava(CHAVE_GUARDADAS, l); return l; },
+    repoeGuardadas: async l => { const v = guardadasValidas(l); await grava(CHAVE_GUARDADAS, v); return v; },
     /** N3 · para a tela inicial: quantas notícias novas há desde a última visita, olhando só a primeira página (nos
         idiomas e com os filtros escolhidos). Quem nunca abriu Notícias não tem "novas". `mais`: a página inteira é nova. */
     novas: async () => {
@@ -8717,8 +8746,10 @@ function createNoticias({ store = null, busca = null, base = BASE, prazo = 12000
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
 const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 
-/** O cartão de uma notícia. É um link de verdade: abre a matéria no site da fonte, em outra aba. */
-function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false, nova = false } = {}) {
+/** O cartão de uma notícia. O título é um link de verdade (abre a matéria no site da fonte, em outra aba) esticado
+    sobre o cartão inteiro; "Mais ações" (N4) é um botão à parte, por cima, para guardar e compartilhar.
+    `guardada` põe o marcador ao lado da fonte; `aoMais(it, cartao)` liga o botão. */
+function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false, nova = false, guardada = false, aoMais = null } = {}) {
   const quando = tempoRelativo(it.data, agora);
   const capa = (() => {
     if (!it.imagem && forma === 'linha') return null; // linha sem capa é só texto: mais notícia por tela
@@ -8729,18 +8760,46 @@ function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), ba
     img.addEventListener('error', traco, { once: true });
     el.appendChild(img); return el;
   })();
-  return h('a', { class: 'nt-cartao nt-cartao--' + forma, href: it.url, target: '_blank', rel: 'noopener noreferrer', dataset: { noticia: it.id, idioma: it.idioma, forma, ...(nova ? { nova: 'true' } : {}) },
-    'aria-label': `${nova ? 'Nova. ' : ''}${it.titulo}. ${fonte}${quando ? ', ' + quando : ''}. Abre no navegador` },
+  const cartao = h('article', { class: 'nt-cartao nt-cartao--' + forma, dataset: { noticia: it.id, idioma: it.idioma, forma, ...(nova ? { nova: 'true' } : {}) } },
     capa,
-    h('span', { class: 'nt-corpo' },
-      h('span', { class: 'nt-meta' }, bandeira ? Bandeira((IDIOMAS.find(i => i[0] === it.idioma) || IDIOMAS[1])[2], { tamanho: 10 }) : null,
-        h('span', { class: 'nt-fonte' }, fonte), quando ? h('span', { class: 'nt-quando' }, '· ' + quando) : null, nova ? h('span', { class: 'nt-nova' }, 'Nova') : null),
-      h('span', { class: 'nt-titulo', lang: langDe(it.idioma), role: 'heading', 'aria-level': '2' }, it.titulo),
-      it.resumo && forma !== 'linha' ? h('span', { class: 'nt-resumo', lang: langDe(it.idioma) }, it.resumo) : null));
+    h('div', { class: 'nt-corpo' },
+      h('div', { class: 'nt-meta' }, bandeira ? Bandeira((IDIOMAS.find(i => i[0] === it.idioma) || IDIOMAS[1])[2], { tamanho: 10 }) : null,
+        h('span', { class: 'nt-fonte' }, fonte), quando ? h('span', { class: 'nt-quando' }, '· ' + quando) : null, nova ? h('span', { class: 'nt-nova' }, 'Nova') : null,
+        aoMais ? h('button', { class: 'ds-btn ds-btn--icone ds-btn--ghost nt-mais', type: 'button', 'aria-label': 'Mais ações: ' + it.titulo, title: 'Mais ações', dataset: { mais: it.id }, onClick: e => { e.preventDefault(); e.stopPropagation(); aoMais(it, cartao); } }, Icone('pontos')) : null),
+      h('h2', { class: 'nt-titulo', lang: langDe(it.idioma) }, h('a', { class: 'nt-link', href: it.url, target: '_blank', rel: 'noopener noreferrer',
+        'aria-label': `${nova ? 'Nova. ' : ''}${it.titulo}. ${fonte}${quando ? ', ' + quando : ''}. Abre no navegador` }, it.titulo)),
+      it.resumo && forma !== 'linha' ? h('p', { class: 'nt-resumo', lang: langDe(it.idioma) }, it.resumo) : null));
+  marcaGuardada(cartao, guardada);
+  return cartao;
+}
+/** Liga ou desliga o marcador de "guardada" num cartão que já está na tela (nada é redesenhado). */
+function marcaGuardada(cartao, sim) {
+  const meta = cartao.querySelector('.nt-meta'), tem = meta.querySelector('.nt-guardada');
+  if (sim) cartao.dataset.guardada = 'true'; else delete cartao.dataset.guardada;
+  if (sim && !tem) { const m = h('span', { class: 'nt-guardada', role: 'img', 'aria-label': 'Guardada', title: 'Guardada' }, Icone('marcador', { tamanho: 14 })); const depois = meta.querySelector('.nt-nova, .nt-mais'); meta.insertBefore(m, depois); }
+  if (!sim && tem) tem.remove();
+}
+/** N4 · a folha de uma notícia: guardar (ou tirar), compartilhar e abrir. `aoGuardar(agoraGuardada)` avisa a tela. */
+function folhaDaNoticia(it, { fonte = '', guardada = false, aoGuardar = () => {}, share = null } = {}) {
+  const compartilha = async () => {
+    const nav = typeof navigator !== 'undefined' ? navigator : null, daCasa = !!(nav && nav.share);
+    try {
+      const ok = share && share.text ? await share.text(it.titulo, it.url) : false;
+      if (!daCasa) toast(ok ? 'Endereço copiado' : 'Não foi possível copiar o endereço');
+      if (ok) closeDialog();
+    } catch (e) { if (!e || e.name !== 'AbortError') toast('Não foi possível compartilhar'); } // quem fecha a folha do sistema não vê aviso de erro
+  };
+  Dialog({ title: fonte || 'Notícia', body: Stack({ id: 'noticia-acoes' },
+      Text(it.titulo, { size: 'lg', display: true, attrs: { lang: langDe(it.idioma), id: 'noticia-acoes-titulo' } }),
+      temRede() ? null : AvisoRede('Sem internet: a matéria abre quando a conexão voltar.', { id: 'noticia-acoes-sem-rede' })),
+    actions: [
+      Button(guardada ? 'Tirar' : 'Guardar', { icone: guardada ? 'fechar' : 'marcador', id: 'noticia-guardar', title: guardada ? 'Tirar das guardadas' : 'Guardar para ler depois', onClick: () => { closeDialog(); aoGuardar(!guardada); } }),
+      Button('Compartilhar', { icone: 'compartilhar', id: 'noticia-compartilhar', onClick: compartilha }),
+      Button('Abrir', { variant: 'primary', icone: 'externo', id: 'noticia-abrir', onClick: () => { closeDialog(); window.open(it.url, '_blank', 'noopener,noreferrer'); } })] });
 }
 
-function createNoticiasScreen({ noticias }) {
-  const st = { idiomas: [...CODIGOS], filtro: filtroValido(null), indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0, vista: '', nVis: 0 };
+function createNoticiasScreen({ noticias, share = null }) {
+  const st = { guardadas: new Set(), idiomas: [...CODIGOS], filtro: filtroValido(null), indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0, vista: '', nVis: 0 };
   const lista = h('div', { class: 'nt-lista', id: 'noticias-lista', role: 'feed', 'aria-label': 'Notícias' });
   const pe = h('div', { class: 'nt-pe', id: 'noticias-pe' });
   const corpo = h('div', { id: 'noticias-corpo' });
@@ -8752,7 +8811,23 @@ function createNoticiasScreen({ noticias }) {
   const filtrosBtn = Button('Filtros', { id: 'noticias-filtros', icone: 'filtro', onClick: () => abreFiltros() });
   const novasTxt = h('span', { class: 'nt-novas', id: 'noticias-novas', role: 'status' });
   const atualizarBtn = IconButton('atualizar', 'Atualizar', { id: 'noticias-atualizar', variant: 'ghost', onClick: () => atualiza() });
-  const ferramentas = h('div', { class: 'nt-ferramentas', id: 'noticias-ferramentas' }, filtrosBtn, novasTxt, atualizarBtn);
+  // N4 · a lista de guardadas, com o número delas no próprio botão
+  const guardadasBtn = IconButton('marcador', 'Guardadas', { id: 'noticias-guardadas', variant: 'ghost', onClick: () => { location.hash = '#/noticias/guardadas'; } });
+  const ferramentas = h('div', { class: 'nt-ferramentas', id: 'noticias-ferramentas' }, filtrosBtn, novasTxt, guardadasBtn, atualizarBtn);
+  function pintaGuardadas() {
+    const n = st.guardadas.size; let selo = guardadasBtn.querySelector('.ds-btn__conta');
+    if (!selo) { selo = h('span', { class: 'ds-btn__conta' }); guardadasBtn.appendChild(selo); }
+    selo.textContent = n ? String(n) : ''; selo.hidden = !n; guardadasBtn.dataset.conta = String(n); guardadasBtn.setAttribute('aria-label', n ? `Guardadas, ${n}` : 'Guardadas');
+  }
+  /** Guardar e tirar mexem só no cartão tocado; tirar tem Desfazer. */
+  async function guarda(it, cartao, sim) {
+    const antes = await noticias.guardadas();
+    if (sim) { await noticias.guardaNoticia(it, nomeDaFonte(it.fonte)); st.guardadas.add(it.id); toast('Guardada'); }
+    else { await noticias.tiraNoticia(it.id); st.guardadas.delete(it.id);
+      toast('Saiu das guardadas', 5000, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await noticias.repoeGuardadas(antes); st.guardadas.add(it.id); if (cartao.isConnected) marcaGuardada(cartao, true); pintaGuardadas(); } } }); }
+    if (cartao.isConnected) marcaGuardada(cartao, sim); pintaGuardadas();
+  }
+  const aoMais = (it, cartao) => folhaDaNoticia(it, { fonte: nomeDaFonte(it.fonte), guardada: st.guardadas.has(it.id), share, aoGuardar: sim => guarda(it, cartao, sim) });
   const puxar = h('div', { class: 'nt-puxar', id: 'noticias-puxar', 'aria-hidden': 'true', dataset: { pronto: 'false' } }, Icone('atualizar', { tamanho: 20 }), h('span', {}, 'Puxe para atualizar'));
   const root = Stack({ ...pad(), id: 'noticias' }, Text('Notícias', { size: '2xl', display: true, as: 'h1' }), seletor, nota, ferramentas, puxar, corpo);
   const marcaChips = () => chips.forEach(c => c.setAttribute('aria-pressed', String(st.idiomas.includes(c.dataset.idioma))));
@@ -8799,7 +8874,7 @@ function createNoticiasScreen({ noticias }) {
   function acrescenta(de) {
     const agora = Date.now(), dois = st.idiomas.length > 1, limite = Date.parse(st.vista);
     for (let i = de; i < st.itens.length; i++) { const it = st.itens[i]; if (!passa(it, st.filtro)) continue;
-      lista.appendChild(CartaoNoticia(it, { forma: formaDe(st.nVis, it), fonte: nomeDaFonte(it.fonte), agora, bandeira: dois, nova: Number.isFinite(limite) && Date.parse(it.data) > limite })); st.nVis++; }
+      lista.appendChild(CartaoNoticia(it, { forma: formaDe(st.nVis, it), fonte: nomeDaFonte(it.fonte), agora, bandeira: dois, nova: Number.isFinite(limite) && Date.parse(it.data) > limite, guardada: st.guardadas.has(it.id), aoMais })); st.nVis++; }
     lista.setAttribute('aria-busy', 'false'); pintaFerramentas();
   }
   const redesenha = () => { lista.replaceChildren(); st.nVis = 0; acrescenta(0); };
@@ -8899,8 +8974,8 @@ function createNoticiasScreen({ noticias }) {
   const rolou = () => { if (!root.isConnected) return window.removeEventListener('scroll', rolou); if (memoria) memoria.rolagem = window.scrollY; };
   if (typeof window !== 'undefined' && window.addEventListener) { window.addEventListener('online', voltou); window.addEventListener('scroll', rolou, { passive: true }); }
   mount(corpo, Esqueleto({ linhas: 5, id: 'noticias-abrindo', fala: 'Buscando as notícias…' }));
-  Promise.all([noticias.idiomas(), noticias.filtro(), noticias.vista()]).then(([idiomas, filtro, vista]) => {
-    st.idiomas = idiomas; st.filtro = filtro; st.vista = vista; marcaChips(); pintaFerramentas();
+  Promise.all([noticias.idiomas(), noticias.filtro(), noticias.vista(), noticias.guardadas()]).then(([idiomas, filtro, vista, guardadas]) => {
+    st.idiomas = idiomas; st.filtro = filtro; st.vista = vista; st.guardadas = new Set(guardadas.map(g => g.id)); marcaChips(); pintaFerramentas(); pintaGuardadas();
     const m = memoria;
     // N3 · voltou à tela há pouco, com os mesmos idiomas: a linha do tempo e o ponto da leitura estão onde ficaram
     if (m && m.chave === idiomas.join() && Date.now() - m.quando < MEMORIA_MS && m.itens.length && temRede()) {
@@ -8917,7 +8992,35 @@ function createNoticiasScreen({ noticias }) {
   return root;
 }
 
-return { TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
+/** N4 · Guardadas: o que foi separado para ler depois. Abre sem internet (título, fonte e data estão no aparelho);
+    a matéria em si continua no site da fonte, e a tela diz isso. */
+function createGuardadasScreen({ noticias, share = null }) {
+  const corpo = h('div', { id: 'guardadas-corpo' }, Esqueleto({ linhas: 3, fala: 'Abrindo as guardadas…' }));
+  const root = Stack({ ...pad(), id: 'guardadas' },
+    Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar às notícias', { id: 'guardadas-voltar', variant: 'ghost', onClick: () => { location.hash = '#/noticias'; } }), Text('Guardadas', { size: '2xl', display: true, as: 'h1' })),
+    corpo);
+  let lista = [];
+  function pinta() {
+    if (!lista.length) return mount(corpo, Empty('Nas notícias, toque nos três pontos de uma matéria e escolha Guardar.', Button('Ver notícias', { variant: 'primary', icone: 'jornal', id: 'guardadas-ver', onClick: () => { location.hash = '#/noticias'; } }), { icone: 'marcador', titulo: 'Nada guardado', hero: true, id: 'guardadas-vazio' }));
+    const rede = temRede(), agora = Date.now();
+    mount(corpo,
+      rede ? Text('Título, fonte e data ficam no aparelho. A matéria abre no site da fonte.', { size: 'sm', tone: 'muted', attrs: { id: 'guardadas-nota' } })
+        : AvisoRede('Sem internet: a lista está aqui; as matérias abrem quando a conexão voltar.', { id: 'guardadas-sem-rede' }),
+      h('div', { class: 'nt-lista', id: 'guardadas-lista' }, ...lista.map(it => CartaoNoticia(rede ? it : { ...it, imagem: '' }, { forma: 'linha', fonte: it.fonteNome || it.fonte, agora, bandeira: true, guardada: true,
+        aoMais: (x, cartao) => folhaDaNoticia(it, { fonte: it.fonteNome || it.fonte, guardada: true, share, aoGuardar: () => tira(it) }) }))));
+  }
+  async function tira(it) {
+    const antes = lista; lista = await noticias.tiraNoticia(it.id); pinta();
+    toast('Saiu das guardadas', 5000, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { lista = await noticias.repoeGuardadas(antes); if (root.isConnected) pinta(); } } });
+  }
+  // a rede indo e voltando troca a frase e as miniaturas
+  const rede = () => { if (!root.isConnected) { window.removeEventListener('online', rede); window.removeEventListener('offline', rede); return; } pinta(); };
+  if (typeof window !== 'undefined' && window.addEventListener) { window.addEventListener('online', rede); window.addEventListener('offline', rede); }
+  noticias.guardadas().then(l => { lista = l; pinta(); });
+  return root;
+}
+
+return { CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -21668,7 +21771,8 @@ const ROUTES = [
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks }) }, // I4
   { path: '/perfil/terrenos', title: 'Terrenos', render: () => createTerrenosScreen({ terrenos, decks }) }, // I6
-  { path: '/noticias', title: 'Notícias', render: () => __m37.createNoticiasScreen({ noticias }) }, // N2
+  { path: '/noticias', title: 'Notícias', render: () => __m37.createNoticiasScreen({ noticias, share: platform.share }) }, // N2
+  { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
   { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, partidas, terrenos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
