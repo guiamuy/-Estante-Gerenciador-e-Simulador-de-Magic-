@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 84,
+ "motor": 85,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -4262,7 +4262,7 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos que \"olham para trás\"",
    "status": "parcial",
-   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade · CR2a.4 (v78): \"cada jogador sacrifica\" escolhe em ordem e sacrifica em lote (sacrifice_each, continuaEdito); commander.regras Accursed Marauder",
+   "evidencia": "Morte e saída do campo da própria permanente disparam com o controlador de antes da mudança (moveObject index.html:10309-10311, fromController); sacrifício avisa other-sacrificed (sacrifice :11628); rules.unit \"M9 · gatilhos de morte\", \"S32 · sacrificar outra permanente dispara o gatilho\" · CR2a.3 (motor v77): 603.10a — as mortes de uma mesma checagem de estado saem em lote (s.saindoJuntas) e quem sai junto também observa as outras; moveObject guarda a última informação conhecida (o.ultima: controlador, face, virada, marcadores, poder e resistência) e a criatura que sai virada para baixo não dispara a habilidade da face de cima; testes de conformidade em cr.conformidade · CR2a.4 (v78): \"cada jogador sacrifica\" escolhe em ordem e sacrifica em lote (sacrifice_each, continuaEdito); commander.regras Accursed Marauder · CR2c.2 (v85): \"destroy all\" com filtro (destroy_all) também sai em lote com s.saindoJuntas — Zulaport vê a própria morte e as das outras destruídas junto (commander.regras \"CR2c.2 · Austere Command\")",
    "falta": "603.10a fora das ações de estado: varreduras que destroem, exilam ou devolvem várias permanentes ainda saem uma a uma (não há primitiva de varredura que mova permanentes). 603.10b-e (sair de fase, desanexar, perder controle, mágica anulada) ausentes; 603.10f-g não se aplicam a dois jogadores.",
    "esforco": "M",
    "depende": [
@@ -5517,11 +5517,14 @@
    "regra": "Keyword Actions",
    "titulo": "Destroy",
    "status": "coberta",
-   "evidencia": "case destroy (index.html:11128-11132) move ao cemitério do dono e respeita indestrutível; SBA de dano letal (12132); scripts.unit \"S4 · ... indestrutível resiste a destruir\"; combat.audit K3. A substituição por regeneração (701.8c) está contada em 701.19",
+   "evidencia": "case destroy (index.html:11128-11132) move ao cemitério do dono e respeita indestrutível; SBA de dano letal (12132); scripts.unit \"S4 · ... indestrutível resiste a destruir\"; combat.audit K3. A substituição por regeneração (701.8c) está contada em 701.19 · CR2c.2 (v85): \"destroy all <tipos> [com valor de mana N ou menos/mais]\" (destroy_all): indestrutível fica, virada para baixo vale 0 (708.4), todas mudam de zona juntas",
    "depende": [
     "701.19"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR2c.2 · Austere Command: escolha dois entre quatro \"destroy all\"; o que é destruído sai do campo ao mesmo tempo e indestrutível fica"
+   ]
   },
   {
    "n": "701.9",

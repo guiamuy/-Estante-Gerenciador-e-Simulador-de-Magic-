@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2c.1 reforço e multirreforço (702.33) e "escolha dois/três" com repetição (700.2d); Into the Roil, Benalish Sleeper, Everflowing Chalice e Wretched Confluence completas (leva M-217, motor v84) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro saindo juntas (701.8, 603.10a) e "oponente alvo sacrifica" (701.21a); Austere Command e Silverquill Command completas (leva M-218, motor v85) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2798,7 +2798,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Killian 57%, Malcolm 63%. Triagem 90 prontas · 9 A · 49 B · 16 C.
 - **Simplificação declarada:** o pagamento automático não usa o Everflowing Chalice como fonte de mana (gera {C} só ativando à mão); com muitos modos e alvos, a lista de combinações oferecidas é cortada no limite de combinações do motor.
 - **Golden:** regravadas (83 → 84); registros conferidos na entrega.
-- **Fora:** "um ou ambos" / "qualquer número de modos"; Austere, Silverquill e Profane Command (pedem "destruir todas" por filtro e devolver do cemitério por valor de mana — próxima leva).
+- **Fora:** "um ou ambos" / "qualquer número de modos"; Austere, Silverquill e Profane Command (Austere e Silverquill feitas na CR2c.2; Profane na CR2c.3).
+
+**CR2c.2 · "Destruir todas" por filtro e édito de alvo** 🟡 (leva M-218, motor v85) — 2 testes de carta, os dois falhavam antes.
+- **701.8 + 603.10a** "destroy all <tipos> [com valor de mana N ou menos / N ou mais]": a lista é feita primeiro e tudo muda de zona junto, então quem sai junto vê as outras saídas (Zulaport destruída com mais duas criaturas dispara três vezes). Indestrutível fica; carta virada para baixo conta valor de mana 0.
+- **701.21a** "oponente alvo sacrifica uma criatura à escolha dele": quem escolhe é o oponente; sem criatura, a mesa registra que não havia o que sacrificar.
+- **Ruling do Silverquill (16/04/2021) conferido:** com um alvo morto antes da resolução, os outros modos ainda acontecem.
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026, completas:** **Austere Command** e **Silverquill Command**.
+- **Medição:** Killian 59%, Malcolm 63%. Triagem 92 prontas · 9 A · 47 B · 16 C.
+- **Apoio de teste:** o cenário automático de carta com "escolha dois" sem repetição usa o modo pedido com um companheiro que a mesa oferece (de preferência sem alvo); antes ele repetia o modo, o que só vale com repetição.
+- **Golden:** regravadas (84 → 85); registros das quatro partidas iguais.
+- **Fora:** **Profane Command** — X precisa decidir o alvo ("valor de mana X ou menos") e o número de alvos ("até X alvos"); hoje o motor escolhe alvos antes do X. Fica para a CR2c.3.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

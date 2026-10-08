@@ -4815,6 +4815,9 @@ const EFFECTS = {
   lose_unless: { fields: ['amount'], targets: ['each-player'] },
   sacrifice_own: { fields: [], targets: ['self'] },
   sacrifice_each: { fields: [], targets: ['self'] },
+  // CR2c.2 · "destroy all <tipos> [with mana value N or less/greater]": tudo sai junto (603.10a); "target opponent sacrifices a <tipo> of their choice"
+  destroy_all: { fields: [], targets: ['self'] },
+  edict: { fields: [], targets: ['opponent', 'player'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
   reflexive: { fields: [], targets: ['self'] },
@@ -4912,7 +4915,7 @@ const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-forest', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
 const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'targetExiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
-const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
+const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'mode:2', 'mode:3', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
   // CR2b.3 · recebe dano (ela mesma); a permanente anexada morre / morre ou é exilada (Equipamento e Aura olham para trás)
@@ -5149,7 +5152,12 @@ function effectErrors(effects, label, opcional) {
       if (c.discard != null && !Number.isInteger(c.discard)) errs.push(`${label} ${i + 1}: descartar precisa de um número`);
       for (const t of c.sacrifice || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido no sacrifício`);
     }
-    if (e.do === 'sacrifice_own' || e.do === 'sacrifice_each') {
+    if (e.do === 'destroy_all') { // CR2c.2
+      if (!(e.types || []).length) errs.push(`${label} ${i + 1}: destruir todas precisa dos tipos`);
+      for (const t of e.types || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido em destruir todas`);
+      for (const k of ['mvMax', 'mvMin']) if (e[k] != null && !Number.isInteger(e[k])) errs.push(`${label} ${i + 1}: ${k} precisa ser inteiro`);
+    }
+    if (e.do === 'sacrifice_own' || e.do === 'sacrifice_each' || e.do === 'edict') {
       if (!(e.types || []).length) errs.push(`${label} ${i + 1}: sacrificar precisa dos tipos aceitos`);
       for (const t of e.types || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido no sacrifício`);
     }
@@ -5563,6 +5571,19 @@ const RAW_SCRIPTS = [
   { name: 'Everflowing Chalice', kicker: { mana: '{2}', multi: true }, self: { chargePerKick: true },
     abilities: [{ kind: 'activated', cost: { tap: true }, effects: [{ do: 'add_mana', symbols: ['C'], perCounter: 'charge' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // CR2c.2 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Austere Command', modeCount: 2, modes: [
+    { label: 'Destruir todos os artefatos', effects: [{ do: 'destroy_all', types: ['artifact'] }] },
+    { label: 'Destruir todos os encantamentos', effects: [{ do: 'destroy_all', types: ['enchantment'] }] },
+    { label: 'Destruir as criaturas de valor 3 ou menos', effects: [{ do: 'destroy_all', types: ['creature'], mvMax: 3 }] },
+    { label: 'Destruir as criaturas de valor 4 ou mais', effects: [{ do: 'destroy_all', types: ['creature'], mvMin: 4 }] }],
+    example: { action: 'mode:0', target: 'none', expect: { attached: false } } },
+  { name: 'Silverquill Command', modeCount: 2, modes: [
+    { label: '+3/+3 e voar', effects: [{ do: 'pump', power: 3, toughness: 3, target: 'creature' }, { do: 'keyword', keyword: 'flying', target: 'first-target' }] },
+    { label: 'Criatura de valor 2 ou menos do cemitério ao campo', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: 2 }] },
+    { label: 'Compra e perde 1 de vida', effects: [{ do: 'draw', amount: 1, target: 'player' }, { do: 'lose', amount: 1, target: 'first-target' }] },
+    { label: 'Oponente sacrifica uma criatura', effects: [{ do: 'edict', types: ['creature'], target: 'opponent' }] }],
+    example: { action: 'mode:2', target: 'self-player', expect: { handDelta: 1, selfLife: -1 } } },
   { name: 'Wretched Confluence', modeCount: 3, modeRepeat: true, modes: [
     { label: 'Compra e perde 1 de vida', effects: [{ do: 'draw', amount: 1, target: 'player' }, { do: 'lose', amount: 1, target: 'first-target' }] },
     { label: '−2/−2', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'creature' }] },
@@ -11111,7 +11132,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 84;
+const ENGINE_VERSION = 85;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -12676,6 +12697,23 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'sacrifice_each': { // CR2a.4 · édito para todos: quem está na vez escolhe primeiro, depois os outros; saem ao mesmo tempo (701.21, 603.10a)
       const vez = s.turn.active;
       s.edito = { fila: [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)].filter(i => !s.players[i].lost), escolhidas: [], types: eff.types, nontoken: !!eff.nontoken, name: src.name };
+      continuaEdito(s, events);
+      break;
+    }
+    case 'destroy_all': { // CR2c.2 · 701.8 + 603.10a: a lista sai primeiro, depois todas mudam de zona juntas; indestrutível fica
+      const ehTipo = (o, t) => t === 'creature' ? isCreature(s, o) : !o.faceDown && s.facts[o.name].types.includes(t);
+      const vm = o => o.faceDown ? 0 : (s.facts[o.name].cmc || 0); // 708.4: virada para baixo tem valor de mana 0
+      const lista = battlefield(s).filter(o => eff.types.some(t => ehTipo(o, t)) && (eff.mvMax == null || vm(o) <= eff.mvMax) && (eff.mvMin == null || vm(o) >= eff.mvMin) && !has(s, o, 'indestructible')).map(o => o.oid);
+      s.saindoJuntas = lista;
+      const nomes = [];
+      for (const oid of lista) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; nomes.push(o.name); moveObject(s, oid, 'graveyard'); }
+      delete s.saindoJuntas;
+      note({ amount: nomes.length, nomes }); break;
+    }
+    case 'edict': { // CR2c.2 · "target opponent sacrifices a creature of their choice": o próprio jogador escolhe (701.21a)
+      const who = playerOf();
+      if (s.players[who].lost || !sacrificeOptions(s, who, eff.types).length) { note({ amount: 0 }); break; } // a linha do registro só aparece quando não há o que sacrificar
+      s.edito = { fila: [who], escolhidas: [], types: eff.types, nontoken: false, name: src.name };
       continuaEdito(s, events);
       break;
     }
@@ -16349,6 +16387,8 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
+    case 'destroy_all': return n ? `${ev.name} destruiu ${(ev.nomes || []).join(', ')}` : `${ev.name} não destruiu nada`; // CR2c.2
+    case 'edict': return `${ev.name}: ${t} não tinha o que sacrificar`;
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
@@ -17045,6 +17085,10 @@ function descreveEfeito(e) {
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
     case 'counter': return `anula ${alvo || 'uma mágica'}`;
     case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
+    case 'destroy_all': { const nomes = { artifact: 'artefatos', enchantment: 'encantamentos', creature: 'criaturas', land: 'terrenos', planeswalker: 'planeswalkers' }; // CR2c.2
+      const vm = e.mvMax != null ? ` de valor de mana ${e.mvMax} ou menos` : e.mvMin != null ? ` de valor de mana ${e.mvMin} ou mais` : '';
+      return `destrói todos os ${(e.types || []).map(x => nomes[x] || x).join(' e ')}${vm}`; }
+    case 'edict': return `${alvo || 'o oponente'} sacrifica ${e.types && e.types[0] === 'creature' ? 'uma criatura' : 'uma permanente'} à escolha dele`;
     case 'exile': return `exila ${alvo || 'uma permanente'}`;
     case 'bounce': return `devolve ${alvo || 'uma permanente'} para a mão do dono`;
     case 'to_hand': return 'volta para a mão';

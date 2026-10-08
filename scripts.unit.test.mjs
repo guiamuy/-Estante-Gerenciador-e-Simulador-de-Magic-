@@ -323,7 +323,19 @@ function runExample(sc) {
       return found ? { ...found, ...(target ? { targets: [target] } : {}) } : { t: 'cast', p: a, oid, alt: Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) };
     })()
     // CR2c.1 · "choose three, you may choose the same mode more than once": o cenário repete o modo, cada instância no alvo dele
-    : how.startsWith('mode') && sc.modeCount ? { t: 'cast', p: a, oid, modes: Array(sc.modeCount).fill(Number(how.split(':')[1])), ...(target ? { targets: Array(sc.modeCount).fill(target) } : {}) }
+    : how.startsWith('mode') && sc.modeCount && sc.modeRepeat ? { t: 'cast', p: a, oid, modes: Array(sc.modeCount).fill(Number(how.split(':')[1])), ...(target ? { targets: Array(sc.modeCount).fill(target) } : {}) }
+    // CR2c.2 · "choose two" sem repetir: o modo do cenário, no alvo do cenário, com o companheiro que a mesa oferecer (de preferência um sem alvo)
+    : how.startsWith('mode') && sc.modeCount ? (() => {
+      const i = Number(how.split(':')[1]);
+      const alvosDe = m => ((sc.modes[m] || {}).effects || []).filter(e => S.isTargeted(e)).length;
+      const ofertas = E.legalActions(s, a).filter(x => x.t === 'cast' && x.oid === oid && (x.modes || []).includes(i) && (() => {
+        if (!target || !alvosDe(i)) return true;
+        const k = x.modes.slice(0, x.modes.indexOf(i)).reduce((n, m) => n + alvosDe(m), 0);
+        return JSON.stringify((x.targets || [])[k]) === JSON.stringify(target);
+      })());
+      const melhor = ofertas.find(x => x.modes.every(m => m === i || !alvosDe(m))) || ofertas[0];
+      return melhor ? JSON.parse(JSON.stringify(melhor)) : { t: 'cast', p: a, oid, modes: [i] };
+    })()
     : how.startsWith('mode') ? { t: 'cast', p: a, oid, mode: Number(how.split(':')[1]), ...(target ? { targets: [target] } : {}) }
     : how === 'equip' ? { t: 'activate', p: a, oid, index: equipIndex, targets: [{ oid: mine }] }
     : how.startsWith('activate') ? { t: 'activate', p: a, oid, index: Number(how.split(':')[1]), ...(soDaMao ? { fromHand: true } : {}), ...(target ? { targets: [target] } : {}), ...(porIdentidade ? { color: 'W' } : {}) }
@@ -332,7 +344,7 @@ function runExample(sc) {
   if (oferta) action.color = oferta.color;
   // efeito com mais de um alvo: usa a combinação que a própria mesa oferece
   const precisa = [...(sc.effects || []), ...((sc.modes || [])[action.mode || 0] || {}).effects || []].filter(e => S.isTargeted(e)).length;
-  if (precisa > 1) {
+  if (precisa > 1 && !action.modes) {
     const multi = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.mode || 0) === (action.mode || 0) && (x.targets || []).length === precisa);
     if (multi) action.targets = JSON.parse(JSON.stringify(multi.targets));
   }

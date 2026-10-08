@@ -346,3 +346,44 @@ test('CR2c.1 · Wretched Confluence: escolha três modos, podendo repetir; os ef
   const b = legais(t, 0, x => x.t === 'cast' && x.oid === w2 && J(x.modes).join() === '0,1,1' && x.targets[0].player === 1 && x.targets[1].oid === f2 && x.targets[2].oid === f2);
   assert.equal(b.length, 1, 'o mesmo alvo vale em instâncias diferentes de "target"'); t = tudo(act(t, b[0])); assert.equal(t.players[1].life, 19); assert.equal(t.objects[f2].zone, 'graveyard');
 });
+
+// ---------------------------------------------------------------- CR2c.2 · "destroy all" com filtro e "target opponent sacrifices"
+test('CR2c.2 · Austere Command: escolha dois entre quatro "destroy all"; o que é destruído sai do campo ao mesmo tempo e indestrutível fica', () => {
+  const base = () => { let s = mesa(['Austere Command'], ['Zulaport Cutthroat', 'Faerie Seer', 'Kitchen Imp', 'Shield-Wall Sentinel', "Mishra's Bauble", 'Authority of the Consuls', 'Llanowar Elves']), o = {}; [s, o.a] = poe(s, 0, 'Austere Command', 'hand');
+    for (const [k, n] of [['z', 'Zulaport Cutthroat'], ['f', 'Faerie Seer'], ['k', 'Kitchen Imp'], ['sw', 'Shield-Wall Sentinel'], ['mb', "Mishra's Bauble"], ['au', 'Authority of the Consuls'], ['le', 'Llanowar Elves']]) [s, o[k]] = poe(s, 1, n);
+    s.objects[o.le].tempKeywords = ['indestructible']; return { s: comMana(s, 'WWCCCC'), ...o }; };
+  { let { s, a, z, f, k, sw, mb, au, le } = base(); const todas = legais(s, 0, x => x.t === 'cast' && x.oid === a);
+    assert.deepEqual([...new Set(todas.map(x => J(x.modes).join()))].sort(), ['0,1', '0,2', '0,3', '1,2', '1,3', '2,3'], 'Choose two: dois modos diferentes');
+    const vida = s.players[0].life; s = tudo(act(s, todas.find(x => J(x.modes).join() === '0,2')));
+    assert.deepEqual([z, f, sw, mb].map(o => s.objects[o].zone), ['graveyard', 'graveyard', 'graveyard', 'graveyard'], 'artefatos (a criatura-artefato de valor 4 também) e criaturas de valor 3 ou menos');
+    assert.deepEqual([k, au, le].map(o => s.objects[o].zone), ['battlefield', 'battlefield', 'battlefield'], 'criatura de valor 4 que não é artefato, encantamento e a indestrutível ficam');
+    assert.equal(s.players[0].life, vida - 3, 'Zulaport viu a própria morte, a da Faerie Seer e a da Shield-Wall Sentinel: saíram juntas (603.10a)'); }
+  { let { s, a, z, f, k, sw, mb, au } = base(); s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === a && J(x.modes).join() === '1,3')[0]));
+    assert.deepEqual([au, k, sw].map(o => s.objects[o].zone), ['graveyard', 'graveyard', 'graveyard'], 'encantamentos e criaturas de valor 4 ou mais');
+    assert.deepEqual([z, f, mb].map(o => s.objects[o].zone), ['battlefield', 'battlefield', 'battlefield']); }
+});
+
+test('CR2c.2 · Silverquill Command: +3/+3 e voar; criatura de valor 2 ou menos do seu cemitério ao campo; jogador compra e perde 1; oponente alvo sacrifica uma criatura à escolha dele', () => {
+  const base = () => { let s = mesa(['Silverquill Command', 'Faerie Seer', 'Zulaport Cutthroat', 'Kitchen Imp'], ['Llanowar Elves', 'Faerie Seer', 'Lightning Bolt']), o = {}; [s, o.c] = poe(s, 0, 'Silverquill Command', 'hand'); [s, o.minha] = poe(s, 0, 'Faerie Seer');
+    [s, o.z] = poe(s, 0, 'Zulaport Cutthroat', 'graveyard'); [s, o.imp] = poe(s, 0, 'Kitchen Imp', 'graveyard'); [s, o.le] = poe(s, 1, 'Llanowar Elves'); [s, o.f2] = poe(s, 1, 'Faerie Seer');
+    return { s: comMana(s, 'WBCC'), ...o }; };
+  const conj = (s, c, f) => legais(s, 0, x => x.t === 'cast' && x.oid === c && f(x));
+  { let { s, c, z, imp } = base(); const vol = conj(s, c, x => x.modes.includes(1)).map(x => x.targets[x.modes.indexOf(1)].oid);
+    assert.ok(vol.includes(z) && !vol.includes(imp), 'Return target creature card with mana value 2 or less: Kitchen Imp (4) não é alvo'); }
+  { let { s, c, minha, z } = base(); s = tudo(act(s, conj(s, c, x => J(x.modes).join() === '0,1' && x.targets[0].oid === minha && x.targets[1].oid === z)[0]));
+    assert.equal(s.objects[z].zone, 'battlefield'); assert.equal(s.objects[z].controller, 0);
+    assert.deepEqual(J(s.objects[minha].pump), { p: 3, t: 3 }, '+3/+3'); assert.ok(E.hasKeyword(s, s.objects[minha], 'flying'), 'and gains flying until end of turn'); }
+  { let { s, c, le, f2 } = base(); const mao = s.zones[1].hand.length;
+    s = act(s, conj(s, c, x => J(x.modes).join() === '2,3' && x.targets[0].player === 1 && x.targets[1].player === 1)[0]);
+    for (let i = 0; i < 4 && !(s.pending && s.pending.kind === 'sacrifice'); i++) s = act(s, { t: 'pass', p: s.turn.priority });
+    assert.equal(s.zones[1].hand.length, mao + 1, 'Target player draws a card'); assert.equal(s.players[1].life, 19, 'and loses 1 life');
+    assert.equal(s.pending.kind, 'sacrifice'); assert.equal(s.pending.p, 1, 'of their choice: quem escolhe é o oponente'); assert.deepEqual(J(s.pending.options).sort(), [le, f2].sort());
+    s = act(s, { t: 'sacrifice', p: 1, oid: f2 }); assert.equal(s.objects[f2].zone, 'graveyard'); assert.equal(s.objects[le].zone, 'battlefield'); }
+  { // ruling de 16/04/2021: com um alvo ainda legal, ela resolve e faz o que puder
+    let { s, c, minha, le, f2 } = base(), b; [s, b] = poe(s, 1, 'Lightning Bolt', 'hand'); s = comMana(s, 'R', 1);
+    s = act(s, conj(s, c, x => J(x.modes).join() === '0,3' && x.targets[0].oid === minha)[0]); s = act(s, { t: 'pass', p: 0 });
+    s = act(s, legais(s, 1, x => x.t === 'cast' && x.oid === b && x.targets[0].oid === minha)[0]);
+    for (let i = 0; i < 8 && !(s.pending && s.pending.kind === 'sacrifice'); i++) s = act(s, legais(s, s.turn.priority, x => x.t === 'pass')[0]);
+    assert.equal(s.objects[minha].zone, 'graveyard', 'o Bolt matou o alvo do +3/+3');
+    assert.equal(s.pending && s.pending.kind, 'sacrifice', 'o modo do sacrifício ainda acontece'); assert.deepEqual(J(s.pending.options).sort(), [le, f2].sort()); }
+});

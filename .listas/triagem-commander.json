@@ -91,12 +91,10 @@
   {
    "name": "Austere Command",
    "listas": "K",
-   "motor": "manual",
-   "balde": "B",
-   "primitivas": [
-    "modal-multiplo",
-    "massa-por-filtro"
-   ]
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "feita na CR2c.2 (leva M-218)",
+   "auditada": "CR2c.2 · 08/10/2026"
   },
   {
    "name": "Authority of the Consuls",
@@ -906,10 +904,10 @@
    "motor": "manual",
    "balde": "B",
    "primitivas": [
-    "modal-multiplo",
-    "reanimar-por-valor"
+    "x-no-alvo",
+    "ate-x-alvos"
    ],
-   "obs": "X; medo"
+   "obs": "X; medo — modal-multiplo, reanimar-por-valor e medo já existem; falta X decidir o alvo (valor de mana X ou menos) e \"até X alvos\" (CR2c.3)"
   },
   {
    "name": "Reality Scramble",
@@ -1075,13 +1073,10 @@
   {
    "name": "Silverquill Command",
    "listas": "K",
-   "motor": "manual",
-   "balde": "B",
-   "primitivas": [
-    "modal-multiplo",
-    "reanimar-por-valor",
-    "edito"
-   ]
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "feita na CR2c.2 (leva M-218)",
+   "auditada": "CR2c.2 · 08/10/2026"
   },
   {
    "name": "Skrelv's Hive",
@@ -1408,9 +1403,7 @@
    "Call of the Death-Dweller",
    "Patch Up",
    "Priest of Fell Rites",
-   "Profane Command",
-   "Sevinne's Reclamation",
-   "Silverquill Command"
+   "Sevinne's Reclamation"
   ],
   "revelar-ate": [
    "Lukka, Coppercoat Outcast",
@@ -1420,13 +1413,7 @@
    "Transmogrify"
   ],
   "edito": [
-   "Priest of Forgotten Gods",
-   "Silverquill Command"
-  ],
-  "modal-multiplo": [
-   "Austere Command",
-   "Profane Command",
-   "Silverquill Command"
+   "Priest of Forgotten Gods"
   ],
   "ative-somente-se": [
    "Cephalid Coliseum",
@@ -1487,9 +1474,6 @@
   ],
   "aura-em-cemiterio": [
    "Animate Dead"
-  ],
-  "massa-por-filtro": [
-   "Austere Command"
   ],
   "marcador-de-palavra-chave": [
    "Call of the Death-Dweller"
@@ -1601,6 +1585,12 @@
   ],
   "hideaway": [
    "Windbrisk Heights"
+  ],
+  "x-no-alvo": [
+   "Profane Command"
+  ],
+  "ate-x-alvos": [
+   "Profane Command"
   ]
  }
 }
