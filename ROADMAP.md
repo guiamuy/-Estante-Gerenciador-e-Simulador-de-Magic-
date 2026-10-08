@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | M-222 revelar do topo até achar (701.20) e retraçar (702.81); Polymorph, Transmogrify e Reality Scramble completas, Reweave e Lukka parciais (leva M-222, motor v89) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2d.1 camadas 4, 6 e 7b com carimbo de tempo (613) para Aura que redefine a criatura; Darksteel Mutation e Reprobation completas (leva M-223, motor v90) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2849,6 +2849,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Malcolm 71% (antes 68%), Killian 63%. Triagem 104 prontas · 9 A · 35 B · 16 C.
 - **Golden:** regravadas (88 → 89); registros das quatro partidas iguais.
 - **Fora:** estado "revelada" que dura até a mágica sair da pilha (701.20a); encaixar; +1 e −7 da Lukka.
+
+**CR2d.1 · Camadas: Aura que redefine a criatura** 🟡 (leva M-223, motor v90) — 3 testes, todos falhavam antes. Primeira leva da CR2d (estimativa total: 9 a 12 levas).
+- **613 camadas 4, 6 e 7b** para "a criatura encantada é um <tipo> com P/T base X/Y e perde as (outras) habilidades": tipo e subtipos novos (alvo de "destruir artefato" passa a valer, contagens por tipo de criatura veem Inseto/Covarde), habilidades impressas somem (palavras-chave, gatilhos, ativadas, mana, estáticas, proteção impressa, metamorfo, regras estáticas) e o P/T base é fixado; o que soma ao P/T (marcadores, +N/+N, bônus de Aura e equipamento) continua por cima (7c/7d).
+- **613.7 carimbo de tempo:** cada permanente ganha carimbo ao entrar no campo, cada Aura/equipamento ao ser anexado e cada palavra-chave do turno ao ser concedida. Habilidade concedida antes da Aura que tira tudo some; a concedida depois fica.
+- **603.10a:** a criatura que morre sem habilidades (Reprobation) não dispara o próprio gatilho de morte.
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026, completas:** **Darksteel Mutation** e **Reprobation**.
+- **Medição:** Killian 65% (antes 63%), Malcolm 71%. Triagem 106 prontas · 9 A · 35 B · 14 C.
+- **Simplificações declaradas (alteram o resultado em casos raros):** marcador de palavra-chave e "até o seu próximo turno" não têm carimbo — a Aura que tira as habilidades os apaga mesmo quando vieram depois; a Darksteel Mutation não mantém subtipos de artefato que a criatura já tinha (Equipamento-criatura); com duas Auras dessas, vale a anexada por último, sem dependência (613.8).
+- **Apoio de teste:** o cenário automático de busca por nome (Squadron Hawk) passa a manter as outras cópias no grimório (o sorteio da mão mudou com os scripts novos).
+- **Golden:** regravadas (89 → 90); registros das quatro partidas iguais.
+- **Próximas da CR2d:** terreno que vira criatura até o fim do turno (Mishra's Factory, Blinkmoth Nexus), Veículo e tripular (Smuggler's Copter), Animate Dead, Kytheon (transformar).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

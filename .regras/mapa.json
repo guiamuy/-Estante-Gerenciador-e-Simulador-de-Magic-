@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 89,
+ "motor": 90,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -1929,8 +1929,8 @@
    "regra": "Type Line",
    "titulo": "Linha de tipo e efeitos que mudam tipo",
    "status": "parcial",
-   "evidencia": "cardFacts lê tipos da linha de tipo (index.html:10047-10048)",
-   "falta": "205.1a-b: não há efeito que defina, acrescente ou remova tipo/subtipo (Darksteel Mutation, Reprobation, Mishra's Factory estão como \"balde C\" no ROADMAP:2525).",
+   "evidencia": "cardFacts lê tipos da linha de tipo (index.html:10047-10048) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\"",
+   "falta": "205.1a-b: só Auras definem tipo/subtipo (camada 4 via aura.becomes); efeito que acrescenta tipo (terreno que vira criatura, Veículo) ainda não; subtipos de artefato antigos não são mantidos pela Darksteel Mutation.",
    "esforco": "G",
    "depende": [
     "613"
@@ -4776,8 +4776,8 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Características calculadas por camadas",
    "status": "parcial",
-   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10)",
-   "falta": "Camada 1: só virada para baixo, embutida em power/has/isCreature. Camada 2 (controle): nenhum efeito; o.controller é escrito direto. Camada 3: nada. Camada 4: só conceder (bestowed tira \"criatura\"), sem \"vira criatura\"/\"perde tipos\". Camada 5: só devoid gravado nos fatos (:10166). Camada 6: só soma de palavras-chave; não existe perder habilidade nem \"não pode ter\". Camada 7: só soma (7c). Construir exige um registro de efeitos (fonte, camada, duração, afetados, carimbo) e uma função única de características.",
+   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\"",
+   "falta": "Camada 1: só virada para baixo, embutida em power/has/isCreature. Camada 2 (controle): nenhum efeito; o.controller é escrito direto. Camada 3: nada. Camada 4: conceder e Aura que redefine o tipo (CR2d.1), sem \"vira criatura\"/\"perde tipos\". Camada 5: só devoid gravado nos fatos (:10166). Camada 6: só soma de palavras-chave; não existe perder habilidade nem \"não pode ter\". Camada 7: só soma (7c). Construir exige um registro de efeitos (fonte, camada, duração, afetados, carimbo) e uma função única de características.",
    "esforco": "G",
    "depende": [
     "613.7",
@@ -4815,8 +4815,8 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Subcamadas de poder e resistência",
    "status": "parcial",
-   "evidencia": "7c: soma de marcadores, pump, pumpNext e bonus() em power/toughness (:10340-10341); comutativa, então correta (sonda 4/10; bogles.regras Ethereal Armor)",
-   "falta": "7a: P/T definido por habilidade (*/*) não existe; cardFacts transforma \"*\" em nulo e a conta parte de 0. 7b: não existe \"torna-se N/N\" nem P/T base (Darksteel Mutation e Reprobation estão manuais). 7d: trocar poder e resistência não existe. Os bônus são um número acumulado no objeto, sem saber de qual efeito veio.",
+   "evidencia": "7c: soma de marcadores, pump, pumpNext e bonus() em power/toughness (:10340-10341); comutativa, então correta (sonda 4/10; bogles.regras Ethereal Armor) · CR2d.1 (v90): 7b P/T base fixado por Aura (basePT); 7c/7d continuam somando por cima (teste de carimbo com +3/+3)",
+   "falta": "7a: P/T definido por habilidade (*/*) não existe; cardFacts transforma \"*\" em nulo e a conta parte de 0. 7b: só por Aura que redefine a criatura (CR2d.1); \"torna-se N/N\" por mágica ou habilidade ainda não. 7d: trocar poder e resistência não existe. Os bônus são um número acumulado no objeto, sem saber de qual efeito veio.",
    "esforco": "G",
    "depende": [
     "613.1"
@@ -4849,9 +4849,13 @@
    "n": "613.7",
    "regra": "Interaction of Continuous Effects",
    "titulo": "Ordem por carimbo de tempo",
-   "status": "ausente",
-   "falta": "Não há carimbo de tempo em objeto, efeito, marcador ou anexo (nenhum campo de ordem no core; a ordem das listas de zona é a única pista e não é usada). Faltam 613.7a-g, m, n. Os subitens h, i, j, k (planos, vanguard, conspiração, adesivos) ficam fora.",
-   "esforco": "G"
+   "status": "parcial",
+   "falta": "Carimbo só é usado pela Aura que redefine a criatura; marcadores de palavra-chave e \"até o seu próximo turno\" não têm carimbo (a Aura os apaga mesmo se vierem depois); sem dependência (613.8); demais efeitos continuam aditivos.",
+   "esforco": "G",
+   "evidencia": "CR2d.1 (v90): s.relogio; o.ts ao entrar no campo (613.7d), anexadaEm ao anexar (613.7e), tempTs por palavra-chave do turno; usados para decidir o que a Aura que tira as habilidades apaga (concedido antes some, depois fica). commander.regras \"CR2d.1 · carimbo de tempo (613.7)…\"",
+   "testes": [
+    "CR2d.1 · carimbo de tempo (613.7): o +3/+3 de antes continua (7c), o voar dado antes da Reprobation some, o dado depois fica"
+   ]
   },
   {
    "n": "613.8",

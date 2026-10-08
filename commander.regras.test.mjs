@@ -409,7 +409,7 @@ test('CR2c.3 · Profane Command: o X escolhido decide quais cartas o modo de dev
     const t = tudo(act(s, conj(s, p, a => a.x === 2 && J(a.modes).join() === '0,3' && a.targets[0].player === 1 && a.targets.length === 3)[0]));
     assert.ok(E.hasKeyword(t, t.objects[le], 'fear') && E.hasKeyword(t, t.objects[inimiga], 'fear'), 'Up to X target creatures gain fear'); assert.equal(t.players[1].life, 18); }
   { let { s, p, inimiga } = base('BBCC'); const t = tudo(act(s, conj(s, p, a => a.x === 2 && J(a.modes).join() === '0,2' && a.targets[0].player === 1 && a.targets[1].oid === inimiga)[0]));
-    assert.equal(t.objects[inimiga].zone, 'graveyard', 'Target creature gets -X/-X: a 2/2 morre com X = 2'); }
+    assert.equal(t.objects[inimiga].zone, 'graveyard', 'Target creature gets -X/-X: a Zulaport (1/1) morre com X = 2'); }
 });
 
 test('CR2c.3 · texto dos modos na folha da carta: "todas as criaturas", "−X/−X", "de valor de mana X ou menos" e "até X criaturas"', () => {
@@ -573,4 +573,36 @@ test('M-222 · Lukka, Coppercoat Outcast (−2): exila a sua criatura alvo e rev
   const hab = legais(s, 0, x => x.t === 'activate' && x.oid === lk && x.targets && x.targets[0].oid === fs); assert.equal(hab.length, 1);
   s = tudo(act(s, hab[0])); assert.equal(s.objects[lk].counters.loyalty, 3, '−2'); assert.equal(s.objects[fs].zone, 'exile');
   assert.equal(s.objects[top[2]].zone, 'battlefield', 'Kitchen Imp (4) > Faerie Seer (1); Llanowar Elves (1) não serve'); assert.deepEqual(J(s.zones[0].library.slice(-2)).sort(), [top[0], top[1]].sort());
+});
+
+// ---------------------------------------------------------------- CR2d.1 · 613 · Auras que redefinem a criatura (camadas 4, 6 e 7b) com carimbo de tempo
+const encanta = (s, aura, alvo, mana) => { s = comMana(s, mana); return tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === aura && x.targets[0].oid === alvo)[0])); };
+const st = (s, oid) => { const v = E.stats(s, s.objects[oid]); return `${v.power}/${v.toughness}`; };
+
+test('CR2d.1 · Darksteel Mutation: a criatura encantada é um Inseto artefato criatura 0/1 base, indestrutível, e perde as outras habilidades e tipos', () => {
+  let s = semMao(mesa(['Darksteel Mutation', 'Ancient Grudge', 'Lightning Bolt'], ['Zulaport Cutthroat', 'Llanowar Elves']), 0), dm, ag, b, z, le;
+  [s, dm] = poe(s, 0, 'Darksteel Mutation', 'hand'); [s, ag] = poe(s, 0, 'Ancient Grudge', 'hand'); [s, b] = poe(s, 0, 'Lightning Bolt', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat'); [s, le] = poe(s, 1, 'Llanowar Elves'); s = J(s); s.objects[le].sick = false;
+  assert.ok(E.productions(s, s.objects[le]).length > 0, 'antes: Llanowar Elves gera mana');
+  s = encanta(s, dm, le, 'WC'); assert.equal(s.objects[dm].attachedTo, le);
+  assert.equal(st(s, le), '0/1', 'base power and toughness 0/1'); assert.ok(E.hasKeyword(s, s.objects[le], 'indestructible'));
+  assert.equal(E.productions(s, s.objects[le]).length, 0, 'perdeu a habilidade de mana');
+  { const g = comMana(s, 'RC'); assert.ok(alvos(g, 0, ag).includes('Llanowar Elves'), 'é artefato: Ancient Grudge (destruir artefato) mira'); assert.equal(alvos(g, 0, ag).includes('Zulaport Cutthroat'), false); }
+  s = tudo(act(comMana(s, 'R'), legais(comMana(s, 'R'), 0, x => x.t === 'cast' && x.oid === b && x.targets[0] && x.targets[0].oid === le)[0])); assert.equal(s.objects[le].zone, 'battlefield', 'indestrutível: 3 de dano não a destrói');
+});
+
+test('CR2d.1 · Reprobation: perde todas as habilidades e é uma criatura Covarde 0/1 base; o que muda o P/T sem fixar continua (7c); gatilho de morte não dispara', () => {
+  let s = semMao(mesa(['Reprobation', 'Lightning Bolt'], ['Zulaport Cutthroat', 'Faerie Seer']), 0), rp, b, z, fs; [s, rp] = poe(s, 0, 'Reprobation', 'hand'); [s, b] = poe(s, 0, 'Lightning Bolt', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat'); [s, fs] = poe(s, 1, 'Faerie Seer');
+  s = encanta(s, rp, fs, 'WC'); assert.equal(st(s, fs), '0/1'); assert.equal(E.hasKeyword(s, s.objects[fs], 'flying'), false, 'Faerie Seer perde voar');
+  let u = semMao(mesa(['Reprobation', 'Lightning Bolt'], ['Zulaport Cutthroat']), 0), rp2, b2, z2; [u, rp2] = poe(u, 0, 'Reprobation', 'hand'); [u, b2] = poe(u, 0, 'Lightning Bolt', 'hand'); [u, z2] = poe(u, 1, 'Zulaport Cutthroat');
+  u = encanta(u, rp2, z2, 'WC'); const vida = u.players[0].life;
+  u = tudo(act(comMana(u, 'R'), legais(comMana(u, 'R'), 0, x => x.t === 'cast' && x.oid === b2 && x.targets[0] && x.targets[0].oid === z2)[0]));
+  assert.equal(u.objects[z2].zone, 'graveyard'); assert.equal(u.players[0].life, vida, 'a Zulaport morreu sem a habilidade: ninguém perde vida (603.10a, última informação)');
+});
+
+test('CR2d.1 · carimbo de tempo (613.7): o +3/+3 de antes continua (7c), o voar dado antes da Reprobation some, o dado depois fica', () => {
+  const base = () => { let s = semMao(mesa(['Reprobation', 'Silverquill Command'], ['Zulaport Cutthroat']), 0), o = {}; [s, o.rp] = poe(s, 0, 'Reprobation', 'hand'); [s, o.sc] = poe(s, 0, 'Silverquill Command', 'hand'); [s, o.z] = poe(s, 1, 'Zulaport Cutthroat'); return { s, ...o }; };
+  const comando = (s, sc, z) => { s = comMana(s, 'WBCC'); return tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === sc && J(x.modes).join() === '0,2' && x.targets[0].oid === z && x.targets[1].player === 0)[0])); };
+  { let { s, rp, sc, z } = base(); s = comando(s, sc, z); assert.equal(st(s, z), '4/4', 'Zulaport 1/1 + 3/3'); assert.ok(E.hasKeyword(s, s.objects[z], 'flying'));
+    s = encanta(s, rp, z, 'WC'); assert.equal(st(s, z), '3/4', '0/1 base + 3/3 do Comando'); assert.equal(E.hasKeyword(s, s.objects[z], 'flying'), false, 'o voar veio antes da Aura: perdido'); }
+  { let { s, rp, sc, z } = base(); s = encanta(s, rp, z, 'WC'); s = comando(s, sc, z); assert.equal(st(s, z), '3/4'); assert.ok(E.hasKeyword(s, s.objects[z], 'flying'), 'o voar veio depois da Aura: fica'); }
 });

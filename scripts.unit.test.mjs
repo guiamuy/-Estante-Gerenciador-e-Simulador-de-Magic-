@@ -253,6 +253,10 @@ function runExample(sc) {
       s.zones[a].battlefield.push(eoid);
     }
   }
+  // CR2d.1 · busca por nome ("search for up to three cards named Squadron Hawk"): as outras cópias ficam no grimório
+  // (a mão inicial dependia do sorteio: dois scripts novos na biblioteca mudaram o embaralhamento e a cópia veio para a mão)
+  const buscaPorNome = [...(sc.effects || []), ...(sc.abilities || []).flatMap(x => x.effects || [])].map(e => e.do === 'search' && e.filter && e.filter.name).find(Boolean);
+  if (buscaPorNome) { s = J(s); for (const x of s.zones[a].hand.filter(y => s.objects[y].name === buscaPorNome)) { s.zones[a].hand.splice(s.zones[a].hand.indexOf(x), 1); s.zones[a].library.push(x); s.objects[x].zone = 'library'; } }
   // CR2c.4 · "discard an Island card and another card" (Foil): garante uma Ilha na mão, sem mexer no grimório
   // (antes dependia do sorteio da mão: um script novo na biblioteca mudava o embaralhamento e a Ilha sumia)
   const subDescarte = (sc.alt || []).map(x => (x.cost || {}).discardSubtype).find(Boolean);

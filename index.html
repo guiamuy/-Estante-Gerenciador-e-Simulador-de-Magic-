@@ -5701,6 +5701,12 @@ const RAW_SCRIPTS = [
     { label: '−X/−X', effects: [{ do: 'pump', power: { per: 'x', times: -1 }, toughness: { per: 'x', times: -1 }, target: 'creature' }] },
     { label: 'Até X criaturas ganham medo', effects: [{ do: 'keyword', keyword: 'fear', target: 'creature', upTo: true, targetCount: { per: 'x' } }] }],
     example: { action: 'mode:0', target: 'self-player', expect: { selfLife: 0 } } },
+  // CR2d.1 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Darksteel Mutation', aura: { enchant: 'creature', becomes: { types: ['artifact', 'creature'], subtypes: ['Insect'], base: [0, 1], keywords: ['indestructible'], loseAbilities: true } },
+    note: 'subtipos de artefato que a criatura já tinha (Equipamento) não são mantidos',
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [0, 1], keyword: 'indestructible' } } },
+  { name: 'Reprobation', aura: { enchant: 'creature', becomes: { types: ['creature'], subtypes: ['Coward'], base: [0, 1], loseAbilities: true } },
+    example: { action: 'aura', target: 'own-creature', expect: { stats: [0, 1] } } },
   // M-222 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
   { name: 'Polymorph', effects: [{ do: 'destroy', target: 'creature' }, { do: 'reveal_until', target: 'first-target', match: 'creature', rest: 'shuffle' }],
     note: '"It can\'t be regenerated" não muda nada enquanto o motor não tem regeneração',
@@ -11492,7 +11498,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 89;
+const ENGINE_VERSION = 90;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11623,16 +11629,46 @@ function cardFacts(card) {
 const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
 const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
 /** S11 · palavras-chave próprias mais as concedidas por auras e equipamentos. */
-const has = (s, o, k) => (o && o.faceDown ? false : s.facts[o.name].kw.includes(k)) || grantedToAll(s, o, k) || (o.tempKeywords || []).includes(k) || (SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) || // CR2c.5 · 122.1b
-  (((o.keywordsNext || {}).list) || []).includes(k) || // S59 · até o seu próximo turno
-  attachedTo(s, o).some(x => ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
+function has(s, o, k) {
+  const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1, vale = ts => corte < 0 || (ts || 0) > corte; // CR2d.1 · 613.7: concedida antes da Aura que tira tudo some
+  if (m && m.keywords.includes(k)) return true;
+  if (!(o && o.faceDown) && corte < 0 && s.facts[o.name].kw.includes(k)) return true;
+  if (grantedToAll(s, o, k, corte)) return true;
+  const tts = o.tempTs || []; if ((o.tempKeywords || []).some((x, i) => x === k && vale(tts[i]))) return true;
+  if (corte < 0 && SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) return true; // CR2c.5 · 122.1b (sem carimbo: a Aura que tira tudo também os anula)
+  if (corte < 0 && (((o.keywordsNext || {}).list) || []).includes(k)) return true; // S59 · até o seu próximo turno
+  return attachedTo(s, o).some(x => vale(x.anexadaEm) && ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
+}
 const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
 const attachSpec = (s, o) => { const sc = s.facts[o.name].script || {}; return sc.aura || sc.equip || null; };
 /** Auras e equipamentos anexados a esta permanente. */
 const attachedTo = (s, o) => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(x => x.attachedTo === o.oid);
+/* ---------------- CR2d.1 · 613 · Auras que redefinem a criatura ----------------
+   "Enchanted creature is a <tipo> with base power and toughness X/Y and loses all (other) abilities": camada 4 (tipos),
+   6 (habilidades) e 7b (P/T base), aplicadas na ordem do carimbo de tempo (613.7e: quando a Aura foi anexada).
+   O que mexe no P/T sem fixar (marcadores, +N/+N, bônus de Aura) é 7c/7d e continua. Habilidade concedida depois da Aura
+   que tira tudo fica; a concedida antes some. */
+const relogio = s => (s.relogio = (s.relogio || 0) + 1);
+function mutacao(s, o) {
+  if (!o || o.zone !== 'battlefield' || !o.mutavel) return null; // atalho: só quem já recebeu uma Aura dessas (o cálculo é chamado a cada consulta de habilidade)
+  const auras = attachedTo(s, o).filter(a => ((s.facts[a.name].script || {}).aura || {}).becomes).sort((a, b) => (a.anexadaEm || 0) - (b.anexadaEm || 0));
+  if (!auras.length) return null;
+  let m = null;
+  for (const a of auras) { const b = s.facts[a.name].script.aura.becomes;
+    m = { types: b.types || (m && m.types), subtypes: b.subtypes || (m && m.subtypes) || [], base: b.base || (m && m.base), perde: !!b.loseAbilities || !!(m && m.perde),
+      corte: b.loseAbilities ? (a.anexadaEm || 0) : (m ? m.corte : -1), keywords: [...(b.loseAbilities || !m ? [] : m.keywords), ...(b.keywords || [])] }; }
+  return m;
+}
+/** Sem as habilidades impressas (virada para baixo ou Aura que tira tudo). */
+const semImpressas = (s, o) => !!o && (!!o.faceDown || !!(mutacao(s, o) || {}).perde);
+/** Tipos de carta agora (camada 4). */
+const tiposDe = (s, o) => { const m = mutacao(s, o); return (m && m.types) || s.facts[o.name].types; };
+/** Linha de tipo agora, para subtipos (camada 4): "Artifact Creature — Insect". */
+const linhaDeTipo = (s, o) => { const m = mutacao(s, o); if (!m || !m.types) return s.facts[o.name].typeText || '';
+  const cap = x => x.charAt(0).toUpperCase() + x.slice(1); return `${m.types.map(cap).join(' ')}${m.subtypes.length ? ' — ' + m.subtypes.join(' ') : ''}`; };
 function bonus(s, host) {
   let p = 0, tgh = 0;
-  const self = (s.facts[host.name].script || {}).self;
+  const self = semImpressas(s, host) ? null : (s.facts[host.name].script || {}).self; // CR2d.1 · a habilidade estática própria some com as outras
   if (self && self.per) { const n = countFor(s, host, self.per); p += (self.perPower || 0) * n; tgh += (self.perToughness || 0) * n; }
   for (const x of attachedTo(s, host)) {
     const g = grantsOf(s, x); if (!g) continue;
@@ -11647,14 +11683,14 @@ function bonus(s, host) {
 function countFor(s, src, per) {
   if (per && typeof per === 'object' && per.subtype) {
     const rx = new RegExp('\\b' + per.subtype + '\\b', 'i');
-    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length; // R9 · virada para baixo não tem tipo
+    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'trigger-value') return src.triggerValue || 0; // S48 · quanto o gatilho trouxe (dano causado)
   if (per === 'chosen-type-permanents') { // S50 · permanentes suas do tipo escolhido
     const tipo = src.chosenType;
     if (!tipo) return 0;
     const rx = new RegExp('\\b' + tipo + '\\b', 'i');
-    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(s.facts[o.name].typeText || ''))).length; // R9 · virada para baixo não tem tipo
+    return battlefield(s).filter(o => o.controller === src.controller && !o.faceDown && (isChangeling(s, o) || rx.test(linhaDeTipo(s, o)))).length; // R9 · virada para baixo não tem tipo
   }
   if (per === 'counters-on-source') return (src.counters || {}).p1p1 || 0;
   const ench = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => s.facts[o.name].types.includes('enchantment'));
@@ -11664,7 +11700,7 @@ function countFor(s, src, per) {
   if (per === 'auras-on-battlefield') return s.zones.flatMap(z => z.battlefield).map(o => s.objects[o]).filter(o => o.bestowed || (s.facts[o.name].script || {}).aura || /\bAura\b/.test(s.facts[o.name].typeText || '')).length;
   const perms = battlefield(s);
   // Leva 107 · Elfo pela linha de tipo, metamorfo conta, carta virada para baixo não tem tipo (Priest of Titania, Timberwatch Elf)
-  const isElf = o => !o.faceDown && (isChangeling(s, o) || /\bElf\b/i.test(s.facts[o.name].typeText || ''));
+  const isElf = o => !o.faceDown && (isChangeling(s, o) || /\bElf\b/i.test(linhaDeTipo(s, o)));
   if (per === 'creatures-you-control') return perms.filter(o => o.controller === src.controller && isCreature(s, o)).length;
   if (per === 'other-creatures-you-control') return perms.filter(o => o.controller === src.controller && o.oid !== src.oid && isCreature(s, o)).length;
   if (per === 'permanents-you-control') return perms.filter(o => o.controller === src.controller).length;
@@ -11818,7 +11854,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   }
   // S24 · fora do campo e da pilha, a carta volta para a face da frente
   // S52 · "se fosse para o cemitério, exile em vez disso" (Luminous Phantom)
-  if (to === 'graveyard' && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard') to = 'exile';
+  if (to === 'graveyard' && !(fromZone === 'battlefield' && semImpressas(s, o)) && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard') to = 'exile';
   // Leva 105 · 702.34a: conjurada com lampejo, sai da pilha para o exílio seja qual for o destino (anulada também)
   if (fromZone === 'stack' && o.flashback && to !== 'exile') to = 'exile';
   if (to !== 'battlefield' && to !== 'stack') flipToFront(s, o);
@@ -11831,7 +11867,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // qualquer outra mudança de zona cria um objeto novo, sem X pago, conceder, provas, face para baixo etc.
   // Leva 107 · o que esta permanente exilou vira "devolver ao sair" só para o gatilho de saída; qualquer outra mudança limpa
   // CR 603.10 / 704.8 / 113.7a · última informação conhecida: como a permanente era no campo, para os gatilhos que olham para trás
-  const ultima = fromZone === 'battlefield' && to !== 'battlefield' ? { controller: fromController, faceDown: !!o.faceDown, tapped: !!o.tapped, counters: { ...(o.counters || {}) }, ...(o.attachedTo ? { anexadaA: o.attachedTo } : {}),
+  const ultima = fromZone === 'battlefield' && to !== 'battlefield' ? { controller: fromController, faceDown: !!o.faceDown, ...(semImpressas(s, o) && !o.faceDown ? { semHabilidades: true } : {}), tapped: !!o.tapped, counters: { ...(o.counters || {}) }, ...(o.attachedTo ? { anexadaA: o.attachedTo } : {}),
     ...(isCreature(s, o) ? { power: power(s, o), toughness: toughness(s, o) } : {}) } : null;
   delete o.ultima;
   const segurava = fromZone === 'battlefield' ? o.holding : null;
@@ -11841,7 +11877,8 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
   if (ultima) o.ultima = ultima;
@@ -11852,7 +11889,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   // S22 · permanente que entra virada
   // CR2b.3 · "Creatures your opponents control enter tapped" (Authority of the Consuls)
-  if (to === 'battlefield' && s.facts[o.name].types.includes('creature') && battlefield(s).some(x => x.controller !== o.controller && (s.facts[x.name].script || {}).staticRule === 'opponent-creatures-enter-tapped')) o.tapped = true;
+  if (to === 'battlefield' && s.facts[o.name].types.includes('creature') && battlefield(s).some(x => x.controller !== o.controller && !semImpressas(s, x) && (s.facts[x.name].script || {}).staticRule === 'opponent-creatures-enter-tapped')) o.tapped = true;
   if (to === 'battlefield' && (s.facts[o.name].script || {}).entersTapped) o.tapped = true;
   // S56 · "entra virado a menos que um jogador tenha 13 ou menos de vida"
   const semVirar = (s.facts[o.name].script || {}).entersTappedUnless;
@@ -11923,9 +11960,11 @@ const faceDown = o => !!(o && o.faceDown);
 /** S57 · bônus temporários: até o fim do turno e até o seu próximo turno. */
 const pumpP = o => ((o.pump && o.pump.p) || 0) + ((o.pumpNext && o.pumpNext.p) || 0);
 const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) || 0);
+/** CR2d.1 · 7b: P/T base fixado pela Aura que redefine a criatura, senão o impresso. */
+const basePT = (s, o) => { const m = mutacao(s, o); return m && m.base ? m.base : [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; };
 const power = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonus(s, o).p : // CR 708.2 + 613.4c: a 2/2 recebe os bônus de Aura e equipamento
-  (s.facts[o.name].power || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonus(s, o).p;
-const toughness = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonus(s, o).t : (s.facts[o.name].toughness || 0) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonus(s, o).t;
+  basePT(s, o)[0] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonus(s, o).p;
+const toughness = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonus(s, o).t : basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonus(s, o).t;
 const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
@@ -11985,12 +12024,13 @@ function coresPermitidas(s, p, eff) {
   return null;
 }
 function productions(s, o, visto) {
-  const spec = ((s.facts[o.name].script || {}).produces) || [];
+  const mu = mutacao(s, o), perde = !!(mu && mu.perde); // CR2d.1 · perdeu as habilidades: inclusive as de mana
+  const spec = perde ? [] : ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
-  let opts = spec.length ? spec.flatMap(x => expandProduction(s, o, x, visto)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x, visto));
+  let opts = perde ? [] : spec.length ? spec.flatMap(x => expandProduction(s, o, x, visto)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x, visto));
   // R9 · primeiro toda a produção concedida (Abundant Growth), depois o mana extra (Utopia Sprawl): ele vale
   // para qualquer mana que o terreno gere, não só para as opções que existiam quando a Aura entrou
-  const anexos = attachedTo(s, o).map(x => [x, grantsOf(s, x)]).filter(([, g]) => g);
+  const anexos = attachedTo(s, o).filter(x => !perde || (x.anexadaEm || 0) > mu.corte).map(x => [x, grantsOf(s, x)]).filter(([, g]) => g);
   for (const [, g] of anexos) if (g.produces) opts = opts.concat(g.produces.flatMap(y => expandProduction(s, o, y, visto)));
   for (const [x, g] of anexos) {
     if (g.extraMana) {
@@ -11999,7 +12039,7 @@ function productions(s, o, visto) {
     }
   }
   // R11.2 · cor que só sai com uma condição de campo (Tainted Field: um Swamp; Spire of Industry: um artefato)
-  const regra = (s.facts[o.name].script || {}).manaRule;
+  const regra = perde ? null : (s.facts[o.name].script || {}).manaRule;
   if (regra && (regra.needsSubtype || regra.needsType) && !battlefield(s).some(x => x.controller === o.controller &&
     (regra.needsSubtype ? new RegExp('\\b' + regra.needsSubtype + '\\b').test(s.facts[x.name].typeText || '') : s.facts[x.name].types.includes(regra.needsType))))
     opts = opts.filter(x => !x.some(c => regra.colors.includes(c)));
@@ -12008,7 +12048,7 @@ function productions(s, o, visto) {
   return opts.filter(x => { const k = x.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 /** Proteção concedida por auras: lista de cores. */
-const protImpressa = (s, o) => (o && !o.faceDown && s.facts[o.name] && s.facts[o.name].prot) || []; // CR 702.16 · a da própria carta
+const protImpressa = (s, o) => (o && !semImpressas(s, o) && s.facts[o.name] && s.facts[o.name].prot) || []; // CR 702.16 · a da própria carta
 const protections = (s, o) => protImpressa(s, o).concat(o.tempProtection || [], attachedTo(s, o).flatMap(x => {
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
@@ -12028,16 +12068,18 @@ const protecaoDerruba = (s, host, anexo) => protImpressa(s, host).concat(host.te
 const colorPrevented = (s, src) => !s.noPrevention && (
   (src && src.damagePrevented) || (s.preventedColors || []).some(c => colorsOf(s, src).includes(c)));
 /** S56 · permanente que dá palavra-chave a todas as suas criaturas (Tuktuk Rubblefort). */
-function grantedToAll(s, o, k) {
-  if (!o || o.zone !== 'battlefield' || !s.facts[o.name].types.includes('creature')) return false;
+function grantedToAll(s, o, k, corte = -1) {
+  if (!o || o.zone !== 'battlefield' || !tiposDe(s, o).includes('creature')) return false;
   for (const x of s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid])) {
     if (x.controller !== o.controller) continue;
+    if (corte >= 0 && (x.ts || 0) <= corte) continue; // CR2d.1 · fonte que já estava no campo antes da Aura que tira tudo
+    if (semImpressas(s, x)) continue; // a fonte perdeu a habilidade de conceder
     const g = (s.facts[x.name].script || {}).grantsAll;
     if (g && (g.keywords || []).map(y => String(y).toLowerCase()).includes(k)) return true;
   }
   return false;
 }
-const evasionOf = (s, o) => ((s.facts[o.name].script || {}).self || {}).evasion;
+const evasionOf = (s, o) => semImpressas(s, o) ? undefined : ((s.facts[o.name].script || {}).self || {}).evasion;
 
 /** Leva 122 · "X mana in any combination of colors" (Axebane Guardian): quantas manas de cor livre a fonte gera agora.
  *  0 para quem não tem essa produção. A contagem é feita na hora (habilidade de mana resolve na ativação, 605.3). */
@@ -12364,7 +12406,7 @@ function enterStep(s, step) {
 }
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
+  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
   delete s.fogged; delete s.preventedColors; delete s.noPrevention;
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -12569,7 +12611,7 @@ function grantedAbilities(s, o) {
   const out = [];
   for (const aura of battlefield(s)) {
     if (aura.attachedTo !== o.oid) continue;
-    for (const ab of ((s.facts[aura.name].script || {}).grants || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: aura.name });
+    for (const ab of ((s.facts[aura.name].script || {}).grants || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 });
   }
   const par = soulbondPartner(s, o);
   if (par) for (const dono of [o, par]) {
@@ -12579,6 +12621,7 @@ function grantedAbilities(s, o) {
 }
 const abilitiesOf = (s, o) => {
   if (o && o.faceDown) return []; // S54 · virada para baixo não tem habilidade
+  const mu = mutacao(s, o); if (mu && mu.perde) return grantedAbilities(s, o).filter(ab => (ab.grantedTs || 0) > mu.corte); // CR2d.1
   const sc = scriptOf(s, o);
   if (!sc) return grantedAbilities(s, o);
   const list = (sc.abilities || []).slice();
@@ -12598,7 +12641,7 @@ function targetable(s, p, o, src) {
   if (src && protectedFrom(s, o, src)) return false; // S11b · proteção de cor
   return true;
 }
-const isCreature = (s, o) => (o.faceDown || s.facts[o.name].types.includes('creature')) && !o.bestowed;
+const isCreature = (s, o) => (o.faceDown || tiposDe(s, o).includes('creature')) && !o.bestowed; // CR2d.1 · camada 4
 /** Alvos legais para um tipo de alvo. Descritor: { oid } ou { player }. */
 function legalTargets(s, p, kind, selfOid, color) {
   let out = [];
@@ -12607,7 +12650,7 @@ function legalTargets(s, p, kind, selfOid, color) {
   const players = s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
   if (['any', 'creature', 'planeswalker', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature'].includes(kind)) {
     for (const o of perms) {
-      const f = s.facts[o.name];
+      const f = { ...s.facts[o.name], types: tiposDe(s, o) }; // CR2d.1 · tipos de agora (camada 4)
       if (kind === 'creature' && !isCreature(s, o)) continue;
       if (kind === 'planeswalker' && !f.types.includes('planeswalker')) continue;
       if (kind === 'any' && !isCreature(s, o) && !f.types.includes('planeswalker')) continue;
@@ -12620,7 +12663,7 @@ function legalTargets(s, p, kind, selfOid, color) {
   }
   if (kind === 'land' || kind === 'land-you-control') {
     for (const o of perms) {
-      if (!s.facts[o.name].types.includes('land')) continue;
+      if (!tiposDe(s, o).includes('land')) continue;
       if (kind === 'land-you-control' && o.controller !== p) continue;
       // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
       const sub = selfOid && s.objects[selfOid] && s.facts[s.objects[selfOid].name] ? auraSubtype(s.facts[s.objects[selfOid].name]) : null;
@@ -12639,7 +12682,7 @@ function legalTargets(s, p, kind, selfOid, color) {
   if (['creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls'].includes(kind)) {
     for (const o of perms) {
       if (o.controller === p) continue;
-      const f = s.facts[o.name];
+      const f = { ...s.facts[o.name], types: tiposDe(s, o) };
       if (kind === 'creature-opponent-controls' && !isCreature(s, o)) continue; // Leva 108 · concedida é Aura; virada para baixo é criatura
       if (kind === 'artifact-enchantment-opponent-controls' && !f.types.includes('artifact') && !f.types.includes('enchantment')) continue;
       out.push({ oid: o.oid });
@@ -12648,7 +12691,7 @@ function legalTargets(s, p, kind, selfOid, color) {
   if (['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'creature-or-planeswalker-you-control'].includes(kind)) {
     for (const o of perms) {
       if (o.controller !== p) continue;
-      const tipos = s.facts[o.name].types;
+      const tipos = tiposDe(s, o);
       if (kind === 'creature-you-control' && !isCreature(s, o)) continue; // Leva 108
       // S43 · "outra criatura que você controla": a própria fonte não vale
       if (kind === 'other-creature-you-control' && (!isCreature(s, o) || o.oid === selfOid)) continue;
@@ -12720,9 +12763,9 @@ function legalTargets(s, p, kind, selfOid, color) {
 function violaPortaEstandarte(s, p, need, chosen, selfOid) {
   // R9 · a exigência nasce de um porta-estandarte de oponente, mas o texto pede "um Flagbearer no campo": o do
   // próprio jogador também cumpre, e metamorfo (todos os tipos de criatura) é Flagbearer
-  const impoe = battlefield(s).some(o => o.controller !== p && ((s.facts[o.name].script || {}).staticRule) === 'flagbearer');
+  const impoe = battlefield(s).some(o => o.controller !== p && !semImpressas(s, o) && ((s.facts[o.name].script || {}).staticRule) === 'flagbearer');
   if (!impoe || !need.length) return false;
-  const flags = battlefield(s).filter(o => !o.faceDown && (((s.facts[o.name].script || {}).staticRule) === 'flagbearer' || (isCreature(s, o) && isChangeling(s, o)))).map(o => o.oid);
+  const flags = battlefield(s).filter(o => !semImpressas(s, o) && (((s.facts[o.name].script || {}).staticRule) === 'flagbearer' || (isCreature(s, o) && isChangeling(s, o)))).map(o => o.oid);
   const podia = need.some(eff => legalTargets(s, p, eff.target, selfOid, eff.targetColor).some(x => flags.includes(x.oid) && targetAllowed(s, eff, x)));
   return podia && !(chosen || []).some(t => t && flags.includes(t.oid));
 }
@@ -13255,7 +13298,7 @@ function applyEffect(s, src, eff, tgt, events) {
         const k = String(eff.keyword).toLowerCase();
         alvo.keywordsNext = { list: [...(((alvo.keywordsNext || {}).list) || []), k], by: ctrl };
         note({ name: alvo.name });
-      } else if (alvo) { alvo.tempKeywords = [...(alvo.tempKeywords || []), String(eff.keyword).toLowerCase()]; note({ name: alvo.name }); }
+      } else if (alvo) { alvo.tempKeywords = [...(alvo.tempKeywords || []), String(eff.keyword).toLowerCase()]; alvo.tempTs = [...(alvo.tempTs || []), relogio(s)]; note({ name: alvo.name }); }
       break;
     }
     case 'tap': { // S39 · "vire a criatura encantada" chega aqui como self-source
@@ -13289,7 +13332,8 @@ function sweepTargets(s, src, eff) {
    escolhe. O que sobra da mágica espera a escolha terminar (s.resume). */
 function matchesFilter(s, o, filter) {
   if (!filter) return true;
-  const f = s.facts[o.name] || {};
+  // CR2d.1 · no campo valem os tipos e habilidades de agora (camadas 4 e 6)
+  const f = o.zone === 'battlefield' && s.facts[o.name] ? { ...s.facts[o.name], types: tiposDe(s, o), typeText: linhaDeTipo(s, o), kw: semImpressas(s, o) ? [] : s.facts[o.name].kw } : (s.facts[o.name] || {});
   if (filter.name && o.name !== filter.name) return false;
   if (filter.keyword && !(f.kw || []).includes(String(filter.keyword).toLowerCase())) return false;
   // S44 · "básico" e "um destes subtipos" (Sheltering Landscape)
@@ -13337,7 +13381,7 @@ function concluiPick(s, events) {
     if (pk.onPicked.keyword) {
       const k = String(pk.onPicked.keyword).toLowerCase();
       if (pk.onPicked.until === 'your-next-turn') c.keywordsNext = { list: [...(((c.keywordsNext || {}).list) || []), k], by: pk.p };
-      else c.tempKeywords = [...(c.tempKeywords || []), k];
+      else { c.tempKeywords = [...(c.tempKeywords || []), k]; c.tempTs = [...(c.tempTs || []), relogio(s)]; }
     }
   }
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
@@ -13571,7 +13615,7 @@ function triggerConditionMet(s, o, cond) {
   return true;
 }
 /** S34 · metamorfo: a carta conta como qualquer subtipo de criatura. */
-const isChangeling = (s, o) => !!((s.facts[o.name].script || {}).changeling);
+const isChangeling = (s, o) => !semImpressas(s, o) && !!((s.facts[o.name].script || {}).changeling);
 function matchesTriggerFilter(s, o, filter) {
   if (!filter) return true;
   const f = s.facts[o.name];
@@ -13624,7 +13668,7 @@ function queueTriggers(s, when, objects, controller) {
     const ctrl = controller != null ? controller : o.controller;
     const saiu = when === 'dies' || when === 'leaves-battlefield';
     // CR 603.10a · saiu virada para baixo: no campo ela não tinha as habilidades da face de cima, então nenhuma dispara
-    for (const ab of (saiu && o.ultima && o.ultima.faceDown ? [] : abilitiesOf(s, o))) {
+    for (const ab of (saiu && o.ultima && (o.ultima.faceDown || o.ultima.semHabilidades) ? [] : abilitiesOf(s, o))) { // CR2d.1 · saiu sem habilidades (Reprobation)
       if (ab.kind !== 'triggered' || ab.when !== when) continue;
       if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
       s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when, ...(ab.condition ? { condition: ab.condition } : {}), ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}), ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
@@ -13634,7 +13678,7 @@ function queueTriggers(s, when, objects, controller) {
     const other = when === 'etb' ? 'other-etb' : when === 'dies' ? 'other-dies'
       : when === 'leaves-battlefield' ? 'other-leaves-battlefield' : 'other-cast'; // S52 · Luminous Phantom
     // CR 603.10a · quem saiu do campo NO MESMO evento (s.saindoJuntas) também observa, como era no campo
-    const juntas = saiu ? (s.saindoJuntas || []).map(x => s.objects[x]).filter(w => w && w.zone !== 'battlefield' && w.ultima && !w.ultima.faceDown) : [];
+    const juntas = saiu ? (s.saindoJuntas || []).map(x => s.objects[x]).filter(w => w && w.zone !== 'battlefield' && w.ultima && !w.ultima.faceDown && !w.ultima.semHabilidades) : [];
     for (const w of battlefield(s).concat(juntas)) {
       if (w.oid === o.oid) continue;
       const wCtrl = w.zone === 'battlefield' ? w.controller : w.ultima.controller;
@@ -13908,7 +13952,8 @@ const bestowOf = (s, o) => (s.facts[o.name].script || {}).bestow;
 function attachTo(s, o, hostOid, events) {
   const host = s.objects[hostOid];
   if (!host || host.zone !== 'battlefield') return false;
-  o.attachedTo = hostOid;
+  o.attachedTo = hostOid; o.anexadaEm = relogio(s); // CR2d.1 · 613.7e: carimbo de tempo da Aura/Equipamento é quando foi anexada
+  if (((s.facts[o.name].script || {}).aura || {}).becomes) host.mutavel = true; // CR2d.1 · marca a hospedeira para o cálculo de camadas
   events.push({ kind: 'effect', do: 'attach', name: o.name, target: host.name });
   return true;
 }
