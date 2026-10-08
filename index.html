@@ -5022,6 +5022,9 @@ const EFFECTS = {
   // M-222 · 701.20 "reveal cards from the top … until you reveal …" (referência: o primeiro alvo, pela última informação conhecida),
   // "put target permanent … on the bottom of your library" e "target permanent's controller sacrifices it"
   reveal_until: { fields: [], targets: ['first-target'] },
+  // CR2d.4 · Animate Dead: devolver a carta encantada e anexar; ao sair, quem controla a criatura a sacrifica
+  animate_dead: { fields: [], targets: ['self'] },
+  sacrifice_reanimated: { fields: [], targets: ['self'] },
   animate: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
   to_bottom: { fields: [], targets: ['permanent-you-own'] },
   sacrifice_it: { fields: [], targets: ['permanent'] },
@@ -5121,7 +5124,7 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature',
   'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
-  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source', 'permanent-you-own']); // Q11 · M-222 · "target permanent you own"
+  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source', 'permanent-you-own', 'creature-card-in-graveyard']); // CR2d.4 · Animate Dead // Q11 · M-222 · "target permanent you own"
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-forest', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
 const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'targetExiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
@@ -5137,7 +5140,7 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'end-step', 'each-upkeep', 'begin-combat'];
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
-const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control']; // Q11 · Setessan Training
+const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x'];
@@ -5824,6 +5827,10 @@ const RAW_SCRIPTS = [
     { label: '−X/−X', effects: [{ do: 'pump', power: { per: 'x', times: -1 }, toughness: { per: 'x', times: -1 }, target: 'creature' }] },
     { label: 'Até X criaturas ganham medo', effects: [{ do: 'keyword', keyword: 'fear', target: 'creature', upTo: true, targetCount: { per: 'x' } }] }],
     example: { action: 'mode:0', target: 'self-player', expect: { selfLife: 0 } } },
+  // CR2d.4 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Animate Dead', aura: { enchant: 'creature-card-in-graveyard' }, grants: { power: -1 },
+    abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'animate_dead' }] }, { kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'sacrifice_reanimated' }] }],
+    example: { action: 'aura', target: 'own-graveyard-creature', expect: { reanimated: true } } },
   // CR2d.3 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026); voar e o 3/3 vêm do texto da carta
   { name: "Smuggler's Copter", abilities: [
     { kind: 'activated', label: 'Tripular 1', cost: { crew: 1 }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], addTypes: true } }] },
@@ -11637,7 +11644,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 92;
+const ENGINE_VERSION = 93;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -12847,6 +12854,8 @@ function legalTargets(s, p, kind, selfOid, color) {
       out.push({ oid: o.oid });
     }
   }
+  // CR2d.4 · "Enchant creature card in a graveyard": carta de criatura em qualquer cemitério
+  if (kind === 'creature-card-in-graveyard') for (const z of s.zones) for (const oid of z.graveyard) if (((s.facts[s.objects[oid].name] || {}).types || []).includes('creature')) out.push({ oid });
   // M-222 · "target permanent you own": a sua, mesmo que outro jogador a controle (Reality Scramble)
   if (kind === 'permanent-you-own') for (const o of perms) if (o.owner === p && targetable(s, p, o, srcObj)) out.push({ oid: o.oid });
   // S45 · carta em qualquer cemitério (Faerie Macabre)
@@ -13222,6 +13231,20 @@ function applyEffect(s, src, eff, tgt, events) {
       note({}); break;
     }
     case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); note({}); break; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'animate_dead': { // CR2d.4 · "if it's on the battlefield … return enchanted creature card to the battlefield under your control and attach this Aura to it"
+      const aura = src.ability ? s.objects[src.source] : src;
+      if (!aura || aura.zone !== 'battlefield') break; // ruling: fora do campo, nada acontece
+      const carta = aura.attachedTo ? s.objects[aura.attachedTo] : null;
+      if (!carta || carta.zone !== 'graveyard' || !((s.facts[carta.name] || {}).types || []).includes('creature')) { moveObject(s, aura.oid, 'graveyard'); note({ failed: true }); break; } // 704.5m: encantando nada válido
+      moveObject(s, carta.oid, 'battlefield'); carta.controller = aura.controller;
+      attachTo(s, aura, carta.oid, events); aura.reanimada = { oid: carta.oid, z: carta.zc || 0 };
+      note({ target: carta.name }); break;
+    }
+    case 'sacrifice_reanimated': { // CR2d.4 · "When this Aura leaves the battlefield, that creature's controller sacrifices it"
+      const aura = src.ability ? s.objects[src.source] : src, r = aura && aura.reanimada, c = r ? s.objects[r.oid] : null;
+      if (c && c.zone === 'battlefield' && (c.zc || 0) === r.z) { const nome = c.name; sacrifice(s, c.oid, events); note({ target: nome }); }
+      break;
+    }
     case 'animate': { // CR2d.2 · vira criatura até o fim do turno, com carimbo de tempo próprio (613.7); a limpeza apaga
       const alvo = src.ability ? s.objects[src.source] : src;
       if (alvo && alvo.zone === 'battlefield') { alvo.vira = [...(alvo.vira || []), { ...eff.becomes, ts: relogio(s) }]; alvo.mutavel = true; note({ target: alvo.name }); }
@@ -14119,6 +14142,7 @@ function auraTarget(f, bestowed) {
 function auraPodeEncantar(s, au, host) {
   const k = String(au.enchant || 'creature'), f = s.facts[host.name];
   if (k === 'creature-or-planeswalker-you-control') return isCreature(s, host) || f.types.includes('planeswalker');
+  if (k === 'creature-card-in-graveyard') return host.zone === 'graveyard' ? f.types.includes('creature') : isCreature(s, host); // CR2d.4 · depois de devolver: "enchant creature put onto the battlefield with this Aura"
   if (k.startsWith('creature')) return isCreature(s, host); if (k === 'land') return f.types.includes('land') && (!au.subtype || new RegExp('\\b' + au.subtype + '\\b', 'i').test(f.typeText || ''));
   return true;
 }
@@ -14165,7 +14189,8 @@ function resolveTop(s, events = []) {
       }
       events.push({ kind: 'fizzled', oid: item, name: o.name }); moveObject(s, item, 'graveyard'); return { kind: 'resolved', oid: item, name: o.name, to: 'graveyard', scripted: true, adjudicate: false }; }
     moveObject(s, item, 'battlefield'); s.objects[item].controller = controller;
-    attachTo(s, s.objects[item], tgt.oid, events);
+    if (aura === 'creature-card-in-graveyard') { delete s.objects[item].reanimada; s.objects[item].attachedTo = tgt.oid; s.objects[item].anexadaEm = relogio(s); events.push({ kind: 'effect', do: 'attach', name: o.name, target: s.objects[tgt.oid].name }); } // CR2d.4 · entra encantando a carta no cemitério; o gatilho de entrada faz o resto
+    else attachTo(s, s.objects[item], tgt.oid, events);
     return { kind: 'resolved', oid: item, name: o.name, to: 'battlefield', scripted: true, adjudicate: false };
   }
   if (scripted) resolveScript(s, o, events);
@@ -14220,6 +14245,7 @@ function stateBased(s, events) {
       const soSua = String(((s.facts[o.name].script || {}).aura || {}).enchant || '').endsWith('you-control');
       const equipFora = !!(s.facts[o.name].script || {}).equip && host && host.zone === 'battlefield' && !isCreature(s, host); // CR 704.5n · Equipamento só fica em criatura
       if (host && host.zone === 'battlefield' && !protecaoDerruba(s, host, o) && !(soSua && host.controller !== o.controller) && !equipFora) continue;
+      if (host && host.zone === 'graveyard' && !o.reanimada && ((s.facts[o.name].script || {}).aura || {}).enchant === 'creature-card-in-graveyard' && (s.facts[host.name].types || []).includes('creature')) continue; // CR2d.4 · Animate Dead encanta a carta no cemitério até o gatilho de entrada resolver
       if (o.bestowed) { delete o.bestowed; delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); } // volta a ser criatura
       else if (s.facts[o.name].script && s.facts[o.name].script.aura) { moveObject(s, o.oid, 'graveyard'); events.push({ kind: 'unattached', oid: o.oid, name: o.name, died: true }); }
       else { delete o.attachedTo; events.push({ kind: 'unattached', oid: o.oid, name: o.name }); }
@@ -17124,6 +17150,8 @@ function effectLine(ev) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'animate_dead': return ev.failed ? `${ev.name}: a carta já não estava no cemitério` : `${ev.name} devolveu ${t} ao campo`; // CR2d.4
+    case 'sacrifice_reanimated': return `${t} foi sacrificada (${ev.name} saiu do campo)`;
     case 'reveal_until': return `${t} revelou ${n} carta(s) (${(ev.nomes || []).join(', ')})${ev.achada ? ` e pôs ${ev.achada} no campo` : ' sem achar o que procurava'} (${ev.name})`; // M-222
     case 'to_bottom': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t} foi para o fundo do grimório (${ev.name})`;
     case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${ev.name}: ${ev.name2 || t} foi sacrificada`;
@@ -17878,6 +17906,8 @@ function descreveEfeito(e) {
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
+    case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
+    case 'sacrifice_reanimated': return 'quem controla a criatura a sacrifica';
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
     case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';

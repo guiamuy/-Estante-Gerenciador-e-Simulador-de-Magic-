@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 92,
+ "motor": 93,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -2292,7 +2292,7 @@
    "regra": "Enchantments",
    "titulo": "Auras",
    "status": "parcial",
-   "evidencia": "alvo na conjuração (index.html:12241, 12950), conferido de novo ao resolver e anulada se ilegal (index.html:12055-12068), aura sem hospedeiro vai ao cemitério (index.html:12110-12122); testes \"S11 · aura entra anexada\", \"S11 · a criatura encantada some\", \"S11 · aura cujo alvo some antes de resolver\", \"S34 · conceder\"",
+   "evidencia": "alvo na conjuração (index.html:12241, 12950), conferido de novo ao resolver e anulada se ilegal (index.html:12055-12068), aura sem hospedeiro vai ao cemitério (index.html:12110-12122); testes \"S11 · aura entra anexada\", \"S11 · a criatura encantada some\", \"S11 · aura cujo alvo some antes de resolver\", \"S34 · conceder\" · CR2d.4 (v93): Aura que encanta carta em cemitério (\"Enchant creature card in a graveyard\", Animate Dead): entra presa à carta, o gatilho de entrada a devolve sob o controle de quem controla a Aura e anexa; a ação de estado a tolera presa à carta até o gatilho resolver (commander.regras \"CR2d.4 · Animate Dead…\")",
    "falta": "303.4f/g/i: aura que entra sem ser conjurada fica no campo solta e não cai — sonda: Sevinne's Reclamation devolvendo Ethereal Armor deixa a aura no campo com attachedTo indefinido (a ação de estado só olha aura com attachedTo, 12112). Sem aura em jogador (Curse), sem 303.4d, e a legalidade só é revista por saída/proteção/\"que você controla\".",
    "esforco": "M",
    "depende": [

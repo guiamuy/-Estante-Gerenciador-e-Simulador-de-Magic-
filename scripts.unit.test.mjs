@@ -415,7 +415,8 @@ function runExample(sc) {
   const isPermanentCard = !!PERM_TYPES[sc.name] || how === 'disturb' || how === 'omen' || how === 'transmute' || how === 'bestow';
   // CR2c.5 · "Exile <esta mágica>" (Ascend from Avernus): o próprio texto a manda para o exílio, e o cenário confere com `exiled`
   if (!isPermanentCard && !(sc.effects || []).some(e => e.do === 'exile_self') && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
-  if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : mine, `${sc.name} deveria estar anexada`);
+  if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : ex.target === 'own-graveyard-creature' ? buriedMine : mine, // CR2d.4 · Animate Dead
+    `${sc.name} deveria estar anexada`);
   const o = s.objects[watchOverride || watch];
   for (const [check, value] of Object.entries(want)) {
     const msg = `${sc.name} · ${check}`;

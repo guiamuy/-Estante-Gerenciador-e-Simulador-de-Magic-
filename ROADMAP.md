@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2d.3 Veículo e tripular (301.7, 702.122) e gatilho de bloqueio; Smuggler's Copter completa (leva M-225, motor v92) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2d.4 Aura que encanta carta em cemitério e reanima (303.4); Animate Dead completa (leva M-226, motor v93) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2880,6 +2880,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Para a trilha do bot:** o Shark não sabe tripular para atacar nem conta o Veículo como bloqueador.
 - **Golden:** regravadas (91 → 92); registros das quatro partidas iguais.
 - **Fora:** "quando for tripulado" (702.122e), "não pode tripular" (702.122d).
+
+**CR2d.4 · Animate Dead** 🟡 (leva M-226, motor v93) — 2 testes, os dois falhavam antes.
+- **303.4 Aura que encanta carta em cemitério:** mira carta de criatura em qualquer cemitério; ao resolver, entra no campo presa à carta, e o gatilho de entrada (só se ela ainda estiver no campo) devolve a criatura sob o controle de quem controla a Aura e se anexa a ela. Se a carta já saiu do cemitério, a Aura vai para o cemitério. Dá −1/−0. Quando a Aura sai do campo, quem controla a criatura a sacrifica (só a mesma criatura que ela devolveu).
+- **Carta da lista (decisão 7), texto oficial consultado em 05/10/2026, completa:** **Animate Dead**.
+- **Medição:** Killian 67% (antes 66%), Malcolm 73%. Triagem 110 prontas · 9 A · 35 B · 10 C.
+- **Golden:** regravadas (92 → 93); registros das quatro partidas iguais.
+- **Fora:** outras Auras de cemitério (Necromancy, Dance of the Dead) não estão nas listas.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

@@ -662,3 +662,22 @@ test('CR2d.3 · Veículo que entrou neste turno e foi tripulado não ataca (302.
   let s = semMao(mesa(["Smuggler's Copter", 'Faerie Seer'], []), 0), cp; [s, cp] = poe(s, 0, "Smuggler's Copter"); [s] = poe(s, 0, 'Faerie Seer'); s = J(s); s.objects[cp].entrouNoTurno = s.turn.number;
   s = tudo(act(s, legais(s, 0, x => x.t === 'activate' && x.oid === cp)[0])); assert.ok(E.isCreature(s, s.objects[cp])); assert.equal(E.eligibleAttackers(s, 0).includes(cp), false);
 });
+
+// ---------------------------------------------------------------- CR2d.4 · Animate Dead (Aura em cemitério que reanima)
+test('CR2d.4 · Animate Dead: encanta carta de criatura em qualquer cemitério; ao entrar devolve a criatura sob o seu controle, anexada, com −1/−0', () => {
+  let s = semMao(mesa(['Animate Dead', 'Faerie Seer'], ['Kitchen Imp', 'Lightning Bolt']), 0), ad, minha, imp, bolt; [s, ad] = poe(s, 0, 'Animate Dead', 'hand'); [s, minha] = poe(s, 0, 'Faerie Seer', 'graveyard'); [s, imp] = poe(s, 1, 'Kitchen Imp', 'graveyard'); [s, bolt] = poe(s, 1, 'Lightning Bolt', 'graveyard');
+  s = comMana(s, 'BC'); const alvos = legais(s, 0, x => x.t === 'cast' && x.oid === ad).map(x => x.targets[0].oid);
+  assert.deepEqual(J(alvos).sort(), [minha, imp].sort(), 'creature card in a graveyard: dos dois cemitérios, só criatura');
+  s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === ad && x.targets[0].oid === imp)[0]));
+  assert.equal(s.objects[imp].zone, 'battlefield'); assert.equal(s.objects[imp].controller, 0, 'under your control'); assert.equal(s.objects[ad].zone, 'battlefield'); assert.equal(s.objects[ad].attachedTo, imp, 'attach this Aura to it');
+  const k = E.stats(s, s.objects[imp]), base = CARTAS['Kitchen Imp']; assert.equal(k.power, Number(base.power) - 1, 'Enchanted creature gets -1/-0'); assert.equal(k.toughness, Number(base.toughness));
+});
+
+test('CR2d.4 · Animate Dead: quando a Aura sai do campo, quem controla a criatura a sacrifica', () => {
+  let s = semMao(mesa(['Animate Dead', 'Austere Command'], ['Zulaport Cutthroat']), 0), ad, ac, z; [s, ad] = poe(s, 0, 'Animate Dead', 'hand'); [s, ac] = poe(s, 0, 'Austere Command', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat', 'graveyard');
+  s = tudo(act(comMana(s, 'BC'), legais(comMana(s, 'BC'), 0, x => x.t === 'cast' && x.oid === ad && x.targets[0].oid === z)[0])); assert.equal(s.objects[z].controller, 0);
+  const vida = s.players[1].life; s = comMana(s, 'WWCCCC');
+  s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === ac && J(x.modes).join() === '0,1')[0])); // destrói todos os artefatos e todos os encantamentos
+  assert.equal(s.objects[ad].zone, 'graveyard'); assert.equal(s.objects[z].zone, 'graveyard', "that creature's controller sacrifices it");
+  assert.equal(s.players[1].life, vida - 1, 'a Zulaport morreu sob o seu controle: o seu oponente perde 1');
+});
