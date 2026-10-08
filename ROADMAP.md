@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2c.3 o X escolhido decide o alvo ("valor de mana X ou menos") e quantos alvos cabem ("até X"); Profane Command completa (leva M-219, motor v86) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2c.4 phyrexiano à escolha de quem conjura (107.4f), custos alternativos novos (118.9) e clivar (702.148); Gitaxian Probe, Foil, Snapback, Mogg Salvage e Wash Away completas (leva M-220, motor v87) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2818,6 +2818,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Custo declarado:** com a Profane na mão e a mesa sem cobrar mana (X de 0 a 20), a mesa oferece cerca de mil formas de conjurar (agrupadas por X na tela); com mana cobrada, só os X pagáveis (cerca de 350 com seis manas). As combinações de alvo continuam cortadas no limite do motor (16 por par de modos).
 - **Golden:** regravadas (85 → 86); registros das quatro partidas iguais.
 - **Fora:** "qualquer número de alvos", X em habilidade ativada que decide alvo, dividir dano entre alvos (601.2d).
+
+**CR2c.4 · Phyrexiano à escolha e custos alternativos novos** 🟡 (leva M-220, motor v87) — 5 testes de carta, todos falhavam antes.
+- **107.4f / 119.4** mana phyrexiana na conjuração: a mesa oferece uma forma de conjurar para cada quantidade de símbolos pagos com 2 de vida ("pagando com mana" / "pagando 2 de vida"); com menos vida do que o pagamento, a forma não aparece e é recusada. Antes o motor decidia sozinho (mana primeiro).
+- **118.9** custos alternativos novos: descartar uma carta de um subtipo junto com outra (Foil: toda forma de pagar inclui uma Ilha), exilar da mão uma carta de uma cor (Snapback), de graça sob condição do campo (Mogg Salvage: um oponente controla Ilha e você controla Montanha).
+- **702.148** clivar: custo alternativo que tira o trecho entre colchetes; a mágica guarda de onde foi conjurada, e "que não foi conjurada da mão do dono" vale para cemitério (lampejo do passado), exílio e zona de comando.
+- **Efeito novo:** olhar a mão do jogador alvo (só quem conjurou vê).
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026, completas:** **Gitaxian Probe**, **Foil** (era parcial: não exigia a Ilha), **Snapback**, **Mogg Salvage** e **Wash Away**.
+- **Medição:** Malcolm 68% (antes 63%), Killian 60%. Triagem 98 prontas · 9 A · 41 B · 16 C.
+- **Para a trilha do bot:** a deduplicação de candidatas do Shark (chave por carta, alvos, modo e X) não separa reforço, vários modos nem phyrexiano: das formas "com mana" e "com vida" ele avalia só uma.
+- **Golden:** regravadas (86 → 87); registros das quatro partidas iguais.
+- **Fora:** phyrexiano em habilidade ativada (Skrelv) continua decidido pelo motor; híbrido ({2/W}, {W/U}) ainda sem escolha do jogador.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

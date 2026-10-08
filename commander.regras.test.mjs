@@ -420,3 +420,57 @@ test('CR2c.3 · texto dos modos na folha da carta: "todas as criaturas", "−X/�
   assert.equal(d('Profane Command', 2), 'uma criatura recebe −X/−X até o fim do turno', 'antes saía "+X/+X"');
   assert.equal(d('Profane Command', 3), 'até X criaturas ganham medo até o fim do turno');
 });
+
+// ---------------------------------------------------------------- CR2c.4 · phyrexiano à escolha e custos alternativos novos
+// a mão inicial da mesa já tem cartas (Ilhas, Faerie Seer) que também pagariam: os testes de custo começam com a mão vazia
+const semMao = (s, p) => { s = J(s); for (const x of s.zones[p].hand) { s.objects[x].zone = 'library'; s.zones[p].library.push(x); } s.zones[p].hand = []; return s; };
+test('CR2c.4 · Gitaxian Probe: {U/P} pago com {U} ou 2 de vida, à escolha de quem conjura; olha a mão do jogador alvo e compra uma carta', () => {
+  const base = (mana, vida = 20) => { let s = mesa(['Gitaxian Probe'], ['Faerie Seer', 'Lightning Bolt']), g; [s, g] = poe(s, 0, 'Gitaxian Probe', 'hand'); [s] = poe(s, 1, 'Faerie Seer', 'hand'); s = comMana(s, mana); s.players[0].life = vida; return { s, g }; };
+  const formas = (s, g) => [...new Set(legais(s, 0, x => x.t === 'cast' && x.oid === g).map(x => x.vida))].sort();
+  { const { s, g } = base('U'); assert.deepEqual(formas(s, g), [0, 1], 'com {U}: pagar a mana ou 2 de vida'); }
+  { const { s, g } = base(''); assert.deepEqual(formas(s, g), [1], 'sem mana: só a vida'); }
+  { const { s, g } = base('U', 1); assert.deepEqual(formas(s, g), [0], 'com 1 de vida não dá para pagar 2 (119.4)');
+    assert.throws(() => act(s, { t: 'cast', p: 0, oid: g, vida: 1, targets: [{ player: 1 }] }), /vida/); }
+  { let { s, g } = base('U'); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === g && x.vida === 0 && x.targets[0].player === 1)[0]);
+    assert.equal(s.players[0].life, 20); assert.equal(s.players[0].pool.U, 0, 'escolheu pagar com {U}'); }
+  { let { s, g } = base('U'); const maoDele = J(s.zones[1].hand), mao = s.zones[0].hand.length;
+    s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === g && x.vida === 1 && x.targets[0].player === 1)[0]);
+    assert.equal(s.players[0].life, 18, '2 de vida no lugar do {U}'); assert.equal(s.players[0].pool.U, 1, 'o {U} ficou na reserva');
+    s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); assert.equal(s.pending.kind, 'pick'); assert.deepEqual(J(s.pending.mostrar), maoDele, "Look at target player's hand");
+    s = act(s, { t: 'pick_done', p: 0 }); assert.equal(s.zones[0].hand.length, mao - 1 + 1, 'Draw a card'); }
+});
+
+test('CR2c.4 · Foil: "discard an Island card and another card rather than pay this spell\'s mana cost" — uma das descartadas precisa ser Ilha', () => {
+  const base = (mao) => { let s = semMao(mesa(['Foil', 'Lightning Bolt', ...mao], []), 0), o = {}; [s, o.f] = poe(s, 0, 'Foil', 'hand'); [s, o.b] = poe(s, 0, 'Lightning Bolt', 'hand'); o.mao = []; for (const n of mao) { let x; [s, x] = poe(s, 0, n, 'hand'); o.mao.push(x); }
+    s = comMana(s, 'R'); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === o.b && x.targets[0].player === 1)[0]); return { s, ...o }; };
+  { const { s, f } = base(['Faerie Seer', 'Opt']); assert.equal(legais(s, 0, x => x.oid === f && x.alt === 0).length, 0, 'sem Ilha na mão, o custo alternativo não aparece'); }
+  { let { s, f, b, mao: [ilha, seer, opt] } = base(['Island', 'Faerie Seer', 'Opt']); const alts = legais(s, 0, x => x.oid === f && x.alt === 0 && x.targets[0].oid === b);
+    assert.ok(alts.length >= 2 && alts.every(x => x.pay.discard.includes(ilha)), 'toda forma de pagar inclui a Ilha');
+    assert.throws(() => act(s, { t: 'cast', p: 0, oid: f, alt: 0, targets: [{ oid: b }], pay: { discard: [seer, opt] } }), /Ilha/);
+    s = tudo(act(s, alts.find(x => x.pay.discard.includes(seer)))); assert.equal(s.players[1].life, 20, 'Counter target spell'); assert.deepEqual([ilha, seer].map(x => s.objects[x].zone), ['graveyard', 'graveyard']); assert.equal(s.objects[opt].zone, 'hand'); }
+});
+
+test('CR2c.4 · Snapback: "exile a blue card from your hand rather than pay this spell\'s mana cost"; devolve a criatura alvo à mão do dono', () => {
+  let s = semMao(mesa(['Snapback', 'Faerie Seer', 'Island'], ['Zulaport Cutthroat']), 0), sn, seer, ilha, z; [s, sn] = poe(s, 0, 'Snapback', 'hand'); [s, seer] = poe(s, 0, 'Faerie Seer', 'hand'); [s, ilha] = poe(s, 0, 'Island', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat');
+  const alts = legais(s, 0, x => x.oid === sn && x.alt === 0); assert.ok(alts.length >= 1); assert.ok(alts.every(x => x.pay.exileHand === seer), 'só a carta azul paga (a Ilha é incolor, e a própria Snapback não conta)');
+  s = tudo(act(s, alts.find(x => x.targets[0].oid === z))); assert.equal(s.objects[z].zone, 'hand'); assert.equal(s.objects[seer].zone, 'exile'); assert.equal(s.objects[ilha].zone, 'hand');
+});
+
+test('CR2c.4 · Mogg Salvage: de graça se um oponente controla uma Ilha e você controla uma Montanha; destrói o artefato alvo', () => {
+  const base = (minha, dele) => { let s = mesa(['Mogg Salvage', ...(minha ? ['Mountain'] : [])], ["Mishra's Bauble", ...(dele ? ['Island'] : [])]), m, b; [s, m] = poe(s, 0, 'Mogg Salvage', 'hand'); [s, b] = poe(s, 1, "Mishra's Bauble");
+    if (minha) [s] = poe(s, 0, 'Mountain'); if (dele) [s] = poe(s, 1, 'Island'); return { s, m, b }; };
+  for (const [minha, dele] of [[true, false], [false, true]]) { const { s, m } = base(minha, dele); assert.equal(legais(s, 0, x => x.oid === m && x.alt === 0).length, 0, 'falta ' + (minha ? 'a Ilha dele' : 'a sua Montanha')); }
+  let { s, m, b } = base(true, true); const a = legais(s, 0, x => x.oid === m && x.alt === 0 && x.targets[0].oid === b)[0]; assert.ok(a, 'sem mana nenhuma, de graça');
+  s = tudo(act(s, a)); assert.equal(s.objects[b].zone, 'graveyard'); assert.equal(s.zones[0].battlefield.filter(x => s.objects[x].tapped).length, 0, 'a Montanha não foi virada');
+});
+
+test('CR2c.4 · Wash Away: anula mágica que não foi conjurada da mão do dono; com clivar {1}{U}{U}, anula qualquer mágica', () => {
+  const base = () => { let s = mesa(['Wash Away', 'Faithless Looting', 'Lightning Bolt'], []), o = {}; [s, o.w] = poe(s, 0, 'Wash Away', 'hand'); [s, o.l] = poe(s, 0, 'Faithless Looting', 'graveyard'); [s, o.b] = poe(s, 0, 'Lightning Bolt', 'hand'); return { s: comMana(s, 'RRRRUUUC'), ...o }; };
+  { let { s, w, b } = base(); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === b && x.targets[0].player === 1)[0]);
+    assert.equal(legais(s, 0, x => x.t === 'cast' && x.oid === w && x.alt == null && x.targets.some(t => t.oid === b)).length, 0, 'o Bolt veio da mão: sem clivar não é alvo');
+    const cl = legais(s, 0, x => x.t === 'cast' && x.oid === w && x.alt === 0 && x.targets[0].oid === b); assert.equal(cl.length, 1, 'com clivar é');
+    s = tudo(act(s, cl[0])); assert.equal(s.players[1].life, 20); }
+  { let { s, w, l } = base(); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === l && x.flashback)[0]);
+    const a = legais(s, 0, x => x.t === 'cast' && x.oid === w && x.alt == null && x.targets[0].oid === l); assert.equal(a.length, 1, 'conjurada do cemitério (lampejo do passado): é alvo pelo custo normal');
+    s = act(s, a[0]); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); assert.equal(s.objects[l].zone, 'exile', 'anulada; o lampejo do passado a exila'); }
+});

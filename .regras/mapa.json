@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 86,
+ "motor": 87,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -423,8 +423,8 @@
    "regra": "Numbers and Symbols",
    "titulo": "Símbolos de mana",
    "status": "parcial",
-   "evidencia": "parseCost (index.html:10007-10021) e payFrom (index.html:10348-10371): colorido só com a cor, genérico com qualquer, {C} só com incolor, híbrido, {2/W}, phyrexiano e híbrido phyrexiano; rules.unit 'M7 · custo: genérico, colorido, híbrido, phyrexiano e X', 'M7 · híbrido paga com qualquer das cores' · teste de conformidade em cr.conformidade (leva CR1a)",
-   "falta": "107.4f: o jogador ainda não escolhe entre mana e 2 de vida (o motor paga com mana se puder, senão com vida, nunca mais do que tem). 107.4e: {2/W} tenta primeiro as 2 genéricas. 107.4h: {S} vira genérico comum. A escolha de qual mana paga o genérico é automática.",
+   "evidencia": "parseCost (index.html:10007-10021) e payFrom (index.html:10348-10371): colorido só com a cor, genérico com qualquer, {C} só com incolor, híbrido, {2/W}, phyrexiano e híbrido phyrexiano; rules.unit 'M7 · custo: genérico, colorido, híbrido, phyrexiano e X', 'M7 · híbrido paga com qualquer das cores' · teste de conformidade em cr.conformidade (leva CR1a) · CR2c.4 (v87): ação cast com vida: n — n símbolos phyrexianos pagos com 2 de vida cada, o resto com mana da cor; 119.4 conferido (commander.regras \"CR2c.4 · Gitaxian Probe\")",
+   "falta": "107.4f: na conjuração o jogador escolhe (CR2c.4); em habilidade ativada o motor ainda decide (mana primeiro). 107.4e: {2/W} tenta primeiro as 2 genéricas. 107.4h: {S} vira genérico comum. A escolha de qual mana paga o genérico é automática.",
    "esforco": "M",
    "cartas": "phyrexiano: comum; neve: rara",
    "testes": [
@@ -4040,7 +4040,7 @@
    "titulo": "Passos para conjurar uma mágica",
    "status": "parcial",
    "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h) · CR2c.3 (v86): o X escolhido entra na escolha de alvos — \"valor de mana X ou menos\" (targetMvMax {per:\"x\"}) na oferta, na conjuração e na resolução, e \"até X alvos\" (targetCount) com X instâncias opcionais; commander.regras \"CR2c.3 · Profane Command\"",
-   "falta": "601.2b: sem buyback/splice (vários modos e reforço feitos na CR2c.1); híbrido e phyrexiano são decididos pelo motor (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: o mesmo alvo em instâncias diferentes só vale entre modos (CR2c.1); número variável de alvos só como \"até N\" e \"até X\" (CR2c.3), sem \"qualquer número de alvos\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
+   "falta": "601.2b: sem buyback/splice (vários modos e reforço feitos na CR2c.1); híbrido decidido pelo motor; phyrexiano à escolha só na conjuração (CR2c.4) (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: o mesmo alvo em instâncias diferentes só vale entre modos (CR2c.1); número variável de alvos só como \"até N\" e \"até X\" (CR2c.3), sem \"qualquer número de alvos\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
    "esforco": "G",
    "depende": [
     "700.2",
@@ -8082,14 +8082,17 @@
    "n": "702.148",
    "regra": "Keyword Abilities",
    "titulo": "Cleave",
-   "status": "ausente",
-   "falta": "Sem custo alternativo que remove o trecho entre colchetes do texto (702.148a-b). No modelo de scripts equivale a um custo alternativo com efeitos próprios, que já existe para sobrecarga (altIndex com effects, index.html:12285). Wash Away está nas listas de Commander.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "601.2b custo alternativo",
     "612 efeito que muda texto"
    ],
-   "cartas": "rara (Innistrad: Crimson Vow)"
+   "cartas": "rara (Innistrad: Crimson Vow)",
+   "evidencia": "CR2c.4 (v87): clivar como custo alternativo com efeitos próprios (sem o trecho entre colchetes); o trecho \"that wasn't cast from its owner's hand\" usa castFrom gravado na conjuração (targetNotFromHand). Wash Away; teste commander.regras",
+   "testes": [
+    "CR2c.4 · Wash Away: anula mágica que não foi conjurada da mão do dono; com clivar {1}{U}{U}, anula qualquer mágica"
+   ]
   },
   {
    "n": "702.149",

@@ -4871,6 +4871,7 @@ const EFFECTS = {
   unless_pays: { fields: [], targets: ['that-player'] },
   cumulative_upkeep: { fields: [], targets: ['self'] }, // 702.24 · gerado pelo campo `cumulativeUpkeep` do script // CR 603.12 · "quando você fizer isso, …": outra habilidade vai à pilha, com alvo escolhido nessa hora
   draw_up_to: { fields: ['amount'], targets: ['self', 'delayed-player'] }, // "may draw up to N": quem compra escolhe quantas, antes de comprar
+  look_hand: { fields: [], targets: ['player', 'opponent'] }, // CR2c.4 · "look at target player's hand": só quem controla o efeito vê
   look_top: { fields: [], targets: ['player'] }, // olhar a carta do topo do grimório do jogador alvo (só quem controla o efeito vê) // CR2a.4 · "each player sacrifices a <tipo> of their choice": escolhem em ordem, sacrificam juntos
   // S61 · Masmorra do Mago Louco
   cant_attack: { fields: [], targets: ['creature'] },
@@ -4950,7 +4951,7 @@ const CHOICE_EFFECTS = ['discard_or_sacrifice_land_draw', 'return_chosen', 'disc
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
-const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther'];
+const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free']; // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
@@ -5039,6 +5040,9 @@ function validateScript(sc) {
     if (!parts.length) errs.push(`custo alternativo ${i + 1}: sem custo`);
     for (const k of parts) if (!ALT_COST_PARTS.includes(k)) errs.push(`custo alternativo ${i + 1}: parte "${k}" desconhecida`);
     if (alt.effects) errs.push(...effectErrors(alt.effects, `custo alternativo ${i + 1}`)); // Q11 · sobrecarga tem efeitos próprios
+    if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`);
+    if (alt.cost && alt.cost.discardSubtype && !alt.cost.discard) errs.push(`custo alternativo ${i + 1}: "descartar uma <subtipo>" precisa do número de descartes`);
+    if (alt.cost && alt.cost.exileHandColor && !'WUBRG'.includes(alt.cost.exileHandColor)) errs.push(`custo alternativo ${i + 1}: exilar da mão precisa de uma cor WUBRG`);
   }
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther)) errs.push('lampejo do passado sem custo');
   if (sc && sc.escape && !sc.escape.mana) errs.push('fuga sem custo de mana');
@@ -5641,6 +5645,18 @@ const RAW_SCRIPTS = [
     { label: '−X/−X', effects: [{ do: 'pump', power: { per: 'x', times: -1 }, toughness: { per: 'x', times: -1 }, target: 'creature' }] },
     { label: 'Até X criaturas ganham medo', effects: [{ do: 'keyword', keyword: 'fear', target: 'creature', upTo: true, targetCount: { per: 'x' } }] }],
     example: { action: 'mode:0', target: 'self-player', expect: { selfLife: 0 } } },
+  // CR2c.4 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Gitaxian Probe', effects: [{ do: 'look_hand', target: 'player' }, { do: 'draw', amount: 1 }],
+    example: { target: 'self-player', expect: { handDelta: 1 } } },
+  { name: 'Snapback', effects: [{ do: 'bounce', target: 'creature' }],
+    alt: [{ label: 'Exilar uma carta azul da sua mão', cost: { exileHandColor: 'U' } }],
+    example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Mogg Salvage', effects: [{ do: 'destroy', target: 'artifact' }],
+    alt: [{ label: 'De graça: um oponente controla uma Ilha e você controla uma Montanha', cost: { free: true }, when: { opponentControlsSubtype: 'Island', youControlSubtype: 'Mountain' } }],
+    example: { target: 'enemy-permanent', expect: { gone: true } } },
+  { name: 'Wash Away', effects: [{ do: 'counter', target: 'spell', targetNotFromHand: true }],
+    alt: [{ label: 'Clivar {1}{U}{U}: anula qualquer mágica', cost: { mana: '{1}{U}{U}' }, effects: [{ do: 'counter', target: 'spell' }] }],
+    example: { action: 'alt:0', target: 'enemy-spell', expect: { countered: true } } },
   { name: 'Wretched Confluence', modeCount: 3, modeRepeat: true, modes: [
     { label: 'Compra e perde 1 de vida', effects: [{ do: 'draw', amount: 1, target: 'player' }, { do: 'lose', amount: 1, target: 'first-target' }] },
     { label: '−2/−2', effects: [{ do: 'pump', power: -2, toughness: -2, target: 'creature' }] },
@@ -5956,9 +5972,8 @@ const RAW_SCRIPTS = [
   // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
   { name: 'Flusterstorm', storm: true, effects: [{ do: 'counter', target: 'spell', targetTypes: ['instant', 'sorcery'], unless: { mana: '{1}' } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
-  { name: 'Foil', effects: [{ do: 'counter', target: 'spell' }],
-    alt: [{ label: 'Descartar uma Ilha e outra carta', cost: { discard: 2 } }],
-    covers: 'partial', note: 'na carta real a primeira carta descartada precisa ser uma Ilha',
+  { name: 'Foil', effects: [{ do: 'counter', target: 'spell' }], // CR2c.4 · texto oficial (05/10/2026): "discard an Island card and another card"
+    alt: [{ label: 'Descartar uma Ilha e outra carta', cost: { discard: 2, discardSubtype: 'Island' } }],
     example: { action: 'alt:0', target: 'enemy-spell', expect: { countered: true } } },
   // S15 · gatilhos de outras permanentes e gatilhos com alvo
   // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
@@ -11225,7 +11240,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 86;
+const ENGINE_VERSION = 87;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11537,7 +11552,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'sneakAtaque', 'kicked', 'modes']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 function moveObject(s, oid, to, { top = true } = {}) {
   const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
@@ -11868,6 +11883,14 @@ function payCost(s, p, cost, extra = 0) {
   s.players[p].pool = r.pool; s.players[p].life -= r.life;
 }
 const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
+/** CR2c.4 · 107.4f/601.2f: quantos símbolos phyrexianos o custo tem; com `vida` = n, os n primeiros são pagos com 2 de vida
+ * cada e os outros pedem a mana da cor (antes o motor decidia sozinho: mana primeiro, vida só sem mana). */
+const nPhyrexianos = cost => (cost.hybrid || []).filter(h => h.includes('P')).length;
+function custoPhyrexiano(cost, n) {
+  let k = 0; const hybrid = [], colored = { ...cost.colored };
+  for (const h of cost.hybrid || []) { if (!h.includes('P')) { hybrid.push(h); continue; } if (k++ < n) continue; const cor = h.find(x => x !== 'P'); colored[cor] = (colored[cor] || 0) + 1; }
+  return { ...cost, colored, hybrid };
+}
 /** CR2c.1 · custo somado (custo de mana + reforço pago n vezes). */
 const somaCusto = (a, b, n = 1) => { const c = { generic: a.generic + b.generic * n, colored: { ...a.colored }, hybrid: [...(a.hybrid || [])], x: a.x || 0 };
   for (const [k, v] of Object.entries(b.colored || {})) c.colored[k] = (c.colored[k] || 0) + v * n; for (let i = 0; i < n; i++) c.hybrid.push(...(b.hybrid || [])); return c; };
@@ -11924,10 +11947,26 @@ function flipToFront(s, o) { if (o.frontName) { o.name = o.frontName; delete o.f
 const altCosts = (s, o) => ((s.facts[o.name].script || {}).alt) || [];
 const flashbackOf = (s, o) => (s.facts[o.name].script || {}).flashback;
 const escapeOf = (s, o) => (s.facts[o.name].script || {}).escape; // S48 · fuga
+/** CR2c.4 · "an Island card": carta com o subtipo na linha de tipo (Ilha básica, Tropical Island…). */
+const temSubtipo = (s, oid, sub) => new RegExp('\\b' + sub + '\\b').test((s.facts[s.objects[oid].name] || {}).typeText || '');
+/** CR2c.4 · descartes que servem: com `discardSubtype`, pelo menos uma das cartas tem o subtipo. */
+const descarteServe = (s, cost, list) => !cost.discardSubtype || list.some(x => temSubtipo(s, x, cost.discardSubtype));
+/** CR2c.4 · cartas da mão da cor pedida que podem ser exiladas como custo (a própria mágica não). */
+const exilaveisDaMao = (s, p, cor, selfOid) => s.zones[p].hand.filter(x => x !== selfOid && ((s.facts[s.objects[x].name] || {}).colors || []).includes(cor));
+/** CR2c.4 · condição do custo alternativo ("If an opponent controls an Island and you control a Mountain"). */
+function condicaoDoAlt(s, p, when) {
+  if (!when) return true;
+  const terreno = (o, sub) => s.facts[o.name].types.includes('land') && !o.faceDown && new RegExp('\\b' + sub + '\\b').test(s.facts[o.name].typeText || '');
+  if (when.opponentControlsSubtype && !battlefield(s).some(o => o.controller !== p && !s.players[o.controller].lost && terreno(o, when.opponentControlsSubtype))) return false;
+  if (when.youControlSubtype && !battlefield(s).some(o => o.controller === p && terreno(o, when.youControlSubtype))) return false;
+  return true;
+}
 /** Uma sugestão de pagamento para o custo alternativo (a mesa pode trocar depois). */
 function defaultPayment(s, p, cost, selfOid) {
   const pay = {};
-  if (cost.discard) pay.discard = s.zones[p].hand.filter(x => x !== selfOid).slice(0, cost.discard);
+  if (cost.discard) { const mao = s.zones[p].hand.filter(x => x !== selfOid); const sub = cost.discardSubtype ? mao.find(x => temSubtipo(s, x, cost.discardSubtype)) : null;
+    pay.discard = sub ? [sub, ...mao.filter(x => x !== sub)].slice(0, cost.discard) : mao.slice(0, cost.discard); }
+  if (cost.exileHandColor) pay.exileHand = exilaveisDaMao(s, p, cost.exileHandColor, selfOid)[0];
   if (cost.returnLand) {
     const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
     const land = battlefield(s).find(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name));
@@ -11941,6 +11980,8 @@ function canPayAlt(s, p, cost, selfOid) {
   if (!canPayExtra(s, p, cost, selfOid)) return false;
   if (cost.life != null && s.players[p].life < cost.life) return false; // CR 119.4: basta ter aquela vida
   if (cost.discard && s.zones[p].hand.filter(x => x !== selfOid).length < cost.discard) return false;
+  if (cost.discard && !descarteServe(s, cost, defaultPayment(s, p, cost, selfOid).discard)) return false; // CR2c.4 · Foil sem Ilha na mão
+  if (cost.exileHandColor && !exilaveisDaMao(s, p, cost.exileHandColor, selfOid).length) return false;
   if (cost.returnLand && !defaultPayment(s, p, cost, selfOid).land) return false;
   return true;
 }
@@ -11958,8 +11999,14 @@ function payAlt(s, p, cost, pay, selfOid) {
   }
   if (cost.discard) {
     const list = (pay && pay.discard) || defaultPayment(s, p, cost, selfOid).discard || [];
-    if (list.length !== cost.discard || list.some(x => !s.zones[p].hand.includes(x) || x === selfOid)) throw new RuleError('custo', `descarte ${cost.discard} carta(s) como custo`);
+    if (list.length !== cost.discard || new Set(list).size !== list.length || list.some(x => !s.zones[p].hand.includes(x) || x === selfOid)) throw new RuleError('custo', `descarte ${cost.discard} carta(s) como custo`);
+    if (!descarteServe(s, cost, list)) throw new RuleError('custo', `uma das cartas descartadas precisa ser ${cost.discardSubtype === 'Island' ? 'uma Ilha' : cost.discardSubtype}`);
     list.forEach(x => descartaCarta(s, x));
+  }
+  if (cost.exileHandColor) { // CR2c.4 · Snapback
+    const oid = pay && pay.exileHand != null ? pay.exileHand : defaultPayment(s, p, cost, selfOid).exileHand;
+    if (!oid || !exilaveisDaMao(s, p, cost.exileHandColor, selfOid).includes(oid)) throw new RuleError('custo', 'exile uma carta da cor pedida da sua mão');
+    moveObject(s, oid, 'exile');
   }
   if (cost.returnLand) {
     const oid = (pay && pay.land) || (defaultPayment(s, p, cost, selfOid).land);
@@ -12423,6 +12470,7 @@ function targetAllowed(s, eff, tgt, src) {
   if (!o) return true;
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && f.legendary) return false;
+  if (eff.targetNotFromHand && o.zone === 'stack' && o.castFrom === 'hand') return false; // CR2c.4 · "that wasn't cast from its owner's hand" (Wash Away)
   if (eff.targetNotLand && (f.types || []).includes('land')) return false; // R11 · "nonland permanent"
   if (eff.targetTypes && !eff.targetTypes.some(x => (f.types || []).includes(x))) return false; // R11 · "instant or sorcery spell"
   if (eff.targetNotColor && (f.colors || []).includes(eff.targetNotColor)) return false; // S38 · "criatura não-preta"
@@ -12787,6 +12835,12 @@ function applyEffect(s, src, eff, tgt, events) {
       if (s.players[who].lost || max <= 0) { note({ amount: 0 }); break; }
       s.pending = { kind: 'choose_mode', p: who, name: src.name, compra: { who, max }, pergunta: `Comprar até ${max} ${max === 1 ? 'carta' : 'cartas'}?`,
         options: Array.from({ length: max + 1 }, (_, i) => max - i).map(n => n ? `Comprar ${n}` : 'Não comprar') };
+      break;
+    }
+    case 'look_hand': { // CR2c.4 · olhar a mão do jogador alvo; nada muda de lugar
+      const who = playerOf();
+      if (!s.zones[who].hand.length) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: [], mostrar: s.zones[who].hand.slice(), min: 0, max: 0, to: 'hand', rest: 'stay', label: 'olhar a mão', source: src.name }, events);
       break;
     }
     case 'look_top': { // só quem controla o efeito vê; a carta fica onde está
@@ -13415,7 +13469,8 @@ function pagamentosDe(s, p, cost, selfOid) {
   };
   if (cost.sacrificeOther) multiplica(extraCostCandidates(s, p, cost.sacrificeOther, selfOid), 'sacrifice');
   if (cost.tapOther) multiplica(combinacoes(extraCostCandidates(s, p, cost.tapOther, selfOid, true), cost.tapOther.amount || 1), 'tapOther');
-  if (cost.discard) multiplica(combinacoes(s.zones[p].hand.filter(x => x !== selfOid), cost.discard), 'discard');
+  if (cost.discard) multiplica(combinacoes(s.zones[p].hand.filter(x => x !== selfOid), cost.discard).filter(l => descarteServe(s, cost, [].concat(l))), 'discard'); // CR2c.4 · Foil: só as combinações com Ilha
+  if (cost.exileHandColor) multiplica(exilaveisDaMao(s, p, cost.exileHandColor, selfOid), 'exileHand');
   if (cost.returnLand) {
     const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
     multiplica(battlefield(s).filter(x => x.controller === p && s.facts[x.name].types.includes('land') && rx.test(s.facts[x.name].typeText || x.name)).map(x => x.oid), 'land');
@@ -13810,6 +13865,7 @@ const HANDLERS = {
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
+    if (alt && !condicaoDoAlt(s, a.p, alt.when)) throw new RuleError('custo', 'a condição do custo alternativo não vale agora');
     if (alt) payAlt(s, a.p, alt.cost, a.pay, a.oid);
     else if (a.flashback) {
       const fb = flashbackOf(s, o);
@@ -13825,7 +13881,13 @@ const HANDLERS = {
     else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0)); }
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
-    else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim'); payCost(s, a.p, a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost, castExtra(s, a.p, o, a.x || 0)); }
+    else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
+      const custo = a.kick ? somaCusto(f.cost, parseCost(reforco.mana), a.kick) : f.cost;
+      if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
+        if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
+        if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
+        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0)); s.players[a.p].life -= 2 * a.vida;
+      } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0)); }
     // S20/S53 · custo adicional: uma opção, várias opções, ou nenhuma quando é opcional
     const addSpec2 = f.script && f.script.additional;
     const listaAdd = Array.isArray(addSpec2) ? addSpec2 : addSpec2 ? [addSpec2] : [];
@@ -13839,7 +13901,9 @@ const HANDLERS = {
       } else if (!opcionalAdd) throw new RuleError('custo', 'escolha o custo adicional');
     }
     if (o.zone === 'command') s.players[a.p].commanderCasts[a.oid] = (s.players[a.p].commanderCasts[a.oid] || 0) + 1;
+    const origem = o.zone; // CR2c.4 · de onde foi conjurada ("cast from its owner's hand")
     moveObject(s, a.oid, 'stack');
+    s.objects[a.oid].castFrom = origem;
     if (need.length) s.objects[a.oid].targets = carimbaAlvos(s, chosen);
     if (modes.length && !nModos) s.objects[a.oid].mode = a.mode;
     if (nModos) s.objects[a.oid].modes = a.modes.slice().sort((x, y) => x - y);
@@ -14578,7 +14642,10 @@ function legalActions(s, p, { adjudication = false } = {}) {
     else if ((canSorcery || !isSorcerySpeed(f)) && !(s.manaCheck && f.semCusto) && payable(o, castExtra(s, p, o, 0))) {
       // S50/Leva 104 · custo com X: quem conjura escolhe X (601.2b), de 0 até o que dá para pagar
       const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x)));
-      const empurra = c => xs.forEach(x => out.push(x == null ? c : { ...c, x }));
+      // CR2c.4 · phyrexiano: uma forma de conjurar por quantidade de símbolos pagos com vida (só quando a mesa cobra mana)
+      const vidas = (c, x) => { const custo = c.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), c.kick) : f.cost, k = nPhyrexianos(custo); if (!k || !s.manaCheck) return [null];
+        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(custo, v), castExtra(s, p, o, x || 0))) ok.push(v); return ok; };
+      const empurra = c => xs.forEach(x => vidas(c, x).forEach(v => out.push({ ...c, ...(x != null ? { x } : {}), ...(v != null ? { vida: v } : {}) })));
       // CR2c.3 · quando o X decide alvo ("valor de mana X ou menos") ou quantos alvos ("até X"), os alvos são montados para cada X
       if (xNoAlvo(f.script)) reforcos(o).forEach(n => adicionais(o).forEach(v => xs.forEach(xv => casts(o, xv).forEach(x => out.push({ ...x, ...v, ...(n ? { kick: n } : {}), x: xv })))));
       else reforcos(o).forEach(n => adicionais(o).forEach(v => casts(o).forEach(x => empurra({ ...x, ...v, ...(n ? { kick: n } : {}) }))));
@@ -14640,7 +14707,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (f.types.includes('land')) continue;
     if (!(canSorcery || !isSorcerySpeed(f))) continue;
     altCosts(s, o).forEach((alt, i) => {
-      if (!canPayAlt(s, p, alt.cost, oid)) return;
+      if (!condicaoDoAlt(s, p, alt.when) || !canPayAlt(s, p, alt.cost, oid)) return;
       pagamentosDe(s, p, alt.cost, oid).forEach(pay =>
         castWith(o, ((alt.effects || (f.script && f.script.effects)) || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, alt: i, ...comPagamento(pay) })));
     });
@@ -17243,6 +17310,7 @@ function descreveEfeito(e) {
     case 'cumulative_upkeep': return `manutenção cumulativa ${e.mana}: põe um marcador de idade e paga por marcador, ou sacrifica`;
     case 'draw_up_to': return `pode comprar até ${plural(n, 'carta', 'cartas')}`;
     case 'look_top': return 'olha a carta do topo do grimório do jogador alvo';
+    case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
     case 'reanimate': case 'reanimate_tapped': return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
@@ -18819,6 +18887,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     ['sacrifice', () => 'O que você sacrifica para pagar?', 'Sacrificar'],
     ['discard', n => n > 1 ? 'Quais cartas você descarta?' : 'Qual carta você descarta?', 'Descartar'],
     ['land', () => 'Qual terreno volta para a mão?', 'Devolver'],
+    ['exileHand', () => 'Qual carta da mão você exila para pagar?', 'Exilar'], // CR2c.4 · Snapback
     ['exile', () => 'Qual carta do cemitério é exilada?', 'Exilar'],
     ['bargain', () => 'O que você sacrifica na barganha?', 'Sacrificar'],
     ['exileGrave', () => 'Quais cartas do cemitério você exila?', 'Exilar'],
@@ -19088,6 +19157,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (a.kick ? (a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1
+          + (a.vida != null ? (a.vida ? ` · pagando ${2 * a.vida} de vida` : ' · pagando com mana') : '') // CR2c.4 · phyrexiano
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
             : a.t === 'companion' ? doBtn(`Pôr na mão · {${E.COMPANION_COST}}`, a, { variant: 'primary' }) : null).filter(Boolean);
