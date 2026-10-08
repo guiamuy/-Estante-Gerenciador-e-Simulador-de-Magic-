@@ -4303,7 +4303,7 @@ test('e2e · Leva 121 · gatilho com modos (Sewer-veillance Cam): a mesa pergunt
   assert.equal(e.pend, 'choose_mode', 'na resolução, o gatilho pergunta o que fazer com a criatura');
   await page.waitForSelector('#tb-modo');
   assert.doesNotMatch((await page.innerText('.tb-dock')).replace(/\s+/g, ' '), /Aguardando/, 'a mesa não fica esperando ninguém');
-  assert.deepEqual(await page.locator('#tb-modo button').allInnerTexts(), ['Virar', 'Desvirar', 'Nada']);
+  assert.deepEqual(await page.locator('#tb-modo button:not(.ds-chip)').allInnerTexts(), ['Virar', 'Desvirar', 'Nada']); // K1 (leva G-214) · o seletor Escolha / Mão entrou na mesma bandeja
   assert.match(await page.innerText('#tb-modo-pergunta'), /O que fazer com Faerie Seer\? Ela está (des)?virada\./);
   assert.match(await page.innerText('#tb-modo'), /Sewer-veillance Cam/, 'diz de qual carta é o gatilho');
   await auditaTela(page, 'escolha de modo do gatilho');
@@ -4889,7 +4889,7 @@ test('e2e · Leva 131 · Faeries: vidência em português; alvo do gatilho sem n
   e = await M.resolve();
   assert.equal(e.pend, 'choose_mode');
   assert.equal(await page.innerText('#tb-modo-pergunta'), 'O que fazer com Faerie Seer? Ela está virada.');
-  assert.deepEqual(await page.locator('#tb-modo button').allInnerTexts(), ['Virar', 'Desvirar', 'Nada']);
+  assert.deepEqual(await page.locator('#tb-modo button:not(.ds-chip)').allInnerTexts(), ['Virar', 'Desvirar', 'Nada']); // K1 (leva G-214) · o seletor Escolha / Mão entrou na mesma bandeja
   await auditaTela(page, 'virar, desvirar ou nada');
   await page.locator('#tb-modo button', { hasText: 'Desvirar' }).click(); await page.waitForTimeout(200);
   assert.deepEqual(await virada('Faerie Seer'), [false], 'desvirou');
@@ -6093,7 +6093,7 @@ test('e2e · D7 mesa do seu jeito: superfície só na partida, cor do oponente e
   await page.goto(base + '#/perfil'); await page.waitForSelector('#aparencia-mesa');
   assert.deepEqual(await html(), [null, null, null], 'padrões não marcam o <html>');
   const fundoPadrao = await fundo(); const oppPadrao = await opp();
-  assert.equal(await page.locator('#aparencia-superficie .ds-chip').count(), 4); assert.equal(await page.locator('#aparencia-oponente .ds-chip').count(), 3); assert.equal(await page.locator('#aparencia-verso .ds-chip').count(), 3);
+  assert.equal(await page.locator('#aparencia-superficie .ds-chip').count(), 6); // K2 (leva G-214) · Oceano e Vinho entraram assert.equal(await page.locator('#aparencia-oponente .ds-chip').count(), 3); assert.equal(await page.locator('#aparencia-verso .ds-chip').count(), 3);
   assert.equal(await page.locator('#aparencia-verso .aparencia__verso .ds-verso[data-desenho]').count(), 3, 'cada chip de verso mostra o seu desenho');
   await page.click('#aparencia-superficie [data-superficie="feltro"]'); await page.click('#aparencia-oponente [data-oponente="rubi"]'); await page.click('#aparencia-verso [data-verso="selo"]');
   await page.waitForFunction(() => document.documentElement.getAttribute('data-verso') === 'selo');
@@ -8575,5 +8575,62 @@ test('e2e · N4 Notícias: "Mais ações" em cada notícia abre a folha com Guar
   await page.waitForSelector('#guardadas-vazio'); assert.match(await page.innerText('#guardadas-vazio'), /Nada guardado[\s\S]*toque nos três pontos de uma matéria e escolha Guardar\./);
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1); await auditaTela(page, 'guardadas · vazio');
   await page.click('#guardadas-ver'); await page.waitForSelector('#noticias-lista .nt-cartao'); assert.equal(await page.locator('#noticias-lista [data-guardada="true"]').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- K1 · alternar a decisão e a mão · K2 · feltros com presença ---------------- */
+test('e2e · K1 decisão que toma o lugar da mão (vidência): o seletor Escolha/Mão alterna quantas vezes quiser, a mão aparece só para ver e a decisão continua esperando; K2 · os feltros do escuro se separam das zonas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Vidência', '20 Island\n20 Preordain', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '7'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  // terreno, Preordain, e passa até a vidência pedir a escolha
+  const chegou = await page.evaluate(() => { const M = window.__estanteMesa; const nome = oid => M.estado().objects[oid].name;
+    const terra = M.legais().find(a => a.t === 'play_land'); if (!terra) return 'sem terreno'; M.act(terra);
+    const pre = M.legais().find(a => a.t === 'cast' && nome(a.oid) === 'Preordain'); if (!pre) return 'sem Preordain'; M.act(pre);
+    for (let i = 0; i < 6 && !(M.estado().pending && M.estado().pending.kind === 'pick'); i++) { const p = M.legais().find(a => a.t === 'pass'); if (!p) break; M.act(p); }
+    return M.estado().pending ? M.estado().pending.kind : 'nada'; });
+  assert.equal(chegou, 'pick'); await page.waitForSelector('#tb-pick-cards .tb-card');
+  const mao = await page.evaluate(() => window.__estanteMesa.estado().zones[0].hand.length);
+  // o seletor: dois botões de 44 px, com ícone; começa na escolha
+  const seg = () => page.$$eval('#tb-alterna .ds-chip', cs => cs.map(c => ({ id: c.id, texto: c.textContent.trim(), ligado: c.getAttribute('aria-pressed'), h: Math.round(c.getBoundingClientRect().height), topo: Math.round(c.getBoundingClientRect().top), icone: !!c.querySelector('svg') })));
+  const antes = await seg();
+  assert.deepEqual(antes.map(c => [c.id, c.texto, c.ligado, c.h, c.icone]), [['tb-alterna-decisao', 'Escolha', 'true', 44, true], ['tb-alterna-mao', `Mão · ${mao}`, 'false', 44, true]]);
+  await auditaTela(page, 'vidência · escolha');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/o1-escolha.png' });
+  // ver a mão: as cartas da mão aparecem no lugar das olhadas, o botão tocado não sai do lugar, e a decisão continua pendente
+  await page.click('#tb-alterna-mao'); await page.waitForSelector('#tb-mao-na-decisao');
+  assert.equal(await page.locator('#tb-mao-na-decisao .tb-card').count(), mao); assert.equal(await page.locator('#tb-pick-cards').count(), 0);
+  const depois = await seg(); assert.deepEqual(depois.map(c => [c.ligado, c.topo]), [['false', antes[0].topo], ['true', antes[1].topo]], 'o seletor fica onde estava');
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending.kind), 'pick'); assert.equal(await page.locator('#tb-decisao').isVisible(), true, 'a instrução continua à vista');
+  await auditaTela(page, 'vidência · mão');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/o1-mao.png' });
+  // tocar numa carta da mão só mostra a carta (nada é jogado: a decisão está esperando)
+  await page.locator('#tb-mao-na-decisao .tb-card').first().click(); await page.waitForSelector('.ds-dialog');
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary').count() <= 1, true); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending.kind), 'pick');
+  // de volta à escolha, e de novo à mão, e de volta: alterna quantas vezes quiser
+  for (const [botao, espera] of [['#tb-alterna-decisao', '#tb-pick-cards'], ['#tb-alterna-mao', '#tb-mao-na-decisao'], ['#tb-alterna-decisao', '#tb-pick-cards']]) { await page.click(botao); await page.waitForSelector(espera); }
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(60); await auditaTela(page, `vidência ${w} ${tema}`); await page.click('#tb-alterna-mao'); await auditaTela(page, `vidência · mão ${w} ${tema}`); await page.click('#tb-alterna-decisao'); } }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // decidir segue como antes; a decisão seguinte começa mostrando a decisão
+  await page.click('#tb-alterna-mao'); await page.click('#tb-alterna-decisao');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.click('#tb-pick-done');
+  await page.waitForFunction(() => !document.querySelector('#tb-pick-cards') && !document.querySelector('#tb-alterna'));
+  assert.notEqual(await page.evaluate(() => (window.__estanteMesa.estado().pending || {}).kind), 'pick');
+  // K2 · com a mesa no ar, cada feltro do escuro se separa das zonas (antes 1,24:1) e mantém o texto legível
+  const lum = c => { const v = c.match(/[\d.]+/g).slice(0, 3).map(Number).map(x => x / 255).map(x => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+  const razao = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  for (const sup of ['feltro', 'oceano', 'vinho']) {
+    await page.evaluate(s => document.documentElement.setAttribute('data-superficie', s), sup); await page.waitForTimeout(250);
+    const c = await page.evaluate(() => ({ mesa: getComputedStyle(document.body).backgroundColor, zona: getComputedStyle(document.documentElement).getPropertyValue('--bg-elev-1').trim(), muted: getComputedStyle(document.documentElement).getPropertyValue('--fg-muted').trim() }));
+    const hex = x => (x.startsWith('#') ? `rgb(${parseInt(x.slice(1, 3), 16)}, ${parseInt(x.slice(3, 5), 16)}, ${parseInt(x.slice(5, 7), 16)})` : x);
+    assert.ok(razao(c.mesa, hex(c.zona)) >= 1.5, `${sup}: a mesa se separa das zonas (${razao(c.mesa, hex(c.zona)).toFixed(2)})`);
+    assert.ok(razao(c.mesa, hex(c.muted)) >= 4.5, `${sup}: texto secundário legível sobre a mesa`);
+    await auditaTela(page, `mesa ${sup} escuro`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/o2-${sup}.png` });
+  }
   assert.deepEqual(errors, []);
 });

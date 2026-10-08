@@ -94,7 +94,7 @@ test('D7 · superfície, cor do oponente e verso: atributos no <html> só fora d
   const doc = { documentElement: d.root, querySelectorAll: () => [] };
   const th = T.createTheme(store, janela('dark'), doc);
   await th.init();
-  assert.deepEqual(JSON.parse(JSON.stringify([th.SUPERFICIES, th.OPONENTES, th.VERSOS])), [['nogueira', 'feltro', 'pedra', 'linho'], ['azul', 'rubi', 'ametista'], ['estante', 'selo', 'trama']]);
+  assert.deepEqual(JSON.parse(JSON.stringify([th.SUPERFICIES, th.OPONENTES, th.VERSOS])), [['nogueira', 'feltro', 'oceano', 'vinho', 'pedra', 'linho'], ['azul', 'rubi', 'ametista'], ['estante', 'selo', 'trama']]); // K2 (leva G-214) · Oceano e Vinho entraram
   for (const a of ['data-superficie', 'data-oponente', 'data-verso']) assert.equal(a in d.root.attrs, false, a + ' padrão não marca o <html>');
   await th.setAparencia({ superficie: 'feltro', oponente: 'rubi', verso: 'selo' });
   assert.equal(d.root.attrs['data-superficie'], 'feltro'); assert.equal(d.root.attrs['data-oponente'], 'rubi'); assert.equal(d.root.attrs['data-verso'], 'selo');

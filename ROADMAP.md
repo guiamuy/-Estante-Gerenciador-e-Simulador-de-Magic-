@@ -468,6 +468,10 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-bx ○ | N5 lançamentos da Scryfall na linha do tempo | N | 1 | — |
 | 16º-by ✅ | I6 terrenos do seu jeito: Perfil › Terrenos com os doze básicos (ícone, cor), artes da Scryfall em lotes de 6 com "Mais artes", escolha guardada e usada na partida; fichas na mesma mecânica (leva 200) | I | 1 | teste no aparelho |
 | 16º-bz ✅ | I7 acabamento: artes com espera própria e pequena primeiro, um lote por vez, escolha na hora, artes de terreno e ficha em toda partida, abertura de 2 s e maior, toque sem realce do navegador (leva 206) | I | 1 | teste no aparelho |
+| 16º-ca ✅ | K1 decisão que esconde a mão: seletor Escolha / Mão para alternar entre a decisão e a mão (leva G-214) | K | 1 | teste no aparelho |
+| 16º-cb ✅ | K2 feltros do escuro com presença: verde novo, Oceano e Vinho, todos separados das zonas e com texto AA (leva G-214) | K | ½ | teste no aparelho |
+| 16º-cc ○ | K3 parar por etapa na partida, com parada automática quando há resposta possível | K | 1–1,5 | — |
+| 16º-cd ○ | K4 Início redesenhada, com as notícias integradas | K | 1–2 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6021,6 +6025,59 @@ Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
 **Fora do épico (escopo negativo mantido):** ranking de metagame e listas de torneio como dado do app (a notícia
 pode falar disso; o app não monta ranking); comentários, curtidas e conta em rede social; notificação por push
 (precisa de servidor); leitura da matéria inteira dentro do app; vídeo embutido.
+
+### K · Mesa e Início (E59, pedido de 08/10/2026)
+
+**Pedido (08/10/2026):** na partida, poder voltar a ver a mão durante uma decisão que a esconde (vidência, vigiar,
+olhar o topo…) e voltar à decisão quando quiser; feltros do modo escuro com mais destaque, confortáveis e da paleta
+do app; um controle na partida para ligar e desligar "parar sempre" por etapa do turno, parando sempre que houver
+resposta ou ação possível e seguindo sozinho quando não houver; e uma tela inicial mais sofisticada, com as
+notícias integradas, porque ela é a tela que mostra o patamar do app.
+
+**Ordem e tamanho:** K1 e K2 numa leva (as duas da mesa, pequenas); K3 numa leva (mexe na passagem automática de
+prioridade, que é da mesa e conversa com o motor); K4 em uma ou duas levas.
+
+**K1 · A mão de volta durante a decisão** ✅ (leva G-214, 08/10/2026)
+- **Valor:** decidir o que fica no topo olhando a própria mão, sem perder a decisão.
+- **Entregue:** nas decisões que tomam o lugar da mão na bandeja — escolher cartas (vidência, vigiar, olhar o topo,
+  buscar, devolver, descartar do oponente) e escolher o modo de um gatilho — entra um seletor de dois botões de
+  44 px, **Escolha** e **Mão · N**. "Mão" troca as cartas da decisão pela sua mão, que fica **só para ver** (tocar
+  abre a carta grande; nada se joga dali); a instrução da decisão e o Confirmar continuam à vista, e a decisão
+  continua esperando. Dá para alternar quantas vezes quiser; o seletor não sai do lugar. A decisão seguinte começa
+  mostrando a decisão.
+- **Fora:** "descartar ou sacrificar" (Highway Robbery) já mostra a mão no próprio seletor dela; decisões em
+  diálogo (pagar, alvo de gatilho) deixam a mão à vista e não precisam do seletor.
+- **Custo em 360×780:** +52 px na bandeja só enquanto a decisão está aberta.
+- **Testes:** e2e "K1" (Preordain: seletor de 44 px com ícone e contagem da mão, alternar ida e volta três vezes, o
+  botão no mesmo lugar, a decisão pendente o tempo todo, a carta da mão só abre a folha, decidir depois e o seletor
+  sumir; `auditaTela` nas quatro larguras, dois temas, nas duas vistas).
+
+**K2 · Feltros com presença** ✅ (leva G-214, 08/10/2026)
+- **Valor:** a mesa parece mesa no escuro, sem cansar a vista.
+- **Diagnóstico:** o feltro escuro (`#15302a`) ficava a 1,24:1 das zonas (`--bg-elev-1`): na prática, a mesa
+  parecia toda marrom-escura.
+- **Entregue:** feltro verde novo (`#1b4535`) e dois feltros novos, **Oceano** (`#173f57`) e **Vinho** (`#632a3b`),
+  em Perfil › Aparência › Mesa (agora seis superfícies), com as versões do tema claro. Os três ficam a 1,5:1 ou
+  mais das zonas e mantêm `--fg` e `--fg-muted` AA sobre a mesa (o teto de claridade é o texto secundário: 4,5:1).
+- **Testes:** contrato visual D7 (AA nos dois temas para as cinco superfícies); e2e "K2" (na partida, cada feltro do
+  escuro a 1,5:1 ou mais das zonas e texto secundário AA, `auditaTela`); e2e D7 ajustado (seis superfícies).
+
+**K3 · Parar por etapa** ○
+- **Valor:** decidir em que etapas a partida espera por mim, sem perder a chance de responder.
+- **Aceite:** na partida, um controle que liga e desliga "parar sempre" para cada etapa do turno (manutenção,
+  compra, principal 1, combate, principal 2, final), guardado no aparelho. Ligado ou desligado, a partida **para
+  sempre que houver resposta ou ação possível** (mágica instantânea, habilidade ativada que se possa usar agora) e
+  **segue sozinha** quando não houver.
+- **Testes:** U do modelo de parada (etapa ligada, resposta possível, nada a fazer); e2e (liga e desliga, guarda,
+  para com resposta, segue sem resposta). · **Estimativa:** 1 a 1,5 leva.
+
+**K4 · Início com notícias integradas** ○
+- **Valor:** a primeira tela mostra o patamar do app e o que há de novo, sem parecer uma pilha de botões.
+- **Aceite:** Início redesenhada: cabeçalho com saudação e o que retomar; as ações principais em forma mais leve;
+  as notícias como parte da tela (destaque e as mais recentes, com rolagem própria e "Ver todas"), nos idiomas
+  escolhidos, com estados sem internet e sem notícias; um primário. Capturas antes e depois.
+- **Testes:** e2e com o ramo de notícias de mentira, `auditaTela` nas quatro larguras e dois temas, sem internet.
+  · **Estimativa:** 1 a 2 levas.
 
 ### P · Plataforma
 

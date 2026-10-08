@@ -247,12 +247,18 @@
 :root[data-theme="light"][data-acento="jade"] { --accent: #1b6547; --accent-hover: #175539; --accent-fg: #fdf8ea; --accent-soft: rgba(27, 101, 71, .15); }
 /* D7 · superfície da mesa: só a tela da partida troca o fundo (body[data-tela="partida"]); nogueira é o móvel de sempre */
 :root { --mesa-bg: var(--bg); --mesa-veio-1: var(--grain-1); --mesa-veio-2: var(--grain-2); }
-:root[data-superficie="feltro"] { --mesa-bg: #15302a; --mesa-veio-1: rgba(255, 255, 255, .025); --mesa-veio-2: rgba(0, 0, 0, .14); }
+/* K2 · feltros do escuro com presença: o verde antigo (#15302a) quase não se separava das zonas (1,24:1 contra
+   --bg-elev-1); os novos ficam em 1,6:1 ou mais, com o texto ainda AA (o contrato visual mede --fg e --fg-muted) */
+:root[data-superficie="feltro"] { --mesa-bg: #1b4535; --mesa-veio-1: rgba(255, 255, 255, .03); --mesa-veio-2: rgba(0, 0, 0, .16); }
+:root[data-superficie="oceano"] { --mesa-bg: #173f57; --mesa-veio-1: rgba(255, 255, 255, .03); --mesa-veio-2: rgba(0, 0, 0, .16); }
+:root[data-superficie="vinho"] { --mesa-bg: #632a3b; --mesa-veio-1: rgba(255, 240, 230, .03); --mesa-veio-2: rgba(0, 0, 0, .16); }
 :root[data-superficie="pedra"] { --mesa-bg: #22252a; --mesa-veio-1: rgba(255, 255, 255, .02); --mesa-veio-2: rgba(0, 0, 0, .2); }
 :root[data-superficie="linho"] { --mesa-bg: #262320; --mesa-veio-1: rgba(255, 244, 222, .03); --mesa-veio-2: rgba(255, 244, 222, .02); }
 :root[data-theme="light"][data-superficie="feltro"] { --mesa-bg: #c3d9c6; --mesa-veio-1: rgba(20, 60, 40, .04); --mesa-veio-2: rgba(20, 60, 40, .05); }
 :root[data-theme="light"][data-superficie="pedra"] { --mesa-bg: #d7d8d9; --mesa-veio-1: rgba(0, 0, 0, .03); --mesa-veio-2: rgba(0, 0, 0, .05); }
 :root[data-theme="light"][data-superficie="linho"] { --mesa-bg: #ebe4d4; --mesa-veio-1: rgba(90, 62, 22, .04); --mesa-veio-2: rgba(90, 62, 22, .04); }
+:root[data-theme="light"][data-superficie="oceano"] { --mesa-bg: #c2d6e0; --mesa-veio-1: rgba(20, 50, 70, .04); --mesa-veio-2: rgba(20, 50, 70, .05); }
+:root[data-theme="light"][data-superficie="vinho"] { --mesa-bg: #e2c9cd; --mesa-veio-1: rgba(80, 20, 35, .04); --mesa-veio-2: rgba(80, 20, 35, .05); }
 body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1); --grain-2: var(--mesa-veio-2); }
 /* D7 · cor do oponente na mesa: azul é a de sempre; rubi e ametista com par de contraste nos dois temas */
 :root[data-oponente="rubi"] { --player-opp: #dc8f98; --player-opp-fg: #1c0a0d; --player-opp-soft: rgba(220, 143, 152, .18); }
@@ -260,8 +266,8 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 :root[data-theme="light"][data-oponente="rubi"] { --player-opp: #8a2b3a; --player-opp-fg: #fdf8ea; --player-opp-soft: rgba(138, 43, 58, .14); }
 :root[data-theme="light"][data-oponente="ametista"] { --player-opp: #5b3c8a; --player-opp-fg: #fdf8ea; --player-opp-soft: rgba(91, 60, 138, .14); }
 /* amostras para os chips da Aparência */
-:root { --superficie-nogueira: #1f1811; --superficie-feltro: #15302a; --superficie-pedra: #22252a; --superficie-linho: #262320; --oponente-azul: #86acd8; --oponente-rubi: #dc8f98; --oponente-ametista: #bb9ddc; }
-:root[data-theme="light"] { --superficie-nogueira: #e7dbc4; --superficie-feltro: #c3d9c6; --superficie-pedra: #d7d8d9; --superficie-linho: #ebe4d4; --oponente-azul: #2c5a88; --oponente-rubi: #8a2b3a; --oponente-ametista: #5b3c8a; }
+:root { --superficie-nogueira: #1f1811; --superficie-feltro: #1b4535; --superficie-oceano: #173f57; --superficie-vinho: #632a3b; --superficie-pedra: #22252a; --superficie-linho: #262320; --oponente-azul: #86acd8; --oponente-rubi: #dc8f98; --oponente-ametista: #bb9ddc; }
+:root[data-theme="light"] { --superficie-nogueira: #e7dbc4; --superficie-feltro: #c3d9c6; --superficie-oceano: #c2d6e0; --superficie-vinho: #e2c9cd; --superficie-pedra: #d7d8d9; --superficie-linho: #ebe4d4; --oponente-azul: #2c5a88; --oponente-rubi: #8a2b3a; --oponente-ametista: #5b3c8a; }
 /* D2 · menos movimento por escolha (além do que o sistema pede): tudo instantâneo */
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 
@@ -705,6 +711,8 @@ a { color: var(--accent); }
 .aparencia__cor[data-acento="jade"] { background: var(--acento-jade); }
 .aparencia__cor[data-superficie="nogueira"] { background: var(--superficie-nogueira); }
 .aparencia__cor[data-superficie="feltro"] { background: var(--superficie-feltro); }
+.aparencia__cor[data-superficie="oceano"] { background: var(--superficie-oceano); }
+.aparencia__cor[data-superficie="vinho"] { background: var(--superficie-vinho); }
 .aparencia__cor[data-superficie="pedra"] { background: var(--superficie-pedra); }
 .aparencia__cor[data-superficie="linho"] { background: var(--superficie-linho); }
 .aparencia__cor[data-oponente="azul"] { background: var(--oponente-azul); }
@@ -2004,6 +2012,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 /* Leva 121 · "descartar ou sacrificar": cabeçalho, segmentado, fileira e dois botões */
 .tb-troca { display: flex; flex-direction: column; gap: var(--space-2); }
 .tb-troca__cab { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+/* K1 · alternar entre a decisão e a mão */
+.tb-alterna { flex: 0 0 auto; margin: 0 var(--space-1) var(--space-2); }
+.tb-alterna .ds-chip { gap: var(--space-2); }
 .tb-troca__icone { flex: none; color: var(--warning); }
 .tb-troca__texto { display: flex; flex-direction: column; min-width: 0; line-height: var(--lh-sm); }
 .tb-troca__texto strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); color: var(--warning); }
@@ -2439,7 +2450,7 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, superficie: 'nogueira', oponente: 'azul', verso: 'estante' };
   const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'], ACENTOS = ['latao', 'cobre', 'prata', 'jade'], MOVIMENTOS = ['sistema', 'reduzido'];
   // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta
-  const SUPERFICIES = ['nogueira', 'feltro', 'pedra', 'linho'], OPONENTES = ['azul', 'rubi', 'ametista'], VERSOS = ['estante', 'selo', 'trama'];
+  const SUPERFICIES = ['nogueira', 'feltro', 'oceano', 'vinho', 'pedra', 'linho'], OPONENTES = ['azul', 'rubi', 'ametista'], VERSOS = ['estante', 'selo', 'trama'];
   const aplicaAparencia = a => {
     aparencia = { escala: ESCALAS.includes(a && a.escala) ? a.escala : 'media', densidade: DENSIDADES.includes(a && a.densidade) ? a.densidade : 'confortavel',
       acento: ACENTOS.includes(a && a.acento) ? a.acento : 'latao', movimento: MOVIMENTOS.includes(a && a.movimento) ? a.movimento : 'sistema', vibracao: !(a && a.vibracao === false),
@@ -9396,7 +9407,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Chip('Vibração', { icone: 'raio', pressed: a.vibracao, dataset: { vibracao: '1' }, onClick: () => muda({ vibracao: !theme.aparencia.vibracao }) })),
       // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta (amostra em cada chip)
       Text('Mesa', { size: 'sm', as: 'h3', display: true, attrs: { id: 'aparencia-mesa' } }),
-      amostras('Superfície', 'aparencia-superficie', 'superficie', [['nogueira', 'Nogueira'], ['feltro', 'Feltro'], ['pedra', 'Pedra'], ['linho', 'Linho']], a.superficie),
+      amostras('Superfície', 'aparencia-superficie', 'superficie', [['nogueira', 'Nogueira'], ['feltro', 'Feltro'], ['oceano', 'Oceano'], ['vinho', 'Vinho'], ['pedra', 'Pedra'], ['linho', 'Linho']], a.superficie),
       amostras('Cor do oponente', 'aparencia-oponente', 'oponente', [['azul', 'Azul'], ['rubi', 'Rubi'], ['ametista', 'Ametista']], a.oponente),
       h('div', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Verso de carta'),
         h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Verso de carta', id: 'aparencia-verso' },
@@ -18150,6 +18161,24 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   const semBotaoDeTexto = banner => { const tx = banner.querySelector('.tb-banner__text'); if (tx) { const sp = h('span', { class: 'tb-banner__text', 'aria-hidden': 'true' }); sp.append(...tx.childNodes); tx.replaceWith(sp); } return banner; };
   const jogaveisEm = ids => { const st = table.state, quem = table.viewer(); const set = new Set(ids); return new Set(E.legalActions(st, quem).filter(a => a.oid != null && set.has(a.oid)).map(a => a.oid)).size; };
   let trocaPor = null; // Leva 121 · escolha em montagem de "descartar ou sacrificar": { chave, modo, oid }
+  /* K1 · decisão que toma o lugar da mão (olhar o topo, vidência, vigiar, escolher modo…): um seletor de dois botões
+     alterna entre a decisão e a mão, quantas vezes a pessoa quiser, e a decisão continua esperando. A escolha vale só
+     para aquela decisão: a seguinte começa mostrando a decisão. */
+  let verMaoNa = null;
+  const chaveDaDecisao = pk => [pk.kind, pk.p, pk.source || pk.name || '', pk.label || '', (pk.from || []).join(','), (pk.mostrar || []).join(',')].join('|');
+  function alternaMao(s, v, pk, { rotulo = 'Escolha', icone = 'baralho' } = {}) {
+    const chave = chaveDaDecisao(pk), naMao = verMaoNa === chave, n = s.zones[v].hand.length;
+    const seg = h('div', { class: 'ds-segmentado tb-alterna', role: 'group', 'aria-label': 'O que mostrar na bandeja', id: 'tb-alterna' },
+      Chip(rotulo, { icone, pressed: !naMao, id: 'tb-alterna-decisao', onClick: () => { if (verMaoNa === null) return; verMaoNa = null; paint(); } }),
+      Chip(`Mão · ${n}`, { icone: 'mao', pressed: naMao, id: 'tb-alterna-mao', onClick: () => { if (verMaoNa === chave) return; verMaoNa = chave; paint(); } }));
+    return { seg, naMao };
+  }
+  /** A mão só para ver durante a decisão: tocar abre a carta grande (nada se joga daqui: a decisão está esperando). */
+  function maoParaVer(s, v) {
+    const cards = s.zones[v].hand.map(oid => { const o = s.objects[oid];
+      return TableCard({ ...o, image: imgOf(o, 'normal'), images: imagensOf(o) }, { size: 'hand', ...comPeek(oid), onClick: () => sheet(o.name, [], null, o) }); });
+    return h('div', { class: 'tb-hand tb-hand--ver', id: 'tb-mao-na-decisao', role: 'group', 'aria-label': 'Sua mão (só para ver)' }, cards.length ? h('div', { class: 'tb-row' }, ...cards) : h('span', { class: 'tb-zone__empty' }, 'mão vazia'));
+  }
   // Leva 121 · a faixa mostra só o ícone de quem joga e "Turno Shark" / "Seu turno". Número do turno, etapa e
   // prioridade ficam num balão que abre a um toque e fecha no X, no toque fora, no Esc ou tocando a faixa de novo.
   const foraDaVez = e => { if (vezPop && !vezPop.contains(e.target) && !(vezEl && vezEl.contains(e.target))) abreVez(false); };
@@ -19331,7 +19360,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // Leva 131 · escolha feita na resolução (virar ou desvirar um alvo já escolhido): o título diz o alvo, e "you may"
       // vira o botão "Nada" na mesma pergunta (antes: modo, depois alvo, depois "fazer?", três perguntas)
       const alvoPk = pk.naResolucao && s.objects[pk.naResolucao.oid] ? s.objects[pk.naResolucao.oid] : null;
+      const alt = alternaMao(s, v, pk, { rotulo: 'Escolha', icone: 'alvo' }); // K1
+      if (alt.naMao) return h('div', { class: 'tb-dock tb-troca', id: 'tb-modo', role: 'group', 'aria-label': `${pk.name}: escolha o que o gatilho faz`, dataset: { naMao: 'true' } }, alt.seg, maoParaVer(s, v));
       return h('div', { class: 'tb-dock tb-troca', id: 'tb-modo', role: 'group', 'aria-label': `${pk.name}: escolha o que o gatilho faz` },
+        alt.seg,
         h('div', { class: 'tb-troca__cab' }, Icone('alvo', { tamanho: 20, classe: 'tb-troca__icone' }),
           h('div', { class: 'tb-troca__texto' }, h('strong', { lang: 'en' }, pk.name),
             h('span', { id: 'tb-modo-pergunta' }, pk.pergunta ? pk.pergunta : alvoPk ? `O que fazer com ${alvoPk.name}${alvoPk.controller === v ? '' : ` de ${s.players[alvoPk.controller].name}`}? Ela está ${alvoPk.tapped ? 'virada' : 'desvirada'}.` : 'O que o gatilho faz?'))),
@@ -19398,10 +19430,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         return c;
       });
       const cabPk = banner.querySelector('.tb-banner__text strong'), dicaPk = banner.querySelector('.tb-banner__text strong ~ span:not(.ds-icon)');
-      return h('div', { class: 'tb-dock', dataset: { decisao: 'true' } },
+      const alt = alternaMao(s, v, pk); // K1 · a mão volta a aparecer quando a pessoa pede, e a escolha também
+      return h('div', { class: 'tb-dock', dataset: { decisao: 'true', ...(alt.naMao ? { naMao: 'true' } : {}) } },
         simbolizar(h('div', { class: 'tb-decisao', id: 'tb-decisao', role: 'status', dataset: { kind: 'pick' } }, h('strong', {}, cabPk ? cabPk.textContent : ''), dicaPk && dicaPk.textContent ? h('span', {}, dicaPk.textContent) : null)),
+        alt.seg,
         semBotaoDeTexto(banner),
-        h('div', { class: 'tb-hand', id: 'tb-pick-cards' }, h('div', { class: 'tb-row' }, ...cards)));
+        alt.naMao ? maoParaVer(s, v) : h('div', { class: 'tb-hand', id: 'tb-pick-cards' }, h('div', { class: 'tb-row' }, ...cards)));
     }
     const hand = s.zones[v].hand.map(oid => TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid], 'normal'), images: imagensOf(s.objects[oid]) }, {
       size: 'hand', selected: bottomPick.has(oid), ...comPeek(oid),

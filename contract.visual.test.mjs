@@ -228,7 +228,7 @@ test('D2 · cada acento (latão, cobre, prata, jade) tem AA sobre o fundo e a su
 /* ---------------- D7 · mesa do seu jeito: superfície, cor do oponente e verso ---------------- */
 test('D7 · cada superfície da mesa mantém o texto AA nos dois temas; cada cor do oponente tem texto legível sobre ela e se destaca do fundo; os versos só usam tokens', () => {
   const bloco = sel => { const i = css.indexOf(sel); assert.ok(i >= 0, sel); return vars(css.slice(i, css.indexOf('}', i))); };
-  for (const sup of ['feltro', 'pedra', 'linho']) {
+  for (const sup of ['feltro', 'oceano', 'vinho', 'pedra', 'linho']) { // K2 · dois feltros novos
     const escuro = bloco(`:root[data-superficie="${sup}"] {`), claro = bloco(`:root[data-theme="light"][data-superficie="${sup}"] {`);
     for (const [nome, t, base] of [['escuro', escuro, DARK], ['claro', claro, LIGHT]]) {
       for (const fg of ['--fg', '--fg-muted']) assert.ok(ratio(base[fg], t['--mesa-bg']) >= 4.5, `${sup} ${nome}: ${fg} sobre a mesa = ${ratio(base[fg], t['--mesa-bg']).toFixed(2)}`);
