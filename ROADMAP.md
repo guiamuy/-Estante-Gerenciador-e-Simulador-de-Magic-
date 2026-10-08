@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2c.5 alvos com valor de mana total (601.2c), marcadores de palavra-chave (122.1b) e devolver todas do cemitério; Patch Up, Call of the Death-Dweller e Ascend from Avernus completas, Priest of Fell Rites parcial (leva M-221, motor v88) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | M-222 revelar do topo até achar (701.20) e retraçar (702.81); Polymorph, Transmogrify e Reality Scramble completas, Reweave e Lukka parciais (leva M-222, motor v89) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2839,6 +2839,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Apoio de teste:** o cenário automático da Foil passou a pôr uma Ilha na mão em vez de depender do sorteio (os scripts novos mudaram o embaralhamento e a Ilha sumiu); a mágica que se exila pelo próprio texto não precisa terminar no cemitério.
 - **Golden:** regravadas (87 → 88); registros das quatro partidas iguais.
 - **Fora:** desenterrar (CR2e), cópia da Sevinne's Reclamation (CR2f).
+
+**M-222 · Revelar do topo até achar** 🟡 (leva M-222, motor v89) — 5 testes de carta, todos falhavam antes.
+- **701.20** "revele cartas do topo do grimório até revelar…": uma criatura, uma carta que divida um tipo com a referência (só de permanente, quando a carta pede) ou uma criatura de valor de mana maior. A referência é o alvo pela última informação conhecida (destruído, exilado, sacrificado ou posto no fundo antes). A carta achada vai para o campo de quem revelou; as outras são embaralhadas ou vão para o fundo em ordem aleatória, conforme a carta. Sem nenhuma que sirva, revela tudo e embaralha.
+- **Efeitos novos:** pôr a sua permanente alvo no fundo do grimório; "o controlador sacrifica a permanente alvo"; alvo "permanente que você possui" (mesmo controlada por outro).
+- **702.81** retraçar: do cemitério, pagando o custo normal e descartando um terreno da mão; volta ao cemitério ao resolver.
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026:** completas — **Polymorph** ("não pode ser regenerada" sem efeito enquanto o motor não tem regeneração), **Transmogrify** e **Reality Scramble**; parciais — **Reweave** (falta o encaixar, Splice onto Arcane, 702.47) e **Lukka, Coppercoat Outcast** (−2 completo; faltam o +1 e o −7).
+- **Medição:** Malcolm 71% (antes 68%), Killian 63%. Triagem 104 prontas · 9 A · 35 B · 16 C.
+- **Golden:** regravadas (88 → 89); registros das quatro partidas iguais.
+- **Fora:** estado "revelada" que dura até a mágica sair da pilha (701.20a); encaixar; +1 e −7 da Lukka.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

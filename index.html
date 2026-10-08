@@ -4823,7 +4823,7 @@ const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigil
 const EFFECTS = {
   damage: { fields: ['amount'], targets: ['any', 'creature', 'planeswalker', 'player', 'opponent', 'target-controller', 'each-creature', 'each-opponent-creature', 'each-opponent-creature-planeswalker', 'each-own-creature', 'each-opponent', 'each-flying-creature', 'each-nonflying-creature', 'creature-opponent-controls', 'creature-blocked-by-source'] },
   destroy: { fields: [], targets: ['creature', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'land', 'enchanted-creature', 'enchanted'] },
-  exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-creature', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard'] },
+  exile: { fields: [], targets: ['creature', 'permanent', 'artifact', 'artifact-creature', 'artifact-enchantment-opponent-controls', 'card-in-any-graveyard', 'creature-you-control'] }, // M-222 · Lukka −2: "Exile target creature you control"
   // S45 · o jogador alvo escolhe as cartas do próprio cemitério para exilar
   exile_chosen: { fields: ['amount'], targets: ['player', 'opponent', 'self'] },
   bounce: { fields: [], targets: ['creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact'] },
@@ -4893,6 +4893,11 @@ const EFFECTS = {
   destroy_all: { fields: [], targets: ['self'] },
   // CR2c.5 · "return all <tipos> cards with mana value X or less from your graveyard", "Exile <esta mágica>", marcador de palavra-chave "on either of them"
   reanimate_all: { fields: [], targets: ['self'] },
+  // M-222 · 701.20 "reveal cards from the top … until you reveal …" (referência: o primeiro alvo, pela última informação conhecida),
+  // "put target permanent … on the bottom of your library" e "target permanent's controller sacrifices it"
+  reveal_until: { fields: [], targets: ['first-target'] },
+  to_bottom: { fields: [], targets: ['permanent-you-own'] },
+  sacrifice_it: { fields: [], targets: ['permanent'] },
   exile_self: { fields: [], targets: ['self'] },
   counter_choice: { fields: [], targets: ['self'] },
   edict: { fields: [], targets: ['opponent', 'player'] },
@@ -4989,7 +4994,7 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature',
   'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
-  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source']); // Q11
+  'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source', 'permanent-you-own']); // Q11 · M-222 · "target permanent you own"
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-forest', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
 const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'targetExiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies'];
@@ -5240,6 +5245,11 @@ function effectErrors(effects, label, opcional) {
     }
     if (e.totalMvMax != null && !(Number.isInteger(e.totalMvMax) && e.targetCount != null)) errs.push(`${label} ${i + 1}: valor de mana total precisa de número de alvos e de um inteiro`); // CR2c.5
     if (e.do === 'reanimate_all') { if (!(e.types || []).length || (e.types || []).some(x => !FILTER_TYPES.includes(x))) errs.push(`${label} ${i + 1}: devolver todas precisa de tipos conhecidos`); if (e.mvMax != null) errs.push(...valueErrors(e.mvMax, `${label} ${i + 1}: valor de mana máximo`)); }
+    if (e.do === 'reveal_until') { // M-222
+      if (!['creature', 'shares-type', 'creature-greater-mv'].includes(e.match)) errs.push(`${label} ${i + 1}: revelar até precisa de "match" conhecido`);
+      if (!['shuffle', 'bottom-random'].includes(e.rest)) errs.push(`${label} ${i + 1}: revelar até precisa dizer o que fazer com o resto`);
+      if (e.who != null && !['self', 'controller'].includes(e.who)) errs.push(`${label} ${i + 1}: quem revela é "self" ou "controller"`);
+    }
     if (e.do === 'counter_choice' && !KEYWORD_COUNTERS.includes(e.kind)) errs.push(`${label} ${i + 1}: marcador "${e.kind}" não é de palavra-chave`);
     if (e.do === 'destroy_all') { // CR2c.2
       if (!(e.types || []).length) errs.push(`${label} ${i + 1}: destruir todas precisa dos tipos`);
@@ -5680,6 +5690,21 @@ const RAW_SCRIPTS = [
     { label: '−X/−X', effects: [{ do: 'pump', power: { per: 'x', times: -1 }, toughness: { per: 'x', times: -1 }, target: 'creature' }] },
     { label: 'Até X criaturas ganham medo', effects: [{ do: 'keyword', keyword: 'fear', target: 'creature', upTo: true, targetCount: { per: 'x' } }] }],
     example: { action: 'mode:0', target: 'self-player', expect: { selfLife: 0 } } },
+  // M-222 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Polymorph', effects: [{ do: 'destroy', target: 'creature' }, { do: 'reveal_until', target: 'first-target', match: 'creature', rest: 'shuffle' }],
+    note: '"It can\'t be regenerated" não muda nada enquanto o motor não tem regeneração',
+    example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Transmogrify', effects: [{ do: 'exile', target: 'creature' }, { do: 'reveal_until', target: 'first-target', match: 'creature', rest: 'shuffle' }],
+    example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Reality Scramble', retrace: true, effects: [{ do: 'to_bottom', target: 'permanent-you-own' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'shares-type', rest: 'bottom-random' }],
+    example: { target: 'own-creature', expect: { gone: true } } },
+  { name: 'Reweave', effects: [{ do: 'sacrifice_it', target: 'permanent' }, { do: 'reveal_until', target: 'first-target', match: 'shares-type', permanentOnly: true, rest: 'shuffle' }],
+    covers: 'partial', note: 'falta o encaixar (Splice onto Arcane {2}{U}{U}, 702.47)',
+    example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'Lukka, Coppercoat Outcast', loyalty: [
+    { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
+    covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
+    example: { action: 'loyalty:0', target: 'own-creature', expect: { targetExiled: true } } },
   // CR2c.5 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
   { name: 'Patch Up', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard', upTo: true, targetCount: 3, totalMvMax: 3 }],
     example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
@@ -11358,7 +11383,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 88;
+const ENGINE_VERSION = 89;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11599,6 +11624,7 @@ function createGame(setup) {
     if (sc.kicker) f.script.kicker = sc.kicker; // CR2c.1
     if (sc.modeCount) { f.script.modeCount = sc.modeCount; f.script.modeRepeat = !!sc.modeRepeat; }
     if (sc.storm) f.script.storm = true;
+    if (sc.retrace) f.script.retrace = true; // M-222 · 702.81
     if (sc.changeling) f.script.changeling = true;
     if (sc.bestow) f.script.bestow = sc.bestow;
     if (sc.bargain) f.script.bargain = true;
@@ -12522,6 +12548,8 @@ function legalTargets(s, p, kind, selfOid, color) {
       out.push({ oid: o.oid });
     }
   }
+  // M-222 · "target permanent you own": a sua, mesmo que outro jogador a controle (Reality Scramble)
+  if (kind === 'permanent-you-own') for (const o of perms) if (o.owner === p && targetable(s, p, o, srcObj)) out.push({ oid: o.oid });
   // S45 · carta em qualquer cemitério (Faerie Macabre)
   if (kind === 'card-in-any-graveyard') {
     for (const z of s.zones) for (const oid of z.graveyard) out.push({ oid });
@@ -12894,6 +12922,34 @@ function applyEffect(s, src, eff, tgt, events) {
       note({}); break;
     }
     case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); note({}); break; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'to_bottom': { // M-222 · no fundo do grimório do dono
+      if (obj && obj.zone === 'battlefield') { moveObject(s, obj.oid, 'library', { top: false }); note({}); } else note({ failed: true });
+      break;
+    }
+    case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
+      if (obj && obj.zone === 'battlefield') { const nome = obj.name; sacrifice(s, obj.oid, events); note({ name: nome }); } else note({ failed: true });
+      break;
+    }
+    case 'reveal_until': { // M-222 · 701.20: revela do topo até achar a carta pedida; a referência é o primeiro alvo, pela última informação conhecida (608.2h)
+      const ref = obj, fRef = ref ? (s.facts[ref.name] || {}) : {};
+      const virada = !!ref && ((ref.zone === 'battlefield' && ref.faceDown) || (ref.zone !== 'battlefield' && ref.ultima && ref.ultima.faceDown));
+      const tiposRef = virada ? ['creature'] : (fRef.types || []), mvRef = virada ? 0 : (fRef.cmc || 0); // carta com {X} conta X = 0
+      const who = eff.who === 'self' ? ctrl : ref ? (ref.zone !== 'battlefield' && ref.ultima && ref.ultima.controller != null ? ref.ultima.controller : ref.controller) : ctrl;
+      const PERMANENTES = ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'];
+      const serve = oid => { const f = s.facts[s.objects[oid].name] || {}, tp = f.types || [];
+        if (eff.match === 'creature') return tp.includes('creature');
+        if (eff.match === 'shares-type') return tp.some(x => tiposRef.includes(x)) && (!eff.permanentOnly || tp.some(x => PERMANENTES.includes(x)));
+        if (eff.match === 'creature-greater-mv') return tp.includes('creature') && (f.cmc || 0) > mvRef;
+        return false; };
+      const lib = s.zones[who].library, i = lib.findIndex(serve);
+      const reveladas = i >= 0 ? lib.slice(0, i + 1) : lib.slice(), achada = i >= 0 ? lib[i] : null;
+      note({ target: s.players[who].name, amount: reveladas.length, nomes: reveladas.map(x => s.objects[x].name), achada: achada ? s.objects[achada].name : null });
+      if (achada) { moveObject(s, achada, 'battlefield'); s.objects[achada].controller = who; }
+      const resto = reveladas.filter(x => x !== achada);
+      if (eff.rest === 'bottom-random') { s.zones[who].library = s.zones[who].library.filter(x => !resto.includes(x)); shuffle(s, resto); s.zones[who].library.push(...resto); } // "in a random order"
+      else shuffle(s, s.zones[who].library);
+      break;
+    }
     case 'reanimate_all': { // CR2c.5 · todas de uma vez, do cemitério de quem controla a mágica
       const lim = eff.mvMax != null ? amountOf(s, src, eff.mvMax) : Infinity;
       const voltam = s.zones[ctrl].graveyard.filter(oid => { const f = s.facts[s.objects[oid].name] || {}; return eff.types.some(x => (f.types || []).includes(x)) && (f.cmc || 0) <= lim; });
@@ -13963,7 +14019,7 @@ const HANDLERS = {
   cast(s, a) {
     noPending(s); holder(s, a.p); semFracao(s);
     const o = s.objects[a.oid];
-    const fromGraveyard = (a.flashback || a.disturb || a.escape) && o && o.zone === 'graveyard';
+    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace) && o && o.zone === 'graveyard';
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
@@ -13971,6 +14027,7 @@ const HANDLERS = {
     const fromExile = o && o.zone === 'exile' && o.playableFromExile === a.p;
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
+    if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
     if (a.escape && !escapeOf(s, o)) throw new RuleError('fuga', 'esta carta não tem fuga');
     if (a.disturb && !disturbOf(s, o)) throw new RuleError('disturb', 'esta carta não tem disturb');
     if (a.omen && !omenOf(s, o)) throw new RuleError('presságio', 'esta carta não tem presságio');
@@ -14032,6 +14089,11 @@ const HANDLERS = {
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
         payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0)); s.players[a.p].life -= 2 * a.vida;
       } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0)); }
+    if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
+      const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
+      if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
+      descartaCarta(s, l);
+    }
     // S20/S53 · custo adicional: uma opção, várias opções, ou nenhuma quando é opcional
     const addSpec2 = f.script && f.script.additional;
     const listaAdd = Array.isArray(addSpec2) ? addSpec2 : addSpec2 ? [addSpec2] : [];
@@ -14924,6 +14986,13 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (add && !canPayExtra(s, p, add, oid)) continue;
     const pays = pagamentosDe(s, p, { tapOther: fb.tapOther, ...(add && add.sacrificeOther ? { sacrificeOther: add.sacrificeOther } : {}) }, oid);
     pays.forEach(pay => castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, flashback: true, ...comPagamento(pay) })));
+  }
+  // M-222 · retraçar (702.81): do cemitério pagando o custo normal e descartando um terreno; volta ao cemitério depois
+  for (const oid of s.zones[p].graveyard) {
+    const o = s.objects[oid], f = s.facts[o.name];
+    if (!(f.script || {}).retrace || !(canSorcery || !isSorcerySpeed(f)) || !payable(o, castExtra(s, p, o, 0))) continue;
+    const terrenos = s.zones[p].hand.filter(x => (s.facts[s.objects[x].name].types || []).includes('land')).slice(0, LIMITE_PAGAMENTOS);
+    for (const l of terrenos) casts(o).forEach(x => out.push({ ...x, retrace: true, pay: { retrace: l } }));
   }
   // S48 · fuga: conjura do cemitério e a carta fica em jogo (Sentinel's Eyes)
   for (const oid of s.zones[p].graveyard) {
@@ -16723,6 +16792,9 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
+    case 'reveal_until': return `${t} revelou ${n} carta(s) (${(ev.nomes || []).join(', ')})${ev.achada ? ` e pôs ${ev.achada} no campo` : ' sem achar o que procurava'} (${ev.name})`; // M-222
+    case 'to_bottom': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t} foi para o fundo do grimório (${ev.name})`;
+    case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${ev.name}: ${ev.name2 || t} foi sacrificada`;
     case 'reanimate_all': return n ? `${ev.name} devolveu ao campo ${(ev.nomes || []).join(', ')}` : `${ev.name} não devolveu nada`; // CR2c.5
     case 'exile_self': return `${ev.name} foi exilada`;
     case 'counter_choice': return `${t} recebeu um marcador de ${PALAVRA_PT[ev.kind] || ev.kind} (${ev.name})`;
@@ -16768,7 +16840,7 @@ function describe(before, a, events, after) {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', ');
       // Leva 121 · carta conjurada virada para baixo não diz o nome (708.2: é informação oculta)
       if (a.faceDown) { L.push(`${P} conjurou uma criatura virada para baixo`); break; }
-      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
+      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.retrace ? ' (retraçar)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
       // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
       L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
@@ -17473,6 +17545,9 @@ function descreveEfeito(e) {
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
+    case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222
+    case 'to_bottom': return 'põe a sua permanente alvo no fundo do grimório';
+    case 'sacrifice_it': return 'o controlador sacrifica a permanente alvo';
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
     case 'exile_self': return 'exila esta mágica';
     case 'counter_choice': return `põe um marcador de ${PALAVRA_PT[e.kind] || e.kind} em uma delas`;
@@ -19052,6 +19127,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     ['discard', n => n > 1 ? 'Quais cartas você descarta?' : 'Qual carta você descarta?', 'Descartar'],
     ['land', () => 'Qual terreno volta para a mão?', 'Devolver'],
     ['exileHand', () => 'Qual carta da mão você exila para pagar?', 'Exilar'], // CR2c.4 · Snapback
+    ['retrace', () => 'Qual terreno você descarta para retraçar?', 'Descartar'], // M-222
     ['exile', () => 'Qual carta do cemitério é exilada?', 'Exilar'],
     ['bargain', () => 'O que você sacrifica na barganha?', 'Sacrificar'],
     ['exileGrave', () => 'Quais cartas do cemitério você exila?', 'Exilar'],
@@ -19318,7 +19394,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (a.kick ? (a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1
           + (a.vida != null ? (a.vida ? ` · pagando ${2 * a.vida} de vida` : ' · pagando com mana') : '') // CR2c.4 · phyrexiano

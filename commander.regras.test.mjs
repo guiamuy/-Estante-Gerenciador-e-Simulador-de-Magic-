@@ -518,3 +518,59 @@ test('CR2c.5 · Priest of Fell Rites: "{T}, Pay 3 life, Sacrifice this creature:
   let t = semMao(mesa(['Priest of Fell Rites', 'Kitchen Imp', 'Lightning Bolt'], []), 0), pr2, b; [t, pr2] = poe(t, 0, 'Priest of Fell Rites'); [t] = poe(t, 0, 'Kitchen Imp', 'graveyard'); [t, b] = poe(t, 0, 'Lightning Bolt', 'hand'); t = J(t); t.objects[pr2].sick = false; t = comMana(t, 'R');
   t = act(t, legais(t, 0, x => x.t === 'cast' && x.oid === b && x.targets[0].player === 1)[0]); assert.equal(legais(t, 0, x => x.t === 'activate' && x.oid === pr2).length, 0, 'Activate only as a sorcery: com a pilha ocupada, não');
 });
+
+// ---------------------------------------------------------------- M-222 · revelar do topo até achar
+/** Põe no topo do grimório de p, nesta ordem, uma cópia de cada nome; tira do grimório (para o exílio) as cartas que `sem` reprovar. */
+const topoDoGrimorio = (s, p, nomes, sem) => { s = J(s); const lib = s.zones[p].library, frente = [];
+  for (const n of nomes) { const oid = lib.find(x => s.objects[x].name === n && !frente.includes(x)); assert.ok(oid, n + ' no grimório'); frente.push(oid); }
+  let resto = lib.filter(x => !frente.includes(x));
+  if (sem) { for (const x of resto.filter(y => sem(s.facts[s.objects[y].name]))) { s.objects[x].zone = 'exile'; s.zones[p].exile.push(x); } resto = resto.filter(y => !sem(s.facts[s.objects[y].name])); }
+  s.zones[p].library = [...frente, ...resto]; return [s, frente]; };
+const ehCriatura = f => (f.types || []).includes('creature');
+
+test('M-222 · Polymorph: destrói a criatura alvo; o controlador dela revela do topo até uma carta de criatura, põe no campo e embaralha as outras reveladas', () => {
+  const base = () => { let s = semMao(mesa(['Polymorph'], ['Zulaport Cutthroat', 'Kitchen Imp', 'Lightning Bolt']), 0), po, z, top; [s, po] = poe(s, 0, 'Polymorph', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat');
+    [s, top] = topoDoGrimorio(s, 1, ['Island', 'Lightning Bolt', 'Kitchen Imp']); return { s: comMana(s, 'UCCC'), po, z, top }; };
+  { let { s, po, z, top: [il, bolt, imp] } = base(); const n = s.zones[1].library.length;
+    s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === po && x.targets[0].oid === z)[0]));
+    assert.equal(s.objects[z].zone, 'graveyard'); assert.equal(s.objects[imp].zone, 'battlefield'); assert.equal(s.objects[imp].controller, 1, 'no campo de quem revelou');
+    assert.deepEqual([il, bolt].map(x => s.objects[x].zone), ['library', 'library'], 'as outras reveladas voltam embaralhadas'); assert.equal(s.zones[1].library.length, n - 1); }
+  { let { s, po, z, top: [, , imp] } = base(); s.objects[z].tempKeywords = ['indestructible'];
+    s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === po && x.targets[0].oid === z)[0]));
+    assert.equal(s.objects[z].zone, 'battlefield', 'indestrutível: não é destruída'); assert.equal(s.objects[imp].zone, 'battlefield', 'ruling 2013: a revelação acontece mesmo assim'); }
+  { let s = semMao(mesa(['Polymorph'], ['Zulaport Cutthroat']), 0), po, z; [s, po] = poe(s, 0, 'Polymorph', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat'); [s] = topoDoGrimorio(s, 1, [], ehCriatura); s = comMana(s, 'UCCC');
+    const n = s.zones[1].library.length, campo = s.zones[1].battlefield.length; s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === po && x.targets[0].oid === z)[0]));
+    assert.equal(s.zones[1].library.length, n, 'sem criatura no grimório: revela tudo e embaralha'); assert.equal(s.zones[1].battlefield.length, campo - 1); }
+});
+
+test('M-222 · Transmogrify: exila a criatura alvo; o controlador dela revela até uma carta de criatura e põe no campo', () => {
+  let s = semMao(mesa(['Transmogrify'], ['Zulaport Cutthroat', 'Kitchen Imp']), 0), tr, z, top; [s, tr] = poe(s, 0, 'Transmogrify', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat'); [s, top] = topoDoGrimorio(s, 1, ['Mountain', 'Kitchen Imp']); s = comMana(s, 'RCCC');
+  s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === tr && x.targets[0].oid === z)[0])); assert.equal(s.objects[z].zone, 'exile'); assert.equal(s.objects[top[1]].zone, 'battlefield'); assert.equal(s.objects[top[0]].zone, 'library');
+});
+
+test('M-222 · Reality Scramble: põe a sua permanente alvo no fundo do grimório e revela até uma carta que divida um tipo com ela; as outras vão para o fundo; retraçar descartando um terreno', () => {
+  const base = (zona) => { let s = semMao(mesa(['Reality Scramble', 'Faerie Seer', 'Kitchen Imp', 'Opt'], ['Zulaport Cutthroat']), 0), o = {}; [s, o.rs] = poe(s, 0, 'Reality Scramble', zona); [s, o.fs] = poe(s, 0, 'Faerie Seer'); [s, o.inimiga] = poe(s, 1, 'Zulaport Cutthroat');
+    [s, o.top] = topoDoGrimorio(s, 0, ['Plains', 'Opt', 'Kitchen Imp']); return { s: comMana(s, 'RRCC'), ...o }; };
+  { let { s, rs, fs, inimiga, top: [pl, opt, imp] } = base('hand'); const alvos = legais(s, 0, x => x.t === 'cast' && x.oid === rs).map(x => x.targets[0].oid);
+    assert.ok(alvos.includes(fs) && !alvos.includes(inimiga), 'target permanent you own');
+    s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === rs && x.targets[0].oid === fs)[0])); const lib = s.zones[0].library;
+    assert.equal(s.objects[imp].zone, 'battlefield', 'a primeira criatura revelada'); assert.deepEqual(J(lib.slice(-2)).sort(), [pl, opt].sort(), 'as outras reveladas no fundo'); assert.equal(lib[lib.length - 3], fs, 'a Faerie Seer foi para o fundo antes');
+    assert.equal(s.objects[rs].zone, 'graveyard'); }
+  { let { s, rs } = base('graveyard'); assert.equal(legais(s, 0, x => x.t === 'cast' && x.oid === rs).length, 0, 'retraçar pede um terreno na mão');
+    let il; [s, il] = poe(s, 0, 'Plains', 'hand'); const a = legais(s, 0, x => x.t === 'cast' && x.oid === rs && x.retrace); assert.ok(a.length >= 1 && a.every(x => x.pay.retrace === il), 'descarta o terreno da mão');
+    s = tudo(act(s, a[0])); assert.equal(s.objects[il].zone, 'graveyard'); assert.equal(s.objects[rs].zone, 'graveyard', 'retraçar devolve ao cemitério, não exila'); }
+});
+
+test('M-222 · Reweave: o controlador sacrifica a permanente alvo e revela até uma carta de permanente que divida um tipo com ela, põe no campo e embaralha', () => {
+  let s = semMao(mesa(['Reweave'], ['Zulaport Cutthroat', 'Kitchen Imp', 'Lightning Bolt']), 0), rw, z, top; [s, rw] = poe(s, 0, 'Reweave', 'hand'); [s, z] = poe(s, 1, 'Zulaport Cutthroat'); [s, top] = topoDoGrimorio(s, 1, ['Lightning Bolt', 'Island', 'Kitchen Imp']); s = comMana(s, 'UCCCCC');
+  s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === rw && x.targets[0].oid === z)[0]));
+  assert.equal(s.objects[z].zone, 'graveyard'); assert.equal(s.objects[top[2]].zone, 'battlefield', 'a primeira de tipo criatura'); assert.equal(s.objects[top[2]].controller, 1); assert.deepEqual([top[0], top[1]].map(x => s.objects[x].zone), ['library', 'library']);
+});
+
+test('M-222 · Lukka, Coppercoat Outcast (−2): exila a sua criatura alvo e revela até uma criatura de valor de mana maior; põe no campo e o resto vai para o fundo', () => {
+  let s = semMao(mesa(['Lukka, Coppercoat Outcast', 'Faerie Seer', 'Llanowar Elves', 'Kitchen Imp'], []), 0), lk, fs, top; [s, lk] = poe(s, 0, 'Lukka, Coppercoat Outcast', 'hand'); [s, fs] = poe(s, 0, 'Faerie Seer'); [s, top] = topoDoGrimorio(s, 0, ['Llanowar Elves', 'Plains', 'Kitchen Imp']);
+  s = tudo(act(comMana(s, 'RRCCC'), legais(comMana(s, 'RRCCC'), 0, x => x.t === 'cast' && x.oid === lk)[0])); assert.equal(s.objects[lk].counters.loyalty, 5, 'entra com 5 de lealdade');
+  const hab = legais(s, 0, x => x.t === 'activate' && x.oid === lk && x.targets && x.targets[0].oid === fs); assert.equal(hab.length, 1);
+  s = tudo(act(s, hab[0])); assert.equal(s.objects[lk].counters.loyalty, 3, '−2'); assert.equal(s.objects[fs].zone, 'exile');
+  assert.equal(s.objects[top[2]].zone, 'battlefield', 'Kitchen Imp (4) > Faerie Seer (1); Llanowar Elves (1) não serve'); assert.deepEqual(J(s.zones[0].library.slice(-2)).sort(), [top[0], top[1]].sort());
+});

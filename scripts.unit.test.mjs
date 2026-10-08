@@ -24,7 +24,7 @@ const CARDS = {
 };
 // tipo de cada carta da biblioteca: mágica instantânea quando o efeito pede resposta; permanentes pelo mapa abaixo
 // S62 · PERM_TYPES mora em fixtures.mjs, compartilhado com a auditoria das listas
-const LOYALTY = { 'Saheeli, Sublime Artificer': 5 };
+const LOYALTY = { 'Saheeli, Sublime Artificer': 5, 'Lukka, Coppercoat Outcast': 5 }; // lealdade impressa (texto oficial de 05/10/2026)
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0
   || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do) || /spell/.test(e.target || ''))

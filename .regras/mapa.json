@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 88,
+ "motor": 89,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -5655,7 +5655,7 @@
    "regra": "Keyword Actions",
    "titulo": "Reveal",
    "status": "parcial",
-   "evidencia": "revelar existe como evento pontual: explore (index.html:11287), look com `revela` (11254), mão revelada em discard_chosen (`mostrar`, 11310), custo revealColor; pauper.regras \"Leva 108 · Duress sem carta que sirva ainda revela a mão\", \"Leva 108 · Malevolent Rumble revela as quatro cartas\"",
+   "evidencia": "revelar existe como evento pontual: explore (index.html:11287), look com `revela` (11254), mão revelada em discard_chosen (`mostrar`, 11310), custo revealColor; pauper.regras \"Leva 108 · Duress sem carta que sirva ainda revela a mão\", \"Leva 108 · Malevolent Rumble revela as quatro cartas\" · M-222 (v89): \"revele cartas do topo até revelar…\" (reveal_until): criatura, carta que divida um tipo com a referência (só de permanente, se pedido) ou criatura de valor maior; a referência é o alvo pela última informação conhecida; achada vai ao campo do jogador que revelou; resto embaralhado ou no fundo em ordem aleatória (commander.regras \"M-222 · Polymorph\" e seguintes)",
    "falta": "não há estado \"revelada\" que dure até a mágica/habilidade sair da pilha (701.20a), nem efeito genérico revelar/olhar carta de zona oculta (mão do oponente, topo) fora dos casos acima (701.20e); busca nunca revela a carta achada",
    "esforco": "M",
    "depende": [
@@ -7245,14 +7245,17 @@
    "n": "702.81",
    "regra": "Keyword Abilities",
    "titulo": "Retrace",
-   "status": "ausente",
-   "falta": "Sem conjurar do cemitério descartando um terreno como custo adicional, com a carta voltando ao cemitério (702.81a). Lampejo do passado é o molde, mas exila.",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "601.2",
     "118.8"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "M-222 (v89): retraçar — do cemitério pagando o custo normal e descartando um terreno da mão (pay.retrace); a carta volta ao cemitério ao resolver (castFrom = graveyard). Reality Scramble",
+   "testes": [
+    "M-222 · Reality Scramble: põe a sua permanente alvo no fundo do grimório e revela até uma carta que divida um tipo com ela; as outras vão para o fundo; retraçar descartando um terreno"
+   ]
   },
   {
    "n": "702.82",

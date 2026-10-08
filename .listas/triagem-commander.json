@@ -645,13 +645,13 @@
   {
    "name": "Lukka, Coppercoat Outcast",
    "listas": "M",
-   "motor": "manual",
+   "motor": "parcial",
    "balde": "C",
    "primitivas": [
-    "revelar-ate",
-    "conjurar-do-exilio"
+    "conjurar-do-exilio",
+    "dano-por-poder"
    ],
-   "obs": "−2 sai com revelar-até; +1 e −7 ficam"
+   "obs": "M-222: −2 completo; faltam +1 (conjurar criaturas do exílio enquanto controlar um Lukka) e −7"
   },
   {
    "name": "Lurrus of the Dream-Den",
@@ -851,12 +851,10 @@
   {
    "name": "Polymorph",
    "listas": "M",
-   "motor": "manual",
-   "balde": "B",
-   "primitivas": [
-    "revelar-ate"
-   ],
-   "obs": "'não pode ser regenerada' não tem efeito sem regeneração"
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "feita na leva M-222 (\"não pode ser regenerada\" sem efeito: o motor não tem regeneração)",
+   "auditada": "M-222 · 08/10/2026"
   },
   {
    "name": "Preordain",
@@ -896,12 +894,10 @@
   {
    "name": "Reality Scramble",
    "listas": "M",
-   "motor": "manual",
-   "balde": "B",
-   "primitivas": [
-    "revelar-ate",
-    "retrace"
-   ]
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "feita na leva M-222",
+   "auditada": "M-222 · 08/10/2026"
   },
   {
    "name": "Reprieve",
@@ -932,13 +928,12 @@
   {
    "name": "Reweave",
    "listas": "M",
-   "motor": "manual",
+   "motor": "parcial",
    "balde": "B",
    "primitivas": [
-    "revelar-ate",
     "splice"
    ],
-   "obs": "splice fica parcial"
+   "obs": "M-222: efeito completo; falta o encaixar (Splice onto Arcane, 702.47)"
   },
   {
    "name": "Rite of Oblivion",
@@ -1282,11 +1277,10 @@
   {
    "name": "Transmogrify",
    "listas": "M",
-   "motor": "manual",
-   "balde": "B",
-   "primitivas": [
-    "revelar-ate"
-   ]
+   "motor": "completo",
+   "balde": "ok",
+   "obs": "feita na leva M-222",
+   "auditada": "M-222 · 08/10/2026"
   },
   {
    "name": "Treasure Cruise",
@@ -1380,13 +1374,6 @@
   ],
   "reanimar-por-valor": [
    "Sevinne's Reclamation"
-  ],
-  "revelar-ate": [
-   "Lukka, Coppercoat Outcast",
-   "Polymorph",
-   "Reality Scramble",
-   "Reweave",
-   "Transmogrify"
   ],
   "edito": [
    "Priest of Forgotten Gods"
@@ -1516,9 +1503,6 @@
   "alvos-qualquer-numero": [
    "Priest of Forgotten Gods"
   ],
-  "retrace": [
-   "Reality Scramble"
-  ],
   "splice": [
    "Reweave"
   ],
@@ -1545,6 +1529,9 @@
   ],
   "hideaway": [
    "Windbrisk Heights"
+  ],
+  "dano-por-poder": [
+   "Lukka, Coppercoat Outcast"
   ]
  }
 }
