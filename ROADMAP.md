@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2c.4 phyrexiano à escolha de quem conjura (107.4f), custos alternativos novos (118.9) e clivar (702.148); Gitaxian Probe, Foil, Snapback, Mogg Salvage e Wash Away completas (leva M-220, motor v87) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2c.5 alvos com valor de mana total (601.2c), marcadores de palavra-chave (122.1b) e devolver todas do cemitério; Patch Up, Call of the Death-Dweller e Ascend from Avernus completas, Priest of Fell Rites parcial (leva M-221, motor v88) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2829,6 +2829,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Para a trilha do bot:** a deduplicação de candidatas do Shark (chave por carta, alvos, modo e X) não separa reforço, vários modos nem phyrexiano: das formas "com mana" e "com vida" ele avalia só uma.
 - **Golden:** regravadas (86 → 87); registros das quatro partidas iguais.
 - **Fora:** phyrexiano em habilidade ativada (Skrelv) continua decidido pelo motor; híbrido ({2/W}, {W/U}) ainda sem escolha do jogador.
+
+**CR2c.5 · Devolver do cemitério por valor de mana** 🟡 (leva M-221, motor v88) — 4 testes de carta, todos falhavam antes.
+- **601.2c** "até N alvos com valor de mana total M ou menos": a soma é conferida na oferta (combinações que passam são cortadas antes do limite de combinações, e a mesma escolha em outra ordem não se repete) e na conjuração.
+- **122.1b** marcador de palavra-chave: a permanente com marcador de toque mortífero, ameaça, voar, vigilância etc. tem a habilidade. "Ponha um marcador em qualquer uma delas" pergunta entre as criaturas que a própria mágica devolveu; com uma só, vai direto; sem nenhuma, nada.
+- **Devolver todas** de um tipo com valor de mana até X, do seu cemitério, de uma vez; e a mágica que se exila pelo próprio texto.
+- **Cartas das listas (decisão 7), texto oficial consultado em 05/10/2026:** completas — **Patch Up**, **Call of the Death-Dweller** e **Ascend from Avernus**; parcial — **Priest of Fell Rites** (a habilidade de pagar 3 de vida e sacrificar está completa; **falta o desenterrar**, 702.84, que pede efeito de substituição da CR2e). **Sevinne's Reclamation** continua parcial (a cópia ao conjurar do cemitério é cópia de mágica, CR2f).
+- **Medição:** Killian 63% (antes 60%), Malcolm 68%. Triagem 101 prontas · 9 A · 38 B · 16 C.
+- **Apoio de teste:** o cenário automático da Foil passou a pôr uma Ilha na mão em vez de depender do sorteio (os scripts novos mudaram o embaralhamento e a Ilha sumiu); a mágica que se exila pelo próprio texto não precisa terminar no cemitério.
+- **Golden:** regravadas (87 → 88); registros das quatro partidas iguais.
+- **Fora:** desenterrar (CR2e), cópia da Sevinne's Reclamation (CR2f).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

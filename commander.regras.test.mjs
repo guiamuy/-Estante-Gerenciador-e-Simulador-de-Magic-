@@ -474,3 +474,47 @@ test('CR2c.4 · Wash Away: anula mágica que não foi conjurada da mão do dono;
     const a = legais(s, 0, x => x.t === 'cast' && x.oid === w && x.alt == null && x.targets[0].oid === l); assert.equal(a.length, 1, 'conjurada do cemitério (lampejo do passado): é alvo pelo custo normal');
     s = act(s, a[0]); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 }); assert.equal(s.objects[l].zone, 'exile', 'anulada; o lampejo do passado a exila'); }
 });
+
+// ---------------------------------------------------------------- CR2c.5 · devolver do cemitério por valor de mana
+test('CR2c.5 · Patch Up: "up to three target creature cards with total mana value 3 or less" — a soma dos alvos é conferida na oferta e na conjuração', () => {
+  let s = semMao(mesa(['Patch Up', 'Faerie Seer', 'Faerie Seer', 'Llanowar Elves', 'Zulaport Cutthroat', 'Kitchen Imp'], []), 0), pu, f1, f2, le, zc, imp;
+  [s, pu] = poe(s, 0, 'Patch Up', 'hand'); [s, f1] = poe(s, 0, 'Faerie Seer', 'graveyard'); [s, f2] = poe(s, 0, 'Faerie Seer', 'graveyard'); [s, le] = poe(s, 0, 'Llanowar Elves', 'graveyard'); [s, zc] = poe(s, 0, 'Zulaport Cutthroat', 'graveyard'); [s, imp] = poe(s, 0, 'Kitchen Imp', 'graveyard'); s = comMana(s, 'WCC');
+  const mv = { [f1]: 1, [f2]: 1, [le]: 1, [zc]: 2, [imp]: 4 };
+  const ofertas = legais(s, 0, x => x.t === 'cast' && x.oid === pu);
+  assert.ok(ofertas.length > 1 && ofertas.every(x => (x.targets || []).reduce((n, t) => n + mv[t.oid], 0) <= 3), 'nenhuma combinação passa de 3');
+  assert.ok(ofertas.some(x => (x.targets || []).length === 3), 'três alvos de valor 1'); assert.ok(ofertas.some(x => J((x.targets || []).map(t => t.oid)).sort().join() === [zc, f1].sort().join()), 'Zulaport (2) + Faerie Seer (1)');
+  assert.ok(ofertas.some(x => !(x.targets || []).length), 'up to: nenhum alvo também vale');
+  assert.throws(() => act(s, { t: 'cast', p: 0, oid: pu, targets: [{ oid: zc }, { oid: f1 }, { oid: le }] }), /valor de mana/, 'soma 4 recusada');
+  s = tudo(act(s, ofertas.find(x => (x.targets || []).length === 3))); assert.deepEqual([f1, f2, le].map(o => s.objects[o].zone), ['battlefield', 'battlefield', 'battlefield']); assert.equal(s.objects[imp].zone, 'graveyard');
+});
+
+test('CR2c.5 · Call of the Death-Dweller: até dois alvos com valor total 3; marcador de toque mortífero em qualquer um deles, depois marcador de ameaça em qualquer um deles', () => {
+  const base = () => { let s = semMao(mesa(['Call of the Death-Dweller', 'Faerie Seer', 'Zulaport Cutthroat'], []), 0), o = {}; [s, o.c] = poe(s, 0, 'Call of the Death-Dweller', 'hand'); [s, o.fs] = poe(s, 0, 'Faerie Seer', 'graveyard'); [s, o.zc] = poe(s, 0, 'Zulaport Cutthroat', 'graveyard'); return { s: comMana(s, 'BCC'), ...o }; };
+  { let { s, c, fs, zc } = base(); s = act(s, legais(s, 0, x => x.t === 'cast' && x.oid === c && (x.targets || []).length === 2)[0]); s = act(act(s, { t: 'pass', p: 0 }), { t: 'pass', p: 1 });
+    assert.equal(s.pending.kind, 'choose_mode', 'quem conjurou escolhe onde vai o toque mortífero'); assert.deepEqual(J(s.pending.options).sort(), ['Faerie Seer', 'Zulaport Cutthroat']);
+    s = act(s, { t: 'choose_mode', p: 0, index: s.pending.options.indexOf('Faerie Seer') }); assert.equal(s.pending.kind, 'choose_mode', 'Then put a menace counter on either of them');
+    s = act(s, { t: 'choose_mode', p: 0, index: s.pending.options.indexOf('Faerie Seer') });
+    assert.equal(s.objects[fs].counters.deathtouch, 1); assert.equal(s.objects[fs].counters.menace, 1, 'os dois na mesma criatura (ruling)');
+    assert.ok(E.hasKeyword(s, s.objects[fs], 'deathtouch') && E.hasKeyword(s, s.objects[fs], 'menace'), '122.1b: marcador de palavra-chave dá a habilidade'); assert.equal(E.hasKeyword(s, s.objects[zc], 'menace'), false); }
+  { let { s, c, zc } = base(); s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === c && (x.targets || []).length === 1 && x.targets[0].oid === zc)[0]));
+    assert.deepEqual([s.objects[zc].counters.deathtouch, s.objects[zc].counters.menace], [1, 1], 'um alvo só: os dois marcadores nele, sem pergunta'); }
+  { let { s, c } = base(); const n = s.zones[0].battlefield.length; s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === c && !(x.targets || []).length)[0]));
+    assert.equal(s.zones[0].battlefield.length, n, 'nenhuma criatura devolvida: nenhum marcador (ruling)'); }
+});
+
+test('CR2c.5 · Ascend from Avernus: devolve todas as criaturas e planeswalkers de valor X ou menos do seu cemitério; depois se exila', () => {
+  let s = semMao(mesa(['Ascend from Avernus', 'Faerie Seer', 'Kitchen Imp', 'Narset, Parter of Veils', 'Llanowar Elves', 'Lightning Bolt', 'Island'], []), 0), a, fs, imp, nar, le, b, il;
+  [s, a] = poe(s, 0, 'Ascend from Avernus', 'hand'); [s, fs] = poe(s, 0, 'Faerie Seer', 'graveyard'); [s, imp] = poe(s, 0, 'Kitchen Imp', 'graveyard'); [s, nar] = poe(s, 0, 'Narset, Parter of Veils', 'graveyard'); [s, le] = poe(s, 0, 'Llanowar Elves', 'graveyard'); [s, b] = poe(s, 0, 'Lightning Bolt', 'graveyard'); [s, il] = poe(s, 0, 'Island', 'graveyard');
+  s = comMana(s, 'WWWCCC'); s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === a && x.x === 3)[0]));
+  assert.deepEqual([fs, nar, le].map(o => s.objects[o].zone), ['battlefield', 'battlefield', 'battlefield'], 'criaturas e planeswalker de valor até 3');
+  assert.deepEqual([imp, b, il].map(o => s.objects[o].zone), ['graveyard', 'graveyard', 'graveyard'], 'valor 4, instantânea e terreno ficam'); assert.equal(s.objects[a].zone, 'exile', 'Exile Ascend from Avernus');
+});
+
+test('CR2c.5 · Priest of Fell Rites: "{T}, Pay 3 life, Sacrifice this creature: Return target creature card from your graveyard to the battlefield. Activate only as a sorcery."', () => {
+  let s = semMao(mesa(['Priest of Fell Rites', 'Kitchen Imp', 'Lightning Bolt'], []), 0), pr, imp; [s, pr] = poe(s, 0, 'Priest of Fell Rites'); [s, imp] = poe(s, 0, 'Kitchen Imp', 'graveyard'); s = J(s); s.objects[pr].sick = false;
+  const hab = legais(s, 0, x => x.t === 'activate' && x.oid === pr); assert.equal(hab.length, 1); assert.equal(hab[0].targets[0].oid, imp, 'só criatura do seu cemitério (ela mesma ainda está no campo ao escolher)');
+  s = act(s, hab[0]); assert.equal(s.players[0].life, 17, 'Pay 3 life'); assert.equal(s.objects[pr].zone, 'graveyard', 'Sacrifice this creature');
+  s = tudo(s); assert.equal(s.objects[imp].zone, 'battlefield'); assert.equal(s.objects[imp].controller, 0);
+  let t = semMao(mesa(['Priest of Fell Rites', 'Kitchen Imp', 'Lightning Bolt'], []), 0), pr2, b; [t, pr2] = poe(t, 0, 'Priest of Fell Rites'); [t] = poe(t, 0, 'Kitchen Imp', 'graveyard'); [t, b] = poe(t, 0, 'Lightning Bolt', 'hand'); t = J(t); t.objects[pr2].sick = false; t = comMana(t, 'R');
+  t = act(t, legais(t, 0, x => x.t === 'cast' && x.oid === b && x.targets[0].player === 1)[0]); assert.equal(legais(t, 0, x => x.t === 'activate' && x.oid === pr2).length, 0, 'Activate only as a sorcery: com a pilha ocupada, não');
+});

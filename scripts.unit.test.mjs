@@ -253,6 +253,10 @@ function runExample(sc) {
       s.zones[a].battlefield.push(eoid);
     }
   }
+  // CR2c.4 · "discard an Island card and another card" (Foil): garante uma Ilha na mão, sem mexer no grimório
+  // (antes dependia do sorteio da mão: um script novo na biblioteca mudava o embaralhamento e a Ilha sumia)
+  const subDescarte = (sc.alt || []).map(x => (x.cost || {}).discardSubtype).find(Boolean);
+  if (subDescarte) { s = J(s); s.objects.subdesc = { oid: 'subdesc', name: subDescarte, owner: a, controller: a, zone: 'hand', tapped: false, sick: false, damage: 0, counters: {} }; s.zones[a].hand.push('subdesc'); }
   if (ex.target === 'enemy-spell' || ex.target === 'enemy-instant') {
     // põe uma mágica do oponente na pilha (o cenário só precisa dela lá)
     // a mágica na pilha precisa combinar com o que o script mira
@@ -403,7 +407,8 @@ function runExample(sc) {
     break;
   }
   const isPermanentCard = !!PERM_TYPES[sc.name] || how === 'disturb' || how === 'omen' || how === 'transmute' || how === 'bestow';
-  if (!isPermanentCard && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
+  // CR2c.5 · "Exile <esta mágica>" (Ascend from Avernus): o próprio texto a manda para o exílio, e o cenário confere com `exiled`
+  if (!isPermanentCard && !(sc.effects || []).some(e => e.do === 'exile_self') && (!isLand || how.startsWith('activate')) && (how === 'cast' || how === 'madness' || how.startsWith('mode') || how.startsWith('alt'))) assert.equal(s.objects[oid].zone, 'graveyard', `${sc.name} deveria ir para o cemitério`);
   if (how === 'aura' || how === 'equip' || how === 'bestow') assert.equal(s.objects[oid].attachedTo, ex.target === 'own-land' ? land : ex.target === 'own-forest' ? myForest : mine, `${sc.name} deveria estar anexada`);
   const o = s.objects[watchOverride || watch];
   for (const [check, value] of Object.entries(want)) {

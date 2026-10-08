@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 87,
+ "motor": 88,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -1638,8 +1638,8 @@
    "regra": "Counters",
    "titulo": "Marcadores e seus tipos",
    "status": "parcial",
-   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21)",
-   "falta": "a) -1/-1 é lido no cálculo mas nenhum efeito do motor completo o coloca; b) marcador de palavra-chave, c) escudo, d) atordoamento, f) veneno (10 = derrota), g) defesa, h) finalidade, i) radiação, j) hone: todos ausentes. Marcadores em jogador não existem.",
+   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\")",
+   "falta": "a) -1/-1 é lido no cálculo mas nenhum efeito do motor completo o coloca; c) escudo, d) atordoamento, f) veneno (10 = derrota), g) defesa, h) finalidade, i) radiação, j) hone: todos ausentes. Marcadores em jogador não existem.",
    "esforco": "G",
    "depende": [
     "614",
@@ -4040,7 +4040,7 @@
    "titulo": "Passos para conjurar uma mágica",
    "status": "parcial",
    "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h) · CR2c.3 (v86): o X escolhido entra na escolha de alvos — \"valor de mana X ou menos\" (targetMvMax {per:\"x\"}) na oferta, na conjuração e na resolução, e \"até X alvos\" (targetCount) com X instâncias opcionais; commander.regras \"CR2c.3 · Profane Command\"",
-   "falta": "601.2b: sem buyback/splice (vários modos e reforço feitos na CR2c.1); híbrido decidido pelo motor; phyrexiano à escolha só na conjuração (CR2c.4) (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: o mesmo alvo em instâncias diferentes só vale entre modos (CR2c.1); número variável de alvos só como \"até N\" e \"até X\" (CR2c.3), sem \"qualquer número de alvos\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
+   "falta": "601.2b: sem buyback/splice (vários modos e reforço feitos na CR2c.1); híbrido decidido pelo motor; phyrexiano à escolha só na conjuração (CR2c.4) (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: o mesmo alvo em instâncias diferentes só vale entre modos (CR2c.1); número variável de alvos como \"até N\"/\"até X\" (CR2c.3), com soma de valor de mana entre alvos (CR2c.5), sem \"qualquer número de alvos\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
    "esforco": "G",
    "depende": [
     "700.2",

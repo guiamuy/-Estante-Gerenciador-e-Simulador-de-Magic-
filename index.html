@@ -4812,6 +4812,8 @@ const __m23 = (function () {
    ===================================================================== */
 
 /** Palavras-chave que o motor resolve sozinho (M6 e regras de alvo). */
+/** CR2c.5 · 122.1b: marcadores que dão a palavra-chave de mesmo nome à permanente. */
+const KEYWORD_COUNTERS = ['flying', 'first strike', 'double strike', 'deathtouch', 'decayed', 'exalted', 'haste', 'hexproof', 'indestructible', 'lifelink', 'menace', 'reach', 'shadow', 'trample', 'vigilance'];
 const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigilance', 'haste', 'first strike',
   'double strike', 'menace', 'defender', 'indestructible', 'flash', 'hexproof', 'shroud',
   // CR1b · evasões de 702.13/.14/.28/.36/.118 (canBlock)
@@ -4889,6 +4891,10 @@ const EFFECTS = {
   sacrifice_each: { fields: [], targets: ['self'] },
   // CR2c.2 · "destroy all <tipos> [with mana value N or less/greater]": tudo sai junto (603.10a); "target opponent sacrifices a <tipo> of their choice"
   destroy_all: { fields: [], targets: ['self'] },
+  // CR2c.5 · "return all <tipos> cards with mana value X or less from your graveyard", "Exile <esta mágica>", marcador de palavra-chave "on either of them"
+  reanimate_all: { fields: [], targets: ['self'] },
+  exile_self: { fields: [], targets: ['self'] },
+  counter_choice: { fields: [], targets: ['self'] },
   edict: { fields: [], targets: ['opponent', 'player'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
@@ -5232,6 +5238,9 @@ function effectErrors(effects, label, opcional) {
       errs.push(...valueErrors(e.targetCount, `${label} ${i + 1}: número de alvos`));
       if (!e.upTo || !isTargeted(e)) errs.push(`${label} ${i + 1}: número variável de alvos só em "até N alvos"`);
     }
+    if (e.totalMvMax != null && !(Number.isInteger(e.totalMvMax) && e.targetCount != null)) errs.push(`${label} ${i + 1}: valor de mana total precisa de número de alvos e de um inteiro`); // CR2c.5
+    if (e.do === 'reanimate_all') { if (!(e.types || []).length || (e.types || []).some(x => !FILTER_TYPES.includes(x))) errs.push(`${label} ${i + 1}: devolver todas precisa de tipos conhecidos`); if (e.mvMax != null) errs.push(...valueErrors(e.mvMax, `${label} ${i + 1}: valor de mana máximo`)); }
+    if (e.do === 'counter_choice' && !KEYWORD_COUNTERS.includes(e.kind)) errs.push(`${label} ${i + 1}: marcador "${e.kind}" não é de palavra-chave`);
     if (e.do === 'destroy_all') { // CR2c.2
       if (!(e.types || []).length) errs.push(`${label} ${i + 1}: destruir todas precisa dos tipos`);
       for (const t of e.types || []) if (!FILTER_TYPES.includes(t)) errs.push(`${label} ${i + 1}: tipo "${t}" desconhecido em destruir todas`);
@@ -5671,6 +5680,17 @@ const RAW_SCRIPTS = [
     { label: '−X/−X', effects: [{ do: 'pump', power: { per: 'x', times: -1 }, toughness: { per: 'x', times: -1 }, target: 'creature' }] },
     { label: 'Até X criaturas ganham medo', effects: [{ do: 'keyword', keyword: 'fear', target: 'creature', upTo: true, targetCount: { per: 'x' } }] }],
     example: { action: 'mode:0', target: 'self-player', expect: { selfLife: 0 } } },
+  // CR2c.5 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
+  { name: 'Patch Up', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard', upTo: true, targetCount: 3, totalMvMax: 3 }],
+    example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
+  { name: 'Call of the Death-Dweller', effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard', upTo: true, targetCount: 2, totalMvMax: 3 },
+    { do: 'counter_choice', kind: 'deathtouch' }, { do: 'counter_choice', kind: 'menace' }],
+    example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
+  { name: 'Ascend from Avernus', effects: [{ do: 'reanimate_all', types: ['creature', 'planeswalker'], mvMax: { per: 'x' } }, { do: 'exile_self' }],
+    example: { target: 'none', expect: { exiled: true } } },
+  { name: 'Priest of Fell Rites', covers: 'partial', note: 'falta o desenterrar (Unearth {3}{W}{B}, 702.84): pede efeito de substituição (CR2e)',
+    abilities: [{ kind: 'activated', cost: { tap: true, life: 3, sacrifice: true }, sorceryOnly: true, effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard' }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2c.4 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
   { name: 'Gitaxian Probe', effects: [{ do: 'look_hand', target: 'player' }, { do: 'draw', amount: 1 }],
     example: { target: 'self-player', expect: { handDelta: 1 } } },
@@ -6225,7 +6245,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -11338,7 +11358,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 87;
+const ENGINE_VERSION = 88;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -11469,7 +11489,7 @@ function cardFacts(card) {
 const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
 const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
 /** S11 · palavras-chave próprias mais as concedidas por auras e equipamentos. */
-const has = (s, o, k) => (o && o.faceDown ? false : s.facts[o.name].kw.includes(k)) || grantedToAll(s, o, k) || (o.tempKeywords || []).includes(k) ||
+const has = (s, o, k) => (o && o.faceDown ? false : s.facts[o.name].kw.includes(k)) || grantedToAll(s, o, k) || (o.tempKeywords || []).includes(k) || (SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) || // CR2c.5 · 122.1b
   (((o.keywordsNext || {}).list) || []).includes(k) || // S59 · até o seu próximo turno
   attachedTo(s, o).some(x => ((grantsOf(s, x) || {}).keywords || []).map(w => String(w).toLowerCase()).includes(k));
 const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
@@ -12330,6 +12350,13 @@ function dealCombatDamage(s) {
 /* ---------------- S5 · alvos ---------------- */
 const scriptOf = (s, o) => s.facts[o.name].script;
 /** S12 · efeitos válidos agora: do modo escolhido, quando a mágica é modal. */
+/** CR2c.5 · "with total mana value N or less": a soma dos valores de mana dos alvos de um mesmo grupo passa do limite? */
+function excedeSoma(s, need, chosen) {
+  const somas = new Map();
+  need.forEach((eff, i) => { if (eff.totalMvMax == null || !chosen[i] || chosen[i].oid == null || !s.objects[chosen[i].oid]) return;
+    const k = (eff.__modo != null ? eff.__modo : '') + '|' + eff.totalMvMax; somas.set(k, { lim: eff.totalMvMax, n: ((somas.get(k) || {}).n || 0) + ((s.facts[s.objects[chosen[i].oid].name] || {}).cmc || 0) }); });
+  return [...somas.values()].some(g => g.n > g.lim);
+}
 /** CR2c.3 · "up to X target creatures": o efeito vira X instâncias opcionais de alvo (X = 0: nenhuma). */
 const expandeAlvos = (s, o, effs) => effs.some(e => e.targetCount != null) ? effs.flatMap(e => e.targetCount == null ? [e]
   : Array.from({ length: Math.max(0, amountOf(s, o || {}, e.targetCount)) }, () => { const c = { ...e, upTo: true }; delete c.targetCount; return c; })) : effs;
@@ -12866,7 +12893,25 @@ function applyEffect(s, src, eff, tgt, events) {
       if (alvo) moveObject(s, alvo.oid, 'hand');
       note({}); break;
     }
-    case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; note({}); break;
+    case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); note({}); break; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'reanimate_all': { // CR2c.5 · todas de uma vez, do cemitério de quem controla a mágica
+      const lim = eff.mvMax != null ? amountOf(s, src, eff.mvMax) : Infinity;
+      const voltam = s.zones[ctrl].graveyard.filter(oid => { const f = s.facts[s.objects[oid].name] || {}; return eff.types.some(x => (f.types || []).includes(x)) && (f.cmc || 0) <= lim; });
+      for (const oid of voltam) { moveObject(s, oid, 'battlefield'); s.objects[oid].controller = ctrl; }
+      note({ amount: voltam.length, nomes: voltam.map(oid => s.objects[oid].name) }); break;
+    }
+    case 'exile_self': { // CR2c.5 · "Exile Ascend from Avernus": a própria mágica vai para o exílio ao terminar
+      if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { moveObject(s, src.oid, 'exile'); note({ target: src.name }); }
+      break;
+    }
+    case 'counter_choice': { // CR2c.5 · "Put a <palavra> counter on either of them": entre as que esta mágica devolveu
+      const cands = (src.devolvidas || []).filter(oid => s.objects[oid] && s.objects[oid].zone === 'battlefield');
+      if (!cands.length) break; // ruling: sem criatura devolvida, nenhum marcador
+      if (cands.length === 1) { const o1 = s.objects[cands[0]]; o1.counters[eff.kind] = (o1.counters[eff.kind] || 0) + 1; note({ target: o1.name, kind: eff.kind }); break; }
+      const nomes = cands.map(oid => s.objects[oid].name), rotulos = nomes.map((n, i) => nomes.indexOf(n) !== i || nomes.lastIndexOf(n) !== i ? `${n} (${i + 1})` : n);
+      s.pending = { kind: 'choose_mode', p: ctrl, name: src.name, options: rotulos, marcador: { kind: eff.kind, oids: cands } };
+      break;
+    }
     case 'add_mana': {
       // M13 · identidade do comandante: sem cor válida, a habilidade não produz nada (nem {C})
       const restritas = coresPermitidas(s, ctrl, eff); // M13/M13b · identidade ou terrenos dos oponentes
@@ -13960,6 +14005,7 @@ const HANDLERS = {
     if (chosen.some((x, i) => chosen.some((y, j) => j > i && sameChoice(x, y) && (!nModos || need[i].__modo === need[j].__modo)))) throw new RuleError('alvo', 'escolha alvos diferentes');
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, { controller: a.p, xPaid: a.x || 0 })) throw new RuleError('alvo', 'alvo ilegal'); }); // CR2c.3 · "valor de mana X ou menos" com o X desta conjuração
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
+    if (excedeSoma(s, need, chosen)) throw new RuleError('alvo', 'os alvos passam do valor de mana total permitido'); // CR2c.5
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
@@ -14177,6 +14223,13 @@ const HANDLERS = {
       const n = pk.compra.max - (a.index || 0);
       if (!(n >= 0 && n <= pk.compra.max)) throw new RuleError('escolha', 'quantidade inválida');
       s.pending = null; draw(s, pk.compra.who, n); ev.push({ kind: 'effect', do: 'draw', name: pk.name, amount: n, target: s.players[pk.compra.who].name });
+      if (!s.pending) resumeEffects(s, ev);
+      return;
+    }
+    if (pk.marcador) { // CR2c.5 · em qual das devolvidas vai o marcador
+      const oid = pk.marcador.oids[a.index]; if (!oid) throw new RuleError('escolha', 'criatura inválida');
+      s.pending = null; const o1 = s.objects[oid];
+      if (o1 && o1.zone === 'battlefield') { o1.counters[pk.marcador.kind] = (o1.counters[pk.marcador.kind] || 0) + 1; ev.push({ kind: 'effect', do: 'counter_choice', name: pk.name, target: o1.name, kind: pk.marcador.kind }); }
       if (!s.pending) resumeEffects(s, ev);
       return;
     }
@@ -14686,6 +14739,12 @@ function legalActions(s, p, { adjudication = false } = {}) {
       const opts = limitaAlvos(legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x, xv != null ? { controller: p, xPaid: xv } : undefined)), need.length);
       // S38 · "até N alvos": o último alvo pode ficar de fora
       if (!opts.length) { if (eff.upTo) continue; return []; }
+      if (eff.upTo && eff.totalMvMax != null) { // CR2c.5 · grupo com soma: alvos em ordem (sem permutações) e combinações que passam da soma cortadas antes do limite
+        const k = need.indexOf(eff), grupo = k > 0 && need[k - 1].totalMvMax === eff.totalMvMax && need[k - 1].target === eff.target;
+        combos = combos.flatMap(c => { if (c.length < k) return [c]; const ant = grupo ? opts.findIndex(y => sameChoice(y, c[k - 1])) : -1;
+          return [c, ...opts.filter((x, i) => i > ant && !c.some(y => sameChoice(x, y))).map(x => c.concat([x])).filter(cc => !excedeSoma(s, need, cc))]; }).slice(0, COMBO_LIMIT);
+        continue;
+      }
       combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
     }
     const vistos = new Set(); // S47 · dois alvos opcionais repetiam a mesma combinação
@@ -16664,6 +16723,9 @@ function effectLine(ev) {
   switch (ev.do) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
+    case 'reanimate_all': return n ? `${ev.name} devolveu ao campo ${(ev.nomes || []).join(', ')}` : `${ev.name} não devolveu nada`; // CR2c.5
+    case 'exile_self': return `${ev.name} foi exilada`;
+    case 'counter_choice': return `${t} recebeu um marcador de ${PALAVRA_PT[ev.kind] || ev.kind} (${ev.name})`;
     case 'destroy_all': return n ? `${ev.name} destruiu ${(ev.nomes || []).join(', ')}` : `${ev.name} não destruiu nada`; // CR2c.2
     case 'edict': return `${ev.name}: ${t} não tinha o que sacrificar`;
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
@@ -17411,7 +17473,11 @@ function descreveEfeito(e) {
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
-    case 'reanimate': case 'reanimate_tapped': return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
+    case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
+    case 'exile_self': return 'exila esta mágica';
+    case 'counter_choice': return `põe um marcador de ${PALAVRA_PT[e.kind] || e.kind} em uma delas`;
+    case 'reanimate': case 'reanimate_tapped': if (e.totalMvMax != null) return `devolve até ${qtd(e.targetCount)} criaturas com valor de mana total ${e.totalMvMax} ou menos do cemitério ao campo`;
+      return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
     case 'fog': return 'previne todo o dano de combate deste turno';
     case 'attach': return 'anexa';
     case 'venture': return 'aventura na masmorra';
