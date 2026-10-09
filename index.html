@@ -5062,7 +5062,10 @@ const EFFECTS = {
   // CR2d.4 · Animate Dead: devolver a carta encantada e anexar; ao sair, quem controla a criatura a sacrifica
   animate_dead: { fields: [], targets: ['self'] },
   sacrifice_reanimated: { fields: [], targets: ['self'] },
-  animate: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
+  animate: { fields: [], targets: ['self-source'] },
+  // CR2d.5 · "exile <ela>, then return <ela> to the battlefield transformed under its owner's control" e "prevent all damage that would be dealt to him this turn"
+  exile_return_transformed: { fields: [], targets: ['self-source'] },
+  prevent_self: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
   to_bottom: { fields: [], targets: ['permanent-you-own'] },
   sacrifice_it: { fields: [], targets: ['permanent'] },
   exile_self: { fields: [], targets: ['self'] },
@@ -6073,13 +6076,18 @@ const RAW_SCRIPTS = [
       { cost: -1, label: '−1: Dano igual à vida ganha no turno', effects: [{ do: 'damage', amount: { per: 'life-gained-this-turn' }, target: 'any' }] }] },
     covers: 'partial', note: 'extorsão, vínculo com a vida da frente vem do texto, e o −6 de roubar criatura ainda não entra',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // CR2d.5 · texto conferido em duas fontes (impressão ORI em 05/10/2026 e tcgzen.com em 08/10/2026): "exile Kytheon, then return him
+  // to the battlefield transformed under his owner's control"; +1 "Until your next turn, target creature gains indestructible. Untap that creature.";
+  // 0 "Until end of turn, Gideon becomes a 4/4 Human Soldier creature with indestructible that's still a planeswalker. Prevent all damage …"
   { name: 'Kytheon, Hero of Akros',
     abilities: [
-      { kind: 'triggered', when: 'end-of-combat', condition: { attackersAtLeast: 3 }, effects: [{ do: 'transform', target: 'self-source' }] },
+      { kind: 'triggered', when: 'end-of-combat', condition: { attackersAtLeast: 3 }, effects: [{ do: 'exile_return_transformed', target: 'self-source' }] },
       { kind: 'activated', cost: { mana: '{2}{W}' }, effects: [{ do: 'keyword', keyword: 'indestructible', target: 'self-source' }] }],
-    back: { name: 'Gideon, Battle-Forged', types: ['planeswalker'], loyalty: 3, loyaltyAbilities: [
-      { cost: 1, label: '+1: Criatura fica indestrutível e desvira', effects: [{ do: 'keyword', keyword: 'indestructible', target: 'creature' }, { do: 'untap', target: 'creature' }] }] },
-    covers: 'partial', note: 'o +2 de forçar ataque e o 0 de virar criatura 4/4 ainda não entram',
+    back: { name: 'Gideon, Battle-Forged', types: ['planeswalker'], subtypes: ['Gideon'], colors: ['W'], loyalty: 3, loyaltyAbilities: [
+      { cost: 1, label: '+1: Criatura fica indestrutível até o seu próximo turno e desvira', effects: [{ do: 'keyword', keyword: 'indestructible', target: 'creature', until: 'your-next-turn' }, { do: 'untap', target: 'first-target' }] },
+      { cost: 0, label: '0: Vira criatura 4/4 indestrutível até o fim do turno, sem receber dano', effects: [
+        { do: 'animate', target: 'self-source', becomes: { types: ['creature'], subtypes: ['Human', 'Soldier'], base: [4, 4], keywords: ['indestructible'], addTypes: true } }, { do: 'prevent_self', target: 'self-source' }] }] },
+    covers: 'partial', note: 'falta o +2 (uma criatura do oponente ataca o Gideon no próximo turno dela): o motor ainda não ataca planeswalker',
     example: { action: 'activate:0', target: 'none', expect: { keyword: 'indestructible' } } },
   // S24 · cartas de face dupla (textos conferidos na Scryfall)
   { name: 'Lunarch Veteran', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }],
@@ -11866,7 +11874,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 93;
+const ENGINE_VERSION = 94;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -12253,7 +12261,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
@@ -12429,7 +12437,7 @@ const protections = (s, o) => protImpressa(s, o).concat(o.tempProtection || [], 
   const g = grantsOf(s, x); if (!g || !g.protection) return [];
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
 }));
-const prevented = (s, o) => !s.noPrevention && attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent);
+const prevented = (s, o) => !s.noPrevention && (!!o.prevenirDano || attachedTo(s, o).some(x => (grantsOf(s, x) || {}).prevent)); // CR2d.5 · prevenção do turno (Gideon)
 const colorsOf = (s, src) => (src && !src.faceDown && s.facts[src.name] ? s.facts[src.name].colors || [] : []); // CR 708.2: virada para baixo não tem cor
 const protectedFrom = (s, o, src) => protections(s, o).some(c => colorsOf(s, src).includes(c));
 /** Leva 108 · proteção que derruba anexos (702.16c), menos a que diz "não remove as auras e equipamentos que você
@@ -12782,7 +12790,7 @@ function enterStep(s, step) {
 }
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.vira; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
+  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.vira; delete o.prevenirDano; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
   delete s.fogged; delete s.preventedColors; delete s.noPrevention;
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -13678,6 +13686,20 @@ function applyEffect(s, src, eff, tgt, events) {
       // R9 · 400.7: se a carta já saiu do cemitério (voltou à mão, foi exilada), é outro objeto e fica onde está
       const saiu = eff.target === 'self-source' && alvo && !['graveyard', 'battlefield'].includes(alvo.zone);
       if (alvo && alvo.zone !== 'library' && !saiu) { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); note({ name: alvo.name }); }
+      break;
+    }
+    case 'exile_return_transformed': { // CR2d.5 · 712/701.28: sai e volta como objeto novo, já com a face de trás, sob o controle do dono
+      const alvo = src.ability ? s.objects[src.source] : src;
+      const back = alvo && backOf(s, alvo);
+      if (!alvo || !back || alvo.zone !== 'battlefield') { note({ failed: true }); break; }
+      moveObject(s, alvo.oid, 'exile');
+      if (alvo.zone !== 'exile') { note({ failed: true }); break; }
+      flipTo(s, alvo, back); moveObject(s, alvo.oid, 'battlefield'); alvo.controller = alvo.owner; // a lealdade entra pelo moveObject
+      note({ name: alvo.name }); break;
+    }
+    case 'prevent_self': { // CR2d.5 · todo dano que seria causado a ela neste turno é prevenido (a limpeza apaga)
+      const alvo = src.ability ? s.objects[src.source] : src;
+      if (alvo && alvo.zone === 'battlefield') { alvo.prevenirDano = true; note({ target: alvo.name }); }
       break;
     }
     case 'transform': { // S25 · troca a face no campo
@@ -17372,6 +17394,8 @@ function effectLine(ev) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
+    case 'exile_return_transformed': return ev.failed ? `${ev.name}: não estava mais no campo` : `${ev.name} foi exilado e voltou transformado`; // CR2d.5
+    case 'prevent_self': return `todo dano a ${t} neste turno será prevenido`;
     case 'animate_dead': return ev.failed ? `${ev.name}: a carta já não estava no cemitério` : `${ev.name} devolveu ${t} ao campo`; // CR2d.4
     case 'sacrifice_reanimated': return `${t} foi sacrificada (${ev.name} saiu do campo)`;
     case 'reveal_until': return `${t} revelou ${n} carta(s) (${(ev.nomes || []).join(', ')})${ev.achada ? ` e pôs ${ev.achada} no campo` : ' sem achar o que procurava'} (${ev.name})`; // M-222
@@ -18129,6 +18153,8 @@ function descreveEfeito(e) {
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
     case 'transform': return 'transforma';
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
+    case 'exile_return_transformed': return 'é exilada e volta transformada, sob o controle do dono'; // CR2d.5
+    case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
     case 'sacrifice_reanimated': return 'quem controla a criatura a sacrifica';
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
     case 'reveal_until': return `${e.who === 'self' ? 'você revela' : 'o controlador dela revela'} cartas do topo até ${e.match === 'creature' ? 'uma criatura' : e.match === 'creature-greater-mv' ? 'uma criatura de valor de mana maior' : `uma carta${e.permanentOnly ? ' de permanente' : ''} que divida um tipo com ela`}, põe no campo e ${e.rest === 'shuffle' ? 'embaralha as outras' : 'põe as outras no fundo em ordem aleatória'}`; // M-222

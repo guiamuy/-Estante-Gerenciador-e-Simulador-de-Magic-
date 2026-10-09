@@ -11,7 +11,8 @@ test('R10 · toda carta das listas Commander tem texto oficial com fonte e data'
   assert.deepEqual(nomes.filter(n => !txt.has(n)), [], 'cartas sem texto oficial');
   const novas = L('oficiais-commander.json').cartas;
   assert.deepEqual(novas.filter(c => !c.oracle_text || !c.type_line || !c.fonte || !c.consulta).map(c => c.name), [], 'texto, tipo, fonte e data em todas');
-  assert.deepEqual(novas.filter(c => c.incerto).map(c => c.name).sort(), ['Kytheon, Hero of Akros', 'Sorin of House Markov'], 'incertas conhecidas: não escrever script delas sem nova conferência');
+  // M-227 · a Kytheon saiu da lista: texto confirmado em segunda fonte (tcgzen.com, 08/10/2026) antes de o script ser refeito
+  assert.deepEqual(novas.filter(c => c.incerto).map(c => c.name).sort(), ['Sorin of House Markov'], 'incertas conhecidas: não escrever script delas sem nova conferência');
 });
 
 test('R10 · a triagem cobre as mesmas cartas, cada uma num balde, e toda carta B ou C diz a primitiva ou estrutura que falta', () => {

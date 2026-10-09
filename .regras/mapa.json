@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 93,
+ "motor": 94,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -5112,7 +5112,7 @@
    "regra": "Prevention Effects",
    "titulo": "O que é efeito de prevenção",
    "status": "parcial",
-   "evidencia": "Prevenção total em quatro formas: névoa (s.fogged, dealCombatDamage :10800; rules.unit \"S29 · Fog previne todo o dano de combate do turno\"), por cor de fonte (colorPrevented :10439; \"S30\"; boros.regras \"R6 · Prismatic Strands\"), da mágica alvo (prevent_spell :11400; \"S36/S52\"), da criatura encantada (prevented :10427), mais a proteção (protegeDoDano :11553)",
+   "evidencia": "Prevenção total em quatro formas: névoa (s.fogged, dealCombatDamage :10800; rules.unit \"S29 · Fog previne todo o dano de combate do turno\"), por cor de fonte (colorPrevented :10439; \"S30\"; boros.regras \"R6 · Prismatic Strands\"), da mágica alvo (prevent_spell :11400; \"S36/S52\"), da criatura encantada (prevented :10427), mais a proteção (protegeDoDano :11553) · CR2d.5 (v94): prevenção de todo dano a uma permanente no turno (prevent_self → o.prevenirDano, limpa na limpeza)",
    "falta": "Só existe \"previna todo o dano\"; não há prevenção de quantidade (parte do dano passa), nem escudo consumível. A prevenção é um if antes de aplicar o dano, repetido em applyEffect e dealCombatDamage, sem evento de dano comum.",
    "esforco": "G",
    "depende": [
@@ -5741,7 +5741,7 @@
    "regra": "Keyword Actions",
    "titulo": "Transform",
    "status": "parcial",
-   "evidencia": "case transform (index.html:11429-11437) troca a face com flipTo, só se houver verso no script (701.27c) e a permanente estiver em campo; volta à frente fora do campo (10258); rules.unit \"S25 · transforma na fase pós-combate...\", \"S25 · transforma no fim do combate com três atacantes\"",
+   "evidencia": "case transform (index.html:11429-11437) troca a face com flipTo, só se houver verso no script (701.27c) e a permanente estiver em campo; volta à frente fora do campo (10258); rules.unit \"S25 · transforma na fase pós-combate...\", \"S25 · transforma no fim do combate com três atacantes\" · CR2d.5 (v94): \"exile it, then return it to the battlefield transformed under its owner's control\" (exile_return_transformed): objeto novo pelo exílio, entra já com a face de trás e a lealdade dela (commander.regras \"CR2d.5 · Kytheon…\")",
    "falta": "só a própria fonte se transforma (target self-source); não confere se já transformou desde que a habilidade foi para a pilha (701.27f); não barra verso instantânea/feitiço (d); sem gatilho \"transforma em\" (e), sem consulta \"permanente transformada\" (g), sem ficha de duas faces",
    "esforco": "M",
    "depende": [

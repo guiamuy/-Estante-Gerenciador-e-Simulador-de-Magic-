@@ -681,3 +681,27 @@ test('CR2d.4 · Animate Dead: quando a Aura sai do campo, quem controla a criatu
   assert.equal(s.objects[ad].zone, 'graveyard'); assert.equal(s.objects[z].zone, 'graveyard', "that creature's controller sacrifices it");
   assert.equal(s.players[1].life, vida - 1, 'a Zulaport morreu sob o seu controle: o seu oponente perde 1');
 });
+
+// ---------------------------------------------------------------- CR2d.5 · Kytheon, Hero of Akros / Gideon, Battle-Forged (texto conferido em 05/10 e 08/10/2026)
+const comoGideon = (s, k) => { s = J(s); const o = s.objects[k]; o.frontName = o.name; o.name = 'Gideon, Battle-Forged'; o.counters = { loyalty: 3 }; o.entrouNoTurno = s.turn.number - 1; return s; };
+
+test('CR2d.5 · Kytheon: no fim do combate, se ele e mais duas criaturas atacaram, é exilado e volta transformado, sob o controle do dono (objeto novo)', () => {
+  const base = (n) => { let s = semMao(mesa(['Kytheon, Hero of Akros', 'Faerie Seer', 'Faerie Seer'], []), 0), k, f1, f2; [s, k] = poe(s, 0, 'Kytheon, Hero of Akros'); [s, f1] = poe(s, 0, 'Faerie Seer'); [s, f2] = poe(s, 0, 'Faerie Seer');
+    for (const x of [k, f1, f2]) s = veterano(s, x); return { s, k, atacam: [k, f1, f2].slice(0, n) }; };
+  { let { s, k, atacam } = base(3); s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: atacam });
+    s = passaAte(s, x => x.turn.step === 'main2'); const g = s.objects[k];
+    assert.equal(g.name, 'Gideon, Battle-Forged', 'voltou transformado'); assert.equal(g.zone, 'battlefield'); assert.equal(g.counters.loyalty, 3); assert.equal(g.tapped, false, 'objeto novo: volta desvirado'); assert.equal(g.controller, 0); }
+  { let { s, k, atacam } = base(2); s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: atacam }); s = passaAte(s, x => x.turn.step === 'main2');
+    assert.equal(s.objects[k].name, 'Kytheon, Hero of Akros', 'só uma outra atacou: não transforma'); }
+});
+
+test('CR2d.5 · Gideon, Battle-Forged: +1 dá indestrutível até o seu próximo turno e desvira; 0 vira criatura 4/4 indestrutível que continua planeswalker, sem receber dano no turno', () => {
+  let s = semMao(mesa(['Kytheon, Hero of Akros', 'Faerie Seer', 'Lightning Bolt'], []), 0), k, fs, b; [s, k] = poe(s, 0, 'Kytheon, Hero of Akros'); [s, fs] = poe(s, 0, 'Faerie Seer'); [s, b] = poe(s, 0, 'Lightning Bolt', 'hand'); s = comoGideon(s, k); s.objects[fs].tapped = true;
+  const mais1 = legais(s, 0, x => x.t === 'activate' && x.oid === k && x.targets && x.targets[0].oid === fs); assert.equal(mais1.length, 1);
+  let t = tudo(act(s, mais1[0])); assert.equal(t.objects[k].counters.loyalty, 4); assert.equal(t.objects[fs].tapped, false, 'Untap that creature'); assert.ok(E.hasKeyword(t, t.objects[fs], 'indestructible'));
+  const turno = t.turn.number; t = passaAte(t, x => x.turn.number === turno + 1 && x.turn.step === 'main1'); assert.ok(E.hasKeyword(t, t.objects[fs], 'indestructible'), 'até o seu próximo turno: vale no turno do oponente');
+  const zero = legais(s, 0, x => x.t === 'activate' && x.oid === k && !x.targets && E.isCreature(s, s.objects[k]) === false); assert.ok(zero.length >= 1);
+  let u = tudo(act(s, zero.find(x => x.index === Math.max(...zero.map(y => y.index))))); const g = u.objects[k];
+  assert.ok(E.isCreature(u, g) && E.tiposDe(u, g).includes('planeswalker'), "4/4 creature that's still a planeswalker"); assert.equal(`${E.stats(u, g).power}/${E.stats(u, g).toughness}`, '4/4'); assert.ok(E.hasKeyword(u, g, 'indestructible'));
+  u = tudo(act(comMana(u, 'R'), legais(comMana(u, 'R'), 0, x => x.t === 'cast' && x.oid === b && x.targets[0].oid === k)[0])); assert.equal(u.objects[k].counters.loyalty, 3, 'Prevent all damage that would be dealt to him this turn'); assert.equal(u.objects[k].damage, 0);
+});

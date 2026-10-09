@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2d.4 Aura que encanta carta em cemitério e reanima (303.4); Animate Dead completa (leva M-226, motor v93) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | CR2d.5 exilar e voltar transformado (701.27, 712) e o verso Gideon (+1 e 0); Kytheon parcial, falta atacar planeswalker (leva M-227, motor v94) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2892,6 +2892,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Killian 67% (antes 66%), Malcolm 73%. Triagem 110 prontas · 9 A · 35 B · 10 C.
 - **Golden:** regravadas (92 → 93); registros das quatro partidas iguais.
 - **Fora:** outras Auras de cemitério (Necromancy, Dance of the Dead) não estão nas listas.
+
+**CR2d.5 · Kytheon: exilar e voltar transformado** 🟡 (leva M-227, motor v94) — 2 testes, os dois falhavam antes. Texto conferido em duas fontes (impressão de Magic Origins em 05/10/2026 e tcgzen.com em 08/10/2026; a redação atual só abrevia os nomes).
+- **701.27 / 712** "exile <ela>, then return <ela> to the battlefield transformed under its owner's control": sai pelo exílio e volta como objeto novo, já com a face de trás, desvirada, sem marcadores nem Auras, com a lealdade da face de trás e sob o controle do dono. Antes a Kytheon só trocava de face no lugar (continuava virada e com o que tinha).
+- **Gideon, Battle-Forged:** +1 dá indestrutível até o seu próximo turno e desvira a criatura (antes durava só o turno); 0 vira criatura 4/4 Humano Soldado indestrutível que continua planeswalker, e todo dano a ele no turno é prevenido.
+- **Carta da lista (decisão 7):** **Kytheon, Hero of Akros** — continua **parcial**: falta o +2 do Gideon (uma criatura do oponente ataca o Gideon no próximo turno dela), porque o motor ainda não ataca planeswalker.
+- **Golden:** regravadas (93 → 94); registros das quatro partidas iguais.
+- **Fecha o bloco de camadas da triagem** (Darksteel Mutation, Reprobation, Mishra's Factory, Blinkmoth Nexus, Smuggler's Copter, Animate Dead, Kytheon). O resto da CR2d (mudança de controle, dependência 613.8, estáticos genéricos, "torna-se N/N" por mágica) segue sem carta pendente nas listas.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
