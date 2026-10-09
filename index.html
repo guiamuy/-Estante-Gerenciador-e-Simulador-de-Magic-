@@ -5272,6 +5272,48 @@ const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield
   'enchanted-damages-opponent', 'you-discard',
   // CR2b.5 · passos: o seu passo final, cada manutenção (de qualquer jogador), início do combate no seu turno
   'end-step', 'each-upkeep', 'begin-combat'];
+/** CR2-G R2a · 603.6 · gatilho de mudança de zona como um evento só: de onde (`de`), para onde (`para`), quem muda
+ * (`objeto`: ela mesma, outra permanente, a permanente anexada) e, para outra, de quem ela é (`quem`, `donoVoce`).
+ * Os nomes antigos viram atalhos para o descritor; o despachante do motor lê só o descritor. */
+const ZONAS_DO_GATILHO = ['battlefield', 'graveyard', 'exile', 'hand', 'library'];
+const GATILHO_ZONA = {
+  etb: { evento: 'zona', para: 'battlefield', objeto: 'self' },
+  dies: { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'self' },
+  'leaves-battlefield': { evento: 'zona', de: 'battlefield', objeto: 'self' },
+  'other-etb': { evento: 'zona', para: 'battlefield', objeto: 'outra' },
+  'other-dies': { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'outra' },
+  'other-leaves-battlefield': { evento: 'zona', de: 'battlefield', objeto: 'outra' },
+  'attached-dies': { evento: 'zona', de: 'battlefield', para: 'graveyard', objeto: 'anexada' },
+  'attached-dies-or-exiled': { evento: 'zona', de: 'battlefield', para: ['graveyard', 'exile'], objeto: 'anexada' },
+};
+/** O descritor de zona de um gatilho (nome antigo ou descritor escrito no script); null se não for de zona. */
+const gatilhoDeZona = w => typeof w === 'string' ? (GATILHO_ZONA[w] || null) : (w && typeof w === 'object' && w.evento === 'zona' ? w : null);
+const CHAVES_GATILHO_ZONA = ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'];
+function gatilhoErros(w, tag) {
+  if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
+  if (!w || typeof w !== 'object' || w.evento !== 'zona') return [`${tag}: gatilho desconhecido`];
+  const errs = [], lista = v => [].concat(v);
+  for (const k of Object.keys(w)) if (!CHAVES_GATILHO_ZONA.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida no gatilho`);
+  for (const k of ['de', 'para']) if (w[k] != null && !(lista(w[k]).length && lista(w[k]).every(z => ZONAS_DO_GATILHO.includes(z)))) errs.push(`${tag}: zona "${w[k]}" desconhecida no gatilho`);
+  if (w.de == null && w.para == null) errs.push(`${tag}: gatilho de zona precisa de "de" ou "para"`);
+  if (!['self', 'outra', 'anexada'].includes(w.objeto || 'self')) errs.push(`${tag}: objeto "${w.objeto}" desconhecido no gatilho`);
+  if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`);
+  if ((w.quem != null || w.donoVoce) && w.objeto !== 'outra') errs.push(`${tag}: "quem" e "donoVoce" só valem para outra permanente`);
+  return errs;
+}
+const ZONA_PT = { battlefield: 'o campo', graveyard: 'o cemitério', exile: 'o exílio', hand: 'a mão', library: 'o grimório' };
+const ZONA_DE_PT = { battlefield: 'do campo', graveyard: 'do cemitério', exile: 'do exílio', hand: 'da mão', library: 'do grimório' };
+/** O gatilho em português: nome antigo pela tabela; descritor montado das partes. */
+function descreveGatilho(w) {
+  if (typeof w === 'string') return TRIGGER_PT[w] || w;
+  const d = gatilhoDeZona(w); if (!d) return 'gatilho';
+  const ou = (v, m) => [].concat(v).map(z => m[z]).join(' ou ');
+  const quem = d.objeto === 'anexada' ? 'a permanente anexada' : d.objeto === 'outra'
+    ? (d.donoVoce ? 'outra permanente sua' : d.quem === 'qualquer' ? 'outra permanente' : d.quem === 'oponente' ? 'uma permanente de um oponente' : 'outra permanente que você controla') : null;
+  const verbo = d.para === 'battlefield' && d.de == null ? 'entra no campo' : d.de === 'battlefield' && d.para === 'graveyard' ? 'morre'
+    : d.para != null ? `vai ${d.de != null ? ou(d.de, ZONA_DE_PT) + ' ' : ''}para ${ou(d.para, ZONA_PT)}` : `sai ${ou(d.de, ZONA_DE_PT)}`;
+  return quem ? `quando ${quem} ${verbo}` : `quando ${verbo}`;
+}
 /** S11 · o que uma aura ou equipamento pode conceder. `per` conta permanentes
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
@@ -5315,7 +5357,7 @@ function validateScript(sc) {
       if (cost.life != null && !Number.isInteger(cost.life)) errs.push(`${tag}: custo de vida precisa ser inteiro`);
       for (const k of ['sacrificeOther', 'tapOther']) if (cost[k] && !Array.isArray((cost[k] || {}).types)) errs.push(`${tag}: ${k} precisa de uma lista de tipos`);
     } else if (ab.kind === 'triggered') {
-      if (!TRIGGERS.includes(ab.when)) errs.push(`${tag}: gatilho "${ab.when}" desconhecido`);
+      errs.push(...gatilhoErros(ab.when, tag)); // CR2-G R2a · nome antigo ou descritor de zona
     } else errs.push(`${tag}: tipo "${ab.kind}" desconhecido`);
     // S56 · gatilho com modos tem os efeitos dentro de cada modo
     errs.push(...effectErrors(ab.effects, tag, ab.adapt != null || (ab.modes || []).length > 0));
@@ -6585,7 +6627,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, GATILHO_ZONA, gatilhoDeZona, gatilhoErros, descreveGatilho, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -12661,23 +12703,10 @@ function moveObject(s, oid, to, { top = true } = {}) {
   if (to === 'battlefield') {
     // S11b/M10 · a permanente que pede uma cor abre uma escolha pendente
     if (((s.facts[o.name].script || {}).choose) === 'color' && !o.chosenColor) s.queuedChoices = (s.queuedChoices || []).concat([{ oid, p: o.controller, kind: 'color' }]);
-    queueTriggers(s, 'etb', [o]);
   }
   if (fromZone === 'hand' && to === 'graveyard') noteDiscard(s, o.owner); // CR2b.4 · da mão para o cemitério é descarte
-  if (fromZone === 'battlefield' && to === 'graveyard') queueTriggers(s, 'dies', [o], fromController);
-  // CR2b.3 · 603.10a: o Equipamento ou a Aura que estava nela vê a saída (o anexo só se solta na próxima checagem de estado)
-  if (fromZone === 'battlefield' && (to === 'graveyard' || to === 'exile')) {
-    const morreu = to === 'graveyard' && ultima && (ultima.power != null || s.facts[o.name].types.includes('planeswalker'));
-    for (const x of battlefield(s).concat((s.saindoJuntas || []).map(y => s.objects[y]).filter(y => y && y.zone !== 'battlefield' && y.ultima && y.ultima.anexadaA === oid))) {
-      if ((x.zone === 'battlefield' ? x.attachedTo : x.ultima.anexadaA) !== oid) continue;
-      for (const ab of abilitiesOf(s, x)) {
-        if (ab.kind !== 'triggered' || !((ab.when === 'attached-dies' && morreu) || (ab.when === 'attached-dies-or-exiled' && (morreu || to === 'exile')))) continue;
-        s.queued.push({ source: x.oid, name: x.name, controller: x.zone === 'battlefield' ? x.controller : x.ultima.controller, effects: ab.effects, when: ab.when, lembrada: { oid, z: o.zc || 0 }, ...(ab.optional ? { optional: true } : {}) });
-      }
-    }
-  }
-  // S48 · sair do campo para qualquer zona (Journey to Nowhere devolve a criatura)
-  if (fromZone === 'battlefield' && to !== 'battlefield') queueTriggers(s, 'leaves-battlefield', [o], fromController);
+  // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
+  disparaZona(s, o, fromZone, to, fromController, ultima);
 }
 function draw(s, p, n = 1) {
   if (s.players[p].dummy) return;
@@ -14420,7 +14449,7 @@ function createToken(s, def, controller, events) {
     sick: s.facts[name].types.includes('creature'), damage: 0, counters: {} };
   s.zones[controller].battlefield.push(oid);
   events.push({ kind: 'effect', do: 'token', name, target: s.players[controller].name, amount: 1 });
-  queueTriggers(s, 'etb', [s.objects[oid]]);
+  disparaZona(s, s.objects[oid], null, 'battlefield', controller, null); // CR2-G R2a · a ficha entra: mesmo evento de zona
   return oid;
 }
 
@@ -14541,6 +14570,94 @@ function enterRoom(s, p, roomId, srcOid, events) {
   s.queued.push({ source: srcOid, name: `${d.pt}: ${sala.pt}`, controller: p, effects: sala.effects, when: 'room' });
   // 309.6 · com o marcador na última sala, a masmorra está completa
   if (!(sala.next || []).length) { pl.dungeon.done = true; pl.dungeonsDone = (pl.dungeonsDone || 0) + 1; }
+}
+/** CR2-G R2a · modo sombra (só nos testes): cada mudança de zona calcula a fila pelos dois caminhos e anota a diferença. */
+let sombraGatilhos = null;
+function sombraDosGatilhos(liga) { const r = sombraGatilhos; sombraGatilhos = liga ? { total: 0, comFila: 0, porGatilho: {}, diferencas: [] } : null; return r; }
+function disparaZona(s, o, de, para, ctrlAntes, ultima) {
+  if (!sombraGatilhos) return gatilhosDeZona(s, o, de, para, ctrlAntes, ultima);
+  const n = s.queued.length;
+  gatilhosDeZonaLegado(s, o, de, para, ctrlAntes, ultima);
+  const velho = JSON.stringify(s.queued.slice(n)); s.queued.length = n;
+  gatilhosDeZona(s, o, de, para, ctrlAntes, ultima);
+  const novo = JSON.stringify(s.queued.slice(n));
+  sombraGatilhos.total++; if (novo !== '[]') sombraGatilhos.comFila = (sombraGatilhos.comFila || 0) + 1;
+  for (const q of s.queued.slice(n)) { const k = typeof q.when === 'string' ? q.when : 'descritor'; sombraGatilhos.porGatilho[k] = (sombraGatilhos.porGatilho[k] || 0) + 1; }
+  if (velho !== novo && sombraGatilhos.diferencas.length < 20) sombraGatilhos.diferencas.push({ carta: o.name, de, para, velho, novo });
+}
+const marcasDaHabilidade = ab => ({ ...(ab.condition ? { condition: ab.condition } : {}), ...(ab.cost ? { cost: ab.cost } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}),
+  ...(ab.optional ? { optional: true } : {}), ...((ab.modes || []).length ? { modes: ab.modes } : {}) });
+/** 603.6 · o descritor casa com a mudança: `de`/`para` listados; só `de` quer dizer "sai de lá" (para outra zona). */
+const casaZona = (d, de, para) => (d.de == null || [].concat(d.de).includes(de)) && (d.para == null ? para !== de : [].concat(d.para).includes(para));
+/** CR2-G R2a · despachante único dos gatilhos de mudança de zona. A ordem da fila é a de antes, em três fases:
+ * [1] os que dizem para onde (entra, morre…): os dela, depois os de quem observa; [2] os da permanente anexada;
+ * [3] os que só dizem de onde (sai do campo): os dela, depois os de quem observa. */
+function gatilhosDeZona(s, o, de, para, ctrlAntes, ultima) {
+  if (isAbility(o) || !s.facts[o.name]) return;
+  const saiu = de === 'battlefield' && para !== 'battlefield';
+  const ctrl = saiu ? ctrlAntes : o.controller;
+  const dela = saiu && o.ultima && (o.ultima.faceDown || o.ultima.semHabilidades) ? [] : abilitiesOf(s, o); // CR 603.10a · CR2d.1
+  // CR 603.10a · quem saiu do campo NO MESMO evento (s.saindoJuntas) também observa, como era no campo
+  const juntas = saiu ? (s.saindoJuntas || []).map(x => s.objects[x]).filter(w => w && w.zone !== 'battlefield' && w.ultima && !w.ultima.faceDown && !w.ultima.semHabilidades) : [];
+  const observadores = battlefield(s).concat(juntas);
+  const fase = (comPara) => {
+    for (const ab of dela) {
+      const d = ab.kind === 'triggered' && SC.gatilhoDeZona(ab.when);
+      if (!d || (d.objeto || 'self') !== 'self' || (d.para != null) !== comPara || !casaZona(d, de, para)) continue;
+      if (!triggerConditionMet(s, o, ab.condition)) continue; // S25 · condição do gatilho
+      s.queued.push({ source: o.oid, name: o.name, controller: ctrl, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) });
+    }
+    for (const w of observadores) {
+      if (w.oid === o.oid) continue;
+      const wCtrl = w.zone === 'battlefield' ? w.controller : w.ultima.controller;
+      for (const ab of abilitiesOf(s, w)) {
+        const d = ab.kind === 'triggered' && SC.gatilhoDeZona(ab.when);
+        if (!d || d.objeto !== 'outra' || (d.para != null) !== comPara || !casaZona(d, de, para)) continue;
+        // CR2b.3 · 603.2: de quem é a permanente observada — a sua (padrão), a de um oponente, a de qualquer um, ou "posta no SEU cemitério"
+        const quem = d.quem || (ab.controller === 'opponent' ? 'oponente' : ab.anyController ? 'qualquer' : 'voce');
+        if ((d.donoVoce || ab.ownerIsYou) ? o.owner !== wCtrl : quem === 'oponente' ? wCtrl === ctrl : (quem === 'voce' && wCtrl !== ctrl)) continue;
+        if (!matchesTriggerFilter(s, o, ab.filter)) continue;
+        if (!triggerConditionMet(s, w, ab.condition)) continue; // CR 603.4
+        s.queued.push({ source: w.oid, name: w.name, controller: wCtrl, effects: ab.effects, when: ab.when, jogador: ctrl, ...(saiu ? { lembrada: { oid: o.oid, z: o.zc || 0 } } : {}), ...marcasDaHabilidade(ab) });
+      }
+    }
+  };
+  fase(true);
+  // CR2b.3 · 603.10a: o Equipamento ou a Aura que estava nela vê a saída (o anexo só se solta na próxima checagem de estado);
+  // "a criatura encantada morre" pede que ela fosse criatura (ou planeswalker) ao sair
+  if (saiu) {
+    const eraCriatura = !!(ultima && (ultima.power != null || s.facts[o.name].types.includes('planeswalker')));
+    for (const x of battlefield(s).concat((s.saindoJuntas || []).map(y => s.objects[y]).filter(y => y && y.zone !== 'battlefield' && y.ultima && y.ultima.anexadaA === o.oid))) {
+      if ((x.zone === 'battlefield' ? x.attachedTo : x.ultima.anexadaA) !== o.oid) continue;
+      for (const ab of abilitiesOf(s, x)) {
+        const d = ab.kind === 'triggered' && SC.gatilhoDeZona(ab.when);
+        if (!d || d.objeto !== 'anexada' || !casaZona(d, de, para) || (para === 'graveyard' && !eraCriatura)) continue;
+        if (!triggerConditionMet(s, x, ab.condition)) continue;
+        s.queued.push({ source: x.oid, name: x.name, controller: x.zone === 'battlefield' ? x.controller : x.ultima.controller, effects: ab.effects, when: ab.when, lembrada: { oid: o.oid, z: o.zc || 0 }, ...marcasDaHabilidade(ab) });
+      }
+    }
+  }
+  fase(false);
+}
+/** CR2-G R2a · o caminho antigo dos gatilhos de mudança de zona, tal como era no moveObject: fica só para o modo sombra
+ * (o teste de equivalência roda os dois e exige a mesma fila de gatilhos). */
+function gatilhosDeZonaLegado(s, o, fromZone, to, fromController, ultima) {
+  const oid = o.oid;
+  if (to === 'battlefield') queueTriggers(s, 'etb', [o]);
+  if (fromZone === 'battlefield' && to === 'graveyard') queueTriggers(s, 'dies', [o], fromController);
+  // CR2b.3 · 603.10a: o Equipamento ou a Aura que estava nela vê a saída (o anexo só se solta na próxima checagem de estado)
+  if (fromZone === 'battlefield' && (to === 'graveyard' || to === 'exile')) {
+    const morreu = to === 'graveyard' && ultima && (ultima.power != null || s.facts[o.name].types.includes('planeswalker'));
+    for (const x of battlefield(s).concat((s.saindoJuntas || []).map(y => s.objects[y]).filter(y => y && y.zone !== 'battlefield' && y.ultima && y.ultima.anexadaA === oid))) {
+      if ((x.zone === 'battlefield' ? x.attachedTo : x.ultima.anexadaA) !== oid) continue;
+      for (const ab of abilitiesOf(s, x)) {
+        if (ab.kind !== 'triggered' || !((ab.when === 'attached-dies' && morreu) || (ab.when === 'attached-dies-or-exiled' && (morreu || to === 'exile')))) continue;
+        s.queued.push({ source: x.oid, name: x.name, controller: x.zone === 'battlefield' ? x.controller : x.ultima.controller, effects: ab.effects, when: ab.when, lembrada: { oid, z: o.zc || 0 }, ...(ab.optional ? { optional: true } : {}) });
+      }
+    }
+  }
+  // S48 · sair do campo para qualquer zona (Journey to Nowhere devolve a criatura)
+  if (fromZone === 'battlefield' && to !== 'battlefield') queueTriggers(s, 'leaves-battlefield', [o], fromController);
 }
 function queueTriggers(s, when, objects, controller) {
   for (const o of objects) {
@@ -16293,7 +16410,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -17837,7 +17954,7 @@ const __m18 = (function () {
    impede que desfazer atravesse informação revelada.
    ===================================================================== */
 const E = __m16;
-const { TRIGGER_PT } = __m23;
+const { descreveGatilho } = __m23;
 const SAVE_KEY = 'match.current';
 const ZONE_PT = { library: 'grimório', hand: 'mão', battlefield: 'campo', graveyard: 'cemitério', exile: 'exílio', command: 'zona de comando', stack: 'pilha', companion: 'companheiro' };
 const REASON_PT = { 'vida': 'vida zerada', 'grimório vazio': 'comprou com o grimório vazio', 'dano de comandante': '21 de dano de comandante', 'desistência': 'desistiu' };
@@ -17981,7 +18098,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${plural(ev.amount, 'carta', 'cartas')})`);
     if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} sem alvo legal: saiu da pilha`);
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
-    if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${TRIGGER_PT[ev.when] || ev.when})`);
+    if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${descreveGatilho(ev.when)})`); // CR2-G R2a · nome antigo ou descritor
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
     if (ev.kind === 'died') L.push(ev.why === 'regra das lendas' ? `${ev.name} foi para o cemitério pela regra das lendas` : `${ev.name} morreu`);
     if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu a partida: ${REASON_PT[ev.reason] || ev.reason}`);

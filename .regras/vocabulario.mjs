@@ -10,11 +10,11 @@ const referencias = nomesDeAlvo.filter(t => !S.ALVO_SELETOR[t] && !S.CADA_SELETO
 const efeitosAtalho = Object.keys(S.EFEITOS_ATALHO || {}).filter(e => S.EFFECTS[e]);
 const scripts = S.RAW_SCRIPTS.length;
 const comSeletor = S.RAW_SCRIPTS.filter(sc => JSON.stringify(sc).includes('"target":{')).length;
-const r = { scripts, efeitos: efeitos.length, efeitosProprios: efeitos.length - efeitosAtalho.length, efeitosAtalho: efeitosAtalho.length, gatilhos: S.TRIGGERS.length, palavrasChave: S.KEYWORDS.length,
+const r = { scripts, efeitos: efeitos.length, efeitosProprios: efeitos.length - efeitosAtalho.length, efeitosAtalho: efeitosAtalho.length, gatilhos: S.TRIGGERS.length, gatilhosAtalho: S.TRIGGERS.filter(w => (S.GATILHO_ZONA || {})[w]).length, palavrasChave: S.KEYWORDS.length,
   nomesDeAlvo: nomesDeAlvo.length, atalhosDeSeletor: atalhos.length, referenciasSemSeletor: referencias.length, scriptsComSeletorDireto: comSeletor };
 if (process.argv.includes('--json')) console.log(JSON.stringify(r));
 else {
-  console.log(`scripts ${r.scripts} · efeitos ${r.efeitos} (${r.efeitosProprios} próprios, ${r.efeitosAtalho} atalhos de verbo + seletor) · gatilhos ${r.gatilhos} · palavras-chave ${r.palavrasChave}`);
+  console.log(`scripts ${r.scripts} · efeitos ${r.efeitos} (${r.efeitosProprios} próprios, ${r.efeitosAtalho} atalhos de verbo + seletor) · gatilhos ${r.gatilhos} (${r.gatilhos - r.gatilhosAtalho} próprios, ${r.gatilhosAtalho} atalhos do evento de zona) · palavras-chave ${r.palavrasChave}`);
   console.log(`nomes de alvo ${r.nomesDeAlvo}: ${r.atalhosDeSeletor} já são atalhos do seletor, ${r.referenciasSemSeletor} são referências (self, first-target, cada jogador…)`);
   console.log(`referências: ${referencias.join(', ')}`);
 }

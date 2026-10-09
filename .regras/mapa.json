@@ -4217,14 +4217,15 @@
    "regra": "Handling Triggered Abilities",
    "titulo": "Gatilhos de mudança de zona (entra/sai do campo)",
    "status": "parcial",
-   "evidencia": "moveObject enfileira etb, dies e leaves-battlefield (index.html:10304-10311); \"entra virado/com marcadores/escolhe cor\" são estáticos aplicados na entrada (:10283-10300), não gatilhos; efeito em \"esta carta\" confere se ela ainda está na zona de destino (to_hand/to_library :11423-11426); rules.unit \"M9 · gatilho de entrada vai para a pilha\", \"S44 · a aura volta para a mão quando vai para o cemitério\", \"S48 · o encantamento exila a criatura e devolve quando sai do campo\", \"S22 · terreno que entra virado\" · CR2b.3 (motor v81): 603.6e — gatilho de Aura ou Equipamento para \"quando a permanente anexada morre/é exilada\", com a carta lembrada na encarnação nova (\"that card\" só volta se ainda está onde caiu); commander.regras Kaya's Ghostform, Skullclamp, Angelic Renewal",
-   "falta": "603.6a: permanentes que entram juntas (fichas, varredura de reanimação) entram uma a uma, então a primeira não vê as seguintes. 603.6: a carta que saiu e voltou à zona continua sendo o \"mesmo\" objeto (oid fixo) e seria achada. 603.6c: sem \"de qualquer lugar\".",
+   "evidencia": "moveObject enfileira etb, dies e leaves-battlefield (index.html:10304-10311); \"entra virado/com marcadores/escolhe cor\" são estáticos aplicados na entrada (:10283-10300), não gatilhos; efeito em \"esta carta\" confere se ela ainda está na zona de destino (to_hand/to_library :11423-11426); rules.unit \"M9 · gatilho de entrada vai para a pilha\", \"S44 · a aura volta para a mão quando vai para o cemitério\", \"S48 · o encantamento exila a criatura e devolve quando sai do campo\", \"S22 · terreno que entra virado\" · CR2b.3 (motor v81): 603.6e — gatilho de Aura ou Equipamento para \"quando a permanente anexada morre/é exilada\", com a carta lembrada na encarnação nova (\"that card\" só volta se ainda está onde caiu); commander.regras Kaya's Ghostform, Skullclamp, Angelic Renewal · CR2-G R2a (M-231, motor v95 sem mudança): entrar, morrer, sair do campo, \"outra permanente…\" e \"a anexada morre/é exilada\" são um só evento de zona com descritor { evento: zona, de, para, objeto: self/outra/anexada, quem, donoVoce }, num despachante único (gatilhosDeZona) chamado por moveObject e pela ficha que entra; os oito nomes antigos são atalhos (GATILHO_ZONA) e carta nova escreve o descritor (ex.: \"sempre que uma criatura for exilada do campo\"); equivalência com o caminho antigo provada em modo sombra (gatilho.equivalencia.unit)",
+   "falta": "603.6a: permanentes que entram juntas (fichas, varredura de reanimação) entram uma a uma, então a primeira não vê as seguintes. 603.6: a carta que saiu e voltou à zona continua sendo o \"mesmo\" objeto (oid fixo) e seria achada. 603.6c: \"de qualquer lugar\" já se escreve (descritor só com para), mas nenhuma carta usa ainda e a fila não distingue zona pública/oculta.",
    "esforco": "M",
    "depende": [
     "400.7"
    ],
    "testes": [
-    "CR2b.3 · Angelic Renewal: criatura sua vai do campo para o seu cemitério — você pode sacrificar o encantamento para devolvê-la; uma devolução só"
+    "CR2b.3 · Angelic Renewal: criatura sua vai do campo para o seu cemitério — você pode sacrificar o encantamento para devolvê-la; uma devolução só",
+    "M-231 · R2a · matriz de mudanças de zona: toda carta com gatilho de zona, nos dois lados, indo para cada zona, sozinha, virada para baixo, junto com o resto do campo e voltando ao campo — a mesma fila pelos dois caminhos"
    ]
   },
   {
