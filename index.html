@@ -9981,6 +9981,21 @@ function novoRelato({ tipo, urgencia, descricao, hash = '', contexto = {}, parti
   return { ok: true, relato: { id: id || 'r' + agora.toString(36) + Math.random().toString(36).slice(2, 6), criadoEm: new Date(agora).toISOString(),
     tipo, urgencia, descricao: String(descricao).trim(), area: area.nome, rota: area.rota, endereco, tela: limpaTela(tela), contexto: { ...contexto }, partida: partida || null, status: 'aberto' } };
 }
+/** T1 · o relato pode ser corrigido (tipo, urgência e texto) até uma hora depois de salvo. */
+const EDITAR_JANELA_MS = 60 * 60 * 1000;
+function podeEditar(r, agora = Date.now()) {
+  const t = r && Date.parse(r.criadoEm);
+  return Number.isFinite(t) && agora - t < EDITAR_JANELA_MS;
+}
+/** Até quando o relato pode ser editado (ISO), para o carimbo. */
+const editavelAte = r => new Date(Date.parse(r.criadoEm) + EDITAR_JANELA_MS).toISOString();
+/** T1 · o relato corrigido: só tipo, urgência e texto mudam; data, tela, contexto e partida ficam. */
+function editaRelato(r, { tipo, urgencia, descricao }, agora = Date.now()) {
+  if (!podeEditar(r, agora)) return { ok: false, prazo: true, erros: {} };
+  const erros = confere({ tipo, urgencia, descricao });
+  if (Object.keys(erros).length) return { ok: false, erros };
+  return { ok: true, relato: { ...r, tipo, urgencia, descricao: String(descricao).trim(), editadoEm: new Date(agora).toISOString() } };
+}
 /** Y4 · o que identifica a tela: o título dela (o h1: o nome da lista, da carta…), o diálogo que estava aberto e quanto da
     página estava rolado. Texto curto, sem dado pessoal além do que a tela mostra. */
 function limpaTela(t) {
@@ -10003,7 +10018,7 @@ const quando = iso => { const d = new Date(iso); return `${d.toLocaleDateString(
 function textoDoRelato(r) {
   const c = r.contexto || {}, linhas = [
     `### ${rotuloDe(TIPOS, r.tipo)} · ${rotuloDe(URGENCIAS, r.urgencia)} · ${nomeDaTela(r)}`,
-    `- Quando: ${quando(r.criadoEm)} (${r.criadoEm})`,
+    `- Quando: ${quando(r.criadoEm)} (${r.criadoEm})` + (r.editadoEm ? ` · editado ${quando(r.editadoEm)}` : ''),
     `- Tela: ${nomeDaTela(r)} (${r.endereco || r.rota})` + (r.status === 'resolvido' ? ' · resolvido' : ''),
     r.tela && (r.tela.dialogo || r.tela.rolagem) ? `- Na tela: ${[r.tela.dialogo ? `diálogo "${r.tela.dialogo}" aberto` : '', r.tela.rolagem ? `rolada ${r.tela.rolagem}%` : ''].filter(Boolean).join(' · ')}` : null,
     c.motor != null || c.tema || c.tela ? `- Contexto: ${[c.app ? 'app de ' + c.app : '', c.motor != null ? 'motor v' + c.motor : '', c.tema ? 'tema ' + c.tema : '', c.tela || '', c.online === false ? 'sem internet' : ''].filter(Boolean).join(' · ')}` : null,
@@ -10025,7 +10040,7 @@ const MARCA = 'estante-relato';
 const CORPO_MAX = 3000; // o endereço do GitHub tem limite; o texto longo é cortado com aviso
 function dadosDoRelato(r) {
   const c = r.contexto || {};
-  return { v: 1, id: r.id, criadoEm: r.criadoEm, tipo: r.tipo, urgencia: r.urgencia, area: r.area, rota: r.rota, endereco: r.endereco || r.rota,
+  return { v: 1, id: r.id, criadoEm: r.criadoEm, ...(r.editadoEm ? { editadoEm: r.editadoEm } : {}), tipo: r.tipo, urgencia: r.urgencia, area: r.area, rota: r.rota, endereco: r.endereco || r.rota,
     tela: r.tela || null, app: c.app || '', motor: c.motor ?? null, tema: c.tema || '', viewport: c.tela || '', online: c.online !== false, partidaAnexada: !!r.partida,
     partida: c.partida ? { modo: c.partida.modo, turno: c.partida.turno, etapa: c.partida.etapa } : null };
 }
@@ -10068,6 +10083,12 @@ function createRelatos({ store, agora = () => Date.now() }) {
       await grava([...(await le()), r.relato]); avisa();
       return r;
     },
+    /** T1 · corrige tipo, urgência e texto dentro da hora; fora dela devolve { ok: false, prazo: true }. */
+    async edita(id, campos) {
+      const l = await le(); const i = l.findIndex(r => r.id === id); if (i < 0) return { ok: false, erros: {} };
+      const r = editaRelato(l[i], campos, agora()); if (!r.ok) return r;
+      l[i] = r.relato; await grava(l); avisa(); return r;
+    },
     async muda(id, campos) { const l = await le(); const i = l.findIndex(r => r.id === id); if (i < 0) return null; l[i] = { ...l[i], ...campos }; await grava(l); avisa(); return l[i]; },
     async remove(id) { const l = await le(); const r = l.find(x => x.id === id) || null; if (r) { await grava(l.filter(x => x.id !== id)); avisa(); } return r; },
     async restaura(r) { if (!valido(r)) return; const l = await le(); if (!l.some(x => x.id === r.id)) { await grava([...l, r]); avisa(); } }
@@ -10076,7 +10097,7 @@ function createRelatos({ store, agora = () => Date.now() }) {
 
 /* ---------------- formulário ---------------- */
 let servico = null, contextoExtra = null;
-const rascunho = { tipo: '', urgencia: '', descricao: '', anexar: true }; // fechar sem salvar não perde o que foi escrito
+const rascunhoNovo = { tipo: '', urgencia: '', descricao: '', anexar: true }; // fechar sem salvar não perde o que foi escrito
 /** O boot entrega o serviço; a mesa (Y2) entrega o que a partida sabe dizer de si. */
 function usa(s) { servico = s || null; }
 function contextoDaTela() {
@@ -10096,14 +10117,17 @@ function telaAgora() {
   return { titulo: String(document.title || '').replace(/^Estante · /, ''), cabecalho: h1 ? h1.textContent : '', dialogo: dlg ? dlg.textContent : '',
     rolagem: document.documentElement.scrollHeight > innerHeight + 4 ? (100 * scrollY / alto) : null };
 }
-function abreRelato() {
+function abreRelato(editando = null) {
   if (!servico) return;
+  // T1 · editar: o mesmo formulário, preenchido com o relato; a data, a tela e a partida dele ficam como estavam
+  if (editando && !podeEditar(editando, servico.agora())) { toast('Passou de uma hora: o relato não muda mais'); return; }
+  const rascunho = editando ? { tipo: editando.tipo, urgencia: editando.urgencia, descricao: editando.descricao, anexar: false } : rascunhoNovo;
   const hash = typeof location !== 'undefined' ? location.hash : '';
   const area = areaDaRota(hash);
-  const tela = limpaTela(telaAgora()); // Y4 · antes de o formulário cobrir a tela
-  const nomeTela = nomeDaTela({ area: area.nome, tela });
-  const aberto = servico.agora();
-  const extra = contextoExtra ? contextoExtra() : null; // Y2 · a tela aberta (a mesa) diz o que sabe de si
+  const tela = editando ? null : limpaTela(telaAgora()); // Y4 · antes de o formulário cobrir a tela
+  const nomeTela = editando ? nomeDaTela(editando) : nomeDaTela({ area: area.nome, tela });
+  const aberto = editando ? Date.parse(editando.criadoEm) : servico.agora();
+  const extra = editando ? null : contextoExtra ? contextoExtra() : null; // Y2 · a tela aberta (a mesa) diz o que sabe de si
   let erros = {};
   const corpo = Stack({ id: 'relato-form', style: { gap: 'var(--space-3)' } });
   const opcoes = (lista, vazio) => [{ value: '', label: vazio }, ...lista.map(([v, l]) => ({ value: v, label: l }))];
@@ -10126,10 +10150,18 @@ function abreRelato() {
     campos.descricao,
     h('div', { class: 'relato__carimbo', id: 'relato-carimbo' }, Icone('historico', { tamanho: 18 }),
       h('span', {}, h('b', {}, quando(new Date(aberto).toISOString())), ` · ${nomeTela}`),
-      h('span', { class: 'relato__junto' }, extra && extra.anexavel ? 'Vão junto: o turno, a etapa, as últimas jogadas, a versão do motor e a tela.' : 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')),
+      h('span', { class: 'relato__junto', id: editando ? 'relato-prazo' : null }, editando ? `Dá para corrigir até ${quando(editavelAte(editando)).split(' ')[1]}. A tela e o contexto ficam como estavam.` : extra && extra.anexavel ? 'Vão junto: o turno, a etapa, as últimas jogadas, a versão do motor e a tela.' : 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')),
     // Y2 · na partida: a partida inteira (semente e jogadas) pode ir junto, para abrir igual na correção
     extra && extra.anexavel ? __m3.Chave('Anexar a partida', { ligada: rascunho.anexar, id: 'relato-anexar', detalhe: 'Para abrir a partida igual depois', onMuda: v => { rascunho.anexar = v; } }) : null);
   const salvar = Button('Salvar', { variant: 'primary', icone: 'marcar', id: 'relato-salvar', onClick: async () => {
+    if (editando) {
+      const r = await servico.edita(editando.id, { tipo: rascunho.tipo, urgencia: rascunho.urgencia, descricao: rascunho.descricao });
+      if (r.prazo) { closeDialog(); toast('Passou de uma hora: o relato não muda mais'); return; }
+      if (!r.ok) { erros = r.erros; pintaCampos(); const prim = ['tipo', 'urgencia', 'descricao'].find(k => erros[k]); const el = document.getElementById('relato-' + prim); if (el) el.focus({ preventScroll: false }); return; }
+      closeDialog();
+      toast(r.relato.enviadoEm ? 'Relato corrigido · o registro no GitHub não muda: toque em Reenviar' : 'Relato corrigido', 4200);
+      return;
+    }
     const agoraExtra = contextoExtra ? contextoExtra() : null;
     let partida = null;
     if (agoraExtra && agoraExtra.anexavel && rascunho.anexar && agoraExtra.partida) { try { partida = agoraExtra.partida(); } catch (e) { partida = null; } }
@@ -10139,7 +10171,7 @@ function abreRelato() {
     closeDialog();
     toast(`Relato salvo · ${quando(r.relato.criadoEm)}`, 4200, { acao: { rotulo: 'Ver', icone: 'relato', onClick: () => { location.hash = '#/perfil/relatos'; } } });
   } });
-  Dialog({ title: 'Relatar', body: corpo, actions: [Button('Cancelar', { variant: 'ghost', id: 'relato-cancelar', onClick: closeDialog }), salvar] });
+  Dialog({ title: editando ? 'Editar relato' : 'Relatar', body: corpo, actions: [Button('Cancelar', { variant: 'ghost', id: 'relato-cancelar', onClick: closeDialog }), salvar] });
 }
 /** Contexto que uma tela acrescenta enquanto está aberta (a mesa diz turno, fase e a partida). */
 function usaContexto(fn) { contextoExtra = fn || null; }
@@ -10224,6 +10256,8 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
         r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
         h('div', { class: 'relato-item__acoes' },
           r.partida ? Button('Partida', { variant: 'ghost', icone: 'jogar', disabled: !pa.ok, title: pa.ok ? 'Abrir a partida anexada, no ponto do relato' : pa.motivo, dataset: { acao: 'partida' }, onClick: () => abrePartida(r) }) : null,
+          // T1 · Editar até uma hora depois de salvo
+          podeEditar(r, relatos.agora()) ? Button('Editar', { variant: 'ghost', icone: 'editar', dataset: { acao: 'editar' }, title: `Corrigir tipo, urgência e texto (até ${quando(editavelAte(r)).split(' ')[1]})`, onClick: () => abreRelato(r) }) : null,
           Button(r.status === 'resolvido' ? 'Reabrir' : 'Resolvido', { variant: 'ghost', icone: r.status === 'resolvido' ? 'desfazer' : 'marcar', dataset: { acao: 'status' }, onClick: async () => { await relatos.muda(r.id, { status: r.status === 'resolvido' ? 'aberto' : 'resolvido' }); pinta(); } }),
           Button('Copiar', { variant: 'ghost', icone: 'copiar', dataset: { acao: 'copiar' }, onClick: async e => { const ok = await share.copy(textoDoRelato(r)); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Relato copiado' : 'Não foi possível copiar'); } }),
           // Y5 · Enviar: abre o registro no GitHub já preenchido (quem relata confirma lá); fica marcado como enviado
@@ -10265,7 +10299,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
   return root;
 }
 
-return { REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */

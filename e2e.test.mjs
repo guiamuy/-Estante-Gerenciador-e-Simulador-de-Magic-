@@ -7948,6 +7948,19 @@ test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, E
   // marcado: o selo "Enviado" aparece e o botão passa a reenviar
   await page.waitForSelector('.relato-item .relato-item__enviado');
   assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Reenviar');
+  // T1 · editar dentro da hora: o formulário vem preenchido, a tela do relato fica, e o aviso lembra de reenviar
+  await page.click('.relato-item [data-acao="editar"]'); await page.waitForSelector('#relato-form');
+  assert.equal(await page.inputValue('#relato-tipo'), 'infra'); assert.equal(await page.inputValue('#relato-urgencia'), 'alta');
+  assert.equal(await page.inputValue('#relato-descricao'), 'Guardar os relatos num banco para a correção ler.');
+  assert.match(await page.innerText('.ds-dialog__title'), /Editar relato/);
+  assert.match(await page.innerText('#relato-prazo'), /Dá para corrigir até \d{2}:\d{2}/);
+  assert.match(await page.innerText('#relato-carimbo'), /Listas/);
+  await auditaTela(page, 'relatos · editar');
+  await page.selectOption('#relato-tipo', 'melhoria'); await page.fill('#relato-descricao', 'Guardar os relatos numa tabela que a correção lê.');
+  await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  await page.waitForFunction(() => /Reenviar/.test(document.querySelector('#ds-toast').textContent));
+  await page.waitForFunction(() => document.querySelector('.relato-item').dataset.tipo === 'melhoria');
+  assert.match(await page.innerText('.relato-item .relato-item__texto'), /numa tabela que a correção lê/);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos enviado ${w} ${tema}`); } }
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y5-enviado.png' });
   assert.deepEqual(errors, []);

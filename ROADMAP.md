@@ -483,7 +483,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cn ✅ | Z4 Jogar a partir do catálogo: entra na estante uma vez e abre o preparo com a lista (leva G-229) | Z | 1 | teste no aparelho |
 | 16º-ck ✅ | Z5 listas de torneio (TopDeck.gg): oito primeiras dos torneios recentes por formato, crédito com link (leva G-230) | Z | 1 | teste no aparelho |
 | 16º-co ✅ | Y5 relatos chegam à correção: Enviar abre o registro no GitHub já preenchido; o fluxo Relatos etiqueta e grava a tabela no ramo `relatos`; tipos Melhoria e Infraestrutura (leva G-232) | Y | 1 | — |
-| 16º-cp | T1 editar relato até 1 h depois de salvar: tipo, urgência e descrição | T | 1 | — |
+| 16º-cp ✅ | T1 editar relato até 1 h depois de salvar: tipo, urgência e descrição (leva G-233) | T | 1 | — |
 | 16º-cq | T2 notícias no núcleo da Início: lista contínua, filtro de idioma, guardar e atualizar na própria Início, voltar ao topo | T | 1 a 2 | — |
 | 16º-cr | T3 botão Jogar com volume e resposta ao toque | T | ½ | — |
 | 16º-cs | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada | T | 1 | leitura do que o motor já expõe (camadas da CR2-G) |
@@ -6511,13 +6511,20 @@ mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
 integradas à Início; botão Jogar redesenhado; carta modificada com cor na mesa; respiro do Mostrar mais nas Listas
 prontas.
 
-**T1 · Editar relato até uma hora** (pedido: Ideia · Alta · Relatos, duas vezes)
+**T1 · Editar relato até uma hora** ✅ (leva G-233, 09/10/2026 · registros #5 e #7)
 - **Valor:** corrigir tipo, urgência ou texto de um relato recém-feito sem apagar e refazer.
-- **Aceite:** na tela Relatos, **Editar** aparece nos relatos com menos de 1 h; abre o mesmo formulário preenchido;
-  salvar guarda `editadoEm` e mantém data, tela e partida; depois de 1 h o botão some; relato já enviado volta a mostrar
-  **Reenviar** com aviso de que o registro do GitHub não muda sozinho.
-- **Testes:** U do prazo (59 min sim, 61 min não); e2e editar e conferir lista, texto e CSV.
-- **Fora:** editar a tela ou a partida anexada; editar o registro já enviado ao GitHub.
+- **Entregue:** na tela Relatos, **Editar** aparece nos relatos com menos de 1 h (o título diz até que horas); abre o
+  mesmo formulário, título **Editar relato**, preenchido, com a linha "Dá para corrigir até 18:52. A tela e o contexto
+  ficam como estavam."; salvar confere igual ao relato novo, guarda `editadoEm` e mantém data, tela, contexto e partida;
+  passou da hora, o botão some e salvar avisa "Passou de uma hora: o relato não muda mais". Relato já enviado: o aviso
+  diz que o registro do GitHub não muda e pede **Reenviar**; a tabela do ramo `relatos` fica com o registro mais novo de
+  cada relato e guarda os números anteriores em `reenvios`. O texto para colar diz "editado <data>".
+- **Modelo (puro, `__m38`):** `podeEditar`, `editavelAte`, `editaRelato`; serviço `edita`.
+- **Testes:** U `relatos.unit` +1 (59 min sim, 60 não, erros do formulário, o que muda e o que fica, fora da hora nada
+  muda); U `relatos.tabela.unit` +1 (reenvio fica com o mais novo); e2e "Y5" ganha editar (preenchido, prazo, aviso de
+  reenviar, `auditaTela`).
+- **Limite:** o registro antigo no GitHub continua aberto até ser fechado à mão ou pela correção.
+- **Fora:** editar a tela ou a partida anexada.
 
 **T2 · Notícias no núcleo da Início** (pedido: Visual · Alta · Início, duas vezes)
 - **Valor:** a Início é o lugar de ler notícias, sem pular para outra tela.

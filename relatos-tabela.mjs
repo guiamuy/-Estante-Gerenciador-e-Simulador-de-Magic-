@@ -44,12 +44,21 @@ export function linhaDe(issue) {
     area: d.area || '', titulo_da_tela: tela.cabecalho || tela.titulo || '', endereco: d.endereco || d.rota || '', dialogo: tela.dialogo || '', rolagem: tela.rolagem ?? null,
     criadoEm: d.criadoEm || issue.created_at, enviadoEm: issue.created_at, resolvidoEm: issue.state === 'closed' ? issue.closed_at : null,
     app: d.app || '', motor: d.motor ?? null, tema: d.tema || '', viewport: d.viewport || '', online: d.online !== false,
-    partida: d.partida || null, partidaAnexada: !!d.partidaAnexada, id: d.id || '', descricao: leDescricao(issue.body)
+    partida: d.partida || null, partidaAnexada: !!d.partidaAnexada, id: d.id || '', editadoEm: d.editadoEm || null, descricao: leDescricao(issue.body)
   };
 }
 /** A tabela: abertos primeiro, depois a urgência maior, depois o mais recente. */
 export function tabela(issues) {
-  return (issues || []).map(linhaDe).filter(Boolean).sort((a, b) =>
+  // T1 · relato corrigido e reenviado: vale o registro mais novo do mesmo relato; os outros números ficam em `reenvios`
+  const porId = new Map(), soltas = [];
+  for (const l of (issues || []).map(linhaDe).filter(Boolean)) {
+    if (!l.id) { soltas.push(l); continue; }
+    const v = porId.get(l.id);
+    if (!v) { porId.set(l.id, { ...l, reenvios: [] }); continue; }
+    const [novo, velho] = l.numero > v.numero ? [l, v] : [v, l];
+    porId.set(l.id, { ...novo, reenvios: [...(v.reenvios || []), velho.numero].filter(n => n !== novo.numero).sort((x, y) => x - y) });
+  }
+  return [...porId.values(), ...soltas].sort((a, b) =>
     (a.situacao === 'resolvido') - (b.situacao === 'resolvido') || (PESO[b.urgencia] || 0) - (PESO[a.urgencia] || 0) || String(b.criadoEm).localeCompare(String(a.criadoEm)));
 }
 export function csv(linhas) {

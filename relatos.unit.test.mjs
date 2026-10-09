@@ -143,3 +143,26 @@ test('Y4 · a tela do relato: endereço inteiro, título da tela, diálogo abert
   assert.equal(R.limpaTela(null), null); assert.equal(R.limpaTela({}), null);
   assert.equal(R.limpaTela({ cabecalho: 'x'.repeat(300) }).cabecalho.length, 120);
 });
+
+test('T1 · editar até uma hora: tipo, urgência e texto mudam; data, tela, contexto e partida ficam; depois da hora, não', async () => {
+  let agora = Date.UTC(2026, 9, 9, 20, 0);
+  const store = P.memoryStore(), S = R.createRelatos({ store, agora: () => agora });
+  const { relato: r } = await S.salva({ tipo: 'ideia', urgencia: 'baixa', descricao: 'Editar o relato depois', hash: '#/perfil/relatos', tela: { cabecalho: 'Relatos' }, contexto: { motor: 95 } });
+  assert.equal(R.podeEditar(r, agora + 59 * 60000), true);
+  assert.equal(R.podeEditar(r, agora + 60 * 60000), false, 'a hora fecha');
+  assert.equal(R.editavelAte(r), '2026-10-09T21:00:00.000Z');
+  agora += 30 * 60000;
+  const ruim = await S.edita(r.id, { tipo: 'melhoria', urgencia: '', descricao: 'x' });
+  assert.equal(ruim.ok, false); assert.ok(ruim.erros.urgencia && ruim.erros.descricao, 'o formulário confere igual');
+  const ok = await S.edita(r.id, { tipo: 'melhoria', urgencia: 'alta', descricao: '  Editar tipo, urgência e texto  ' });
+  assert.equal(ok.ok, true);
+  const [g] = await S.todos();
+  assert.deepEqual(J({ tipo: g.tipo, urgencia: g.urgencia, descricao: g.descricao, editadoEm: g.editadoEm, criadoEm: g.criadoEm, endereco: g.endereco, tela: g.tela, motor: g.contexto.motor, id: g.id }),
+    { tipo: 'melhoria', urgencia: 'alta', descricao: 'Editar tipo, urgência e texto', editadoEm: '2026-10-09T20:30:00.000Z', criadoEm: '2026-10-09T20:00:00.000Z', endereco: '/perfil/relatos', tela: { titulo: '', cabecalho: 'Relatos', dialogo: '', rolagem: null }, motor: 95, id: r.id });
+  assert.match(R.textoDoRelato(g), /- Quando: .+ · editado /);
+  assert.equal(R.dadosDoRelato(g).editadoEm, '2026-10-09T20:30:00.000Z');
+  agora += 31 * 60000;
+  const tarde = await S.edita(r.id, { tipo: 'erro', urgencia: 'alta', descricao: 'Tarde demais para mudar' });
+  assert.equal(tarde.ok, false); assert.equal(tarde.prazo, true);
+  assert.equal((await S.todos())[0].tipo, 'melhoria', 'fora da hora nada muda');
+});

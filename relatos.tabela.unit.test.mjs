@@ -9,7 +9,7 @@ import * as T from './relatos-tabela.mjs';
 const { relatos: R } = loadModules();
 
 const relato = (extra = {}) => R.novoRelato({ tipo: 'visual', urgencia: 'alta', descricao: 'O botão "Mostrar mais 30" ficou colado\nna última lista.', hash: '#/listas/prontas?x=1',
-  contexto: { motor: 95, tema: 'escuro', tela: '360×697', app: '2026-10-09 18:00 UTC', online: true }, tela: { cabecalho: 'Listas prontas', rolagem: 80 }, ...extra }, Date.UTC(2026, 9, 9, 14, 5), 'r1').relato;
+  contexto: { motor: 95, tema: 'escuro', tela: '360×697', app: '2026-10-09 18:00 UTC', online: true }, tela: { cabecalho: 'Listas prontas', rolagem: 80 }, ...extra }, Date.UTC(2026, 9, 9, 14, 5), extra.id || 'r1').relato;
 
 test('Y5 · tipos novos: Melhoria e Infraestrutura', () => {
   assert.deepEqual(R.TIPOS.map(t => t[1]).join('|'), 'Erro|Regra ou carta|Visual|Melhoria|Ideia|Lentidão|Infraestrutura|Outro');
@@ -38,9 +38,9 @@ test('Y5 · o endereço do registro: página de novo registro do repositório, t
 test('Y5 · tabela: só os registros do app, etiquetas, situação pelo registro fechado, ordem e CSV', () => {
   const corpo = r => new URL(R.enderecoDoRegistro(r)).searchParams.get('body');
   const issues = [
-    { number: 3, html_url: 'u3', state: 'open', created_at: '2026-10-09T15:00:00Z', body: corpo(relato({ urgencia: 'baixa' })), labels: [] },
-    { number: 4, html_url: 'u4', state: 'closed', closed_at: '2026-10-10T10:00:00Z', created_at: '2026-10-09T16:00:00Z', body: corpo(relato({ tipo: 'infra', urgencia: 'bloqueia' })), labels: [{ name: 'relato' }] },
-    { number: 5, html_url: 'u5', state: 'open', created_at: '2026-10-09T17:00:00Z', body: corpo(relato({ tipo: 'erro', urgencia: 'alta' })), labels: [] },
+    { number: 3, html_url: 'u3', state: 'open', created_at: '2026-10-09T15:00:00Z', body: corpo(relato({ urgencia: 'baixa', id: 'r3' })), labels: [] },
+    { number: 4, html_url: 'u4', state: 'closed', closed_at: '2026-10-10T10:00:00Z', created_at: '2026-10-09T16:00:00Z', body: corpo(relato({ tipo: 'infra', urgencia: 'bloqueia', id: 'r4' })), labels: [{ name: 'relato' }] },
+    { number: 5, html_url: 'u5', state: 'open', created_at: '2026-10-09T17:00:00Z', body: corpo(relato({ tipo: 'erro', urgencia: 'alta', id: 'r5' })), labels: [] },
     { number: 6, html_url: 'u6', state: 'open', created_at: '2026-10-09T17:00:00Z', body: 'registro escrito à mão, sem dados', labels: [] },
     { number: 7, pull_request: {}, state: 'open', body: corpo(relato()) }];
   const t = T.tabela(issues);
@@ -75,4 +75,15 @@ test('Y5 · atualiza: cria as etiquetas que faltam, etiqueta só o que falta e g
     assert.equal(j.total, 1); assert.equal(j.abertos, 1); assert.equal(j.relatos[0].numero, 1);
     assert.ok((await readFile(join(pasta, 'relatos.csv'), 'utf8')).includes('1,aberto,Visual,Alta,Listas'));
   } finally { await rm(pasta, { recursive: true, force: true }); }
+});
+
+test('T1 · relato corrigido e reenviado: a tabela fica com o registro mais novo e guarda os outros números', () => {
+  const corpo = r => new URL(R.enderecoDoRegistro(r)).searchParams.get('body');
+  const antes = relato({ id: 'rX' }), depois = { ...antes, tipo: 'melhoria', editadoEm: '2026-10-09T14:30:00.000Z' };
+  const t = T.tabela([
+    { number: 8, html_url: 'u8', state: 'open', created_at: '2026-10-09T14:10:00Z', body: corpo(antes) },
+    { number: 11, html_url: 'u11', state: 'open', created_at: '2026-10-09T14:31:00Z', body: corpo(depois) },
+    { number: 9, html_url: 'u9', state: 'open', created_at: '2026-10-09T14:20:00Z', body: corpo(antes) }]);
+  assert.equal(t.length, 1);
+  assert.deepEqual([t[0].numero, t[0].tipo, t[0].editadoEm, t[0].reenvios], [11, 'melhoria', '2026-10-09T14:30:00.000Z', [8, 9]]);
 });
