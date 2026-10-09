@@ -1376,6 +1376,15 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .relato-item__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 .relato-item__texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-md); }
 .relato-item__acoes { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
+/* Y2 · aba de relatar na borda direita da mesa: alvo de 44 × 56 px, só 28 px à vista, translúcida até o toque */
+.tb-relatar { position: fixed; right: 0; top: var(--tb-relatar-y, 42%); transform: translateY(-50%); z-index: var(--z-sticky); width: var(--tap-min); height: 56px; padding: 0; margin: 0;
+  display: flex; align-items: center; justify-content: flex-end; background: transparent; border: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.tb-relatar[hidden] { display: none; }
+.tb-relatar__aba { width: 28px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-2) 0 0 var(--radius-2);
+  background: var(--bg-elev-2); color: var(--fg-muted); border: 1px solid var(--border-strong); border-right: 0; box-shadow: var(--shadow-1); opacity: .78;
+  transition: opacity var(--dur-1) var(--ease-out), width var(--dur-1) var(--ease-out); }
+.tb-relatar:active .tb-relatar__aba, .tb-relatar[data-arrastando="true"] .tb-relatar__aba, .tb-relatar:focus-visible .tb-relatar__aba { opacity: 1; color: var(--fg); width: 34px; }
+@media (prefers-reduced-motion: reduce) { .tb-relatar__aba { transition: none; } }
 /* L9 · versões: o par De/Para lado a lado e a diferença em linhas curtas (sinal e número antes do nome) */
 .deck-versoes__par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .deck-versoes__par .ds-select { width: 100%; min-width: 0; }
@@ -9641,10 +9650,24 @@ function textoDoRelato(r) {
     `- Quando: ${quando(r.criadoEm)} (${r.criadoEm})`,
     `- Tela: ${r.rota}` + (r.status === 'resolvido' ? ' · resolvido' : ''),
     c.motor != null || c.tema || c.tela ? `- Contexto: ${[c.motor != null ? 'motor v' + c.motor : '', c.tema ? 'tema ' + c.tema : '', c.tela || '', c.online === false ? 'sem internet' : ''].filter(Boolean).join(' · ')}` : null,
+    c.partida && c.partida.modo ? `- Partida: ${[c.partida.modo, 'turno ' + c.partida.turno, c.partida.etapa, 'vez ' + c.partida.vez, c.partida.prioridade ? 'prioridade ' + c.partida.prioridade : '', 'vida ' + c.partida.vida, c.partida.decisao ? 'decisão ' + c.partida.decisao : ''].filter(Boolean).join(' · ')}` + (r.partida ? ' · partida anexada' : '') : null,
+    c.partida && c.partida.registro && c.partida.registro.length ? '- Últimas jogadas:\n' + c.partida.registro.map(l => '  - ' + l).join('\n') : null,
     '', r.descricao];
   return linhas.filter(x => x != null).join('\n');
 }
 const textoDosRelatos = lista => ordena(lista).map(textoDoRelato).join('\n\n---\n\n');
+
+/** Y2 · o que a partida diz de si num relato: modo, turno, etapa, de quem é a vez e a prioridade, vida, decisão em curso e
+    as últimas linhas do registro. `etapas` traduz o passo do motor; `v` é quem está relatando. Puro. */
+function contextoDaPartida({ s, v = 0, entradas = [], options = {}, setup = {}, etapas = {} } = {}) {
+  if (!s || !s.turn) return {};
+  const outro = (s.players || []).findIndex((_, i) => i !== v);
+  const modo = options.online ? 'online' : options.bot ? 'contra o Shark' : ((setup.players || [])[outro] || {}).dummy ? 'goldfish' : 'a dois';
+  const deQuem = i => (i == null ? '' : i === v ? 'sua' : 'do oponente');
+  return { modo, turno: s.turn.number || 0, etapa: s.status === 'mulligan' ? 'mão inicial' : etapas[s.turn.step] || s.turn.step || '',
+    vez: deQuem(s.turn.active), prioridade: deQuem(s.turn.priority), vida: (s.players || []).map(p => p.life).join(' × '),
+    decisao: s.pending ? s.pending.kind || '' : '', registro: (entradas || []).slice(-8).map(e => String(e.texto || '')) };
+}
 
 /** Os relatos no aparelho. */
 function createRelatos({ store, agora = () => Date.now() }) {
@@ -9671,7 +9694,7 @@ function createRelatos({ store, agora = () => Date.now() }) {
 
 /* ---------------- formulário ---------------- */
 let servico = null, contextoExtra = null;
-const rascunho = { tipo: '', urgencia: '', descricao: '' }; // fechar sem salvar não perde o que foi escrito
+const rascunho = { tipo: '', urgencia: '', descricao: '', anexar: true }; // fechar sem salvar não perde o que foi escrito
 /** O boot entrega o serviço; a mesa (Y2) entrega o que a partida sabe dizer de si. */
 function usa(s) { servico = s || null; }
 function contextoDaTela() {
@@ -9684,6 +9707,7 @@ function abreRelato() {
   const hash = typeof location !== 'undefined' ? location.hash : '';
   const area = areaDaRota(hash);
   const aberto = servico.agora();
+  const extra = contextoExtra ? contextoExtra() : null; // Y2 · a tela aberta (a mesa) diz o que sabe de si
   let erros = {};
   const corpo = Stack({ id: 'relato-form', style: { gap: 'var(--space-3)' } });
   const opcoes = (lista, vazio) => [{ value: '', label: vazio }, ...lista.map(([v, l]) => ({ value: v, label: l }))];
@@ -9706,11 +9730,16 @@ function abreRelato() {
     campos.descricao,
     h('div', { class: 'relato__carimbo', id: 'relato-carimbo' }, Icone('historico', { tamanho: 18 }),
       h('span', {}, h('b', {}, quando(new Date(aberto).toISOString())), ` · ${area.nome}`),
-      h('span', { class: 'relato__junto' }, 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')));
+      h('span', { class: 'relato__junto' }, extra && extra.anexavel ? 'Vão junto: o turno, a etapa, as últimas jogadas, a versão do motor e a tela.' : 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')),
+    // Y2 · na partida: a partida inteira (semente e jogadas) pode ir junto, para abrir igual na correção
+    extra && extra.anexavel ? __m3.Chave('Anexar a partida', { ligada: rascunho.anexar, id: 'relato-anexar', detalhe: 'Para abrir a partida igual depois', onMuda: v => { rascunho.anexar = v; } }) : null);
   const salvar = Button('Salvar', { variant: 'primary', icone: 'marcar', id: 'relato-salvar', onClick: async () => {
-    const r = await servico.salva({ ...rascunho, hash, contexto: { ...contextoDaTela(), ...(contextoExtra ? contextoExtra().contexto || {} : {}) }, partida: contextoExtra ? contextoExtra().partida || null : null });
+    const agoraExtra = contextoExtra ? contextoExtra() : null;
+    let partida = null;
+    if (agoraExtra && agoraExtra.anexavel && rascunho.anexar && agoraExtra.partida) { try { partida = agoraExtra.partida(); } catch (e) { partida = null; } }
+    const r = await servico.salva({ tipo: rascunho.tipo, urgencia: rascunho.urgencia, descricao: rascunho.descricao, hash, contexto: { ...contextoDaTela(), ...(agoraExtra ? { partida: agoraExtra.contexto || {} } : {}) }, partida });
     if (!r.ok) { erros = r.erros; pintaCampos(); const prim = ['tipo', 'urgencia', 'descricao'].find(k => erros[k]); const el = document.getElementById('relato-' + prim); if (el) el.focus({ preventScroll: false }); return; }
-    rascunho.tipo = ''; rascunho.urgencia = ''; rascunho.descricao = '';
+    rascunho.tipo = ''; rascunho.urgencia = ''; rascunho.descricao = ''; rascunho.anexar = true;
     closeDialog();
     toast(`Relato salvo · ${quando(r.relato.criadoEm)}`, 4200, { acao: { rotulo: 'Ver', icone: 'relato', onClick: () => { location.hash = '#/perfil/relatos'; } } });
   } });
@@ -9761,7 +9790,7 @@ function createRelatosScreen({ relatos, share }) {
   return root;
 }
 
-return { CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -19353,6 +19382,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // K3 · paradas por etapa: abre a folha com as chaves do seu turno e do turno do oponente
     { const c = Chip('Paradas', { icone: 'pausa', id: 'tb-paradas', onClick: () => { abreVez(false); abreParadas(); } });
       c.classList.add('tb-vez-pop__som'); c.removeAttribute('aria-pressed'); c.setAttribute('aria-haspopup', 'dialog'); c.setAttribute('aria-label', 'Paradas por etapa'); vezPop.appendChild(c); }
+    // Y2 · relatar também daqui (a aba da borda é o atalho; este é o caminho que se acha pelo menu)
+    { const c = Chip('Relatar', { icone: 'relato', id: 'tb-relatar-chip', onClick: () => { abreVez(false); __m38.abreRelato(); } });
+      c.classList.add('tb-vez-pop__som'); c.removeAttribute('aria-pressed'); c.setAttribute('aria-haspopup', 'dialog'); c.setAttribute('aria-label', 'Relatar um problema desta partida'); vezPop.appendChild(c); }
     // H5 · ver as jogadas do oponente uma a uma (só contra o bot)
     if (!sinc && table.options && table.options.bot) {
       const c = Chip('Ver jogadas', { icone: 'pular', pressed: verJogadas, id: 'tb-ver-jogadas', onClick: () => { verJogadas = !verJogadas; store.set(VER_KEY, verJogadas).catch(() => {}); semSentidos = true; paint(); toast(verJogadas ? 'As jogadas do oponente passam uma a uma' : 'O turno do oponente aparece de uma vez'); } });
@@ -20671,6 +20703,45 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!recusa) recusaMostrada = null;
     if (novas.length) __m3.levaSeEscondido(root.querySelector(`.tb-side--me .tb-card[data-oid="${novas[novas.length - 1]}"]`));
   }
+  /* ---- Y2 · relatar na partida: aba discreta na borda direita, arrastável na vertical (a posição fica no aparelho).
+     Some durante a cena do oponente e na troca de aparelho. O relato leva o que a partida sabe de si e, se o
+     jogador quiser, a partida inteira (semente e jogadas) para abrir igual depois. ---- */
+  const RELATAR_Y_KEY = 'mesa.relatarY', RELATAR_Y_MIN = 0.12, RELATAR_Y_MAX = 0.8;
+  let abaRelatar = null, relatarY = 0.42;
+  store.get(RELATAR_Y_KEY).then(y => { if (typeof y === 'number' && y >= RELATAR_Y_MIN && y <= RELATAR_Y_MAX) { relatarY = y; if (abaRelatar) abaRelatar.style.setProperty('--tb-relatar-y', `${relatarY * 100}%`); } }).catch(() => {});
+  __m38.usaContexto(() => {
+    if (!table || !root.isConnected) return null;
+    const visto = mesaReal || table; // durante a cena, a partida de verdade (não o quadro mostrado)
+    let setup = {}; try { setup = visto.serialize().setup || {}; } catch (e) { setup = {}; }
+    return { anexavel: true, partida: () => visto.serialize(),
+      contexto: __m38.contextoDaPartida({ s: visto.state, v: visto.viewer(), entradas: visto.entradas, options: visto.options || {}, setup, etapas: E.STEP_PT }) };
+  });
+  function arrastaAba(el) {
+    let ini = null, moveu = false;
+    el.addEventListener('pointerdown', e => { ini = { y: e.clientY, centro: el.getBoundingClientRect().top + el.offsetHeight / 2 }; moveu = false; try { el.setPointerCapture(e.pointerId); } catch (err) { /* sem captura: segue o dedo assim mesmo */ } });
+    el.addEventListener('pointermove', e => {
+      if (!ini) return; const dy = e.clientY - ini.y;
+      if (!moveu && Math.abs(dy) < 8) return; // toque com tremida não vira arrasto
+      moveu = true; el.dataset.arrastando = 'true';
+      relatarY = Math.min(RELATAR_Y_MAX, Math.max(RELATAR_Y_MIN, (ini.centro + dy) / innerHeight));
+      el.style.setProperty('--tb-relatar-y', `${relatarY * 100}%`);
+    });
+    const solta = () => { if (!ini) return; ini = null; if (moveu) { delete el.dataset.arrastando; store.set(RELATAR_Y_KEY, relatarY).catch(() => {}); } };
+    el.addEventListener('pointerup', solta); el.addEventListener('pointercancel', solta);
+    el.addEventListener('click', e => { if (moveu) { e.preventDefault(); moveu = false; return; } __m38.abreRelato(); }); // o arrasto não abre o formulário
+  }
+  function pintaAbaRelatar() {
+    if (!abaRelatar) {
+      abaRelatar = h('button', { class: 'tb-relatar', type: 'button', id: 'tb-relatar', 'aria-label': 'Relatar um problema desta partida', title: 'Relatar', dataset: { sobrepoe: 'true' } },
+        h('span', { class: 'tb-relatar__aba', 'aria-hidden': 'true' }, Icone('relato', { tamanho: 18 })));
+      arrastaAba(abaRelatar);
+      document.body.appendChild(abaRelatar);
+      const sai = () => { if (root.isConnected && /^#\/partida/.test(location.hash)) return; if (abaRelatar) abaRelatar.remove(); abaRelatar = null; window.removeEventListener('hashchange', sai); };
+      window.addEventListener('hashchange', sai);
+    }
+    abaRelatar.style.setProperty('--tb-relatar-y', `${relatarY * 100}%`);
+    abaRelatar.hidden = root.dataset.cena === 'true' || handoff;
+  }
   function paint() {
     const s = table.state;
     const v = table.viewer();
@@ -20680,6 +20751,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const cena = sentidos.length ? preparaEfeitos(sentidos, v) : null; // G5 · antes de redesenhar
     // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
     if (table.humans().length > 1 && v !== shownViewer && s.status !== 'over') { handoff = true; shownViewer = v; }
+    pintaAbaRelatar(); // Y2
     if (handoff) {
       return mount(root, h('div', { class: 'tb-handoff', id: 'tb-handoff' },
         Text('Passe o aparelho', { size: 'sm', tone: 'muted' }),

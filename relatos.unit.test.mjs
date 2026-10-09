@@ -70,3 +70,25 @@ test('G-222 · copiar com a área de transferência negada devolve false (a tela
   const sem = P.createPlatform({ window: {}, indexedDB: null, document: null, navigator: {} });
   assert.equal(await sem.share.copy('x'), false);
 });
+
+test('Y2 · contextoDaPartida: modo, turno, etapa traduzida, de quem é a vez e a prioridade, vida, decisão e as oito últimas linhas', () => {
+  const s = { status: 'playing', turn: { number: 4, step: 'main1', active: 0, priority: 1 }, players: [{ life: 17 }, { life: 12 }], pending: { kind: 'blockers' } };
+  const entradas = Array.from({ length: 10 }, (_, i) => ({ texto: 'linha ' + (i + 1) }));
+  const c = R.contextoDaPartida({ s, v: 0, entradas, options: { bot: 'shark' }, etapas: { main1: 'Principal 1' } });
+  assert.deepEqual(J(c), { modo: 'contra o Shark', turno: 4, etapa: 'Principal 1', vez: 'sua', prioridade: 'do oponente', vida: '17 × 12', decisao: 'blockers',
+    registro: ['linha 3', 'linha 4', 'linha 5', 'linha 6', 'linha 7', 'linha 8', 'linha 9', 'linha 10'] });
+  assert.equal(R.contextoDaPartida({ s: { ...s, status: 'mulligan' }, setup: { players: [{}, { dummy: true }] } }).etapa, 'mão inicial');
+  assert.equal(R.contextoDaPartida({ s, setup: { players: [{}, { dummy: true }] } }).modo, 'goldfish');
+  assert.equal(R.contextoDaPartida({ s, options: { online: true, bot: 'x' } }).modo, 'online');
+  assert.equal(R.contextoDaPartida({ s }).modo, 'a dois');
+  assert.deepEqual(J(R.contextoDaPartida({})), {});
+});
+
+test('Y2 · o texto do relato da mesa diz a partida e as últimas jogadas, e se ela foi anexada', () => {
+  const partida = { kind: 'estante.match', setup: { seed: 9 }, log: [] };
+  const r = R.novoRelato({ tipo: 'regra', urgencia: 'alta', descricao: 'O bloqueio não valeu.', hash: '#/partida', partida,
+    contexto: { motor: 94, partida: { modo: 'contra o Shark', turno: 3, etapa: 'Combate', vez: 'do oponente', prioridade: 'sua', vida: '20 × 18', decisao: 'blockers', registro: ['Shark ataca com Grizzly Bears'] } } }, Date.UTC(2026, 9, 9), 'r3').relato;
+  assert.equal(r.area, 'Mesa'); assert.equal(r.partida, partida);
+  const t = R.textoDoRelato(r);
+  assert.match(t, /- Partida: contra o Shark · turno 3 · Combate · vez do oponente · prioridade sua · vida 20 × 18 · decisão blockers · partida anexada\n- Últimas jogadas:\n  - Shark ataca com Grizzly Bears\n/);
+});

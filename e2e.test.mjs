@@ -7773,6 +7773,79 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- Y2 · relatar na partida ---------------- */
+test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à vista) que arrasta e lembra a posição, some na cena; também no balão da faixa; o relato leva turno, etapa, últimas jogadas e a partida anexada', { skip }, async t => {
+  const { page, errors, base } = await open(t, { cena: true }); // com a cena do oponente ligada, para conferir que a aba sai dela
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 }); await page.waitForSelector('#tb-pass');
+  // 1 · a aba: colada na borda direita, 44 × 56 de toque, 28 px à vista; o botão discreto das outras telas não aparece
+  const geo = () => page.evaluate(() => { const b = document.querySelector('#tb-relatar').getBoundingClientRect(), a = document.querySelector('#tb-relatar .tb-relatar__aba').getBoundingClientRect();
+    return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), centro: Math.round(b.top + b.height / 2), visivel: Math.round(a.width) }; });
+  const g = await geo();
+  assert.deepEqual({ w: g.w, h: g.h, direita: g.direita, visivel: g.visivel }, { w: 44, h: 56, direita: 0, visivel: 28 }); assert.ok(Math.abs(g.centro - Math.round(780 * 0.42)) <= 1, JSON.stringify(g));
+  assert.equal(await page.getAttribute('#tb-relatar', 'aria-label'), 'Relatar um problema desta partida');
+  assert.equal(await page.locator('#relatar-abrir').isVisible(), false);
+  await auditaTela(page, 'mesa com a aba de relatar');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y2-mesa.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `mesa relatar ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 2 · arrastar para cima: muda de lugar, não abre o formulário, e fica lembrado
+  const c0 = (await geo()).centro;
+  await page.mouse.move(350, c0); await page.mouse.down(); await page.mouse.move(350, c0 - 60, { steps: 4 }); await page.mouse.move(350, c0 - 150, { steps: 6 }); await page.mouse.up();
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('#relato-form').count(), 0, 'arrastar não abre o formulário');
+  const c1 = (await geo()).centro; assert.ok(Math.abs(c1 - (c0 - 150)) <= 2, `foi para cima: ${c0} → ${c1}`);
+  await page.mouse.move(350, c1); await page.mouse.down(); await page.mouse.move(350, 5, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
+  assert.equal((await geo()).centro, Math.round(780 * 0.12), 'não sobe além do limite (a faixa do topo fica livre)');
+  await page.mouse.move(350, Math.round(780 * 0.12)); await page.mouse.down(); await page.mouse.move(350, c1, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
+  await page.reload(); await page.waitForSelector('#tb-relatar'); await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 }); await page.waitForTimeout(300);
+  assert.ok(Math.abs((await geo()).centro - c1) <= 2, 'posição lembrada depois de recarregar');
+  // 3 · tocar abre o formulário da mesa: carimbo "Mesa", o que vai junto e a chave de anexar a partida (ligada)
+  await page.click('#tb-relatar'); await page.waitForSelector('#relato-form');
+  assert.match(await page.innerText('#relato-carimbo'), /\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · Mesa[\s\S]*o turno, a etapa, as últimas jogadas/);
+  assert.equal(await page.getAttribute('#relato-anexar', 'aria-checked'), 'true');
+  assert.ok((await page.$eval('#relato-anexar', b => b.offsetHeight)) >= 44);
+  await auditaTela(page, 'relatar na mesa');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y2-relatar.png' });
+  await page.selectOption('#relato-tipo', 'regra'); await page.selectOption('#relato-urgencia', 'alta'); await page.fill('#relato-descricao', 'O Shark não bloqueou com a criatura virada.');
+  const turno = await page.evaluate(() => window.__estanteMesa.estado().turn.number);
+  await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  assert.equal(await page.evaluate(() => window.__estanteMesa.estado().turn.number), turno, 'a partida não andou com o formulário aberto');
+  // a cena do oponente: a aba sai enquanto o Shark joga e volta no fim
+  let viuCena = false;
+  for (let i = 0; i < 30 && !viuCena; i++) {
+    const r = await page.evaluate(() => { const M = window.__estanteMesa; if (M.cena()) return { cena: true, oculta: document.querySelector('#tb-relatar').hidden };
+      const ls = M.legais(), s = M.estado(); const a = s.pending ? ls[0] : (ls.find(x => x.t === 'pass') || ls[0]); if (a) M.act(a); return { cena: !!M.cena(), oculta: document.querySelector('#tb-relatar').hidden }; });
+    if (r.cena) { viuCena = true; assert.equal(r.oculta, true, 'durante a cena a aba some'); }
+    await page.waitForTimeout(40);
+  }
+  assert.ok(viuCena, 'houve cena do oponente');
+  await page.evaluate(() => window.__estanteMesa.pulaCena()); await page.waitForFunction(() => !window.__estanteMesa.cena());
+  assert.equal(await page.evaluate(() => document.querySelector('#tb-relatar').hidden), false, 'acabou a cena, a aba volta');
+  // 4 · também pelo balão da faixa, sem anexar a partida desta vez
+  await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-relatar-chip'); await page.click('#tb-relatar-chip'); await page.waitForSelector('#relato-form');
+  await page.click('#relato-anexar'); assert.equal(await page.getAttribute('#relato-anexar', 'aria-checked'), 'false');
+  await page.selectOption('#relato-tipo', 'ideia'); await page.selectOption('#relato-urgencia', 'baixa'); await page.fill('#relato-descricao', 'Mostrar a vida no topo.');
+  await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  // 5 · o que ficou guardado: o texto para colar diz a partida, as jogadas e se ela foi anexada
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista');
+  assert.equal(await page.locator('#tb-relatar').count(), 0, 'a aba sai junto com a mesa');
+  await page.click('#relatos-copiar'); await page.waitForFunction(() => /2 relato\(s\) copiado\(s\)/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
+  const txt = await page.evaluate(() => navigator.clipboard.readText());
+  const [regra, ideia] = txt.split('\n\n---\n\n');
+  assert.match(regra, /^### Regra ou carta · Alta · Mesa\n[\s\S]*- Tela: \/partida\n[\s\S]*- Partida: contra o Shark · turno \d+ · [^\n]+ · vida \d+ × \d+ · partida anexada\n- Últimas jogadas:\n(  - .+\n)+\nO Shark não bloqueou/);
+  assert.match(ideia, /- Partida: contra o Shark[^\n]*vida \d+ × \d+\n/); assert.doesNotMatch(ideia, /partida anexada/);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);

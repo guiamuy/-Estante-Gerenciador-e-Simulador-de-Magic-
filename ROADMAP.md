@@ -475,7 +475,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ce ✅ | L9 versões da lista: salvar como está e comparar duas versões (entrou e saiu, por zona), guardadas na lista e no backup (leva G-218) | L | 1 | teste no aparelho |
 | 16º-cf ✅ | V2 rulings na carta: seção que abre e lembra, data e fonte, guardados no aparelho com prazo, sem internet mostra a cópia (leva G-219) | V | 1 | teste no aparelho |
 | 16º-cg ✅ | Y1 relatar de qualquer tela: Relatar no botão de ação ou botão discreto, formulário com tipo e urgência, carimbo, tela Relatos (leva G-222) | Y | 1 | teste no aparelho |
-| 16º-ch ○ | Y2 relatar na partida: aba flutuante na borda e a partida anexada | Y | 1 | — |
+| 16º-ch ✅ | Y2 relatar na partida: aba na borda que arrasta e lembra, Relatar no balão da faixa, contexto e partida anexada (leva G-224) | Y | 1 | teste no aparelho |
 | 16º-ci ○ | Y3 relatos para fora: filtros e exportar | Y | 1 | — |
 | 16º-cj ○ | Z1–Z4 catálogo de listas: coletor (MTGJSON), catálogo por formato, detalhe com visões e estatísticas, importar e jogar | Z | 4 | ADR-09 |
 | 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
@@ -6318,14 +6318,28 @@ mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
   transferência recusa ou não responde em 3 s, e a tela diz "Não foi possível copiar"; o teste confere o texto copiado.
 - **Fora:** foto da tela anexada; enviar para fora do aparelho (Y3 exporta).
 
-**Y2 · Relatar na partida** ○
+**Y2 · Relatar na partida** ✅ (leva G-224, 08/10/2026)
 - **Valor:** relatar a regra ou o erro da mesa no momento, com o estado da partida junto para reproduzir.
-- **Aceite:** aba flutuante discreta na borda direita (alvo de 44 px, parte visível estreita, arrastável na vertical,
-  posição lembrada; some durante a cena do oponente e com diálogo aberto); também no menu da faixa; o relato leva modo,
-  oponente, turno, fase, de quem é a prioridade, as últimas linhas do registro e, marcado por padrão, **a partida
-  anexada** (semente e jogadas) para abrir igual depois; o jogo não anda com o formulário aberto.
-- **Testes:** U (contexto da partida), I (aba não cobre carta nem botão nas quatro medidas, arrasto, relato com
-  partida). **Depende de:** Y1.
+- **Entregue:**
+  - **aba na borda direita** da mesa: alvo de 44 × 56 px, só **28 px à vista**, superfície elevada e translúcida (fica
+    inteira ao toque); **arrasta na vertical** (entre 12% e 80% da altura, para não cobrir a faixa do topo nem a bandeja)
+    e a **posição fica lembrada** (`mesa.relatarY`); toque com tremida não vira arrasto e arrastar não abre o formulário;
+    **some durante a cena do oponente** e na troca de aparelho a dois; sai junto com a mesa;
+  - **Relatar no balão da faixa** (ao lado de Paradas), para quem procura pelo menu;
+  - **o formulário da mesa** diz o que vai junto (turno, etapa, últimas jogadas, motor e tela) e traz a chave **Anexar a
+    partida** (ligada por padrão): a partida inteira (semente, listas e jogadas, o mesmo que se salva para continuar)
+    vai no relato para abrir igual na correção;
+  - **o contexto da partida** em cada relato: modo (contra o Shark, a dois, goldfish, online), turno, etapa, de quem é a
+    vez e a prioridade, vida dos dois, decisão em curso e as **oito últimas linhas do registro**; durante a cena, vale a
+    partida de verdade, não o quadro mostrado; o texto para colar ganha "- Partida: …" e "- Últimas jogadas:";
+  - o jogo **não anda** com o formulário aberto (o Shark só joga em resposta a uma jogada sua).
+- **Modelo (puro, `__m38`):** `contextoDaPartida`; a mesa entrega o contexto por `__m38.usaContexto`.
+- **Testes:** U `relatos.unit` +2 (contexto, texto com a partida); e2e "Y2" (posição e medidas, arrasto com limite e
+  lembrado ao recarregar, some na cena e volta, formulário com a chave, partida parada, balão da faixa sem anexar, texto
+  copiado com a partida; `auditaTela` nas quatro medidas e nos dois temas).
+- **Limite declarado:** a aba fica por cima da borda do campo; carta que estiver ali embaixo continua tocável ao lado
+  dela, e a aba pode ser arrastada para outra altura.
+- **Fora:** abrir a partida anexada de um relato (Y3); foto da tela.
 
 **Y3 · Relatos para fora** ○
 - **Valor:** levar os relatos para a correção sem copiar um a um.
