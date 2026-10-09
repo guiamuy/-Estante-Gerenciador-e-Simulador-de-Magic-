@@ -56,3 +56,35 @@ test('M-229 · R1 · alvo escrito como seletor aparece em português na folha da
   assert.equal(T.descreveEfeitos([{ do: 'destroy', target: { tipos: ['creature', 'planeswalker'], de: 'opponent' } }]), 'destrói uma criatura ou planeswalker que um oponente controla');
   assert.equal(T.descreveEfeitos([{ do: 'reanimate', target: { zona: 'graveyard', de: 'you', tipos: ['creature'] } }]), 'devolve uma criatura do cemitério ao campo');
 });
+
+test('M-230 · R1b · varreduras: os nomes each-… e o seletor "cada" dão as mesmas permanentes, na mesma ordem, em partidas aleatórias com as listas reais', () => {
+  const KINDS_CADA = Object.keys(S.CADA_SELETOR); let comparacoes = 0;
+  LISTAS.forEach((lista, i) => {
+    let s = jogo({ lista, oponente: LISTAS[(i + 5) % LISTAS.length], seed: 11 + i });
+    const politica = E.randomPolicy(31337 + i);
+    for (let k = 0; k < 160 && s.status !== 'over'; k++) {
+      const a = politica(s); if (!a) break; s = act(s, a);
+      if (k % 6) continue;
+      for (const p of [0, 1]) for (const target of KINDS_CADA) for (const exceptSubtype of [undefined, 'Elf', 'Faerie', 'Human']) {
+        const eff = { do: 'damage', amount: 1, target, ...(exceptSubtype ? { exceptSubtype } : {}) };
+        const novo = E.sweepTargets(s, { controller: p }, eff).map(o => o.oid), velho = E.sweepTargetsLegado(s, { controller: p }, eff).map(o => o.oid);
+        assert.deepEqual(J(novo), J(velho), `${lista} · ação ${k} · jogador ${p} · ${target}${exceptSubtype ? ' sem ' + exceptSubtype : ''}`); comparacoes++;
+      }
+    }
+  });
+  assert.ok(comparacoes > 3000, `amostra pequena (${comparacoes})`);
+});
+
+test('M-230 · R1b · "cada" escrito no efeito: varre sem mirar (pega criatura com resistência a magia) e o que é destruído sai junto', () => {
+  const sc = { name: 'Teste cada', effects: [{ do: 'destroy', cada: { tipos: ['creature'], de: 'opponent' } }], example: { target: 'none', expect: { attached: false } } };
+  assert.equal(S.validateScript(sc).length, 0, S.validateScript(sc).join('; '));
+  assert.ok(S.validateScript({ ...sc, effects: [{ do: 'destroy', cada: { tipos: ['creature'] }, target: 'creature' }] }).some(e => /não os dois/.test(e)));
+  let s = jogo({ lista: 'Pauper GW Bogles', oponente: 'Pauper Elves', seed: 2 });
+  const sel = { tipos: ['creature'], de: 'you' };
+  const viaMira = E.selecionar(s, 0, sel), viaCada = E.selecionar(s, 0, sel, null, { mira: false });
+  assert.ok(viaCada.length >= viaMira.length, '"cada" nunca pega menos que o alvo (não filtra resistência a magia)');
+});
+
+test('M-230 · R1b · varredura escrita como seletor aparece em português', () => {
+  assert.equal(T.descreveEfeitos([{ do: 'destroy', cada: { tipos: ['creature'], de: 'opponent' } }]), 'destrói cada criatura que um oponente controla');
+});

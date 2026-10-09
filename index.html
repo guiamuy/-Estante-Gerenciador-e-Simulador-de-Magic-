@@ -5186,7 +5186,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'subtipos', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'ou'];
+const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'ou'];
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -5210,6 +5210,17 @@ const ALVO_SELETOR = {
   'instant-spell': { zona: 'stack', tipos: ['instant'] }, 'artifact-enchantment-spell': { zona: 'stack', tipos: ['artifact', 'enchantment'] },
   'artifact-spell': { zona: 'stack', tipos: ['artifact'] },
 };
+/** M-230 · R1b · varreduras ("each creature …"): o mesmo seletor, com quantificador "cada" (não mira: ignora resistência a
+ * magia e proteção). Os nomes antigos viram atalhos; carta nova escreve `cada: { … }` no efeito. */
+const CADA_SELETOR = {
+  'each-creature': { tipos: ['creature'] }, 'each-opponent-creature': { tipos: ['creature'], de: 'opponent' }, 'each-own-creature': { tipos: ['creature'], de: 'you' },
+  'each-opponent-creature-planeswalker': { tipos: ['creature', 'planeswalker'], de: 'opponent', tiposImpressos: true },
+  'each-flying-creature': { tipos: ['creature'], palavra: 'flying' }, 'each-nonflying-creature': { tipos: ['creature'], semPalavra: 'flying' },
+};
+/** O seletor "cada" do efeito: `cada` escrito direto, ou o atalho `each-…` (com o subtipo poupado, se houver). */
+/** M-230 · efeitos que já são só atalho de verbo + seletor (a medida de vocabulário os separa). */
+const EFEITOS_ATALHO = { destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)' };
+const cadaDe = e => { if (!e) return null; if (e.cada) return e.cada; const base = CADA_SELETOR[e.target]; if (!base) return null; return e.exceptSubtype ? { ...base, semSubtipos: [e.exceptSubtype] } : base; };
 const TIPOS_DE_CARTA = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'];
 /** Erros de um seletor escrito no script (lista vazia = válido). */
 function seletorErros(sel, label) {
@@ -5222,6 +5233,8 @@ function seletorErros(sel, label) {
   for (const k of ['tipos', 'semTipos']) for (const x of sel[k] || []) if (!TIPOS_DE_CARTA.includes(x)) errs.push(`${label}: tipo "${x}" desconhecido`);
   for (const k of ['cor', 'semCor']) if (sel[k] != null && !'WUBRG'.includes(sel[k])) errs.push(`${label}: cor precisa ser WUBRG`);
   if (sel.ref != null && !['bloqueada-pela-fonte', 'encantada-pela-fonte'].includes(sel.ref)) errs.push(`${label}: referência "${sel.ref}" desconhecida`);
+  for (const k of ['palavra', 'semPalavra']) if (sel[k] != null && !KEYWORDS.includes(sel[k])) errs.push(`${label}: palavra-chave "${sel[k]}" não é resolvida pelo motor`);
+  for (const k of ['mvMax', 'mvMin']) if (sel[k] != null) errs.push(...valueErrors(sel[k], `${label}: ${k}`));
   return errs;
 }
 /** O seletor (já expandido dos atalhos) escolhe jogadores? E objetos? */
@@ -5512,6 +5525,12 @@ function effectErrors(effects, label, opcional) {
     }
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
+    if (e.cada != null) { // M-230 · varredura escrita como seletor: sem alvo e sobre objetos
+      errs.push(...seletorErros(e.cada, `${label} ${i + 1} (${e.do}) cada`));
+      if (e.target != null) errs.push(`${label} ${i + 1} (${e.do}): use "cada" ou "target", não os dois`);
+      if (selJogadores(e.cada)) errs.push(`${label} ${i + 1} (${e.do}): "cada" é para objetos; jogadores usam each-player/each-opponent`);
+      return;
+    }
     const t = e.target || 'self';
     if (typeof t === 'object') { // M-229 · seletor: válido e compatível com o que o efeito sabe mirar (objeto e/ou jogador)
       errs.push(...seletorErros(t, `${label} ${i + 1} (${e.do})`));
@@ -6551,7 +6570,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, ALVO_SELETOR, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -13214,7 +13233,7 @@ function selTemTipo(s, o, t, impressos) {
   if (o.zone === 'stack' && t === 'creature') return ((f.types || []).includes('creature') && !o.bestowed) || !!o.faceDown;
   return (f.types || []).includes(t);
 }
-function selCasa(s, p, o, sel, selfOid) {
+function selCasa(s, p, o, sel, selfOid, opts = {}) {
   const f = s.facts[o.name] || {};
   if (sel.de === 'you' && o.controller !== p) return false;
   if (sel.de === 'opponent' && o.controller === p) return false;
@@ -13225,6 +13244,16 @@ function selCasa(s, p, o, sel, selfOid) {
   if ((sel.semTipos || []).some(t => selTemTipo(s, o, t, sel.tiposImpressos))) return false;
   if ((sel.subtipos || []).length && !(isChangeling(s, o) || sel.subtipos.some(x => new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))))) return false;
   if (sel.permanente && !isPermanent(f)) return false;
+  // M-230 · varreduras: palavra-chave, subtipo poupado (metamorfo conta como tendo) e valor de mana
+  if (sel.palavra && !has(s, o, sel.palavra)) return false;
+  if (sel.semPalavra && has(s, o, sel.semPalavra)) return false;
+  if ((sel.semSubtipos || []).some(x => isChangeling(s, o) || new RegExp('\\b' + x + '\\b', 'i').test(f.typeText || ''))) return false;
+  if (sel.mvMax != null || sel.mvMin != null) {
+    const vm = o.faceDown ? 0 : (f.cmc || 0) + (o.zone === 'stack' ? (o.xPaid || 0) * ((f.cost || {}).x || 0) : 0);
+    const fonte = opts.src || { controller: p };
+    if (sel.mvMax != null && vm > amountOf(s, fonte, sel.mvMax)) return false;
+    if (sel.mvMin != null && vm < amountOf(s, fonte, sel.mvMin)) return false;
+  }
   if (sel.cor && !(f.colors || []).includes(sel.cor)) return false;
   if (sel.semCor && (f.colors || []).includes(sel.semCor)) return false;
   if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
@@ -13234,8 +13263,9 @@ function selCasa(s, p, o, sel, selfOid) {
   return true;
 }
 /** Objetos e jogadores que o seletor escolhe, na ordem das zonas (objetos primeiro, jogadores depois). */
-function selecionar(s, p, sel, selfOid) {
-  if (sel.ou) return sel.ou.flatMap(x => selecionar(s, p, x, selfOid));
+function selecionar(s, p, sel, selfOid, opts = {}) {
+  if (sel.ou) return sel.ou.flatMap(x => selecionar(s, p, x, selfOid, opts));
+  const mira = opts.mira !== false; // "cada" não mira: resistência a magia e proteção não impedem
   const out = [], srcObj = selfOid ? s.objects[selfOid] : null;
   if (sel.ref === 'encantada-pela-fonte') { // S35 · a criatura que esta aura encanta
     if (srcObj) { const host = srcObj.ability ? s.objects[s.objects[srcObj.source] ? s.objects[srcObj.source].attachedTo : null] : s.objects[srcObj.attachedTo];
@@ -13249,13 +13279,13 @@ function selecionar(s, p, sel, selfOid) {
     return out;
   }
   const zona = sel.zona || 'battlefield';
-  if (zona === 'battlefield') { for (const o of battlefield(s)) if (targetable(s, p, o, srcObj) && selCasa(s, p, o, sel, selfOid)) out.push({ oid: o.oid }); }
+  if (zona === 'battlefield') { for (const o of battlefield(s)) if ((!mira || targetable(s, p, o, srcObj)) && selCasa(s, p, o, sel, selfOid, opts)) out.push({ oid: o.oid }); }
   else if (zona === 'graveyard') { // "your graveyard" é o cemitério do jogador; senão, todos, na ordem dos jogadores
     const zs = sel.de === 'you' ? [s.zones[p]] : sel.de === 'opponent' ? s.zones.filter((_, i) => i !== p) : s.zones;
     const semDe = { ...sel, de: null };
-    for (const z of zs) for (const oid of z.graveyard) if (selCasa(s, p, s.objects[oid], semDe, selfOid)) out.push({ oid });
+    for (const z of zs) for (const oid of z.graveyard) if (selCasa(s, p, s.objects[oid], semDe, selfOid, opts)) out.push({ oid });
   } else if (zona === 'stack') {
-    for (const oid of s.stack) { const o = s.objects[oid]; if (oid === selfOid || (isAbility(o) && !sel.habilidades)) continue; if (isAbility(o) || selCasa(s, p, o, sel, selfOid)) out.push({ oid }); }
+    for (const oid of s.stack) { const o = s.objects[oid]; if (oid === selfOid || (isAbility(o) && !sel.habilidades)) continue; if (isAbility(o) || selCasa(s, p, o, sel, selfOid, opts)) out.push({ oid }); }
   }
   if (sel.jogadores) s.players.forEach((pl, i) => { if (!pl.lost && (sel.jogadores === 'any' || (sel.jogadores === 'opponent' ? i !== p : i === p))) out.push({ player: i }); });
   return out;
@@ -13749,11 +13779,11 @@ function applyEffect(s, src, eff, tgt, events) {
       else shuffle(s, s.zones[who].library);
       break;
     }
-    case 'reanimate_all': { // CR2c.5 · todas de uma vez, do cemitério de quem controla a mágica
-      const lim = eff.mvMax != null ? amountOf(s, src, eff.mvMax) : Infinity;
-      const voltam = s.zones[ctrl].graveyard.filter(oid => { const f = s.facts[s.objects[oid].name] || {}; return eff.types.some(x => (f.types || []).includes(x)) && (f.cmc || 0) <= lim; });
-      for (const oid of voltam) { moveObject(s, oid, 'battlefield'); s.objects[oid].controller = ctrl; }
-      note({ amount: voltam.length, nomes: voltam.map(oid => s.objects[oid].name) }); break;
+    case 'reanimate_all': { // CR2c.5/M-230 · atalho: devolver + cada no seu cemitério
+      const sel = { zona: 'graveyard', de: 'you', tipos: eff.types, ...(eff.mvMax != null ? { mvMax: eff.mvMax } : {}) };
+      const voltam = sweepTargets(s, src, { cada: sel }).map(o => o.name);
+      aplicaCada(s, src, { do: 'reanimate', cada: sel }, []);
+      note({ amount: voltam.length, nomes: voltam }); break;
     }
     case 'exile_self': { // CR2c.5 · "Exile Ascend from Avernus": a própria mágica vai para o exílio ao terminar
       if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { moveObject(s, src.oid, 'exile'); note({ target: src.name }); }
@@ -13853,15 +13883,11 @@ function applyEffect(s, src, eff, tgt, events) {
       continuaEdito(s, events);
       break;
     }
-    case 'destroy_all': { // CR2c.2 · 701.8 + 603.10a: a lista sai primeiro, depois todas mudam de zona juntas; indestrutível fica
-      const ehTipo = (o, t) => t === 'creature' ? isCreature(s, o) : !o.faceDown && s.facts[o.name].types.includes(t);
-      const vm = o => o.faceDown ? 0 : (s.facts[o.name].cmc || 0); // 708.4: virada para baixo tem valor de mana 0
-      const lista = battlefield(s).filter(o => eff.types.some(t => ehTipo(o, t)) && (eff.mvMax == null || vm(o) <= eff.mvMax) && (eff.mvMin == null || vm(o) >= eff.mvMin) && !has(s, o, 'indestructible')).map(o => o.oid);
-      s.saindoJuntas = lista;
-      const nomes = [];
-      for (const oid of lista) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; nomes.push(o.name); moveObject(s, oid, 'graveyard'); }
-      delete s.saindoJuntas;
-      note({ amount: nomes.length, nomes }); break;
+    case 'destroy_all': { // CR2c.2/M-230 · atalho: "destroy all <tipos> [valor de mana]" = destruir + cada (saem juntas; indestrutível fica)
+      const sel = { tipos: eff.types, ...(eff.mvMax != null ? { mvMax: eff.mvMax } : {}), ...(eff.mvMin != null ? { mvMin: eff.mvMin } : {}) };
+      const antes = sweepTargets(s, src, { cada: sel }).filter(o => !has(s, o, 'indestructible')).map(o => o.name);
+      aplicaCada(s, src, { do: 'destroy', cada: sel }, []);
+      note({ amount: antes.length, nomes: antes }); break;
     }
     case 'edict': { // CR2c.2 · "target opponent sacrifices a creature of their choice": o próprio jogador escolhe (701.21a)
       const who = playerOf();
@@ -13982,7 +14008,21 @@ function applyEffect(s, src, eff, tgt, events) {
   }
 }
 /** Criaturas atingidas por uma varredura. */
+/** M-230 · varredura pelo seletor "cada" (atalhos each-… ou `cada` escrito no efeito), do ponto de vista de quem controla a fonte. */
 function sweepTargets(s, src, eff) {
+  const sel = SC.cadaDe(typeof eff === 'string' ? { target: eff } : eff);
+  if (!sel) return sweepTargetsLegado(s, src, eff);
+  return selecionar(s, src.controller, sel, null, { mira: false, src }).map(x => s.objects[x.oid]);
+}
+/** M-230 · aplica o efeito a cada objeto da varredura; o que muda de zona sai junto (603.10a: quem sai junto vê os outros). */
+function aplicaCada(s, src, eff, events) {
+  const alvos = sweepTargets(s, src, eff), juntas = ['destroy', 'exile', 'bounce', 'reanimate', 'to_hand'].includes(eff.do);
+  if (juntas) s.saindoJuntas = alvos.map(x => x.oid);
+  for (const x of alvos) applyEffect(s, src, eff, { oid: x.oid }, events);
+  if (juntas) delete s.saindoJuntas;
+}
+const ehVarredura = eff => !!SC.cadaDe(eff);
+function sweepTargetsLegado(s, src, eff) {
   const kind = typeof eff === 'string' ? eff : eff.target;
   const except = typeof eff === 'string' ? null : eff.exceptSubtype; // S38 · varredura que poupa um subtipo
   const fora = x => except && (isChangeling(s, x) || new RegExp('\\b' + except + '\\b', 'i').test(s.facts[x.name].typeText || ''));
@@ -14066,6 +14106,7 @@ function resumeEffects(s, events) {
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
     else if (eff.target === 'first-target') tgt = r.alvo || null;
     else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
+    if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão
     applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
     if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
   }
@@ -14244,10 +14285,8 @@ function resolveScript(s, o, events) {
       const who = t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
       applyEffect(s, o, eff, { player: who }, events);
     } else if (eff.target === 'each-opponent' || eff.target === 'each-player') { applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
-    } else if (String(eff.target || '').startsWith('each-')) {
-      // S4 · varredura: todas as criaturas, só as do oponente ou só as suas
-      for (const x of sweepTargets(s, o, eff)) applyEffect(s, o, eff, { oid: x.oid }, events);
-    } else applyEffect(s, o, eff, null, events);
+    } else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // S4/M-230 · varredura: "cada" pelo seletor
+    else applyEffect(s, o, eff, null, events);
     // CR 704.4 · as ações de estado esperam a mágica terminar de resolver (antes rodavam entre um efeito e outro)
   }
   if (s.pending) s.resume = { oid: o.oid, name: o.name, controller: o.controller, effects: [] };
@@ -16004,9 +16043,8 @@ function resolveAbility(s, o, events) {
     else if (eff.target === 'delayed-object') { const d = o.objetoAtrasado; if (d && mesmaEncarnacao(s, d) && s.objects[d.oid]) applyEffect(s, o, eff, { oid: d.oid }, events); } // 603.7c
     else if (eff.target === 'that-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.5 · quem conjurou a mágica que disparou
     else if (eff.target === 'delayed-player') applyEffect(s, o, eff, { player: o.jogadorAtrasado != null ? o.jogadorAtrasado : o.controller }, events); // CR2b.1
-    else if (String(eff.target || '').startsWith('each-')) {
-      sweepTargets(s, o, eff).forEach(x => applyEffect(s, o, eff, { oid: x.oid }, events));
-    } else applyEffect(s, o, eff, null, events);
+    else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // M-230
+    else applyEffect(s, o, eff, null, events);
     if (s.pending) { s.resume = { oid: o.source || o.oid, name: o.name, controller: o.controller, effects: (o.effects || []).slice((o.effects || []).indexOf(eff) + 1), alvo: primeiro, alvos: chosen.slice(ti) }; return; }
   }
 }
@@ -16080,7 +16118,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -18383,7 +18421,7 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
-  const alvo = e.target ? (ALVO_PT[e.target] || descreveAlvo(e.target)) : null;
+  const alvo = e.cada ? descreveSeletor(e.cada).replace(/^(uma|outra) /, 'cada ') : e.target ? (ALVO_PT[e.target] || descreveAlvo(e.target)) : null; // M-230 · varredura escrita como seletor
   const n = qtd(e.amount);
   switch (e.do) {
     case 'draw': return `compra ${plural(n, 'carta', 'cartas')}`;
