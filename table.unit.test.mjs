@@ -722,3 +722,32 @@ test('K3 · com resposta possível a mesa para em qualquer etapa, ligada ou não
   assert.deepEqual([t.state.turn.active, t.state.turn.step, t.state.turn.priority], [1, 'upkeep', 0], 'na manutenção do goldfish, com resposta possível, a mesa para para você');
   assert.equal(T.shouldStop(t.state, 0, { meu: [], dele: [] }), true); assert.equal(T.shouldStop(t.state, 0, { meu: [], dele: ['inicio'] }), true);
 });
+
+/* ---------------- T4 · carta modificada (relato #2) ---------------- */
+test('T4 · P/T contra o impresso (verde acima, vermelho abaixo, número a número), virada para baixo compara com 2/2, e palavras ganhas e perdidas', () => {
+  const J = x => JSON.parse(JSON.stringify(x));
+  const s = mesa([{ name: 'Sky Pike', counters: { p1p1: 1 } }, { name: 'Sky Pike', counters: { m1m1: 1 } }, { name: 'Wall Guard', pump: { p: 2, t: -1 } }, { name: 'Sky Pike' }, { name: 'Wall Guard', tempKeywords: ['flying', 'haste'], tempTs: 1 }, { name: 'Sky Pike', faceDown: true }]);
+  const m = i => J(T.modificacoesDaCarta(s, s.objects['o' + i], T.estadoDaCarta(s, s.objects['o' + i]).pt));
+  assert.deepEqual([m(0).p, m(0).t, m(0).base], ['mais', 'mais', { p: 2, t: 1 }], '+1/+1 num 2/1');
+  assert.deepEqual([m(1).p, m(1).t], ['menos', 'menos']);
+  assert.deepEqual([m(2).p, m(2).t], ['mais', 'menos'], 'misto: cada número com a sua cor');
+  assert.equal(m(3), null, 'sem mudança: nada');
+  assert.deepEqual([m(4).p, m(4).ganhas, m(4).perdidas, m(4).nomes], [null, ['flying', 'haste'], [], { flying: 'voar', haste: 'ímpeto' }]);
+  assert.equal(m(5), null, 'virada para baixo: 2/2 sem habilidades não é mudança (o impresso não conta)');
+  const est = T.estadoDaCarta(s, s.objects.o4);
+  assert.deepEqual(J(est.marcas.filter(x => x.k === 'ganhou')), [{ k: 'ganhou', texto: '+2 hab.', rotulo: 'Ganhou voar, ímpeto' }]);
+  assert.equal(T.estadoDaCarta(s, s.objects.o3).mod, null);
+  // fora do campo, nada (a mão e o cemitério ficam para depois)
+  assert.equal(T.modificacoesDaCarta(s, { ...s.objects.o0, zone: 'graveyard' }, { p: 3, t: 2 }), null);
+});
+
+test('T4 · Aura que torna 1/1 e tira as habilidades: P/T abaixo e voar perdida (tachada), lidos do motor', () => {
+  const J = x => JSON.parse(JSON.stringify(x));
+  const s = mesa([{ name: 'Sky Pike', mutavel: true }, { name: 'Sapo', attachedTo: 'o0', anexadaEm: 1 }]); // mutavel: a marca que o motor põe ao anexar uma Aura dessas
+  s.facts.Sapo = { ...E.cardFacts({ name: 'Sapo', type_line: 'Enchantment — Aura', mana_cost: '{U}', oracle_text: '', colors: ['U'] }),
+    script: { aura: { enchant: 'creature' }, continuo: [{ afetados: 'anexada', torna: { base: [1, 1], perdeHabilidades: true } }] } };
+  const est = T.estadoDaCarta(s, s.objects.o0);
+  assert.deepEqual(J(est.pt), { p: 1, t: 1 });
+  assert.deepEqual(J([est.mod.p, est.mod.t, est.mod.perdidas, est.mod.ganhas]), ['menos', null, ['flying'], []]);
+  assert.deepEqual(J(est.marcas.filter(x => x.k === 'perdeu')), [{ k: 'perdeu', texto: 'voar', rotulo: 'Perdeu voar' }]);
+});

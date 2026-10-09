@@ -1721,8 +1721,18 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
 .tb-card[data-selected="true"] .tb-card__face { outline: 3px solid var(--accent); transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card__pills { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); display: flex; flex-wrap: wrap-reverse; justify-content: center; gap: 2px; align-items: center; width: calc(100% - 4px); pointer-events: none; }
+/* T4 · com P/T no canto, as pílulas sobem acima dele (antes as duas dividiam a mesma linha e se cobriam) */
+.tb-card:has(.tb-card__pt) .tb-card__pills { bottom: calc(var(--text-xs) * 1.4 + 6px); }
 .tb-pill { font-size: var(--text-xs); line-height: 1.2; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); white-space: nowrap; font-weight: var(--weight-bold); }
 .tb-pill--neg { background: var(--negative); color: var(--negative-fg); }
+/* T4 · carta modificada: verde para o que subiu ou ganhou, vermelho para o que desceu, tachado para o que perdeu */
+.tb-pill--ganhou { background: var(--positive); color: var(--positive-fg); }
+.tb-pill--perdeu { background: var(--scrim); color: var(--negative); border: 1px solid var(--negative); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.tb-card__pt [data-mod="mais"] { color: var(--positive); font-weight: var(--weight-bold); }
+.tb-card__pt [data-mod="menos"] { color: var(--negative); font-weight: var(--weight-bold); }
+.tb-card__pt[data-mod="mais"] { border-color: var(--positive); }
+.tb-card__pt[data-mod="menos"] { border-color: var(--negative); }
+.tb-peek__mudou { display: flex; flex-direction: column; gap: var(--space-1); }
 /* Leva 110 · marca que cita outra carta: selo redondo com ícone (e número). Nada de nome dentro da carta;
    o nome inteiro aparece ao espiar a carta. Guarda: nenhuma pílula passa da largura da carta. */
 .tb-pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
@@ -3725,6 +3735,10 @@ function renderDS() {
           M.LifeCounter({ name: 'Goldfish', life: 20, sub: 'goldfish' }),
           M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
         M.ZoneRow('Permanentes', [M.TableCard(demo('Delver of Secrets', { sick: true })), M.TableCard(demo('Spellstutter Sprite', { tapped: true, counters: { p1p1: 1 } })), M.TableCard(demo('Guardian', { damage: 2 }))]),
+        // T4 · carta modificada: P/T acima do impresso em verde, abaixo em vermelho; habilidade ganha e perdida
+        h('div', { id: 'ds-modificadas' }, M.ZoneRow('Modificadas', [
+          M.TableCard(demo('Sky Pike'), { estado: { pt: { p: 3, t: 2 }, mod: { p: 'mais', t: 'mais', base: { p: 2, t: 1 }, ganhas: ['haste'], perdidas: [], nomes: { haste: 'ímpeto' } }, marcas: [{ k: 'ganhou', texto: '+ímpeto', rotulo: 'Ganhou ímpeto' }], anel: null, sick: false, tapped: false } }),
+          M.TableCard(demo('Wall Guard'), { estado: { pt: { p: 1, t: 2 }, mod: { p: 'mais', t: 'menos', base: { p: 0, t: 4 }, ganhas: [], perdidas: ['reach'], nomes: { reach: 'alcance' } }, marcas: [{ k: 'perdeu', texto: 'alcance', rotulo: 'Perdeu alcance' }], anel: null, sick: false, tapped: false } })])),
         M.StackStrip([demo('Lightning Bolt', { who: 'Bot' }), demo('Counterspell', { who: 'Você' })]),
         M.PriorityBanner({ title: 'Pilha: Counterspell', hint: 'Responda ou passe. Se todos passarem, o topo resolve.', actions: [Button('Passar', { variant: 'primary' })] }),
         M.AdjudicationPanel({ name: 'Preordain', oracle: 'Scry 2. Then draw a card.', controls: [Button('Comprar 1')], onDone: () => toast('Efeito aplicado') }),
@@ -18702,7 +18716,7 @@ function TableCard(card, opts = {}) {
   // Leva 110 · marca com ícone: selo redondo com o desenho e, se houver mais de uma, o número; nada de nome na carta
   if (est) for (const m of est.marcas) pills.push(m.icone
     ? h('span', { class: 'tb-pill tb-pill--icone', dataset: { marca: m.k }, title: m.rotulo || m.texto }, Icone(m.icone, { tamanho: 12 }), m.qtd > 1 ? h('b', {}, String(m.qtd)) : null)
-    : h('span', { class: 'tb-pill' + (m.k === 'dano' ? ' tb-pill--neg' : m.k === 'ataca' || m.k === 'bloqueia' || m.k === 'alvo' ? ' tb-pill--estado' : ''), dataset: { marca: m.k } }, m.texto));
+    : h('span', { class: 'tb-pill' + (m.k === 'dano' ? ' tb-pill--neg' : m.k === 'ganhou' ? ' tb-pill--ganhou' : m.k === 'perdeu' ? ' tb-pill--perdeu' : m.k === 'ataca' || m.k === 'bloqueia' || m.k === 'alvo' ? ' tb-pill--estado' : ''), dataset: { marca: m.k }, title: m.rotulo || null }, m.texto));
   else {
     for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' },
       k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}`));
@@ -18715,7 +18729,11 @@ function TableCard(card, opts = {}) {
   const sick = est ? est.sick : !!card.sick;
   const tapped = opts.pilha ? opts.pilha.viradas === opts.pilha.total && opts.pilha.total > 0 : !!card.tapped;
   const pt = est && est.pt ? `${est.pt.p}/${est.pt.t}` : null;
-  const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? `${pt}` : null,
+  // T4 · P/T acima do impresso em verde, abaixo em vermelho, número a número; o nome falado diz a base
+  const mod = est && est.mod;
+  const ptEl = pt ? h('span', { class: 'tb-card__pt', dataset: { pt, ...(mod && (mod.p || mod.t) ? { mod: mod.p && mod.t && mod.p !== mod.t ? 'misto' : mod.p || mod.t } : {}) } },
+    h('span', { dataset: { mod: (mod && mod.p) || '' } }, String(est.pt.p)), '/', h('span', { dataset: { mod: (mod && mod.t) || '' } }, String(est.pt.t))) : null;
+  const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? (mod && mod.base && (mod.p || mod.t) ? `${pt}, base ${mod.base.p}/${mod.base.t}` : pt) : null,
     ...(est ? est.marcas.filter(m => m.k !== 'dano' && m.k !== 'marcador').map(m => m.rotulo || m.texto) : [])].filter(Boolean).join(', ');
   const el = h('button', {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
@@ -18726,7 +18744,7 @@ function TableCard(card, opts = {}) {
   },
   h('span', { class: 'tb-card__face' + (opts.verso ? ' tb-card__face--verso' : '') },
     opts.verso ? h('span', { class: 'ds-verso' }) : card.image ? imgDaMesa(card, opts.size) : h('span', { class: 'tb-card__name' }, card.name), // D7 · verso escolhido na Aparência
-    pt ? h('span', { class: 'tb-card__pt', dataset: { pt } }, pt) : null),
+    ptEl),
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
   (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
@@ -18870,15 +18888,23 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek }) {
 
 /* A15 · espiar a carta: arte grande, nome, tipo, P/T, estado e texto de regras, mais as ações
    que ela tem agora (só leitura: soltar fecha; um toque curto abre a folha para agir). */
-function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [], zona }) {
+function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [], zona, mod = null }) {
+  // T4 · o P/T diz se subiu ou desceu e a base; a linha "Mudou" lista o que ganhou (verde) e perdeu (tachado)
+  const tomPT = mod && (mod.p || mod.t) ? ((mod.p || mod.t) === 'mais' && mod.p !== 'menos' && mod.t !== 'menos' ? 'positive' : (mod.p || mod.t) === 'menos' && mod.p !== 'mais' && mod.t !== 'mais' ? 'negative' : 'accent') : 'accent';
+  const mudou = mod && (mod.ganhas.length || mod.perdidas.length) ? h('div', { class: 'tb-peek__mudou', id: 'tb-peek-mudou' }, Text('Mudou:', { size: 'xs', tone: 'muted' }),
+    Row({ class: 'ds-row--wrap' }, ...mod.ganhas.map(k => h('span', { class: 'tb-pill tb-pill--ganhou', dataset: { palavra: k } }, '+' + ((mod.nomes || {})[k] || k))),
+      ...mod.perdidas.map(k => h('span', { class: 'tb-pill tb-pill--perdeu', dataset: { palavra: k }, 'aria-label': 'Perdeu ' + ((mod.nomes || {})[k] || k) }, (mod.nomes || {})[k] || k)))) : null;
   return h('div', { class: 'tb-peek', id: 'tb-peek', role: 'dialog', 'aria-label': `${name}: ${oracle || 'sem texto'}` },
     h('div', { class: 'tb-peek__card' },
       image ? h('img', { src: image, alt: '', class: 'tb-peek__img', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })), el); } }) // Q10 · sem imagem no aparelho: o nome, não um retângulo vazio
         : h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })),
       h('div', { class: 'tb-peek__body' },
-        Row({ class: 'ds-row--wrap' }, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }), pt ? Badge(`${pt.p}/${pt.t}`, { tone: 'accent' }) : null),
+        Row({ class: 'ds-row--wrap' }, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
+          pt && mod && mod.base && (mod.p || mod.t) ? Text(`base ${mod.base.p}/${mod.base.t}`, { size: 'xs', tone: 'muted', attrs: { class: 'ds-text ds-text--xs tb-peek__base', id: 'tb-peek-base' } }) : null,
+          pt ? Badge(`${pt.p}/${pt.t}`, { tone: tomPT }) : null),
         Text([tipo, custo, zona].filter(Boolean).join(' · '), { size: 'xs', tone: 'muted' }),
         marcas.length ? Row({ class: 'ds-row--wrap' }, ...marcas.map(m => h('span', { class: 'tb-pill tb-pill--estado' }, m))) : null,
+        mudou,
         oracle ? h('p', { class: 'tb-adj__oracle' }, oracle) : Text('Sem texto de regras guardado.', { size: 'sm', tone: 'subtle' }),
         acoes.length ? h('div', { class: 'tb-peek__acoes' }, Text('Pode agora:', { size: 'xs', tone: 'muted' }), Row({ class: 'ds-row--wrap' }, ...acoes.map(a => h('span', { class: 'ds-chip tb-peek__acao', dataset: { acao: a.label }, 'aria-pressed': 'false' }, a.label)))) : Text('Nada a fazer com ela agora.', { size: 'xs', tone: 'subtle' }),
         Text('Solte para voltar. Um toque curto abre as ações.', { size: 'xs', tone: 'subtle' }))));
@@ -19457,6 +19483,24 @@ function restoreTable(data) {
   return createTable(data.setup, { log: data.log, marks: data.marks, options: data.options || {} });
 }
 
+/* ---- T4 · carta modificada (relato #2) ----
+   O que mudou na carta, lido do motor e comparado com o impresso: P/T acima ou abaixo (a virada para baixo compara com
+   2/2) e as palavras-chave ganhas e perdidas. Só no campo; a tela só pinta. Puro. */
+function modificacoesDaCarta(s, o, pt = null) {
+  if (!o || o.zone !== 'battlefield') return null;
+  const facts = (s.facts && s.facts[o.name]) || {};
+  const base = o.faceDown ? [2, 2] : [facts.power, facts.toughness];
+  const compara = (agora, imp) => (agora == null || imp == null || !Number.isFinite(imp) ? null : agora > imp ? 'mais' : agora < imp ? 'menos' : null);
+  const p = pt ? compara(pt.p, base[0]) : null, t = pt ? compara(pt.t, base[1]) : null;
+  const impressas = o.faceDown ? [] : [...new Set((facts.kw || []).map(k => String(k).toLowerCase()))];
+  const tem = k => { try { return !!E.hasKeyword(s, o, k); } catch (e) { return impressas.includes(k); } };
+  const ganhas = Object.keys(PALAVRA_PT).filter(k => !impressas.includes(k) && tem(k));
+  const perdidas = impressas.filter(k => PALAVRA_PT[k] && !tem(k));
+  if (!p && !t && !ganhas.length && !perdidas.length) return null;
+  return { p, t, base: pt && base[0] != null && base[1] != null ? { p: base[0], t: base[1] } : null, ganhas, perdidas, nomes: Object.fromEntries([...ganhas, ...perdidas].map(k => [k, PALAVRA_PT[k] || k])) };
+}
+const nomeDaPalavra = k => PALAVRA_PT[k] || k;
+
 /* ---- A13 · o que a carta mostra sem ninguém tocar ----
    Puro: a tela só desenha o que sai daqui. `plano` é o ataque/bloqueio em montagem. */
 function estadoDaCarta(s, o, plano = null) {
@@ -19490,10 +19534,14 @@ function estadoDaCarta(s, o, plano = null) {
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
   for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); }
   if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
+  // T4 · habilidades ganhas (verde) e perdidas (tachada): uma pílula para cada lado; o nome inteiro fica no rótulo
+  const mod = modificacoesDaCarta(s, o, pt);
+  if (mod && mod.ganhas.length) marcas.push({ k: 'ganhou', texto: mod.ganhas.length === 1 ? '+' + nomeDaPalavra(mod.ganhas[0]) : `+${mod.ganhas.length} hab.`, rotulo: 'Ganhou ' + mod.ganhas.map(nomeDaPalavra).join(', ') });
+  if (mod && mod.perdidas.length) marcas.push({ k: 'perdeu', texto: mod.perdidas.length === 1 ? nomeDaPalavra(mod.perdidas[0]) : `${mod.perdidas.length} hab.`, rotulo: 'Perdeu ' + mod.perdidas.map(nomeDaPalavra).join(', ') });
   let impeto = (facts.kw || []).includes('haste');
   try { impeto = impeto || !!E.hasKeyword(s, o, 'haste'); } catch (e) { impeto = impeto || (o.tempKeywords || []).includes('haste'); }   // H13
   const enjoo = !!o.sick && criatura && !impeto;
-  return { pt, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
+  return { pt, mod, tapped: !!o.tapped, sick: enjoo, marcas, anel, criatura, tipo: String(facts.typeText || '').split(' — ')[0] };
 }
 /* ---------------- Leva 114 · série (melhor de 3) e troca com a reserva ----------------
    Regras (Comprehensive Rules 100.2a, 100.4a e regras de torneio 3.15, conferidas em 01/10/2026): deck construído
@@ -20137,7 +20185,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -21820,8 +21868,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (peekEl) peekEl.remove();
     const oculta = ocultaDe(s, o); // D7 · espiar a carta virada do outro mostra só o que é público (2/2, virada para baixo)
     peekEl = CardPeek({ name: oculta ? VERSO_NOME : o.name, image: oculta ? null : imgOf(o, 'normal'), tipo: oculta ? 'Criatura' : est.tipo, pt: est.pt, custo: oculta ? null : (d.costTxt || null), zona: T.ZONE_PT[o.zone] || null,
-      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.map(m => m.rotulo || m.texto)], oracle: oculta ? null : oracleOf(o.name),
-      acoes: d.acoes.filter(a => !a.disabled) });
+      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.filter(m => m.k !== 'ganhou' && m.k !== 'perdeu').map(m => m.rotulo || m.texto)], oracle: oculta ? null : oracleOf(o.name),
+      acoes: d.acoes.filter(a => !a.disabled), mod: est.mod });
     simbolizar(peekEl); // U3
     document.body.appendChild(peekEl);
     __m0.haptics.evento('toque');

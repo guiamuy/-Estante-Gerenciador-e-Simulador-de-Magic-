@@ -2615,7 +2615,9 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   assert.match(apertado.sombra, /inset/, 'pressionado: sombra interna');
   const escala = Number((apertado.transf.match(/matrix\(([^,]+)/) || [])[1]);
   assert.ok(escala > 0.9 && escala < 1, 'pressionado: encolhe um pouco (' + apertado.transf + ')');
-  await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up(); await page.waitForTimeout(200);
+  // T3 · o Jogar volta com repique (transição com mola): espera a volta terminar em vez de um tempo fixo (caiu com o portão cheio)
+  await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('#go-play')).transform === 'none', null, { timeout: 3000 });
   assert.equal((await estilo('#go-play')).transf, 'none', 'solto: volta');
   // movimento reduzido: afunda só na sombra, sem se mexer
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -6337,6 +6339,34 @@ test('e2e · D11 acessibilidade medida: axe-core sem achados (WCAG 2.1 A/AA + bo
     }
   }
   assert.deepEqual(achados, [], 'achados do axe:\n' + achados.join('\n'));
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- T4 · carta modificada (relato #2) ---------------- */
+test('e2e · T4 carta modificada: na mesa o P/T sobe em verde e desce em vermelho número a número, habilidade ganha em pílula verde e perdida tachada, nome falado com a base; na carta grande, a base e a linha Mudou; dois temas e quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-modificadas .tb-card');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
+    const r = await page.evaluate(() => { const cs = getComputedStyle(document.documentElement), cor = v => { const d = document.createElement('i'); d.style.color = `var(${v})`; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; };
+      const [a, b] = document.querySelectorAll('#ds-modificadas .tb-card'), num = (c, i) => getComputedStyle(c.querySelectorAll('.tb-card__pt > span')[i]).color;
+      const perdeu = b.querySelector('[data-marca="perdeu"]'), ganhou = a.querySelector('[data-marca="ganhou"]');
+      return { verde: cor('--positive'), vermelho: cor('--negative'), a: [num(a, 0), num(a, 1)], b: [num(b, 0), num(b, 1)], texto: [a.querySelector('.tb-card__pt').textContent, b.querySelector('.tb-card__pt').textContent],
+        fala: [a.getAttribute('aria-label'), b.getAttribute('aria-label')], tachado: getComputedStyle(perdeu).textDecorationLine, perdeuTxt: perdeu.textContent, ganhouFundo: getComputedStyle(ganhou).backgroundColor, ganhouTxt: ganhou.textContent }; });
+    assert.deepEqual(r.a, [r.verde, r.verde], `${tema}: 3/2 sobre 2/1, os dois em verde`);
+    assert.deepEqual(r.b, [r.verde, r.vermelho], `${tema}: 1/2 sobre 0/4, misto`);
+    assert.deepEqual(r.texto, ['3/2', '1/2'], 'o texto continua "p/t"');
+    assert.match(r.fala[0], /3\/2, base 2\/1/); assert.match(r.fala[1], /1\/2, base 0\/4/);
+    assert.equal(r.tachado, 'line-through'); assert.equal(r.perdeuTxt, 'alcance'); assert.equal(r.ganhouTxt, '+ímpeto'); assert.equal(r.ganhouFundo, r.verde);
+    for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.locator('#ds-modificadas').scrollIntoViewIfNeeded(); await auditaTela(page, `carta modificada ${w} ${tema}`); }
+    await page.setViewportSize({ width: 360, height: 780 });
+  }
+  if (process.env.SHOTS) { await page.locator('#ds-modificadas').scrollIntoViewIfNeeded(); await page.locator('#ds-modificadas').screenshot({ path: process.env.SHOTS + '/t4-mesa.png' }); }
+  // a carta grande: o P/T em verde com a base ao lado e a linha "Mudou" (ganhou em verde, perdeu tachado)
+  const peek = await page.evaluate(() => { const el = __m17.CardPeek({ name: 'Wall Guard', tipo: 'Creature', pt: { p: 1, t: 2 }, oracle: 'Defender, reach', mod: { p: 'mais', t: 'menos', base: { p: 0, t: 4 }, ganhas: ['flying'], perdidas: ['reach'], nomes: { flying: 'voar', reach: 'alcance' } } });
+    document.body.appendChild(el); const out = { base: el.querySelector('#tb-peek-base').textContent, mudou: [...el.querySelectorAll('#tb-peek-mudou .tb-pill')].map(p => [p.textContent, getComputedStyle(p).textDecorationLine]) }; el.remove(); return out; });
+  assert.deepEqual(peek, { base: 'base 0/4', mudou: [['+voar', 'none'], ['alcance', 'line-through']] });
   assert.deepEqual(errors, []);
 });
 

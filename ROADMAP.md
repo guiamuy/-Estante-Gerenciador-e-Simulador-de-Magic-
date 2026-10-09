@@ -486,7 +486,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cp ✅ | T1 editar relato até 1 h depois de salvar: tipo, urgência e descrição (leva G-233) | T | 1 | — |
 | 16º-cq ✅ | T2 notícias no núcleo da Início: lista contínua, filtro de idioma, guardar e atualizar na própria Início, voltar ao topo (leva G-236) | T | 1 | — |
 | 16º-cr ✅ | T3 botão Jogar com volume e resposta ao toque (leva G-235) | T | ½ | — |
-| 16º-cs | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada | T | 1 | leitura do que o motor já expõe (camadas da CR2-G) |
+| 16º-cs ✅ | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada (leva G-237) | T | 1 | — |
 | 16º-ct ✅ | T5 Listas prontas: respiro entre a última lista e Mostrar mais (leva G-234) | T | ½ | — |
 | 16º-cu | T6 perfil por pessoa e servidor: plano curto (perfis no aparelho) e médio prazo (conta e sincronização) | T | 1 de decisão + 3 a 5 | escolha do serviço (decisão do usuário) |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -6582,12 +6582,25 @@ prontas.
   menos movimento); e2e "T3" (lábio, medalhão, seta, um primário, afunda e brilho que some sozinho, menos movimento sem
   animação, `auditaTela` nas quatro medidas e nos dois temas).
 
-**T4 · Carta modificada na mesa** (pedido: Ideia · Baixa · Mesa)
+**T4 · Carta modificada na mesa** ✅ (leva G-237, 09/10/2026 · registro #2)
 - **Valor:** ver de relance o que mudou na carta: maior, menor, ganhou ou perdeu habilidade.
-- **Aceite:** P/T acima do impresso em **verde** (`--positive`), abaixo em **vermelho** (`--negative`), misto por número;
-  habilidade ganha em verde e perdida **tachada** na carta grande e no "Pode agora"; o nome falado diz "4/4, base 2/2".
-- **Depende de:** o motor expor base e atual por objeto (as camadas da CR2-G); só leitura — a tela não calcula regra.
-- **Testes:** U do modelo de apresentação (`table-model`); e2e com efeito de +2/+2 e de perder habilidades.
+- **Entregue:** no campo, o P/T compara com o impresso (a virada para baixo, com 2/2), **número a número**: acima em
+  **verde** (`--positive`), abaixo em **vermelho** (`--negative`), com a borda do selo na cor quando os dois vão para o
+  mesmo lado; o nome falado diz "3/2, base 2/1". Palavra-chave **ganha** vira pílula verde ("+voar"; várias, "+2 hab."),
+  **perdida** vira pílula **tachada** em vermelho ("alcance"); o nome inteiro fica no rótulo. Na **carta grande**, o P/T
+  ganha a cor (verde, vermelho ou latão quando misto), "base 2/1" ao lado e a linha **Mudou:** com as ganhas e as
+  perdidas. Exemplo vivo em `/ds` (Mesa › Modificadas).
+- **Como lê o motor (só leitura):** P/T de `stats`, impresso de `facts`, palavras-chave por `hasKeyword` contra
+  `facts.kw` — a tela não calcula regra.
+- **Correção no caminho:** com P/T no canto, as pílulas da carta (marcadores, dano, as novas) dividiam a linha de baixo
+  com ele e se cobriam; agora sobem acima do P/T.
+- **Junto:** o e2e U2 caiu uma vez no portão da G-235 (o Jogar volta com mola e o teste esperava 200 ms fixos); agora
+  espera a volta terminar.
+- **Testes:** U `table.unit` +2 (mais, menos, misto, sem mudança, virada para baixo, ganhas com nomes, Aura que torna
+  1/1 e tira voar lida do motor, fora do campo); e2e "T4" (cores calculadas contra os tokens nos dois temas, texto do
+  P/T intacto, nome falado com a base, tachado, carta grande com base e Mudou, `auditaTela` nas quatro medidas).
+- **Limite:** só palavras-chave conhecidas (as de `PALAVRA_PT`); habilidade ativada ou disparada ganha ou perdida não
+  aparece. **Fora:** carta modificada na mão e no cemitério (custo reduzido, por exemplo).
 
 **T5 · Respiro do Mostrar mais** ✅ (leva G-234, 09/10/2026 · registro #1)
 - **Entregue:** **Mostrar mais 30** fica 16 px abaixo da última lista do catálogo (`--space-4`), centrado, com 8 px até a
