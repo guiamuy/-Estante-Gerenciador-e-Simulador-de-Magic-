@@ -70,3 +70,14 @@ test('Z3 · gruposPorTipo e gruposPorCusto: comandante, categorias da estante, c
   assert.deepEqual(J(custo.map(g => [g.chave, g.rotulo, g.n])), [['comandante', 'Comandante', 1], ['custo-1', 'Custo 1', 2], ['custo-5', 'Custo 5', 1], ['custo-6', 'Custo 6 ou mais', 1], ['terrenos', 'Terrenos', 30], ['sem-dados', 'Sem dados', 2], ['reserva', 'Reserva', 1]]);
   assert.deepEqual(J(K.gruposPorCusto(es, new Map()).map(g => g.chave)), ['comandante', 'sem-dados', 'reserva'], 'sem dados nenhum: tudo em "Sem dados"');
 });
+
+test('Z5 · listas de torneio no app: id da TopDeck.gg vale, busca por jogador e torneio, Pauper salva como Pauper', () => {
+  const td = { id: 'topdeck-copa-teste-1-1', nome: '1º · Copa Teste', formato: 'pauper', fonte: 'topdeck', tipo: 'Torneio · 1º de 12', jogador: 'Fulana de Tal', torneio: 'Copa Teste', data: '2026-10-04' };
+  const ls = K.listasDoIndice({ versao: 1, listas: [td, { ...td, id: 'topdeck-../x' }, { ...td, id: 'outra-fonte-1' }] });
+  assert.deepEqual(J(ls.map(l => l.id)), ['topdeck-copa-teste-1-1']);
+  assert.equal(K.filtraCatalogo(ls, { texto: 'fulana' }).length, 1); assert.equal(K.filtraCatalogo(ls, { texto: 'copa teste' }).length, 1);
+  assert.equal(K.filtraCatalogo(ls, { formato: 'pauper' }).length, 1);
+  const salvar = K.listaParaSalvar({ ...td, entradas: [{ name: 'Ponder', qty: 4, zone: 'main' }] });
+  assert.equal(salvar.format, 'pauper'); assert.deepEqual(J(salvar.origem), { fonte: 'topdeck', id: 'topdeck-copa-teste-1-1' });
+  assert.equal(K.listaParaSalvar({ ...td, formato: 'modern', entradas: [] }).format, 'livre');
+});

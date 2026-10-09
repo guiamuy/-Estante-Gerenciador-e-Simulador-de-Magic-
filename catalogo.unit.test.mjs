@@ -66,3 +66,45 @@ test('Z1 · publica: baixa só o que falta, grava a lista e o índice, continua 
     assert.equal(r3.gravou, false, 'sem lista nova, nada é regravado (sem commit à toa)');
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
+
+test('Z5 · TopDeck.gg: texto e estrutura da lista (metadado não é carta), oito primeiras por torneio, cores e destaque pela Scryfall, nova tentativa no limite de pedidos e retenção de 60 dias', async () => {
+  assert.deepEqual(C.leDecklist('~~Commanders~~\nAtraxa, Grand Unifier\n~~Mainboard~~\n4 Lightning Bolt\n1x Sol Ring (CMM) 400\n4 Lightning Bolt\n~~Sideboard~~\n2 Pyroblast\n~~Maybeboard~~\n1 Talvez'),
+    [{ name: 'Atraxa, Grand Unifier', qty: 1, zone: 'commander' }, { name: 'Lightning Bolt', qty: 8, zone: 'main' }, { name: 'Sol Ring', qty: 1, zone: 'main' }, { name: 'Pyroblast', qty: 2, zone: 'side' }]);
+  assert.deepEqual(C.leDecklist('https://moxfield.com/decks/abc'), []);
+  assert.deepEqual(C.leDeckObj({ Mainboard: { 'Ponder': { id: 'x', count: 4 }, 'Island': 16 }, Sideboard: { 'Hydroblast': { count: 2 } }, metadata: { game: 'Magic', format: 'Pauper', importedFrom: 'x' }, game: 'Magic' }),
+    [{ name: 'Ponder', qty: 4, zone: 'main' }, { name: 'Island', qty: 16, zone: 'main' }, { name: 'Hydroblast', qty: 2, zone: 'side' }]);
+  const torneio = { TID: 'Copa Teste #1', tournamentName: 'Copa Teste', startDate: Date.UTC(2026, 9, 4) / 1000, eventData: { city: 'Curitiba', state: 'PR' },
+    standings: Array.from({ length: 12 }, (_, i) => ({ name: 'Jogador ' + (i + 1), wins: 5 - Math.min(i, 5), losses: Math.min(i, 5), draws: 0,
+      deckObj: i === 2 ? null : { Mainboard: { 'Ponder': 4, 'Island': 16, 'Lightning Bolt': 4 }, Sideboard: { 'Pyroblast': 2 } }, decklist: i === 2 ? 'https://moxfield.com/x' : '' })) };
+  const ls = C.listasDoTorneio(torneio, 'pauper');
+  assert.deepEqual(ls.map(l => l.posicao), [1, 2, 4, 5, 6, 7, 8], 'oito primeiras; a de lista só por link fica de fora');
+  assert.equal(ls[0].id, 'topdeck-copa-teste-1-1'); assert.equal(ls[0].nome, '1º · Copa Teste'); assert.equal(ls[0].tipo, 'Torneio · 1º de 12'); assert.equal(ls[0].data, '2026-10-04');
+  assert.equal(ls[0].descricao, '1º lugar entre 12 jogadores em Copa Teste (Curitiba, PR), em 04/10/2026. Lista de Jogador 1.'); assert.equal(ls[0].campanha, '5-0-0'); assert.equal(ls[0].cartas, 24); assert.equal(ls[0].reserva, 2);
+  const dados = new Map([['ponder', { id: '11111111-2222-3333-4444-555555555555', color_identity: ['U'], rarity: 'common', type_line: 'Sorcery' }], ['island', { color_identity: [], type_line: 'Basic Land — Island' }],
+    ['lightning bolt', { id: '66666666-7777-8888-9999-000000000000', color_identity: ['R'], rarity: 'uncommon', type_line: 'Instant' }]]);
+  const e = C.enriquece(ls[0], dados);
+  assert.equal(e.cores, 'UR'); assert.equal(e.destaque, 'Lightning Bolt', 'empate em cópias: a mais rara'); assert.equal(e.destaqueId, '66666666-7777-8888-9999-000000000000');
+  // coleta: 429 numa consulta tenta de novo; a Scryfall dá as cores
+  let chamadas = 0;
+  const busca = async (url, op) => {
+    if (url.includes('scryfall')) return { ok: true, status: 200, json: async () => ({ data: [...dados.entries()].map(([k, v]) => ({ name: k.replace(/\b\w/g, c => c.toUpperCase()), ...v })) }) };
+    chamadas++; const corpo = JSON.parse(op.body); assert.equal(op.headers.Authorization, 'chave-falsa'); assert.equal(corpo.game, 'Magic: The Gathering');
+    if (corpo.format === 'Modern' && chamadas < 3) return { ok: false, status: 429, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => (corpo.format === 'Pauper' ? [torneio] : []) };
+  };
+  const r = await C.coletaTopdeck('chave-falsa', { busca, pausa: 0 });
+  assert.equal(r.falhas, 0); assert.equal(r.listas.length, 7); assert.equal(r.listas[0].cores, 'UR');
+  assert.deepEqual(r.porFormato.map(f => [f.formato, f.listas]), [['Pauper', 7], ['Modern', 0], ['Standard', 0], ['Pioneer', 0], ['Legacy', 0], ['EDH', 0]]);
+  // publicação: as de torneio entram no índice com a fonte; as de mais de 60 dias saem
+  const pasta = await mkdtemp(join(tmpdir(), 'catalogo-td-'));
+  try {
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([{ id: 'topdeck-velha-1', nome: 'Velha', formato: 'pauper', fonte: 'topdeck', data: '2026-01-01' }], { agora: Date.UTC(2026, 9, 1) })));
+    const buscaTudo = async (url, op) => (url.includes('DeckList') ? { ok: true, status: 200, json: async () => ({ data: [] }) } : busca(url, op));
+    const p = await C.publica(pasta, { busca: buscaTudo, pausa: 0, agora: Date.UTC(2026, 9, 9), chaveTopdeck: 'chave-falsa' });
+    assert.equal(p.gravou, true); assert.equal(p.novasTd, 7);
+    assert.ok(!p.indice.listas.some(l => l.id === 'topdeck-velha-1'), 'a de janeiro saiu');
+    assert.deepEqual(p.indice.fontes.map(f => f.id), ['mtgjson', 'topdeck']); assert.equal(p.indice.listas[0].jogador, 'Jogador 1');
+    assert.ok(JSON.parse(await readFile(join(pasta, 'coleta.json'), 'utf8')).topdeck.length === 6);
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});

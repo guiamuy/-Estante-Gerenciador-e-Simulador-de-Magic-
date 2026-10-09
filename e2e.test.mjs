@@ -7927,8 +7927,10 @@ const CATALOGO_Z2 = (() => {
   const outros = [
     { id: 'mtgjson-brawl-1', nome: 'Historic Brawl Precon com um nome bem comprido para quebrar em duas linhas', formato: 'brawl', tipo: 'Historic Brawl Precon Deck', data: '2025-02-01', codigo: 'HB1', fonte: 'mtgjson', cores: 'G', destaque: 'Brawler', destaqueId: id(90), comandante: ['Brawler'], cartas: 100 },
     { id: 'mtgjson-desafio-1', nome: 'Pioneer Challenger Deck 2024', formato: 'construido', tipo: 'Pioneer Challenger Deck', data: '2024-03-01', codigo: 'PC4', fonte: 'mtgjson', cores: 'R', destaque: 'Big Rare', destaqueId: id(91), comandante: [], cartas: 60 },
-    { id: 'mtgjson-boas-1', nome: 'Welcome Deck 2017', formato: 'iniciante', tipo: 'Welcome Deck', data: '2017-04-28', codigo: 'W17', fonte: 'mtgjson', cores: 'U', destaque: 'Opt', destaqueId: null, comandante: [], cartas: 30 }];
-  return { versao: 1, geradoEm: '2026-10-09T00:00:00.000Z', fontes: [{ id: 'mtgjson', nome: 'MTGJSON', licenca: 'MIT' }], formatos: [], total: 37, pendentes: 0, listas: [...cmd, ...outros] };
+    { id: 'mtgjson-boas-1', nome: 'Welcome Deck 2017', formato: 'iniciante', tipo: 'Welcome Deck', data: '2017-04-28', codigo: 'W17', fonte: 'mtgjson', cores: 'U', destaque: 'Opt', destaqueId: null, comandante: [], cartas: 30 },
+    // Z5 · uma lista de torneio (TopDeck.gg)
+    { id: 'topdeck-copa-teste-1-1', nome: '1º · Copa Teste', formato: 'pauper', tipo: 'Torneio · 1º de 32', data: '2026-10-04', codigo: '', fonte: 'topdeck', cores: 'U', destaque: 'Delver of Secrets', destaqueId: id(92), comandante: [], cartas: 60, jogador: 'Fulana de Tal', posicao: 1, jogadores: 32, torneio: 'Copa Teste' }];
+  return { versao: 1, geradoEm: '2026-10-09T00:00:00.000Z', fontes: [{ id: 'mtgjson', nome: 'MTGJSON', licenca: 'MIT' }], formatos: [], total: 38, pendentes: 0, listas: [...cmd, ...outros] };
 })();
 async function rotaCatalogo(page, { falha = () => false } = {}) {
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
@@ -7951,10 +7953,11 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   cai = false; await page.click('#catalogo-de-novo'); await page.waitForSelector('#catalogo-lista');
   // 2 · seis formatos em grade de três, com 44 px
   const chips = await page.$$eval('#starter-formatos .ds-chip', cs => cs.map(c => [c.dataset.starterFormat, c.textContent.trim(), Math.round(c.getBoundingClientRect().height)]));
-  assert.deepEqual(chips.map(c => c[0]), ['all', 'pauper', 'commander', 'brawl', 'construido', 'iniciante']); assert.ok(chips.every(c => c[2] >= 44), JSON.stringify(chips));
+  // Z5 (leva G-230) · os formatos de torneio entraram: dez formatos, ainda em grade de três
+  assert.deepEqual(chips.map(c => c[0]), ['all', 'pauper', 'commander', 'modern', 'standard', 'pioneer', 'legacy', 'brawl', 'construido', 'iniciante']); assert.ok(chips.every(c => c[2] >= 44), JSON.stringify(chips));
   assert.equal(await page.$eval('#starter-formatos', el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 3);
   // 3 · o cartão: arte, nome, cores, formato, contagem e comandante; 30 por vez, da mais nova
-  assert.match(await page.innerText('#catalogo-conta'), /37 listas, da mais nova à mais antiga/);
+  assert.match(await page.innerText('#catalogo-conta'), /38 listas, da mais nova à mais antiga/);
   assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 30);
   const c1 = page.locator('#catalogo-lista .cat-item').first();
   assert.equal(await c1.locator('.cat-item__nome').innerText(), 'Calling All Angels');
@@ -7962,7 +7965,11 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   assert.match(await c1.locator('.cat-item__meta').innerText(), /Commander\s*100/);
   assert.equal(await c1.locator('.cat-item__arte img').getAttribute('src'), 'https://cards.scryfall.io/small/front/0/0/00000001-0000-4000-8000-000000000000.jpg');
   assert.ok((await c1.locator('.deck-item__add').boundingBox()).height >= 44);
-  await page.click('#catalogo-mais'); assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 37);
+  await page.click('#catalogo-mais'); assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 38);
+  // Z5 · lista de torneio: quem jogou e quando, e o crédito da TopDeck.gg com link
+  assert.equal(await page.innerText('.cat-item[data-id="topdeck-copa-teste-1-1"] .cat-item__sub'), 'Fulana de Tal · 04/10/2026');
+  assert.match(await page.innerText('#catalogo-credito'), /Listas de torneio: dados fornecidos por TopDeck\.gg\./);
+  assert.equal(await page.getAttribute('#catalogo-credito a', 'href'), 'https://topdeck.gg');
   assert.match(await page.innerText('#catalogo-fonte'), /Fonte: MTGJSON \(licença MIT\) · atualizado em \d{2}\/\d{2}\/\d{4}/);
   await page.waitForFunction(() => [...document.querySelectorAll('#catalogo-lista .cat-item__arte img')].slice(0, 3).every(i => i.complete && i.naturalWidth > 0));
   await auditaTela(page, 'listas prontas com o catálogo');
@@ -7971,8 +7978,11 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   await page.click('[data-starter-format="brawl"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
   assert.equal(await page.locator('#starter-list').count(), 0);
   assert.ok(await page.$eval('#catalogo-lista .cat-item__nome', el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).lineHeight) * 2 + 1), 'nome em no máximo duas linhas');
-  await page.click('[data-starter-format="pauper"]'); await page.waitForSelector('#catalogo-recorte-vazio');
-  assert.match(await page.innerText('#catalogo-recorte-vazio'), /não há Pauper entre elas/); assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7);
+  // Z5 · Pauper: as sete da Estante e a de torneio do catálogo
+  await page.click('[data-starter-format="pauper"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
+  assert.equal(await page.locator('#catalogo-lista .cat-item[data-id="topdeck-copa-teste-1-1"]').count(), 1); assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7);
+  await page.click('[data-starter-format="pioneer"]'); await page.waitForSelector('#catalogo-recorte-vazio');
+  assert.match(await page.innerText('#catalogo-recorte-vazio'), /Nenhuma lista de Pioneer no catálogo agora/);
   await page.click('[data-starter-format="commander"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 30);
   assert.equal(await page.locator('#starter-list .ds-list__item').count(), 2);
   // 5 · busca
@@ -8048,6 +8058,11 @@ test('e2e · Z3 detalhe da lista do catálogo: o cartão abre a lista com arte, 
   await page.click('#catd-adicionar'); await page.waitForSelector('#catd-abrir');
   assert.match(await page.innerText('#ds-toast'), /Calling All Angels está na sua estante/);
   await page.click('#catd-abrir'); await page.waitForSelector('.deck-summary'); assert.match(page.url(), /#\/lista\?id=/);
+  // Z5 · lista de torneio: o crédito da TopDeck.gg com link no lugar da fonte
+  await page.goto(base + '#/listas/catalogo?id=topdeck-copa-teste-1-1'); await page.waitForSelector('#catd-visoes'); // a visão lembrada é a galeria
+  assert.equal(await page.innerText('#catd-nome'), '1º · Copa Teste');
+  assert.equal(await page.getAttribute('#catd-fonte a', 'href'), 'https://topdeck.gg'); assert.ok((await page.locator('#catd-fonte a').boundingBox()).height >= 44);
+  await auditaTela(page, 'catálogo · detalhe de torneio');
   // 7 · lista que não existe
   await page.goto(base + '#/listas/catalogo?id=mtgjson-nao-existe'); await page.waitForSelector('#catd-ausente');
   assert.deepEqual(errors.filter(e => !/404/.test(e)), []);

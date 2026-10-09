@@ -481,7 +481,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cl ✅ | Z2 catálogo por formato em Listas prontas: oficiais da Wizards com arte, cores, busca, lotes e + para a estante (leva G-227) | Z | 1 | teste no aparelho |
 | 16º-cm ✅ | Z3 detalhe da lista do catálogo: cabeça, três visões lembradas, folha da carta, estatísticas, Adicionar/Abrir (leva G-228) | Z | 1 | teste no aparelho |
 | 16º-cn ✅ | Z4 Jogar a partir do catálogo: entra na estante uma vez e abre o preparo com a lista (leva G-229) | Z | 1 | teste no aparelho |
-| 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
+| 16º-ck ✅ | Z5 listas de torneio (TopDeck.gg): oito primeiras dos torneios recentes por formato, crédito com link (leva G-230) | Z | 1 | teste no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6516,11 +6516,27 @@ segredo do repositório. O `main` não recebe commit do coletor.
   dados e as imagens (pequena e normal) de toda lista salva quando há rede.
 - **Testes:** e2e "Z4" (dois botões lado a lado com um primário, Jogar importa e abre o preparo com a lista, de novo não
   duplica, frase de guardada).
-**Z5 · Listas de torneio (TopDeck.gg)** ⛔ — evento, colocação e jogador, com o crédito visível; depende da chave.
-  - **Como liberar (dono do produto):** (1) criar conta em topdeck.gg ("Sign up"); (2) logado, abrir
-    topdeck.gg/developers e criar a chave (gratuita); (3) no GitHub do repositório: Settings › Secrets and variables ›
-    Actions › New repository secret, nome `TOPDECK_KEY`, valor a chave. A chave nunca vai para o app nem para a conversa:
-    só o coletor no GitHub Actions a usa. Exigência da TopDeck.gg: crédito visível com link ("Data provided by TopDeck.gg").
+**Z5 · Listas de torneio (TopDeck.gg)** ✅ (leva G-230, 09/10/2026)
+- **Valor:** as listas que estão ganhando, por formato, ao lado das oficiais.
+- **Entregue:**
+  - **coletor:** com a chave (segredo `TOPDECK_KEY`, configurado pelo dono em 09/10/2026), cada coleta pede à TopDeck.gg os
+    torneios dos **últimos 30 dias com 16 jogadores ou mais** em **Pauper, Modern, Standard, Pioneer, Legacy e EDH**, e
+    publica as **oito primeiras** dos dez torneios mais recentes de cada formato: nome "1º · Torneio", tipo "Torneio · 1º
+    de 26", data, jogador, campanha, descrição ("1º lugar entre 26 jogadores em … (cidade), em 04/10/2026. Lista de …") e
+    as cartas (da lista estruturada ou do texto; lista só por link fica de fora; metadado não vira carta). **Cores e carta
+    de destaque** vêm da Scryfall (a TopDeck.gg só dá os nomes). Listas de torneio ficam **60 dias**; limite de pedidos
+    (429) espera e tenta de novo; `coleta.json` no ramo diz o que cada formato trouxe;
+  - **app:** dez formatos na grade (Todas, Pauper, Commander, Modern, Standard, Pioneer, Legacy, Brawl, Desafio, Iniciante —
+    "Construído" virou **Desafio**, que é o que os decks de desafio são); o cartão de torneio mostra **quem jogou e
+    quando**; a busca acha jogador e torneio; **crédito exigido pela TopDeck.gg** visível com link no catálogo e no
+    detalhe; Pauper salva como Pauper (a estante valida), os outros como Livre.
+- **Primeira coleta (sonda de 09/10/2026):** Pauper 39, Legacy 24, Modern 8; Standard 1 torneio sem lista pública; Pioneer
+  sem torneio no período; EDH bateu no limite de pedidos (agora com nova tentativa).
+- **Limites declarados:** muitos torneios não publicam a lista (o organizador escolhe); sem ranking de presença no metagame
+  (escopo negativo) — a colocação é a do torneio, não do formato.
+- **Testes:** U `catalogo.unit` +1 (texto e estrutura, oito primeiras, cores e destaque, 429, retenção) e
+  `catalogo.tela.unit` +1; e2e Z2 e Z3 ampliados (cartão de torneio, crédito com link, Pauper com a de torneio, formato
+  vazio).
 
 ### P · Plataforma
 
