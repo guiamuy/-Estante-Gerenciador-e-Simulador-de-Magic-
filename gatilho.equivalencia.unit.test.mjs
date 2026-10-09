@@ -134,8 +134,9 @@ test('M-231 · R2a · descritor de zona aparece em português no registro', () =
 // ── M-232 · CR2-G R2b · os outros eventos no mesmo formato: começo de passo e o que acontece com um objeto (conjurar, atacar,
 // bloquear, dano de combate). Mesma prova: modo sombra com o caminho antigo (queueTriggersLegado).
 const HOSPEDES = ['Lunarch Veteran', 'Thraben Inspector'];
+const NOMES_R2B = ['upkeep', 'each-upkeep', 'begin-combat', 'end-step', 'main2', 'end-of-combat', 'cast-self', 'other-cast', 'attacks', 'blocks', 'combat-damage'];
 function mesaDeEventos() {
-  const EV = Object.keys(S.GATILHO_EVENTO);
+  const EV = NOMES_R2B;
   const nomes = Object.entries(S.SCRIPTS).filter(([n, sc]) => CARTAS[n] && (sc.cumulativeUpkeep || (sc.abilities || []).some(ab => ab.kind === 'triggered' && EV.includes(ab.when)))).map(([n]) => n);
   let s = mesa([...nomes, ...HOSPEDES], [...nomes, ...HOSPEDES], 5);
   for (const p of [0, 1]) for (const n of [...nomes, ...HOSPEDES]) { try { [s] = poe(s, p, n); } catch { /* sem cópia */ } }
@@ -162,7 +163,8 @@ test('M-232 · R2b · matriz de eventos: começo de cada passo com cada jogador 
   try { rodaEventos(s); } catch (e) { E.sombraDosGatilhos(false); throw e; }
   const r = E.sombraDosGatilhos(false);
   assert.deepEqual(J(r.diferencas), [], 'diferença entre o caminho novo e o antigo');
-  for (const k of Object.keys(S.GATILHO_EVENTO)) assert.ok(r.porGatilho[k] > 0, `o atalho "${k}" não disparou nenhuma vez: ${JSON.stringify(r.porGatilho)}`);
+  // os 11 nomes da R2b (a tabela cresceu na M-233 com os de descarte, compra, dano, marcadores e sacrifício, cobertos pela matriz própria)
+  for (const k of NOMES_R2B) assert.ok(r.porGatilho[k] > 0, `o atalho "${k}" não disparou nenhuma vez: ${JSON.stringify(r.porGatilho)}`);
   assert.ok(r.total > 150 && r.comFila > 60, `amostra pequena (${r.total}/${r.comFila})`);
 });
 
@@ -230,4 +232,102 @@ test('M-232 · R2b · descritores de passo e de objeto: validador e português',
   assert.equal(S.descreveGatilho({ evento: 'ataca', objeto: 'outra' }), 'quando outra criatura sua ataca');
   assert.equal(S.descreveGatilho({ evento: 'conjurar', objeto: 'outra', quem: 'oponente' }), 'quando um oponente conjura uma mágica');
   assert.equal(S.descreveGatilho({ evento: 'dano-combate', objeto: 'self' }), 'quando causa dano de combate a um jogador');
+});
+
+// ── M-233 · CR2-G R2c · os oito últimos nomes: descartar, comprar (n-ésima), sacrificar outra, receber marcadores, receber dano,
+// causar dano (a quem), virar — e a Aura que observa a anexada. Mesma prova por sombra.
+const NOMES_R2C = ['you-discard', 'third-draw', 'other-sacrificed', 'counters-added', 'dealt-damage', 'enchanted-deals-damage', 'enchanted-damages-opponent', 'enchanted-tapped-or-damaged'];
+function mesaR2c() {
+  const nomes = Object.entries(S.SCRIPTS).filter(([n, sc]) => CARTAS[n] && (sc.abilities || []).some(ab => ab.kind === 'triggered' && NOMES_R2C.includes(ab.when))).map(([n]) => n);
+  let s = mesa([...nomes, ...HOSPEDES], [...nomes, ...HOSPEDES], 9);
+  for (const p of [0, 1]) for (const n of [...nomes, ...HOSPEDES]) { try { [s] = poe(s, p, n); } catch { /* sem cópia */ } }
+  for (const p of [0, 1]) { try { [s] = poe(s, p, 'Sneaky Snacker', 'graveyard'); } catch { /* sem cópia */ } }
+  s = J(s);
+  for (const p of [0, 1]) {
+    const bf = s.zones[p].battlefield.map(o => s.objects[o]);
+    const criaturas = bf.filter(o => s.facts[o.name].types.includes('creature'));
+    bf.filter(o => /Aura/.test(CARTAS[o.name].type_line)).forEach((o, i) => { o.attachedTo = criaturas[i % criaturas.length].oid; });
+  }
+  const g = (when, extra = {}) => ({ kind: 'triggered', when, ...extra, effects: [{ do: 'gain', amount: 1 }] });
+  s.facts[HOSPEDES[0]] = { ...s.facts[HOSPEDES[0]], script: { name: HOSPEDES[0], effects: [], abilities: [
+    g('you-discard', { optional: true }), g('other-sacrificed', { filter: { types: ['creature'] } }), g('counters-added'), g('dealt-damage', { optional: true }), g('third-draw')] } };
+  s.facts[HOSPEDES[1]] = { ...s.facts[HOSPEDES[1]], script: { name: HOSPEDES[1], effects: [], abilities: [
+    g('third-draw', { fromGraveyard: true }), g('other-sacrificed'), g('you-discard'), g('dealt-damage')] } };
+  return s;
+}
+function rodaR2c(s) {
+  for (const p of [0, 1]) { let x = J(s); E.noteDiscard(x, p); x = J(s); x.players[p].drawnThisTurn = 0; E.draw(x, p, 4); }
+  const todos = [0, 1].flatMap(p => s.zones[p].battlefield);
+  for (const oid of todos) {
+    for (const a of [null, 0, 1]) { const x = J(s); E.noteEnchantedDealt(x, x.objects[oid], 2, a); }
+    for (const f of [x => E.noteDamaged(x, x.objects[oid]), x => E.noteEnchantedEvent(x, x.objects[oid]), x => E.noteEnchantedEvent(x, x.objects[oid], 'recebe-dano'),
+      x => E.addCounters(x, x.objects[oid], 1), x => E.sacrifice(x, oid, [])]) f(J(s));
+  }
+}
+
+test('M-233 · R2c · matriz dos oito últimos nomes: descarte e compras de cada jogador; dano causado (sem jogador, a cada jogador), dano recebido, virar, marcadores e sacrifício de cada permanente — a mesma fila pelos dois caminhos', () => {
+  const s = mesaR2c();
+  E.sombraDosGatilhos(true);
+  try { rodaR2c(s); } catch (e) { E.sombraDosGatilhos(false); throw e; }
+  const r = E.sombraDosGatilhos(false);
+  assert.deepEqual(J(r.diferencas), [], 'diferença entre o caminho novo e o antigo');
+  for (const k of NOMES_R2C) assert.ok(r.porGatilho[k] > 0, `o atalho "${k}" não disparou nenhuma vez: ${JSON.stringify(r.porGatilho)}`);
+});
+
+test('M-233 · R2c · a comparação pega divergência: "a criatura encantada causa dano a um oponente" trocado por "a qualquer um" muda a fila', () => {
+  const antes = S.GATILHO_EVENTO['enchanted-damages-opponent']; let r;
+  try { S.GATILHO_EVENTO['enchanted-damages-opponent'] = { evento: 'causa-dano', objeto: 'anexada' }; E.sombraDosGatilhos(true); rodaR2c(mesaR2c()); }
+  finally { S.GATILHO_EVENTO['enchanted-damages-opponent'] = antes; r = E.sombraDosGatilhos(false); }
+  assert.ok(r.diferencas.length > 0, 'o modo sombra não viu a troca');
+});
+
+test('M-233 · R2c · descritores novos: "sempre que um oponente descarta", "quando você compra a segunda carta do turno", "sempre que um oponente sacrifica", "quando esta criatura causa dano a um jogador" e "quando vira"', () => {
+  let s = mesaR2c();
+  const host = s.zones[0].battlefield.find(o => s.objects[o].name === HOSPEDES[0]);
+  const g = (when, amount) => ({ kind: 'triggered', when, effects: [{ do: 'gain', amount }] });
+  s.facts[HOSPEDES[0]] = { ...s.facts[HOSPEDES[0]], script: { name: HOSPEDES[0], effects: [], abilities: [
+    g({ evento: 'descarta', quem: 'oponente' }, 1), g({ evento: 'compra', n: 2 }, 2), g({ evento: 'sacrifica', objeto: 'outra', quem: 'oponente' }, 3),
+    g({ evento: 'causa-dano', objeto: 'self', a: 'jogador' }, 4), g({ evento: 'vira' }, 5)] } };
+  const dele = x => J(x.queued.filter(q => q.source === host).map(q => [q.effects[0].amount, q.jogador ?? null]));
+  let x = J(s); E.noteDiscard(x, 1); assert.deepEqual(dele(x), [[1, 1]], 'B descartou: dispara, com "aquele jogador" = B');
+  x = J(s); E.noteDiscard(x, 0); assert.deepEqual(dele(x), [], 'A descartou: não');
+  x = J(s); x.players[0].drawnThisTurn = 0; E.draw(x, 0, 3); assert.deepEqual(dele(x), [[2, null]], 'só a segunda compra de A');
+  x = J(s); x.players[1].drawnThisTurn = 0; E.draw(x, 1, 3); assert.deepEqual(dele(x), [], 'compra de B não ("você" é o padrão)');
+  const deB = s.zones[1].battlefield.find(o => s.objects[o].name === HOSPEDES[1]), deA = s.zones[0].battlefield.find(o => s.objects[o].name === HOSPEDES[1]);
+  x = J(s); E.sacrifice(x, deB, []); assert.deepEqual(dele(x), [[3, 1]], 'B sacrificou: dispara');
+  x = J(s); E.sacrifice(x, deA, []); assert.deepEqual(dele(x), [], 'A sacrificou: não');
+  x = J(s); E.noteEnchantedDealt(x, x.objects[host], 3, 1); assert.deepEqual(dele(x), [[4, null]], 'causou dano a um jogador');
+  assert.equal(x.queued.find(q => q.source === host).value, 3, 'o valor do dano viaja com o gatilho');
+  x = J(s); E.noteEnchantedDealt(x, x.objects[host], 3, null); assert.deepEqual(dele(x), [], 'dano em criatura: não');
+  x = J(s); E.noteEnchantedEvent(x, x.objects[host]); assert.deepEqual(dele(x), [[5, null]], 'virou');
+});
+
+test('M-233 · R2c · "quando você compra a segunda carta" na partida de verdade: dispara no passo de compra seguido de outra compra, e não antes', () => {
+  let s = jogo({ lista: 'Pauper Mono Blue Faeries', oponente: 'Pauper Elves', seed: 8 }), obs;
+  [s, obs] = poe(s, 0, 'Faerie Seer');
+  s = J(s);
+  s.facts['Faerie Seer'] = { ...s.facts['Faerie Seer'], script: { name: 'Faerie Seer', effects: [], abilities: [{ kind: 'triggered', when: { evento: 'compra', n: 2 }, effects: [{ do: 'gain', amount: 2 }] }] } };
+  s.players[0].drawnThisTurn = 0;
+  let x = J(s); E.draw(x, 0, 1); assert.equal(x.queued.length, 0, 'primeira compra: nada');
+  E.draw(x, 0, 1); assert.equal(x.queued.filter(q => q.source === obs).length, 1, 'segunda compra: dispara');
+  const vida = x.players[0].life; x = passaAte(x, y => !y.queued.length && !y.stack.length && !y.pending || y.turn.active !== 0);
+  assert.equal(x.players[0].life, vida + 2);
+});
+
+test('M-233 · R2c · validador e português dos descritores de jogador, dano, marcadores, virar e sacrifício', () => {
+  const erros = w => J(S.validateScript({ name: 'Teste', abilities: [{ kind: 'triggered', when: w, effects: [{ do: 'gain', amount: 1 }] }] })).filter(e => /gatilho|objeto|quem|"n"|"a"|eventos/.test(e));
+  assert.deepEqual(erros({ evento: 'descarta', quem: 'qualquer' }), []);
+  assert.deepEqual(erros({ evento: ['vira', 'recebe-dano'], objeto: 'anexada' }), []);
+  assert.ok(erros({ evento: 'compra' }).some(e => /"n"/.test(e)), 'compra sem n');
+  assert.ok(erros({ evento: 'causa-dano', a: 'criatura' }).some(e => /"a" precisa/.test(e)));
+  assert.ok(erros({ evento: 'sacrifica', objeto: 'self' }).some(e => /objeto "self"/.test(e)), 'sacrifício é de outra');
+  assert.ok(erros({ evento: ['vira', 'descarta'] }).some(e => /só aceita eventos de objeto/.test(e)));
+  assert.ok(erros({ evento: ['vira', 'ataca'], objeto: 'anexada' }).some(e => /mesma família/.test(e)));
+  assert.ok(erros({ evento: 'descarta', objeto: 'self' }).some(e => /chave "objeto"/.test(e)));
+  assert.equal(S.descreveGatilho({ evento: 'descarta', quem: 'oponente' }), 'quando um oponente descarta uma carta');
+  assert.equal(S.descreveGatilho({ evento: 'compra', n: 2 }), 'quando você compra a segunda carta do turno');
+  assert.equal(S.descreveGatilho({ evento: 'sacrifica', objeto: 'outra', quem: 'qualquer' }), 'quando um jogador sacrifica outra permanente');
+  assert.equal(S.descreveGatilho({ evento: 'causa-dano', a: 'jogador' }), 'quando causa dano a um jogador');
+  assert.equal(S.descreveGatilho({ evento: ['vira', 'recebe-dano'], objeto: 'anexada' }), 'quando a criatura encantada vira ou recebe dano');
+  assert.equal(S.descreveGatilho({ evento: 'passo', passo: 'combat_end', turno: 'qualquer' }), 'no fim do combate de cada turno');
 });

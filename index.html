@@ -5309,7 +5309,14 @@ const GATILHO_ZONA = {
  * seu/qualquer/oponente) e o que acontece com um objeto — conjurar, atacar, bloquear, causar dano de combate a um
  * jogador —, dela mesma ou de outra (com `quem`/`donoVoce`, como no evento de zona). */
 const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_end', 'main2', 'end'];
-const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate'];
+/* CR2-G R2c · os oito últimos nomes: descartar e comprar (de um jogador), sacrificar outra, receber marcadores, receber dano,
+ * causar dano (`a`: qualquer/jogador/oponente) e virar — com a Aura ou o Equipamento observando a permanente anexada. */
+const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica'];
+const EVENTOS_DE_JOGADOR = ['descarta', 'compra'];
+/** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
+const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra'], bloqueia: ['self', 'outra'],
+  'dano-combate': ['self', 'outra'], marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
+  vira: ['self', 'anexada'], sacrifica: ['outra'] };
 const GATILHO_EVENTO = {
   upkeep: { evento: 'passo', passo: 'upkeep', turno: 'seu' },
   'each-upkeep': { evento: 'passo', passo: 'upkeep', turno: 'qualquer' },
@@ -5322,19 +5329,43 @@ const GATILHO_EVENTO = {
   attacks: { evento: 'ataca', objeto: 'self' },
   blocks: { evento: 'bloqueia', objeto: 'self' },
   'combat-damage': { evento: 'dano-combate', objeto: 'self' },
+  'you-discard': { evento: 'descarta', quem: 'voce' },
+  'third-draw': { evento: 'compra', n: 3, quem: 'voce' },
+  'other-sacrificed': { evento: 'sacrifica', objeto: 'outra', quem: 'voce' },
+  'counters-added': { evento: 'marcadores', objeto: 'self' },
+  'dealt-damage': { evento: 'recebe-dano', objeto: 'self' },
+  'enchanted-deals-damage': { evento: 'causa-dano', objeto: 'anexada' },
+  'enchanted-damages-opponent': { evento: 'causa-dano', objeto: 'anexada', a: 'oponente' },
+  'enchanted-tapped-or-damaged': { evento: ['vira', 'recebe-dano'], objeto: 'anexada' },
 };
 /** O descritor de um gatilho (nome antigo ou descritor escrito no script); null se o nome ainda não tem descritor. */
+const EVENTO_CONHECIDO = e => e === 'zona' || e === 'passo' || EVENTOS_DE_OBJETO.includes(e) || EVENTOS_DE_JOGADOR.includes(e);
 const gatilhoDoEvento = w => typeof w === 'string' ? (GATILHO_ZONA[w] || GATILHO_EVENTO[w] || null)
-  : (w && typeof w === 'object' && (w.evento === 'zona' || w.evento === 'passo' || EVENTOS_DE_OBJETO.includes(w.evento)) ? w : null);
+  : (w && typeof w === 'object' && (Array.isArray(w.evento) ? w.evento.length > 0 && w.evento.every(e => EVENTOS_DE_OBJETO.includes(e)) : EVENTO_CONHECIDO(w.evento)) ? w : null);
+/** CR2-G R2c · o descritor fala deste evento? (`evento` pode ser uma lista: "vira ou recebe dano") */
+const falaDe = (d, evento) => !!d && (Array.isArray(d.evento) ? d.evento.includes(evento) : d.evento === evento);
 /** O descritor de zona de um gatilho; null se não for de zona. */
 const gatilhoDeZona = w => { const d = gatilhoDoEvento(w); return d && d.evento === 'zona' ? d : null; };
-const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'] };
-for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = ['evento', 'objeto', 'quem', 'donoVoce'];
+const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'],
+  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
+for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = CHAVES_DO_EVENTO[e] || ['evento', 'objeto', 'quem', 'donoVoce'];
 function gatilhoErros(w, tag) {
   if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
+  if (Array.isArray(w && w.evento)) { // "vira ou recebe dano": eventos de objeto com as mesmas chaves e os mesmos observadores
+    const evs = w.evento;
+    if (!evs.length || !evs.every(e => EVENTOS_DE_OBJETO.includes(e))) return [`${tag}: lista de eventos só aceita eventos de objeto`];
+    if (!evs.every(e => JSON.stringify(CHAVES_DO_EVENTO[e]) === JSON.stringify(CHAVES_DO_EVENTO[evs[0]]) && JSON.stringify(OBJETOS_DO_EVENTO[e]) === JSON.stringify(OBJETOS_DO_EVENTO[evs[0]]))) return [`${tag}: eventos da lista precisam ser da mesma família`];
+    return gatilhoErros({ ...w, evento: evs[0] }, tag);
+  }
   if (!w || typeof w !== 'object' || !CHAVES_DO_EVENTO[w.evento]) return [`${tag}: gatilho desconhecido${w && w.evento ? ` (evento "${w.evento}")` : ''}`];
   const errs = [], lista = v => [].concat(v);
   for (const k of Object.keys(w)) if (!CHAVES_DO_EVENTO[w.evento].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida no gatilho de ${w.evento}`);
+  if (EVENTOS_DE_JOGADOR.includes(w.evento)) { // de um jogador: `quem` é quem descarta/compra, relativo a você
+    if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`);
+    if (w.evento === 'compra' && !(Number.isInteger(w.n) && w.n >= 1)) errs.push(`${tag}: "n" (qual compra do turno) precisa ser inteiro a partir de 1`);
+    return errs;
+  }
+  if (w.evento === 'causa-dano' && w.a != null && !['qualquer', 'jogador', 'oponente'].includes(w.a)) errs.push(`${tag}: "a" precisa ser qualquer, jogador ou oponente`);
   if (w.evento === 'passo') {
     if (!PASSOS_DO_GATILHO.includes(w.passo)) errs.push(`${tag}: passo "${w.passo}" desconhecido no gatilho`);
     if (w.turno != null && !['seu', 'qualquer', 'oponente'].includes(w.turno)) errs.push(`${tag}: "turno" precisa ser seu, qualquer ou oponente`);
@@ -5344,14 +5375,15 @@ function gatilhoErros(w, tag) {
     for (const k of ['de', 'para']) if (w[k] != null && !(lista(w[k]).length && lista(w[k]).every(z => ZONAS_DO_GATILHO.includes(z)))) errs.push(`${tag}: zona "${w[k]}" desconhecida no gatilho`);
     if (w.de == null && w.para == null) errs.push(`${tag}: gatilho de zona precisa de "de" ou "para"`);
   }
-  if (!(w.evento === 'zona' ? ['self', 'outra', 'anexada'] : ['self', 'outra']).includes(w.objeto || 'self')) errs.push(`${tag}: objeto "${w.objeto}" desconhecido no gatilho`);
+  if (!OBJETOS_DO_EVENTO[w.evento].includes(w.objeto || OBJETOS_DO_EVENTO[w.evento][0])) errs.push(`${tag}: objeto "${w.objeto}" desconhecido no gatilho de ${w.evento}`);
   if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`);
-  if ((w.quem != null || w.donoVoce) && w.objeto !== 'outra') errs.push(`${tag}: "quem" e "donoVoce" só valem para outra permanente`);
+  if ((w.quem != null || w.donoVoce) && (w.objeto || OBJETOS_DO_EVENTO[w.evento][0]) !== 'outra') errs.push(`${tag}: "quem" e "donoVoce" só valem para outra permanente`);
   return errs;
 }
 const ZONA_PT = { battlefield: 'o campo', graveyard: 'o cemitério', exile: 'o exílio', hand: 'a mão', library: 'o grimório' };
 const ZONA_DE_PT = { battlefield: 'do campo', graveyard: 'do cemitério', exile: 'do exílio', hand: 'da mão', library: 'do grimório' };
 /** O gatilho em português: nome antigo pela tabela; descritor montado das partes. */
+const ORDINAL_PT = { 1: 'primeira', 2: 'segunda', 3: 'terceira', 4: 'quarta', 5: 'quinta' };
 const PASSO_PT = { upkeep: ['manutenção', 'a'], draw: ['passo de compra', 'o'], main1: ['primeira fase principal', 'a'], combat_begin: ['combate', 'o'],
   combat_end: ['fim do combate', 'o'], main2: ['segunda fase principal', 'a'], end: ['passo final', 'o'] };
 function descreveGatilho(w) {
@@ -5359,12 +5391,22 @@ function descreveGatilho(w) {
   const ev = gatilhoDoEvento(w); if (!ev) return 'gatilho';
   if (ev.evento === 'passo') {
     const [nome, g] = PASSO_PT[ev.passo] || [ev.passo, 'o'], turno = ev.turno || 'seu';
+    if (ev.passo === 'combat_begin' || ev.passo === 'combat_end') { // o combate é do turno, não do jogador
+      const quando = ev.passo === 'combat_begin' ? 'no início do combate' : 'no fim do combate';
+      return turno === 'qualquer' ? `${quando} de cada turno` : turno === 'oponente' ? `${quando} no turno de cada oponente` : `${quando} no seu turno`;
+    }
     return turno === 'qualquer' ? `no início de cada ${nome}` : turno === 'oponente' ? `no início d${g} ${nome} de cada oponente` : `no início d${g} ${g === 'a' ? 'sua' : 'seu'} ${nome}`;
   }
   if (ev.evento !== 'zona') {
-    const verbo = { conjurar: 'conjura', ataca: 'ataca', bloqueia: 'bloqueia', 'dano-combate': 'causa dano de combate a um jogador' }[ev.evento];
-    if (ev.evento === 'conjurar') return ev.objeto !== 'outra' ? 'quando você conjura esta mágica'
-      : `quando ${ev.quem === 'oponente' ? 'um oponente' : ev.quem === 'qualquer' ? 'um jogador' : 'você'} conjura uma mágica`;
+    const jogador = ev.quem === 'oponente' ? 'um oponente' : ev.quem === 'qualquer' ? 'um jogador' : 'você';
+    if (ev.evento === 'descarta') return `quando ${jogador} descarta uma carta`;
+    if (ev.evento === 'compra') return `quando ${jogador} compra a ${ORDINAL_PT[ev.n] || ev.n + 'ª'} carta do turno`;
+    if (ev.evento === 'sacrifica') return `quando ${jogador} sacrifica ${ev.quem === 'oponente' ? 'uma' : 'outra'} permanente`;
+    if (ev.evento === 'conjurar') return ev.objeto !== 'outra' ? 'quando você conjura esta mágica' : `quando ${jogador} conjura uma mágica`;
+    const a = { jogador: ' a um jogador', oponente: ' a um oponente' }[ev.a] || '';
+    const verbo = [].concat(ev.evento).map(e => ({ ataca: 'ataca', bloqueia: 'bloqueia', 'dano-combate': 'causa dano de combate a um jogador', marcadores: 'recebe marcadores +1/+1',
+      'recebe-dano': 'recebe dano', 'causa-dano': 'causa dano' + a, vira: 'vira' })[e]).join(' ou ');
+    if (ev.objeto === 'anexada') return `quando a criatura encantada ${verbo}`;
     if (ev.objeto !== 'outra') return `quando ${verbo}`;
     return `quando ${ev.quem === 'qualquer' ? 'outra criatura' : ev.quem === 'oponente' ? 'uma criatura de um oponente' : 'outra criatura sua'} ${verbo}`;
   }
@@ -5508,7 +5550,7 @@ function validateScript(sc) {
   // S33 · afinidade e adaptar
   if (sc && sc.affinity && !FILTER_TYPES.includes(sc.affinity)) errs.push(`afinidade por "${sc.affinity}" desconhecida`);
   for (const ab of (sc && sc.abilities) || []) if (ab.adapt != null && !Number.isInteger(ab.adapt)) errs.push('adaptar precisa de um número inteiro');
-  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && ab.when !== 'third-draw') errs.push('gatilho do cemitério só vale para a terceira compra');
+  for (const ab of (sc && sc.abilities) || []) if (ab.kind === 'triggered' && ab.fromGraveyard && !falaDe(gatilhoDoEvento(ab.when), 'compra')) errs.push('gatilho do cemitério só vale para a terceira compra');
   if (sc && sc.entersTapped != null && typeof sc.entersTapped !== 'boolean') errs.push('entersTapped precisa ser verdadeiro ou falso');
   if (sc && sc.ninjutsu && !sc.ninjutsu.mana) errs.push('ninjutsu sem custo');
   if (sc && sc.madness && !sc.madness.mana) errs.push('insanidade sem custo');
@@ -6689,7 +6731,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -12903,7 +12945,8 @@ function draw(s, p, n = 1) {
     moveObject(s, lib[0], 'hand');
     s.players[p].drawnThisTurn = (s.players[p].drawnThisTurn || 0) + 1;
     // S33 · gatilhos que observam a terceira compra, inclusive do cemitério
-    if (s.players[p].drawnThisTurn === 3) queueZoneTriggers(s, p, 'third-draw');
+    const nCompra = s.players[p].drawnThisTurn; // CR2-G R2c · "a n-ésima compra do turno" (antes só a terceira)
+    naSombra(s, `compra ${p} #${nCompra}`, () => { if (nCompra === 3) queueZoneTriggers(s, p, 'third-draw'); }, () => gatilhosDeJogador(s, 'compra', p, nCompra));
   }
 }
 
@@ -13293,9 +13336,33 @@ function aplicaSenao(s, senao, events) {
   while (resto.length) { const eff = resto.shift(); applyEffect(s, src, eff, null, events); if (s.pending) { if (resto.length) s.resume = { oid: senao.source, name: senao.name, controller: senao.controller, effects: resto }; return; } }
 }
 /** CR2b.4 · "Whenever you discard a card": avisa as permanentes de quem descartou. */
-function noteDiscard(s, p) {
+function noteDiscardLegado(s, p) {
   for (const w of battlefield(s)) if (w.controller === p) for (const ab of abilitiesOf(s, w)) if (ab.kind === 'triggered' && ab.when === 'you-discard')
     s.queued.push({ source: w.oid, name: w.name, controller: p, effects: ab.effects, when: ab.when, ...(ab.optional ? { optional: true } : {}) });
+}
+/** CR2-G R2c · `quem` do evento de jogador: quem descarta/compra (p) em relação a quem controla o observador (c). */
+const quemCasa = (d, c, p) => { const q = d.quem || 'voce'; return q === 'qualquer' || (q === 'voce' ? c === p : c !== p); };
+const noteDiscard = (s, p) => naSombra(s, `descarta ${p}`, () => noteDiscardLegado(s, p), () => gatilhosDeJogador(s, 'descarta', p));
+/** CR2-G R2c · descartar e comprar: as permanentes (e, para a compra, as cartas do cemitério com fromGraveyard) de cada
+ * jogador, a começar por quem fez, com gatilho deste evento cujo `quem` casa. `n` = qual compra do turno. */
+function gatilhosDeJogador(s, evento, p, n) {
+  const ordem = [p, ...s.players.map((_, i) => i).filter(i => i !== p)];
+  for (const q of ordem) {
+    // descarte: o campo na ordem de sempre (battlefield), uma passada só; compra: cemitério e campo de cada jogador
+    if (evento === 'descarta' && q !== p) break;
+    const lugares = evento === 'compra' ? [...s.zones[q].graveyard, ...s.zones[q].battlefield] : battlefield(s).map(w => w.oid);
+    for (const oid of lugares) {
+      const w = s.objects[oid]; if (!w || isAbility(w) || !s.facts[w.name]) continue;
+      const c = w.zone === 'battlefield' ? w.controller : q;
+      for (const ab of abilitiesOf(s, w)) {
+        const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+        if (!SC.falaDe(d, evento) || (evento === 'compra' && d.n !== n) || !quemCasa(d, c, p)) continue;
+        if (w.zone === 'graveyard' && !ab.fromGraveyard) continue; // S33 · do cemitério só o que diz que funciona de lá
+        if (!triggerConditionMet(s, w, ab.condition)) continue;
+        s.queued.push({ source: w.oid, name: w.name, controller: c, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: p } : {}), ...marcasDaHabilidade(ab) });
+      }
+    }
+  }
 }
 function descartaCarta(s, oid) {
   const o = s.objects[oid]; const md = madnessOf(s, o);
@@ -13481,7 +13548,7 @@ function dealCombatDamage(s) {
       if (obj && (prevented(s, obj) || protegeDoDano(s, obj, src))) continue; // S11b · prevenção e proteção (Leva 106: Flaring Pain vale também para a proteção)
       if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) obj.damage += amt; noteDamaged(s, obj);
-      } else if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+      } else if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
         s.players[player].life -= amt;
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
@@ -13906,7 +13973,7 @@ function applyEffect(s, src, eff, tgt, events) {
         }
         if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protegeDoDano(s, obj, src)))) { ganhaVida(n); note({ amount: n, prevented: true }); break; }
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; }
-        if (obj && n > 0) { obj.damage += n; noteEnchantedEvent(s, obj); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
+        if (obj && n > 0) { obj.damage += n; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
         else s.players[playerOf()].life -= n;
         causouDano(s, src, n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
         note({ amount: n }); } break;
@@ -14513,7 +14580,7 @@ function causouDano(s, src, n, aJogador = null) {
   if (has(s, fonte, 'lifelink')) { const c = fonte.controller; s.players[c].life += n; s.players[c].lifeGained = (s.players[c].lifeGained || 0) + n; }
   if (fonte.zone === 'battlefield') noteEnchantedDealt(s, fonte, n, aJogador);
 }
-function noteEnchantedDealt(s, host, amount, aJogador = null) {
+function noteEnchantedDealtLegado(s, host, amount, aJogador = null) {
   if (!(amount > 0)) return;
   for (const x of attachedTo(s, host)) {
     for (const ab of abilitiesOf(s, x)) {
@@ -14524,11 +14591,11 @@ function noteEnchantedDealt(s, host, amount, aJogador = null) {
   }
 }
 /** CR2b.3 · "Whenever this creature is dealt damage": uma vez por instância de dano, mesmo letal. */
-function noteDamaged(s, o) {
+function noteDamagedLegado(s, o) {
   for (const ab of abilitiesOf(s, o)) if (ab.kind === 'triggered' && ab.when === 'dealt-damage')
     s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...(ab.optional ? { optional: true } : {}), ...(ab.mayPay ? { mayPay: ab.mayPay } : {}) });
 }
-function noteEnchantedEvent(s, host) {
+function noteEnchantedEventLegado(s, host) {
   for (const x of attachedTo(s, host)) {
     for (const ab of abilitiesOf(s, x)) {
       if (ab.kind !== 'triggered' || ab.when !== 'enchanted-tapped-or-damaged') continue;
@@ -14537,10 +14604,43 @@ function noteEnchantedEvent(s, host) {
   }
 }
 
+/** CR2-G R2c · despachante dos eventos que a própria permanente e quem está anexado a ela observam (causar dano, receber
+ * dano, virar, receber marcadores). Ordem: [anexada, self] ou [self, anexada], como era em cada caminho antigo; depois
+ * os de "outra". `dados` vai junto na fila (valor do dano; a hospedeira no momento do disparo). */
+function gatilhosDaPermanente(s, evento, o, ordem, dados = {}, casa = () => true, outra = true) {
+  if (!o || isAbility(o) || !s.facts[o.name]) return;
+  for (const rel of ordem) {
+    if (rel === 'self') for (const ab of abilitiesOf(s, o)) {
+      const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+      if (!SC.falaDe(d, evento) || (d.objeto || 'self') !== 'self' || !casa(d, o.controller)) continue;
+      if (!triggerConditionMet(s, o, ab.condition)) continue;
+      s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: ab.when, ...(dados.value != null ? { value: dados.value } : {}), ...marcasDaHabilidade(ab) });
+    }
+    if (rel === 'anexada') for (const x of attachedTo(s, o)) for (const ab of abilitiesOf(s, x)) {
+      const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+      if (!SC.falaDe(d, evento) || d.objeto !== 'anexada' || !casa(d, x.controller)) continue;
+      if (!triggerConditionMet(s, x, ab.condition)) continue;
+      s.queued.push({ source: x.oid, name: x.name, controller: x.controller, effects: ab.effects, when: ab.when, ...(dados.value != null ? { value: dados.value } : {}), ...(dados.host ? { host: o.oid } : {}), ...marcasDaHabilidade(ab) });
+    }
+  }
+  if (outra) quemObserva(s, o, o.controller, battlefield(s), d => SC.falaDe(d, evento) && casa(d, o.controller), false);
+}
+/** "a um oponente" é oponente de quem controla o gatilho, e só dano em jogador (Curiosity); "a um jogador", só em jogador. */
+const casaDanoA = aJogador => (d, c) => !d.a || d.a === 'qualquer' || (aJogador != null && (d.a === 'jogador' || aJogador !== c));
+const noteEnchantedDealt = (s, host, amount, aJogador = null) => naSombra(s, `causa dano ${host && host.name}`, () => noteEnchantedDealtLegado(s, host, amount, aJogador),
+  () => { if (amount > 0) gatilhosDaPermanente(s, 'causa-dano', host, ['anexada', 'self'], { value: amount }, casaDanoA(aJogador)); });
+const noteDamaged = (s, o) => naSombra(s, `recebe dano ${o.name}`, () => noteDamagedLegado(s, o), () => gatilhosDaPermanente(s, 'recebe-dano', o, ['self']));
+/** `evento`: 'vira' (padrão) ou 'recebe-dano' — o caminho antigo não distinguia; a Aura de "vira ou recebe dano" fala dos dois. */
+const noteEnchantedEvent = (s, host, evento = 'vira') => naSombra(s, `${evento} ${host.name}`, () => noteEnchantedEventLegado(s, host),
+  // no dano, os dela e os de "outra" vêm logo depois pelo noteDamaged (a ordem de antes: a Aura, depois ela)
+  () => gatilhosDaPermanente(s, evento, host, evento === 'vira' ? ['anexada', 'self'] : ['anexada'], { host: true }, undefined, evento === 'vira'));
 /** S33 · pôr marcadores +1/+1 avisa quem observa marcadores. */
 function addCounters(s, o, n) {
   if (n <= 0) return;
   o.counters.p1p1 = (o.counters.p1p1 || 0) + n;
+  naSombra(s, `marcadores ${o.name}`, () => addCountersLegado(s, o), () => gatilhosDaPermanente(s, 'marcadores', o, ['self']));
+}
+function addCountersLegado(s, o) {
   for (const ab of abilitiesOf(s, o)) {
     if (ab.kind !== 'triggered' || ab.when !== 'counters-added') continue;
     s.queued.push({ source: o.oid, name: o.name, controller: o.controller, effects: ab.effects, when: 'counters-added' });
@@ -14606,12 +14706,30 @@ function sacrifice(s, oid, events = []) {
   const o = s.objects[oid]; if (!o) return;
   const dono = o.controller;
   moveObject(s, oid, 'graveyard');
+  naSombra(s, `sacrifica ${o.name}`, () => sacrificeLegado(s, o, dono), () => gatilhosDoSacrificio(s, o, dono));
+}
+function sacrificeLegado(s, o, dono) {
+  const oid = o.oid;
   for (const w of battlefield(s)) {
     if (w.oid === oid || w.controller !== dono) continue;
     for (const ab of abilitiesOf(s, w)) {
       if (ab.kind !== 'triggered' || ab.when !== 'other-sacrificed') continue;
       if (!matchesTriggerFilter(s, o, ab.filter)) continue; // S46 · "outro Eldrazi", não qualquer permanente
       s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: 'other-sacrificed' });
+    }
+  }
+}
+/** CR2-G R2c · "sempre que você/um oponente/um jogador sacrifica outra permanente": `quem` é quem sacrificou (o controlador de
+ * antes), em relação a quem controla o observador; `filter` diz que permanente ("outro Eldrazi"). */
+function gatilhosDoSacrificio(s, o, dono) {
+  for (const w of battlefield(s)) {
+    if (w.oid === o.oid) continue;
+    for (const ab of abilitiesOf(s, w)) {
+      const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+      if (!SC.falaDe(d, 'sacrifica') || !quemCasa(d, w.controller, dono)) continue;
+      if (!matchesTriggerFilter(s, o, ab.filter)) continue;
+      if (!triggerConditionMet(s, w, ab.condition)) continue;
+      s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: dono } : {}), ...marcasDaHabilidade(ab) });
     }
   }
 }
@@ -16643,7 +16761,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
