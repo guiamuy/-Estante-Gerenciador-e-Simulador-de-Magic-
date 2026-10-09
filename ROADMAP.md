@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | M-228 atacar planeswalker (506.3, 508.1b, 510.1, 120.3c) e exigência "ataca se puder"; Kytheon completa (leva M-228, motor v95) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | Decisão 11: gramática escalável (CR2-G) antes de cartas, sem regressão; M-229 seletor único de objetos, os 35 nomes de alvo antigos viram atalhos com equivalência provada em partidas aleatórias (motor v95, sem mudança de comportamento) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2634,6 +2634,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 | 9 | Numeração das levas | Prefixo por trilha: `Leva M-206` | Feita nesta leva (Q13) |
 | 10a | Edição nova das regras | Atualizar a cada edição | Meia leva por edição |
 | 10b | Texto das regras | No repositório | `.regras/cr-2026-09-25.txt` |
+| 11 (08/10) | Escalabilidade | O motor passa a crescer por **gramática geral** (seletor, eventos, efeitos contínuos, verbos das ações-chave, substituição, durações), não por carta. **Nada que já funciona pode parar de funcionar**: cada peça migra o que existe sem mudar o resultado de nenhuma partida | Fase CR2-G abaixo; cartas das listas viram conferência, não motor do trabalho; decisão 7 fica suspensa durante a CR2-G |
 
 - **Divergências registradas (par técnico):** 3 e 6 juntas adiam todo teste real para o fim, e a homologação virá com bugs antigos e novos misturados; 10b republica num repositório público um texto que a Wizards distribui de graça — se virar problema, o arquivo sai para os documentos do Projeto sem outra mudança.
 - **Estimativa refeita:** de 160–220 para 185–255 levas (decisão 7, botão "Relatar" e meia leva do prefixo).
@@ -2910,6 +2911,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Para a trilha do bot:** o Shark sempre ataca o jogador (não mira planeswalker), mas cumpre a exigência do Gideon porque a mesa preenche o alvo.
 - **Golden:** regravadas (94 → 95); registros das quatro partidas iguais.
 - **Fora:** batalhas (310), "redirecionar" antigo (306.7).
+
+**CR2-G · Gramática escalável do motor** ▶ (decisão 11, 08/10/2026) — o motor deixa de crescer por carta. Seis peças, cada uma descrevendo milhares de cartas com poucas palavras, na ordem: **R1** seletor único de objetos · **R2** eventos uniformes para gatilhos (603) · **R3** efeitos contínuos num só caminho (613) · **R4** verbos das ações-chave compostos (701) e um avaliador de quantidades · **R5** substituição e prevenção (614–616) · **R6** durações genéricas. Depois, o leitor de texto (decisão 8). Estimativa: 12 a 18 levas sem carta nova.
+- **Regra de não regressão:** cada peça migra os scripts existentes para a forma nova, com a forma antiga virando atalho traduzido; as quatro partidas-referência passam **sem regravar** e um teste de equivalência compara o caminho antigo com o novo em partidas aleatórias com as listas reais. Só depois de estável o caminho antigo sai.
+- **Medida:** `node .regras/vocabulario.mjs` a cada leva — efeitos, gatilhos e nomes de alvo devem cair ou ficar estáveis; carta nova deve entrar só como dado. Linha de base (M-229): 294 scripts · 73 efeitos · 27 gatilhos · 24 palavras-chave · 51 nomes de alvo (35 já atalhos do seletor, 16 referências).
+
+**M-229 · R1a · Seletor único de objetos** 🟡 (leva M-229, motor v95, sem mudança de comportamento) — 4 testes novos.
+- **Seletor:** um alvo é descrito por zona (campo, cemitério, pilha, nenhuma), de quem é (`de`: you/opponent/any; `dono`), tipos e "sem tipos", subtipos, "outra", cor, "carta de permanente", jogadores, habilidades na pilha e "ou" entre seletores. Carta nova escreve o seletor direto no `target` (validado: o efeito precisa saber mirar objeto ou jogador) e a folha da carta o descreve em português.
+- **Migração sem mudar nada:** os 35 nomes de alvo que descrevem objetos ou jogadores viraram atalhos de seletor (`ALVO_SELETOR`) e a escolha de alvos passa toda pelo seletor. Prova: o teste de equivalência roda partidas aleatórias com as nove listas reais e, em cada estado amostrado, compara o caminho novo com o antigo para cada nome, jogador, fonte e cor — mesmos alvos, mesma ordem (mais de dez mil comparações por portão). O caminho antigo fica no motor só para essa comparação.
+- **Golden:** idênticas, sem regravar. Versão do motor não sobe (nenhum resultado muda).
+- **Próximo (R1b):** as 16 referências que sobram — varreduras `each-*` e "todas" (destruir/devolver/sacrificar todas) — passam a ser o mesmo seletor com quantificador "cada"; aí `destroy_all`, `reanimate_all` e `sacrifice_each` viram um verbo + seletor.
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

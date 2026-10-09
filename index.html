@@ -5175,6 +5175,54 @@ const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf'];
+/* ---------------- M-229 · R1 · seletor único de objetos (gramática escalável) ----------------
+   Um alvo é descrito por um seletor, não por um nome: zona, de quem é, tipos, subtipos, "outra", valor de mana, cor,
+   se inclui jogadores. Os nomes antigos continuam valendo e são atalhos para um seletor (ALVO_SELETOR); o teste de
+   equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
+   target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
+const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
+const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'subtipos', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'ou'];
+const ALVO_SELETOR = {
+  any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
+  creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
+  artifact: { tipos: ['artifact'] }, enchantment: { tipos: ['enchantment'] },
+  'artifact-enchantment': { tipos: ['artifact', 'enchantment'] }, 'artifact-creature': { tipos: ['artifact', 'creature'] },
+  land: { tipos: ['land'], subtipoDaAura: true }, 'land-you-control': { tipos: ['land'], de: 'you', subtipoDaAura: true },
+  'creature-blocked-by-source': { ref: 'bloqueada-pela-fonte' }, 'enchanted-creature': { ref: 'encantada-pela-fonte' },
+  'creature-opponent-controls': { tipos: ['creature'], de: 'opponent' }, 'permanent-opponent-controls': { de: 'opponent' },
+  'artifact-enchantment-opponent-controls': { tipos: ['artifact', 'enchantment'], de: 'opponent' },
+  'creature-you-control': { tipos: ['creature'], de: 'you' }, 'other-creature-you-control': { tipos: ['creature'], de: 'you', outra: true },
+  'creature-enchantment-you-control': { tipos: ['creature', 'enchantment'], de: 'you', tiposImpressos: true },
+  'permanent-you-control': { de: 'you' }, 'creature-or-planeswalker-you-control': { tipos: ['creature', 'planeswalker'], de: 'you' },
+  'permanent-you-own': { dono: 'you' },
+  'creature-card-in-graveyard': { zona: 'graveyard', tipos: ['creature'] }, 'card-in-any-graveyard': { zona: 'graveyard' },
+  'creature-land-in-any-graveyard': { zona: 'graveyard', tipos: ['creature', 'land'] },
+  'card-in-your-graveyard': { zona: 'graveyard', de: 'you' }, 'creature-in-your-graveyard': { zona: 'graveyard', de: 'you', tipos: ['creature'] },
+  'permanent-in-your-graveyard': { zona: 'graveyard', de: 'you', permanente: true },
+  player: { zona: 'nenhuma', jogadores: 'any' }, opponent: { zona: 'nenhuma', jogadores: 'opponent' },
+  'spell-or-ability': { zona: 'stack', habilidades: true }, 'spell-or-creature': { ou: [{ zona: 'stack' }, { tipos: ['creature'] }] },
+  spell: { zona: 'stack' }, 'creature-spell': { zona: 'stack', tipos: ['creature'] }, 'noncreature-spell': { zona: 'stack', semTipos: ['creature'] },
+  'instant-spell': { zona: 'stack', tipos: ['instant'] }, 'artifact-enchantment-spell': { zona: 'stack', tipos: ['artifact', 'enchantment'] },
+  'artifact-spell': { zona: 'stack', tipos: ['artifact'] },
+};
+const TIPOS_DE_CARTA = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'];
+/** Erros de um seletor escrito no script (lista vazia = válido). */
+function seletorErros(sel, label) {
+  const errs = [];
+  if (!sel || typeof sel !== 'object' || Array.isArray(sel)) return [`${label}: seletor precisa ser um objeto`];
+  for (const k of Object.keys(sel)) if (!SELETOR_CHAVES.includes(k)) errs.push(`${label}: chave "${k}" desconhecida no seletor`);
+  if (sel.ou) { if (!Array.isArray(sel.ou) || !sel.ou.length) errs.push(`${label}: "ou" precisa de uma lista de seletores`); else sel.ou.forEach((x, i) => errs.push(...seletorErros(x, `${label} ou ${i + 1}`))); }
+  if (sel.zona != null && !SELETOR_ZONAS.includes(sel.zona)) errs.push(`${label}: zona "${sel.zona}" desconhecida`);
+  for (const k of ['de', 'dono', 'jogadores']) if (sel[k] != null && !['you', 'opponent', 'any'].includes(sel[k])) errs.push(`${label}: "${k}" precisa ser you, opponent ou any`);
+  for (const k of ['tipos', 'semTipos']) for (const x of sel[k] || []) if (!TIPOS_DE_CARTA.includes(x)) errs.push(`${label}: tipo "${x}" desconhecido`);
+  for (const k of ['cor', 'semCor']) if (sel[k] != null && !'WUBRG'.includes(sel[k])) errs.push(`${label}: cor precisa ser WUBRG`);
+  if (sel.ref != null && !['bloqueada-pela-fonte', 'encantada-pela-fonte'].includes(sel.ref)) errs.push(`${label}: referência "${sel.ref}" desconhecida`);
+  return errs;
+}
+/** O seletor (já expandido dos atalhos) escolhe jogadores? E objetos? */
+const seletorDe = t => (t && typeof t === 'object') ? t : ALVO_SELETOR[t] || null;
+const selJogadores = sel => !!sel && (sel.ou ? sel.ou.some(selJogadores) : !!sel.jogadores);
+const selObjetos = sel => !!sel && (sel.ou ? sel.ou.some(selObjetos) : sel.zona !== 'nenhuma');
 const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature',
   'spell', 'spell-or-ability', 'spell-or-creature', 'creature-spell', 'noncreature-spell', 'instant-spell', 'artifact-enchantment-spell', 'artifact-spell', 'creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control', 'permanent-you-control', 'land', 'land-you-control',
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source', 'permanent-you-own', 'creature-card-in-graveyard']); // CR2d.4 · Animate Dead // Q11 · M-222 · "target permanent you own"
@@ -5460,6 +5508,13 @@ function effectErrors(effects, label, opcional) {
     // efeito com escolha interrompe a resolução: o que vem depois não pode ter alvo
     if (CHOICE_EFFECTS.includes(e.do) && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): efeito com alvo depois de uma escolha`);
     const t = e.target || 'self';
+    if (typeof t === 'object') { // M-229 · seletor: válido e compatível com o que o efeito sabe mirar (objeto e/ou jogador)
+      errs.push(...seletorErros(t, `${label} ${i + 1} (${e.do})`));
+      const aceita = (spec.targets || []).map(seletorDe).filter(Boolean);
+      if (selObjetos(t) && !aceita.some(selObjetos)) errs.push(`${label} ${i + 1} (${e.do}): este efeito não mira objetos`);
+      if (selJogadores(t) && !aceita.some(selJogadores)) errs.push(`${label} ${i + 1} (${e.do}): este efeito não mira jogadores`);
+      return;
+    }
     // S42 · "no mesmo alvo": reaproveita o alvo já escolhido por um efeito anterior
     if (t === 'first-target') {
       if (!effects.slice(0, i).some(isTargeted)) errs.push(`${label} ${i + 1} (${e.do}): "no mesmo alvo" precisa de um alvo escolhido antes`);
@@ -5493,7 +5548,7 @@ function exampleErrors(sc) {
   if (!Object.keys(ex.expect || {}).length) errs.push('cenário sem nada a verificar');
   return errs;
 }
-const isTargeted = e => TARGETED.has(e.target);
+const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target === 'object'); // M-229 · seletor escrito direto é alvo
 
 /** Biblioteca inicial: mágicas comuns de efeito direto, sem gatilho nem escolha
     além do alvo. Cada uma é exercitada pelos testes de cenário. */
@@ -6491,7 +6546,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, ALVO_SELETOR, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -13071,7 +13126,70 @@ function targetable(s, p, o, src) {
 }
 const isCreature = (s, o) => (o.faceDown || tiposDe(s, o).includes('creature')) && !o.bestowed; // CR2d.1 · camada 4
 /** Alvos legais para um tipo de alvo. Descritor: { oid } ou { player }. */
+/* ---------------- M-229 · R1 · seletor único: quem casa e quem é escolhido ---------------- */
+/** O objeto `o` tem algum dos tipos? No campo vale o tipo de agora (camadas); na pilha, Aura concedida não é criatura e
+ * virada para baixo é; nas outras zonas, o tipo impresso. */
+function selTemTipo(s, o, t, impressos) {
+  const f = s.facts[o.name] || {};
+  if (o.zone === 'battlefield') return t === 'creature' && !impressos ? isCreature(s, o) : tiposDe(s, o).includes(t);
+  if (o.zone === 'stack' && t === 'creature') return ((f.types || []).includes('creature') && !o.bestowed) || !!o.faceDown;
+  return (f.types || []).includes(t);
+}
+function selCasa(s, p, o, sel, selfOid) {
+  const f = s.facts[o.name] || {};
+  if (sel.de === 'you' && o.controller !== p) return false;
+  if (sel.de === 'opponent' && o.controller === p) return false;
+  if (sel.dono === 'you' && o.owner !== p) return false;
+  if (sel.dono === 'opponent' && o.owner === p) return false;
+  if (sel.outra && o.oid === selfOid) return false;
+  if ((sel.tipos || []).length && !sel.tipos.some(t => selTemTipo(s, o, t, sel.tiposImpressos))) return false;
+  if ((sel.semTipos || []).some(t => selTemTipo(s, o, t, sel.tiposImpressos))) return false;
+  if ((sel.subtipos || []).length && !(isChangeling(s, o) || sel.subtipos.some(x => new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))))) return false;
+  if (sel.permanente && !isPermanent(f)) return false;
+  if (sel.cor && !(f.colors || []).includes(sel.cor)) return false;
+  if (sel.semCor && (f.colors || []).includes(sel.semCor)) return false;
+  if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
+    const sub = selfOid && s.objects[selfOid] && s.facts[s.objects[selfOid].name] ? auraSubtype(s.facts[s.objects[selfOid].name]) : null;
+    if (sub && !new RegExp('\\b' + sub + '\\b', 'i').test(f.typeText || o.name)) return false;
+  }
+  return true;
+}
+/** Objetos e jogadores que o seletor escolhe, na ordem das zonas (objetos primeiro, jogadores depois). */
+function selecionar(s, p, sel, selfOid) {
+  if (sel.ou) return sel.ou.flatMap(x => selecionar(s, p, x, selfOid));
+  const out = [], srcObj = selfOid ? s.objects[selfOid] : null;
+  if (sel.ref === 'encantada-pela-fonte') { // S35 · a criatura que esta aura encanta
+    if (srcObj) { const host = srcObj.ability ? s.objects[s.objects[srcObj.source] ? s.objects[srcObj.source].attachedTo : null] : s.objects[srcObj.attachedTo];
+      if (host && host.zone === 'battlefield') out.push({ oid: host.oid }); }
+    return out;
+  }
+  if (sel.ref === 'bloqueada-pela-fonte') { // Q11 · Tinder Wall: a criatura que a fonte está bloqueando agora
+    const perm = srcObj && srcObj.ability ? s.objects[srcObj.source] : srcObj;
+    const bloqueada = (perm && perm.zone === 'battlefield' && perm.blocking) || (srcObj && srcObj.blockedAt) || null;
+    const alvo = bloqueada && s.objects[bloqueada]; if (alvo && alvo.zone === 'battlefield') out.push({ oid: alvo.oid });
+    return out;
+  }
+  const zona = sel.zona || 'battlefield';
+  if (zona === 'battlefield') { for (const o of battlefield(s)) if (targetable(s, p, o, srcObj) && selCasa(s, p, o, sel, selfOid)) out.push({ oid: o.oid }); }
+  else if (zona === 'graveyard') { // "your graveyard" é o cemitério do jogador; senão, todos, na ordem dos jogadores
+    const zs = sel.de === 'you' ? [s.zones[p]] : sel.de === 'opponent' ? s.zones.filter((_, i) => i !== p) : s.zones;
+    const semDe = { ...sel, de: null };
+    for (const z of zs) for (const oid of z.graveyard) if (selCasa(s, p, s.objects[oid], semDe, selfOid)) out.push({ oid });
+  } else if (zona === 'stack') {
+    for (const oid of s.stack) { const o = s.objects[oid]; if (oid === selfOid || (isAbility(o) && !sel.habilidades)) continue; if (isAbility(o) || selCasa(s, p, o, sel, selfOid)) out.push({ oid }); }
+  }
+  if (sel.jogadores) s.players.forEach((pl, i) => { if (!pl.lost && (sel.jogadores === 'any' || (sel.jogadores === 'opponent' ? i !== p : i === p))) out.push({ player: i }); });
+  return out;
+}
+/** Alvos legais: seletor escrito no script, ou nome antigo traduzido para seletor (ALVO_SELETOR); o que não tem
+ * tradução segue pelo caminho antigo (legalTargetsLegado), que fica até o teste de equivalência aposentá-lo. */
 function legalTargets(s, p, kind, selfOid, color) {
+  const sel = SC.seletorDe(kind);
+  if (!sel) return legalTargetsLegado(s, p, kind, selfOid, color);
+  const out = selecionar(s, p, sel, selfOid);
+  return color ? out.filter(x => { const o = x.oid != null ? s.objects[x.oid] : null; return o && ((s.facts[o.name] || {}).colors || []).includes(color); }) : out;
+}
+function legalTargetsLegado(s, p, kind, selfOid, color) {
   let out = [];
   const srcObj = selfOid ? s.objects[selfOid] : null;
   const perms = battlefield(s).filter(o => targetable(s, p, o, srcObj));
@@ -15883,7 +16001,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -18143,7 +18261,24 @@ const agrupaTerrenos = (s, oids, opts) => agrupaLeque(s, oids, opts);
 
 /* ---- A14 · a pilha explicada, em português de jogador ---- */
 /** E50 P6 · chave de alvo do script fora do dicionário vira português legível, nunca "permanent-you-control". */
+/** M-229 · alvo escrito como seletor, em português: "uma criatura ou planeswalker que um oponente controla", "um jogador". */
+function descreveSeletor(sel) {
+  if (sel.ou) return sel.ou.map(descreveSeletor).join(' ou ');
+  if (sel.ref === 'encantada-pela-fonte') return 'a criatura encantada';
+  if (sel.ref === 'bloqueada-pela-fonte') return 'a criatura que ela bloqueia';
+  const nomes = { creature: 'criatura', planeswalker: 'planeswalker', artifact: 'artefato', enchantment: 'encantamento', land: 'terreno', instant: 'instantânea', sorcery: 'feitiço', battle: 'batalha', kindred: 'tribal' };
+  const zona = sel.zona || 'battlefield';
+  const tipos = (sel.tipos || []).map(x => nomes[x] || x).join(' ou ');
+  const jog = sel.jogadores ? (sel.jogadores === 'opponent' ? 'um oponente' : sel.jogadores === 'you' ? 'você' : 'um jogador') : '';
+  if (zona === 'nenhuma') return jog || 'um jogador';
+  const coisa = zona === 'stack' ? `uma mágica${tipos ? ' de ' + tipos : ''}` : zona === 'graveyard' ? `uma carta${tipos ? ' de ' + tipos : ''}` : (sel.outra ? 'outra ' : 'uma ') + (tipos || 'permanente');
+  const sem = (sel.semTipos || []).length ? ` que não seja ${(sel.semTipos || []).map(x => nomes[x] || x).join(' nem ')}` : '';
+  const dono = zona === 'graveyard' ? (sel.de === 'you' ? ' do seu cemitério' : sel.de === 'opponent' ? ' do cemitério de um oponente' : ' de um cemitério')
+    : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';
+  return `${coisa}${sem}${dono}${jog ? ' ou ' + jog : ''}`;
+}
 function descreveAlvo(chave) {
+  if (chave && typeof chave === 'object') return descreveSeletor(chave);
   const k = String(chave);
   const base = { creature: 'criatura', permanent: 'permanente', land: 'terreno', artifact: 'artefato', enchantment: 'encantamento', player: 'jogador', opponent: 'oponente', spell: 'mágica', card: 'carta' };
   const each = k.startsWith('each-');
