@@ -103,7 +103,9 @@ test('J1 · contrato: o app só move a rolagem nos pontos declarados, cada um co
     ["if (el && el.scrollIntoView) el.scrollIntoView({ block, inline: 'nearest', behavior: parado ? 'auto' : 'smooth' });", 'levaAte: a ação pede uma decisão em outra região; a mesa só chega aqui por levaSeEscondido (J2)'],
     ["st.passo++; st.entregue = false; paint(); window.scrollTo(0, 0);", 'série: o passo seguinte da troca é uma tela nova'],
     ['    window.scrollTo(0, 0);', 'roteador: tela nova começa do topo'],
-    ['if (alvo > 0) requestAnimationFrame(() => { if (root.isConnected) window.scrollTo(0, alvo); });', 'notícias (N3): voltar à tela devolve o ponto da leitura'],
+    ['if (ancora && alvo > 0) requestAnimationFrame(() => { if (root.isConnected) window.scrollTo(0, window.scrollY + root.getBoundingClientRect().top + alvo); });', 'notícias (N3, T2): voltar pela rota das notícias devolve o ponto da leitura'],
+    ["if (ancora) requestAnimationFrame(() => { if (root.isConnected) root.scrollIntoView({ block: 'start' }); });", 'notícias (T2): a rota das notícias abre a Início já na seção'],
+    ["onClick: () => { window.scrollTo({ top: 0, behavior: parado() ? 'auto' : 'smooth' }); topo.hidden = true; }", 'notícias (T2): o botão Topo, pedido pelo toque'],
   ];
   const linhas = html.split('\n').filter(l => /\.scrollIntoView\(|\bscrollTo\(|\bscrollBy\(|\.scrollTop\s*=[^=]/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l) && !/lista\.scrollTop = lista\.scrollHeight/.test(l));
   const semMotivo = linhas.filter(l => !DECLARADOS.some(([trecho]) => l.includes(trecho)));

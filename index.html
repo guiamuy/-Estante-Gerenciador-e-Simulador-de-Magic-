@@ -601,6 +601,7 @@ a { color: var(--accent); }
 .ds-atalhos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 /* K4 · Início: cabeçalho com a data, Jogar em destaque, quatro destinos numa linha e as notícias integradas */
 .inicio { display: flex; flex-direction: column; gap: var(--space-5); padding-top: var(--space-5); padding-bottom: var(--space-6); }
+.inicio > .nt-puxar { margin-bottom: calc(var(--space-5) * -1); } /* T2 · o aviso de puxar não soma o espaço entre blocos */
 .inicio__cab { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: calc(var(--space-2) * -1); } /* o cabeçalho fica mais perto do Jogar */
 .inicio__data { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-subtle); font-weight: var(--weight-medium); text-transform: uppercase; letter-spacing: .08em; }
 .inicio__cab .ds-text--muted { margin: 0; }
@@ -621,13 +622,20 @@ a { color: var(--accent); }
 .nt-colecao__codigo { font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: var(--weight-bold); letter-spacing: .06em; }
 .nt-cartao--colecao .nt-fonte { color: var(--positive); }
 .nt-cartao--colecao[data-futura="true"] .nt-fonte { color: var(--accent); }
-.inicio-nt { display: flex; flex-direction: column; gap: var(--space-3); }
+.inicio-nt { display: flex; flex-direction: column; gap: var(--space-3); scroll-margin-top: calc(var(--tap-min) + var(--space-4)); }
 .inicio-nt__cab { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.inicio-nt__cab .nt-novas { text-align: left; }
+.inicio-nt .nt-ferramentas .nt-idiomas { flex: 1 1 auto; min-width: 0; }
+.inicio-nt #noticias-nota:empty { display: none; } /* a nota só ocupa lugar quando diz algo */
+.inicio-nt .nt-idiomas [data-idioma] { flex: 1 1 0; min-width: 0; justify-content: center; }
+/* T2 · Topo: pílula no canto inferior esquerdo (o Relatar fica no direito), entra subindo */
+.nt-topo.ds-btn { position: fixed; left: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay); min-height: 48px; padding: 0 var(--space-4) 0 var(--space-3);
+  border-radius: var(--radius-full); border-color: var(--border-strong); box-shadow: var(--btn-rest), var(--shadow-2); animation: nt-topo-entra var(--dur-2) var(--ease-out); }
+.nt-topo[hidden] { display: none; }
+@keyframes nt-topo-entra { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
 .inicio-nt__icone { color: var(--accent); flex: none; }
 .inicio-nt__titulo { margin: 0; flex: none; font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-regular); }
-.inicio-nt__novas { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--accent); font-weight: var(--weight-medium); }
-.inicio-nt__cab > .ds-btn { flex: none; flex-direction: row-reverse; margin-left: auto; padding-right: var(--space-2); } /* "Ver todas" com a seta depois do texto */
-.inicio-nt__aviso { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
 .ds-atalho { flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
   min-height: 92px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); text-align: left; }
 .ds-atalho__icone { color: var(--accent); }
@@ -9762,7 +9770,10 @@ function folhaDaNoticia(it, { fonte = '', guardada = false, aoGuardar = () => {}
       Button('Abrir', { variant: 'primary', icone: 'externo', id: 'noticia-abrir', onClick: () => { closeDialog(); window.open(it.url, '_blank', 'noopener,noreferrer'); } })] });
 }
 
-function createNoticiasScreen({ noticias, share = null }) {
+/** T2 · a linha do tempo de notícias mora na Início (relatos #3 e #4): título de seção com o idioma ao lado, filtros,
+    guardadas e atualizar, a lista contínua e o botão Topo. `gesto` é a tela que recebe o puxar para atualizar (a Início
+    inteira); `ancora` (rota /notícias) leva direto à seção e devolve o ponto da leitura. */
+function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = false }) {
   const st = { nNot: 0, pendentes: [], lancamentos: null, guardadas: new Set(), idiomas: [...CODIGOS], filtro: filtroValido(null), indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0, vista: '', nVis: 0 };
   const lista = h('div', { class: 'nt-lista', id: 'noticias-lista', role: 'feed', 'aria-label': 'Notícias' });
   const pe = h('div', { class: 'nt-pe', id: 'noticias-pe' });
@@ -9772,12 +9783,13 @@ function createNoticiasScreen({ noticias, share = null }) {
   const seletor = h('div', { class: 'ds-segmentado nt-idiomas', role: 'group', 'aria-label': 'Idioma das notícias', id: 'noticias-idiomas' }, ...chips);
   const nota = Text('', { size: 'xs', tone: 'subtle', attrs: { id: 'noticias-nota', role: 'status' } });
   // N3 · ferramentas: filtros (com o número de critérios), quantas são novas e atualizar
-  const filtrosBtn = Button('Filtros', { id: 'noticias-filtros', icone: 'filtro', onClick: () => abreFiltros() });
+  const filtrosBtn = IconButton('filtro', 'Filtros', { id: 'noticias-filtros', onClick: () => abreFiltros() }); // T2 · ícone com o número de filtros, ao lado do idioma
   const novasTxt = h('span', { class: 'nt-novas', id: 'noticias-novas', role: 'status' });
   const atualizarBtn = IconButton('atualizar', 'Atualizar', { id: 'noticias-atualizar', variant: 'ghost', onClick: () => atualiza() });
   // N4 · a lista de guardadas, com o número delas no próprio botão
   const guardadasBtn = IconButton('marcador', 'Guardadas', { id: 'noticias-guardadas', variant: 'ghost', onClick: () => { location.hash = '#/noticias/guardadas'; } });
-  const ferramentas = h('div', { class: 'nt-ferramentas', id: 'noticias-ferramentas' }, filtrosBtn, novasTxt, guardadasBtn, atualizarBtn);
+  // T2 · na Início: o título diz quantas são novas e tem Guardadas e Atualizar; embaixo, o idioma e os filtros
+  const ferramentas = h('div', { class: 'nt-ferramentas', id: 'noticias-ferramentas' }, seletor, filtrosBtn);
   function pintaGuardadas() {
     const n = st.guardadas.size; let selo = guardadasBtn.querySelector('.ds-btn__conta');
     if (!selo) { selo = h('span', { class: 'ds-btn__conta' }); guardadasBtn.appendChild(selo); }
@@ -9793,7 +9805,25 @@ function createNoticiasScreen({ noticias, share = null }) {
   }
   const aoMais = (it, cartao) => folhaDaNoticia(it, { fonte: nomeDaFonte(it.fonte), guardada: st.guardadas.has(it.id), share, aoGuardar: sim => guarda(it, cartao, sim) });
   const puxar = h('div', { class: 'nt-puxar', id: 'noticias-puxar', 'aria-hidden': 'true', dataset: { pronto: 'false' } }, Icone('atualizar', { tamanho: 20 }), h('span', {}, 'Puxe para atualizar'));
-  const root = Stack({ ...pad(), id: 'noticias' }, Text('Notícias', { size: '2xl', display: true, as: 'h1' }), seletor, nota, ferramentas, puxar, corpo);
+  // T2 · Topo: aparece depois de uma tela e meia de leitura, no canto oposto ao Relatar; volta ao começo da Início
+  const parado = () => typeof document !== 'undefined' && (document.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches));
+  const topo = h('button', { class: 'ds-btn nt-topo', type: 'button', id: 'noticias-topo', 'aria-label': 'Voltar ao topo', title: 'Voltar ao topo', dataset: { sobrepoe: 'acao' },
+    onClick: () => { window.scrollTo({ top: 0, behavior: parado() ? 'auto' : 'smooth' }); topo.hidden = true; } }, Icone('subir', { tamanho: 20 }), h('span', { class: 'ds-btn__rotulo' }, 'Topo'));
+  topo.hidden = true;
+  // mora fora da tela (no body), para mostrar e esconder sem mexer no documento da tela — a âncora do toque (J1) não o
+  // confunde com conteúdo que mudou; sai junto quando a Início sai
+  const pintaTopo = () => {
+    if (!root.isConnected) { topo.remove(); return; }
+    if (!topo.isConnected) document.body.appendChild(topo);
+    const v = window.scrollY > innerHeight * 1.5; if (topo.hidden === v) topo.hidden = !v;
+  };
+  if (typeof window !== 'undefined' && window.addEventListener) { const saiu = () => setTimeout(() => { if (!root.isConnected) { topo.remove(); window.removeEventListener('hashchange', saiu); } }, 0); window.addEventListener('hashchange', saiu); }
+  const root = h('section', { class: 'inicio-nt', id: 'noticias', 'aria-labelledby': 'noticias-titulo' },
+    h('div', { class: 'inicio-nt__cab' }, Icone('jornal', { tamanho: 22, classe: 'inicio-nt__icone' }), h('h2', { class: 'inicio-nt__titulo', id: 'noticias-titulo' }, 'Notícias'), novasTxt, guardadasBtn, atualizarBtn),
+    nota, ferramentas, corpo);
+  // puxar para atualizar vale na tela inteira que hospeda a linha do tempo (a Início), com o aviso no alto dela
+  const alvoGesto = gesto || root;
+  alvoGesto.prepend(puxar);
   const marcaChips = () => chips.forEach(c => c.setAttribute('aria-pressed', String(st.idiomas.includes(c.dataset.idioma))));
   const nomeDaFonte = id => { const f = st.indice && st.indice.fontes.find(x => x.id === id); return (f && f.nome) || id; };
   const acabou = () => !!st.plano && st.proxima > st.plano.paginas;
@@ -9808,7 +9838,7 @@ function createNoticiasScreen({ noticias, share = null }) {
     novasTxt.textContent = rotuloNovas(novas, { mais: novas > 0 && novas === vis.length && !acabou() });
   }
   /** O que precisa sobreviver a sair da tela e voltar: a linha do tempo já lida e o ponto da leitura. */
-  const lembra = () => { memoria = { chave: st.idiomas.join(), itens: st.itens, proxima: st.proxima, indice: st.indice, plano: st.plano, vista: st.vista, rolagem: typeof window !== 'undefined' ? window.scrollY : 0, quando: Date.now() }; };
+  const lembra = () => { memoria = { chave: st.idiomas.join(), itens: st.itens, proxima: st.proxima, indice: st.indice, plano: st.plano, vista: st.vista, rolagem: typeof window !== 'undefined' ? -root.getBoundingClientRect().top : 0, quando: Date.now() }; };
 
   let olho = null;
   const sentinela = h('span', { class: 'nt-sentinela', 'aria-hidden': 'true' });
@@ -9823,7 +9853,8 @@ function createNoticiasScreen({ noticias, share = null }) {
   function parada({ id, icone, titulo, texto, botao = true }) {
     if (olho) olho.disconnect();
     memoria = null; novasTxt.textContent = '';
-    mount(corpo, Empty(texto, botao ? Button('Tentar de novo', { variant: 'primary', icone: 'atualizar', id: 'noticias-tentar', onClick: () => abre() }) : null, { icone, titulo, hero: true, id }));
+    // T2 · na Início o primário é o Jogar: a parada das notícias é um bloco discreto com a saída em botão comum
+    mount(corpo, Empty(texto, botao ? Button('Tentar de novo', { icone: 'atualizar', id: 'noticias-tentar', onClick: () => abre() }) : null, { icone, titulo, id }));
   }
   function pintaPe() {
     if (st.erro) return mount(pe, AvisoRede('Não deu para buscar mais notícias.', { id: 'noticias-erro' }), Button('Tentar de novo', { icone: 'atualizar', id: 'noticias-de-novo', onClick: () => mais() }));
@@ -9924,22 +9955,29 @@ function createNoticiasScreen({ noticias, share = null }) {
   }
   function avisaNovas(rotulo) {
     const barra = document.querySelector('.ds-appbar'), velho = root.querySelector('#noticias-ver-novas'); if (velho) velho.remove();
-    const b = h('button', { class: 'ds-btn ds-btn--primary nt-pilula', type: 'button', id: 'noticias-ver-novas', dataset: { sobrepoe: 'novas' }, onClick: () => { b.remove(); atualiza(); levaAte(root, { block: 'start' }); } }, Icone('atualizar', { tamanho: 18 }), h('span', { class: 'ds-btn__rotulo' }, rotulo));
+    const b = h('button', { class: 'ds-btn ds-btn--primary nt-pilula', type: 'button', id: 'noticias-ver-novas', dataset: { sobrepoe: 'novas' }, onClick: () => {
+      // T2 · na Início a seção fica abaixo dos destinos: primeiro leva ao começo dela, depois atualiza (trocar a lista no
+      // meio da rolagem suave a interromperia)
+      b.remove(); const t = root.getBoundingClientRect().top; if (t >= 0 && t < innerHeight / 3) return atualiza();
+      levaAte(root, { block: 'start' }); let feito = false; const vai = () => { if (feito) return; feito = true; window.removeEventListener('scrollend', vai); atualiza(); };
+      window.addEventListener('scrollend', vai); setTimeout(vai, 900); } }, Icone('atualizar', { tamanho: 18 }), h('span', { class: 'ds-btn__rotulo' }, rotulo));
     b.style.top = Math.max(8, (barra ? barra.getBoundingClientRect().bottom : 0) + 8) + 'px';
     root.appendChild(b);
   }
   // puxar para baixo no topo da página atualiza (o gesto do navegador de recarregar a página fica desligado nesta tela)
   let y0 = null;
   const solta = () => { puxar.style.height = ''; puxar.dataset.pronto = 'false'; puxar.dataset.puxando = 'false'; y0 = null; };
-  root.addEventListener('touchstart', e => { y0 = window.scrollY <= 0 && !st.buscando && e.touches && e.touches.length === 1 ? e.touches[0].clientY : null; }, { passive: true });
-  root.addEventListener('touchmove', e => { if (y0 == null || !e.touches || !e.touches.length) return; const d = (e.touches[0].clientY - y0) * 0.5;
+  alvoGesto.addEventListener('touchstart', e => { y0 = window.scrollY <= 0 && !st.buscando && e.touches && e.touches.length === 1 ? e.touches[0].clientY : null; }, { passive: true });
+  alvoGesto.addEventListener('touchmove', e => { if (y0 == null || !e.touches || !e.touches.length) return; const d = (e.touches[0].clientY - y0) * 0.5;
     if (d <= 0 || window.scrollY > 0) return solta(); puxar.dataset.puxando = 'true'; puxar.style.height = Math.min(72, d) + 'px'; const pronto = d >= 56; puxar.dataset.pronto = String(pronto); puxar.lastChild.textContent = pronto ? 'Solte para atualizar' : 'Puxe para atualizar'; }, { passive: true });
-  root.addEventListener('touchend', () => { const pronto = puxar.dataset.pronto === 'true'; solta(); if (pronto) atualiza(); }, { passive: true });
-  root.addEventListener('touchcancel', solta, { passive: true });
+  alvoGesto.addEventListener('touchend', () => { const pronto = puxar.dataset.pronto === 'true'; solta(); if (pronto) atualiza(); }, { passive: true });
+  alvoGesto.addEventListener('touchcancel', solta, { passive: true });
   // a internet voltou com a tela parada no aviso: busca sozinha
   const voltou = () => { if (!root.isConnected) return window.removeEventListener('online', voltou); if (root.querySelector('#noticias-sem-rede')) abre(); };
   // o ponto da leitura é guardado enquanto a tela está aberta, para a volta
-  const rolou = () => { if (!root.isConnected) return window.removeEventListener('scroll', rolou); if (memoria) memoria.rolagem = window.scrollY; };
+  // T2 · o ponto da leitura é medido a partir do começo da seção (o que vem acima dela na Início muda de altura) e só conta
+  // com a linha do tempo à vista: estar no alto da Início não apaga onde a leitura parou
+  const rolou = () => { if (!root.isConnected) { topo.remove(); return window.removeEventListener('scroll', rolou); } const t = root.getBoundingClientRect().top; if (memoria && t < innerHeight / 2) memoria.rolagem = -t; pintaTopo(); };
   if (typeof window !== 'undefined' && window.addEventListener) { window.addEventListener('online', voltou); window.addEventListener('scroll', rolou, { passive: true }); }
   mount(corpo, Esqueleto({ linhas: 5, id: 'noticias-abrindo', fala: 'Buscando as notícias…' }));
   Promise.all([noticias.idiomas(), noticias.filtro(), noticias.vista(), noticias.guardadas()]).then(([idiomas, filtro, vista, guardadas]) => {
@@ -9949,56 +9987,19 @@ function createNoticiasScreen({ noticias, share = null }) {
     if (m && m.chave === idiomas.join() && Date.now() - m.quando < MEMORIA_MS && m.itens.length && temRede()) {
       Object.assign(st, { itens: m.itens, proxima: m.proxima, indice: m.indice, plano: m.plano, vista: m.vista }); st.vez++;
       mount(corpo, lista, pe); redesenha(); pintaPe(); if (!acabou()) vigia();
+      // T2 · a Início abre no começo; pela rota das notícias, no ponto em que a leitura parou
       const alvo = m.rolagem | 0;
-      if (alvo > 0) requestAnimationFrame(() => { if (root.isConnected) window.scrollTo(0, alvo); });
+      if (ancora && alvo > 0) requestAnimationFrame(() => { if (root.isConnected) window.scrollTo(0, window.scrollY + root.getBoundingClientRect().top + alvo); });
       // chegou notícia enquanto a tela estava fechada: a leitura fica onde estava e um aviso flutuante oferece as novas
       noticias.novas().then(({ n, mais }) => { if (n > 0 && root.isConnected && memoria === m) avisaNovas(rotuloNovas(n, { mais })); }).catch(() => {});
       return;
     }
+    if (ancora) requestAnimationFrame(() => { if (root.isConnected) root.scrollIntoView({ block: 'start' }); });
     abre();
   });
   return root;
 }
 
-/** K4 · as notícias na tela inicial: o destaque e as duas mais recentes da primeira página, nos idiomas e filtros
-    escolhidos, com quantas são novas e "Ver todas". Sem internet, uma linha; falha, uma linha com "Tentar de novo";
-    nada publicado, uma linha. Nunca segura a Início: chega depois, no próprio lugar (a caixa da espera já reserva o espaço). */
-function SecaoNoticias({ noticias, max = 3 }) {
-  const novas = h('span', { class: 'inicio-nt__novas', id: 'home-noticias-novas', role: 'status' });
-  const todas = Button('Ver todas', { variant: 'ghost', icone: 'seguir', id: 'go-news', onClick: () => { location.hash = '#/noticias'; } });
-  const corpo = h('div', { class: 'nt-lista inicio-nt__lista', id: 'home-noticias' });
-  const sec = h('section', { class: 'inicio-nt', id: 'home-noticias-secao', 'aria-labelledby': 'home-noticias-titulo' },
-    h('div', { class: 'inicio-nt__cab' }, Icone('jornal', { tamanho: 22, classe: 'inicio-nt__icone' }), h('h2', { class: 'inicio-nt__titulo', id: 'home-noticias-titulo' }, 'Notícias'), novas, todas), corpo);
-  const espera = () => mount(corpo, Esqueleto({ linhas: 3, id: 'home-noticias-abrindo', fala: 'Buscando as notícias…' }));
-  async function carrega() {
-    novas.textContent = '';
-    if (!temRede()) return mount(corpo, AvisoRede('Sem internet: as notícias chegam quando a conexão voltar.', { id: 'home-noticias-sem-rede' }));
-    espera();
-    try {
-      const [idiomas, filtro, vista, indice] = await Promise.all([noticias.idiomas(), noticias.filtro(), noticias.vista(), noticias.indice()]);
-      const plano = planoDeLeitura(indice, idiomas);
-      const lidas = plano.paginas ? junta([], await noticias.pagina(plano.prefixo, 1), { idiomas: plano.filtra ? idiomas : null }) : [];
-      const lanc = noticias.lancamentos ? await Promise.race([noticias.lancamentos(), new Promise(r => setTimeout(() => r([]), 1500))]) : [];
-      // N5 · na Início, no máximo uma coleção entre as três, na posição da data dela
-      const itens = mesclaLancamentos(lidas, lanc.slice(0, 1), { fim: plano.paginas <= 1 }).itens.filter(it => passa(it, filtro));
-      if (!itens.length) return mount(corpo, Text('Nada novo por enquanto.', { size: 'sm', tone: 'muted', attrs: { id: 'home-noticias-vazio' } }));
-      const n = contaNovas(itens, vista), r = rotuloNovas(n, { mais: n > 0 && n === itens.length && plano.paginas > 1 });
-      novas.textContent = r;
-      if (n) { todas.dataset.novas = String(n); todas.setAttribute('aria-label', 'Ver todas as notícias, ' + r); } else { delete todas.dataset.novas; todas.removeAttribute('aria-label'); }
-      const fonte = id => { const f = indice.fontes.find(x => x.id === id); return (f && f.nome) || id; }, agora = Date.now(), limite = Date.parse(vista);
-      let nNot = 0;
-      mount(corpo, ...itens.slice(0, max).map(it => it.tipo === 'colecao' ? CartaoColecao(it, { agora }) : CartaoNoticia(it, { forma: nNot++ === 0 ? 'destaque' : 'linha', fonte: fonte(it.fonte), agora, bandeira: idiomas.length > 1, nova: Number.isFinite(limite) && Date.parse(it.data) > limite })));
-    } catch (e) {
-      mount(corpo, h('div', { class: 'inicio-nt__aviso', id: 'home-noticias-falha' }, Text('As notícias não chegaram agora.', { size: 'sm', tone: 'muted' }),
-        Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'home-noticias-tentar', onClick: carrega })));
-    }
-  }
-  // a internet voltou com a seção no aviso: busca sozinha
-  const voltou = () => { if (!sec.isConnected) return window.removeEventListener('online', voltou); if (sec.querySelector('#home-noticias-sem-rede')) carrega(); };
-  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('online', voltou);
-  carrega();
-  return sec;
-}
 /** N4 · Guardadas: o que foi separado para ler depois. Abre sem internet (título, fonte e data estão no aparelho);
     a matéria em si continua no site da fonte, e a tela diz isso. */
 function createGuardadasScreen({ noticias, share = null }) {
@@ -10027,7 +10028,7 @@ function createGuardadasScreen({ noticias, share = null }) {
   return root;
 }
 
-return { TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, SecaoNoticias, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
+return { TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/relatos.js ==== */
@@ -24696,7 +24697,7 @@ let environment = ENVIRONMENTS.online;
 const installer = createInstaller({ window: typeof window !== 'undefined' ? window : globalThis, navigator: typeof navigator !== 'undefined' ? navigator : null });
 
 const ROUTES = [
-  { path: '/', title: 'Início', render: renderHome },
+  { path: '/', title: 'Início', render: () => renderHome() },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup, etiquetas }) },
   { path: '/listas/catalogo', title: 'Lista oficial', render: () => __m39.createCatalogoListaScreen({ catalogo, decks, cardRepo, store: platform.store }) }, // Z3
@@ -24710,7 +24711,7 @@ const ROUTES = [
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks }) }, // I4
   { path: '/perfil/terrenos', title: 'Terrenos', render: () => createTerrenosScreen({ terrenos, decks }) }, // I6
-  { path: '/noticias', title: 'Notícias', render: () => __m37.createNoticiasScreen({ noticias, share: platform.share }) }, // N2
+  { path: '/noticias', title: 'Notícias', render: () => renderHome({ ancora: true }) }, // N2 · T2: a Início, aberta nas notícias
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
   { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files,
@@ -24767,7 +24768,7 @@ async function primeiraAbertura() {
 }
 /** D3 · nome do perfil em memória: a tela inicial cumprimenta sem esperar o armazenamento (o botão da barra mantém). */
 let nomeDoPerfil = null;
-function renderHome() {
+function renderHome({ ancora = false } = {}) {
   /* K4 · Início redesenhada (pedido de 08/10/2026): data e saudação; o que retomar; Jogar em destaque; os outros quatro
      destinos numa linha só, leves (ícone num círculo e uma palavra); e as notícias como parte da tela — o destaque e as
      duas mais recentes, nos idiomas e filtros escolhidos, com "Ver todas". Antes: seis caixas empilhadas e as notícias
@@ -24787,10 +24788,11 @@ function renderHome() {
       h('div', { class: 'inicio__rapidos', role: 'group', 'aria-label': 'Ir para' },
         rapido('Listas', 'listas', 'go-decks', '/listas'), rapido('Coleção', 'colecao', 'go-collection', '/colecao'),
         rapido('Escanear', 'scanner', 'go-scanner', '/scanner'), rapido('Buscar', 'buscar', 'go-cards', '/cartas'))),
-    __m37.SecaoNoticias({ noticias }),
     offlinePanel(),
     h('div', { class: 'ds-row', style: { justifyContent: 'center' } },
       Button('Componentes', { variant: 'ghost', icone: 'camadas', id: 'go-ds', title: 'Catálogo de componentes', onClick: () => { location.hash = '#/ds'; } })));
+  // T2 · as notícias são o miolo da Início: a linha do tempo inteira depois dos destinos e do que funciona sem internet
+  el.insertBefore(__m37.createNoticiasScreen({ noticias, share: platform.share, gesto: el, ancora }), el.lastElementChild);
   { // T3 · Jogar com volume: seta à direita e o brilho que atravessa no toque (some sozinho)
     const jogar = el.querySelector('#go-play');
     jogar.classList.add('ds-atalho--largo', 'inicio-jogar');

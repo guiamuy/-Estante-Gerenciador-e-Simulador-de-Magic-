@@ -484,7 +484,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ck ✅ | Z5 listas de torneio (TopDeck.gg): oito primeiras dos torneios recentes por formato, crédito com link (leva G-230) | Z | 1 | teste no aparelho |
 | 16º-co ✅ | Y5 relatos chegam à correção: Enviar abre o registro no GitHub já preenchido; o fluxo Relatos etiqueta e grava a tabela no ramo `relatos`; tipos Melhoria e Infraestrutura (leva G-232) | Y | 1 | — |
 | 16º-cp ✅ | T1 editar relato até 1 h depois de salvar: tipo, urgência e descrição (leva G-233) | T | 1 | — |
-| 16º-cq | T2 notícias no núcleo da Início: lista contínua, filtro de idioma, guardar e atualizar na própria Início, voltar ao topo | T | 1 a 2 | — |
+| 16º-cq ✅ | T2 notícias no núcleo da Início: lista contínua, filtro de idioma, guardar e atualizar na própria Início, voltar ao topo (leva G-236) | T | 1 | — |
 | 16º-cr ✅ | T3 botão Jogar com volume e resposta ao toque (leva G-235) | T | ½ | — |
 | 16º-cs | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada | T | 1 | leitura do que o motor já expõe (camadas da CR2-G) |
 | 16º-ct ✅ | T5 Listas prontas: respiro entre a última lista e Mostrar mais (leva G-234) | T | ½ | — |
@@ -6550,13 +6550,24 @@ prontas.
 - **Limite:** o registro antigo no GitHub continua aberto até ser fechado à mão ou pela correção.
 - **Fora:** editar a tela ou a partida anexada.
 
-**T2 · Notícias no núcleo da Início** (pedido: Visual · Alta · Início, duas vezes)
+**T2 · Notícias no núcleo da Início** ✅ (leva G-236, 09/10/2026 · registros #3 e #4)
 - **Valor:** a Início é o lugar de ler notícias, sem pular para outra tela.
-- **Aceite:** abaixo de Jogar e dos destinos, a lista de notícias continua carregando em lotes ao rolar; filtro de idioma
-  (Todos, PT, EN), Guardar e Atualizar na própria Início; botão **Topo** flutuante que aparece depois de rolar e volta
-  suave (sem movimento com movimento reduzido); a tela Notícias continua existindo pelo mesmo caminho.
-- **Testes:** e2e com notícias falsas (lotes, filtro, guardar, topo), `auditaTela` nas quatro medidas e nos dois temas.
-- **Fora:** notícias novas de fonte nova (épico N).
+- **Entregue:** depois de Jogar, dos quatro destinos e do quadro do que funciona sem internet, a Início tem a **linha do
+  tempo inteira**: título **Notícias** com quantas são novas, **Guardadas** e **Atualizar** na mesma linha; embaixo, o
+  **idioma** (Português e English, dois lados iguais, nomes inteiros) e **Filtros** (ícone com o número de filtros); a
+  lista chega em lotes ao rolar até "Você está em dia"; **puxar para baixo** no alto da Início atualiza. **Topo**: pílula
+  no canto inferior esquerdo (o Relatar fica no direito) que aparece depois de uma tela e meia de leitura e volta ao
+  começo (suave; com menos movimento, direto). A rota `/noticias` continua (Guardadas e endereços antigos voltam a ela):
+  abre a Início já na seção e, se a leitura foi interrompida há menos de meia hora, no mesmo ponto (medido a partir do
+  começo da seção, porque o que vem acima muda de altura). "Ver novas" leva ao começo da seção e então atualiza. Sem
+  internet, falha e vazio aparecem no lugar da lista, com **Tentar de novo** em botão comum (o primário da Início é o
+  Jogar). A seção antiga de três notícias com "Ver todas" saiu.
+- **Correção no caminho:** o Topo mora fora da tela (no corpo da página): mostrar e esconder dentro dela fazia a âncora
+  do toque (J1) puxar a rolagem de volta ao último controle tocado.
+- **Testes:** U `ds.unit` J1 declara os três pontos novos que movem a rolagem; e2e N2, N3, N4, N5 e K4 refeitos para a
+  Início (cabeçalho em duas linhas medido nas quatro medidas e nos dois temas, idioma sem corte, Topo com posição,
+  volta e saída junto com a Início, ponto da leitura pela notícia na tela, falha, sem internet e vazio).
+- **Fora:** notícias de fonte nova (épico N); lembrar o ponto da leitura entre aberturas do app.
 
 **T3 · Jogar com volume e resposta ao toque** ✅ (leva G-235, 09/10/2026 · registro #3, parte do botão)
 - **Valor:** o convite principal do app parece um objeto, não um retângulo.
