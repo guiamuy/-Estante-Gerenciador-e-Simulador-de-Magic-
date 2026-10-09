@@ -2474,8 +2474,11 @@ function webShare(nav) {
       return this.copy(body);
     },
     async copy(body) {
-      if (nav && nav.clipboard && nav.clipboard.writeText) { await nav.clipboard.writeText(body); return true; }
-      return false;
+      // G-222 · permissão negada (ou a aba sem foco) rejeita: quem chama recebe false e diz "Não foi possível copiar",
+      // em vez de a promessa recusada sumir sem aviso; e uma área de transferência que não responde não prende a tela
+      if (!(nav && nav.clipboard && nav.clipboard.writeText)) return false;
+      try { return await Promise.race([nav.clipboard.writeText(body).then(() => true), new Promise(r => setTimeout(() => r(false), 3000))]); }
+      catch (e) { return false; }
     }
   };
 }

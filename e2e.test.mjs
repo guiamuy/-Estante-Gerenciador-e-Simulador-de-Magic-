@@ -7762,7 +7762,9 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   await page.click('#relatos-lista .relato-item [data-acao="status"]'); await page.waitForFunction(() => document.querySelector('#relatos-lista .relato-item:last-child').dataset.status === 'resolvido');
   assert.deepEqual((await itens()).map(i => i[1]), ['aberto', 'resolvido'], 'resolvido desce para o fim');
   // o aviso de "Relato salvo" (com ação) atravessa as telas; o de copiar chega depois da área de transferência responder
-  await page.click('#relatos-copiar'); await page.waitForFunction(() => /1 relato\(s\) copiado\(s\)|Não foi possível copiar/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.click('#relatos-copiar'); await page.waitForFunction(() => /1 relato\(s\) copiado\(s\)/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
+  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^### Ideia · Baixa · Lista\n- Quando: [\s\S]*\n- Tela: \/lista\n- Contexto: motor v\d+ · tema escuro · 360×780\n\nMostrar o valor da reserva separado\.$/, 'só o aberto (o outro foi resolvido), no texto para colar');
   await page.click('#relatos-lista .relato-item [data-acao="excluir"]'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 1);
   await page.click('#ds-toast button'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 2);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos ${w} ${tema}`); } }

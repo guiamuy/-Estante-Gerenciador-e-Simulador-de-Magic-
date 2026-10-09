@@ -61,3 +61,12 @@ test('Y1 · armazenamento: salva com o relógio do app, muda o status, exclui e 
 test('Y1 · os relatos vão no backup completo', () => {
   assert.ok(PF.PREFERENCIAS.includes(R.CHAVE));
 });
+
+test('G-222 · copiar com a área de transferência negada devolve false (a tela avisa) em vez de recusar a promessa', async () => {
+  const nega = P.createPlatform({ window: {}, indexedDB: null, document: null, navigator: { clipboard: { writeText: async () => { throw new Error('NotAllowedError'); } } } });
+  assert.equal(await nega.share.copy('x'), false);
+  const ok = P.createPlatform({ window: {}, indexedDB: null, document: null, navigator: { clipboard: { writeText: async () => {} } } });
+  assert.equal(await ok.share.copy('x'), true);
+  const sem = P.createPlatform({ window: {}, indexedDB: null, document: null, navigator: {} });
+  assert.equal(await sem.share.copy('x'), false);
+});

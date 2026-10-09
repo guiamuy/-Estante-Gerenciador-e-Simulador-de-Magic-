@@ -6302,6 +6302,9 @@ mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
 - **Testes:** U `relatos.unit` ×6; e2e "Y1" (posição e tamanho, formulário com erros e foco, rascunho, carimbo, item do
   menu com a área, botão em cima do de uma ação, some na mesa, Relatos com ordem, resolvido, copiar, desfazer, recarga;
   `auditaTela` nas quatro medidas e nos dois temas); J6 e J7 passam a esperar Relatar por último no menu.
+- **Correção (leva G-223):** no CI o "Copiar abertos" não avisava nada: a área de transferência sem permissão recusa a
+  promessa e o aviso nunca vinha (CI vermelho na G-222). Agora copiar em qualquer tela devolve "não deu" quando a área de
+  transferência recusa ou não responde em 3 s, e a tela diz "Não foi possível copiar"; o teste confere o texto copiado.
 - **Fora:** foto da tela anexada; enviar para fora do aparelho (Y3 exporta).
 
 **Y2 · Relatar na partida** ○
