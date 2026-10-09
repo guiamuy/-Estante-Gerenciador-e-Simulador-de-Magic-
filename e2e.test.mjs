@@ -7919,6 +7919,84 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- Z2 · catálogo de listas oficiais ---------------- */
+const CATALOGO_Z2 = (() => {
+  const id = n => `${n.toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`;
+  const cmd = Array.from({ length: 34 }, (_, i) => ({ id: `mtgjson-cmd-${i + 1}`, nome: i === 0 ? 'Calling All Angels' : `Commander Deck ${i + 1}`, formato: 'commander', tipo: 'Commander Deck', data: `2026-${String(9 - Math.floor(i / 4)).padStart(2, '0')}-0${(i % 4) + 1}`, codigo: 'C' + (i + 1), fonte: 'mtgjson',
+    cores: ['W', 'UB', 'RG', 'WUBRG'][i % 4], destaque: i === 0 ? 'Giada, Font of Hope' : `Leader ${i + 1}`, destaqueId: id(i + 1), comandante: [i === 0 ? 'Giada, Font of Hope' : `Leader ${i + 1}`], cartas: 100, arquivo: `listas/mtgjson-cmd-${i + 1}.json` }));
+  const outros = [
+    { id: 'mtgjson-brawl-1', nome: 'Historic Brawl Precon com um nome bem comprido para quebrar em duas linhas', formato: 'brawl', tipo: 'Historic Brawl Precon Deck', data: '2025-02-01', codigo: 'HB1', fonte: 'mtgjson', cores: 'G', destaque: 'Brawler', destaqueId: id(90), comandante: ['Brawler'], cartas: 100 },
+    { id: 'mtgjson-desafio-1', nome: 'Pioneer Challenger Deck 2024', formato: 'construido', tipo: 'Pioneer Challenger Deck', data: '2024-03-01', codigo: 'PC4', fonte: 'mtgjson', cores: 'R', destaque: 'Big Rare', destaqueId: id(91), comandante: [], cartas: 60 },
+    { id: 'mtgjson-boas-1', nome: 'Welcome Deck 2017', formato: 'iniciante', tipo: 'Welcome Deck', data: '2017-04-28', codigo: 'W17', fonte: 'mtgjson', cores: 'U', destaque: 'Opt', destaqueId: null, comandante: [], cartas: 30 }];
+  return { versao: 1, geradoEm: '2026-10-09T00:00:00.000Z', fontes: [{ id: 'mtgjson', nome: 'MTGJSON', licenca: 'MIT' }], formatos: [], total: 37, pendentes: 0, listas: [...cmd, ...outros] };
+})();
+async function rotaCatalogo(page, { falha = () => false } = {}) {
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }));
+  const pedidos = [];
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\//, r => { const u = r.request().url(); pedidos.push(u.split('/catalogo/')[1]);
+    if (falha(u)) return r.abort('failed');
+    if (u.endsWith('indice.json')) return r.fulfill({ json: CATALOGO_Z2, headers: { 'access-control-allow-origin': '*' } });
+    const id = u.split('/listas/')[1].replace('.json', ''); const l = CATALOGO_Z2.listas.find(x => x.id === id);
+    return r.fulfill({ json: { ...l, entradas: [{ name: 'Giada, Font of Hope', qty: 1, zone: 'commander' }, { name: 'Sol Ring', qty: 1, zone: 'main' }, { name: 'Plains', qty: 98, zone: 'main' }] }, headers: { 'access-control-allow-origin': '*' } }); });
+  return pedidos;
+}
+test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em grade, as da Estante e as oficiais (arte, cores, formato, contagem, comandante), busca, lotes de 30, adicionar à estante com a origem, Pauper explicado, erro com Repetir', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  let cai = true; const pedidos = await rotaCatalogo(page, { falha: () => cai });
+  // 1 · sem resposta: as da Estante continuam; o catálogo diz o erro e tem Repetir
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-list'); await page.waitForSelector('#catalogo-erro');
+  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 9, 'as nove da Estante, como antes');
+  cai = false; await page.click('#catalogo-de-novo'); await page.waitForSelector('#catalogo-lista');
+  // 2 · seis formatos em grade de três, com 44 px
+  const chips = await page.$$eval('#starter-formatos .ds-chip', cs => cs.map(c => [c.dataset.starterFormat, c.textContent.trim(), Math.round(c.getBoundingClientRect().height)]));
+  assert.deepEqual(chips.map(c => c[0]), ['all', 'pauper', 'commander', 'brawl', 'construido', 'iniciante']); assert.ok(chips.every(c => c[2] >= 44), JSON.stringify(chips));
+  assert.equal(await page.$eval('#starter-formatos', el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 3);
+  // 3 · o cartão: arte, nome, cores, formato, contagem e comandante; 30 por vez, da mais nova
+  assert.match(await page.innerText('#catalogo-conta'), /37 listas, da mais nova à mais antiga/);
+  assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 30);
+  const c1 = page.locator('#catalogo-lista .cat-item').first();
+  assert.equal(await c1.locator('.cat-item__nome').innerText(), 'Calling All Angels');
+  assert.equal(await c1.locator('.cat-item__sub').innerText(), 'Giada, Font of Hope'); assert.equal(await c1.locator('.cat-item__sub').getAttribute('lang'), 'en');
+  assert.match(await c1.locator('.cat-item__meta').innerText(), /Commander\s*100/);
+  assert.equal(await c1.locator('.cat-item__arte img').getAttribute('src'), 'https://cards.scryfall.io/small/front/0/0/00000001-0000-4000-8000-000000000000.jpg');
+  assert.ok((await c1.locator('.deck-item__add').boundingBox()).height >= 44);
+  await page.click('#catalogo-mais'); assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 37);
+  assert.match(await page.innerText('#catalogo-fonte'), /Fonte: MTGJSON \(licença MIT\) · atualizado em \d{2}\/\d{2}\/\d{4}/);
+  await page.waitForFunction(() => [...document.querySelectorAll('#catalogo-lista .cat-item__arte img')].slice(0, 3).every(i => i.complete && i.naturalWidth > 0));
+  await auditaTela(page, 'listas prontas com o catálogo');
+  if (process.env.SHOTS) { await page.evaluate(() => document.querySelector('#catalogo').scrollIntoView()); await page.screenshot({ path: process.env.SHOTS + '/z2-catalogo.png' }); }
+  // 4 · formatos: Brawl esconde as da Estante; Pauper explica; texto longo quebra em duas linhas
+  await page.click('[data-starter-format="brawl"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
+  assert.equal(await page.locator('#starter-list').count(), 0);
+  assert.ok(await page.$eval('#catalogo-lista .cat-item__nome', el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).lineHeight) * 2 + 1), 'nome em no máximo duas linhas');
+  await page.click('[data-starter-format="pauper"]'); await page.waitForSelector('#catalogo-recorte-vazio');
+  assert.match(await page.innerText('#catalogo-recorte-vazio'), /não há Pauper entre elas/); assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7);
+  await page.click('[data-starter-format="commander"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 30);
+  assert.equal(await page.locator('#starter-list .ds-list__item').count(), 2);
+  // 5 · busca
+  await page.fill('#catalogo-busca', 'giada'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
+  await page.fill('#catalogo-busca', 'nada disso'); await page.waitForSelector('#catalogo-recorte-vazio');
+  await page.fill('#catalogo-busca', '');
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `catálogo ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  // 6 · adicionar: baixa a lista, salva com a origem, marca "já na estante"
+  await page.click('[data-catalogo-add="mtgjson-cmd-1"]'); await page.waitForSelector('#catalogo-lista .cat-item[data-id="mtgjson-cmd-1"] [aria-label="Já na sua estante"]');
+  assert.match(await page.innerText('#ds-toast'), /Calling All Angels está na sua estante/);
+  assert.ok(pedidos.includes('listas/mtgjson-cmd-1.json'));
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list');
+  // o aviso "… está na sua estante" ainda pode estar na tela: o toque vai no item da lista, não no primeiro texto igual
+  await page.locator('#decks-list .deck-item', { hasText: 'Calling All Angels' }).first().click(); await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('#deck-counts'), /100 no deck/, 'comandante e 99');
+  // 7 · guardado: sem internet, o catálogo aparece igual e a lista importada continua na estante
+  await page.context().setOffline(true);
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
+  assert.equal(await page.locator('#catalogo-lista .cat-item[data-id="mtgjson-cmd-1"] [aria-label="Já na sua estante"]').count(), 1);
+  await page.context().setOffline(false);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);

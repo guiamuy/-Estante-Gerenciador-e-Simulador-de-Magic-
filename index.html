@@ -1390,6 +1390,21 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
   transition: opacity var(--dur-1) var(--ease-out), width var(--dur-1) var(--ease-out); }
 .tb-relatar:active .tb-relatar__aba, .tb-relatar[data-arrastando="true"] .tb-relatar__aba, .tb-relatar:focus-visible .tb-relatar__aba { opacity: 1; color: var(--fg); width: 34px; }
 @media (prefers-reduced-motion: reduce) { .tb-relatar__aba { transition: none; } }
+/* Z2 · catálogo de listas oficiais: cartão com a arte da carta de destaque, nome em até duas linhas, cores, formato,
+   contagem e quem comanda; seis formatos em grade de três */
+.ds-segmentado--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cat { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); }
+.cat__cabeca { display: flex; flex-direction: column; gap: var(--space-1); }
+.cat-lista { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-2); overflow: hidden; background: var(--bg-elev-1); }
+.cat-item { display: grid; grid-template-columns: 52px minmax(0, 1fr) var(--tap-min); align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); min-height: 88px; }
+.cat-item:last-child { border-bottom: none; }
+.cat-item__arte { width: 52px; aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); display: flex; align-items: center; justify-content: center; color: var(--fg-subtle); box-shadow: var(--shadow-1); }
+.cat-item__arte img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cat-item__corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cat-item__nome { font-weight: var(--weight-medium); font-size: var(--text-md); line-height: var(--lh-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.cat-item__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
+.cat-item__conta { display: inline-flex; align-items: center; gap: 2px; }
+.cat-item__sub { font-size: var(--text-xs); color: var(--fg-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* L9 · versões: o par De/Para lado a lado e a diferença em linhas curtas (sinal e número antes do nome) */
 .deck-versoes__par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .deck-versoes__par .ds-select { width: 100%; min-width: 0; }
@@ -9946,6 +9961,161 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
 return { FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
+/* ==== src/app/catalogo.js ==== */
+const __m39 = (function () {
+/* =====================================================================
+   Z2 · CATÁLOGO DE LISTAS (oficiais)
+   O índice e as listas chegam prontos do ramo `catalogo` (coletor `catalogo.mjs`, ADR-09): o app só lê JSON pelo
+   raw.githubusercontent.com. O índice fica guardado no aparelho (sem internet, mostra o último, com a data); cada
+   lista aberta ou importada também. Importar cria uma lista comum na estante, com a origem marcada.
+   O modelo é puro e tem teste sem navegador; a seção só desenha.
+   ===================================================================== */
+const { h, mount, Stack, Row, Text, Button, IconButton, Input, Empty, Note, Badge, Icone, ManaPips, AvisoRede, toast } = __m3;
+const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/catalogo/';
+const CHAVE_INDICE = 'catalogo.indice';
+const CHAVE_LISTA = id => 'catalogo.lista.' + id;
+const PRAZO_MS = 12 * 3600 * 1000; // o coletor roda uma vez por semana: meio dia de cache basta
+const LOTE = 30; // lista grande desenhada em lotes
+const FORMATOS = [['commander', 'Commander'], ['brawl', 'Brawl'], ['construido', 'Construído'], ['iniciante', 'Iniciante']];
+const ROTULO_DO_FORMATO = Object.fromEntries(FORMATOS);
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+const idValido = id => typeof id === 'string' && /^mtgjson-[a-z0-9-]{1,120}$/.test(id);
+const resumoValido = l => !!(l && idValido(l.id) && typeof l.nome === 'string' && l.nome.trim() && ROTULO_DO_FORMATO[l.formato]);
+/** As listas válidas de um índice publicado (o que veio quebrado fica de fora). */
+const listasDoIndice = d => (d && d.versao === 1 && Array.isArray(d.listas) ? d.listas.filter(resumoValido) : []);
+/** Recorte por formato ('all' para todos) e por texto (nome, comandante, carta de destaque, código ou tipo, sem acento). */
+function filtraCatalogo(listas, { formato = 'all', texto = '' } = {}) {
+  const q = norm(texto);
+  return (listas || []).filter(l => (formato === 'all' || l.formato === formato)
+    && (!q || [l.nome, ...(l.comandante || []), l.destaque, l.codigo, l.tipo].some(x => norm(x).includes(q))));
+}
+/** Imagem da Scryfall pelo id da carta (o mesmo caminho que a Scryfall publica). */
+const imagemDaCarta = (id, tamanho = 'small') => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id || '') ? `https://cards.scryfall.io/${tamanho}/front/${id[0]}/${id[1]}/${id}.jpg` : null);
+const dataBR = d => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('/') : '');
+/** A lista do catálogo como lista da estante: Commander vira Commander; o resto, Livre (o app não valida Brawl nem Standard). */
+function listaParaSalvar(l) {
+  const entries = (l && Array.isArray(l.entradas) ? l.entradas : []).filter(e => e && typeof e.name === 'string' && e.name.trim() && Number.isInteger(e.qty) && e.qty > 0 && ['main', 'side', 'commander'].includes(e.zone))
+    .map(e => ({ name: e.name, qty: e.qty, zone: e.zone }));
+  return { name: String(l.nome || 'Lista oficial'), format: l.formato === 'commander' ? 'commander' : 'livre', entries, origem: { fonte: l.fonte || 'mtgjson', id: l.id } };
+}
+/** Já está na estante? Pela origem marcada ou pelo mesmo nome. */
+const jaNaEstante = (l, minhas) => (minhas || []).some(d => (d.origem && d.origem.id === l.id) || norm(d.name) === norm(l.nome));
+
+function createCatalogo({ store, busca = typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null, base = BASE, prazo = PRAZO_MS, agora = () => Date.now() }) {
+  const le = async k => { try { return await store.get(k); } catch (e) { return null; } };
+  const json = async caminho => {
+    if (!busca) throw new Error('sem-rede');
+    const r = await busca(base + caminho, { cache: 'no-cache' });
+    if (r.status === 404) return { ausente: true };
+    if (!r.ok) throw new Error('http-' + r.status);
+    return { dados: await r.json() };
+  };
+  return {
+    base,
+    /** O índice: guardado se ainda vale; senão busca. Sem rede, o guardado (marcado `velho`); sem nada, o erro. */
+    async indice({ forcar = false } = {}) {
+      const g = await le(CHAVE_INDICE);
+      if (g && g.dados && !forcar && agora() - g.em < prazo) return { dados: g.dados, em: g.em, origem: 'guardado' };
+      try {
+        const r = await json('indice.json');
+        if (r.ausente) return g ? { dados: g.dados, em: g.em, origem: 'guardado', velho: true } : { dados: null, ausente: true };
+        if (!listasDoIndice(r.dados).length && !(r.dados && r.dados.versao === 1)) throw new Error('formato');
+        const novo = { em: agora(), dados: r.dados };
+        try { await store.set(CHAVE_INDICE, novo); } catch (e) { /* sem disco: mostra assim mesmo */ }
+        return { dados: r.dados, em: novo.em, origem: 'rede' };
+      } catch (e) {
+        if (g && g.dados) return { dados: g.dados, em: g.em, origem: 'guardado', velho: true };
+        throw e;
+      }
+    },
+    /** Uma lista inteira (com as cartas): guardada ao abrir, para importar e jogar sem internet depois. */
+    async lista(id) {
+      if (!idValido(id)) throw new Error('id');
+      const g = await le(CHAVE_LISTA(id));
+      if (g && Array.isArray(g.entradas)) return g;
+      const r = await json(`listas/${id}.json`);
+      if (r.ausente || !r.dados || r.dados.id !== id || !Array.isArray(r.dados.entradas)) throw new Error('lista-ausente');
+      try { await store.set(CHAVE_LISTA(id), r.dados); } catch (e) { /* sem disco */ }
+      return r.dados;
+    }
+  };
+}
+
+/** Cartão de uma lista oficial: arte da carta de destaque, nome, cores, formato, contagem e quem comanda (ou tipo e data). */
+function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null } = {}) {
+  const img = imagemDaCarta(l.destaqueId);
+  const arte = h('span', { class: 'cat-item__arte', 'aria-hidden': 'true' });
+  if (img) { const i = h('img', { src: img, alt: '', loading: 'lazy', decoding: 'async' }); i.addEventListener('error', () => { i.remove(); arte.appendChild(Icone('baralho', { tamanho: 22 })); }); arte.appendChild(i); }
+  else arte.appendChild(Icone('baralho', { tamanho: 22 }));
+  const sub = (l.comandante || []).length ? h('span', { class: 'cat-item__sub', lang: 'en' }, l.comandante.join(' + '))
+    : h('span', { class: 'cat-item__sub' }, [l.tipo, dataBR(l.data)].filter(Boolean).join(' · '));
+  return h('article', { class: 'cat-item', dataset: { id: l.id, formato: l.formato } },
+    arte,
+    h('span', { class: 'cat-item__corpo' },
+      h('span', { class: 'cat-item__nome' }, l.nome),
+      h('span', { class: 'cat-item__meta' }, l.cores ? ManaPips(l.cores) : null, h('span', { class: 'cat-item__formato' }, ROTULO_DO_FORMATO[l.formato]),
+        l.cartas ? h('span', { class: 'cat-item__conta', role: 'img', 'aria-label': `${l.cartas} cartas`, title: `${l.cartas} cartas` }, Icone('baralho', { tamanho: 16 }), h('b', {}, String(l.cartas))) : null),
+      sub),
+    tenho ? h('span', { class: 'deck-item__ja', role: 'img', 'aria-label': 'Já na sua estante', title: 'Já na sua estante' }, Icone('marcar', { tamanho: 20 }))
+      : IconButton('mais', `Adicionar ${l.nome}`, { variant: 'primary', classe: 'deck-item__add', disabled: ocupado, dataset: { catalogoAdd: l.id }, onClick: onAdicionar }));
+}
+
+/** A seção "Oficiais da Wizards" na tela de listas prontas. `formato` vem dos chips da tela; a busca é da seção. */
+function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) {
+  const box = h('section', { class: 'cat', id: 'catalogo', 'aria-labelledby': 'catalogo-titulo' });
+  const st = { estado: 'carregando', r: null, texto: '', mostra: LOTE, minhas: [], ocupado: null, formato };
+  const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  const buscaIn = Input({ id: 'catalogo-busca', placeholder: 'Nome, comandante ou código', onInput: e => { st.texto = e.target.value; st.mostra = LOTE; pintaLista(); } });
+  buscaIn.setAttribute('type', 'search'); buscaIn.setAttribute('aria-label', 'Buscar nas listas oficiais'); buscaIn.autocomplete = 'off';
+  const listaBox = h('div', { id: 'catalogo-corpo' });
+  async function adiciona(l) {
+    if (st.ocupado) return;
+    st.ocupado = l.id; pintaLista();
+    try {
+      const completa = await catalogo.lista(l.id);
+      const d = await decks.save(listaParaSalvar(completa));
+      st.minhas = await decks.list();
+      toast(`${l.nome} está na sua estante`);
+      if (aoImportar) aoImportar(d);
+    } catch (e) { toast(!temRede() ? 'Sem internet: esta lista ainda não foi baixada' : 'Não foi possível trazer a lista. Tente de novo.'); }
+    finally { st.ocupado = null; pintaLista(); }
+  }
+  function pintaLista() {
+    const todas = listasDoIndice(st.r && st.r.dados);
+    if (st.estado === 'carregando') return mount(listaBox, __m3.Carregando('Abrindo o catálogo…', { tamanho: 'bloco', id: 'catalogo-carregando' }));
+    if (st.estado === 'sem-rede') return mount(listaBox, AvisoRede('Sem internet: o catálogo aparece quando houver conexão. As listas da Estante, acima, funcionam sem rede.', { id: 'catalogo-sem-rede' }));
+    if (st.estado === 'erro') { const n = Note('<b>Não foi possível abrir o catálogo.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'catalogo-erro';
+      return mount(listaBox, n, Row({}, Button('Repetir', { icone: 'atualizar', id: 'catalogo-de-novo', onClick: () => carrega(true) }))); }
+    if (st.estado === 'ausente' || !todas.length) return mount(listaBox, Empty('O catálogo ainda está sendo montado. Volte daqui a pouco.', null, { icone: 'caixa', titulo: 'Catálogo vazio', id: 'catalogo-vazio' }));
+    const recorte = filtraCatalogo(todas, { formato: st.formato, texto: st.texto });
+    const nomeFmt = ROTULO_DO_FORMATO[st.formato];
+    if (!recorte.length) return mount(listaBox, Empty(st.texto ? `Nenhuma lista oficial com "${st.texto}".` : st.formato === 'pauper' ? 'As listas oficiais são produtos de Commander, Brawl, desafio e iniciante: não há Pauper entre elas. As de Pauper estão na Estante, acima.' : `Nenhuma lista oficial de ${nomeFmt || 'este formato'}.`, null, { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }));
+    const visiveis = recorte.slice(0, st.mostra);
+    mount(listaBox,
+      Text(`${recorte.length} ${recorte.length === 1 ? 'lista' : 'listas'}${nomeFmt ? ' de ' + nomeFmt : ''}, da mais nova à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-conta', 'aria-live': 'polite' } }),
+      h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l) }))),
+      recorte.length > visiveis.length ? Row({}, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
+      Text(`Fonte: MTGJSON (licença MIT) · ${st.r.velho ? 'sem internet: o catálogo guardado em ' : 'atualizado em '}${new Date(st.r.em).toLocaleDateString('pt-BR')}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catalogo-fonte' } }));
+  }
+  async function carrega(forcar = false) {
+    st.estado = 'carregando'; pintaLista();
+    try { st.minhas = await decks.list(); } catch (e) { st.minhas = []; }
+    try { st.r = await catalogo.indice({ forcar }); st.estado = st.r.ausente ? 'ausente' : 'pronto'; }
+    catch (e) { st.estado = temRede() ? 'erro' : 'sem-rede'; }
+    pintaLista();
+  }
+  mount(box,
+    h('div', { class: 'cat__cabeca' }, Text('Oficiais da Wizards', { size: 'lg', display: true, as: 'h2', attrs: { id: 'catalogo-titulo' } }),
+      Text('Os decks lançados pela Wizards, do mais novo ao mais antigo. Um toque em + traz a lista para a sua estante.', { size: 'sm', tone: 'muted' })),
+    buscaIn, listaBox);
+  carrega();
+  box.mudaFormato = f => { st.formato = f; st.mostra = LOTE; pintaLista(); };
+  return box;
+}
+
+return { BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+})();
+
 /* ==== src/app/decks.js ==== */
 const __m15 = (function () {
 /* =====================================================================
@@ -10650,10 +10820,12 @@ function createTerrenosScreen({ terrenos, decks }) {
 /* ---------------- A12 · /listas/prontas ---------------- */
 /** Listas que vêm com o app. Um toque põe a lista na estante; o texto passa
     pela mesma leitura de uma lista colada à mão. */
-function createStarterDecks({ decks, cardRepo = null }) {
+function createStarterDecks({ decks, cardRepo = null, catalogo = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const state = { format: 'all', minhas: [], busy: false, erro: null, cartas: new Map() };
-  const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander']];
+  // Z2 · os formatos das listas oficiais entram nos mesmos chips (as da Estante são Pauper e Commander)
+  const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['brawl', 'Brawl'], ['construido', 'Construído'], ['iniciante', 'Iniciante']];
+  const secaoOficial = catalogo ? __m39.SecaoCatalogo({ catalogo, decks, formato: state.format, aoImportar: async () => { try { state.minhas = await decks.list(); } catch (e) { /* fica a lista de antes */ } } }) : null;
 
   // E50 P5 · principal e reserva contados separados
   const contagem = texto => { const es = parseDeckText(texto).entries; const side = es.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0); const main = es.reduce((n, e) => n + e.qty, 0) - side; return { main, side, es }; };
@@ -10690,9 +10862,9 @@ function createStarterDecks({ decks, cardRepo = null }) {
 
   function paint() {
     const visiveis = STARTER_DECKS.filter(x => state.format === 'all' || x.format === state.format);
-    const chips = Row({ class: 'ds-row--wrap' }, ...FILTROS.map(([k, label]) => {
+    const chips = h('div', { class: 'ds-segmentado ds-segmentado--grade ds-segmentado--tres', role: 'group', 'aria-label': 'Formato', id: 'starter-formatos' }, ...FILTROS.map(([k, label]) => {
       const c = Chip(label, { pressed: state.format === k, dataset: { starterFormat: k } });
-      c.addEventListener('click', () => { state.format = k; paint(); });
+      c.addEventListener('click', () => { state.format = k; if (secaoOficial) secaoOficial.mudaFormato(k); paint(); });
       return c;
     }));
     mount(root,
@@ -10702,16 +10874,19 @@ function createStarterDecks({ decks, cardRepo = null }) {
       Text('Decks reais para você jogar agora. Um toque põe a lista na sua estante, e de lá você joga, edita ou exporta como qualquer outra.', { tone: 'muted' }),
       chips,
       state.erro ? Note(state.erro, { tone: 'danger' }) : null,
+      // Z2 · duas fontes: as da Estante (jogam já, sem internet) e as oficiais da Wizards (catálogo)
+      visiveis.length && secaoOficial ? Text('Da Estante', { size: 'lg', display: true, as: 'h2', attrs: { id: 'starter-titulo' } }) : null,
       visiveis.length ? h('div', { class: 'ds-list', id: 'starter-list' }, ...visiveis.map(item => {
         const tenho = jaTenho(item.name);
         const { main, side, es } = contagem(item.text);
         return DeckLinha({ nome: item.name, formato: item.format, cores: coresDaLista(es, state.cartas), main, side,
           fim: tenho ? h('span', { class: 'deck-item__ja', role: 'img', 'aria-label': 'Já na sua estante', title: 'Já na sua estante' }, Icone('marcar', { tamanho: 20 }))
             : IconButton('mais', `Adicionar ${item.name}`, { variant: 'primary', classe: 'deck-item__add', dataset: { starterAdd: item.name }, onClick: () => adicionar(item) }) });
-      })) : Empty('Nenhuma lista pronta neste formato.'),
+      })) : secaoOficial ? null : Empty('Nenhuma lista pronta neste formato.'),
       visiveis.length ? Row({ class: 'ds-row--wrap' },
         Button(state.format === 'all' ? 'Adicionar todas' : `Adicionar as ${visiveis.length} de ${FORMATS[state.format] || state.format}`,
-          { id: 'starter-add-all', onClick: () => adicionarTodas(visiveis) })) : null);
+          { id: 'starter-add-all', onClick: () => adicionarTodas(visiveis) })) : null,
+      secaoOficial);
   }
 
   (async () => {
@@ -23318,6 +23493,7 @@ const terrenos = __m36.createTerrenos({ store: platform.store, scryfall, images 
 const noticias = __m37.createNoticias({ store: platform.store, scryfall }); // N2 · N5 (coleções)
 const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const relatos = __m38.createRelatos({ store: platform.store }); // Y1 · relatos do usuário
+const catalogo = __m39.createCatalogo({ store: platform.store }); // Z2 · listas oficiais do ramo `catalogo`
 __m38.usa(relatos); __m3.usaRelatar(() => __m38.abreRelato());
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
@@ -23337,7 +23513,7 @@ const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup, etiquetas }) },
-  { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo }) },
+  { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo, catalogo }) }, // Z2 · com as oficiais
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names, scryfall }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },

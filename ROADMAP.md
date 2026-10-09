@@ -478,7 +478,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ch ✅ | Y2 relatar na partida: aba na borda que arrasta e lembra, Relatar no balão da faixa, contexto e partida anexada (leva G-224) | Y | 1 | teste no aparelho |
 | 16º-ci ✅ | Y3 relatos para fora: situação e filtros, exportar em texto, JSON e CSV, abrir a partida anexada (leva G-225) | Y | 1 | teste no aparelho |
 | 16º-cj ✅ | Z1 coletor do catálogo: MTGJSON no ramo `catalogo`, toda semana, incremental (leva G-226) | Z | 1 | primeira coleta |
-| 16º-cl ○ | Z2–Z4 catálogo por formato, detalhe com visões e estatísticas, importar e jogar | Z | 3 | Z1 |
+| 16º-cl ✅ | Z2 catálogo por formato em Listas prontas: oficiais da Wizards com arte, cores, busca, lotes e + para a estante (leva G-227) | Z | 1 | teste no aparelho |
+| 16º-cm ○ | Z3–Z4 detalhe da lista do catálogo (visões e estatísticas), jogar direto e sem internet | Z | 2 | Z2 |
 | 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -6417,12 +6418,33 @@ segredo do repositório. O `main` não recebe commit do coletor.
   prontas do próprio app.
 - **Testes:** U `catalogo.unit` ×4 (formatos, normalização, candidatas e índice, publicação incremental com fonte falsa).
 - **Aviso à trilha `infra`:** arquivo de fluxo novo, no molde do de Notícias.
-**Z2 · Catálogo por formato** ○ — tela a partir de Listas: formatos em controle segmentado, cartões com cores em
-símbolos, comandante ou carta de destaque, tipo, data e fonte; busca; vazio, carregando, erro e sem internet.
+**Z2 · Catálogo por formato** ✅ (leva G-227, 09/10/2026)
+- **Valor:** ver as listas oficiais por formato e trazer uma para a estante em um toque.
+- **Entregue:** a tela **Listas prontas** (mesma rota, mesmo atalho "Prontas") passa a ter as duas fontes:
+  - **seis formatos** em grade de três (Todas, Pauper, Commander, Brawl, Construído, Iniciante), valendo para as duas;
+  - **Da Estante** — as nove que já vinham com o app (jogam sem internet), como antes;
+  - **Oficiais da Wizards** — do ramo `catalogo` (Z1): cartão com a **arte da carta de destaque** (o comandante, ou a de
+    maior raridade), nome em até duas linhas, **cores em símbolos**, formato, **contagem** e quem comanda (ou tipo e
+    data); da mais nova à mais antiga, **30 por vez** com "Mostrar mais"; **busca** por nome, comandante ou código, sem
+    acento; **+ traz a lista** (baixa as cartas, salva com a origem marcada; Commander vira Commander, o resto Livre) e o
+    cartão passa a "Já na sua estante"; fonte e licença no pé;
+  - **estados:** carregando; erro com **Repetir** (as da Estante continuam); sem internet com aviso; catálogo ainda vazio;
+    Pauper explica que as oficiais não têm Pauper e aponta as da Estante; índice e listas abertas **ficam no aparelho**
+    (sem internet, o catálogo guardado aparece com a data).
+- **Divergência do plano, declarada:** o "importar" da Z4 veio para cá (um catálogo sem ação seria estado que não faz
+  nada); a Z4 fica com o "Jogar" direto e as imagens guardadas para jogar sem internet.
+- **Modelo (puro, `__m39`):** `listasDoIndice`, `filtraCatalogo`, `imagemDaCarta`, `listaParaSalvar`, `jaNaEstante`,
+  `createCatalogo` (índice com prazo de 12 h e cópia guardada, lista guardada ao abrir); `CartaoCatalogo`, `SecaoCatalogo`.
+- **Testes:** U `catalogo.tela.unit` ×3; e2e "Z2" (erro e Repetir, grade de seis, cartão, lotes, formatos, Pauper,
+  busca, adicionar com a origem e abrir na estante, sem internet; `auditaTela` nas quatro medidas e nos dois temas);
+  A12 continua igual (as da Estante).
+- **Coleta:** primeira coleta feita em 09/10/2026 — 250 listas (Commander 152, Iniciante 72, Construído 21, Brawl 5), 634
+  na fila das próximas.
+
 **Z3 · Detalhe da lista do catálogo** ○ — descrição da fonte, visões Lista (por tipo), Agregado (por custo e cor) e
-Galeria, estatísticas da L8, folha da carta (rulings e preço).
-**Z4 · Importar e jogar** ○ — "Salvar" cria a lista nas suas com a origem marcada (repetida abre a existente), as
-cartas e imagens ficam guardadas para jogar sem internet; "Jogar" direto contra o Shark.
+Galeria, estatísticas da L8, folha da carta (rulings e preço), a partir do toque no cartão.
+**Z4 · Jogar e sem internet** ○ — "Jogar" direto contra o Shark a partir do catálogo; cartas e imagens da lista importada
+guardadas pelo guardião (O1) para jogar sem internet.
 **Z5 · Listas de torneio (TopDeck.gg)** ⛔ — evento, colocação e jogador, com o crédito visível; depende da chave.
 
 ### P · Plataforma
