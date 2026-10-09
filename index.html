@@ -79,6 +79,7 @@
   --dur-abertura: 2000ms; /* J5 · a abertura inteira: o ladrilho pousa, a estante aparece e as três cartas caem no lugar (I7: de 1,2 s para 2 s) */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
   --ease-in-out: cubic-bezier(.45, .05, .55, .95);
+  --ease-mola: cubic-bezier(.34, 1.56, .64, 1); /* T3 · volta com um leve repique (o Jogar soltando) */
 
   /* ---- camadas ---- */
   --z-base: 0;
@@ -145,6 +146,10 @@
   --btn-shine-accent: rgba(255, 250, 235, .16);
   --btn-rest: 0 1px 0 rgba(0, 0, 0, .38), 0 3px 6px -3px rgba(0, 0, 0, .55);
   --btn-pressed: inset 0 2px 3px rgba(0, 0, 0, .38);
+  /* T3 · relevo do Jogar: placa de latão com lábio, fio de luz no topo e sombra que assenta na madeira */
+  --relevo-escuro: rgba(28, 16, 2, .55);
+  --relevo-claro: rgba(255, 250, 235, .42);
+  --relevo-sombra: 0 16px 24px -14px rgba(0, 0, 0, .78);
   --focus-ring: 0 0 0 3px var(--accent-soft);
   color-scheme: dark;
 }
@@ -187,6 +192,9 @@
   --btn-shine-accent: rgba(255, 244, 214, .14);
   --btn-rest: 0 1px 0 rgba(92, 68, 30, .22), 0 3px 6px -3px rgba(74, 56, 26, .3);
   --btn-pressed: inset 0 2px 3px rgba(74, 56, 26, .22);
+  --relevo-escuro: rgba(34, 20, 4, .5);
+  --relevo-claro: rgba(255, 248, 228, .34);
+  --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
   color-scheme: light;
 }
 
@@ -228,6 +236,9 @@
     --btn-shine-accent: rgba(255, 244, 214, .14);
     --btn-rest: 0 1px 0 rgba(92, 68, 30, .22), 0 3px 6px -3px rgba(74, 56, 26, .3);
     --btn-pressed: inset 0 2px 3px rgba(74, 56, 26, .22);
+    --relevo-escuro: rgba(34, 20, 4, .5);
+    --relevo-claro: rgba(255, 248, 228, .34);
+    --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
     color-scheme: light;
   }
 }
@@ -626,6 +637,30 @@ a { color: var(--accent); }
 .ds-atalho__detalhe { font-size: var(--text-xs); line-height: 1.35; opacity: .82; font-weight: var(--weight-regular); }
 .ds-atalho--largo { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: flex-start; min-height: 76px; gap: var(--space-4); }
 .ds-atalho--largo .ds-atalho__icone svg { width: 30px; height: 30px; }
+/* T3 · Jogar com volume (relato #3: "grosseiro"): placa com lábio de 4 px, fio de luz no topo, fundo que escurece para
+   baixo, medalhão gravado com o ícone e seta à direita. Ao tocar, afunda o lábio inteiro (3 px) e um brilho atravessa;
+   ao soltar, volta com repique. Menos movimento: só a sombra muda. */
+.inicio-jogar.ds-btn { position: relative; overflow: hidden; isolation: isolate; border-radius: var(--radius-3); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3); margin-bottom: 4px;
+  --jogar-lab: color-mix(in srgb, var(--bg-elev-2) 55%, var(--relevo-escuro));
+  background-image: linear-gradient(180deg, var(--relevo-claro) 0, transparent 2px), linear-gradient(180deg, var(--btn-shine), transparent 48%), linear-gradient(0deg, color-mix(in srgb, var(--relevo-escuro) 40%, transparent), transparent 60%);
+  box-shadow: 0 4px 0 var(--jogar-lab), var(--relevo-sombra);
+  transition: transform var(--dur-2) var(--ease-mola), box-shadow var(--dur-2) var(--ease-mola), background-color var(--dur-1) var(--ease-out); }
+.inicio-jogar.ds-btn--primary { --jogar-lab: color-mix(in srgb, var(--accent) 58%, var(--relevo-escuro)); border-color: color-mix(in srgb, var(--accent) 80%, var(--relevo-claro));
+  background-image: linear-gradient(180deg, var(--relevo-claro) 0, transparent 2px), linear-gradient(180deg, var(--btn-shine-accent), transparent 52%), linear-gradient(0deg, color-mix(in srgb, var(--relevo-escuro) 34%, transparent), transparent 62%); }
+.inicio-jogar.ds-btn:active:not([disabled]) { transform: translateY(3px) scale(.99); box-shadow: 0 1px 0 var(--jogar-lab), 0 4px 10px -8px var(--relevo-escuro), inset 0 2px 4px var(--relevo-escuro); transition-duration: var(--dur-1); transition-timing-function: var(--ease-out); }
+.inicio-jogar .ds-atalho__icone { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--relevo-escuro) 22%, transparent); box-shadow: inset 0 2px 4px var(--relevo-escuro), inset 0 -1px 0 var(--relevo-claro), 0 1px 0 var(--relevo-claro);
+  transition: transform var(--dur-2) var(--ease-mola); }
+.inicio-jogar.ds-btn:active .ds-atalho__icone { transform: scale(.92); transition-duration: var(--dur-1); }
+.inicio-jogar .ds-atalho__icone svg { width: 28px; height: 28px; margin-left: 3px; }
+.inicio-jogar .ds-atalho__rotulo { font-size: var(--text-xl); letter-spacing: .01em; }
+.inicio-jogar__seta { flex: none; margin-left: auto; display: grid; place-items: center; opacity: .72; transition: transform var(--dur-2) var(--ease-mola); }
+.inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: translateX(3px); }
+.inicio-jogar::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 30%, var(--relevo-claro) 50%, transparent 70%) no-repeat; background-size: 220% 100%; background-position: 160% 0; }
+.inicio-jogar--brilho::after { animation: jogar-brilho var(--dur-4) var(--ease-out); }
+@keyframes jogar-brilho { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
+@media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
 /* D3 · painel offline recolhido quando está tudo guardado e há rede: uma linha com anel; "Detalhes" abre o resto no lugar */
 #home-offline[data-compacto="true"] { padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); }
 #home-offline[data-compacto="true"] .ds-offline__corpo { display: none; }
@@ -24756,7 +24791,13 @@ function renderHome() {
     offlinePanel(),
     h('div', { class: 'ds-row', style: { justifyContent: 'center' } },
       Button('Componentes', { variant: 'ghost', icone: 'camadas', id: 'go-ds', title: 'Catálogo de componentes', onClick: () => { location.hash = '#/ds'; } })));
-  el.querySelector('#go-play').classList.add('ds-atalho--largo');
+  { // T3 · Jogar com volume: seta à direita e o brilho que atravessa no toque (some sozinho)
+    const jogar = el.querySelector('#go-play');
+    jogar.classList.add('ds-atalho--largo', 'inicio-jogar');
+    jogar.appendChild(h('span', { class: 'inicio-jogar__seta', 'aria-hidden': 'true' }, Icone('seguir', { tamanho: 20 })));
+    jogar.addEventListener('pointerdown', () => { jogar.classList.remove('inicio-jogar--brilho'); void jogar.offsetWidth; jogar.classList.add('inicio-jogar--brilho'); });
+    jogar.addEventListener('animationend', () => jogar.classList.remove('inicio-jogar--brilho'));
+  }
   perfil.get().then(p => {
     nomeDoPerfil = p && p.nome ? p.nome : null;
     titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';

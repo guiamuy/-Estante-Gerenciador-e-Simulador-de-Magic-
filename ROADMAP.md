@@ -485,7 +485,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-co ✅ | Y5 relatos chegam à correção: Enviar abre o registro no GitHub já preenchido; o fluxo Relatos etiqueta e grava a tabela no ramo `relatos`; tipos Melhoria e Infraestrutura (leva G-232) | Y | 1 | — |
 | 16º-cp ✅ | T1 editar relato até 1 h depois de salvar: tipo, urgência e descrição (leva G-233) | T | 1 | — |
 | 16º-cq | T2 notícias no núcleo da Início: lista contínua, filtro de idioma, guardar e atualizar na própria Início, voltar ao topo | T | 1 a 2 | — |
-| 16º-cr | T3 botão Jogar com volume e resposta ao toque | T | ½ | — |
+| 16º-cr ✅ | T3 botão Jogar com volume e resposta ao toque (leva G-235) | T | ½ | — |
 | 16º-cs | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada | T | 1 | leitura do que o motor já expõe (camadas da CR2-G) |
 | 16º-ct ✅ | T5 Listas prontas: respiro entre a última lista e Mostrar mais (leva G-234) | T | ½ | — |
 | 16º-cu | T6 perfil por pessoa e servidor: plano curto (perfis no aparelho) e médio prazo (conta e sincronização) | T | 1 de decisão + 3 a 5 | escolha do serviço (decisão do usuário) |
@@ -6558,11 +6558,18 @@ prontas.
 - **Testes:** e2e com notícias falsas (lotes, filtro, guardar, topo), `auditaTela` nas quatro medidas e nos dois temas.
 - **Fora:** notícias novas de fonte nova (épico N).
 
-**T3 · Jogar com volume e resposta ao toque** (pedido: Visual · Alta · Início)
+**T3 · Jogar com volume e resposta ao toque** ✅ (leva G-235, 09/10/2026 · registro #3, parte do botão)
 - **Valor:** o convite principal do app parece um objeto, não um retângulo.
-- **Aceite:** botão com lábio, brilho e sombra em camadas dos tokens; ao tocar afunda e devolve (≤ 200 ms), com regra para
-  movimento reduzido; continua um primário só, com ícone e uma palavra; contraste AA nos dois temas.
-- **Testes:** contrato visual (tokens, sem cor literal), e2e mede altura e alvo, captura antes e depois.
+- **Entregue:** o Jogar da Início vira uma **placa de latão**: lábio de 4 px embaixo (o acento escurecido), fio de luz no
+  topo, fundo que escurece para baixo, sombra que assenta na madeira, cantos de 14 px; o ícone fica num **medalhão
+  gravado** de 52 px e uma **seta** à direita diz "vai". Ao tocar, a placa **afunda o lábio** (3 px, 110 ms), o medalhão
+  encolhe, a seta avança e um **brilho atravessa** a placa (420 ms); ao soltar, volta com **repique** (180 ms,
+  `--ease-mola`). Com partida para continuar, a placa fica neutra (não é o primário), com o mesmo relevo. Menos
+  movimento: sem afundar nem brilho, só a sombra muda. 76 → 78 px de altura (+4 px de lábio fora da caixa).
+- **Tokens novos (três blocos de tema):** `--relevo-escuro`, `--relevo-claro`, `--relevo-sombra`; `--ease-mola`.
+- **Testes:** contrato visual +1 (tokens nos três blocos, texto AA no pé mais escuro da placa nos dois temas, regra de
+  menos movimento); e2e "T3" (lábio, medalhão, seta, um primário, afunda e brilho que some sozinho, menos movimento sem
+  animação, `auditaTela` nas quatro medidas e nos dois temas).
 
 **T4 · Carta modificada na mesa** (pedido: Ideia · Baixa · Mesa)
 - **Valor:** ver de relance o que mudou na carta: maior, menor, ganhou ou perdeu habilidade.

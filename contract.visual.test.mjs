@@ -287,3 +287,20 @@ test('D12 · todo componente visual exportado pelo DS aparece no catálogo /ds, 
   for (const secao of ['Tokens', 'Tipografia', 'Botões', 'Perfil e progresso', 'Estados', 'Movimento', 'Mesa', 'Sobreposições', 'Checklist de design por leva']) assert.ok(catalogo.includes(`'${secao}'`), `seção ${secao}`);
   for (const id of ['ds-tokens-cor', 'ds-tokens-texto', 'ds-tokens-espaco', 'ds-checklist', 'ds-movimentos', 'ds-versos', 'ds-linha-estado']) assert.ok(html.includes(`'${id}'`), id);
 });
+
+test('T3 · Jogar com volume: relevo em tokens nos três blocos, texto AA até no ponto mais escuro da placa, keyframe com menos movimento', () => {
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]])
+    for (const k of ['--relevo-escuro', '--relevo-claro', '--relevo-sombra']) assert.ok(t[k], `${k} no tema ${nome}`);
+  assert.equal(AUTO_LIGHT['--relevo-escuro'], LIGHT['--relevo-escuro']);
+  // o pé da placa: o acento coberto pelo escuro do relevo a 34% da opacidade dele (o gradiente de baixo)
+  const rgba = v => v.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([.\d]+)\)/).slice(1).map(Number);
+  const hex = h => h.replace('#', '').match(/../g).map(x => parseInt(x, 16));
+  const toHex = c => '#' + c.map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) {
+    const [r, g, b, a] = rgba(t['--relevo-escuro']), k = a * 0.34, base = hex(t['--accent']);
+    const pe = toHex(base.map((c, i) => c * (1 - k) + [r, g, b][i] * k));
+    assert.ok(ratio(t['--accent-fg'], pe) >= 4.5, `texto do Jogar no pé da placa (${nome}): ${ratio(t['--accent-fg'], pe).toFixed(2)}`);
+  }
+  assert.match(componentCss, /\.inicio-jogar--brilho::after \{ animation: jogar-brilho var\(--dur-4\)/);
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.inicio-jogar\.ds-btn:active:not\(\[disabled\]\)[^}]*transform: none; \} \.inicio-jogar--brilho::after \{ animation: none; \} \}/);
+});

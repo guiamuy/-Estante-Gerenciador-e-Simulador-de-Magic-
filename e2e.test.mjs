@@ -2596,7 +2596,7 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   assert.ok(barra.filter(b => ['nav-play', 'nav-decks', 'nav-collection', 'theme-toggle'].includes(b.id)).every(b => b.svgs >= 1), 'destinos da barra têm ícone');
   const atalhos = await audita('#home-atalhos button'); confere(atalhos, 'atalhos', { maxPalavras: 1 });
   assert.deepEqual(atalhos.map(a => a.id), ['go-play', 'go-decks', 'go-collection', 'go-scanner', 'go-cards']); // K4 (leva G-216) · Notícias virou seção da Início, com "Ver todas"
-  assert.ok(atalhos.every(a => a.svgs === 1), 'cada atalho tem um ícone');
+  assert.ok(atalhos.every(a => a.svgs === (a.id === 'go-play' ? 2 : 1)), 'cada atalho tem um ícone (o Jogar, também a seta: T3)');
   confere(await audita('#home button'), 'início inteiro');
   // atalho principal ocupa a largura toda; K4 (leva G-216) · expectativa mudou de propósito: os outros quatro numa linha só
   const caixa = id => page.locator(id).boundingBox();
@@ -9267,6 +9267,33 @@ test('e2e · K3 parar sempre por etapa: Paradas no balão da faixa abre as chave
 });
 
 /* ---------------- K4 · Início com notícias integradas ---------------- */
+/* ---------------- T3 · Jogar com volume (relato #3) ---------------- */
+test('e2e · T3 Jogar com volume: placa com lábio e medalhão, um primário só, toque afunda e passa o brilho (que some sozinho), menos movimento sem brilho; sem sobreposição nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#go-play.inicio-jogar');
+  const m = await page.$eval('#go-play', b => { const cs = getComputedStyle(b), i = b.querySelector('.ds-atalho__icone').getBoundingClientRect(), r = b.getBoundingClientRect();
+    return { h: Math.round(r.height), sombra: cs.boxShadow, medalhao: [Math.round(i.width), Math.round(i.height)], seta: !!b.querySelector('.inicio-jogar__seta svg'), raio: cs.borderTopLeftRadius }; });
+  assert.ok(m.h >= 76, 'altura ' + m.h); assert.deepEqual(m.medalhao, [52, 52]); assert.ok(m.seta, 'seta à direita');
+  assert.match(m.sombra, /0px 4px 0px/, 'lábio de 4 px: ' + m.sombra);
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário só');
+  // o toque: o brilho entra no pointerdown e sai sozinho no fim da animação
+  const box = await page.locator('#go-play').boundingBox();
+  await page.evaluate(() => { document.querySelector('#go-play').addEventListener('click', e => e.stopImmediatePropagation(), { capture: true, once: true }); });
+  await page.mouse.move(box.x + 40, box.y + 30); await page.mouse.down();
+  assert.equal(await page.$eval('#go-play', b => b.classList.contains('inicio-jogar--brilho')), true);
+  const afundou = await page.$eval('#go-play', b => getComputedStyle(b).transform);
+  await page.mouse.up();
+  assert.notEqual(afundou, 'none', 'afunda enquanto o dedo está');
+  await page.waitForFunction(() => !document.querySelector('#go-play').classList.contains('inicio-jogar--brilho'), null, { timeout: 3000 });
+  // menos movimento: nada de brilho nem de transformação
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await page.$eval('#go-play', b => { b.classList.add('inicio-jogar--brilho'); return getComputedStyle(b, '::after').animationName; }), 'none');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `Início Jogar ${w} ${tema}`); } }
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · K4 Início: data e saudação, Jogar como único primário, quatro destinos numa linha, e as notícias integradas (destaque e duas, idiomas escolhidos, Ver todas) com sem internet, falha e vazio numa linha', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
