@@ -697,11 +697,41 @@ test('CR2d.5 · Kytheon: no fim do combate, se ele e mais duas criaturas atacara
 
 test('CR2d.5 · Gideon, Battle-Forged: +1 dá indestrutível até o seu próximo turno e desvira; 0 vira criatura 4/4 indestrutível que continua planeswalker, sem receber dano no turno', () => {
   let s = semMao(mesa(['Kytheon, Hero of Akros', 'Faerie Seer', 'Lightning Bolt'], []), 0), k, fs, b; [s, k] = poe(s, 0, 'Kytheon, Hero of Akros'); [s, fs] = poe(s, 0, 'Faerie Seer'); [s, b] = poe(s, 0, 'Lightning Bolt', 'hand'); s = comoGideon(s, k); s.objects[fs].tapped = true;
-  const mais1 = legais(s, 0, x => x.t === 'activate' && x.oid === k && x.targets && x.targets[0].oid === fs); assert.equal(mais1.length, 1);
+  const mais1 = legais(s, 0, x => x.t === 'activate' && x.oid === k && x.index === 1 && x.targets && x.targets[0] && x.targets[0].oid === fs); // índices do verso: 0 = +2, 1 = +1, 2 = 0 assert.equal(mais1.length, 1);
   let t = tudo(act(s, mais1[0])); assert.equal(t.objects[k].counters.loyalty, 4); assert.equal(t.objects[fs].tapped, false, 'Untap that creature'); assert.ok(E.hasKeyword(t, t.objects[fs], 'indestructible'));
   const turno = t.turn.number; t = passaAte(t, x => x.turn.number === turno + 1 && x.turn.step === 'main1'); assert.ok(E.hasKeyword(t, t.objects[fs], 'indestructible'), 'até o seu próximo turno: vale no turno do oponente');
   const zero = legais(s, 0, x => x.t === 'activate' && x.oid === k && !x.targets && E.isCreature(s, s.objects[k]) === false); assert.ok(zero.length >= 1);
   let u = tudo(act(s, zero.find(x => x.index === Math.max(...zero.map(y => y.index))))); const g = u.objects[k];
   assert.ok(E.isCreature(u, g) && E.tiposDe(u, g).includes('planeswalker'), "4/4 creature that's still a planeswalker"); assert.equal(`${E.stats(u, g).power}/${E.stats(u, g).toughness}`, '4/4'); assert.ok(E.hasKeyword(u, g, 'indestructible'));
   u = tudo(act(comMana(u, 'R'), legais(comMana(u, 'R'), 0, x => x.t === 'cast' && x.oid === b && x.targets[0].oid === k)[0])); assert.equal(u.objects[k].counters.loyalty, 3, 'Prevent all damage that would be dealt to him this turn'); assert.equal(u.objects[k].damage, 0);
+});
+
+// ---------------------------------------------------------------- M-228 · atacar planeswalker (506.3, 508.1b, 510.1, 120.3c)
+const pwDoOponente = (s, nome) => { let pw; [s, pw] = poe(s, 1, nome); s = J(s); s.objects[pw].counters.loyalty = Number(CARTAS[nome].loyalty); return [s, pw]; };
+const ateAtacar = s => passaAte(s, x => x.pending && x.pending.kind === 'attackers');
+const semBloqueio = s => { s = passaAte(s, x => (x.pending && x.pending.kind === 'blockers') || x.turn.step === 'main2'); return s.pending && s.pending.kind === 'blockers' ? act(s, { t: 'block', p: s.pending.p, blocks: [] }) : s; };
+
+test('M-228 · atacar planeswalker: a criatura escolhe atacar o planeswalker do oponente; o dano de combate sem bloqueio tira lealdade, não vida', () => {
+  let s = semMao(mesa(['Faerie Seer', 'Zulaport Cutthroat'], ['Lukka, Coppercoat Outcast']), 0), fs, z, lk; [s, fs] = poe(s, 0, 'Faerie Seer'); [s, z] = poe(s, 0, 'Zulaport Cutthroat'); s = veterano(veterano(s, fs), z); [s, lk] = pwDoOponente(s, 'Lukka, Coppercoat Outcast');
+  s = ateAtacar(s); const opc = legais(s, 0, x => x.t === 'attack' && x.alvos && x.alvos[fs] === lk); assert.ok(opc.length >= 1, 'a mesa oferece atacar a Lukka');
+  assert.throws(() => act(s, { t: 'attack', p: 0, attackers: [fs], alvos: { [fs]: z } }), /alvo do ataque/, 'só planeswalker do oponente');
+  s = semBloqueio(act(s, { t: 'attack', p: 0, attackers: [fs, z], alvos: { [fs]: lk } }));
+  s = passaAte(s, x => x.turn.step === 'main2'); assert.equal(s.objects[lk].counters.loyalty, 4, 'Faerie Seer (1) tirou 1 de lealdade'); assert.equal(s.players[1].life, 19, 'a Zulaport (1) atacou o jogador');
+});
+
+test('M-228 · planeswalker que sai do campo antes do dano: a criatura que o atacava continua atacando mas não causa dano (506.4, 510.1c)', () => {
+  let s = semMao(mesa(['Faerie Seer'], ['Lukka, Coppercoat Outcast']), 0), fs, lk; [s, fs] = poe(s, 0, 'Faerie Seer'); s = veterano(s, fs); [s, lk] = pwDoOponente(s, 'Lukka, Coppercoat Outcast');
+  s = act(ateAtacar(s), { t: 'attack', p: 0, attackers: [fs], alvos: { [fs]: lk } });
+  s = J(s); s.zones[1].battlefield = s.zones[1].battlefield.filter(x => x !== lk); s.zones[1].graveyard.push(lk); s.objects[lk].zone = 'graveyard'; // a Lukka saiu antes do dano
+  s = semBloqueio(s); s = passaAte(s, x => x.turn.step === 'main2'); assert.equal(s.players[1].life, 20, 'nenhum dano ao jogador');
+});
+
+test('M-228 · Gideon, Battle-Forged (+2): até uma criatura alvo do oponente ataca o Gideon no próximo turno do controlador dela, se puder', () => {
+  let s = semMao(mesa(['Kytheon, Hero of Akros'], ['Zulaport Cutthroat']), 0), k, z; [s, k] = poe(s, 0, 'Kytheon, Hero of Akros'); [s, z] = poe(s, 1, 'Zulaport Cutthroat'); s = comoGideon(s, k); s = veterano(s, z);
+  const mais2 = legais(s, 0, x => x.t === 'activate' && x.oid === k && x.index === 0 && x.targets && x.targets[0] && x.targets[0].oid === z); assert.equal(mais2.length, 1);
+  s = tudo(act(s, mais2[0])); assert.equal(s.objects[k].counters.loyalty, 5, '+2');
+  s = passaAte(s, x => x.turn.active === 1 && x.pending && x.pending.kind === 'attackers');
+  const ops = legais(s, 1, x => x.t === 'attack'); assert.ok(ops.length && ops.every(x => x.attackers.includes(z) && (x.alvos || {})[z] === k), 'em toda declaração oferecida a Zulaport ataca o Gideon');
+  assert.throws(() => act(s, { t: 'attack', p: 1, attackers: [z], alvos: {} }), /Gideon/, 'atacar o jogador não cumpre a exigência');
+  const t = act(s, { t: 'attack', p: 1, attackers: [z] }); assert.equal(t.objects[z].atacandoPw, k, 'sem alvo escolhido, a mesa cumpre a exigência sozinha');
 });

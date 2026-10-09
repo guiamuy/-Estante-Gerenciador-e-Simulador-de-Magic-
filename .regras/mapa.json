@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 94,
+ "motor": 95,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -1468,8 +1468,8 @@
    "regra": "Damage",
    "titulo": "Resultados do dano",
    "status": "parcial",
-   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4)",
-   "falta": "b/d infectar e definhar, g tóxico e os marcadores de veneno não existem (Phyresis e os Skrelv estão no acervo sem script); c: planeswalker não pode ser atacado (attacking é sempre o jogador, index.html:12339), então não leva dano de combate; h batalha.",
+   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
+   "falta": "b/d infectar e definhar, g tóxico e os marcadores de veneno não existem (Phyresis e os Skrelv estão no acervo sem script); c: coberto na M-228 (dano de combate em planeswalker); h batalha.",
    "esforco": "M",
    "depende": [
     "122.1f",
@@ -2491,12 +2491,14 @@
    "n": "306.8",
    "regra": "Planeswalkers",
    "titulo": "Dano tira marcadores de lealdade",
-   "status": "parcial",
-   "evidencia": "dano de mágica/habilidade tira lealdade (index.html:11123); teste \"S21 · ... dano tira lealdade\"",
-   "falta": "dano de combate em planeswalker não existe porque ele não pode ser atacado.",
+   "status": "coberta",
+   "evidencia": "dano de mágica/habilidade tira lealdade (index.html:11123); teste \"S21 · ... dano tira lealdade\" · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
    "esforco": "P",
    "depende": [
     "306.6"
+   ],
+   "testes": [
+    "M-228 · atacar planeswalker: a criatura escolhe atacar o planeswalker do oponente; o dano de combate sem bloqueio tira lealdade, não vida"
    ]
   },
   {
@@ -3706,8 +3708,8 @@
    "regra": "Combat Phase",
    "titulo": "Só criatura ataca ou bloqueia; o que pode ser atacado",
    "status": "parcial",
-   "evidencia": "eligibleAttackers/eligibleBlockers filtram isCreature (index.html:10752-10759); ninjutsu/esgueirar-se põem criatura em campo atacando e não bloqueada (506.3d): sonda p5/t3.mjs N1; rules.unit 'S18 · ninjutsu...' e 'S54 · esgueirar-se'",
-   "falta": "Planeswalker e batalha não podem ser atacados (ver 506.2). 506.3a/b/c/e/f/g (entrar atacando sob outro controlador, entrar bloqueando, batalha-criatura) não têm caminho no motor: só ninjutsu/esgueirar-se entram atacando.",
+   "evidencia": "eligibleAttackers/eligibleBlockers filtram isCreature (index.html:10752-10759); ninjutsu/esgueirar-se põem criatura em campo atacando e não bloqueada (506.3d): sonda p5/t3.mjs N1; rules.unit 'S18 · ninjutsu...' e 'S54 · esgueirar-se' · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
+   "falta": "Planeswalker pode ser atacado (M-228); batalha não. 506.3a/b/c/e/f/g (entrar atacando sob outro controlador, entrar bloqueando, batalha-criatura) não têm caminho no motor: só ninjutsu/esgueirar-se entram atacando.",
    "esforco": "M",
    "depende": [
     "508.1b",
@@ -3719,8 +3721,8 @@
    "regra": "Combat Phase",
    "titulo": "Remoção do combate",
    "status": "parcial",
-   "evidencia": "moveObject apaga attacking/blocking/blockedBy/blocked ao sair do campo (index.html:10274); dealCombatDamage ignora quem não está mais em campo e mantém o atacante bloqueado sem bloqueador (10780-10784); sonda p5/t2.mjs C6 (bloqueador removido: atacante comum não causa dano, atropelar passa tudo) e C7 (506.4b: atacante virado depois de declarado ainda causa dano); pauper.regras 'Tinder Wall'",
-   "falta": "Só \"saiu do campo\" remove do combate. Não há troca de controle, phasing, regeneração, \"remova do combate\" como efeito, nem deixar de ser criatura no meio do combate (terreno-criatura); 506.4c/d/e dependem de planeswalker/batalha atacados.",
+   "evidencia": "moveObject apaga attacking/blocking/blockedBy/blocked ao sair do campo (index.html:10274); dealCombatDamage ignora quem não está mais em campo e mantém o atacante bloqueado sem bloqueador (10780-10784); sonda p5/t2.mjs C6 (bloqueador removido: atacante comum não causa dano, atropelar passa tudo) e C7 (506.4b: atacante virado depois de declarado ainda causa dano); pauper.regras 'Tinder Wall' · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
+   "falta": "Só \"saiu do campo\" remove do combate. Não há troca de controle, phasing, regeneração, \"remova do combate\" como efeito, nem deixar de ser criatura no meio do combate (terreno-criatura); 506.4c (planeswalker atacado sai do campo: o atacante continua atacando sem causar dano) coberto na M-228; d/e (batalha) não.",
    "esforco": "M",
    "depende": [
     "701.19 (regenerar)",
@@ -3774,8 +3776,8 @@
    "regra": "Declare Attackers Step",
    "titulo": "Declaração de atacantes",
    "status": "parcial",
-   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9",
-   "falta": "508.1b: não se escolhe o que cada criatura ataca (planeswalker/batalha). 508.1c: só defensor e \"não pode atacar até o próximo turno\" como restrição; nada de \"não pode atacar sozinha\" ou \"a menos que\". 508.1d: só provocar, sem o cálculo de máximo de exigências. 508.1e bandos: ausente. 508.1g-j: custo para atacar (Propaganda, Ghostly Prison) ausente. 508.1a: enjoo só é marcado em quem entra como criatura (10275), então permanente que vira criatura no turno em que entrou atacaria (não alcançável hoje: não há efeito de animar).",
+   "evidencia": "ação attack (index.html:12331-12343) + eligibleAttackers (10752): desvirada, sem enjoo ou com ímpeto, defensor não ataca, provocada precisa atacar (mustAttack 10748), vira quem não tem vigilância, não usa a pilha, declaração ilegal é recusada sem mudar o estado; sonda p5/t2.mjs C1/C7/C8; rules.unit 'M6 · quem pode atacar...' e 'S59 · provocada ataca se puder'; combat.audit K5, K6, K9 · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
+   "falta": "508.1b: escolhe jogador ou planeswalker por atacante (M-228); batalha não; a tela aplica um alvo ao grupo escolhido. 508.1c: só defensor e \"não pode atacar até o próximo turno\" como restrição; nada de \"não pode atacar sozinha\" ou \"a menos que\". 508.1d: só provocar, sem o cálculo de máximo de exigências. 508.1e bandos: ausente. 508.1g-j: custo para atacar (Propaganda, Ghostly Prison) ausente. 508.1a: enjoo só é marcado em quem entra como criatura (10275), então permanente que vira criatura no turno em que entrou atacaria (não alcançável hoje: não há efeito de animar).",
    "esforco": "M",
    "depende": [
     "506.2",

@@ -5068,6 +5068,7 @@ const EFFECTS = {
   animate: { fields: [], targets: ['self-source'] },
   // CR2d.5 · "exile <ela>, then return <ela> to the battlefield transformed under its owner's control" e "prevent all damage that would be dealt to him this turn"
   exile_return_transformed: { fields: [], targets: ['self-source'] },
+  must_attack_source: { fields: [], targets: ['creature-opponent-controls'] }, // M-228 · "attacks <esta planeswalker> during its controller's next turn if able"
   prevent_self: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
   to_bottom: { fields: [], targets: ['permanent-you-own'] },
   sacrifice_it: { fields: [], targets: ['permanent'] },
@@ -6087,10 +6088,10 @@ const RAW_SCRIPTS = [
       { kind: 'triggered', when: 'end-of-combat', condition: { attackersAtLeast: 3 }, effects: [{ do: 'exile_return_transformed', target: 'self-source' }] },
       { kind: 'activated', cost: { mana: '{2}{W}' }, effects: [{ do: 'keyword', keyword: 'indestructible', target: 'self-source' }] }],
     back: { name: 'Gideon, Battle-Forged', types: ['planeswalker'], subtypes: ['Gideon'], colors: ['W'], loyalty: 3, loyaltyAbilities: [
+      { cost: 2, label: '+2: Até uma criatura do oponente ataca o Gideon no próximo turno dela', effects: [{ do: 'must_attack_source', target: 'creature-opponent-controls', upTo: true }] },
       { cost: 1, label: '+1: Criatura fica indestrutível até o seu próximo turno e desvira', effects: [{ do: 'keyword', keyword: 'indestructible', target: 'creature', until: 'your-next-turn' }, { do: 'untap', target: 'first-target' }] },
       { cost: 0, label: '0: Vira criatura 4/4 indestrutível até o fim do turno, sem receber dano', effects: [
         { do: 'animate', target: 'self-source', becomes: { types: ['creature'], subtypes: ['Human', 'Soldier'], base: [4, 4], keywords: ['indestructible'], addTypes: true } }, { do: 'prevent_self', target: 'self-source' }] }] },
-    covers: 'partial', note: 'falta o +2 (uma criatura do oponente ataca o Gideon no próximo turno dela): o motor ainda não ataca planeswalker',
     example: { action: 'activate:0', target: 'none', expect: { keyword: 'indestructible' } } },
   // S24 · cartas de face dupla (textos conferidos na Scryfall)
   { name: 'Lunarch Veteran', abilities: [{ kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }],
@@ -11877,7 +11878,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 94;
+const ENGINE_VERSION = 95;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -12264,7 +12265,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
@@ -12782,7 +12783,7 @@ function enterStep(s, step) {
   }
   if (step === 'combat_damage') { dealCombatDamage(s); }
   if (step === 'combat_end') {
-    for (const o of battlefield(s)) { delete o.attacking; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; }
+    for (const o of battlefield(s)) { delete o.attacking; delete o.atacandoPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.struck; }
     s.combat = null;
   }
   if (step === 'cleanup') {
@@ -12813,6 +12814,7 @@ function finishCleanup(s) {
     if (o.goaded && o.goaded.by === s.turn.active) delete o.goaded;
     if (o.keywordsNext && o.keywordsNext.by === s.turn.active) delete o.keywordsNext;
     if (o.cantAttackNext && o.cantAttackNext.by === s.turn.active) delete o.cantAttackNext; // S61
+    if (o.exigeAtacarPw) { if (o.exigeAtacarPw.turno == null && o.controller === s.turn.active) o.exigeAtacarPw.turno = s.turn.number; else if (o.exigeAtacarPw.turno != null) delete o.exigeAtacarPw; } // M-228 · vale no próximo turno do controlador
   }
   s.players.forEach(pl => { pl.landsPlayed = 0; });
   enterStep(s, 'untap');
@@ -12831,8 +12833,13 @@ function advanceStep(s) {
     sobra é atacar. Numa mesa com três ou mais, isso precisa voltar aqui. */
 function mustAttack(s, p) {
   const podem = new Set(eligibleAttackers(s, p));
-  return battlefield(s).filter(o => o.controller === p && o.goaded && podem.has(o.oid)).map(o => o.oid);
+  return battlefield(s).filter(o => o.controller === p && (o.goaded || exigePw(s, o)) && podem.has(o.oid)).map(o => o.oid);
 }
+/** M-228 · 506.3 / 508.1b: planeswalkers que p pode atacar (os dos oponentes que ainda jogam). */
+const pwsAtacaveis = (s, p) => battlefield(s).filter(o => o.controller !== p && !s.players[o.controller].lost && tiposDe(s, o).includes('planeswalker')).map(o => o.oid);
+/** M-228 · "attacks <planeswalker> during its controller's next turn if able" (Gideon +2): o planeswalker exigido, se ainda dá para atacá-lo. */
+const exigePw = (s, o) => { const e = o.exigeAtacarPw; if (!e || e.turno !== s.turn.number || o.controller !== s.turn.active) return null;
+  const pw = s.objects[e.pw]; return pw && pw.zone === 'battlefield' && (pw.zc || 0) === e.z && pwsAtacaveis(s, o.controller).includes(pw.oid) ? pw.oid : null; };
 function eligibleAttackers(s, p) {
   return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped &&
     !o.cantAttackNext && // S61 · Cavernas Retorcidas: não pode atacar até o próximo turno de quem lançou
@@ -12870,14 +12877,17 @@ function dealCombatDamage(s) {
   for (const pass of anyFirst ? ['first', 'regular'] : ['regular']) {
     const deals = o => pass === 'first' ? (has(s, o, 'first strike') || has(s, o, 'double strike'))
       : (has(s, o, 'double strike') || !o.struck);
-    const hits = []; // [fonte, alvoObjeto | null, alvoJogador | null, quantidade]
+    const hits = []; // [fonte, alvoObjeto | null, alvoJogador | null, quantidade, planeswalker?]
+    // M-228 · 510.1: o dano do atacante sem bloqueio vai para quem ele ataca — o jogador ou o planeswalker; planeswalker que saiu do campo não recebe nada (506.4)
+    const defensor = a => { if (!a.atacandoPw) return [null, a.attacking]; const pw = s.objects[a.atacandoPw]; return pw && pw.zone === 'battlefield' ? [pw, null, true] : null; };
+    const golpeia = (a, amt) => { const d = defensor(a); if (d) hits.push([a, d[0], d[1], amt, !!d[2]]); };
     for (const oid of c.attackers) {
       const a = s.objects[oid];
       if (!a || a.zone !== 'battlefield' || a.attacking == null || !deals(a)) continue;
       let amt = power(s, a); if (amt <= 0) continue;
       const blockers = (a.blockedBy || []).map(b => s.objects[b]).filter(b => b && b.zone === 'battlefield' && b.blocking === oid);
-      if (!a.blocked) { hits.push([a, null, a.attacking, amt]); continue; }
-      if (!blockers.length) { if (has(s, a, 'trample')) hits.push([a, null, a.attacking, amt]); continue; }
+      if (!a.blocked) { golpeia(a, amt); continue; }
+      if (!blockers.length) { if (has(s, a, 'trample')) golpeia(a, amt); continue; }
       const dt = has(s, a, 'deathtouch');
       blockers.forEach((b, i) => {
         const lethal = dt ? 1 : Math.max(0, toughness(s, b) - b.damage);
@@ -12885,7 +12895,7 @@ function dealCombatDamage(s) {
         const give = last && !has(s, a, 'trample') ? amt : Math.min(amt, lethal);
         if (give > 0) { hits.push([a, b, null, give]); amt -= give; }
       });
-      if (amt > 0 && has(s, a, 'trample')) hits.push([a, null, a.attacking, amt]);
+      if (amt > 0 && has(s, a, 'trample')) golpeia(a, amt);
     }
     for (const b of battlefield(s)) {
       if (!b.blocking || !deals(b)) continue;
@@ -12894,10 +12904,12 @@ function dealCombatDamage(s) {
     }
     // simultâneo: aplica tudo depois de calcular
     if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
-    for (const [src, obj, player, amt] of hits) {
+    for (const [src, obj, player, amt, ehPw] of hits) {
       if (colorPrevented(s, src)) continue; // S30 · dano da cor prevenida não acontece
       if (obj && (prevented(s, obj) || protegeDoDano(s, obj, src))) continue; // S11b · prevenção e proteção (Leva 106: Flaring Pain vale também para a proteção)
-      if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+      if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
+        obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) obj.damage += amt; noteDamaged(s, obj);
+      } else if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
         s.players[player].life -= amt;
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
@@ -13699,6 +13711,11 @@ function applyEffect(s, src, eff, tgt, events) {
       if (alvo.zone !== 'exile') { note({ failed: true }); break; }
       flipTo(s, alvo, back); moveObject(s, alvo.oid, 'battlefield'); alvo.controller = alvo.owner; // a lealdade entra pelo moveObject
       note({ name: alvo.name }); break;
+    }
+    case 'must_attack_source': { // M-228 · Gideon +2: a criatura alvo ataca a fonte no próximo turno do controlador dela, se puder
+      const fonte = src.ability ? s.objects[src.source] : src;
+      if (obj && obj.zone === 'battlefield' && fonte && fonte.zone === 'battlefield') { obj.exigeAtacarPw = { pw: fonte.oid, z: fonte.zc || 0, turno: null }; note({ target: obj.name }); }
+      break;
     }
     case 'prevent_self': { // CR2d.5 · todo dano que seria causado a ela neste turno é prevenido (a limpeza apaga)
       const alvo = src.ability ? s.objects[src.source] : src;
@@ -14770,7 +14787,13 @@ const HANDLERS = {
     // S59 · criatura provocada que pode atacar precisa atacar
     const faltando = mustAttack(s, a.p).filter(oid => !list.includes(oid));
     if (faltando.length) throw new RuleError('ataque', `${s.objects[faltando[0]].name} foi provocada e precisa atacar`);
-    for (const oid of list) { const o = s.objects[oid]; o.attacking = s.combat.defender; if (!has(s, o, 'vigilance')) { if (!o.tapped) noteEnchantedEvent(s, o); o.tapped = true; } } // Leva 106 · atacar vira
+    // M-228 · 508.1b: cada atacante ataca o jogador ou um planeswalker dele; a exigência do Gideon (+2) é cumprida sozinha se ninguém escolheu
+    const alvos = { ...(a.alvos || {}) }, podemPw = new Set(pwsAtacaveis(s, a.p));
+    for (const [oid, pw] of Object.entries(alvos)) if (!list.includes(oid) || !podemPw.has(pw)) throw new RuleError('ataque', 'alvo do ataque inválido: só um planeswalker de um oponente');
+    for (const oid of list) { const ex = exigePw(s, s.objects[oid]); if (!ex) continue;
+      if (!a.alvos) alvos[oid] = ex; // ninguém escolheu alvos: a mesa cumpre a exigência
+      else if (alvos[oid] !== ex) throw new RuleError('ataque', `${s.objects[oid].name} precisa atacar ${s.objects[ex].name}`); }
+    for (const oid of list) { const o = s.objects[oid]; o.attacking = s.combat.defender; if (alvos[oid]) o.atacandoPw = alvos[oid]; else delete o.atacandoPw; if (!has(s, o, 'vigilance')) { if (!o.tapped) noteEnchantedEvent(s, o); o.tapped = true; } } // Leva 106 · atacar vira
     s.combat.attackers = list.slice();
     queueTriggers(s, 'attacks', list.map(oid => s.objects[oid]));
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
@@ -15317,6 +15340,12 @@ function legalActions(s, p, { adjudication = false } = {}) {
       else out.push({ t: 'attack', p, attackers: obrig.slice() });
       if (el.length > 1) out.push({ t: 'attack', p, attackers: el.slice() });
       el.forEach(oid => out.push({ t: 'attack', p, attackers: [...new Set([oid, ...obrig])] }));
+      // M-228 · as mesmas declarações, com quem não tem exigência atacando cada planeswalker do oponente
+      const pws = pwsAtacaveis(s, p), exige = oid => exigePw(s, s.objects[oid]);
+      const comExigencia = x => { const alvos = {}; for (const oid of x.attackers) if (exige(oid)) alvos[oid] = exige(oid); return Object.keys(alvos).length ? { ...x, alvos } : x; };
+      const base = out.filter(x => x.t === 'attack').map(comExigencia);
+      out.splice(0, out.length, ...out.filter(x => x.t !== 'attack'), ...base);
+      for (const pw of pws) for (const x of base) if (x.attackers.some(oid => !exige(oid))) out.push({ ...x, alvos: { ...(x.alvos || {}), ...Object.fromEntries(x.attackers.filter(oid => !exige(oid)).map(oid => [oid, pw])) } });
     }
     if (k === 'choose_color') ['W', 'U', 'B', 'R', 'G'].forEach(color => out.push({ t: 'choose_color', p, color }));
     if (k === 'commander_zone') { out.push({ t: 'commander_zone', p, yes: true }); out.push({ t: 'commander_zone', p, yes: false }); }
@@ -15693,10 +15722,10 @@ function previewCombat(state, blocks) {
   } catch (e) { return null; }
 }
 /** A16 · prévia do ataque antes de declarar: o que acontece se ninguém bloquear. Não muda nada. */
-function previewAttack(state, attackers) {
+function previewAttack(state, attackers, alvos) {
   try {
     if (!attackers || !attackers.length) return null;
-    const s = apply(clone(state), { t: 'attack', p: state.pending ? state.pending.p : state.turn.active, attackers }).state;
+    const s = apply(clone(state), { t: 'attack', p: state.pending ? state.pending.p : state.turn.active, attackers, ...(alvos ? { alvos } : {}) }).state; // M-228
     return previewCombat(s, []);
   } catch (e) { return null; }
 }
@@ -15826,7 +15855,7 @@ function invariants(s, expectedObjects) {
 }
 
 return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, targetable,
-  stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, productions, protections, prevented, canBlock,
+  stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
@@ -17398,6 +17427,7 @@ function effectLine(ev) {
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
     case 'exile_return_transformed': return ev.failed ? `${ev.name}: não estava mais no campo` : `${ev.name} foi exilado e voltou transformado`; // CR2d.5
+    case 'must_attack_source': return `${t} vai ter de atacar ${ev.name} no próximo turno de quem a controla`; // M-228
     case 'prevent_self': return `todo dano a ${t} neste turno será prevenido`;
     case 'animate_dead': return ev.failed ? `${ev.name}: a carta já não estava no cemitério` : `${ev.name} devolveu ${t} ao campo`; // CR2d.4
     case 'sacrifice_reanimated': return `${t} foi sacrificada (${ev.name} saiu do campo)`;
@@ -17486,7 +17516,7 @@ function describe(before, a, events, after) {
       L.push(a.decline ? `${P} preferiu não usar o efeito de ${pd.name || 'o gatilho'}` : `${P} escolheu ${String((pd.options || [])[a.index || 0] || 'um modo').toLowerCase()}${alvo ? ' ' + alvo : ''} (${pd.name || 'gatilho'})`); break; }
     case 'choose_color': L.push(`${P} escolheu ${{ W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' }[a.color]}`); break;
     case 'concede': L.push(`${P} desistiu`); break;
-    case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o)).join(', ')}` : `${P} não atacou`); break;
+    case 'attack': L.push(a.attackers.length ? `${P} atacou com ${a.attackers.map(o => nameOf(before, o) + (a.alvos && a.alvos[o] ? ` (em ${nameOf(before, a.alvos[o])})` : '')).join(', ')}` : `${P} não atacou`); break; // M-228 · "(em Lukka)": atacou o planeswalker
     case 'block': L.push(a.blocks.length ? `${P} bloqueou ${a.blocks.map(([b, x]) => `${nameOf(before, x)} com ${nameOf(before, b)}`).join('; ')}` : `${P} não bloqueou`); break;
     case 'tap_mana': { const o = before.objects[a.oid]; const opt = (a.mana || E.productions(before, o)[a.option || 0] || []).map(c => `{${c}}`).join(''); /* Leva 122 · divisão escolhida */ L.push(`${P} gerou ${opt} com ${o.name}`); break; }
     case 'companion': L.push(`${P} pôs o companheiro ${nameOf(before, a.oid)} na mão${a.free ? ' (sem pagar)' : ` ({${E.COMPANION_COST}})`}`); break;
@@ -18157,6 +18187,7 @@ function descreveEfeito(e) {
     case 'transform': return 'transforma';
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
     case 'exile_return_transformed': return 'é exilada e volta transformada, sob o controle do dono'; // CR2d.5
+    case 'must_attack_source': return 'até uma criatura alvo de um oponente ataca esta planeswalker no próximo turno de quem a controla, se puder'; // M-228
     case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
     case 'sacrifice_reanimated': return 'quem controla a criatura a sacrifica';
     case 'animate': { const b = e.becomes || {}; return `vira uma criatura ${b.base ? b.base.join('/') : ''}${(b.keywords || []).length ? ' com ' + b.keywords.map(k => PALAVRA_PT[k] || k).join(', ') : ''} até o fim do turno${b.addTypes ? ' (continua terreno)' : ''}`; } // CR2d.2
@@ -19667,8 +19698,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   };
 
   /* ---- A6 · declaração de ataque e bloqueio ---- */
-  const plan = { attack: new Set(), blocks: new Map(), eligible: new Set() };
-  function resetPlan() { plan.attack = new Set(); plan.blocks = new Map(); plan.eligible = new Set(); }
+  const plan = { attack: new Set(), blocks: new Map(), eligible: new Set(), alvoPw: null };
+  function resetPlan() { plan.attack = new Set(); plan.blocks = new Map(); plan.eligible = new Set(); plan.alvoPw = null; } // M-228 · alvoPw: planeswalker que os atacantes escolhidos vão atacar
   function syncPlan(s, v) {
     const k = s.pending && s.pending.p === v ? s.pending.kind : null;
     if (k === 'attackers') plan.eligible = new Set(E.eligibleAttackers(s, v));
@@ -20289,12 +20320,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const obrig = E.mustAttack(s, v);
       const nomes = obrig.map(oid => nameOf(s, oid)).join(', ');
       const total = new Set([...plan.attack, ...obrig]).size;
+      // M-228 · alvo do ataque: o jogador ou um planeswalker dele (os escolhidos vão juntos; quem tem a exigência do Gideon vai sempre para ele)
+      const pws = (() => { try { return E.pwsAtacaveis(s, v); } catch (e) { return []; } })();
+      if (plan.alvoPw && !pws.includes(plan.alvoPw)) plan.alvoPw = null;
+      const alvosDe = list => { const al = {}; for (const oid of list) { let ex = null; try { ex = E.exigePw(s, s.objects[oid]); } catch (e) { /* estado antigo */ } if (ex || plan.alvoPw) al[oid] = ex || plan.alvoPw; } return Object.keys(al).length ? al : null; };
+      const listaAtual = [...new Set([...plan.attack, ...obrig])];
       // A16 · prévia do ataque, se ninguém bloquear, a cada toque
-      const pa = total ? T.descrevePrevia(s, E.previewAttack(s, [...new Set([...plan.attack, ...obrig])]), v) : null;
+      const pa = total ? T.descrevePrevia(s, E.previewAttack(s, listaAtual, alvosDe(listaAtual)), v) : null;
+      const trocaAlvo = pws.length ? Button(`Alvo: ${plan.alvoPw ? nameOf(s, plan.alvoPw) : s.players[s.combat ? s.combat.defender : 1 - v].name}`, { id: 'tb-attack-alvo', icone: 'seguir',
+        onClick: () => { const ordem = [null, ...pws]; plan.alvoPw = ordem[(ordem.indexOf(plan.alvoPw) + 1) % ordem.length]; paint(); } }) : null;
       banner = PriorityBanner({ title: 'Declarar atacantes',
         hint: (pa ? `Se ninguém bloquear: ${pa.texto}.${pa.letal ? ' É letal.' : ''} ` : `Toque nas criaturas que vão atacar. ${plan.eligible.size} podem atacar. `) + (obrig.length ? ` ${nomes} ${obrig.length > 1 ? 'foram provocadas e precisam' : 'foi provocada e precisa'} atacar.` : ''),
-        actions: [Button(total ? `Atacar com ${total}` : 'Atacar', { variant: 'primary', id: 'tb-attack', disabled: !total, onClick: () => { const list = [...new Set([...plan.attack, ...obrig])]; resetPlan(); act({ t: 'attack', p: v, attackers: list }); } }),
-          obrig.length ? null : Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })].filter(Boolean) });
+        actions: [Button(total ? `Atacar com ${total}` : 'Atacar', { variant: 'primary', id: 'tb-attack', disabled: !total, onClick: () => { const list = [...new Set([...plan.attack, ...obrig])]; const al = alvosDe(list); resetPlan(); act({ t: 'attack', p: v, attackers: list, ...(al ? { alvos: al } : {}) }); } }),
+          trocaAlvo, obrig.length ? null : Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'blockers' && s.pending.p === v) {
       const blocks = [...plan.blocks.entries()];
       const pv = E.previewCombat(s, blocks);

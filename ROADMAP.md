@@ -165,7 +165,7 @@ Motivo do corte do gerador: não existe fonte pública de decklists acessível p
 | CR · Conformidade com as Comprehensive Rules | CR2b.3 gatilhos novos: recebe dano, a permanente anexada morre ou é exilada, criatura de oponente entra, criatura posta no seu cemitério; "that card" lembrada; cinco cartas do Commander completas (leva M-214, motor v81) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.4 gatilho com vários alvos (603.3d), "sempre que você descartar", "a criatura encantada causa dano a um oponente" e "ative só atacando"; Curiosity e Glint-Horn Buccaneer completas (leva M-215, motor v82) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2b.5 manutenção cumulativa (702.24), "a menos que aquele jogador pague", "sempre que um oponente conjurar" e gatilhos de passo (passo final, cada manutenção, início do combate); Mystic Remora completa (leva M-216, motor v83) | 🟡 |
-| CR · Conformidade com as Comprehensive Rules | CR2d.5 exilar e voltar transformado (701.27, 712) e o verso Gideon (+1 e 0); Kytheon parcial, falta atacar planeswalker (leva M-227, motor v94) | 🟡 |
+| CR · Conformidade com as Comprehensive Rules | M-228 atacar planeswalker (506.3, 508.1b, 510.1, 120.3c) e exigência "ataca se puder"; Kytheon completa (leva M-228, motor v95) | 🟡 |
 | CR · Conformidade com as Comprehensive Rules | CR2c.2 "destruir todas" por filtro em lote e devolver do cemitério por valor de mana, que fecham Austere Command, Silverquill Command e Profane Command | ▶ |
 | CR · Conformidade com as Comprehensive Rules | CR2 alicerces do motor · CR3 ações · CR4 habilidades · CR5 tipos de carta · CR6 multijogador · CR7 consolidação | ○ |
 | R · Revisão carta a carta | R11.2b em diante — **pausado em 06/10/2026**: o trabalho passa a ser guiado pelo épico CR; as cartas de Commander voltam quando as estruturas que elas pedem entrarem · R11–R13 Commander (Killian e Malcolm) · R14 mapa das regras não contempladas | ○ |
@@ -2899,6 +2899,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Carta da lista (decisão 7):** **Kytheon, Hero of Akros** — continua **parcial**: falta o +2 do Gideon (uma criatura do oponente ataca o Gideon no próximo turno dela), porque o motor ainda não ataca planeswalker.
 - **Golden:** regravadas (93 → 94); registros das quatro partidas iguais.
 - **Fecha o bloco de camadas da triagem** (Darksteel Mutation, Reprobation, Mishra's Factory, Blinkmoth Nexus, Smuggler's Copter, Animate Dead, Kytheon). O resto da CR2d (mudança de controle, dependência 613.8, estáticos genéricos, "torna-se N/N" por mágica) segue sem carta pendente nas listas.
+
+**M-228 · Atacar planeswalker** 🟡 (leva M-228, motor v95) — 3 testes, todos falhavam antes. Primeira peça da CR2g (combate).
+- **506.3 / 508.1b** cada atacante ataca o jogador ou um planeswalker que ele controla. **510.1 / 120.3c / 306.8** o dano de combate sem bloqueio (e o excedente do atropelar) vai para o planeswalker e tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado. **506.4c** planeswalker que sai do campo antes do dano: a criatura continua atacando e não causa dano a ninguém.
+- **Exigência "ataca X se puder"** (Gideon +2): no próximo turno do controlador, a criatura entra em toda declaração oferecida atacando o Gideon; escolher atacar o jogador é recusado; sem alvo escolhido, a mesa cumpre sozinha.
+- **Tela:** com planeswalker do oponente no campo, a declaração de ataque ganha o botão "Alvo: …" que alterna entre o jogador e cada planeswalker; a prévia "se ninguém bloquear" usa o alvo; o registro diz "atacou com X (em Lukka)".
+- **Carta da lista (decisão 7):** **Kytheon, Hero of Akros** agora **completa** (faltava o +2 do Gideon).
+- **Medição:** Killian 68% (antes 67%), Malcolm 73%. Triagem 111 prontas · 9 A · 35 B · 9 C.
+- **Simplificação declarada (tela):** o botão aplica o mesmo alvo a todas as criaturas escolhidas; dividir o ataque entre jogador e planeswalker só pelo motor (a ação aceita alvo por atacante). A prévia não mostra a lealdade perdida.
+- **Para a trilha do bot:** o Shark sempre ataca o jogador (não mira planeswalker), mas cumpre a exigência do Gideon porque a mesa preenche o alvo.
+- **Golden:** regravadas (94 → 95); registros das quatro partidas iguais.
+- **Fora:** batalhas (310), "redirecionar" antigo (306.7).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
