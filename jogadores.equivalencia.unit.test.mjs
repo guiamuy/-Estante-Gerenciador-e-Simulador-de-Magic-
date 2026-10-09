@@ -67,3 +67,57 @@ test('M-238 · R4b · validador e português do quantificador', () => {
   assert.equal(T.descreveEfeitos([{ do: 'gain', amount: 2, jogadores: 'voce' }]), 'você ganha 2 de vida');
   assert.equal(T.descreveEfeitos([{ do: 'exile_graveyard', jogadores: 'cada-oponente' }]), 'exila o cemitério de cada oponente');
 });
+
+// ── M-239 · CR2-G R4c · sacrificar num verbo só (701.21): você, o jogador alvo, ou "cada jogador / cada oponente" com escolha
+// em ordem ativo-não-ativo e saída conjunta. sacrifice_own, sacrifice_each e edict viraram atalhos.
+const SACRIFICIOS = [{ do: 'sacrifice_own', types: ['creature'] }, { do: 'sacrifice_own', types: ['land'] }, { do: 'sacrifice_own', types: ['artifact', 'enchantment'] },
+  { do: 'sacrifice_each', types: ['creature'] }, { do: 'sacrifice_each', types: ['creature'], nontoken: true }, { do: 'edict', types: ['creature'], target: 'opponent' }];
+
+test('M-239 · R4c · os três verbos de sacrifício pelo verbo único deixam o mesmo estado, a mesma decisão pendente e os mesmos eventos que o caminho antigo, em partidas aleatórias', () => {
+  let n = 0;
+  LISTAS.forEach((lista, i) => {
+    let s = jogo({ lista, oponente: LISTAS[(i + 2) % LISTAS.length], seed: 40 + i });
+    const politica = E.randomPolicy(5101 + i);
+    for (let k = 0; k < 200 && s.status !== 'over'; k++) {
+      const a = politica(s); if (!a) break; s = act(s, a);
+      if (k % 10 || s.pending) continue;
+      for (const eff of SACRIFICIOS) for (const ctrl of [0, 1]) {
+        const src = { oid: 'm', name: 'Mágica', controller: ctrl, ability: true, source: null };
+        const tgt = eff.do === 'edict' ? { player: 1 - ctrl } : null;
+        const x1 = J(s), x2 = J(s), ev1 = [], ev2 = [];
+        const alvo = tgt ? x1.players[tgt.player].name : x1.players[ctrl].name;
+        E.sacrificioLegado(x1, src, eff, tgt ? tgt.player : ctrl, ev1, extra => ev1.push({ kind: 'effect', do: eff.do, name: src.name, target: alvo, ...extra }));
+        E.applyEffect(x2, src, eff, tgt, ev2);
+        const rot = `${lista} · ação ${k} · ${eff.do} ${(eff.types || []).join('/')}${eff.nontoken ? ' sem ficha' : ''} · controlador ${ctrl}`;
+        assert.deepEqual(J(x2), J(x1), rot); assert.deepEqual(J(ev2), J(ev1), rot + ' · eventos'); n++;
+      }
+    }
+  });
+  assert.ok(n > 1000, `amostra pequena (${n})`);
+});
+
+test('M-239 · R4c · "cada oponente sacrifica uma criatura que não seja ficha" escrito como dado: só os oponentes, cada um escolhe, e saem juntas', () => {
+  let s = jogo({ lista: 'Pauper Boros Bully', oponente: 'Pauper Elves', seed: 5 }), a1, b1, b2;
+  [s, a1] = poe(s, 0, 'Kor Skyfisher'); [s, b1] = poe(s, 1, 'Llanowar Elves'); [s, b2] = poe(s, 1, 'Elvish Mystic');
+  s = J(s);
+  const eff = { do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', naoFicha: true };
+  assert.deepEqual(J(S.validateScript({ name: 'Teste', effects: [eff] })).filter(e => !/cenário/.test(e)), []);
+  const x = J(s), ev = [];
+  E.applyEffect(x, { oid: 'm', name: 'Teste', controller: 0, ability: true, source: null }, eff, null, ev);
+  assert.equal(x.pending && x.pending.kind, 'sacrifice'); assert.equal(x.pending.p, 1, 'o oponente escolhe'); assert.equal(x.pending.edito, true);
+  const opcoes = J(x.pending.options).filter(o => x.objects[o].controller !== 1);
+  assert.deepEqual(opcoes, [], 'só criaturas dele');
+  const y = E.apply(x, { t: 'sacrifice', p: 1, oid: b1 }).state;
+  assert.equal(y.objects[b1].zone, 'graveyard'); assert.equal(y.objects[b2].zone, 'battlefield'); assert.equal(y.objects[a1].zone, 'battlefield', 'você não sacrifica');
+  assert.equal(T.descreveEfeitos([eff]), 'cada oponente sacrifica uma criatura que não seja ficha à sua escolha');
+});
+
+test('M-239 · R4c · validador e português do sacrifício', () => {
+  const erros = e => J(S.validateScript({ name: 'Teste', effects: [{ do: 'sacrificar', ...e }] })).filter(x => !/cenário/.test(x));
+  assert.ok(erros({}).some(x => /precisa de "tipos"/.test(x)));
+  assert.ok(erros({ tipos: ['creature'], jogadores: 'cada', target: 'opponent' }).some(x => /não dos dois/.test(x)));
+  assert.ok(erros({ tipos: ['creature'], naoFicha: true }).some(x => /só vale quando cada jogador ou o alvo escolhe/.test(x)));
+  assert.deepEqual(erros({ tipos: ['creature'], target: 'opponent' }), []);
+  assert.equal(T.descreveEfeitos([{ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada' }]), 'cada jogador sacrifica uma criatura à sua escolha');
+  assert.equal(T.descreveEfeitos([{ do: 'sacrificar', tipos: ['land'] }]), 'sacrifica um terreno');
+});

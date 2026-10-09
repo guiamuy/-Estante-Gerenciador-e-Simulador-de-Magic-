@@ -5135,6 +5135,9 @@ const EFFECTS = {
   exile_self: { fields: [], targets: ['self'] },
   counter_choice: { fields: [], targets: ['self'] },
   edict: { fields: [], targets: ['opponent', 'player'] },
+  // CR2-G R4c · 701.21 · sacrificar num verbo só: você (escolhe na hora), o jogador alvo ou "cada jogador / cada oponente"
+  // (cada um escolhe em ordem ativo-não-ativo e as escolhidas saem juntas); sacrifice_own, sacrifice_each e edict viraram atalhos
+  sacrificar: { fields: [], targets: ['opponent', 'player'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
   reflexive: { fields: [], targets: ['self'] },
@@ -5279,7 +5282,7 @@ function jogadoresDe(e) {
 }
 /** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
 const DURACOES = ['fim-do-turno', 'seu-proximo-turno'];
-const EFEITOS_ATALHO = { exile: 'mover (exílio)', bounce: 'mover (mão)', to_hand: 'mover (mão)', reanimate: 'mover (campo, seu controle)', reanimate_tapped: 'mover (campo, virada)', to_library_shuffled: 'mover (grimório, embaralhado)', to_bottom: 'mover (fundo do grimório)', animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
+const EFEITOS_ATALHO = { sacrifice_own: 'sacrificar (você)', sacrifice_each: 'sacrificar (cada jogador)', edict: 'sacrificar (jogador alvo)', exile: 'mover (exílio)', bounce: 'mover (mão)', to_hand: 'mover (mão)', reanimate: 'mover (campo, seu controle)', reanimate_tapped: 'mover (campo, virada)', to_library_shuffled: 'mover (grimório, embaralhado)', to_bottom: 'mover (fundo do grimório)', animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
 const cadaDe = e => { if (!e) return null; if (e.cada) return e.cada; const base = CADA_SELETOR[e.target]; if (!base) return null; return e.exceptSubtype ? { ...base, semSubtipos: [e.exceptSubtype] } : base; };
 const TIPOS_DE_CARTA = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'];
 /** Erros de um seletor escrito no script (lista vazia = válido). */
@@ -5712,8 +5715,15 @@ function effectErrors(effects, label, opcional) {
     if (e.jogadores != null) { // CR2-G R4b · quantificador de jogadores
       const L = `${label} ${i + 1}`;
       if (!JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
-      if (!VERBOS_DE_JOGADOR.includes(e.do)) errs.push(`${L}: "jogadores" só vale para ${VERBOS_DE_JOGADOR.join(', ')}`);
-      if (e.target != null || e.cada != null) errs.push(`${L}: "jogadores" não se junta a alvo nem a "cada"`);
+      if (!VERBOS_DE_JOGADOR.includes(e.do) && e.do !== 'sacrificar') errs.push(`${L}: "jogadores" só vale para ${VERBOS_DE_JOGADOR.join(', ')} e sacrificar`);
+      if ((e.target != null && e.do !== 'sacrificar') || e.cada != null) errs.push(`${L}: "jogadores" não se junta a alvo nem a "cada"`);
+    }
+    if (e.do === 'sacrificar') { // CR2-G R4c
+      const L = `${label} ${i + 1}`;
+      if (!(Array.isArray(e.tipos) && e.tipos.length && e.tipos.every(x => TIPOS_DE_CARTA.includes(x)))) errs.push(`${L}: sacrificar precisa de "tipos" (tipos de carta)`);
+      if (e.jogadores != null && e.target != null) errs.push(`${L}: sacrificar é de "jogadores" ou do jogador alvo, não dos dois`);
+      if (e.jogadores != null && !JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
+      if (e.naoFicha && (e.jogadores || 'voce') === 'voce' && e.target == null) errs.push(`${L}: "naoFicha" só vale quando cada jogador ou o alvo escolhe`);
     }
     if (e.do === 'mover') { // CR2-G R4a
       const ZM = ['battlefield', 'graveyard', 'exile', 'hand', 'library'], L = `${label} ${i + 1}`;
@@ -14249,6 +14259,24 @@ function criaturaEncantada(s, src) {
   const host = aura && aura.zone === 'battlefield' && aura.attachedTo ? s.objects[aura.attachedTo] : null;
   return host && host.zone === 'battlefield' ? host : null;
 }
+/** CR2-G R4c · 701.21 · sacrificar. Você (padrão): escolhe na hora, uma só sai direto. O jogador alvo (`quem`) ou "cada
+ * jogador / cada oponente": cada um escolhe na ordem ativo-não-ativo (o édito, s.edito) e as escolhidas saem juntas (603.10a);
+ * o jogador alvo sem nada para sacrificar fica no registro. `naoFicha`: fichas não servem. */
+function sacrificarJogadores(s, src, spec, quem, events, note) {
+  const ctrl = src.controller, q = quem != null ? null : (spec.jogadores || 'voce');
+  if (q === 'voce') {
+    const cands = sacrificeOptions(s, ctrl, spec.tipos);
+    if (!cands.length) { note({ amount: 0 }); return; }
+    if (cands.length === 1) { const nome = s.objects[cands[0]].name; sacrifice(s, cands[0], events); note({ name: nome }); return; }
+    s.pending = { kind: 'sacrifice', p: ctrl, options: cands, types: spec.tipos, name: src.name };
+    return;
+  }
+  if (q == null && (s.players[quem].lost || !sacrificeOptions(s, quem, spec.tipos).length)) { note({ amount: 0 }); return; } // a linha do registro só aparece quando não há o que sacrificar
+  const vez = s.turn.active, ordem = [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)];
+  const fila = q == null ? [quem] : ordem.filter(i => !s.players[i].lost && (q === 'cada' || i !== ctrl));
+  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name };
+  continuaEdito(s, events);
+}
 /** CR2-G R4a · 400.7/701 · move um objeto para outra zona. `de`: a zona (ou zonas) onde ele precisa estar — se já saiu, é
  * outro objeto e nada acontece; já no grimório não volta para o grimório. `posicao` no grimório (topo, padrão; fundo;
  * embaralhado no grimório do dono). No campo: sob o seu controle (padrão) ou do dono, e virada. `lembra`: a permanente-fonte
@@ -14265,6 +14293,20 @@ function moverObjeto(s, src, alvo, m, ctrl) {
     if (!m.semRegistro && !src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(alvo.oid); // CR2c.5 · a mágica lembra quem devolveu (o atalho antigo de reanimar virada não registrava)
   }
   return true;
+}
+/** CR2-G R4c · o caminho antigo dos três verbos de sacrifício (só para o teste de equivalência). */
+function sacrificioLegado(s, src, eff, playerOf, events, note) {
+  const ctrl = src.controller;
+  if (eff.do === 'sacrifice_each') { const vez = s.turn.active;
+    s.edito = { fila: [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)].filter(i => !s.players[i].lost), escolhidas: [], types: eff.types, nontoken: !!eff.nontoken, name: src.name };
+    continuaEdito(s, events); return; }
+  if (eff.do === 'edict') { const who = playerOf;
+    if (s.players[who].lost || !sacrificeOptions(s, who, eff.types).length) { note({ amount: 0 }); return; }
+    s.edito = { fila: [who], escolhidas: [], types: eff.types, nontoken: false, name: src.name }; continuaEdito(s, events); return; }
+  const cands = sacrificeOptions(s, ctrl, eff.types);
+  if (!cands.length) { note({ amount: 0 }); return; }
+  if (cands.length === 1) { const nome = s.objects[cands[0]].name; sacrifice(s, cands[0], events); note({ name: nome }); return; }
+  s.pending = { kind: 'sacrifice', p: ctrl, options: cands, types: eff.types, name: src.name };
 }
 /** CR2-G R4a · o caminho antigo dos sete verbos que viraram atalhos de mover (só para o teste de equivalência). Não
  * emite eventos; devolve se mexeu. */
@@ -14696,12 +14738,10 @@ function applyEffect(s, src, eff, tgt, events) {
       startPick(s, { p: ctrl, from: [], mostrar: [topo], min: 0, max: 0, to: 'hand', rest: 'stay', label: 'olhar o topo', source: src.name }, events);
       break;
     }
-    case 'sacrifice_each': { // CR2a.4 · édito para todos: quem está na vez escolhe primeiro, depois os outros; saem ao mesmo tempo (701.21, 603.10a)
-      const vez = s.turn.active;
-      s.edito = { fila: [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)].filter(i => !s.players[i].lost), escolhidas: [], types: eff.types, nontoken: !!eff.nontoken, name: src.name };
-      continuaEdito(s, events);
-      break;
-    }
+    case 'sacrifice_each': // CR2a.4 · édito para todos: quem está na vez escolhe primeiro, depois os outros; saem ao mesmo tempo (701.21, 603.10a)
+      sacrificarJogadores(s, src, { tipos: eff.types, naoFicha: !!eff.nontoken, jogadores: 'cada' }, null, events, note); break; // CR2-G R4c · atalho
+    case 'sacrificar': // CR2-G R4c
+      sacrificarJogadores(s, src, eff, tgt && tgt.player != null ? tgt.player : null, events, note); break;
     case 'destroy_all': { // CR2c.2/M-230 · atalho: "destroy all <tipos> [valor de mana]" = destruir + cada (saem juntas; indestrutível fica)
       const sel = { tipos: eff.types, ...(eff.mvMax != null ? { mvMax: eff.mvMax } : {}), ...(eff.mvMin != null ? { mvMin: eff.mvMin } : {}) };
       const antes = sweepTargets(s, src, { cada: sel }).filter(o => !has(s, o, 'indestructible')).map(o => o.name);
@@ -14709,18 +14749,10 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: antes.length, nomes: antes }); break;
     }
     case 'edict': { // CR2c.2 · "target opponent sacrifices a creature of their choice": o próprio jogador escolhe (701.21a)
-      const who = playerOf();
-      if (s.players[who].lost || !sacrificeOptions(s, who, eff.types).length) { note({ amount: 0 }); break; } // a linha do registro só aparece quando não há o que sacrificar
-      s.edito = { fila: [who], escolhidas: [], types: eff.types, nontoken: false, name: src.name };
-      continuaEdito(s, events);
-      break;
+      sacrificarJogadores(s, src, { tipos: eff.types }, playerOf(), events, note); break; // CR2-G R4c · atalho
     }
     case 'sacrifice_own': { // S60 · você escolhe o que sacrificar, dentro do tipo pedido
-      const cands = sacrificeOptions(s, ctrl, eff.types);
-      if (!cands.length) { note({ amount: 0 }); break; }
-      if (cands.length === 1) { const nome = s.objects[cands[0]].name; sacrifice(s, cands[0], events); note({ name: nome }); break; }
-      s.pending = { kind: 'sacrifice', p: ctrl, options: cands, types: eff.types, name: src.name };
-      break;
+      sacrificarJogadores(s, src, { tipos: eff.types, jogadores: 'voce' }, null, events, note); break; // CR2-G R4c · atalho
     }
     case 'goad': { // S59 · provocar: até o seu próximo turno, ela ataca se puder
       if (obj && obj.zone === 'battlefield') { obj.goaded = { by: ctrl }; note({ name: obj.name }); }
@@ -17120,7 +17152,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, applyEffect, aplicaPorJogador, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -18705,6 +18737,7 @@ function effectLine(ev) {
     case 'counter_choice': return `${t} recebeu um marcador de ${PALAVRA_PT[ev.kind] || ev.kind} (${ev.name})`;
     case 'destroy_all': return n ? `${ev.name} destruiu ${(ev.nomes || []).join(', ')}` : `${ev.name} não destruiu nada`; // CR2c.2
     case 'edict': return `${ev.name}: ${t} não tinha o que sacrificar`;
+    case 'sacrificar': return ev.amount === 0 ? `${t} não tinha o que sacrificar` : `${t} sacrificou ${ev.name}`; // CR2-G R4c (o nome é o da permanente sacrificada)
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
@@ -19453,7 +19486,7 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
-  if (e.jogadores) { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"
+  if (e.jogadores && e.do !== 'sacrificar') { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"
     const { jogadores, ...base } = e, quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente', voce: 'você' }[jogadores] || 'cada jogador';
     if (e.do === 'damage') return `causa ${qtd(e.amount)} de dano a ${quem}`;
     if (e.do === 'exile_graveyard') return jogadores === 'voce' ? 'exila o seu cemitério' : `exila o cemitério de ${quem}`;
@@ -19510,6 +19543,14 @@ function descreveEfeito(e) {
     case 'keyword': if (e.targetCount) return `até X criaturas ganham ${PALAVRA_PT[e.keyword] || e.keyword} até o fim do turno`; // CR2c.3
       return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
+    case 'sacrificar': { // CR2-G R4c
+      const nomes = { creature: 'uma criatura', artifact: 'um artefato', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' };
+      const coisa = (e.tipos || []).length === 1 ? (nomes[e.tipos[0]] || 'uma permanente') : (e.tipos || []).map(x => (nomes[x] || x).replace(/^uma? /, '')).join(' ou ').replace(/^/, 'um(a) ');
+      const ficha = e.naoFicha ? ' que não seja ficha' : '';
+      if (e.target) return `${alvo || 'o jogador alvo'} sacrifica ${coisa}${ficha} à escolha dele`;
+      const quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente' }[e.jogadores];
+      return quem ? `${quem} sacrifica ${coisa}${ficha} à sua escolha` : `sacrifica ${coisa}`;
+    }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
     case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
