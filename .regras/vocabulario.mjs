@@ -16,7 +16,7 @@ const r = { scripts, efeitos: efeitos.length, efeitosProprios: efeitos.length - 
   nomesDeAlvo: nomesDeAlvo.length, atalhosDeSeletor: atalhos.length, referenciasSemSeletor: referencias.length, scriptsComSeletorDireto: comSeletor, continuosAtalho, continuosDiretos };
 if (process.argv.includes('--json')) console.log(JSON.stringify(r));
 else {
-  console.log(`scripts ${r.scripts} · efeitos ${r.efeitos} (${r.efeitosProprios} próprios, ${r.efeitosAtalho} atalhos de verbo + seletor) · gatilhos ${r.gatilhos} (${r.gatilhos - r.gatilhosAtalho} próprios, ${r.gatilhosAtalho} atalhos de descritor de evento) · palavras-chave ${r.palavrasChave}`);
+  console.log(`scripts ${r.scripts} · efeitos ${r.efeitos} (${r.efeitosProprios} próprios, ${r.efeitosAtalho} atalhos de outro verbo) · gatilhos ${r.gatilhos} (${r.gatilhos - r.gatilhosAtalho} próprios, ${r.gatilhosAtalho} atalhos de descritor de evento) · palavras-chave ${r.palavrasChave}`);
   console.log(`nomes de alvo ${r.nomesDeAlvo}: ${r.atalhosDeSeletor} já são atalhos do seletor, ${r.referenciasSemSeletor} são referências (self, first-target, cada jogador…)`);
   console.log(`referências: ${referencias.join(', ')}`);
   console.log(`efeitos contínuos estáticos: ${r.continuosAtalho} scripts por atalho (bônus de Aura/Equipamento, "suas criaturas têm", bônus por contagem) · ${r.continuosDiretos} escritos como continuo`);

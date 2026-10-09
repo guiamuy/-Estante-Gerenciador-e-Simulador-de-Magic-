@@ -4826,11 +4826,14 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Subcamadas de poder e resistência",
    "status": "parcial",
-   "evidencia": "7c: soma de marcadores, pump, pumpNext e bonus() em power/toughness (:10340-10341); comutativa, então correta (sonda 4/10; bogles.regras Ethereal Armor) · CR2d.1 (v90): 7b P/T base fixado por Aura (basePT); 7c/7d continuam somando por cima (teste de carimbo com +3/+3)",
-   "falta": "7a: P/T definido por habilidade (*/*) não existe; cardFacts transforma \"*\" em nulo e a conta parte de 0. 7b: só por Aura que redefine a criatura (CR2d.1); \"torna-se N/N\" por mágica ou habilidade ainda não. 7d: trocar poder e resistência não existe. Os bônus temporários (até o fim do turno, até o seu próximo turno) ainda são um número acumulado no objeto, sem saber de qual efeito veio; os estáticos já vêm de efeitos com fonte (CR2-G R3a).",
+   "evidencia": "7c: soma de marcadores, pump, pumpNext e bonus() em power/toughness (:10340-10341); comutativa, então correta (sonda 4/10; bogles.regras Ethereal Armor) · CR2d.1 (v90): 7b P/T base fixado por Aura (basePT); 7c/7d continuam somando por cima (teste de carimbo com +3/+3) · CR2-G R3b (M-235, v95 sem mudança): os temporários (até o fim do turno, até o seu próximo turno) entram no mesmo caminho dos estáticos (temporariosDe → continuosQueAfetam; power/toughness = base + marcadores + bonusTemporario + bonus); verbo continuo { poder, resistencia, palavras, ate } com alvo ou \"cada\", e pump/keyword como atalhos; equivalência em continuo.equivalencia.unit",
+   "falta": "7a: P/T definido por habilidade (*/*) não existe; cardFacts transforma \"*\" em nulo e a conta parte de 0. 7b: só por Aura que redefine a criatura (CR2d.1); \"torna-se N/N\" por mágica ou habilidade ainda não. 7d: trocar poder e resistência não existe. Os bônus temporários são lidos como efeito contínuo (CR2-G R3b), mas ainda guardados somados no objeto, sem a fonte de cada um; os estáticos já vêm de efeitos com fonte (CR2-G R3a).",
    "esforco": "G",
    "depende": [
     "613.1"
+   ],
+   "testes": [
+    "M-235 · R3b · matriz de temporários: +N/+N e palavras-chave até o fim do turno e até o seu próximo turno, em criatura comum, virada para baixo e com Aura que tira tudo antes e depois — o mesmo pelos dois caminhos"
    ]
   },
   {

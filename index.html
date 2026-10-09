@@ -5076,6 +5076,9 @@ const EFFECTS = {
   no_prevention: { fields: [], targets: ['self'] },
   gain_per_revealed: { fields: ['times'], targets: ['self'] },
   keyword: { fields: [], targets: ['self-source', 'creature', 'creature-you-control', 'other-creature-you-control', 'each-own-creature'] },
+  // CR2-G R3b · efeito contínuo temporário: +N/+N e palavras-chave num efeito só, com duração (até o fim do turno, padrão;
+  // até o seu próximo turno). `pump` e `keyword` viraram atalhos dele.
+  continuo: { fields: [], targets: ['self-source', 'creature', 'creature-you-control', 'creature-opponent-controls', 'other-creature-you-control', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
   // S43 · proteção contra a cor da sua escolha, até o fim do turno
   protection: { fields: [], targets: ['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control'] },
   // S20 · cemitério
@@ -5254,7 +5257,9 @@ const CADA_SELETOR = {
 };
 /** O seletor "cada" do efeito: `cada` escrito direto, ou o atalho `each-…` (com o subtipo poupado, se houver). */
 /** M-230 · efeitos que já são só atalho de verbo + seletor (a medida de vocabulário os separa). */
-const EFEITOS_ATALHO = { destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)' };
+/** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
+const DURACOES = ['fim-do-turno', 'seu-proximo-turno'];
+const EFEITOS_ATALHO = { destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
 const cadaDe = e => { if (!e) return null; if (e.cada) return e.cada; const base = CADA_SELETOR[e.target]; if (!base) return null; return e.exceptSubtype ? { ...base, semSubtipos: [e.exceptSubtype] } : base; };
 const TIPOS_DE_CARTA = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'];
 /** Erros de um seletor escrito no script (lista vazia = válido). */
@@ -5665,6 +5670,12 @@ function effectErrors(effects, label, opcional) {
     if (e.upTo && (!isTargeted(e) || effects.slice(i + 1).some(x => isTargeted(x) && !x.upTo))) errs.push(`${label} ${i + 1}: "até N alvos" não pode vir antes de um alvo obrigatório`);
     if (e.do === 'add_mana' && !Array.isArray(e.symbols) && !e.anyColor) errs.push(`${label} ${i + 1}: add_mana precisa da lista de símbolos ou de anyColor`);
     if (e.targetMvMax != null) errs.push(...valueErrors(e.targetMvMax, `${label} ${i + 1}: valor de mana máximo`));
+    if (e.do === 'continuo') { // CR2-G R3b
+      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      for (const k of ['poder', 'resistencia']) if (e[k] != null) errs.push(...valueErrors(e[k], `${label} ${i + 1}: ${k}`));
+      if (e.palavras != null && !(Array.isArray(e.palavras) && e.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "palavras"`);
+      if (e.ate != null && !DURACOES.includes(e.ate)) errs.push(`${label} ${i + 1}: duração "${e.ate}" desconhecida`);
+    }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
     // S57 · duração do bônus: sem isso vale até o fim do turno
@@ -6758,7 +6769,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, continuoErros, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, DURACOES, continuoErros, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -12686,9 +12697,8 @@ function has(s, o, k) {
   const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1, vale = ts => corte < 0 || (ts || 0) > corte; // CR2d.1 · 613.7: concedida antes da Aura que tira tudo some
   if (m && m.keywords.includes(k)) return true;
   if (!(o && o.faceDown) && corte < 0 && s.facts[o.name].kw.includes(k)) return true;
-  const tts = o.tempTs || []; if ((o.tempKeywords || []).some((x, i) => x === k && vale(tts[i]))) return true;
   if (corte < 0 && SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) return true; // CR2c.5 · 122.1b (sem carimbo: a Aura que tira tudo também os anula)
-  if (corte < 0 && (((o.keywordsNext || {}).list) || []).includes(k)) return true; // S59 · até o seu próximo turno
+  // CR2-G R3a/R3b · concedidas por efeito contínuo, estático ou temporário (S59 · até o seu próximo turno), com o corte por carimbo
   return continuosQueAfetam(s, o).some(e => e.palavras && vale(e.ts) && e.palavras.includes(k));
 }
 /** CR2-G R3a · o caminho antigo de has (só para o teste de equivalência). */
@@ -12776,6 +12786,7 @@ const GRANTS_ALL_AFETADOS = { tipos: ['creature'], de: 'you', tiposImpressos: tr
 function continuosQueAfetam(s, o) {
   const out = [];
   if (!o || !s.facts[o.name]) return out;
+  for (const e of temporariosDe(o)) out.push({ ...e, fonte: o }); // CR2-G R3b · temporários gravados no objeto
   // 'self': a própria permanente (em qualquer zona, como o bônus antigo); some com as habilidades impressas
   if (!semImpressas(s, o)) for (const e of continuosDaFonte(s, o)) if (e.afetados === 'self') out.push({ ...e, fonte: o, ts: o.ts || 0 });
   for (const x of battlefield(s)) {
@@ -12794,6 +12805,7 @@ function continuosQueAfetam(s, o) {
 function bonus(s, host) {
   let p = 0, tgh = 0;
   for (const e of continuosQueAfetam(s, host)) {
+    if (e.temporario) continue; // os temporários entram por bonusTemporario
     p += e.poder || 0; tgh += e.resistencia || 0;
     if (e.per && (e.perPoder || e.perResistencia)) { const n = countFor(s, e.fonte, e.per); p += (e.perPoder || 0) * n; tgh += (e.perResistencia || 0) * n; }
   }
@@ -13065,14 +13077,51 @@ const isMain = s => s.turn.step === 'main1' || s.turn.step === 'main2';
 const commanderTax = (s, p, oid) => 2 * (s.players[p].commanderCasts[oid] || 0);
 /** S54 · metamorfose: virada para baixo, a carta é uma criatura 2/2 sem nada mais. */
 const faceDown = o => !!(o && o.faceDown);
+/** CR2-G R3b · grava um efeito contínuo temporário no objeto. A guarda continua nos campos de sempre (o bot, a tela e as
+ * partidas salvas os leem): até o fim do turno → pump e tempKeywords (com carimbo); até o seu próximo turno → pumpNext e
+ * keywordsNext, marcados com quem fez (`by`), que acabam quando o turno dele começa. */
+function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno' }, by) {
+  const proximo = ate === 'seu-proximo-turno';
+  if (poder != null || resistencia != null) {
+    const campo = proximo ? 'pumpNext' : 'pump', ant = o[campo] || {};
+    o[campo] = { p: (ant.p || 0) + (poder || 0), t: (ant.t || 0) + (resistencia || 0), ...(proximo ? { by } : {}) };
+  }
+  for (const k0 of palavras || []) {
+    const k = String(k0).toLowerCase();
+    if (proximo) o.keywordsNext = { list: [...(((o.keywordsNext || {}).list) || []), k], by };
+    else { o.tempKeywords = [...(o.tempKeywords || []), k]; o.tempTs = [...(o.tempTs || []), relogio(s)]; }
+  }
+}
+/** CR2-G R3b · os efeitos temporários gravados no objeto, como efeitos contínuos: não dependem das habilidades impressas
+ * (valem virada para baixo); a palavra-chave até o fim do turno tem carimbo, a de "até o seu próximo turno" não (cai com
+ * qualquer Aura que tire as habilidades, como antes). */
+function temporariosDe(o) {
+  const out = [];
+  if (o.pump) out.push({ afetados: 'self', temporario: 'fim-do-turno', poder: o.pump.p || 0, resistencia: o.pump.t || 0, ts: 0 });
+  if (o.pumpNext) out.push({ afetados: 'self', temporario: 'seu-proximo-turno', poder: o.pumpNext.p || 0, resistencia: o.pumpNext.t || 0, ts: 0 });
+  const tts = o.tempTs || [];
+  (o.tempKeywords || []).forEach((k, i) => out.push({ afetados: 'self', temporario: 'fim-do-turno', palavras: [k], ts: tts[i] || 0 }));
+  if (((o.keywordsNext || {}).list || []).length) out.push({ afetados: 'self', temporario: 'seu-proximo-turno', palavras: o.keywordsNext.list, ts: -1 });
+  return out;
+}
+/** 7c · soma dos bônus temporários (a mesma subcamada dos estáticos; separada só para manter a conta antiga legível). */
+function bonusTemporario(s, o) {
+  let p = 0, tgh = 0;
+  for (const e of temporariosDe(o)) { p += e.poder || 0; tgh += e.resistencia || 0; }
+  return { p, t: tgh };
+}
 /** S57 · bônus temporários: até o fim do turno e até o seu próximo turno. */
 const pumpP = o => ((o.pump && o.pump.p) || 0) + ((o.pumpNext && o.pumpNext.p) || 0);
 const pumpT = o => ((o.pump && o.pump.t) || 0) + ((o.pumpNext && o.pumpNext.t) || 0);
 /** CR2d.1 · 7b: P/T base fixado pela Aura que redefine a criatura, senão o impresso. */
 const basePT = (s, o) => { const m = mutacao(s, o); return m && m.base ? m.base : [s.facts[o.name].power || 0, s.facts[o.name].toughness || 0]; };
-const power = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonus(s, o).p : // CR 708.2 + 613.4c: a 2/2 recebe os bônus de Aura e equipamento
-  basePT(s, o)[0] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonus(s, o).p;
-const toughness = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonus(s, o).t : basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonus(s, o).t;
+// CR2-G R3b · 613.4: base (7b; virada para baixo é 2/2) + marcadores (7d) + efeitos contínuos temporários e estáticos (7c)
+const power = (s, o) => (faceDown(o) ? 2 : basePT(s, o)[0]) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + bonusTemporario(s, o).p + bonus(s, o).p;
+const toughness = (s, o) => (faceDown(o) ? 2 : basePT(s, o)[1]) + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + bonusTemporario(s, o).t + bonus(s, o).t;
+/** O caminho antigo (só para o teste de equivalência). */
+const powerLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p : // CR 708.2 + 613.4c: a 2/2 recebe os bônus de Aura e equipamento
+  basePT(s, o)[0] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p;
+const toughnessLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t : basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t;
 const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
@@ -14125,12 +14174,17 @@ function applyEffect(s, src, eff, tgt, events) {
       if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield'); alvo.controller = ctrl; alvo.tapped = true; note({ name: alvo.name }); }
       break;
     }
-    case 'pump': { const pw = amountOf(s, src, eff.power), tg = amountOf(s, src, eff.toughness);
-      if (eff.until === 'your-next-turn') { // S57 · Caverna dos Fungos
-        obj.pumpNext = { p: ((obj.pumpNext && obj.pumpNext.p) || 0) + pw, t: ((obj.pumpNext && obj.pumpNext.t) || 0) + tg, by: ctrl };
-        note({ power: pw, toughness: tg }); break;
-      }
-      obj.pump = { p: ((obj.pump && obj.pump.p) || 0) + pw, t: ((obj.pump && obj.pump.t) || 0) + tg }; note({ power: pw, toughness: tg }); } break;
+    case 'pump': { const pw = amountOf(s, src, eff.power), tg = amountOf(s, src, eff.toughness); // CR2-G R3b · atalho de continuo
+      aplicaTemporario(s, obj, { poder: pw, resistencia: tg, ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }, ctrl); // S57 · Caverna dos Fungos
+      note({ power: pw, toughness: tg }); } break;
+    case 'continuo': { // CR2-G R3b · "+N/+N e ganha … até o fim do turno / até o seu próximo turno", num efeito só
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (!alvo || alvo.zone !== 'battlefield') break;
+      const pw = eff.poder != null ? amountOf(s, src, eff.poder) : undefined, tg = eff.resistencia != null ? amountOf(s, src, eff.resistencia) : undefined;
+      aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno' }, ctrl);
+      note({ name: alvo.name, power: pw || 0, toughness: tg || 0, palavras: (eff.palavras || []).map(k => String(k).toLowerCase()), ate: eff.ate || 'fim-do-turno' });
+      break;
+    }
     case 'discard': {
       // S12 · o jogador escolhe o que descartar: vira decisão pendente
       // Leva 107 · "cada oponente" não mira ninguém (a mesa é 1 contra 1: o oponente que ainda joga)
@@ -14547,11 +14601,8 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'keyword': { // concede até o fim do turno
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo && eff.until === 'your-next-turn') { // S59
-        const k = String(eff.keyword).toLowerCase();
-        alvo.keywordsNext = { list: [...(((alvo.keywordsNext || {}).list) || []), k], by: ctrl };
-        note({ name: alvo.name });
-      } else if (alvo) { alvo.tempKeywords = [...(alvo.tempKeywords || []), String(eff.keyword).toLowerCase()]; alvo.tempTs = [...(alvo.tempTs || []), relogio(s)]; note({ name: alvo.name }); }
+      // CR2-G R3b · atalho de continuo com uma palavra-chave (S59 · até o seu próximo turno)
+      if (alvo) { aplicaTemporario(s, alvo, { palavras: [eff.keyword], ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }, ctrl); note({ name: alvo.name }); }
       break;
     }
     case 'tap': { // S39 · "vire a criatura encantada" chega aqui como self-source
@@ -14646,9 +14697,7 @@ function concluiPick(s, events) {
     const c = s.objects[oid]; if (!c || c.zone !== 'battlefield') continue;
     if (pk.onPicked.counters) addCounters(s, c, pk.onPicked.counters);
     if (pk.onPicked.keyword) {
-      const k = String(pk.onPicked.keyword).toLowerCase();
-      if (pk.onPicked.until === 'your-next-turn') c.keywordsNext = { list: [...(((c.keywordsNext || {}).list) || []), k], by: pk.p };
-      else { c.tempKeywords = [...(c.tempKeywords || []), k]; c.tempTs = [...(c.tempTs || []), relogio(s)]; }
+      aplicaTemporario(s, c, { palavras: [pk.onPicked.keyword], ate: pk.onPicked.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }, pk.p); // CR2-G R3b
     }
   }
   events.push({ kind: 'choice-done', what: pk.label, name: pk.source, amount: pk.picked.length });
@@ -16865,7 +16914,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, hasLegado, bonusLegado, continuosQueAfetam, sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -18471,6 +18520,9 @@ function effectLine(ev) {
     case 'gain': return `${t} ganhou ${n} de vida (${ev.name})`;
     case 'lose': return `${t} perdeu ${n} de vida (${ev.name})`;
     case 'pump': return `${t} ganhou ${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness} até o fim do turno (${ev.name})`;
+    case 'continuo': { const pt = ev.power || ev.toughness ? `${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness}` : '';
+      const kw = (ev.palavras || []).map(k => PALAVRA_PT[k] || k).join(' e ');
+      return `${t} ganhou ${[pt, kw].filter(Boolean).join(' e ')} ${ev.ate === 'seu-proximo-turno' ? 'até o seu próximo turno' : 'até o fim do turno'} (${ev.name})`; }
     case 'tap': return `${ev.name} virou ${t}`;
     case 'untap': return `${ev.name} desvirou ${t}`;
     default: return `${ev.name} resolveu`;
@@ -19214,6 +19266,14 @@ function descreveEfeito(e) {
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
     case 'counters': return `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
+    case 'continuo': { // CR2-G R3b
+      const sinal = v => (v && v.per ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`);
+      const partes = [];
+      if (e.poder != null || e.resistencia != null) partes.push(`recebe ${sinal(e.poder || 0)}/${sinal(e.resistencia || 0)}`);
+      if ((e.palavras || []).length) partes.push(`ganha ${e.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
+      const quem = e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura';
+      return `${quem} ${partes.join(' e ')} ${e.ate === 'seu-proximo-turno' ? 'até o seu próximo turno' : 'até o fim do turno'}`;
+    }
     case 'keyword': if (e.targetCount) return `até X criaturas ganham ${PALAVRA_PT[e.keyword] || e.keyword} até o fim do turno`; // CR2c.3
       return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
