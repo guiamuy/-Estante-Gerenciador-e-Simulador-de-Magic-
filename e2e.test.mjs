@@ -7764,7 +7764,7 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   // o aviso de "Relato salvo" (com ação) atravessa as telas; o de copiar chega depois da área de transferência responder
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.click('#relatos-copiar'); await page.waitForFunction(() => /1 relato\(s\) copiado\(s\)/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
-  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^### Ideia · Baixa · Lista\n- Quando: [\s\S]*\n- Tela: \/lista\n- Contexto: motor v\d+ · tema escuro · 360×780\n\nMostrar o valor da reserva separado\.$/, 'só o aberto (o outro foi resolvido), no texto para colar');
+  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /^### Ideia · Baixa · Lista · Delver\n- Quando: [\s\S]*\n- Tela: Lista · Delver \(\/lista\?id=[a-z0-9]+\)\n- Contexto: app de [^·]+ · motor v\d+ · tema escuro · 360×780\n\nMostrar o valor da reserva separado\.$/, 'só o aberto (o outro foi resolvido), no texto para colar');
   await page.click('#relatos-lista .relato-item [data-acao="excluir"]'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 1);
   await page.click('#ds-toast button'); await page.waitForFunction(() => document.querySelectorAll('#relatos-lista .relato-item').length === 2);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos ${w} ${tema}`); } }
@@ -7841,7 +7841,7 @@ test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à
   await page.click('#relatos-copiar'); await page.waitForFunction(() => /2 relato\(s\) copiado\(s\)/.test(document.querySelector('#ds-toast').textContent), null, { timeout: 5000 });
   const txt = await page.evaluate(() => navigator.clipboard.readText());
   const [regra, ideia] = txt.split('\n\n---\n\n');
-  assert.match(regra, /^### Regra ou carta · Alta · Mesa\n[\s\S]*- Tela: \/partida\n[\s\S]*- Partida: contra o Shark · turno \d+ · [^\n]+ · vida \d+ × \d+ · partida anexada\n- Últimas jogadas:\n(  - .+\n)+\nO Shark não bloqueou/);
+  assert.match(regra, /^### Regra ou carta · Alta · Mesa\n[\s\S]*- Tela: Mesa \(\/partida\)\n[\s\S]*- Partida: contra o Shark · turno \d+ · [^\n]+ · vida \d+ × \d+ · partida anexada\n- Últimas jogadas:\n(  - .+\n)+\nO Shark não bloqueou/);
   assert.match(ideia, /- Partida: contra o Shark[^\n]*vida \d+ × \d+\n/); assert.doesNotMatch(ideia, /partida anexada/);
   assert.deepEqual(errors, []);
 });
@@ -7903,8 +7903,9 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
   const baixa = async id => { const [d] = await Promise.all([page.waitForEvent('download'), page.click(id)]); const txt = await (await d.createReadStream()).toArray().then(ps => Buffer.concat(ps).toString('utf8')); return { nome: d.suggestedFilename(), txt }; };
   const csv = await baixa('#relatos-exportar-csv');
   assert.match(csv.nome, /^estante-relatos-\d{4}-\d{2}-\d{2}\.csv$/);
-  assert.match(csv.txt, /^﻿criado_em,tipo,urgencia,area,rota,situacao,descricao,/); assert.equal(csv.txt.trim().split('\r\n').length, 4);
-  assert.match(csv.txt, /Regra ou carta,Alta,Mesa,\/partida,aberto,Regra da mesa com a partida anexada\.,\d+,[^,]*,360×780,sim,contra o Shark,\d+,[^,]*,sim/);
+  assert.match(csv.txt, /^﻿criado_em,tipo,urgencia,area,titulo_da_tela,endereco,dialogo,situacao,descricao,/); assert.equal(csv.txt.trim().split('\r\n').length, 4);
+  // Y4 · a linha diz a tela (título e endereço) além da área
+  assert.match(csv.txt, /Regra ou carta,Alta,Mesa,[^,]*,\/partida,,aberto,Regra da mesa com a partida anexada\.,\d+,[^,]*,360×780,sim,contra o Shark,\d+,[^,]*,sim/);
   await page.click('#relatos-exportar-abrir'); const js = await baixa('#relatos-exportar-json');
   const dados = JSON.parse(js.txt); assert.equal(dados.kind, 'estante.relatos'); assert.equal(dados.relatos.length, 3); assert.equal(dados.relatos[0].partida.kind, 'estante.match');
   await page.click('#relatos-exportar-abrir'); const md = await baixa('#relatos-exportar-md');

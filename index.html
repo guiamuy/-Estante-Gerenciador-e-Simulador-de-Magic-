@@ -9928,13 +9928,25 @@ function confere({ tipo, urgencia, descricao } = {}) {
   return erros;
 }
 /** O relato pronto para guardar: carimbo de data e hora do app (ISO) e contexto que foi junto. */
-function novoRelato({ tipo, urgencia, descricao, hash = '', contexto = {}, partida = null }, agora = Date.now(), id = null) {
+function novoRelato({ tipo, urgencia, descricao, hash = '', contexto = {}, partida = null, tela = null }, agora = Date.now(), id = null) {
   const erros = confere({ tipo, urgencia, descricao });
   if (Object.keys(erros).length) return { ok: false, erros };
   const area = areaDaRota(hash);
+  // Y4 · o endereço inteiro (com a lista ou a carta aberta) e o que estava na tela, para achar o lugar exato depois
+  const endereco = String(hash || '').replace(/^#/, '') || '/';
   return { ok: true, relato: { id: id || 'r' + agora.toString(36) + Math.random().toString(36).slice(2, 6), criadoEm: new Date(agora).toISOString(),
-    tipo, urgencia, descricao: String(descricao).trim(), area: area.nome, rota: area.rota, contexto: { ...contexto }, partida: partida || null, status: 'aberto' } };
+    tipo, urgencia, descricao: String(descricao).trim(), area: area.nome, rota: area.rota, endereco, tela: limpaTela(tela), contexto: { ...contexto }, partida: partida || null, status: 'aberto' } };
 }
+/** Y4 · o que identifica a tela: o título dela (o h1: o nome da lista, da carta…), o diálogo que estava aberto e quanto da
+    página estava rolado. Texto curto, sem dado pessoal além do que a tela mostra. */
+function limpaTela(t) {
+  if (!t || typeof t !== 'object') return null;
+  const curto = (x, n = 120) => (typeof x === 'string' && x.trim() ? x.replace(/\s+/g, ' ').trim().slice(0, n) : '');
+  const r = { titulo: curto(t.titulo), cabecalho: curto(t.cabecalho), dialogo: curto(t.dialogo), rolagem: Number.isFinite(t.rolagem) ? Math.max(0, Math.min(100, Math.round(t.rolagem))) : null };
+  return r.titulo || r.cabecalho || r.dialogo || r.rolagem != null ? r : null;
+}
+/** Nome da tela para ler: a área e, quando diz mais, o título dela ("Lista · Delver"). */
+const nomeDaTela = r => (r.tela && r.tela.cabecalho && r.tela.cabecalho !== r.area && r.tela.cabecalho !== 'Estante' ? `${r.area} · ${r.tela.cabecalho}` : r.area);
 const valido = r => r && typeof r.id === 'string' && typeof r.criadoEm === 'string' && !isNaN(Date.parse(r.criadoEm)) && TIPOS.some(t => t[0] === r.tipo)
   && URGENCIAS.some(u => u[0] === r.urgencia) && typeof r.descricao === 'string' && r.descricao.trim();
 /** Abertos primeiro; dentro deles, a urgência maior; depois o mais recente. */
@@ -9946,10 +9958,11 @@ const quando = iso => { const d = new Date(iso); return `${d.toLocaleDateString(
 /** Texto de um relato para colar na conversa de correção (Markdown simples, uma linha por campo). */
 function textoDoRelato(r) {
   const c = r.contexto || {}, linhas = [
-    `### ${rotuloDe(TIPOS, r.tipo)} · ${rotuloDe(URGENCIAS, r.urgencia)} · ${r.area}`,
+    `### ${rotuloDe(TIPOS, r.tipo)} · ${rotuloDe(URGENCIAS, r.urgencia)} · ${nomeDaTela(r)}`,
     `- Quando: ${quando(r.criadoEm)} (${r.criadoEm})`,
-    `- Tela: ${r.rota}` + (r.status === 'resolvido' ? ' · resolvido' : ''),
-    c.motor != null || c.tema || c.tela ? `- Contexto: ${[c.motor != null ? 'motor v' + c.motor : '', c.tema ? 'tema ' + c.tema : '', c.tela || '', c.online === false ? 'sem internet' : ''].filter(Boolean).join(' · ')}` : null,
+    `- Tela: ${nomeDaTela(r)} (${r.endereco || r.rota})` + (r.status === 'resolvido' ? ' · resolvido' : ''),
+    r.tela && (r.tela.dialogo || r.tela.rolagem) ? `- Na tela: ${[r.tela.dialogo ? `diálogo "${r.tela.dialogo}" aberto` : '', r.tela.rolagem ? `rolada ${r.tela.rolagem}%` : ''].filter(Boolean).join(' · ')}` : null,
+    c.motor != null || c.tema || c.tela ? `- Contexto: ${[c.app ? 'app de ' + c.app : '', c.motor != null ? 'motor v' + c.motor : '', c.tema ? 'tema ' + c.tema : '', c.tela || '', c.online === false ? 'sem internet' : ''].filter(Boolean).join(' · ')}` : null,
     c.partida && c.partida.modo ? `- Partida: ${[c.partida.modo, 'turno ' + c.partida.turno, c.partida.etapa, 'vez ' + c.partida.vez, c.partida.prioridade ? 'prioridade ' + c.partida.prioridade : '', 'vida ' + c.partida.vida, c.partida.decisao ? 'decisão ' + c.partida.decisao : ''].filter(Boolean).join(' · ')}` + (r.partida ? ' · partida anexada' : '') : null,
     c.partida && c.partida.registro && c.partida.registro.length ? '- Últimas jogadas:\n' + c.partida.registro.map(l => '  - ' + l).join('\n') : null,
     '', r.descricao];
@@ -9999,13 +10012,27 @@ const rascunho = { tipo: '', urgencia: '', descricao: '', anexar: true }; // fec
 function usa(s) { servico = s || null; }
 function contextoDaTela() {
   const tema = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') || '' : '';
-  return { motor: typeof __m16 !== 'undefined' ? __m16.ENGINE_VERSION : null, tema: tema === 'light' ? 'claro' : tema ? 'escuro' : '',
+  // Y4 · a versão publicada do app: a data do index.html que o Pages entregou (muda a cada publicação)
+  let app = ''; try { const d = new Date(document.lastModified); if (!isNaN(d)) app = d.toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; } catch (e) { app = ''; }
+  return { app, motor: typeof __m16 !== 'undefined' ? __m16.ENGINE_VERSION : null, tema: tema === 'light' ? 'claro' : tema ? 'escuro' : '',
     tela: typeof innerWidth !== 'undefined' ? `${innerWidth}×${innerHeight}` : '', online: typeof navigator === 'undefined' || navigator.onLine !== false };
+}
+/** Y4 · a foto do que está na tela no toque em Relatar (antes de o formulário abrir por cima). */
+function telaAgora() {
+  if (typeof document === 'undefined') return null;
+  const outlet = document.getElementById('outlet');
+  const h1 = outlet && outlet.querySelector('h1');
+  const dlg = document.querySelector('#ds-overlay[data-open="true"] .ds-dialog__title');
+  const alto = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+  return { titulo: String(document.title || '').replace(/^Estante · /, ''), cabecalho: h1 ? h1.textContent : '', dialogo: dlg ? dlg.textContent : '',
+    rolagem: document.documentElement.scrollHeight > innerHeight + 4 ? (100 * scrollY / alto) : null };
 }
 function abreRelato() {
   if (!servico) return;
   const hash = typeof location !== 'undefined' ? location.hash : '';
   const area = areaDaRota(hash);
+  const tela = limpaTela(telaAgora()); // Y4 · antes de o formulário cobrir a tela
+  const nomeTela = nomeDaTela({ area: area.nome, tela });
   const aberto = servico.agora();
   const extra = contextoExtra ? contextoExtra() : null; // Y2 · a tela aberta (a mesa) diz o que sabe de si
   let erros = {};
@@ -10029,7 +10056,7 @@ function abreRelato() {
     h('div', { class: 'relato__par' }, campos.tipo, campos.urgencia),
     campos.descricao,
     h('div', { class: 'relato__carimbo', id: 'relato-carimbo' }, Icone('historico', { tamanho: 18 }),
-      h('span', {}, h('b', {}, quando(new Date(aberto).toISOString())), ` · ${area.nome}`),
+      h('span', {}, h('b', {}, quando(new Date(aberto).toISOString())), ` · ${nomeTela}`),
       h('span', { class: 'relato__junto' }, extra && extra.anexavel ? 'Vão junto: o turno, a etapa, as últimas jogadas, a versão do motor e a tela.' : 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')),
     // Y2 · na partida: a partida inteira (semente e jogadas) pode ir junto, para abrir igual na correção
     extra && extra.anexavel ? __m3.Chave('Anexar a partida', { ligada: rascunho.anexar, id: 'relato-anexar', detalhe: 'Para abrir a partida igual depois', onMuda: v => { rascunho.anexar = v; } }) : null);
@@ -10037,7 +10064,7 @@ function abreRelato() {
     const agoraExtra = contextoExtra ? contextoExtra() : null;
     let partida = null;
     if (agoraExtra && agoraExtra.anexavel && rascunho.anexar && agoraExtra.partida) { try { partida = agoraExtra.partida(); } catch (e) { partida = null; } }
-    const r = await servico.salva({ tipo: rascunho.tipo, urgencia: rascunho.urgencia, descricao: rascunho.descricao, hash, contexto: { ...contextoDaTela(), ...(agoraExtra ? { partida: agoraExtra.contexto || {} } : {}) }, partida });
+    const r = await servico.salva({ tipo: rascunho.tipo, urgencia: rascunho.urgencia, descricao: rascunho.descricao, hash, tela, contexto: { ...contextoDaTela(), ...(agoraExtra ? { partida: agoraExtra.contexto || {} } : {}) }, partida });
     if (!r.ok) { erros = r.erros; pintaCampos(); const prim = ['tipo', 'urgencia', 'descricao'].find(k => erros[k]); const el = document.getElementById('relato-' + prim); if (el) el.focus({ preventScroll: false }); return; }
     rascunho.tipo = ''; rascunho.urgencia = ''; rascunho.descricao = ''; rascunho.anexar = true;
     closeDialog();
@@ -10067,9 +10094,9 @@ const areasDe = lista => [...new Set(ordena(lista).map(r => r.area))].sort((a, b
 /** CSV (RFC 4180, vírgula, aspas quando precisa, BOM para a planilha ler acentos): uma linha por relato. */
 function csvDosRelatos(lista) {
   const q = v => { const t = v == null ? '' : String(v); return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-  const cab = ['criado_em', 'tipo', 'urgencia', 'area', 'rota', 'situacao', 'descricao', 'motor', 'tema', 'tela', 'online', 'partida_modo', 'partida_turno', 'partida_etapa', 'partida_anexada'];
+  const cab = ['criado_em', 'tipo', 'urgencia', 'area', 'titulo_da_tela', 'endereco', 'dialogo', 'situacao', 'descricao', 'motor', 'tema', 'tela', 'online', 'partida_modo', 'partida_turno', 'partida_etapa', 'partida_anexada'];
   const linhas = ordena(lista).map(r => { const c = r.contexto || {}, p = c.partida || {};
-    return [r.criadoEm, rotuloDe(TIPOS, r.tipo), rotuloDe(URGENCIAS, r.urgencia), r.area, r.rota, r.status === 'resolvido' ? 'resolvido' : 'aberto', r.descricao,
+    return [r.criadoEm, rotuloDe(TIPOS, r.tipo), rotuloDe(URGENCIAS, r.urgencia), r.area, (r.tela && r.tela.cabecalho) || '', r.endereco || r.rota, (r.tela && r.tela.dialogo) || '', r.status === 'resolvido' ? 'resolvido' : 'aberto', r.descricao,
       c.motor != null ? c.motor : '', c.tema || '', c.tela || '', c.online === false ? 'não' : 'sim', p.modo || '', p.turno != null ? p.turno : '', p.etapa || '', r.partida ? 'sim' : 'não'].map(q).join(','); });
   return '﻿' + [cab.join(','), ...linhas].join('\r\n') + '\r\n';
 }
@@ -10122,7 +10149,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
         h('div', { class: 'relato-item__topo' },
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
           Badge(rotuloDe(TIPOS, r.tipo)),
-          h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${r.area}`)),
+          h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`)),
         h('p', { class: 'relato-item__texto' }, r.descricao),
         r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
         h('div', { class: 'relato-item__acoes' },
@@ -10164,7 +10191,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
   return root;
 }
 
-return { FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */

@@ -6432,6 +6432,21 @@ mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
 - **Limite declarado:** partida de outro motor não abre (o motor recusa partida salva por outra versão, regra da A8).
 - **Fora:** enviar relatos para fora do aparelho sem arquivo (nuvem); foto da tela.
 
+**Y4 · O relato diz a tela exata** ✅ (leva G-231, 09/10/2026)
+- **Pedido (09/10/2026):** conferir se os relatos guardam a tela e o momento em que foram feitos, e guardar o que faltar.
+- **O que já se guardava:** data e hora, a **área** (Lista, Mesa, Coleção…) e a rota sem o resto do endereço
+  (`/lista`), mais motor, tema, tamanho da tela e internet; na mesa, o contexto da partida e a partida anexada.
+- **O que faltava:** **qual** lista, carta ou coleção estava aberta — `/lista` não dizia qual das listas.
+- **Entregue:** o relato passa a guardar o **endereço inteiro** (`/lista?id=…`, `/listas/catalogo?id=…`), o **título da
+  tela** (o h1: o nome da lista, da carta, da lista oficial), o **diálogo aberto** no toque (quando houver), **quanto da
+  página estava rolado** e a **versão publicada do app** (a data do `index.html` entregue pelo Pages). Tudo aparece no
+  carimbo do formulário ("09/10/2026 15:07 · Lista · Delver"), na tela Relatos, no texto para colar ("- Tela: Lista ·
+  Delver (/lista?id=…)", "- Contexto: app de … · motor v95…") e no CSV (colunas `titulo_da_tela`, `endereco`, `dialogo`).
+- **Limite:** os relatos feitos antes desta leva continuam só com a área e a rota curta (não há como recuperar a tela).
+  Os relatos ficam no aparelho: para a correção, eles chegam pela conversa (Copiar abertos ou Exportar).
+- **Testes:** U `relatos.unit` +1 e ajustes (endereço, tela, CSV); e2e Y1 confere o texto copiado com "Lista · Delver" e o
+  endereço com o id; Y2 e Y3 ajustados ao formato novo da linha "Tela".
+
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
 **Pedido (08/10/2026):** importar listas disponíveis por API para o app — para gerenciar ou jogar sem internet —, com

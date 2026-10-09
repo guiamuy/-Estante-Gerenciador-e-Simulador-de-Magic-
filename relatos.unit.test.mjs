@@ -20,6 +20,7 @@ test('Y1 · novoRelato: carimbo de data e hora do app em ISO, área pela rota, c
   const r = R.novoRelato({ tipo: 'regra', urgencia: 'media', descricao: '  Lurrus não deixou conjurar.  ', hash: '#/lista?id=abc', contexto: { motor: 92, tema: 'escuro' }, partida: { turno: 3 } }, agora, 'r1');
   assert.equal(r.ok, true);
   assert.deepEqual(J(r.relato), { id: 'r1', criadoEm: '2026-10-08T23:14:05.000Z', tipo: 'regra', urgencia: 'media', descricao: 'Lurrus não deixou conjurar.', area: 'Lista', rota: '/lista',
+    endereco: '/lista?id=abc', tela: null, // Y4 · o endereço inteiro (com a lista aberta) vai junto
     contexto: { motor: 92, tema: 'escuro' }, partida: { turno: 3 }, status: 'aberto' });
   assert.equal(R.novoRelato({ tipo: 'erro' }).ok, false);
   assert.deepEqual(['#/', '', '#/listas', '#/listas/editar', '#/perfil/relatos', '#/perfil', '#/partida', '#/mesa', '#/xyz'].map(x => String(R.areaDaRota(x).nome)),
@@ -35,7 +36,7 @@ test('Y1 · ordena: abertos antes dos resolvidos, depois a urgência maior, depo
 test('Y1 · texto para colar: cabeçalho com tipo, urgência e área, data, tela, contexto e a descrição', () => {
   const r = R.novoRelato({ tipo: 'erro', urgencia: 'bloqueia', descricao: 'Tela travou\nao manter.', hash: '#/partida', contexto: { motor: 92, tema: 'claro', tela: '360×780', online: false } }, Date.UTC(2026, 9, 8, 12), 'r2').relato;
   const t = R.textoDoRelato(r);
-  assert.match(t, /^### Erro · Impede o uso · Mesa\n- Quando: .+ \(2026-10-08T12:00:00\.000Z\)\n- Tela: \/partida\n- Contexto: motor v92 · tema claro · 360×780 · sem internet\n\nTela travou\nao manter\.$/);
+  assert.match(t, /^### Erro · Impede o uso · Mesa\n- Quando: .+ \(2026-10-08T12:00:00\.000Z\)\n- Tela: Mesa \(\/partida\)\n- Contexto: motor v92 · tema claro · 360×780 · sem internet\n\nTela travou\nao manter\.$/);
   assert.equal(R.textoDosRelatos([r, r]).split('\n---\n').length, 2);
 });
 
@@ -115,8 +116,8 @@ test('Y3 · filtra: situação, tipo, urgência e área, juntos; contaFiltros e 
 test('Y3 · exportar: CSV com cabeçalho, aspas e BOM; JSON com a partida; texto pela ordem de sempre', () => {
   const l = AMOSTRA();
   const csv = R.csvDosRelatos(l);
-  assert.ok(csv.startsWith('﻿criado_em,tipo,urgencia,area,rota,situacao,descricao,motor,tema,tela,online,partida_modo,partida_turno,partida_etapa,partida_anexada\r\n'));
-  assert.ok(csv.includes('Erro,Alta,Mesa,/x,aberto,"Um, com ""aspas""\ne quebra",95,escuro,360×780,não,contra o Shark,3,Combate,sim\r\n'), csv);
+  assert.ok(csv.startsWith('﻿criado_em,tipo,urgencia,area,titulo_da_tela,endereco,dialogo,situacao,descricao,motor,tema,tela,online,partida_modo,partida_turno,partida_etapa,partida_anexada\r\n'));
+  assert.ok(csv.includes('Erro,Alta,Mesa,,/x,,aberto,"Um, com ""aspas""\ne quebra",95,escuro,360×780,não,contra o Shark,3,Combate,sim\r\n'), csv);
   assert.equal(csv.trim().split('\r\n').length, 4);
   const j = JSON.parse(R.jsonDosRelatos(l, Date.UTC(2026, 9, 9)));
   assert.equal(j.kind, 'estante.relatos'); assert.equal(j.exportadoEm, '2026-10-09T00:00:00.000Z'); assert.equal(j.relatos.length, 3); assert.equal(j.relatos[0].partida.engine, 95);
@@ -127,4 +128,18 @@ test('Y3 · partida anexada só abre no mesmo motor; o motivo vem antes do toque
   assert.deepEqual(J(R.partidaAbrivel(a, 95)), { ok: true, motivo: '' });
   assert.deepEqual(J(R.partidaAbrivel(a, 96)), { ok: false, motivo: 'Gravada no motor v95; o motor agora é v96.' });
   assert.deepEqual(J(R.partidaAbrivel(b, 95)), { ok: false, motivo: '' });
+});
+
+test('Y4 · a tela do relato: endereço inteiro, título da tela, diálogo aberto e rolagem; nome para ler e texto para colar', () => {
+  const r = R.novoRelato({ tipo: 'visual', urgencia: 'baixa', descricao: 'O nome quebrou em três linhas.', hash: '#/lista?id=xyz',
+    tela: { titulo: 'Lista', cabecalho: '  Pauper   Mono Blue Faeries ', dialogo: 'Impressões · Delver of Secrets', rolagem: 37.4 }, contexto: { app: '2026-10-09 14:02 UTC', motor: 95 } }, Date.UTC(2026, 9, 9), 'r9').relato;
+  assert.equal(r.endereco, '/lista?id=xyz'); assert.equal(r.rota, '/lista');
+  assert.deepEqual(J(r.tela), { titulo: 'Lista', cabecalho: 'Pauper Mono Blue Faeries', dialogo: 'Impressões · Delver of Secrets', rolagem: 37 });
+  assert.equal(R.nomeDaTela(r), 'Lista · Pauper Mono Blue Faeries');
+  assert.equal(R.nomeDaTela({ area: 'Início', tela: { cabecalho: 'Início' } }), 'Início', 'título igual à área não repete');
+  const t = R.textoDoRelato(r);
+  assert.match(t, /^### Visual · Baixa · Lista · Pauper Mono Blue Faeries\n/);
+  assert.match(t, /\n- Tela: Lista · Pauper Mono Blue Faeries \(\/lista\?id=xyz\)\n- Na tela: diálogo "Impressões · Delver of Secrets" aberto · rolada 37%\n- Contexto: app de 2026-10-09 14:02 UTC · motor v95\n/);
+  assert.equal(R.limpaTela(null), null); assert.equal(R.limpaTela({}), null);
+  assert.equal(R.limpaTela({ cabecalho: 'x'.repeat(300) }).cabecalho.length, 120);
 });
