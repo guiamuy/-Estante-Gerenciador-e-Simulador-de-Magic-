@@ -4925,11 +4925,14 @@
    "regra": "Replacement Effects",
    "titulo": "O que é efeito de substituição",
    "status": "parcial",
-   "evidencia": "Substituições fixas dentro de moveObject (:10244): exile-instead-of-graveyard (:10256; rules.unit \"S52 · ... ela exila em vez de morrer\"), exílio do lampejo (:10258), entra virado (:10283; rules.unit \"S22\"), entra virado a menos que (rules.unit \"S56\"), entra com marcadores (rules.unit \"S50\", pauper.regras \"Leva 104 · Nyxborn Hydra\"), escolha de cor da aura",
+   "evidencia": "Substituições fixas dentro de moveObject (:10244): exile-instead-of-graveyard (:10256; rules.unit \"S52 · ... ela exila em vez de morrer\"), exílio do lampejo (:10258), entra virado (:10283; rules.unit \"S22\"), entra virado a menos que (rules.unit \"S56\"), entra com marcadores (rules.unit \"S50\", pauper.regras \"Leva 104 · Nyxborn Hydra\"), escolha de cor da aura · CR2-G R5a (M-240, v95 sem mudança): substituições de mudança de zona num formato só — substitui: [{ quando: { para, de, objeto: self|seletor }, em: { para } }] e entra: [{ afetados: self|seletor, virada: true|{ aMenosQue }, marcadores }] (substituicoesPara, destinoSubstituido, entradaModificada); staticRule de exílio e de entrar virada, entersTapped, entersTappedUnless, entersWithCounters, X e chargePerKick viraram atalhos; equivalência em substitui.equivalencia.unit",
    "falta": "Não há canal de eventos onde uma substituição se registre: cada caso é um if na função que faz a coisa. 614.1a: só a própria carta indo ao cemitério (STATIC_RULES :4548). 614.1b: nenhum \"pule\". 614.1d: nenhuma substituição vinda de outra permanente (Authority of the Consuls manual). 614.1e: nada \"ao ser virada para cima\". Dano, compra, ganho de vida, fichas e marcadores não podem ser substituídos.",
    "esforco": "G",
    "depende": [
     "616"
+   ],
+   "testes": [
+    "M-240 · R5a · destino substituído (\"em vez disso\"): o caminho único e o antigo dão o mesmo para cada objeto, zona e destino, em partidas aleatórias com as listas reais"
    ]
   },
   {
@@ -5053,12 +5056,15 @@
    "regra": "Replacement Effects",
    "titulo": "Substituição que muda como a permanente entra",
    "status": "parcial",
-   "evidencia": "Da própria carta: entersTapped (:10283; rules.unit \"S22\"), entersTappedUnless (:10285; \"S56\"), entersWithCounters e X pago (:10293-10298; \"S50\", pauper.regras \"Leva 104/105 · Nyxborn Hydra\"), lealdade inicial, cor escolhida pela aura",
+   "evidencia": "Da própria carta: entersTapped (:10283; rules.unit \"S22\"), entersTappedUnless (:10285; \"S56\"), entersWithCounters e X pago (:10293-10298; \"S50\", pauper.regras \"Leva 104/105 · Nyxborn Hydra\"), lealdade inicial, cor escolhida pela aura · CR2-G R5a: \"entra virada\", \"entra virada a menos que…\" e \"entra com N marcadores\" da própria carta ou por seletor de outra permanente (entradaModificada); as de outras permanentes antes das dela",
    "falta": "614.12a: a escolha de cor é feita DEPOIS de entrar — sonda Benevolent Blessing: decisão choose_color aparece com a aura já no campo e anexada (moveObject enfileira s.queuedChoices :10307). Fichas não passam por moveObject (createToken :11643): ficha com \"entra virada/com marcadores\" não aplicaria nada. Não há substituição de entrada vinda de outra permanente (\"permanentes entram viradas\": Authority of the Consuls, manual) nem checagem das características \"como existiria no campo\". Carta virada para baixo ainda lê entersTapped/entersWithCounters do script da frente. 614.12b-c (custos combinados, palavras-âncora): ausentes.",
    "esforco": "G",
    "depende": [
     "614.1",
     "616.1"
+   ],
+   "testes": [
+    "M-240 · R5a · matriz de entradas: cada carta com \"entra virada\", \"a menos que…\" ou \"entra com marcadores\", dos dois lados, com e sem Authority of the Consuls do outro lado, com vida alta e baixa, com e sem terreno do tipo pedido, X e reforço pagos — o mesmo pelos dois caminhos"
    ]
   },
   {

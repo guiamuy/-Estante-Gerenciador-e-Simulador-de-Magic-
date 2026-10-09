@@ -5236,7 +5236,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'ou'];
+const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'ou'];
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -5314,6 +5314,48 @@ const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countere
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'mode:2', 'mode:3', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
+/* CR2-G R5a · 614 · efeitos de substituição de mudança de zona, num formato só:
+   `substitui: [{ quando: { para, de?, objeto: 'self' | seletor }, em: { para } }]` — "se fosse para X, vai para Y em vez disso";
+   `entra: [{ afetados: 'self' | seletor, virada: true | { aMenosQue }, marcadores: { tipo: n | 'x' | 'kicked' } }]` — "entra virada",
+   "entra virada a menos que…", "entra com N marcadores". As regras antigas (staticRule de exílio e de entrar virada,
+   entersTapped, entersTappedUnless, entersWithCounters, X, chargePerKick) viram atalhos. */
+const ZONAS_SUBST = ['battlefield', 'graveyard', 'exile', 'hand', 'library'];
+function substituiErros(r, tag) {
+  if (!r || typeof r !== 'object' || !r.quando || !r.em) return [`${tag}: precisa de "quando" e "em"`];
+  const errs = [], q = r.quando;
+  if (!ZONAS_SUBST.includes(q.para)) errs.push(`${tag}: "quando.para" precisa ser uma zona`);
+  if (q.de != null && !ZONAS_SUBST.concat(['stack']).includes(q.de)) errs.push(`${tag}: "quando.de" desconhecida`);
+  if (!ZONAS_SUBST.includes(r.em.para) || r.em.para === q.para) errs.push(`${tag}: "em.para" precisa ser outra zona`);
+  if (q.objeto != null && q.objeto !== 'self') { if (typeof q.objeto !== 'object') errs.push(`${tag}: "quando.objeto" precisa ser self ou um seletor`); else errs.push(...seletorErros(q.objeto, `${tag}: objeto`)); }
+  return errs;
+}
+const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype'];
+function entraErros(r, tag) {
+  if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
+  const errs = [];
+  if (r.afetados !== 'self' && !(r.afetados && typeof r.afetados === 'object')) errs.push(`${tag}: "afetados" precisa ser self ou um seletor`);
+  else if (r.afetados !== 'self') { errs.push(...seletorErros(r.afetados, `${tag}: afetados`)); if (r.afetados.palavra || r.afetados.semPalavra) errs.push(`${tag}: afetados não aceita palavra-chave`); }
+  if (r.virada != null && r.virada !== true && !(r.virada.aMenosQue && Object.keys(r.virada.aMenosQue).every(k => CONDICOES_ENTRA.includes(k)))) errs.push(`${tag}: "virada" é true ou { aMenosQue }`);
+  for (const [k, v] of Object.entries(r.marcadores || {})) if (!(Number.isInteger(v) && v > 0) && v !== 'x' && v !== 'kicked') errs.push(`${tag}: marcadores "${k}" precisa ser inteiro, 'x' ou 'kicked'`);
+  if (r.virada == null && !Object.keys(r.marcadores || {}).length) errs.push(`${tag}: não muda nada`);
+  return errs;
+}
+/** Atalhos: as regras antigas de uma carta como substituições. */
+function substituicoesDoScript(sc) {
+  const sub = [], entra = [];
+  if (!sc) return { sub, entra };
+  if (sc.staticRule === 'exile-instead-of-graveyard') sub.push({ quando: { para: 'graveyard', objeto: 'self' }, em: { para: 'exile' } });
+  if (sc.staticRule === 'opponent-creatures-enter-tapped') entra.push({ afetados: { tipos: ['creature'], de: 'opponent', tiposDaCarta: true }, virada: true });
+  if (sc.entersTapped) entra.push({ afetados: 'self', virada: true });
+  if (sc.entersTappedUnless) entra.push({ afetados: 'self', virada: { aMenosQue: sc.entersTappedUnless } });
+  const self = sc.self || {};
+  if (self.entersWithCounters) entra.push({ afetados: 'self', marcadores: { p1p1: self.entersWithCounters } });
+  if (self.entersWithCountersX) entra.push({ afetados: 'self', marcadores: { p1p1: 'x' } });
+  if (self.chargePerKick) entra.push({ afetados: 'self', marcadores: { charge: 'kicked' } });
+  for (const r of sc.substitui || []) sub.push(r);
+  for (const r of sc.entra || []) entra.push(r);
+  return { sub, entra };
+}
 /** CR2-G R3a · um efeito contínuo estático: `afetados` ('self', 'anexada' ou seletor de permanentes no campo, sem
  * palavra-chave no seletor — a camada 6 dependeria dela mesma), e ao menos uma mudança: poder, resistencia, palavras, ou
  * perPoder/perResistencia com uma contagem `per`. */
@@ -5520,7 +5562,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -5575,6 +5617,8 @@ function validateScript(sc) {
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
   // CR2-G R3a · efeitos contínuos estáticos: quem afeta e o que muda (camadas 6 e 7c)
   ((sc && sc.continuo) || []).forEach((c, i) => errs.push(...continuoErros(c, `contínuo ${i + 1}`)));
+  ((sc && sc.substitui) || []).forEach((r, i) => errs.push(...substituiErros(r, `substituição ${i + 1}`))); // CR2-G R5a
+  ((sc && sc.entra) || []).forEach((r, i) => errs.push(...entraErros(r, `entra ${i + 1}`)));
   if (sc && sc.continuo != null && !Array.isArray(sc.continuo)) errs.push('contínuo precisa ser uma lista');
   for (const ab of (sc && sc.abilities) || []) for (const [i, m] of (ab.modes || []).entries()) errs.push(...effectErrors(m.effects, `modo do gatilho ${i + 1}`));
   for (const ab of (sc && sc.abilities) || []) for (const m of ab.modes || []) if (!m.label) errs.push('modo do gatilho sem rótulo');
@@ -6835,7 +6879,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -13122,6 +13166,7 @@ function createGame(setup) {
     if (sc.manaRule) f.script.manaRule = sc.manaRule; // R11.2
     if (sc.grantsAll) f.script.grantsAll = sc.grantsAll; // S56
     if (sc.continuo) f.script.continuo = sc.continuo; // CR2-G R3a · efeitos contínuos estáticos
+    if (sc.substitui) f.script.substitui = sc.substitui; if (sc.entra) f.script.entra = sc.entra; // CR2-G R5a
     if (sc.back) { f.script.back = sc.back.name; f.script.disturb = sc.disturb; f.script.omen = sc.omen; }
   }
 
@@ -13169,6 +13214,76 @@ const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
   'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+/* ---------------- CR2-G R5a · 614 · substituições de mudança de zona ---------------- */
+/** As substituições (destino e entrada) que valem para `o`: as dela mesma (se ela tem as habilidades: no campo, sem a
+ * Aura que tira tudo) e as das permanentes no campo cujo seletor a alcança. */
+function substituicoesPara(s, o, fromZone) {
+  const sub = [], entra = [];
+  const proprias = SC.substituicoesDoScript(s.facts[o.name].script);
+  const temAsSuas = !(fromZone === 'battlefield' && semImpressas(s, o));
+  for (const r of proprias.sub) if ((r.quando.objeto || 'self') === 'self' && temAsSuas) sub.push(r);
+  for (const r of proprias.entra) if (r.afetados === 'self') entra.push({ r, fonte: o, propria: true });
+  for (const x of battlefield(s)) {
+    if (x.oid === o.oid || semImpressas(s, x)) continue;
+    const de = SC.substituicoesDoScript(s.facts[x.name].script);
+    for (const r of de.sub) if (r.quando.objeto && r.quando.objeto !== 'self' && selCasa(s, x.controller, o, r.quando.objeto, x.oid, { mira: false, src: x })) sub.push(r);
+    for (const r of de.entra) if (r.afetados !== 'self' && selCasa(s, x.controller, o, r.afetados, x.oid, { mira: false, src: x })) entra.push({ r, fonte: x });
+  }
+  return { sub, entra };
+}
+/** 614.6 · "se fosse para X, vai para Y em vez disso": a primeira substituição que casa (616: aqui sem escolha de ordem). */
+function destinoSubstituido(s, o, fromZone, to) {
+  if (to === 'stack') return to;
+  const sc = s.facts[o.name].script;
+  if (!sc && !battlefield(s).length) return to;
+  for (const r of substituicoesPara(s, o, fromZone).sub) if (r.quando.para === to && (r.quando.de == null || r.quando.de === fromZone)) return r.em.para;
+  return to;
+}
+const destinoLegado = (s, o, fromZone, to) => to === 'graveyard' && !(fromZone === 'battlefield' && semImpressas(s, o)) && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard' ? 'exile' : to;
+/** 614.1c/614.12 · como `o` entra no campo: virada (sim, ou "a menos que…", que pode desvirar) e marcadores. As de outras
+ * permanentes vêm antes das dela, como antes. */
+function entradaModificada(s, o, xPago) {
+  const { entra } = substituicoesPara(s, o, null);
+  const ordem = entra.filter(e => !e.propria).concat(entra.filter(e => e.propria));
+  let virada; const marcadores = {};
+  for (const { r } of ordem) {
+    if (r.virada === true) virada = true;
+    else if (r.virada && r.virada.aMenosQue) {
+      const c = r.virada.aMenosQue;
+      const livre = (c.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= c.anyPlayerLifeAtMost)) ||
+        // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
+        (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(s.facts[x.name].typeText || ''))));
+      virada = !livre;
+    }
+    for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
+  }
+  return { virada, marcadores };
+}
+/** CR2-G R5a · o caminho antigo das modificações de entrada, tal como era no moveObject (só para o teste de equivalência). */
+function entradaLegado(s, o, xPago) {
+  const to = 'battlefield';
+  // S22 · permanente que entra virada
+  // CR2b.3 · "Creatures your opponents control enter tapped" (Authority of the Consuls)
+  if (to === 'battlefield' && s.facts[o.name].types.includes('creature') && battlefield(s).some(x => x.controller !== o.controller && !semImpressas(s, x) && (s.facts[x.name].script || {}).staticRule === 'opponent-creatures-enter-tapped')) o.tapped = true;
+  if (to === 'battlefield' && (s.facts[o.name].script || {}).entersTapped) o.tapped = true;
+  // S56 · "entra virado a menos que um jogador tenha 13 ou menos de vida"
+  const semVirar = (s.facts[o.name].script || {}).entersTappedUnless;
+  if (to === 'battlefield' && semVirar) {
+    const livre = (semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost)) ||
+      // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
+      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(s.facts[x.name].typeText || ''))));
+    o.tapped = !livre;
+  }
+  // S34 · permanente que entra com marcadores +1/+1
+  {
+    const self = ((s.facts[o.name].script || {}).self) || {};
+    const n = self.entersWithCounters;
+    if (n) o.counters.p1p1 = (o.counters.p1p1 || 0) + n;
+    // S50 · entra com X marcadores, sendo X o que foi pago na conjuração
+    if (self.entersWithCountersX && xPago) o.counters.p1p1 = (o.counters.p1p1 || 0) + xPago;
+    if (self.chargePerKick && o.kicked) o.counters.charge = (o.counters.charge || 0) + o.kicked; // CR2c.1 · Everflowing Chalice
+  }
+}
 function moveObject(s, oid, to, { top = true } = {}) {
   const o = s.objects[oid]; if (!o) throw new RuleError('objeto', 'objeto inexistente');
   if (to !== 'stack' && !ZONE_NAMES.includes(to)) throw new RuleError('zona', 'zona inválida: ' + to);
@@ -13181,7 +13296,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
   }
   // S24 · fora do campo e da pilha, a carta volta para a face da frente
   // S52 · "se fosse para o cemitério, exile em vez disso" (Luminous Phantom)
-  if (to === 'graveyard' && !(fromZone === 'battlefield' && semImpressas(s, o)) && ((s.facts[o.name].script || {}).staticRule) === 'exile-instead-of-graveyard') to = 'exile';
+  to = destinoSubstituido(s, o, fromZone, to); // CR2-G R5a · 614.6 · "em vez disso" (Luminous Phantom e substituições escritas como dado)
   // Leva 105 · 702.34a: conjurada com lampejo, sai da pilha para o exílio seja qual for o destino (anulada também)
   if (fromZone === 'stack' && o.flashback && to !== 'exile') to = 'exile';
   if (to !== 'battlefield' && to !== 'stack') flipToFront(s, o);
@@ -13214,27 +13329,8 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // M13 · 903.9: comandante que vai para cemitério, exílio, mão ou grimório pode voltar à zona de comando
   if (o.commander && VOLTA_COMANDO.includes(to) && fromZone !== to && fromZone !== 'command') (s.voltaComando = s.voltaComando || []).push(oid);
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
-  // S22 · permanente que entra virada
-  // CR2b.3 · "Creatures your opponents control enter tapped" (Authority of the Consuls)
-  if (to === 'battlefield' && s.facts[o.name].types.includes('creature') && battlefield(s).some(x => x.controller !== o.controller && !semImpressas(s, x) && (s.facts[x.name].script || {}).staticRule === 'opponent-creatures-enter-tapped')) o.tapped = true;
-  if (to === 'battlefield' && (s.facts[o.name].script || {}).entersTapped) o.tapped = true;
-  // S56 · "entra virado a menos que um jogador tenha 13 ou menos de vida"
-  const semVirar = (s.facts[o.name].script || {}).entersTappedUnless;
-  if (to === 'battlefield' && semVirar) {
-    const livre = (semVirar.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= semVirar.anyPlayerLifeAtMost)) ||
-      // R11.2 · "a menos que você controle um Plains ou um Swamp" (Isolated Chapel, Sulfur Falls): a própria carta, entrando, não conta
-      (semVirar.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && semVirar.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(s.facts[x.name].typeText || ''))));
-    o.tapped = !livre;
-  }
-  // S34 · permanente que entra com marcadores +1/+1
-  if (to === 'battlefield') {
-    const self = ((s.facts[o.name].script || {}).self) || {};
-    const n = self.entersWithCounters;
-    if (n) o.counters.p1p1 = (o.counters.p1p1 || 0) + n;
-    // S50 · entra com X marcadores, sendo X o que foi pago na conjuração
-    if (self.entersWithCountersX && xPago) o.counters.p1p1 = (o.counters.p1p1 || 0) + xPago;
-    if (self.chargePerKick && o.kicked) o.counters.charge = (o.counters.charge || 0) + o.kicked; // CR2c.1 · Everflowing Chalice
-  }
+  // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
+  if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + n; }
   // S21 · planeswalker entra com sua lealdade inicial
   if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = s.facts[o.name].loyalty;
   // S39 · vínculo de alma: ao entrar, emparelha com uma criatura sua ainda sozinha
@@ -14048,7 +14144,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   if (sel.dono === 'you' && o.owner !== p) return false;
   if (sel.dono === 'opponent' && o.owner === p) return false;
   if (sel.outra && o.oid === selfOid) return false;
-  if ((sel.tipos || []).length && !sel.tipos.some(t => selTemTipo(s, o, t, sel.tiposImpressos))) return false;
+  if ((sel.tipos || []).length && !sel.tipos.some(t => sel.tiposDaCarta ? (f.types || []).includes(t) : selTemTipo(s, o, t, sel.tiposImpressos))) return false; // R5a · tiposDaCarta: os da carta, sem camadas
   if ((sel.semTipos || []).some(t => selTemTipo(s, o, t, sel.tiposImpressos))) return false;
   if ((sel.subtipos || []).length && !(isChangeling(s, o) || sel.subtipos.some(x => new RegExp('\\b' + x + '\\b').test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))))) return false;
   if (sel.permanente && !isPermanent(f)) return false;
@@ -17188,7 +17284,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
