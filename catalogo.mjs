@@ -233,12 +233,13 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
     for (const l of r.listas) { await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); if (!porId.has(l.id)) novasTd++; porId.set(l.id, resumoDaLista(l)); }
     td = [...porId.values()].filter(l => (l.data || '') >= limite);
   }
-  const mesmasTd = tdAntes.length === td.length && tdAntes.every(l => td.some(x => x.id === l.id));
+  // com a chave, as listas de torneio foram regravadas (podem ter mudado por dentro): o índice é regravado também
+  const mesmasTd = !chaveTopdeck && tdAntes.length === td.length && tdAntes.every(l => td.some(x => x.id === l.id));
+  if (relatorio) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio }, null, 1) + '\n');
   if (!novas && mesmasTd && antes && antes.pendentes === pendentes) return { gravou: false, novas, novasTd, falhas, indice: antes };
   const indice = montaIndice([...resumos, ...td], { agora, pendentes });
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice) + '\n');
-  // o que a coleta de torneios achou por formato (para conferir sem abrir o log do fluxo)
-  if (relatorio) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio }, null, 1) + '\n');
+
   return { gravou: true, novas, novasTd, falhas, indice };
 }
 
