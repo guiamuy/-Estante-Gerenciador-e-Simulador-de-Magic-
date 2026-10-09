@@ -5139,6 +5139,9 @@ const EFFECTS = {
   // CR2-G R4c · 701.21 · sacrificar num verbo só: você (escolhe na hora), o jogador alvo ou "cada jogador / cada oponente"
   // (cada um escolhe em ordem ativo-não-ativo e as escolhidas saem juntas); sacrifice_own, sacrifice_each e edict viraram atalhos
   sacrificar: { fields: [], targets: ['opponent', 'player'] },
+  // CR2-G R5b · 615 · prevenir dano num verbo só: a quem (alvo, "cada", jogadores), quanto (todo ou os próximos N), de que
+  // fonte (cor) e se só o de combate; dura até o fim do turno
+  prevenir: { fields: [], targets: ['self-source', 'any', 'creature', 'creature-you-control', 'player', 'opponent'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
   reflexive: { fields: [], targets: ['self'] },
@@ -5272,7 +5275,7 @@ const CADA_SELETOR = {
 /** CR2-G R4b · 101.4 · "cada jogador / cada oponente / você": o verbo de jogador acontece uma vez para cada um, na ordem
  * ativo-não-ativo. Os nomes antigos "each-opponent"/"each-player" (e "all" do exílio de cemitério) viram atalhos. */
 const JOGADORES_QUANT = ['cada', 'cada-oponente', 'voce'];
-const VERBOS_DE_JOGADOR = ['draw', 'gain', 'lose', 'mill', 'damage', 'exile_graveyard', 'token'];
+const VERBOS_DE_JOGADOR = ['draw', 'gain', 'lose', 'mill', 'damage', 'exile_graveyard', 'token', 'prevenir'];
 /** O quantificador de um efeito: o escrito, ou o do atalho antigo; null se o efeito não é "para cada jogador". */
 function jogadoresDe(e) {
   if (!e || !VERBOS_DE_JOGADOR.includes(e.do)) return null;
@@ -5760,8 +5763,15 @@ function effectErrors(effects, label, opcional) {
     if (e.jogadores != null) { // CR2-G R4b · quantificador de jogadores
       const L = `${label} ${i + 1}`;
       if (!JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
-      if (!VERBOS_DE_JOGADOR.includes(e.do) && e.do !== 'sacrificar') errs.push(`${L}: "jogadores" só vale para ${VERBOS_DE_JOGADOR.join(', ')} e sacrificar`);
+      if (!VERBOS_DE_JOGADOR.includes(e.do) && e.do !== 'sacrificar' && e.do !== 'prevenir') errs.push(`${L}: "jogadores" só vale para ${VERBOS_DE_JOGADOR.join(', ')} e sacrificar`);
       if ((e.target != null && e.do !== 'sacrificar') || e.cada != null) errs.push(`${L}: "jogadores" não se junta a alvo nem a "cada"`);
+    }
+    if (e.do === 'prevenir') { // CR2-G R5b
+      const L = `${label} ${i + 1}`;
+      if (e.quantidade != null && !(Number.isInteger(e.quantidade) && e.quantidade > 0)) errs.push(`${L}: "quantidade" precisa ser inteiro positivo (sem ela, previne todo o dano)`);
+      if (e.deCor != null && !'WUBRG'.includes(e.deCor)) errs.push(`${L}: "deCor" precisa ser WUBRG`);
+      if (e.target == null && e.cada == null && e.jogadores == null && !e.todos) errs.push(`${L}: prevenir precisa dizer a quem (alvo, "cada", "jogadores" ou "todos")`);
+      if (e.jogadores != null && !JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
     }
     if (e.do === 'sacrificar') { // CR2-G R4c
       const L = `${label} ${i + 1}`;
@@ -13515,6 +13525,27 @@ const protecaoDerruba = (s, host, anexo) => protImpressa(s, host).concat(host.te
   if (g.mantemASi && x.oid === anexo.oid) return []; // R11 · Flickering Ward: "This effect doesn't remove this Aura"
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
 })).some(c => colorsOf(s, anexo).includes(c));
+/** CR2-G R5b · 615 · quanto do dano `amt` da fonte `src` a `alvo` ({ obj } ou { player }) sobra depois da prevenção, num
+ * caminho só. Atalhos (guardas de sempre): a mágica cujo dano foi prevenido e as cores escolhidas (colorPrevented), "todo
+ * dano que seria causado a ela" (prevented) e a proteção. Escudos novos (s.prevencoes, verbo prevenir): todo o dano ou os
+ * próximos N, opcionalmente só de uma cor ou só de combate, gastos do mais antigo ao mais novo (615.7, sem escolha de ordem).
+ * O Fog continua no combate (previne o passo inteiro). "A prevenção não se aplica" (615.12) desliga tudo. */
+function danoAposPrevencao(s, src, alvo, amt, combate) {
+  if (s.noPrevention || !(amt > 0)) return amt;
+  if (colorPrevented(s, src)) return 0;
+  if (alvo.obj && (prevented(s, alvo.obj) || protegeDoDano(s, alvo.obj, src))) return 0;
+  for (const p of s.prevencoes || []) {
+    if (p.quantidade === 0 || (p.combate && !combate) || (p.cor && !colorsOf(s, src).includes(p.cor))) continue;
+    const casa = p.todos || (p.alvo.player != null ? alvo.player === p.alvo.player : alvo.obj && alvo.obj.oid === p.alvo.oid && mesmaEncarnacao(s, p.alvo));
+    if (!casa) continue;
+    if (p.quantidade == null) return 0;
+    const k = Math.min(p.quantidade, amt); p.quantidade -= k; amt -= k;
+    if (!amt) return 0;
+  }
+  return amt;
+}
+/** O caminho antigo da prevenção (sim/não), só para o teste de equivalência. */
+const prevencaoLegado = (s, src, obj) => colorPrevented(s, src) || !!(obj && (prevented(s, obj) || protegeDoDano(s, obj, src)));
 /** S30 · escudo do turno: nenhum dano de fonte das cores escolhidas passa. */
 const colorPrevented = (s, src) => !s.noPrevention && (
   (src && src.damagePrevented) || (s.preventedColors || []).some(c => colorsOf(s, src).includes(c)));
@@ -13881,7 +13912,7 @@ function enterStep(s, step) {
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.vira; delete o.prevenirDano; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
-  delete s.fogged; delete s.preventedColors; delete s.noPrevention;
+  delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
 function finishCleanup(s) {
@@ -13990,9 +14021,9 @@ function dealCombatDamage(s) {
     }
     // simultâneo: aplica tudo depois de calcular
     if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
-    for (const [src, obj, player, amt, ehPw] of hits) {
-      if (colorPrevented(s, src)) continue; // S30 · dano da cor prevenida não acontece
-      if (obj && (prevented(s, obj) || protegeDoDano(s, obj, src))) continue; // S11b · prevenção e proteção (Leva 106: Flaring Pain vale também para a proteção)
+    for (let [src, obj, player, amt, ehPw] of hits) {
+      // CR2-G R5b · prevenção num caminho só (S30 cor; S11b prevenção e proteção, Leva 106: Flaring Pain vale para a proteção)
+      amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
       if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) obj.damage += amt; noteDamaged(s, obj);
       } else if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
@@ -14481,7 +14512,7 @@ function applyEffect(s, src, eff, tgt, events) {
   if (eff.ifColor && obj && !colorsOf(s, obj).includes(eff.ifColor)) { note({ failed: true }); return; }
   switch (eff.do) {
     case 'damage':
-      { const n = amountOf(s, src, eff.amount);
+      { let n = amountOf(s, src, eff.amount);
         // S52 · dano prevenido por uma mágica que dá vida: quem preveniu ganha o que foi prevenido
         const ganhaVida = (quanto) => {
           if (src && src.preventGainTo != null && quanto > 0) {
@@ -14497,7 +14528,11 @@ function applyEffect(s, src, eff, tgt, events) {
           s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { pl.life -= n; causouDano(s, src, n, i); } });
           note({ amount: n, ...(bloqueado ? { prevented: true } : {}) }); break;
         }
-        if (colorPrevented(s, src) || (obj && (prevented(s, obj) || protegeDoDano(s, obj, src)))) { ganhaVida(n); note({ amount: n, prevented: true }); break; }
+        // CR2-G R5b · prevenção num caminho só; o que foi prevenido de fato pode virar vida (S52)
+        const resto = danoAposPrevencao(s, src, obj ? { obj } : { player: playerOf() }, n, false);
+        if (n > 0 ? !resto : prevencaoLegado(s, src, obj)) { ganhaVida(n); note({ amount: n, prevented: true }); break; } // dano 0 prevenido continua no registro, como antes
+        if (resto < n) ganhaVida(n - resto);
+        n = resto;
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; }
         if (obj && n > 0) { obj.damage += n; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
         else s.players[playerOf()].life -= n;
@@ -14908,6 +14943,15 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
+    case 'prevenir': { // CR2-G R5b · escudo até o fim do turno (a limpeza apaga s.prevencoes)
+      const escudo = { ...(eff.quantidade != null ? { quantidade: eff.quantidade } : {}), ...(eff.deCor ? { cor: eff.deCor } : {}), ...(eff.soCombate ? { combate: true } : {}) };
+      if (eff.todos) { s.prevencoes = [...(s.prevencoes || []), { ...escudo, todos: true }]; note({ todos: true, quantidade: eff.quantidade }); break; }
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      const quem = tgt && tgt.player != null ? { player: tgt.player } : alvo ? { oid: alvo.oid, z: alvo.zc || 0 } : null;
+      if (!quem) { note({ failed: true }); break; }
+      s.prevencoes = [...(s.prevencoes || []), { ...escudo, alvo: quem }];
+      note({ name: alvo ? alvo.name : s.players[tgt.player].name, quantidade: eff.quantidade }); break;
+    }
     case 'no_prevention': s.noPrevention = true; note({}); break; // S31 · 615.7: prevenção não se aplica no turno
     case 'prevent_spell': { // S52 · a mágica alvo não causa dano neste turno; a vida vem do dano prevenido de fato
       if (obj) { obj.damagePrevented = true; obj.preventGainTo = ctrl; note({}); }
@@ -17284,7 +17328,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -18869,6 +18913,7 @@ function effectLine(ev) {
     case 'counter_choice': return `${t} recebeu um marcador de ${PALAVRA_PT[ev.kind] || ev.kind} (${ev.name})`;
     case 'destroy_all': return n ? `${ev.name} destruiu ${(ev.nomes || []).join(', ')}` : `${ev.name} não destruiu nada`; // CR2c.2
     case 'edict': return `${ev.name}: ${t} não tinha o que sacrificar`;
+    case 'prevenir': return ev.failed ? `${ev.name}: nada a proteger` : `${ev.todos ? 'todo dano' : ev.name}: ${ev.quantidade ? `os próximos ${ev.quantidade} de dano serão prevenidos` : 'dano prevenido'} neste turno`;
     case 'sacrificar': return ev.amount === 0 ? `${t} não tinha o que sacrificar` : `${t} sacrificou ${ev.name}`; // CR2-G R4c (o nome é o da permanente sacrificada)
     case 'destroy': return ev.failed ? `${ev.name} não destruiu ${t}${ev.why ? ` (${ev.why})` : ': sem efeito'}` : `${ev.name} destruiu ${t}`; // R9b · Hydroblast em permanente que não é vermelha dizia "(indestrutível)"
     case 'exile': return `${ev.name} exilou ${t}`;
@@ -19621,6 +19666,7 @@ function descreveEfeito(e) {
   if (e.jogadores && e.do !== 'sacrificar') { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"
     const { jogadores, ...base } = e, quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente', voce: 'você' }[jogadores] || 'cada jogador';
     if (e.do === 'damage') return `causa ${qtd(e.amount)} de dano a ${quem}`;
+    if (e.do === 'prevenir') return descreveEfeito({ ...base, todos: false, target: '__quem' }).replace('__quem', quem);
     if (e.do === 'exile_graveyard') return jogadores === 'voce' ? 'exila o seu cemitério' : `exila o cemitério de ${quem}`;
     const frase = descreveEfeito(base);
     return frase.startsWith(quem) ? frase : `${quem} ${frase}`;
@@ -19675,6 +19721,12 @@ function descreveEfeito(e) {
     case 'keyword': if (e.targetCount) return `até X criaturas ganham ${PALAVRA_PT[e.keyword] || e.keyword} até o fim do turno`; // CR2c.3
       return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
+    case 'prevenir': { // CR2-G R5b
+      const quanto = e.quantidade ? `os próximos ${e.quantidade} de dano` : 'todo o dano';
+      const fonte = e.deCor ? ` de fontes ${{ W: 'brancas', U: 'azuis', B: 'pretas', R: 'vermelhas', G: 'verdes' }[e.deCor]}` : '';
+      const quem = e.todos ? '' : e.target === '__quem' ? ' a __quem' : e.target === 'self-source' ? ' a esta permanente' : ` a ${alvo || 'o alvo'}`;
+      return `previne ${quanto}${e.soCombate ? ' de combate' : ''}${fonte} que seria causado${quem} neste turno`;
+    }
     case 'sacrificar': { // CR2-G R4c
       const nomes = { creature: 'uma criatura', artifact: 'um artefato', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' };
       const coisa = (e.tipos || []).length === 1 ? (nomes[e.tipos[0]] || 'uma permanente') : (e.tipos || []).map(x => (nomes[x] || x).replace(/^uma? /, '')).join(' ou ').replace(/^/, 'um(a) ');

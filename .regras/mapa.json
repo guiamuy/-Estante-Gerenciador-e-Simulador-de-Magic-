@@ -5130,12 +5130,15 @@
    "regra": "Prevention Effects",
    "titulo": "O que é efeito de prevenção",
    "status": "parcial",
-   "evidencia": "Prevenção total em quatro formas: névoa (s.fogged, dealCombatDamage :10800; rules.unit \"S29 · Fog previne todo o dano de combate do turno\"), por cor de fonte (colorPrevented :10439; \"S30\"; boros.regras \"R6 · Prismatic Strands\"), da mágica alvo (prevent_spell :11400; \"S36/S52\"), da criatura encantada (prevented :10427), mais a proteção (protegeDoDano :11553) · CR2d.5 (v94): prevenção de todo dano a uma permanente no turno (prevent_self → o.prevenirDano, limpa na limpeza)",
+   "evidencia": "Prevenção total em quatro formas: névoa (s.fogged, dealCombatDamage :10800; rules.unit \"S29 · Fog previne todo o dano de combate do turno\"), por cor de fonte (colorPrevented :10439; \"S30\"; boros.regras \"R6 · Prismatic Strands\"), da mágica alvo (prevent_spell :11400; \"S36/S52\"), da criatura encantada (prevented :10427), mais a proteção (protegeDoDano :11553) · CR2d.5 (v94): prevenção de todo dano a uma permanente no turno (prevent_self → o.prevenirDano, limpa na limpeza) · CR2-G R5b (M-241, v95 sem mudança): prevenção num caminho só — danoAposPrevencao(fonte, alvo, quanto, combate) no dano de combate e no de efeito; cor prevenida, \"todo dano a ela\" e proteção viram atalhos; verbo prevenir { target|cada|jogadores|todos, quantidade, deCor, soCombate } grava escudos em s.prevencoes (limpos no fim do turno); equivalência em prevencao.equivalencia.unit",
    "falta": "Só existe \"previna todo o dano\"; não há prevenção de quantidade (parte do dano passa), nem escudo consumível. A prevenção é um if antes de aplicar o dano, repetido em applyEffect e dealCombatDamage, sem evento de dano comum.",
    "esforco": "G",
    "depende": [
     "614.1",
     "120"
+   ],
+   "testes": [
+    "M-241 · R5b · prevenção pelo caminho único e pelo antigo: o mesmo para cada fonte, alvo e tipo de dano, em partidas aleatórias, com cores prevenidas, \"a prevenção não se aplica\", prevenção na criatura e proteção temporária sorteadas"
    ]
   },
   {
@@ -5192,7 +5195,8 @@
    "esforco": "M",
    "depende": [
     "615.1"
-   ]
+   ],
+   "evidencia": " · CR2-G R5b: escudo \"os próximos N\" reduz o dano e se gasta (danoAposPrevencao); com vários escudos, do mais antigo ao mais novo (sem o afetado escolher a ordem)"
   },
   {
    "n": "615.8",
