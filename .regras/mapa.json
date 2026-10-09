@@ -3046,7 +3046,7 @@
    "regra": "General",
    "titulo": "Objeto novo ao mudar de zona",
    "status": "parcial",
-   "evidencia": "moveObject zera dano, marcadores, anexos, bônus e marcas de conjuração (index.html:10262-10275); 400.7d: X pago e custo adicional seguem da pilha ao campo (index.html:10270); 400.7e: teste \"S44 · a aura volta para a mão\"; teste \"S24 · disturb ... volta à frente se sair do campo\" · CR2a.2 (motor v76): moveObject conta a encarnação do objeto (zc) a cada mudança de zona; mágicas e habilidades guardam em cada alvo a encarnação mirada (carimbaAlvos) e targetStillLegal recusa alvo de outra encarnação (mesmaEncarnacao); teste de conformidade em cr.conformidade",
+   "evidencia": "moveObject zera dano, marcadores, anexos, bônus e marcas de conjuração (index.html:10262-10275); 400.7d: X pago e custo adicional seguem da pilha ao campo (index.html:10270); 400.7e: teste \"S44 · a aura volta para a mão\"; teste \"S24 · disturb ... volta à frente se sair do campo\" · CR2a.2 (motor v76): moveObject conta a encarnação do objeto (zc) a cada mudança de zona; mágicas e habilidades guardam em cada alvo a encarnação mirada (carimbaAlvos) e targetStillLegal recusa alvo de outra encarnação (mesmaEncarnacao); teste de conformidade em cr.conformidade · CR2-G R4a: o verbo mover aceita `de` — se o objeto já saiu da zona esperada, é outro objeto e nada acontece (moverObjeto)",
    "falta": "O identificador interno continua o mesmo: referências que não são alvo (fonte de habilidade na pilha, \"ela\" de gatilho, efeitos retomados depois de uma escolha, efeitos \"até o fim do turno\" guardados fora do objeto) ainda seguem a carta. Exceções 400.7a-j (permanente que resolve, comandante, etc.) não são tratadas uma a uma.",
    "esforco": "M",
    "depende": [
@@ -5460,7 +5460,11 @@
    "regra": "Keyword Actions",
    "titulo": "Ações de palavra-chave (introdução)",
    "status": "definicao",
-   "cartas": "não se aplica"
+   "cartas": "não se aplica",
+   "evidencia": " · CR2-G R4a (M-237, v95 sem mudança): mover entre zonas num verbo só — { do: mover, para, de, posicao: topo/fundo/embaralhado, virada, controle: voce/dono, lembra } (moverObjeto); exile, bounce, to_hand, reanimate, reanimate_tapped, to_library_shuffled e to_bottom viraram atalhos; equivalência com o caminho antigo (moverLegado) em mover.equivalencia.unit",
+   "testes": [
+    "M-237 · R4a · os sete verbos de mudança de zona e o verbo \"mover\" deixam o estado igual ao caminho antigo, para cada objeto de cada zona, com fonte mágica e fonte habilidade"
+   ]
   },
   {
    "n": "701.2",

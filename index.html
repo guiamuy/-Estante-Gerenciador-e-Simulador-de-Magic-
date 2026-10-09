@@ -5125,6 +5125,11 @@ const EFFECTS = {
   must_attack_source: { fields: [], targets: ['creature-opponent-controls'] }, // M-228 · "attacks <esta planeswalker> during its controller's next turn if able"
   prevent_self: { fields: [], targets: ['self-source'] }, // CR2d.2 · "this land becomes a N/N <tipo> creature until end of turn"
   to_bottom: { fields: [], targets: ['permanent-you-own'] },
+  // CR2-G R4a · 701/400.7 · mover entre zonas num verbo só: para onde, de onde (se já saiu, nada acontece), posição no
+  // grimório, virada e sob o controle de quem no campo, e "lembra" o exilado; exilar, devolver à mão, reanimar, embaralhar
+  // no grimório e pôr no fundo viraram atalhos dele
+  mover: { fields: [], targets: ['self-source', 'creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact', 'artifact-creature', 'permanent-you-own',
+    'creature-you-control', 'card-in-any-graveyard', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
   sacrifice_it: { fields: [], targets: ['permanent'] },
   exile_self: { fields: [], targets: ['self'] },
   counter_choice: { fields: [], targets: ['self'] },
@@ -5261,7 +5266,7 @@ const CADA_SELETOR = {
 /** M-230 · efeitos que já são só atalho de verbo + seletor (a medida de vocabulário os separa). */
 /** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
 const DURACOES = ['fim-do-turno', 'seu-proximo-turno'];
-const EFEITOS_ATALHO = { animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
+const EFEITOS_ATALHO = { exile: 'mover (exílio)', bounce: 'mover (mão)', to_hand: 'mover (mão)', reanimate: 'mover (campo, seu controle)', reanimate_tapped: 'mover (campo, virada)', to_library_shuffled: 'mover (grimório, embaralhado)', to_bottom: 'mover (fundo do grimório)', animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
 const cadaDe = e => { if (!e) return null; if (e.cada) return e.cada; const base = CADA_SELETOR[e.target]; if (!base) return null; return e.exceptSubtype ? { ...base, semSubtipos: [e.exceptSubtype] } : base; };
 const TIPOS_DE_CARTA = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'];
 /** Erros de um seletor escrito no script (lista vazia = válido). */
@@ -5691,6 +5696,15 @@ function effectErrors(effects, label, opcional) {
     if (e.upTo && (!isTargeted(e) || effects.slice(i + 1).some(x => isTargeted(x) && !x.upTo))) errs.push(`${label} ${i + 1}: "até N alvos" não pode vir antes de um alvo obrigatório`);
     if (e.do === 'add_mana' && !Array.isArray(e.symbols) && !e.anyColor) errs.push(`${label} ${i + 1}: add_mana precisa da lista de símbolos ou de anyColor`);
     if (e.targetMvMax != null) errs.push(...valueErrors(e.targetMvMax, `${label} ${i + 1}: valor de mana máximo`));
+    if (e.do === 'mover') { // CR2-G R4a
+      const ZM = ['battlefield', 'graveyard', 'exile', 'hand', 'library'], L = `${label} ${i + 1}`;
+      if (!ZM.includes(e.para)) errs.push(`${L}: mover precisa de "para" (campo, cemitério, exílio, mão ou grimório)`);
+      if (e.de != null && ![].concat(e.de).every(z => ZM.includes(z) || z === 'stack')) errs.push(`${L}: zona de origem desconhecida`);
+      if (e.posicao != null && (e.para !== 'library' || !['topo', 'fundo', 'embaralhado'].includes(e.posicao))) errs.push(`${L}: "posicao" (topo, fundo, embaralhado) só vale para o grimório`);
+      if ((e.virada || e.controle != null) && e.para !== 'battlefield') errs.push(`${L}: "virada" e "controle" só valem para o campo`);
+      if (e.controle != null && !['voce', 'dono'].includes(e.controle)) errs.push(`${L}: "controle" precisa ser voce ou dono`);
+      if (e.lembra && e.para !== 'exile') errs.push(`${L}: "lembra" só vale para o exílio`);
+    }
     if (e.do === 'continuo') { // CR2-G R3b
       if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
       if (e.torna != null) { errs.push(...tornaErros(e.torna, `${label} ${i + 1}`)); if (e.ate === 'seu-proximo-turno') errs.push(`${label} ${i + 1}: "torna" só dura até o fim do turno por enquanto`); }
@@ -14185,6 +14199,43 @@ function criaturaEncantada(s, src) {
   const host = aura && aura.zone === 'battlefield' && aura.attachedTo ? s.objects[aura.attachedTo] : null;
   return host && host.zone === 'battlefield' ? host : null;
 }
+/** CR2-G R4a · 400.7/701 · move um objeto para outra zona. `de`: a zona (ou zonas) onde ele precisa estar — se já saiu, é
+ * outro objeto e nada acontece; já no grimório não volta para o grimório. `posicao` no grimório (topo, padrão; fundo;
+ * embaralhado no grimório do dono). No campo: sob o seu controle (padrão) ou do dono, e virada. `lembra`: a permanente-fonte
+ * guarda o que exilou (para devolver ao sair). Devolve true se moveu. */
+function moverObjeto(s, src, alvo, m, ctrl) {
+  if (!alvo || (m.de != null && ![].concat(m.de).includes(alvo.zone)) || (m.para === 'library' && alvo.zone === 'library')) return false;
+  if (m.lembra) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = alvo.oid; }
+  moveObject(s, alvo.oid, m.para, m.posicao === 'fundo' ? { top: false } : undefined);
+  if (m.posicao === 'embaralhado') shuffle(s, s.zones[alvo.owner].library);
+  if (m.para === 'battlefield') {
+    const o = s.objects[alvo.oid];
+    o.controller = m.controle === 'dono' ? o.owner : ctrl;
+    if (m.virada) o.tapped = true;
+    if (!m.semRegistro && !src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(alvo.oid); // CR2c.5 · a mágica lembra quem devolveu (o atalho antigo de reanimar virada não registrava)
+  }
+  return true;
+}
+/** CR2-G R4a · o caminho antigo dos sete verbos que viraram atalhos de mover (só para o teste de equivalência). Não
+ * emite eventos; devolve se mexeu. */
+function moverLegado(s, src, eff, obj, ctrl) {
+  switch (eff.do) {
+    case 'exile': if (eff.remember) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = obj.oid; }
+      moveObject(s, obj.oid, 'exile'); return true;
+    case 'bounce': moveObject(s, obj.oid, 'hand'); return true;
+    case 'to_hand': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (alvo && eff.target === 'self-source' && alvo.zone !== (eff.from || 'graveyard')) return false;
+      if (alvo) moveObject(s, alvo.oid, 'hand'); return !!alvo; }
+    case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); return true;
+    case 'reanimate_tapped': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield'); alvo.controller = ctrl; alvo.tapped = true; return true; } return false; }
+    case 'to_library_shuffled': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      const saiu = eff.target === 'self-source' && alvo && !['graveyard', 'battlefield'].includes(alvo.zone);
+      if (alvo && alvo.zone !== 'library' && !saiu) { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); return true; } return false; }
+    case 'to_bottom': if (obj && obj.zone === 'battlefield') { moveObject(s, obj.oid, 'library', { top: false }); return true; } return false;
+  }
+  return false;
+}
 function applyEffect(s, src, eff, tgt, events) {
   const ctrl = src.controller;
   // S41 · guarda o nome do alvo antes de aplicar: anular uma habilidade a apaga do jogo
@@ -14224,10 +14275,15 @@ function applyEffect(s, src, eff, tgt, events) {
       else { moveObject(s, alvoD.oid, 'graveyard'); note({}); }
       break;
     }
-    case 'exile': { // S48 · a permanente pode lembrar o que exilou, para devolver depois
+    case 'exile': { // S48 · a permanente pode lembrar o que exilou, para devolver depois — CR2-G R4a · atalho de mover
       // Leva 107 · ruling do Journey to Nowhere: se ele já saiu do campo quando o exílio resolve, a criatura fica exilada para sempre
-      if (eff.remember) { const fonte = src.ability ? s.objects[src.source] : src; if (fonte && fonte.zone === 'battlefield') fonte.holding = obj.oid; }
-      moveObject(s, obj.oid, 'exile'); note({}); break;
+      moverObjeto(s, src, obj, { para: 'exile', lembra: !!eff.remember }, ctrl); note({}); break;
+    }
+    case 'mover': { // CR2-G R4a · mover entre zonas
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      const nome = alvo && alvo.name;
+      if (moverObjeto(s, src, alvo, eff, ctrl)) note({ name: nome, para: eff.para, ...(eff.posicao ? { posicao: eff.posicao } : {}) }); else note({ failed: true });
+      break;
     }
     case 'return_held': { // S48 · devolve ao campo a carta que esta permanente exilou
       const fonte = src.ability ? s.objects[src.source] : src;
@@ -14238,7 +14294,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (fonte) { delete fonte.holding; delete fonte.devolverAoSair; }
       break;
     }
-    case 'bounce': moveObject(s, obj.oid, 'hand'); note({}); break;
+    case 'bounce': moverObjeto(s, src, obj, { para: 'hand' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover
     case 'counter':
       if (eff.unless && s.manaCheck && canPay(s, obj.controller, parseCost(eff.unless.mana))) {
         // S16 · o controlador da mágica decide se paga para salvá-la
@@ -14259,7 +14315,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'reanimate_tapped': { // S33 · volta do cemitério direto ao campo, virada
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo && alvo.zone === 'graveyard') { moveObject(s, alvo.oid, 'battlefield'); alvo.controller = ctrl; alvo.tapped = true; note({ name: alvo.name }); }
+      if (moverObjeto(s, src, alvo, { para: 'battlefield', de: 'graveyard', virada: true, semRegistro: true }, ctrl)) note({ name: alvo.name }); // CR2-G R4a · atalho de mover
       break;
     }
     case 'pump': { const pw = amountOf(s, src, eff.power), tg = amountOf(s, src, eff.toughness); // CR2-G R3b · atalho de continuo
@@ -14431,10 +14487,10 @@ function applyEffect(s, src, eff, tgt, events) {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       // Leva 107 · Rancor: "return Rancor to its owner's hand" só se ele ainda estiver no cemitério (400.7)
       if (alvo && eff.target === 'self-source' && alvo.zone !== (eff.from || 'graveyard')) { note({ failed: true }); break; } // R11 · `from: 'battlefield'`: habilidade ativada no campo (Flickering Ward)
-      if (alvo) moveObject(s, alvo.oid, 'hand');
+      moverObjeto(s, src, alvo, { para: 'hand' }, ctrl); // CR2-G R4a · atalho de mover
       note({}); break;
     }
-    case 'reanimate': moveObject(s, obj.oid, 'battlefield'); s.objects[obj.oid].controller = ctrl; if (!src.ability && s.objects[src.oid] === src) (src.devolvidas = src.devolvidas || []).push(obj.oid); note({}); break; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'reanimate': moverObjeto(s, src, obj, { para: 'battlefield' }, ctrl); note({}); break; // CR2-G R4a · atalho de mover; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
     case 'animate_dead': { // CR2d.4 · "if it's on the battlefield … return enchanted creature card to the battlefield under your control and attach this Aura to it"
       const aura = src.ability ? s.objects[src.source] : src;
       if (!aura || aura.zone !== 'battlefield') break; // ruling: fora do campo, nada acontece
@@ -14455,7 +14511,7 @@ function applyEffect(s, src, eff, tgt, events) {
       break;
     }
     case 'to_bottom': { // M-222 · no fundo do grimório do dono
-      if (obj && obj.zone === 'battlefield') { moveObject(s, obj.oid, 'library', { top: false }); note({}); } else note({ failed: true });
+      if (moverObjeto(s, src, obj, { para: 'library', de: 'battlefield', posicao: 'fundo' }, ctrl)) note({}); else note({ failed: true }); // CR2-G R4a · atalho de mover
       break;
     }
     case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
@@ -14655,7 +14711,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       // R9 · 400.7: se a carta já saiu do cemitério (voltou à mão, foi exilada), é outro objeto e fica onde está
       const saiu = eff.target === 'self-source' && alvo && !['graveyard', 'battlefield'].includes(alvo.zone);
-      if (alvo && alvo.zone !== 'library' && !saiu) { moveObject(s, alvo.oid, 'library'); shuffle(s, s.zones[alvo.owner].library); note({ name: alvo.name }); }
+      if (!saiu && moverObjeto(s, src, alvo, { para: 'library', posicao: 'embaralhado' }, ctrl)) note({ name: alvo.name }); // CR2-G R4a · atalho de mover
       break;
     }
     case 'exile_return_transformed': { // CR2d.5 · 712/701.28: sai e volta como objeto novo, já com a face de trás, sob o controle do dono
@@ -17002,7 +17058,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, applyEffect, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -18608,6 +18664,7 @@ function effectLine(ev) {
     case 'gain': return `${t} ganhou ${n} de vida (${ev.name})`;
     case 'lose': return `${t} perdeu ${n} de vida (${ev.name})`;
     case 'pump': return `${t} ganhou ${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness} até o fim do turno (${ev.name})`;
+    case 'mover': return ev.failed ? `${ev.name}: nada a mover` : `${ev.target} foi ${{ hand: 'devolvida à mão', exile: 'exilada', graveyard: 'para o cemitério', battlefield: 'para o campo', library: ev.posicao === 'embaralhado' ? 'embaralhada no grimório' : ev.posicao === 'fundo' ? 'para o fundo do grimório' : 'para o topo do grimório' }[ev.para] || 'movida'} (${ev.name})`;
     case 'continuo': { const pt = ev.power || ev.toughness ? `${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness}` : '';
       const kw = (ev.palavras || []).map(k => PALAVRA_PT[k] || k).join(' e ');
       return `${t} ganhou ${[pt, kw].filter(Boolean).join(' e ')} ${ev.ate === 'seu-proximo-turno' ? 'até o seu próximo turno' : 'até o fim do turno'} (${ev.name})`; }
@@ -19366,6 +19423,12 @@ function descreveEfeito(e) {
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
     case 'counters': return `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
+    case 'mover': { // CR2-G R4a
+      const quem = e.target === 'self-source' ? 'esta carta' : alvo || 'o alvo';
+      if (e.para === 'battlefield') return `põe ${quem} no campo${e.controle === 'dono' ? ' sob o controle do dono' : ' sob o seu controle'}${e.virada ? ', virada' : ''}`;
+      if (e.para === 'library') return e.posicao === 'embaralhado' ? `embaralha ${quem} no grimório do dono` : `põe ${quem} no ${e.posicao === 'fundo' ? 'fundo' : 'topo'} do grimório do dono`;
+      return { hand: `devolve ${quem} à mão do dono`, exile: `exila ${quem}`, graveyard: `põe ${quem} no cemitério do dono` }[e.para] || `move ${quem}`;
+    }
     case 'continuo': { // CR2-G R3b
       const sinal = v => (v && v.per ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`);
       const partes = [];
