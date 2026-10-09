@@ -1404,6 +1404,7 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .catd__arte { width: 96px; aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); display: flex; align-items: center; justify-content: center; color: var(--fg-subtle); box-shadow: var(--shadow-2); }
 .catd__arte img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .catd__titulo { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.catd__acoes { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--space-2); }
 .catd__titulo .ds-text--xl { overflow-wrap: anywhere; }
 .catd__comandante { font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
 .catd-grupos { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -10323,6 +10324,18 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
     catch (e) { toast('Não foi possível salvar a lista neste aparelho'); }
     finally { st.ocupado = false; pinta(); }
   }
+  /* Z4 · jogar com a lista: ela entra na estante (é lá que a partida e o guardião a encontram) e o preparo já abre com ela */
+  async function joga() {
+    if (st.ocupado) return;
+    let d = st.minhas.find(x => (x.origem && x.origem.id === st.l.id) || norm(x.name) === norm(st.l.nome));
+    if (!d) {
+      st.ocupado = true; pinta();
+      try { d = await decks.save(listaParaSalvar(st.l)); st.minhas = await decks.list(); toast(`${st.l.nome} está na sua estante`); }
+      catch (e) { st.ocupado = false; pinta(); return toast('Não foi possível salvar a lista neste aparelho'); }
+      st.ocupado = false;
+    }
+    go('/mesa?lista=' + encodeURIComponent(d.id));
+  }
   const abreCarta = c => { if (c && typeof __m12 !== 'undefined') __m12.openCardViewer(c); };
   function linha(e) {
     const c = e.carta;
@@ -10368,8 +10381,12 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
           (l.comandante || []).length ? h('span', { class: 'catd__comandante', lang: 'en' }, l.comandante.join(' + ')) : null)),
       Text(l.descricao || '', { size: 'sm', tone: 'muted', attrs: { id: 'catd-descricao' } }),
       Text(`Fonte: MTGJSON (licença MIT)${l.fichas && l.fichas.length ? ` · fichas: ${l.fichas.join(', ')}` : ''}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catd-fonte' } }),
-      tenho ? Button('Abrir na estante', { variant: 'primary', icone: 'listas', id: 'catd-abrir', block: true, onClick: () => minha && go('/lista?id=' + minha.id) })
-        : Button('Adicionar', { variant: 'primary', icone: 'mais', id: 'catd-adicionar', block: true, disabled: st.ocupado, onClick: adiciona }),
+      // Z4 · Jogar ao lado: um primário (Adicionar, ou Abrir quando já está na estante) e Jogar como segunda ação
+      h('div', { class: 'catd__acoes', id: 'catd-acoes' },
+        tenho ? Button('Abrir na estante', { variant: 'primary', icone: 'listas', id: 'catd-abrir', onClick: () => minha && go('/lista?id=' + minha.id) })
+          : Button('Adicionar', { variant: 'primary', icone: 'mais', id: 'catd-adicionar', disabled: st.ocupado, onClick: adiciona }),
+        Button('Jogar', { icone: 'jogar', id: 'catd-jogar', disabled: st.ocupado, title: 'Jogar com esta lista (ela entra na sua estante)', onClick: joga })),
+      tenho ? Text('Na sua estante: com internet, as cartas e as imagens ficam guardadas para jogar sem rede.', { size: 'xs', tone: 'subtle', attrs: { id: 'catd-guardada' } }) : null,
       st.semRede ? AvisoRede('Sem internet: algumas cartas aparecem só pelo nome; as estatísticas contam as que têm dados guardados.', { id: 'catd-cartas-sem-rede' }) : null,
       stats,
       visoes,

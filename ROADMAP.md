@@ -480,7 +480,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cj ✅ | Z1 coletor do catálogo: MTGJSON no ramo `catalogo`, toda semana, incremental (leva G-226) | Z | 1 | primeira coleta |
 | 16º-cl ✅ | Z2 catálogo por formato em Listas prontas: oficiais da Wizards com arte, cores, busca, lotes e + para a estante (leva G-227) | Z | 1 | teste no aparelho |
 | 16º-cm ✅ | Z3 detalhe da lista do catálogo: cabeça, três visões lembradas, folha da carta, estatísticas, Adicionar/Abrir (leva G-228) | Z | 1 | teste no aparelho |
-| 16º-cn ○ | Z4 jogar direto do catálogo e a lista importada pronta para jogar sem internet | Z | 1 | Z3 |
+| 16º-cn ✅ | Z4 Jogar a partir do catálogo: entra na estante uma vez e abre o preparo com a lista (leva G-229) | Z | 1 | teste no aparelho |
 | 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -6490,9 +6490,21 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Testes:** U `catalogo.tela.unit` +1; e2e "Z3" (do cartão ao detalhe, cabeça, os três agrupamentos, folha da carta,
   galeria com ×N, visão lembrada, estatísticas, Adicionar → Abrir na estante, lista inexistente; `auditaTela` nas quatro
   medidas e nos dois temas); L8 continua igual.
-**Z4 · Jogar e sem internet** ○ — "Jogar" direto contra o Shark a partir do catálogo; cartas e imagens da lista importada
-guardadas pelo guardião (O1) para jogar sem internet.
+**Z4 · Jogar e sem internet** ✅ (leva G-229, 09/10/2026)
+- **Valor:** do catálogo à mesa em um toque.
+- **Entregue:** no detalhe da lista oficial, **Jogar** ao lado do primário (Adicionar ou Abrir na estante): a lista entra na
+  estante se ainda não estiver (uma vez só — pela origem ou pelo nome) e o **preparo da partida abre com ela escolhida**
+  (o mesmo `?lista=` do Jogar da lista, J7); o oponente (Shark, a dois, Goldfish) se escolhe no preparo, como sempre.
+  Na estante, o detalhe diz "com internet, as cartas e as imagens ficam guardadas para jogar sem rede".
+- **Sem internet:** nada novo a construir — a lista importada é uma lista comum da estante, e o guardião (O1) já guarda os
+  dados e as imagens (pequena e normal) de toda lista salva quando há rede.
+- **Testes:** e2e "Z4" (dois botões lado a lado com um primário, Jogar importa e abre o preparo com a lista, de novo não
+  duplica, frase de guardada).
 **Z5 · Listas de torneio (TopDeck.gg)** ⛔ — evento, colocação e jogador, com o crédito visível; depende da chave.
+  - **Como liberar (dono do produto):** (1) criar conta em topdeck.gg ("Sign up"); (2) logado, abrir
+    topdeck.gg/developers e criar a chave (gratuita); (3) no GitHub do repositório: Settings › Secrets and variables ›
+    Actions › New repository secret, nome `TOPDECK_KEY`, valor a chave. A chave nunca vai para o app nem para a conversa:
+    só o coletor no GitHub Actions a usa. Exigência da TopDeck.gg: crédito visível com link ("Data provided by TopDeck.gg").
 
 ### P · Plataforma
 

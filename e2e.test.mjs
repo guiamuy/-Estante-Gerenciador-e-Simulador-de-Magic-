@@ -8053,6 +8053,29 @@ test('e2e · Z3 detalhe da lista do catálogo: o cartão abre a lista com arte, 
   assert.deepEqual(errors.filter(e => !/404/.test(e)), []);
 });
 
+/* ---------------- Z4 · jogar a partir do catálogo ---------------- */
+test('e2e · Z4 jogar a partir do catálogo: Jogar ao lado de Adicionar traz a lista para a estante (uma vez só) e abre o preparo com ela escolhida; depois o detalhe diz que ela está na estante e fica guardada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await rotaCatalogo(page);
+  await page.goto(base + '#/listas/catalogo?id=mtgjson-cmd-2'); await page.waitForSelector('#catd-acoes');
+  // um primário (Adicionar) e Jogar como segunda ação, lado a lado, 44 px
+  const acoes = await page.$$eval('#catd-acoes .ds-btn', bs => bs.map(b => [b.id, b.textContent.trim(), b.classList.contains('ds-btn--primary'), Math.round(b.getBoundingClientRect().height), Math.round(b.getBoundingClientRect().top)]));
+  assert.deepEqual(acoes.map(a => [a[0], a[1], a[2]]), [['catd-adicionar', 'Adicionar', true], ['catd-jogar', 'Jogar', false]]);
+  assert.ok(acoes.every(a => a[3] >= 44) && acoes[0][4] === acoes[1][4], 'lado a lado: ' + JSON.stringify(acoes));
+  await auditaTela(page, 'catálogo · detalhe com Jogar');
+  // Jogar: entra na estante e abre o preparo com ela
+  await page.click('#catd-jogar'); await page.waitForSelector('#mesa-mine');
+  assert.match(page.url(), /#\/mesa\?lista=/); assert.match(await page.getAttribute('#mesa-mine', 'aria-label'), /^Sua lista: Commander Deck 2\./);
+  // voltar ao detalhe: já está na estante (Abrir) e jogar de novo não duplica
+  await page.goto(base + '#/listas/catalogo?id=mtgjson-cmd-2'); await page.waitForSelector('#catd-abrir');
+  assert.match(await page.innerText('#catd-guardada'), /Na sua estante: com internet, as cartas e as imagens ficam guardadas para jogar sem rede\./);
+  await page.click('#catd-jogar'); await page.waitForSelector('#mesa-mine');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list');
+  assert.equal(await page.locator('#decks-list .deck-item', { hasText: 'Commander Deck 2' }).count(), 1, 'uma lista só');
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
