@@ -5008,12 +5008,15 @@
    "n": "614.8",
    "regra": "Replacement Effects",
    "titulo": "Regeneração",
-   "status": "ausente",
-   "falta": "Regenerar não existe (nenhuma ocorrência no core): destroy (:11128) e o dano letal (stateBased :12091) só conferem indestrutível. Falta o escudo \"da próxima vez que seria destruída neste turno\": tirar dano, virar e sair do combate.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "701.19",
     "614.1"
+   ],
+   "evidencia": "CR2-G R5c (M-242): o escudo de regeneração substitui a destruição — pelo verbo destruir e pelo dano letal na checagem de estado (seriaDestruida/substituiDestruicao): vira, perde todo o dano e sai do combate; o escudo dura até o fim do turno e some ao mudar de zona",
+   "testes": [
+    "M-242 · R5c · regenerar na partida: o escudo segura o Lightning Bolt (vira, perde o dano), é gasto, e \"não pode ser regenerada\" (Polymorph) fura"
    ]
   },
   {
@@ -5552,13 +5555,14 @@
    "regra": "Keyword Actions",
    "titulo": "Destroy",
    "status": "coberta",
-   "evidencia": "case destroy (index.html:11128-11132) move ao cemitério do dono e respeita indestrutível; SBA de dano letal (12132); scripts.unit \"S4 · ... indestrutível resiste a destruir\"; combat.audit K3. A substituição por regeneração (701.8c) está contada em 701.19 · CR2c.2 (v85): \"destroy all <tipos> [com valor de mana N ou menos/mais]\" (destroy_all): indestrutível fica, virada para baixo vale 0 (708.4), todas mudam de zona juntas",
+   "evidencia": "case destroy (index.html:11128-11132) move ao cemitério do dono e respeita indestrutível; SBA de dano letal (12132); scripts.unit \"S4 · ... indestrutível resiste a destruir\"; combat.audit K3. A substituição por regeneração (701.8c) está contada em 701.19 · CR2c.2 (v85): \"destroy all <tipos> [com valor de mana N ou menos/mais]\" (destroy_all): indestrutível fica, virada para baixo vale 0 (708.4), todas mudam de zona juntas · CR2-G R5c (M-242): destruir — verbo e dano letal — passa por \"se fosse destruída\" (indestrutível, armadura de totem, regeneração); equivalência sem escudos em destruir.equivalencia.unit",
    "depende": [
     "701.19"
    ],
    "cartas": "evergreen",
    "testes": [
-    "CR2c.2 · Austere Command: escolha dois entre quatro \"destroy all\"; o que é destruído sai do campo ao mesmo tempo e indestrutível fica"
+    "CR2c.2 · Austere Command: escolha dois entre quatro \"destroy all\"; o que é destruído sai do campo ao mesmo tempo e indestrutível fica",
+    "M-242 · R5c · sem escudo nem totem, \"se fosse destruída\" dá o que o caminho antigo dava (indestrutível ou destruída) para cada permanente, em partidas aleatórias com as listas reais"
    ]
   },
   {
@@ -5677,13 +5681,17 @@
    "n": "701.19",
    "regra": "Keyword Actions",
    "titulo": "Regenerate",
-   "status": "ausente",
-   "falta": "não há escudo de regeneração (701.19a), regeneração estática (b) nem \"não pode ser regenerada\" (c); destruir e dano letal nunca são substituídos",
+   "status": "parcial",
+   "falta": "701.19b (regeneração estática \"se fosse destruída, regenere\") não existe como forma própria; resistência 0 não é destruição e nada a substitui (certo)",
    "esforco": "M",
    "depende": [
     "614"
    ],
-   "cartas": "comum (cartas antigas)"
+   "cartas": "comum (cartas antigas)",
+   "evidencia": "CR2-G R5c (M-242): verbo regenerar (701.19a, escudo até o fim do turno) e \"não pode ser regenerada\" (701.19c, destroy semRegenerar: Polymorph)",
+   "testes": [
+    "M-242 · R5c · regenerar na partida: o escudo segura o Lightning Bolt (vira, perde o dano), é gasto, e \"não pode ser regenerada\" (Polymorph) fura"
+   ]
   },
   {
    "n": "701.20",
@@ -7390,14 +7398,17 @@
    "n": "702.89",
    "regra": "Keyword Abilities",
    "titulo": "Umbra Armor",
-   "status": "ausente",
-   "falta": "Sem substituição da destruição da permanente encantada por \"remova o dano e destrua esta aura\" (702.89a-b).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "614",
     "701.8"
    ],
-   "cartas": "rara (umbras são peças de Bogles em Pauper)"
+   "cartas": "rara (umbras são peças de Bogles em Pauper)",
+   "evidencia": "CR2-G R5c (M-242): Aura com armaduraTotem — se a encantada fosse destruída, em vez disso perde todo o dano e a Aura é destruída (seriaDestruida); 616 simplificado: totem antes da regeneração",
+   "testes": [
+    "M-242 · R5c · armadura de totem: a Aura vai para o cemitério no lugar da criatura, que perde o dano; resistência 0 não é destruição"
+   ]
   },
   {
    "n": "702.90",

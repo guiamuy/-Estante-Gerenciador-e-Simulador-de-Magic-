@@ -5139,6 +5139,9 @@ const EFFECTS = {
   // CR2-G R4c · 701.21 · sacrificar num verbo só: você (escolhe na hora), o jogador alvo ou "cada jogador / cada oponente"
   // (cada um escolhe em ordem ativo-não-ativo e as escolhidas saem juntas); sacrifice_own, sacrifice_each e edict viraram atalhos
   sacrificar: { fields: [], targets: ['opponent', 'player'] },
+  // CR2-G R5c · 701.15 · regenerar: na próxima vez que ela seria destruída neste turno, em vez disso vira, perde todo o dano
+  // e sai do combate
+  regenerar: { fields: [], targets: ['self-source', 'creature', 'creature-you-control'] },
   // CR2-G R5b · 615 · prevenir dano num verbo só: a quem (alvo, "cada", jogadores), quanto (todo ou os próximos N), de que
   // fonte (cor) e se só o de combate; dura até o fim do turno
   prevenir: { fields: [], targets: ['self-source', 'any', 'creature', 'creature-you-control', 'player', 'opponent'] },
@@ -5565,7 +5568,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -5621,6 +5624,7 @@ function validateScript(sc) {
   // CR2-G R3a · efeitos contínuos estáticos: quem afeta e o que muda (camadas 6 e 7c)
   ((sc && sc.continuo) || []).forEach((c, i) => errs.push(...continuoErros(c, `contínuo ${i + 1}`)));
   ((sc && sc.substitui) || []).forEach((r, i) => errs.push(...substituiErros(r, `substituição ${i + 1}`))); // CR2-G R5a
+  if (sc && sc.armaduraTotem && !sc.aura) errs.push('armadura de totem só vale para Aura'); // CR2-G R5c · 702.89
   ((sc && sc.entra) || []).forEach((r, i) => errs.push(...entraErros(r, `entra ${i + 1}`)));
   if (sc && sc.continuo != null && !Array.isArray(sc.continuo)) errs.push('contínuo precisa ser uma lista');
   for (const ab of (sc && sc.abilities) || []) for (const [i, m] of (ab.modes || []).entries()) errs.push(...effectErrors(m.effects, `modo do gatilho ${i + 1}`));
@@ -6305,8 +6309,8 @@ const RAW_SCRIPTS = [
   { name: 'Reprobation', aura: { enchant: 'creature', becomes: { types: ['creature'], subtypes: ['Coward'], base: [0, 1], loseAbilities: true } },
     example: { action: 'aura', target: 'own-creature', expect: { stats: [0, 1] } } },
   // M-222 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
-  { name: 'Polymorph', effects: [{ do: 'destroy', target: 'creature' }, { do: 'reveal_until', target: 'first-target', match: 'creature', rest: 'shuffle' }],
-    note: '"It can\'t be regenerated" não muda nada enquanto o motor não tem regeneração',
+  { name: 'Polymorph', effects: [{ do: 'destroy', target: 'creature', semRegenerar: true }, { do: 'reveal_until', target: 'first-target', match: 'creature', rest: 'shuffle' }], // CR2-G R5c · "It can't be regenerated"
+    note: '"It can\'t be regenerated" respeitado desde a regeneração (CR2-G R5c, 09/10/2026)',
     example: { target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Transmogrify', effects: [{ do: 'exile', target: 'creature' }, { do: 'reveal_until', target: 'first-target', match: 'creature', rest: 'shuffle' }],
     example: { target: 'enemy-creature', expect: { gone: true } } },
@@ -13177,6 +13181,7 @@ function createGame(setup) {
     if (sc.grantsAll) f.script.grantsAll = sc.grantsAll; // S56
     if (sc.continuo) f.script.continuo = sc.continuo; // CR2-G R3a · efeitos contínuos estáticos
     if (sc.substitui) f.script.substitui = sc.substitui; if (sc.entra) f.script.entra = sc.entra; // CR2-G R5a
+    if (sc.armaduraTotem) f.script.armaduraTotem = true; // CR2-G R5c
     if (sc.back) { f.script.back = sc.back.name; f.script.disturb = sc.disturb; f.script.omen = sc.omen; }
   }
 
@@ -13224,6 +13229,34 @@ const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
   'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'sneakAtaque', 'kicked', 'modes', 'castFrom']; // 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+/* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
+/** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
+ * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
+ * 616 simplificado: totem antes de regeneração, sem o controlador escolher. */
+function seriaDestruida(s, o, opts = {}) {
+  if (has(s, o, 'indestructible')) return 'indestrutivel';
+  const totem = attachedTo(s, o).find(x => !semImpressas(s, x) && (s.facts[x.name].script || {}).armaduraTotem);
+  if (totem) return { totem: totem.oid };
+  if (!opts.semRegenerar && o.regenerar > 0) return 'regenerou';
+  return 'destruida';
+}
+/** Aplica a substituição escolhida por seriaDestruida (o que não for 'destruida' nem 'indestrutivel'). */
+function substituiDestruicao(s, o, r, events) {
+  if (r === 'regenerou') {
+    o.regenerar--; if (!o.regenerar) delete o.regenerar;
+    o.tapped = true; o.damage = 0; delete o.deathtouched;
+    // 506.4 · sai do combate (quem ela bloqueava continua bloqueado)
+    if (s.combat && s.combat.attackers) s.combat.attackers = s.combat.attackers.filter(x => x !== o.oid);
+    if (o.blocking && s.objects[o.blocking]) s.objects[o.blocking].blockedBy = (s.objects[o.blocking].blockedBy || []).filter(x => x !== o.oid);
+    delete o.attacking; delete o.atacandoPw; delete o.blocking;
+    events.push({ kind: 'regenerated', oid: o.oid, name: o.name });
+  } else if (r && r.totem) {
+    const aura = s.objects[r.totem];
+    o.damage = 0; delete o.deathtouched;
+    if (aura && aura.zone === 'battlefield') moveObject(s, aura.oid, 'graveyard');
+    events.push({ kind: 'totem', oid: o.oid, name: o.name, aura: aura ? aura.name : '' });
+  }
+}
 /* ---------------- CR2-G R5a · 614 · substituições de mudança de zona ---------------- */
 /** As substituições (destino e entrada) que valem para `o`: as dela mesma (se ela tem as habilidades: no campo, sem a
  * Aura que tira tudo) e as das permanentes no campo cujo seletor a alcança. */
@@ -13329,7 +13362,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
@@ -13911,7 +13944,7 @@ function enterStep(s, step) {
 }
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.vira; delete o.prevenirDano; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
+  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -14540,8 +14573,10 @@ function applyEffect(s, src, eff, tgt, events) {
         note({ amount: n }); } break;
     case 'destroy': {
       const alvoD = eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // Leva 108 · Cryoshatter sem alvo
-      if (!alvoD || has(s, alvoD, 'indestructible')) note({ failed: true, ...(alvoD ? { why: 'indestrutível' } : {}) }); // R9b · o registro só diz "indestrutível" quando é esse o motivo
-      else { moveObject(s, alvoD.oid, 'graveyard'); note({}); }
+      const r = alvoD ? seriaDestruida(s, alvoD, { semRegenerar: !!eff.semRegenerar }) : null; // CR2-G R5c · "se fosse destruída"
+      if (!alvoD || r === 'indestrutivel') note({ failed: true, ...(alvoD ? { why: 'indestrutível' } : {}) }); // R9b · o registro só diz "indestrutível" quando é esse o motivo
+      else if (r === 'destruida') { moveObject(s, alvoD.oid, 'graveyard'); note({}); }
+      else { substituiDestruicao(s, alvoD, r, events); note({ failed: true, why: r === 'regenerou' ? 'regenerou' : 'armadura de totem' }); }
       break;
     }
     case 'exile': { // S48 · a permanente pode lembrar o que exilou, para devolver depois — CR2-G R4a · atalho de mover
@@ -14943,6 +14978,11 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     case 'fog': s.fogged = true; note({}); break; // S29 · previne todo dano de combate no turno
+    case 'regenerar': { // CR2-G R5c · escudo de regeneração até o fim do turno (a limpeza apaga)
+      const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (alvo && alvo.zone === 'battlefield') { alvo.regenerar = (alvo.regenerar || 0) + 1; note({ name: alvo.name }); } else note({ failed: true });
+      break;
+    }
     case 'prevenir': { // CR2-G R5b · escudo até o fim do turno (a limpeza apaga s.prevencoes)
       const escudo = { ...(eff.quantidade != null ? { quantidade: eff.quantidade } : {}), ...(eff.deCor ? { cor: eff.deCor } : {}), ...(eff.soCombate ? { combate: true } : {}) };
       if (eff.todos) { s.prevencoes = [...(s.prevencoes || []), { ...escudo, todos: true }]; note({ todos: true, quantidade: eff.quantidade }); break; }
@@ -16008,7 +16048,11 @@ function stateBased(s, events) {
       if (!isCreature(s, o) || f.toughness == null) continue;
       const t = toughness(s, o);
       const lethal = (o.damage > 0 && o.damage >= t) || (o.deathtouched && o.damage > 0);
-      if (t <= 0 || (lethal && !has(s, o, 'indestructible'))) morrem.push(o.oid);
+      if (t <= 0) { morrem.push(o.oid); continue; } // 704.5f: resistência 0 não é destruição (nada a substitui)
+      if (!lethal) continue;
+      const r = seriaDestruida(s, o); // CR2-G R5c · 704.5g/h: dano letal destrói — e "se fosse destruída" pode substituir
+      if (r === 'destruida') morrem.push(o.oid);
+      else if (r !== 'indestrutivel') { substituiDestruicao(s, o, r, events); changed = true; }
     }
     if (morrem.length) {
       s.saindoJuntas = morrem;
@@ -17328,7 +17372,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -19024,6 +19068,8 @@ function describe(before, a, events, after) {
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
     if (ev.kind === 'trigger') L.push(`Gatilho de ${ev.name} (${descreveGatilho(ev.when)})`); // CR2-G R2a · nome antigo ou descritor
     if (ev.kind === 'resolved' && !ev.scripted) L.push(ev.to === 'battlefield' ? `${ev.name} entrou no campo` : `${ev.name} resolveu`);
+    if (ev.kind === 'regenerated') L.push(`${ev.name} regenerou: virou, perdeu o dano e saiu do combate`); // CR2-G R5c
+    if (ev.kind === 'totem') L.push(`${ev.aura} foi destruída no lugar de ${ev.name} (armadura de totem)`);
     if (ev.kind === 'died') L.push(ev.why === 'regra das lendas' ? `${ev.name} foi para o cemitério pela regra das lendas` : `${ev.name} morreu`);
     if (ev.kind === 'lost') L.push(`${who(after, ev.p)} perdeu a partida: ${REASON_PT[ev.reason] || ev.reason}`);
     if (ev.kind === 'over') L.push(ev.winner == null ? 'Fim da partida: empate' : `Fim da partida: ${who(after, ev.winner)} venceu`);
@@ -19721,6 +19767,7 @@ function descreveEfeito(e) {
     case 'keyword': if (e.targetCount) return `até X criaturas ganham ${PALAVRA_PT[e.keyword] || e.keyword} até o fim do turno`; // CR2c.3
       return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
+    case 'regenerar': return `regenera ${e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura'} (na próxima vez que seria destruída neste turno, vira, perde o dano e sai do combate)`;
     case 'prevenir': { // CR2-G R5b
       const quanto = e.quantidade ? `os próximos ${e.quantidade} de dano` : 'todo o dano';
       const fonte = e.deCor ? ` de fontes ${{ W: 'brancas', U: 'azuis', B: 'pretas', R: 'vermelhas', G: 'verdes' }[e.deCor]}` : '';
