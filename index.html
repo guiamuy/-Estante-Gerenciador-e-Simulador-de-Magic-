@@ -5261,7 +5261,7 @@ const CADA_SELETOR = {
 /** M-230 · efeitos que já são só atalho de verbo + seletor (a medida de vocabulário os separa). */
 /** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
 const DURACOES = ['fim-do-turno', 'seu-proximo-turno'];
-const EFEITOS_ATALHO = { destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
+const EFEITOS_ATALHO = { animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
 const cadaDe = e => { if (!e) return null; if (e.cada) return e.cada; const base = CADA_SELETOR[e.target]; if (!base) return null; return e.exceptSubtype ? { ...base, semSubtipos: [e.exceptSubtype] } : base; };
 const TIPOS_DE_CARTA = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'];
 /** Erros de um seletor escrito no script (lista vazia = válido). */
@@ -5295,7 +5295,25 @@ const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equ
 /** CR2-G R3a · um efeito contínuo estático: `afetados` ('self', 'anexada' ou seletor de permanentes no campo, sem
  * palavra-chave no seletor — a camada 6 dependeria dela mesma), e ao menos uma mudança: poder, resistencia, palavras, ou
  * perPoder/perResistencia com uma contagem `per`. */
-const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia'];
+const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna'];
+/** CR2-G R3c · "torna-se": camada 4 (tipos e subtipos, substituindo ou somando — `somaTipos`), 6 (perde todas as outras
+ * habilidades; `palavras` aqui entram junto com a redefinição, com o mesmo carimbo) e 7b (P/T base). */
+const CHAVES_TORNA = ['tipos', 'subtipos', 'somaTipos', 'base', 'perdeHabilidades', 'palavras'];
+function tornaErros(r, tag) {
+  if (!r || typeof r !== 'object') return [`${tag}: "torna" precisa ser um objeto`];
+  const errs = [];
+  for (const k of Object.keys(r)) if (!CHAVES_TORNA.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida em "torna"`);
+  if (r.tipos != null && !(Array.isArray(r.tipos) && r.tipos.length && r.tipos.every(x => TIPOS_DE_CARTA.includes(x)))) errs.push(`${tag}: tipos de carta desconhecidos em "torna"`);
+  if (r.subtipos != null && !(Array.isArray(r.subtipos) && r.subtipos.every(x => typeof x === 'string' && x.trim()))) errs.push(`${tag}: subtipos precisam ser nomes`);
+  if (r.base != null && !(Array.isArray(r.base) && r.base.length === 2 && r.base.every(Number.isInteger))) errs.push(`${tag}: P/T base precisa de dois inteiros`);
+  if (r.palavras != null && !(Array.isArray(r.palavras) && r.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "torna"`);
+  if (r.somaTipos && !(r.tipos || []).length) errs.push(`${tag}: "somaTipos" precisa de tipos`);
+  if (!(r.tipos || []).length && !(r.subtipos || []).length && !r.base && !r.perdeHabilidades && !(r.palavras || []).length) errs.push(`${tag}: "torna" não muda nada`);
+  return errs;
+}
+/** A redefinição em português do script → a forma guardada no motor (a mesma do `becomes` antigo). */
+const tornaParaBecomes = r => ({ ...(r.tipos ? { types: r.tipos } : {}), ...(r.subtipos ? { subtypes: r.subtipos } : {}), ...(r.base ? { base: r.base } : {}),
+  ...((r.palavras || []).length ? { keywords: r.palavras.map(k => String(k).toLowerCase()) } : {}), ...(r.perdeHabilidades ? { loseAbilities: true } : {}), ...(r.somaTipos ? { addTypes: true } : {}) });
 function continuoErros(c, tag) {
   if (!c || typeof c !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
@@ -5312,7 +5330,8 @@ function continuoErros(c, tag) {
   for (const k of ['poder', 'resistencia', 'perPoder', 'perResistencia']) if (c[k] != null && !Number.isInteger(c[k])) errs.push(`${tag}: "${k}" precisa ser inteiro`);
   if (c.palavras != null && !(Array.isArray(c.palavras) && c.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "palavras"`);
   if ((c.perPoder != null || c.perResistencia != null) && !(PER_COUNTS.includes(c.per) || (c.per && typeof c.per === 'object' && typeof c.per.subtype === 'string'))) errs.push(`${tag}: contagem "${c.per}" desconhecida`);
-  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia) errs.push(`${tag}: não muda nada`);
+  if (c.torna != null) { errs.push(...tornaErros(c.torna, tag)); if (c.afetados !== 'anexada') errs.push(`${tag}: "torna" estático só vale para a permanente anexada (o resto precisa da dependência 613.8)`); }
+  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna) errs.push(`${tag}: não muda nada`);
   return errs;
 }
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
@@ -5673,7 +5692,8 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'add_mana' && !Array.isArray(e.symbols) && !e.anyColor) errs.push(`${label} ${i + 1}: add_mana precisa da lista de símbolos ou de anyColor`);
     if (e.targetMvMax != null) errs.push(...valueErrors(e.targetMvMax, `${label} ${i + 1}: valor de mana máximo`));
     if (e.do === 'continuo') { // CR2-G R3b
-      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.torna != null) { errs.push(...tornaErros(e.torna, `${label} ${i + 1}`)); if (e.ate === 'seu-proximo-turno') errs.push(`${label} ${i + 1}: "torna" só dura até o fim do turno por enquanto`); }
       for (const k of ['poder', 'resistencia']) if (e[k] != null) errs.push(...valueErrors(e[k], `${label} ${i + 1}: ${k}`));
       if (e.palavras != null && !(Array.isArray(e.palavras) && e.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "palavras"`);
       if (e.ate != null && !DURACOES.includes(e.ate)) errs.push(`${label} ${i + 1}: duração "${e.ate}" desconhecida`);
@@ -6771,7 +6791,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, DURACOES, continuoErros, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -12735,7 +12755,31 @@ const attachedTo = (s, o) => s.zones.flatMap(z => z.battlefield).map(oid => s.ob
    O que mexe no P/T sem fixar (marcadores, +N/+N, bônus de Aura) é 7c/7d e continua. Habilidade concedida depois da Aura
    que tira tudo fica; a concedida antes some. */
 const relogio = s => (s.relogio = (s.relogio || 0) + 1);
+/** CR2-G R3c · as redefinições que valem para `o`, em ordem de carimbo (613.7): as de efeito contínuo estático da permanente
+ * anexada (Aura que redefine: `aura.becomes` ou `continuo` com "torna") e as temporárias gravadas no objeto (o.vira). Não
+ * passa por continuosQueAfetam, que depende delas (semImpressas). */
+function redefinicoesDe(s, o) {
+  const out = [];
+  for (const x of attachedTo(s, o)) for (const e of continuosDaFonte(s, x)) if (e.afetados === 'anexada' && e.redefine) out.push({ ts: x.anexadaEm || 0, b: e.redefine });
+  for (const v of o.vira || []) out.push({ ts: v.ts || 0, b: v });
+  return out.sort((x, y) => x.ts - y.ts);
+}
 function mutacao(s, o) {
+  if (!o || o.zone !== 'battlefield' || !o.mutavel) return null; // atalho: só quem já recebeu uma Aura dessas (o cálculo é chamado a cada consulta de habilidade)
+  // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
+  const efeitos = redefinicoesDe(s, o);
+  if (!efeitos.length) return null;
+  const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
+  let m = { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
+  for (const { ts, b } of efeitos) {
+    m = { types: b.addTypes ? [...new Set([...m.types, ...(b.types || [])])] : (b.types || m.types),
+      subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
+      perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])] };
+  }
+  return m;
+}
+/** CR2-G R3c · o caminho antigo da mutação (só para o teste de equivalência). */
+function mutacaoLegado(s, o) {
   if (!o || o.zone !== 'battlefield' || !o.mutavel) return null; // atalho: só quem já recebeu uma Aura dessas (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
   const efeitos = attachedTo(s, o).filter(a => ((s.facts[a.name].script || {}).aura || {}).becomes).map(a => ({ ts: a.anexadaEm || 0, b: s.facts[a.name].script.aura.becomes }))
@@ -12783,14 +12827,15 @@ function bonusLegado(s, host) {
 const SEM_CONTINUOS = Object.freeze([]);
 function continuosDaFonte(s, x) {
   const sc = s.facts[x.name].script;
-  if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo)) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
+  if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo || (sc.aura && sc.aura.becomes))) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
   const out = [];
+  if (sc.aura && sc.aura.becomes) out.push({ afetados: 'anexada', redefine: sc.aura.becomes }); // CR2d.1 · atalho: Aura que redefine a criatura
   const g = grantsOf(s, x);
   if (g && (g.power || g.toughness || g.per || (g.keywords || []).length)) out.push({ afetados: 'anexada', poder: g.power || 0, resistencia: g.toughness || 0,
     per: g.per, perPoder: g.perPower || 0, perResistencia: g.perToughness || 0, palavras: (g.keywords || []).map(w => String(w).toLowerCase()) });
   if (sc.grantsAll && (sc.grantsAll.keywords || []).length) out.push({ afetados: GRANTS_ALL_AFETADOS, palavras: sc.grantsAll.keywords.map(w => String(w).toLowerCase()) });
   if (sc.self && sc.self.per) out.push({ afetados: 'self', per: sc.self.per, perPoder: sc.self.perPower || 0, perResistencia: sc.self.perToughness || 0 });
-  for (const c of sc.continuo || []) out.push({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined });
+  for (const c of sc.continuo || []) out.push({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined, ...(c.torna ? { redefine: SC.tornaParaBecomes(c.torna) } : {}) });
   return out;
 }
 /** "Creatures you control have …": as suas criaturas pelo tipo de agora (como era: tiposDe, não isCreature). */
@@ -13093,8 +13138,11 @@ const faceDown = o => !!(o && o.faceDown);
 /** CR2-G R3b · grava um efeito contínuo temporário no objeto. A guarda continua nos campos de sempre (o bot, a tela e as
  * partidas salvas os leem): até o fim do turno → pump e tempKeywords (com carimbo); até o seu próximo turno → pumpNext e
  * keywordsNext, marcados com quem fez (`by`), que acabam quando o turno dele começa. */
-function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno' }, by) {
+function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira }, by) {
   const proximo = ate === 'seu-proximo-turno';
+  // CR2-G R3c · "torna-se … até o fim do turno": redefinição com carimbo próprio (613.7), apagada na limpeza; vem antes das
+  // palavras-chave ganhas no mesmo efeito, que assim sobrevivem ao "perde as outras habilidades"
+  if (vira) { o.vira = [...(o.vira || []), { ...vira, ts: relogio(s) }]; o.mutavel = true; }
   if (poder != null || resistencia != null) {
     const campo = proximo ? 'pumpNext' : 'pump', ant = o[campo] || {};
     o[campo] = { p: (ant.p || 0) + (poder || 0), t: (ant.t || 0) + (resistencia || 0), ...(proximo ? { by } : {}) };
@@ -14194,7 +14242,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (!alvo || alvo.zone !== 'battlefield') break;
       const pw = eff.poder != null ? amountOf(s, src, eff.poder) : undefined, tg = eff.resistencia != null ? amountOf(s, src, eff.resistencia) : undefined;
-      aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno' }, ctrl);
+      aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}) }, ctrl);
       note({ name: alvo.name, power: pw || 0, toughness: tg || 0, palavras: (eff.palavras || []).map(k => String(k).toLowerCase()), ate: eff.ate || 'fim-do-turno' });
       break;
     }
@@ -14376,7 +14424,7 @@ function applyEffect(s, src, eff, tgt, events) {
     }
     case 'animate': { // CR2d.2 · vira criatura até o fim do turno, com carimbo de tempo próprio (613.7); a limpeza apaga
       const alvo = src.ability ? s.objects[src.source] : src;
-      if (alvo && alvo.zone === 'battlefield') { alvo.vira = [...(alvo.vira || []), { ...eff.becomes, ts: relogio(s) }]; alvo.mutavel = true; note({ target: alvo.name }); }
+      if (alvo && alvo.zone === 'battlefield') { aplicaTemporario(s, alvo, { vira: eff.becomes }, ctrl); note({ target: alvo.name }); } // CR2-G R3c · atalho de continuo com "torna"
       break;
     }
     case 'to_bottom': { // M-222 · no fundo do grimório do dono
@@ -15491,7 +15539,7 @@ function attachTo(s, o, hostOid, events) {
   const host = s.objects[hostOid];
   if (!host || host.zone !== 'battlefield') return false;
   o.attachedTo = hostOid; o.anexadaEm = relogio(s); // CR2d.1 · 613.7e: carimbo de tempo da Aura/Equipamento é quando foi anexada
-  if (((s.facts[o.name].script || {}).aura || {}).becomes) host.mutavel = true; // CR2d.1 · marca a hospedeira para o cálculo de camadas
+  if (continuosDaFonte(s, o).some(e => e.afetados === 'anexada' && e.redefine)) host.mutavel = true; // CR2d.1/R3c · marca a hospedeira para o cálculo de camadas
   events.push({ kind: 'effect', do: 'attach', name: o.name, target: host.name });
   return true;
 }
@@ -16927,7 +16975,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -19210,6 +19258,17 @@ function descreveSeletor(sel) {
 const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
   'other-enchantments': 'outro encantamento', 'auras-on-battlefield': 'Aura no campo', 'permanents-you-control': 'permanente que você controla', 'elves-you-control': 'Elfo que você controla',
   'counters-on-source': 'marcador +1/+1 nela' };
+/** CR2-G R3c · "torna-se uma criatura artefato Inseto 0/1 com indestrutível e perde as outras habilidades". */
+const TIPO_PT = { artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', land: 'terreno', planeswalker: 'planeswalker', battle: 'batalha', kindred: 'tribal', instant: 'instantânea', sorcery: 'feitiço' };
+function descreveTorna(r) {
+  const tipos = (r.tipos || []).slice().sort((a, b) => (a === 'creature' ? -1 : b === 'creature' ? 1 : 0)).map(x => TIPO_PT[x] || x);
+  const coisa = [tipos.join(' '), (r.subtipos || []).join(' '), r.base ? `${r.base[0]}/${r.base[1]}` : ''].filter(Boolean).join(' ');
+  const com = (r.palavras || []).length ? ` com ${r.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}` : '';
+  const partes = [];
+  if (coisa || com) partes.push(`torna-se ${coisa ? (tipos[0] === 'criatura' || !tipos.length ? 'uma ' : 'um ') + coisa : 'ela mesma'}${com}${r.somaTipos ? ' além do que já é' : ''}`);
+  if (r.perdeHabilidades) partes.push('perde as outras habilidades');
+  return partes.join(' e ');
+}
 function descreveContinuo(c) {
   const sinal = n => (n < 0 ? '' : '+') + n;
   const quem = c.afetados === 'self' ? 'esta permanente' : c.afetados === 'anexada' ? 'a permanente anexada'
@@ -19218,6 +19277,7 @@ function descreveContinuo(c) {
   if (c.poder || c.resistencia) partes.push(`recebe ${sinal(c.poder || 0)}/${sinal(c.resistencia || 0)}`);
   if (c.perPoder || c.perResistencia) partes.push(`recebe ${sinal(c.perPoder || 0)}/${sinal(c.perResistencia || 0)} para cada ${(c.per && c.per.subtype) || PER_PT[c.per] || c.per}`);
   if ((c.palavras || []).length) partes.push(`tem ${c.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
+  if (c.torna) partes.unshift(descreveTorna(c.torna));
   return `${quem} ${partes.join(' e ')}`;
 }
 function descreveAlvo(chave) {
@@ -19284,6 +19344,7 @@ function descreveEfeito(e) {
       const partes = [];
       if (e.poder != null || e.resistencia != null) partes.push(`recebe ${sinal(e.poder || 0)}/${sinal(e.resistencia || 0)}`);
       if ((e.palavras || []).length) partes.push(`ganha ${e.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
+      if (e.torna) partes.unshift(descreveTorna(e.torna)); // CR2-G R3c
       const quem = e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura';
       return `${quem} ${partes.join(' e ')} ${e.ate === 'seu-proximo-turno' ? 'até o seu próximo turno' : 'até o fim do turno'}`;
     }

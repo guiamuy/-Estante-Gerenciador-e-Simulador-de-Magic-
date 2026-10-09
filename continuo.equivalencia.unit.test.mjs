@@ -36,8 +36,8 @@ test('M-234 · R3a · bônus de P/T e palavras-chave concedidas: o caminho únic
 });
 
 const CONCEDEM = () => Object.entries(S.SCRIPTS).filter(([n, sc]) => CARTAS[n] && ((sc.grants && (sc.grants.power || sc.grants.toughness || sc.grants.per || (sc.grants.keywords || []).length)) || sc.grantsAll || (sc.self && sc.self.per))).map(([n]) => n);
-function mesaQueConcede() {
-  const nomes = [...CONCEDEM(), 'Darksteel Mutation', 'Reprobation', 'Lunarch Veteran', 'Kor Skyfisher'];
+function mesaQueConcede(extra = []) {
+  const nomes = [...CONCEDEM(), 'Darksteel Mutation', 'Reprobation', 'Lunarch Veteran', 'Kor Skyfisher', ...extra];
   let s = mesa(nomes, nomes, 4);
   for (const p of [0, 1]) for (const n of nomes) { try { [s] = poe(s, p, n); } catch { /* sem cópia */ } try { [s] = poe(s, p, n, 'hand'); } catch { /* sem cópia */ } }
   s = J(s);
@@ -186,4 +186,85 @@ test('M-235 · R3b · "até o seu próximo turno" atravessa o turno do oponente 
   assert.ok(erros({ do: 'continuo', target: 'creature' }).some(x => /não muda nada/.test(x)));
   assert.ok(erros({ do: 'continuo', target: 'creature', palavras: ['voar'] }).some(x => /palavra-chave desconhecida/.test(x)));
   assert.equal(T.descreveEfeitos([{ do: 'continuo', target: 'self-source', poder: 1, resistencia: 1, palavras: ['vigilance'], ate: 'seu-proximo-turno' }]), 'esta criatura recebe +1/+1 e ganha vigilância até o seu próximo turno');
+});
+
+// ── M-236 · CR2-G R3c · "torna-se" (camadas 4, 6 e 7b) no mesmo caminho: a Aura que redefine (aura.becomes) e o "vira
+// criatura até o fim do turno" (animate) viram atalhos de `torna`; a mutação lê as redefinições de redefinicoesDe.
+function comparaMutacao(s, rotulo) {
+  let n = 0;
+  for (const oid of s.zones.flatMap(z => z.battlefield)) { const o = s.objects[oid]; assert.deepEqual(J(E.mutacao(s, o)), J(E.mutacaoLegado(s, o)), `${rotulo} · mutação de ${o.name}`); n++; }
+  return n;
+}
+
+test('M-236 · R3c · redefinições ("torna-se") pelo caminho único: mutação, P/T e palavras-chave iguais ao caminho antigo em partidas aleatórias com as listas reais', () => {
+  let n = 0;
+  LISTAS.forEach((lista, i) => {
+    let s = jogo({ lista, oponente: LISTAS[(i + 4) % LISTAS.length], seed: 21 + i });
+    const politica = E.randomPolicy(911 + i);
+    for (let k = 0; k < 200 && s.status !== 'over'; k++) {
+      const a = politica(s); if (!a) break; s = act(s, a);
+      if (k % 5 === 0) n += comparaMutacao(s, `${lista} · ${k}`);
+    }
+  });
+  assert.ok(n > 1500, `amostra pequena (${n})`);
+});
+
+test('M-236 · R3c · matriz de redefinições: Aura que redefine antes e depois de outras Auras, terrenos e Veículo que viram criatura (com e sem base, somando tipos, com voar) e redefinição temporária por cima — o mesmo pelos dois caminhos', () => {
+  const viram = ['Mishra\'s Factory', 'Blinkmoth Nexus', 'Smuggler\'s Copter'];
+  const s = mesaQueConcede(viram);
+  assert.equal(s.zones[0].battlefield.filter(o => viram.includes(s.objects[o].name)).length, 3, 'os três que viram criatura estão no campo');
+  const criaturas = s.zones.flatMap(z => z.battlefield).filter(oid => s.facts[s.objects[oid].name].types.includes('creature'));
+  // os que viram criatura usam o próprio efeito do script (animate): a redefinição temporária com carimbo
+  for (const oid of s.zones[0].battlefield.filter(o => viram.includes(s.objects[o].name))) {
+    const ab = (s.facts[s.objects[oid].name].script.abilities || []).find(a => (a.effects || []).some(e => e.do === 'animate'));
+    E.aplicaTemporario(s, s.objects[oid], { vira: ab.effects.find(e => e.do === 'animate').becomes }, 0);
+  }
+  E.aplicaTemporario(s, s.objects[criaturas[0]], { vira: { types: ['creature'], subtypes: ['Frog'], base: [1, 1], loseAbilities: true } }, 1);
+  E.aplicaTemporario(s, s.objects[criaturas[0]], { palavras: ['flying'] }, 1);
+  const n = comparaMutacao(s, 'matriz') + comparaStats(s, 'matriz') + compara(s, 'matriz');
+  assert.ok(n > 1000, `amostra pequena (${n})`);
+  assert.ok(s.zones.flatMap(z => z.battlefield).filter(oid => E.mutacao(s, s.objects[oid])).length >= 4, 'poucas permanentes redefinidas na matriz');
+});
+
+test('M-236 · R3c · a comparação pega divergência: uma Aura escrita com `continuo` + "torna" só o caminho novo vê', () => {
+  let s = mesaQueConcede();
+  const aura = s.zones[0].battlefield.find(o => s.objects[o].name === 'Rancor');
+  s.objects[s.objects[aura].attachedTo].mutavel = true;
+  s.facts.Rancor = { ...s.facts.Rancor, script: { ...s.facts.Rancor.script, continuo: [{ afetados: 'anexada', torna: { tipos: ['creature'], base: [0, 1], perdeHabilidades: true } }] } };
+  assert.throws(() => comparaMutacao(s, 'com torna'), /mutação/);
+});
+
+test('M-236 · R3c · "a criatura alvo torna-se uma Rã 1/1 e perde as outras habilidades até o fim do turno" (verbo continuo com torna) e a Aura nova escrita como dado', () => {
+  let s = jogo({ lista: 'Pauper GW Bogles', oponente: 'Pauper Boros Bully', seed: 9, terrenos: ['Forest', 'Plains', 'Forest'] }), armor, bogle, kor;
+  [s, armor] = poe(s, 0, 'Ethereal Armor', 'hand'); [s, bogle] = poe(s, 0, 'Gladecover Scout'); [s, kor] = poe(s, 1, 'Kor Skyfisher');
+  s = J(s);
+  // Aura nova: "Enchanted creature is a 0/2 Wall with defender and loses all other abilities" — escrita só como dado
+  const aura = { name: 'Ethereal Armor', aura: { enchant: 'creature' }, continuo: [{ afetados: 'anexada', torna: { tipos: ['creature'], subtipos: ['Wall'], base: [0, 2], palavras: ['defender'], perdeHabilidades: true } }] };
+  for (const c of aura.continuo) assert.deepEqual(J(S.continuoErros(c, 'c')), []);
+  s.facts['Ethereal Armor'] = { ...s.facts['Ethereal Armor'], script: aura };
+  s = resolve(conjura(s, 0, armor, x => (x.targets || []).some(t => t.oid === kor)));
+  assert.equal(s.objects[armor].attachedTo, kor);
+  assert.deepEqual(J(E.stats(s, s.objects[kor])), { power: 0, toughness: 2 });
+  assert.equal(E.hasKeyword(s, s.objects[kor], 'flying'), false, 'perdeu voar');
+  assert.equal(E.hasKeyword(s, s.objects[kor], 'defender'), true);
+  // o verbo: rã até o fim do turno
+  const sapo = { do: 'continuo', target: 'creature', torna: { tipos: ['creature'], subtipos: ['Frog'], base: [1, 1], perdeHabilidades: true } };
+  assert.deepEqual(J(S.validateScript({ name: 'Teste', effects: [sapo] })).filter(e => !/cenário/.test(e)), []);
+  let x = J(s); E.aplicaTemporario(x, x.objects[bogle], { vira: S.tornaParaBecomes(sapo.torna) }, 1);
+  assert.deepEqual(J(E.stats(x, x.objects[bogle])), { power: 1, toughness: 1 });
+  assert.equal(E.hasKeyword(x, x.objects[bogle], 'hexproof'), false, 'perdeu resistência a magia até o fim do turno');
+  x = passaAte(x, y => y.turn.active === 1);
+  assert.equal(E.hasKeyword(x, x.objects[bogle], 'hexproof'), true, 'voltou depois da limpeza');
+  assert.equal(T.descreveEfeitos([sapo]), 'uma criatura torna-se uma criatura Frog 1/1 e perde as outras habilidades até o fim do turno');
+});
+
+test('M-236 · R3c · validador de "torna"', () => {
+  const erros = c => J(S.continuoErros(c, 'c'));
+  assert.ok(erros({ afetados: { tipos: ['creature'] }, torna: { base: [1, 1] } }).some(e => /só vale para a permanente anexada/.test(e)), 'redefinição por seletor espera a dependência 613.8');
+  assert.ok(erros({ afetados: 'anexada', torna: { tipos: ['criatura'] } }).some(e => /tipos de carta desconhecidos/.test(e)));
+  assert.ok(erros({ afetados: 'anexada', torna: { base: [1] } }).some(e => /dois inteiros/.test(e)));
+  assert.ok(erros({ afetados: 'anexada', torna: {} }).some(e => /não muda nada/.test(e)));
+  assert.ok(erros({ afetados: 'anexada', torna: { somaTipos: true } }).some(e => /precisa de tipos/.test(e)));
+  const efeito = e => J(S.validateScript({ name: 'Teste', effects: [e] })).filter(x => !/cenário/.test(x));
+  assert.ok(efeito({ do: 'continuo', target: 'creature', torna: { base: [1, 1] }, ate: 'seu-proximo-turno' }).some(x => /só dura até o fim do turno/.test(x)));
 });
