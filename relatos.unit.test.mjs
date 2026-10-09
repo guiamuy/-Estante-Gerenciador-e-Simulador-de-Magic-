@@ -92,3 +92,39 @@ test('Y2 · o texto do relato da mesa diz a partida e as últimas jogadas, e se 
   const t = R.textoDoRelato(r);
   assert.match(t, /- Partida: contra o Shark · turno 3 · Combate · vez do oponente · prioridade sua · vida 20 × 18 · decisão blockers · partida anexada\n- Últimas jogadas:\n  - Shark ataca com Grizzly Bears\n/);
 });
+
+const AMOSTRA = () => {
+  const mk = (id, tipo, urgencia, area, status, descricao, extra = {}) => ({ id, tipo, urgencia, area, rota: '/x', status, descricao, criadoEm: `2026-10-0${id.length}T10:00:00.000Z`, contexto: {}, ...extra });
+  return [mk('a', 'erro', 'alta', 'Mesa', 'aberto', 'Um, com "aspas"\ne quebra', { contexto: { motor: 95, tema: 'escuro', tela: '360×780', online: false, partida: { modo: 'contra o Shark', turno: 3, etapa: 'Combate' } }, partida: { kind: 'estante.match', engine: 95 } }),
+    mk('bb', 'ideia', 'baixa', 'Listas', 'aberto', 'Dois'), mk('ccc', 'erro', 'media', 'Listas', 'resolvido', 'Três')];
+};
+
+test('Y3 · filtra: situação, tipo, urgência e área, juntos; contaFiltros e áreas do que existe', () => {
+  const l = AMOSTRA();
+  const ids = f => J(R.filtra(l, { ...R.FILTRO_VAZIO, ...f }).map(r => r.id));
+  assert.deepEqual(ids({}), ['a', 'bb', 'ccc']);
+  assert.deepEqual(ids({ situacao: 'aberto' }), ['a', 'bb']);
+  assert.deepEqual(ids({ situacao: 'resolvido' }), ['ccc']);
+  assert.deepEqual(ids({ tipo: 'erro' }), ['a', 'ccc']);
+  assert.deepEqual(ids({ tipo: 'erro', area: 'Listas' }), ['ccc']);
+  assert.deepEqual(ids({ urgencia: 'baixa', situacao: 'resolvido' }), []);
+  assert.equal(R.contaFiltros(R.FILTRO_VAZIO), 0); assert.equal(R.contaFiltros({ situacao: 'aberto', tipo: 'erro', urgencia: '', area: 'Mesa' }), 3);
+  assert.deepEqual(J(R.areasDe(l)), ['Listas', 'Mesa']);
+});
+
+test('Y3 · exportar: CSV com cabeçalho, aspas e BOM; JSON com a partida; texto pela ordem de sempre', () => {
+  const l = AMOSTRA();
+  const csv = R.csvDosRelatos(l);
+  assert.ok(csv.startsWith('﻿criado_em,tipo,urgencia,area,rota,situacao,descricao,motor,tema,tela,online,partida_modo,partida_turno,partida_etapa,partida_anexada\r\n'));
+  assert.ok(csv.includes('Erro,Alta,Mesa,/x,aberto,"Um, com ""aspas""\ne quebra",95,escuro,360×780,não,contra o Shark,3,Combate,sim\r\n'), csv);
+  assert.equal(csv.trim().split('\r\n').length, 4);
+  const j = JSON.parse(R.jsonDosRelatos(l, Date.UTC(2026, 9, 9)));
+  assert.equal(j.kind, 'estante.relatos'); assert.equal(j.exportadoEm, '2026-10-09T00:00:00.000Z'); assert.equal(j.relatos.length, 3); assert.equal(j.relatos[0].partida.engine, 95);
+});
+
+test('Y3 · partida anexada só abre no mesmo motor; o motivo vem antes do toque', () => {
+  const [a, b] = AMOSTRA();
+  assert.deepEqual(J(R.partidaAbrivel(a, 95)), { ok: true, motivo: '' });
+  assert.deepEqual(J(R.partidaAbrivel(a, 96)), { ok: false, motivo: 'Gravada no motor v95; o motor agora é v96.' });
+  assert.deepEqual(J(R.partidaAbrivel(b, 95)), { ok: false, motivo: '' });
+});

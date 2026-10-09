@@ -7846,6 +7846,79 @@ test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- Y3 · relatos para fora ---------------- */
+test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área) com o recorte no resumo, exportar o recorte em texto, JSON e CSV, e abrir a partida anexada no ponto do relato com confirmação', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  // joga um pouco: o relato fica no turno 2 ou mais
+  for (let i = 0; i < 40; i++) { const tn = await page.evaluate(() => window.__estanteMesa.estado().turn.number); if (tn >= 2) break;
+    await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), ls = M.legais(); M.act(s.pending ? ls[0] : (ls.find(x => x.t === 'play_land') || { t: 'pass', p: 0 })); }); await page.waitForTimeout(30); }
+  const naHora = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { turno: s.turn.number, mao: s.zones[0].hand.length, vida: s.players.map(p => p.life) }; });
+  const relata = async (abre, tipo, urgencia, texto) => { await abre(); await page.waitForSelector('#relato-form'); await page.selectOption('#relato-tipo', tipo); await page.selectOption('#relato-urgencia', urgencia); await page.fill('#relato-descricao', texto); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' }); };
+  await relata(() => page.click('#tb-relatar'), 'regra', 'alta', 'Regra da mesa com a partida anexada.');
+  // a partida continua depois do relato: o que fica salvo agora é outro ponto
+  for (let i = 0; i < 20; i++) { const tn = await page.evaluate(() => window.__estanteMesa.estado().turn.number); if (tn > naHora.turno) break;
+    await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), ls = M.legais(); M.act(s.pending ? ls[0] : { t: 'pass', p: 0 }); }); await page.waitForTimeout(30); }
+  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await relata(() => page.click('#relatar-abrir'), 'ideia', 'baixa', 'Ideia da tela inicial.');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
+  await relata(() => acaoJ6(page, 'decks-fab', '#decks-fab-relatar'), 'erro', 'media', 'Erro nas listas, já resolvido.');
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista');
+  await page.click('#relatos-lista .relato-item[data-tipo="erro"] [data-acao="status"]'); await page.waitForFunction(() => document.querySelector('.relato-item[data-tipo="erro"]').dataset.status === 'resolvido');
+  const ids = () => page.$$eval('#relatos-lista .relato-item', is => is.map(i => i.dataset.tipo));
+  // a tela relê os relatos do aparelho a cada filtro: espera o recorte novo aparecer
+  const espera = esperado => page.waitForFunction(e => JSON.stringify([...document.querySelectorAll('#relatos-lista .relato-item')].map(i => i.dataset.tipo)) === e, JSON.stringify(esperado), { timeout: 4000 });
+  // 1 · situação
+  await espera(['regra', 'ideia', 'erro']);
+  await page.click('#relatos-situacao [data-situacao="aberto"]'); await espera(['regra', 'ideia']);
+  assert.match(await page.innerText('#relatos-resumo'), /2 de 3 relatos · 2 abertos no recorte/);
+  await page.click('#relatos-situacao [data-situacao="resolvido"]'); await espera(['erro']);
+  await page.click('#relatos-situacao [data-situacao="todos"]');
+  // 2 · filtros: fechados por padrão, com a contagem no cabeçalho
+  assert.equal(await page.getAttribute('#relatos-filtros-toggle', 'aria-expanded'), 'false');
+  await page.click('#relatos-filtros-toggle'); await page.waitForSelector('#relatos-filtro-area');
+  assert.deepEqual(await page.$$eval('#relatos-filtro-area option', os => os.map(o => o.textContent)), ['Todas', 'Início', 'Listas', 'Mesa']);
+  await page.selectOption('#relatos-filtro-area', 'Mesa'); await espera(['regra']);
+  assert.match(await page.innerText('#relatos-filtros-toggle'), /1 filtro/);
+  await page.selectOption('#relatos-filtro-tipo', 'ideia'); await page.waitForSelector('#relatos-recorte-vazio');
+  await auditaTela(page, 'relatos · recorte vazio');
+  await page.click('#relatos-ver-todos'); await espera(['regra', 'ideia', 'erro']);
+  await page.selectOption('#relatos-filtro-urgencia', 'alta'); await espera(['regra']);
+  await auditaTela(page, 'relatos · filtros abertos');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y3-filtros.png' });
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos filtros ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.click('#relatos-filtros-limpar'); await espera(['regra', 'ideia', 'erro']);
+  // 3 · exportar o recorte: três formatos, um arquivo cada
+  await page.click('#relatos-exportar-abrir'); await page.waitForSelector('#relatos-exportar');
+  assert.match(await page.innerText('#relatos-exportar-nota'), /3 relatos do recorte/);
+  await auditaTela(page, 'relatos · exportar');
+  const baixa = async id => { const [d] = await Promise.all([page.waitForEvent('download'), page.click(id)]); const txt = await (await d.createReadStream()).toArray().then(ps => Buffer.concat(ps).toString('utf8')); return { nome: d.suggestedFilename(), txt }; };
+  const csv = await baixa('#relatos-exportar-csv');
+  assert.match(csv.nome, /^estante-relatos-\d{4}-\d{2}-\d{2}\.csv$/);
+  assert.match(csv.txt, /^﻿criado_em,tipo,urgencia,area,rota,situacao,descricao,/); assert.equal(csv.txt.trim().split('\r\n').length, 4);
+  assert.match(csv.txt, /Regra ou carta,Alta,Mesa,\/partida,aberto,Regra da mesa com a partida anexada\.,\d+,[^,]*,360×780,sim,contra o Shark,\d+,[^,]*,sim/);
+  await page.click('#relatos-exportar-abrir'); const js = await baixa('#relatos-exportar-json');
+  const dados = JSON.parse(js.txt); assert.equal(dados.kind, 'estante.relatos'); assert.equal(dados.relatos.length, 3); assert.equal(dados.relatos[0].partida.kind, 'estante.match');
+  await page.click('#relatos-exportar-abrir'); const md = await baixa('#relatos-exportar-md');
+  assert.match(md.txt, /^### Regra ou carta · Alta · Mesa\n/); assert.equal(md.txt.split('\n---\n').length, 3);
+  // 4 · abrir a partida anexada: confirma (há partida salva) e abre no ponto do relato
+  assert.equal(await page.locator('.relato-item[data-tipo="ideia"] [data-acao="partida"]').count(), 0, 'sem partida, sem botão');
+  await page.click('.relato-item[data-tipo="regra"] [data-acao="partida"]'); await page.waitForSelector('#relatos-partida-confirma');
+  assert.match(await page.innerText('.ds-dialog'), /Abrir a partida do relato\?[\s\S]*substituída/);
+  await page.click('#relatos-partida-confirma'); await page.waitForFunction(() => /#\/partida/.test(location.hash)); await page.waitForSelector('#tb-relatar');
+  await page.waitForFunction(() => window.__estanteMesa && window.__estanteMesa.estado());
+  assert.deepEqual(await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { turno: s.turn.number, mao: s.zones[0].hand.length, vida: s.players.map(p => p.life) }; }), naHora, 'a partida abriu no ponto em que o relato foi feito');
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);

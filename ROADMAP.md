@@ -476,7 +476,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cf ✅ | V2 rulings na carta: seção que abre e lembra, data e fonte, guardados no aparelho com prazo, sem internet mostra a cópia (leva G-219) | V | 1 | teste no aparelho |
 | 16º-cg ✅ | Y1 relatar de qualquer tela: Relatar no botão de ação ou botão discreto, formulário com tipo e urgência, carimbo, tela Relatos (leva G-222) | Y | 1 | teste no aparelho |
 | 16º-ch ✅ | Y2 relatar na partida: aba na borda que arrasta e lembra, Relatar no balão da faixa, contexto e partida anexada (leva G-224) | Y | 1 | teste no aparelho |
-| 16º-ci ○ | Y3 relatos para fora: filtros e exportar | Y | 1 | — |
+| 16º-ci ✅ | Y3 relatos para fora: situação e filtros, exportar em texto, JSON e CSV, abrir a partida anexada (leva G-225) | Y | 1 | teste no aparelho |
 | 16º-cj ○ | Z1–Z4 catálogo de listas: coletor (MTGJSON), catálogo por formato, detalhe com visões e estatísticas, importar e jogar | Z | 4 | ADR-09 |
 | 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -6352,11 +6352,24 @@ mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
   dela, e a aba pode ser arrastada para outra altura.
 - **Fora:** abrir a partida anexada de um relato (Y3); foto da tela.
 
-**Y3 · Relatos para fora** ○
-- **Valor:** levar os relatos para a correção sem copiar um a um.
-- **Aceite:** filtros por tipo, urgência, área e situação; exportar o recorte em texto (Markdown), JSON e CSV; abrir a
-  partida anexada de um relato.
-- **Testes:** U, I. **Depende de:** Y1, Y2.
+**Y3 · Relatos para fora** ✅ (leva G-225, 09/10/2026)
+- **Valor:** levar os relatos para a correção sem copiar um a um, e reabrir a partida em que o problema apareceu.
+- **Entregue:**
+  - **Situação** em controle segmentado (Todos, Abertos, Resolvidos) e **Filtros** recolhíveis (Tipo, Urgência e Área —
+    as áreas que existem nos relatos), com a contagem no cabeçalho e **Limpar**; o resumo diz "2 de 3 relatos · 2 abertos
+    no recorte"; recorte vazio com **Ver todos**; os filtros ficam enquanto o app está aberto;
+  - **Exportar** o recorte em **Texto** (Markdown, o mesmo de colar), **JSON** (com a partida anexada) e **CSV** (uma linha
+    por relato, com tipo, urgência, área, situação, descrição, motor, tema, tela, internet e a partida resumida; BOM para
+    a planilha ler acentos); **Copiar abertos** passa a copiar os abertos do recorte;
+  - **Partida** em cada relato que tem a partida anexada: abre a mesa **no ponto do relato**; se há partida salva, pede
+    confirmação (ela e a série, se houver, são substituídas); a parte online sai. Partida gravada por **outro motor**
+    aparece com o botão apagado e o motivo ("Gravada no motor v95; o motor agora é v96.").
+- **Modelo (puro, `__m38`):** `filtra`, `contaFiltros`, `areasDe`, `csvDosRelatos`, `jsonDosRelatos`, `partidaAbrivel`.
+- **Testes:** U `relatos.unit` +3; e2e "Y3" (situação, filtros com área, recorte vazio, exportar nos três formatos com o
+  conteúdo conferido, abrir a partida com confirmação no mesmo turno, mão e vida; `auditaTela` nas quatro medidas e nos
+  dois temas).
+- **Limite declarado:** partida de outro motor não abre (o motor recusa partida salva por outra versão, regra da A8).
+- **Fora:** enviar relatos para fora do aparelho sem arquivo (nuvem); foto da tela.
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 

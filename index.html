@@ -1376,6 +1376,11 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .relato-item__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 .relato-item__texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-md); }
 .relato-item__acoes { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
+.relato-item__motivo { text-align: right; }
+.relatos-filtros__grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.relatos-filtros__grade .ds-select { width: 100%; min-width: 0; }
+.relatos-filtros__area { grid-column: 1 / -1; }
+.relatos-exportar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 /* Y2 · aba de relatar na borda direita da mesa: alvo de 44 × 56 px, só 28 px à vista, translúcida até o toque */
 .tb-relatar { position: fixed; right: 0; top: var(--tb-relatar-y, 42%); transform: translateY(-50%); z-index: var(--z-sticky); width: var(--tap-min); height: 56px; padding: 0; margin: 0;
   display: flex; align-items: center; justify-content: flex-end; background: transparent; border: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
@@ -9809,34 +9814,108 @@ function BotaoRelatar() {
     Icone('relato', { tamanho: 22 }));
 }
 
+/* ---------------- Y3 · recorte, exportação e a partida anexada ---------------- */
+const FILTRO_VAZIO = { situacao: 'todos', tipo: '', urgencia: '', area: '' };
+const SITUACOES = [['todos', 'Todos'], ['aberto', 'Abertos'], ['resolvido', 'Resolvidos']];
+/** O recorte da lista pelos filtros (situação, tipo, urgência e área), na ordem de `ordena`. */
+function filtra(lista, f = FILTRO_VAZIO) {
+  return ordena(lista).filter(r => (f.situacao === 'todos' || !f.situacao || (f.situacao === 'resolvido') === (r.status === 'resolvido'))
+    && (!f.tipo || r.tipo === f.tipo) && (!f.urgencia || r.urgencia === f.urgencia) && (!f.area || r.area === f.area));
+}
+const contaFiltros = f => ['tipo', 'urgencia', 'area'].filter(k => f[k]).length + (f.situacao && f.situacao !== 'todos' ? 1 : 0);
+const areasDe = lista => [...new Set(ordena(lista).map(r => r.area))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+/** CSV (RFC 4180, vírgula, aspas quando precisa, BOM para a planilha ler acentos): uma linha por relato. */
+function csvDosRelatos(lista) {
+  const q = v => { const t = v == null ? '' : String(v); return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+  const cab = ['criado_em', 'tipo', 'urgencia', 'area', 'rota', 'situacao', 'descricao', 'motor', 'tema', 'tela', 'online', 'partida_modo', 'partida_turno', 'partida_etapa', 'partida_anexada'];
+  const linhas = ordena(lista).map(r => { const c = r.contexto || {}, p = c.partida || {};
+    return [r.criadoEm, rotuloDe(TIPOS, r.tipo), rotuloDe(URGENCIAS, r.urgencia), r.area, r.rota, r.status === 'resolvido' ? 'resolvido' : 'aberto', r.descricao,
+      c.motor != null ? c.motor : '', c.tema || '', c.tela || '', c.online === false ? 'não' : 'sim', p.modo || '', p.turno != null ? p.turno : '', p.etapa || '', r.partida ? 'sim' : 'não'].map(q).join(','); });
+  return '﻿' + [cab.join(','), ...linhas].join('\r\n') + '\r\n';
+}
+const jsonDosRelatos = (lista, agora = Date.now()) => JSON.stringify({ kind: 'estante.relatos', version: 1, exportadoEm: new Date(agora).toISOString(), relatos: ordena(lista) }, null, 1);
+/** A partida anexada abre no motor de agora? (o motor recusa partida salva por outra versão: aqui o motivo vem antes do toque) */
+function partidaAbrivel(r, motor) {
+  const p = r && r.partida;
+  if (!p || p.kind !== 'estante.match') return { ok: false, motivo: '' };
+  if (p.engine !== motor) return { ok: false, motivo: `Gravada no motor v${p.engine}; o motor agora é v${motor}.` };
+  return { ok: true, motivo: '' };
+}
+
 /* ---------------- Perfil › Relatos ---------------- */
-function createRelatosScreen({ relatos, share }) {
+let filtroAtual = { ...FILTRO_VAZIO }, filtrosAbertos = false; // ficam enquanto o app está aberto
+function createRelatosScreen({ relatos, share, files = null, partidas = null }) {
   const root = Stack({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)' } }, __m3.Carregando('Abrindo relatos…', { tamanho: 'tela' }));
+  const motor = typeof __m16 !== 'undefined' ? __m16.ENGINE_VERSION : null;
+  const opcoes = (lista, vazio) => [{ value: '', label: vazio }, ...lista.map(([v, l]) => ({ value: v, label: l }))];
+  function abrePartida(r) {
+    if (!partidas) return;
+    const vai = async () => { closeDialog(); await partidas.abre(r.partida); };
+    partidas.temSalva().then(tem => {
+      if (!tem) return vai();
+      Dialog({ title: 'Abrir a partida do relato?', body: Text('A partida em andamento (e a série, se houver) é substituída por esta, no ponto em que o relato foi feito. Não dá para desfazer.', { tone: 'muted' }),
+        actions: [Button('Cancelar', { onClick: closeDialog }), Button('Abrir', { variant: 'primary', icone: 'jogar', id: 'relatos-partida-confirma', onClick: vai })] });
+    }).catch(() => vai());
+  }
+  function exportar(recorte) {
+    if (!files) return;
+    const dia = new Date().toISOString().slice(0, 10);
+    const baixa = (nome, texto, mime, rotulo) => { files.save(nome, texto, mime); closeDialog(); toast(`${recorte.length} relato(s) em ${rotulo}`); };
+    Dialog({ title: 'Exportar relatos', body: Stack({ style: { gap: 'var(--space-3)' } },
+      Text(`${recorte.length} ${recorte.length === 1 ? 'relato' : 'relatos'} do recorte de agora, com data, tela e contexto. A partida anexada vai só no JSON.`, { size: 'sm', tone: 'muted', attrs: { id: 'relatos-exportar-nota' } }),
+      h('div', { class: 'relatos-exportar', id: 'relatos-exportar' },
+        Button('Texto', { icone: 'linhas', id: 'relatos-exportar-md', onClick: () => baixa(`estante-relatos-${dia}.md`, textoDosRelatos(recorte) + '\n', 'text/markdown', 'texto') }),
+        Button('JSON', { icone: 'caixa', id: 'relatos-exportar-json', onClick: () => baixa(`estante-relatos-${dia}.json`, jsonDosRelatos(recorte), 'application/json', 'JSON') }),
+        Button('CSV', { icone: 'planilha', id: 'relatos-exportar-csv', onClick: () => baixa(`estante-relatos-${dia}.csv`, csvDosRelatos(recorte), 'text/csv', 'CSV') }))),
+      actions: [Button('Fechar', { id: 'relatos-exportar-fechar', onClick: closeDialog })] });
+  }
   async function pinta() {
     let lista; try { lista = await relatos.todos(); } catch (e) { lista = null; }
     if (!lista) return mount(root, Note('<b>Não foi possível ler os relatos deste aparelho.</b>', 'negative'), Button('Voltar', { icone: 'voltar', onClick: () => { location.hash = '#/perfil'; } }));
+    const areas = areasDe(lista);
+    if (filtroAtual.area && !areas.includes(filtroAtual.area)) filtroAtual.area = '';
+    const recorte = filtra(lista, filtroAtual), abertosDoRecorte = recorte.filter(r => r.status !== 'resolvido');
     const abertos = lista.filter(r => r.status !== 'resolvido').length;
-    const linha = r => h('article', { class: 'relato-item', dataset: { urgencia: r.urgencia, status: r.status, tipo: r.tipo }, id: 'relato-' + r.id },
-      h('div', { class: 'relato-item__topo' },
-        Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
-        Badge(rotuloDe(TIPOS, r.tipo)),
-        h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${r.area}`)),
-      h('p', { class: 'relato-item__texto' }, r.descricao),
-      h('div', { class: 'relato-item__acoes' },
-        Button(r.status === 'resolvido' ? 'Reabrir' : 'Resolvido', { variant: 'ghost', icone: r.status === 'resolvido' ? 'desfazer' : 'marcar', dataset: { acao: 'status' }, onClick: async () => { await relatos.muda(r.id, { status: r.status === 'resolvido' ? 'aberto' : 'resolvido' }); pinta(); } }),
-        Button('Copiar', { variant: 'ghost', icone: 'copiar', dataset: { acao: 'copiar' }, onClick: async e => { const ok = await share.copy(textoDoRelato(r)); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Relato copiado' : 'Não foi possível copiar'); } }),
-        IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
-          const tirado = await relatos.remove(r.id); pinta();
-          toast('Relato excluído', 4200, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await relatos.restaura(tirado); pinta(); } } }); } })));
+    const muda = patch => { filtroAtual = { ...filtroAtual, ...patch }; pinta(); };
+    const linha = r => { const pa = partidaAbrivel(r, motor);
+      return h('article', { class: 'relato-item', dataset: { urgencia: r.urgencia, status: r.status, tipo: r.tipo }, id: 'relato-' + r.id },
+        h('div', { class: 'relato-item__topo' },
+          Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
+          Badge(rotuloDe(TIPOS, r.tipo)),
+          h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${r.area}`)),
+        h('p', { class: 'relato-item__texto' }, r.descricao),
+        r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
+        h('div', { class: 'relato-item__acoes' },
+          r.partida ? Button('Partida', { variant: 'ghost', icone: 'jogar', disabled: !pa.ok, title: pa.ok ? 'Abrir a partida anexada, no ponto do relato' : pa.motivo, dataset: { acao: 'partida' }, onClick: () => abrePartida(r) }) : null,
+          Button(r.status === 'resolvido' ? 'Reabrir' : 'Resolvido', { variant: 'ghost', icone: r.status === 'resolvido' ? 'desfazer' : 'marcar', dataset: { acao: 'status' }, onClick: async () => { await relatos.muda(r.id, { status: r.status === 'resolvido' ? 'aberto' : 'resolvido' }); pinta(); } }),
+          Button('Copiar', { variant: 'ghost', icone: 'copiar', dataset: { acao: 'copiar' }, onClick: async e => { const ok = await share.copy(textoDoRelato(r)); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Relato copiado' : 'Não foi possível copiar'); } }),
+          IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
+            const tirado = await relatos.remove(r.id); pinta();
+            toast('Relato excluído', 4200, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await relatos.restaura(tirado); pinta(); } } }); } }))); };
+    const n = contaFiltros({ ...filtroAtual, situacao: 'todos' });
+    const filtros = lista.length ? __m3.Expansivel({ titulo: 'Filtros', icone: 'filtro', aberto: filtrosAbertos, id: 'relatos-filtros', toggleId: 'relatos-filtros-toggle', resumo: n ? `${n} ${n === 1 ? 'filtro' : 'filtros'}` : '',
+      onToggle: () => { filtrosAbertos = !filtrosAbertos; pinta(); } },
+      h('div', { class: 'relatos-filtros__grade' },
+        Field('Tipo', Select(opcoes(TIPOS, 'Todos'), { id: 'relatos-filtro-tipo', value: filtroAtual.tipo, onChange: e => muda({ tipo: e.target.value }) })),
+        Field('Urgência', Select(opcoes(URGENCIAS, 'Todas'), { id: 'relatos-filtro-urgencia', value: filtroAtual.urgencia, onChange: e => muda({ urgencia: e.target.value }) })),
+        h('div', { class: 'relatos-filtros__area' }, Field('Área', Select(opcoes(areas.map(a => [a, a]), 'Todas'), { id: 'relatos-filtro-area', value: filtroAtual.area, onChange: e => muda({ area: e.target.value }) })))),
+      n ? Row({}, Button('Limpar', { variant: 'ghost', icone: 'fechar', id: 'relatos-filtros-limpar', onClick: () => muda({ tipo: '', urgencia: '', area: '' }) })) : null) : null;
     mount(root,
       Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { variant: 'ghost', id: 'relatos-voltar', onClick: () => { location.hash = '#/perfil'; } }),
         Text('Relatos', { size: '2xl', display: true, as: 'h1' })),
-      Text(lista.length ? `${lista.length} ${lista.length === 1 ? 'relato' : 'relatos'} · ${abertos} ${abertos === 1 ? 'aberto' : 'abertos'}. Ficam neste aparelho e vão no backup.` : 'Ficam neste aparelho e vão no backup.', { size: 'sm', tone: 'muted', attrs: { id: 'relatos-resumo' } }),
-      lista.length ? Row({ class: 'ds-row--wrap' }, Button('Copiar abertos', { icone: 'copiar', id: 'relatos-copiar', onClick: async e => {
-        const txt = textoDosRelatos(lista.filter(r => r.status !== 'resolvido'));
-        if (!txt) return toast('Nenhum relato aberto');
-        const ok = await share.copy(txt); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? `${abertos} relato(s) copiado(s)` : 'Não foi possível copiar'); } })) : null,
-      lista.length ? Stack({ id: 'relatos-lista', style: { gap: 'var(--space-3)' } }, ...lista.map(linha))
+      Text(!lista.length ? 'Ficam neste aparelho e vão no backup.' : recorte.length === lista.length ? `${lista.length} ${lista.length === 1 ? 'relato' : 'relatos'} · ${abertos} ${abertos === 1 ? 'aberto' : 'abertos'}. Ficam neste aparelho e vão no backup.`
+        : `${recorte.length} de ${lista.length} relatos · ${abertosDoRecorte.length} ${abertosDoRecorte.length === 1 ? 'aberto' : 'abertos'} no recorte.`, { size: 'sm', tone: 'muted', attrs: { id: 'relatos-resumo' } }),
+      lista.length ? h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Situação', id: 'relatos-situacao' },
+        ...SITUACOES.map(([k, nome]) => __m3.Chip(nome, { pressed: (filtroAtual.situacao || 'todos') === k, dataset: { situacao: k }, onClick: () => muda({ situacao: k }) }))) : null,
+      filtros,
+      recorte.length ? Row({ class: 'ds-row--wrap' },
+        Button('Copiar abertos', { icone: 'copiar', id: 'relatos-copiar', onClick: async e => {
+          const txt = textoDosRelatos(abertosDoRecorte);
+          if (!txt) return toast('Nenhum relato aberto no recorte');
+          const ok = await share.copy(txt); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? `${abertosDoRecorte.length} relato(s) copiado(s)` : 'Não foi possível copiar'); } }),
+        files ? Button('Exportar', { icone: 'exportar', id: 'relatos-exportar-abrir', onClick: () => exportar(recorte) }) : null) : null,
+      recorte.length ? Stack({ id: 'relatos-lista', style: { gap: 'var(--space-3)' } }, ...recorte.map(linha))
+        : lista.length ? Empty('Nenhum relato com esses filtros.', Button('Ver todos', { icone: 'fechar', id: 'relatos-ver-todos', onClick: () => { filtroAtual = { ...FILTRO_VAZIO }; pinta(); } }), { icone: 'filtro', titulo: 'Nada aqui', id: 'relatos-recorte-vazio' })
         : Empty('Use Relatar em qualquer tela para guardar um erro, uma regra que não bateu ou uma ideia. A data e a tela vão junto.', null, { icone: 'relato', titulo: 'Nenhum relato', id: 'relatos-vazio' }),
       __m3.BotaoDeAcao([{ icone: 'relato', rotulo: 'Relatar', id: 'relatos-novo', onClick: () => abreRelato() }], { id: 'relatos-fab', rotulo: 'Relatar', relatar: false }));
   }
@@ -9845,7 +9924,7 @@ function createRelatosScreen({ relatos, share }) {
   return root;
 }
 
-return { contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -23233,7 +23312,10 @@ const ROUTES = [
   { path: '/noticias', title: 'Notícias', render: () => __m37.createNoticiasScreen({ noticias, share: platform.share }) }, // N2
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
-  { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share }) }, // Y1
+  { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files,
+    // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
+    partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
+      abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3
   { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)
     dados: { baseLocal: () => __m12.painelBaseLocal({ local: localIndex, files: platform.files }),
