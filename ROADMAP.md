@@ -489,6 +489,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cs ✅ | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada (leva G-237) | T | 1 | — |
 | 16º-ct ✅ | T5 Listas prontas: respiro entre a última lista e Mostrar mais (leva G-234) | T | ½ | — |
 | 16º-cu | T6 perfil por pessoa e servidor: plano curto (perfis no aparelho) e médio prazo (conta e sincronização) | T | 1 de decisão + 3 a 5 | escolha do serviço (decisão do usuário) |
+| 16º-cv ✅ | V5 a impressão escolhida na lista (V1) vale na mesa, para quem jogou com a lista; o bot e o oponente online seguem na arte padrão (leva G-238) | V | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4264,7 +4265,8 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
   reserva, guardada, visualizador, voltar, Desfazer, editar sem perder, vazio, erro e nova tentativa, sem internet;
   `auditaTela` em 360 px nos dois temas e com a fonte larga do CI).
 - **Depende de:** D5, L1.
-- **Fora:** arte escolhida na mesa de jogo e na exportação (candidatas a história própria, junto com a C4).
+- **Fora:** arte escolhida na mesa de jogo e na exportação (candidatas a história própria, junto com a C4). A mesa
+  passou a valer na V5 (leva G-238).
 
 **V2 · Rulings** ✅ (leva G-219, 08/10/2026)
 - **Valor:** tirar dúvida de regra na hora.
@@ -4289,6 +4291,22 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
 - **Correção (leva G-220):** a seção se redesenha sozinha ao abrir e tirava o foco do diálogo (o portão pegou no E50,
   que passou como instável); agora o foco volta para ela, e todo diálogo abre no topo (o foco inicial não rola a folha).
 - **Fora:** tradução dos rulings; rulings dentro da mesa fora do visualizador (a folha de segurar a carta da mesa é outra).
+
+**V5 · A impressão da lista vale na mesa** ✅ (leva G-238, 09/10/2026)
+- **Valor:** a carta escolhida na lista (V1) é a que aparece quando se joga com ela.
+- **Entregue:** na partida, cada carta do seu lado sai na impressão escolhida na entrada da lista com que você joga
+  (frente e verso), no campo, na mão, na pilha, nos cemitérios e na carta grande; a impressão da lista vale **acima da
+  arte geral** de Perfil › Terrenos (é a escolha mais específica); a ficha segue Perfil › Fichas. Na partida a dois,
+  cada lado com a impressão da própria lista. O Shark e o oponente online jogam com a arte padrão (regra da J6), mesmo
+  com a mesma lista. A partida guarda as entradas no `setup`: a impressão vale também na partida retomada.
+- **Modelo (puro, `terrenos`, `__m36`):** `impressoesDoSetup(setup)` (por assento, nome → impressão) e
+  `cartaComEscolhas(carta, { terrenos, fichas, impressoes })`.
+- **Testes:** U `terrenos.unit` +1 (por assento, a primeira entrada vale, a da lista vence a do Perfil, sem impressão
+  vale a do Perfil, não muda a carta recebida); e2e "V5" (escolhe a impressão na lista e outra arte no Perfil, joga
+  contra o Shark com a mesma lista: a sua Forest na impressão da lista, a do bot na padrão; o teste falha sem a leva).
+- **Limite:** o lado transformado de uma dupla face guarda o nome da face e segue na imagem do verso padrão quando a
+  impressão não a traz; sem internet, só aparece se o guardião já baixou a imagem (como na lista).
+- **Fora:** impressão no texto exportado e no valor da lista.
 
 **V3 · Modos da lista** ○
 - **Valor:** galeria para ver, texto denso para editar.

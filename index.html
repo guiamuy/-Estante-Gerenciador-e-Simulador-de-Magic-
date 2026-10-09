@@ -9513,7 +9513,17 @@ function cartaComFicha(card, escolhas) {
   const e = escolhas['ficha:' + norm(card.name) + (card.power != null ? ` ${card.power}/${card.toughness}` : '')];
   return e && e.images ? { ...card, images: e.images } : card;
 }
-const cartaComEscolhas = (card, { terrenos = null, fichas = null } = {}) => cartaComFicha(cartaComTerreno(card, terrenos), fichas);
+/** V5 · a impressão escolhida na lista (V1) vale na mesa: por assento, o nome da carta → a impressão da entrada da lista
+    com que ele joga (a partida guarda as entradas no `setup`). Puro. */
+function impressoesDoSetup(setup) {
+  return ((setup && setup.players) || []).map(p => { const m = {}; for (const e of (p && p.deck) || []) if (e && e.print && e.print.images && e.print.images.normal && !m[norm(e.name)]) m[norm(e.name)] = e.print; return m; });
+}
+/** A carta como a partida a mostra para quem escolheu a arte: a impressão da lista vale acima da arte geral do terreno
+    (Perfil › Terrenos), por ser a escolha mais específica; a ficha segue a escolha de Perfil › Fichas. */
+const cartaComEscolhas = (card, { terrenos = null, fichas = null, impressoes = null } = {}) => {
+  const imp = card && impressoes && impressoes[norm(card.name)];
+  return cartaComFicha(imp ? __m14.cartaNaImpressao(card, imp) : cartaComTerreno(card, terrenos), fichas);
+};
 /** J6 · de quem é a carta decide se as artes do usuário valem: nunca para o bot (ele joga com a arte padrão da
     plataforma) nem, numa partida online, para o lado de quem está no outro aparelho. Dono desconhecido: valem. */
 function valeArteDoUsuario(dono, { assentoDoBot = null, meuAssentoOnline = null } = {}) {
@@ -9530,7 +9540,7 @@ function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRed
       return __m14.opcoesDeImpressao(cartas, 175).map(o => ({ id: o.id, name: def.name, set: o.set, set_name: o.set_name, collector_number: o.collector_number, images: o.images, faces: [] }));
     } });
 }
-return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, cartaComEscolhas, valeArteDoUsuario, createTerrenos };
+return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, cartaComEscolhas, impressoesDoSetup, valeArteDoUsuario, createTerrenos };
 })();
 
 /* ==== src/app/noticias.js ==== */
@@ -21069,7 +21079,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // quem a escolheu — o bot (e o oponente online) ficam com a arte padrão
   const donoDe = x => (x && typeof x === 'object') ? (x.owner != null ? x.owner : x.controller != null ? x.controller : null) : null;
   const valeArte = dono => __m36.valeArteDoUsuario(dono, { assentoDoBot: table.options && table.options.bot ? table.options.bot.seat : null, meuAssentoOnline: sinc ? sinc.assento : null });
-  const card = x => { const c = T.cartaDaMesa(table.setup.cards, typeof x === 'string' ? x : x && x.name); return valeArte(donoDe(x)) ? __m36.cartaComEscolhas(c, artes) : c; }; // H1 · o verso de uma dupla face acha a própria imagem
+  // V5 · a impressão escolhida em cada lista: calculada uma vez por partida (o setup não muda durante ela)
+  let impressoesDe = { setup: null, porAssento: [] };
+  const impressoesDoDono = dono => { if (impressoesDe.setup !== table.setup) impressoesDe = { setup: table.setup, porAssento: __m36.impressoesDoSetup(table.setup) }; return dono == null ? null : impressoesDe.porAssento[dono] || null; };
+  const card = x => { const c = T.cartaDaMesa(table.setup.cards, typeof x === 'string' ? x : x && x.name); const dono = donoDe(x); return valeArte(dono) ? __m36.cartaComEscolhas(c, { ...artes, impressoes: impressoesDoDono(dono) }) : c; }; // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */

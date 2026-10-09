@@ -115,3 +115,18 @@ test('J6 · a arte escolhida vale só para quem a escolheu: o bot e o oponente o
   assert.equal(TR.valeArteDoUsuario(1, { meuAssentoOnline: 1 }), true); assert.equal(TR.valeArteDoUsuario(0, { meuAssentoOnline: 1 }), false, 'online: só o meu assento');
   assert.equal(TR.valeArteDoUsuario(null, { assentoDoBot: 1 }), true, 'sem saber de quem é, vale'); assert.equal(TR.valeArteDoUsuario(undefined), true);
 });
+
+test('V5 · a impressão da lista vale na mesa: por assento, pelo nome, acima da arte geral do terreno; a ficha segue a dela', () => {
+  const im = id => ({ id, images: { normal: id + '/n', small: id + '/s' } });
+  const setup = { players: [{ deck: [{ name: 'Forest', qty: 20, print: im('lista-f') }, { name: 'Grizzly Bears', qty: 4 }, { name: 'forest', qty: 1, print: im('outra') }] }, { deck: [{ name: 'Forest', qty: 20 }] }, { dummy: true, deck: [] }] };
+  const por = TR.impressoesDoSetup(setup);
+  assert.deepEqual(Object.keys(por[0]), ['forest'], 'uma por carta: vale a primeira entrada com impressão');
+  assert.deepEqual(J([por[1], por[2]]), [{}, {}]);
+  assert.deepEqual(J(TR.impressoesDoSetup(null)), []);
+  const forest = { name: 'Forest', type_line: 'Basic Land — Forest', images: { normal: 'f/n' } };
+  const artes = { terrenos: { forest: im('perfil-f') }, fichas: null };
+  assert.equal(TR.cartaComEscolhas(forest, { ...artes, impressoes: por[0] }).images.normal, 'lista-f/n', 'a da lista vence a do Perfil');
+  assert.equal(TR.cartaComEscolhas(forest, { ...artes, impressoes: por[1] }).images.normal, 'perfil-f/n', 'sem impressão na lista, vale a do Perfil');
+  assert.equal(TR.cartaComEscolhas(forest, artes).images.normal, 'perfil-f/n');
+  assert.equal(forest.images.normal, 'f/n', 'não muda a carta recebida');
+});

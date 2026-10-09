@@ -8915,6 +8915,44 @@ test('e2e · J6 arte escolhida só do meu lado: contra o Shark, a minha Forest s
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- V5 · a impressão da lista vale na mesa ---------------- */
+test('e2e · V5 impressão da lista na mesa: a Forest escolhida na lista (V1) sai na mesa na impressão dela, acima da arte geral do Perfil; o Shark, com a mesma lista, joga com a arte padrão', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; window.__SEM_CENA = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const q = new URL(r.request().url()).searchParams.get('q') || '';
+    if (q === '!"Forest"') return r.fulfill({ json: { object: 'list', has_more: false, data: [0, 1].map(i => ({ object: 'card', id: 'forest-' + i, name: 'Forest', type_line: 'Basic Land — Forest', layout: 'normal', set: 's' + i, set_name: 'E' + i, collector_number: String(i), image_uris: Object.fromEntries(['small', 'normal', 'large'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/forest-${i}.png`])) })) } });
+    return r.fallback(); });
+  await createDeck(page, base, 'Verde', '30 Forest\n30 Grizzly Bear', 'livre');
+  // a lista escolhe a impressão forest-1 para a Forest (V1)
+  await page.click('.deck-slot[data-name="Forest"][data-zona="main"] .ds-card'); await page.waitForSelector('#deck-viewer-prints'); await page.click('#deck-viewer-prints');
+  await page.waitForSelector('.ficha-opcao[data-impressao="forest-1"]', { timeout: 15000 }); await page.click('.ficha-opcao[data-impressao="forest-1"]');
+  await page.waitForSelector('.deck-slot[data-name="Forest"][data-impressao="forest-1"]');
+  // e o Perfil escolhe outra arte geral (forest-0): a da lista, mais específica, vale na partida dela
+  await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('.ficha-opcao[data-opcao="forest-0"]', { timeout: 15000 }); await page.click('.ficha-opcao[data-opcao="forest-0"]');
+  await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="forest-0"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false'; }, null, { timeout: 12000 });
+  // partida contra o Shark, os dois com a mesma lista
+  await page.goto(base + '#/mesa'); await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 15000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 15000 });
+  await page.click('[data-mode="full"]'); await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 30000 }); await page.click('#tb-keep');
+  // joga terrenos e passa turnos até os dois lados terem Forest em campo
+  const campo = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return [0, 1].map(p => s.zones[p].battlefield.filter(o => s.objects[o].name === 'Forest').length); });
+  for (let i = 0; i < 40; i++) {
+    const [eu, bot] = await campo(); if (eu && bot) break;
+    await page.evaluate(() => { const E = window.__estanteMesa, s = E.estado(); if (s.status !== 'playing') return; const a = E.legais().find(a => a.p === 0 && a.t === 'play_land') || E.legais().find(a => a.p === 0 && (a.t === 'attack' && !a.attackers.length)) || E.legais().find(a => a.p === 0 && a.t === 'block') || E.legais().find(a => a.p === 0 && a.t === 'pass'); if (a) { try { E.act(a); } catch (e) { /* segue */ } } });
+    await page.waitForTimeout(120);
+  }
+  const lados = await campo(); assert.ok(lados[0] > 0 && lados[1] > 0, 'os dois lados têm Forest em campo: ' + lados);
+  await page.waitForTimeout(600);
+  const fontes = await page.evaluate(() => ({ eu: [...document.querySelectorAll('.tb-side--me .tb-card[aria-label^="Forest"] img')].map(i => i.dataset.fonte), bot: [...document.querySelectorAll('.tb-side:not(.tb-side--me) .tb-card[aria-label^="Forest"]')].map(c => (c.querySelector('img') || { dataset: {} }).dataset.fonte || 'texto') }));
+  assert.ok(fontes.eu.length && fontes.eu.every(f => /front\/x\/forest-1\.png$/.test(f)), 'a minha Forest está na impressão da lista: ' + JSON.stringify(fontes));
+  assert.ok(fontes.bot.length && fontes.bot.every(f => !/forest-[01]\.png/.test(f)), 'a Forest do bot fica na arte padrão da plataforma: ' + JSON.stringify(fontes));
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- N2 · Notícias ---------------- */
 // O ramo `noticias` de mentira: 60 notícias (15 em português), em três páginas gerais, uma série pt e uma en.
 function ramoN2() {
