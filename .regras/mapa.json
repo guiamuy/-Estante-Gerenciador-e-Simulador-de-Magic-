@@ -4784,12 +4784,15 @@
    "regra": "Interaction of Continuous Effects",
    "titulo": "Características calculadas por camadas",
    "status": "parcial",
-   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\" · CR2d.2 (v91): efeito de habilidade \"vira criatura até o fim do turno\" entra na mesma ordenação por carimbo que as Auras",
+   "evidencia": "Não há sistema de camadas: cada característica é uma função solta que soma fontes fixas (power/toughness index.html:10340-10341 = impresso + marcadores + pump + pumpNext + bonus(); has() :10065 = OU de palavras impressas, grantsAll, tempKeywords, keywordsNext e anexos; colorsOf :10428 = cor impressa). Dentro do que existe o resultado bate (sonda: 2/3 + marcador +1/+1 + pump +4/+4 + Ethereal Armor +2/+2 + Cryoshatter -5/-0 = 4/10) · CR2d.1 (v90): Aura que redefine a criatura (aura.becomes: tipos, subtipos, P/T base, palavras-chave, perde habilidades) — mutacao()/tiposDe()/linhaDeTipo()/basePT()/semImpressas(); commander.regras \"CR2d.1 · …\" · CR2d.2 (v91): efeito de habilidade \"vira criatura até o fim do turno\" entra na mesma ordenação por carimbo que as Auras · CR2-G R3a (M-234, motor v95 sem mudança): efeitos contínuos estáticos num caminho só — continuosQueAfetam(s, o) junta, com fonte e carimbo, os de Aura/Equipamento (afetados: anexada), \"suas criaturas têm\" (seletor) e o bônus próprio por contagem (self); bonus() (7c) e a parte concedida de has() (6) leem só esse caminho; carta nova escreve continuo: [{ afetados, poder, resistencia, palavras, per… }] (hinos, \"as dos oponentes recebem -1/-1\", \"outros Elfos têm…\"); equivalência com o caminho antigo em continuo.equivalencia.unit",
    "falta": "Camada 1: só virada para baixo, embutida em power/has/isCreature. Camada 2 (controle): nenhum efeito; o.controller é escrito direto. Camada 3: nada. Camada 4: conceder e Aura que redefine o tipo (CR2d.1), sem \"vira criatura\"/\"perde tipos\". Camada 5: só devoid gravado nos fatos (:10166). Camada 6: só soma de palavras-chave; não existe perder habilidade nem \"não pode ter\". Camada 7: só soma (7c). Construir exige um registro de efeitos (fonte, camada, duração, afetados, carimbo) e uma função única de características.",
    "esforco": "G",
    "depende": [
     "613.7",
     "611"
+   ],
+   "testes": [
+    "M-234 · R3a · matriz das cartas que concedem: Auras, Equipamentos, concedida a todas, bônus por contagem, Aura que tira as habilidades no meio da fila, concessão com esperar (bestow) e virada para baixo — o mesmo pelos dois caminhos"
    ]
   },
   {
@@ -4824,7 +4827,7 @@
    "titulo": "Subcamadas de poder e resistência",
    "status": "parcial",
    "evidencia": "7c: soma de marcadores, pump, pumpNext e bonus() em power/toughness (:10340-10341); comutativa, então correta (sonda 4/10; bogles.regras Ethereal Armor) · CR2d.1 (v90): 7b P/T base fixado por Aura (basePT); 7c/7d continuam somando por cima (teste de carimbo com +3/+3)",
-   "falta": "7a: P/T definido por habilidade (*/*) não existe; cardFacts transforma \"*\" em nulo e a conta parte de 0. 7b: só por Aura que redefine a criatura (CR2d.1); \"torna-se N/N\" por mágica ou habilidade ainda não. 7d: trocar poder e resistência não existe. Os bônus são um número acumulado no objeto, sem saber de qual efeito veio.",
+   "falta": "7a: P/T definido por habilidade (*/*) não existe; cardFacts transforma \"*\" em nulo e a conta parte de 0. 7b: só por Aura que redefine a criatura (CR2d.1); \"torna-se N/N\" por mágica ou habilidade ainda não. 7d: trocar poder e resistência não existe. Os bônus temporários (até o fim do turno, até o seu próximo turno) ainda são um número acumulado no objeto, sem saber de qual efeito veio; os estáticos já vêm de efeitos com fonte (CR2-G R3a).",
    "esforco": "G",
    "depende": [
     "613.1"

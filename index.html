@@ -5285,6 +5285,29 @@ const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countere
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'mode:2', 'mode:3', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
+/** CR2-G R3a · um efeito contínuo estático: `afetados` ('self', 'anexada' ou seletor de permanentes no campo, sem
+ * palavra-chave no seletor — a camada 6 dependeria dela mesma), e ao menos uma mudança: poder, resistencia, palavras, ou
+ * perPoder/perResistencia com uma contagem `per`. */
+const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia'];
+function continuoErros(c, tag) {
+  if (!c || typeof c !== 'object') return [`${tag}: precisa ser um objeto`];
+  const errs = [];
+  for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
+  const a = c.afetados;
+  if (a !== 'self' && a !== 'anexada') {
+    if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor`);
+    else {
+      errs.push(...seletorErros(a, `${tag}: afetados`));
+      for (const k of ['palavra', 'semPalavra', 'jogadores', 'habilidades', 'ref', 'ou']) if (a[k] != null) errs.push(`${tag}: afetados não aceita "${k}"`);
+      if (a.zona != null && a.zona !== 'battlefield') errs.push(`${tag}: efeito contínuo afeta só permanentes no campo`);
+    }
+  }
+  for (const k of ['poder', 'resistencia', 'perPoder', 'perResistencia']) if (c[k] != null && !Number.isInteger(c[k])) errs.push(`${tag}: "${k}" precisa ser inteiro`);
+  if (c.palavras != null && !(Array.isArray(c.palavras) && c.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "palavras"`);
+  if ((c.perPoder != null || c.perResistencia != null) && !(PER_COUNTS.includes(c.per) || (c.per && typeof c.per === 'object' && typeof c.per.subtype === 'string'))) errs.push(`${tag}: contagem "${c.per}" desconhecida`);
+  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia) errs.push(`${tag}: não muda nada`);
+  return errs;
+}
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
   // CR2b.3 · recebe dano (ela mesma); a permanente anexada morre / morre ou é exilada (Equipamento e Aura olham para trás)
   'dealt-damage', 'attached-dies', 'attached-dies-or-exiled',
@@ -5449,7 +5472,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -5502,6 +5525,9 @@ function validateScript(sc) {
   if (sc && sc.entersTappedUnless && sc.entersTappedUnless.anyPlayerLifeAtMost == null && !Array.isArray(sc.entersTappedUnless.controlsSubtype)) errs.push('entra virado a menos que: condição desconhecida');
   if (sc && sc.manaRule && !(/^[WUBRG]+$/.test(sc.manaRule.colors || '') && (sc.manaRule.damage || sc.manaRule.life || sc.manaRule.needsSubtype || sc.manaRule.needsType))) errs.push('regra de mana: precisa das cores e de dano, vida ou condição');
   for (const k of ((sc && sc.grantsAll) || {}).keywords || []) if (!KEYWORDS.includes(String(k).toLowerCase())) errs.push(`dá a todas: palavra-chave "${k}" não é resolvida pelo motor`);
+  // CR2-G R3a · efeitos contínuos estáticos: quem afeta e o que muda (camadas 6 e 7c)
+  ((sc && sc.continuo) || []).forEach((c, i) => errs.push(...continuoErros(c, `contínuo ${i + 1}`)));
+  if (sc && sc.continuo != null && !Array.isArray(sc.continuo)) errs.push('contínuo precisa ser uma lista');
   for (const ab of (sc && sc.abilities) || []) for (const [i, m] of (ab.modes || []).entries()) errs.push(...effectErrors(m.effects, `modo do gatilho ${i + 1}`));
   for (const ab of (sc && sc.abilities) || []) for (const m of ab.modes || []) if (!m.label) errs.push('modo do gatilho sem rótulo');
   if (sc && sc.sneak && !sc.sneak.mana) errs.push('esgueirar-se sem custo de mana');
@@ -6732,7 +6758,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, continuoErros, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -12653,8 +12679,20 @@ function cardFacts(card) {
 }
 const isPermanent = f => f.types.some(t => PERMANENT.includes(t));
 const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
-/** S11 · palavras-chave próprias mais as concedidas por auras e equipamentos. */
+/** S11 · palavras-chave próprias mais as concedidas. CR2-G R3a: o que vem de efeito contínuo estático (Aura, Equipamento,
+ * "suas criaturas têm", `continuo`) passa pelo caminho único `continuosQueAfetam`; o resto (impressas, mutação, até o fim
+ * do turno, marcadores, até o seu próximo turno) fica como estava. */
 function has(s, o, k) {
+  const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1, vale = ts => corte < 0 || (ts || 0) > corte; // CR2d.1 · 613.7: concedida antes da Aura que tira tudo some
+  if (m && m.keywords.includes(k)) return true;
+  if (!(o && o.faceDown) && corte < 0 && s.facts[o.name].kw.includes(k)) return true;
+  const tts = o.tempTs || []; if ((o.tempKeywords || []).some((x, i) => x === k && vale(tts[i]))) return true;
+  if (corte < 0 && SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) return true; // CR2c.5 · 122.1b (sem carimbo: a Aura que tira tudo também os anula)
+  if (corte < 0 && (((o.keywordsNext || {}).list) || []).includes(k)) return true; // S59 · até o seu próximo turno
+  return continuosQueAfetam(s, o).some(e => e.palavras && vale(e.ts) && e.palavras.includes(k));
+}
+/** CR2-G R3a · o caminho antigo de has (só para o teste de equivalência). */
+function hasLegado(s, o, k) {
   const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1, vale = ts => corte < 0 || (ts || 0) > corte; // CR2d.1 · 613.7: concedida antes da Aura que tira tudo some
   if (m && m.keywords.includes(k)) return true;
   if (!(o && o.faceDown) && corte < 0 && s.facts[o.name].kw.includes(k)) return true;
@@ -12699,7 +12737,8 @@ const tiposDe = (s, o) => { const m = mutacao(s, o); return (m && m.types) || s.
 /** Linha de tipo agora, para subtipos (camada 4): "Artifact Creature — Insect". */
 const linhaDeTipo = (s, o) => { const m = mutacao(s, o); if (!m) return s.facts[o.name].typeText || '';
   const cap = x => x.charAt(0).toUpperCase() + x.slice(1); return `${m.types.map(cap).join(' ')}${m.subtypes.length ? ' — ' + m.subtypes.join(' ') : ''}`; };
-function bonus(s, host) {
+/** CR2-G R3a · o caminho antigo do bônus de P/T (só para o teste de equivalência). */
+function bonusLegado(s, host) {
   let p = 0, tgh = 0;
   const self = semImpressas(s, host) ? null : (s.facts[host.name].script || {}).self; // CR2d.1 · a habilidade estática própria some com as outras
   if (self && self.per) { const n = countFor(s, host, self.per); p += (self.perPower || 0) * n; tgh += (self.perToughness || 0) * n; }
@@ -12710,6 +12749,53 @@ function bonus(s, host) {
       const n = countFor(s, x, g.per);
       p += (g.perPower || 0) * n; tgh += (g.perToughness || 0) * n;
     }
+  }
+  return { p, t: tgh };
+}
+/* ---------------- CR2-G R3a · 613 · efeitos contínuos estáticos num caminho só ----------------
+   Um efeito diz quem afeta (`afetados`: 'self', 'anexada' ou um seletor relativo a quem controla a fonte) e o que muda:
+   camada 6 (`palavras` ganhas) e 7c (`poder`/`resistencia` somados, e `perPoder`/`perResistencia` vezes uma contagem `per`
+   feita do ponto de vista da fonte). Os bônus de Aura e Equipamento (grants), "suas criaturas têm" (grantsAll) e o bônus
+   próprio por contagem (self.per) viram atalhos; carta nova escreve `continuo: [...]` no script. */
+const SEM_CONTINUOS = Object.freeze([]);
+function continuosDaFonte(s, x) {
+  const sc = s.facts[x.name].script;
+  if (!sc || !(sc.grants || sc.grantsAll || (sc.self && sc.self.per) || sc.continuo)) return SEM_CONTINUOS; // atalho: quase toda permanente não concede nada
+  const out = [];
+  const g = grantsOf(s, x);
+  if (g && (g.power || g.toughness || g.per || (g.keywords || []).length)) out.push({ afetados: 'anexada', poder: g.power || 0, resistencia: g.toughness || 0,
+    per: g.per, perPoder: g.perPower || 0, perResistencia: g.perToughness || 0, palavras: (g.keywords || []).map(w => String(w).toLowerCase()) });
+  if (sc.grantsAll && (sc.grantsAll.keywords || []).length) out.push({ afetados: GRANTS_ALL_AFETADOS, palavras: sc.grantsAll.keywords.map(w => String(w).toLowerCase()) });
+  if (sc.self && sc.self.per) out.push({ afetados: 'self', per: sc.self.per, perPoder: sc.self.perPower || 0, perResistencia: sc.self.perToughness || 0 });
+  for (const c of sc.continuo || []) out.push({ ...c, palavras: c.palavras ? c.palavras.map(w => String(w).toLowerCase()) : undefined });
+  return out;
+}
+/** "Creatures you control have …": as suas criaturas pelo tipo de agora (como era: tiposDe, não isCreature). */
+const GRANTS_ALL_AFETADOS = { tipos: ['creature'], de: 'you', tiposImpressos: true };
+/** Os efeitos contínuos estáticos que afetam `o` agora, cada um com a fonte e o carimbo de tempo (613.7). */
+function continuosQueAfetam(s, o) {
+  const out = [];
+  if (!o || !s.facts[o.name]) return out;
+  // 'self': a própria permanente (em qualquer zona, como o bônus antigo); some com as habilidades impressas
+  if (!semImpressas(s, o)) for (const e of continuosDaFonte(s, o)) if (e.afetados === 'self') out.push({ ...e, fonte: o, ts: o.ts || 0 });
+  for (const x of battlefield(s)) {
+    if (!s.facts[x.name]) continue;
+    for (const e of continuosDaFonte(s, x)) {
+      if (e.afetados === 'self') continue;
+      if (e.afetados === 'anexada') { if (x.attachedTo === o.oid) out.push({ ...e, fonte: x, ts: x.anexadaEm || 0 }); continue; }
+      // seletor: só permanentes no campo; a fonte que perdeu as habilidades não concede (CR2d.1)
+      if (o.zone !== 'battlefield' || semImpressas(s, x) || !selCasa(s, x.controller, o, e.afetados, x.oid, { mira: false, src: x })) continue;
+      out.push({ ...e, fonte: x, ts: x.ts || 0 });
+    }
+  }
+  return out;
+}
+/** 7c · soma dos bônus de P/T dos efeitos contínuos estáticos (a ordem não importa dentro da subcamada). */
+function bonus(s, host) {
+  let p = 0, tgh = 0;
+  for (const e of continuosQueAfetam(s, host)) {
+    p += e.poder || 0; tgh += e.resistencia || 0;
+    if (e.per && (e.perPoder || e.perResistencia)) { const n = countFor(s, e.fonte, e.per); p += (e.perPoder || 0) * n; tgh += (e.perResistencia || 0) * n; }
   }
   return { p, t: tgh };
 }
@@ -12828,6 +12914,7 @@ function createGame(setup) {
     if (sc.entersTappedUnless) f.script.entersTappedUnless = sc.entersTappedUnless; // S56
     if (sc.manaRule) f.script.manaRule = sc.manaRule; // R11.2
     if (sc.grantsAll) f.script.grantsAll = sc.grantsAll; // S56
+    if (sc.continuo) f.script.continuo = sc.continuo; // CR2-G R3a · efeitos contínuos estáticos
     if (sc.back) { f.script.back = sc.back.name; f.script.disturb = sc.disturb; f.script.omen = sc.omen; }
   }
 
@@ -16778,8 +16865,8 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
-  stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, hasLegado, bonusLegado, continuosQueAfetam, sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+  stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
 })();
@@ -19054,6 +19141,20 @@ function descreveSeletor(sel) {
     : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';
   return `${coisa}${sem}${dono}${jog ? ' ou ' + jog : ''}`;
 }
+/** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
+const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
+  'other-enchantments': 'outro encantamento', 'auras-on-battlefield': 'Aura no campo', 'permanents-you-control': 'permanente que você controla', 'elves-you-control': 'Elfo que você controla',
+  'counters-on-source': 'marcador +1/+1 nela' };
+function descreveContinuo(c) {
+  const sinal = n => (n < 0 ? '' : '+') + n;
+  const quem = c.afetados === 'self' ? 'esta permanente' : c.afetados === 'anexada' ? 'a permanente anexada'
+    : descreveSeletor(c.afetados).replace(/^uma /, 'cada ').replace(/^outra /, 'cada outra ');
+  const partes = [];
+  if (c.poder || c.resistencia) partes.push(`recebe ${sinal(c.poder || 0)}/${sinal(c.resistencia || 0)}`);
+  if (c.perPoder || c.perResistencia) partes.push(`recebe ${sinal(c.perPoder || 0)}/${sinal(c.perResistencia || 0)} para cada ${(c.per && c.per.subtype) || PER_PT[c.per] || c.per}`);
+  if ((c.palavras || []).length) partes.push(`tem ${c.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
+  return `${quem} ${partes.join(' e ')}`;
+}
 function descreveAlvo(chave) {
   if (chave && typeof chave === 'object') return descreveSeletor(chave);
   const k = String(chave);
@@ -19435,7 +19536,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
