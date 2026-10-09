@@ -8012,6 +8012,10 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   assert.match(await c1.locator('.cat-item__meta').innerText(), /Commander\s*100/);
   assert.equal(await c1.locator('.cat-item__arte img').getAttribute('src'), 'https://cards.scryfall.io/small/front/0/0/00000001-0000-4000-8000-000000000000.jpg');
   assert.ok((await c1.locator('.deck-item__add').boundingBox()).height >= 44);
+  // T5 · respiro: o botão fica 16 px abaixo da última lista e centrado (relato #1)
+  { const [ls, bt] = [await page.locator('#catalogo-lista').boundingBox(), await page.locator('#catalogo-mais').boundingBox()];
+    assert.ok(bt.y - (ls.y + ls.height) >= 16, 'espaço entre a lista e Mostrar mais: ' + (bt.y - ls.y - ls.height));
+    assert.ok(Math.abs((bt.x + bt.width / 2) - (ls.x + ls.width / 2)) < 2, 'centrado'); }
   await page.click('#catalogo-mais'); assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 38);
   // Z5 · lista de torneio: quem jogou e quando, e o crédito da TopDeck.gg com link
   assert.equal(await page.innerText('.cat-item[data-id="topdeck-copa-teste-1-1"] .cat-item__sub'), 'Fulana de Tal · 04/10/2026');
@@ -8133,7 +8137,8 @@ test('e2e · Z4 jogar a partir do catálogo: Jogar ao lado de Adicionar traz a l
   await page.goto(base + '#/listas/catalogo?id=mtgjson-cmd-2'); await page.waitForSelector('#catd-abrir');
   assert.match(await page.innerText('#catd-guardada'), /Na sua estante: com internet, as cartas e as imagens ficam guardadas para jogar sem rede\./);
   await page.click('#catd-jogar'); await page.waitForSelector('#mesa-mine');
-  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list');
+  // a lista de Listas chega depois do contêiner (G-234 · Z4 instável: contava antes de as linhas chegarem)
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item');
   assert.equal(await page.locator('#decks-list .deck-item', { hasText: 'Commander Deck 2' }).count(), 1, 'uma lista só');
   assert.deepEqual(errors, []);
 });

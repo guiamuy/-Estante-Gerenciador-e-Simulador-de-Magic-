@@ -487,7 +487,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cq | T2 notícias no núcleo da Início: lista contínua, filtro de idioma, guardar e atualizar na própria Início, voltar ao topo | T | 1 a 2 | — |
 | 16º-cr | T3 botão Jogar com volume e resposta ao toque | T | ½ | — |
 | 16º-cs | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada | T | 1 | leitura do que o motor já expõe (camadas da CR2-G) |
-| 16º-ct | T5 Listas prontas: respiro entre a última lista e Mostrar mais | T | ½ | — |
+| 16º-ct ✅ | T5 Listas prontas: respiro entre a última lista e Mostrar mais (leva G-234) | T | ½ | — |
 | 16º-cu | T6 perfil por pessoa e servidor: plano curto (perfis no aparelho) e médio prazo (conta e sincronização) | T | 1 de decisão + 3 a 5 | escolha do serviço (decisão do usuário) |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -6547,8 +6547,12 @@ prontas.
 - **Depende de:** o motor expor base e atual por objeto (as camadas da CR2-G); só leitura — a tela não calcula regra.
 - **Testes:** U do modelo de apresentação (`table-model`); e2e com efeito de +2/+2 e de perder habilidades.
 
-**T5 · Respiro do Mostrar mais** (pedido: Visual · Baixa · Listas prontas)
-- **Aceite:** espaço de `--space-4` entre a última lista do catálogo e **Mostrar mais 30**; teste mede a distância.
+**T5 · Respiro do Mostrar mais** ✅ (leva G-234, 09/10/2026 · registro #1)
+- **Entregue:** **Mostrar mais 30** fica 16 px abaixo da última lista do catálogo (`--space-4`), centrado, com 8 px até a
+  linha da fonte.
+- **Testes:** e2e Z2 mede a distância (≥ 16 px) e o centro.
+- **Junto:** o e2e Z4 caiu uma vez no portão (INSTÁVEIS da G-233): contava as listas antes de as linhas de Listas
+  chegarem; agora espera a primeira linha.
 
 **T6 · Perfil por pessoa e servidor** (pedido: Ideia · Alta · Perfil)
 - **Valor:** cada pessoa com suas preferências e listas, e os dados fora de um aparelho só.

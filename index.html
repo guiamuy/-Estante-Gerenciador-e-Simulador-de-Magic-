@@ -1398,6 +1398,7 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .cat__cabeca { display: flex; flex-direction: column; gap: var(--space-1); }
 .cat-credito { margin: 0; }
 .cat-credito a { color: var(--fg-muted); text-decoration: underline; text-underline-offset: 2px; display: inline-block; min-height: var(--tap-min); line-height: var(--tap-min); }
+.cat-mais { display: flex; justify-content: center; padding: var(--space-4) 0 var(--space-2); }
 .cat-lista { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-2); overflow: hidden; background: var(--bg-elev-1); }
 .cat-item { display: grid; grid-template-columns: minmax(0, 1fr) var(--tap-min); align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); min-height: 88px; }
 .cat-item__abrir { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: var(--space-3); color: inherit; text-decoration: none; min-height: var(--tap-min); border-radius: var(--radius-2); }
@@ -10445,7 +10446,8 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
     mount(listaBox,
       Text(`${recorte.length} ${recorte.length === 1 ? 'lista' : 'listas'}${nomeFmt ? ' de ' + nomeFmt : ''}, da mais nova à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-conta', 'aria-live': 'polite' } }),
       h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l) }))),
-      recorte.length > visiveis.length ? Row({}, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
+      // T5 · respiro entre a última lista e o botão (relato #1: estava colado)
+      recorte.length > visiveis.length ? h('div', { class: 'cat-mais' }, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
       Text(`Fonte: MTGJSON (licença MIT) · ${st.r.velho ? 'sem internet: o catálogo guardado em ' : 'atualizado em '}${new Date(st.r.em).toLocaleDateString('pt-BR')}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catalogo-fonte' } }),
       todas.some(deTorneio) ? CreditoTopdeck('catalogo-credito') : null);
   }
