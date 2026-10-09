@@ -37,6 +37,9 @@ jobs:
           fi
       - name: Coletar
         id: coleta
+        # Z5 · a chave da TopDeck.gg só existe aqui, como segredo do repositório; sem ela, só as listas oficiais
+        env:
+          TOPDECK_KEY: ${{ secrets.TOPDECK_KEY }}
         run: node catalogo.mjs --saida saida
       - name: Publicar no ramo catalogo
         if: always() && steps.coleta.conclusion != 'skipped'
