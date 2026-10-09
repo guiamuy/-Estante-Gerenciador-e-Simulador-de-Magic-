@@ -5461,9 +5461,10 @@
    "titulo": "Ações de palavra-chave (introdução)",
    "status": "definicao",
    "cartas": "não se aplica",
-   "evidencia": " · CR2-G R4a (M-237, v95 sem mudança): mover entre zonas num verbo só — { do: mover, para, de, posicao: topo/fundo/embaralhado, virada, controle: voce/dono, lembra } (moverObjeto); exile, bounce, to_hand, reanimate, reanimate_tapped, to_library_shuffled e to_bottom viraram atalhos; equivalência com o caminho antigo (moverLegado) em mover.equivalencia.unit",
+   "evidencia": " · CR2-G R4a (M-237, v95 sem mudança): mover entre zonas num verbo só — { do: mover, para, de, posicao: topo/fundo/embaralhado, virada, controle: voce/dono, lembra } (moverObjeto); exile, bounce, to_hand, reanimate, reanimate_tapped, to_library_shuffled e to_bottom viraram atalhos; equivalência com o caminho antigo (moverLegado) em mover.equivalencia.unit · CR2-G R4b (M-238): quantificador de jogadores (101.4) — jogadores: cada/cada-oponente/voce nos verbos de jogador (draw, gain, lose, mill, damage, exile_graveyard, token), na ordem ativo-não-ativo (aplicaPorJogador); each-opponent, each-player e o all do exílio de cemitério viram atalhos; equivalência em jogadores.equivalencia.unit",
    "testes": [
-    "M-237 · R4a · os sete verbos de mudança de zona e o verbo \"mover\" deixam o estado igual ao caminho antigo, para cada objeto de cada zona, com fonte mágica e fonte habilidade"
+    "M-237 · R4a · os sete verbos de mudança de zona e o verbo \"mover\" deixam o estado igual ao caminho antigo, para cada objeto de cada zona, com fonte mágica e fonte habilidade",
+    "M-238 · R4b · \"cada oponente\" e \"todos os cemitérios\" pelo quantificador deixam o estado igual ao caminho antigo, em partidas aleatórias, com fonte mágica e fonte criatura (vínculo com a vida, prevenção por cor)"
    ]
   },
   {

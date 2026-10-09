@@ -5264,6 +5264,18 @@ const CADA_SELETOR = {
 };
 /** O seletor "cada" do efeito: `cada` escrito direto, ou o atalho `each-…` (com o subtipo poupado, se houver). */
 /** M-230 · efeitos que já são só atalho de verbo + seletor (a medida de vocabulário os separa). */
+/** CR2-G R4b · 101.4 · "cada jogador / cada oponente / você": o verbo de jogador acontece uma vez para cada um, na ordem
+ * ativo-não-ativo. Os nomes antigos "each-opponent"/"each-player" (e "all" do exílio de cemitério) viram atalhos. */
+const JOGADORES_QUANT = ['cada', 'cada-oponente', 'voce'];
+const VERBOS_DE_JOGADOR = ['draw', 'gain', 'lose', 'mill', 'damage', 'exile_graveyard', 'token'];
+/** O quantificador de um efeito: o escrito, ou o do atalho antigo; null se o efeito não é "para cada jogador". */
+function jogadoresDe(e) {
+  if (!e || !VERBOS_DE_JOGADOR.includes(e.do)) return null;
+  if (e.jogadores) return e.jogadores;
+  if (e.target === 'each-opponent') return 'cada-oponente';
+  if (e.target === 'each-player' || (e.do === 'exile_graveyard' && e.target === 'all')) return 'cada';
+  return null;
+}
 /** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
 const DURACOES = ['fim-do-turno', 'seu-proximo-turno'];
 const EFEITOS_ATALHO = { exile: 'mover (exílio)', bounce: 'mover (mão)', to_hand: 'mover (mão)', reanimate: 'mover (campo, seu controle)', reanimate_tapped: 'mover (campo, virada)', to_library_shuffled: 'mover (grimório, embaralhado)', to_bottom: 'mover (fundo do grimório)', animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
@@ -5696,6 +5708,12 @@ function effectErrors(effects, label, opcional) {
     if (e.upTo && (!isTargeted(e) || effects.slice(i + 1).some(x => isTargeted(x) && !x.upTo))) errs.push(`${label} ${i + 1}: "até N alvos" não pode vir antes de um alvo obrigatório`);
     if (e.do === 'add_mana' && !Array.isArray(e.symbols) && !e.anyColor) errs.push(`${label} ${i + 1}: add_mana precisa da lista de símbolos ou de anyColor`);
     if (e.targetMvMax != null) errs.push(...valueErrors(e.targetMvMax, `${label} ${i + 1}: valor de mana máximo`));
+    if (e.jogadores != null) { // CR2-G R4b · quantificador de jogadores
+      const L = `${label} ${i + 1}`;
+      if (!JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
+      if (!VERBOS_DE_JOGADOR.includes(e.do)) errs.push(`${L}: "jogadores" só vale para ${VERBOS_DE_JOGADOR.join(', ')}`);
+      if (e.target != null || e.cada != null) errs.push(`${L}: "jogadores" não se junta a alvo nem a "cada"`);
+    }
     if (e.do === 'mover') { // CR2-G R4a
       const ZM = ['battlefield', 'graveyard', 'exile', 'hand', 'library'], L = `${label} ${i + 1}`;
       if (!ZM.includes(e.para)) errs.push(`${L}: mover precisa de "para" (campo, cemitério, exílio, mão ou grimório)`);
@@ -6805,7 +6823,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -14236,6 +14254,16 @@ function moverLegado(s, src, eff, obj, ctrl) {
   }
   return false;
 }
+/** CR2-G R4b · 101.4 · aplica o verbo de jogador uma vez para cada jogador do quantificador, na ordem ativo-não-ativo
+ * (quem já perdeu fica de fora). */
+function aplicaPorJogador(s, src, eff, events) {
+  const q = SC.jogadoresDe(eff), ctrl = src.controller;
+  const ordem = [s.turn.active, ...s.players.map((_, i) => i).filter(i => i !== s.turn.active)];
+  const quem = ordem.filter(i => !s.players[i].lost && (q === 'cada' || (q === 'voce' ? i === ctrl : i !== ctrl)));
+  const { jogadores, target, ...base } = eff;
+  for (const i of quem) applyEffect(s, src, { ...base, target: 'player' }, { player: i }, events);
+}
+const porJogador = eff => !!SC.jogadoresDe(eff);
 function applyEffect(s, src, eff, tgt, events) {
   const ctrl = src.controller;
   // S41 · guarda o nome do alvo antes de aplicar: anular uma habilidade a apaga do jogo
@@ -14860,7 +14888,7 @@ function resumeEffects(s, events) {
     if (SC.isTargeted(eff)) tgt = alvos.shift() || null;
     else if (eff.target === 'first-target') tgt = r.alvo || null;
     else if (eff.target === 'target-controller') { const t = r.alvo; tgt = { player: t && t.player != null ? t.player : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : r.controller }; }
-    if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão
+    if (porJogador(eff)) aplicaPorJogador(s, src, eff, events); else if (ehVarredura(eff)) aplicaCada(s, src, eff, events); else // M-230 · a varredura também retoma depois de uma decisão; CR2-G R4b
     applyEffect(s, src, eff, tgt, events); // CR 704.4 · sem ações de estado entre os efeitos de uma mesma resolução
     if (s.pending) { s.resume = { ...r, effects: r.effects.slice(r.effects.indexOf(eff) + 1), alvos }; return; }
   }
@@ -15089,7 +15117,8 @@ function resolveScript(s, o, events) {
       const t = firstTarget;
       const who = t && t.player != null ? t.player : donoDoPrimeiro != null ? donoDoPrimeiro : t && t.oid != null && s.objects[t.oid] ? s.objects[t.oid].controller : o.controller;
       applyEffect(s, o, eff, { player: who }, events);
-    } else if (eff.target === 'each-opponent' || eff.target === 'each-player') { applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
+    } else if (porJogador(eff)) aplicaPorJogador(s, o, eff, events); // CR2-G R4b · "cada jogador / cada oponente / você"
+    else if (eff.target === 'each-opponent' || eff.target === 'each-player') { applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas
     } else if (ehVarredura(eff)) aplicaCada(s, o, eff, events); // S4/M-230 · varredura: "cada" pelo seletor
     else applyEffect(s, o, eff, null, events);
     // CR 704.4 · as ações de estado esperam a mágica terminar de resolver (antes rodavam entre um efeito e outro)
@@ -16978,6 +17007,7 @@ function resolveAbility(s, o, events) {
     if (!effectAllowed(s, fonte, eff)) continue; // S49 · condição do próprio efeito
     if (SC.isTargeted(eff)) { const t = chosen[ti]; const legal = ok[ti]; ti++; if (!primeiro) primeiro = t; if (legal) applyEffect(s, o, eff, t, events); }
     else if (eff.target === 'first-target') { if (primeiro) applyEffect(s, o, eff, primeiro, events); } // S42 · o mesmo alvo
+    else if (porJogador(eff)) aplicaPorJogador(s, o, eff, events); // CR2-G R4b
     else if (eff.target === 'each-opponent' || eff.target === 'each-player') applyEffect(s, o, eff, null, events); // S47 · jogadores, não criaturas (CR2b.1: "cada jogador" caía na varredura de criaturas e sumia sem criatura na mesa)
     else if (eff.target === 'remembered') { const d = o.lembrada; if (d && mesmaEncarnacao(s, d) && s.objects[d.oid]) applyEffect(s, o, eff, { oid: d.oid }, events); } // "that card": só se ainda está onde caiu
     else if (eff.target === 'delayed-object') { const d = o.objetoAtrasado; if (d && mesmaEncarnacao(s, d) && s.objects[d.oid]) applyEffect(s, o, eff, { oid: d.oid }, events); } // 603.7c
@@ -17058,7 +17088,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, applyEffect, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, applyEffect, aplicaPorJogador, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -19391,6 +19421,13 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
+  if (e.jogadores) { // CR2-G R4b · "cada jogador compra 1 carta", "cada oponente perde 2 de vida", "causa 1 de dano a cada jogador"
+    const { jogadores, ...base } = e, quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente', voce: 'você' }[jogadores] || 'cada jogador';
+    if (e.do === 'damage') return `causa ${qtd(e.amount)} de dano a ${quem}`;
+    if (e.do === 'exile_graveyard') return jogadores === 'voce' ? 'exila o seu cemitério' : `exila o cemitério de ${quem}`;
+    const frase = descreveEfeito(base);
+    return frase.startsWith(quem) ? frase : `${quem} ${frase}`;
+  }
   const alvo = e.cada ? descreveSeletor(e.cada).replace(/^(uma|outra) /, 'cada ') : e.target ? (ALVO_PT[e.target] || descreveAlvo(e.target)) : null; // M-230 · varredura escrita como seletor
   const n = qtd(e.amount);
   switch (e.do) {
