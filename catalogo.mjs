@@ -90,7 +90,7 @@ export const FONTE_TOPDECK = { id: 'topdeck', nome: 'TopDeck.gg', url: 'https://
 export const TOPDECK_API = 'https://topdeck.gg/api/v2/tournaments';
 export const FORMATOS_TOPDECK = [['Pauper', 'pauper'], ['Modern', 'modern'], ['Standard', 'standard'], ['Pioneer', 'pioneer'], ['Legacy', 'legacy'], ['EDH', 'commander']];
 export const TOP_POR_TORNEIO = 8, TORNEIOS_POR_FORMATO = 6, DIAS_TOPDECK = 30, MIN_JOGADORES = 16, DIAS_RETENCAO = 60;
-const ZONA_DA_SECAO = s => (/command|leader|lider/i.test(s) ? 'commander' : /side|reserva/i.test(s) ? 'side' : /companion/i.test(s) ? 'side' : /maybe|considering/i.test(s) ? null : 'main');
+const ZONA_DA_SECAO = s => (/^(meta|metadata|info|dados)$/i.test(String(s).trim()) ? null : /command|leader|lider/i.test(s) ? 'commander' : /side|reserva/i.test(s) ? 'side' : /companion/i.test(s) ? 'side' : /maybe|considering/i.test(s) ? null : 'main');
 /** A lista em texto da TopDeck.gg ("~~Mainboard~~", "4 Lightning Bolt" ou só o nome): entradas por zona. URL não é lista. */
 export function leDecklist(texto) {
   const t = String(texto || '').trim();
@@ -117,8 +117,9 @@ export function leDeckObj(obj) {
     const zona = ZONA_DA_SECAO(secao); if (!zona || !cartas || typeof cartas !== 'object') continue;
     const itens = Array.isArray(cartas) ? cartas.map(c => [c && (c.name || c.cardName), c]) : Object.entries(cartas);
     for (const [nome, v] of itens) {
-      const qtd = typeof v === 'number' ? v : v && typeof v === 'object' ? Number(v.count ?? v.quantity ?? v.qty ?? 1) : 1;
-      if (nome && qtd > 0) out.push({ name: String(nome), qty: qtd, zone: zona });
+      // carta é número (quantidade) ou objeto com a quantidade; texto solto (game, format, importedFrom…) é metadado, não carta
+      const qtd = typeof v === 'number' ? v : v && typeof v === 'object' ? Number(v.count ?? v.quantity ?? v.qty ?? 1) : NaN;
+      if (nome && Number.isInteger(qtd) && qtd > 0) out.push({ name: String(nome), qty: qtd, zone: zona });
     }
   }
   return out;
@@ -168,15 +169,17 @@ async function enviaJson(url, corpo, { busca, cabecalhos = {}, prazo = 30000 }) 
 }
 /** Busca os torneios recentes de cada formato e devolve as listas (já com cores e destaque). */
 export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 700, log = () => {} } = {}) {
-  const listas = []; let falhas = 0;
+  const listas = []; let falhas = 0; const porFormato = [];
   for (const [nomeTd, formato] of FORMATOS_TOPDECK) {
     try {
       const ts = await enviaJson(TOPDECK_API, { game: 'Magic: The Gathering', format: nomeTd, last: DIAS_TOPDECK, participantMin: MIN_JOGADORES, columns: ['name', 'decklist', 'wins', 'draws', 'losses'] }, { busca, cabecalhos: { Authorization: chave } });
       const recentes = (Array.isArray(ts) ? ts : []).filter(t => t && Array.isArray(t.standings)).sort((a, b) => (b.startDate || 0) - (a.startDate || 0)).slice(0, TORNEIOS_POR_FORMATO);
       const deste = recentes.flatMap(t => listasDoTorneio(t, formato));
       log(`  TopDeck · ${nomeTd}: ${recentes.length} torneio(s), ${deste.length} lista(s)`);
+      porFormato.push({ formato: nomeTd, torneios: (Array.isArray(ts) ? ts : []).length, recentes: recentes.length, listas: deste.length,
+        semLista: recentes.reduce((n, t) => n + t.standings.slice(0, TOP_POR_TORNEIO).filter(x => x && !leDeckObj(x.deckObj).length && !leDecklist(x.decklist).length).length, 0) });
       listas.push(...deste);
-    } catch (e) { falhas++; log(`✗ TopDeck · ${nomeTd}: ${e.message}`); }
+    } catch (e) { falhas++; porFormato.push({ formato: nomeTd, erro: e.message }); log(`✗ TopDeck · ${nomeTd}: ${e.message}`); }
     if (pausa) await new Promise(r => setTimeout(r, pausa));
   }
   // cores e destaque: a Scryfall em lotes de 75 nomes (o limite da /cards/collection)
@@ -189,7 +192,7 @@ export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 7
     } catch (e) { log(`✗ Scryfall: ${e.message}`); }
     if (pausa) await new Promise(r => setTimeout(r, 120));
   }
-  return { listas: listas.map(l => enriquece(l, dados)), falhas, formatos: FORMATOS_TOPDECK.length };
+  return { listas: listas.map(l => enriquece(l, dados)), falhas, formatos: FORMATOS_TOPDECK.length, porFormato };
 }
 
 async function leJson(caminho) { try { return JSON.parse(await readFile(caminho, 'utf8')); } catch (e) { return null; } }
@@ -222,9 +225,10 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
   // Z5 · torneios: as desta coleta somadas às de antes ainda dentro de 60 dias (uma falha da fonte não esvazia o catálogo)
   const tdAntes = anteriores.filter(l => l.fonte === FONTE_TOPDECK.id), limite = new Date(agora - DIAS_RETENCAO * 86400e3).toISOString().slice(0, 10);
   let td = tdAntes.filter(l => (l.data || '') >= limite), novasTd = 0;
+  let relatorio = null;
   if (chaveTopdeck) {
     const r = await coletaTopdeck(chaveTopdeck, { busca, log, pausa: pausa ? 700 : 0 });
-    falhas += r.falhas;
+    falhas += r.falhas; relatorio = r.porFormato;
     const porId = new Map(td.map(l => [l.id, l]));
     for (const l of r.listas) { await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); if (!porId.has(l.id)) novasTd++; porId.set(l.id, resumoDaLista(l)); }
     td = [...porId.values()].filter(l => (l.data || '') >= limite);
@@ -233,6 +237,8 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
   if (!novas && mesmasTd && antes && antes.pendentes === pendentes) return { gravou: false, novas, novasTd, falhas, indice: antes };
   const indice = montaIndice([...resumos, ...td], { agora, pendentes });
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice) + '\n');
+  // o que a coleta de torneios achou por formato (para conferir sem abrir o log do fluxo)
+  if (relatorio) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio }, null, 1) + '\n');
   return { gravou: true, novas, novasTd, falhas, indice };
 }
 
@@ -244,5 +250,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const r = await publica(pasta, { log: m => console.log(m), chaveTopdeck });
   console.log(r.gravou ? `gravado: ${r.indice.total} lista(s) · ${r.novas} oficial(is) nova(s) · ${r.novasTd || 0} de torneio nova(s) · ${r.falhas} falha(s) · ${r.indice.pendentes} para a próxima coleta` : 'sem mudança: nada gravado');
   for (const f of r.indice.formatos || []) console.log(`  ${f.nome}: ${f.listas}`);
-  if (r.falhas && !r.novas) process.exit(1);
+  // só acusa quando nada veio de nenhuma fonte (uma fonte de torneio fora do ar não derruba a coleta)
+  if (r.falhas && !r.novas && !r.novasTd && !r.gravou) process.exit(1);
 }
