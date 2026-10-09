@@ -1,0 +1,48 @@
+# Z1 · Catálogo de listas (ADR-09). Toda semana lê as listas oficiais no MTGJSON e publica JSON pronto no ramo `catalogo`.
+# O `main` não recebe commit daqui. O push com o GITHUB_TOKEN não dispara outros fluxos.
+# Trilha: geral (arquivo de fluxo novo, no mesmo molde do de Notícias da N1).
+name: Catálogo
+
+on:
+  schedule:
+    - cron: '23 6 * * 1'   # segunda, 06:23 UTC (fora do minuto cheio)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: catalogo
+  cancel-in-progress: false
+
+jobs:
+  coleta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Trazer o que já está publicado (ou começar o ramo vazio)
+        run: |
+          if git ls-remote --exit-code --heads origin catalogo > /dev/null; then
+            git fetch --depth 1 origin catalogo
+            git worktree add saida FETCH_HEAD
+            git -C saida switch -c catalogo
+          else
+            git worktree add --detach saida
+            git -C saida switch --orphan catalogo
+            printf '%s\n' '# Estante · catálogo de listas' '' 'Ramo gerado pelo fluxo "Catálogo" (`catalogo.mjs`, no `main`). Não edite à mão.' '' 'Fonte: MTGJSON (https://mtgjson.com), licença MIT.' > saida/README.md
+          fi
+      - name: Coletar
+        id: coleta
+        run: node catalogo.mjs --saida saida
+      - name: Publicar no ramo catalogo
+        if: always() && steps.coleta.conclusion != 'skipped'
+        run: |
+          cd saida
+          git add -A
+          if git diff --cached --quiet; then echo "sem mudança"; exit 0; fi
+          git -c user.name="estante-catalogo" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit --quiet -m "Catálogo · coleta de $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin catalogo

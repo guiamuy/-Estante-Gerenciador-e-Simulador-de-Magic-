@@ -477,7 +477,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cg ✅ | Y1 relatar de qualquer tela: Relatar no botão de ação ou botão discreto, formulário com tipo e urgência, carimbo, tela Relatos (leva G-222) | Y | 1 | teste no aparelho |
 | 16º-ch ✅ | Y2 relatar na partida: aba na borda que arrasta e lembra, Relatar no balão da faixa, contexto e partida anexada (leva G-224) | Y | 1 | teste no aparelho |
 | 16º-ci ✅ | Y3 relatos para fora: situação e filtros, exportar em texto, JSON e CSV, abrir a partida anexada (leva G-225) | Y | 1 | teste no aparelho |
-| 16º-cj ○ | Z1–Z4 catálogo de listas: coletor (MTGJSON), catálogo por formato, detalhe com visões e estatísticas, importar e jogar | Z | 4 | ADR-09 |
+| 16º-cj ✅ | Z1 coletor do catálogo: MTGJSON no ramo `catalogo`, toda semana, incremental (leva G-226) | Z | 1 | primeira coleta |
+| 16º-cl ○ | Z2–Z4 catálogo por formato, detalhe com visões e estatísticas, importar e jogar | Z | 3 | Z1 |
 | 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -6388,9 +6389,27 @@ presença, sem sugestão de cartas.
 
 **Ordem e tamanho:** Z1 → Z2 → Z3 → Z4 (uma leva cada), Z5 quando houver a chave. Cinco levas.
 
-**Z1 · Coletor e ADR-09** ○ — fluxo semanal `listas.yml` + `catalogo.mjs`: MTGJSON → formato normalizado (nome, formato,
-fonte, tipo, data, descrição, comandante, cartas por zona), publicado no ramo `catalogo` (índice por formato + uma lista
-por arquivo). Testes U do coletor com amostra gravada.
+**ADR-09 · Catálogo de listas por coletor agendado** (09/10/2026, mesmo molde da ADR-08): listas de fora entram no app
+como JSON pronto num ramo próprio (`catalogo`), gerado no GitHub Actions; o app só lê pelo raw.githubusercontent.com
+(que tem CORS aberto) e guarda o que o usuário importa. Nenhuma chave no app; chave de fonte (TopDeck.gg) só como
+segredo do repositório. O `main` não recebe commit do coletor.
+
+**Z1 · Coletor e ADR-09** ✅ (leva G-226, 09/10/2026)
+- **Valor:** as listas oficiais chegam ao app sem depender de CORS nem de servidor próprio.
+- **Entregue:** `catalogo.mjs` (Node, sem dependência) e o fluxo **Catálogo** (`.github/workflows/catalogo.yml`, toda
+  segunda às 06:23 UTC e sob demanda): lê a `DeckList.json` do **MTGJSON** (licença MIT), escolhe as listas dos formatos do
+  catálogo — **Commander**, **Brawl**, **Construído** (decks de desafio) e **Iniciante** (inicial, boas-vindas,
+  planeswalker, temáticos, duelos…); Planechase, Archenemy, caixas, Secret Lair, Arena e MTGO ficam de fora —, baixa as
+  que ainda não estão publicadas (no máximo 250 por coleta, da mais recente para a mais antiga; o resto vem nas próximas)
+  e publica no ramo `catalogo`: `indice.json` (fonte com licença, formatos com contagem, cada lista com nome, formato,
+  tipo, data, código, cores, carta de destaque com o id da Scryfall para a imagem, comandante, total) e
+  `listas/<id>.json` (as mesmas entradas das listas do app: nome, quantidade e zona; mais descrição, reserva e fichas).
+  Carta dupla conta uma vez (a face de trás não soma); sem lista nova, nada é regravado.
+- **Limite declarado:** o MTGJSON não traz texto de descrição das listas; a descrição é o produto e a data de lançamento.
+  As listas oficiais não são de torneio — formatos de torneio (Pauper, Modern…) chegam pela Z5 e, na Z2, pelas listas
+  prontas do próprio app.
+- **Testes:** U `catalogo.unit` ×4 (formatos, normalização, candidatas e índice, publicação incremental com fonte falsa).
+- **Aviso à trilha `infra`:** arquivo de fluxo novo, no molde do de Notícias.
 **Z2 · Catálogo por formato** ○ — tela a partir de Listas: formatos em controle segmentado, cartões com cores em
 símbolos, comandante ou carta de destaque, tipo, data e fonte; busca; vazio, carregando, erro e sem internet.
 **Z3 · Detalhe da lista do catálogo** ○ — descrição da fonte, visões Lista (por tipo), Agregado (por custo e cor) e
