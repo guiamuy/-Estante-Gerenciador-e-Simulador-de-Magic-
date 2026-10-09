@@ -479,7 +479,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ci ✅ | Y3 relatos para fora: situação e filtros, exportar em texto, JSON e CSV, abrir a partida anexada (leva G-225) | Y | 1 | teste no aparelho |
 | 16º-cj ✅ | Z1 coletor do catálogo: MTGJSON no ramo `catalogo`, toda semana, incremental (leva G-226) | Z | 1 | primeira coleta |
 | 16º-cl ✅ | Z2 catálogo por formato em Listas prontas: oficiais da Wizards com arte, cores, busca, lotes e + para a estante (leva G-227) | Z | 1 | teste no aparelho |
-| 16º-cm ○ | Z3–Z4 detalhe da lista do catálogo (visões e estatísticas), jogar direto e sem internet | Z | 2 | Z2 |
+| 16º-cm ✅ | Z3 detalhe da lista do catálogo: cabeça, três visões lembradas, folha da carta, estatísticas, Adicionar/Abrir (leva G-228) | Z | 1 | teste no aparelho |
+| 16º-cn ○ | Z4 jogar direto do catálogo e a lista importada pronta para jogar sem internet | Z | 1 | Z3 |
 | 16º-ck ⛔ | Z5 listas de torneio (TopDeck.gg) | Z | 1 | chave `TOPDECK_KEY` |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
@@ -6455,11 +6456,29 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Testes:** U `catalogo.tela.unit` ×3; e2e "Z2" (erro e Repetir, grade de seis, cartão, lotes, formatos, Pauper,
   busca, adicionar com a origem e abrir na estante, sem internet; `auditaTela` nas quatro medidas e nos dois temas);
   A12 continua igual (as da Estante).
-- **Coleta:** primeira coleta feita em 09/10/2026 — 250 listas (Commander 152, Iniciante 72, Construído 21, Brawl 5), 634
-  na fila das próximas.
+- **Coleta:** primeira coleta em 09/10/2026 — 250 listas; com mais três coletas sob demanda no mesmo dia, o catálogo
+  fechou com **884 listas** (Commander 197, Iniciante 648, Construído 30, Brawl 9) e nada na fila.
 
-**Z3 · Detalhe da lista do catálogo** ○ — descrição da fonte, visões Lista (por tipo), Agregado (por custo e cor) e
-Galeria, estatísticas da L8, folha da carta (rulings e preço), a partir do toque no cartão.
+**Z3 · Detalhe da lista do catálogo** ✅ (leva G-228, 09/10/2026)
+- **Valor:** conhecer a lista oficial carta a carta antes de trazê-la.
+- **Entregue:** no catálogo, a **arte e o texto do cartão abrem a lista** (`#/listas/catalogo?id=…`); o + continua
+  adicionando direto. O detalhe tem:
+  - **cabeça** com a arte grande da carta de destaque, nome, cores em símbolos, formato, contagem (e reserva), comandante,
+    a descrição da fonte e a fonte com a licença (e as fichas do produto);
+  - **Adicionar** (único primário), que vira **Abrir na estante** quando a lista já está lá;
+  - **três visões** em controle segmentado, **lembradas no aparelho**: **Lista** (por tipo, na ordem da estante:
+    comandante, criaturas, …, terrenos, outros, reserva; do custo menor ao maior), **Agregado** (comandante, custo 0 a
+    6 ou mais, terrenos, sem dados, reserva) e **Galeria** (a carta, com ×N); cada linha mostra quantidade, nome e custo
+    em símbolos, e **o toque abre a folha da carta** (com rulings e preço); carta sem dados fica só com o nome;
+  - **Estatísticas** — o **mesmo painel da L8** (extraído para `PainelEstatisticas`, que a lista da estante passou a usar);
+  - estados: carregando com o progresso das cartas; sem internet com a lista ainda não aberta; lista que não existe;
+    cartas sem dados guardados avisadas.
+- **Divergência do plano, declarada:** "Agregado" ficou por custo (com terrenos à parte); a cor já está nas estatísticas
+  (custo × fontes), e um segundo agrupamento por cor repetiria as cartas multicoloridas.
+- **Modelo (puro, `__m39`):** `gruposPorTipo`, `gruposPorCusto`; tela `createCatalogoListaScreen`.
+- **Testes:** U `catalogo.tela.unit` +1; e2e "Z3" (do cartão ao detalhe, cabeça, os três agrupamentos, folha da carta,
+  galeria com ×N, visão lembrada, estatísticas, Adicionar → Abrir na estante, lista inexistente; `auditaTela` nas quatro
+  medidas e nos dois temas); L8 continua igual.
 **Z4 · Jogar e sem internet** ○ — "Jogar" direto contra o Shark a partir do catálogo; cartas e imagens da lista importada
 guardadas pelo guardião (O1) para jogar sem internet.
 **Z5 · Listas de torneio (TopDeck.gg)** ⛔ — evento, colocação e jogador, com o crédito visível; depende da chave.

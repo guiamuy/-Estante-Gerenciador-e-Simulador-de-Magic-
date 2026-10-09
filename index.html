@@ -1396,7 +1396,26 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .cat { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); }
 .cat__cabeca { display: flex; flex-direction: column; gap: var(--space-1); }
 .cat-lista { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-2); overflow: hidden; background: var(--bg-elev-1); }
-.cat-item { display: grid; grid-template-columns: 52px minmax(0, 1fr) var(--tap-min); align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); min-height: 88px; }
+.cat-item { display: grid; grid-template-columns: minmax(0, 1fr) var(--tap-min); align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); min-height: 88px; }
+.cat-item__abrir { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: var(--space-3); color: inherit; text-decoration: none; min-height: var(--tap-min); border-radius: var(--radius-2); }
+.cat-item__abrir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Z3 · detalhe da lista do catálogo */
+.catd__cabeca { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-4); align-items: center; }
+.catd__arte { width: 96px; aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); display: flex; align-items: center; justify-content: center; color: var(--fg-subtle); box-shadow: var(--shadow-2); }
+.catd__arte img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.catd__titulo { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.catd__titulo .ds-text--xl { overflow-wrap: anywhere; }
+.catd__comandante { font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
+.catd-grupos { display: flex; flex-direction: column; gap: var(--space-4); }
+.catd-grupo__cabeca { display: flex; align-items: baseline; gap: var(--space-2); padding-bottom: var(--space-1); border-bottom: 1px solid var(--border); }
+.catd-grupo__linhas { display: flex; flex-direction: column; }
+.catd-linha { display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: 0 var(--space-1); text-align: left; width: 100%;
+  background: transparent; border: 0; border-bottom: 1px solid var(--border); color: inherit; font: inherit; font-size: var(--text-md); }
+.catd-linha:last-child { border-bottom: none; }
+.catd-linha__qtd { font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; color: var(--fg-muted); text-align: right; }
+.catd-linha__nome { overflow-wrap: anywhere; }
+.catd-linha--sem .catd-linha__nome { color: var(--fg-muted); }
+@media (hover: hover) { button.catd-linha:hover { background: var(--accent-soft); } }
 .cat-item:last-child { border-bottom: none; }
 .cat-item__arte { width: 52px; aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); display: flex; align-items: center; justify-content: center; color: var(--fg-subtle); box-shadow: var(--shadow-1); }
 .cat-item__arte img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -10055,7 +10074,7 @@ const __m39 = (function () {
    lista aberta ou importada também. Importar cria uma lista comum na estante, com a origem marcada.
    O modelo é puro e tem teste sem navegador; a seção só desenha.
    ===================================================================== */
-const { h, mount, Stack, Row, Text, Button, IconButton, Input, Empty, Note, Badge, Icone, ManaPips, AvisoRede, toast } = __m3;
+const { h, mount, Stack, Row, Text, Button, IconButton, Input, Empty, Note, Badge, Icone, ManaPips, AvisoRede, toast, ComSimbolos } = __m3;
 const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/catalogo/';
 const CHAVE_INDICE = 'catalogo.indice';
 const CHAVE_LISTA = id => 'catalogo.lista.' + id;
@@ -10135,12 +10154,13 @@ function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null 
   const sub = (l.comandante || []).length ? h('span', { class: 'cat-item__sub', lang: 'en' }, l.comandante.join(' + '))
     : h('span', { class: 'cat-item__sub' }, [l.tipo, dataBR(l.data)].filter(Boolean).join(' · '));
   return h('article', { class: 'cat-item', dataset: { id: l.id, formato: l.formato } },
-    arte,
+    // Z3 · arte e texto abrem o detalhe da lista; o + continua adicionando direto
+    h('a', { class: 'cat-item__abrir', href: '#/listas/catalogo?id=' + encodeURIComponent(l.id), 'aria-label': `${l.nome}: ver a lista` }, arte,
     h('span', { class: 'cat-item__corpo' },
       h('span', { class: 'cat-item__nome' }, l.nome),
       h('span', { class: 'cat-item__meta' }, l.cores ? ManaPips(l.cores) : null, h('span', { class: 'cat-item__formato' }, ROTULO_DO_FORMATO[l.formato]),
         l.cartas ? h('span', { class: 'cat-item__conta', role: 'img', 'aria-label': `${l.cartas} cartas`, title: `${l.cartas} cartas` }, Icone('baralho', { tamanho: 16 }), h('b', {}, String(l.cartas))) : null),
-      sub),
+      sub)),
     tenho ? h('span', { class: 'deck-item__ja', role: 'img', 'aria-label': 'Já na sua estante', title: 'Já na sua estante' }, Icone('marcar', { tamanho: 20 }))
       : IconButton('mais', `Adicionar ${l.nome}`, { variant: 'primary', classe: 'deck-item__add', disabled: ocupado, dataset: { catalogoAdd: l.id }, onClick: onAdicionar }));
 }
@@ -10198,7 +10218,126 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
   return box;
 }
 
-return { BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+
+/* ---------------- Z3 · detalhe da lista do catálogo ----------------
+   Três visões das mesmas cartas: Lista (por tipo, como na estante), Agregado (por custo de mana, terrenos à parte) e
+   Galeria (as cartas). Os dados das cartas vêm do repositório (cache primeiro); carta sem dados fica no grupo
+   "Sem dados" e conta à parte nas estatísticas. Puro: a tela só desenha. */
+const VISOES = [['lista', 'Lista', 'linhas'], ['agregado', 'Agregado', 'pilhas'], ['galeria', 'Galeria', 'camadas']];
+const chaveDaCarta = nome => (typeof __m7 !== 'undefined' ? __m7.norm(nome) : norm(nome));
+const cartaDe = (cards, nome) => (cards && cards.get ? cards.get(chaveDaCarta(nome)) || null : null);
+const ordemNoGrupo = cards => (a, b) => ((cartaDe(cards, a.name) || {}).cmc || 0) - ((cartaDe(cards, b.name) || {}).cmc || 0) || a.name.localeCompare(b.name);
+/** Por tipo, na ordem das categorias da estante (comandante, criaturas, …, terrenos, reserva). */
+function gruposPorTipo(entradas, cards) {
+  const D = __m14;
+  return D.CATEGORIES.map(([chave, rotulo]) => {
+    const itens = (entradas || []).filter(e => D.categoryOf(e, cartaDe(cards, e.name)) === chave).sort(ordemNoGrupo(cards)).map(e => ({ ...e, carta: cartaDe(cards, e.name) }));
+    return itens.length ? { chave, rotulo, n: itens.reduce((t, e) => t + e.qty, 0), itens } : null;
+  }).filter(Boolean);
+}
+/** Por custo de mana: comandante, custo 0 a 6+, terrenos, sem dados e reserva. */
+function gruposPorCusto(entradas, cards) {
+  const g = new Map(); const poe = (chave, rotulo, e) => { if (!g.has(chave)) g.set(chave, { chave, rotulo, n: 0, itens: [] }); const x = g.get(chave); x.itens.push({ ...e, carta: cartaDe(cards, e.name) }); x.n += e.qty; };
+  for (const e of entradas || []) {
+    const c = cartaDe(cards, e.name);
+    if (e.zone === 'commander') poe('comandante', 'Comandante', e);
+    else if (e.zone === 'side') poe('reserva', 'Reserva', e);
+    else if (!c) poe('sem-dados', 'Sem dados', e);
+    else if (/\bLand\b/.test((c.type_line || '').split('//')[0])) poe('terrenos', 'Terrenos', e);
+    else { const v = Math.min(6, Math.max(0, Math.floor(c.cmc || 0))); poe('custo-' + v, v === 6 ? 'Custo 6 ou mais' : `Custo ${v}`, e); }
+  }
+  const ordem = ['comandante', ...[0, 1, 2, 3, 4, 5, 6].map(v => 'custo-' + v), 'terrenos', 'sem-dados', 'reserva'];
+  return ordem.filter(k => g.has(k)).map(k => { const x = g.get(k); x.itens.sort(ordemNoGrupo(cards)); return x; });
+}
+
+function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
+  const id = (location.hash.split('?')[1] ? new URLSearchParams(location.hash.split('?')[1]).get('id') : null) || '';
+  const root = Stack({ class: 'ds-wrap catd', style: { paddingTop: 'var(--space-4)' } }, __m3.Carregando('Abrindo a lista…', { tamanho: 'tela' }));
+  const st = { l: null, cards: new Map(), visao: 'lista', minhas: [], stats: false, custo: null, ocupado: false, semRede: false };
+  const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  const go = r => { location.hash = '#' + r; };
+  const voltar = () => h('div', {}, Button('Listas prontas', { id: 'catd-voltar', icone: 'voltar', variant: 'ghost', classe: 'ds-btn--voltar', onClick: () => go('/listas/prontas') }));
+  async function carrega() {
+    try { st.visao = (await store.get('catalogo.visao')) || 'lista'; if (!VISOES.some(v => v[0] === st.visao)) st.visao = 'lista'; st.stats = (await store.get('catalogo.estatisticas')) === true; } catch (e) { /* padrão */ }
+    try { st.l = await catalogo.lista(id); }
+    catch (e) {
+      const sem = !temRede();
+      return mount(root, voltar(), sem ? AvisoRede('Sem internet: esta lista ainda não foi aberta neste aparelho. Ela aparece quando houver conexão.', { id: 'catd-sem-rede' })
+        : Empty('Esta lista não está no catálogo.', Button('Ver o catálogo', { icone: 'voltar', onClick: () => go('/listas/prontas') }), { icone: 'caixa', titulo: 'Lista não encontrada', id: 'catd-ausente' }));
+    }
+    try { st.minhas = await decks.list(); } catch (e) { st.minhas = []; }
+    const progresso = h('span', { class: 'ds-carregando__texto' }, 'Buscando cartas…');
+    mount(root, voltar(), __m3.Carregando(progresso, { tamanho: 'bloco', id: 'catd-cartas' }));
+    try {
+      cardRepo.stats.degraded = false;
+      st.cards = await cardRepo.byNames(st.l.entradas.map(e => e.name), (feitas, total) => { progresso.textContent = `Buscando cartas… ${feitas} de ${total}`; });
+      st.semRede = !!cardRepo.stats.degraded;
+    } catch (e) { st.cards = new Map(); st.semRede = true; }
+    pinta();
+  }
+  async function adiciona() {
+    if (st.ocupado) return; st.ocupado = true; pinta();
+    try { const d = await decks.save(listaParaSalvar(st.l)); st.minhas = await decks.list(); toast(`${st.l.nome} está na sua estante`, 4200, { acao: { rotulo: 'Abrir', icone: 'listas', onClick: () => go('/lista?id=' + d.id) } }); }
+    catch (e) { toast('Não foi possível salvar a lista neste aparelho'); }
+    finally { st.ocupado = false; pinta(); }
+  }
+  const abreCarta = c => { if (c && typeof __m12 !== 'undefined') __m12.openCardViewer(c); };
+  function linha(e) {
+    const c = e.carta;
+    const corpo = [h('span', { class: 'catd-linha__qtd' }, String(e.qty)), h('span', { class: 'catd-linha__nome', lang: 'en' }, e.name),
+      c && c.mana_cost ? h('span', { class: 'catd-linha__custo' }, ComSimbolos(c.mana_cost)) : h('span', {})];
+    return c ? h('button', { class: 'catd-linha', type: 'button', dataset: { nome: e.name }, 'aria-label': `${e.qty} ${e.name}: abrir a carta`, onClick: () => abreCarta(c) }, ...corpo)
+      : h('div', { class: 'catd-linha catd-linha--sem', dataset: { nome: e.name } }, ...corpo);
+  }
+  const grupo = g => h('section', { class: 'catd-grupo', dataset: { grupo: g.chave } },
+    h('div', { class: 'catd-grupo__cabeca' }, Text(g.rotulo, { size: 'md', display: true, as: 'h3' }), Text(String(g.n), { size: 'sm', tone: 'muted' })),
+    h('div', { class: 'catd-grupo__linhas' }, ...g.itens.map(linha)));
+  function galeria() {
+    const itens = st.l.entradas.map(e => ({ ...e, carta: cartaDe(st.cards, e.name) }));
+    return h('div', { class: 'ds-cardgrid catd-galeria', id: 'catd-galeria' }, ...itens.map(e => {
+      const c = e.carta, imgs = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images));
+      const face = __m3.CardFace({ name: e.name, image: imgs ? imgs.normal || imgs.small : null, mana_cost: c && c.mana_cost, type_line: c && c.type_line }, { botao: true });
+      if (c) face.addEventListener('click', () => abreCarta(c));
+      return h('div', { class: 'deck-slot catd-slot', dataset: { nome: e.name, zona: e.zone } }, face, e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null);
+    }));
+  }
+  function pinta() {
+    const l = st.l, tenho = jaNaEstante(l, st.minhas), minha = st.minhas.find(d => (d.origem && d.origem.id === l.id) || norm(d.name) === norm(l.nome));
+    const img = imagemDaCarta(l.destaqueId, 'normal');
+    const arte = h('span', { class: 'catd__arte', 'aria-hidden': 'true' }, img ? h('img', { src: img, alt: '', decoding: 'async' }) : Icone('baralho', { tamanho: 32 }));
+    const deck = { format: l.formato === 'commander' ? 'commander' : 'livre', entries: l.entradas };
+    const e = __m14.estatisticasDaLista(deck, st.cards);
+    const cabStats = { titulo: 'Estatísticas', icone: 'painel', aberto: st.stats, id: 'catd-stats', toggleId: 'catd-stats-toggle',
+      resumo: e.total - e.semDados ? [`${e.terrenos} terrenos · custo médio ${String(e.custoMedio).replace('.', ',')}`] : '',
+      onToggle: () => { st.stats = !st.stats; store.set('catalogo.estatisticas', st.stats).catch(() => {}); pinta(); } };
+    const stats = !st.stats ? __m3.Expansivel(cabStats) : !(e.total - e.semDados) ? __m3.Expansivel(cabStats, Empty('Sem os dados das cartas ainda. Conecte-se para a lista buscar as cartas.', null, { icone: 'semRede' }))
+      : __m3.Expansivel(cabStats, ...__m15.PainelEstatisticas(e, { id: 'catd-stats', custo: st.custo, aoCusto: c => { st.custo = c; pinta(); } }));
+    const visoes = h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Como ver as cartas', id: 'catd-visoes' },
+      ...VISOES.map(([k, nome, icone]) => __m3.Chip(nome, { icone, pressed: st.visao === k, dataset: { visao: k }, onClick: () => { st.visao = k; store.set('catalogo.visao', k).catch(() => {}); pinta(); } })));
+    const corpo = st.visao === 'galeria' ? galeria()
+      : h('div', { class: 'catd-grupos', id: 'catd-grupos' }, ...(st.visao === 'agregado' ? gruposPorCusto : gruposPorTipo)(l.entradas, st.cards).map(grupo));
+    mount(root,
+      voltar(),
+      h('header', { class: 'catd__cabeca' }, arte,
+        h('div', { class: 'catd__titulo' },
+          Text(l.nome, { size: 'xl', display: true, as: 'h1', attrs: { id: 'catd-nome' } }),
+          h('span', { class: 'cat-item__meta catd__meta' }, l.cores ? ManaPips(l.cores) : null, h('span', { class: 'cat-item__formato' }, ROTULO_DO_FORMATO[l.formato]),
+            h('span', { class: 'cat-item__conta', role: 'img', 'aria-label': `${l.cartas} cartas` + (l.reserva ? ` e ${l.reserva} na reserva` : ''), title: `${l.cartas} cartas` }, Icone('baralho', { tamanho: 16 }), h('b', {}, String(l.cartas)), l.reserva ? ` + ${l.reserva}` : '')),
+          (l.comandante || []).length ? h('span', { class: 'catd__comandante', lang: 'en' }, l.comandante.join(' + ')) : null)),
+      Text(l.descricao || '', { size: 'sm', tone: 'muted', attrs: { id: 'catd-descricao' } }),
+      Text(`Fonte: MTGJSON (licença MIT)${l.fichas && l.fichas.length ? ` · fichas: ${l.fichas.join(', ')}` : ''}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catd-fonte' } }),
+      tenho ? Button('Abrir na estante', { variant: 'primary', icone: 'listas', id: 'catd-abrir', block: true, onClick: () => minha && go('/lista?id=' + minha.id) })
+        : Button('Adicionar', { variant: 'primary', icone: 'mais', id: 'catd-adicionar', block: true, disabled: st.ocupado, onClick: adiciona }),
+      st.semRede ? AvisoRede('Sem internet: algumas cartas aparecem só pelo nome; as estatísticas contam as que têm dados guardados.', { id: 'catd-cartas-sem-rede' }) : null,
+      stats,
+      visoes,
+      corpo);
+  }
+  carrega();
+  return root;
+}
+
+return { VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -11033,6 +11172,42 @@ function createDeckEditor({ decks, collection }) {
 }
 
 /* ---------------- /lista?id= ---------------- */
+/** L8 · o conteúdo das estatísticas de uma lista (ladrilhos, por tipo, curva por tipo com o detalhe do custo tocado,
+    cores: custo e fontes). Z3 · o mesmo painel no detalhe da lista do catálogo; `id` prefixa os ids. */
+function PainelEstatisticas(e, { id = 'deck-stats', custo = null, aoCusto = () => {} } = {}) {
+  const ladrilho = (valor, rotulo, id) => h('div', { class: 'pt-ladrilho', id }, h('span', { class: 'pt-ladrilho__valor' }, h('b', {}, String(valor))), h('span', { class: 'pt-ladrilho__rotulo' }, rotulo));
+  const maxTipo = Math.max(1, ...e.porTipo.map(x => x.n));
+  const tipos = h('div', { class: 'pt-barras', id: `${id}-tipos` }, ...e.porTipo.map(x => h('div', { class: 'pt-barra', dataset: { tipo: x.chave }, title: `${x.rotulo}: ${x.n} carta(s)`, style: { '--v': Math.round(100 * x.n / maxTipo) + '%' } },
+    h('span', { class: 'pt-barra__rotulo' }, h('span', {}, x.rotulo)), h('span', { class: 'pt-barra__trilho', 'aria-hidden': 'true' }, h('span', { class: 'pt-barra__fio' })), h('span', { class: 'pt-barra__valor' }, h('b', {}, String(x.n))))));
+  const maxCurva = Math.max(1, ...e.curva.map(x => x.criaturas + x.outras));
+  const tocada = custo != null ? e.curva[custo] : null;
+  const curva = h('div', { class: 'pt-colunas', id: `${id}-curva` }, ...e.curva.map((x, i) => { const n = x.criaturas + x.outras, rot = i === 6 ? '6 ou mais' : String(i);
+    return h('button', { class: 'pt-coluna', type: 'button', 'aria-pressed': String(custo === i), dataset: { custo: String(i), total: String(n) }, 'aria-label': `Custo ${rot}: ${n} carta(s), ${x.criaturas} criatura(s)`, title: `Custo ${rot}: ${n} carta(s), ${x.criaturas} criatura(s)`,
+      onClick: () => aoCusto(custo === i ? null : i) },
+      h('span', { class: 'pt-coluna__n' }, n ? String(n) : ''),
+      h('span', { class: 'pt-coluna__pilha', style: { '--h': Math.round(100 * n / maxCurva) + '%' } },
+        x.outras ? h('span', { class: 'pt-coluna__resto', style: { '--n': String(x.outras) } }) : null, x.criaturas ? h('span', { class: 'pt-coluna__vit', style: { '--n': String(x.criaturas) } }) : null),
+      h('span', { class: 'pt-coluna__dia' }, i === 6 ? '6+' : String(i))); }));
+  const NOME_COR = { W: 'Branco', U: 'Azul', B: 'Preto', R: 'Vermelho', G: 'Verde' };
+  const cores = e.cores.length ? h('div', { class: 'deck-cores', id: `${id}-cores` }, ...e.cores.map(x => h('div', { class: 'deck-cores__linha', dataset: { cor: x.cor }, role: 'img',
+    'aria-label': `${NOME_COR[x.cor]}: ${x.pctSimbolos}% dos símbolos de custo (${x.simbolos}) e ${x.pctFontes}% das fontes (${x.fontes}, ${x.terrenos} terreno(s))` },
+    h('span', { class: 'deck-cores__cor' }, Simbolo(x.cor)),
+    h('span', { class: 'deck-cores__barras' },
+      h('span', { class: 'deck-cores__par' }, h('span', { class: 'deck-cores__barra', dataset: { serie: 'custo' }, style: { '--v': x.pctSimbolos + '%' } }, h('span', {})), h('span', { class: 'deck-cores__valor' }, h('b', {}, `${x.pctSimbolos}%`), ` · ${x.simbolos}`)),
+      h('span', { class: 'deck-cores__par' }, h('span', { class: 'deck-cores__barra', dataset: { serie: 'fontes' }, style: { '--v': x.pctFontes + '%' } }, h('span', {})), h('span', { class: 'deck-cores__valor' }, h('b', {}, `${x.pctFontes}%`), ` · ${x.fontes}`)))))) : null;
+  const sub = t => Text(t, { size: 'sm', caps: true, as: 'h2' }); // h2: logo abaixo do h1 da tela (o axe mede a ordem dos títulos)
+  return [
+    h('div', { class: 'pt-ladrilhos' }, ladrilho(e.total, 'cartas', `${id}-total`), ladrilho(`${e.terrenos} · ${e.pctTerrenos}%`, 'terrenos', `${id}-terrenos`), ladrilho(String(e.custoMedio).replace('.', ','), 'custo médio', `${id}-custo`)),
+    e.semDados ? Text(`${e.semDados} carta(s) sem dados guardados ficam fora das contas.`, { size: 'xs', tone: 'subtle', attrs: { id: `${id}-sem-dados` } }) : null,
+    sub('Por tipo'), tipos,
+    sub('Curva por tipo'), curva,
+    h('div', { class: 'pt-legenda' }, h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'vit' } }), 'Criaturas'), h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'resto' } }), 'Outras mágicas')),
+    Text(tocada ? `Custo ${custo === 6 ? '6 ou mais' : custo}: ${tocada.criaturas + tocada.outras} carta(s), ${tocada.criaturas} criatura(s) e ${tocada.outras} outra(s).` : 'Toque numa coluna para ver os números do custo.', { size: 'xs', tone: 'muted', attrs: { id: `${id}-curva-detalhe`, 'aria-live': 'polite' } }),
+    cores ? sub('Cores: custo e fontes') : null, cores,
+    cores ? h('div', { class: 'pt-legenda' }, h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'vit' } }), 'Símbolos nos custos'), h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'resto' } }), 'Fontes de mana')) : null,
+    cores ? Text('Em cada cor: a fatia dos símbolos de custo e a fatia das cartas que geram essa mana. Fatias parecidas, base equilibrada. As fontes são lidas do texto da carta.', { size: 'xs', tone: 'subtle' }) : null];
+}
+
 function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null, names = null, scryfall = null }) {
   const id = q().get('id');
   const root = Stack(pad(), __m3.Carregando('Abrindo lista…', { tamanho: 'tela' }));
@@ -11232,39 +11407,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     cab.resumo = e.total - e.semDados ? [`${e.terrenos} terrenos · custo médio ${String(e.custoMedio).replace('.', ',')}`] : '';
     if (!state.stats) return Expansivel(cab);
     if (!(e.total - e.semDados)) return Expansivel(cab, Empty('Sem os dados das cartas ainda. Conecte-se para a lista buscar as cartas.', null, { icone: 'semRede' }));
-    const ladrilho = (valor, rotulo, id) => h('div', { class: 'pt-ladrilho', id }, h('span', { class: 'pt-ladrilho__valor' }, h('b', {}, String(valor))), h('span', { class: 'pt-ladrilho__rotulo' }, rotulo));
-    const maxTipo = Math.max(1, ...e.porTipo.map(x => x.n));
-    const tipos = h('div', { class: 'pt-barras', id: 'deck-stats-tipos' }, ...e.porTipo.map(x => h('div', { class: 'pt-barra', dataset: { tipo: x.chave }, title: `${x.rotulo}: ${x.n} carta(s)`, style: { '--v': Math.round(100 * x.n / maxTipo) + '%' } },
-      h('span', { class: 'pt-barra__rotulo' }, h('span', {}, x.rotulo)), h('span', { class: 'pt-barra__trilho', 'aria-hidden': 'true' }, h('span', { class: 'pt-barra__fio' })), h('span', { class: 'pt-barra__valor' }, h('b', {}, String(x.n))))));
-    const maxCurva = Math.max(1, ...e.curva.map(x => x.criaturas + x.outras));
-    const tocada = state.statsCusto != null ? e.curva[state.statsCusto] : null;
-    const curva = h('div', { class: 'pt-colunas', id: 'deck-stats-curva' }, ...e.curva.map((x, i) => { const n = x.criaturas + x.outras, rot = i === 6 ? '6 ou mais' : String(i);
-      return h('button', { class: 'pt-coluna', type: 'button', 'aria-pressed': String(state.statsCusto === i), dataset: { custo: String(i), total: String(n) }, 'aria-label': `Custo ${rot}: ${n} carta(s), ${x.criaturas} criatura(s)`, title: `Custo ${rot}: ${n} carta(s), ${x.criaturas} criatura(s)`,
-        onClick: () => { state.statsCusto = state.statsCusto === i ? null : i; paint(); } },
-        h('span', { class: 'pt-coluna__n' }, n ? String(n) : ''),
-        h('span', { class: 'pt-coluna__pilha', style: { '--h': Math.round(100 * n / maxCurva) + '%' } },
-          x.outras ? h('span', { class: 'pt-coluna__resto', style: { '--n': String(x.outras) } }) : null, x.criaturas ? h('span', { class: 'pt-coluna__vit', style: { '--n': String(x.criaturas) } }) : null),
-        h('span', { class: 'pt-coluna__dia' }, i === 6 ? '6+' : String(i))); }));
-    const NOME_COR = { W: 'Branco', U: 'Azul', B: 'Preto', R: 'Vermelho', G: 'Verde' };
-    const cores = e.cores.length ? h('div', { class: 'deck-cores', id: 'deck-stats-cores' }, ...e.cores.map(x => h('div', { class: 'deck-cores__linha', dataset: { cor: x.cor }, role: 'img',
-      'aria-label': `${NOME_COR[x.cor]}: ${x.pctSimbolos}% dos símbolos de custo (${x.simbolos}) e ${x.pctFontes}% das fontes (${x.fontes}, ${x.terrenos} terreno(s))` },
-      h('span', { class: 'deck-cores__cor' }, Simbolo(x.cor)),
-      h('span', { class: 'deck-cores__barras' },
-        h('span', { class: 'deck-cores__par' }, h('span', { class: 'deck-cores__barra', dataset: { serie: 'custo' }, style: { '--v': x.pctSimbolos + '%' } }, h('span', {})), h('span', { class: 'deck-cores__valor' }, h('b', {}, `${x.pctSimbolos}%`), ` · ${x.simbolos}`)),
-        h('span', { class: 'deck-cores__par' }, h('span', { class: 'deck-cores__barra', dataset: { serie: 'fontes' }, style: { '--v': x.pctFontes + '%' } }, h('span', {})), h('span', { class: 'deck-cores__valor' }, h('b', {}, `${x.pctFontes}%`), ` · ${x.fontes}`)))))) : null;
-    const sub = t => Text(t, { size: 'sm', caps: true, as: 'h2' }); // h2: logo abaixo do h1 da tela (o axe mede a ordem dos títulos)
-    return Expansivel(cab,
-      h('div', { class: 'pt-ladrilhos' }, ladrilho(e.total, 'cartas', 'deck-stats-total'), ladrilho(`${e.terrenos} · ${e.pctTerrenos}%`, 'terrenos', 'deck-stats-terrenos'), ladrilho(String(e.custoMedio).replace('.', ','), 'custo médio', 'deck-stats-custo')),
-      e.semDados ? Text(`${e.semDados} carta(s) sem dados guardados ficam fora das contas.`, { size: 'xs', tone: 'subtle', attrs: { id: 'deck-stats-sem-dados' } }) : null,
-      sub('Por tipo'), tipos,
-      sub('Curva por tipo'), curva,
-      h('div', { class: 'pt-legenda' }, h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'vit' } }), 'Criaturas'), h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'resto' } }), 'Outras mágicas')),
-      Text(tocada ? `Custo ${state.statsCusto === 6 ? '6 ou mais' : state.statsCusto}: ${tocada.criaturas + tocada.outras} carta(s), ${tocada.criaturas} criatura(s) e ${tocada.outras} outra(s).` : 'Toque numa coluna para ver os números do custo.', { size: 'xs', tone: 'muted', attrs: { id: 'deck-stats-curva-detalhe', 'aria-live': 'polite' } }),
-      cores ? sub('Cores: custo e fontes') : null, cores,
-      cores ? h('div', { class: 'pt-legenda' }, h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'vit' } }), 'Símbolos nos custos'), h('span', { class: 'pt-legenda__item' }, h('span', { class: 'pt-legenda__cor', dataset: { r: 'resto' } }), 'Fontes de mana')) : null,
-      cores ? Text('Em cada cor: a fatia dos símbolos de custo e a fatia das cartas que geram essa mana. Fatias parecidas, base equilibrada. As fontes são lidas do texto da carta.', { size: 'xs', tone: 'subtle' }) : null);
+    return Expansivel(cab, ...PainelEstatisticas(e, { custo: state.statsCusto, aoCusto: c => { state.statsCusto = c; paint(); } }));
   }
-
   function curveView(curve) {
     const max = Math.max(1, ...curve);
     return h('div', { class: 'deck-curve', 'aria-label': 'curva de mana' },
@@ -12303,7 +12447,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-return { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha };
+return { PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha };
 })();
 
 
@@ -23719,6 +23863,7 @@ const ROUTES = [
   { path: '/', title: 'Início', render: renderHome },
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup, etiquetas }) },
+  { path: '/listas/catalogo', title: 'Lista oficial', render: () => __m39.createCatalogoListaScreen({ catalogo, decks, cardRepo, store: platform.store }) }, // Z3
   { path: '/listas/prontas', title: 'Listas prontas', render: () => createStarterDecks({ decks, cardRepo, catalogo }) }, // Z2 · com as oficiais
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names, scryfall }) },

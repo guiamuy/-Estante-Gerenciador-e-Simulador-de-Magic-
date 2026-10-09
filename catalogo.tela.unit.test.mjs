@@ -51,3 +51,22 @@ test('Z2 · serviço: índice guardado no prazo, vencido busca, sem rede devolve
   falha = true; assert.equal((await C.lista('mtgjson-anjos')).nome, 'Calling All Angels', 'guardada: abre sem rede');
   await assert.rejects(C.lista('../fora'));
 });
+
+test('Z3 · gruposPorTipo e gruposPorCusto: comandante, categorias da estante, custo 0 a 6+, terrenos, sem dados e reserva', () => {
+  const cards = new Map([
+    ['giada, font of hope', { name: 'Giada, Font of Hope', type_line: 'Legendary Creature — Angel', cmc: 2 }],
+    ['sol ring', { name: 'Sol Ring', type_line: 'Artifact', cmc: 1 }],
+    ['serra angel', { name: 'Serra Angel', type_line: 'Creature — Angel', cmc: 5 }],
+    ['emeria shepherd', { name: 'Emeria Shepherd', type_line: 'Creature — Angel', cmc: 7 }],
+    ['plains', { name: 'Plains', type_line: 'Basic Land — Plains', cmc: 0 }],
+    ['swords to plowshares', { name: 'Swords to Plowshares', type_line: 'Instant', cmc: 1 }]]);
+  const es = [{ name: 'Giada, Font of Hope', qty: 1, zone: 'commander' }, { name: 'Plains', qty: 30, zone: 'main' }, { name: 'Serra Angel', qty: 1, zone: 'main' },
+    { name: 'Sol Ring', qty: 1, zone: 'main' }, { name: 'Emeria Shepherd', qty: 1, zone: 'main' }, { name: 'Swords to Plowshares', qty: 1, zone: 'main' }, { name: 'Carta Sem Dados', qty: 2, zone: 'main' }, { name: 'Sol Ring', qty: 1, zone: 'side' }];
+  const tipo = K.gruposPorTipo(es, cards);
+  assert.deepEqual(J(tipo.map(g => [g.chave, g.rotulo, g.n])), [['commander', 'Comandante', 1], ['creature', 'Criaturas', 2], ['instant', 'Instantâneas', 1], ['artifact', 'Artefatos', 1], ['land', 'Terrenos', 30], ['other', 'Outros', 2], ['side', 'Reserva', 1]]);
+  assert.deepEqual(J(tipo[1].itens.map(i => i.name)), ['Serra Angel', 'Emeria Shepherd'], 'no grupo, do custo menor ao maior');
+  assert.equal(tipo[1].itens[0].carta.cmc, 5);
+  const custo = K.gruposPorCusto(es, cards);
+  assert.deepEqual(J(custo.map(g => [g.chave, g.rotulo, g.n])), [['comandante', 'Comandante', 1], ['custo-1', 'Custo 1', 2], ['custo-5', 'Custo 5', 1], ['custo-6', 'Custo 6 ou mais', 1], ['terrenos', 'Terrenos', 30], ['sem-dados', 'Sem dados', 2], ['reserva', 'Reserva', 1]]);
+  assert.deepEqual(J(K.gruposPorCusto(es, new Map()).map(g => g.chave)), ['comandante', 'sem-dados', 'reserva'], 'sem dados nenhum: tudo em "Sem dados"');
+});

@@ -7997,6 +7997,62 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- Z3 · detalhe da lista do catálogo ---------------- */
+test('e2e · Z3 detalhe da lista do catálogo: o cartão abre a lista com arte, cores, comandante, descrição e fonte; visões Lista (por tipo), Agregado (por custo) e Galeria lembradas; carta abre a folha; estatísticas; Adicionar vira Abrir na estante', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await rotaCatalogo(page);
+  const ENTRADAS = [{ name: 'Malcolm, Alluring Scoundrel', qty: 1, zone: 'commander' }, { name: 'Delver of Secrets', qty: 1, zone: 'main' }, { name: 'Counterspell', qty: 1, zone: 'main' },
+    { name: 'Preordain', qty: 1, zone: 'main' }, { name: 'Sol Ring', qty: 1, zone: 'main' }, { name: 'Island', qty: 30, zone: 'main' }, { name: 'Carta Ausente', qty: 1, zone: 'main' }, { name: 'Counterspell', qty: 1, zone: 'side' }];
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\/listas\//, r => { const id = r.request().url().split('/listas/')[1].replace('.json', ''); const l = CATALOGO_Z2.listas.find(x => x.id === id);
+    if (!l) return r.fulfill({ status: 404, body: '' });
+    return r.fulfill({ json: { ...l, comandante: ['Malcolm, Alluring Scoundrel'], descricao: 'Commander Deck lançada pela Wizards em 01/09/2026 (C1).', reserva: 1, fichas: ['Treasure'], entradas: ENTRADAS }, headers: { 'access-control-allow-origin': '*' } }); });
+  // 1 · do cartão para o detalhe
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
+  assert.ok((await page.locator('.cat-item[data-id="mtgjson-cmd-1"] .cat-item__abrir').boundingBox()).height >= 44);
+  await page.click('.cat-item[data-id="mtgjson-cmd-1"] .cat-item__abrir'); await page.waitForSelector('#catd-grupos');
+  assert.match(page.url(), /#\/listas\/catalogo\?id=mtgjson-cmd-1$/);
+  assert.equal(await page.innerText('#catd-nome'), 'Calling All Angels');
+  assert.equal(await page.getAttribute('.catd__arte img', 'src'), 'https://cards.scryfall.io/normal/front/0/0/00000001-0000-4000-8000-000000000000.jpg');
+  assert.equal(await page.innerText('.catd__comandante'), 'Malcolm, Alluring Scoundrel'); assert.equal(await page.getAttribute('.catd__comandante', 'lang'), 'en');
+  assert.match(await page.innerText('#catd-descricao'), /Commander Deck lançada pela Wizards em 01\/09\/2026/);
+  assert.match(await page.innerText('#catd-fonte'), /Fonte: MTGJSON \(licença MIT\) · fichas: Treasure/);
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Adicionar');
+  // 2 · Lista, por tipo
+  const grupos = () => page.$$eval('#catd-grupos .catd-grupo', gs => gs.map(g => [g.dataset.grupo, g.querySelector('.catd-grupo__cabeca').innerText.replace(/\s+/g, ' ').trim()]));
+  assert.deepEqual((await grupos()).map(g => g[0]), ['commander', 'creature', 'instant', 'sorcery', 'artifact', 'land', 'other', 'side']);
+  assert.deepEqual(await page.$$eval('.catd-grupo[data-grupo="land"] .catd-linha', ls => ls.map(l => l.innerText.replace(/\s+/g, ' ').trim())), ['30 Island']);
+  assert.equal(await page.locator('.catd-grupo[data-grupo="other"] .catd-linha--sem').count(), 1, 'carta sem dados: só o nome, sem toque');
+  assert.ok((await page.$$eval('#catd-grupos button.catd-linha', ls => ls.map(l => l.getBoundingClientRect().height))).every(h => h >= 44));
+  await auditaTela(page, 'catálogo · detalhe (lista)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/z3-detalhe.png' });
+  // a carta abre a folha (com rulings e preço)
+  await page.click('.catd-linha[data-nome="Sol Ring"]'); await page.waitForSelector('#card-viewer'); assert.match(await page.innerText('#ds-dialog-title'), /Sol Ring/); await page.keyboard.press('Escape');
+  // 3 · Agregado, por custo: comandante, custos, terrenos, sem dados e reserva; a soma bate
+  await page.click('#catd-visoes [data-visao="agregado"]'); await page.waitForFunction(() => document.querySelector('.catd-grupo[data-grupo="terrenos"]'));
+  const ag = await grupos(); assert.equal(ag[0][0], 'comandante'); assert.deepEqual(ag.slice(-3).map(g => g[0]), ['terrenos', 'sem-dados', 'reserva']);
+  assert.ok(ag.slice(1, -3).every(g => /^custo-\d$/.test(g[0])), JSON.stringify(ag));
+  assert.equal(ag.reduce((t, g) => t + Number(g[1].match(/(\d+)$/)[1]), 0), 37);
+  // 4 · Galeria: uma carta por entrada, com ×N
+  await page.click('#catd-visoes [data-visao="galeria"]'); await page.waitForSelector('#catd-galeria');
+  assert.equal(await page.locator('#catd-galeria .catd-slot').count(), 8); assert.match(await page.innerText('#catd-galeria .catd-slot[data-nome="Island"]'), /×30/);
+  await auditaTela(page, 'catálogo · detalhe (galeria)');
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `catálogo detalhe ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 });
+  // a visão fica lembrada
+  await page.reload(); await page.waitForSelector('#catd-galeria');
+  // 5 · estatísticas (o mesmo painel da lista da estante)
+  await page.click('#catd-stats-toggle'); await page.waitForSelector('#catd-stats-total');
+  assert.match(await page.innerText('#catd-stats-total'), /^\d+\s*cartas$/); assert.equal(await page.locator('#catd-stats-curva .pt-coluna').count(), 7);
+  // 6 · Adicionar: salva e vira Abrir na estante
+  await page.click('#catd-adicionar'); await page.waitForSelector('#catd-abrir');
+  assert.match(await page.innerText('#ds-toast'), /Calling All Angels está na sua estante/);
+  await page.click('#catd-abrir'); await page.waitForSelector('.deck-summary'); assert.match(page.url(), /#\/lista\?id=/);
+  // 7 · lista que não existe
+  await page.goto(base + '#/listas/catalogo?id=mtgjson-nao-existe'); await page.waitForSelector('#catd-ausente');
+  assert.deepEqual(errors.filter(e => !/404/.test(e)), []);
+});
+
 /* ---------------- V1 · impressões e arte por carta ---------------- */
 test('e2e · V1 impressões na lista: a carta abre as impressões buscadas na internet, a escolha vale no deck e na reserva, fica guardada, sobrevive a editar, tem Desfazer; erro com nova tentativa; sem internet volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
