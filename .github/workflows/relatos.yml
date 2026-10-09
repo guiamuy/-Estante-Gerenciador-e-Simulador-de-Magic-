@@ -1,0 +1,49 @@
+# Y5 · Relatos. A cada registro (issue) aberto, editado, fechado ou reaberto, etiqueta os que o app preencheu (tipo,
+# urgência, área) e regrava a tabela relatos.json/relatos.csv no ramo `relatos`, que a conversa de correção consulta.
+# O `main` não recebe commit daqui. Trilha: geral (arquivo de fluxo novo, no molde dos de Notícias e Catálogo).
+name: Relatos
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened, deleted]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: relatos
+  cancel-in-progress: false
+
+jobs:
+  tabela:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Trazer a tabela publicada (ou começar o ramo vazio)
+        run: |
+          if git ls-remote --exit-code --heads origin relatos > /dev/null; then
+            git fetch --depth 1 origin relatos
+            git worktree add saida FETCH_HEAD
+            git -C saida switch -c relatos
+          else
+            git worktree add --detach saida
+            git -C saida switch --orphan relatos
+            printf '%s\n' '# Estante · relatos' '' 'Ramo gerado pelo fluxo "Relatos" (`relatos-tabela.mjs`, no `main`). Não edite à mão.' > saida/README.md
+          fi
+      - name: Etiquetar e montar a tabela
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node relatos-tabela.mjs --saida saida
+      - name: Publicar no ramo relatos
+        run: |
+          cd saida
+          git add -A
+          if git diff --cached --quiet; then echo "sem mudança"; exit 0; fi
+          git -c user.name="estante-relatos" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit --quiet -m "Relatos · tabela de $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin relatos

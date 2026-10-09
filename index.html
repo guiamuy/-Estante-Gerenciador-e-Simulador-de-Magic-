@@ -1374,6 +1374,7 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .relato-item[data-status="resolvido"] { opacity: .72; }
 .relato-item__topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .relato-item__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.relato-item__enviado { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-xs); color: var(--positive); }
 .relato-item__texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-md); }
 .relato-item__acoes { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
 .relato-item__motivo { text-align: right; }
@@ -9937,7 +9938,8 @@ const __m38 = (function () {
 const { h, mount, Stack, Row, Text, Button, IconButton, Field, Select, Textarea, Dialog, closeDialog, toast, Empty, Badge, Icone, Note } = __m3;
 const CHAVE = 'relatos.itens';
 const DESCRICAO_MIN = 5, DESCRICAO_MAX = 2000, RELATOS_MAX = 500;
-const TIPOS = [['erro', 'Erro'], ['regra', 'Regra ou carta'], ['visual', 'Visual'], ['ideia', 'Ideia'], ['lentidao', 'Lentidão'], ['outro', 'Outro']];
+// Y5 · Melhoria e Infraestrutura entram (relato de 09/10/2026)
+const TIPOS = [['erro', 'Erro'], ['regra', 'Regra ou carta'], ['visual', 'Visual'], ['melhoria', 'Melhoria'], ['ideia', 'Ideia'], ['lentidao', 'Lentidão'], ['infra', 'Infraestrutura'], ['outro', 'Outro']];
 const URGENCIAS = [['bloqueia', 'Impede o uso'], ['alta', 'Alta'], ['media', 'Média'], ['baixa', 'Baixa']];
 const PESO = { bloqueia: 4, alta: 3, media: 2, baixa: 1 };
 const rotuloDe = (lista, v) => (lista.find(x => x[0] === v) || [null, v])[1];
@@ -10001,6 +10003,31 @@ function textoDoRelato(r) {
   return linhas.filter(x => x != null).join('\n');
 }
 const textoDosRelatos = lista => ordena(lista).map(textoDoRelato).join('\n\n---\n\n');
+
+/* ---------------- Y5 · o relato chega ao Claude: registro (issue) no GitHub do repositório ----------------
+   O app não guarda chave nenhuma: "Enviar" abre a página de novo registro do GitHub já preenchida, e quem relata só
+   confirma (logado na própria conta). O corpo leva o texto para ler e, num comentário HTML invisível, os dados do
+   relato em JSON — o fluxo "Relatos" do repositório lê esse bloco, põe as etiquetas (tipo, urgência, área) e mantém a
+   tabela `relatos.json` no ramo `relatos`, que a conversa de correção consulta. O repositório é público: o relato
+   também é (decisão do dono, 09/10/2026). A partida anexada não cabe no endereço: fica no aparelho (Exportar JSON). */
+const REPOSITORIO = 'guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-';
+const MARCA = 'estante-relato';
+const CORPO_MAX = 3000; // o endereço do GitHub tem limite; o texto longo é cortado com aviso
+function dadosDoRelato(r) {
+  const c = r.contexto || {};
+  return { v: 1, id: r.id, criadoEm: r.criadoEm, tipo: r.tipo, urgencia: r.urgencia, area: r.area, rota: r.rota, endereco: r.endereco || r.rota,
+    tela: r.tela || null, app: c.app || '', motor: c.motor ?? null, tema: c.tema || '', viewport: c.tela || '', online: c.online !== false, partidaAnexada: !!r.partida,
+    partida: c.partida ? { modo: c.partida.modo, turno: c.partida.turno, etapa: c.partida.etapa } : null };
+}
+/** O endereço da página de novo registro, já preenchida: título curto, texto do relato e os dados em JSON. */
+function enderecoDoRegistro(r, repo = REPOSITORIO) {
+  let texto = textoDoRelato(r);
+  if (texto.length > CORPO_MAX) texto = texto.slice(0, CORPO_MAX - 40).trimEnd() + '\n\n…(texto cortado: o relato inteiro está no aparelho)';
+  const resumo = r.descricao.replace(/\s+/g, ' ').trim();
+  const titulo = `[${rotuloDe(TIPOS, r.tipo)} · ${rotuloDe(URGENCIAS, r.urgencia)}] ${nomeDaTela(r)} — ${resumo.length > 60 ? resumo.slice(0, 59).trimEnd() + '…' : resumo}`;
+  const corpo = `${texto}\n\n<!-- ${MARCA} ${JSON.stringify(dadosDoRelato(r))} -->`;
+  return `https://github.com/${repo}/issues/new?` + new URLSearchParams({ title: titulo, body: corpo, labels: 'relato' }).toString();
+}
 
 /** Y2 · o que a partida diz de si num relato: modo, turno, etapa, de quem é a vez e a prioridade, vida, decisão em curso e
     as últimas linhas do registro. `etapas` traduz o passo do motor; `v` é quem está relatando. Puro. */
@@ -10181,13 +10208,18 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
         h('div', { class: 'relato-item__topo' },
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
           Badge(rotuloDe(TIPOS, r.tipo)),
-          h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`)),
+          h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`),
+          r.enviadoEm ? h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado') : null),
         h('p', { class: 'relato-item__texto' }, r.descricao),
         r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
         h('div', { class: 'relato-item__acoes' },
           r.partida ? Button('Partida', { variant: 'ghost', icone: 'jogar', disabled: !pa.ok, title: pa.ok ? 'Abrir a partida anexada, no ponto do relato' : pa.motivo, dataset: { acao: 'partida' }, onClick: () => abrePartida(r) }) : null,
           Button(r.status === 'resolvido' ? 'Reabrir' : 'Resolvido', { variant: 'ghost', icone: r.status === 'resolvido' ? 'desfazer' : 'marcar', dataset: { acao: 'status' }, onClick: async () => { await relatos.muda(r.id, { status: r.status === 'resolvido' ? 'aberto' : 'resolvido' }); pinta(); } }),
           Button('Copiar', { variant: 'ghost', icone: 'copiar', dataset: { acao: 'copiar' }, onClick: async e => { const ok = await share.copy(textoDoRelato(r)); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Relato copiado' : 'Não foi possível copiar'); } }),
+          // Y5 · Enviar: abre o registro no GitHub já preenchido (quem relata confirma lá); fica marcado como enviado
+          Button(r.enviadoEm ? 'Reenviar' : 'Enviar', { variant: 'ghost', icone: 'externo', dataset: { acao: 'enviar' }, title: 'Abrir o registro no GitHub, já preenchido, para a correção',
+            onClick: async () => { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado: o aviso diz */ }
+              await relatos.muda(r.id, { enviadoEm: new Date().toISOString() }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); } }),
           IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
             const tirado = await relatos.remove(r.id); pinta();
             toast('Relato excluído', 4200, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await relatos.restaura(tirado); pinta(); } } }); } }))); };
@@ -10223,7 +10255,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
   return root;
 }
 
-return { limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */

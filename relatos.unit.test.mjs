@@ -11,7 +11,7 @@ test('Y1 · confere: tipo e urgência vêm das listas, a descrição é obrigat�
   assert.ok(R.confere({ tipo: 'erro', urgencia: 'alta', descricao: '  ok ' }).descricao, 'só espaço não conta');
   assert.ok(R.confere({ tipo: 'xyz', urgencia: 'alta', descricao: 'texto suficiente' }).tipo, 'tipo fora da lista');
   assert.match(R.confere({ tipo: 'erro', urgencia: 'alta', descricao: 'x'.repeat(R.DESCRICAO_MAX + 1) }).descricao, /Até 2000/);
-  assert.deepEqual(J(R.TIPOS.map(t => t[1])), ['Erro', 'Regra ou carta', 'Visual', 'Ideia', 'Lentidão', 'Outro']);
+  assert.deepEqual(J(R.TIPOS.map(t => t[1])), ['Erro', 'Regra ou carta', 'Visual', 'Melhoria', 'Ideia', 'Lentidão', 'Infraestrutura', 'Outro']); // Y5 · tipos novos
   assert.deepEqual(J(R.URGENCIAS.map(t => t[1])), ['Impede o uso', 'Alta', 'Média', 'Baixa']);
 });
 

@@ -7710,7 +7710,7 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   // 2 · o formulário: salvar vazio aponta os três campos e põe o foco no primeiro
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
   assert.equal(await page.innerText('#ds-dialog-title'), 'Relatar');
-  assert.deepEqual(await page.$$eval('#relato-tipo option', os => os.map(o => o.textContent)), ['Escolha…', 'Erro', 'Regra ou carta', 'Visual', 'Ideia', 'Lentidão', 'Outro']);
+  assert.deepEqual(await page.$$eval('#relato-tipo option', os => os.map(o => o.textContent)), ['Escolha…', 'Erro', 'Regra ou carta', 'Visual', 'Melhoria', 'Ideia', 'Lentidão', 'Infraestrutura', 'Outro']); // Y5 · tipos novos
   assert.deepEqual(await page.$$eval('#relato-urgencia option', os => os.map(o => o.textContent)), ['Escolha…', 'Impede o uso', 'Alta', 'Média', 'Baixa']);
   assert.match(await page.innerText('#relato-carimbo'), /\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · Início/);
   assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário: Salvar');
@@ -7917,6 +7917,39 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
   await page.click('#relatos-partida-confirma'); await page.waitForFunction(() => /#\/partida/.test(location.hash)); await page.waitForSelector('#tb-relatar');
   await page.waitForFunction(() => window.__estanteMesa && window.__estanteMesa.estado());
   assert.deepEqual(await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { turno: s.turn.number, mao: s.zones[0].hand.length, vida: s.players.map(p => p.life) }; }), naHora, 'a partida abriu no ponto em que o relato foi feito');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- Y5 · relatos chegam à correção ---------------- */
+test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, Enviar abre o registro no GitHub já preenchido (título, etiqueta, texto e dados da tela) e marca o relato como enviado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
+  await acaoJ6(page, 'decks-fab', '#decks-fab-relatar'); await page.waitForSelector('#relato-form');
+  await page.selectOption('#relato-tipo', 'infra'); await page.selectOption('#relato-urgencia', 'alta');
+  await page.fill('#relato-descricao', 'Guardar os relatos num banco para a correção ler.'); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista .relato-item');
+  await page.evaluate(() => { window.__abertos = []; window.open = (u, alvo) => { window.__abertos.push({ u, alvo }); return null; }; });
+  assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar');
+  await auditaTela(page, 'relatos · enviar');
+  await page.click('.relato-item [data-acao="enviar"]');
+  await page.waitForFunction(() => /Submit new issue/.test(document.querySelector('#ds-toast').textContent));
+  const [{ u, alvo }] = await page.evaluate(() => window.__abertos);
+  assert.equal(alvo, '_blank');
+  const url = new URL(u);
+  assert.equal(url.origin + url.pathname, 'https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/new');
+  assert.equal(url.searchParams.get('labels'), 'relato');
+  assert.equal(url.searchParams.get('title'), '[Infraestrutura · Alta] Listas — Guardar os relatos num banco para a correção ler.');
+  const corpo = url.searchParams.get('body');
+  assert.match(corpo, /Guardar os relatos num banco para a correção ler\./);
+  const d = JSON.parse(corpo.match(/<!-- estante-relato (\{[\s\S]*\}) -->/)[1]);
+  assert.equal(d.tipo, 'infra'); assert.equal(d.urgencia, 'alta'); assert.equal(d.area, 'Listas'); assert.match(d.endereco, /^\/listas/); assert.equal(d.viewport, '360×780');
+  // marcado: o selo "Enviado" aparece e o botão passa a reenviar
+  await page.waitForSelector('.relato-item .relato-item__enviado');
+  assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Reenviar');
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos enviado ${w} ${tema}`); } }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/y5-enviado.png' });
   assert.deepEqual(errors, []);
 });
 

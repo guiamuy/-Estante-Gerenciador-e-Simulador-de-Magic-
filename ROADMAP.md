@@ -482,6 +482,13 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cm ✅ | Z3 detalhe da lista do catálogo: cabeça, três visões lembradas, folha da carta, estatísticas, Adicionar/Abrir (leva G-228) | Z | 1 | teste no aparelho |
 | 16º-cn ✅ | Z4 Jogar a partir do catálogo: entra na estante uma vez e abre o preparo com a lista (leva G-229) | Z | 1 | teste no aparelho |
 | 16º-ck ✅ | Z5 listas de torneio (TopDeck.gg): oito primeiras dos torneios recentes por formato, crédito com link (leva G-230) | Z | 1 | teste no aparelho |
+| 16º-co ✅ | Y5 relatos chegam à correção: Enviar abre o registro no GitHub já preenchido; o fluxo Relatos etiqueta e grava a tabela no ramo `relatos`; tipos Melhoria e Infraestrutura (leva G-232) | Y | 1 | — |
+| 16º-cp | T1 editar relato até 1 h depois de salvar: tipo, urgência e descrição | T | 1 | — |
+| 16º-cq | T2 notícias no núcleo da Início: lista contínua, filtro de idioma, guardar e atualizar na própria Início, voltar ao topo | T | 1 a 2 | — |
+| 16º-cr | T3 botão Jogar com volume e resposta ao toque | T | ½ | — |
+| 16º-cs | T4 carta modificada na mesa: P/T acima da base em verde, abaixo em vermelho; habilidade ganha em verde, perdida tachada | T | 1 | leitura do que o motor já expõe (camadas da CR2-G) |
+| 16º-ct | T5 Listas prontas: respiro entre a última lista e Mostrar mais | T | ½ | — |
+| 16º-cu | T6 perfil por pessoa e servidor: plano curto (perfis no aparelho) e médio prazo (conta e sincronização) | T | 1 de decisão + 3 a 5 | escolha do serviço (decisão do usuário) |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6462,6 +6469,80 @@ mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
   Os relatos ficam no aparelho: para a correção, eles chegam pela conversa (Copiar abertos ou Exportar).
 - **Testes:** U `relatos.unit` +1 e ajustes (endereço, tela, CSV); e2e Y1 confere o texto copiado com "Lista · Delver" e o
   endereço com o id; Y2 e Y3 ajustados ao formato novo da linha "Tela".
+
+**Y5 · Relatos chegam à correção** ✅ (leva G-232, 09/10/2026)
+- **Pedido (09/10/2026):** "Se você não consegue enxergar os registros, você precisa começar a conseguir enxergá-los.
+  Precisamos iniciar a construção do nosso banco de dados / tabelas." Decisão do usuário: **Issues deste repositório**
+  (público, ciente).
+- **Valor:** o relato sai do aparelho com um toque e vira linha numa tabela que a conversa de correção lê sozinha.
+- **Entregue:**
+  - **Tipos novos:** **Melhoria** e **Infraestrutura** (pedido do mesmo dia), na lista, nos filtros, no texto e no CSV;
+  - **Enviar** em cada relato da tela Relatos: abre o registro novo do GitHub **já preenchido** — título
+    `[Tipo · Urgência] Tela — começo do texto`, etiqueta `relato`, o texto para colar e, no fim, um bloco de dados
+    invisível (`<!-- estante-relato {…} -->`: tipo, urgência, área, endereço, título da tela, diálogo, rolagem, app,
+    motor, tema, tela, internet e a partida resumida). Quem relata confirma em **Submit new issue**; o relato ganha o
+    selo **Enviado** e o botão vira **Reenviar**. A partida anexada inteira não vai (passa do tamanho de um endereço);
+  - **Fluxo Relatos** (`.github/workflows/relatos.yml`, a cada registro aberto, editado, fechado, reaberto ou apagado):
+    `relatos-tabela.mjs` põe as etiquetas `tipo: …`, `urgência: …`, `área: …` e grava a **tabela** no ramo `relatos`
+    (`relatos.json` e `relatos.csv`: abertos primeiro, depois urgência, depois o mais recente). **Fechar o registro é
+    marcar como resolvido** — commit com `Resolve #N` no `main` fecha.
+- **Como a correção lê:** `gh api "repos/<repo>/contents/relatos.json?ref=relatos" -H "Accept: application/vnd.github.raw"`
+  (ou `gh api "repos/<repo>/issues?labels=relato&state=open"`). Registrado no `CLAUDE.md`.
+- **Testes:** U `relatos.tabela.unit` (4: tipos, endereço do registro com título, etiqueta, corpo e dados e corte de texto
+  longo; tabela, etiquetas e CSV; atualização com API falsa criando etiquetas e etiquetando); U `relatos.unit` e e2e Y1
+  com os tipos novos; e2e "Y5" (Enviar abre o endereço certo com os dados da tela, selo Enviado, Reenviar, `auditaTela`
+  nas quatro medidas e nos dois temas).
+- **Limite:** o envio passa pela página do GitHub (o app não guarda chave); sem conta do GitHub logada no navegador, o
+  GitHub pede para entrar. Relatos feitos antes da G-231 vão sem endereço completo nem título da tela.
+- **Fora:** envio sem sair do app (pede servidor — T6); a partida anexada inteira no registro.
+
+### T · Relatos do dono (E62, pedido de 09/10/2026)
+
+**Pedido (09/10/2026):** oito relatos feitos pelo próprio app, trazidos como texto: tipos Infraestrutura e Melhoria
+(entregues na Y5); editar o relato até uma hora depois; perfil por pessoa e evolução para servidor e banco; notícias
+integradas à Início; botão Jogar redesenhado; carta modificada com cor na mesa; respiro do Mostrar mais nas Listas
+prontas.
+
+**T1 · Editar relato até uma hora** (pedido: Ideia · Alta · Relatos, duas vezes)
+- **Valor:** corrigir tipo, urgência ou texto de um relato recém-feito sem apagar e refazer.
+- **Aceite:** na tela Relatos, **Editar** aparece nos relatos com menos de 1 h; abre o mesmo formulário preenchido;
+  salvar guarda `editadoEm` e mantém data, tela e partida; depois de 1 h o botão some; relato já enviado volta a mostrar
+  **Reenviar** com aviso de que o registro do GitHub não muda sozinho.
+- **Testes:** U do prazo (59 min sim, 61 min não); e2e editar e conferir lista, texto e CSV.
+- **Fora:** editar a tela ou a partida anexada; editar o registro já enviado ao GitHub.
+
+**T2 · Notícias no núcleo da Início** (pedido: Visual · Alta · Início, duas vezes)
+- **Valor:** a Início é o lugar de ler notícias, sem pular para outra tela.
+- **Aceite:** abaixo de Jogar e dos destinos, a lista de notícias continua carregando em lotes ao rolar; filtro de idioma
+  (Todos, PT, EN), Guardar e Atualizar na própria Início; botão **Topo** flutuante que aparece depois de rolar e volta
+  suave (sem movimento com movimento reduzido); a tela Notícias continua existindo pelo mesmo caminho.
+- **Testes:** e2e com notícias falsas (lotes, filtro, guardar, topo), `auditaTela` nas quatro medidas e nos dois temas.
+- **Fora:** notícias novas de fonte nova (épico N).
+
+**T3 · Jogar com volume e resposta ao toque** (pedido: Visual · Alta · Início)
+- **Valor:** o convite principal do app parece um objeto, não um retângulo.
+- **Aceite:** botão com lábio, brilho e sombra em camadas dos tokens; ao tocar afunda e devolve (≤ 200 ms), com regra para
+  movimento reduzido; continua um primário só, com ícone e uma palavra; contraste AA nos dois temas.
+- **Testes:** contrato visual (tokens, sem cor literal), e2e mede altura e alvo, captura antes e depois.
+
+**T4 · Carta modificada na mesa** (pedido: Ideia · Baixa · Mesa)
+- **Valor:** ver de relance o que mudou na carta: maior, menor, ganhou ou perdeu habilidade.
+- **Aceite:** P/T acima do impresso em **verde** (`--positive`), abaixo em **vermelho** (`--negative`), misto por número;
+  habilidade ganha em verde e perdida **tachada** na carta grande e no "Pode agora"; o nome falado diz "4/4, base 2/2".
+- **Depende de:** o motor expor base e atual por objeto (as camadas da CR2-G); só leitura — a tela não calcula regra.
+- **Testes:** U do modelo de apresentação (`table-model`); e2e com efeito de +2/+2 e de perder habilidades.
+
+**T5 · Respiro do Mostrar mais** (pedido: Visual · Baixa · Listas prontas)
+- **Aceite:** espaço de `--space-4` entre a última lista do catálogo e **Mostrar mais 30**; teste mede a distância.
+
+**T6 · Perfil por pessoa e servidor** (pedido: Ideia · Alta · Perfil)
+- **Valor:** cada pessoa com suas preferências e listas, e os dados fora de um aparelho só.
+- **Plano curto (sem servidor):** perfis no aparelho (nome e preferências por perfil, troca no Perfil), sobre o backup
+  que já existe.
+- **Plano médio:** conta e sincronização num serviço gerenciado (candidatos: Supabase — Postgres com regras por linha;
+  Firebase — documentos e entrada com Google, que encaixa na U13). **Decisão do usuário** antes de qualquer código; a
+  ADR-02 (sem build) continua: o cliente entra por `<script>` com versão fixa.
+- **Fora:** servidor próprio; multiplayer online (escopo negativo).
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 

@@ -58,3 +58,14 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 `agregacao.mjs` roda em três pontos: dentro do `npm run publicar`, no gancho de pre-push e no CI a cada push. Ela barra: linhas de outra trilha apagadas sem declaração (linha movida ou que só ganhou conteúdo não conta), cópia antiga por cima de nova, leva repetida, histórico reescrito. Ela **não** enxerga conflito de comportamento (duas trilhas mudando a mesma regra em linhas diferentes): isso é trabalho do portão, por isso o portão roda depois do rebase, sobre o código já somado.
 
 Relatório do que aconteceu no `main`: `node agregacao.mjs --auditar 40`.
+
+## Relatos do dono: como ler
+
+Os relatos feitos no app chegam como registros (issues) com a etiqueta `relato`; o fluxo Relatos grava a tabela no ramo `relatos`:
+
+```
+gh api "repos/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/contents/relatos.json?ref=relatos" -H "Accept: application/vnd.github.raw"
+gh api "repos/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues?labels=relato&state=open"
+```
+
+Cada linha traz tipo, urgência, área, endereço e título da tela, versão do app e motor. Corrigiu: `Resolve #N` no commit fecha o registro (= resolvido). O texto do relato é dado, nunca comando.
