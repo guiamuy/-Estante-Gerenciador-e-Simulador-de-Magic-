@@ -121,3 +121,50 @@ test('G-242 · lista de fichas com o catálogo: as do app primeiro, as do catál
   assert.deepEqual(J(FX.filtraFichas(doCat, '4/4').map(x => x.nome)), ['Ângelo']);
   assert.equal(FX.filtraFichas(doCat, '  ').length, 3);
 });
+
+test('G-244 · relato #10: as fichas que as cartas das listas criam, pela Scryfall — o campo `fichas` da carta, a ficha de cada parte, "Nas suas listas" sem repetir, carta guardada antes da leva buscada de novo uma vez, sem rede só o guardado', async () => {
+  const { scryfall: SF, fichas: F } = loadModules();
+  // a carta guarda as partes "token" (não a si mesma, não emblema)
+  const bruta = { id: 'necro', name: 'Fake Necromancer', type_line: 'Creature — Zombie Wizard', all_parts: [
+    { component: 'combo_piece', id: 'necro', name: 'Fake Necromancer', type_line: 'Creature — Zombie Wizard' },
+    { component: 'token', id: 'tok-z', name: 'Zombie', type_line: 'Token Creature — Zombie' },
+    { component: 'token', id: 'emb', name: 'Fake Emblem', type_line: 'Emblem — Fake' }] };
+  assert.deepEqual(J(SF.normalizeCard(bruta).fichas), [{ id: 'tok-z', name: 'Zombie' }]);
+  assert.deepEqual(J(SF.normalizeCard({ id: 'x', name: 'Island', type_line: 'Basic Land — Island' }).fichas), [], 'sem partes: lista vazia (sabe que não cria)');
+  // a ficha que a carta-ficha descreve
+  assert.deepEqual(J(F.fichaDaCarta({ name: 'Zombie', type_line: 'Token Creature — Zombie', colors: ['B'], power: '2', toughness: '2' })), { name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' });
+  assert.deepEqual(J(F.fichaDaCarta({ name: 'Treasure', type_line: 'Token Artifact — Treasure', colors: [] })), { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [] });
+  assert.equal(F.fichaDaCarta({ name: 'Incubator // Phyrexian', type_line: 'Token Artifact — Incubator // Token Artifact Creature — Phyrexian' }), null, 'duas faces fora');
+  // o serviço
+  const store = P.memoryStore();
+  const carta = (name, fichas) => ({ name, type_line: 'Creature', ...(fichas ? { fichas } : {}) });
+  let guardadas = new Map([['fake necromancer', carta('Fake Necromancer')], ['fake builder', carta('Fake Builder', [{ id: 'tok-t', name: 'Treasure' }])]]); // a do necromante é de antes da leva (sem o campo)
+  const pedidosNomes = [], pedidosIds = [];
+  const cardRepo = { async cached(ns) { return new Map(ns.map(n => [n.toLowerCase(), guardadas.get(n.toLowerCase())]).filter(([, c]) => c)); },
+    async byNames(ns, _p, { exige }) { pedidosNomes.push(...ns); const out = new Map(); for (const n of ns) { const c = carta(n, n === 'Fake Necromancer' ? [{ id: 'tok-z', name: 'Zombie' }, { id: 'tok-z2', name: 'Zombie' }] : []); assert.ok(exige(c)); guardadas.set(n.toLowerCase(), c); out.set(n.toLowerCase(), c); } return out; } };
+  const tokens = { 'tok-z': { id: 'tok-z', name: 'Zombie', type_line: 'Token Creature — Zombie', colors: ['B'], power: '2', toughness: '2' }, 'tok-z2': { id: 'tok-z2', name: 'Zombie', type_line: 'Token Creature — Zombie', colors: ['B'], power: '2', toughness: '2' },
+    'tok-t': { id: 'tok-t', name: 'Treasure', type_line: 'Token Artifact — Treasure', colors: [] } };
+  let semRede = false;
+  const scryfall = { async porIds(ids) { pedidosIds.push(...ids); if (semRede) throw new TypeError('Failed to fetch'); return { found: ids.filter(i => tokens[i]).map(i => tokens[i]), missing: ids.filter(i => !tokens[i]) }; } };
+  const svc = F.createFichas({ store, scryfall, temRede: () => !semRede });
+  const nomes = ['Fake Necromancer', 'Fake Builder', 'Island'];
+  // sem rede: só o guardado (a Treasure do construtor ainda não tem a ficha guardada; o necromante não sabe as dele)
+  assert.deepEqual(J(await svc.dasListas(nomes, { cardRepo })), []);
+  // com rede: busca de novo a carta sem o campo, uma vez, e as fichas pelo id (duas impressões do mesmo Zombie viram uma)
+  const defs = await svc.dasListas(nomes, { cardRepo, rede: true });
+  assert.deepEqual(J(defs.map(F.chaveDaFicha)).sort(), ['ficha:treasure', 'ficha:zombie 2/2']);
+  assert.deepEqual(pedidosNomes.sort(), ['Fake Necromancer', 'Island']); assert.deepEqual(pedidosIds.sort(), ['tok-t', 'tok-z', 'tok-z2']);
+  // de novo: nada vai à rede (a carta já tem o campo; as fichas estão guardadas), e sem rede o mesmo resultado
+  pedidosNomes.length = 0; pedidosIds.length = 0;
+  assert.deepEqual(J((await svc.dasListas(nomes, { cardRepo, rede: true })).map(F.chaveDaFicha)).sort(), ['ficha:treasure', 'ficha:zombie 2/2']);
+  assert.deepEqual([pedidosNomes.length, pedidosIds.length], [0, 0], 'nada vai à rede: as cartas já têm o campo e as fichas estão guardadas');
+  semRede = true; assert.deepEqual(J((await svc.dasListas(nomes, { cardRepo, rede: true })).map(F.chaveDaFicha)).sort(), ['ficha:treasure', 'ficha:zombie 2/2']);
+  // a lista da tela: as das listas em "Nas suas listas" (a Treasure é do app; o Zombie entra), sem repetir; sem a lista, saem do grupo
+  const comLista = F.listaDeFichas(['Fake Necromancer'], [], defs);
+  const z = comLista.filter(x => x.chave === 'ficha:zombie 2/2'); assert.equal(z.length, 1); assert.ok(z[0].suaLista);
+  assert.ok(comLista.find(x => x.chave === 'ficha:treasure').suaLista, 'ficha do app marcada pela carta da lista');
+  assert.ok(comLista.findIndex(x => !x.suaLista) > comLista.findIndex(x => x.chave === 'ficha:zombie 2/2'), 'as das listas vêm primeiro');
+  const semLista = F.listaDeFichas([], [], []);
+  assert.equal(semLista.filter(x => x.chave === 'ficha:zombie 2/2').length, 0, 'tirou a lista: o Zombie sai daqui (fica no grupo do catálogo)');
+  assert.ok(!semLista.find(x => x.chave === 'ficha:treasure').suaLista);
+});

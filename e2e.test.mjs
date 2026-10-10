@@ -9020,6 +9020,61 @@ test('e2e · V3 visões da lista: Galeria (a de sempre), Densa (uma linha por ca
 });
 
 /* ---------------- G-242 · todas as fichas (relato #9) ---------------- */
+test('e2e · G-244 Perfil › Fichas acompanha as listas (relato #10): a lista nova traz as fichas que as cartas dela criam (pela Scryfall) para "Nas suas listas"; excluir a lista tira a ficha do grupo, ela volta a "Todas as fichas" e a arte escolhida fica', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  const imgs = id => Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`]));
+  // carta de teste que cria um Zombie 2/2 (duas impressões da mesma ficha) e um Treasure; as fichas respondem pelo id
+  const NECRO = { object: 'card', id: 'necro', name: 'Fake Necromancer', type_line: 'Creature — Zombie Wizard', mana_cost: '{1}{B}', cmc: 2, colors: ['B'], color_identity: ['B'], keywords: [], legalities: { pauper: 'legal' }, rarity: 'common', set: 'tst', image_uris: imgs('necro'),
+    all_parts: [{ component: 'combo_piece', id: 'necro', name: 'Fake Necromancer', type_line: 'Creature — Zombie Wizard' }, { component: 'token', id: 'tok-z', name: 'Zombie', type_line: 'Token Creature — Zombie' },
+      { component: 'token', id: 'tok-z2', name: 'Zombie', type_line: 'Token Creature — Zombie' }, { component: 'token', id: 'tok-t', name: 'Treasure', type_line: 'Token Artifact — Treasure' }] };
+  const FICHA = { 'tok-z': { object: 'card', id: 'tok-z', name: 'Zombie', type_line: 'Token Creature — Zombie', layout: 'token', colors: ['B'], power: '2', toughness: '2', image_uris: imgs('tok-z') },
+    'tok-z2': { object: 'card', id: 'tok-z2', name: 'Zombie', type_line: 'Token Creature — Zombie', layout: 'token', colors: ['B'], power: '2', toughness: '2', image_uris: imgs('tok-z2') },
+    'tok-t': { object: 'card', id: 'tok-t', name: 'Treasure', type_line: 'Token Artifact — Treasure', layout: 'token', colors: [], image_uris: imgs('tok-t') } };
+  const porId = [];
+  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;
+    if (ids[0] && ids[0].id) { porId.push(...ids.map(i => i.id)); return r.fulfill({ json: { data: ids.map(i => FICHA[i.id]).filter(Boolean), not_found: ids.filter(i => !FICHA[i.id]) } }); }
+    const acha = n => (n.toLowerCase() === 'fake necromancer' ? NECRO : DB[n.toLowerCase()]);
+    return r.fulfill({ json: { data: ids.map(i => acha(i.name)).filter(Boolean), not_found: ids.filter(i => !acha(i.name)) } }); });
+  await page.route('https://api.scryfall.com/cards/search**', r => { const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    return r.fulfill({ json: { object: 'list', has_more: false, data: /^!"Zombie" t:token/.test(q) ? [{ ...FICHA['tok-z'], set: 'm21', set_name: 'Core 2021', collector_number: '1' }, { ...FICHA['tok-z2'], set: 'isd', set_name: 'Innistrad', collector_number: '2' }] : [] } }); });
+  await page.route('https://raw.githubusercontent.com/**', r => r.request().url().endsWith('/catalogo/fichas.json')
+    ? r.fulfill({ json: { versao: 1, geradoEm: '2026-10-10T00:00:00.000Z', fonte: 'scryfall', total: 2, fichas: [{ name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' }, { name: 'Angel', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: '4', toughness: '4' }] }, headers: { 'access-control-allow-origin': '*' } })
+    : r.fulfill({ status: 404, body: '' }));
+  // 1 · sem lista: o Zombie só no catálogo
+  await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-catalogo[data-estado="ok"]');
+  assert.equal(await page.locator('#fichas-lista .ficha-linha[data-ficha="ficha:zombie 2/2"]').count(), 0);
+  assert.equal(await page.locator('#fichas-catalogo .ficha-linha[data-ficha="ficha:zombie 2/2"]').count(), 1);
+  // 2 · a lista nova: o Zombie e a Treasure vão para "Nas suas listas" (uma linha só para as duas impressões do Zombie)
+  await createDeck(page, base, 'Zumbis', '4 Fake Necromancer\n16 Swamp');
+  await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-lista .ficha-linha[data-ficha="ficha:zombie 2/2"]');
+  assert.deepEqual(await page.$$eval('#fichas-lista .ds-list__group', gs => gs.map(g => g.textContent)), ['Nas suas listas', 'Outras fichas']);
+  const minhas = await page.$$eval('#fichas-lista .ficha-linha', ls => { const out = []; for (const l of ls) { const g = l.previousElementSibling && [...l.parentElement.children].slice(0, [...l.parentElement.children].indexOf(l)).reverse().find(x => x.classList.contains('ds-list__group')); if (g && g.textContent === 'Nas suas listas') out.push(l.dataset.ficha); } return out; });
+  assert.deepEqual(minhas.sort(), ['ficha:treasure', 'ficha:zombie 2/2']);
+  await page.waitForSelector('#fichas-catalogo[data-estado="ok"]');
+  assert.equal(await page.locator('#fichas-catalogo .ficha-linha[data-ficha="ficha:zombie 2/2"]').count(), 0, 'não repete no catálogo');
+  assert.deepEqual(porId.sort(), ['tok-t', 'tok-z', 'tok-z2'], 'as fichas pelo id, uma vez');
+  await auditaTela(page, 'fichas · das listas');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g244-fichas.png' });
+  // 3 · escolher a arte do Zombie
+  await page.click('#fichas-lista .ficha-linha[data-ficha="ficha:zombie 2/2"]'); await page.waitForSelector('.ficha-opcao[data-opcao="tok-z2"]', { timeout: 15000 });
+  await page.click('.ficha-opcao[data-opcao="tok-z2"]');
+  await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="tok-z2"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false'; }, null, { timeout: 12000 });
+  // 4 · de novo: nada vai à rede pelas fichas (guardadas)
+  porId.length = 0; await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-lista .ficha-linha[data-ficha="ficha:zombie 2/2"]'); await page.waitForTimeout(500);
+  assert.deepEqual(porId, []);
+  // 5 · excluir a lista: o Zombie sai de "Nas suas listas", volta ao catálogo com a arte escolhida
+  await page.goto(base + '#/listas'); await page.click('.deck-item >> text=Zumbis'); await page.waitForSelector('#deck-delete');
+  await page.click('#deck-delete'); await page.waitForSelector('.ds-dialog'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForFunction(() => /Lista excluída/.test(document.querySelector('#ds-toast').textContent));
+  await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-catalogo .ficha-linha[data-ficha="ficha:zombie 2/2"]');
+  assert.equal(await page.locator('#fichas-lista .ficha-linha[data-ficha="ficha:zombie 2/2"]').count(), 0);
+  assert.match(await page.textContent('#fichas-catalogo .ficha-linha[data-ficha="ficha:zombie 2/2"]'), /Sua arte/);
+  assert.ok(!(await page.$$eval('#fichas-lista .ds-list__group', gs => gs.map(g => g.textContent))).includes('Nas suas listas'));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo num grupo próprio em lotes de 40, busca por nome, tipo e P/T, abrir uma do catálogo e escolher a arte (usada na mesa como as outras); erro com Repetir; sem internet, a lista guardada', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });

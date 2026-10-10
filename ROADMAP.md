@@ -494,6 +494,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cx ✅ | Z6 listas do Magic Online: ligas 5-0 e desafios de seis formatos no catálogo, todo dia; Vintage; crédito por fonte; TopDeck mais larga (leva G-241) | Z | 1 | — |
 | 16º-cy ✅ | I8 todas as fichas do jogo em Perfil › Fichas: catálogo semanal pela Scryfall (`fichas.json`), grupo próprio em lotes de 40, busca por nome, tipo e P/T, escolha de arte igual às do app (leva G-242) | I | 1 | — |
 | 16º-cz ✅ | T7 relato resolvido sozinho: a situação do registro volta do GitHub (`situacao.json` no ramo `relatos`), número do registro no cartão, resolvido com a data; id copiado por outra conta não conta (leva G-243) | T | 1 | — |
+| 16º-da ✅ | I9 fichas das suas listas pela Scryfall: a lista nova traz as fichas que as cartas dela criam para "Nas suas listas"; excluir a lista devolve a ficha a "Todas as fichas" com a arte escolhida (leva G-244) | I | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6047,6 +6048,33 @@ mesmo padrão de design".
   por nome, tipo e P/T); U `catalogo.tela.unit` +1 (validação do `fichas.json`: forma, versão, lixo fora); e2e "G-242"
   (85 fichas falsas, lotes 40/80/84, busca, abrir Zombie do catálogo e escolher a arte, escolha gravada lida do
   IndexedDB, rota `?f=`, erro + Repetir, sem internet com a cópia guardada; `auditaTela`).
+
+**I9 · As fichas das suas listas** ✅ (leva G-244, 10/10/2026 · registro #10)
+- **Pedido (relato #10, melhoria · alta):** "Nas suas listas" deve identificar sozinho, conforme listas entram, as fichas
+  que o usuário tem; ao remover a lista, a ficha sai do grupo, a configuração escolhida fica e ela vai para "Todas as fichas".
+- **Causa:** o grupo só conhecia as fichas que os **scripts do motor** criam; carta sem script (a maioria) não trazia a
+  ficha, e ficha do catálogo nunca era "sua".
+- **Entregue:** a carta guardada da Scryfall passa a saber **as fichas que cria** (partes "token" da Scryfall, sem
+  emblema nem a própria carta); Perfil › Fichas junta as das cartas de todas as suas listas e as busca **pelo id** (uma
+  vez; ficam guardadas), uma linha por nome + P/T (duas impressões do mesmo Zombie viram uma). A tela abre com o que está
+  guardado e completa sozinha quando a rede responde. Lista nova: a ficha aparece em "Nas suas listas" (inclusive as do
+  app, como Treasure); lista excluída: a ficha sai do grupo e volta a "Todas as fichas", com **"Sua arte"** — a escolha
+  continua em `fichas.escolhas`.
+- **Carta guardada antes desta leva** não sabe as fichas que cria: com rede, a tela a busca de novo **uma vez** (lotes de
+  75 nomes); sem rede, fica o que está guardado e as fichas dela aparecem quando houver conexão.
+- **Guardado:** `fichas` em cada carta do cache (`card.<nome>`, derivado); `fichas.partes` (id → ficha, derivado, fora do
+  backup); `fichas.escolhas` como antes (vai no backup).
+- **Modelo:** `normalizeCard` (campo `fichas`); `scryfall.porIds`; `cardRepo.byNames(…, { exige })`; `__m34`:
+  `fichaDaCarta`, `listaDeFichas(nomes, catalogo, dasListas)`, serviço `dasListas`; `telaDeArtes({ atualiza })`.
+- **Testes:** U `fichas.unit` +1 (o campo vindo das partes, emblema e a própria carta fora; a ficha de cada carta-ficha;
+  sem rede só o guardado; com rede a carta antiga buscada uma vez e as fichas pelo id; de novo nada vai à rede; a lista
+  da tela com as das listas primeiro e sem repetir; sem a lista, saem do grupo); e2e "G-244" (lista nova traz Zombie e
+  Treasure, catálogo sem repetir, fichas pelo id uma vez, escolher a arte, excluir a lista devolve o Zombie a "Todas as
+  fichas" com "Sua arte", `auditaTela`).
+- **Limites:** a ficha que uma carta só cria por texto, sem a parte "token" na Scryfall, não aparece; ficha de duas
+  faces fica de fora (como no catálogo); a arte escolhida aparece na mesa quando um script do motor cria a ficha.
+- **Dívida (revisão de escala):** cada abertura de Fichas lê uma chave do aparelho por nome de carta das listas (≈ 600
+  com 20 listas); medir e, se passar de 100 ms, guardar um índice nome → fichas.
 
 **I5 · Histórico e estatísticas de partidas** ✅ (leva 188, 05/10/2026)
 - **Onde:** Perfil › **Partidas** (rota `/perfil/partidas`); o atalho no Perfil já diz "N · X% de vitória".

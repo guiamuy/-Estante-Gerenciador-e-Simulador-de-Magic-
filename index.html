@@ -3881,7 +3881,9 @@ function normalizeCard(c) {
     legalities: c.legalities || {}, prices: c.prices || {},
     images: imgs(c.image_uris) || (faces[0] && faces[0].images) || null,
     faces, uri: c.scryfall_uri || '', edhrec_rank: c.edhrec_rank ?? null,
-    reserved: !!c.reserved, games: c.games || []
+    reserved: !!c.reserved, games: c.games || [],
+    // G-244 · relato #10: as fichas que a carta cria (partes "token" da Scryfall), para Perfil › Fichas saber o que as listas usam
+    fichas: Array.isArray(c.all_parts) ? c.all_parts.filter(p => p && p.component === 'token' && typeof p.id === 'string' && p.id !== c.id && /\btoken\b/i.test(p.type_line || '')).map(p => ({ id: p.id, name: String(p.name || '') })) : []
   };
 }
 
@@ -3972,6 +3974,18 @@ function createScryfall(opts = {}) {
       }
       return { found, missing };
     },
+    /** G-244 · cartas pelo id da Scryfall, em lotes (as fichas que as cartas citam). Devolve {found:[], missing:[]}. */
+    async porIds(ids) {
+      const uniq = [...new Set(ids)].filter(Boolean), found = [], missing = [];
+      for (let i = 0; i < uniq.length; i += BATCH_SIZE) {
+        const batch = uniq.slice(i, i + BATCH_SIZE);
+        const data = await schedule(() => request('/cards/collection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifiers: batch.map(id => ({ id })) }) }));
+        if (data.notFound) { missing.push(...batch); continue; }
+        (data.data || []).forEach(c => found.push(normalizeCard(c)));
+        (data.not_found || []).forEach(x => missing.push(x.id || ''));
+      }
+      return { found, missing };
+    },
     /** Consulta de busca. `pages` limita o número de páginas lidas. */
     async search(query, { order = 'name', unique = 'cards', pages = 1, onProgress } = {}) {
       const out = []; let more = true;
@@ -4057,13 +4071,14 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     stats,
     /** Resolve nomes. Devolve Map(nomeNormalizado -> carta|null).
         `null` significa "consultado e não existe". */
-    async byNames(names, onProgress) {
+    async byNames(names, onProgress, { exige = null } = {}) {
       const keys = [...new Set(names.map(norm))].filter(Boolean);
       const out = new Map();
       const need = [];
       for (const k of keys) {
         const rec = await readCache(k);
-        if (fresh(rec)) { stats.hits++; out.set(k, rec.card); }
+        // G-244 · `exige`: carta guardada antes de um campo novo existir conta como vencida (busca de novo, uma vez)
+        if (fresh(rec) && (!exige || !rec.card || exige(rec.card))) { stats.hits++; out.set(k, rec.card); }
         else { stats.misses++; need.push(k); }
       }
       if (!need.length) return out;
@@ -9582,15 +9597,31 @@ function descricaoDaFicha(t) {
 }
 /** Todas as fichas que o app sabe criar, em ordem de nome (e de força); `nomesDasListas` marca as que as listas do
     usuário criam, que vêm primeiro. Cada item: { chave, def, nome, pt, icone, cores, descricao, suaLista }. Puro. */
-function listaDeFichas(nomesDasListas = [], catalogo = []) {
-  const minhas = new Set(__m23.fichasDasCartas(nomesDasListas).map(chaveDaFicha));
+function listaDeFichas(nomesDasListas = [], catalogo = [], dasListas = []) {
+  // G-244 · relato #10: as das listas vêm do motor (scripts) e das cartas da Scryfall (partes "token")
+  const minhas = new Set([...__m23.fichasDasCartas(nomesDasListas), ...(dasListas || [])].map(chaveDaFicha));
   const item = (def, doCatalogo) => ({ chave: chaveDaFicha(def), def, nome: def.name, pt: def.power != null ? `${def.power}/${def.toughness}` : '',
     icone: iconeDaFicha(def), cores: coresDaFicha(def), descricao: descricaoDaFicha(def), suaLista: minhas.has(chaveDaFicha(def)), catalogo: doCatalogo });
   const doApp = __m23.fichasDasCartas(Object.keys(__m23.SCRIPTS)).map(def => item(def, false));
+  const conhecidas = new Set(doApp.map(x => x.chave));
+  const dasCartas = (dasListas || []).filter(def => def && def.name && !conhecidas.has(chaveDaFicha(def)) && (conhecidas.add(chaveDaFicha(def)), true)).map(def => item(def, true));
+  doApp.push(...dasCartas);
   // G-242 · todas as fichas do jogo (catálogo da Scryfall): as que o app já conhece não entram de novo
   const vistas = new Set(doApp.map(x => x.chave));
   const doCatalogo = (catalogo || []).filter(def => def && def.name && !vistas.has(chaveDaFicha(def)) && (vistas.add(chaveDaFicha(def)), true)).map(def => item(def, true));
   return [...doApp, ...doCatalogo].sort((a, b) => Number(b.suaLista) - Number(a.suaLista) || Number(a.catalogo) - Number(b.catalogo) || a.nome.localeCompare(b.nome) || a.pt.localeCompare(b.pt));
+}
+/** G-244 · a ficha que uma carta-ficha da Scryfall descreve (mesma leitura do coletor do catálogo): nome, tipos, subtipos,
+    cores, força e resistência; ficha de duas faces fica de fora. Puro. */
+function fichaDaCarta(c) {
+  if (!c || !c.name || typeof c.name !== 'string') return null;
+  const linha = String(c.type_line || '');
+  if (!/\bToken\b/i.test(linha) || c.name.includes(' // ') || (c.faces || []).length > 1) return null;
+  const [tipos, sub] = linha.split(/\s[—-]\s/);
+  const types = tipos.split(/\s+/).map(t => t.toLowerCase()).filter(t => ['creature', 'artifact', 'enchantment', 'land', 'planeswalker', 'battle'].includes(t));
+  const out = { name: c.name.trim(), types, subtypes: sub ? sub.trim().split(/\s+/) : [], colors: [...'WUBRG'].filter(x => (c.colors || []).includes(x)) };
+  if (c.power != null && c.toughness != null) { out.power = String(c.power); out.toughness = String(c.toughness); }
+  return out;
 }
 /** G-242 · o recorte da busca: nome, subtipo, tipo e P/T, sem acento. Puro. */
 function filtraFichas(lista, texto) {
@@ -9678,15 +9709,38 @@ function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCO
   return api;
 }
 const temRedePadrao = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+const PARTES = 'fichas.partes'; // G-244 · id da ficha na Scryfall → a ficha (ou null); derivado, fora do backup
 function createFichas({ store, scryfall, images = null, temRede = temRedePadrao }) {
-  return criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDaFicha, teto: OPCOES_MAX,
+  const galeria = criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDaFicha, teto: OPCOES_MAX,
     async candidatas(def) {
       let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints' });
       if (!cartas.length && (def.colors || []).length) cartas = await scryfall.search(consultaDaFicha(def, { comCor: false }), { pages: 2, unique: 'prints' });
       return opcoesDeArte(cartas);
     } });
+  /** G-244 · relato #10: as fichas que as cartas destas listas criam, pela Scryfall. Sem `rede`, só o que está guardado
+      (carta guardada antes desta leva não sabe as fichas dela: com rede, é buscada de novo uma vez). */
+  galeria.dasListas = async (nomes, { cardRepo = null, rede = false } = {}) => {
+    if (!cardRepo || !(nomes || []).length) return [];
+    const cartas = await cardRepo.cached(nomes);
+    const online = rede && temRede();
+    if (online) {
+      const falta = nomes.filter(n => { const c = cartas.get(norm(n)); return !c || !Array.isArray(c.fichas); });
+      if (falta.length) { try { const novas = await cardRepo.byNames(falta, null, { exige: c => Array.isArray(c.fichas) }); for (const [k, c] of novas) if (c) cartas.set(k, c); } catch (e) { /* fica o guardado */ } }
+    }
+    const ids = [...new Set([...cartas.values()].flatMap(c => (c && Array.isArray(c.fichas) ? c.fichas : [])).map(p => p.id))];
+    let partes = {}; try { partes = (await store.get(PARTES)) || {}; } catch (e) { partes = {}; }
+    const faltam = ids.filter(id => !Object.prototype.hasOwnProperty.call(partes, id));
+    if (online && faltam.length && scryfall && scryfall.porIds) {
+      try { const r = await scryfall.porIds(faltam); partes = { ...partes }; for (const c of r.found) partes[c.id] = fichaDaCarta(c); for (const id of r.missing) if (id) partes[id] = null; await store.set(PARTES, partes); }
+      catch (e) { /* sem rede no meio: fica para a próxima */ }
+    }
+    const vistas = new Set(), defs = [];
+    for (const id of ids) { const d = partes[id]; if (d && !vistas.has(chaveDaFicha(d))) { vistas.add(chaveDaFicha(d)); defs.push(d); } }
+    return defs;
+  };
+  return galeria;
 }
-return { chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, filtraFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX, LOTE, proximoLote, criaGaleria, temRedePadrao };
+return { fichaDaCarta, PARTES, chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, filtraFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX, LOTE, proximoLote, criaGaleria, temRedePadrao };
 })();
 
 /* ==== src/data/terrenos.js ==== */
@@ -11556,7 +11610,7 @@ function createPartidasScreen({ partidas }) {
 /* I4 + I6 · a mesma tela serve às fichas e aos terrenos: lista de itens (ícone, nome, cores) e, dentro de cada um, as artes
    em lotes de 6. `C` traz os textos, a rota e o prefixo dos ids; `itens()` devolve a lista. */
 const LOTE_DE_ARTES = 40; // G-242 · o catálogo de fichas desenhado em lotes
-function telaDeArtes({ galeria: fichas, itens, C, catalogo = null }) {
+function telaDeArtes({ galeria: fichas, itens, atualiza = null, C, catalogo = null }) {
   const F = __m34;
   const root = Stack(pad(), __m3.Carregando(C.abrindo, { tamanho: 'tela' }));
   // G-242 · `catalogo` (só nas fichas): busca todas as fichas do jogo; a lista do app aparece antes, o catálogo chega no lugar
@@ -11745,16 +11799,21 @@ function telaDeArtes({ galeria: fichas, itens, C, catalogo = null }) {
     try { st.estado = await fichas.estado(); } catch (e) { /* sem armazenamento: começa do padrão */ }
     pinta();
     carregaCatalogo(); // G-242 · depois da lista do app, sem segurar a tela
+    // G-244 · as fichas das listas pela Scryfall chegam depois da primeira pintura (o que está guardado aparece na hora)
+    if (atualiza) { try { const l = await atualiza(); if (root.isConnected && l && l.map(x => x.chave + x.suaLista).join() !== st.lista.map(x => x.chave + x.suaLista).join()) { st.lista = l; if (st.aberta) pinta(); else pintaPreservandoFoco(); } } catch (e) { /* fica a lista de antes */ } }
   })();
   // a rede voltou ou caiu com a tela aberta: o aviso e a busca acompanham
   const aoMudarRede = () => { if (!root.isConnected) { removeEventListener('online', aoMudarRede); removeEventListener('offline', aoMudarRede); return; } if (st.lista.length) pinta(); };
   if (typeof addEventListener === 'function') { addEventListener('online', aoMudarRede); addEventListener('offline', aoMudarRede); }
   return root;
 }
-function createFichasScreen({ fichas, decks, catalogo = null }) {
+function createFichasScreen({ fichas, decks, catalogo = null, cardRepo = null }) {
   return telaDeArtes({ galeria: fichas, catalogo, C: { id: 'ficha', rota: '/perfil/fichas', titulo: 'Fichas', outras: 'Outras fichas', icone: 'ficha', abrindo: 'Abrindo as fichas…', voltar: 'Voltar às fichas',
       vazio: 'Nenhuma carta com ficha por enquanto.', vazioTitulo: 'Sem fichas', semRedeSemArtes: 'Sem internet: as artes desta ficha aparecem quando houver conexão.', semArte: 'A Scryfall não tem imagem desta ficha. A mesa usa a carta em texto.' },
-    async itens() { let nomes = []; try { nomes = (await decks.list()).flatMap(d => d.entries.map(e => e.name)); } catch (e) { /* sem listas: todas juntas */ } return __m34.listaDeFichas(nomes); } });
+    async itens() { const nomes = await nomesDasListas(); return __m34.listaDeFichas(nomes, [], fichas.dasListas ? await fichas.dasListas(nomes, { cardRepo }) : []); },
+    // G-244 · com rede: as fichas das cartas das listas (relato #10); tirar a lista tira a ficha do grupo, a arte escolhida fica
+    atualiza: cardRepo && fichas.dasListas ? async () => { const nomes = await nomesDasListas(); return __m34.listaDeFichas(nomes, [], await fichas.dasListas(nomes, { cardRepo, rede: true })); } : null });
+  async function nomesDasListas() { try { return [...new Set((await decks.list()).flatMap(d => d.entries.map(e => e.name)))]; } catch (e) { return []; } /* sem listas: todas juntas */ }
 }
 /* I6 · Perfil › Terrenos: a arte de cada terreno básico nas partidas */
 function createTerrenosScreen({ terrenos, decks }) {
@@ -25456,7 +25515,7 @@ const ROUTES = [
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
-  { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks, catalogo }) }, // I4 · G-242: todas as fichas do catálogo
+  { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks, catalogo, cardRepo }) }, // I4 · G-242: todas as fichas do catálogo
   { path: '/perfil/terrenos', title: 'Terrenos', render: () => createTerrenosScreen({ terrenos, decks }) }, // I6
   { path: '/noticias', title: 'Notícias', render: () => renderHome({ ancora: true }) }, // N2 · T2: a Início, aberta nas notícias
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
