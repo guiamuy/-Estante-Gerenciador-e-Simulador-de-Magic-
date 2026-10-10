@@ -19787,6 +19787,8 @@ function imgDaMesa(card, size) {
   const img = h('img', { alt: '', decoding: 'async', dataset: { fonte: fonte || '' } });
   let modo = '';
   img.__pinta = () => {
+    // G-245 · com o guardião entre uma tentativa e outra, a <img> vai à rede de propósito: ela lê a imagem que o service worker
+    // guardou para ela (resposta sem CORS), que o fetch do guardião não consegue ler — é o caminho da mesa sem internet
     const quer = dono && dono.estado === 'ok' ? 'guardada' : dono && dono.estado === 'indo' ? 'espera' : 'rede';
     if (quer === modo) return;
     modo = quer; img.dataset.imagem = quer; delete img.dataset.falhou;

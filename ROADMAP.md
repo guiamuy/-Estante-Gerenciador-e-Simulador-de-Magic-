@@ -499,6 +499,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dc ✅ | T6a documento de perfil: registro de todas as chaves do armazenamento por classe, store vigiado que carimba cada preferência, documento `estante.perfil` v1 e backup com as oito preferências que ficavam de fora (leva A-261) | T | 1 | — |
 | 16º-dd 🟡 | T6 depois da decisão de 10/10/2026 (**Firebase**, por REST, sem SDK): T6b forma do perfil e da fila de relatos, T6c regras de acesso e entrada com Google, T6d sincronização, T6e relato sem sair do app (#13) | T | 4 a 5 | **projeto Firebase** criado pelo usuário (Realtime Database + Authentication com Google) para ligar no aparelho |
 | 16º-de ✅ | T6b forma do perfil e da fila de relatos no Firebase: um nó por preferência com valor em texto e instante, foto em nó à parte, fila por pessoa com o id do relato; encontro entre dois aparelhos provado com banco de memória e REST de mentira (leva A-262) | T | 1 | — |
+| 16º-dk ✅ | Instáveis da trilha geral: I7 e N2 esperam o mecanismo (dois quadros) em vez do relógio; H7 simula a rede ruim só para o guardião (leva G-245) | Q | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -2682,6 +2683,7 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Aceite:** `npm test`, `npm run publicar` e o CI passam pelo mesmo `portao.mjs`; as duas fases somadas cobrem todos os arquivos `.test.mjs`; nenhum arquivo da fase rápida abre navegador.
 - **Testes:** `portao.unit` (4). **Risco declarado:** a segunda chance pode esconder um defeito intermitente de verdade no produto; por isso o aviso é alto e cada instável é dívida com dono.
 - **Instável conhecido hoje:** `e2e · I7 toque sem realce…` (trilha geral) cai com o arquivo inteiro e passa sozinho — depois do toque no acento a tela é redesenhada e o Tab pode cair antes de o foco existir.
+- **Resolvido na leva G-245 (10/10/2026):** I7 (o Tab espera o acento aplicado e dois quadros), N2 (a posição do botão de idioma é medida depois de dois quadros, quando a âncora J1 já compensou — a tela nunca pulou: a compensação roda antes da pintura) e H7 (a falha simulada valia para quem pedisse primeiro, ver H7b). Os três passaram sob carga artificial nos dois núcleos.
 - **Fora:** fila de publicação entre trilhas (tentei uma trava em `refs/vez/*`; o proxy do ambiente recusa esse tipo de referência, e trava em ramo dispararia o CI); dividir a fase de tela em dois navegadores em paralelo; Pages só com portão verde (depende do dono, em Settings → Pages).
 
 **CR0 · Mapa regra × motor** ✅ (leva 194, motor v72 sem mudança) — 14 auditores independentes, um por trecho das regras, cada um obrigado a mostrar evidência vista e a escolher o nível mais baixo na dúvida.
@@ -5947,6 +5949,13 @@ recolhível; conseguir acompanhar as jogadas do oponente; escolher as manas que 
   rede e cache falsos: cortada na rede, cortada no cache, cortada sempre; `fonteParaLargura`); e2e "H7" (falha →
   cortada → inteira sem toque, lista inteira na memória, seis redesenhos sem download). Expectativa mudada de
   propósito nos e2e "Leva 123" e "H1": a carta da mesa pinta de `blob:` e diz o endereço em `data-fonte`.
+- **H7b · o instável do H7 (leva G-245, 10/10/2026):** o e2e "H7" caía de vez em quando no portão porque a rede ruim
+  simulada (1º pedido cai, 2º chega cortado) contava por endereço: quando a `<img>` da carta pedia primeiro, ela gastava a
+  falha e o guardião acertava de primeira. O teste passou a simular a rede ruim **para o guardião** (pedidos por `fetch`);
+  as `<img>` recebem a imagem inteira. Testada e **revertida** na mesma leva uma mudança no app (a carta esperar o
+  guardião em vez de ir à rede enquanto ele tenta): cortava downloads com sinal ruim (10 → 7), mas sem internet deixava a
+  carta sem imagem por até ~5 min — a `<img>` lê a imagem que o service worker guardou para ela (resposta sem CORS), o que o
+  `fetch` do guardião não consegue. Fica declarado: com sinal ruim, a `<img>` e o guardião podem baixar a mesma imagem.
 
 ### I · Leitura e gestão (E56, pedido de 05/10/2026)
 

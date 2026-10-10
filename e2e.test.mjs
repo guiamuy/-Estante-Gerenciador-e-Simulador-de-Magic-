@@ -7177,7 +7177,12 @@ test('e2e · H7 imagens da partida: a que falha ou chega cortada volta sozinha e
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
   // sinal ruim: o 1º pedido de cada imagem cai, o 2º chega cortado pela metade, do 3º em diante vem inteira
   const pedidos = new Map(); const total = () => [...pedidos].filter(([u]) => u.includes('/small/')).reduce((a, [, n]) => a + n, 0);   // o tamanho que a mesa escolhe nesta tela (1×)
-  await page.route('https://**.scryfall.io/**', r => { const u = r.request().url(); const n = (pedidos.get(u) || 0) + 1; pedidos.set(u, n);
+  // G-245 · a sequência ruim vale para o guardião (que pede por fetch): antes a contagem era só por endereço e, quando uma <img>
+  // pedia primeiro, ela gastava a falha e o guardião acertava de primeira (instável, 10/10/2026). As <img> (a da mesa, que vai
+  // à rede enquanto o guardião tenta, e a da folha da carta) recebem a imagem inteira.
+  const porQuem = new Map();
+  await page.route('https://**.scryfall.io/**', r => { const u = r.request().url(); pedidos.set(u, (pedidos.get(u) || 0) + 1);
+    const tipo = r.request().resourceType(), n = tipo === 'fetch' ? (porQuem.get(u) || 0) + 1 : 3; if (tipo === 'fetch') porQuem.set(u, n);
     if (n === 1) return r.abort('internetdisconnected');
     return r.fulfill({ status: 200, contentType: 'image/png', body: n === 2 ? PNG.subarray(0, 70) : PNG, headers: { 'access-control-allow-origin': '*' } }); });
   await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
@@ -8783,6 +8788,10 @@ test('e2e · I7 toque sem realce do navegador em todo o app; artes: a pequena ch
   // o clique do mouse ou do dedo não deixa contorno de foco; o teclado deixa
   await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-terrenos');
   await page.click('[data-acento="cobre"]'); assert.equal(await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'none', 'tocar não desenha contorno');
+  // o acento redesenha a tela: o Tab espera o redesenho (o acento aplicado e dois quadros), senão o foco caía no meio da troca
+  // e a tela nova o levava (instável conhecido desde a leva 214)
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-acento') === 'cobre');
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
   await page.keyboard.press('Tab'); assert.notEqual(await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'none', 'o foco do teclado continua desenhado');
   // 2 · artes: abre a Forest com a rede de imagem lenta
   await page.goto(base + '#/perfil/terrenos?f=forest'); await page.waitForSelector('#terreno-opcoes', { timeout: 15000 });
@@ -9267,8 +9276,12 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   await page.evaluate(() => window.scrollTo(0, 0)); pedidos.length = 0;
   const topo = () => page.$eval('#noticias-idioma-en', e => Math.round(e.getBoundingClientRect().top));
   await page.locator('#noticias-idioma-en').scrollIntoViewIfNeeded(); // T2 · na Início, o seletor fica abaixo dos destinos
-  const antes = await topo(); await page.click('#noticias-idioma-en'); assert.equal(await topo(), antes, 'o botão de idioma não sai do lugar');
+  // a âncora J1 compensa no quadro seguinte (antes da pintura): mede depois de dois quadros, logo após o toque e depois
+  // que a série pt chegou e redesenhou a lista (antes media no meio do quadro e caía sob carga: 396 × 368 em 10/10/2026)
+  const doisQuadros = () => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const antes = await topo(); await page.click('#noticias-idioma-en'); await doisQuadros(); assert.equal(await topo(), antes, 'o botão de idioma não sai do lugar');
   await page.waitForFunction(() => document.querySelectorAll('.nt-cartao').length === 15 && document.querySelector('#noticias-fim'));
+  await doisQuadros(); assert.equal(await topo(), antes, 'nem depois que a lista em português chega');
   assert.deepEqual(pedidos, ['indice.json', 'pt-pagina-1.json']); assert.ok(await page.$$eval('.nt-cartao', cs => cs.every(c => c.dataset.idioma === 'pt')));
   assert.deepEqual(await page.$$eval('#noticias-idiomas button', bs => bs.map(b => b.getAttribute('aria-pressed'))), ['true', 'false']); assert.equal(await page.locator('.nt-meta .ds-bandeira').count(), 0);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n2-portugues.png' });
