@@ -1439,6 +1439,7 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .ds-segmentado--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cat { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); }
 .cat__cabeca { display: flex; flex-direction: column; gap: var(--space-1); }
+.cat-creditos { display: flex; flex-direction: column; gap: var(--space-1); }
 .cat-credito { margin: 0; }
 .cat-credito a { color: var(--fg-muted); text-decoration: underline; text-underline-offset: 2px; display: inline-block; min-height: var(--tap-min); line-height: var(--tap-min); }
 .cat-mais { display: flex; justify-content: center; padding: var(--space-4) 0 var(--space-2); }
@@ -10482,11 +10483,18 @@ const PRAZO_MS = 12 * 3600 * 1000; // o coletor roda uma vez por semana: meio di
 const LOTE = 30; // lista grande desenhada em lotes
 // Z5 · os formatos de torneio (TopDeck.gg) entram ao lado dos produtos oficiais; "Desafio" são os decks de desafio da Wizards
 const FORMATOS = [['commander', 'Commander'], ['pauper', 'Pauper'], ['modern', 'Modern'], ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['legacy', 'Legacy'],
-  ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']];
+  ['vintage', 'Vintage'], ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']]; // G-241 · Vintage vem com o Magic Online
 const ROTULO_DO_FORMATO = Object.fromEntries(FORMATOS);
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
-const idValido = id => typeof id === 'string' && /^(mtgjson|topdeck)-[a-z0-9-]{1,140}$/.test(id);
-const deTorneio = l => !!(l && l.fonte === 'topdeck');
+const idValido = id => typeof id === 'string' && /^(mtgjson|topdeck|mtgo)-[a-z0-9-]{1,140}$/.test(id);
+const deTorneio = l => !!(l && (l.fonte === 'topdeck' || l.fonte === 'mtgo')); // G-241 · lista de jogador: TopDeck.gg ou Magic Online
+/** G-241 · as fontes do catálogo e o crédito que cada uma pede (a TopDeck.gg exige link; o Magic Online é conteúdo da
+    Wizards usado sob a Fan Content Policy). O texto é dado nosso, nunca vem do índice. */
+const FONTES_DO_CATALOGO = {
+  mtgjson: { nome: 'MTGJSON', credito: 'Listas oficiais: MTGJSON (licença MIT).' },
+  topdeck: { nome: 'TopDeck.gg', credito: 'Listas de torneio: dados fornecidos por ', link: ['https://topdeck.gg', 'TopDeck.gg'], fim: '.' },
+  mtgo: { nome: 'Magic Online', credito: 'Ligas 5-0 e desafios: ', link: ['https://www.mtgo.com/decklists', 'Magic Online'], fim: ' (conteúdo da Wizards of the Coast, uso sob a Fan Content Policy; a Estante não é afiliada).' }
+};
 const resumoValido = l => !!(l && idValido(l.id) && typeof l.nome === 'string' && l.nome.trim() && ROTULO_DO_FORMATO[l.formato]);
 /** As listas válidas de um índice publicado (o que veio quebrado fica de fora). */
 const listasDoIndice = d => (d && d.versao === 1 && Array.isArray(d.listas) ? d.listas.filter(resumoValido) : []);
@@ -10503,8 +10511,9 @@ const dataBR = d => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse()
 function listaParaSalvar(l) {
   const entries = (l && Array.isArray(l.entradas) ? l.entradas : []).filter(e => e && typeof e.name === 'string' && e.name.trim() && Number.isInteger(e.qty) && e.qty > 0 && ['main', 'side', 'commander'].includes(e.zone))
     .map(e => ({ name: e.name, qty: e.qty, zone: e.zone }));
-  // Z5 · Pauper e Commander são formatos que a estante valida; os outros entram como Livre
-  return { name: String(l.nome || 'Lista do catálogo'), format: l.formato === 'commander' || l.formato === 'pauper' ? l.formato : 'livre', entries, origem: { fonte: l.fonte || 'mtgjson', id: l.id } };
+  // Z5 · Pauper e Commander são formatos que a estante valida; os outros (Modern, Standard, Vintage…) entram como Livre
+  const daEstante = (__m14.FORMATS && __m14.FORMATS[l.formato]) ? l.formato : 'livre';
+  return { name: String(l.nome || 'Lista do catálogo'), format: daEstante, entries, origem: { fonte: l.fonte || 'mtgjson', id: l.id } };
 }
 /** Já está na estante? Pela origem marcada ou pelo mesmo nome. */
 const jaNaEstante = (l, minhas) => (minhas || []).some(d => (d.origem && d.origem.id === l.id) || norm(d.name) === norm(l.nome));
@@ -10550,8 +10559,13 @@ function createCatalogo({ store, busca = typeof fetch !== 'undefined' ? fetch.bi
 }
 
 /** Z5 · crédito exigido pela TopDeck.gg: visível, com link. */
-const CreditoTopdeck = id => h('p', { class: 'ds-text ds-text--xs ds-text--subtle cat-credito', id }, 'Listas de torneio: dados fornecidos por ',
-  h('a', { href: 'https://topdeck.gg', target: '_blank', rel: 'noopener' }, 'TopDeck.gg'), '.');
+/** G-241 · o crédito das fontes presentes (uma linha por fonte, na ordem fixa); a MTGJSON entra só quando pedida. */
+function CreditoDasFontes(fontes, id, { comMtgjson = false } = {}) {
+  const presentes = ['mtgjson', 'topdeck', 'mtgo'].filter(f => (f === 'mtgjson' ? comMtgjson : fontes.has(f)));
+  return h('div', { class: 'cat-creditos', id }, ...presentes.map(f => { const c = FONTES_DO_CATALOGO[f];
+    return h('p', { class: 'ds-text ds-text--xs ds-text--subtle cat-credito', dataset: { fonte: f } }, c.credito, c.link ? h('a', { href: c.link[0], target: '_blank', rel: 'noopener' }, c.link[1]) : null, c.fim || null); }));
+}
+const CreditoTopdeck = id => CreditoDasFontes(new Set(['topdeck']), id); // (compatibilidade: o detalhe antigo chamava assim)
 /** Cartão de uma lista oficial: arte da carta de destaque, nome, cores, formato, contagem e quem comanda (ou tipo e data). */
 function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null } = {}) {
   const img = imagemDaCarta(l.destaqueId);
@@ -10603,15 +10617,15 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
     if (st.estado === 'ausente' || !todas.length) return mount(listaBox, Empty('O catálogo ainda está sendo montado. Volte daqui a pouco.', null, { icone: 'caixa', titulo: 'Catálogo vazio', id: 'catalogo-vazio' }));
     const recorte = filtraCatalogo(todas, { formato: st.formato, texto: st.texto });
     const nomeFmt = ROTULO_DO_FORMATO[st.formato];
-    if (!recorte.length) return mount(listaBox, Empty(st.texto ? `Nenhuma lista do catálogo com "${st.texto}".` : st.formato === 'pauper' ? 'Nenhum torneio de Pauper no catálogo agora, e as listas oficiais não têm Pauper. As de Pauper estão na Estante, acima.' : `Nenhuma lista de ${nomeFmt || 'este formato'} no catálogo agora: os torneios dos últimos 30 dias não trouxeram.`, null, { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }));
+    if (!recorte.length) return mount(listaBox, Empty(st.texto ? `Nenhuma lista do catálogo com "${st.texto}".` : st.formato === 'pauper' ? 'Nenhum torneio de Pauper no catálogo agora, e as listas oficiais não têm Pauper. As de Pauper estão na Estante, acima.' : `Nenhuma lista de ${nomeFmt || 'este formato'} no catálogo agora: as ligas, os desafios e os torneios dos últimos 30 dias não trouxeram.`, null, { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }));
     const visiveis = recorte.slice(0, st.mostra);
     mount(listaBox,
       Text(`${recorte.length} ${recorte.length === 1 ? 'lista' : 'listas'}${nomeFmt ? ' de ' + nomeFmt : ''}, da mais nova à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-conta', 'aria-live': 'polite' } }),
       h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l) }))),
       // T5 · respiro entre a última lista e o botão (relato #1: estava colado)
       recorte.length > visiveis.length ? h('div', { class: 'cat-mais' }, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
-      Text(`Fonte: MTGJSON (licença MIT) · ${st.r.velho ? 'sem internet: o catálogo guardado em ' : 'atualizado em '}${new Date(st.r.em).toLocaleDateString('pt-BR')}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catalogo-fonte' } }),
-      todas.some(deTorneio) ? CreditoTopdeck('catalogo-credito') : null);
+      Text(`${st.r.velho ? 'Sem internet: o catálogo guardado em ' : 'Catálogo atualizado em '}${new Date(st.r.em).toLocaleDateString('pt-BR')}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catalogo-fonte' } }),
+      CreditoDasFontes(new Set(todas.map(l => l.fonte || 'mtgjson')), 'catalogo-credito', { comMtgjson: true }));
   }
   async function carrega(forcar = false) {
     st.estado = 'carregando'; pintaLista();
@@ -10748,7 +10762,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
             h('span', { class: 'cat-item__conta', role: 'img', 'aria-label': `${l.cartas} cartas` + (l.reserva ? ` e ${l.reserva} na reserva` : ''), title: `${l.cartas} cartas` }, Icone('baralho', { tamanho: 16 }), h('b', {}, String(l.cartas)), l.reserva ? ` + ${l.reserva}` : '')),
           (l.comandante || []).length ? h('span', { class: 'catd__comandante', lang: 'en' }, l.comandante.join(' + ')) : null)),
       Text(l.descricao || '', { size: 'sm', tone: 'muted', attrs: { id: 'catd-descricao' } }),
-      deTorneio(l) ? CreditoTopdeck('catd-fonte')
+      deTorneio(l) ? CreditoDasFontes(new Set([l.fonte]), 'catd-fonte')
         : Text(`Fonte: MTGJSON (licença MIT)${l.fichas && l.fichas.length ? ` · fichas: ${l.fichas.join(', ')}` : ''}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catd-fonte' } }),
       // Z4 · Jogar ao lado: um primário (Adicionar, ou Abrir quando já está na estante) e Jogar como segunda ação
       h('div', { class: 'catd__acoes', id: 'catd-acoes' },
@@ -10765,7 +10779,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   return root;
 }
 
-return { VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+return { deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -11476,7 +11490,7 @@ function createStarterDecks({ decks, cardRepo = null, catalogo = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const state = { format: 'all', minhas: [], busy: false, erro: null, cartas: new Map() };
   // Z2 · os formatos das listas oficiais entram nos mesmos chips (as da Estante são Pauper e Commander)
-  const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['modern', 'Modern'], ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['legacy', 'Legacy'], ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']]; // Z5 · formatos de torneio
+  const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['modern', 'Modern'], ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['legacy', 'Legacy'], ['vintage', 'Vintage'], ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']]; // Z5 · formatos de torneio; G-241 · Vintage
   const secaoOficial = catalogo ? __m39.SecaoCatalogo({ catalogo, decks, formato: state.format, aoImportar: async () => { try { state.minhas = await decks.list(); } catch (e) { /* fica a lista de antes */ } } }) : null;
 
   // E50 P5 · principal e reserva contados separados

@@ -491,6 +491,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cu | T6 perfil por pessoa e servidor: plano curto (perfis no aparelho) e médio prazo (conta e sincronização) | T | 1 de decisão + 3 a 5 | escolha do serviço (decisão do usuário) |
 | 16º-cv ✅ | V5 a impressão escolhida na lista (V1) vale na mesa, para quem jogou com a lista; o bot e o oponente online seguem na arte padrão (leva G-238) | V | 1 | — |
 | 16º-cw ✅ | V3 visões da lista: Galeria, Densa (estilo Moxfield) e Pilhas por custo, lembradas no aparelho (leva G-239) | V | 1 | — |
+| 16º-cx ✅ | Z6 listas do Magic Online: ligas 5-0 e desafios de seis formatos no catálogo, todo dia; Vintage; crédito por fonte; TopDeck mais larga (leva G-241) | Z | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6788,6 +6789,43 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Testes:** U `catalogo.unit` +1 (texto e estrutura, oito primeiras, cores e destaque, 429, retenção) e
   `catalogo.tela.unit` +1; e2e Z2 e Z3 ampliados (cartão de torneio, crédito com link, Pauper com a de torneio, formato
   vazio).
+
+**Z6 · Listas do Magic Online em todo formato** ✅ (leva G-241, 10/10/2026 · registro #8)
+- **Pedido (relato #8, 09/10/2026):** "Não existem listas disponíveis pra vários formatos… espero uma altíssima
+  disponibilidade de listas pra todos os formatos." Na coleta de 09/10 a TopDeck.gg trazia Pauper 55, Legacy 24, Modern
+  8, Standard 0, Pioneer 0 (a maioria dos torneios não publica a lista).
+- **Fonte nova (pesquisa de 10/10/2026):** o site do **Magic Online** publica todo dia as listas 5-0 das ligas e as
+  classificadas dos desafios de Standard, Modern, Pioneer, Legacy, Vintage e Pauper (`mtgo.com/decklists/AAAA/MM`, uma
+  `<li class="decklists-item">` por evento; a página do evento embute `window.MTGO.decklists.data`). Estrutura
+  confirmada em scraper mantido (davidfischer/modometa-scraper, atualizado em 21/09/2026) e em espelho diário
+  (danzel/MtgoDecklistScraperDecks, 134 eventos em outubro até o dia 9). Fontes descartadas: Badaro/MTGODecklistCache
+  (encerrado em 06/2025), Melee (exige conta), Moxfield (API fechada a robôs), MTGTop8 e mtgdecks (HTML sem licença).
+- **Entregue:**
+  - **coletor** (`catalogo.mjs`, ADR-09): fonte `mtgo` — lê a página deste mês e do anterior, escolhe por formato os 8
+    desafios e as 4 ligas mais recentes dentro de **30 dias**, baixa só os eventos ainda não publicados e tira de cada
+    desafio as **8 primeiras pela colocação** e de cada liga as **8 primeiras 5-0** (≤ 96 listas por formato, ≤ 576 no
+    total); nomes de carta e de jogador entram como texto (dado de terceiro é dado); cores e destaque pela Scryfall;
+    `coleta.json` ganha o relatório `mtgo` por formato; o índice lista a fonte. **TopDeck.gg mais larga:** 60 dias,
+    torneios de 8 jogadores ou mais, até 20 por formato. O fluxo passa a rodar **todo dia** (06:23 UTC) — toca o
+    `catalogo.yml`, região da infra na matriz do orquestrador; mudança de uma linha, declarada aqui;
+  - **app:** formato **Vintage** na grade (onze formatos); cartão e detalhe das listas do Magic Online como as de
+    torneio (jogador, evento, colocação ou 5-0); **crédito por fonte** (uma linha cada: MTGJSON, TopDeck.gg com link,
+    Magic Online com link e a nota da Fan Content Policy da Wizards, com toque de 44 px); Jogar/Adicionar salvam como
+    Livre (Pauper e Commander continuam no formato deles).
+- **Modelo (puro, `catalogo.mjs`):** `leEventosMtgo`, `leDadosMtgo`, `listasDoEventoMtgo`, `escolheEventosMtgo`,
+  `coletaMtgo`; `publica` com `mtgo` ligado por padrão. No app (`__m39`): `FONTES_DO_CATALOGO`, `CreditoDasFontes`.
+- **Custo:** ~2 páginas de mês + até 72 páginas de evento + lotes da Scryfall por coleta (≈ 1–2 min de Actions por
+  dia, ≈ 45 min/mês dos 2.000 gratuitos); índice cresce até ≈ 200 KB a mais (lido uma vez e guardado no aparelho).
+- **Testes:** U `catalogo.unit` +2 (página do mês → eventos, Limited e Duel Commander fora; JSON com chaves
+  equilibradas e aspas; desafio pela colocação, liga pelas 5-0; escolha na janela pulando os já colhidos; coleta com
+  falha de um evento que não derruba o resto; publicação com retenção de 30 dias, Vintage no índice, `coleta.json`,
+  segunda coleta sem baixar de novo nem regravar); U `catalogo.tela.unit` +1; e2e Z2 e Z3 com duas listas do Magic
+  Online (Vintage na grade, cartão, créditos por fonte, detalhe com o crédito da Wizards).
+- **Limites declarados:** o Magic Online não dá arquétipo nem imagem: o nome é "1º · Pauper Challenge 32" e a arte é
+  a da carta de destaque; Duel Commander, Premodern e Limited ficam de fora (formatos que o app não tem); Vintage e
+  Pioneer entram na estante como Livre (o app não valida esses formatos).
+- **Risco:** o site do Magic Online muda sem aviso (já aconteceu em 06/2024 e 06/2025): o coletor registra 0 eventos no
+  `coleta.json` e o catálogo fica com o que já tem; a correção é no coletor, sem mexer no app.
 
 ### P · Plataforma
 

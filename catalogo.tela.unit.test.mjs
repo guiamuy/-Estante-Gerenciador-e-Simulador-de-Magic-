@@ -6,7 +6,7 @@ const { catalogo: K, platform: P } = loadModules();
 const J = x => JSON.parse(JSON.stringify(x));
 const L = (id, nome, formato, extra = {}) => ({ id: 'mtgjson-' + id, nome, formato, tipo: 'Commander Deck', data: '2026-10-02', codigo: 'FDC', fonte: 'mtgjson', cores: 'W', destaque: 'X', destaqueId: null, comandante: [], cartas: 100, ...extra });
 const INDICE = { versao: 1, geradoEm: '2026-10-09T00:00:00.000Z', fontes: [], formatos: [], total: 4, pendentes: 0,
-  listas: [L('anjos', 'Calling All Angels', 'commander', { comandante: ['Giada, Font of Hope'] }), L('desafio', 'Pioneer Challenger: Ãnimo', 'construido', { tipo: 'Pioneer Challenger Deck' }), L('boas', 'Welcome Deck 2017', 'iniciante', { codigo: 'W17' }), { id: '../fora', nome: 'quebrada', formato: 'commander' }, L('x', 'Formato desconhecido', 'vintage')] };
+  listas: [L('anjos', 'Calling All Angels', 'commander', { comandante: ['Giada, Font of Hope'] }), L('desafio', 'Pioneer Challenger: Ãnimo', 'construido', { tipo: 'Pioneer Challenger Deck' }), L('boas', 'Welcome Deck 2017', 'iniciante', { codigo: 'W17' }), { id: '../fora', nome: 'quebrada', formato: 'commander' }, L('x', 'Formato desconhecido', 'premodern')] };
 
 test('Z2 · listasDoIndice e filtraCatalogo: só as válidas; formato, e busca por nome, comandante e código sem acento', () => {
   const ls = K.listasDoIndice(INDICE);
@@ -80,4 +80,18 @@ test('Z5 · listas de torneio no app: id da TopDeck.gg vale, busca por jogador e
   const salvar = K.listaParaSalvar({ ...td, entradas: [{ name: 'Ponder', qty: 4, zone: 'main' }] });
   assert.equal(salvar.format, 'pauper'); assert.deepEqual(J(salvar.origem), { fonte: 'topdeck', id: 'topdeck-copa-teste-1-1' });
   assert.equal(K.listaParaSalvar({ ...td, formato: 'modern', entradas: [] }).format, 'livre');
+});
+
+test('G-241 · listas do Magic Online no app: id `mtgo-…` vale, Vintage é formato da grade, é lista de jogador (busca por jogador e evento), salva como Livre, e o crédito diz cada fonte presente', () => {
+  const mo = { id: 'mtgo-pauper-challenge-32-2026-10-0512855502-1', nome: '1º · Pauper Challenge 32', formato: 'pauper', fonte: 'mtgo', tipo: 'Desafio · 1º de 52', jogador: 'sai199orz', torneio: 'Pauper Challenge 32', data: '2026-10-05', cartas: 60 };
+  const vt = { ...mo, id: 'mtgo-vintage-league-2026-10-0511140-2', nome: '5-0 · Vintage League', formato: 'vintage', tipo: 'Liga · 5-0', jogador: 'outra', torneio: 'Vintage League' };
+  const ls = K.listasDoIndice({ versao: 1, listas: [mo, vt, { ...mo, id: 'mtgo-../x' }] });
+  assert.deepEqual(J(ls.map(l => l.id)), [mo.id, vt.id]);
+  assert.ok(K.FORMATOS.some(([id]) => id === 'vintage'));
+  assert.equal(K.filtraCatalogo(ls, { formato: 'vintage' }).length, 1); assert.equal(K.filtraCatalogo(ls, { texto: 'sai199' }).length, 1); assert.equal(K.filtraCatalogo(ls, { texto: 'challenge 32' }).length, 1);
+  assert.equal(K.deTorneio(mo), true);
+  assert.equal(K.listaParaSalvar({ ...vt, entradas: [{ name: 'Black Lotus', qty: 1, zone: 'main' }] }).format, 'livre');
+  assert.equal(K.listaParaSalvar({ ...mo, entradas: [{ name: 'Ponder', qty: 4, zone: 'main' }] }).format, 'pauper');
+  assert.deepEqual(Object.keys(K.FONTES_DO_CATALOGO), ['mtgjson', 'topdeck', 'mtgo']);
+  assert.match(K.FONTES_DO_CATALOGO.mtgo.fim, /Fan Content Policy/); assert.equal(K.FONTES_DO_CATALOGO.topdeck.link[0], 'https://topdeck.gg');
 });

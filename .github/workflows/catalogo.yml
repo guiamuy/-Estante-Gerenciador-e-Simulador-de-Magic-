@@ -5,7 +5,7 @@ name: Catálogo
 
 on:
   schedule:
-    - cron: '23 6 * * 1'   # segunda, 06:23 UTC (fora do minuto cheio)
+    - cron: '23 6 * * *'   # todo dia, 06:23 UTC (fora do minuto cheio) — G-241: o Magic Online publica listas diariamente
   workflow_dispatch:
 
 permissions:

@@ -55,14 +55,14 @@ test('Z1 · publica: baixa só o que falta, grava a lista e o índice, continua 
     const pedidos = [];
     const deckList = { data: [{ name: 'Novo', fileName: 'Novo_N1', type: 'Commander Deck', releaseDate: '2026-09-01' }, { name: 'Velho', fileName: 'Velho_V1', type: 'Theme Deck', releaseDate: '2001-01-01' }] };
     const busca = async url => { pedidos.push(url.replace(C.BASE, '')); const corpo = url.endsWith('DeckList.json') ? deckList : { data: { ...DECK.data, name: url.includes('Novo') ? 'Novo' : 'Velho', type: url.includes('Novo') ? 'Commander Deck' : 'Theme Deck' } }; return { ok: true, status: 200, json: async () => corpo }; };
-    const r1 = await C.publica(pasta, { busca, max: 1, pausa: 0, agora: Date.UTC(2026, 9, 9) });
+    const r1 = await C.publica(pasta, { busca, max: 1, pausa: 0, agora: Date.UTC(2026, 9, 9), mtgo: false }); // (o Magic Online tem teste próprio, G-241)
     assert.equal(r1.gravou, true); assert.equal(r1.novas, 1); assert.equal(r1.indice.pendentes, 1);
     assert.deepEqual(pedidos, ['DeckList.json', 'decks/Novo_N1.json']);
     const lista = JSON.parse(await readFile(join(pasta, 'listas', 'mtgjson-novo-n1.json'), 'utf8')); assert.equal(lista.nome, 'Novo'); assert.ok(lista.entradas.length > 3);
-    const r2 = await C.publica(pasta, { busca, max: 5, pausa: 0 });
+    const r2 = await C.publica(pasta, { busca, max: 5, pausa: 0, mtgo: false });
     assert.equal(r2.novas, 1); assert.equal(r2.indice.total, 2); assert.equal(r2.indice.pendentes, 0);
     assert.deepEqual(pedidos.slice(2), ['DeckList.json', 'decks/Velho_V1.json'], 'o que já foi publicado não é baixado de novo');
-    const r3 = await C.publica(pasta, { busca, pausa: 0 });
+    const r3 = await C.publica(pasta, { busca, pausa: 0, mtgo: false });
     assert.equal(r3.gravou, false, 'sem lista nova, nada é regravado (sem commit à toa)');
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
@@ -101,10 +101,95 @@ test('Z5 · TopDeck.gg: texto e estrutura da lista (metadado não é carta), oit
     const { writeFile } = await import('node:fs/promises');
     await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([{ id: 'topdeck-velha-1', nome: 'Velha', formato: 'pauper', fonte: 'topdeck', data: '2026-01-01' }], { agora: Date.UTC(2026, 9, 1) })));
     const buscaTudo = async (url, op) => (url.includes('DeckList') ? { ok: true, status: 200, json: async () => ({ data: [] }) } : busca(url, op));
-    const p = await C.publica(pasta, { busca: buscaTudo, pausa: 0, agora: Date.UTC(2026, 9, 9), chaveTopdeck: 'chave-falsa' });
+    const p = await C.publica(pasta, { busca: buscaTudo, pausa: 0, agora: Date.UTC(2026, 9, 9), chaveTopdeck: 'chave-falsa', mtgo: false });
     assert.equal(p.gravou, true); assert.equal(p.novasTd, 7);
     assert.ok(!p.indice.listas.some(l => l.id === 'topdeck-velha-1'), 'a de janeiro saiu');
     assert.deepEqual(p.indice.fontes.map(f => f.id), ['mtgjson', 'topdeck']); assert.equal(p.indice.listas[0].jogador, 'Jogador 1');
     assert.ok(JSON.parse(await readFile(join(pasta, 'coleta.json'), 'utf8')).topdeck.length === 6);
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});
+
+/* ---------------- G-241 · Magic Online (relato #8) ---------------- */
+const PAGINA_MES = `<html><body><ul class="decklists-list">
+<li class="decklists-item"><a href="/decklist/pauper-challenge-32-2026-10-0512855502"><div><h3>Pauper Challenge 32</h3></div><time datetime="2026-10-05T17:00:00Z">October 5</time></a></li>
+<li class="decklists-item"><a href="/decklist/standard-league-2026-10-0511129"><div><h3>Standard League</h3></div><time datetime="2026-10-05">October 5</time></a></li>
+<li class="decklists-item"><a href="/decklist/pauper-league-2026-10-0311130"><div><h3>Pauper League</h3></div><time datetime="2026-10-03">October 3</time></a></li>
+<li class="decklists-item"><a href="/decklist/pauper-challenge-32-2026-08-2012855000"><div><h3>Pauper Challenge 32</h3></div><time datetime="2026-08-20">August 20</time></a></li>
+<li class="decklists-item"><a href="/decklist/limited-super-qualifier-2026-10-0412845"><div><h3>Limited Super Qualifier</h3></div><time datetime="2026-10-04">October 4</time></a></li>
+<li class="decklists-item"><a href="/decklist/duel-commander-league-2026-10-0111217"><div><h3>Duel Commander League</h3></div><time datetime="2026-10-01">October 1</time></a></li>
+<li class="decklists-item"><a href="/decklist/vintage-showcase-challenge-2026-10-0412855600"><div><h3>Vintage Showcase Challenge</h3></div><time datetime="2026-10-04">October 4</time></a></li>
+</ul></body></html>`;
+const cartaMo = (name, qty = 4) => ({ qty: String(qty), sideboard: 'false', card_attributes: { card_name: name, cost: '1' } });
+const deckMo = (player, loginid, extra = {}) => ({ player, loginid, main_deck: [cartaMo('Slippery Bogle'), cartaMo('Island', 20), cartaMo('Ancestral Mask', 3)], sideboard_deck: [cartaMo('Hydroblast', 2)], wins: null, ...extra });
+const paginaEvento = dados => `<html><head><script>window.MTGO = window.MTGO || {}; window.MTGO.decklists = {}; window.MTGO.decklists.data = ${JSON.stringify(dados)};\nwindow.MTGO.outra = 1;</script></head><body>"}"</body></html>`;
+const DESAFIO = { site_name: 'pauper-challenge-32-2026-10-0512855502', description: 'Pauper Challenge 32', starttime: '2026-10-05 17:00:00.0', format: 'CPAUPER', type: 'TOURNAMENT', player_count: { players: '52' },
+  final_rank: [{ loginid: '2', rank: '1' }, { loginid: '1', rank: '2' }, { loginid: '3', rank: '3' }],
+  decklists: [deckMo('primeiro-na-lista', '1'), deckMo('campeao "aspas" & cia', '2'), deckMo('terceiro', '3'), deckMo('sem-ranking', '9'), { player: 'vazio', loginid: '4', main_deck: [], sideboard_deck: [] }] };
+const LIGA = { site_name: 'standard-league-2026-10-0511129', publish_date: '2026-10-05', format: 'CSTANDARD', type: 'LEAGUE', player_count: null,
+  decklists: Array.from({ length: 10 }, (_, i) => deckMo('liga' + i, String(100 + i), { wins: { wins: '5', losses: '0' } })) };
+
+test('G-241 · Magic Online: a página do mês vira eventos (só os formatos do catálogo), o JSON da página do evento é lido com chaves equilibradas, desafio sai pela colocação e liga pelas 5-0', () => {
+  const evs = C.leEventosMtgo(PAGINA_MES);
+  assert.deepEqual(evs.map(e => [e.slug, e.formato, e.tipo, e.data]), [
+    ['pauper-challenge-32-2026-10-0512855502', 'pauper', 'desafio', '2026-10-05'], ['standard-league-2026-10-0511129', 'standard', 'liga', '2026-10-05'],
+    ['pauper-league-2026-10-0311130', 'pauper', 'liga', '2026-10-03'], ['pauper-challenge-32-2026-08-2012855000', 'pauper', 'desafio', '2026-08-20'],
+    ['vintage-showcase-challenge-2026-10-0412855600', 'vintage', 'desafio', '2026-10-04']], 'Limited e Duel Commander ficam de fora');
+  assert.equal(evs[0].url, 'https://www.mtgo.com/decklist/pauper-challenge-32-2026-10-0512855502');
+  assert.equal(C.leDadosMtgo('<html>sem nada</html>'), null);
+  const d = C.leDadosMtgo(paginaEvento(DESAFIO)); assert.equal(d.description, 'Pauper Challenge 32'); assert.equal(d.decklists[1].player, 'campeao "aspas" & cia');
+  // desafio: pela colocação do final_rank, as `top` primeiras; quem não está no ranking e lista vazia ficam de fora
+  const ls = C.listasDoEventoMtgo(d, evs[0], { top: 2 });
+  assert.deepEqual(ls.map(l => [l.id, l.nome, l.posicao, l.jogador, l.tipo, l.jogadores, l.cartas, l.reserva]), [
+    ['mtgo-pauper-challenge-32-2026-10-0512855502-1', '1º · Pauper Challenge 32', 1, 'campeao "aspas" & cia', 'Desafio · 1º de 52', 52, 27, 2],
+    ['mtgo-pauper-challenge-32-2026-10-0512855502-2', '2º · Pauper Challenge 32', 2, 'primeiro-na-lista', 'Desafio · 2º de 52', 52, 27, 2]]);
+  assert.equal(ls[0].fonte, 'mtgo'); assert.equal(ls[0].formato, 'pauper'); assert.equal(ls[0].data, '2026-10-05'); assert.match(ls[0].descricao, /^1º lugar entre 52 jogadores no Pauper Challenge 32 do Magic Online, em 05\/10\/2026\. Lista de campeao "aspas" & cia\.$/);
+  assert.deepEqual(ls[0].entradas.find(e => e.zone === 'side'), { name: 'Hydroblast', qty: 2, zone: 'side' });
+  // dado de terceiro é dado: nome de jogador ou de carta com HTML fica como texto no JSON (o app desenha por texto) e o id só leva [a-z0-9-]
+  const hostil = C.listasDoEventoMtgo({ ...LIGA, decklists: [deckMo('<img src=x onerror=alert(1)>', '7', { main_deck: [cartaMo('<script>x</script>', 60)], wins: { wins: '5', losses: '0' } })] }, { ...evs[1], slug: 'standard-league-2026-10-05<b>', titulo: 'Standard League' });
+  assert.equal(hostil[0].jogador, '<img src=x onerror=alert(1)>'); assert.equal(hostil[0].entradas[0].name, '<script>x</script>'); assert.match(hostil[0].id, /^mtgo-[a-z0-9-]+-1$/);
+  // liga: as 5-0 na ordem publicada, até `maxLiga`
+  const lg = C.listasDoEventoMtgo(LIGA, evs[1], { maxLiga: 3 });
+  assert.deepEqual(lg.map(l => [l.nome, l.tipo, l.campanha, l.posicao]), [['5-0 · Standard League', 'Liga · 5-0', '5-0', 1], ['5-0 · Standard League', 'Liga · 5-0', '5-0', 2], ['5-0 · Standard League', 'Liga · 5-0', '5-0', 3]]);
+  assert.match(lg[0].descricao, /^5-0 na Standard League do Magic Online, em 05\/10\/2026\. Lista de liga0\.$/);
+  // escolha: dentro de 30 dias, desafios e ligas mais recentes por formato, pulando os já publicados
+  const esc = C.escolheEventosMtgo(evs, { agora: Date.UTC(2026, 9, 9), publicados: new Set(['pauper-league-2026-10-0311130']), ligas: 1 });
+  assert.deepEqual(esc.map(e => e.slug), ['standard-league-2026-10-0511129', 'vintage-showcase-challenge-2026-10-0412855600', 'pauper-challenge-32-2026-10-0512855502'], 'o desafio de agosto está fora da janela; a liga de Pauper já foi colhida');
+});
+
+test('G-241 · coleta e publicação do Magic Online: lê este mês e o anterior, baixa só os eventos novos, cores pela Scryfall, retenção de 30 dias e Vintage no índice', async () => {
+  const pedidos = [];
+  const busca = async (url, op) => { pedidos.push(url);
+    if (url.includes('/decklists/2026/10')) return { ok: true, status: 200, text: async () => PAGINA_MES };
+    if (url.includes('/decklists/2026/09')) return { ok: true, status: 200, text: async () => '<ul></ul>' };
+    if (url.endsWith('pauper-challenge-32-2026-10-0512855502')) return { ok: true, status: 200, text: async () => paginaEvento(DESAFIO) };
+    if (url.endsWith('standard-league-2026-10-0511129')) return { ok: true, status: 200, text: async () => paginaEvento(LIGA) };
+    if (url.endsWith('pauper-league-2026-10-0311130')) return { ok: true, status: 200, text: async () => '<html>sem dados</html>' };
+    if (url.endsWith('vintage-showcase-challenge-2026-10-0412855600')) return { ok: false, status: 503 };
+    if (url.includes('scryfall')) { const ids = JSON.parse(op.body).identifiers; return { ok: true, status: 200, json: async () => ({ data: ids.map(i => ({ id: '0000aaaa-1111-2222-3333-444444444444', name: i.name, color_identity: i.name === 'Island' ? ['U'] : i.name === 'Slippery Bogle' ? ['G', 'U'] : ['G'], rarity: 'common', type_line: i.name === 'Island' ? 'Basic Land — Island' : 'Creature' })) }) }; }
+    if (url.includes('DeckList')) return { ok: true, status: 200, json: async () => ({ data: [] }) };
+    throw new Error('inesperado ' + url); };
+  const r = await C.coletaMtgo({ busca, pausa: 0, agora: Date.UTC(2026, 9, 9) });
+  assert.equal(r.falhas, 1, 'o Vintage caiu (503) e não derruba o resto');
+  assert.equal(r.listas.length, 3 + 8, 'desafio: as 8 primeiras pela colocação (só 3 classificadas aqui) · liga: 8 de 10');
+  assert.equal(r.listas.filter(l => l.formato === 'pauper').length, 3); assert.equal(r.listas.filter(l => l.formato === 'standard').length, 8);
+  assert.equal(r.listas[0].cores, 'UG'); assert.equal(r.listas[0].destaque, 'Slippery Bogle');
+  assert.deepEqual(r.porFormato.filter(f => f.listas).map(f => [f.formato, f.eventos, f.colhidos, f.listas]), [['Standard', 1, 1, 8], ['Pauper', 3, 2, 3]]);
+  const pasta = await mkdtemp(join(tmpdir(), 'catalogo-mo-'));
+  try {
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([{ id: 'mtgo-modern-league-2026-08-0111000-1', nome: 'Velha', formato: 'modern', fonte: 'mtgo', data: '2026-08-01' }], { agora: Date.UTC(2026, 9, 1) })));
+    pedidos.length = 0;
+    const p = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9) });
+    assert.equal(p.gravou, true); assert.equal(p.novasMo, 11);
+    assert.ok(!p.indice.listas.some(l => l.id.startsWith('mtgo-modern-league-2026-08')), 'a liga de agosto saiu (30 dias)');
+    assert.deepEqual(p.indice.fontes.map(f => f.id), ['mtgjson', 'mtgo']);
+    assert.deepEqual(p.indice.formatos.map(f => [f.id, f.listas]), [['pauper', 3], ['standard', 8]]);
+    assert.ok(JSON.parse(await readFile(join(pasta, 'listas', 'mtgo-pauper-challenge-32-2026-10-0512855502-1.json'), 'utf8')).entradas.length === 4);
+    const coleta = JSON.parse(await readFile(join(pasta, 'coleta.json'), 'utf8')); assert.equal(coleta.mtgo.length, 6); assert.equal(coleta.topdeck, null);
+    // segunda coleta: os eventos já publicados não são baixados de novo; sem novidade nada é regravado
+    pedidos.length = 0;
+    const p2 = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9) });
+    assert.equal(p2.novasMo, 0); assert.equal(p2.gravou, false);
+    assert.ok(!pedidos.some(u => u.endsWith('0512855502') || u.endsWith('0511129')), 'páginas já colhidas não são pedidas: ' + pedidos.filter(u => u.includes('mtgo')).join());
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });

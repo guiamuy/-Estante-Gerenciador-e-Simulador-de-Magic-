@@ -14,7 +14,7 @@ export const FONTE = { id: 'mtgjson', nome: 'MTGJSON', url: 'https://mtgjson.com
 /** Formatos do catálogo, na ordem da tela. As listas oficiais não são de torneio: "Construído" são os decks de desafio
     (feitos para o Standard ou o Pioneer da época) e "Iniciante" os produtos de entrada. */
 export const FORMATOS = [['commander', 'Commander'], ['pauper', 'Pauper'], ['modern', 'Modern'], ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['legacy', 'Legacy'],
-  ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']];
+  ['vintage', 'Vintage'], ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']]; // G-241 · Vintage entra com o Magic Online
 const TIPOS = [
   [/commander/i, 'commander'], [/brawl/i, 'brawl'], [/challenger/i, 'construido'],
   [/starter|welcome|planeswalker deck|intro pack|theme deck|duel deck|event deck|clash pack|guild kit|game night/i, 'iniciante']];
@@ -77,7 +77,7 @@ export function candidatas(deckList, publicadas = new Set(), max = MAX_POR_COLET
 export function montaIndice(resumos, { agora = Date.now(), pendentes = 0 } = {}) {
   const ordem = [...resumos].sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')) || a.nome.localeCompare(b.nome));
   const formatos = FORMATOS.map(([id, nome]) => ({ id, nome, listas: ordem.filter(l => l.formato === id).length })).filter(f => f.listas);
-  const fontes = [FONTE, FONTE_TOPDECK].filter(f => f === FONTE || ordem.some(l => l.fonte === f.id));
+  const fontes = [FONTE, FONTE_TOPDECK, FONTE_MTGO].filter(f => f === FONTE || ordem.some(l => l.fonte === f.id));
   return { versao: VERSAO, geradoEm: new Date(agora).toISOString(), fontes, formatos, total: ordem.length, pendentes, listas: ordem };
 }
 
@@ -89,7 +89,8 @@ export function montaIndice(resumos, { agora = Date.now(), pendentes = 0 } = {})
 export const FONTE_TOPDECK = { id: 'topdeck', nome: 'TopDeck.gg', url: 'https://topdeck.gg', licenca: 'crédito obrigatório', descricao: 'Listas de torneio' };
 export const TOPDECK_API = 'https://topdeck.gg/api/v2/tournaments';
 export const FORMATOS_TOPDECK = [['Pauper', 'pauper'], ['Modern', 'modern'], ['Standard', 'standard'], ['Pioneer', 'pioneer'], ['Legacy', 'legacy'], ['EDH', 'commander']];
-export const TOP_POR_TORNEIO = 8, TORNEIOS_POR_FORMATO = 10, DIAS_TOPDECK = 30, MIN_JOGADORES = 16, DIAS_RETENCAO = 60;
+// G-241 · mais largo (relato #8): 60 dias, torneios de 8 jogadores ou mais, até 20 por formato
+export const TOP_POR_TORNEIO = 8, TORNEIOS_POR_FORMATO = 20, DIAS_TOPDECK = 60, MIN_JOGADORES = 8, DIAS_RETENCAO = 60;
 const ZONA_DA_SECAO = s => (/^(meta|metadata|info|dados)$/i.test(String(s).trim()) ? null : /command|leader|lider/i.test(s) ? 'commander' : /side|reserva/i.test(s) ? 'side' : /companion/i.test(s) ? 'side' : /maybe|considering/i.test(s) ? null : 'main');
 /** A lista em texto da TopDeck.gg ("~~Mainboard~~", "4 Lightning Bolt" ou só o nome): entradas por zona. URL não é lista. */
 export function leDecklist(texto) {
@@ -184,7 +185,135 @@ export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 7
     } catch (e) { falhas++; porFormato.push({ formato: nomeTd, erro: e.message }); log(`✗ TopDeck · ${nomeTd}: ${e.message}`); }
     if (pausa) await new Promise(r => setTimeout(r, pausa));
   }
-  // cores e destaque: a Scryfall em lotes de 75 nomes (o limite da /cards/collection)
+  const dados = await dadosDaScryfall(listas, { busca, pausa, log });
+  return { listas: listas.map(l => enriquece(l, dados)), falhas, formatos: FORMATOS_TOPDECK.length, porFormato };
+}
+
+/* ---------------- G-241 · listas do Magic Online (relato #8) ----------------
+   O site do Magic Online publica todo dia as listas 5-0 das ligas e as classificadas dos desafios de cada formato
+   construído (Standard, Modern, Pioneer, Legacy, Vintage, Pauper). O coletor lê a página do mês
+   (https://www.mtgo.com/decklists/AAAA/MM: uma <li class="decklists-item"> por evento) e, em cada evento ainda não
+   publicado, o JSON que a própria página embute (`window.MTGO.decklists.data = {…};`). Dado de terceiro é dado: nomes de
+   carta e de jogador entram como texto, nunca como HTML. Uso sob a Fan Content Policy da Wizards; o crédito aparece no
+   app. Os eventos já colhidos não são baixados de novo (a lista publicada não muda); a janela é de 30 dias. */
+export const FONTE_MTGO = { id: 'mtgo', nome: 'Magic Online', url: 'https://www.mtgo.com/decklists', licenca: 'Fan Content Policy', descricao: 'Listas 5-0 das ligas e classificadas dos desafios' };
+export const MTGO_BASE = 'https://www.mtgo.com';
+export const FORMATOS_MTGO = [['Standard', 'standard'], ['Modern', 'modern'], ['Pioneer', 'pioneer'], ['Legacy', 'legacy'], ['Vintage', 'vintage'], ['Pauper', 'pauper']];
+export const DIAS_MTGO = 30, DESAFIOS_POR_FORMATO = 8, LIGAS_POR_FORMATO = 4, LISTAS_POR_LIGA = 8;
+const semTags = h => String(h || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
+/** A página do mês: um evento por <li class="decklists-item"> (endereço, título, data). Só os formatos do catálogo;
+    Limited, Contraption, Premodern e Duel Commander ficam de fora. */
+export function leEventosMtgo(html) {
+  const out = [];
+  const re = /<li[^>]*class="[^"]*\bdecklists-item\b[^"]*"[^>]*>([\s\S]*?)<\/li>/g;
+  let m;
+  while ((m = re.exec(String(html || '')))) {
+    const bloco = m[1];
+    const href = (bloco.match(/<a[^>]*href="([^"]+)"/) || [])[1], h3 = (bloco.match(/<h3[^>]*>([\s\S]*?)<\/h3>/) || [])[1], data = (bloco.match(/<time[^>]*datetime="([^"]+)"/) || [])[1];
+    if (!href || !h3) continue;
+    const titulo = semTags(h3), primeira = titulo.split(/\s+/)[0] || '';
+    const fmt = FORMATOS_MTGO.find(([nome]) => nome.toLowerCase() === primeira.toLowerCase());
+    if (!fmt) continue;
+    const dia = /^\d{4}-\d{2}-\d{2}/.test(data || '') ? data.slice(0, 10) : ((href.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || null);
+    const slugEv = href.split('/').pop().split('?')[0];
+    out.push({ url: /^https?:/.test(href) ? href : MTGO_BASE + (href.startsWith('/') ? '' : '/') + href, slug: slugEv, titulo, formato: fmt[1], data: dia, tipo: /\bleague\b/i.test(titulo) ? 'liga' : 'desafio' });
+  }
+  return out;
+}
+/** O JSON que a página do evento embute em `window.MTGO.decklists.data = {…};` (chaves equilibradas, texto respeitado). */
+export function leDadosMtgo(html) {
+  const h = String(html || ''), marca = h.indexOf('window.MTGO.decklists.data');
+  if (marca < 0) return null;
+  const ini = h.indexOf('{', marca); if (ini < 0) return null;
+  let prof = 0, emTexto = false, esc = false;
+  for (let i = ini; i < h.length; i++) {
+    const c = h[i];
+    if (emTexto) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') emTexto = false; continue; }
+    if (c === '"') emTexto = true; else if (c === '{') prof++; else if (c === '}') { prof--; if (!prof) { try { return JSON.parse(h.slice(ini, i + 1)); } catch (e) { return null; } } }
+  }
+  return null;
+}
+const dataMtgo = d => { const m = String(d || '').match(/^(\d{4}-\d{2}-\d{2})/); return m ? m[1] : null; };
+/** As cartas de uma lista do Magic Online (qty e card_attributes.card_name), por zona. */
+function entradasMtgo(deck) {
+  const m = new Map();
+  const le = (lista, zona) => { for (const it of Array.isArray(lista) ? lista : []) { const nome = String((it && it.card_attributes && it.card_attributes.card_name) || '').trim(), qtd = Number(it && it.qty);
+    if (!nome || !Number.isInteger(qtd) || qtd <= 0) continue; const k = zona + '|' + nome.toLowerCase(); if (m.has(k)) m.get(k).qty += qtd; else m.set(k, { name: nome, qty: qtd, zone: zona }); } };
+  le(deck && deck.main_deck, 'main'); le(deck && deck.sideboard_deck, 'side');
+  return [...m.values()];
+}
+/** As listas de um evento no formato do catálogo: desafio pela colocação (final_rank), as `top` primeiras; liga as
+    `maxLiga` primeiras 5-0 publicadas. Sem cores nem destaque (vêm da Scryfall depois). */
+export function listasDoEventoMtgo(dados, evento, { top = TOP_POR_TORNEIO, maxLiga = LISTAS_POR_LIGA } = {}) {
+  if (!dados || !evento || !Array.isArray(dados.decklists)) return [];
+  const liga = evento.tipo === 'liga';
+  const data = evento.data || dataMtgo(dados.publish_date) || dataMtgo(dados.starttime);
+  const jogadores = Number((dados.player_count && dados.player_count.players) || 0) || null;
+  let decks = dados.decklists.filter(d => d && entradasMtgo(d).some(e => e.zone === 'main'));
+  if (!liga) {
+    const rank = new Map((Array.isArray(dados.final_rank) ? dados.final_rank : []).map(r => [String(r.loginid), Number(r.rank)]));
+    decks = decks.map((d, i) => ({ d, pos: rank.get(String(d.loginid)) || (rank.size ? Infinity : i + 1) })).filter(x => Number.isFinite(x.pos)).sort((a, b) => a.pos - b.pos).slice(0, top).map(x => ({ ...x.d, posicao: x.pos }));
+  } else decks = decks.slice(0, maxLiga).map((d, i) => ({ ...d, posicao: i + 1 }));
+  const titulo = String(evento.titulo || 'Evento').trim(), base = slug(evento.slug || titulo);
+  return decks.map(d => {
+    const entradas = entradasMtgo(d), jogador = String(d.player || '').trim() || 'jogador sem nome';
+    const w = d.wins && typeof d.wins === 'object' ? d.wins : null, campanha = w && w.wins != null ? `${w.wins}-${w.losses ?? 0}` : liga ? '5-0' : '';
+    const pos = d.posicao, quando = data ? ', em ' + data.split('-').reverse().join('/') : '';
+    return {
+      id: `mtgo-${base}-${pos}`, nome: liga ? `${campanha} · ${titulo}` : `${pos}º · ${titulo}`, formato: evento.formato, tipo: liga ? `Liga · ${campanha}` : `Desafio · ${pos}º${jogadores ? ' de ' + jogadores : ''}`,
+      data, codigo: '', fonte: FONTE_MTGO.id,
+      descricao: liga ? `${campanha} na ${titulo} do Magic Online${quando}. Lista de ${jogador}.` : `${pos}º lugar${jogadores ? ` entre ${jogadores} jogadores` : ''} no ${titulo} do Magic Online${quando}. Lista de ${jogador}.`,
+      jogador, posicao: pos, jogadores: jogadores || (liga ? null : undefined), torneio: titulo, campanha,
+      cores: '', destaque: null, destaqueId: null, comandante: [], cartas: entradas.filter(e => e.zone !== 'side').reduce((n, e) => n + e.qty, 0),
+      reserva: entradas.filter(e => e.zone === 'side').reduce((n, e) => n + e.qty, 0), fichas: [], entradas
+    };
+  });
+}
+/** Quais eventos colher: dentro da janela, por formato os desafios mais recentes e as ligas mais recentes, pulando
+    os já publicados (`publicados` = eventos cujas listas já estão no catálogo). Puro. */
+export function escolheEventosMtgo(eventos, { agora = Date.now(), publicados = new Set(), desafios = DESAFIOS_POR_FORMATO, ligas = LIGAS_POR_FORMATO } = {}) {
+  const limite = new Date(agora - DIAS_MTGO * 86400e3).toISOString().slice(0, 10);
+  const vistos = new Set(), out = [];
+  for (const [, formato] of FORMATOS_MTGO) {
+    const deste = eventos.filter(e => e.formato === formato && e.data && e.data >= limite && !vistos.has(e.slug) && (vistos.add(e.slug), true)).sort((a, b) => b.data.localeCompare(a.data));
+    for (const e of [...deste.filter(e => e.tipo === 'desafio').slice(0, desafios), ...deste.filter(e => e.tipo === 'liga').slice(0, ligas)]) if (!publicados.has(slug(e.slug))) out.push(e);
+  }
+  return out;
+}
+async function baixaTexto(url, { busca, prazo = 30000 }) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), prazo);
+  try {
+    const r = await busca(url, { signal: ctl.signal, headers: { 'User-Agent': 'estante-catalogo (+https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-)', Accept: 'text/html' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.text();
+  } finally { clearTimeout(t); }
+}
+/** Lê as páginas deste mês e do anterior, escolhe os eventos e baixa cada um. Devolve as listas (com cores e destaque). */
+export async function coletaMtgo({ busca = globalThis.fetch, agora = Date.now(), publicados = new Set(), pausa = 250, log = () => {} } = {}) {
+  const meses = [new Date(agora), new Date(agora - 31 * 86400e3)].map(d => `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+  let eventos = [], falhas = 0;
+  for (const m of [...new Set(meses)]) {
+    try { eventos.push(...leEventosMtgo(await baixaTexto(`${MTGO_BASE}/decklists/${m}`, { busca }))); } catch (e) { falhas++; log(`✗ MTGO · ${m}: ${e.message}`); }
+    if (pausa) await new Promise(r => setTimeout(r, pausa));
+  }
+  const escolhidos = escolheEventosMtgo(eventos, { agora, publicados });
+  const listas = [], porEvento = [];
+  for (const ev of escolhidos) {
+    try {
+      const dados = leDadosMtgo(await baixaTexto(ev.url, { busca }));
+      const deste = dados ? listasDoEventoMtgo(dados, ev) : [];
+      if (!dados) log(`✗ MTGO · ${ev.slug}: sem dados na página`);
+      porEvento.push({ slug: ev.slug, formato: ev.formato, tipo: ev.tipo, listas: deste.length }); listas.push(...deste);
+    } catch (e) { falhas++; porEvento.push({ slug: ev.slug, erro: e.message }); log(`✗ MTGO · ${ev.slug}: ${e.message}`); }
+    if (pausa) await new Promise(r => setTimeout(r, pausa));
+  }
+  const porFormato = FORMATOS_MTGO.map(([nome, formato]) => ({ formato: nome, eventos: eventos.filter(e => e.formato === formato).length, colhidos: escolhidos.filter(e => e.formato === formato).length, listas: listas.filter(l => l.formato === formato).length }));
+  log(`  MTGO: ${eventos.length} evento(s) nas páginas, ${escolhidos.length} novo(s) colhido(s), ${listas.length} lista(s)`);
+  const dados = await dadosDaScryfall(listas, { busca, pausa, log });
+  return { listas: listas.map(l => enriquece(l, dados)), falhas, porFormato, porEvento };
+}
+/** Cores e destaque: a Scryfall em lotes de 75 nomes (o limite da /cards/collection). */
+async function dadosDaScryfall(listas, { busca, pausa, log }) {
   const nomes = [...new Set(listas.flatMap(l => l.entradas.map(e => e.name)))], dados = new Map();
   for (let i = 0; i < nomes.length; i += 75) {
     try {
@@ -194,7 +323,7 @@ export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 7
     } catch (e) { log(`✗ Scryfall: ${e.message}`); }
     if (pausa) await new Promise(r => setTimeout(r, 120));
   }
-  return { listas: listas.map(l => enriquece(l, dados)), falhas, formatos: FORMATOS_TOPDECK.length, porFormato };
+  return dados;
 }
 
 async function leJson(caminho) { try { return JSON.parse(await readFile(caminho, 'utf8')); } catch (e) { return null; } }
@@ -207,11 +336,11 @@ async function baixa(url, { busca, prazo = 30000 }) {
   } finally { clearTimeout(t); }
 }
 /** Lê o que está publicado em `pasta`, baixa as listas novas e grava. Com `chaveTopdeck`, renova as de torneio. */
-export async function publica(pasta, { busca = globalThis.fetch, agora = Date.now(), max = MAX_POR_COLETA, pausa = 150, log = () => {}, chaveTopdeck = '' } = {}) {
+export async function publica(pasta, { busca = globalThis.fetch, agora = Date.now(), max = MAX_POR_COLETA, pausa = 150, log = () => {}, chaveTopdeck = '', mtgo = true } = {}) {
   await mkdir(join(pasta, 'listas'), { recursive: true });
   const antes = await leJson(join(pasta, 'indice.json'));
   const anteriores = antes && Array.isArray(antes.listas) ? antes.listas.slice() : [];
-  const resumos = anteriores.filter(l => l.fonte !== FONTE_TOPDECK.id);
+  const resumos = anteriores.filter(l => l.fonte !== FONTE_TOPDECK.id && l.fonte !== FONTE_MTGO.id);
   const publicadas = new Set(resumos.map(l => l.id));
   const deckList = await baixa(BASE + 'DeckList.json', { busca });
   const todas = candidatas(deckList, publicadas, Infinity), lote = todas.slice(0, max);
@@ -235,14 +364,24 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
     for (const l of r.listas) { await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); if (!porId.has(l.id)) novasTd++; porId.set(l.id, resumoDaLista(l)); }
     td = [...porId.values()].filter(l => (l.data || '') >= limite);
   }
+  // G-241 · Magic Online: só os eventos novos; as listas de antes ficam enquanto estão na janela
+  const moAntes = anteriores.filter(l => l.fonte === FONTE_MTGO.id), limiteMo = new Date(agora - DIAS_MTGO * 86400e3).toISOString().slice(0, 10);
+  let mo = moAntes.filter(l => (l.data || '') >= limiteMo), novasMo = 0, relatorioMo = null;
+  if (mtgo) {
+    const publicados = new Set(mo.map(l => l.id.replace(/^mtgo-/, '').replace(/-\d+$/, '')));
+    const r = await coletaMtgo({ busca, agora, publicados, pausa: pausa ? 250 : 0, log });
+    falhas += r.falhas; relatorioMo = r.porFormato;
+    for (const l of r.listas) { await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); mo.push(resumoDaLista(l)); novasMo++; }
+  }
+  const mesmasMo = moAntes.length === mo.length && moAntes.every(l => mo.some(x => x.id === l.id));
   // com a chave, as listas de torneio foram regravadas (podem ter mudado por dentro): o índice é regravado também
   const mesmasTd = !chaveTopdeck && tdAntes.length === td.length && tdAntes.every(l => td.some(x => x.id === l.id));
-  if (relatorio) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio }, null, 1) + '\n');
-  if (!novas && mesmasTd && antes && antes.pendentes === pendentes) return { gravou: false, novas, novasTd, falhas, indice: antes };
-  const indice = montaIndice([...resumos, ...td], { agora, pendentes });
+  if (relatorio || relatorioMo) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio, mtgo: relatorioMo }, null, 1) + '\n');
+  if (!novas && mesmasTd && mesmasMo && antes && antes.pendentes === pendentes) return { gravou: false, novas, novasTd, novasMo, falhas, indice: antes };
+  const indice = montaIndice([...resumos, ...td, ...mo], { agora, pendentes });
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice) + '\n');
 
-  return { gravou: true, novas, novasTd, falhas, indice };
+  return { gravou: true, novas, novasTd, novasMo, falhas, indice };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -251,8 +390,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const chaveTopdeck = process.env.TOPDECK_KEY || '';
   console.log(chaveTopdeck ? 'TopDeck.gg: com chave' : 'TopDeck.gg: sem chave (só as listas oficiais)');
   const r = await publica(pasta, { log: m => console.log(m), chaveTopdeck });
-  console.log(r.gravou ? `gravado: ${r.indice.total} lista(s) · ${r.novas} oficial(is) nova(s) · ${r.novasTd || 0} de torneio nova(s) · ${r.falhas} falha(s) · ${r.indice.pendentes} para a próxima coleta` : 'sem mudança: nada gravado');
+  console.log(r.gravou ? `gravado: ${r.indice.total} lista(s) · ${r.novas} oficial(is) nova(s) · ${r.novasTd || 0} de torneio nova(s) · ${r.novasMo || 0} do Magic Online nova(s) · ${r.falhas} falha(s) · ${r.indice.pendentes} para a próxima coleta` : 'sem mudança: nada gravado');
   for (const f of r.indice.formatos || []) console.log(`  ${f.nome}: ${f.listas}`);
   // só acusa quando nada veio de nenhuma fonte (uma fonte de torneio fora do ar não derruba a coleta)
-  if (r.falhas && !r.novas && !r.novasTd && !r.gravou) process.exit(1);
+  if (r.falhas && !r.novas && !r.novasTd && !r.novasMo && !r.gravou) process.exit(1);
 }

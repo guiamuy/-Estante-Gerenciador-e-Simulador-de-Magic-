@@ -8006,8 +8006,11 @@ const CATALOGO_Z2 = (() => {
     { id: 'mtgjson-desafio-1', nome: 'Pioneer Challenger Deck 2024', formato: 'construido', tipo: 'Pioneer Challenger Deck', data: '2024-03-01', codigo: 'PC4', fonte: 'mtgjson', cores: 'R', destaque: 'Big Rare', destaqueId: id(91), comandante: [], cartas: 60 },
     { id: 'mtgjson-boas-1', nome: 'Welcome Deck 2017', formato: 'iniciante', tipo: 'Welcome Deck', data: '2017-04-28', codigo: 'W17', fonte: 'mtgjson', cores: 'U', destaque: 'Opt', destaqueId: null, comandante: [], cartas: 30 },
     // Z5 · uma lista de torneio (TopDeck.gg)
-    { id: 'topdeck-copa-teste-1-1', nome: '1º · Copa Teste', formato: 'pauper', tipo: 'Torneio · 1º de 32', data: '2026-10-04', codigo: '', fonte: 'topdeck', cores: 'U', destaque: 'Delver of Secrets', destaqueId: id(92), comandante: [], cartas: 60, jogador: 'Fulana de Tal', posicao: 1, jogadores: 32, torneio: 'Copa Teste' }];
-  return { versao: 1, geradoEm: '2026-10-09T00:00:00.000Z', fontes: [{ id: 'mtgjson', nome: 'MTGJSON', licenca: 'MIT' }], formatos: [], total: 38, pendentes: 0, listas: [...cmd, ...outros] };
+    { id: 'topdeck-copa-teste-1-1', nome: '1º · Copa Teste', formato: 'pauper', tipo: 'Torneio · 1º de 32', data: '2026-10-04', codigo: '', fonte: 'topdeck', cores: 'U', destaque: 'Delver of Secrets', destaqueId: id(92), comandante: [], cartas: 60, jogador: 'Fulana de Tal', posicao: 1, jogadores: 32, torneio: 'Copa Teste' },
+    // G-241 · duas do Magic Online: um desafio de Vintage e uma 5-0 de liga de Standard
+    { id: 'mtgo-vintage-challenge-32-2026-10-0412855600-1', nome: '1º · Vintage Challenge 32', formato: 'vintage', tipo: 'Desafio · 1º de 40', data: '2026-10-04', codigo: '', fonte: 'mtgo', cores: 'UB', destaque: 'Force of Will', destaqueId: id(93), comandante: [], cartas: 60, reserva: 15, jogador: 'ciclano', posicao: 1, jogadores: 40, torneio: 'Vintage Challenge 32', campanha: '' },
+    { id: 'mtgo-standard-league-2026-10-0511129-3', nome: '5-0 · Standard League', formato: 'standard', tipo: 'Liga · 5-0', data: '2026-10-05', codigo: '', fonte: 'mtgo', cores: 'R', destaque: 'Monastery Swiftspear', destaqueId: id(94), comandante: [], cartas: 60, reserva: 15, jogador: 'beltrano <img src=x onerror="window.__xss=1">', posicao: 3, jogadores: null, torneio: 'Standard League', campanha: '5-0' }]; // (sonda: nome de jogador de terceiro é texto)
+  return { versao: 1, geradoEm: '2026-10-09T00:00:00.000Z', fontes: [{ id: 'mtgjson', nome: 'MTGJSON', licenca: 'MIT' }], formatos: [], total: 40, pendentes: 0, listas: [...cmd, ...outros] };
 })();
 async function rotaCatalogo(page, { falha = () => false } = {}) {
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
@@ -8030,11 +8033,11 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   cai = false; await page.click('#catalogo-de-novo'); await page.waitForSelector('#catalogo-lista');
   // 2 · seis formatos em grade de três, com 44 px
   const chips = await page.$$eval('#starter-formatos .ds-chip', cs => cs.map(c => [c.dataset.starterFormat, c.textContent.trim(), Math.round(c.getBoundingClientRect().height)]));
-  // Z5 (leva G-230) · os formatos de torneio entraram: dez formatos, ainda em grade de três
-  assert.deepEqual(chips.map(c => c[0]), ['all', 'pauper', 'commander', 'modern', 'standard', 'pioneer', 'legacy', 'brawl', 'construido', 'iniciante']); assert.ok(chips.every(c => c[2] >= 44), JSON.stringify(chips));
+  // Z5 (leva G-230) · os formatos de torneio entraram; G-241 · Vintage com o Magic Online: onze formatos, ainda em grade de três
+  assert.deepEqual(chips.map(c => c[0]), ['all', 'pauper', 'commander', 'modern', 'standard', 'pioneer', 'legacy', 'vintage', 'brawl', 'construido', 'iniciante']); assert.ok(chips.every(c => c[2] >= 44), JSON.stringify(chips));
   assert.equal(await page.$eval('#starter-formatos', el => getComputedStyle(el).gridTemplateColumns.split(' ').length), 3);
   // 3 · o cartão: arte, nome, cores, formato, contagem e comandante; 30 por vez, da mais nova
-  assert.match(await page.innerText('#catalogo-conta'), /38 listas, da mais nova à mais antiga/);
+  assert.match(await page.innerText('#catalogo-conta'), /40 listas, da mais nova à mais antiga/);
   assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 30);
   const c1 = page.locator('#catalogo-lista .cat-item').first();
   assert.equal(await c1.locator('.cat-item__nome').innerText(), 'Calling All Angels');
@@ -8046,12 +8049,17 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   { const [ls, bt] = [await page.locator('#catalogo-lista').boundingBox(), await page.locator('#catalogo-mais').boundingBox()];
     assert.ok(bt.y - (ls.y + ls.height) >= 16, 'espaço entre a lista e Mostrar mais: ' + (bt.y - ls.y - ls.height));
     assert.ok(Math.abs((bt.x + bt.width / 2) - (ls.x + ls.width / 2)) < 2, 'centrado'); }
-  await page.click('#catalogo-mais'); assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 38);
+  await page.click('#catalogo-mais'); assert.equal(await page.locator('#catalogo-lista .cat-item').count(), 40);
   // Z5 · lista de torneio: quem jogou e quando, e o crédito da TopDeck.gg com link
   assert.equal(await page.innerText('.cat-item[data-id="topdeck-copa-teste-1-1"] .cat-item__sub'), 'Fulana de Tal · 04/10/2026');
-  assert.match(await page.innerText('#catalogo-credito'), /Listas de torneio: dados fornecidos por TopDeck\.gg\./);
-  assert.equal(await page.getAttribute('#catalogo-credito a', 'href'), 'https://topdeck.gg');
-  assert.match(await page.innerText('#catalogo-fonte'), /Fonte: MTGJSON \(licença MIT\) · atualizado em \d{2}\/\d{2}\/\d{4}/);
+  // G-241 · o crédito diz cada fonte presente, na ordem: MTGJSON, TopDeck.gg (com link) e Magic Online (Fan Content Policy, com link)
+  assert.deepEqual(await page.$$eval('#catalogo-credito .cat-credito', ps => ps.map(p => [p.dataset.fonte, p.textContent.trim().slice(0, 44), p.querySelector('a') && p.querySelector('a').href])),
+    [['mtgjson', 'Listas oficiais: MTGJSON (licença MIT).', null], ['topdeck', 'Listas de torneio: dados fornecidos por TopD', 'https://topdeck.gg/'], ['mtgo', 'Ligas 5-0 e desafios: Magic Online (conteúdo', 'https://www.mtgo.com/decklists']]);
+  assert.match(await page.innerText('#catalogo-credito'), /Fan Content Policy/);
+  // sonda de injeção: o nome de jogador vindo do Magic Online aparece como texto, nada executa
+  assert.equal(await page.innerText('.cat-item[data-id="mtgo-standard-league-2026-10-0511129-3"] .cat-item__sub'), 'beltrano <img src=x onerror="window.__xss=1"> · 05/10/2026');
+  assert.equal(await page.evaluate(() => [document.querySelectorAll('.cat-item__sub img').length, window.__xss || 0].join()), '0,0');
+  assert.match(await page.innerText('#catalogo-fonte'), /^Catálogo atualizado em \d{2}\/\d{2}\/\d{4}$/);
   await page.waitForFunction(() => [...document.querySelectorAll('#catalogo-lista .cat-item__arte img')].slice(0, 3).every(i => i.complete && i.naturalWidth > 0));
   await auditaTela(page, 'listas prontas com o catálogo');
   if (process.env.SHOTS) { await page.evaluate(() => document.querySelector('#catalogo').scrollIntoView()); await page.screenshot({ path: process.env.SHOTS + '/z2-catalogo.png' }); }
@@ -8064,6 +8072,9 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   assert.equal(await page.locator('#catalogo-lista .cat-item[data-id="topdeck-copa-teste-1-1"]').count(), 1); assert.equal(await page.locator('#starter-list .ds-list__item').count(), 7);
   await page.click('[data-starter-format="pioneer"]'); await page.waitForSelector('#catalogo-recorte-vazio');
   assert.match(await page.innerText('#catalogo-recorte-vazio'), /Nenhuma lista de Pioneer no catálogo agora/);
+  // G-241 · Vintage: a do Magic Online
+  await page.click('[data-starter-format="vintage"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
+  assert.equal(await page.innerText('#catalogo-lista .cat-item__formato'), 'Vintage'); assert.equal(await page.innerText('.cat-item[data-id="mtgo-vintage-challenge-32-2026-10-0412855600-1"] .cat-item__sub'), 'ciclano · 04/10/2026');
   await page.click('[data-starter-format="commander"]'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 30);
   assert.equal(await page.locator('#starter-list .ds-list__item').count(), 2);
   // 5 · busca
@@ -8144,6 +8155,11 @@ test('e2e · Z3 detalhe da lista do catálogo: o cartão abre a lista com arte, 
   assert.equal(await page.innerText('#catd-nome'), '1º · Copa Teste');
   assert.equal(await page.getAttribute('#catd-fonte a', 'href'), 'https://topdeck.gg'); assert.ok((await page.locator('#catd-fonte a').boundingBox()).height >= 44);
   await auditaTela(page, 'catálogo · detalhe de torneio');
+  // G-241 · detalhe de uma lista do Magic Online: o crédito da Wizards, a lista entra como Livre
+  await page.goto(base + '#/listas/catalogo?id=mtgo-vintage-challenge-32-2026-10-0412855600-1'); await page.waitForSelector('#catd-visoes');
+  assert.equal(await page.innerText('#catd-nome'), '1º · Vintage Challenge 32'); assert.match(await page.innerText('#catd-fonte'), /Ligas 5-0 e desafios: Magic Online \(conteúdo da Wizards of the Coast, uso sob a Fan Content Policy; a Estante não é afiliada\)\./);
+  assert.equal(await page.getAttribute('#catd-fonte a', 'href'), 'https://www.mtgo.com/decklists'); assert.ok((await page.locator('#catd-fonte a').boundingBox()).height >= 44);
+  await auditaTela(page, 'catálogo · detalhe do Magic Online');
   // 7 · lista que não existe
   await page.goto(base + '#/listas/catalogo?id=mtgjson-nao-existe'); await page.waitForSelector('#catd-ausente');
   assert.deepEqual(errors.filter(e => !/404/.test(e)), []);
