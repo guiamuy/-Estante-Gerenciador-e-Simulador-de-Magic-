@@ -501,6 +501,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-de ✅ | T6b forma do perfil e da fila de relatos no Firebase: um nó por preferência com valor em texto e instante, foto em nó à parte, fila por pessoa com o id do relato; encontro entre dois aparelhos provado com banco de memória e REST de mentira (leva A-262) | T | 1 | — |
 | 16º-dk ✅ | Instáveis da trilha geral: I7 e N2 esperam o mecanismo (dois quadros) em vez do relógio; H7 simula a rede ruim só para o guardião (leva G-245) | Q | 1 | — |
 | 16º-dl ✅ | SEG2 fluxos do GitHub com o mínimo: permissões declaradas em todos, ações fixadas por SHA, portão por `npm ci`, etiquetas de relato só de listas fechadas, CSV sem fórmula (leva P-2) | SEG | 1 | — |
+| 16º-dm ✅ | Commander da TopDeck.gg de volta: EDH com janela de 14 dias (reserva de 7) e prazo de 90 s (leva G-246) | Z | ½ | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7180,6 +7181,12 @@ segredo do repositório. O `main` não recebe commit do coletor.
   Pioneer entram na estante como Livre (o app não valida esses formatos).
 - **Risco:** o site do Magic Online muda sem aviso (já aconteceu em 06/2024 e 06/2025): o coletor registra 0 eventos no
   `coleta.json` e o catálogo fica com o que já tem; a correção é no coletor, sem mexer no app.
+- **G-246 · Commander da TopDeck.gg de volta (10/10/2026):** com a janela de 60 dias da Z6, a consulta de EDH estourava o
+  prazo de 30 s em todas as coletas de 10/10 (a mais pesada da TopDeck.gg: muitos torneios, listas de 100 cartas). EDH
+  passa a ter janela própria de **14 dias** e prazo de 90 s; se ainda estourar, tenta uma vez com **7 dias**; o relatório
+  `coleta.json` diz os dias usados (`dias`). Os outros formatos seguem com 60 dias. Teste: U `catalogo.unit` +1 (janela
+  de 14, reserva de 7 depois do prazo, os outros com 60, e o erro no relatório quando nada responde, sem derrubar os
+  outros formatos).
 
 ### SEG · Segurança e privacidade (trilha `protecao`, auditoria de 09/10/2026)
 

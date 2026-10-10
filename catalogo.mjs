@@ -91,6 +91,9 @@ export const TOPDECK_API = 'https://topdeck.gg/api/v2/tournaments';
 export const FORMATOS_TOPDECK = [['Pauper', 'pauper'], ['Modern', 'modern'], ['Standard', 'standard'], ['Pioneer', 'pioneer'], ['Legacy', 'legacy'], ['EDH', 'commander']];
 // G-241 · mais largo (relato #8): 60 dias, torneios de 8 jogadores ou mais, até 20 por formato
 export const TOP_POR_TORNEIO = 8, TORNEIOS_POR_FORMATO = 20, DIAS_TOPDECK = 60, MIN_JOGADORES = 8, DIAS_RETENCAO = 60;
+// G-246 · a consulta de EDH é a mais pesada da TopDeck.gg (muitos torneios, listas de 100 cartas): com 60 dias ela estourava o
+// prazo em toda coleta de 10/10/2026. Janela própria e prazo maior; se ainda estourar, uma tentativa com a janela de reserva.
+export const JANELA_TOPDECK = { EDH: 14 }, JANELA_RESERVA = { EDH: 7 }, PRAZOS_TOPDECK = { padrao: 30000, EDH: 90000 };
 const ZONA_DA_SECAO = s => (/^(meta|metadata|info|dados)$/i.test(String(s).trim()) ? null : /command|leader|lider/i.test(s) ? 'commander' : /side|reserva/i.test(s) ? 'side' : /companion/i.test(s) ? 'side' : /maybe|considering/i.test(s) ? null : 'main');
 /** A lista em texto da TopDeck.gg ("~~Mainboard~~", "4 Lightning Bolt" ou só o nome): entradas por zona. URL não é lista. */
 export function leDecklist(texto) {
@@ -169,18 +172,21 @@ async function enviaJson(url, corpo, { busca, cabecalhos = {}, prazo = 30000 }) 
   } finally { clearTimeout(t); }
 }
 /** Busca os torneios recentes de cada formato e devolve as listas (já com cores e destaque). */
-export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 700, log = () => {} } = {}) {
+export async function coletaTopdeck(chave, { busca = globalThis.fetch, pausa = 700, log = () => {}, prazos = PRAZOS_TOPDECK } = {}) {
   const listas = []; let falhas = 0; const porFormato = [];
   for (const [nomeTd, formato] of FORMATOS_TOPDECK) {
     try {
-      const pede = () => enviaJson(TOPDECK_API, { game: 'Magic: The Gathering', format: nomeTd, last: DIAS_TOPDECK, participantMin: MIN_JOGADORES, columns: ['name', 'decklist', 'wins', 'draws', 'losses'] }, { busca, cabecalhos: { Authorization: chave } });
+      let dias = JANELA_TOPDECK[nomeTd] || DIAS_TOPDECK;
+      const pede = () => enviaJson(TOPDECK_API, { game: 'Magic: The Gathering', format: nomeTd, last: dias, participantMin: MIN_JOGADORES, columns: ['name', 'decklist', 'wins', 'draws', 'losses'] }, { busca, prazo: prazos[nomeTd] || prazos.padrao, cabecalhos: { Authorization: chave } });
       // limite de pedidos (429): espera e tenta uma vez mais — a consulta de EDH é a mais pesada da TopDeck.gg
-      const ts = await pede().catch(async e => { if (!/429/.test(e.message)) throw e; log(`  TopDeck · ${nomeTd}: limite de pedidos, nova tentativa`); if (pausa) await new Promise(r => setTimeout(r, 45000)); return pede(); });
+      const ts = await pede().catch(async e => {
+        if (/abort/i.test(e.message) && JANELA_RESERVA[nomeTd] && dias > JANELA_RESERVA[nomeTd]) { log(`  TopDeck · ${nomeTd}: prazo estourado com ${dias} dias, nova tentativa com ${JANELA_RESERVA[nomeTd]}`); dias = JANELA_RESERVA[nomeTd]; return pede(); }
+        if (!/429/.test(e.message)) throw e; log(`  TopDeck · ${nomeTd}: limite de pedidos, nova tentativa`); if (pausa) await new Promise(r => setTimeout(r, 45000)); return pede(); });
       const recentes = (Array.isArray(ts) ? ts : []).filter(t => t && Array.isArray(t.standings)).sort((a, b) => (b.startDate || 0) - (a.startDate || 0)).slice(0, TORNEIOS_POR_FORMATO);
       const deste = recentes.flatMap(t => listasDoTorneio(t, formato));
       log(`  TopDeck · ${nomeTd}: ${recentes.length} torneio(s), ${deste.length} lista(s)`);
       porFormato.push({ formato: nomeTd, torneios: (Array.isArray(ts) ? ts : []).length, recentes: recentes.length, listas: deste.length,
-        semLista: recentes.reduce((n, t) => n + t.standings.slice(0, TOP_POR_TORNEIO).filter(x => x && !leDeckObj(x.deckObj).length && !leDecklist(x.decklist).length).length, 0) });
+        semLista: recentes.reduce((n, t) => n + t.standings.slice(0, TOP_POR_TORNEIO).filter(x => x && !leDeckObj(x.deckObj).length && !leDecklist(x.decklist).length).length, 0), ...(dias !== DIAS_TOPDECK ? { dias } : {}) });
       listas.push(...deste);
     } catch (e) { falhas++; porFormato.push({ formato: nomeTd, erro: e.message }); log(`✗ TopDeck · ${nomeTd}: ${e.message}`); }
     if (pausa) await new Promise(r => setTimeout(r, pausa));

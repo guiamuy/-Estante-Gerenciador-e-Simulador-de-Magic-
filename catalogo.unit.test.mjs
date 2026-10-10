@@ -221,3 +221,21 @@ test('G-242 · fichas pela Scryfall: só fichas, uma por nome e P/T, tipos e sub
     assert.equal(JSON.parse(await readFile(join(pasta, 'fichas.json'), 'utf8')).fichas.length, 2);
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
+
+test('G-246 · TopDeck EDH: janela própria de 14 dias com prazo maior; se ainda estourar o prazo, tenta uma vez com 7 dias; os outros formatos ficam com 60 dias', async () => {
+  const pedidos = [];
+  const busca = async (url, op) => {
+    if (url.includes('scryfall')) return { ok: true, status: 200, json: async () => ({ data: [] }) };
+    const corpo = JSON.parse(op.body); pedidos.push([corpo.format, corpo.last]);
+    if (corpo.format === 'EDH' && corpo.last > 7) return new Promise((_, rej) => op.signal.addEventListener('abort', () => rej(new Error('This operation was aborted'))));
+    return { ok: true, status: 200, json: async () => [] };
+  };
+  const r = await C.coletaTopdeck('chave', { busca, pausa: 0, prazos: { padrao: 200, EDH: 50 } });
+  assert.equal(r.falhas, 0, 'EDH não falha: a janela menor responde');
+  assert.deepEqual(pedidos.filter(([f]) => f !== 'EDH').map(([, d]) => d), [60, 60, 60, 60, 60]);
+  assert.deepEqual(pedidos.filter(([f]) => f === 'EDH'), [['EDH', 14], ['EDH', 7]]);
+  assert.deepEqual(r.porFormato.find(f => f.formato === 'EDH'), { formato: 'EDH', torneios: 0, recentes: 0, listas: 0, semLista: 0, dias: 7 });
+  // nada responde: o erro fica no relatório, sem derrubar os outros formatos
+  const r2 = await C.coletaTopdeck('chave', { busca: async (url, op) => (url.includes('scryfall') ? { ok: true, status: 200, json: async () => ({ data: [] }) } : JSON.parse(op.body).format === 'EDH' ? new Promise((_, rej) => op.signal.addEventListener('abort', () => rej(new Error('This operation was aborted')))) : { ok: true, status: 200, json: async () => [] }), pausa: 0, prazos: { padrao: 200, EDH: 30 } });
+  assert.equal(r2.falhas, 1); assert.match(r2.porFormato.find(f => f.formato === 'EDH').erro, /aborted/);
+});
