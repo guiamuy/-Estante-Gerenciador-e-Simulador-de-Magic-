@@ -6595,6 +6595,11 @@ prontas.
   Início (cabeçalho em duas linhas medido nas quatro medidas e nos dois temas, idioma sem corte, Topo com posição,
   volta e saída junto com a Início, ponto da leitura pela notícia na tela, falha, sem internet e vazio).
 - **Fora:** notícias de fonte nova (épico N); lembrar o ponto da leitura entre aberturas do app.
+- **Instável (G-239 → G-240):** o e2e N3 caiu uma vez no portão no passo de puxar: o toque em Atualizar prende a âncora
+  do toque (J1) e o `scrollTo` do teste não a solta, então a página voltava ao botão; agora o teste sobe com a roda
+  (gesto que solta a âncora, como o dedo) e espera o alto e o fim da busca. Na mesma rodada caiu o **H7** (nova tentativa
+  de imagem da mesa: nenhuma imagem passou pela falha simulada); passou sozinho e a causa não foi achada — fica como
+  dívida da trilha geral, a investigar.
 
 **T3 · Jogar com volume e resposta ao toque** ✅ (leva G-235, 09/10/2026 · registro #3, parte do botão)
 - **Valor:** o convite principal do app parece um objeto, não um retângulo.

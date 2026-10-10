@@ -9187,7 +9187,9 @@ test('e2e · N3 Notícias do seu jeito: filtros por tema e fonte (guardados, com
   assert.deepEqual(pedidos.slice(0, 2), ['indice.json', 'pagina-1.json']); assert.equal(await page.locator('[data-nova]').count(), 3); assert.equal(await page.isEnabled('#noticias-atualizar'), true);
   // 6 · puxar para baixo no topo: pouco não faz nada; passando do ponto, "Solte para atualizar" e, ao soltar, atualiza
   const toque = (tipo, y) => page.evaluate(([tipo, y]) => { const e = new Event(tipo, { bubbles: true }); Object.defineProperty(e, 'touches', { value: y == null ? [] : [{ clientY: y }] }); document.querySelector('#noticias').dispatchEvent(e); }, [tipo, y]);
-  await page.evaluate(() => window.scrollTo(0, 0)); pedidos.length = 0;
+  // G-240 · instável na G-239: o toque em Atualizar prende a âncora (J1) e um scrollTo do teste não a solta — a âncora
+  // devolvia a página ao botão. Subir com a roda (gesto de verdade, que solta a âncora) e esperar o alto e o fim da busca
+  await page.mouse.move(180, 400); await page.mouse.wheel(0, -50000); await page.waitForFunction(() => window.scrollY === 0 && !document.querySelector('#noticias-chegando')); await page.waitForTimeout(100); pedidos.length = 0;
   await toque('touchstart', 200); await toque('touchmove', 260);
   assert.deepEqual(await page.$eval('#noticias-puxar', p => [p.dataset.pronto, p.textContent, Math.round(p.getBoundingClientRect().height)]), ['false', 'Puxe para atualizar', 30]);
   await toque('touchend', null); await page.waitForTimeout(150); assert.deepEqual(pedidos, [], 'puxão curto não atualiza');
