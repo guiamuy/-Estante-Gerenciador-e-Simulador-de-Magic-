@@ -5272,6 +5272,7 @@ const EFFECTS = {
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
+  embaralhar_do_cemiterio: { fields: ['amount'], targets: ['self'] }, // M-265 · Stream of Thought: "You shuffle up to four cards from your graveyard into your library"
   amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
   resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
   exilar_fichas_mesmo_nome: { fields: [], targets: ['first-target'] }, // M-258 · "and all tokens that player controls with the same name as that permanent"
@@ -5903,6 +5904,8 @@ function validateScript(sc) {
   if (sc && sc.staticRule && !STATIC_RULES.includes(sc.staticRule)) errs.push(`regra estática "${sc.staticRule}" desconhecida`);
   // CR2c.1 · reforço (702.33) e modal com vários modos (700.2d)
   if (sc && sc.kicker && !/\{/.test(String(sc.kicker.mana || ''))) errs.push('reforço precisa de um custo de mana');
+  if (sc && sc.replicate != null && !/^(\{[^}]+\})+$/.test(String(sc.replicate))) errs.push('replicar precisa de um custo de mana, como "{U}"'); // M-265 · 702.56
+  if (sc && sc.replicate != null && sc.kicker) errs.push('replicar e reforço na mesma carta não são aceitos (os dois usam o pagamento repetido)');
   if (sc && sc.modeCount != null && !(Number.isInteger(sc.modeCount) && sc.modeCount >= 2 && (sc.modes || []).length && (sc.modeRepeat || sc.modeCount <= sc.modes.length))) errs.push('número de modos inválido');
   if (sc && sc.cumulativeUpkeep && !/\{/.test(String(sc.cumulativeUpkeep.mana || ''))) errs.push('manutenção cumulativa precisa de um custo de mana');
   return errs.concat(exampleErrors(sc));
@@ -6980,8 +6983,8 @@ const RAW_SCRIPTS = [
   // "Counter target instant or sorcery spell unless its controller pays {3}." (o script cobrava {1} e mirava qualquer mágica que não fosse de criatura)
   { name: 'Miscast', effects: [{ do: 'counter', target: 'spell', targetTypes: ['instant', 'sorcery'], unless: { mana: '{3}' } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
-  { name: 'Lose Focus', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{1}' } }],
-    covers: 'partial', note: 'replicar ainda não entra',
+  // M-265 · "Replicate {U} … Counter target spell unless its controller pays {2}." (o script cobrava {1}; segunda fonte, Oracle do Forge, 10/10/2026)
+  { name: 'Lose Focus', replicate: '{U}', effects: [{ do: 'counter', target: 'spell', unless: { mana: '{2}' } }],
     example: { target: 'enemy-spell', expect: { countered: true } } },
   // R11 · conferida contra .listas/oficiais-commander.json (consultas de 05/10/2026)
   { name: 'Flusterstorm', storm: true, effects: [{ do: 'counter', target: 'spell', targetTypes: ['instant', 'sorcery'], unless: { mana: '{1}' } }],
@@ -7041,8 +7044,8 @@ const RAW_SCRIPTS = [
   // Q11 · texto conferido em 29/09/2026 (auditoria das listas Pauper): "you may search… for up to three"
   { name: 'Squadron Hawk', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'search', amount: 3, optional: true, filter: { name: 'Squadron Hawk' }, to: 'hand' }] }],
     example: { action: 'etb', target: 'none', expect: { picked: true } } },
-  { name: 'Stream of Thought', effects: [{ do: 'mill', amount: 4, target: 'opponent' }],
-    covers: 'partial', note: 'embaralhar quatro cartas do seu cemitério e o lampejo do passado ainda não entram',
+  // M-265 · "Target player mills four cards. You shuffle up to four cards from your graveyard into your library. Replicate {2}{U}{U}" (o script só mirava o oponente)
+  { name: 'Stream of Thought', replicate: '{2}{U}{U}', effects: [{ do: 'mill', amount: 4, target: 'player' }, { do: 'embaralhar_do_cemiterio', amount: 4 }],
     example: { target: 'opponent', expect: { milled: 4 } } },
   // S12 · escolhas do jogador
   { name: 'Faithless Looting', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2 }], flashback: { mana: '{2}{R}' },
@@ -13985,6 +13988,7 @@ function createGame(setup) {
     if (sc.cumulativeUpkeep) f.script.cumulativeUpkeep = sc.cumulativeUpkeep; // CR 702.24
     if (sc.affinity) f.script.affinity = sc.affinity;
     if (sc.kicker) f.script.kicker = sc.kicker; // CR2c.1
+    if (sc.replicate) f.script.kicker = { mana: sc.replicate, multi: true, replicar: true }; // M-265 · replicar (702.56): pago quantas vezes quiser, pelo mesmo caminho do multirreforço; não marca a mágica como "kicked"
     if (sc.modeCount) { f.script.modeCount = sc.modeCount; f.script.modeRepeat = !!sc.modeRepeat; }
     if (sc.storm) f.script.storm = true;
     if (sc.retrace) f.script.retrace = true; // M-222 · 702.81
@@ -15876,6 +15880,12 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'embaralhar_do_cemiterio': { // M-265 · "You shuffle up to four cards from your graveyard into your library": escolha na resolução, aceita zero
+      const n = amountOf(s, src, eff.amount), cem = s.zones[ctrl].graveyard.slice();
+      if (!cem.length || !n) { shuffle(s, s.zones[ctrl].library); note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: cem, min: 0, max: Math.min(n, cem.length), to: 'library-bottom', rest: 'stay', shuffle: true, label: 'embaralhar no grimório', source: src.name }, events);
+      note({ amount: n, pending: true }); break;
+    }
     case 'revelar_topo_para_mao': { // M-263 · "reveal the top card of your library and put that card into your hand. You lose life equal to its mana value."
       const topo = s.zones[ctrl].library[0]; if (!topo) { note({ failed: true }); break; }
       const c = s.objects[topo], vm = (s.facts[c.name] || {}).cmc || 0;
@@ -17236,7 +17246,7 @@ const HANDLERS = {
     s.players[a.p].landsPlayed++;
     s.turn.passes = 0;
   },
-  cast(s, a) {
+  cast(s, a, events = []) { // M-265 · recebe o registro (o replicar anota as cópias)
     noPending(s); holder(s, a.p); semFracao(s);
     const o = s.objects[a.oid];
     const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.permissao != null) && o && o.zone === 'graveyard';
@@ -17341,7 +17351,7 @@ const HANDLERS = {
     if (need.length) s.objects[a.oid].targets = carimbaAlvos(s, chosen);
     if (modes.length && !nModos) s.objects[a.oid].mode = a.mode;
     if (nModos) s.objects[a.oid].modes = a.modes.slice().sort((x, y) => x - y);
-    if (a.kick) s.objects[a.oid].kicked = a.kick; // CR 702.33d
+    if (a.kick && !reforco.replicar) s.objects[a.oid].kicked = a.kick; // CR 702.33d
     if (a.alt != null && (altCosts(s, o)[a.alt] || {}).effects) s.objects[a.oid].altIndex = a.alt; // Q11 · sobrecarga
     // S34 · tempestade: copia a mágica uma vez por mágica conjurada antes neste turno
     if (a.x) s.objects[a.oid].xPaid = a.x; // S50 · quanto de X foi pago
@@ -17349,6 +17359,9 @@ const HANDLERS = {
     // ("you may choose new targets"), e resolvem mesmo se a original for anulada. Antes resolviam junto com ela.
     if ((f.script || {}).storm) for (let i = 0; i < (s.spellsThisTurn || 0); i++)
       s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: f.script.effects, when: 'storm', copia: true });
+    // M-265 · replicar (702.56b): "when you cast this spell, copy it for each time you paid its replicate cost" — como a tempestade, cópias
+    // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
+    if (a.kick && reforco && reforco.replicar) { for (let i = 0; i < a.kick; i++) s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: f.script.effects, when: 'replicar', copia: true }); events.push({ kind: 'replicar', name: o.name, amount: a.kick }); }
     s.spellsThisTurn = (s.spellsThisTurn || 0) + 1;
     if (a.flashback) s.objects[a.oid].flashback = true; // exila em vez de voltar ao cemitério
     if (a.omen) s.objects[a.oid].omen = true; // volta embaralhado para o grimório
@@ -20225,6 +20238,7 @@ function describe(before, a, events, after) {
     if (ev.kind === 'effect') L.push(effectLine(ev));
     if (ev.kind === 'fizzled') L.push(`${ev.name} não resolveu: alvo ilegal`);
     if (ev.kind === 'storm') L.push(`Tempestade: ${plural(ev.amount, 'cópia', 'cópias')} de ${ev.name}`);
+    if (ev.kind === 'replicar') L.push(`Replicar: ${plural(ev.amount, 'cópia', 'cópias')} de ${ev.name}`); // M-265
     if (ev.kind === 'choice') L.push(`${ev.name}: ${ev.what} (${plural(ev.amount, 'carta', 'cartas')})`);
     if (ev.kind === 'trigger-fizzled') L.push(`Gatilho de ${ev.name} sem alvo legal: saiu da pilha`);
     if (ev.kind === 'room') L.push(`${ev.target} se aventurou na masmorra: ${ev.dungeon} — ${ev.name}`); // S57
@@ -20987,6 +21001,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'embaralhar_do_cemiterio': return `embaralha até ${plural(n, 'carta', 'cartas')} do seu cemitério no grimório`; // M-265
     case 'revelar_topo_para_mao': return `revela a carta do topo e a põe na mão${e.perdeVidaPeloValor ? '; perde vida igual ao valor de mana dela' : ''}`; // M-263
     case 'topo_ou_fundo_do_dono': return `o dono de ${alvo || 'uma permanente'} a põe no topo ou no fundo do grimório, à escolha dele`; // M-264
     case 'mare_alta': return 'até o fim do turno, cada Ilha virada para mana dá {U} a mais (para qualquer jogador)'; // M-262
@@ -22869,7 +22884,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
-          + (a.kick ? (a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1
+          + (a.kick ? (((f.script || {}).kicker || {}).replicar ? ` · replicar ×${a.kick}` : a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1; M-265 · replicar
           + (a.vida != null ? (a.vida ? ` · pagando ${2 * a.vida} de vida` : ' · pagando com mana') : '') // CR2c.4 · phyrexiano
           + (s.manaCheck && costTxt && !a.flashback && a.alt == null ? ` · ${costPago}` : ''), a, { variant: 'primary' })
           : a.t === 'discard' ? doBtn('Descartar', a, { variant: 'primary' })
@@ -23276,7 +23291,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo', 'embaralhar no grimório': 'Escolha do seu cemitério o que embaralhar no grimório' }; // M-265
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';

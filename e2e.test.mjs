@@ -9778,3 +9778,33 @@ test('e2e · M-264 · Moonsnare Prototype: canalizar mirando uma permanente sua 
   e = await M.est(); assert.notEqual(e.pend, 'topo_fundo'); assert.ok(!e.campo.includes('Faerie Seer'), 'saiu do campo');
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · M-265 · Stream of Thought com replicar: a folha oferece "replicar ×1", a cópia pede o próprio alvo e a mesa pergunta o que embaralhar do cemitério', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-commander.json'), 'utf8')).cartas.filter(c => c.name === 'Stream of Thought');
+  const M = await comLista125(t, '24 Island\n16 Stream of Thought', ['Island', 'Stream of Thought'], '4', { extras });
+  const { page } = M; let e;
+  for (let i = 0; i < 20; i++) { const o = await M.oid('Island'); if (o) await M.act({ t: 'play_land', p: 0, oid: o }); e = await M.est();
+    if (e.campo.filter(n => n === 'Island').length >= 5 && e.mao.includes('Stream of Thought')) break; await M.proximo(); }
+  e = await M.est(); assert.ok(e.campo.filter(n => n === 'Island').length >= 5 && e.mao.includes('Stream of Thought'), 'mesa pronta: ' + JSON.stringify(e));
+  await page.locator('#tb-hand .tb-card[aria-label^="Stream of Thought"]').first().click(); await page.waitForSelector('.ds-dialog');
+  assert.ok(await page.locator('.ds-dialog button', { hasText: /replicar ×1/ }).count() >= 1, 'a folha oferece pagar o replicar uma vez');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+  const st = await M.oid('Stream of Thought');
+  const [cast] = await M.legal(`a.t==='cast' && a.oid==='${st}' && a.kick===1 && a.targets[0].player===0`);
+  assert.equal(await M.act(cast), true);
+  e = await segueR6(M, x => x.pend === 'pick_target' || x.pend === 'pick');
+  assert.equal(e.pend, 'pick_target', 'a cópia escolhe o próprio alvo');
+  const idx = await page.evaluate(() => window.__estanteMesa.estado().pending.options.findIndex(o => o.player === 0));
+  await M.act({ t: 'pick_target', p: 0, index: idx });
+  e = await segueR6(M, x => x.pend === 'pick');
+  assert.equal(e.pend, 'pick');
+  assert.match(await M.decisao(), /^Stream of Thought · Escolha do seu cemitério o que embaralhar no grimório \| 0 de até 4 escolhida\(s\)/);
+  await auditaTela(page, 'embaralhar do cemitério com a Stream of Thought');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(150);
+  await page.click('#tb-pick-done'); await page.waitForTimeout(200);
+  e = await segueR6(M, x => x.pend === 'pick');
+  assert.equal(e.pend, 'pick', 'a original resolve depois e pergunta de novo');
+  await page.click('#tb-pick-done'); await page.waitForTimeout(200);
+  e = await M.est(); assert.notEqual(e.pend, 'pick');
+  assert.deepEqual(M.errors, []);
+});

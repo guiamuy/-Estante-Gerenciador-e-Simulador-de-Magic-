@@ -3252,6 +3252,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes; a correção do índice só afeta habilidades da mão que não estavam na primeira posição, que nenhuma carta coberta tinha).
 - **Próximo:** M-265 — March of Swirling Mist (custo adicional variável) e Path of Ancestry.
 
+**M-265 · R11 · Replicar (702.56) e "embaralhe até N do seu cemitério"** ✅ (leva M-265, motor v96, sem mudança no que existe) — 3 testes de unidade e 1 headless.
+- **Regra (702.56):** chave de script `replicate: '{custo}'`: a mesa oferece pagar o custo de replicar 0, 1, 2… vezes (o que a mana pagar, pelo mesmo caminho do multirreforço) e o botão diz "replicar ×N"; ao conjurar, uma cópia por pagamento vai para a pilha por cima da original, cada uma escolhendo o próprio alvo, e as cópias existem mesmo se a original for anulada; não são conjuradas e a mágica não fica "com reforço". Verbo `embaralhar_do_cemiterio`: escolha na resolução de até N cartas do seu cemitério (aceita zero), embaralhadas no grimório.
+- **Correções de carta:** Lose Focus cobrava {1} para salvar a mágica; o texto oficial diz {2}. Stream of Thought só mirava o oponente; o texto diz "target player" (você também).
+- **Cartas cobertas (completas):** Lose Focus e Stream of Thought (eram parciais; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte, Oracle do Forge, 10/10/2026).
+- **Medição:** Malcolm + Kediss 92% → **94%** (completo 94 · parcial 4 · manual 2); Killian segue 96%.
+- **Golden:** idênticas, sem regravar. Versão não sobe (as duas cartas eram parciais: lista com elas não jogava em modo completo).
+- **Próximo:** M-266 — March of Swirling Mist (custo adicional de exilar cartas azuis da mão, com redução) e Expressive Iteration.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
