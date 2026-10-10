@@ -5122,7 +5122,8 @@ const KEYWORD_COUNTERS = ['flying', 'first strike', 'double strike', 'deathtouch
 const KEYWORDS = ['flying', 'reach', 'trample', 'deathtouch', 'lifelink', 'vigilance', 'haste', 'first strike',
   'double strike', 'menace', 'defender', 'indestructible', 'flash', 'hexproof', 'shroud',
   // CR1b · evasões de 702.13/.14/.28/.36/.118 (canBlock)
-  'fear', 'intimidate', 'shadow', 'skulk', 'islandwalk', 'swampwalk', 'forestwalk', 'mountainwalk', 'plainswalk'];
+  'fear', 'intimidate', 'shadow', 'skulk', 'islandwalk', 'swampwalk', 'forestwalk', 'mountainwalk', 'plainswalk',
+  'infect']; // M-254 · 702.90
 
 /** Efeitos que o motor sabe aplicar. Cada um declara os campos que exige. */
 const EFFECTS = {
@@ -6529,6 +6530,9 @@ const RAW_SCRIPTS = [
       { do: 'token', amount: 1, token: { name: 'Phyrexian Mite', types: ['artifact', 'creature'], subtypes: ['Phyrexian', 'Mite'], colors: [], power: 1, toughness: 1, self: { toxic: 1, naoBloqueia: true } } }] }],
     continuo: [{ afetados: { tipos: ['creature'], de: 'you', comToxico: true }, palavras: ['lifelink'], se: { oponenteComVeneno: 3 } }], // "Corrupted — As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-254 · "Enchant creature · Enchanted creature has infect." (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Phyresis', aura: { enchant: 'creature' }, grants: { keywords: ['infect'] },
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -13771,6 +13775,11 @@ const alive = s => s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0
 /** M-253 · 702.164 · tóxico N (instâncias somam); some com as habilidades impressas e virada para baixo. */
 const toxicoDe = (s, o) => !o || o.faceDown || semImpressas(s, o) ? 0 : ((((s.facts[o.name] || {}).script || {}).self || {}).toxic || 0);
 /** M-253 · 122.1f · marcadores de veneno no jogador (o campo só existe depois do primeiro). */
+/** M-254 · 702.90b/c · dano numa criatura: de fonte com infectar vira marcadores −1/−1 (continua sendo dano). */
+const infecta = (s, src) => !!src && !!s.facts[src.name] && has(s, src, 'infect'); // fonte sem carta (efeito sintético) não infecta
+function marcaDanoEmCriatura(s, src, obj, n) { if (infecta(s, src)) obj.counters.m1m1 = (obj.counters.m1m1 || 0) + n; else obj.damage += n; }
+/** M-254 · 702.90b · dano num jogador: de fonte com infectar vira veneno, sem perda de vida. */
+function danoEmJogador(s, src, p, n) { if (infecta(s, src)) darVeneno(s, p, n, null, src.name); else perdeVida(s, p, n); }
 function darVeneno(s, p, n, events, fonte) { if (!(n > 0) || !s.players[p]) return; s.players[p].poison = (s.players[p].poison || 0) + n; (events || []).push({ kind: 'effect', do: 'poison', name: fonte || '', target: s.players[p].name, amount: n }); }
 /** M-252 · cartas da mão que a terra aceita revelar ao entrar (Snarl); `distintas`: uma por nome, para a oferta. */
 function revelaveisAoEntrar(s, p, o, distintas) {
@@ -14498,10 +14507,10 @@ function dealCombatDamage(s) {
       amt = danoSubstituido(s, src, obj ? { obj } : { player }, amt, true); // CR2-G R5d · "causa N a mais / o dobro" vem antes da prevenção
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
       if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
-        obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) obj.damage += amt; noteDamaged(s, obj);
-      } else if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
+        obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
+      } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
-        perdeVida(s, player, amt);
+        danoEmJogador(s, src, player, amt);
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
@@ -15004,7 +15013,7 @@ function applyEffect(s, src, eff, tgt, events) {
         // Leva 105 · a prevenção (Prismatic Strands, Hallow) vale também para o dano a cada oponente
         if (eff.target === 'each-opponent') {
           const bloqueado = colorPrevented(s, src);
-          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { perdeVida(s, i, n); causouDano(s, src, n, i); } });
+          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { danoEmJogador(s, src, i, n); causouDano(s, src, n, i); } });
           note({ amount: n, ...(bloqueado ? { prevented: true } : {}) }); break;
         }
         // CR2-G R5b · prevenção num caminho só; o que foi prevenido de fato pode virar vida (S52)
@@ -15014,8 +15023,8 @@ function applyEffect(s, src, eff, tgt, events) {
         if (resto < n) ganhaVida(n - resto);
         n = resto;
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; }
-        if (obj && n > 0) { obj.damage += n; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
-        else perdeVida(s, playerOf(), n);
+        if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
+        else danoEmJogador(s, src, playerOf(), n);
         causouDano(s, src, n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
         note({ amount: n }); } break;
     case 'destroy': {
@@ -20230,7 +20239,7 @@ const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each
   'creature-enchantment-you-control': 'uma criatura ou encantamento seu', 'other-creature-you-control': 'outra criatura sua', 'creature-you-control': 'uma criatura sua', 'creature-opponent-controls': 'uma criatura de um oponente',
   'first-target': 'o mesmo alvo', 'spell-or-creature': 'uma mágica ou criatura', 'spell-or-ability': 'uma mágica ou habilidade', 'target-controller': 'quem controlava o alvo', 'self-source': 'esta permanente', self: 'você',
   'creature-blocked-by-source': 'a criatura que ela bloqueia', all: 'tudo', enchanted: 'a criatura encantada', any: 'qualquer alvo', 'artifact-creature': 'um artefato ou criatura', player: 'um jogador', creature: 'uma criatura', permanent: 'uma permanente', spell: 'uma mágica', 'each-creature': 'cada criatura', 'each-opponent': 'cada oponente', opponent: 'um oponente', 'creature-or-player': 'criatura ou jogador', land: 'um terreno', artifact: 'um artefato', enchantment: 'um encantamento' };
-const PALAVRA_PT = { indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
+const PALAVRA_PT = { infect: 'infectar', indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
 const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno' }; // M-248

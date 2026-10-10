@@ -97,6 +97,7 @@ export const PERM_TYPES = { "Smuggler's Copter": 'Artifact — Vehicle', // CR2d
   'Combat Research': 'Enchantment — Aura', 'Rune of Mortality': 'Enchantment — Aura', 'Rune of Sustenance': 'Enchantment — Aura', // M-251
   'Idolized': 'Enchantment — Aura', 'Shineshadow Snarl': 'Land', // M-252
   "Skrelv's Hive": 'Enchantment', // M-253
+  'Phyresis': 'Enchantment — Aura', // M-254
   'Izzet Signet': 'Artifact', 'Orzhov Signet': 'Artifact', 'Arcane Signet': 'Artifact', 'Talisman of Creativity': 'Artifact',
   'Talisman of Hierarchy': 'Artifact', 'Fellwar Stone': 'Artifact', 'Lotus Petal': 'Artifact', 'Chromatic Sphere': 'Artifact',
   'Chromatic Star': 'Artifact', 'Soul-Guide Lantern': 'Artifact', 'Nihil Spellbomb': 'Artifact', 'Lembas': 'Artifact',

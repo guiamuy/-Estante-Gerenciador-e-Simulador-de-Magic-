@@ -3147,6 +3147,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Dívida para a trilha do bot:** o Shark não pesa veneno na avaliação.
 - **Próximo:** M-254 — infectar e marcadores −1/−1 (702.90, 704.5q): Phyresis; Skrelv.
 
+**M-254 · R11 · Infectar: Phyresis** ✅ (leva M-254, motor v96, sem mudança no que existe) — 2 testes novos (um deles no combat.audit, que exige prova para toda palavra-chave).
+- **Regra (702.90):** dano de fonte com infectar vira marcadores −1/−1 numa criatura (continua sendo dano: gatilhos de dano, toque mortífero e vínculo com a vida valem) e veneno num jogador, sem perda de vida; planeswalker perde lealdade normalmente. Dano de combate e de efeito passam pelo mesmo caminho (`marcaDanoEmCriatura`, `danoEmJogador`). Marcadores +1/+1 e −1/−1 já se anulavam (704.5q).
+- **Carta coberta (completa):** Phyresis (Aura que dá infectar).
+- **Medição:** Killian 87% → **88%** (completo 89 · parcial 7 · manual 5).
+- **Golden:** idênticas, sem regravar. Versão não sobe: nada que existia tinha infectar.
+- **Próximo:** M-255 — Skrelv, Defector Mite: mana phyrexiano no custo de habilidade, escolher uma cor na ativação, tóxico concedido até o fim do turno, resistência a magia de uma cor e "não pode ser bloqueada por criaturas da cor".
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

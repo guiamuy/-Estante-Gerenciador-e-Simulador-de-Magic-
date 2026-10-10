@@ -251,6 +251,23 @@ test('K12b · evasões por palavra-chave: medo, intimidar, sombra, esgueirar e a
     assert.throws(() => act(s, { t: 'block', p: d, blocks: [[sb, atk]] }), /sombra/); }
 });
 
+test('K12c · infectar (702.90): na criatura, o dano vira marcadores −1/−1; no jogador, vira veneno, sem perder vida; com vínculo com a vida ainda ganha', () => {
+  cobre('infect');
+  const cartas = { ...CARDS, Infecta: cre('Infecta', 2, 2, ['Infect']), InfectaVida: cre('InfectaVida', 2, 2, ['Infect', 'Lifelink']), Forte: cre('Forte', 3, 3) };
+  const deck = Object.keys(cartas).map(name => ({ name, qty: 3, zone: 'main' }));
+  const base = () => { let s = E.createGame({ format: 'livre', seed: 32, mode: 'assisted', manaCheck: false, cards: cartas, scripts: SCRIPTS, players: [{ name: 'A', deck }, { name: 'B', deck }] });
+    for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] }); for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority }); return s; };
+  const fim = s => { for (let i = 0; i < 30 && s.turn.step !== 'main2' && s.turn.step !== 'end'; i++) s = s.pending ? act(s, E.legalActions(s, s.pending.p)[0]) : act(s, { t: 'pass', p: s.turn.priority }); return s; };
+  { let s = base(); const a = s.turn.active, d = 1 - a; let atk, bl; [s, atk] = poe(s, a, 'Infecta'); [s, bl] = poe(s, d, 'Forte');
+    s = ateBloqueio(s, [atk]); s = fim(act(s, { t: 'block', p: d, blocks: [[bl, atk]] }));
+    assert.equal(s.objects[bl].counters.m1m1, 2, 'o bloqueador recebeu dois marcadores −1/−1'); assert.equal(s.objects[bl].damage, 0, 'e nenhum dano marcado');
+    assert.equal(E.stats(s, s.objects[bl]).power, 1, 'virou 1/1'); assert.ok(vivo(s, bl)); }
+  { let s = base(); const a = s.turn.active, d = 1 - a; let atk; [s, atk] = poe(s, a, 'InfectaVida');
+    s = ateBloqueio(s, [atk]); s = fim(s.pending && s.pending.kind === 'blockers' ? act(s, { t: 'block', p: d, blocks: [] }) : s);
+    assert.equal(s.players[d].life, 20, 'o jogador não perde vida'); assert.equal(s.players[d].poison, 2, 'recebe dois venenos');
+    assert.equal(s.players[a].life, 22, 'o vínculo com a vida conta o dano causado'); }
+});
+
 test('K12 · toda palavra-chave que o motor declara resolver tem cenário aqui', () => {
   const faltando = [...S.KEYWORDS].filter(k => !COBERTAS.has(k));
   assert.equal(faltando.length, 0, 'palavras-chave sem prova de regra: ' + faltando.join(', '));
