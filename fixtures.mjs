@@ -90,6 +90,7 @@ export const PERM_TYPES = { "Smuggler's Copter": 'Artifact — Vehicle', // CR2d
   'Sorin of House Markov': 'Legendary Creature — Human Noble', 'Kytheon, Hero of Akros': 'Legendary Creature — Human Soldier',
   'Bounty Agent': 'Creature — Human Soldier', 'Elas il-Kor, Sadistic Pilgrim': 'Legendary Creature — Phyrexian Kor Cleric', // M-246
   'Kediss, Emberclaw Familiar': 'Legendary Creature — Elemental Lizard', 'Leonin Relic-Warder': 'Creature — Cat Cleric',
+  'Speaker of the Heavens': 'Creature — Human Cleric', 'Jirina, Dauntless General': 'Legendary Creature — Human Soldier', 'Knight of the White Orchid': 'Creature — Human Knight', // M-247
   'Izzet Signet': 'Artifact', 'Orzhov Signet': 'Artifact', 'Arcane Signet': 'Artifact', 'Talisman of Creativity': 'Artifact',
   'Talisman of Hierarchy': 'Artifact', 'Fellwar Stone': 'Artifact', 'Lotus Petal': 'Artifact', 'Chromatic Sphere': 'Artifact',
   'Chromatic Star': 'Artifact', 'Soul-Guide Lantern': 'Artifact', 'Nihil Spellbomb': 'Artifact', 'Lembas': 'Artifact',

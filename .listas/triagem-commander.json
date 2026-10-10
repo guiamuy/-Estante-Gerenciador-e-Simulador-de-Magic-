@@ -1,5 +1,5 @@
 {
- "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde. R11.1 (05/10/2026): as cartas \"ok\" foram auditadas frase a frase; quatro saíram do balde A para ok, três terrenos saíram de ok para B (o texto de mana escondia uma frase) e a Curiosity foi para B. M-246 (10/10/2026): as nove cartas do balde A (com Swan Song, que era parcial) viraram ok.",
+ "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde. R11.1 (05/10/2026): as cartas \"ok\" foram auditadas frase a frase; quatro saíram do balde A para ok, três terrenos saíram de ok para B (o texto de mana escondia uma frase) e a Curiosity foi para B. M-246 (10/10/2026): as nove cartas do balde A (com Swan Song, que era parcial) viraram ok. M-247 (10/10/2026): Speaker of the Heavens, Jirina e Knight of the White Orchid viraram ok.",
  "cartas": [
   {
    "name": "Abrade",
@@ -519,12 +519,13 @@
   {
    "name": "Jirina, Dauntless General",
    "listas": "K",
-   "motor": "manual",
-   "balde": "B",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "palavra-chave-por-subtipo"
    ],
-   "obs": "o gatilho de entrada já cabe"
+   "obs": "o gatilho de entrada já cabe",
+   "nota": "M-247 (10/10/2026): script completo (o vocabulário da v95 cobre; o Knight ganhou a condição \"um oponente controla mais terrenos\")."
   },
   {
    "name": "Kami of False Hope",
@@ -571,12 +572,13 @@
   {
    "name": "Knight of the White Orchid",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "B",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "condicao-de-gatilho"
    ],
-   "obs": "oponente controla mais terrenos"
+   "obs": "oponente controla mais terrenos",
+   "nota": "M-247 (10/10/2026): script completo (o vocabulário da v95 cobre; o Knight ganhou a condição \"um oponente controla mais terrenos\")."
   },
   {
    "name": "Krenko's Command",
@@ -1149,11 +1151,12 @@
   {
    "name": "Speaker of the Heavens",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "B",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "ative-somente-se"
-   ]
+   ],
+   "nota": "M-247 (10/10/2026): script completo (o vocabulário da v95 cobre; o Knight ganhou a condição \"um oponente controla mais terrenos\")."
   },
   {
    "name": "Spell Pierce",

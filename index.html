@@ -5740,7 +5740,7 @@ function validateScript(sc) {
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf) errs.push('custo opcional do gatilho sem custo');
@@ -6454,6 +6454,17 @@ const RAW_SCRIPTS = [
     { label: 'Distrair o guarda: virar a criatura alvo', effects: [{ do: 'tap', target: 'creature' }] }, // "Distract the Guard — Tap target creature."
     { label: 'Esconder: sua criatura alvo ganha resistência a magia até o fim do turno', effects: [{ do: 'keyword', keyword: 'hexproof', target: 'creature-you-control' }] }], // "Hide — Target creature you control gains hexproof until end of turn."
     example: { action: 'mode:0', target: 'enemy-creature', expect: { tapped: true } } },
+  // M-247 · balde B que o vocabulário da v95 já cobre (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Speaker of the Heavens', abilities: [{ kind: 'activated', cost: { tap: true }, sorceryOnly: true, onlyIfLifeOverStart: 7, // "Activate only if you have at least 7 life more than your starting life total and only as a sorcery."
+    effects: [{ do: 'token', amount: 1, token: { name: 'Angel', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: 4, toughness: 4, keywords: ['flying'] } }] }], // "{T}: Create a 4/4 white Angel creature token with flying."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Jirina, Dauntless General', abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'exile_graveyard', target: 'player' }] }, // "When Jirina enters, exile target player's graveyard."
+    { kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'continuo', cada: { tipos: ['creature'], subtipos: ['Human'], de: 'you' }, palavras: ['hexproof', 'indestructible'] }] }], // "Sacrifice Jirina: Humans you control gain hexproof and indestructible until end of turn."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Knight of the White Orchid', abilities: [{ kind: 'triggered', when: 'etb', condition: { opponentMoreLands: true }, optional: true, // "if an opponent controls more lands than you, you may…"
+    effects: [{ do: 'search', amount: 1, filter: { subtypes: ['Plains'] }, to: 'battlefield' }] }], // "search your library for a Plains card, put it onto the battlefield, then shuffle"
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -15768,6 +15779,10 @@ function triggerConditionMet(s, o, cond) {
   if (cond.evidenced && !o.evidenced) return false; // S41 · colher provas
   if (cond.kicked && !o.kicked) return false; // CR 702.33d · "if it was kicked"
   if (cond.controlsOtherNamed && !battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && x.name === o.name)) return false;
+  if (cond.opponentMoreLands) { // M-247 · "if an opponent controls more lands than you" (Knight of the White Orchid), conferida de novo na resolução (603.4)
+    const terrenos = p => battlefield(s).filter(x => x.controller === p && tiposDe(s, x).includes('land')).length;
+    if (!alive(s).some(q => q !== o.controller && terrenos(q) > terrenos(o.controller))) return false;
+  }
   if (cond.attackersAtLeast != null) {
     const list = (s.combat && s.combat.attackers) || [];
     if (list.length < cond.attackersAtLeast || !list.includes(o.oid)) return false;

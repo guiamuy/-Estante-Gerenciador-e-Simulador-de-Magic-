@@ -3077,6 +3077,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar.
 - **Próximo:** M-247 — primeiras primitivas do balde B pelo número de cartas que destravam (bônus condicional e habilidade concedida: Rune of Mortality, Rune of Sustenance, Combat Research; "ative somente se": Speaker of the Heavens, Cephalid Coliseum).
 
+**M-247 · R11 · Balde B que a v95 já cobre: Speaker of the Heavens, Jirina e Knight of the White Orchid** ✅ (leva M-247, motor v95, sem mudança de comportamento no que existe) — 3 testes de regra novos.
+- **Valor:** mais três cartas de Commander no automático; a triagem de 05/10 (motor v70) as dava como "primitiva nova", mas o vocabulário da CR2-G já cobria duas delas.
+- **Cartas cobertas (completas):** Speaker of the Heavens ("ative somente se tiver ao menos 7 de vida acima da inicial e só como feitiço" — os dois limites já existiam); Jirina ("exile o cemitério do jogador alvo" e "sacrifique: Humanos seus ganham resistência a magia e indestrutível até o fim do turno", pelo `continuo` com seletor "cada"); Knight of the White Orchid (condição nova).
+- **Condição nova:** `opponentMoreLands` — "se um oponente controla mais terrenos que você", conferida ao disparar e de novo na resolução (603.4), testado tirando o terreno do oponente com o gatilho na pilha.
+- **Medição:** Killian 77% → **80%** (completo 81 · parcial 8 · manual 12); Malcolm + Kediss segue 79%.
+- **Escala:** +1,1 KB gzip; a condição conta terrenos só quando o gatilho do Knight dispara.
+- **Golden:** idênticas, sem regravar.
+- **Próximo:** M-248 — rastros do turno no estado ("atacou neste turno", "vida perdida neste turno"): Chart a Course, Windbrisk Heights (parte), Children of Korlis. Muda o estado: sobe a versão e regrava as partidas-referência, com a regra que mudou declarada.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

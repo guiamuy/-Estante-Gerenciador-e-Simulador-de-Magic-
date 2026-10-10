@@ -8988,7 +8988,8 @@ test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo nu
   await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
   // o catálogo falso: 85 fichas, entre elas Zombie 2/2 e Treasure (que o app já conhece: não repete)
   const fichas = [{ name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' }, { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [] },
-    { name: 'Angel', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: '4', toughness: '4' },
+    // M-247 · a Angel 4/4 voar virou ficha do app (Speaker of the Heavens): a ficha só do catálogo passou a ser um Archon 4/4
+    { name: 'Archon', types: ['creature'], subtypes: ['Archon'], colors: ['W'], power: '4', toughness: '4' },
     { name: 'Wurm <img src=x onerror="window.__sonda=1">', types: ['creature'], subtypes: ['Wurm'], colors: ['G'], power: '6', toughness: '6' }, // sonda: nome de terceiro é texto
     ...Array.from({ length: 81 }, (_, i) => ({ name: 'Ficha ' + String(i + 1).padStart(2, '0'), types: ['creature'], subtypes: ['Beast'], colors: ['G'], power: '3', toughness: '3' }))];
   let fora = false;
@@ -9007,7 +9008,7 @@ test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo nu
   assert.equal(await page.textContent('#fichas-catalogo .ds-list__group'), 'Todas as fichas · 84', 'Treasure já é do app e não repete');
   assert.equal(await page.locator('#fichas-catalogo .ficha-linha').count(), 40);
   assert.equal(await page.locator('#fichas-catalogo .ficha-linha[data-ficha="ficha:treasure"]').count(), 0); assert.equal(await page.locator('#fichas-lista .ficha-linha[data-ficha="ficha:treasure"]').count(), 1);
-  assert.deepEqual(await page.$$eval('#fichas-catalogo .ficha-linha', ls => ls.slice(0, 2).map(l => l.dataset.ficha)), ['ficha:angel 4/4', 'ficha:ficha 01 3/3'], 'por nome');
+  assert.deepEqual(await page.$$eval('#fichas-catalogo .ficha-linha', ls => ls.slice(0, 2).map(l => l.dataset.ficha)), ['ficha:archon 4/4', 'ficha:ficha 01 3/3'], 'por nome');
   // sonda de injeção: o nome vindo do catálogo (texto de terceiro) aparece como texto; nada executa
   await page.fill('#fichas-busca', 'wurm'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 1);
   assert.ok((await page.textContent('#fichas-catalogo .ficha-linha')).includes('Wurm <img src=x'), 'nome como texto'); assert.equal(await page.locator('#fichas-catalogo img[src="x"]').count(), 0); assert.equal(await page.evaluate(() => window.__sonda), undefined);
@@ -9020,7 +9021,7 @@ test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo nu
   await page.fill('#fichas-busca', 'zomb'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 1);
   assert.equal(await page.evaluate(() => document.activeElement.id), 'fichas-busca', 'digitar não perde o foco');
   assert.equal(await page.textContent('#fichas-catalogo .ds-list__group'), 'Todas as fichas · 1'); assert.ok(await page.locator('#fichas-recorte-vazio').count() === 1, 'as do app não têm Zombie');
-  await page.fill('#fichas-busca', '4/4'); await page.waitForFunction(() => document.querySelector('#fichas-catalogo .ficha-linha') && document.querySelector('#fichas-catalogo .ficha-linha').dataset.ficha === 'ficha:angel 4/4');
+  await page.fill('#fichas-busca', '4/4'); await page.waitForFunction(() => document.querySelector('#fichas-catalogo .ficha-linha') && document.querySelector('#fichas-catalogo .ficha-linha').dataset.ficha === 'ficha:archon 4/4');
   await page.fill('#fichas-busca', 'clue'); await page.waitForFunction(() => document.querySelector('#fichas-catalogo-vazio'));
   assert.equal(await page.locator('#fichas-lista .ficha-linha[data-ficha="ficha:clue"]').count(), 1);
   await page.fill('#fichas-busca', ''); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 40);
