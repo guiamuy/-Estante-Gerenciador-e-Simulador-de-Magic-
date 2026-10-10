@@ -2,7 +2,7 @@
  "versao": 1,
  "repositorio": "guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-",
  "total": 13,
- "abertos": 4,
+ "abertos": 2,
  "relatos": [
   {
    "numero": 13,
@@ -30,62 +30,7 @@
    "id": "rmv2cz1ba71ub",
    "editadoEm": null,
    "descricao": "O fluxo de envio de relato ficou ruim, uma vez que ele acessa o front do github pars registrar a issue. Isso precisa ser transparente para o usuário, ou seje, ele não deve ter que sair da aplicação para enviar uma issue.",
-   "reenvios": []
-  },
-  {
-   "numero": 11,
-   "url": "https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/11",
-   "situacao": "aberto",
-   "tipo": "melhoria",
-   "tipoRotulo": "Melhoria",
-   "urgencia": "alta",
-   "urgenciaRotulo": "Alta",
-   "area": "Relatos",
-   "titulo_da_tela": "Relatos",
-   "endereco": "/perfil/relatos",
-   "dialogo": "",
-   "rolagem": 0,
-   "criadoEm": "2026-10-10T12:18:04.633Z",
-   "enviadoEm": "2026-10-10T12:20:50Z",
-   "resolvidoEm": null,
-   "app": "2026-10-10 11:40 UTC",
-   "motor": 96,
-   "tema": "escuro",
-   "viewport": "360×697",
-   "online": true,
-   "partida": null,
-   "partidaAnexada": false,
-   "id": "rmv2d168pihzr",
-   "editadoEm": null,
-   "descricao": "Quando uma issue/relato for atuada/corrijida/aplicada pelo Claude, ele deverá atualizar automaticamente o status para \"resolvido\", sem o usuário ter que fazer a marcação de forma manual.",
-   "reenvios": []
-  },
-  {
-   "numero": 10,
-   "url": "https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/10",
-   "situacao": "aberto",
-   "tipo": "melhoria",
-   "tipoRotulo": "Melhoria",
-   "urgencia": "alta",
-   "urgenciaRotulo": "Alta",
-   "area": "Perfil",
-   "titulo_da_tela": "Fichas",
-   "endereco": "/perfil/fichas",
-   "dialogo": "",
-   "rolagem": 100,
-   "criadoEm": "2026-10-10T12:14:42.775Z",
-   "enviadoEm": "2026-10-10T12:20:41Z",
-   "resolvidoEm": null,
-   "app": "2026-10-10 11:40 UTC",
-   "motor": 96,
-   "tema": "escuro",
-   "viewport": "360×697",
-   "online": true,
-   "partida": null,
-   "partidaAnexada": false,
-   "id": "rmv2cwuhj8bwh",
-   "editadoEm": null,
-   "descricao": "A sessão \"nas suas listas\" da aba de fichas deve identificar automáticamente, conforme novas listas são adicionadas pelo usuário, quais são as fichas que ele possui. Ou seja, quando o usuário adicionar uma nova lista a sua Estante, já devemos carregar a(s) ficha(s) que estão associadas a aquela lista. O mesmo deve ocorrer se ele remover uma lista: a ficha deve sair da sessão \"minhas fichas\", mas a configuração escolhida por ele para aquela ficha deve se manter, e ela deve ficar na sessão \"todas as fichas\".",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -114,6 +59,7 @@
    "id": "rmv12gtd342ed",
    "editadoEm": null,
    "descricao": "É imprescindível que todas as configurações que o usuário faça fiquem armazenadas no seu perfil e reflitam apenas para si mesmo, garantindo a escalabilidade e uso personalizado da plataforma para usuário diferente que for utilizada.\n\nPrecisamos evoluir o backend e estrutura de banco de dados para a plataforma funcionar neste sentido, montando um plano de curto prazo para executá-lo, mas planejando e vislumbrando um plano de médio prazo mais escalável, mesmo que exija (apenas caso exija) a interação com outras plataformas de banco de dados.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -146,6 +92,65 @@
    "id": "rmv1u6rq8pkrb",
    "editadoEm": null,
    "descricao": "Lunarch Veteran esta conseguindo bloquear uma criatura com voar mesmo sem ter virado de face através do efeito \"disturb\". Isso está incorreto e impacta diretamente o jogo.",
+   "autor": "guiamuy",
+   "reenvios": []
+  },
+  {
+   "numero": 11,
+   "url": "https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/11",
+   "situacao": "resolvido",
+   "tipo": "melhoria",
+   "tipoRotulo": "Melhoria",
+   "urgencia": "alta",
+   "urgenciaRotulo": "Alta",
+   "area": "Relatos",
+   "titulo_da_tela": "Relatos",
+   "endereco": "/perfil/relatos",
+   "dialogo": "",
+   "rolagem": 0,
+   "criadoEm": "2026-10-10T12:18:04.633Z",
+   "enviadoEm": "2026-10-10T12:20:50Z",
+   "resolvidoEm": "2026-10-10T17:36:54Z",
+   "app": "2026-10-10 11:40 UTC",
+   "motor": 96,
+   "tema": "escuro",
+   "viewport": "360×697",
+   "online": true,
+   "partida": null,
+   "partidaAnexada": false,
+   "id": "rmv2d168pihzr",
+   "editadoEm": null,
+   "descricao": "Quando uma issue/relato for atuada/corrijida/aplicada pelo Claude, ele deverá atualizar automaticamente o status para \"resolvido\", sem o usuário ter que fazer a marcação de forma manual.",
+   "autor": "guiamuy",
+   "reenvios": []
+  },
+  {
+   "numero": 10,
+   "url": "https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/10",
+   "situacao": "resolvido",
+   "tipo": "melhoria",
+   "tipoRotulo": "Melhoria",
+   "urgencia": "alta",
+   "urgenciaRotulo": "Alta",
+   "area": "Perfil",
+   "titulo_da_tela": "Fichas",
+   "endereco": "/perfil/fichas",
+   "dialogo": "",
+   "rolagem": 100,
+   "criadoEm": "2026-10-10T12:14:42.775Z",
+   "enviadoEm": "2026-10-10T12:20:41Z",
+   "resolvidoEm": "2026-10-10T17:36:54Z",
+   "app": "2026-10-10 11:40 UTC",
+   "motor": 96,
+   "tema": "escuro",
+   "viewport": "360×697",
+   "online": true,
+   "partida": null,
+   "partidaAnexada": false,
+   "id": "rmv2cwuhj8bwh",
+   "editadoEm": null,
+   "descricao": "A sessão \"nas suas listas\" da aba de fichas deve identificar automáticamente, conforme novas listas são adicionadas pelo usuário, quais são as fichas que ele possui. Ou seja, quando o usuário adicionar uma nova lista a sua Estante, já devemos carregar a(s) ficha(s) que estão associadas a aquela lista. O mesmo deve ocorrer se ele remover uma lista: a ficha deve sair da sessão \"minhas fichas\", mas a configuração escolhida por ele para aquela ficha deve se manter, e ela deve ficar na sessão \"todas as fichas\".",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -174,6 +179,7 @@
    "id": "rmv1qs8ghdf2c",
    "editadoEm": null,
    "descricao": "Todos os tipos de fichas existentes deveriam estar disponíveis para configurar aqui na listagem, e elas não estão. Devemos buscar todos os tipos de ficha para disponibilizar na listagem, ou criar uma mecânica para carregar mais tipos de fichas na aplicação para que o usuário escolha suas artes d e jogocomo já faz com os tipos disponíveis.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -202,6 +208,7 @@
    "id": "rmv1g11wk76qi",
    "editadoEm": null,
    "descricao": "Na área de listas, fui buscar listas para importar nos formstos pauper, standard. Não existem listas disponíveis pra vários formatos, e isso precisa ser remediado imediatamente, uma vez que eu espero uma altíssima disponibilidade de listas pra todos os formatos (pauper, modern, standard e todos os outros listados). Engrandeça as fontes e métodos consultados de forma relevante para termos muitos componentes para as listagens disponíveis para importação.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -230,6 +237,7 @@
    "id": "rmv12m5bd2fcz",
    "editadoEm": null,
    "descricao": "Devemos adicionar como possibilidades de tipo de relato as seguintes categorias na lista suspensa:\n\n- Infraestrutura\n- Melhoria\n\nDevemos também permitir que o usuário altere o tipo e a urgência de um relato feito até uma 1 hora depois dele telo salvado/enviado, assim como editar sua descrição.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -258,6 +266,7 @@
    "id": "rmv12dd10j8qe",
    "editadoEm": null,
    "descricao": "O usuário deverá poder editar seus relatos até 1 horas depois que o tenha redigido, caso ainda tenha algum detalhe importante para acrescentar que tenha esquecido.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -286,6 +295,7 @@
    "id": "rmv12axv2enuh",
    "editadoEm": null,
    "descricao": "Continuando o outro relato que fiz a pouco sobre o feed de notícias, as funções de filtro, guardar e atualizar também deveriam estar bem integradas na home, junto aos demais pontos relatados. O core do feedback de notícias dev ser na home, não necessitando que o usuário vá para uma página exclusiva dele. Além disso, o usuário deverá ter uma forma/CTA sofisticada, simples e de alto nível de experiência de usuário para retornar ao topo da home quando quiser caso tenha rolado muito o feed de notícias para baixo.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -314,6 +324,7 @@
    "id": "rmv1248prfzlx",
    "editadoEm": null,
    "descricao": "Eu senti o feed de notícias pouco integrado a home. O feed infinito e o filtro de fontes de notícias em português ou em inglês deveria ficar integrado a home, com ima experiência bem fluida/integrada/sofisticada e com alta usabilidade. O botão de jogar no topo está grosseiro. Precisamos fazer um redesign dele tornando mais sofisticado, bonito, com mais tridimensionalidade, mais visual, e com animação que mostre mais claramente quando ele for pressionado. Precisamos aprimorar esses dois pontos.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -346,6 +357,7 @@
    "id": "rmv1bb4rfb94d",
    "editadoEm": null,
    "descricao": "Quando uma criatura ou permanente ou carta na mão ou no cemitério estiver modificada, seja aprimorada por alguma habilidade, seja um aumento de poder ou resistência, ou ganho de habilidade, ou se a carta estiver sendo piorada ou tiver alguma habilidade perdida por efeito alheio, isso deve ser representando de forma visual/sofisticada/com carater verde para o que for positivo/incremento e vermelho para o for negativo, bem como tachado quando houver perda de alguma habilidade ou característica. A UX/UI de como vamos aplicar essas melhorias é primordial para a experiência de jogo do usuário seja excelente e excepcional, como eu sempre desejo que aconteça.",
+   "autor": "guiamuy",
    "reenvios": []
   },
   {
@@ -374,6 +386,7 @@
    "id": "rmv11f85lcx93",
    "editadoEm": null,
    "descricao": "O botão \"mostrar mais 30\" ficou muito colado com o objeto que mostra a última lista da tela. Precisamos ajustar isso, espaçando um pouco os dois objetos.",
+   "autor": "guiamuy",
    "reenvios": []
   }
  ]
