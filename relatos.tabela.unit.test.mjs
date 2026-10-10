@@ -87,3 +87,29 @@ test('T1 · relato corrigido e reenviado: a tabela fica com o registro mais novo
   assert.equal(t.length, 1);
   assert.deepEqual([t[0].numero, t[0].tipo, t[0].editadoEm, t[0].reenvios], [11, 'melhoria', '2026-10-09T14:30:00.000Z', [8, 9]]);
 });
+
+test('G-243 · situação para o app: id, número, endereço e situação (sem texto); id copiado por outra conta não fecha o relato de ninguém; reenvio da mesma conta continua valendo', async () => {
+  const corpo = r => new URL(R.enderecoDoRegistro(r)).searchParams.get('body');
+  const meu = relato({ id: 'rA' }), outro = relato({ id: 'rB', urgencia: 'baixa' });
+  const issues = [
+    { number: 20, html_url: 'u20', state: 'open', created_at: '2026-10-10T12:00:00Z', user: { login: 'dono' }, body: corpo(meu) },
+    { number: 22, html_url: 'u22', state: 'closed', closed_at: '2026-10-10T13:00:00Z', created_at: '2026-10-10T12:50:00Z', user: { login: 'intruso' }, body: corpo(meu) },
+    { number: 21, html_url: 'u21', state: 'closed', closed_at: '2026-10-10T14:00:00Z', created_at: '2026-10-10T12:10:00Z', user: { login: 'dono' }, body: corpo(outro) },
+    { number: 23, html_url: 'u23', state: 'open', created_at: '2026-10-10T15:00:00Z', user: { login: 'dono' }, body: corpo(outro) }];
+  const t = T.tabela(issues);
+  const doId = id => t.filter(l => l.id === id);
+  assert.deepEqual(doId('rA').map(l => [l.numero, l.situacao]), [[20, 'aberto']], 'o registro da outra conta não conta para rA');
+  assert.ok(t.some(l => l.numero === 22 && l.id === '' && l.autor === 'intruso'), 'continua na tabela, solto');
+  assert.deepEqual(doId('rB').map(l => [l.numero, l.situacao, l.reenvios]), [[23, 'aberto', [21]]], 'reenvio da mesma conta: vale o mais novo');
+  const sit = T.situacoes(t, new Date('2026-10-10T16:00:00Z'));
+  assert.equal(sit.versao, 1); assert.equal(sit.geradoEm, '2026-10-10T16:00:00.000Z');
+  assert.deepEqual(sit.relatos.map(r => Object.keys(r).sort().join()), ['id,numero,reenvios,resolvidoEm,situacao,url', 'id,numero,reenvios,resolvidoEm,situacao,url'], 'sem texto, sem autor');
+  assert.ok(!JSON.stringify(sit).includes('Mostrar mais'), 'o texto do relato não vai');
+  const pasta = await mkdtemp(join(tmpdir(), 'relatos-'));
+  try {
+    const busca = async (url) => ({ ok: true, status: 200, json: async () => (url.includes('/issues?') && url.includes('page=1') ? issues : url.includes('/labels?') ? [{ name: 'relato' }] : []) });
+    await T.atualiza(pasta, { token: 't', repo: 'd/r', busca });
+    const j = JSON.parse(await readFile(join(pasta, 'situacao.json'), 'utf8'));
+    assert.deepEqual(j.relatos.map(r => [r.id, r.numero, r.situacao]).sort(), [['rA', 20, 'aberto'], ['rB', 23, 'aberto']]);
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});

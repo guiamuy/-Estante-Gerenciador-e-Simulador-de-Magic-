@@ -44,14 +44,24 @@ export function linhaDe(issue) {
     area: d.area || '', titulo_da_tela: tela.cabecalho || tela.titulo || '', endereco: d.endereco || d.rota || '', dialogo: tela.dialogo || '', rolagem: tela.rolagem ?? null,
     criadoEm: d.criadoEm || issue.created_at, enviadoEm: issue.created_at, resolvidoEm: issue.state === 'closed' ? issue.closed_at : null,
     app: d.app || '', motor: d.motor ?? null, tema: d.tema || '', viewport: d.viewport || '', online: d.online !== false,
-    partida: d.partida || null, partidaAnexada: !!d.partidaAnexada, id: d.id || '', editadoEm: d.editadoEm || null, descricao: leDescricao(issue.body)
+    partida: d.partida || null, partidaAnexada: !!d.partidaAnexada, id: d.id || '', editadoEm: d.editadoEm || null, descricao: leDescricao(issue.body),
+    autor: (issue.user && issue.user.login) || '' // G-243 · quem abriu: o reenvio só vale da mesma conta
   };
+}
+/** G-243 · o que o app lê para marcar os seus relatos: só id, número, endereço e situação (sem o texto). */
+export function situacoes(linhas, agora = new Date()) {
+  return { versao: 1, geradoEm: agora.toISOString(), relatos: (linhas || []).filter(l => l.id).map(l => ({ id: l.id, numero: l.numero, url: l.url, situacao: l.situacao, resolvidoEm: l.resolvidoEm || null, reenvios: l.reenvios || [] })) };
 }
 /** A tabela: abertos primeiro, depois a urgência maior, depois o mais recente. */
 export function tabela(issues) {
   // T1 · relato corrigido e reenviado: vale o registro mais novo do mesmo relato; os outros números ficam em `reenvios`
-  const porId = new Map(), soltas = [];
-  for (const l of (issues || []).map(linhaDe).filter(Boolean)) {
+  const porId = new Map(), soltas = [], donos = new Map();
+  // G-243 · o id do relato está no corpo de um registro público: outra conta pode copiá-lo num registro novo (e fechá-lo).
+  // Vale a conta que abriu o PRIMEIRO registro daquele id; o de outra conta entra na tabela solto, sem o id do relato.
+  const linhas = (issues || []).map(linhaDe).filter(Boolean).sort((x, y) => x.numero - y.numero);
+  for (const l of linhas) if (l.id && !donos.has(l.id)) donos.set(l.id, l.autor);
+  for (const l0 of linhas) {
+    const l = l0.id && l0.autor && donos.get(l0.id) && l0.autor !== donos.get(l0.id) ? { ...l0, id: '' } : l0;
     if (!l.id) { soltas.push(l); continue; }
     const v = porId.get(l.id);
     if (!v) { porId.set(l.id, { ...l, reenvios: [] }); continue; }
@@ -100,6 +110,7 @@ export async function atualiza(pasta, { token, repo, busca = globalThis.fetch, l
   await mkdir(pasta, { recursive: true });
   await writeFile(join(pasta, 'relatos.json'), JSON.stringify({ versao: 1, repositorio: repo, total: linhas.length, abertos: linhas.filter(l => l.situacao === 'aberto').length, relatos: linhas }, null, 1) + '\n');
   await writeFile(join(pasta, 'relatos.csv'), csv(linhas));
+  await writeFile(join(pasta, 'situacao.json'), JSON.stringify(situacoes(linhas)) + '\n'); // G-243 · o app lê este (pequeno)
   return linhas;
 }
 

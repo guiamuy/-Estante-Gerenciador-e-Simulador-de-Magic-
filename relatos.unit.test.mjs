@@ -166,3 +166,45 @@ test('T1 · editar até uma hora: tipo, urgência e texto mudam; data, tela, con
   assert.equal(tarde.ok, false); assert.equal(tarde.prazo, true);
   assert.equal((await S.todos())[0].tipo, 'melhoria', 'fora da hora nada muda');
 });
+
+test('G-243 · relato #11: a situação dos registros volta do GitHub — resolvido sozinho uma vez por fechamento, reabrir no app é respeitado, reaberto no GitHub volta a aberto; arquivo inválido e endereço de fora ignorados; sem rede nada muda', async () => {
+  // validação: só linhas bem formadas; o endereço é montado pelo app
+  const m = R.situacaoDosRegistros({ versao: 1, relatos: [
+    { id: 'rmv2d168pihzr', numero: 11, situacao: 'resolvido', resolvidoEm: '2026-10-10T14:00:00Z', url: 'https://evil.example/x' },
+    { id: '<img src=x>', numero: 3, situacao: 'aberto' }, { id: 'ok1234', numero: 0, situacao: 'aberto' }, { id: 'ok5678', numero: 4, situacao: 'talvez' }, null] });
+  assert.deepEqual(J([...m]), [['rmv2d168pihzr', { numero: 11, situacao: 'resolvido', resolvidoEm: '2026-10-10T14:00:00Z' }]]);
+  assert.equal(R.urlDoRegistro(11), `https://github.com/${R.REPOSITORIO}/issues/11`);
+  assert.equal(R.situacaoDosRegistros({ versao: 2, relatos: [] }).size, 0); assert.equal(R.situacaoDosRegistros('lixo').size, 0);
+
+  let agora = Date.UTC(2026, 9, 10, 12); let resposta = null, pedidos = 0;
+  const busca = async url => { pedidos++; assert.equal(url, R.URL_SITUACAO); if (resposta === 'rede') throw new TypeError('Failed to fetch'); if (resposta === 404) return { ok: false, status: 404 }; return { ok: true, status: 200, json: async () => resposta }; };
+  const store = P.memoryStore(), S = R.createRelatos({ store, agora: () => agora, busca });
+  const a = (await S.salva({ tipo: 'melhoria', urgencia: 'alta', descricao: 'Resolver sozinho.' })).relato;
+  const b = (await S.salva({ tipo: 'erro', urgencia: 'alta', descricao: 'Outro relato.' })).relato;
+  const arquivo = (sa, em = null, sb = 'aberto') => ({ versao: 1, geradoEm: 'x', relatos: [{ id: a.id, numero: 11, situacao: sa, resolvidoEm: em, url: 'u', reenvios: [] }, { id: b.id, numero: 12, situacao: sb, resolvidoEm: null, url: 'u', reenvios: [] }] });
+  const um = async id => (await S.todos()).find(r => r.id === id);
+
+  // sem rede e sem arquivo: nada muda
+  resposta = 'rede'; assert.equal((await S.sincroniza()).estado, 'sem-rede'); assert.equal((await um(a.id)).status, 'aberto');
+  resposta = 404; assert.equal((await S.sincroniza({ forcar: true })).estado, 'ausente');
+  // registrado e aberto: ganha o número
+  resposta = arquivo('aberto'); let r = await S.sincroniza({ forcar: true });
+  assert.deepEqual([r.estado, r.mudados, r.resolvidos], ['ok', 2, 0]); assert.deepEqual(J((await um(a.id)).registro), { numero: 11 }); assert.equal((await um(a.id)).status, 'aberto');
+  // a busca respeita o intervalo de 10 minutos
+  const antes = pedidos; assert.equal((await S.sincroniza()).estado, 'recente'); assert.equal(pedidos, antes);
+  // fechado no GitHub: resolvido, com a data; de novo não muda nada
+  resposta = arquivo('resolvido', '2026-10-10T14:00:00Z'); agora += R.BUSCA_SITUACAO_MS;
+  r = await S.sincroniza(); assert.deepEqual([r.mudados, r.resolvidos], [1, 1]);
+  assert.deepEqual([(await um(a.id)).status, (await um(a.id)).resolvidoEm], ['resolvido', '2026-10-10T14:00:00Z']); assert.equal((await um(b.id)).status, 'aberto');
+  assert.equal((await S.sincroniza({ forcar: true })).mudados, 0, 'idempotente');
+  // quem reabre no app é respeitado enquanto o fechamento for o mesmo
+  await S.muda(a.id, { status: 'aberto' }); assert.equal((await S.sincroniza({ forcar: true })).mudados, 0); assert.equal((await um(a.id)).status, 'aberto');
+  // reaberto no GitHub e fechado de novo: resolve outra vez
+  resposta = arquivo('aberto'); await S.sincroniza({ forcar: true }); resposta = arquivo('resolvido', '2026-10-11T09:00:00Z'); await S.sincroniza({ forcar: true });
+  assert.equal((await um(a.id)).status, 'resolvido');
+  // reaberto no GitHub depois de o registro ter resolvido: volta a aberto; resolvido à mão continua resolvido
+  await S.muda(b.id, { status: 'resolvido' }); resposta = arquivo('aberto'); await S.sincroniza({ forcar: true });
+  assert.deepEqual([(await um(a.id)).status, (await um(a.id)).resolvidoEm], ['aberto', undefined]); assert.equal((await um(b.id)).status, 'resolvido');
+  // o que a conciliação guarda vai no backup com o relato (a chave é a mesma)
+  assert.ok((await store.get(R.CHAVE)).every(x => x.registro && x.registro.numero));
+});

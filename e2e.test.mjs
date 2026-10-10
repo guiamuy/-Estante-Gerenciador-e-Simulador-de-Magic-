@@ -7951,6 +7951,46 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
 });
 
 /* ---------------- Y5 · relatos chegam à correção ---------------- */
+test('e2e · G-243 relato resolvido sozinho (relato #11): o número do registro aparece e abre o GitHub; o registro fechado marca o relato como resolvido, com a data e um aviso; sem a tabela nada muda', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  let situacao = null; const pedidos = [];
+  await page.route('https://raw.githubusercontent.com/**', r => { const u = r.request().url(); pedidos.push(u);
+    if (!u.endsWith('/relatos/situacao.json')) return r.fulfill({ status: 404, body: '' });
+    return situacao ? r.fulfill({ json: situacao, headers: { 'access-control-allow-origin': '*' } }) : r.fulfill({ status: 404, body: '', headers: { 'access-control-allow-origin': '*' } }); });
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-vazio');
+  await page.click('#relatos-novo');
+  await page.waitForSelector('#relato-form');
+  await page.selectOption('#relato-tipo', 'melhoria'); await page.selectOption('#relato-urgencia', 'alta');
+  await page.fill('#relato-descricao', 'Marcar como resolvido sozinho.'); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  await page.waitForSelector('#relatos-lista .relato-item');
+  const id = (await page.getAttribute('#relatos-lista .relato-item', 'id')).replace(/^relato-/, '');
+  // sem a tabela publicada: nada muda, sem erro
+  assert.equal(await page.locator('.relato-item__numero').count(), 0); assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
+  // registrado e aberto: o número aparece e abre o registro
+  situacao = { versao: 1, geradoEm: '2026-10-10T15:00:00Z', relatos: [{ id, numero: 41, situacao: 'aberto', resolvidoEm: null, url: 'https://evil.example/', reenvios: [] }] };
+  await page.reload(); await page.waitForSelector('.relato-item__numero');
+  assert.equal(await page.textContent('.relato-item__numero'), '#41'); assert.equal(await page.textContent('.relato-item__resolvido'), 'Registrado no GitHub');
+  assert.equal(await page.getAttribute('.relato-item__numero', 'href'), 'https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/41', 'o endereço é o do app, não o do arquivo');
+  assert.equal(await page.getAttribute('.relato-item__numero', 'target'), '_blank'); assert.equal(await page.getAttribute('.relato-item__numero', 'rel'), 'noopener'); assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
+  assert.ok((await page.locator('.relato-item__numero').boundingBox()).height >= 44, 'alvo de 44 px'); assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Reenviar');
+  // fechado no GitHub: resolvido sozinho, com a data, e o aviso
+  situacao = { ...situacao, relatos: [{ ...situacao.relatos[0], situacao: 'resolvido', resolvidoEm: '2026-10-10T16:20:00Z' }] };
+  await page.reload(); await page.waitForSelector('.relato-item[data-status="resolvido"]');
+  await page.waitForFunction(() => /1 relato resolvido no GitHub/.test(document.querySelector('#ds-toast').textContent));
+  assert.match(await page.textContent('.relato-item__resolvido'), /^Resolvido em 10\/10\/2026 \d\d:20$/); assert.equal(await page.getAttribute('.relato-item__registro', 'data-situacao'), 'resolvido');
+  assert.equal(await page.innerText('.relato-item [data-acao="status"]'), 'Reabrir');
+  assert.match(await page.textContent('#relatos-resumo'), /0 abertos/);
+  await auditaTela(page, 'relatos · resolvido pelo registro');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g243-relatos.png' });
+  // reabrir no app é respeitado na próxima busca
+  await page.click('.relato-item [data-acao="status"]'); await page.waitForSelector('.relato-item[data-status="aberto"]');
+  await page.reload(); await page.waitForSelector('.relato-item__numero'); await page.waitForTimeout(400);
+  assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
+  assert.ok(pedidos.filter(u => u.endsWith('/situacao.json')).length >= 3);
+  assert.deepEqual(errors.filter(e => !/404|Failed to load resource/.test(e)), []);
+});
+
 test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, Enviar abre o registro no GitHub já preenchido (título, etiqueta, texto e dados da tela) e marca o relato como enviado', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

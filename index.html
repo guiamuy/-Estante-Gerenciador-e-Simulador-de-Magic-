@@ -1415,10 +1415,15 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
   border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-muted); }
 .relato__junto { grid-column: 2; font-size: var(--text-xs); color: var(--fg-subtle); }
 .relato-item { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-3); background: var(--bg-elev-1); border: 1px solid var(--border); }
-.relato-item[data-status="resolvido"] { opacity: .72; }
+.relato-item[data-status="resolvido"] { background: var(--bg); } /* G-243 · resolvido recua sem opacidade: com .72 o texto pequeno caía abaixo de AA (3,1:1 no claro) */
+.relato-item[data-status="resolvido"] .relato-item__texto { color: var(--fg-muted); }
 .relato-item__topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .relato-item__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 .relato-item__enviado { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-xs); color: var(--positive); }
+.relato-item__registro { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); } /* G-243 · registro no GitHub e a situação de lá */
+.relato-item__numero { display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap-min); padding-right: var(--space-2); color: var(--accent); font-weight: 600; text-decoration: none; }
+.relato-item__resolvido { display: inline-flex; align-items: center; gap: var(--space-1); }
+.relato-item__registro[data-situacao="resolvido"] .relato-item__resolvido { color: var(--positive); }
 .relato-item__texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-md); }
 .relato-item__acoes { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
 .relato-item__motivo { text-align: right; }
@@ -10391,11 +10396,45 @@ function contextoDaPartida({ s, v = 0, entradas = [], options = {}, setup = {}, 
     decisao: s.pending ? s.pending.kind || '' : '', registro: (entradas || []).slice(-8).map(e => String(e.texto || '')) };
 }
 
+/* G-243 · relato #11: a situação dos registros volta do GitHub. O fluxo Relatos grava `situacao.json` no ramo `relatos`
+   (id, número e situação de cada registro do app, sem o texto); o app concilia com os relatos do aparelho. */
+const URL_SITUACAO = `https://raw.githubusercontent.com/${REPOSITORIO}/relatos/situacao.json`;
+const BUSCA_SITUACAO_MS = 10 * 60 * 1000; // no máximo uma busca a cada 10 minutos (a tabela muda a cada registro)
+const urlDoRegistro = n => `https://github.com/${REPOSITORIO}/issues/${n}`;
+/** Valida o arquivo publicado e devolve id → { numero, situacao, resolvidoEm }. Endereço montado aqui (nunca o do arquivo). Puro. */
+function situacaoDosRegistros(dados) {
+  const m = new Map();
+  if (!dados || dados.versao !== 1 || !Array.isArray(dados.relatos)) return m;
+  for (const x of dados.relatos) {
+    if (!x || typeof x.id !== 'string' || !/^[a-z0-9]{4,40}$/i.test(x.id) || !Number.isInteger(x.numero) || x.numero < 1 || !['aberto', 'resolvido'].includes(x.situacao)) continue;
+    const resolvidoEm = x.situacao === 'resolvido' && typeof x.resolvidoEm === 'string' && !isNaN(Date.parse(x.resolvidoEm)) ? x.resolvidoEm : null;
+    m.set(x.id, { numero: x.numero, situacao: x.situacao, resolvidoEm });
+  }
+  return m;
+}
+/** Um relato do aparelho diante do registro dele. Marca resolvido uma vez por fechamento (quem reabre no app é
+    respeitado); registro reaberto no GitHub reabre o relato só se foi o registro que o resolveu. Devolve o mesmo
+    objeto quando nada muda. Puro. */
+function concilia(r, info) {
+  if (!info) return r;
+  let n = r;
+  const muda = campos => { n = { ...n, ...campos }; };
+  if (!r.registro || r.registro.numero !== info.numero) muda({ registro: { numero: info.numero } });
+  if (info.situacao === 'resolvido' && info.resolvidoEm && n.resolvidoPeloRegistro !== info.resolvidoEm) {
+    if (n.status !== 'resolvido') muda({ status: 'resolvido', resolvidoEm: info.resolvidoEm });
+    muda({ resolvidoPeloRegistro: info.resolvidoEm });
+  } else if (info.situacao === 'aberto' && n.resolvidoPeloRegistro) {
+    const { resolvidoPeloRegistro, resolvidoEm, ...resto } = n;
+    n = n.status === 'resolvido' && resolvidoEm === resolvidoPeloRegistro ? { ...resto, status: 'aberto' } : resto;
+  }
+  return n;
+}
+
 /** Os relatos no aparelho. */
-function createRelatos({ store, agora = () => Date.now() }) {
+function createRelatos({ store, agora = () => Date.now(), busca = typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null }) {
   const le = async () => { try { const l = await store.get(CHAVE); return Array.isArray(l) ? l.filter(valido) : []; } catch (e) { return []; } };
   const grava = l => store.set(CHAVE, l.slice(-RELATOS_MAX));
-  const ouvintes = [];
+  const ouvintes = []; let ultimaBusca = 0;
   const avisa = () => ouvintes.forEach(cb => { try { cb(); } catch (e) { /* ouvinte não derruba */ } });
   return {
     agora,
@@ -10416,7 +10455,19 @@ function createRelatos({ store, agora = () => Date.now() }) {
     },
     async muda(id, campos) { const l = await le(); const i = l.findIndex(r => r.id === id); if (i < 0) return null; l[i] = { ...l[i], ...campos }; await grava(l); avisa(); return l[i]; },
     async remove(id) { const l = await le(); const r = l.find(x => x.id === id) || null; if (r) { await grava(l.filter(x => x.id !== id)); avisa(); } return r; },
-    async restaura(r) { if (!valido(r)) return; const l = await le(); if (!l.some(x => x.id === r.id)) { await grava([...l, r]); avisa(); } }
+    async restaura(r) { if (!valido(r)) return; const l = await le(); if (!l.some(x => x.id === r.id)) { await grava([...l, r]); avisa(); } },
+    /** G-243 · busca a situação dos registros e concilia; sem rede ou sem arquivo, nada muda. */
+    async sincroniza({ forcar = false } = {}) {
+      if (!busca) return { estado: 'sem-rede' };
+      if (!forcar && ultimaBusca && agora() - ultimaBusca < BUSCA_SITUACAO_MS) return { estado: 'recente' };
+      let dados;
+      try { const r = await busca(URL_SITUACAO, { cache: 'no-cache' }); ultimaBusca = agora(); if (r.status === 404) return { estado: 'ausente' }; if (!r.ok) return { estado: 'erro' }; dados = await r.json(); }
+      catch (e) { return { estado: 'sem-rede' }; }
+      const mapa = situacaoDosRegistros(dados), l = await le();
+      let mudados = 0; const nova = l.map(r => { const n = concilia(r, mapa.get(r.id)); if (n !== r) mudados++; return n; });
+      if (mudados) { await grava(nova); avisa(); }
+      return { estado: 'ok', mudados, resolvidos: nova.filter((r, i) => r.status === 'resolvido' && l[i].status !== 'resolvido').length };
+    }
   };
 }
 
@@ -10576,8 +10627,12 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
           Badge(rotuloDe(TIPOS, r.tipo)),
           h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`),
-          r.enviadoEm ? h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado') : null),
+          !r.registro && r.enviadoEm ? h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado') : null),
         h('p', { class: 'relato-item__texto' }, r.descricao),
+        // G-243 · o registro achado no GitHub: o número (abre o registro) e a situação que voltou de lá
+        r.registro ? h('div', { class: 'relato-item__registro', dataset: { situacao: r.status === 'resolvido' && r.resolvidoPeloRegistro ? 'resolvido' : 'aberto' } },
+          h('a', { class: 'relato-item__numero', href: urlDoRegistro(r.registro.numero), target: '_blank', rel: 'noopener', title: `Abrir o registro #${r.registro.numero} no GitHub`, 'aria-label': `Registro ${r.registro.numero} no GitHub` }, Icone('externo', { tamanho: 14 }), `#${r.registro.numero}`),
+          h('span', { class: 'relato-item__resolvido' }, r.status === 'resolvido' && r.resolvidoPeloRegistro && r.resolvidoEm ? [Icone('marcar', { tamanho: 14 }), `Resolvido em ${quando(r.resolvidoEm)}`] : 'Registrado no GitHub')) : null,
         r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
         h('div', { class: 'relato-item__acoes' },
           r.partida ? Button('Partida', { variant: 'ghost', icone: 'jogar', disabled: !pa.ok, title: pa.ok ? 'Abrir a partida anexada, no ponto do relato' : pa.motivo, dataset: { acao: 'partida' }, onClick: () => abrePartida(r) }) : null,
@@ -10586,7 +10641,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
           Button(r.status === 'resolvido' ? 'Reabrir' : 'Resolvido', { variant: 'ghost', icone: r.status === 'resolvido' ? 'desfazer' : 'marcar', dataset: { acao: 'status' }, onClick: async () => { await relatos.muda(r.id, { status: r.status === 'resolvido' ? 'aberto' : 'resolvido' }); pinta(); } }),
           Button('Copiar', { variant: 'ghost', icone: 'copiar', dataset: { acao: 'copiar' }, onClick: async e => { const ok = await share.copy(textoDoRelato(r)); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? 'Relato copiado' : 'Não foi possível copiar'); } }),
           // Y5 · Enviar: abre o registro no GitHub já preenchido (quem relata confirma lá); fica marcado como enviado
-          Button(r.enviadoEm ? 'Reenviar' : 'Enviar', { variant: 'ghost', icone: 'externo', dataset: { acao: 'enviar' }, title: 'Abrir o registro no GitHub, já preenchido, para a correção',
+          Button(r.enviadoEm || r.registro ? 'Reenviar' : 'Enviar', { variant: 'ghost', icone: 'externo', dataset: { acao: 'enviar' }, title: 'Abrir o registro no GitHub, já preenchido, para a correção',
             onClick: async () => { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado: o aviso diz */ }
               await relatos.muda(r.id, { enviadoEm: new Date().toISOString() }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); } }),
           IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
@@ -10621,10 +10676,12 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
   }
   pinta();
   relatos.onMuda(() => { if (root.isConnected) pinta(); });
+  // G-243 · ao abrir, a situação dos registros volta do GitHub (no máximo a cada 10 minutos); sem rede, nada muda
+  relatos.sincroniza && relatos.sincroniza().then(r => { if (root.isConnected && r && r.resolvidos) toast(r.resolvidos === 1 ? '1 relato resolvido no GitHub' : `${r.resolvidos} relatos resolvidos no GitHub`); }).catch(() => {});
   return root;
 }
 
-return { EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
@@ -25370,6 +25427,8 @@ const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const relatos = __m38.createRelatos({ store: platform.store }); // Y1 · relatos do usuário
 const catalogo = __m39.createCatalogo({ store: platform.store }); // Z2 · listas oficiais do ramo `catalogo`
 __m38.usa(relatos); __m3.usaRelatar(() => __m38.abreRelato());
+// G-243 · relato enviado e ainda aberto: a situação do registro volta do GitHub pouco depois de abrir o app (o Perfil conta os abertos)
+setTimeout(() => { relatos.todos().then(l => { if (l.some(r => (r.enviadoEm || r.registro) && r.status !== 'resolvido')) return relatos.sincroniza(); }).catch(() => {}); }, 4000);
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
 __m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });

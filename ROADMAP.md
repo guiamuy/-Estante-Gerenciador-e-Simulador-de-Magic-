@@ -493,6 +493,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cw ✅ | V3 visões da lista: Galeria, Densa (estilo Moxfield) e Pilhas por custo, lembradas no aparelho (leva G-239) | V | 1 | — |
 | 16º-cx ✅ | Z6 listas do Magic Online: ligas 5-0 e desafios de seis formatos no catálogo, todo dia; Vintage; crédito por fonte; TopDeck mais larga (leva G-241) | Z | 1 | — |
 | 16º-cy ✅ | I8 todas as fichas do jogo em Perfil › Fichas: catálogo semanal pela Scryfall (`fichas.json`), grupo próprio em lotes de 40, busca por nome, tipo e P/T, escolha de arte igual às do app (leva G-242) | I | 1 | — |
+| 16º-cz ✅ | T7 relato resolvido sozinho: a situação do registro volta do GitHub (`situacao.json` no ramo `relatos`), número do registro no cartão, resolvido com a data; id copiado por outra conta não conta (leva G-243) | T | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6773,6 +6774,35 @@ prontas.
   reenviar, `auditaTela`).
 - **Limite:** o registro antigo no GitHub continua aberto até ser fechado à mão ou pela correção.
 - **Fora:** editar a tela ou a partida anexada.
+
+**T7 · Relato resolvido sozinho** ✅ (leva G-243, 10/10/2026 · registro #11)
+- **Pedido (relato #11, melhoria · alta):** "Quando uma issue/relato for atuada/corrigida/aplicada pelo Claude, ele deverá
+  atualizar automaticamente o status para resolvido, sem o usuário ter que fazer a marcação de forma manual."
+- **Caminho:** a correção fecha o registro (`Resolve #N` no commit); o fluxo Relatos, que já roda a cada registro aberto,
+  fechado ou reaberto, grava agora também **`situacao.json`** no ramo `relatos`: `{ versao: 1, geradoEm, relatos: [{ id,
+  numero, url, situacao, resolvidoEm, reenvios }] }`, sem o texto nem a conta. O app lê esse arquivo ao abrir Relatos e
+  uns segundos depois de abrir o app (só quando há relato enviado e aberto), no máximo a cada 10 minutos.
+- **Entregue:** o cartão do relato mostra, abaixo do texto, o **número do registro** (toque de 44 px abre o registro no
+  GitHub) e a situação: "Registrado no GitHub" ou **"Resolvido em <data>"**; o relato passa a **resolvido sozinho**, com
+  o aviso "1 relato resolvido no GitHub"; "Enviar" vira "Reenviar" quando já há registro; o cartão resolvido recua com
+  fundo da página e texto em tom secundário (antes era opacidade 0,72, que deixava o texto pequeno abaixo de AA: 3,1:1
+  no tema claro).
+- **Regras da conciliação (puras, `concilia`):** marca resolvido **uma vez por fechamento**; quem reabre no app é
+  respeitado enquanto o fechamento for o mesmo; registro reaberto no GitHub reabre o relato só se foi o registro que o
+  resolveu; resolvido à mão continua resolvido. Sem rede, sem arquivo ou com arquivo inválido, nada muda.
+- **Segurança (revisão da trilha de proteção):** o arquivo só muda situação, número e data; o endereço do registro é
+  montado pelo app (o do arquivo é ignorado); id e número validados. No coletor, o **id copiado por outra conta** num
+  registro novo não conta para o relato (vale a conta do primeiro registro daquele id); a linha fica na tabela, solta.
+- **Guardado:** `registro { numero }`, `resolvidoEm` e `resolvidoPeloRegistro` no próprio relato (`relatos.itens`, vai no
+  backup).
+- **Modelo (puro, `__m38`):** `situacaoDosRegistros`, `concilia`, `urlDoRegistro`; serviço `sincroniza`. Coletor:
+  `situacoes` e o autor em `relatos-tabela.mjs`.
+- **Testes:** U `relatos.unit` +1 (validação com endereço de fora e id com HTML, sem rede, sem arquivo, número, intervalo
+  de 10 min, resolvido uma vez, idempotente, reabrir no app, reaberto e fechado de novo, reaberto no GitHub, resolvido à
+  mão); U `relatos.tabela.unit` +1 (id copiado por outra conta, reenvio da mesma conta, `situacao.json` sem texto nem
+  conta); e2e "G-243" (número e link, resolvido com data e aviso, `auditaTela`, reabrir respeitado).
+- **Limites:** a situação chega quando o fluxo Relatos termina (cerca de 1 minuto depois do fechamento) e o app busca de
+  novo; registro fechado como "não planejado" também conta como resolvido.
 
 **T2 · Notícias no núcleo da Início** ✅ (leva G-236, 09/10/2026 · registros #3 e #4)
 - **Valor:** a Início é o lugar de ler notícias, sem pular para outra tela.
