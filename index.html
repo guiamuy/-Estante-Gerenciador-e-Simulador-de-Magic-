@@ -3216,9 +3216,16 @@ function AnelProgresso(pct, { tamanho = 64, id, rotulo = 'guardado' } = {}) {
 }
 /** leva 123 · o tom pode vir como texto ('warning') ou objeto ({ tone }); 'danger' é apelido de 'negative'. */
 const TOM = t => { const x = t && typeof t === 'object' ? t.tone : t; return x === 'danger' ? 'negative' : (x || ''); };
-const Note = (content, tone) => h('div', { class: ['ds-note', TOM(tone) ? `ds-note--${TOM(tone)}` : ''].filter(Boolean).join(' '), html: content });
+/* P-1 · HTML seguro: `seguro\`…\`` monta HTML do código e escapa TUDO o que é interpolado (texto de carta, de lista colada,
+   de CSV, de erro, de outra pessoa); pedaço já seguro e lista de pedaços seguros entram como estão. Puro. */
+const SEGURO = '__seguroHtml';
+const ehSeguro = v => !!v && typeof v === 'object' && typeof v[SEGURO] === 'string';
+const emHtml = v => v == null || v === false ? '' : Array.isArray(v) ? v.map(emHtml).join('') : ehSeguro(v) ? v[SEGURO] : escapa(v);
+function seguro(partes, ...vals) { let out = partes[0]; vals.forEach((v, i) => { out += emHtml(v) + partes[i + 1]; }); return { [SEGURO]: out }; }
+/** Aviso. Texto vira texto (nunca HTML); marcação só por `seguro\`…\`` (o contrato do portão barra o resto). */
+const Note = (content, tone) => h('div', { class: ['ds-note', TOM(tone) ? `ds-note--${TOM(tone)}` : ''].filter(Boolean).join(' '), html: ehSeguro(content) ? content[SEGURO] : null }, ehSeguro(content) ? null : String(content ?? ''));
 /** D8 · avisos de estado numa linha só: um item por aviso (ícone + rótulo curto, com tom); o toque abre a folha com os
-    textos completos. `itens`: [{ icone, tom, rotulo, detalhe }] — `detalhe` é HTML já escapado (como em Note). */
+    textos completos. `itens`: [{ icone, tom, rotulo, detalhe }] — `detalhe` é texto ou `seguro\`…\`` (como em Note). */
 function LinhaEstado(itens, { id, titulo = 'Estado', ladrilhos = false } = {}) {
   const lista = (itens || []).filter(Boolean);
   if (!lista.length) return null;
@@ -3227,7 +3234,7 @@ function LinhaEstado(itens, { id, titulo = 'Estado', ladrilhos = false } = {}) {
   // I3 · `ladrilhos`: cada item vira um ladrilho (ícone + valor em cima, rótulo embaixo), em colunas iguais — cabe em 360 px
   // com qualquer fonte, e o número se lê de relance. Sem `ladrilhos`, a linha de sempre.
   return h('button', { class: 'ds-estado' + (ladrilhos ? ' ds-estado--ladrilhos' : ''), type: 'button', id: id || null, dataset: { tom: pior, itens: String(lista.length) }, 'aria-label': `${titulo}: ${falado}. Toque para ver os detalhes`,
-    onClick: () => Dialog({ title: titulo, body: Stack({}, ...lista.map(i => Note(i.detalhe || escapa(i.rotulo), TOM(i.tom) || undefined))), actions: [Button('Fechar', { onClick: closeDialog })] }) },
+    onClick: () => Dialog({ title: titulo, body: Stack({}, ...lista.map(i => Note(i.detalhe || i.rotulo, TOM(i.tom) || undefined))), actions: [Button('Fechar', { onClick: closeDialog })] }) },
     ...lista.map(i => h('span', { class: 'ds-estado__item', id: i.id || null, dataset: { tom: TOM(i.tom) || 'muted' } },
       ...(ladrilhos ? [h('span', { class: 'ds-estado__rotulo' }, i.rotulo), h('span', { class: 'ds-estado__valor' }, i.icone ? Icone(i.icone, { tamanho: 16 }) : null, h('b', {}, i.valor != null ? String(i.valor) : ''))]
         : [i.icone ? Icone(i.icone, { tamanho: 16 }) : null, h('span', { class: 'ds-estado__rotulo' }, i.rotulo)]))),
@@ -3467,7 +3474,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   clearTimeout(toastTimer);
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
 }
-return { h, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
+return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
   analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao, usaRelatar, Bandeira, Chave };
 })();
 
@@ -3783,13 +3790,13 @@ function renderDS() {
     Section('Estados',
       Empty('Comece por uma lista pronta ou cole uma lista.', h('div', { class: 'ds-empty__acoes' }, Row({}, Button('Ver prontas', { variant: 'primary', icone: 'caixa' }), Button('Nova lista', { icone: 'mais' }))), { icone: 'listas', titulo: 'Nenhuma lista ainda', hero: true }),
       Empty('Nenhuma carta passa por esses filtros.'),
-      LinhaEstado([{ icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão: mostrando o que está guardado.' }, { icone: 'alerta', tom: 'warning', rotulo: '2 avisos', detalhe: '<b>!</b> Exemplo de aviso.<br><b>!</b> Outro aviso.' }], { id: 'ds-linha-estado', titulo: 'Estado' }),
+      LinhaEstado([{ icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão: mostrando o que está guardado.' }, { icone: 'alerta', tom: 'warning', rotulo: '2 avisos', detalhe: __m3.seguro`<b>!</b> Exemplo de aviso.<br><b>!</b> Outro aviso.` }], { id: 'ds-linha-estado', titulo: 'Estado' }),
       LinhaEstado([{ icone: 'marcar', tom: 'positive', rotulo: 'Motor', valor: '100%', detalhe: 'Exemplo.' }, { icone: 'reserva', rotulo: 'Reserva', valor: 15, detalhe: 'Exemplo.' }, { icone: 'baixar', tom: 'warning', rotulo: 'Offline', valor: '41/60', detalhe: 'Exemplo.' }], { id: 'ds-estado-ladrilhos', titulo: 'Estado em ladrilhos', ladrilhos: true }),
       AvisoRede('Sem internet: a busca usa as cartas guardadas no aparelho.'),
       // I3 · dica: explicação a um toque, no lugar de texto solto sob o campo
       Field('Semente', Input({ value: '4', inputmode: 'numeric' }), { dica: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
       h('div', { class: 'ds-field', id: 'ds-dica' }, rotuloDeCampo('Série', 'Melhor de 3: vence quem ganhar duas.'), Row({}, ...Dica('Dica solta, fora de um campo.', { sobre: 'o exemplo' }))),
-      Note('Nota informativa com <b>ênfase</b>.'),
+      Note(__m3.seguro`Nota informativa com <b>ênfase</b>.`),
       Note('Atenção: algo exige decisão.', 'warning'),
       Note('Erro: a operação não pôde ser concluída.', 'negative'),
       Row({}, Spinner(), Text('Carregando…', { size: 'sm', tone: 'muted' })),
@@ -4475,7 +4482,7 @@ const ENVIRONMENTS = {
     id: 'file',
     label: 'arquivo local',
     online: false,
-    reason: 'A página está aberta como arquivo. O navegador não envia origem a partir de <code>file://</code>, e a Scryfall exige origem http para liberar CORS.',
+    reason: 'A página está aberta como arquivo. O navegador não envia origem a partir de file://, e a Scryfall exige origem http para liberar CORS.',
     fix: 'Sirva a pasta por um servidor, ou use a base local de cartas abaixo.'
   },
   sandboxed: {
@@ -4912,7 +4919,7 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
   // U4 · sem internet é um aviso de uma linha com ícone; os outros ambientes (origem bloqueada, arquivo local) continuam explicados
   const envWarning = (env && !env.online)
     ? (env.id === 'offline' ? AvisoRede('Sem internet: a busca usa as cartas guardadas no aparelho.', { id: 'cards-sem-rede' })
-      : Note(`<b>Ambiente sem acesso à Scryfall (${env.label}).</b> ${env.reason} ${env.fix}`, 'warning'))
+      : Note(__m3.seguro`<b>Ambiente sem acesso à Scryfall (${env.label}).</b> ${env.reason} ${env.fix}`, 'warning'))
     : null;
 
   // D5 · a base local de cartas saiu daqui para Perfil › Dados (`painelBaseLocal`); a tela abre direto na busca
@@ -5010,7 +5017,7 @@ function secaoRulings(card) {
   function conteudo() {
     if (st.estado === 'buscando') return [__m3.Carregando('Buscando rulings…', { tamanho: 'bloco', id: 'card-rulings-buscando' })];
     if (st.estado === 'semRede') return [AvisoRede('Sem internet: os rulings aparecem quando houver conexão.', { id: 'card-rulings-sem-rede' })];
-    if (st.estado === 'erro') { const n = Note('<b>Não foi possível buscar os rulings.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'card-rulings-erro';
+    if (st.estado === 'erro') { const n = Note(__m3.seguro`<b>Não foi possível buscar os rulings.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = 'card-rulings-erro';
       return [n, Row({}, Button('Repetir busca', { icone: 'atualizar', id: 'card-rulings-de-novo', onClick: () => carrega(true) }))]; }
     if (!st.dado) return [];
     const itens = st.dado.itens;
@@ -10669,7 +10676,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null }) 
   }
   async function pinta() {
     let lista; try { lista = await relatos.todos(); } catch (e) { lista = null; }
-    if (!lista) return mount(root, Note('<b>Não foi possível ler os relatos deste aparelho.</b>', 'negative'), Button('Voltar', { icone: 'voltar', onClick: () => { location.hash = '#/perfil'; } }));
+    if (!lista) return mount(root, Note(__m3.seguro`<b>Não foi possível ler os relatos deste aparelho.</b>`, 'negative'), Button('Voltar', { icone: 'voltar', onClick: () => { location.hash = '#/perfil'; } }));
     const areas = areasDe(lista);
     if (filtroAtual.area && !areas.includes(filtroAtual.area)) filtroAtual.area = '';
     const recorte = filtra(lista, filtroAtual), abertosDoRecorte = recorte.filter(r => r.status !== 'resolvido');
@@ -10908,7 +10915,7 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
     const todas = listasDoIndice(st.r && st.r.dados);
     if (st.estado === 'carregando') return mount(listaBox, __m3.Carregando('Abrindo o catálogo…', { tamanho: 'bloco', id: 'catalogo-carregando' }));
     if (st.estado === 'sem-rede') return mount(listaBox, AvisoRede('Sem internet: o catálogo aparece quando houver conexão. As listas da Estante, acima, funcionam sem rede.', { id: 'catalogo-sem-rede' }));
-    if (st.estado === 'erro') { const n = Note('<b>Não foi possível abrir o catálogo.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'catalogo-erro';
+    if (st.estado === 'erro') { const n = Note(__m3.seguro`<b>Não foi possível abrir o catálogo.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = 'catalogo-erro';
       return mount(listaBox, n, Row({}, Button('Repetir', { icone: 'atualizar', id: 'catalogo-de-novo', onClick: () => carrega(true) }))); }
     if (st.estado === 'ausente' || !todas.length) return mount(listaBox, Empty('O catálogo ainda está sendo montado. Volte daqui a pouco.', null, { icone: 'caixa', titulo: 'Catálogo vazio', id: 'catalogo-vazio' }));
     const recorte = filtraCatalogo(todas, { formato: st.formato, texto: st.texto });
@@ -11775,7 +11782,7 @@ function telaDeArtes({ galeria: fichas, itens, atualiza = null, C, catalogo = nu
           Row({ class: 'ficha-cab' }, Icone(it.icone, { tamanho: 16 }), simbolos(it.cores), Text(it.descricao, { size: 'sm', tone: 'muted' })))),
       // só com internet se buscam artes novas; as já baixadas continuam à mão
       !online() ? AvisoRede(opcoes.length ? 'Sem internet: estas são as artes já baixadas. Para ver outras, conecte-se.' : C.semRedeSemArtes, { id: C.id + '-sem-rede' }) : null,
-      st.erro === 'falha' ? (() => { const n = Note('<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.', 'negative'); n.id = C.id + '-erro'; return n; })() : null,
+      st.erro === 'falha' ? (() => { const n = Note(__m3.seguro`<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = C.id + '-erro'; return n; })() : null,
       st.buscando && !opcoes.length ? __m3.Carregando('Buscando artes…', { tamanho: 'bloco', id: C.id + '-buscando' }) : null,
       semNada && online() && !st.erro ? Empty(C.semArte, null, { icone: it.icone, titulo: 'Sem arte disponível', id: C.id + '-sem-arte' }) : null,
       opcoes.length ? h('div', { class: 'ds-cardgrid ficha-grade', id: C.id + '-opcoes' }, padrao, ...opcoes.map(o => telha(it, o)), ...lugares) : null,
@@ -12066,7 +12073,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       const opcoes = lista || (e.print ? [e.print] : []);
       mount(body,
         !temRede() ? AvisoRede(e.print ? 'Sem internet: dá para voltar à impressão padrão. Para ver as outras, conecte-se.' : 'Sem internet: as impressões aparecem quando houver conexão.', { id: 'deck-prints-sem-rede' }) : null,
-        st.erro ? (() => { const n = Note('<b>Não foi possível buscar as impressões.</b> Confira a conexão e tente de novo.', 'negative'); n.id = 'deck-prints-erro'; return n; })() : null,
+        st.erro ? (() => { const n = Note(__m3.seguro`<b>Não foi possível buscar as impressões.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = 'deck-prints-erro'; return n; })() : null,
         st.buscando ? __m3.Carregando('Buscando impressões…', { tamanho: 'bloco', id: 'deck-prints-buscando' }) : null,
         lista && !lista.length ? Empty('A Scryfall não tem outra impressão com imagem desta carta.', null, { icone: 'camadas', titulo: 'Só a padrão', id: 'deck-prints-vazio' }) : null,
         lista && lista.length ? Text(lista.length >= IMPRESSOES_MAX ? `As ${IMPRESSOES_MAX} impressões mais recentes` : `${lista.length} ${lista.length === 1 ? 'impressão' : 'impressões'}, da mais recente à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-prints-conta' } }) : null,
@@ -12404,9 +12411,9 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       LinhaEstado([
         state.degraded ? { icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão com a Scryfall: mostrando as cartas guardadas no aparelho.' } : null,
         ...(() => { const erros = issues.filter(i => i.level === 'error'), avisos = issues.filter(i => i.level !== 'error'); return [
-          erros.length ? { icone: 'fechar', tom: 'negative', rotulo: erros.length === 1 ? '1 erro' : `${erros.length} erros`, detalhe: erros.map(i => '<b>✕</b> ' + escapeHtml(i.message)).join('<br>') } : null,
-          avisos.length ? { icone: 'alerta', tom: 'warning', rotulo: avisos.length === 1 ? '1 aviso' : `${avisos.length} avisos`, detalhe: avisos.map(i => '<b>!</b> ' + escapeHtml(i.message)).join('<br>') } : null,
-          !issues.length && d.format !== 'livre' ? { icone: 'marcar', tom: 'positive', rotulo: `Válida · ${FORMATS[d.format]}`, detalhe: `<b>✓</b> Lista válida para ${FORMATS[d.format]}.` } : null]; })()
+          erros.length ? { icone: 'fechar', tom: 'negative', rotulo: erros.length === 1 ? '1 erro' : `${erros.length} erros`, detalhe: __m3.seguro`${erros.map((i, k) => __m3.seguro`${k ? __m3.seguro`<br>` : ''}<b>✕</b> ${i.message}`)}` } : null,
+          avisos.length ? { icone: 'alerta', tom: 'warning', rotulo: avisos.length === 1 ? '1 aviso' : `${avisos.length} avisos`, detalhe: __m3.seguro`${avisos.map((i, k) => __m3.seguro`${k ? __m3.seguro`<br>` : ''}<b>!</b> ${i.message}`)}` } : null,
+          !issues.length && d.format !== 'livre' ? { icone: 'marcar', tom: 'positive', rotulo: `Válida · ${FORMATS[d.format]}`, detalhe: __m3.seguro`<b>✓</b> Lista válida para ${FORMATS[d.format]}.` } : null]; })()
       ], { id: 'deck-estado', titulo: 'Estado da lista' }),
       (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
@@ -12623,10 +12630,10 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const risk = st === 'vulneravel' && hasData;
     if (!risk && !backupDue) return mount(care);
     const lines = [
-      risk ? '<b>O navegador pode apagar sua coleção</b> se faltar espaço. Proteger o armazenamento ou instalar o app evita isso.' : null,
-      backupDue ? (days == null ? '<b>Sem backup ainda.</b> Listas e coleção ficam só neste aparelho.' : `<b>Último backup há ${days} dias.</b>`) : null
+      risk ? __m3.seguro`<b>O navegador pode apagar sua coleção</b> se faltar espaço. Proteger o armazenamento ou instalar o app evita isso.` : null,
+      backupDue ? (days == null ? __m3.seguro`<b>Sem backup ainda.</b> Listas e coleção ficam só neste aparelho.` : __m3.seguro`<b>Último backup há ${days} dias.</b>`) : null
     ].filter(Boolean);
-    mount(care, Stack({ class: 'col-care' }, Note(lines.join('<br>'), 'warning'),
+    mount(care, Stack({ class: 'col-care' }, Note(__m3.seguro`${lines.map((l, i) => __m3.seguro`${i ? __m3.seguro`<br>` : ''}${l}`)}`, 'warning'),
       Row({ class: 'ds-row--wrap' },
         risk ? Button('Proteger armazenamento', { id: 'col-protect', icone: 'proteger', onClick: protect }) : null,
         backupDue ? Button('Exportar backup', { id: 'col-backup', icone: 'exportar', onClick: doBackup }) : null)));
@@ -12726,7 +12733,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     Dialog({ title: 'Importar coleção', body: Stack({},
       Text(`Formato: ${r.format}`, { size: 'sm', tone: 'muted' }),
       Text(`${r.items.length} linha(s) · ${copies} cópia(s)`, { size: 'lg', display: true }),
-      r.skipped.length ? Note(`<b>${r.skipped.length} linha(s) ignorada(s):</b> ` + r.skipped.slice(0, 5).map(x => `linha ${x.line} (${x.reason})`).join(', ') + (r.skipped.length > 5 ? '…' : ''), 'warning') : null,
+      r.skipped.length ? Note(__m3.seguro`<b>${r.skipped.length} linha(s) ignorada(s):</b> ${r.skipped.slice(0, 5).map(x => `linha ${x.line} (${x.reason})`).join(', ')}${r.skipped.length > 5 ? '…' : ''}`, 'warning') : null,
       Text('Somar acrescenta às cópias que você já tem. Substituir apaga a coleção atual antes de importar.', { size: 'sm', tone: 'muted' })),
       actions: [Button('Cancelar', { onClick: closeDialog }),
         Button('Substituir coleção', { variant: 'danger', onClick: () => { closeDialog(); Dialog({ title: 'Substituir a coleção inteira?', body: Text('As cartas atuais saem e ficam só as do arquivo. Faça um backup antes, se quiser guardar.', { tone: 'muted' }),
@@ -12789,8 +12796,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     Dialog({ title: 'Conferência', body: Stack({},
       Text(`${total} cópia(s) para importar`, { size: 'lg', display: true, attrs: { id: 'col-import-total' } }),
       Text(`${plano.novas.length} carta(s) nova(s) (${plano.copias.novas} cópia(s)) · ${plano.somam.length} que você já tem (${plano.copias.somam} cópia(s) a somar)`, { size: 'sm', tone: 'muted', attrs: { id: 'col-import-summary' } }),
-      !plano.conferido ? Note('<b>Sem como conferir os nomes agora</b> (sem internet e sem a base de nomes). O que estiver escrito entra como está.', 'warning') : null,
-      problemas.length ? Note(`<b>${problemas.length} linha(s) não reconhecida(s).</b> ${plano.pendentes.length ? 'As de nome não encontrado ficam nas pendências, para corrigir depois.' : ''}`, 'warning') : null,
+      !plano.conferido ? Note(__m3.seguro`<b>Sem como conferir os nomes agora</b> (sem internet e sem a base de nomes). O que estiver escrito entra como está.`, 'warning') : null,
+      problemas.length ? Note(__m3.seguro`<b>${problemas.length} linha(s) não reconhecida(s).</b> ${plano.pendentes.length ? 'As de nome não encontrado ficam nas pendências, para corrigir depois.' : ''}`, 'warning') : null,
       problemas.length ? h('div', { class: 'col-prints', id: 'col-import-problems' }, ...problemas) : null),
       actions: [Button('Cancelar', { onClick: closeDialog }),
         Button(total ? `Importar ${total} cópia(s)` : 'Guardar pendências', { variant: 'primary', id: 'col-import-run', disabled: !total && !plano.pendentes.length, onClick: () => importar(plano) })] });
@@ -12829,7 +12836,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function paintPending() {
     const n = state.pending.length;
     if (!n) return mount(pendingBox, null);
-    mount(pendingBox, Note(`<b>${n} linha(s) da importação ficaram pendentes</b> porque o nome não foi encontrado. `, 'warning'),
+    mount(pendingBox, Note(__m3.seguro`<b>${n} linha(s) da importação ficaram pendentes</b> porque o nome não foi encontrado. `, 'warning'),
       Row({}, Button('Resolver pendências', { id: 'col-pending-open', icone: 'marcar', onClick: openPending })));
   }
   function openPending() {
@@ -13284,7 +13291,6 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   return root;
 }
 
-function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 return { PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha };
 })();
@@ -21322,19 +21328,18 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const prontaOffline = guardadas >= nomes.length;
       const reserva = contaDeck(d).side;
       const lista6 = xs => `${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}`;
-      const bloqueio = cv.pct < 100 ? (() => { const n = Note(`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. Escolha outra lista ou troque essas cartas.`, 'warning'); n.id = 'mesa-bloqueio'; return n; })() : null;
+      const bloqueio = cv.pct < 100 ? (() => { const n = Note(__m3.seguro`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. Escolha outra lista ou troque essas cartas.`, 'warning'); n.id = 'mesa-bloqueio'; return n; })() : null;
       // I3 · o estado da lista numa linha de ícones (motor, reserva, offline); o toque abre a folha com as frases inteiras
       // e a versão do motor. Antes eram quatro linhas de texto solto sob o seletor da lista.
-      const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-      const versao = `Versão do motor: <span id="mesa-engine-version">motor v${E.ENGINE_VERSION}</span>.`;
+      const versao = __m3.seguro`Versão do motor: <span id="mesa-engine-version">motor v${E.ENGINE_VERSION}</span>.`; // P-1 · HTML do código: vai como pedaço seguro
       mount(covBox, Stack({ style: { gap: 'var(--space-2)' } },
         __m3.LinhaEstado([
           DEV || !bloqueio ? { id: 'mesa-motor', icone: cv.pct === 100 ? 'marcar' : 'meia', tom: cv.pct === 100 ? 'positive' : 'warning', rotulo: 'Motor', valor: `${cv.pct}%`,
-            detalhe: (cv.pct === 100 ? '<b>Motor 100% completo.</b> O motor resolve sozinho todas as cartas desta lista.' : `<b>Motor ${cv.pct}% completo.</b> ${cv.parcial + cv.manual} carta(s) sem regra completa: ${esc(lista6(faltam))}.`) + ' ' + versao }
-            : { id: 'mesa-motor', icone: 'alerta', tom: 'warning', rotulo: 'Motor', valor: `${cv.pct}%`, detalhe: `<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${esc(lista6(faltam))}. ${versao}` },
-          reserva ? { id: 'mesa-reserva', icone: 'reserva', rotulo: 'Reserva', valor: reserva, detalhe: `<b>${reserva} carta(s) na reserva</b> ficam de fora da partida. Na melhor de 3, você troca entre as partidas.` } : null,
-          prontaOffline ? { id: 'mesa-offline-ok', icone: 'marcar', tom: 'positive', rotulo: 'Offline', valor: 'Pronta', fala: 'pronta para jogar sem internet', detalhe: '<b>Guardada no aparelho.</b> Esta lista joga sem internet.' }
-            : { id: 'mesa-offline-falta', icone: 'baixar', tom: 'warning', rotulo: 'Offline', valor: `${guardadas}/${nomes.length}`, fala: `${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet`, detalhe: `<b>${guardadas} de ${nomes.length} cartas guardadas.</b> Baixe as cartas para jogar esta lista sem internet.` }
+            detalhe: __m3.seguro`${cv.pct === 100 ? __m3.seguro`<b>Motor 100% completo.</b> O motor resolve sozinho todas as cartas desta lista.` : __m3.seguro`<b>Motor ${cv.pct}% completo.</b> ${cv.parcial + cv.manual} carta(s) sem regra completa: ${lista6(faltam)}.`} ${versao}` }
+            : { id: 'mesa-motor', icone: 'alerta', tom: 'warning', rotulo: 'Motor', valor: `${cv.pct}%`, detalhe: __m3.seguro`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. ${versao}` },
+          reserva ? { id: 'mesa-reserva', icone: 'reserva', rotulo: 'Reserva', valor: reserva, detalhe: __m3.seguro`<b>${reserva} carta(s) na reserva</b> ficam de fora da partida. Na melhor de 3, você troca entre as partidas.` } : null,
+          prontaOffline ? { id: 'mesa-offline-ok', icone: 'marcar', tom: 'positive', rotulo: 'Offline', valor: 'Pronta', fala: 'pronta para jogar sem internet', detalhe: __m3.seguro`<b>Guardada no aparelho.</b> Esta lista joga sem internet.` }
+            : { id: 'mesa-offline-falta', icone: 'baixar', tom: 'warning', rotulo: 'Offline', valor: `${guardadas}/${nomes.length}`, fala: `${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet`, detalhe: __m3.seguro`<b>${guardadas} de ${nomes.length} cartas guardadas.</b> Baixe as cartas para jogar esta lista sem internet.` }
         ], { id: 'mesa-estado', titulo: 'Sua lista', ladrilhos: true }),
         DEV && faltam.length ? Text(`Fica com você: ${lista6(faltam)}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
         DEV ? null : bloqueio,
@@ -21364,7 +21369,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       startBtn.disabled = !ok || state.busy;
       startBtn.classList.toggle('ds-hidden', state.opponent === 'online'); // leva 133 · online começa pela sala
       const xs = state.faltamDele;
-      mount(bloqueioDele, !DEV && state.coberturaDele < 100 ? Note(`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
+      mount(bloqueioDele, !DEV && state.coberturaDele < 100 ? Note(__m3.seguro`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
     }
     /** S64 · busca o que falta e guarda tudo, sem prazo de validade. */
     async function guardar(nomes) {
@@ -21887,7 +21892,6 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
-  const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   /** Leva 135 · estado do outro aparelho: ausente há mais de 45 s, ou sala encerrada por ele. */
   const AUSENTE_MS = 45000;
   function onlineBox() {
@@ -21895,13 +21899,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const sl = sinc.sala(); if (!sl) return null;
     const s = table.state, outro = 1 - table.online.assento;
     if (sl.estado === 'encerrada' && s.status !== 'over') {
-      const n = Note(`<b>Partida encerrada.</b> ${sl.fim && sl.fim.motivo === 'abandonou' ? 'O outro jogador saiu da sala.' : 'A sala foi fechada do outro lado.'} Você pode voltar para preparar outra partida.`, 'warning');
+      const n = Note(__m3.seguro`<b>Partida encerrada.</b> ${sl.fim && sl.fim.motivo === 'abandonou' ? 'O outro jogador saiu da sala.' : 'A sala foi fechada do outro lado.'} Você pode voltar para preparar outra partida.`, 'warning');
       n.id = 'tb-online-fim'; return n;
     }
     if (s.status !== 'over' && online.transporte.ligado()) {
       const visto = (sl.presenca || {})[outro] || 0;
       if (visto && Date.now() - visto > AUSENTE_MS) {
-        const n = Note(`<b>${esc(s.players[outro].name)} parece ter saído.</b> Sem sinal há ${Math.round((Date.now() - visto) / 60000) || 1} min. A partida fica guardada; se ${esc(s.players[outro].name)} voltar, continua daqui. Para encerrar, use Desistir ou "Encerrar por abandono" na preparação.`, 'warning');
+        const n = Note(__m3.seguro`<b>${s.players[outro].name} parece ter saído.</b> Sem sinal há ${Math.round((Date.now() - visto) / 60000) || 1} min. A partida fica guardada; se ${s.players[outro].name} voltar, continua daqui. Para encerrar, use Desistir ou "Encerrar por abandono" na preparação.`, 'warning');
         n.id = 'tb-online-ausente'; return n;
       }
     }
@@ -21909,7 +21913,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   function recusaBox() {
     if (!recusa) return null;
-    const n = Note(`<b>${esc(recusa.titulo)}.</b> ${esc(recusa.motivo)}.${recusa.dica ? ' ' + esc(recusa.dica) : ''}`, 'warning');
+    const n = Note(__m3.seguro`<b>${recusa.titulo}.</b> ${recusa.motivo}.${recusa.dica ? ' ' + recusa.dica : ''}`, 'warning');
     n.id = 'tb-recusa'; return n;
   }
   /* ---- H5 · ver o oponente jogar: a jogada sua que dispara o turno do bot é mostrada quadro a quadro ----
@@ -22091,8 +22095,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     }
     catch (e) {
       return mount(root, Stack(pad(), Note(e.message === 'versao-do-motor'
-        ? '<b>Esta partida foi salva por outra versão do motor.</b> Ela não pode ser retomada com segurança. Comece uma nova.'
-        : '<b>A partida salva está corrompida.</b> Comece uma nova.', 'warning'),
+        ? __m3.seguro`<b>Esta partida foi salva por outra versão do motor.</b> Ela não pode ser retomada com segurança. Comece uma nova.`
+        : __m3.seguro`<b>A partida salva está corrompida.</b> Comece uma nova.`, 'warning'),
         Button('Preparar partida', { variant: 'primary', onClick: async () => { await store.remove(T.SAVE_KEY); go('/mesa'); } })));
     }
     shownViewer = table.viewer();
@@ -23309,7 +23313,6 @@ function createSeriesScreen({ store, online = null }) {
       } catch (e) { toast('Não foi possível começar a partida: ' + (e.message || e)); st.busy = false; }
     }
     const N = serie.jogo + 1; let pararSala = () => {};
-    const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     async function pronto() {
       if (st.busy) return; st.busy = true; st.erro = null; paint();
       try { await online.sala.publicarTroca(on.codigo, N, on.assento, { entries: serie.assentos[on.assento].atual, primeiro: perdedor === on.assento ? st.primeiro : null }); st.pronto = true; }
@@ -23356,14 +23359,14 @@ function createSeriesScreen({ store, online = null }) {
         Text(placar, { size: 'sm', tone: 'muted', attrs: { id: 'serie-placar' } })))];
       const outro = on ? serie.assentos[1 - on.assento].name : '';
       if (on && st.saiu) {
-        return mount(root, ...cab, (() => { const n = Note(`<b>A série parou aqui.</b> ${esc(outro)} saiu da sala. O placar fica guardado nas suas partidas.`, 'warning'); n.id = 'serie-saiu'; return n; })(),
+        return mount(root, ...cab, (() => { const n = Note(__m3.seguro`<b>A série parou aqui.</b> ${outro} saiu da sala. O placar fica guardado nas suas partidas.`, 'warning'); n.id = 'serie-saiu'; return n; })(),
           Row({}, Button('Preparar partida', { variant: 'primary', icone: 'jogar', onClick: async () => { await store.remove(T.SAVE_KEY); await store.remove(T.SERIE_KEY); go('/mesa'); } })));
       }
       if (on && st.pronto) {
         return mount(root, ...cab, Surface({ class: 'ds-surface--pad' }, Stack({},
           Text('Trocas enviadas', { size: 'lg', display: true, as: 'h2' }),
           Row({}, Spinner(), Text(`Esperando ${outro} terminar as trocas. A partida ${N} abre sozinha nos dois aparelhos.`, { size: 'sm', tone: 'muted', attrs: { id: 'serie-espera', 'aria-live': 'polite' } })),
-          st.erro ? Note(esc(st.erro), 'negative') : null)));
+          st.erro ? Note(st.erro, 'negative') : null)));
       }
       // a dois: cada um troca sem o outro ver
       if (atual && !st.entregue) {
@@ -23384,7 +23387,7 @@ function createSeriesScreen({ store, online = null }) {
         atual ? painel(atual.i, nome ? { nome, para } : null) : Note('Nenhuma lista tem reserva: não há o que trocar.', 'info'),
         __m3.reservaDoca(h('div', { class: 'troca-rodape' },   // leva 123 · o aviso flutuante sobe acima do rodapé
           ultimo ? quem : null,
-          on && st.erro ? Note(esc(st.erro), 'negative') : null,
+          on && st.erro ? Note(st.erro, 'negative') : null,
           Row({}, on ? Button('Pronto', { variant: 'primary', id: 'serie-pronto', icone: 'jogar', disabled: !valido || st.busy, onClick: pronto }) : ultimo
             ? Button(`Começar a partida ${serie.jogo + 1}`, { variant: 'primary', id: 'serie-start', icone: 'jogar', disabled: !valido, onClick: comecar })
             : Button('Confirmar trocas', { variant: 'primary', id: 'serie-confirma', disabled: !valido, onClick: () => { st.passo++; st.entregue = false; paint(); window.scrollTo(0, 0); } })))));
@@ -24934,9 +24937,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function paintStatus() {
     const msg = [];
     if (state.base === 'missing') msg.push(AvisoRede('Sem a base de nomes: ela baixa na próxima conexão.', { id: 'scan-sem-base' }));
-    if (state.camera === 'denied') msg.push(Note('<b>A câmera foi bloqueada.</b> Libere o acesso nas permissões do site (cadeado na barra de endereço) e recarregue. Enquanto isso, use "Digitar".', 'warning'));
-    if (state.camera === 'unavailable') msg.push(Note('<b>Câmera indisponível neste aparelho ou navegador.</b> Use "Digitar" para montar a pilha.', 'warning'));
-    if (state.engine === 'failed') msg.push(Note('<b>O leitor de texto não carregou.</b> Ele precisa de internet na primeira vez. Use "Digitar".', 'warning'));
+    if (state.camera === 'denied') msg.push(Note(__m3.seguro`<b>A câmera foi bloqueada.</b> Libere o acesso nas permissões do site (cadeado na barra de endereço) e recarregue. Enquanto isso, use "Digitar".`, 'warning'));
+    if (state.camera === 'unavailable') msg.push(Note(__m3.seguro`<b>Câmera indisponível neste aparelho ou navegador.</b> Use "Digitar" para montar a pilha.`, 'warning'));
+    if (state.engine === 'failed') msg.push(Note(__m3.seguro`<b>O leitor de texto não carregou.</b> Ele precisa de internet na primeira vez. Use "Digitar".`, 'warning'));
     if (!online() && !state.ocrReady) msg.push(AvisoRede('Sem internet: o leitor de texto baixa na próxima conexão. Use "Digitar".', { id: 'scan-sem-rede' }));
     mount(status, ...msg);
   }
@@ -25034,7 +25037,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       onChange: e => { dest.to = e.target.value; reopen(); } });
     const also = dest.to !== 'collection' ? (() => { const c = Chip('Também somar à coleção', { pressed: dest.alsoCollection, dataset: { also: '1' } });
       c.addEventListener('click', () => { dest.alsoCollection = !dest.alsoCollection; c.setAttribute('aria-pressed', String(dest.alsoCollection)); }); return c; })() : null;
-    const aviso = aConferir ? Note(`<b>${aConferir} leitura(s) ainda não conferida(s).</b> Toque em Corrigir para trocar o nome, ou adicione assim mesmo.`, 'warning') : null;
+    const aviso = aConferir ? Note(__m3.seguro`<b>${aConferir} leitura(s) ainda não conferida(s).</b> Toque em Corrigir para trocar o nome, ou adicione assim mesmo.`, 'warning') : null;
     if (aviso) aviso.id = 'scan-lot-aviso';
     const rotulo = (dest.to === 'collection' ? `Adicionar ${total} à coleção` : `Adicionar ${total} à lista`) + (aConferir ? ` (${aConferir} a conferir)` : '');
     Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, aviso, Field('Destino', destSelect), also, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
@@ -25692,7 +25695,7 @@ function offlinePanel() {
       h('div', { class: 'ds-offline__corpo', id: 'home-offline-corpo' }, Stack({},
         h('div', { id: 'home-offline-lines', class: 'ds-offline__lista' }, ...rs.itens.map(linha)),
         linhaEspaco,
-        esp && esp.apertado ? Note('<b>O espaço do app está quase no limite.</b> Faça um backup da coleção; se continuar crescendo, o app nativo passa a valer a pena (gatilho G1 do plano).', 'warning') : null,
+        esp && esp.apertado ? Note(__m3.seguro`<b>O espaço do app está quase no limite.</b> Faça um backup da coleção; se continuar crescendo, o app nativo passa a valer a pena (gatilho G1 do plano).`, 'warning') : null,
         extra || null,
         !st.rede ? AvisoRede('Tudo que está marcado funciona agora; o resto baixa quando a internet voltar.', { id: 'home-offline-aviso' }) : null,
         Row({ class: 'ds-row--wrap' },
@@ -25707,7 +25710,7 @@ function offlinePanel() {
     if (rel.listas.faltando.length || rel.colecao.faltando.length) partes.push(`a rede não trouxe ${rel.listas.faltando.length + rel.colecao.faltando.length} carta(s)`);
     if (!rel.leitor) partes.push('leitor do scanner não baixou');
     toast(rel.rede ? partes.join(' · ') : 'Sem internet: não dá para preparar agora', 4000);
-    paint(rel.listas.faltando.length ? Note(`<b>A rede não trouxe:</b> ${rel.listas.faltando.slice(0, 6).join(', ')}${rel.listas.faltando.length > 6 ? '…' : ''}`, 'warning') : null);
+    paint(rel.listas.faltando.length ? Note(__m3.seguro`<b>A rede não trouxe:</b> ${rel.listas.faltando.slice(0, 6).join(', ')}${rel.listas.faltando.length > 6 ? '…' : ''}`, 'warning') : null);
   }
   paint();
   return box;

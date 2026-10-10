@@ -495,6 +495,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cy ✅ | I8 todas as fichas do jogo em Perfil › Fichas: catálogo semanal pela Scryfall (`fichas.json`), grupo próprio em lotes de 40, busca por nome, tipo e P/T, escolha de arte igual às do app (leva G-242) | I | 1 | — |
 | 16º-cz ✅ | T7 relato resolvido sozinho: a situação do registro volta do GitHub (`situacao.json` no ramo `relatos`), número do registro no cartão, resolvido com a data; id copiado por outra conta não conta (leva G-243) | T | 1 | — |
 | 16º-da ✅ | I9 fichas das suas listas pela Scryfall: a lista nova traz as fichas que as cartas dela criam para "Nas suas listas"; excluir a lista devolve a ficha a "Todas as fichas" com a arte escolhida (leva G-244) | I | 1 | — |
+| 16º-db ✅ | SEG1 HTML seguro nos avisos: Note trata texto como texto, marcação só por `seguro\`…\`` que escapa o interpolado; nome de carta de lista colada, lista do oponente, CSV e erros não viram HTML; contrato no portão (leva P-1) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7057,6 +7058,26 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Risco:** o site do Magic Online muda sem aviso (já aconteceu em 06/2024 e 06/2025): o coletor registra 0 eventos no
   `coleta.json` e o catálogo fica com o que já tem; a correção é no coletor, sem mexer no app.
 
+### SEG · Segurança e privacidade (trilha `protecao`, auditoria de 09/10/2026)
+
+**SEG1 · HTML seguro nos avisos** ✅ (leva P-1, 10/10/2026)
+- **Ameaça:** texto que não nasceu no código chegava ao `innerHTML` dos avisos: nome de carta de lista colada ("Esta
+  lista ainda não joga", "A rede não trouxe"), **nomes da lista do oponente** (na partida online, vindos do aparelho de
+  outra pessoa), motivo de linha de CSV ignorada e mensagens de erro guardadas em variável. Um nome como
+  `<img src=x onerror=…>` executava script no aparelho de quem via o aviso.
+- **Classe e correção:** `Note` passa a tratar **texto como texto**; marcação só entra por **`seguro\`…\``** (`__m3.seguro`),
+  que escapa toda interpolação e aceita pedaços seguros aninhados e listas deles. Todos os avisos com negrito e os detalhes
+  da linha de estado (`LinhaEstado`) foram convertidos; os `esc(...)` locais saíram (escapariam duas vezes) e três cópias
+  da função de escape e `escapeHtml` foram removidas.
+- **Guarda-corpo:** `seguranca.html.unit` — prova com DOM mínimo (texto não vai a `innerHTML`; o interpolado sai
+  escapado; aninhar funciona) e **contrato estático** sobre o `index.html`: nenhuma chamada de `Note` com modelo sem
+  `seguro` nem texto fixo com marcação, e nada de `esc` dentro de `seguro`. e2e "P-1 sonda" (nome de carta com HTML na
+  lista colada: aviso da lista, detalhe do estado e lista do oponente mostram o texto; nenhuma imagem injetada, nada
+  executa; falha no código anterior).
+- **Resíduo declarado:** outros pontos de `html:` no app usam só conteúdo do código (SVG, ícones); a chave `html:` de `h()`
+  continua existindo e não tem contrato próprio ainda; sem CSP; `relatos.yml` com escrita disparada por registro de
+  qualquer conta; `gate.yml` sem `permissions:`; ações por tag — ficam para as próximas levas `P`.
+
 ### P · Plataforma
 
 **P1 · Monitor de gatilhos** ○
@@ -7092,6 +7113,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `motor` | épico R, regras e scripts de carta |
 | `geral` | design system, scanner, coleção, listas, offline, o que não é bot nem motor |
 | `infra` | portão, CI, publicação |
+| `protecao` | segurança e privacidade: HTML seguro, CSP, terceiros, regras do Firebase, Actions, o que sai do aparelho (levas `P-N`) |
 
 ### Publicar pela interface web
 

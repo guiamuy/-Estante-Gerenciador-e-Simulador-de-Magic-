@@ -3923,6 +3923,27 @@ test('e2e · leva 111 ficha de Sangue: sem mana a habilidade aparece apagada com
   assert.deepEqual(errors, []);
 });
 
+// P-1 · HTML seguro nos avisos: nome de carta vindo de lista colada (e da lista do oponente) aparece como texto.
+test('e2e · P-1 sonda: nome de carta com HTML numa lista colada aparece como texto no aviso da lista que não joga, no do oponente e no detalhe do estado; nada executa', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  const CARGA = 'Zz <img src=x onerror="window.__sonda=1">';
+  await createDeck(page, base, 'Sonda', `30 Island\n10 ${CARGA}\n20 Counterspell`, 'livre');
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await escolheLista(page, 'mesa-mine', /Sonda/); await page.waitForSelector('#mesa-bloqueio');
+  assert.ok((await page.innerText('#mesa-bloqueio')).includes(CARGA), 'o nome aparece como texto');
+  await page.click('#mesa-estado'); await page.waitForSelector('.ds-dialog');
+  assert.ok((await page.innerText('.ds-dialog')).includes(CARGA), 'o detalhe do estado também'); await page.keyboard.press('Escape');
+  await escolheLista(page, 'mesa-mine', /^Coberta$/); await page.click('[data-opponent="hotseat"]');
+  await escolheLista(page, 'mesa-theirs', /Sonda/);
+  await page.waitForFunction(() => /lista do oponente ainda não joga/.test(document.querySelector('#mesa-bloqueio-oponente').innerText));
+  assert.ok((await page.innerText('#mesa-bloqueio-oponente')).includes(CARGA));
+  assert.equal(await page.locator('img[src="x"]').count(), 0, 'nenhuma imagem injetada');
+  assert.equal(await page.evaluate(() => window.__sonda), undefined, 'nada executou');
+  await auditaTela(page, 'sonda de HTML nos avisos');
+  assert.deepEqual(errors, []);
+});
+
 // Leva 113 · um modo só (motor completo), cores só do deck principal, coleção com o painel primeiro.
 test('e2e · leva 113 modo único: lista 100% joga no motor completo; lista com carta sem regra não joga e a tela diz qual; cores só do deck principal', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
