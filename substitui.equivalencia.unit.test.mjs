@@ -38,7 +38,9 @@ test('M-240 · R5a · destino substituído ("em vez disso"): o caminho único e 
   assert.ok(n > 10000, `amostra pequena (${n})`);
 });
 
-const ENTRAM = () => S.RAW_SCRIPTS.filter(sc => CARTAS[sc.name] && S.substituicoesDoScript(sc).entra.length).map(sc => sc.name);
+// M-250 · só as cartas que chegam ao formato novo pelos atalhos antigos: carta escrita direto em `entra` (Saprazzan Skerry, "entra virada com
+// dois marcadores de esgotamento") não tem caminho antigo com que comparar — ela é provada pelo teste de regra dela
+const ENTRAM = () => S.RAW_SCRIPTS.filter(sc => CARTAS[sc.name] && !sc.entra && S.substituicoesDoScript(sc).entra.length).map(sc => sc.name);
 test('M-240 · R5a · matriz de entradas: cada carta com "entra virada", "a menos que…" ou "entra com marcadores", dos dois lados, com e sem Authority of the Consuls do outro lado, com vida alta e baixa, com e sem terreno do tipo pedido, X e reforço pagos — o mesmo pelos dois caminhos', () => {
   const nomes = [...new Set([...ENTRAM(), 'Plains', 'Swamp', 'Island', 'Mountain', 'Lunarch Veteran', 'Kor Skyfisher'])];
   assert.ok(ENTRAM().length >= 18, `poucas cartas (${ENTRAM().length})`);

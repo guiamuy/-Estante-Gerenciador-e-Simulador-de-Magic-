@@ -3107,6 +3107,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. A versão não sobe: só cartas que antes não tinham script ganham ações novas.
 - **Próximo:** M-250 — Saprazzan Skerry (habilidade de mana com custo de remover marcador e "se não houver, sacrifique") e "desvirar até N terrenos" com escolha (Frantic Search).
 
+**M-250 · R11 · "Desvire até N" com escolha e mana com custo de marcador: Frantic Search e Saprazzan Skerry** ✅ (leva M-250, motor v96, sem mudança no que existe) — 2 testes de regra e 1 de tela novos.
+- **Valor:** o "desvire até três terrenos" deixa de ser ignorado: quem conjura escolhe, na mesa, entre os terrenos virados (inclusive os do oponente, marcados "do oponente"), e pode confirmar sem nenhum.
+- **Regra:** efeito `untap_chosen` (sem alvo; escolha na resolução, 0 a N, só entre os virados — desvirar um desvirado não faz nada); retoma os efeitos seguintes como as outras escolhas. A habilidade de mana pode ter custo de remover marcador e a cláusula `semMarcadorSacrifica` ("se não houver mais marcadores, sacrifique"), resolvida na hora, sem pilha (605.1a).
+- **Cartas cobertas (completas):** Frantic Search (era parcial) e Saprazzan Skerry (entra virada com dois marcadores de esgotamento; {T}, remova um: {U}{U}; sem marcadores, é sacrificada).
+- **Limitação declarada:** o pagamento automático não usa habilidade de mana com custo além de {T} (Saprazzan Skerry, Tesouro): ative antes de conjurar. A terra não aparece como fonte de mana de graça, para o pagamento automático não virá-la sem tirar o marcador.
+- **Tela:** a escolha usa a fileira de sempre ("Escolha o que desvirar", com "0 de até 3"), testada no navegador em 360 px com a auditoria de tela.
+- **Medição:** Malcolm + Kediss 81% → **83%**; Killian segue 82%.
+- **Golden:** idênticas, sem regravar. A versão não sobe: a Frantic Search era parcial (lista com ela não jogava em modo completo) e a Saprazzan não tinha script.
+- **Correção no caminho (teste, com justificativa):** a matriz de equivalência da M-240 compara as entradas escritas pelos atalhos antigos com o caminho antigo; a Saprazzan Skerry é a primeira carta escrita direto no formato `entra` e não tem caminho antigo — a matriz passou a pegar só as cartas que chegam pelos atalhos. A Saprazzan é provada pelo teste de regra dela.
+- **Próximo:** M-251 — bônus condicional e habilidade concedida pela Aura (Rune of Mortality, Rune of Sustenance, Combat Research, Idolized).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

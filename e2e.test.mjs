@@ -9603,3 +9603,25 @@ test('e2e · N5 coleções: a que chega e a recém-lançada entram entre as not�
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n5-inicio.png' });
   assert.deepEqual(errors, []);
 });
+
+test('e2e · M-250 · Frantic Search: depois de comprar e descartar, a mesa pede os terrenos a desvirar (até três, pode confirmar sem nenhum)', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-commander.json'), 'utf8')).cartas.filter(c => c.name === 'Frantic Search');
+  const M = await comLista125(t, '24 Island\n16 Frantic Search', ['Island', 'Frantic Search'], '4', { extras });
+  const { page } = M; let e;
+  for (let i = 0; i < 16; i++) { const o = await M.oid('Island'); if (o) await M.act({ t: 'play_land', p: 0, oid: o }); e = await M.est();
+    if (e.campo.filter(n => n === 'Island').length >= 3 && e.mao.includes('Frantic Search')) break; await M.proximo(); }
+  e = await M.est(); assert.ok(e.campo.filter(n => n === 'Island').length >= 3 && e.mao.includes('Frantic Search'), 'mesa pronta: ' + JSON.stringify(e));
+  await page.locator('#tb-hand .tb-card[aria-label^="Frantic Search"]').first().click(); await naFolha(page, /^Conjurar/);
+  e = await segueR6(M, x => x.pend === 'pick' || (x.pend === 'discard' && false));
+  for (let i = 0; i < 6 && e.pend === 'discard'; i++) { const l = await M.legal("a.t==='discard'"); await M.act(l[0]); e = await M.est(); }
+  e = await segueR6(M, x => x.pend === 'pick');
+  assert.equal(e.pend, 'pick');
+  assert.match(await M.decisao(), /^Frantic Search · Escolha o que desvirar \| 0 de até 3 escolhida\(s\)/);
+  assert.ok(await page.locator('#tb-pick-cards .tb-card').count() >= 3, 'os terrenos virados aparecem para escolher');
+  assert.ok(await page.locator('#tb-pick-done').count() === 1, 'pode confirmar sem escolher');
+  await auditaTela(page, 'desvirar com a Frantic Search');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(150);
+  await page.click('#tb-pick-done'); await page.waitForTimeout(200);
+  e = await M.est(); assert.notEqual(e.pend, 'pick');
+  assert.deepEqual(M.errors, []);
+});

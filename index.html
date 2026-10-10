@@ -5143,6 +5143,8 @@ const EFFECTS = {
   // Leva 131 · "tap or untap target creature" (Sewer-veillance Cam): o alvo é da pilha, virar ou desvirar se escolhe na resolução;
   // com `optional` ("you may"), recusar é a terceira saída da mesma pergunta
   tap_or_untap: { fields: [], targets: ['creature', 'permanent'] },
+  // M-250 · "untap up to N lands" (Frantic Search): sem alvo, escolha na resolução entre os virados de qualquer jogador; aceita zero
+  untap_chosen: { fields: ['amount'], targets: ['self'] },
   exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all', 'each-opponent'] },
   // S37 · o oponente revela a mão e você escolhe o que ele descarta
   discard_chosen: { fields: ['amount'], targets: ['opponent', 'player'] },
@@ -5314,7 +5316,7 @@ const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
+const CHOICE_EFFECTS = ['untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
@@ -5684,6 +5686,7 @@ function validateScript(sc) {
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
       if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.removeCounters) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (ab.semMarcadorSacrifica != null && !(cost.removeCounters && cost.removeCounters.tipo === ab.semMarcadorSacrifica && (ab.effects || []).length && ab.effects.every(e => e.do === 'add_mana'))) errs.push(`${tag}: "sem marcador, sacrifique" só vale em habilidade de mana que remove esse marcador`); // M-250
       if (cost.removeCounters != null && !(cost.removeCounters && /^[a-z][a-z0-9]*$/.test(cost.removeCounters.tipo || '') && Number.isInteger(cost.removeCounters.n || 1) && (cost.removeCounters.n || 1) > 0)) errs.push(`${tag}: remover marcadores precisa do tipo e de uma quantidade inteira`); // M-249 · 122.6 / 602.1
       if (cost.revealColor && !'WUBRG'.includes(cost.revealColor)) errs.push(`${tag}: revelar precisa de uma cor WUBRG`);
       if (cost.life != null && !Number.isInteger(cost.life)) errs.push(`${tag}: custo de vida precisa ser inteiro`);
@@ -6482,6 +6485,12 @@ const RAW_SCRIPTS = [
       effects: [{ do: 'draw', amount: 3, target: 'player' }, { do: 'discard', amount: 3, target: 'first-target' }] }], // "Target player draws three cards, then discards three cards."
     note: 'o dano da mana desta terra não passa pela prevenção (mesma simplificação dos outros terrenos de dor)',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-250 · "This land enters tapped with two depletion counters on it." · "{T}, Remove a depletion counter from this land: Add {U}{U}. If there are no
+  // depletion counters on this land, sacrifice it." (05/10/2026; segunda fonte 10/10/2026)
+  { name: 'Saprazzan Skerry', entra: [{ afetados: 'self', virada: true, marcadores: { depletion: 2 } }],
+    abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'depletion', n: 1 } }, semMarcadorSacrifica: 'depletion', effects: [{ do: 'add_mana', symbols: ['U', 'U'] }] }],
+    note: 'a mana sai pela habilidade da terra (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -6890,8 +6899,8 @@ const RAW_SCRIPTS = [
   // S12 · escolhas do jogador
   { name: 'Faithless Looting', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2 }], flashback: { mana: '{2}{R}' },
     example: { action: 'flashback', target: 'none', expect: { handDelta: 2, discarded: 2, exiled: true } } },
-  { name: 'Frantic Search', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2 }],
-    covers: 'partial', note: 'desvirar três terrenos ainda não entra',
+  // M-250 · "Draw two cards, then discard two cards. Untap up to three lands." (oficiais-commander.json, 05/10/2026; segunda fonte 10/10/2026)
+  { name: 'Frantic Search', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2 }, { do: 'untap_chosen', amount: 3, filter: { types: ['land'] } }],
     example: { target: 'none', expect: { handDelta: 2, discarded: 2 } } },
   // M-248 · "Draw two cards. Then discard a card unless you attacked this turn." (oficiais-commander.json, 05/10/2026; segunda fonte 10/10/2026)
   { name: 'Chart a Course', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 1, onlyIf: 'not-attacked' }],
@@ -15028,6 +15037,12 @@ function applyEffect(s, src, eff, tgt, events) {
       if (podeDescartar > 0) s.pending = { kind: 'discard', p: who, n: podeDescartar, reason: 'effect', connive: fonte, source: src.name };
       note({ amount: n }); break;
     }
+    case 'untap_chosen': { // M-250 · "Untap up to three lands": quem resolve escolhe, entre os virados (desvirar um desvirado não faz nada)
+      const from = battlefield(s).filter(o => o.tapped && matchesFilter(s, o, eff.filter)).map(o => o.oid);
+      if (!from.length) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from, min: 0, max: eff.amount, to: 'desvira', rest: 'stay', filter: eff.filter, label: 'desvirar', source: src.name }, events);
+      break;
+    }
     case 'search': {
       // S46 · a busca pode ser do controlador do alvo, e pode ser opcional ("pode vasculhar")
       const who = eff.target === 'target-controller' ? playerOf() : ctrl;
@@ -15512,6 +15527,7 @@ function concluiPick(s, events) {
     else if (where === 'library-bottom') moveObject(s, oid, 'library', { top: false });
     else if (where === 'battlefield-tapped') { moveObject(s, oid, 'battlefield'); s.objects[oid].tapped = true; s.objects[oid].controller = pk.p; }
     else if (where === 'graveyard' && pk.discard) descartaCarta(s, oid); // Leva 105 · Duress: é descarte
+    else if (where === 'desvira') { if (s.objects[oid] && s.objects[oid].zone === 'battlefield') s.objects[oid].tapped = false; } // M-250
     else if (where === 'descarta-ou-sacrifica') { if (s.objects[oid].zone === 'hand') descartaCarta(s, oid); else sacrifice(s, oid); }
     else moveObject(s, oid, where);
   };
@@ -16768,6 +16784,8 @@ const HANDLERS = {
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
     if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
       (ab.effects || []).forEach(e => applyEffect(s, o, e, null, ev || []));
+      // M-250 · "If there are no depletion counters on this land, sacrifice it" (Saprazzan Skerry): parte da própria habilidade de mana (605.1a)
+      if (ab.semMarcadorSacrifica && o.zone === 'battlefield' && !(o.counters || {})[ab.semMarcadorSacrifica]) sacrifice(s, o.oid, ev || []);
     } else { // S41 · vigilância do alvo · S43 · a cor escolhida viaja com a habilidade
       const abOid = makeAbility(s, o, ab.adapt != null ? { ...ab, effects: [{ do: 'adapt', amount: ab.adapt }, ...(ab.effects || [])] } : ab, chosen, bloqueavaAntes);
       if (a.color) s.objects[abOid].chosenColor = a.color;
@@ -19649,11 +19667,11 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
         // A13 · o goldfish resolve o que o motor pedir a ele. Antes ele desistia da partida.
         const pd = s.pending;
         const naMao = (s.zones[pd.p] || {}).hand || [];
-        const livre = pd.kind === 'pick' ? (pd.from || []).find(x => !(pd.picked || []).includes(x)) : null;
+        const livre = pd.kind === 'pick' ? (pd.from || []).find(x => !(pd.picked || []).includes(x) && (pd.label !== 'desvirar' || s.objects[x].controller === pd.p)) : null; // M-250 · desvira só os seus
         const acao = pd.kind === 'blockers' ? { t: 'block', p: pd.p, blocks: [] }
           : pd.kind === 'attackers' ? { t: 'attack', p: pd.p, attackers: E.mustAttack(s, pd.p) } // S59 · provocadas precisam atacar
           : pd.kind === 'discard' && naMao.length ? { t: 'discard', p: pd.p, oid: naMao[0] }
-          : pd.kind === 'pick' ? ((pd.needMv ? somaMvDoGoldfish(s, pd) >= pd.needMv : (pd.picked || []).length >= (pd.label === 'vasculhar' ? (pd.max || 1) : (pd.min || 0))) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
+          : pd.kind === 'pick' ? ((pd.needMv ? somaMvDoGoldfish(s, pd) >= pd.needMv : (pd.picked || []).length >= (pd.label === 'vasculhar' || pd.label === 'desvirar' ? (pd.max || 1) : (pd.min || 0))) || !livre ? { t: 'pick_done', p: pd.p } : { t: 'pick', p: pd.p, oid: livre })
           : pd.kind === 'may_pay' ? { t: 'decline', p: pd.p }
           : pd.kind === 'choose_color' ? { t: 'choose_color', p: pd.p, color: 'W' }
           : pd.kind === 'commander_zone' ? { t: 'commander_zone', p: pd.p, yes: true } // M13
@@ -20181,6 +20199,7 @@ function descreveEfeito(e) {
     case 'untap': return `desvira ${alvo || 'uma permanente'}`;
     case 'tap': return `vira ${alvo || 'uma permanente'}`;
     case 'tap_or_untap': return `${e.optional ? 'pode virar ou desvirar' : 'vira ou desvira'} ${alvo || 'uma criatura'}`; // Leva 131
+    case 'untap_chosen': { const tipo = ((e.filter || {}).types || [])[0], nome = { land: ['terreno', 'terrenos'], creature: ['criatura', 'criaturas'], artifact: ['artefato', 'artefatos'] }[tipo] || ['permanente', 'permanentes']; return `desvira até ${n} ${n === 1 ? nome[0] : nome[1]}`; } // M-250
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
     case 'counters': return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} em ${alvo || 'uma permanente'}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
@@ -22491,7 +22510,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';
@@ -22628,7 +22647,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         const serve = pk.from.includes(oid) && pegaveis.has(oid);
         // Leva 125 · na fileira de escolha a carta aparece em pé: terreno virado saía girado e menor que os outros
         const c = TableCard({ ...o, tapped: false, image: imgOf(o, 'normal'), images: imagensOf(o) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
-          ...(juntar && copias[chaveDe(oid)] > 1 ? { pilha: { total: copias[chaveDe(oid)], viradas: 0 } } : {}), ...(juntar && o.zone === 'battlefield' && o.tapped ? { tags: ['virada'] } : {}),
+          ...(juntar && copias[chaveDe(oid)] > 1 ? { pilha: { total: copias[chaveDe(oid)], viradas: 0 } } : {}), ...(juntar && o.zone === 'battlefield' && o.tapped ? { tags: ['virada'] } : {}), ...(pk.label === 'desvirar' && o.controller !== v ? { tags: ['do oponente'] } : {}), // M-250 · desvirar pode pegar terreno de outro jogador
           onClick: () => { if (serve && !pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
         if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, ${pk.mostrar && !pk.from.includes(oid) ? 'revelada, ' : ''}não pode ser escolhida`); }
         return c;
