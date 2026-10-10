@@ -21,3 +21,15 @@ test('R10 · a triagem cobre as mesmas cartas, cada uma num balde, e toda carta 
   assert.deepEqual(tri.filter(c => !['ok', 'A', 'B', 'C'].includes(c.balde)).map(c => c.name), []);
   assert.deepEqual(tri.filter(c => ['B', 'C'].includes(c.balde) && !(c.primitivas || []).length).map(c => c.name), []);
 });
+
+// M-245 · as cartas de Commander que ainda não jogam ganharam uma segunda fonte independente (Oracle do Forge no GitHub,
+// consulta de 10/10/2026). A comparação achou um erro no texto da primeira coleta: o custo do Skrelv é {W} (o {W/P} é só
+// da habilidade) — conferido no Forge (ManaCost:W) e em outof.games.
+test('M-245 · segunda fonte: cada carta conferida duas vezes tem a URL e a data; o custo do Skrelv, Defector Mite é {W}', () => {
+  const novas = L('oficiais-commander.json').cartas, duas = novas.filter(c => c.segundaFonte);
+  assert.ok(duas.length >= 42, `poucas cartas com segunda fonte (${duas.length})`);
+  assert.deepEqual(duas.filter(c => !/^https:\/\/github\.com\/Card-Forge\/forge\//.test(c.segundaFonte) || c.consultaSegunda !== '2026-10-10').map(c => c.name), []);
+  const skrelv = novas.find(c => c.name === 'Skrelv, Defector Mite');
+  assert.equal(skrelv.mana_cost, '{W}', 'custo de conjurar');
+  assert.match(skrelv.oracle_text, /\{W\/P\}, \{T\}: Choose a color/, 'o mana phyrexiano continua no custo da habilidade');
+});

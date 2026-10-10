@@ -3056,6 +3056,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão do motor não sobe.
 - **Próximo:** o leitor de texto (o motor sugere o script de uma carta a partir do texto oficial, usando os formatos R1–R6), começando pelas frases mais comuns das listas pendentes.
 
+**M-245 · R11 · Segunda fonte do texto de Commander e medição pelo texto conferido** ✅ (leva M-245, motor v95, sem mudança no motor) — 1 teste novo.
+- **Valor:** o placar de Commander passa a dizer o que o app vê com rede, e o texto das cartas que ainda não jogam foi conferido numa segunda fonte antes de virar script.
+- **Segunda fonte:** as 42 cartas de Commander que ainda não jogam foram comparadas com o Oracle do Forge (Card-Forge/forge no GitHub, consulta de 10/10/2026). 41 batem — as diferenças são só redação antiga ("Bounty Agent" no lugar de "this creature") ou texto de lembrete. **1 erro corrigido:** o custo do Skrelv, Defector Mite é {W}, não {W/P} (o mana phyrexiano é só da habilidade), conferido também em outof.games. Cada carta guarda `segundaFonte` e `consultaSegunda`.
+- **Medição:** `node .listas/medir.mjs` lê também o texto oficial conferido (oficiais.json e oficiais-commander.json), que é o que o app recebe da Scryfall. Commander Orzhov Killian: 68% → **71%** (completo 72 · parcial 12 · manual 17); Malcolm + Kediss: 73% → **76%** (completo 76 · parcial 13 · manual 11). Command Tower, Exotic Orchard e Sol Ring já jogavam pelo texto e deixam de aparecer na falta. Sem rede, segue 68% e 73% (o texto vem da Scryfall).
+- **Aceite:** teste R10 novo exige URL e data da segunda fonte em todas as cartas conferidas e o custo {W} do Skrelv; falha com o arquivo antigo.
+- **Fora:** a triagem de 05/10 (motor v70) não foi refeita aqui; cada leva de script reclassifica as cartas que tocar, com o vocabulário da v95 (seletor, mover, sacrificar, por jogador, substituição, contínuos, durações).
+- **Próximo:** M-246 — cartas do balde A (Bounty Agent, Elas il-Kor, Kediss, Leonin Relic-Warder, Open the Armory, Reprieve, Rite of Oblivion, Swan Song, You See a Guard Approach).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

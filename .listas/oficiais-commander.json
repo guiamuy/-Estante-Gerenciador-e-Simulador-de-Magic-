@@ -1,5 +1,5 @@
 {
- "sobre": "R10 (leva de plano) · texto oficial das 158 cartas das listas Commander Orzhov Killian e Malcolm + Kediss que não estavam em oficiais.json, coletado em 05/10/2026 por oito coletores com a regra de nunca escrever de memória. Scryfall e Gatherer recusaram (403); custo, tipo, P/T e rulings vêm de api.magicthegathering.io (redação às vezes antiga), a redação atual de casualplaneswalker.com, mtg.wtf, mtgnexus.com e grimoria.app; cada carta diz a fonte e, em nota, o que foi montado de duas fontes ou divergiu. incerto=true: não usar como verdade sem nova conferência.",
+ "sobre": "R10 (leva de plano) · texto oficial das 158 cartas das listas Commander Orzhov Killian e Malcolm + Kediss que não estavam em oficiais.json, coletado em 05/10/2026 por oito coletores com a regra de nunca escrever de memória. Scryfall e Gatherer recusaram (403); custo, tipo, P/T e rulings vêm de api.magicthegathering.io (redação às vezes antiga), a redação atual de casualplaneswalker.com, mtg.wtf, mtgnexus.com e grimoria.app; cada carta diz a fonte e, em nota, o que foi montado de duas fontes ou divergiu. incerto=true: não usar como verdade sem nova conferência. M-245 (10/10/2026): segunda fonte independente (Oracle do Forge no GitHub) para as 42 cartas que ainda não jogam; 41 batem (só redação antiga de nome próprio ou texto de lembrete) e 1 divergência corrigida: custo do Skrelv, Defector Mite.",
  "cartas": [
   {
    "consulta": "2026-10-05",
@@ -235,7 +235,9 @@
    "power": "2",
    "toughness": "2",
    "fonte": "https://casualplaneswalker.com/card/bounty-agent/faq",
-   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); cardsrealm e casualplaneswalker concordam em 2/2. Redação atual ('this creature') de casualplaneswalker; API/cardsrealm usam o nome da carta."
+   "nota": "Custo/tipo/P-T conferidos no JSON da API magicthegathering.io (manaCost+cmc+colors coerentes); cardsrealm e casualplaneswalker concordam em 2/2. Redação atual ('this creature') de casualplaneswalker; API/cardsrealm usam o nome da carta.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/bounty_agent.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -288,7 +290,9 @@
    "fonte": "https://mtg.wtf/card?q=!\"Cephalid Coliseum\"",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Confirmado em casualplaneswalker.com/card/cephalid-coliseum/faq (mesma redação). tappedout.net mostra redação antiga, sem a palavra de habilidade Threshold. Nenhum ruling na página."
+   "nota": "Confirmado em casualplaneswalker.com/card/cephalid-coliseum/faq (mesma redação). tappedout.net mostra redação antiga, sem a palavra de habilidade Threshold. Nenhum ruling na página.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/cephalid_coliseum.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Chart a Course",
@@ -314,7 +318,9 @@
    "fonte": "https://mtg.wtf/card?q=!\"Children of Korlis\"",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Custo {W} confirmado em api.magicthegathering.io (manaCost {W}, cmc 1). O resumo de tappedout.net trouxe {1}{W}, descartado como erro de leitura. Texto de lembrete vindo de casualplaneswalker.com."
+   "nota": "Custo {W} confirmado em api.magicthegathering.io (manaCost {W}, cmc 1). O resumo de tappedout.net trouxe {1}{W}, descartado como erro de leitura. Texto de lembrete vindo de casualplaneswalker.com.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/children_of_korlis.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Chromatic Sphere",
@@ -350,7 +356,9 @@
    "fonte": "https://mtg.wtf/card?q=!\"Combat Research\"",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Custo {U} confirmado em api.magicthegathering.io (cmc 1); o resumo de tappedout.net trouxe {1}{U}, descartado. Texto de lembrete do ward vindo de casualplaneswalker.com."
+   "nota": "Custo {U} confirmado em api.magicthegathering.io (cmc 1); o resumo de tappedout.net trouxe {1}{U}, descartado. Texto de lembrete do ward vindo de casualplaneswalker.com.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/combat_research.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Command Tower",
@@ -365,7 +373,9 @@
    "fonte": "https://mtg.wtf/card?q=!\"Command Tower\"",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Confirmado em tappedout.net/mtg-card/command-tower/ (mesmo texto, grafia britânica 'colour')."
+   "nota": "Confirmado em tappedout.net/mtg-card/command-tower/ (mesmo texto, grafia britânica 'colour').",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/command_tower.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Consider",
@@ -442,7 +452,9 @@
    "fonte": "https://mtg.wtf/card?q=!\"Dark Confidant\"",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Confirmado em casualplaneswalker.com e tappedout.net (custo, texto e 2/1 iguais). O gatilho não é opcional (sem 'may')."
+   "nota": "Confirmado em casualplaneswalker.com e tappedout.net (custo, texto e 2/1 iguais). O gatilho não é opcional (sem 'may').",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/dark_confidant.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Darksteel Mutation",
@@ -549,7 +561,9 @@
    "fonte": "https://mtg.wtf/card?q=!\"Elas il-Kor, Sadistic Pilgrim\"",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Custo {W}{B} e 2/2 confirmados em api.magicthegathering.io (cmc 2); resumo de tappedout.net trouxe {1}{W}{B}, descartado. Texto igual em casualplaneswalker.com."
+   "nota": "Custo {W}{B} e 2/2 confirmados em api.magicthegathering.io (cmc 2); resumo de tappedout.net trouxe {1}{W}{B}, descartado. Texto igual em casualplaneswalker.com.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/elas_il_kor_sadistic_pilgrim.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Everflowing Chalice",
@@ -581,7 +595,9 @@
    ],
    "fonte": "https://mtg.wtf/card?q=!Exotic+Orchard",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/exotic_orchard.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Expressive Iteration",
@@ -591,7 +607,9 @@
    "nota": "Fonte única; rulings não disponíveis na página.",
    "fonte": "https://casualplaneswalker.com/card/expressive-iteration",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/expressive_iteration.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Fellwar Stone",
@@ -733,7 +751,9 @@
    "nota": "Fonte única; rulings não disponíveis na página.",
    "fonte": "https://casualplaneswalker.com/card/high-tide",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/h/high_tide.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Idolized",
@@ -743,7 +763,9 @@
    "nota": "Texto idêntico em grimoria.app/cards/idolized e tappedout.net; custo confirmado também em casualplaneswalker.com.",
    "fonte": "https://scrydex.com/magicthegathering/cards/idolized/PIP-17",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/idolized.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Idyllic Tutor",
@@ -808,7 +830,9 @@
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Jirina%2C+Dauntless+General%22",
    "incerto": false,
    "nota": "Custo, tipo, P/T e ruling: magicthegathering.io, que mostra redação antiga ('When Jirina, Dauntless General enters the battlefield, ...'). Redação atual ('When Jirina enters, ...') tirada de https://casualplaneswalker.com/card/jirina-dauntless-general/faq. Sem diferença de regra.",
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/j/jirina_dauntless_general.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Kami of False Hope",
@@ -857,7 +881,9 @@
    ],
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Kediss%2C+Emberclaw+Familiar%22",
    "incerto": false,
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/kediss_emberclaw_familiar.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Kher Keep",
@@ -882,7 +908,9 @@
    ],
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Killian%2C+Ink+Duelist%22",
    "incerto": false,
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/killian_ink_duelist.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Knight of the White Orchid",
@@ -897,7 +925,9 @@
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Knight+of+the+White+Orchid%22",
    "incerto": false,
    "nota": "magicthegathering.io mostra 'enters the battlefield' (antigo); casualplaneswalker mostra 'When Knight of the White Orchid enters, ...' (gravado). A redação atual pode ser 'When this creature enters' — não confirmado; sem diferença de regra. Ruling de 'intervening if' veio parafraseado pela extração: a habilidade não dispara se nenhum oponente controla mais terrenos, e não faz nada se na resolução a condição não valer (não literal, por isso fora de rulings).",
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/knight_of_the_white_orchid.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Krenko's Command",
@@ -948,7 +978,9 @@
    ],
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Lazotep+Plating%22",
    "incerto": false,
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/lazotep_plating.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Legions to Ashes",
@@ -961,7 +993,9 @@
    ],
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Legions+to+Ashes%22",
    "incerto": false,
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/legions_to_ashes.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Leonin Relic-Warder",
@@ -976,7 +1010,9 @@
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Leonin+Relic-Warder%22",
    "incerto": false,
    "nota": "Custo, P/T e ruling: magicthegathering.io (redação antiga 'When Leonin Relic-Warder enters the battlefield'). Redação atual tirada de https://casualplaneswalker.com/card/leonin-relic-warder/faq.",
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/leonin_relic_warder.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Lose Focus",
@@ -1027,7 +1063,9 @@
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Lurrus+of+the+Dream-Den%22",
    "incerto": false,
    "nota": "Fonte única. Rulings vieram resumidos (não literais), por isso fora do campo: a permissão não cobre terrenos nem mágicas instantâneas/feitiços; pôr o companheiro na mão por {3} é ação especial sem pilha, uma vez por jogo, em velocidade de feitiço.",
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/lurrus_of_the_dream_den.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Malcolm, Keen-Eyed Navigator",
@@ -1043,7 +1081,9 @@
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Malcolm%2C+Keen-Eyed+Navigator%22",
    "incerto": false,
    "nota": "Fonte única; a impressão SPG traz o mesmo texto sem os lembretes.",
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/malcolm_keen_eyed_navigator.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "March of Swirling Mist",
@@ -1061,7 +1101,9 @@
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22March+of+Swirling+Mist%22",
    "incerto": false,
    "nota": "Fonte única; alguns rulings vieram truncados e foram omitidos.",
-   "consulta": "2026-10-05"
+   "consulta": "2026-10-05",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/march_of_swirling_mist.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Mind Stone",
@@ -1136,7 +1178,9 @@
    "nota": "Custo {U} em API e scryfall.com/card/neo/69; tappedout.net mostrou {1} — descartado (mesma fonte errou o custo de Mogg Salvage). Redação antiga em API/Scryfall em cache/cardsrealm: 'Discard Moonsnare Prototype' e 'puts it on the top or bottom' (mesma regra). Rulings: scryfall.com/card/neo/69. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Moonsnare+Prototype.",
    "fonte": "https://casualplaneswalker.com/card/moonsnare-prototype/faq",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/moonsnare_prototype.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Mother of Runes",
@@ -1191,7 +1235,9 @@
    "nota": "Rulings combinados de API e cardsrealm; podem estar levemente truncados pela ferramenta de leitura. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo/lealdade: https://api.magicthegathering.io/v1/cards?name=Narset,+Parter+of+Veils.",
    "fonte": "https://casualplaneswalker.com/card/narset-parter-of-veils/faq",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/n/narset_parter_of_veils.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Norn's Wellspring",
@@ -1201,7 +1247,9 @@
    "nota": "Redação atual ('this artifact') confirmada em cardsrealm; API e Scryfall em cache (one/24) mostram 'Norn's Wellspring' no lugar (redação antiga, mesma regra). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Norn's+Wellspring.",
    "fonte": "https://casualplaneswalker.com/card/norns-wellspring/faq",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/n/norns_wellspring.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Open the Armory",
@@ -1211,7 +1259,9 @@
    "fonte": "https://casualplaneswalker.com/card/open-the-armory/faq",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Open+the+Armory."
+   "nota": "Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Open+the+Armory.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/o/open_the_armory.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Opt",
@@ -1273,7 +1323,9 @@
    "nota": "API mostra a redação antiga ('Path of Ancestry enters the battlefield tapped') e sem o lembrete de scry. Quebra de linha após 'enters tapped.' é estrutural. Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Path+of+Ancestry.",
    "fonte": "https://casualplaneswalker.com/card/path-of-ancestry/faq",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/path_of_ancestry.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Phyresis",
@@ -1286,7 +1338,9 @@
    "nota": "As fontes mostram 'Enchant creature.' em linha corrida com ponto; separei em linha própria sem ponto (formato de palavra-chave). Texto: casualplaneswalker (espelha Scryfall, redação atual). Custo/tipo: https://api.magicthegathering.io/v1/cards?name=Phyresis.",
    "fonte": "https://casualplaneswalker.com/card/phyresis/faq",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/phyresis.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Phyrexian Tower",
@@ -1356,7 +1410,9 @@
     "You may target players who can't sacrifice a creature. Those players still lose 2 life."
    ],
    "fonte": "https://mtg.wtf/card?q=Priest+of+Forgotten+Gods",
-   "nota": "Redação atual do mtg.wtf (\"sacrifice a creature of their choice\"); api.magicthegathering.io mostra a antiga (\"sacrifice a creature\"). Mesmo efeito."
+   "nota": "Redação atual do mtg.wtf (\"sacrifice a creature of their choice\"); api.magicthegathering.io mostra a antiga (\"sacrifice a creature\"). Mesmo efeito.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/priest_of_forgotten_gods.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1400,7 +1456,9 @@
     "If a spell is returned to its owner's hand, it's removed from the stack and thus will not resolve. The spell isn't countered; it just no longer exists. This works against a spell that can't be countered."
    ],
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Reprieve%22&pageSize=1",
-   "nota": "Custo e texto idênticos em tappedout.net/mtg-card/reprieve/."
+   "nota": "Custo e texto idênticos em tappedout.net/mtg-card/reprieve/.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/reprieve.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1456,7 +1514,9 @@
     "You must still follow any timing restrictions and permissions, including those based on the card's type."
    ],
    "fonte": "https://casualplaneswalker.com/card/rite-of-oblivion/faq",
-   "nota": "Palavras de casualplaneswalker.com (que mostra o texto numa linha só e custo \"2WB\"); custo {W}{B} e flashback {2}{W}{B} de api.magicthegathering.io; quebras de linha (3 parágrafos) de tappedout.net/mtg-card/rite-of-oblivion/."
+   "nota": "Palavras de casualplaneswalker.com (que mostra o texto numa linha só e custo \"2WB\"); custo {W}{B} e flashback {2}{W}{B} de api.magicthegathering.io; quebras de linha (3 parágrafos) de tappedout.net/mtg-card/rite-of-oblivion/.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/rite_of_oblivion.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1470,7 +1530,9 @@
     "Runes can target and be attached to any permanent, even one that isn't currently a creature or an Equipment. You can cast a Rune choosing a Vehicle as the target, for example. The Rune's enters-the-battlefield ability will trigger, and you'll draw a card. The Rune won't do anything while the Vehicle isn't a creature, but if it becomes one later, the appropriate ability will start applying."
    ],
    "fonte": "https://casualplaneswalker.com/card/rune-of-mortality/faq",
-   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com (\"When this Aura enters\")."
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com (\"When this Aura enters\").",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/rune_of_mortality.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1484,7 +1546,9 @@
     "Runes can target and be attached to any permanent, even one that isn't currently a creature or an Equipment. You can cast a Rune choosing a Vehicle as the target, for example. The Rune's enters-the-battlefield ability will trigger, and you'll draw a card. The Rune won't do anything while the Vehicle isn't a creature, but if it becomes one later, the appropriate ability will start applying."
    ],
    "fonte": "https://casualplaneswalker.com/card/rune-of-sustenance/faq",
-   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com (\"When this Aura enters\")."
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com (\"When this Aura enters\").",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/rune_of_sustenance.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1514,7 +1578,9 @@
    "type_line": "Land",
    "oracle_text": "This land enters tapped with two depletion counters on it.\n{T}, Remove a depletion counter from this land: Add {U}{U}. If there are no depletion counters on this land, sacrifice it.",
    "fonte": "https://casualplaneswalker.com/card/saprazzan-skerry/faq",
-   "nota": "Redação atual de casualplaneswalker.com; tipo e quebra de linha de api.magicthegathering.io (redação antiga com o nome da carta, mesmo efeito). Sem rulings na fonte."
+   "nota": "Redação atual de casualplaneswalker.com; tipo e quebra de linha de api.magicthegathering.io (redação antiga com o nome da carta, mesmo efeito). Sem rulings na fonte.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/saprazzan_skerry.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1532,7 +1598,9 @@
     "If a backup ability causes another creature to gain abilities, the creature with backup will still have those abilities."
    ],
    "fonte": "https://casualplaneswalker.com/card/scorn-blade-berserker/faq",
-   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com. P/T 0/1 e custo {B} lidos como valores brutos da API (conferido duas vezes); tappedout não exibiu P/T."
+   "nota": "Custo, tipo, P/T e rulings de api.magicthegathering.io (que mostra redação antiga: nome da carta / \"enters the battlefield\"); redação atual do texto conferida em casualplaneswalker.com. P/T 0/1 e custo {B} lidos como valores brutos da API (conferido duas vezes); tappedout não exibiu P/T.",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/scorn_blade_berserker.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1603,7 +1671,9 @@
     "If a land card with an appropriate subtype is entering the battlefield from your hand at the same time as one of these lands, you may reveal the other land to have the \"Snarl\" enter untapped."
    ],
    "fonte": "https://casualplaneswalker.com/card/shineshadow-snarl/faq",
-   "nota": "Redação atual de casualplaneswalker.com; tipo e rulings de api.magicthegathering.io (redação antiga, mesmo efeito)."
+   "nota": "Redação atual de casualplaneswalker.com; tipo e rulings de api.magicthegathering.io (redação antiga, mesmo efeito).",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/shineshadow_snarl.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1647,13 +1717,15 @@
    "consulta": "2026-10-05",
    "incerto": false,
    "name": "Skrelv, Defector Mite",
-   "mana_cost": "{W/P}",
+   "mana_cost": "{W}",
    "type_line": "Legendary Artifact Creature — Phyrexian Mite",
    "oracle_text": "Toxic 1 (Players dealt combat damage by this creature also get a poison counter.)\nSkrelv can't block.\n{W/P}, {T}: Choose a color. Another target creature you control gains toxic 1 and hexproof from that color until end of turn. It can't be blocked by creatures of that color this turn. ({W/P} can be paid with either {W} or 2 life.)",
    "power": "1",
    "toughness": "1",
    "fonte": "https://www.mtgnexus.com/autocard/card/Skrelv,+Defector+Mite",
-   "nota": "Custo (mana phyrexiano branco) e P/T confirmados no Card Kingdom. Impressões antigas dizem 'Skrelv, Defector Mite can't block.'"
+   "nota": "Custo (mana phyrexiano branco) e P/T confirmados no Card Kingdom. Impressões antigas dizem 'Skrelv, Defector Mite can't block.' M-245 (10/10/2026): o custo de conjurar é {W}, não {W/P} — o mana phyrexiano é só do custo da habilidade; conferido no Forge (ManaCost:W) e em outof.games (https://outof.games/realms/mtg/cards/one/phyrexia-all-will-be-one/78305-skrelv-defector-mite).",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/skrelv_defector_mite.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1663,7 +1735,9 @@
    "type_line": "Enchantment",
    "oracle_text": "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and \"This token can't block.\"\nCorrupted — As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink.",
    "fonte": "https://www.mtgnexus.com/autocard/card/Skrelv's+Hive",
-   "nota": "Custo só apareceu no Card Kingdom ({1}{W}); fonte única para o custo. mtgnexus mostra 'This token can't block.'; tappedout, cardsrealm e Card Kingdom mostram a redação antiga 'This creature can't block.' (mesma função)."
+   "nota": "Custo só apareceu no Card Kingdom ({1}{W}); fonte única para o custo. mtgnexus mostra 'This token can't block.'; tappedout, cardsrealm e Card Kingdom mostram a redação antiga 'This creature can't block.' (mesma função).",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/skrelvs_hive.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1703,7 +1777,9 @@
     "2022-04-29: Phasing out doesn't cause any 'leaves the battlefield' abilities to trigger. Similarly, phasing in won't cause any 'enters the battlefield' abilities to trigger."
    ],
    "fonte": "https://www.mtgnexus.com/autocard/card/Slip+Out+the+Back",
-   "nota": "Texto e custo idênticos em mtgnexus e api.magicthegathering.io (rulings desta última)."
+   "nota": "Texto e custo idênticos em mtgnexus e api.magicthegathering.io (rulings desta última).",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/slip_out_the_back.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1738,7 +1814,9 @@
    "type_line": "Artifact",
    "oracle_text": "{T}: Add {C}{C}.",
    "fonte": "https://api.magicthegathering.io/v1/cards?name=Sol+Ring",
-   "nota": "Confirmado em casualplaneswalker (mostra 'T: Add CC.' sem chaves)."
+   "nota": "Confirmado em casualplaneswalker (mostra 'T: Add CC.' sem chaves).",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/sol_ring.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -1799,7 +1877,9 @@
    "power": "1",
    "toughness": "1",
    "fonte": "https://www.mtgnexus.com/autocard/card/Speaker+of+the+Heavens",
-   "nota": "Custo {W} só no Card Kingdom (fonte única para o custo), que mostra a redação antiga 'Activate this ability only if ... and only any time you could cast a sorcery' (mesma função)."
+   "nota": "Custo {W} só no Card Kingdom (fonte única para o custo), que mostra a redação antiga 'Activate this ability only if ... and only any time you could cast a sorcery' (mesma função).",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/speaker_of_the_heavens.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "consulta": "2026-10-05",
@@ -2057,7 +2137,9 @@
    "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). A API mostrava redação antiga (nome da carta / \"enters the battlefield\"); gravada a redação atual do casualplaneswalker; sem diferença de regra. Segunda fonte: https://casualplaneswalker.com/card/windbrisk-heights/faq/",
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22Windbrisk+Heights%22",
    "consulta": "2026-10-05",
-   "incerto": false
+   "incerto": false,
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/w/windbrisk_heights.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Wretched Confluence",
@@ -2085,7 +2167,9 @@
    "fonte": "https://api.magicthegathering.io/v1/cards?name=%22You+See+a+Guard+Approach%22",
    "consulta": "2026-10-05",
    "incerto": false,
-   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/you-see-a-guard-approach/faq/"
+   "nota": "Custo e quebras de linha de api.magicthegathering.io; redação conferida em casualplaneswalker.com (espelho Scryfall, sem custo). Segunda fonte: https://casualplaneswalker.com/card/you-see-a-guard-approach/faq/",
+   "segundaFonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/y/you_see_a_guard_approach.txt",
+   "consultaSegunda": "2026-10-10"
   },
   {
    "name": "Zulaport Cutthroat",

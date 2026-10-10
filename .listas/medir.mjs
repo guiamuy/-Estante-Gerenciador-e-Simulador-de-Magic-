@@ -11,11 +11,15 @@ const decks = JSON.parse(readFileSync(new URL('./decks.json', import.meta.url), 
 const textos = existsSync(new URL('./cartas.json', import.meta.url))
   ? JSON.parse(readFileSync(new URL('./cartas.json', import.meta.url), 'utf8')) : {};
 const BASICS = { Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' };
+// M-245 · além de cartas.json, o texto oficial conferido das listas (oficiais.json e oficiais-commander.json, com fonte e
+// data): é o mesmo texto que o app recebe da Scryfall com rede. Sem isso, as cartas de Commander contavam como "sem texto".
+const { CARTAS: OFICIAIS } = await import('../cmd.mjs');
 
 /** Carta como o app a veria: script pelo nome, texto do arquivo, ou nada. */
 function carta(nome) {
   if (BASICS[nome]) return { name: nome, type_line: `Basic Land — ${nome}`, oracle_text: `{T}: Add {${BASICS[nome]}}.`, keywords: [], cmc: 0 };
   if (textos[nome]) return textos[nome];
+  if (OFICIAIS[nome]) return OFICIAIS[nome];
   return null; // sem texto: o app diria "carta desconhecida"
 }
 
