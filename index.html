@@ -1479,6 +1479,15 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .cat-item__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
 .cat-item__conta { display: inline-flex; align-items: center; gap: 2px; }
 .cat-item__sub { font-size: var(--text-xs); color: var(--fg-subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* G-248 · o evento (onde a lista apareceu) numa linha própria, e o valor somado junto dos números */
+.cat-item__evento { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
+.cat-item__valor { flex: none; font-variant-numeric: tabular-nums; font-weight: var(--weight-medium); color: var(--fg); white-space: nowrap; }
+.cat-item__onde { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.catd__evento { font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
+.catd-valor { display: flex; flex-direction: column; gap: var(--space-2); }
+.catd-linha__fim { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; }
+.catd-linha__preco { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.catd-slot__preco { display: block; margin-top: var(--space-1); text-align: center; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* L9 · versões: o par De/Para lado a lado e a diferença em linhas curtas (sinal e número antes do nome) */
 .deck-versoes__par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .deck-versoes__par .ds-select { width: 100%; min-width: 0; }
@@ -11078,7 +11087,41 @@ const listasDoIndice = d => (d && d.versao === 1 && Array.isArray(d.listas) ? d.
 function filtraCatalogo(listas, { formato = 'all', texto = '' } = {}) {
   const q = norm(texto);
   return (listas || []).filter(l => (formato === 'all' || l.formato === formato)
-    && (!q || [l.nome, ...(l.comandante || []), l.destaque, l.codigo, l.tipo, l.jogador, l.torneio].some(x => norm(x).includes(q))));
+    && (!q || [l.nome, ...(l.comandante || []), l.destaque, l.codigo, l.tipo, l.jogador, l.torneio, l.evento].some(x => norm(x).includes(q))));
+}
+/* G-248 · relato #15 · o nome é o da lista (o arquétipo, dado pelo coletor), o evento é informação à parte e o valor
+   somado vem do índice. Tudo aqui é puro; índice de antes desta leva (sem `evento` nem `valorUsd`) desenha como antes. */
+const curto = (x, n = 120) => (typeof x === 'string' ? x.replace(/\s+/g, ' ').trim().slice(0, n) : '');
+/** As duas linhas de baixo do cartão: onde a lista apareceu, e quem jogou (ou quem comanda) com a data. */
+function linhasDoCartao(l) {
+  const evento = curto(l.evento) && norm(l.evento) !== norm(l.nome) ? curto(l.evento) : '';
+  const cmd = (l.comandante || []).filter(x => typeof x === 'string').join(' + ');
+  // quem comanda só entra quando não é o próprio título (lista de torneio de Commander passa a se chamar pelo comandante)
+  const comanda = cmd && norm(cmd) !== norm(l.nome) && !norm(l.nome).split(' + ').every(p => norm(cmd).includes(p)) ? cmd : '';
+  const sub = deTorneio(l) ? (evento || !comanda ? [curto(l.jogador, 60), dataBR(l.data)].filter(Boolean).join(' · ') : comanda)
+    : comanda || [evento ? '' : curto(l.tipo, 60), dataBR(l.data)].filter(Boolean).join(' · ');
+  return { evento, sub, subEmIngles: sub === comanda && !!comanda };
+}
+/** O valor do índice (dólar somado pelo coletor) na moeda que a tela mostra: real com cotação, dólar sem ela. */
+function valorDoResumo(l, taxas = null) {
+  const usd = l && typeof l.valorUsd === 'number' && Number.isFinite(l.valorUsd) && l.valorUsd > 0 && l.valorUsd < 1e7 ? l.valorUsd : null;
+  if (usd == null) return null;
+  const brl = taxas && Number.isFinite(taxas.BRL) ? usd * taxas.BRL : null, texto = brl != null ? __m31.fmt(brl, 'brl') : __m31.fmt(usd, 'usd');
+  const semPreco = Number.isInteger(l.semPreco) && l.semPreco > 0 ? l.semPreco : 0;
+  return { usd, brl, texto, semPreco, fala: `Valor estimado da lista: ${texto}` };
+}
+/** A lista guardada no aparelho recebe do índice o que mudou depois que ela foi baixada (nome, evento e valor). */
+function comResumo(lista, resumo) {
+  if (!lista || !resumo || resumo.id !== lista.id) return lista;
+  const novo = { ...lista };
+  if (typeof resumo.nome === 'string' && resumo.nome.trim()) novo.nome = resumo.nome;
+  for (const k of ['evento', 'valorUsd', 'semPreco', 'jogador', 'torneio', 'posicao']) if (resumo[k] !== undefined && resumo[k] !== null) novo[k] = resumo[k];
+  return novo;
+}
+/** Preço de uma cópia, para a linha da carta: "R$ 6,42" (ou em dólar sem cotação); null sem preço guardado. */
+function precoDaCarta(card, taxas = null) {
+  const usd = card ? __m31.usdDe(card) : null;
+  return usd == null ? null : (taxas && Number.isFinite(taxas.BRL) ? __m31.fmt(usd * taxas.BRL, 'brl') : __m31.fmt(usd, 'usd'));
 }
 /** Imagem da Scryfall pelo id da carta (o mesmo caminho que a Scryfall publica). */
 const imagemDaCarta = (id, tamanho = 'small') => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id || '') ? `https://cards.scryfall.io/${tamanho}/front/${id[0]}/${id[1]}/${id}.jpg` : null);
@@ -11091,8 +11134,9 @@ function listaParaSalvar(l) {
   const daEstante = (__m14.FORMATS && __m14.FORMATS[l.formato]) ? l.formato : 'livre';
   return { name: String(l.nome || 'Lista do catálogo'), format: daEstante, entries, origem: { fonte: l.fonte || 'mtgjson', id: l.id } };
 }
-/** Já está na estante? Pela origem marcada ou pelo mesmo nome. */
-const jaNaEstante = (l, minhas) => (minhas || []).some(d => (d.origem && d.origem.id === l.id) || norm(d.name) === norm(l.nome));
+/** Já está na estante? Pela origem marcada; lista oficial também pelo mesmo nome (o nome do produto é único). Lista de
+    torneio não vale pelo nome: G-248 · duas listas do mesmo arquétipo têm o mesmo nome e são listas diferentes. */
+const jaNaEstante = (l, minhas) => (minhas || []).some(d => (d.origem && d.origem.id === l.id) || (!deTorneio(l) && norm(d.name) === norm(l.nome)));
 
 function createCatalogo({ store, busca = typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null, base = BASE, prazo = PRAZO_MS, agora = () => Date.now() }) {
   const le = async k => { try { return await store.get(k); } catch (e) { return null; } };
@@ -11159,15 +11203,18 @@ function CreditoDasFontes(fontes, id, { comMtgjson = false } = {}) {
 }
 const CreditoTopdeck = id => CreditoDasFontes(new Set(['topdeck']), id); // (compatibilidade: o detalhe antigo chamava assim)
 /** Cartão de uma lista oficial: arte da carta de destaque, nome, cores, formato, contagem e quem comanda (ou tipo e data). */
-function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null } = {}) {
+function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null, taxas = null } = {}) {
   const img = imagemDaCarta(l.destaqueId);
   const arte = h('span', { class: 'cat-item__arte', 'aria-hidden': 'true' });
   if (img) { const i = h('img', { src: img, alt: '', loading: 'lazy', decoding: 'async' }); i.addEventListener('error', () => { i.remove(); arte.appendChild(Icone('baralho', { tamanho: 22 })); }); arte.appendChild(i); }
   else arte.appendChild(Icone('baralho', { tamanho: 22 }));
-  // Z5 · lista de torneio: quem jogou e quando (o comandante, quando há, vem antes)
-  const sub = (l.comandante || []).length ? h('span', { class: 'cat-item__sub', lang: 'en' }, l.comandante.join(' + '))
-    : deTorneio(l) ? h('span', { class: 'cat-item__sub' }, [l.jogador, dataBR(l.data)].filter(Boolean).join(' · '))
-    : h('span', { class: 'cat-item__sub' }, [l.tipo, dataBR(l.data)].filter(Boolean).join(' · '));
+  // G-248 · embaixo do nome: o valor somado e onde a lista apareceu (evento), numa linha só — o valor nunca corta, o
+  // evento corta com reticências; depois, quem jogou ou comanda, com a data
+  const linhas = linhasDoCartao(l), valor = valorDoResumo(l, taxas);
+  const evento = linhas.evento || valor ? h('span', { class: 'cat-item__evento' },
+    valor ? h('b', { class: 'cat-item__valor', role: 'img', 'aria-label': valor.fala, title: valor.fala, dataset: { usd: valor.usd.toFixed(2) } }, valor.texto) : null,
+    linhas.evento ? h('span', { class: 'cat-item__onde' }, linhas.evento) : null) : null;
+  const sub = linhas.sub ? h('span', { class: 'cat-item__sub', ...(linhas.subEmIngles ? { lang: 'en' } : {}) }, linhas.sub) : null;
   return h('article', { class: 'cat-item', dataset: { id: l.id, formato: l.formato } },
     // Z3 · arte e texto abrem o detalhe da lista; o + continua adicionando direto
     h('a', { class: 'cat-item__abrir', href: '#/listas/catalogo?id=' + encodeURIComponent(l.id), 'aria-label': `${l.nome}: ver a lista` }, arte,
@@ -11175,7 +11222,7 @@ function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null 
       h('span', { class: 'cat-item__nome' }, l.nome),
       h('span', { class: 'cat-item__meta' }, l.cores ? ManaPips(l.cores) : null, h('span', { class: 'cat-item__formato' }, ROTULO_DO_FORMATO[l.formato]),
         l.cartas ? h('span', { class: 'cat-item__conta', role: 'img', 'aria-label': `${l.cartas} cartas`, title: `${l.cartas} cartas` }, Icone('baralho', { tamanho: 16 }), h('b', {}, String(l.cartas))) : null),
-      sub)),
+      evento, sub)),
     tenho ? h('span', { class: 'deck-item__ja', role: 'img', 'aria-label': 'Já na sua estante', title: 'Já na sua estante' }, Icone('marcar', { tamanho: 20 }))
       : IconButton('mais', `Adicionar ${l.nome}`, { variant: 'primary', classe: 'deck-item__add', disabled: ocupado, dataset: { catalogoAdd: l.id }, onClick: onAdicionar }));
 }
@@ -11183,9 +11230,9 @@ function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null 
 /** A seção "Oficiais da Wizards" na tela de listas prontas. `formato` vem dos chips da tela; a busca é da seção. */
 function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) {
   const box = h('section', { class: 'cat', id: 'catalogo', 'aria-labelledby': 'catalogo-titulo' });
-  const st = { estado: 'carregando', r: null, texto: '', mostra: LOTE, minhas: [], ocupado: null, formato };
+  const st = { estado: 'carregando', r: null, texto: '', mostra: LOTE, minhas: [], ocupado: null, formato, taxas: null };
   const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
-  const buscaIn = Input({ id: 'catalogo-busca', placeholder: 'Nome, comandante ou código', onInput: e => { st.texto = e.target.value; st.mostra = LOTE; pintaLista(); } });
+  const buscaIn = Input({ id: 'catalogo-busca', placeholder: 'Nome, carta, evento ou jogador', onInput: e => { st.texto = e.target.value; st.mostra = LOTE; pintaLista(); } });
   buscaIn.setAttribute('type', 'search'); buscaIn.setAttribute('aria-label', 'Buscar nas listas oficiais'); buscaIn.autocomplete = 'off';
   const listaBox = h('div', { id: 'catalogo-corpo' });
   async function adiciona(l) {
@@ -11213,7 +11260,7 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
     const visiveis = recorte.slice(0, st.mostra);
     mount(listaBox,
       Text(`${recorte.length} ${recorte.length === 1 ? 'lista' : 'listas'}${nomeFmt ? ' de ' + nomeFmt : ''}, da mais nova à mais antiga`, { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-conta', 'aria-live': 'polite' } }),
-      h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l) }))),
+      h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l), taxas: st.taxas }))),
       // T5 · respiro entre a última lista e o botão (relato #1: estava colado)
       recorte.length > visiveis.length ? h('div', { class: 'cat-mais' }, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
       Text(`${st.r.velho ? 'Sem internet: o catálogo guardado em ' : 'Catálogo atualizado em '}${new Date(st.r.em).toLocaleDateString('pt-BR')}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catalogo-fonte' } }),
@@ -11228,9 +11275,11 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
   }
   mount(box,
     h('div', { class: 'cat__cabeca' }, Text('Catálogo', { size: 'lg', display: true, as: 'h2', attrs: { id: 'catalogo-titulo' } }),
-      Text('Os decks lançados pela Wizards e as oito primeiras de torneios recentes, do mais novo ao mais antigo. Um toque em + traz a lista para a sua estante.', { size: 'sm', tone: 'muted' })),
+      Text('Os decks lançados pela Wizards e as oito primeiras de torneios recentes, do mais novo ao mais antigo. Lista de torneio leva o nome das cartas que a definem; o evento vem embaixo. Um toque em + traz a lista para a sua estante.', { size: 'sm', tone: 'muted' })),
     buscaIn, listaBox);
   carrega();
+  // G-248 · com a cotação o valor vira real; sem ela (ou sem internet) fica em dólar
+  __m31.padrao.taxas().then(t => { if (t) { st.taxas = t; if (st.estado === 'pronto') pintaLista(); } }).catch(() => { /* fica em dólar */ });
   box.mudaFormato = f => { st.formato = f; st.mostra = LOTE; pintaLista(); };
   return box;
 }
@@ -11270,7 +11319,7 @@ function gruposPorCusto(entradas, cards) {
 function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   const id = (location.hash.split('?')[1] ? new URLSearchParams(location.hash.split('?')[1]).get('id') : null) || '';
   const root = Stack({ class: 'ds-wrap catd', style: { paddingTop: 'var(--space-4)' } }, __m3.Carregando('Abrindo a lista…', { tamanho: 'tela' }));
-  const st = { l: null, cards: new Map(), visao: 'lista', minhas: [], stats: false, custo: null, ocupado: false, semRede: false };
+  const st = { l: null, cards: new Map(), visao: 'lista', minhas: [], stats: false, custo: null, ocupado: false, semRede: false, taxas: undefined };
   const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
   const go = r => { location.hash = '#' + r; };
   const voltar = () => h('div', {}, Button('Listas prontas', { id: 'catd-voltar', icone: 'voltar', variant: 'ghost', classe: 'ds-btn--voltar', onClick: () => go('/listas/prontas') }));
@@ -11282,6 +11331,9 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
       return mount(root, voltar(), sem ? AvisoRede('Sem internet: esta lista ainda não foi aberta neste aparelho. Ela aparece quando houver conexão.', { id: 'catd-sem-rede' })
         : Empty('Esta lista não está no catálogo.', Button('Ver o catálogo', { icone: 'voltar', onClick: () => go('/listas/prontas') }), { icone: 'caixa', titulo: 'Lista não encontrada', id: 'catd-ausente' }));
     }
+    // G-248 · a lista guardada no aparelho pode ser de antes do nome novo: o índice guardado atualiza nome, evento e valor
+    try { const ind = await store.get(CHAVE_INDICE); const resumo = listasDoIndice(ind && ind.dados).find(x => x.id === id); if (resumo) st.l = comResumo(st.l, resumo); } catch (e) { /* fica como veio */ }
+    __m31.padrao.taxas().then(t => { st.taxas = t || null; }).catch(() => { st.taxas = null; }).then(() => { if (st.l && root.isConnected && root.querySelector('#catd-nome')) pinta(); });
     try { st.minhas = await decks.list(); } catch (e) { st.minhas = []; }
     const progresso = h('span', { class: 'ds-carregando__texto' }, 'Buscando cartas…');
     mount(root, voltar(), __m3.Carregando(progresso, { tamanho: 'bloco', id: 'catd-cartas' }));
@@ -11301,7 +11353,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   /* Z4 · jogar com a lista: ela entra na estante (é lá que a partida e o guardião a encontram) e o preparo já abre com ela */
   async function joga() {
     if (st.ocupado) return;
-    let d = st.minhas.find(x => (x.origem && x.origem.id === st.l.id) || norm(x.name) === norm(st.l.nome));
+    let d = st.minhas.find(x => (x.origem && x.origem.id === st.l.id) || (!deTorneio(st.l) && norm(x.name) === norm(st.l.nome)));
     if (!d) {
       st.ocupado = true; pinta();
       try { d = await decks.save(listaParaSalvar(st.l)); st.minhas = await decks.list(); toast(`${st.l.nome} está na sua estante`); }
@@ -11312,10 +11364,12 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   }
   const abreCarta = c => { if (c && typeof __m12 !== 'undefined') __m12.openCardViewer(c); };
   function linha(e) {
-    const c = e.carta;
+    const c = e.carta, preco = precoDaCarta(c, st.taxas);
+    // G-248 · o preço de uma cópia fica embaixo do custo, na mesma coluna: o nome não perde largura
     const corpo = [h('span', { class: 'catd-linha__qtd' }, String(e.qty)), h('span', { class: 'catd-linha__nome', lang: 'en' }, e.name),
-      c && c.mana_cost ? h('span', { class: 'catd-linha__custo' }, ComSimbolos(c.mana_cost)) : h('span', {})];
-    return c ? h('button', { class: 'catd-linha', type: 'button', dataset: { nome: e.name }, 'aria-label': `${e.qty} ${e.name}: abrir a carta`, onClick: () => abreCarta(c) }, ...corpo)
+      h('span', { class: 'catd-linha__fim' }, c && c.mana_cost ? h('span', { class: 'catd-linha__custo' }, ComSimbolos(c.mana_cost)) : null,
+        preco ? h('span', { class: 'catd-linha__preco', dataset: { preco: e.name } }, preco) : null)];
+    return c ? h('button', { class: 'catd-linha', type: 'button', dataset: { nome: e.name }, 'aria-label': `${e.qty} ${e.name}${preco ? `, ${preco} cada` : ''}: abrir a carta`, onClick: () => abreCarta(c) }, ...corpo)
       : h('div', { class: 'catd-linha catd-linha--sem', dataset: { nome: e.name } }, ...corpo);
   }
   const grupo = g => h('section', { class: 'catd-grupo', dataset: { grupo: g.chave } },
@@ -11327,11 +11381,25 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
       const c = e.carta, imgs = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images));
       const face = __m3.CardFace({ name: e.name, image: imgs ? imgs.normal || imgs.small : null, mana_cost: c && c.mana_cost, type_line: c && c.type_line }, { botao: true });
       if (c) face.addEventListener('click', () => abreCarta(c));
-      return h('div', { class: 'deck-slot catd-slot', dataset: { nome: e.name, zona: e.zone } }, face, e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null);
+      const preco = precoDaCarta(c, st.taxas);
+      return h('div', { class: 'deck-slot catd-slot', dataset: { nome: e.name, zona: e.zone } }, face, e.qty > 1 ? h('span', { class: 'deck-slot__qty' }, '×' + e.qty) : null,
+        preco ? h('span', { class: 'catd-slot__preco', 'aria-label': `${preco} cada` }, preco) : null);
     }));
   }
   function pinta() {
-    const l = st.l, tenho = jaNaEstante(l, st.minhas), minha = st.minhas.find(d => (d.origem && d.origem.id === l.id) || norm(d.name) === norm(l.nome));
+    const l = st.l, tenho = jaNaEstante(l, st.minhas), minha = st.minhas.find(d => (d.origem && d.origem.id === l.id) || (!deTorneio(l) && norm(d.name) === norm(l.nome)));
+    // G-248 · valor da lista pelas cartas guardadas (o mesmo cálculo da estante); sem os dados das cartas, o valor do catálogo
+    const v = __m31.valorDaLista(l.entradas, { cardDe: en => cartaDe(st.cards, en.name), chave: en => norm(en.name), taxas: st.taxas || null });
+    const doIndice = !v.tudo.comPreco ? valorDoResumo(l, st.taxas || null) : null;
+    const linhasV = linhasDoCartao(l);
+    const blocoValor = v.tudo.comPreco ? h('section', { class: 'catd-valor', id: 'catd-valor', 'aria-label': 'Valor da lista' },
+        h('div', { class: 'ds-valores' }, __m31.LinhaValor('Lista inteira', v.tudo, { id: 'catd-valor-tudo', destaque: true }),
+          ...(l.reserva ? [__m31.LinhaValor('Deck', v.deck, { id: 'catd-valor-deck' }), __m31.LinhaValor('Reserva', v.reserva, { id: 'catd-valor-reserva' })] : [])),
+        Text(__m31.notaValor(st.taxas, v.tudo), { size: 'xs', tone: 'subtle', attrs: { id: 'catd-valor-nota' } }))
+      : doIndice ? h('section', { class: 'catd-valor', id: 'catd-valor', 'aria-label': 'Valor da lista' },
+        h('div', { class: 'ds-valores' }, __m31.LinhaValor('Lista inteira', { usd: doIndice.usd, brl: doIndice.brl, eur: st.taxas ? doIndice.usd * st.taxas.EUR : null, comPreco: 1, semPreco: doIndice.semPreco }, { id: 'catd-valor-tudo', destaque: true })),
+        Text('Valor somado pelo catálogo na última coleta (preço em dólar da Scryfall). O preço de cada carta aparece quando as cartas forem baixadas.', { size: 'xs', tone: 'subtle', attrs: { id: 'catd-valor-nota' } }))
+      : null;
     const img = imagemDaCarta(l.destaqueId, 'normal');
     const arte = h('span', { class: 'catd__arte', 'aria-hidden': 'true' }, img ? h('img', { src: img, alt: '', decoding: 'async' }) : Icone('baralho', { tamanho: 32 }));
     const deck = { format: l.formato === 'commander' ? 'commander' : 'livre', entries: l.entradas };
@@ -11352,7 +11420,8 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
           Text(l.nome, { size: 'xl', display: true, as: 'h1', attrs: { id: 'catd-nome' } }),
           h('span', { class: 'cat-item__meta catd__meta' }, l.cores ? ManaPips(l.cores) : null, h('span', { class: 'cat-item__formato' }, ROTULO_DO_FORMATO[l.formato]),
             h('span', { class: 'cat-item__conta', role: 'img', 'aria-label': `${l.cartas} cartas` + (l.reserva ? ` e ${l.reserva} na reserva` : ''), title: `${l.cartas} cartas` }, Icone('baralho', { tamanho: 16 }), h('b', {}, String(l.cartas)), l.reserva ? ` + ${l.reserva}` : '')),
-          (l.comandante || []).length ? h('span', { class: 'catd__comandante', lang: 'en' }, l.comandante.join(' + ')) : null)),
+          linhasV.evento ? h('span', { class: 'catd__evento', id: 'catd-evento' }, [linhasV.evento, deTorneio(l) ? curto(l.jogador, 60) : '', deTorneio(l) ? dataBR(l.data) : ''].filter(Boolean).join(' · ')) : null,
+          (l.comandante || []).length && norm(l.comandante.join(' + ')) !== norm(l.nome) ? h('span', { class: 'catd__comandante', lang: 'en' }, l.comandante.join(' + ')) : null)),
       Text(l.descricao || '', { size: 'sm', tone: 'muted', attrs: { id: 'catd-descricao' } }),
       deTorneio(l) ? CreditoDasFontes(new Set([l.fonte]), 'catd-fonte')
         : Text(`Fonte: MTGJSON (licença MIT)${l.fichas && l.fichas.length ? ` · fichas: ${l.fichas.join(', ')}` : ''}`, { size: 'xs', tone: 'subtle', attrs: { id: 'catd-fonte' } }),
@@ -11363,6 +11432,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
         Button('Jogar', { icone: 'jogar', id: 'catd-jogar', disabled: st.ocupado, title: 'Jogar com esta lista (ela entra na sua estante)', onClick: joga })),
       tenho ? Text('Na sua estante: com internet, as cartas e as imagens ficam guardadas para jogar sem rede.', { size: 'xs', tone: 'subtle', attrs: { id: 'catd-guardada' } }) : null,
       st.semRede ? AvisoRede('Sem internet: algumas cartas aparecem só pelo nome; as estatísticas contam as que têm dados guardados.', { id: 'catd-cartas-sem-rede' }) : null,
+      blocoValor,
       stats,
       visoes,
       corpo);
@@ -11371,7 +11441,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   return root;
 }
 
-return { fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+return { linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */

@@ -55,14 +55,14 @@ test('Z1 · publica: baixa só o que falta, grava a lista e o índice, continua 
     const pedidos = [];
     const deckList = { data: [{ name: 'Novo', fileName: 'Novo_N1', type: 'Commander Deck', releaseDate: '2026-09-01' }, { name: 'Velho', fileName: 'Velho_V1', type: 'Theme Deck', releaseDate: '2001-01-01' }] };
     const busca = async url => { pedidos.push(url.replace(C.BASE, '')); const corpo = url.endsWith('DeckList.json') ? deckList : { data: { ...DECK.data, name: url.includes('Novo') ? 'Novo' : 'Velho', type: url.includes('Novo') ? 'Commander Deck' : 'Theme Deck' } }; return { ok: true, status: 200, json: async () => corpo }; };
-    const r1 = await C.publica(pasta, { busca, max: 1, pausa: 0, agora: Date.UTC(2026, 9, 9), mtgo: false, fichas: false }); // (o Magic Online e as fichas têm teste próprio, G-241 e G-242)
+    const r1 = await C.publica(pasta, { busca, max: 1, pausa: 0, agora: Date.UTC(2026, 9, 9), mtgo: false, fichas: false, completar: false }); // (o Magic Online, as fichas e os nomes e valores têm teste próprio: G-241, G-242 e G-248)
     assert.equal(r1.gravou, true); assert.equal(r1.novas, 1); assert.equal(r1.indice.pendentes, 1);
     assert.deepEqual(pedidos, ['DeckList.json', 'decks/Novo_N1.json']);
     const lista = JSON.parse(await readFile(join(pasta, 'listas', 'mtgjson-novo-n1.json'), 'utf8')); assert.equal(lista.nome, 'Novo'); assert.ok(lista.entradas.length > 3);
-    const r2 = await C.publica(pasta, { busca, max: 5, pausa: 0, mtgo: false, fichas: false });
+    const r2 = await C.publica(pasta, { busca, max: 5, pausa: 0, mtgo: false, fichas: false, completar: false });
     assert.equal(r2.novas, 1); assert.equal(r2.indice.total, 2); assert.equal(r2.indice.pendentes, 0);
     assert.deepEqual(pedidos.slice(2), ['DeckList.json', 'decks/Velho_V1.json'], 'o que já foi publicado não é baixado de novo');
-    const r3 = await C.publica(pasta, { busca, pausa: 0, mtgo: false, fichas: false });
+    const r3 = await C.publica(pasta, { busca, pausa: 0, mtgo: false, fichas: false, completar: false });
     assert.equal(r3.gravou, false, 'sem lista nova, nada é regravado (sem commit à toa)');
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
@@ -101,7 +101,7 @@ test('Z5 · TopDeck.gg: texto e estrutura da lista (metadado não é carta), oit
     const { writeFile } = await import('node:fs/promises');
     await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([{ id: 'topdeck-velha-1', nome: 'Velha', formato: 'pauper', fonte: 'topdeck', data: '2026-01-01' }], { agora: Date.UTC(2026, 9, 1) })));
     const buscaTudo = async (url, op) => (url.includes('DeckList') ? { ok: true, status: 200, json: async () => ({ data: [] }) } : busca(url, op));
-    const p = await C.publica(pasta, { busca: buscaTudo, pausa: 0, agora: Date.UTC(2026, 9, 9), chaveTopdeck: 'chave-falsa', mtgo: false, fichas: false });
+    const p = await C.publica(pasta, { busca: buscaTudo, pausa: 0, agora: Date.UTC(2026, 9, 9), chaveTopdeck: 'chave-falsa', mtgo: false, fichas: false, completar: false });
     assert.equal(p.gravou, true); assert.equal(p.novasTd, 7);
     assert.ok(!p.indice.listas.some(l => l.id === 'topdeck-velha-1'), 'a de janeiro saiu');
     assert.deepEqual(p.indice.fontes.map(f => f.id), ['mtgjson', 'topdeck']); assert.equal(p.indice.listas[0].jogador, 'Jogador 1');
@@ -179,7 +179,7 @@ test('G-241 · coleta e publicação do Magic Online: lê este mês e o anterior
     const { writeFile } = await import('node:fs/promises');
     await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([{ id: 'mtgo-modern-league-2026-08-0111000-1', nome: 'Velha', formato: 'modern', fonte: 'mtgo', data: '2026-08-01' }], { agora: Date.UTC(2026, 9, 1) })));
     pedidos.length = 0;
-    const p = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9), fichas: false });
+    const p = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9), fichas: false, completar: false });
     assert.equal(p.gravou, true); assert.equal(p.novasMo, 11);
     assert.ok(!p.indice.listas.some(l => l.id.startsWith('mtgo-modern-league-2026-08')), 'a liga de agosto saiu (30 dias)');
     assert.deepEqual(p.indice.fontes.map(f => f.id), ['mtgjson', 'mtgo']);
@@ -188,7 +188,7 @@ test('G-241 · coleta e publicação do Magic Online: lê este mês e o anterior
     const coleta = JSON.parse(await readFile(join(pasta, 'coleta.json'), 'utf8')); assert.equal(coleta.mtgo.length, 6); assert.equal(coleta.topdeck, null);
     // segunda coleta: os eventos já publicados não são baixados de novo; sem novidade nada é regravado
     pedidos.length = 0;
-    const p2 = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9), fichas: false });
+    const p2 = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9), fichas: false, completar: false });
     assert.equal(p2.novasMo, 0); assert.equal(p2.gravou, false);
     assert.ok(!pedidos.some(u => u.endsWith('0512855502') || u.endsWith('0511129')), 'páginas já colhidas não são pedidas: ' + pedidos.filter(u => u.includes('mtgo')).join());
   } finally { await rm(pasta, { recursive: true, force: true }); }
@@ -238,4 +238,136 @@ test('G-246 · TopDeck EDH: janela própria de 14 dias com prazo maior; se ainda
   // nada responde: o erro fica no relatório, sem derrubar os outros formatos
   const r2 = await C.coletaTopdeck('chave', { busca: async (url, op) => (url.includes('scryfall') ? { ok: true, status: 200, json: async () => ({ data: [] }) } : JSON.parse(op.body).format === 'EDH' ? new Promise((_, rej) => op.signal.addEventListener('abort', () => rej(new Error('This operation was aborted')))) : { ok: true, status: 200, json: async () => [] }), pausa: 0, prazos: { padrao: 200, EDH: 30 } });
   assert.equal(r2.falhas, 1); assert.match(r2.porFormato.find(f => f.formato === 'EDH').erro, /aborted/);
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// G-248 · relato #15 · nome da lista (o arquétipo, dado pelo coletor), evento à parte e valor somado.
+import { writeFile as grava248, mkdir as pasta248 } from 'node:fs/promises';
+/** Scryfall de mentira: responde /cards/collection com as cartas da tabela (nome → { tipo, usd, … }); o resto é "não encontrada". */
+function scryfall248(tabela, { falha = () => false, pedidos = [] } = {}) {
+  return async (url, init = {}) => {
+    if (!String(url).includes('/cards/collection')) throw new Error('pedido inesperado: ' + url);
+    const nomes = JSON.parse(init.body).identifiers.map(i => i.name); pedidos.push(nomes);
+    if (falha()) return { ok: false, status: 503, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => ({ data: nomes.filter(n => tabela[n]).map(n => ({ id: '0000aaaa-1111-2222-3333-444455556666', name: n, color_identity: tabela[n].ci || [], rarity: tabela[n].rar || 'common', type_line: tabela[n].tipo, prices: tabela[n].precos || { usd: tabela[n].usd != null ? String(tabela[n].usd) : null } })) }) };
+  };
+}
+const dados248 = t => new Map(Object.entries(t).map(([n, c]) => [n.toLowerCase(), { id: 'x', color_identity: c.ci || [], rarity: c.rar || 'common', type_line: c.tipo, usd: c.usd == null ? null : c.usd }]));
+const E = (name, qty, zone = 'main') => ({ name, qty, zone });
+
+test('G-248 · nome das cores e nome curto', () => {
+  assert.equal(C.nomeDasCores('UR'), 'Izzet'); assert.equal(C.nomeDasCores('RU'), 'Izzet', 'a ordem das letras não importa'); assert.equal(C.nomeDasCores('BG'), 'Golgari');
+  assert.equal(C.nomeDasCores('R'), 'Mono Red'); assert.equal(C.nomeDasCores(''), 'Incolor'); assert.equal(C.nomeDasCores('WUB'), 'Esper'); assert.equal(C.nomeDasCores('BRG'), 'Jund');
+  assert.equal(C.nomeDasCores('WUBR'), 'Quatro cores'); assert.equal(C.nomeDasCores('WUBRG'), 'Cinco cores'); assert.equal(C.nomeDasCores(null), 'Incolor');
+  for (const par of ['WU', 'UB', 'BR', 'RG', 'WG', 'WB', 'UR', 'BG', 'WR', 'UG', 'WUB', 'UBR', 'BRG', 'WRG', 'WUG', 'WBG', 'WUR', 'UBG', 'WBR', 'URG']) assert.ok(/^[A-Z][a-z]+$/.test(C.nomeDasCores(par)), par);
+  assert.equal(C.nomeCurto('Yawgmoth, Thran Physician'), 'Yawgmoth'); assert.equal(C.nomeCurto('Murktide Regent'), 'Murktide Regent'); assert.equal(C.nomeCurto('Fable of the Mirror-Breaker // Reflection of Kiki-Jiki'), 'Fable of the Mirror-Breaker');
+});
+
+test('G-248 · nome da lista: quem comanda; tribo que domina; senão as cores e a carta que caracteriza a lista entre as do formato', () => {
+  const T = { 'Kinnan, Bonder Prodigy': { tipo: 'Legendary Creature — Human Druid' }, 'Kraum, Ludevic\'s Opus': { tipo: 'Legendary Creature — Zombie Horror' }, 'Tymna the Weaver': { tipo: 'Legendary Creature — Human Cleric' },
+    'Llanowar Elves': { tipo: 'Creature — Elf Druid' }, 'Elvish Mystic': { tipo: 'Creature — Elf Druid' }, 'Priest of Titania': { tipo: 'Creature — Elf Druid' }, 'Timberwatch Elf': { tipo: 'Creature — Elf' }, 'Quirion Ranger': { tipo: 'Creature — Elf Ranger' }, 'Lead the Stampede': { tipo: 'Sorcery' },
+    'Forest': { tipo: 'Basic Land — Forest' }, 'Island': { tipo: 'Basic Land — Island' }, 'Mountain': { tipo: 'Basic Land — Mountain' }, 'Dryad Arbor': { tipo: 'Land Creature — Forest Dryad' },
+    'Lightning Bolt': { tipo: 'Instant' }, 'Counterspell': { tipo: 'Instant' }, 'Murktide Regent': { tipo: 'Creature — Dragon', rar: 'mythic' }, 'Dragon\'s Rage Channeler': { tipo: 'Creature — Human Shaman' }, 'Grapeshot': { tipo: 'Sorcery' }, 'Ruby Medallion': { tipo: 'Artifact' },
+    'Tech de Um Piloto': { tipo: 'Instant' }, 'Delver of Secrets // Insectile Aberration': { tipo: 'Creature — Human Wizard // Creature — Human Insect' } };
+  const d = dados248(T);
+  assert.equal(C.nomeDaLista({ comandante: ['Kinnan, Bonder Prodigy'], cores: 'UG', entradas: [E('Kinnan, Bonder Prodigy', 1, 'commander'), E('Forest', 30)] }, d), 'Kinnan, Bonder Prodigy');
+  assert.equal(C.nomeDaLista({ comandante: ['Kraum, Ludevic\'s Opus', 'Tymna the Weaver'], cores: 'WUBR', entradas: [] }, d), 'Kraum + Tymna the Weaver', 'dois comandantes: o nome curto de cada um');
+  const elfos = { cores: 'G', comandante: [], entradas: [E('Llanowar Elves', 4), E('Elvish Mystic', 4), E('Priest of Titania', 4), E('Timberwatch Elf', 4), E('Quirion Ranger', 4), E('Lead the Stampede', 4), E('Forest', 16), E('Dryad Arbor', 1), E('Lightning Bolt', 3, 'side')] };
+  assert.equal(C.nomeDaLista(elfos, d), 'Tribal de Elfos');
+  // três criaturas em quatro precisam ser da tribo, com 16 cópias ou mais: 12 elfos e 8 de outra coisa não é tribal
+  const quase = { cores: 'G', comandante: [], entradas: [E('Llanowar Elves', 4), E('Elvish Mystic', 4), E('Priest of Titania', 4), E('Murktide Regent', 4), E('Dragon\'s Rage Channeler', 4), E('Forest', 20)] };
+  assert.ok(!/Tribal/.test(C.nomeDaLista(quase, d)));
+  // duas famílias nas mesmas cores, com uma mágica em comum (o raio) e uma técnica de um piloto só
+  const murk = extra => ({ cores: 'UR', comandante: [], entradas: [E('Murktide Regent', 4), E('Dragon\'s Rage Channeler', 4), E('Lightning Bolt', 4), E('Counterspell', 4), E('Island', 10), E('Mountain', 8), ...extra] });
+  const storm = () => ({ cores: 'UR', comandante: [], entradas: [E('Grapeshot', 4), E('Ruby Medallion', 4), E('Lightning Bolt', 4), E('Island', 8), E('Mountain', 10)] });
+  const burn = () => ({ cores: 'R', comandante: [], entradas: [E('Lightning Bolt', 4), E('Mountain', 20)] });
+  const piloto = murk([E('Tech de Um Piloto', 4)]);
+  const corpus = [murk([]), murk([]), murk([]), piloto, storm(), storm(), burn(), burn(), burn()], est = C.estatisticasDoFormato(corpus);
+  assert.equal(C.nomeDaLista(corpus[0], d, est), 'Izzet Murktide Regent');
+  assert.equal(C.nomeDaLista(piloto, d, est), 'Izzet Murktide Regent', 'a técnica de um piloto não renomeia o arquétipo');
+  assert.equal(C.nomeDaLista(corpus[4], d, est), 'Izzet Grapeshot', 'a outra família das mesmas cores tem outro nome');
+  assert.equal(C.nomeDaLista(corpus[6], d, est), 'Mono Red Lightning Bolt');
+  assert.equal(C.nomeDaLista(corpus[0], d, est), C.nomeDaLista(murk([]), d, C.estatisticasDoFormato(corpus.slice().reverse())), 'a ordem das listas não muda o nome');
+  assert.equal(C.nomeDaLista({ cores: 'U', comandante: [], entradas: [E('Delver of Secrets // Insectile Aberration', 4), E('Island', 18)] }, d), 'Mono Blue Delver of Secrets', 'duas faces: o nome da frente');
+  // sem dados das cartas (a Scryfall falhou) ou só com terrenos: não há nome a dar
+  assert.equal(C.nomeDaLista(corpus[0], new Map(), est), null); assert.equal(C.nomeDaLista({ cores: '', comandante: [], entradas: [E('Forest', 60)] }, d), null);
+});
+
+test('G-248 · valor: soma todas as cópias (deck, comandante e reserva), conta as sem preço, e devolve null sem nenhum dado', () => {
+  const d = dados248({ 'A': { tipo: 'Instant', usd: 1.5 }, 'B': { tipo: 'Creature', usd: 0.1 }, 'C': { tipo: 'Land', usd: null } });
+  assert.deepEqual(C.valorDasEntradas([E('A', 4), E('B', 3), E('C', 20), E('A', 2, 'side'), E('B', 1, 'commander')], d), { valorUsd: 9.4, semPreco: 20 });
+  // uma carta em dez sem dado ainda vale (nome que a Scryfall não achou); um buraco maior, não: o valor sairia pela metade
+  const dez = Array.from({ length: 10 }, (_, i) => E(i < 9 ? 'A' : 'Desconhecida', 1));
+  assert.deepEqual(C.valorDasEntradas(dez, d), { valorUsd: 13.5, semPreco: 1 }); assert.equal(C.valorDasEntradas([E('A', 4), E('Desconhecida', 1), E('Outra', 1)], d), null);
+  assert.equal(C.valorDasEntradas([E('X', 4)], d), null, 'nenhuma carta com dado: o valor de antes é mantido por quem chama');
+  assert.deepEqual(C.valorDasEntradas([E('C', 2)], d), { valorUsd: 0, semPreco: 2 });
+});
+
+test('G-248 · evento: lista de torneio antiga tinha o evento no nome; lista oficial usa tipo e código', () => {
+  assert.equal(C.eventoDe({ fonte: 'mtgo', nome: '5-0 · Modern League', torneio: 'Modern League', posicao: 0 }), '5-0 · Modern League');
+  assert.equal(C.eventoDe({ fonte: 'topdeck', nome: '1º · Copa X', torneio: 'Copa X', posicao: 1 }), '1º · Copa X');
+  assert.equal(C.eventoDe({ fonte: 'mtgo', nome: 'Izzet Murktide Regent', evento: '1º · Modern Challenge 16', nv: 1 }), '1º · Modern Challenge 16', 'o evento já dado não se perde');
+  assert.equal(C.eventoDe({ fonte: 'mtgo', nome: 'Izzet X', nv: 1, torneio: 'Liga', posicao: 3 }), '3º · Liga');
+  assert.equal(C.eventoDe({ fonte: 'mtgjson', nome: 'Calling All Angels', tipo: 'Commander Deck', codigo: 'FDC' }), 'Commander Deck · FDC');
+  assert.equal(C.eventoDe({ fonte: 'mtgjson', nome: 'X', tipo: 'Theme Deck', codigo: '' }), 'Theme Deck');
+});
+
+test('G-248 · passada completa: dá nome uma vez, refaz o valor sempre, não perde lista quando a Scryfall falha e não regrava arquivo à toa', async () => {
+  const pasta = await mkdtemp(join(tmpdir(), 'catalogo-248-'));
+  try {
+    await pasta248(join(pasta, 'listas'), { recursive: true });
+    const T = { 'Murktide Regent': { tipo: 'Creature — Dragon', usd: 20, rar: 'mythic' }, 'Lightning Bolt': { tipo: 'Instant', usd: 1 }, 'Island': { tipo: 'Basic Land — Island', usd: 0.1 }, 'Giada, Font of Hope': { tipo: 'Legendary Creature — Angel', usd: 3 }, 'Plains': { tipo: 'Basic Land — Plains', usd: 0.1 } };
+    const arq = { 'mtgo-a-1': { id: 'mtgo-a-1', nome: '1º · Modern Challenge 16', entradas: [E('Murktide Regent', 4), E('Lightning Bolt', 4), E('Island', 20), E('Lightning Bolt', 2, 'side')] },
+      'mtgjson-anjos-fdc': { id: 'mtgjson-anjos-fdc', nome: 'Calling All Angels', entradas: [E('Giada, Font of Hope', 1, 'commander'), E('Plains', 30)] } };
+    for (const [id, l] of Object.entries(arq)) await grava248(join(pasta, 'listas', id + '.json'), JSON.stringify(l) + '\n');
+    const resumos = [{ id: 'mtgo-a-1', nome: '1º · Modern Challenge 16', formato: 'modern', fonte: 'mtgo', cores: 'UR', comandante: [], torneio: 'Modern Challenge 16', posicao: 1, data: '2026-10-10' },
+      { id: 'mtgjson-anjos-fdc', nome: 'Calling All Angels', formato: 'commander', fonte: 'mtgjson', tipo: 'Commander Deck', codigo: 'FDC', cores: 'W', comandante: ['Giada, Font of Hope'], data: '2026-10-02' },
+      { id: 'mtgo-sem-arquivo-1', nome: '5-0 · Legacy League', formato: 'legacy', fonte: 'mtgo', cores: '', comandante: [], data: '2026-10-01' }];
+    const r1 = await C.completa(pasta, resumos, { busca: scryfall248(T), pausa: 0 });
+    const [a, b, c] = r1.resumos;
+    assert.equal(a.nome, 'Izzet Murktide Regent'); assert.equal(a.evento, '1º · Modern Challenge 16'); assert.equal(a.nv, C.NOME_V); assert.equal(a.valorUsd, 88); assert.equal(a.semPreco, 0);
+    assert.equal(b.nome, 'Calling All Angels', 'lista oficial fica com o nome do produto'); assert.equal(b.evento, 'Commander Deck · FDC'); assert.equal(b.nv, undefined); assert.equal(b.valorUsd, 6);
+    assert.deepEqual(c, resumos[2], 'sem o arquivo das cartas o resumo fica como estava');
+    assert.deepEqual([r1.nomeadas, r1.comValor, r1.regravadas], [1, 2, 2]);
+    const fa = JSON.parse(await readFile(join(pasta, 'listas', 'mtgo-a-1.json'), 'utf8'));
+    assert.equal(fa.nome, 'Izzet Murktide Regent'); assert.equal(fa.evento, '1º · Modern Challenge 16'); assert.equal(fa.entradas.length, 4, 'as cartas ficam intactas'); assert.equal('valorUsd' in fa, false, 'o valor mora só no índice');
+    // segunda passada, com o preço do dia diferente: o nome não muda, o valor sim, nenhum arquivo é regravado
+    const r2 = await C.completa(pasta, r1.resumos, { busca: scryfall248({ ...T, 'Murktide Regent': { tipo: 'Creature — Dragon', usd: 25, rar: 'mythic' }, 'Lightning Bolt': { tipo: 'Creature — Elf', usd: 1 } }), pausa: 0 });
+    assert.equal(r2.resumos[0].nome, 'Izzet Murktide Regent'); assert.equal(r2.resumos[0].valorUsd, 108); assert.deepEqual([r2.nomeadas, r2.regravadas], [0, 0]);
+    // a Scryfall fora do ar: nome, evento e valor de antes continuam
+    const r3 = await C.completa(pasta, r2.resumos, { busca: scryfall248(T, { falha: () => true }), pausa: 0 });
+    assert.deepEqual(r3.resumos, r2.resumos); assert.deepEqual([r3.nomeadas, r3.comValor, r3.regravadas], [0, 0, 0]);
+    // lista nova sem dados na primeira vez fica com o evento como nome (sem `nv`) e ganha nome na coleta seguinte
+    const nova = [{ id: 'mtgo-a-1', nome: '1º · Modern Challenge 16', formato: 'modern', fonte: 'mtgo', cores: 'UR', comandante: [], data: '2026-10-10' }];
+    await grava248(join(pasta, 'listas', 'mtgo-a-1.json'), JSON.stringify(arq['mtgo-a-1']) + '\n');
+    const r4 = await C.completa(pasta, nova, { busca: scryfall248(T, { falha: () => true }), pausa: 0 });
+    assert.equal(r4.resumos[0].nome, '1º · Modern Challenge 16'); assert.equal(r4.resumos[0].nv, undefined); assert.equal(r4.resumos[0].evento, '1º · Modern Challenge 16'); assert.equal('valorUsd' in r4.resumos[0], false);
+    const r5 = await C.completa(pasta, r4.resumos, { busca: scryfall248(T), pausa: 0 });
+    assert.equal(r5.resumos[0].nome, 'Izzet Murktide Regent'); assert.equal(r5.resumos[0].evento, '1º · Modern Challenge 16');
+    // um lote da Scryfall caiu e a lista ficou com metade das cartas sem dado: nem nome nem valor nesta coleta
+    const metade = await C.completa(pasta, nova, { busca: scryfall248({ 'Island': T['Island'], 'Lightning Bolt': T['Lightning Bolt'] }), pausa: 0 });
+    assert.equal(metade.resumos[0].nv, undefined); assert.equal('valorUsd' in metade.resumos[0], false); assert.equal(metade.resumos[0].nome, '1º · Modern Challenge 16');
+    // arquivo estragado não derruba a passada
+    await grava248(join(pasta, 'listas', 'mtgo-a-1.json'), '{ nao e json');
+    const r6 = await C.completa(pasta, r5.resumos, { busca: scryfall248(T), pausa: 0 }); assert.deepEqual(r6.resumos, r5.resumos);
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});
+
+test('G-248 · publica: o índice sai com nome, evento e valor; sem lista nova só é regravado quando o valor muda', async () => {
+  const pasta = await mkdtemp(join(tmpdir(), 'catalogo-248p-'));
+  try {
+    const deckList = { data: [{ name: 'Novo', fileName: 'Novo_N1', type: 'Commander Deck', releaseDate: '2026-09-01' }] };
+    let usd = 2; const pedidos = [];
+    const nomesDoDeck = [...DECK.data.commander, ...DECK.data.mainBoard, ...(DECK.data.sideBoard || [])].map(c => c.name);
+    const sf = () => scryfall248(Object.fromEntries(nomesDoDeck.map(n => [n, { tipo: /Forest|Plains/.test(n) ? 'Basic Land' : 'Instant', usd }])), { pedidos });
+    const busca = async (url, init) => String(url).includes('scryfall') ? sf()(url, init) : { ok: true, status: 200, json: async () => (url.endsWith('DeckList.json') ? deckList : { data: { ...DECK.data, name: 'Novo' } }) };
+    const op = { busca, pausa: 0, mtgo: false, fichas: false };
+    const r1 = await C.publica(pasta, { ...op, agora: Date.UTC(2026, 9, 9) });
+    assert.equal(r1.gravou, true); const l = r1.indice.listas[0];
+    assert.equal(l.nome, 'Novo'); assert.equal(l.evento, 'Commander Deck · TST'); assert.ok(l.valorUsd > 0); assert.equal(typeof l.semPreco, 'number');
+    assert.deepEqual(JSON.parse(await readFile(join(pasta, 'indice.json'), 'utf8')).listas[0], l);
+    const r2 = await C.publica(pasta, op); assert.equal(r2.gravou, false, 'mesmo preço, nenhuma lista nova: sem commit à toa');
+    usd = 3; const r3 = await C.publica(pasta, op); assert.equal(r3.gravou, true, 'o preço do dia mudou: o índice é regravado'); assert.ok(r3.indice.listas[0].valorUsd > l.valorUsd);
+    assert.ok(pedidos.every(p => p.length <= 75), 'a Scryfall recebe lotes de até 75 nomes');
+  } finally { await rm(pasta, { recursive: true, force: true }); }
 });

@@ -503,6 +503,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dl ✅ | SEG2 fluxos do GitHub com o mínimo: permissões declaradas em todos, ações fixadas por SHA, portão por `npm ci`, etiquetas de relato só de listas fechadas, CSV sem fórmula (leva P-2) | SEG | 1 | — |
 | 16º-dm ✅ | Commander da TopDeck.gg de volta: EDH com janela de 14 dias (reserva de 7) e prazo de 90 s (leva G-246) | Z | ½ | — |
 | 16º-dn ✅ | Testes de desempenho B2 e C12 medem o tempo de processador do teste, não o relógio de parede (mesmos limites) (leva G-247) | Q | ½ | — |
+| 16º-do ✅ | Z7 nome da lista (arquétipo dado pelo coletor), evento à parte e valor somado no catálogo; no detalhe, valor da lista e preço de cada carta (relato #15, leva G-248) | Z | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7196,6 +7197,41 @@ segredo do repositório. O `main` não recebe commit do coletor.
   `coleta.json` diz os dias usados (`dias`). Os outros formatos seguem com 60 dias. Teste: U `catalogo.unit` +1 (janela
   de 14, reserva de 7 depois do prazo, os outros com 60, e o erro no relatório quando nada responde, sem derrubar os
   outros formatos).
+
+**Z7 · Nome da lista, evento à parte e valor** ✅ (leva G-248, 10/10/2026 · relato #15)
+- **Pedido:** os títulos se repetiam porque o título era o evento ("5-0 · Modern League"); o nome precisa ser o da lista
+  (tribal de elfos, rakdos madness…), o evento vira informação adicional, e o valor somado aparece na listagem; no
+  detalhe, o valor da lista e o de cada carta.
+- **Valor:** dá para reconhecer a lista pelo que ela é e saber quanto custa antes de abrir.
+- **Nome (coletor, `catalogo.mjs`):** as fontes de torneio não informam o arquétipo, então o nome é **dado pelo coletor a
+  partir das cartas** (aproximação declarada). Commander: quem comanda (dois comandantes: o nome curto de cada um). Outros
+  formatos: "Tribal de X" quando três em quatro criaturas (e ao menos 16 cópias) são da mesma tribo; senão as cores
+  (Izzet, Golgari, Mono Red…) + a carta que mais caracteriza a lista — muitas cópias, própria daquelas cores entre as
+  listas do formato (peso ao quadrado) e presente em boa parte delas (raiz). Calculado **uma vez** por lista (`nv` = versão
+  da regra) para não mudar de um dia para o outro. Lista oficial fica com o nome do produto.
+- **Evento:** campo `evento` ("1º · Modern Challenge 16"; produto oficial: tipo · código). Lista de torneio publicada antes
+  desta leva tinha o evento no nome: ele é preservado.
+- **Valor:** `valorUsd` e `semPreco` no índice — dólar da Scryfall (impressão padrão; sem o normal, o foil), todas as
+  cópias, refeito a cada coleta diária; mora só no índice (regravar 2 000 arquivos por dia incharia o ramo). O índice é
+  regravado quando o valor muda. Com menos de nove em dez cartas com dado (lote da Scryfall que falhou), a lista não ganha
+  nome nem valor naquela coleta: fica o de antes.
+- **Tela (`src/app/catalogo.js`):** no cartão, o título é o nome; embaixo, o valor (real pela cotação do aparelho; dólar sem
+  cotação) e o evento na mesma linha — o valor nunca corta, o evento corta com reticências —, e depois quem jogou (ou quem
+  comanda) e a data. No detalhe: evento · jogador · data sob o título; bloco de valor (lista inteira; deck e reserva quando
+  há reserva) pelo mesmo cálculo da estante, com a nota da cotação; o preço de uma cópia em cada linha (Lista e Agregado,
+  sob o custo) e sob cada carta da Galeria. Sem os dados das cartas (sem internet), o detalhe mostra o valor do catálogo.
+- **Compatibilidade:** índice antigo (sem `evento` nem `valorUsd`) desenha como antes; lista já guardada no aparelho recebe
+  nome, evento e valor do índice guardado; a busca acha pelo evento; "já na estante" de lista de torneio vale só pela origem
+  (duas listas do mesmo arquétipo têm o mesmo nome).
+- **Sem rede:** o catálogo guardado mostra nome, evento e valor; o preço por carta depende das cartas já baixadas.
+- **Segurança:** nome e evento vêm de terceiros e chegam como texto (sonda no e2e).
+- **Testes:** U `catalogo.unit` (+6: cores e nome curto; nome por comandante, tribo e carta característica com duas
+  famílias nas mesmas cores; valor e cobertura; evento; passada completa — nome uma vez, valor sempre, Scryfall fora do ar,
+  lote que falha, arquivo estragado; publicação que só regrava quando o valor muda); U `catalogo.tela.unit` (+4); e2e
+  "G-248" (listagem e detalhe nas quatro medidas e nos dois temas, índice antigo, sonda, busca pelo evento, dois nomes
+  iguais).
+- **Fora:** tabela manual de arquétipos (o nome consagrado, como "Rakdos Madness"); preço da impressão mais barata (a
+  estante também usa a padrão); ranking de metagame (escopo negativo).
 
 ### SEG · Segurança e privacidade (trilha `protecao`, auditoria de 09/10/2026)
 

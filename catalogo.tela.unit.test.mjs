@@ -111,3 +111,61 @@ test('G-242 · fichas do catálogo no app: só as bem formadas; guardadas por um
   await assert.rejects(vazio.fichas());
   falha = false; ausente = true; assert.equal((await vazio.fichas()).ausente, true);
 });
+
+// ---------------------------------------------------------------------------------------------------------------
+// G-248 · relato #15 · o nome é o da lista, o evento vem à parte e o valor aparece.
+const J248 = x => JSON.parse(JSON.stringify(x));
+const TAXAS = { BRL: 5, EUR: 0.9, em: 0 };
+const NOVA = { id: 'mtgo-modern-challenge-1', nome: 'Izzet Murktide Regent', evento: '1º · Modern Challenge 16', nv: 1, formato: 'modern', fonte: 'mtgo', cores: 'UR', comandante: [], jogador: 'Venom01', torneio: 'Modern Challenge 16', posicao: 1, data: '2026-10-10', valorUsd: 412.35, semPreco: 2 };
+const ANTIGA = { id: 'mtgo-modern-league-3', nome: '5-0 · Modern League', formato: 'modern', fonte: 'mtgo', cores: 'BG', comandante: [], jogador: 'Fulano', torneio: 'Modern League', data: '2026-10-09' };
+
+test('G-248 · linhas do cartão: evento à parte, quem jogou e a data; índice antigo desenha como antes', () => {
+  assert.deepEqual(J248(K.linhasDoCartao(NOVA)), { evento: '1º · Modern Challenge 16', sub: 'Venom01 · 10/10/2026', subEmIngles: false });
+  assert.deepEqual(J248(K.linhasDoCartao(ANTIGA)), { evento: '', sub: 'Fulano · 09/10/2026', subEmIngles: false }, 'sem `evento`, o título ainda é o evento e nada se repete');
+  // Commander de torneio: o título é quem comanda, então a linha de baixo é quem jogou
+  const cedh = { id: 'topdeck-x-1', nome: 'Kraum + Tymna the Weaver', evento: '1º · AP9 x Dice City cEDH 1k', fonte: 'topdeck', formato: 'commander', comandante: ['Kraum, Ludevic\'s Opus', 'Tymna the Weaver'], jogador: 'Simon Bigger', data: '2026-10-10' };
+  assert.deepEqual(J248(K.linhasDoCartao(cedh)), { evento: '1º · AP9 x Dice City cEDH 1k', sub: 'Simon Bigger · 10/10/2026', subEmIngles: false });
+  assert.equal(K.linhasDoCartao({ ...cedh, nome: 'Kinnan, Bonder Prodigy', comandante: ['Kinnan, Bonder Prodigy'] }).sub, 'Simon Bigger · 10/10/2026');
+  // Commander de torneio do índice antigo (título = evento): quem comanda continua embaixo, em inglês
+  assert.deepEqual(J248(K.linhasDoCartao({ ...cedh, nome: '1º · AP9 x Dice City cEDH 1k', evento: undefined })), { evento: '', sub: 'Kraum, Ludevic\'s Opus + Tymna the Weaver', subEmIngles: true });
+  // produto oficial: tipo e código como evento; quem comanda embaixo; sem comandante, a data
+  const oficial = { id: 'mtgjson-anjos-fdc', nome: 'Calling All Angels', evento: 'Commander Deck · FDC', fonte: 'mtgjson', formato: 'commander', tipo: 'Commander Deck', codigo: 'FDC', comandante: ['Giada, Font of Hope'], data: '2026-10-02' };
+  assert.deepEqual(J248(K.linhasDoCartao(oficial)), { evento: 'Commander Deck · FDC', sub: 'Giada, Font of Hope', subEmIngles: true });
+  assert.deepEqual(J248(K.linhasDoCartao({ ...oficial, comandante: [], formato: 'iniciante' })), { evento: 'Commander Deck · FDC', sub: '02/10/2026', subEmIngles: false });
+  assert.deepEqual(J248(K.linhasDoCartao({ ...oficial, comandante: [], evento: undefined })), { evento: '', sub: 'Commander Deck · 02/10/2026', subEmIngles: false }, 'índice antigo: tipo e data, como era');
+  // o que vem do índice é dado: evento igual ao nome não se repete; texto enorme é cortado; tipo estranho não quebra
+  assert.equal(K.linhasDoCartao({ ...NOVA, evento: 'izzet  murktide regent' }).evento, '');
+  assert.equal(K.linhasDoCartao({ ...NOVA, evento: 'x'.repeat(500) }).evento.length, 120);
+  assert.equal(K.linhasDoCartao({ ...NOVA, evento: { a: 1 }, jogador: 42 }).evento, ''); assert.equal(K.linhasDoCartao({ ...NOVA, evento: { a: 1 }, jogador: 42 }).sub, '10/10/2026');
+});
+
+test('G-248 · valor do cartão: real com cotação, dólar sem ela, nada quando o índice não traz (ou traz lixo)', () => {
+  assert.deepEqual(J248(K.valorDoResumo(NOVA, TAXAS)), { usd: 412.35, brl: 2061.75, texto: 'R$ 2.061,75', semPreco: 2, fala: 'Valor estimado da lista: R$ 2.061,75' });
+  assert.equal(K.valorDoResumo(NOVA, null).texto, 'US$ 412,35'); assert.equal(K.valorDoResumo(NOVA).brl, null);
+  for (const ruim of [undefined, null, '412', NaN, Infinity, -3, 0, 1e9]) assert.equal(K.valorDoResumo({ ...NOVA, valorUsd: ruim }, TAXAS), null, String(ruim));
+  assert.equal(K.valorDoResumo(ANTIGA, TAXAS), null); assert.equal(K.valorDoResumo(null, TAXAS), null);
+  assert.equal(K.valorDoResumo({ ...NOVA, semPreco: 'muitas' }, TAXAS).semPreco, 0);
+});
+
+test('G-248 · busca acha pelo evento; "já na estante" de lista de torneio vale só pela origem', () => {
+  const outra = { ...NOVA, id: 'mtgo-modern-league-9', evento: '5-0 · Modern League', torneio: 'Modern League', jogador: 'Beltrano' };
+  assert.deepEqual(K.filtraCatalogo([NOVA, outra, ANTIGA], { texto: 'challenge' }).map(l => l.id), ['mtgo-modern-challenge-1']);
+  assert.deepEqual(K.filtraCatalogo([NOVA, outra, ANTIGA], { texto: 'murktide' }).map(l => l.id), ['mtgo-modern-challenge-1', 'mtgo-modern-league-9']);
+  assert.deepEqual(K.filtraCatalogo([NOVA, outra, ANTIGA], { texto: 'modern league' }).map(l => l.id), ['mtgo-modern-league-9', 'mtgo-modern-league-3'], 'evento novo e título antigo');
+  const minhas = [{ id: 'd1', name: 'Izzet Murktide Regent', origem: { fonte: 'mtgo', id: 'mtgo-modern-challenge-1' } }];
+  assert.equal(K.jaNaEstante(NOVA, minhas), true); assert.equal(K.jaNaEstante(outra, minhas), false, 'mesmo arquétipo, outra lista: ainda não está na estante');
+  assert.equal(K.jaNaEstante({ id: 'mtgjson-anjos-fdc', nome: 'Calling All Angels', fonte: 'mtgjson' }, [{ id: 'd2', name: 'calling all angels' }]), true, 'produto oficial continua valendo pelo nome');
+  assert.equal(K.listaParaSalvar({ ...NOVA, entradas: [{ name: 'Island', qty: 1, zone: 'main' }] }).name, 'Izzet Murktide Regent');
+});
+
+test('G-248 · lista guardada antes do nome novo recebe nome, evento e valor do índice; preço da carta na moeda da tela', () => {
+  const guardada = { id: NOVA.id, nome: '1º · Modern Challenge 16', descricao: 'd', entradas: [{ name: 'Island', qty: 1, zone: 'main' }] };
+  const r = K.comResumo(guardada, NOVA);
+  assert.equal(r.nome, 'Izzet Murktide Regent'); assert.equal(r.evento, '1º · Modern Challenge 16'); assert.equal(r.valorUsd, 412.35); assert.equal(r.descricao, 'd'); assert.equal(r.entradas.length, 1);
+  assert.equal(guardada.nome, '1º · Modern Challenge 16', 'não muta a guardada');
+  assert.equal(K.comResumo(guardada, { ...NOVA, id: 'mtgo-outra-1' }), guardada, 'resumo de outra lista não é aplicado'); assert.equal(K.comResumo(guardada, null), guardada);
+  assert.equal(K.comResumo(guardada, { id: NOVA.id, nome: '   ' }).nome, '1º · Modern Challenge 16', 'nome vazio no índice não apaga o da lista');
+  assert.equal(K.precoDaCarta({ prices: { usd: '1.50' } }, TAXAS), 'R$ 7,50'); assert.equal(K.precoDaCarta({ prices: { usd: '1.50' } }, null), 'US$ 1,50');
+  assert.equal(K.precoDaCarta({ prices: { usd: null, usd_foil: '3.00' } }, null), 'US$ 3,00', 'só há foil: vale o foil');
+  assert.equal(K.precoDaCarta({ prices: {} }, TAXAS), null); assert.equal(K.precoDaCarta(null, TAXAS), null);
+});

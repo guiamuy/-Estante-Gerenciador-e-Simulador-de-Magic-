@@ -320,16 +320,120 @@ export async function coletaMtgo({ busca = globalThis.fetch, agora = Date.now(),
 }
 /** Cores e destaque: a Scryfall em lotes de 75 nomes (o limite da /cards/collection). */
 async function dadosDaScryfall(listas, { busca, pausa, log }) {
-  const nomes = [...new Set(listas.flatMap(l => l.entradas.map(e => e.name)))], dados = new Map();
+  return dadosDosNomes([...new Set(listas.flatMap(l => l.entradas.map(e => e.name)))], { busca, pausa, log });
+}
+/** G-248 · o que o catálogo precisa de cada carta: id, cores, raridade, tipo e o preço em dólar da impressão padrão
+    (o normal; sem ele, o foil ou o etched). Lote que falha fica de fora: quem usa trata a carta como sem dados. */
+const usdDaCarta = c => { const p = (c && c.prices) || {}; for (const k of ['usd', 'usd_foil', 'usd_etched']) { const n = Number(p[k]); if (Number.isFinite(n) && n > 0) return n; } return null; };
+export async function dadosDosNomes(nomes, { busca, pausa, log = () => {} }) {
+  const dados = new Map();
   for (let i = 0; i < nomes.length; i += 75) {
     try {
       const r = await enviaJson('https://api.scryfall.com/cards/collection', { identifiers: nomes.slice(i, i + 75).map(name => ({ name })) }, { busca });
-      for (const c of (r && r.data) || []) { const v = { id: c.id, color_identity: c.color_identity || [], rarity: c.rarity, type_line: c.type_line || (c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || '' };
+      for (const c of (r && r.data) || []) { const v = { id: c.id, color_identity: c.color_identity || [], rarity: c.rarity, type_line: c.type_line || (c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || '', usd: usdDaCarta(c) };
         dados.set(String(c.name).toLowerCase(), v); if (c.name.includes(' // ')) dados.set(c.name.split(' // ')[0].toLowerCase(), v); }
     } catch (e) { log(`✗ Scryfall: ${e.message}`); }
     if (pausa) await new Promise(r => setTimeout(r, 120));
   }
   return dados;
+}
+
+/* ---------------- G-248 · nome da lista, evento e valor (relato #15) ----------------
+   As fontes de torneio não dizem o arquétipo: o título era o evento ("5-0 · Modern League") e se repetia. Agora:
+     nome   · o que a lista é. Commander: quem comanda. Outros formatos: as cores + a carta que mais caracteriza a
+              lista entre as do mesmo formato, ou "Tribal de X" quando uma tribo domina as criaturas. É um nome DADO
+              PELO COLETOR a partir das cartas (aproximação declarada), nunca informado pela fonte.
+     evento · onde ela apareceu ("1º · Modern Challenge 16"; produto oficial: tipo e código).
+     valorUsd / semPreco · soma em dólar de todas as cópias (deck, comandante e reserva) e quantas ficaram sem preço.
+   O nome é calculado uma vez por lista (`nv` guarda a versão da regra) para não mudar de um dia para o outro; o valor
+   é refeito a cada coleta e mora só no índice (regravar 2 000 arquivos por dia incharia o ramo). */
+export const NOME_V = 1;
+const CORES_NOME = { '': 'Incolor', W: 'Mono White', U: 'Mono Blue', B: 'Mono Black', R: 'Mono Red', G: 'Mono Green',
+  WU: 'Azorius', UB: 'Dimir', BR: 'Rakdos', RG: 'Gruul', WG: 'Selesnya', WB: 'Orzhov', UR: 'Izzet', BG: 'Golgari', WR: 'Boros', UG: 'Simic',
+  WUB: 'Esper', UBR: 'Grixis', BRG: 'Jund', WRG: 'Naya', WUG: 'Bant', WBG: 'Abzan', WUR: 'Jeskai', UBG: 'Sultai', WBR: 'Mardu', URG: 'Temur', WUBRG: 'Cinco cores' };
+export const nomeDasCores = cores => { const c = [...'WUBRG'].filter(x => String(cores || '').includes(x)).join(''); return CORES_NOME[c] !== undefined ? CORES_NOME[c] : c.length === 4 ? 'Quatro cores' : c; };
+const TRIBOS = { Elf: 'Elfos', Goblin: 'Goblins', Merfolk: 'Tritões', Human: 'Humanos', Zombie: 'Zumbis', Vampire: 'Vampiros', Spirit: 'Espíritos', Faerie: 'Fadas', Sliver: 'Fractius', Dragon: 'Dragões',
+  Wizard: 'Magos', Soldier: 'Soldados', Elemental: 'Elementais', Rat: 'Ratos', Knight: 'Cavaleiros', Angel: 'Anjos', Demon: 'Demônios', Dinosaur: 'Dinossauros', Pirate: 'Piratas', Warrior: 'Guerreiros',
+  Cleric: 'Clérigos', Rogue: 'Ladinos', Ninja: 'Ninjas', Giant: 'Gigantes', Dwarf: 'Anões', Cat: 'Felinos', Bird: 'Aves', Squirrel: 'Esquilos', Rabbit: 'Coelhos', Frog: 'Sapos', Otter: 'Lontras', Mouse: 'Camundongos' };
+const TRIBO_MIN = 16, TRIBO_PARTE = 0.75;
+/** "Yawgmoth, Thran Physician" → "Yawgmoth"; carta de duas faces fica com a da frente. */
+export const nomeCurto = nome => String(nome || '').split(' // ')[0].split(',')[0].trim();
+const frente = tipo => String(tipo || '').split('//')[0];
+const ehTerra = c => /\bLand\b/.test(frente(c && c.type_line));
+const RAR_N = { mythic: 4, rare: 3, uncommon: 2, common: 1 };
+/** Em quantas listas do formato cada carta do principal aparece, no total e por combinação de cores. */
+export function estatisticasDoFormato(listas) {
+  const total = new Map(), porCor = new Map(), nCor = new Map();
+  for (const l of listas) {
+    const cor = l.cores || ''; nCor.set(cor, (nCor.get(cor) || 0) + 1);
+    for (const n of new Set(l.entradas.filter(e => e.zone === 'main').map(e => e.name.toLowerCase()))) { total.set(n, (total.get(n) || 0) + 1); const k = cor + '|' + n; porCor.set(k, (porCor.get(k) || 0) + 1); }
+  }
+  return { total, porCor, nCor };
+}
+/** O nome da lista (ver o cabeçalho). `dados`: nome em minúsculas → carta; `est`: estatisticasDoFormato das listas do mesmo formato. */
+export function nomeDaLista(l, dados, est = null) {
+  const d = n => dados.get(String(n).toLowerCase()) || null;
+  const cmd = (l.comandante || []).filter(Boolean);
+  if (cmd.length === 1) return String(cmd[0]).split(' // ')[0];
+  if (cmd.length > 1) return cmd.slice(0, 2).map(nomeCurto).join(' + ');
+  const magias = l.entradas.filter(e => e.zone === 'main' && d(e.name) && !ehTerra(d(e.name)));
+  if (!magias.length) return null;
+  // tribo: três quartos das criaturas (e ao menos 16 cópias) com o mesmo subtipo
+  const criaturas = magias.filter(e => /\bCreature\b/.test(frente(d(e.name).type_line))), copias = criaturas.reduce((t, e) => t + e.qty, 0), porTribo = new Map();
+  for (const e of criaturas) for (const sub of (frente(d(e.name).type_line).split('—')[1] || '').trim().split(/\s+/).filter(Boolean)) porTribo.set(sub, (porTribo.get(sub) || 0) + e.qty);
+  const [tribo, nTribo] = [...porTribo].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] || [null, 0];
+  if (tribo && nTribo >= TRIBO_MIN && nTribo >= TRIBO_PARTE * copias) return `Tribal de ${TRIBOS[tribo] || tribo}`;
+  // a carta característica: muitas cópias, presente em boa parte das listas destas cores e rara fora delas
+  const cor = l.cores || '';
+  const nota = e => {
+    const n = e.name.toLowerCase(), q = Math.min(4, e.qty);
+    if (!est) return q;
+    const aqui = est.porCor.get(cor + '|' + n) || 1, todas = est.total.get(n) || 1, grupo = est.nCor.get(cor) || 1;
+    // ser própria destas cores pesa mais (ao quadrado) do que estar em todas as listas delas (raiz): a mágica que todo
+    // baralho da cor usa não dá nome a ninguém, e a família menor das mesmas cores não herda o nome da maior
+    return q * (aqui / todas) ** 2 * Math.sqrt(aqui / grupo);
+  };
+  const melhor = magias.slice().sort((a, b) => nota(b) - nota(a) || b.qty - a.qty || (RAR_N[d(b.name).rarity] || 0) - (RAR_N[d(a.name).rarity] || 0) || a.name.localeCompare(b.name))[0];
+  return `${nomeDasCores(cor)} ${nomeCurto(melhor.name)}`;
+}
+/** Soma em dólar de todas as cópias. `null` quando faltam dados das cartas (a Scryfall falhou): quem chama mantém o valor de antes. */
+export function valorDasEntradas(entradas, dados) {
+  let usd = 0, semPreco = 0, comDado = 0;
+  for (const e of entradas) { const c = dados.get(String(e.name).toLowerCase()); if (c) comDado++; if (c && c.usd != null) usd += c.usd * e.qty; else semPreco += e.qty; }
+  return comDado >= COBERTURA_MIN * entradas.length ? { valorUsd: Math.round(usd * 100) / 100, semPreco } : null;
+}
+/** Um lote da Scryfall que falha deixa um buraco de até 75 cartas: com menos de nove em dez cartas da lista com dado,
+    o coletor não dá nome nem valor nesta coleta (fica o de antes) e tenta de novo na próxima. */
+const COBERTURA_MIN = 0.9;
+const cobre = (entradas, dados) => entradas.filter(e => dados.has(String(e.name).toLowerCase())).length >= COBERTURA_MIN * entradas.length;
+const deTorneio = l => l.fonte === FONTE_TOPDECK.id || l.fonte === FONTE_MTGO.id;
+/** Onde a lista apareceu. Lista de torneio publicada antes desta leva tinha o evento no lugar do nome. */
+export function eventoDe(l) {
+  if (l.evento) return String(l.evento);
+  if (deTorneio(l)) return l.nv ? [l.posicao ? `${l.posicao}º` : '', l.torneio].filter(Boolean).join(' · ') : String(l.nome || '');
+  return [l.tipo, l.codigo].filter(Boolean).join(' · ');
+}
+/** Passa por todas as listas do índice: dá o evento, o nome (uma vez) e o valor (sempre). Lê as cartas dos arquivos do
+    ramo; arquivo ausente ou ilegível deixa o resumo como está. Regrava o arquivo só quando nome ou evento mudam. */
+export async function completa(pasta, resumos, { busca = globalThis.fetch, pausa = 150, log = () => {} } = {}) {
+  const cheias = new Map();
+  for (const r of resumos) { const l = await leJson(join(pasta, 'listas', `${r.id}.json`)); if (l && Array.isArray(l.entradas) && l.entradas.every(e => e && typeof e.name === 'string' && Number.isInteger(e.qty))) cheias.set(r.id, l); }
+  const dados = await dadosDosNomes([...new Set([...cheias.values()].flatMap(l => l.entradas.map(e => e.name)))], { busca, pausa, log });
+  const porFormato = new Map();
+  for (const r of resumos) if (deTorneio(r) && cheias.has(r.id) && !(r.comandante || []).length) { if (!porFormato.has(r.formato)) porFormato.set(r.formato, []); porFormato.get(r.formato).push({ cores: r.cores, entradas: cheias.get(r.id).entradas }); }
+  const est = new Map([...porFormato].map(([f, ls]) => [f, estatisticasDoFormato(ls)]));
+  let nomeadas = 0, comValor = 0, regravadas = 0;
+  const out = [];
+  for (const r of resumos) {
+    const l = cheias.get(r.id); if (!l) { out.push(r); continue; }
+    const novo = { ...r, evento: eventoDe(r) };
+    if (deTorneio(r) && r.nv !== NOME_V && cobre(l.entradas, dados)) { const n = nomeDaLista({ ...r, entradas: l.entradas }, dados, est.get(r.formato) || null); if (n) { novo.nome = n; novo.nv = NOME_V; nomeadas++; } }
+    const v = valorDasEntradas(l.entradas, dados);
+    if (v) { novo.valorUsd = v.valorUsd; novo.semPreco = v.semPreco; comValor++; }
+    if (l.nome !== novo.nome || l.evento !== novo.evento) { await writeFile(join(pasta, 'listas', `${r.id}.json`), JSON.stringify({ ...l, nome: novo.nome, evento: novo.evento }) + '\n'); regravadas++; }
+    out.push(novo);
+  }
+  return { resumos: out, nomeadas, comValor, regravadas, cartas: dados.size };
 }
 
 /* ---------------- G-242 · catálogo de fichas (relato #9) ----------------
@@ -390,7 +494,7 @@ async function baixa(url, { busca, prazo = 30000 }) {
   } finally { clearTimeout(t); }
 }
 /** Lê o que está publicado em `pasta`, baixa as listas novas e grava. Com `chaveTopdeck`, renova as de torneio. */
-export async function publica(pasta, { busca = globalThis.fetch, agora = Date.now(), max = MAX_POR_COLETA, pausa = 150, log = () => {}, chaveTopdeck = '', mtgo = true, fichas = true } = {}) {
+export async function publica(pasta, { busca = globalThis.fetch, agora = Date.now(), max = MAX_POR_COLETA, pausa = 150, log = () => {}, chaveTopdeck = '', mtgo = true, fichas = true, completar = true } = {}) {
   await mkdir(join(pasta, 'listas'), { recursive: true });
   const antes = await leJson(join(pasta, 'indice.json'));
   const anteriores = antes && Array.isArray(antes.listas) ? antes.listas.slice() : [];
@@ -415,7 +519,9 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
     const r = await coletaTopdeck(chaveTopdeck, { busca, log, pausa: pausa ? 700 : 0 });
     falhas += r.falhas; relatorio = r.porFormato;
     const porId = new Map(td.map(l => [l.id, l]));
-    for (const l of r.listas) { await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); if (!porId.has(l.id)) novasTd++; porId.set(l.id, resumoDaLista(l)); }
+    // G-248 · lista que já tinha nome dado fica com ele (e com o evento): a fonte devolve a mesma lista a cada coleta
+    for (const l0 of r.listas) { const ant = porId.get(l0.id), l = ant && ant.nv ? { ...l0, nome: ant.nome, evento: ant.evento } : l0;
+      await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); if (!ant) novasTd++; porId.set(l.id, { ...resumoDaLista(l), ...(ant && ant.nv ? { evento: ant.evento, nv: ant.nv } : {}) }); }
     td = [...porId.values()].filter(l => (l.data || '') >= limite);
   }
   // G-241 · Magic Online: só os eventos novos; as listas de antes ficam enquanto estão na janela
@@ -434,11 +540,15 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
   // com a chave, as listas de torneio foram regravadas (podem ter mudado por dentro): o índice é regravado também
   const mesmasTd = !chaveTopdeck && tdAntes.length === td.length && tdAntes.every(l => td.some(x => x.id === l.id));
   if (relatorio || relatorioMo) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio, mtgo: relatorioMo }, null, 1) + '\n');
-  if (!novas && mesmasTd && mesmasMo && antes && antes.pendentes === pendentes) return { gravou: fichasR.gravou, novas, novasTd, novasMo, fichas: fichasR, falhas, indice: antes };
-  const indice = montaIndice([...resumos, ...td, ...mo], { agora, pendentes });
+  // G-248 · nome, evento e valor de todas as listas (o valor muda com o preço do dia: o índice é regravado quando muda)
+  let todas2 = [...resumos, ...td, ...mo], comp = null;
+  if (completar) { try { comp = await completa(pasta, todas2, { busca, pausa, log }); todas2 = comp.resumos; } catch (e) { falhas++; log(`✗ nomes e valores: ${e.message}`); } }
+  const mesmoConteudo = comp ? JSON.stringify(montaIndice(todas2, { agora: 0, pendentes }).listas) === JSON.stringify(montaIndice(anteriores, { agora: 0, pendentes }).listas) : true;
+  if (!novas && mesmasTd && mesmasMo && mesmoConteudo && antes && antes.pendentes === pendentes) return { gravou: fichasR.gravou, novas, novasTd, novasMo, fichas: fichasR, falhas, indice: antes, completa: comp };
+  const indice = montaIndice(todas2, { agora, pendentes });
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice) + '\n');
 
-  return { gravou: true, novas, novasTd, novasMo, fichas: fichasR, falhas, indice };
+  return { gravou: true, novas, novasTd, novasMo, fichas: fichasR, falhas, indice, completa: comp };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -449,6 +559,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const r = await publica(pasta, { log: m => console.log(m), chaveTopdeck });
   console.log(r.gravou ? `gravado: ${r.indice.total} lista(s) · ${r.novas} oficial(is) nova(s) · ${r.novasTd || 0} de torneio nova(s) · ${r.novasMo || 0} do Magic Online nova(s) · ${r.falhas} falha(s) · ${r.indice.pendentes} para a próxima coleta` : 'sem mudança: nada gravado');
   for (const f of r.indice.formatos || []) console.log(`  ${f.nome}: ${f.listas}`);
+  if (r.completa) console.log(`  nomes dados: ${r.completa.nomeadas} · com valor: ${r.completa.comValor} · arquivos regravados: ${r.completa.regravadas} · cartas consultadas: ${r.completa.cartas}`);
   if (r.fichas) console.log(`  fichas: ${r.fichas.total} tipo(s)${r.fichas.gravou ? ' (renovadas)' : ''}`);
   // só acusa quando nada veio de nenhuma fonte (uma fonte de torneio fora do ar não derruba a coleta)
   if (r.falhas && !r.novas && !r.novasTd && !r.novasMo && !r.gravou) process.exit(1);

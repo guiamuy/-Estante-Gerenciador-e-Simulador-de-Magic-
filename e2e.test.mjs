@@ -8231,6 +8231,101 @@ test('e2e · Z3 detalhe da lista do catálogo: o cartão abre a lista com arte, 
   assert.deepEqual(errors.filter(e => !/404/.test(e)), []);
 });
 
+/* ---------------- G-248 · relato #15: nome da lista, evento à parte e valor ---------------- */
+test('e2e · G-248 catálogo: o título é o nome da lista, o evento vem embaixo com quem jogou, o valor aparece no cartão; no detalhe, valor da lista, do deck e da reserva e o preço de cada carta; índice antigo desenha como antes', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const id = n => `${n.toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`;
+  const LISTAS = [
+    { id: 'mtgo-modern-challenge-16-1', nome: 'Izzet Murktide Regent', evento: '1º · Modern Challenge 16', nv: 1, formato: 'modern', tipo: 'Desafio · 1º de 29', data: '2026-10-10', fonte: 'mtgo', cores: 'UR', destaque: 'Delver of Secrets', destaqueId: id(1), comandante: [], cartas: 60, reserva: 2, jogador: 'Venom01', posicao: 1, jogadores: 29, torneio: 'Modern Challenge 16', valorUsd: 412.35, semPreco: 2 },
+    { id: 'mtgo-modern-league-7', nome: 'Izzet Murktide Regent', evento: '5-0 · Modern League', nv: 1, formato: 'modern', tipo: 'Liga · 5-0', data: '2026-10-09', fonte: 'mtgo', cores: 'UR', destaque: 'Delver of Secrets', destaqueId: id(2), comandante: [], cartas: 60, reserva: 15, jogador: 'outro_piloto', torneio: 'Modern League', valorUsd: 398 },
+    { id: 'topdeck-ap9-1', nome: 'Kraum + Tymna the Weaver', evento: '1º · AP9 x Dice City cEDH 1k com um nome de torneio bem comprido para cortar', nv: 1, formato: 'commander', tipo: 'Torneio · 1º de 21', data: '2026-10-08', fonte: 'topdeck', cores: 'WUBR', destaque: 'Kraum, Ludevic\'s Opus', destaqueId: id(3), comandante: ['Kraum, Ludevic\'s Opus', 'Tymna the Weaver'], cartas: 100, jogador: 'Simon Bigger', posicao: 1, jogadores: 21, torneio: 'AP9', valorUsd: 12345.6 },
+    { id: 'mtgjson-anjos-fdc', nome: 'Calling All Angels', evento: 'Commander Deck · FDC', formato: 'commander', tipo: 'Commander Deck', data: '2026-10-02', codigo: 'FDC', fonte: 'mtgjson', cores: 'W', destaque: 'Giada, Font of Hope', destaqueId: id(4), comandante: ['Giada, Font of Hope'], cartas: 100, valorUsd: 61.2 },
+    // índice de antes desta leva: o título ainda é o evento, sem valor
+    { id: 'mtgo-legacy-league-3', nome: '5-0 · Legacy League', formato: 'legacy', tipo: 'Liga · 5-0', data: '2026-10-07', fonte: 'mtgo', cores: 'BG', destaque: 'X', destaqueId: null, comandante: [], cartas: 60, jogador: 'antigo', torneio: 'Legacy League' },
+    // sonda: nome e evento vêm de terceiros e chegam como texto
+    { id: 'mtgo-sonda-1', nome: 'Mono Red <img src=x onerror="window.__xss248=1">', evento: '<script>window.__xss248=2</script> Liga', nv: 1, formato: 'pauper', tipo: 'Liga', data: '2026-10-06', fonte: 'mtgo', cores: 'R', destaque: 'X', destaqueId: null, comandante: [], cartas: 60, jogador: 'x', valorUsd: 'muito' }];
+  const INDICE = { versao: 1, geradoEm: '2026-10-10T00:00:00.000Z', fontes: [], formatos: [], total: LISTAS.length, pendentes: 0, listas: LISTAS };
+  const ENTRADAS = [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }, { name: 'Counterspell', qty: 4, zone: 'main' }, { name: 'Island', qty: 18, zone: 'main' }, { name: 'Preordain', qty: 2, zone: 'side' }];
+  const PRECOS = { 'delver of secrets': '2.00', 'counterspell': '1.50', 'preordain': '0.50' }; // a Island fica sem preço
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }));
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\//, r => { const u = r.request().url();
+    if (u.endsWith('indice.json')) return r.fulfill({ json: INDICE, headers: { 'access-control-allow-origin': '*' } });
+    const l = LISTAS.find(x => x.id === u.split('/listas/')[1].replace('.json', '')); if (!l) return r.fulfill({ status: 404, body: '' });
+    return r.fulfill({ json: { ...l, descricao: '1º lugar entre 29 jogadores no Modern Challenge 16 do Magic Online, em 10/10/2026. Lista de Venom01.', entradas: ENTRADAS }, headers: { 'access-control-allow-origin': '*' } }); });
+  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;
+    return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean).map(c => ({ ...c, prices: { usd: PRECOS[c.name.toLowerCase()] || null } })), not_found: ids.filter(i => !DB[i.name.toLowerCase()]) }, headers: { 'access-control-allow-origin': '*' } }); });
+  await page.context().route(/api\.frankfurter\.dev/, r => r.fulfill({ json: { base: 'USD', rates: { BRL: 5, EUR: 0.9 } }, headers: { 'access-control-allow-origin': '*' } }));
+
+  // 1 · a listagem
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
+  const cartao = sel => page.locator(`.cat-item[data-id="${sel}"]`);
+  await page.waitForFunction(() => /R\$/.test((document.querySelector('.cat-item__valor') || {}).textContent || ''), null, { timeout: 8000 });
+  const a = cartao('mtgo-modern-challenge-16-1');
+  assert.equal(await a.locator('.cat-item__nome').innerText(), 'Izzet Murktide Regent', 'o título é o nome da lista');
+  assert.equal(await a.locator('.cat-item__onde').innerText(), '1º · Modern Challenge 16'); assert.equal(await a.locator('.cat-item__sub').innerText(), 'Venom01 · 10/10/2026');
+  assert.equal(await a.locator('.cat-item__valor').innerText(), 'R$ 2.061,75'); assert.equal(await a.locator('.cat-item__valor').getAttribute('data-usd'), '412.35');
+  assert.equal(await a.locator('.cat-item__valor').getAttribute('aria-label'), 'Valor estimado da lista: R$ 2.061,75');
+  assert.equal(await cartao('mtgo-modern-league-7').locator('.cat-item__onde').innerText(), '5-0 · Modern League', 'mesmo nome, outro evento: é pelo evento que se distinguem');
+  const cedh = cartao('topdeck-ap9-1');
+  assert.equal(await cedh.locator('.cat-item__nome').innerText(), 'Kraum + Tymna the Weaver'); assert.equal(await cedh.locator('.cat-item__sub').innerText(), 'Simon Bigger · 08/10/2026');
+  assert.equal(await cedh.locator('.cat-item__valor').innerText(), 'R$ 61.728,00');
+  const cx = await cedh.locator('.cat-item__onde').evaluate(el => ({ corta: el.scrollWidth > el.clientWidth, dentro: el.getBoundingClientRect().right <= el.closest('.cat-item__corpo').getBoundingClientRect().right + 0.5 }));
+  assert.equal(await cedh.locator('.cat-item__valor').evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, 'o valor nunca corta');
+  assert.deepEqual(cx, { corta: true, dentro: true }, 'evento comprido corta com reticências, dentro do cartão');
+  const of = cartao('mtgjson-anjos-fdc');
+  assert.equal(await of.locator('.cat-item__onde').innerText(), 'Commander Deck · FDC'); assert.equal(await of.locator('.cat-item__sub').innerText(), 'Giada, Font of Hope'); assert.equal(await of.locator('.cat-item__sub').getAttribute('lang'), 'en');
+  const velho = cartao('mtgo-legacy-league-3');
+  assert.equal(await velho.locator('.cat-item__nome').innerText(), '5-0 · Legacy League'); assert.equal(await velho.locator('.cat-item__evento').count(), 0); assert.equal(await velho.locator('.cat-item__valor').count(), 0);
+  assert.equal(await velho.locator('.cat-item__sub').innerText(), 'antigo · 07/10/2026', 'índice antigo desenha como antes');
+  const sonda = cartao('mtgo-sonda-1');
+  assert.match(await sonda.locator('.cat-item__nome').innerText(), /<img src=x/); assert.match(await sonda.locator('.cat-item__onde').innerText(), /<script>/); assert.equal(await sonda.locator('.cat-item__valor').count(), 0, 'valor que não é número não aparece');
+  assert.equal(await page.evaluate(() => window.__xss248), undefined, 'nome e evento de terceiro são texto');
+  for (const c of [a, cedh, of, velho]) assert.ok((await c.locator('.cat-item__abrir').boundingBox()).height >= 44);
+  await emTodasAsMedidas(page, 'G-248 listagem');
+  if (process.env.CAPTURA) await page.screenshot({ path: process.env.CAPTURA + '/g248-lista.png', fullPage: false, clip: await page.locator('#catalogo-lista').evaluate(el => { el.scrollIntoView(); const b = el.getBoundingClientRect(); return { x: 0, y: Math.max(0, b.top - 8), width: 360, height: 700 }; }) });
+  // a busca acha pelo evento
+  await page.fill('#catalogo-busca', 'challenge'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 1);
+  assert.equal(await page.locator('#catalogo-lista .cat-item').getAttribute('data-id'), 'mtgo-modern-challenge-16-1');
+  await page.fill('#catalogo-busca', 'murktide'); await page.waitForFunction(() => document.querySelectorAll('#catalogo-lista .cat-item').length === 2);
+  // duas listas com o mesmo nome: adicionar uma não marca a outra como "já na estante"
+  await page.click('[data-catalogo-add="mtgo-modern-challenge-16-1"]');
+  await page.waitForSelector('.cat-item[data-id="mtgo-modern-challenge-16-1"] .deck-item__ja');
+  assert.equal(await cartao('mtgo-modern-league-7').locator('.deck-item__ja').count(), 0); assert.equal(await page.locator('[data-catalogo-add="mtgo-modern-league-7"]').count(), 1);
+
+  // 2 · o detalhe
+  await a.locator('.cat-item__abrir').click(); await page.waitForSelector('#catd-valor-tudo');
+  assert.equal(await page.locator('#catd-nome').innerText(), 'Izzet Murktide Regent');
+  assert.equal(await page.locator('#catd-evento').innerText(), '1º · Modern Challenge 16 · Venom01 · 10/10/2026');
+  await page.waitForFunction(() => /R\$/.test(document.querySelector('#catd-valor-tudo .ds-valor__principal').textContent));
+  const valor = sel => page.locator(sel).evaluate(el => ({ usd: el.dataset.usd, sem: el.dataset.semPreco, principal: el.querySelector('.ds-valor__principal').textContent, outras: el.querySelector('.ds-valor__outras').textContent }));
+  assert.deepEqual(await valor('#catd-valor-tudo'), { usd: '15.00', sem: '18', principal: 'R$ 75,00', outras: 'US$ 15,00 · € 13,50' }, '4×2 + 4×1,5 + 2×0,5');
+  assert.deepEqual(await valor('#catd-valor-deck'), { usd: '14.00', sem: '18', principal: 'R$ 70,00', outras: 'US$ 14,00 · € 12,60' });
+  assert.deepEqual(await valor('#catd-valor-reserva'), { usd: '1.00', sem: '0', principal: 'R$ 5,00', outras: 'US$ 1,00 · € 0,90' });
+  assert.match(await page.locator('#catd-valor-nota').innerText(), /18 cópia\(s\) sem preço/);
+  // o preço de cada carta, na linha; carta sem preço fica sem número
+  await page.click('#catd-visoes [data-visao="lista"]');
+  assert.equal(await page.locator('.catd-linha[data-nome="Delver of Secrets"] .catd-linha__preco').first().innerText(), 'R$ 10,00');
+  assert.equal(await page.locator('.catd-linha[data-nome="Counterspell"] .catd-linha__preco').first().innerText(), 'R$ 7,50');
+  assert.equal(await page.locator('.catd-linha[data-nome="Island"] .catd-linha__preco').count(), 0);
+  assert.match(await page.locator('.catd-linha[data-nome="Delver of Secrets"]').first().getAttribute('aria-label'), /4 Delver of Secrets, R\$ 10,00 cada: abrir a carta/);
+  assert.ok((await page.locator('.catd-linha[data-nome="Delver of Secrets"]').first().boundingBox()).height >= 44);
+  await emTodasAsMedidas(page, 'G-248 detalhe lista');
+  if (process.env.CAPTURA) await page.screenshot({ path: process.env.CAPTURA + '/g248-detalhe.png', fullPage: true });
+  await page.click('#catd-visoes [data-visao="agregado"]'); assert.equal(await page.locator('.catd-linha[data-nome="Preordain"] .catd-linha__preco').innerText(), 'R$ 2,50');
+  await page.click('#catd-visoes [data-visao="galeria"]'); await page.waitForSelector('#catd-galeria');
+  assert.equal(await page.locator('.catd-slot[data-nome="Delver of Secrets"] .catd-slot__preco').innerText(), 'R$ 10,00'); assert.equal(await page.locator('.catd-slot[data-nome="Island"] .catd-slot__preco').count(), 0);
+  await emTodasAsMedidas(page, 'G-248 detalhe galeria');
+  if (process.env.CAPTURA) await page.screenshot({ path: process.env.CAPTURA + '/g248-galeria.png', fullPage: true });
+  await page.click('#catd-visoes [data-visao="lista"]');
+  // 3 · lista oficial: sem reserva, uma linha só de valor; e o comandante continua no cabeçalho
+  await page.goto(base + '#/listas/catalogo?id=mtgjson-anjos-fdc'); await page.waitForSelector('#catd-valor-tudo');
+  assert.equal(await page.locator('#catd-evento').innerText(), 'Commander Deck · FDC'); assert.equal(await page.locator('.catd__comandante').innerText(), 'Giada, Font of Hope');
+  assert.equal(await page.locator('#catd-valor-deck').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Z4 · jogar a partir do catálogo ---------------- */
 test('e2e · Z4 jogar a partir do catálogo: Jogar ao lado de Adicionar traz a lista para a estante (uma vez só) e abre o preparo com ela escolhida; depois o detalhe diz que ela está na estante e fica guardada', { skip }, async t => {
   const { page, errors, base } = await open(t);
