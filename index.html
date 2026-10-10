@@ -5682,7 +5682,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito || sc.permiteConjurar))) return errs.concat('script sem efeitos');
   // M-246 · carta cujo texto não muda nada na mesa de dois jogadores ("each other opponent"): o motivo é obrigatório e exclui efeitos
   if (sc && sc.semEfeito != null && (typeof sc.semEfeito !== 'string' || !sc.semEfeito.trim() || (sc.effects || []).length || abilities.length)) errs.push('"semEfeito" precisa do motivo e não convive com efeitos ou habilidades');
   // M9 · habilidades da permanente
@@ -5810,6 +5810,12 @@ function validateScript(sc) {
       if (cor !== 'chosen' && !'WUBRG'.includes(cor)) errs.push('bônus: proteção precisa ser "chosen" ou cores WUBRG');
     if (g.produces && !Array.isArray(g.produces)) errs.push('bônus: produces precisa ser lista de opções de mana');
     if (g.extraMana && !(g.extraMana === 'chosen' || Array.isArray(g.extraMana))) errs.push('bônus: extraMana precisa ser "chosen" ou lista de cores');
+  }
+  // M-256 · permissão de conjurar de outra zona (Lurrus): de qual zona, que cartas (seletor), quantas por turno, só no seu turno
+  if (sc && sc.permiteConjurar != null) {
+    const pc = sc.permiteConjurar;
+    if (!pc || pc.de !== 'graveyard') errs.push('permiteConjurar: só do cemitério ("de": "graveyard")');
+    else { errs.push(...seletorErros(pc.filtro || {}, 'permiteConjurar: filtro')); if (pc.porTurno !== 1) errs.push('permiteConjurar: porTurno é 1'); if (pc.noSeuTurno != null && pc.noSeuTurno !== true) errs.push('permiteConjurar: noSeuTurno só vale como true'); }
   }
   // S19 · produção de mana declarada no script (Priest of Titania, Battlement)
   for (const opt of (sc && sc.produces) || []) {
@@ -6542,6 +6548,10 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'activated', cost: { mana: '{W/P}', tap: true }, // "{W/P}, {T}: Choose a color. Another target creature you control gains toxic 1 and hexproof from that color until end of turn. It can't be blocked by creatures of that color this turn."
       effects: [{ do: 'continuo', target: 'other-creature-you-control', toxico: 1 }, { do: 'resistencia_cor', target: 'first-target' }, { do: 'imbloqueavel_cor', target: 'first-target' }] }],
     note: 'a cor é escolhida ao ativar, como nas outras habilidades de cor escolhida do motor (Mother of Runes); a regra pede a escolha na resolução',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-256 · "Lifelink · During each of your turns, you may cast one permanent spell with mana value 2 or less from your graveyard."
+  // (texto de 05/10/2026; segunda fonte de 10/10/2026). Companheiro: o motor já trata a zona de companheiro (Leva 61).
+  { name: 'Lurrus of the Dream-Den', permiteConjurar: { de: 'graveyard', filtro: { permanente: true, mvMax: 2 }, porTurno: 1, noSeuTurno: true },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
@@ -13521,6 +13531,7 @@ function createGame(setup) {
     if (sc.aura) f.script.aura = sc.aura;
     if (sc.equip) f.script.equip = sc.equip;
     if (sc.grants) f.script.grants = sc.grants;
+    if (sc.permiteConjurar) f.script.permiteConjurar = sc.permiteConjurar; // M-256
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -13742,7 +13753,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; // M-255 · 400.7
+  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.permissaoUsada; // M-255/M-256 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -13783,6 +13794,12 @@ function draw(s, p, n = 1) {
 
 /* ---------------- consultas ---------------- */
 const alive = s => s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
+/** M-256 · quem deixa `p` conjurar do cemitério agora (Lurrus): permanente sua com a permissão, que ainda não a usou neste turno. */
+function permissoesDoCemiterio(s, p) {
+  return battlefield(s).filter(o => o.controller === p && !o.faceDown && !semImpressas(s, o) && ((s.facts[o.name] || {}).script || {}).permiteConjurar
+    && (!s.facts[o.name].script.permiteConjurar.noSeuTurno || s.turn.active === p) && o.permissaoUsada !== s.turn.number);
+}
+const permissaoServe = (s, p, perm, carta) => !!perm && selCasa(s, p, carta, s.facts[perm.name].script.permiteConjurar.filtro || {}, perm.oid, { mira: false, src: perm });
 /** M-253 · 702.164 · tóxico N (instâncias somam); some com as habilidades impressas e virada para baixo. */
 const toxicoDe = (s, o) => !o ? 0 : (o.tempToxico || 0) + (o.faceDown || semImpressas(s, o) ? 0 : ((((s.facts[o.name] || {}).script || {}).self || {}).toxic || 0)); // M-255 · o concedido até o fim do turno soma
 /** M-253 · 122.1f · marcadores de veneno no jogador (o campo só existe depois do primeiro). */
@@ -16670,7 +16687,7 @@ const HANDLERS = {
   cast(s, a) {
     noPending(s); holder(s, a.p); semFracao(s);
     const o = s.objects[a.oid];
-    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace) && o && o.zone === 'graveyard';
+    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.permissao != null) && o && o.zone === 'graveyard';
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
@@ -16679,6 +16696,11 @@ const HANDLERS = {
     if (!o || o.owner !== a.p || !(o.zone === 'hand' || fromGraveyard || fromPlot || fromExile || (o.zone === 'command' && o.commander))) throw new RuleError('objeto', 'só conjura da mão ou da zona de comando');
     if (a.flashback && !flashbackOf(s, o)) throw new RuleError('lampejo', 'esta carta não tem lampejo do passado');
     if (a.retrace && !(s.facts[o.name].script || {}).retrace) throw new RuleError('retraçar', 'esta carta não tem retraçar'); // M-222 · 702.81
+    if (a.permissao != null) { // M-256 · conjurar do cemitério pela permissão de uma permanente (uma vez por turno, por permanente)
+      const perm = permissoesDoCemiterio(s, a.p).find(x => x.oid === a.permissao);
+      if (!perm || !permissaoServe(s, a.p, perm, o) || s.facts[o.name].types.includes('land')) throw new RuleError('permissão', 'nenhuma permanente sua deixa conjurar esta carta do cemitério agora');
+      perm.permissaoUsada = s.turn.number;
+    }
     if (a.escape && !escapeOf(s, o)) throw new RuleError('fuga', 'esta carta não tem fuga');
     if (a.disturb && !disturbOf(s, o)) throw new RuleError('disturb', 'esta carta não tem disturb');
     if (a.omen && !omenOf(s, o)) throw new RuleError('presságio', 'esta carta não tem presságio');
@@ -17662,6 +17684,14 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const terrenos = s.zones[p].hand.filter(x => (s.facts[s.objects[x].name].types || []).includes('land')).slice(0, LIMITE_PAGAMENTOS);
     for (const l of terrenos) casts(o).forEach(x => out.push({ ...x, retrace: true, pay: { retrace: l } }));
   }
+  // M-256 · permissão de conjurar do cemitério (Lurrus: uma mágica de permanente de valor 2 ou menos por turno, no seu turno)
+  { const perms = permissoesDoCemiterio(s, p);
+    if (perms.length) for (const oid of s.zones[p].graveyard) {
+      const o = s.objects[oid], f = s.facts[o.name]; if (f.types.includes('land')) continue;
+      const perm = perms.find(x => permissaoServe(s, p, x, o)); if (!perm) continue;
+      if (!(canSorcery || !isSorcerySpeed(f)) || !payable(o, castExtra(s, p, o, 0))) continue;
+      casts(o).forEach(x => out.push({ ...x, permissao: perm.oid }));
+    } }
   // S48 · fuga: conjura do cemitério e a carta fica em jogo (Sentinel's Eyes)
   for (const oid of s.zones[p].graveyard) {
     const o = s.objects[oid], f = s.facts[o.name];
@@ -19535,7 +19565,7 @@ function describe(before, a, events, after) {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', ');
       // Leva 121 · carta conjurada virada para baixo não diz o nome (708.2: é informação oculta)
       if (a.faceDown) { L.push(`${P} conjurou uma criatura virada para baixo`); break; }
-      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.retrace ? ' (retraçar)' : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
+      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.retrace ? ' (retraçar)' : a.permissao != null ? ` (do cemitério, por ${nameOf(before, a.permissao)})` : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
       // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
       L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
@@ -22227,7 +22257,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (a.kick ? (a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1
           + (a.vida != null ? (a.vida ? ` · pagando ${2 * a.vida} de vida` : ' · pagando com mana') : '') // CR2c.4 · phyrexiano

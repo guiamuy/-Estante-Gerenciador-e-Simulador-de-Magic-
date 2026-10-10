@@ -3162,6 +3162,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe: nenhuma habilidade existente tinha phyrexiano.
 - **Próximo:** M-256 — Lurrus of the Dream-Den (conjurar do cemitério uma permanente de valor 2 ou menos por turno; Companheiro) e Priest of Fell Rites (desenterrar, 702.84).
 
+**M-256 · R11 · Permissão de conjurar do cemitério: Lurrus of the Dream-Den** ✅ (leva M-256, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Regra (601.2, 400.7):** script `permiteConjurar: { de: 'graveyard', filtro: <seletor>, porTurno: 1, noSeuTurno }` numa permanente: a mesa oferece conjurar do cemitério as cartas que o filtro aceita, pagando o custo e respeitando o tempo da mágica; a permissão gasta fica marcada na permanente pelo turno, e a permanente que sai e volta é outra (pode usar de novo). Terreno não entra (é jogado, não conjurado). O botão diz "Conjurar do cemitério (Lurrus of the Dream-Den)" e o registro diz por quem.
+- **Carta coberta (completa):** Lurrus of the Dream-Den (vínculo com a vida vem do texto).
+- **Fora (montagem, não partida):** a condição de Companheiro da Lurrus ("toda permanente do baralho inicial com valor 2 ou menos") não é conferida ao definir a companheira — nas listas de Commander ela está no baralho, não como companheira.
+- **Medição:** Killian 89% → **90%** (completo 91 · parcial 6 · manual 4).
+- **Golden:** idênticas, sem regravar. Versão não sobe (carta sem script antes).
+- **Próximo:** M-257 — desenterrar (702.84): Priest of Fell Rites (habilidade ativada do cemitério, ímpeto, exílio no próximo passo final ou ao sair do campo).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
