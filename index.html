@@ -5239,6 +5239,7 @@ const EFFECTS = {
   prevenir: { fields: [], targets: ['self-source', 'any', 'creature', 'creature-you-control', 'player', 'opponent'] },
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
+  desenterrar: { fields: [], targets: ['self'] }, // M-256 · resolução do desenterrar (702.84a)
   reflexive: { fields: [], targets: ['self'] },
   // CR2b.5 · "…unless that player pays {N}": aquele jogador decide; se não pagar, os efeitos de dentro acontecem
   unless_pays: { fields: [], targets: ['that-player'] },
@@ -5785,6 +5786,7 @@ function validateScript(sc) {
   if (sc && sc.omen && !sc.omen.mana) errs.push('presságio sem custo');
   if (sc && sc.cycling && !sc.cycling.mana) errs.push('ciclar sem custo');
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
+  if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   // S34 · tempestade, conceder e metamorfo
   if (sc && sc.storm != null && sc.storm !== true) errs.push('tempestade é uma marca, sem valor');
   if (sc && sc.changeling != null && sc.changeling !== true) errs.push('metamorfo é uma marca, sem valor');
@@ -6565,7 +6567,8 @@ const RAW_SCRIPTS = [
     example: { target: 'own-graveyard-creature', expect: { reanimated: true } } },
   { name: 'Ascend from Avernus', effects: [{ do: 'reanimate_all', types: ['creature', 'planeswalker'], mvMax: { per: 'x' } }, { do: 'exile_self' }],
     example: { target: 'none', expect: { exiled: true } } },
-  { name: 'Priest of Fell Rites', covers: 'partial', note: 'falta o desenterrar (Unearth {3}{W}{B}, 702.84): pede efeito de substituição (CR2e)',
+  // M-257 · "Unearth {3}{W}{B}" (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Priest of Fell Rites', unearth: { mana: '{3}{W}{B}' },
     abilities: [{ kind: 'activated', cost: { tap: true, life: 3, sacrifice: true }, sorceryOnly: true, effects: [{ do: 'reanimate', target: 'creature-in-your-graveyard' }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // CR2c.4 · texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026)
@@ -13546,6 +13549,7 @@ function createGame(setup) {
     if (sc.equip) f.script.equip = sc.equip;
     if (sc.grants) f.script.grants = sc.grants;
     if (sc.permiteConjurar) f.script.permiteConjurar = sc.permiteConjurar; // M-256
+    if (sc.unearth) f.script.unearth = sc.unearth; // M-257
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -13682,6 +13686,7 @@ function substituicoesPara(s, o, fromZone) {
 /** 614.6 · "se fosse para X, vai para Y em vez disso": a primeira substituição que casa (616: aqui sem escolha de ordem). */
 function destinoSubstituido(s, o, fromZone, to) {
   if (to === 'stack') return to;
+  if (o.desenterrada && fromZone === 'battlefield' && to !== 'exile') return 'exile'; // M-257 · 702.84a "if it would leave the battlefield"
   const sc = s.facts[o.name].script;
   if (!sc && !battlefield(s).length) return to;
   for (const r of substituicoesPara(s, o, fromZone).sub) if (r.quando.para === to && (r.quando.de == null || r.quando.de === fromZone)) return r.em.para;
@@ -13767,7 +13772,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.permissaoUsada; // M-255/M-256 · 400.7
+  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -15402,6 +15407,15 @@ function applyEffect(s, src, eff, tgt, events) {
       s.unlessChain = { rest: ordem, amount: amountOf(s, src, eff.amount), cost: eff.cost || {}, name: src.name };
       continueUnless(s, events);
       break;
+    }
+    case 'desenterrar': { // M-257 · volta ao campo com ímpeto; exilada no próximo passo final; se fosse sair do campo, exilada no lugar
+      const carta = s.objects[src.ability ? src.source : src.oid];
+      if (!carta || carta.zone !== 'graveyard') { note({ failed: true }); break; }
+      moveObject(s, carta.oid, 'battlefield'); carta.controller = ctrl; carta.desenterrada = true;
+      aplicaTemporario(s, carta, { palavras: ['haste'], ate: { enquanto: 'controlar-fonte' } }, ctrl, carta);
+      (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: ctrl, jogador: ctrl, objeto: { oid: carta.oid, z: carta.zc || 0 },
+        name: carta.name, source: carta.oid, effects: [{ do: 'mover', target: 'delayed-object', para: 'exile' }] });
+      note({ target: carta.name }); break;
     }
     case 'delayed': { // CR 603.7 · gatilho atrasado: fica guardado até o momento; quem controla é quem controlava a mágica ou habilidade (603.7e)
       (s.atrasados = s.atrasados || []).push({ when: eff.when, turno: s.turn.number, controller: ctrl, jogador: tgt && tgt.player != null ? tgt.player : ctrl,
@@ -17182,6 +17196,16 @@ const HANDLERS = {
     s.objects[a.oid].plotted = turno;
     s.turn.passes = 0;
   },
+  unearth(s, a) { // M-257 · 702.84a · "Return this card from your graveyard to the battlefield…": vai à pilha (pode ser respondido)
+    noPending(s); holder(s, a.p);
+    if (!canSorceryNow(s, a.p)) throw new RuleError('tempo', 'desenterrar só no tempo de feitiço');
+    const o = owns(s, a.p, a.oid, 'graveyard');
+    const un = (s.facts[o.name].script || {}).unearth;
+    if (!un) throw new RuleError('desenterrar', 'esta carta não tem desenterrar');
+    if (s.manaCheck) payCost(s, a.p, parseCost(un.mana));
+    makeAbility(s, { oid: o.oid, name: o.name, controller: a.p }, { effects: [{ do: 'desenterrar' }] }, []);
+    s.turn.passes = 0;
+  },
   transmute(s, a, ev) {
     noPending(s); holder(s, a.p);
     if (!canSorceryNow(s, a.p)) throw new RuleError('tempo', 'transmutar só no tempo de feitiço');
@@ -17604,6 +17628,11 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const f = s.facts[o.name];
     // Leva 105 · conjurar do plot não paga mana, mas o custo adicional continua (118.9): Highway Robbery descarta ou sacrifica
     adicionais(o).forEach(v => castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, plotted: true, add: null, ...v })));
+  }
+  // M-257 · desenterrar (702.84a): habilidade ativada do cemitério, só no tempo de feitiço
+  if (canSorcery) for (const oid of s.zones[p].graveyard) {
+    const un = (s.facts[s.objects[oid].name].script || {}).unearth;
+    if (un && (!s.manaCheck || canPay(s, p, parseCost(un.mana)))) out.push({ t: 'unearth', p, oid });
   }
   // S29 · transmutar, da mão, no tempo de feitiço
   if (canSorcery) for (const oid of s.zones[p].hand) {
@@ -19599,6 +19628,7 @@ function describe(before, a, events, after) {
     case 'plot': L.push(`${P} tramou ${nameOf(before, a.oid)} (plot): fica no exílio para conjurar sem pagar num turno seguinte`); break; // Leva 121
     case 'unmorph': L.push(`${P} virou ${nameOf(after, a.oid)} para cima`); break; // Leva 121
     case 'transmute': L.push(`${P} transmutou ${nameOf(before, a.oid)}`); break;
+    case 'unearth': L.push(`${P} desenterrou ${nameOf(before, a.oid)}`); break; // M-257
     case 'cycle': L.push(`${P} ciclou ${nameOf(before, a.oid)}`); break;
     case 'ninjutsu': L.push(`${P} usou ninjutsu: ${nameOf(before, a.attacker)} voltou e ${nameOf(before, a.oid)} entrou atacando`); break;
     case 'cast_madness': L.push(`${P} conjurou ${nameOf(before, before.pending.oid)} por insanidade`); break;
@@ -20398,6 +20428,7 @@ function descreveEfeito(e) {
       return quem ? `${quem} sacrifica ${coisa}${ficha} à sua escolha` : `sacrifica ${coisa}`;
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
+    case 'desenterrar': return 'volta do cemitério para o campo com ímpeto; é exilada no início do próximo passo final ou se fosse sair do campo'; // M-257
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
     case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
     case 'unless_pays': return `${descreveEfeitos(e.effects)}, a menos que aquele jogador pague ${e.cost}`;
@@ -22314,6 +22345,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // S34: conceder
     for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));
+    // M-257: desenterrar
+    for (const un of E.legalActions(s, v).filter(x => x.t === 'unearth' && x.oid === oid))
+      legal.push(doBtn(`Desenterrar · ${(f.script.unearth || {}).mana || ''}`, un, { variant: 'primary' }));
     // S29: transmutar
     for (const tm of E.legalActions(s, v).filter(x => x.t === 'transmute' && x.oid === oid))
       legal.push(doBtn(`Transmutar · ${(f.script.transmute || {}).mana || ''}`, tm));

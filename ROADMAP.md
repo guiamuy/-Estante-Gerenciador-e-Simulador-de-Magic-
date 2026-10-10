@@ -3177,6 +3177,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** regravados **só pela versão** (com a correção e a v96 saem idênticos; logs iguais). Versão sobe porque uma partida antiga com os dados da Scryfall daria outro resultado; partida salva na v96 não abre na v97.
 - **Testes:** `boros.regras` +2 (o relato com a carta como a Scryfall manda: sem voar, bloqueio recusado com o motivo "voar", Luminous Phantom voando; a classe: transformar, dupla face modal com lembrete, aventura, "citar voar não é ter voar", uma face e dividida intactas, ação de palavra-chave no meio da frase).
 
+**M-257 · R11 · Desenterrar (702.84): Priest of Fell Rites** ✅ (leva M-257, motor v96, sem mudança no que existe) — 3 testes novos.
+- **Regra:** `unearth: { mana }` no script dá à carta no cemitério a ação "Desenterrar" (só no tempo de feitiço, pagando o custo); é uma habilidade na pilha, que pode ser respondida. Ao resolver, se a carta ainda estiver no cemitério: volta ao campo sob o seu controle com ímpeto (enquanto você a controlar), com um gatilho atrasado que a exila no início do próximo passo final (603.7, guardando a encarnação), e com a substituição "se fosse sair do campo, vai para o exílio" (614) — morrer, voltar à mão ou ser sacrificada como custo.
+- **Carta coberta (completa):** Priest of Fell Rites (era parcial).
+- **Medição:** Killian 90% → **91%** (completo 92 · parcial 5 · manual 4).
+- **Golden:** idênticas, sem regravar. Versão não sobe (a carta era parcial).
+- **Próximo:** M-258 — Malcolm, Keen-Eyed Navigator (gatilho de dano por subtipo: "uma ou mais Piratas suas causam dano aos oponentes") e Kediss já coberta; depois Killian, Ink Duelist (redução por alvo).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
