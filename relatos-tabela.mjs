@@ -10,6 +10,9 @@ export const MARCA = 'estante-relato';
 const TIPOS = { erro: 'Erro', regra: 'Regra ou carta', visual: 'Visual', melhoria: 'Melhoria', ideia: 'Ideia', lentidao: 'Lentidão', infra: 'Infraestrutura', outro: 'Outro' };
 const URGENCIAS = { bloqueia: 'Impede o uso', alta: 'Alta', media: 'Média', baixa: 'Baixa' };
 const PESO = { bloqueia: 4, alta: 3, media: 2, baixa: 1 };
+// P-2 · as áreas que o app escreve (iguais às de `__m38.AREAS`): qualquer conta do GitHub abre registro e dispara o fluxo,
+// então etiqueta só nasce de lista fechada — área inventada no corpo não cria etiqueta nova no repositório
+export const AREAS = ['Mesa', 'Jogar', 'Série', 'Lista', 'Listas', 'Coleção', 'Scanner', 'Cartas', 'Notícias', 'Relatos', 'Perfil', 'Design system', 'Início'];
 // cores das etiquetas (o GitHub pede hexadecimal sem #; isto não é CSS do app)
 const COR_TIPO = 'c5a15a', COR_URGENCIA = { bloqueia: 'b60205', alta: 'd93f0b', media: 'fbca04', baixa: 'c2e0c6' }, COR_AREA = '5b7a99', COR_RELATO = '7a5a17';
 
@@ -30,7 +33,7 @@ export function etiquetasDe(d) {
   const out = [{ nome: 'relato', cor: COR_RELATO }];
   if (TIPOS[d.tipo]) out.push({ nome: `tipo: ${TIPOS[d.tipo]}`, cor: COR_TIPO });
   if (URGENCIAS[d.urgencia]) out.push({ nome: `urgência: ${URGENCIAS[d.urgencia]}`, cor: COR_URGENCIA[d.urgencia] });
-  if (d.area) out.push({ nome: `área: ${String(d.area).slice(0, 40)}`, cor: COR_AREA });
+  if (AREAS.includes(d.area)) out.push({ nome: `área: ${d.area}`, cor: COR_AREA });
   return out;
 }
 /** Uma linha da tabela para um registro do app (null para os outros). */
@@ -72,7 +75,8 @@ export function tabela(issues) {
     (a.situacao === 'resolvido') - (b.situacao === 'resolvido') || (PESO[b.urgencia] || 0) - (PESO[a.urgencia] || 0) || String(b.criadoEm).localeCompare(String(a.criadoEm)));
 }
 export function csv(linhas) {
-  const q = v => { const t = v == null ? '' : String(v); return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+  // P-2 · célula que começa com = + - @ (ou tab) vira fórmula na planilha: entra como texto, com apóstrofo
+  const q = v => { let t = v == null ? '' : String(v); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
   const cab = ['numero', 'situacao', 'tipo', 'urgencia', 'area', 'titulo_da_tela', 'endereco', 'criado_em', 'resolvido_em', 'motor', 'app', 'viewport', 'descricao', 'url'];
   return '\ufeff' + [cab.join(','), ...linhas.map(l => [l.numero, l.situacao, l.tipoRotulo, l.urgenciaRotulo, l.area, l.titulo_da_tela, l.endereco, l.criadoEm, l.resolvidoEm || '', l.motor ?? '', l.app, l.viewport, l.descricao, l.url].map(q).join(','))].join('\r\n') + '\r\n';
 }

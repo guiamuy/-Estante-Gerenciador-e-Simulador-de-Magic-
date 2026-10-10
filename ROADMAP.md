@@ -500,6 +500,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dd 🟡 | T6 depois da decisão de 10/10/2026 (**Firebase**, por REST, sem SDK): T6b forma do perfil e da fila de relatos, T6c regras de acesso e entrada com Google, T6d sincronização, T6e relato sem sair do app (#13) | T | 4 a 5 | **projeto Firebase** criado pelo usuário (Realtime Database + Authentication com Google) para ligar no aparelho |
 | 16º-de ✅ | T6b forma do perfil e da fila de relatos no Firebase: um nó por preferência com valor em texto e instante, foto em nó à parte, fila por pessoa com o id do relato; encontro entre dois aparelhos provado com banco de memória e REST de mentira (leva A-262) | T | 1 | — |
 | 16º-dk ✅ | Instáveis da trilha geral: I7 e N2 esperam o mecanismo (dois quadros) em vez do relógio; H7 simula a rede ruim só para o guardião (leva G-245) | Q | 1 | — |
+| 16º-dl ✅ | SEG2 fluxos do GitHub com o mínimo: permissões declaradas em todos, ações fixadas por SHA, portão por `npm ci`, etiquetas de relato só de listas fechadas, CSV sem fórmula (leva P-2) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7199,6 +7200,26 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Resíduo declarado:** outros pontos de `html:` no app usam só conteúdo do código (SVG, ícones); a chave `html:` de `h()`
   continua existindo e não tem contrato próprio ainda; sem CSP; `relatos.yml` com escrita disparada por registro de
   qualquer conta; `gate.yml` sem `permissions:`; ações por tag — ficam para as próximas levas `P`.
+
+**SEG2 · Fluxos do GitHub com o mínimo** ✅ (leva P-2, 10/10/2026)
+- **Ameaças:** (1) uma ação de terceiro referida por tag (`@v4`) pode passar a apontar para outro código sem nenhuma
+  mudança aqui, e ela roda com o token do fluxo (que escreve no repositório em Notícias, Catálogo e Relatos); (2) o portão
+  rodava sem `permissions:` (o token herdava o padrão do repositório) e instalava com `npm install` (versão nova de
+  dependência de teste podia entrar entre um push e outro); (3) o fluxo Relatos dispara quando **qualquer conta** abre um
+  registro e criava etiqueta a partir da área escrita no corpo (spam de etiquetas no repositório); (4) `relatos.csv`
+  com célula começando em `=`, `+`, `-` ou `@` vira fórmula ao abrir na planilha.
+- **Medidas:** as três ações (`checkout`, `setup-node`, `upload-artifact`) fixadas pelo SHA da `v4` de 10/10/2026
+  (conferido por `git ls-remote`), com a tag no comentário; `gate.yml` com `permissions: contents: read` e `npm ci`;
+  `relatos-tabela.mjs` só cria a etiqueta de área para as 13 áreas do app (lista igual a `__m38.AREAS`, conferida no
+  teste); a célula de CSV que começa com fórmula ganha apóstrofo.
+- **Guarda-corpo:** `seguranca.actions.unit` (toda Action com `permissions:` no topo; todo `uses:` com SHA de 40
+  dígitos; portão só lê e usa `npm ci`; área inventada não vira etiqueta; áreas iguais às do app; CSV sem fórmula).
+- **Resíduo declarado:** Notícias, Catálogo e Relatos precisam de `contents: write` (gravam nos ramos de dados) e Relatos
+  de `issues: write` (etiquetas); enquanto o `main` não tiver regra de ramo, esse token pode escrever em qualquer ramo;
+  atualizar as ações passa a ser à mão (trocar o SHA); sem CSP.
+- **Fora do repositório (recomendação, não bloqueia):** em GitHub › Settings › Branches, regra para `main` com "Block
+  force pushes" e "Restrict deletions" ligados — e **sem** "Require a pull request" nem status obrigatório, que
+  travariam o `npm run publicar`.
 
 ### P · Plataforma
 

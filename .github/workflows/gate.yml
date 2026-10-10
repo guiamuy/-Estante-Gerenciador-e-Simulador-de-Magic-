@@ -8,21 +8,25 @@ on:
     - cron: '0 6 * * *'   # fuzz pesado, todo dia às 3h de Brasília
   workflow_dispatch:
 
+# P-2 · o portão só lê o repositório (o token do fluxo não escreve em nada)
+permissions:
+  contents: read
+
 jobs:
   gate:
     runs-on: ubuntu-latest
     timeout-minutes: 40   # Q14 · as fases rodam em sequência
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (P-2 · fixada por SHA)
         with:
           fetch-depth: 150   # a guarda de agregação precisa enxergar os commits recentes das outras trilhas
       - name: Guarda de agregação (nenhuma trilha apaga a entrega de outra)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: node agregacao.mjs --faixa "${{ github.event.before }}..${{ github.sha }}"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (P-2 · fixada por SHA)
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund   # P-2 · exatamente o lockfile, sem versão nova entre um push e outro
       - run: npx playwright install --with-deps chromium
       # Q14 · duas fases (portao.mjs). A rápida roda em paralelo e, se cair, poupa a de tela. A de tela roda sozinha:
       # sem o fuzz e os torneios do bot disputando o processador, os testes que dependem de tempo deixam de cair por sorteio.
@@ -50,7 +54,7 @@ jobs:
       # Q14 · o log inteiro fica guardado quando o portão cai: dá para ler a queda toda, não só a anotação
       - name: Guardar o log do portão
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4 (P-2 · fixada por SHA)
         with:
           name: portao-log
           path: portao.log
