@@ -5332,7 +5332,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'ou'];
+const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'comToxico', 'ou'];
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -5472,7 +5472,7 @@ function substituicoesDoScript(sc) {
 /** CR2-G R3a · um efeito contínuo estático: `afetados` ('self', 'anexada' ou seletor de permanentes no campo, sem
  * palavra-chave no seletor — a camada 6 dependeria dela mesma), e ao menos uma mudança: poder, resistencia, palavras, ou
  * perPoder/perResistencia com uma contagem `per`. */
-const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward']; // M-251 · "enquanto a encantada for …", resistência a magia com custo
+const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward', 'se']; // M-251 · "enquanto a encantada for …", resistência a magia com custo
 /** CR2-G R3c · "torna-se": camada 4 (tipos e subtipos, substituindo ou somando — `somaTipos`), 6 (perde todas as outras
  * habilidades; `palavras` aqui entram junto com a redefinição, com o mesmo carimbo) e 7b (P/T base). */
 const CHAVES_TORNA = ['tipos', 'subtipos', 'somaTipos', 'base', 'perdeHabilidades', 'palavras'];
@@ -5497,6 +5497,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
+  if (c.se != null && !(c.se && Number.isInteger(c.se.oponenteComVeneno) && Object.keys(c.se).length === 1)) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro)`); // M-253 · Corrompido
   if (c.ward != null && (typeof c.ward !== 'string' || !/^(\{[^}]+\})+$/.test(c.ward))) errs.push(`${tag}: "ward" precisa ser um custo de mana`);
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -5820,6 +5821,8 @@ function validateScript(sc) {
     if ((self.perPower != null || self.perToughness != null) && !PER_COUNTS.includes(self.per)) errs.push(`bônus próprio: contagem "${self.per}" desconhecida`);
     if (self.ward != null && (typeof self.ward !== 'string' || !self.ward.trim())) errs.push('bônus próprio: vigilância precisa de um custo de mana');
     if (self.devoid != null && self.devoid !== true) errs.push('bônus próprio: devoid só vale como true');
+    if (self.toxic != null && !(Number.isInteger(self.toxic) && self.toxic > 0)) errs.push('bônus próprio: tóxico precisa ser inteiro positivo'); // M-253
+    if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
@@ -6002,6 +6005,7 @@ function tokenErrors(tk, label) {
   for (const c of tk.colors || []) if (!'WUBRG'.includes(c)) errs.push(`${label}: cor de ficha "${c}" inválida`);
   if (tk.legendary != null && typeof tk.legendary !== 'boolean') errs.push(`${label}: "lendária" precisa ser verdadeiro ou falso`);
   for (const ab of tk.abilities || []) if (ab.kind !== 'activated' && ab.kind !== 'triggered') errs.push(`${label}: habilidade de ficha inválida`);
+  if (tk.self != null) { for (const k of Object.keys(tk.self)) if (!['toxic', 'naoBloqueia'].includes(k)) errs.push(`${label}: "${k}" não vale em ficha`); if (tk.self.toxic != null && !(Number.isInteger(tk.self.toxic) && tk.self.toxic > 0)) errs.push(`${label}: tóxico precisa ser inteiro positivo`); } // M-253
   return errs;
 }
 
@@ -6519,6 +6523,11 @@ const RAW_SCRIPTS = [
   { name: 'Shineshadow Snarl', produces: [['W'], ['B']], // "{T}: Add {W} or {B}."
     entra: [{ afetados: 'self', virada: { aMenosQue: { revelaSubtipo: ['Plains', 'Swamp'] } } }], // "As this land enters, you may reveal a Plains or Swamp card from your hand. If you don't, this land enters tapped."
     note: 'jogada da mão, a escolha de revelar vem no botão; posta no campo por outro efeito, entra virada (a mesa ainda não pergunta no meio de um efeito)',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-253 · veneno e tóxico (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: "Skrelv's Hive", abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'lose', amount: 1 }, // "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and 'This token can't block.'"
+      { do: 'token', amount: 1, token: { name: 'Phyrexian Mite', types: ['artifact', 'creature'], subtypes: ['Phyrexian', 'Mite'], colors: [], power: 1, toughness: 1, self: { toxic: 1, naoBloqueia: true } } }] }],
+    continuo: [{ afetados: { tipos: ['creature'], de: 'you', comToxico: true }, palavras: ['lifelink'], se: { oponenteComVeneno: 3 } }], // "Corrupted — As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
@@ -13393,6 +13402,7 @@ function continuosQueAfetam(s, o) {
     if (!s.facts[x.name]) continue;
     for (const e of continuosDaFonte(s, x)) {
       if (e.afetados === 'self') continue;
+      if (e.se && !(alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= e.se.oponenteComVeneno))) continue; // M-253 · "Corrupted — as long as an opponent has three or more poison counters"
       if (e.seAfetado && !selCasa(s, x.controller, o, e.seAfetado, x.oid, { mira: false, src: x })) continue; // M-251 · "as long as enchanted permanent is a creature / legendary"
       if (e.afetados === 'anexada') { if (x.attachedTo === o.oid) out.push({ ...e, fonte: x, ts: x.anexadaEm || 0 }); continue; }
       if (e.afetados === 'equipada-pela-anexada') { // M-251 · Rune: "As long as enchanted permanent is an Equipment, it has 'Equipped creature has …'"
@@ -13758,6 +13768,10 @@ function draw(s, p, n = 1) {
 
 /* ---------------- consultas ---------------- */
 const alive = s => s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
+/** M-253 · 702.164 · tóxico N (instâncias somam); some com as habilidades impressas e virada para baixo. */
+const toxicoDe = (s, o) => !o || o.faceDown || semImpressas(s, o) ? 0 : ((((s.facts[o.name] || {}).script || {}).self || {}).toxic || 0);
+/** M-253 · 122.1f · marcadores de veneno no jogador (o campo só existe depois do primeiro). */
+function darVeneno(s, p, n, events, fonte) { if (!(n > 0) || !s.players[p]) return; s.players[p].poison = (s.players[p].poison || 0) + n; (events || []).push({ kind: 'effect', do: 'poison', name: fonte || '', target: s.players[p].name, amount: n }); }
 /** M-252 · cartas da mão que a terra aceita revelar ao entrar (Snarl); `distintas`: uma por nome, para a oferta. */
 function revelaveisAoEntrar(s, p, o, distintas) {
   const sc = (s.facts[o.name] || {}).script || {}, regra = (SC.substituicoesDoScript(sc).entra || []).find(r => r.afetados === 'self' && r.virada && r.virada.aMenosQue && r.virada.aMenosQue.revelaSubtipo);
@@ -14419,9 +14433,11 @@ function eligibleAttackers(s, p) {
     (!enjoado(s, o) || has(s, o, 'haste')) && !has(s, o, 'defender')).map(o => o.oid);
 }
 function eligibleBlockers(s, p) {
-  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped).map(o => o.oid);
+  return battlefield(s).filter(o => o.controller === p && isCreature(s, o) && !o.tapped && !naoBloqueia(s, o)).map(o => o.oid);
 }
 const TRAVESSIAS = [['islandwalk', 'Island'], ['swampwalk', 'Swamp'], ['forestwalk', 'Forest'], ['mountainwalk', 'Mountain'], ['plainswalk', 'Plains']];
+/** M-253 · "This creature can't block" (509.1a), impressa ou da ficha. */
+const naoBloqueia = (s, o) => !o.faceDown && !semImpressas(s, o) && !!((((s.facts[o.name] || {}).script || {}).self || {}).naoBloqueia);
 /** Por que `blocker` não pode bloquear `attacker` (texto para a mesa), ou null quando pode. */
 function porQueNaoBloqueia(s, blocker, attacker) {
   const b = s.objects[blocker], a = s.objects[attacker];
@@ -14486,6 +14502,7 @@ function dealCombatDamage(s) {
       } else if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
         perdeVida(s, player, amt);
+        darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
       if (has(s, src, 'lifelink')) { s.players[src.controller].life += amt; s.players[src.controller].lifeGained = (s.players[src.controller].lifeGained || 0) + amt; }
@@ -14649,7 +14666,8 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
     if (sel.mvMin != null && vm < amountOf(s, fonte, sel.mvMin)) return false;
   }
   if (sel.cor && !(f.colors || []).includes(sel.cor)) return false;
-  if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false; // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
+  if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
+  if (sel.comToxico && !toxicoDe(s, o)) return false; // M-253 · "creatures you control with toxic" // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && (f.colors || []).includes(sel.semCor)) return false;
   if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
     const sub = selfOid && s.objects[selfOid] && s.facts[s.objects[selfOid].name] ? auraSubtype(s.facts[s.objects[selfOid].name]) : null;
@@ -15787,6 +15805,7 @@ function createToken(s, def, controller, events) {
     const linha = (def.legendary ? 'Legendary ' : '') + (def.types || []).join(' ') + ((def.subtypes || []).length ? ' — ' + def.subtypes.join(' ') : '');
     s.facts[name] = cardFacts({ name, type_line: linha, power: def.power, toughness: def.toughness, keywords: def.keywords || [], colors: def.colors || [], oracle_text: '' });
     if (def.abilities) s.facts[name].script = { name, effects: [], abilities: def.abilities };
+    if (def.self) s.facts[name].script = { name, effects: [], abilities: def.abilities || [], ...(s.facts[name].script || {}), self: def.self }; // M-253 · tóxico, não bloqueia
   } else if (def.abilities && !((s.facts[name].script || {}).abilities || []).length) {
     // Leva 111 · a mesa traz a carta da ficha (imagem e texto da Scryfall) e os fatos já existiam sem script:
     // a ficha nascia sem habilidade (Blood sem "comprar", Clue, Food, Map, Treasure). A habilidade vem da definição.
@@ -16455,6 +16474,7 @@ function stateBased(s, events) {
       if (pl.life <= 0) why = 'vida';
       else if (pl.drewFromEmpty) why = 'grimório vazio';
       else if (s.format === 'commander' && Object.values(pl.commanderDamage).some(d => d >= FORMAT_RULES.commander.commanderDamage)) why = 'dano de comandante';
+      else if ((pl.poison || 0) >= 10) why = 'veneno'; // M-253 · 704.5c
       if (why) { pl.lost = true; pl.lossReason = pl.lossReason === 'desistência' ? pl.lossReason : why; changed = true; events.push({ kind: 'lost', p: i, reason: why }); removePlayer(s, i); }
     });
     // M12 · 704.5d: ficha fora do campo deixa de existir
@@ -17832,7 +17852,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, effectAllowed, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, effectAllowed, eligibleBlockers, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -19391,7 +19411,7 @@ const E = __m16;
 const { descreveGatilho, MARCADOR_PT } = __m23;
 const SAVE_KEY = 'match.current';
 const ZONE_PT = { library: 'grimório', hand: 'mão', battlefield: 'campo', graveyard: 'cemitério', exile: 'exílio', command: 'zona de comando', stack: 'pilha', companion: 'companheiro' };
-const REASON_PT = { 'vida': 'vida zerada', 'grimório vazio': 'comprou com o grimório vazio', 'dano de comandante': '21 de dano de comandante', 'desistência': 'desistiu' };
+const REASON_PT = { 'veneno': 'dez marcadores de veneno', 'vida': 'vida zerada', 'grimório vazio': 'comprou com o grimório vazio', 'dano de comandante': '21 de dano de comandante', 'desistência': 'desistiu' };
 
 /** Monta o setup do motor a partir de listas salvas.
     seats = [{ name, deck?, dummy? }]; cards = { nome: carta completa }. */
@@ -20148,7 +20168,7 @@ function descreveSeletor(sel) {
   const sem = (sel.semTipos || []).length ? ` que não seja ${(sel.semTipos || []).map(x => nomes[x] || x).join(' nem ')}` : '';
   const dono = zona === 'graveyard' ? (sel.de === 'you' ? ' do seu cemitério' : sel.de === 'opponent' ? ' do cemitério de um oponente' : ' de um cemitério')
     : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';
-  return `${coisa}${sem}${dono}${jog ? ' ou ' + jog : ''}`;
+  return `${coisa}${sem}${dono}${sel.comToxico ? ' com tóxico' : ''}${jog ? ' ou ' + jog : ''}`; // M-253
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
 const PER_PT = { 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
@@ -20185,7 +20205,8 @@ function descreveContinuo(c) {
   if (c.ward) partes.push(`tem proteção (ward) ${c.ward}`); // M-251
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
-  return `${se}${quem} ${partes.join(' e ')}`;
+  const seJogo = c.se ? `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, ` : ''; // M-253 · Corrompido
+  return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
 const duracaoPT = d => d && typeof d === 'object' ? 'enquanto você controlar esta permanente' : ({ 'seu-proximo-turno': 'até o seu próximo turno', 'fim-do-seu-proximo-turno': 'até o fim do seu próximo turno' }[d] || 'até o fim do turno');
@@ -22397,8 +22418,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const masm = pl.dungeon ? (dungeonByName(pl.dungeon.name) || {}) : null;
     const sala = masm ? (roomById(masm, pl.dungeon.room) || {}) : null;
     const subMasm = masm ? `${masm.pt || masm.name}: ${pl.dungeon.done ? 'completa' : (sala.pt || '—')}` : null;
+    const veneno = pl.poison ? `Veneno ${pl.poison} de 10` : null; // M-253 · marcadores de veneno à vista
     const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: subMasm, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+      sub: [subMasm, veneno].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;

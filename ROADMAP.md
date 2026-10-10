@@ -3137,6 +3137,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas que não tinham script).
 - **Próximo:** M-253 — veneno e tóxico (122.1f, 702.164): Skrelv, Defector Mite, Skrelv's Hive, Phyresis (infectar); o jogador com dez marcadores de veneno perde.
 
+**M-253 · R11 · Veneno, tóxico, "não pode bloquear" e Corrompido: Skrelv's Hive** ✅ (leva M-253, motor v96, sem mudança no que existe) — 3 testes novos.
+- **Valor:** o jogo passa a ter a segunda forma de vitória mais comum depois da vida: dez marcadores de veneno.
+- **Regra:** marcadores de veneno no jogador (122.1f; o campo só existe depois do primeiro); ação de estado "dez ou mais venenos, perde" (704.5c), com o motivo "dez marcadores de veneno" na mesa; tóxico N na criatura ou na ficha (702.164: dano de combate a um jogador dá N venenos, além da vida; dano de efeito não); "não pode bloquear" (509.1a) na criatura ou na ficha; seletor `comToxico`; condição de jogo em efeito contínuo `se: { oponenteComVeneno: N }` (Corrompido). A mesa mostra "Veneno N de 10" embaixo da vida.
+- **Carta coberta (completa):** Skrelv's Hive (perde 1 e cria a Phyrexian Mite 1/1 incolor com tóxico 1 que não bloqueia; Corrompido dá vínculo com a vida às suas criaturas com tóxico).
+- **Fora (próxima leva):** infectar e marcadores −1/−1 (Phyresis), e o Skrelv (tóxico concedido até o fim do turno, resistência a magia de uma cor e "não pode ser bloqueada por criaturas da cor").
+- **Medição:** Killian 86% → **87%**.
+- **Golden:** idênticas, sem regravar. Versão não sobe: nada que existia tinha tóxico.
+- **Dívida para a trilha do bot:** o Shark não pesa veneno na avaliação.
+- **Próximo:** M-254 — infectar e marcadores −1/−1 (702.90, 704.5q): Phyresis; Skrelv.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
