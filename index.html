@@ -5268,6 +5268,7 @@ const EFFECTS = {
   delayed: { fields: [], targets: ['self', 'target-controller'] },
   desenterrar: { fields: [], targets: ['self'] }, // M-256 · resolução do desenterrar (702.84a)
   reforco: { fields: [], targets: ['first-target'] }, // M-260 · a segunda metade do reforço (702.165a)
+  sai_de_fase: { fields: [], targets: ['creature', 'permanent', 'first-target'] }, // M-261 · 702.26 "phases out"
   amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
   resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
   exilar_fichas_mesmo_nome: { fields: [], targets: ['first-target'] }, // M-258 · "and all tokens that player controls with the same name as that permanent"
@@ -6610,6 +6611,9 @@ const RAW_SCRIPTS = [
       { do: 'resistencia_jogador' }, { do: 'keyword', keyword: 'hexproof', cada: { de: 'you' } }], // "You and permanents you control gain hexproof until end of turn."
     note: 'Exército que já existe e não é Zumbi não ganha o subtipo (nas listas, o único Exército é o que a própria carta cria)',
     example: { target: 'none', expect: { tokens: 1 } } },
+  // M-261 · "Put a +1/+1 counter on target creature. It phases out." (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Slip Out the Back', effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'sai_de_fase', target: 'first-target' }],
+    example: { target: 'own-creature', expect: { stats: [3, 3] } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -13490,7 +13494,7 @@ function hasLegado(s, o, k) {
 const grantsOf = (s, o) => (o.bestowed || !(s.facts[o.name].script || {}).bestow) ? (s.facts[o.name].script || {}).grants : null;
 const attachSpec = (s, o) => { const sc = s.facts[o.name].script || {}; return sc.aura || sc.equip || null; };
 /** Auras e equipamentos anexados a esta permanente. */
-const attachedTo = (s, o) => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(x => x.attachedTo === o.oid);
+const attachedTo = (s, o) => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(x => x.attachedTo === o.oid && !x.phasedOut);
 /* ---------------- CR2d.1 · 613 · Auras que redefinem a criatura ----------------
    "Enchanted creature is a <tipo> with base power and toughness X/Y and loses all (other) abilities": camada 4 (tipos),
    6 (habilidades) e 7b (P/T base), aplicadas na ordem do carimbo de tempo (613.7e: quando a Aura foi anexada).
@@ -14079,7 +14083,7 @@ const toughness = (s, o) => (faceDown(o) ? 2 : basePT(s, o)[1]) + (o.counters.p1
 const powerLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p : // CR 708.2 + 613.4c: a 2/2 recebe os bônus de Aura e equipamento
   basePT(s, o)[0] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpP(o)) + bonusLegado(s, o).p;
 const toughnessLegado = (s, o) => faceDown(o) ? 2 + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t : basePT(s, o)[1] + (o.counters.p1p1 || 0) - (o.counters.m1m1 || 0) + (pumpT(o)) + bonusLegado(s, o).t;
-const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
+const battlefield = s => s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]).filter(o => !o.phasedOut); // M-261 · 702.26b: fora de fase é tratada como se não existisse
 const canSorceryNow = (s, p) => s.turn.active === p && isMain(s) && !s.stack.length && s.turn.priority === p && !s.pending;
 
 /* ---------------- M7 · pagamento ---------------- */
@@ -14563,6 +14567,7 @@ function enterStep(s, step) {
   s.turn.step = step; s.turn.passes = 0; s.turn.priority = s.turn.active;
   const a = s.turn.active;
   if (step === 'untap') {
+    for (const oid of s.zones.flatMap(z => z.battlefield)) { const o = s.objects[oid]; if (o.phasedOut && o.controller === a) delete o.phasedOut; } // M-261 · 502.1: entra em fase antes de desvirar
     for (const o of battlefield(s)) if (o.controller === a) { o.tapped = false; o.sick = false; }
     return enterStep(s, 'upkeep');
   }
@@ -15588,6 +15593,15 @@ function applyEffect(s, src, eff, tgt, events) {
       const fichas = battlefield(s).filter(o => o.token && o.controller === quem && o.name === nome && o.oid !== obj.oid);
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
+    }
+    case 'sai_de_fase': { // M-261 · sai de fase com o que está anexado (fase indireta); sai do combate; volta no desvirar de quem a controla
+      if (!obj || obj.zone !== 'battlefield' || obj.phasedOut) { note({ failed: true }); break; }
+      const juntos = [obj, ...attachedTo(s, obj)];
+      for (const x of juntos) {
+        x.phasedOut = true;
+        if (s.combat) { s.combat.attackers = (s.combat.attackers || []).filter(a => a !== x.oid); delete x.attacking; delete x.atacandoPw; delete x.blocking; delete x.blockedBy; }
+      }
+      note({ target: obj.name, amount: juntos.length }); break;
     }
     case 'reforco': { // M-260 · se o alvo é outra criatura, ganha as habilidades da carta (menos o reforço) até o fim do turno
       const fonte = s.objects[src.ability ? src.source : src.oid];
@@ -20278,6 +20292,7 @@ function estadoDaCarta(s, o, plano = null) {
   if (criatura) { try { const st = E.stats(s, o); pt = { p: st.power, t: st.toughness }; } catch (e) { pt = null; } }
   const marcas = [];
   if (o.token) marcas.push({ k: 'ficha', texto: 'ficha' });
+  if (o.phasedOut) marcas.push({ k: 'fora-de-fase', texto: 'fora de fase', rotulo: 'Fora de fase: volta no próximo desvirar de quem a controla' }); // M-261
   if (o.faceDown) marcas.push({ k: 'virada-baixo', texto: 'face para baixo', icone: 'virar', rotulo: 'Virada para baixo' });
   // Leva 121 · carta tramada (plot, 702.170): fica no exílio, à vista, e diz se já pode ser conjurada
   if (o.zone === 'exile' && o.plotted != null) marcas.push({ k: 'tramada', texto: 'tramada', icone: 'tramar', rotulo: o.plotted < ((s.turn || {}).number || 0) ? 'Tramada: conjure sem pagar' : 'Tramada: conjure a partir do próximo turno' });
@@ -20651,6 +20666,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'sai_de_fase': return `${alvo || 'a permanente'} sai de fase (trata-se como se não existisse até o próximo desvirar de quem a controla)`; // M-261
     case 'reforco': return 'se for outra criatura, ela ganha as outras habilidades desta até o fim do turno'; // M-260
     case 'amass': return `amassa ${n} (${e.subtipo || 'Zombie'}): sem Exército, cria um 0/0; põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} nele`;
     case 'resistencia_jogador': return 'você ganha resistência a magia até o fim do turno';

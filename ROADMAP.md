@@ -3211,6 +3211,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
 - **Próximo:** M-261 — fase (702.26: March of Swirling Mist, Slip Out the Back).
 
+**M-261 · R11 · Fase (702.26): Slip Out the Back** ✅ (leva M-261, motor v96, sem mudança no que existe) — 1 teste novo.
+- **Regra:** verbo `sai_de_fase`: a permanente e o que está anexado a ela (fase indireta) passam a ser tratados como se não existissem — o campo do motor deixa de vê-las (alvo, ações de estado, efeitos de "cada", combate, mana) —, sem mudar de zona (sem gatilho de entrar ou sair, marcadores e anexos ficam); saem do combate; entram em fase no desvirar de quem a controla, antes de desvirar (502.1). A mesa marca "fora de fase".
+- **Carta coberta (completa):** Slip Out the Back (o raio que mirava a criatura perde o alvo).
+- **Fora (próxima):** March of Swirling Mist (custo adicional variável "exile cartas azuis da mão, {2} a menos por carta" e "até X alvos").
+- **Medição:** Malcolm + Kediss 86% → **87%** (completo 87 · parcial 8 · manual 5); Killian segue 94%.
+- **Golden:** idênticas, sem regravar. Versão não sobe: nada que existia saía de fase.
+- **Próximo:** M-262 — March of Swirling Mist; Moonsnare Prototype (canalizar; topo ou fundo à escolha do dono).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
