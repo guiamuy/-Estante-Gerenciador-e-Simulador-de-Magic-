@@ -107,9 +107,11 @@ test('C12 · desempenho: 5 000 cartas com filtro combinado em menos de 100 ms', 
     cards.set(k, carta(name, { colors: cores[i % 6], type: i % 2 ? 'Creature — Elf' : 'Instant', cmc: i % 7, rarity: ['common', 'uncommon', 'rare'][i % 3], oracle: 'draw a card ' + i }));
   }
   const f = F.novoFiltro({ texto: 'draw', cores: ['G', 'U'], tipos: ['Creature'], cmcMin: 1, cmcMax: 5, formato: 'pauper', edicoes: ['cmm'], qtdMin: 2 });
-  const t0 = performance.now();
+  // G-247 · tempo de processador deste teste, não o relógio de parede (com o portão em paralelo o relógio passava de 100 ms
+  // sem o filtro ter piorado: 121 ms em 10/10/2026); o limite continua o mesmo
+  const c0 = process.cpuUsage();
   const r = F.filtraColecao(grupos, f, { cards });
-  const dt = performance.now() - t0;
+  const u = process.cpuUsage(c0), dt = (u.user + u.system) / 1000;
   assert.ok(r.total > 0 && r.total < 5000);
   assert.ok(dt < 100, `levou ${dt.toFixed(1)} ms`);
 });

@@ -158,9 +158,11 @@ test('B2 · desempenho: a avaliação cabe no orçamento de meio segundo', () =>
   for (let i = 0; i < 4; i++) { [s] = poe(s, a, 'Urso'); [s] = poe(s, d, 'Urso'); }
   [s] = poe(s, a, 'Floresta'); [s] = poe(s, a, 'Floresta'); [s] = poe(s, a, 'Totem');
   for (let i = 0; i < 200; i++) B.avalia(s, a); // aquecimento
-  const t0 = Date.now();
+  // G-247 · mede o tempo de processador deste teste, não o relógio de parede: o portão roda arquivos em paralelo e o relógio
+  // subia com a carga dos outros (215 e 239 ms em 10/10/2026 com ~70 ms de processador); o limite continua o mesmo
+  const c0 = process.cpuUsage();
   for (let i = 0; i < 1000; i++) B.avalia(s, a);
-  const gasto = Date.now() - t0;
+  const u = process.cpuUsage(c0), gasto = Math.round((u.user + u.system) / 1000);
   // O alvo da história é 1 000 avaliações abaixo de 50 ms, e é isso que acontece
   // com a máquina livre (~10 ms aqui). O portão roda os arquivos de teste em
   // paralelo, então o relógio de parede sobe sem o código ter piorado: o limite
