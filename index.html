@@ -4131,9 +4131,13 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
 
     async byName(name) { return (await this.byNames([name])).get(norm(name)) || null; },
     /** Leva 110 · só o que já está guardado (mesmo vencido), sem rede: a estante pinta as cores sem esperar a Scryfall. */
+    /** G-250 · as leituras vão juntas, não uma depois da outra: com 20 listas de Commander (2 000 nomes) a leitura em
+        fila levava 0,9–2,0 s com o processador 4× mais lento (10/10/2026) e segurava Fichas e as cores da estante. */
     async cached(names) {
+      const keys = [...new Set(names.map(norm))].filter(Boolean);
+      const recs = await Promise.all(keys.map(readCache));
       const out = new Map();
-      for (const k of [...new Set(names.map(norm))].filter(Boolean)) { const rec = await readCache(k); if (rec && rec.card) out.set(k, rec.card); else if (BASIC_CARDS[k]) out.set(k, BASIC_CARDS[k]); }
+      keys.forEach((k, i) => { const rec = recs[i]; if (rec && rec.card) out.set(k, rec.card); else if (BASIC_CARDS[k]) out.set(k, BASIC_CARDS[k]); });
       return out;
     },
     /** U12 · só o que já está no aparelho, sem nunca ir à rede (para contar e mostrar status). */

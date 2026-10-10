@@ -505,6 +505,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dn ✅ | Testes de desempenho B2 e C12 medem o tempo de processador do teste, não o relógio de parede (mesmos limites) (leva G-247) | Q | ½ | — |
 | 16º-do ✅ | Z7 nome da lista (arquétipo dado pelo coletor), evento à parte e valor somado no catálogo; no detalhe, valor da lista e preço de cada carta (relato #15, leva G-248) | Z | 1 | — |
 | 16º-dp ✅ | Z7 correção: catálogo guardado no formato antigo é trocado ao abrir (os nomes novos não apareciam), validade de 1 hora e Atualizar no rodapé (leva G-249) | Z | 1 | — |
+| 16º-dq ✅ | Fichas com 20 listas de Commander: as cartas guardadas lidas juntas (1,56 s → 0,49 s com o processador 4× mais lento); as cores da estante ganham junto (leva G-250) | I | ½ | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6155,8 +6156,14 @@ mesmo padrão de design".
   fichas" com "Sua arte", `auditaTela`).
 - **Limites:** a ficha que uma carta só cria por texto, sem a parte "token" na Scryfall, não aparece; ficha de duas
   faces fica de fora (como no catálogo); a arte escolhida aparece na mesa quando um script do motor cria a ficha.
-- **Dívida (revisão de escala):** cada abertura de Fichas lê uma chave do aparelho por nome de carta das listas (≈ 600
-  com 20 listas); medir e, se passar de 100 ms, guardar um índice nome → fichas.
+- **Dívida (revisão de escala):** ~~cada abertura de Fichas lê uma chave do aparelho por nome de carta das listas (≈ 600
+  com 20 listas); medir e, se passar de 100 ms, guardar um índice nome → fichas.~~ **Medida e paga na leva G-250**
+  (10/10/2026, Chromium em 360×780 com o processador 4× mais lento, mediana de 7 aberturas com o app recém-aberto):
+  a tela sozinha (1 lista) abre em ≈ 0,35 s; com 20 listas de 60 cartas, +0,1 a 0,2 s; com **20 listas de Commander
+  (2 000 nomes)**, **1,56 s → 0,49 s**. Causa: `cardRepo.cached` lia uma chave por vez, esperando cada uma; passa a
+  pedir todas juntas (o mesmo vale para as cores da estante em Listas, que usam a mesma leitura). O índice nome → fichas
+  ficou de fora: o que sobra (≈ 0,1–0,15 s com 2 000 nomes) não paga uma chave derivada a mais para manter em dia.
+  Teste: `offline.unit` "G-250" (pico de leituras em voo ≥ 6; com a leitura em fila, 1).
 
 **I5 · Histórico e estatísticas de partidas** ✅ (leva 188, 05/10/2026)
 - **Onde:** Perfil › **Partidas** (rota `/perfil/partidas`); o atalho no Perfil já diz "N · X% de vitória".

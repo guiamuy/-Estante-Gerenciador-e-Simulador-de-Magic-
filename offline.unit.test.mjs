@@ -29,6 +29,20 @@ async function mundo({ rede = true } = {}) {
   return { store, st, cardRepo, decks, collection, images, names, keeper };
 }
 
+test('G-250 · cartas guardadas lidas juntas: com 20 listas, Fichas e as cores da estante não esperam uma leitura por vez (mesmo resultado, básico sem cache incluído)', async () => {
+  const base = P.memoryStore();
+  for (const n of ['Alpha', 'Beta', 'Gamma']) await base.set('card.' + n.toLowerCase(), { ts: 1, card: CARD(n) });
+  await base.set('card.nada', { ts: 1, card: null });
+  let emVoo = 0, pico = 0;
+  const store = { ...base, async get(k) { emVoo++; pico = Math.max(pico, emVoo); await new Promise(r => setTimeout(r, 5)); emVoo--; return base.get(k); } };
+  const repo = C.createCardRepo({ store, scryfall: { collection: async () => { throw new Error('sem rede'); } } });
+  const out = await repo.cached(['Alpha', 'beta', 'Gamma', 'Nada', 'Island', 'Sumida', 'alpha']);
+  assert.deepEqual([...out.keys()], ['alpha', 'beta', 'gamma', 'island']);
+  assert.equal(out.get('beta').name, 'Beta');
+  assert.equal(out.get('island').builtin, true);
+  assert.ok(pico >= 6, 'as leituras correm juntas, não em fila (pico ' + pico + ')');
+});
+
 test('O1 · nomes da lista e URLs de imagem: todas as zonas, frente e verso, sem repetir', () => {
   const deck = { entries: [{ name: 'Sol Ring', qty: 1, zone: 'main' }, { name: 'Sol Ring', qty: 1, zone: 'side' }, { name: 'Malcolm', qty: 1, zone: 'commander' }, { name: '', qty: 1, zone: 'main' }] };
   assert.deepEqual(JSON.parse(JSON.stringify(O.nomesDaLista(deck))), ['Sol Ring', 'Malcolm']);
