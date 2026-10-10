@@ -266,5 +266,6 @@ test('M-236 · R3c · validador de "torna"', () => {
   assert.ok(erros({ afetados: 'anexada', torna: {} }).some(e => /não muda nada/.test(e)));
   assert.ok(erros({ afetados: 'anexada', torna: { somaTipos: true } }).some(e => /precisa de tipos/.test(e)));
   const efeito = e => J(S.validateScript({ name: 'Teste', effects: [e] })).filter(x => !/cenário/.test(x));
-  assert.ok(efeito({ do: 'continuo', target: 'creature', torna: { base: [1, 1] }, ate: 'seu-proximo-turno' }).some(x => /só dura até o fim do turno/.test(x)));
+  // expectativa ajustada na M-244 (R6): "torna" passou a aceitar as durações gerais; antes era recusado até o seu próximo turno
+  assert.deepEqual(efeito({ do: 'continuo', target: 'creature', torna: { base: [1, 1] }, ate: 'seu-proximo-turno' }), []);
 });

@@ -4649,11 +4649,14 @@
    "regra": "Continuous Effects",
    "titulo": "Efeito contínuo criado por resolução",
    "status": "parcial",
-   "evidencia": "a) até o fim do turno acaba em finishCleanup (:10714; scripts.unit \"S4 · efeito até o fim do turno acaba na limpeza\") e \"até o seu próximo turno\" (rules.unit \"S57\", \"S59\", \"S61\"); c) conjunto travado na resolução: sonda Rally the Peasants (presente 4/3, quem chegou depois 2/3) e elves.regras \"Leva 136 · Timberwatch Elf ... contado ao resolver e travado\"; efeito de regra vale para fonte nova: sonda Prismatic Strands + Lightning Bolt conjurado depois (vida 20), rules.unit \"S30\"; d) X calculado uma vez (amountOf :11067)",
+   "evidencia": "a) até o fim do turno acaba em finishCleanup (:10714; scripts.unit \"S4 · efeito até o fim do turno acaba na limpeza\") e \"até o seu próximo turno\" (rules.unit \"S57\", \"S59\", \"S61\"); c) conjunto travado na resolução: sonda Rally the Peasants (presente 4/3, quem chegou depois 2/3) e elves.regras \"Leva 136 · Timberwatch Elf ... contado ao resolver e travado\"; efeito de regra vale para fonte nova: sonda Prismatic Strands + Lightning Bolt conjurado depois (vida 20), rules.unit \"S30\"; d) X calculado uma vez (amountOf :11067) · CR2-G R6 (M-244, v95 sem mudança no que existe): durações gerais no verbo continuo — fim-do-seu-proximo-turno e { enquanto: controlar-fonte } (o.temporarios, com fonte e encarnação), \"torna\" com qualquer duração (o.vira com marca); vigente/podaTemporarios no começo do turno e na limpeza; testes em duracao.unit",
    "falta": "611.2a: não há duração \"pelo resto do jogo\" nem emblema. 611.2b: nenhuma duração \"enquanto...\" (for as long as). 611.2e: nada põe permanente no campo já com característica alterada. 611.2f: nada altera \"a próxima mágica que você conjurar\". Os bônus são números somados no objeto (o.pump), sem registro de qual efeito os deu: não dá para terminar um efeito isolado nem ordená-lo.",
    "esforco": "G",
    "depende": [
     "613"
+   ],
+   "testes": [
+    "M-244 · R6 · \"enquanto você controlar esta permanente\": acaba quando a fonte sai do campo, e só vale para a mesma encarnação"
    ]
   },
   {

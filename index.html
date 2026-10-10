@@ -5372,7 +5372,9 @@ function jogadoresDe(e) {
   return null;
 }
 /** CR2-G R3b · durações dos efeitos temporários (611.2a; a R6 junta as outras). */
-const DURACOES = ['fim-do-turno', 'seu-proximo-turno'];
+const DURACOES = ['fim-do-turno', 'seu-proximo-turno', 'fim-do-seu-proximo-turno'];
+/** CR2-G R6 · 611.2 · duração válida: um dos nomes, ou { enquanto: 'controlar-fonte' } ("enquanto você controlar <a fonte>"). */
+const duracaoValida = d => DURACOES.includes(d) || !!(d && typeof d === 'object' && d.enquanto === 'controlar-fonte' && Object.keys(d).length === 1);
 const EFEITOS_ATALHO = { sacrifice_own: 'sacrificar (você)', sacrifice_each: 'sacrificar (cada jogador)', edict: 'sacrificar (jogador alvo)', exile: 'mover (exílio)', bounce: 'mover (mão)', to_hand: 'mover (mão)', reanimate: 'mover (campo, seu controle)', reanimate_tapped: 'mover (campo, virada)', to_library_shuffled: 'mover (grimório, embaralhado)', to_bottom: 'mover (fundo do grimório)', animate: 'continuo (torna)', destroy_all: 'destroy + cada', reanimate_all: 'reanimate + cada (seu cemitério)', pump: 'continuo (poder/resistência)', keyword: 'continuo (palavra-chave)' };
 const cadaDe = e => { if (!e) return null; if (e.cada) return e.cada; const base = CADA_SELETOR[e.target]; if (!base) return null; return e.exceptSubtype ? { ...base, semSubtipos: [e.exceptSubtype] } : base; };
 const TIPOS_DE_CARTA = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'];
@@ -5894,10 +5896,10 @@ function effectErrors(effects, label, opcional) {
     }
     if (e.do === 'continuo') { // CR2-G R3b
       if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
-      if (e.torna != null) { errs.push(...tornaErros(e.torna, `${label} ${i + 1}`)); if (e.ate === 'seu-proximo-turno') errs.push(`${label} ${i + 1}: "torna" só dura até o fim do turno por enquanto`); }
+      if (e.torna != null) errs.push(...tornaErros(e.torna, `${label} ${i + 1}`)); // CR2-G R6 · "torna" aceita todas as durações
       for (const k of ['poder', 'resistencia']) if (e[k] != null) errs.push(...valueErrors(e[k], `${label} ${i + 1}: ${k}`));
       if (e.palavras != null && !(Array.isArray(e.palavras) && e.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "palavras"`);
-      if (e.ate != null && !DURACOES.includes(e.ate)) errs.push(`${label} ${i + 1}: duração "${e.ate}" desconhecida`);
+      if (e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida`);
     }
     if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
     if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
@@ -6992,7 +6994,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -13116,7 +13118,7 @@ const relogio = s => (s.relogio = (s.relogio || 0) + 1);
 function redefinicoesDe(s, o) {
   const out = [];
   for (const x of attachedTo(s, o)) for (const e of continuosDaFonte(s, x)) if (e.afetados === 'anexada' && e.redefine) out.push({ ts: x.anexadaEm || 0, b: e.redefine });
-  for (const v of o.vira || []) out.push({ ts: v.ts || 0, b: v });
+  for (const v of o.vira || []) if (vigente(s, v)) out.push({ ts: v.ts || 0, b: v }); // CR2-G R6 · "torna" com duração
   return out.sort((x, y) => x.ts - y.ts);
 }
 function mutacao(s, o) {
@@ -13199,7 +13201,7 @@ const GRANTS_ALL_AFETADOS = { tipos: ['creature'], de: 'you', tiposImpressos: tr
 function continuosQueAfetam(s, o) {
   const out = [];
   if (!o || !s.facts[o.name]) return out;
-  for (const e of temporariosDe(o)) out.push({ ...e, fonte: o }); // CR2-G R3b · temporários gravados no objeto
+  for (const e of temporariosDe(o, s)) out.push({ ...e, fonte: o }); // CR2-G R3b/R6 · temporários gravados no objeto
   // 'self': a própria permanente (em qualquer zona, como o bônus antigo); some com as habilidades impressas
   if (!semImpressas(s, o)) for (const e of continuosDaFonte(s, o)) if (e.afetados === 'self') out.push({ ...e, fonte: o, ts: o.ts || 0 });
   for (const x of battlefield(s)) {
@@ -13523,7 +13525,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
+  delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
   if (to === 'battlefield') o.entrouNoTurno = s.turn.number; // Leva 107
@@ -13575,11 +13577,19 @@ const faceDown = o => !!(o && o.faceDown);
 /** CR2-G R3b · grava um efeito contínuo temporário no objeto. A guarda continua nos campos de sempre (o bot, a tela e as
  * partidas salvas os leem): até o fim do turno → pump e tempKeywords (com carimbo); até o seu próximo turno → pumpNext e
  * keywordsNext, marcados com quem fez (`by`), que acabam quando o turno dele começa. */
-function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira }, by) {
+function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira }, by, fonte) {
   const proximo = ate === 'seu-proximo-turno';
-  // CR2-G R3c · "torna-se … até o fim do turno": redefinição com carimbo próprio (613.7), apagada na limpeza; vem antes das
-  // palavras-chave ganhas no mesmo efeito, que assim sobrevivem ao "perde as outras habilidades"
-  if (vira) { o.vira = [...(o.vira || []), { ...vira, ts: relogio(s) }]; o.mutavel = true; }
+  // CR2-G R6 · 611.2 · duração nova (até o fim do seu próximo turno; enquanto você controlar a fonte): marca de quando, de quem
+  // e de qual fonte (encarnação), para a poda e a leitura
+  const marca = ate === 'fim-do-turno' ? null : { ate, by, turno: s.turn.number, ...(fonte ? { fonte: { oid: fonte.oid, z: fonte.zc || 0 } } : {}) };
+  // CR2-G R3c · "torna-se …": redefinição com carimbo próprio (613.7), apagada na limpeza (ou quando a duração acabar); vem antes
+  // das palavras-chave ganhas no mesmo efeito, que assim sobrevivem ao "perde as outras habilidades"
+  if (vira) { o.vira = [...(o.vira || []), { ...vira, ts: relogio(s), ...(marca || {}) }]; o.mutavel = true; }
+  if (ate !== 'fim-do-turno' && ate !== 'seu-proximo-turno') { // durações novas: lista própria, lida pelo caminho dos contínuos
+    if (poder != null || resistencia != null || (palavras || []).length)
+      o.temporarios = [...(o.temporarios || []), { ...(poder != null ? { poder } : {}), ...(resistencia != null ? { resistencia } : {}), ...((palavras || []).length ? { palavras: palavras.map(k => String(k).toLowerCase()) } : {}), ts: relogio(s), ...marca }];
+    return;
+  }
   if (poder != null || resistencia != null) {
     const campo = proximo ? 'pumpNext' : 'pump', ant = o[campo] || {};
     o[campo] = { p: (ant.p || 0) + (poder || 0), t: (ant.t || 0) + (resistencia || 0), ...(proximo ? { by } : {}) };
@@ -13593,8 +13603,32 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
 /** CR2-G R3b · os efeitos temporários gravados no objeto, como efeitos contínuos: não dependem das habilidades impressas
  * (valem virada para baixo); a palavra-chave até o fim do turno tem carimbo, a de "até o seu próximo turno" não (cai com
  * qualquer Aura que tire as habilidades, como antes). */
-function temporariosDe(o) {
+/** CR2-G R6 · poda dos efeitos temporários com duração: 'inicio' (começo do turno: "até o seu próximo turno" de quem começa)
+ * ou 'limpeza' ("até o fim do turno" sem marca, "até o fim do seu próximo turno" no turno de quem fez, e os que perderam a
+ * fonte). Sem nada sobrando, a propriedade some (o estado fica igual ao de antes). */
+function podaTemporarios(s, o, momento) {
+  const fica = t => {
+    if (!vigente(s, t)) return false;
+    if (momento === 'inicio') return !(t.ate === 'seu-proximo-turno' && t.by === s.turn.active);
+    if (!t.ate || t.ate === 'fim-do-turno') return false;
+    return !(t.ate === 'fim-do-seu-proximo-turno' && t.by === s.turn.active && s.turn.number > t.turno);
+  };
+  for (const k of ['vira', 'temporarios']) {
+    if (!o[k]) continue;
+    if (momento === 'inicio' && k === 'vira' && !o[k].some(t => t.ate)) continue;
+    const resta = o[k].filter(fica);
+    if (resta.length) o[k] = resta; else delete o[k];
+  }
+}
+/** CR2-G R6 · o efeito temporário ainda vale? "Enquanto você controlar <fonte>": a mesma encarnação no campo, sob o controle de quem fez. */
+function vigente(s, t) {
+  if (!t || !t.ate || typeof t.ate !== 'object') return true;
+  const f = t.fonte && s.objects[t.fonte.oid];
+  return !!(f && f.zone === 'battlefield' && (f.zc || 0) === t.fonte.z && f.controller === t.by);
+}
+function temporariosDe(o, s) {
   const out = [];
+  for (const t of o.temporarios || []) if (!s || vigente(s, t)) out.push({ afetados: 'self', temporario: t.ate, poder: t.poder || 0, resistencia: t.resistencia || 0, ...(t.palavras ? { palavras: t.palavras } : {}), ts: t.ts || 0 }); // CR2-G R6
   if (o.pump) out.push({ afetados: 'self', temporario: 'fim-do-turno', poder: o.pump.p || 0, resistencia: o.pump.t || 0, ts: 0 });
   if (o.pumpNext) out.push({ afetados: 'self', temporario: 'seu-proximo-turno', poder: o.pumpNext.p || 0, resistencia: o.pumpNext.t || 0, ts: 0 });
   const tts = o.tempTs || [];
@@ -13605,7 +13639,7 @@ function temporariosDe(o) {
 /** 7c · soma dos bônus temporários (a mesma subcamada dos estáticos; separada só para manter a conta antiga legível). */
 function bonusTemporario(s, o) {
   let p = 0, tgh = 0;
-  for (const e of temporariosDe(o)) { p += e.poder || 0; tgh += e.resistencia || 0; }
+  for (const e of temporariosDe(o, s)) { p += e.poder || 0; tgh += e.resistencia || 0; }
   return { p, t: tgh };
 }
 /** S57 · bônus temporários: até o fim do turno e até o seu próximo turno. */
@@ -14128,7 +14162,7 @@ function enterStep(s, step) {
 }
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
+  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -14144,6 +14178,7 @@ function finishCleanup(s) {
   // S57 · "até o seu próximo turno" termina quando esse turno começa
   for (const o of battlefield(s)) {
     if (o.pumpNext && o.pumpNext.by === s.turn.active) delete o.pumpNext;
+    if (o.vira || o.temporarios) podaTemporarios(s, o, 'inicio'); // CR2-G R6
     // S59 · provocar e palavra-chave "até o seu próximo turno" caem no mesmo momento
     if (o.goaded && o.goaded.by === s.turn.active) delete o.goaded;
     if (o.keywordsNext && o.keywordsNext.by === s.turn.active) delete o.keywordsNext;
@@ -14815,7 +14850,7 @@ function applyEffect(s, src, eff, tgt, events) {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (!alvo || alvo.zone !== 'battlefield') break;
       const pw = eff.poder != null ? amountOf(s, src, eff.poder) : undefined, tg = eff.resistencia != null ? amountOf(s, src, eff.resistencia) : undefined;
-      aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}) }, ctrl);
+      aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
       note({ name: alvo.name, power: pw || 0, toughness: tg || 0, palavras: (eff.palavras || []).map(k => String(k).toLowerCase()), ate: eff.ate || 'fim-do-turno' });
       break;
     }
@@ -19181,7 +19216,7 @@ function effectLine(ev) {
     case 'mover': return ev.failed ? `${ev.name}: nada a mover` : `${ev.target} foi ${{ hand: 'devolvida à mão', exile: 'exilada', graveyard: 'para o cemitério', battlefield: 'para o campo', library: ev.posicao === 'embaralhado' ? 'embaralhada no grimório' : ev.posicao === 'fundo' ? 'para o fundo do grimório' : 'para o topo do grimório' }[ev.para] || 'movida'} (${ev.name})`;
     case 'continuo': { const pt = ev.power || ev.toughness ? `${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness}` : '';
       const kw = (ev.palavras || []).map(k => PALAVRA_PT[k] || k).join(' e ');
-      return `${t} ganhou ${[pt, kw].filter(Boolean).join(' e ')} ${ev.ate === 'seu-proximo-turno' ? 'até o seu próximo turno' : 'até o fim do turno'} (${ev.name})`; }
+      return `${t} ganhou ${[pt, kw].filter(Boolean).join(' e ')} ${duracaoPT(ev.ate)} (${ev.name})`; }
     case 'tap': return `${ev.name} virou ${t}`;
     case 'untap': return `${ev.name} desvirou ${t}`;
     default: return `${ev.name} resolveu`;
@@ -19910,6 +19945,8 @@ function descreveContinuo(c) {
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   return `${quem} ${partes.join(' e ')}`;
 }
+/** CR2-G R6 · a duração em português. */
+const duracaoPT = d => d && typeof d === 'object' ? 'enquanto você controlar esta permanente' : ({ 'seu-proximo-turno': 'até o seu próximo turno', 'fim-do-seu-proximo-turno': 'até o fim do seu próximo turno' }[d] || 'até o fim do turno');
 function descreveAlvo(chave) {
   if (chave && typeof chave === 'object') return descreveSeletor(chave);
   const k = String(chave);
@@ -19990,7 +20027,7 @@ function descreveEfeito(e) {
       if ((e.palavras || []).length) partes.push(`ganha ${e.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
       if (e.torna) partes.unshift(descreveTorna(e.torna)); // CR2-G R3c
       const quem = e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura';
-      return `${quem} ${partes.join(' e ')} ${e.ate === 'seu-proximo-turno' ? 'até o seu próximo turno' : 'até o fim do turno'}`;
+      return `${quem} ${partes.join(' e ')} ${duracaoPT(e.ate)}`;
     }
     case 'keyword': if (e.targetCount) return `até X criaturas ganham ${PALAVRA_PT[e.keyword] || e.keyword} até o fim do turno`; // CR2c.3
       return `${alvo || 'a criatura'} ganha ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`;
