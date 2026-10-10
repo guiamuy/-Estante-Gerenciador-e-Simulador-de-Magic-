@@ -5269,6 +5269,7 @@ const EFFECTS = {
   desenterrar: { fields: [], targets: ['self'] }, // M-256 · resolução do desenterrar (702.84a)
   reforco: { fields: [], targets: ['first-target'] }, // M-260 · a segunda metade do reforço (702.165a)
   sai_de_fase: { fields: [], targets: ['creature', 'permanent', 'first-target'] }, // M-261 · 702.26 "phases out"
+  mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
   amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
   resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
   exilar_fichas_mesmo_nome: { fields: [], targets: ['first-target'] }, // M-258 · "and all tokens that player controls with the same name as that permanent"
@@ -5350,7 +5351,7 @@ DUNGEONS.push(
   ] });
 const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
 const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
-const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
+const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
@@ -5871,6 +5872,7 @@ function validateScript(sc) {
     if (self.ward != null && (typeof self.ward !== 'string' || !self.ward.trim())) errs.push('bônus próprio: vigilância precisa de um custo de mana');
     if (self.devoid != null && self.devoid !== true) errs.push('bônus próprio: devoid só vale como true');
     if (self.toxic != null && !(Number.isInteger(self.toxic) && self.toxic > 0)) errs.push('bônus próprio: tóxico precisa ser inteiro positivo'); // M-253
+    if (self.oponentesCompramUma != null && self.oponentesCompramUma !== true) errs.push('bônus próprio: oponentesCompramUma só vale como true'); // M-262
     if (self.reduzSeMira != null && !(self.reduzSeMira && Number.isInteger(self.reduzSeMira.generic) && self.reduzSeMira.generic > 0 && JSON.stringify(self.reduzSeMira.tipos) === '["creature"]')) errs.push('bônus próprio: reduzSeMira pede tipos [creature] e generic inteiro'); // M-259
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
@@ -6614,6 +6616,12 @@ const RAW_SCRIPTS = [
   // M-261 · "Put a +1/+1 counter on target creature. It phases out." (texto de 05/10/2026; segunda fonte de 10/10/2026)
   { name: 'Slip Out the Back', effects: [{ do: 'counters', amount: 1, target: 'creature' }, { do: 'sai_de_fase', target: 'first-target' }],
     example: { target: 'own-creature', expect: { stats: [3, 3] } } },
+  // M-262 · texto de 05/10/2026; segunda fonte de 10/10/2026
+  { name: 'High Tide', effects: [{ do: 'mare_alta' }], // "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}."
+    example: { target: 'none', expect: { handDelta: 0 } } },
+  { name: 'Narset, Parter of Veils', self: { oponentesCompramUma: true }, loyalty: [ // "Each opponent can't draw more than one card each turn."
+    { cost: -2, label: '−2: Olha as quatro de cima; pode pegar uma que não seja criatura nem terreno', effects: [{ do: 'look', count: 4, amount: 1, revela: true, filter: { notTypes: ['creature', 'land'] }, to: 'hand', rest: 'library-bottom-random' }] }], // "−2: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -13953,9 +13961,12 @@ function moveObject(s, oid, to, { top = true } = {}) {
   // CR2-G R2a · 603.6 · entrar, morrer, sair do campo e "a anexada morre" são o mesmo evento de mudança de zona
   disparaZona(s, o, fromZone, to, fromController, ultima);
 }
+/** M-262 · algum oponente de `p` controla uma permanente que limita as compras dele a uma por turno? */
+const limiteDeCompra = (s, p) => battlefield(s).some(o => o.controller !== p && !o.faceDown && !semImpressas(s, o) && (((s.facts[o.name] || {}).script || {}).self || {}).oponentesCompramUma);
 function draw(s, p, n = 1) {
   if (s.players[p].dummy) return;
   for (let k = 0; k < n; k++) {
+    if ((s.players[p].drawnThisTurn || 0) >= 1 && limiteDeCompra(s, p)) return; // M-262 · Narset: "Each opponent can't draw more than one card each turn"
     const lib = s.zones[p].library;
     if (!lib.length) { s.players[p].drewFromEmpty = true; return; }
     moveObject(s, lib[0], 'hand');
@@ -14162,6 +14173,7 @@ function productions(s, o, visto) {
     (regra.needsSubtype ? new RegExp('\\b' + regra.needsSubtype + '\\b').test(s.facts[x.name].typeText || '') : s.facts[x.name].types.includes(regra.needsType))))
     opts = opts.filter(x => !x.some(c => regra.colors.includes(c)));
   if (regra && regra.life && s.players[o.controller].life < regra.life) opts = opts.filter(x => !x.some(c => regra.colors.includes(c))); // CR 119.4: só paga a vida que tem
+  if (s.mareAlta && opts.length && /\bIsland\b/.test(linhaDeTipo(s, o))) opts = opts.map(x => x.concat(Array(s.mareAlta).fill('U'))); // M-262 · High Tide (605.1b): cada Ilha virada para mana dá {U} a mais
   const seen = new Set();
   return opts.filter(x => { const k = x.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
 }
@@ -14610,6 +14622,7 @@ function enterStep(s, step) {
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
   for (const pl of s.players) delete pl.tempHexproof; // M-260 · resistência a magia do jogador acaba na limpeza
+  delete s.mareAlta; // M-262 · High Tide vale até o fim do turno
   for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
@@ -15594,6 +15607,7 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'mare_alta': { s.mareAlta = (s.mareAlta || 0) + 1; note({ amount: s.mareAlta }); break; } // M-262 · "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}"
     case 'sai_de_fase': { // M-261 · sai de fase com o que está anexado (fase indireta); sai do combate; volta no desvirar de quem a controla
       if (!obj || obj.zone !== 'battlefield' || obj.phasedOut) { note({ failed: true }); break; }
       const juntos = [obj, ...attachedTo(s, obj)];
@@ -15881,7 +15895,7 @@ function concluiPick(s, events) {
     else moveObject(s, oid, where);
   };
   [...pk.picked].reverse().forEach(oid => dest(oid, pk.to)); // o primeiro escolhido termina no topo
-  pk.from.filter(oid => !pk.picked.includes(oid)).forEach(oid => dest(oid, pk.rest));
+  { const resto = pk.from.filter(oid => !pk.picked.includes(oid)); if (pk.rest === 'library-bottom-random') { shuffle(s, resto); resto.forEach(oid => dest(oid, 'library-bottom')); } else resto.forEach(oid => dest(oid, pk.rest)); } // M-262
   if (pk.shuffle) { shuffle(s, s.zones[pk.p].library);
     // CR 701.24b: "embaralhe e ponha a carta no topo" — a carta achada não entra no embaralhamento (Mystical Tutor)
     if (pk.to === 'library-top') { const lib = s.zones[pk.p].library; for (const oid of [...pk.picked].reverse()) { const i = lib.indexOf(oid); if (i >= 0) { lib.splice(i, 1); lib.unshift(oid); } } } }
@@ -20666,6 +20680,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'mare_alta': return 'até o fim do turno, cada Ilha virada para mana dá {U} a mais (para qualquer jogador)'; // M-262
     case 'sai_de_fase': return `${alvo || 'a permanente'} sai de fase (trata-se como se não existisse até o próximo desvirar de quem a controla)`; // M-261
     case 'reforco': return 'se for outra criatura, ela ganha as outras habilidades desta até o fim do turno'; // M-260
     case 'amass': return `amassa ${n} (${e.subtipo || 'Zombie'}): sem Exército, cria um 0/0; põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} nele`;

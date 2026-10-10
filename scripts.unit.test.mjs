@@ -25,7 +25,7 @@ const CARDS = {
 // tipo de cada carta da biblioteca: mágica instantânea quando o efeito pede resposta; permanentes pelo mapa abaixo
 // S62 · PERM_TYPES mora em fixtures.mjs, compartilhado com a auditoria das listas
 const PT_IMPRESSO = { "Smuggler's Copter": [3, 3] }; // CR2d.3 · Veículo: P/T impresso sem ser criatura
-const LOYALTY = { 'Saheeli, Sublime Artificer': 5, 'Lukka, Coppercoat Outcast': 5 }; // lealdade impressa (texto oficial de 05/10/2026)
+const LOYALTY = { 'Saheeli, Sublime Artificer': 5, 'Lukka, Coppercoat Outcast': 5, 'Narset, Parter of Veils': 5 }; // lealdade impressa (texto oficial de 05/10/2026)
 // quem responde à pilha é instantânea: efeito de resposta, modo, ou alvo que é uma mágica
 const instantish = sc => (sc.modes || []).length > 0
   || (sc.effects || []).some(e => ['counter', 'pump', 'bounce', 'tap', 'untap'].includes(e.do) || /spell/.test(e.target || ''))

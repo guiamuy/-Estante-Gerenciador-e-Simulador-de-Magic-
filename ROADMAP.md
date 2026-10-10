@@ -3219,6 +3219,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe: nada que existia saía de fase.
 - **Próximo:** M-262 — March of Swirling Mist; Moonsnare Prototype (canalizar; topo ou fundo à escolha do dono).
 
+**M-262 · R11 · High Tide e Narset, Parter of Veils** ✅ (leva M-262, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Regra:** High Tide (605.1b, habilidade de mana disparada): até o fim do turno, cada Ilha virada para mana dá {U} a mais, para qualquer jogador; entra na produção da Ilha, então o pagamento automático já conta com ela; duas High Tides somam. Narset: limite de compra dos oponentes (uma por turno, contando as compras anteriores do turno; a compra que passa do limite simplesmente não acontece, sem perder por grimório vazio); −2 olha as quatro de cima, pode pegar uma que não seja criatura nem terreno (revelada), e o resto vai para o fundo em ordem aleatória (destino novo `library-bottom-random`).
+- **Cartas cobertas (completas):** High Tide e Narset, Parter of Veils.
+- **Medição:** Malcolm + Kediss 87% → **89%** (completo 89 · parcial 8 · manual 3); Killian segue 94%.
+- **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
+- **Próximo:** M-263 — March of Swirling Mist (custo adicional variável com redução) e Moonsnare Prototype (canalizar; topo ou fundo à escolha do dono).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
