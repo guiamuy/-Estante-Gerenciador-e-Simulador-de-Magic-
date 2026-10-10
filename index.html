@@ -5442,7 +5442,7 @@ function substituiErros(r, tag) {
   if (q.objeto != null && q.objeto !== 'self') { if (typeof q.objeto !== 'object') errs.push(`${tag}: "quando.objeto" precisa ser self ou um seletor`); else errs.push(...seletorErros(q.objeto, `${tag}: objeto`)); }
   return errs;
 }
-const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype'];
+const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo']; // M-252 · "you may reveal a Plains or Swamp card from your hand"
 function entraErros(r, tag) {
   if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
@@ -5651,7 +5651,7 @@ function descreveGatilho(w) {
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
-  'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
+  'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
@@ -5748,7 +5748,7 @@ function validateScript(sc) {
   if (sc && sc.discount && !(Number.isInteger(sc.discount.amount) && sc.discount.amount > 0 && (sc.discount.needs || []).length)) errs.push('desconto precisa de valor e de exigências');
   // S18 · ninjutsu e insanidade
   // S21 · habilidades de lealdade
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha'].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida');
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
   for (const ab of (sc && sc.abilities) || []) if (ab.mayPay && !ab.mayPay.mana && !ab.mayPay.exileFromGraveyard && !ab.mayPay.sacrificeSelf) errs.push('custo opcional do gatilho sem custo');
@@ -5827,6 +5827,7 @@ function validateScript(sc) {
   // M-251 · habilidade disparada concedida pela aura ou equipamento: quem controla a criatura é quem controla o gatilho
   for (const [i, ab] of ((((sc && sc.grants) || {}).triggered) || []).entries()) {
     if (!ab || !ab.when || !gatilhoDoEvento(ab.when)) errs.push(`bônus: gatilho concedido ${i + 1} desconhecido`);
+    if (ab && ab.condition && !['atacaSozinha', 'lifeGained', 'attackersAtLeast'].includes(Object.keys(ab.condition)[0] || '')) errs.push(`bônus: condição do gatilho concedido ${i + 1} desconhecida`);
     errs.push(...effectErrors(ab.effects, `bônus: gatilho concedido ${i + 1}`));
   }
   // S39 · habilidades ativadas concedidas por aura ou por vínculo de alma
@@ -6510,6 +6511,15 @@ const RAW_SCRIPTS = [
   { name: 'Rune of Sustenance', aura: { enchant: 'permanent' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
     continuo: [{ afetados: 'anexada', seAfetado: { tipos: ['creature'] }, palavras: ['lifelink'] }, { afetados: 'equipada-pela-anexada', palavras: ['lifelink'] }],
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  // M-252 · "ataca sozinha" e "revelar ao entrar" (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Idolized', aura: { enchant: 'creature' }, // "Enchanted creature has 'Whenever this creature attacks alone, it gets +X/+X until end of turn, where X is the number of nonland permanents you control.'"
+    grants: { triggered: [{ kind: 'triggered', when: 'attacks', condition: { atacaSozinha: true },
+      effects: [{ do: 'continuo', target: 'self-source', poder: { per: 'nonland-permanents-you-control' }, resistencia: { per: 'nonland-permanents-you-control' } }] }] },
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  { name: 'Shineshadow Snarl', produces: [['W'], ['B']], // "{T}: Add {W} or {B}."
+    entra: [{ afetados: 'self', virada: { aMenosQue: { revelaSubtipo: ['Plains', 'Swamp'] } } }], // "As this land enters, you may reveal a Plains or Swamp card from your hand. If you don't, this land enters tapped."
+    note: 'jogada da mão, a escolha de revelar vem no botão; posta no campo por outro efeito, entra virada (a mesa ainda não pergunta no meio de um efeito)',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -13431,6 +13441,7 @@ function countFor(s, src, per) {
   if (per === 'creatures-you-control') return perms.filter(o => o.controller === src.controller && isCreature(s, o)).length;
   if (per === 'other-creatures-you-control') return perms.filter(o => o.controller === src.controller && o.oid !== src.oid && isCreature(s, o)).length;
   if (per === 'permanents-you-control') return perms.filter(o => o.controller === src.controller).length;
+  if (per === 'nonland-permanents-you-control') return perms.filter(o => o.controller === src.controller && !tiposDe(s, o).includes('land')).length; // M-252 · Idolized
   if (per === 'elves-you-control') return perms.filter(o => o.controller === src.controller && isElf(o)).length;
   if (per === 'elves-on-battlefield') return perms.filter(isElf).length;
   if (per === 'defenders-you-control') return perms.filter(o => o.controller === src.controller && has(s, o, 'defender')).length;
@@ -13641,7 +13652,7 @@ function entradaModificada(s, o, xPago) {
       const livre = (c.anyPlayerLifeAtMost != null && s.players.some(pl => !pl.lost && pl.life <= c.anyPlayerLifeAtMost)) ||
         // R11.2 · "a menos que você controle um Plains ou um Swamp": a própria carta, entrando, não conta
         (c.controlsSubtype && battlefield(s).some(x => x.oid !== o.oid && x.controller === o.controller && s.facts[x.name].types.includes('land') && c.controlsSubtype.some(k => new RegExp('\\b' + k + '\\b').test(s.facts[x.name].typeText || ''))));
-      virada = !livre;
+      virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar)); // M-252 · revelou ao jogar (a escolha vem na ação)
     }
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
   }
@@ -13747,6 +13758,14 @@ function draw(s, p, n = 1) {
 
 /* ---------------- consultas ---------------- */
 const alive = s => s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
+/** M-252 · cartas da mão que a terra aceita revelar ao entrar (Snarl); `distintas`: uma por nome, para a oferta. */
+function revelaveisAoEntrar(s, p, o, distintas) {
+  const sc = (s.facts[o.name] || {}).script || {}, regra = (SC.substituicoesDoScript(sc).entra || []).find(r => r.afetados === 'self' && r.virada && r.virada.aMenosQue && r.virada.aMenosQue.revelaSubtipo);
+  if (!regra) return [];
+  const subs = regra.virada.aMenosQue.revelaSubtipo, vistos = new Set();
+  return s.zones[p].hand.filter(x => x !== o.oid && subs.some(k => new RegExp('\\b' + k + '\\b').test((s.facts[s.objects[x].name] || {}).typeText || '')))
+    .filter(x => { if (!distintas) return true; const n = s.objects[x].name; if (vistos.has(n)) return false; vistos.add(n); return true; });
+}
 /** M-248 · 119.3 / 119.4: perder vida (dano, perda ou pagamento) num lugar só, com o rastro "vida perdida neste turno"
  * (Children of Korlis); o rastro mora no jogador só depois da primeira perda do turno e some no começo do turno seguinte. */
 function perdeVida(s, p, n) { s.players[p].life -= n; if (n > 0) s.players[p].lifeLost = (s.players[p].lifeLost || 0) + n; }
@@ -15851,6 +15870,7 @@ function triggerConditionMet(s, o, cond) {
     const terrenos = p => battlefield(s).filter(x => x.controller === p && tiposDe(s, x).includes('land')).length;
     if (!alive(s).some(q => q !== o.controller && terrenos(q) > terrenos(o.controller))) return false;
   }
+  if (cond.atacaSozinha && !(s.combat && (s.combat.attackers || []).length === 1 && s.combat.attackers[0] === o.oid)) return false; // M-251 · 506.5 "attacks alone"
   if (cond.attackersAtLeast != null) {
     const list = (s.combat && s.combat.attackers) || [];
     if (list.length < cond.attackersAtLeast || !list.includes(o.oid)) return false;
@@ -16572,7 +16592,7 @@ const HANDLERS = {
     if (s.stack.length) { ev.push(resolveTop(s, ev)); s.turn.priority = s.turn.active; return; }
     advanceStep(s);
   },
-  play_land(s, a) {
+  play_land(s, a, ev = []) {
     noPending(s); holder(s, a.p);
     // S61 · Cavernas das Runas: a carta exilada pode ser jogada de lá
     const exilada = s.objects[a.oid];
@@ -16581,7 +16601,12 @@ const HANDLERS = {
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
     if (s.turn.active !== a.p || !isMain(s) || s.stack.length) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia');
     if (s.players[a.p].landsPlayed >= 1) throw new RuleError('limite', 'já jogou terreno neste turno');
+    if (a.revela != null) { // M-252 · 'As this land enters, you may reveal a Plains or Swamp card from your hand'
+      if (!revelaveisAoEntrar(s, a.p, o).includes(a.revela)) throw new RuleError('escolha', 'revele uma carta da mão que sirva para esta terra');
+      o.revelaAoEntrar = a.revela; ev.push({ kind: 'effect', do: 'reveal', name: o.name, target: s.objects[a.revela].name });
+    }
     moveObject(s, a.oid, 'battlefield');
+    delete s.objects[a.oid].revelaAoEntrar;
     s.players[a.p].landsPlayed++;
     s.turn.passes = 0;
   },
@@ -17443,7 +17468,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     for (let n = 1; n <= (k.multi ? 5 : 1); n++) { if (s.manaCheck && !canPay(s, p, somaCusto(s.facts[o.name].cost, kc, n), castExtra(s, p, o, 0))) break; out.push(n); } return out; };
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid], f = s.facts[o.name];
-    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) out.push({ t: 'play_land', p, oid }); }
+    if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) { out.push({ t: 'play_land', p, oid }); for (const r of revelaveisAoEntrar(s, p, o, true)) out.push({ t: 'play_land', p, oid, revela: r }); } }
     else if ((canSorcery || !isSorcerySpeed(f)) && !(s.manaCheck && f.semCusto) && payable(o, castExtra(s, p, o, 0))) {
       // S50/Leva 104 · custo com X: quem conjura escolhe X (601.2b), de 0 até o que dá para pagar
       const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x)));
@@ -17689,7 +17714,7 @@ function resolveAbility(s, o, events) {
   if (o.condicao && !o.condicaoConferida) {
     const fonte = s.objects[o.source];
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
-    const { attackersAtLeast, ...resto } = o.condicao;
+    const { attackersAtLeast, atacaSozinha, ...resto } = o.condicao; // M-252 · "ataca sozinha" também é do disparo
     if (fonte && !triggerConditionMet(s, fonte, resto)) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; }
     o.condicaoConferida = true;
   }
@@ -22132,7 +22157,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const semRepetir = a => { if (a.t !== 'cast' || !(a.targets || []).length || !simetrica(a)) return true;
       const k = JSON.stringify({ ...a, targets: a.targets.map(x => JSON.stringify(x)).sort() }); if (vistas.has(k)) return false; vistas.add(k); return true; };
     const legal = E.legalActions(s, v).filter(a => a.oid === oid).filter(semRepetir).map(a =>
-      a.t === 'play_land' ? doBtn('Jogar terreno', a, { variant: 'primary' })
+      a.t === 'play_land' ? (a.revela != null ? doBtn(`Jogar desvirada, revelando ${s.objects[a.revela].name}`, a, { variant: 'primary' }) : doBtn('Jogar terreno', a, { variant: 'primary' })) // M-252 · Snarl
         // Leva 121 · ações que o motor oferecia e a folha não desenhava: tramar (plot), conjurar a tramada, metamorfose
         : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })

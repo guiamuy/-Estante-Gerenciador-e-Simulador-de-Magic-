@@ -937,8 +937,11 @@ test('Leva 108 · Malevolent Rumble revela as quatro cartas na linha do tempo', 
   let s = jogo(); const a = s.turn.active; let mr;
   [s, mr] = poe(s, a, 'Malevolent Rumble', 'hand');
   s = act(s, { t: 'cast', p: a, oid: mr }); s = act(s, { t: 'pass', p: a });
+  const topo = s.zones[a].library.slice(0, 4).map(x => s.objects[x].name);
   const r = E.apply(s, { t: 'pass', p: s.turn.priority });
-  assert.ok(r.events.some(e => e.do === 'reveal' && e.target.split(', ').length === 4));
+  // M-252 · comparar com os nomes do topo: contar vírgulas quebrava quando o topo trazia carta com vírgula no nome (Kytheon, Hero of Akros)
+  assert.equal(topo.length, 4);
+  assert.ok(r.events.some(e => e.do === 'reveal' && e.target === topo.join(', ')), JSON.stringify(r.events.filter(e => e.do === 'reveal')));
 });
 
 test('Leva 108 · Birchlore virada para baixo não conta como Elfo no custo', () => {

@@ -3127,6 +3127,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas que não tinham script).
 - **Próximo:** M-252 — Idolized ("ataca sozinha" + contagem de permanentes que não são terreno) e Shineshadow Snarl (pergunta de revelar ao entrar).
 
+**M-252 · R11 · "Ataca sozinha" e "revelar ao entrar": Idolized e Shineshadow Snarl** ✅ (leva M-252, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Valor:** a Aura que premia atacar sozinho funciona, e o Snarl deixa de entrar sempre virado: a mesa oferece jogá-lo revelando uma Planície ou um Pântano da mão.
+- **Regra:** condição de gatilho `atacaSozinha` (506.5; vista no disparo, como o "atacaram três"), também nos gatilhos concedidos; contagem `nonland-permanents-you-control` (lida na resolução). "Revelar ao entrar" (`aMenosQue: { revelaSubtipo }`): a escolha vem na ação de jogar o terreno — uma opção por nome de carta que serve, mais a de não revelar —, o registro diz o que foi revelado e a carta fica na mão.
+- **Cartas cobertas (completas):** Idolized e Shineshadow Snarl.
+- **Simplificação declarada:** o Snarl posto no campo por outro efeito (não jogado da mão) entra virado, sem a pergunta — a mesa ainda não pergunta no meio de um efeito. Nas listas atuais nenhum efeito põe o Snarl no campo.
+- **Medição:** Killian 84% → **86%** (completo 87 · parcial 7 · manual 7); Malcolm + Kediss segue 84%.
+- **Correção no caminho (teste):** o teste da Leva 108 contava as cartas reveladas pelo Malevolent Rumble separando o texto por vírgula; com as cartas novas na biblioteca, o topo trouxe "Kytheon, Hero of Akros" e a conta deu 5. Agora compara com os nomes das quatro cartas do topo — mais exato, não mais frouxo.
+- **Golden:** idênticas, sem regravar. Versão não sobe (cartas que não tinham script).
+- **Próximo:** M-253 — veneno e tóxico (122.1f, 702.164): Skrelv, Defector Mite, Skrelv's Hive, Phyresis (infectar); o jogador com dez marcadores de veneno perde.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
