@@ -496,6 +496,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cz ✅ | T7 relato resolvido sozinho: a situação do registro volta do GitHub (`situacao.json` no ramo `relatos`), número do registro no cartão, resolvido com a data; id copiado por outra conta não conta (leva G-243) | T | 1 | — |
 | 16º-da ✅ | I9 fichas das suas listas pela Scryfall: a lista nova traz as fichas que as cartas dela criam para "Nas suas listas"; excluir a lista devolve a ficha a "Todas as fichas" com a arte escolhida (leva G-244) | I | 1 | — |
 | 16º-db ✅ | SEG1 HTML seguro nos avisos: Note trata texto como texto, marcação só por `seguro\`…\`` que escapa o interpolado; nome de carta de lista colada, lista do oponente, CSV e erros não viram HTML; contrato no portão (leva P-1) | SEG | 1 | — |
+| 16º-dc ✅ | T6a documento de perfil: registro de todas as chaves do armazenamento por classe, store vigiado que carimba cada preferência, documento `estante.perfil` v1 e backup com as oito preferências que ficavam de fora (leva A-261) | T | 1 | — |
+| 16º-dd 🟡 | T6 depois da decisão de 10/10/2026 (**Firebase**, por REST, sem SDK): T6b forma do perfil e da fila de relatos, T6c regras de acesso e entrada com Google, T6d sincronização, T6e relato sem sair do app (#13) | T | 4 a 5 | **projeto Firebase** criado pelo usuário (Realtime Database + Authentication com Google) para ligar no aparelho |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6930,6 +6932,37 @@ prontas.
   Firebase — documentos e entrada com Google, que encaixa na U13). **Decisão do usuário** antes de qualquer código; a
   ADR-02 (sem build) continua: o cliente entra por `<script>` com versão fixa.
 - **Fora:** servidor próprio; multiplayer online (escopo negativo).
+- **Decisão (10/10/2026, relatos #6 e #13):** o serviço é o **Firebase** (Realtime Database por REST e entrada com
+  Google, sem SDK — o transporte da sala online já é assim). O plano curto "vários perfis no mesmo aparelho" sai:
+  cada pessoa usa o próprio aparelho e a conta. Sequência: T6a documento de perfil (feita) → T6b forma do perfil e
+  da fila de relatos no Firebase → T6c regras de acesso e entrada → T6d sincronização → T6e relato sem sair do app.
+
+**T6a · Documento de perfil no aparelho** ✅ (leva A-261, trilha `armazem`)
+- **Valor:** tudo o que a pessoa configura passa a ser um documento só, com data por escolha — é o que o backup leva
+  hoje e o que a conta vai levar de um aparelho ao outro.
+- **Dado:** `{ kind: 'estante.perfil', version: 1, atualizadoEm, pessoa: { nome, avatar, atualizadoEm },
+  preferencias: { <chave>: valor }, carimbos: { <chave>: instante } }`. Montado por `perfil.documento()` a partir das
+  chaves que já existem (nenhuma mudou de nome: são mais de 200 leituras em regiões de outras trilhas); aplicado por
+  `perfil.aplicaDocumento(doc)` — por chave vence a escolha mais nova, empate fica com o aparelho, chave que não é
+  preferência é ignorada, cada escrita é lida de volta (`conferido`).
+- **Registro:** `REGISTRO` em `src/data/perfil.js` dá a classe de cada chave do store — `preferencia` (22, entram no
+  documento), `conteudo` (listas, coleção, etiquetas, histórico, relatos, guardadas: caminho próprio no backup),
+  `aparelho` (câmera, offline, partida em curso, conta) e `derivado` (caches). A lista de preferências do backup sai
+  dele.
+- **Store vigiado:** `vigiaStore` embrulha o store da plataforma em `main.js`; escrever ou apagar uma preferência
+  guarda o instante em `perfil.carimbos`; chave sem classe vira erro no console (o e2e cai em qualquer tela).
+- **Migração:** nenhuma chave é reescrita. Preferência anterior à leva não tem carimbo e vale 0: qualquer mudança
+  datada vence, e nada é chutado. O arquivo de backup continua `version: 3` (`prefs` é o mesmo mapa, com mais chaves;
+  app antigo ignora as que não conhece).
+- **Entram no backup a partir daqui:** visão da lista, visão e estatísticas do catálogo, estatísticas da lista, regras
+  abertas na carta, altura do botão Relatar, apresentação vista e os avisos de reserva v2.
+- **Sem rede:** tudo; não há caminho de rede nesta leva.
+- **Testes:** U `perfil.unit` (+8: registro e classes; nada saiu do backup; contrato que varre o `index.html` e cai
+  com chave sem classe; store vigiado no contrato da plataforma, carimbo que cresce, escritas simultâneas, carimbo que
+  falha sem derrubar a escrita; aparelho antigo vira documento sem escrever nada; aplicar documento nos dois sentidos,
+  idempotente, com apagamento e recusa de formato; leitura de volta; ida e volta do backup com todas as preferências
+  e o arquivo v3 antigo).
+- **Fora:** rede, conta, tela nova; conteúdo (listas, coleção, histórico) sincroniza por item, em história própria.
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
@@ -7137,6 +7170,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `geral` | design system, scanner, coleção, listas, offline, o que não é bot nem motor |
 | `infra` | portão, CI, publicação |
 | `protecao` | segurança e privacidade: HTML seguro, CSP, terceiros, regras do Firebase, Actions, o que sai do aparelho (levas `P-N`) |
+| `armazem` | dados e armazenamento: store, perfil, backup, sincronização, forma dos dados no Firebase e nos ramos (levas `A-N`) |
 
 ### Publicar pela interface web
 

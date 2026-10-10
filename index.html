@@ -8509,8 +8509,72 @@ const KEY = 'perfil';
 const NOME_MAX = 24;
 /** Lado do avatar guardado, em px de imagem: 96 px CSS numa tela 3× pedem 288; 192 fica nítido em 2× e leve (~8 KB em JPEG). */
 const AVATAR_PX = 192;
+/* ---------------------------------------------------------------------
+   Leva A-261 · T6a · DOCUMENTO DE PERFIL (relato #6, primeira parte)
+   Tudo o que a pessoa configura mora em chaves do store. Este registro diz, para CADA chave do app, de que classe ela é:
+     preferencia · escolha da pessoa: entra no documento de perfil (backup hoje; com conta, sincronização por chave)
+     conteudo    · o que a pessoa criou (listas, coleção, histórico, relatos): tem caminho próprio no backup
+     aparelho    · só faz sentido neste aparelho (câmera, o que está guardado para offline, partida em curso)
+     derivado    · cópia de dado de fora; apagada, o app busca de novo
+   Chave nova entra aqui na mesma leva: o store vigiado avisa de chave sem classe e o portão cai (perfil.unit e e2e).
+   As chaves não mudaram de nome nem de lugar (mais de 200 leituras em regiões de outras trilhas): o documento é montado
+   a partir delas, e toda escrita de preferência passa por `vigiaStore`, que guarda quando ela mudou.
+   --------------------------------------------------------------------- */
+const DOC_KIND = 'estante.perfil', DOC_VERSION = 1, CARIMBOS = 'perfil.carimbos';
+/** [chave, classe, vai no mapa `prefs` do backup]. Prefixo termina em ponto ('deck.'). */
+const REGISTRO = [
+  ['ui.theme', 'preferencia', true], ['ui.aparencia', 'preferencia', true], ['mesa.maoRecolhida', 'preferencia', true],
+  ['collection.prefs', 'preferencia', true], ['collection.views', 'preferencia', true], ['decks.reservaVista', 'preferencia', true],
+  ['etiquetas', 'conteudo', true], ['mesa.som', 'preferencia', true], ['mesa.verJogadas', 'preferencia', true],
+  ['mesa.manaManual', 'preferencia', true], ['mesa.paradas', 'preferencia', true], ['fichas.escolhas', 'preferencia', true],
+  ['partidas.historico', 'conteudo', true], ['terrenos.escolhas', 'preferencia', true], ['noticias.idiomas', 'preferencia', true],
+  ['noticias.filtro', 'preferencia', true], ['noticias.guardadas', 'conteudo', true], ['relatos.itens', 'conteudo', true],
+  // A-261 · preferências que ficavam fora do backup
+  ['ui.apresentacao', 'preferencia', true], ['mesa.relatarY', 'preferencia', true], ['decks.reservaVista.v2', 'preferencia', true],
+  ['decks.estatisticas', 'preferencia', true], ['lista.visao', 'preferencia', true], ['catalogo.visao', 'preferencia', true],
+  ['catalogo.estatisticas', 'preferencia', true], ['cartas.rulings', 'preferencia', true],
+  // conteúdo com campo próprio no backup (perfil, decks, owned, ownedNames, items)
+  ['perfil', 'conteudo', false], ['deck.', 'conteudo', false], ['collection.owned', 'conteudo', false],
+  ['collection.names', 'conteudo', false], ['collection.items', 'conteudo', false],
+  // deste aparelho
+  ['perfil.carimbos', 'aparelho', false], ['conta', 'aparelho', false], ['backup.last', 'aparelho', false],
+  ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.lot', 'aparelho', false],
+  ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
+  ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
+  // derivado
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false],
+  ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
+  ['terrenos.opcoes', 'derivado', false], ['terrenos.opcoes.fila', 'derivado', false], ['noticias.colecoes', 'derivado', false]
+];
+const EXATAS = new Map(REGISTRO.filter(r => !r[0].endsWith('.')).map(r => [r[0], r[1]]));
+const PREFIXOS = REGISTRO.filter(r => r[0].endsWith('.'));
+/** Classe de uma chave do store, ou null quando ela não está no registro. A chave exata vence o prefixo. */
+function classeDe(k) { k = String(k); if (EXATAS.has(k)) return EXATAS.get(k); const p = PREFIXOS.find(r => k.startsWith(r[0])); return p ? p[1] : null; }
 /** Preferências que o backup completo leva junto (chave no store). Listas e coleção já vão pelo backup das listas. */
-const PREFERENCIAS = ['ui.theme', 'ui.aparencia', 'mesa.maoRecolhida', 'collection.prefs', 'collection.views', 'decks.reservaVista', 'etiquetas', 'mesa.som', 'mesa.verJogadas', 'mesa.manaManual', 'mesa.paradas', 'fichas.escolhas', 'partidas.historico', 'terrenos.escolhas', 'noticias.idiomas', 'noticias.filtro', 'noticias.guardadas', 'relatos.itens'];
+const PREFERENCIAS = REGISTRO.filter(r => r[2]).map(r => r[0]);
+/** Chaves do documento de perfil: só as escolhas da pessoa. */
+const DO_DOCUMENTO = REGISTRO.filter(r => r[1] === 'preferencia').map(r => r[0]);
+const igual = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+/** Store vigiado: o mesmo contrato da plataforma. Escrever ou apagar uma preferência guarda o instante em
+    `perfil.carimbos` (é o que decide, entre dois aparelhos, qual escolha é a mais nova); chave sem classe é avisada uma vez. */
+function vigiaStore(store, { agora = () => Date.now(), aoDesconhecer = null } = {}) {
+  let mapa = null, fila = Promise.resolve();
+  const semClasse = new Set();
+  const carrega = () => mapa || (mapa = Promise.resolve().then(() => store.get(CARIMBOS)).then(c => (c && typeof c === 'object' && !Array.isArray(c) ? { ...c } : {})).catch(() => ({})));
+  const carimba = (k, quando) => (fila = fila.then(async () => { const m = await carrega(); m[k] = quando != null ? quando : Math.max(agora(), (m[k] || 0) + 1); await store.set(CARIMBOS, m); }).catch(() => {}));
+  const confere = k => { const c = classeDe(k); if (!c && !semClasse.has(k)) { semClasse.add(k); if (aoDesconhecer) { try { aoDesconhecer(k); } catch (e) { /* aviso não derruba a escrita */ } } } return c; };
+  return {
+    kind: store.kind, vigiado: true,
+    get: k => store.get(k),
+    keys: prefix => store.keys(prefix),
+    async set(k, v, { carimbo = null } = {}) { const c = confere(k); const r = await store.set(k, v); if (c === 'preferencia') await carimba(k, carimbo); return r; },
+    async remove(k, { carimbo = null } = {}) { const c = confere(k); const r = await store.remove(k); if (c === 'preferencia') await carimba(k, carimbo); return r; },
+    /** Instante da última mudança de cada preferência (cópia). Preferência anterior a esta leva não tem carimbo: vale 0. */
+    async carimbos() { await fila; return { ...(await carrega()) }; },
+    semClasse: () => [...semClasse]
+  };
+}
 
 function limpaNome(s) { return String(s || '').replace(/\s+/g, ' ').trim().slice(0, NOME_MAX); }
 function inicialDe(nome) { const n = limpaNome(nome); return n ? n[0].toUpperCase() : ''; }
@@ -8538,7 +8602,49 @@ function createPerfil({ store, agora = () => Date.now() }) {
     /** Nome para a mesa: o do perfil ou o padrão da tela. */
     async nomeNaMesa(padrao = 'Você') { return (await this.get()).nome || padrao; },
     async exportaPreferencias() { const out = {}; for (const k of PREFERENCIAS) { let v; try { v = await store.get(k); } catch (e) { v = undefined; } if (v !== undefined && v !== null) out[k] = v; } return out; },
-    async importaPreferencias(prefs) { let n = 0; for (const k of PREFERENCIAS) if (prefs && prefs[k] !== undefined && prefs[k] !== null) { await store.set(k, prefs[k]); n++; } return n; }
+    async importaPreferencias(prefs) { let n = 0; for (const k of PREFERENCIAS) if (prefs && prefs[k] !== undefined && prefs[k] !== null) { await store.set(k, prefs[k]); n++; } return n; },
+    /** A-261 · o documento de perfil: quem é a pessoa e cada escolha dela, com o instante em que mudou. É o que o backup
+        carrega e o que a conta vai sincronizar. Só chaves da classe `preferencia`; nada de listas, coleção ou cache. */
+    async documento() {
+      const pessoa = await this.get(), preferencias = {}, carimbos = {};
+      const guardados = typeof store.carimbos === 'function' ? await store.carimbos() : ((await store.get(CARIMBOS).catch(() => null)) || {});
+      for (const k of DO_DOCUMENTO) {
+        let v; try { v = await store.get(k); } catch (e) { v = null; }
+        if (v !== undefined && v !== null) preferencias[k] = v;
+        if (guardados[k] || preferencias[k] !== undefined) carimbos[k] = guardados[k] || 0;
+      }
+      const atualizadoEm = Math.max(pessoa.atualizadoEm || 0, ...Object.values(carimbos), 0);
+      return { kind: DOC_KIND, version: DOC_VERSION, atualizadoEm, pessoa, preferencias, carimbos };
+    },
+    /** Aplica um documento vindo de fora (outro aparelho, a conta). Por chave, vence a escolha mais nova; empate fica
+        com a deste aparelho. Chave fora da classe `preferencia` é ignorada (o documento é dado, nunca comando). Cada
+        escrita é lida de volta: `conferido` só é true se tudo o que foi aplicado está mesmo guardado. */
+    async aplicaDocumento(doc) {
+      if (!doc || doc.kind !== DOC_KIND) throw new Error('formato-desconhecido');
+      if (!(doc.version >= 1) || doc.version > DOC_VERSION) throw new Error('versao-desconhecida');
+      const prefs = doc.preferencias && typeof doc.preferencias === 'object' ? doc.preferencias : {};
+      const deFora = doc.carimbos && typeof doc.carimbos === 'object' ? doc.carimbos : {};
+      const daqui = typeof store.carimbos === 'function' ? await store.carimbos() : ((await store.get(CARIMBOS).catch(() => null)) || {});
+      const aplicadas = [], mantidas = [], ignoradas = Object.keys({ ...prefs, ...deFora }).filter(k => !DO_DOCUMENTO.includes(k));
+      let conferido = true;
+      for (const k of DO_DOCUMENTO) {
+        const quando = Number(deFora[k]) || 0;
+        if (!(k in prefs) && !quando) continue;
+        if (quando <= (daqui[k] || 0)) { mantidas.push(k); continue; }
+        const v = prefs[k];
+        if (v === undefined || v === null) await store.remove(k, { carimbo: quando }); else await store.set(k, v, { carimbo: quando });
+        if (!igual(await store.get(k), v)) conferido = false;
+        aplicadas.push(k);
+      }
+      let pessoa = false;
+      const p = doc.pessoa && typeof doc.pessoa === 'object' ? doc.pessoa : null, atual = await this.get();
+      if (p && (Number(p.atualizadoEm) || 0) > (atual.atualizadoEm || 0)) {
+        const novo = { nome: limpaNome(p.nome), avatar: avatarValido(p.avatar) ? p.avatar : null, atualizadoEm: Number(p.atualizadoEm) };
+        await store.set(KEY, novo); pessoa = true;
+        if (!igual(await store.get(KEY), novo)) conferido = false;
+      }
+      return { aplicadas, mantidas, ignoradas, pessoa, conferido };
+    }
   };
 }
 /** Leva 149 · enquadramento escolhido pelo usuário. zoom 1 = o maior quadrado que cabe na foto; cx, cy = centro do
@@ -8562,7 +8668,7 @@ function enquadraMove(w, h, q, dx, dy, palco) {
   const k = q.lado / Math.max(1, palco);
   return enquadra(w, h, { zoom: q.zoom, cx: q.cx - dx * k, cy: q.cy - dy * k });
 }
-return { createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, enquadra, enquadraZoom, enquadraMove, ZOOM_MAX, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY };
+return { createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, enquadra, enquadraZoom, enquadraMove, ZOOM_MAX, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY, REGISTRO, classeDe, vigiaStore, DO_DOCUMENTO, DOC_KIND, DOC_VERSION, CARIMBOS };
 })();
 
 /* ==== src/data/conta.js ==== */
@@ -25497,6 +25603,8 @@ const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
 const { createOfflineKeeper } = __m26;
 const platform = createPlatform();
+// A-261 · todo o app escreve pelo store vigiado: preferência ganha o instante da mudança; chave fora do registro de perfil.js é erro
+platform.store = __m28.vigiaStore(platform.store, { aoDesconhecer: k => console.error('[armazenamento] chave sem classe no registro de src/data/perfil.js: ' + k) });
 const theme = createTheme(platform.store, undefined, undefined, { aoAparencia: a => { __m0.haptics.ligar(a.vibracao); platform.haptics.ligar(a.vibracao); } });
 const scryfall = createScryfall({});
 const images = createImageCache({ caches: typeof caches !== 'undefined' ? caches : null, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
