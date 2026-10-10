@@ -27,11 +27,11 @@ test('M-246 · Elas il-Kor: "Whenever another creature you control enters, you g
   s = comMana(s, 'WR');
   s = tudo(act(s, legais(s, 0, x => x.t === 'cast' && x.oid === ins)[0]));
   assert.equal(s.players[0].life, 21, 'outra criatura sua entrou: +1');
-  const x = J(s); E.moveObject(x, seer, 'battlefield'); const y = tudo(x);
+  const x = J(s); E.moveObject(x, seer, 'battlefield'); const y = tudo(ateDecisao(x));
   assert.equal(y.players[0].life, 21, 'criatura do oponente entrando não conta');
   s = tudo(act(s, legais(s, 0, a => a.t === 'cast' && a.oid === bolt && (a.targets || []).some(t => t.oid === ins))[0]));
   assert.equal(s.players[1].life, 19, 'outra criatura sua morreu: cada oponente perde 1');
-  const z = J(s); E.moveObject(z, elas, 'graveyard'); const w = tudo(z);
+  const z = J(s); E.moveObject(z, elas, 'graveyard'); const w = tudo(ateDecisao(z));
   assert.equal(w.players[1].life, 19, 'a própria Elas morrendo não dispara ("another")');
 });
 

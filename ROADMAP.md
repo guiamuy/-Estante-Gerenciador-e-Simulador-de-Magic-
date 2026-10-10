@@ -3097,6 +3097,16 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Escala:** +2,8 KB gzip no acumulado das M-247/248; `perdeVida` é uma soma a mais por perda.
 - **Próximo:** M-249 — marcadores nomeados em permanente com custo de remover (Norn's Wellspring: óleo; Saprazzan Skerry: esgotamento).
 
+**M-249 · R11 · Marcadores nomeados e limiar: Norn's Wellspring e Cephalid Coliseum** ✅ (leva M-249, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Valor:** a permanente passa a guardar marcadores com nome (óleo, esgotamento, carga…) e a habilidade pode custar "remova N marcadores"; o "ative somente se" ganha o limiar do cemitério.
+- **Regra (122.1, 602.1, 702.25):** efeito `counters` com `tipo` (sem tipo, segue +1/+1 com os gatilhos de sempre); custo `removeCounters: { tipo, n }`, conferido na oferta e no pagamento; `onlyIfGraveyardAtLeast: N` na oferta e na ativação. A mesa diz "põe 1 marcador de óleo", "remover 2 marcadores de óleo" e o registro conta o marcador pelo nome.
+- **Cartas cobertas (completas):** Norn's Wellspring (gatilho "uma criatura sua morre: vidência 1 e um marcador de óleo"; "{1}, {T}, remova dois marcadores de óleo: compre uma carta") e Cephalid Coliseum (mana azul com 1 de dano em você; limiar "{U}, {T}, sacrifique: o jogador alvo compra três e descarta três", só com sete ou mais cartas no seu cemitério).
+- **Simplificação declarada (antiga, agora escrita):** o dano da mana dos terrenos de dor (Caves of Koilos, Shivan Reef, Cephalid Coliseum…) tira vida direto, sem passar pela prevenção. Fica na fila da prevenção.
+- **Correção no caminho (teste):** dois conferimentos do teste da Elas il-Kor (M-246) eram vazios — moviam a criatura e chamavam a resolução sem antes pôr os gatilhos na pilha. Agora põem; continuam verdes, agora valendo.
+- **Medição:** Killian 81% → **82%**; Malcolm + Kediss 80% → **81%**.
+- **Golden:** idênticas, sem regravar. A versão não sobe: só cartas que antes não tinham script ganham ações novas.
+- **Próximo:** M-250 — Saprazzan Skerry (habilidade de mana com custo de remover marcador e "se não houver, sacrifique") e "desvirar até N terrenos" com escolha (Frantic Search).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

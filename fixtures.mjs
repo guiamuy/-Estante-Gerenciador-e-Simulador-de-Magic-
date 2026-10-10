@@ -92,6 +92,7 @@ export const PERM_TYPES = { "Smuggler's Copter": 'Artifact — Vehicle', // CR2d
   'Kediss, Emberclaw Familiar': 'Legendary Creature — Elemental Lizard', 'Leonin Relic-Warder': 'Creature — Cat Cleric',
   'Speaker of the Heavens': 'Creature — Human Cleric', 'Jirina, Dauntless General': 'Legendary Creature — Human Soldier', 'Knight of the White Orchid': 'Creature — Human Knight', // M-247
   'Children of Korlis': 'Creature — Human Rebel Cleric', // M-248
+  "Norn's Wellspring": 'Artifact', 'Cephalid Coliseum': 'Land', // M-249
   'Izzet Signet': 'Artifact', 'Orzhov Signet': 'Artifact', 'Arcane Signet': 'Artifact', 'Talisman of Creativity': 'Artifact',
   'Talisman of Hierarchy': 'Artifact', 'Fellwar Stone': 'Artifact', 'Lotus Petal': 'Artifact', 'Chromatic Sphere': 'Artifact',
   'Chromatic Star': 'Artifact', 'Soul-Guide Lantern': 'Artifact', 'Nihil Spellbomb': 'Artifact', 'Lembas': 'Artifact',

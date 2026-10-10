@@ -5316,6 +5316,8 @@ const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
+/** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
+const MARCADOR_PT = { p1p1: '+1/+1', oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
 const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free']; // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
@@ -5681,7 +5683,8 @@ function validateScript(sc) {
       const cost = ab.cost || {};
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
-      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.crew == null && !cost.mana && !cost.tap && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.removeCounters) errs.push(`${tag}: habilidade ativada sem custo`);
+      if (cost.removeCounters != null && !(cost.removeCounters && /^[a-z][a-z0-9]*$/.test(cost.removeCounters.tipo || '') && Number.isInteger(cost.removeCounters.n || 1) && (cost.removeCounters.n || 1) > 0)) errs.push(`${tag}: remover marcadores precisa do tipo e de uma quantidade inteira`); // M-249 · 122.6 / 602.1
       if (cost.revealColor && !'WUBRG'.includes(cost.revealColor)) errs.push(`${tag}: revelar precisa de uma cor WUBRG`);
       if (cost.life != null && !Number.isInteger(cost.life)) errs.push(`${tag}: custo de vida precisa ser inteiro`);
       for (const k of ['sacrificeOther', 'tapOther']) if (cost[k] && !Array.isArray((cost[k] || {}).types)) errs.push(`${tag}: ${k} precisa de uma lista de tipos`);
@@ -5865,6 +5868,7 @@ function effectErrors(effects, label, opcional) {
       if (typeof e.exceptSubtype !== 'string' || !e.exceptSubtype.trim()) errs.push(`${label} ${i + 1}: subtipo poupado precisa ser um nome`);
       if (!String(e.target || '').startsWith('each-')) errs.push(`${label} ${i + 1}: subtipo poupado só vale em varredura`);
     }
+    if (e.do === 'counters' && e.tipo != null && !/^[a-z][a-z0-9]*$/.test(e.tipo)) errs.push(`${label} ${i + 1}: tipo de marcador inválido`); // M-249
     if (e.onlyIf != null && !ONLY_IF.includes(e.onlyIf)) errs.push(`${label} ${i + 1}: condição "${e.onlyIf}" desconhecida`);
     // S47 · "até N alvos" vale do fim para trás: nenhum alvo obrigatório depois de um opcional
     if (e.upTo && (!isTargeted(e) || effects.slice(i + 1).some(x => isTargeted(x) && !x.upTo))) errs.push(`${label} ${i + 1}: "até N alvos" não pode vir antes de um alvo obrigatório`);
@@ -6468,6 +6472,16 @@ const RAW_SCRIPTS = [
   // M-248 · "Sacrifice this creature: You gain life equal to the life you've lost this turn." (05/10/2026; segunda fonte 10/10/2026)
   { name: 'Children of Korlis', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'gain', amount: { per: 'life-lost-this-turn' } }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-249 · marcadores nomeados e "ative somente se" por cemitério (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: "Norn's Wellspring", abilities: [
+    { kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] }, effects: [{ do: 'scry', amount: 1 }, { do: 'counters', tipo: 'oil', amount: 1, target: 'self-source' }] }, // "Whenever a creature you control dies, scry 1 and put an oil counter on this artifact."
+    { kind: 'activated', cost: { mana: '{1}', tap: true, removeCounters: { tipo: 'oil', n: 2 } }, effects: [{ do: 'draw', amount: 1 }] }], // "{1}, {T}, Remove two oil counters from this artifact: Draw a card."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Cephalid Coliseum', produces: [['U']], manaRule: { colors: 'U', damage: 1 }, // "{T}: Add {U}. This land deals 1 damage to you."
+    abilities: [{ kind: 'activated', cost: { mana: '{U}', tap: true, sacrifice: true }, onlyIfGraveyardAtLeast: 7, // "Threshold — {U}, {T}, Sacrifice this land: … Activate only if there are seven or more cards in your graveyard."
+      effects: [{ do: 'draw', amount: 3, target: 'player' }, { do: 'discard', amount: 3, target: 'first-target' }] }], // "Target player draws three cards, then discards three cards."
+    note: 'o dano da mana desta terra não passa pela prevenção (mesma simplificação dos outros terrenos de dor)',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -7043,7 +7057,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, MARCADOR_PT, duracaoValida, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -14974,7 +14988,10 @@ function applyEffect(s, src, eff, tgt, events) {
         perdeVida(s, playerOf(), n); note({ amount: n }); } break;
     case 'counters': {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
-      if (alvo && alvo.zone === 'battlefield') { addCounters(s, alvo, eff.amount); note({ amount: eff.amount }); }
+      if (alvo && alvo.zone === 'battlefield') {
+        if (eff.tipo && eff.tipo !== 'p1p1') { alvo.counters[eff.tipo] = (alvo.counters[eff.tipo] || 0) + eff.amount; note({ amount: eff.amount, tipo: eff.tipo, name: alvo.name }); } // M-249 · marcador nomeado (122.1)
+        else { addCounters(s, alvo, eff.amount); note({ amount: eff.amount }); }
+      }
       break;
     }
     case 'reanimate_tapped': { // S33 · volta do cemitério direto ao campo, virada
@@ -16166,6 +16183,11 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     for (const x of lista) { const o = s.objects[x]; noteEnchantedEvent(s, o); o.tapped = true; }
     if (s.objects[selfOid]) s.objects[selfOid].crewedBy = lista.slice(); // 702.122c
   }
+  if (cost.removeCounters) { // M-249 · remover marcadores nomeados da própria permanente como custo
+    const o = s.objects[selfOid], k = cost.removeCounters.tipo, n = cost.removeCounters.n || 1;
+    if (!o || ((o.counters || {})[k] || 0) < n) throw new RuleError('custo', `remova ${n} marcador(es) ${SC.MARCADOR_PT[k] || k}`);
+    o.counters[k] -= n; if (!o.counters[k]) delete o.counters[k];
+  }
   if (cost.discardSelf) moveObject(s, selfOid, 'graveyard');
   if (cost.exileSelf) moveObject(s, selfOid, 'exile');
   if (cost.revealColor) {
@@ -16230,7 +16252,8 @@ const canPayExtra = (s, p, cost, selfOid) =>
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
   (!cost.discard || s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard) &&
   (!cost.sacrificeOther || extraCostCandidates(s, p, cost.sacrificeOther, selfOid).length > 0) &&
-  (!cost.tapOther || extraCostCandidates(s, p, cost.tapOther, selfOid, true).length >= (cost.tapOther.amount || 1));
+  (!cost.tapOther || extraCostCandidates(s, p, cost.tapOther, selfOid, true).length >= (cost.tapOther.amount || 1)) &&
+  (!cost.removeCounters || ((((s.objects[selfOid] || {}).counters) || {})[cost.removeCounters.tipo] || 0) >= (cost.removeCounters.n || 1)); // M-249 · "Remove two oil counters from this artifact"
 
 function payAbilityCost(s, p, source, ab) {
   const cost = ab.cost || {};
@@ -16269,6 +16292,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.oncePerTurn && source.usedThisTurn) return false;
   if (ab.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, p, ab.onlyIfLifeOverStart)) return false; // CR 602.5 · "Activate only if…"
   if (ab.onlyIfAttacking && source.attacking == null) return false; // "Activate only if this creature is attacking"
+  if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
   return !(cost.mana && s.manaCheck) || canPay(s, p, parseCost(cost.mana));
 };
@@ -16736,6 +16760,7 @@ const HANDLERS = {
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     if (base.onlyIfLifeOverStart != null && !vidaAcimaDaInicial(s, a.p, base.onlyIfLifeOverStart)) throw new RuleError('vida', `só ativa com pelo menos ${base.onlyIfLifeOverStart} de vida acima da inicial`);
     if (base.onlyIfAttacking && o.attacking == null) throw new RuleError('tempo', 'só ativa enquanto esta criatura está atacando');
+    if (base.onlyIfGraveyardAtLeast != null && s.zones[a.p].graveyard.length < base.onlyIfGraveyardAtLeast) throw new RuleError('tempo', `só ativa com ${base.onlyIfGraveyardAtLeast} ou mais cartas no seu cemitério`);
     delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
     payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
@@ -19293,7 +19318,7 @@ const __m18 = (function () {
    impede que desfazer atravesse informação revelada.
    ===================================================================== */
 const E = __m16;
-const { descreveGatilho } = __m23;
+const { descreveGatilho, MARCADOR_PT } = __m23;
 const SAVE_KEY = 'match.current';
 const ZONE_PT = { library: 'grimório', hand: 'mão', battlefield: 'campo', graveyard: 'cemitério', exile: 'exílio', command: 'zona de comando', stack: 'pilha', companion: 'companheiro' };
 const REASON_PT = { 'vida': 'vida zerada', 'grimório vazio': 'comprou com o grimório vazio', 'dano de comandante': '21 de dano de comandante', 'desistência': 'desistiu' };
@@ -19340,7 +19365,7 @@ function effectLine(ev) {
     case 'exile': return `${ev.name} exilou ${t}`;
     case 'bounce': return `${ev.name} devolveu ${t} à mão do dono`;
     case 'counter': return ev.paid ? `${t} escapou de ${ev.name}: o custo foi pago` : ev.pending ? `${ev.name} espera o pagamento de ${t}` : ev.failed ? `${ev.name} não anulou ${t}: sem efeito` : `${ev.name} anulou ${t}`; // R9b · dizia "anulou" com a mágica ainda na pilha
-    case 'counters': return `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
+    case 'counters': return ev.tipo ? `${ev.name} recebeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.name} recebeu ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}`;
     case 'adapt': return n ? `${ev.name} adaptou: ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')}` : `${ev.name} não adaptou: já tinha marcador +1/+1`;
     case 'return_chosen': return `${ev.name}: ${t} devolveu uma permanente à mão`;
     case 'draw': return `${t} comprou ${plural(n, 'carta', 'cartas')} (${ev.name})`;
@@ -20158,7 +20183,7 @@ function descreveEfeito(e) {
     case 'tap_or_untap': return `${e.optional ? 'pode virar ou desvirar' : 'vira ou desvira'} ${alvo || 'uma criatura'}`; // Leva 131
     case 'exile_graveyard': return 'exila cartas do cemitério';
     case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
-    case 'counters': return `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
+    case 'counters': return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} em ${alvo || 'uma permanente'}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} em ${alvo || 'uma criatura'}`;
     case 'mover': { // CR2-G R4a
       const quem = e.target === 'self-source' ? 'esta carta' : alvo || 'o alvo';
       if (e.para === 'battlefield') return `põe ${quem} no campo${e.controle === 'dono' ? ' sob o controle do dono' : ' sob o seu controle'}${e.virada ? ', virada' : ''}`;
@@ -20792,7 +20817,7 @@ const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPan
 const { onLongPress } = __m20;
 const { norm } = __m7;
 const { FORMATS, coresDaLista } = __m14;
-const { deckCoverage, dungeonByName, roomById } = __m23; // S57 · masmorra
+const { deckCoverage, dungeonByName, roomById, MARCADOR_PT } = __m23; // S57 · masmorra; M-249 · marcadores
 const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
 /** Campo com botões: não usa <label>, que reenvia o clique para o primeiro
@@ -22021,7 +22046,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function custoDaHabilidade(ab) {
     const c = ab.cost || {};
     return [c.mana, c.tap ? '{T}' : null, c.discard ? (c.discard > 1 ? `descartar ${c.discard} cartas` : 'descartar uma carta') : null,
-      c.sacrifice ? 'sacrificar' : null, c.exileSelf ? 'exilar esta' : null, c.discardSelf ? 'descartar esta carta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
+      c.sacrifice ? 'sacrificar' : null, c.removeCounters ? `remover ${plural(c.removeCounters.n || 1, 'marcador ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo), 'marcadores ' + (MARCADOR_PT[c.removeCounters.tipo] || c.removeCounters.tipo))}` : null, c.exileSelf ? 'exilar esta' : null, c.discardSelf ? 'descartar esta carta' : null, c.returnLand ? `devolver ${c.returnLand === true ? 'terreno' : c.returnLand} à mão` : null, c.sacrificeOther ? sacrificioPorExtenso(c.sacrificeOther) : null, c.tapOther ? 'virar outra' : null].filter(Boolean).join(', ');
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {
