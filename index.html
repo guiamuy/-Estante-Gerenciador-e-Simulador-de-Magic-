@@ -5410,6 +5410,20 @@ const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equ
    "entra virada a menos que…", "entra com N marcadores". As regras antigas (staticRule de exílio e de entrar virada,
    entersTapped, entersTappedUnless, entersWithCounters, X, chargePerKick) viram atalhos. */
 const ZONAS_SUBST = ['battlefield', 'graveyard', 'exile', 'hand', 'library'];
+/** CR2-G R5d · 614.1a · "se <fonte> fosse causar dano a <alvo>, causa N a mais / o dobro": `dano: [{ fonte: 'self' | seletor,
+ * a?: 'qualquer' | 'jogador' | 'oponente' | 'criatura', soma?: n, multiplica?: 2, soCombate? }]`. */
+function danoErros(r, tag) {
+  if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
+  const errs = [];
+  for (const k of Object.keys(r)) if (!['fonte', 'a', 'soma', 'multiplica', 'soCombate'].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
+  if (r.fonte !== 'self' && !(r.fonte && typeof r.fonte === 'object')) errs.push(`${tag}: "fonte" precisa ser self ou um seletor`);
+  else if (r.fonte !== 'self') errs.push(...seletorErros(r.fonte, `${tag}: fonte`));
+  if (r.a != null && !['qualquer', 'jogador', 'oponente', 'criatura'].includes(r.a)) errs.push(`${tag}: "a" precisa ser qualquer, jogador, oponente ou criatura`);
+  if (r.soma != null && !(Number.isInteger(r.soma) && r.soma > 0)) errs.push(`${tag}: "soma" precisa ser inteiro positivo`);
+  if (r.multiplica != null && !(Number.isInteger(r.multiplica) && r.multiplica > 1)) errs.push(`${tag}: "multiplica" precisa ser inteiro maior que 1`);
+  if (r.soma == null && r.multiplica == null) errs.push(`${tag}: não muda nada`);
+  return errs;
+}
 function substituiErros(r, tag) {
   if (!r || typeof r !== 'object' || !r.quando || !r.em) return [`${tag}: precisa de "quando" e "em"`];
   const errs = [], q = r.quando;
@@ -5652,7 +5666,7 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -5710,6 +5724,7 @@ function validateScript(sc) {
   ((sc && sc.substitui) || []).forEach((r, i) => errs.push(...substituiErros(r, `substituição ${i + 1}`))); // CR2-G R5a
   if (sc && sc.armaduraTotem && !sc.aura) errs.push('armadura de totem só vale para Aura'); // CR2-G R5c · 702.89
   ((sc && sc.entra) || []).forEach((r, i) => errs.push(...entraErros(r, `entra ${i + 1}`)));
+  ((sc && sc.dano) || []).forEach((r, i) => errs.push(...danoErros(r, `dano ${i + 1}`))); // CR2-G R5d
   if (sc && sc.continuo != null && !Array.isArray(sc.continuo)) errs.push('contínuo precisa ser uma lista');
   for (const ab of (sc && sc.abilities) || []) for (const [i, m] of (ab.modes || []).entries()) errs.push(...effectErrors(m.effects, `modo do gatilho ${i + 1}`));
   for (const ab of (sc && sc.abilities) || []) for (const m of ab.modes || []) if (!m.label) errs.push('modo do gatilho sem rótulo');
@@ -6977,7 +6992,7 @@ function deckCoverage(entries, cards, scripts = SCRIPTS) {
   return { ...count, total, pct: total ? Math.round(count.completo / total * 100) : 0, worst, pending };
 }
 
-return { KEYWORDS, KEYWORD_COUNTERS, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
+return { KEYWORDS, KEYWORD_COUNTERS, danoErros, substituiErros, entraErros, substituicoesDoScript, JOGADORES_QUANT, VERBOS_DE_JOGADOR, jogadoresDe, DURACOES, continuoErros, tornaErros, tornaParaBecomes, GATILHO_ZONA, GATILHO_EVENTO, gatilhoDoEvento, falaDe, gatilhoDeZona, gatilhoErros, descreveGatilho, PASSOS_DO_GATILHO, ALVO_SELETOR, CADA_SELETOR, EFEITOS_ATALHO, cadaDe, seletorErros, seletorDe, EFFECTS, TRIGGERS, TRIGGER_PT, SCRIPTS, SCRIPT_ERRORS, RAW_SCRIPTS, validateScript, isTargeted, coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE, DUNGEONS, dungeonByName, roomById, fichasDoScript, fichasDasCartas, chaveDaFicha };
 })();
 
 /* ==== src/data/decks.js ==== */
@@ -13327,6 +13342,7 @@ function createGame(setup) {
     if (sc.continuo) f.script.continuo = sc.continuo; // CR2-G R3a · efeitos contínuos estáticos
     if (sc.substitui) f.script.substitui = sc.substitui; if (sc.entra) f.script.entra = sc.entra; // CR2-G R5a
     if (sc.armaduraTotem) f.script.armaduraTotem = true; // CR2-G R5c
+    if (sc.dano) f.script.dano = sc.dano; // CR2-G R5d
     if (sc.back) { f.script.back = sc.back.name; f.script.disturb = sc.disturb; f.script.omen = sc.omen; }
   }
 
@@ -13703,6 +13719,29 @@ const protecaoDerruba = (s, host, anexo) => protImpressa(s, host).concat(host.te
   if (g.mantemASi && x.oid === anexo.oid) return []; // R11 · Flickering Ward: "This effect doesn't remove this Aura"
   return [].concat(g.protection).flatMap(c => c === 'chosen' ? (x.chosenColor ? [x.chosenColor] : []) : [c]);
 })).some(c => colorsOf(s, anexo).includes(c));
+/** CR2-G R5d · 614.1a · quanto dano a fonte `src` causaria a `alvo` depois das substituições "causa N a mais / o dobro" das
+ * permanentes no campo (as que têm as habilidades). Antes da prevenção. 616 simplificado: todas as somas primeiro, depois
+ * todos os multiplicadores, sem o afetado escolher a ordem. Dano 0 não é causado e nada o substitui. */
+function danoSubstituido(s, src, alvo, amt, combate) {
+  if (!(amt > 0)) return amt;
+  const fonte = src && src.ability ? (s.objects[src.source] || src) : src;
+  if (!fonte || !s.facts[fonte.name]) return amt;
+  let soma = 0, vezes = 1;
+  for (const x of battlefield(s)) {
+    const regras = (s.facts[x.name].script || {}).dano;
+    if (!regras || semImpressas(s, x)) continue;
+    for (const r of regras) {
+      if (r.soCombate && !combate) continue;
+      if (r.fonte === 'self' ? fonte.oid !== x.oid : !selCasa(s, x.controller, fonte, r.fonte, x.oid, { mira: false, src: x })) continue;
+      const a = r.a || 'qualquer';
+      if (a === 'jogador' && alvo.player == null) continue;
+      if (a === 'oponente' && (alvo.player == null || alvo.player === x.controller)) continue;
+      if (a === 'criatura' && !(alvo.obj && isCreature(s, alvo.obj))) continue;
+      soma += r.soma || 0; vezes *= r.multiplica || 1;
+    }
+  }
+  return (amt + soma) * vezes;
+}
 /** CR2-G R5b · 615 · quanto do dano `amt` da fonte `src` a `alvo` ({ obj } ou { player }) sobra depois da prevenção, num
  * caminho só. Atalhos (guardas de sempre): a mágica cujo dano foi prevenido e as cores escolhidas (colorPrevented), "todo
  * dano que seria causado a ela" (prevented) e a proteção. Escudos novos (s.prevencoes, verbo prevenir): todo o dano ou os
@@ -14201,6 +14240,7 @@ function dealCombatDamage(s) {
     if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
     for (let [src, obj, player, amt, ehPw] of hits) {
       // CR2-G R5b · prevenção num caminho só (S30 cor; S11b prevenção e proteção, Leva 106: Flaring Pain vale para a proteção)
+      amt = danoSubstituido(s, src, obj ? { obj } : { player }, amt, true); // CR2-G R5d · "causa N a mais / o dobro" vem antes da prevenção
       amt = danoAposPrevencao(s, src, obj ? { obj } : { player }, amt, true); if (!amt) continue;
       if (ehPw) { // M-228 · 120.3c: dano ao planeswalker tira lealdade; se ele também é criatura (Gideon no 0), o dano fica marcado (120.3e)
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) obj.damage += amt; noteDamaged(s, obj);
@@ -14707,6 +14747,7 @@ function applyEffect(s, src, eff, tgt, events) {
           note({ amount: n, ...(bloqueado ? { prevented: true } : {}) }); break;
         }
         // CR2-G R5b · prevenção num caminho só; o que foi prevenido de fato pode virar vida (S52)
+        n = danoSubstituido(s, src, obj ? { obj } : { player: playerOf() }, n, false); // CR2-G R5d
         const resto = danoAposPrevencao(s, src, obj ? { obj } : { player: playerOf() }, n, false);
         if (n > 0 ? !resto : prevencaoLegado(s, src, obj)) { ganhaVida(n); note({ amount: n, prevented: true }); break; } // dano 0 prevenido continua no registro, como antes
         if (resto < n) ganhaVida(n - resto);
@@ -17517,7 +17558,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -19850,6 +19891,14 @@ function descreveTorna(r) {
   if (r.perdeHabilidades) partes.push('perde as outras habilidades');
   return partes.join(' e ');
 }
+/** CR2-G R5d · "se uma fonte que você controla fosse causar dano a um oponente, causa o dobro". */
+function descreveDano(r) {
+  const so = r.fonte !== 'self' && !(r.fonte.tipos || []).length && !(r.fonte.subtipos || []).length;
+  const fonte = r.fonte === 'self' ? 'esta permanente' : so ? `uma fonte${r.fonte.de === 'you' ? ' que você controla' : r.fonte.de === 'opponent' ? ' que um oponente controla' : ''}` : descreveSeletor(r.fonte);
+  const a = { jogador: ' a um jogador', oponente: ' a um oponente', criatura: ' a uma criatura' }[r.a] || '';
+  const muda = [r.soma ? `${r.soma} a mais` : '', r.multiplica === 2 ? 'o dobro' : r.multiplica ? `${r.multiplica} vezes esse dano` : ''].filter(Boolean).join(' e depois ');
+  return `se ${fonte} fosse causar dano${r.soCombate ? ' de combate' : ''}${a}, causa ${muda}`;
+}
 function descreveContinuo(c) {
   const sinal = n => (n < 0 ? '' : '+') + n;
   const quem = c.afetados === 'self' ? 'esta permanente' : c.afetados === 'anexada' ? 'a permanente anexada'
@@ -20280,7 +20329,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
