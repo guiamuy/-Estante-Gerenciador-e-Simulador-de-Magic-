@@ -3261,6 +3261,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (as duas cartas eram parciais: lista com elas não jogava em modo completo).
 - **Próximo:** M-266 — March of Swirling Mist (custo adicional de exilar cartas azuis da mão, com redução) e Expressive Iteration.
 
+**M-266 · Mapa de regras em dia com as levas M-245 a M-265** ✅ (leva M-266, motor v96, sem mudança no motor) — o piso do teste do mapa sobe.
+- **Correção de processo:** as levas M-245 a M-265 implementaram regras sem atualizar `.regras/mapa.json`; o placar seguia o retrato de 06/10. Agora cada item tocado traz a evidência (função e teste) e, quando parcial, o que falta.
+- **Itens que mudaram:** cobertos — infectar (702.90), tóxico (702.164), desenterrar (702.84), delve (702.66), reforço (702.165), replicar (702.56); parciais — fase (702.26: falta a palavra-chave "phasing"), amass (701.47: o Exército existente não ganha o subtipo). Evidência e "falta" atualizadas em 122.1, 704.5, 104.3, 120.3, 702.11, 601.2, 601.3, 605.1, 107.4 e 509.1.
+- **Placar:** 220 → **226** cobertos, 456 → **449** ausentes (25% dos aplicáveis; a fração arredonda igual). O teste `regras.mapa.unit` passa a exigir 226 / 449.
+- **Daqui em diante:** toda leva do motor que mudar o status de um item atualiza o mapa na mesma leva.
+- **Próximo:** M-267 — March of Swirling Mist (custo adicional de exilar cartas azuis da mão, {2} a menos por carta) e Expressive Iteration.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

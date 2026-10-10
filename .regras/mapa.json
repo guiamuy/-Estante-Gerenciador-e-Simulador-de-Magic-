@@ -1,7 +1,7 @@
 {
  "sobre": "Mapa regra × motor. Cada item NNN.N das Comprehensive Rules de 25/09/2026 classificado contra o motor v72 em 06/10/2026 por 14 auditores independentes, com evidência vista (código com linha, teste ou sonda executada). status: coberta · parcial · ausente · definicao (só define termo) · fora (jogo físico, torneio ou variante que um app de dois jogadores não precisa). Quando um item muda de status, o teste que prova a mudança entra em `testes`.",
  "cr": "2026-09-25",
- "motor": 95,
+ "motor": 96,
  "auditoria": "2026-10-06",
  "itens": [
   {
@@ -201,8 +201,8 @@
    "regra": "Ending the Game",
    "titulo": "Formas de perder",
    "status": "parcial",
-   "evidencia": "a: concede a qualquer hora, inclusive no mulligan e com decisão pendente (index.html:12747, 12786-12787; sonda); b: vida <= 0; c: compra de grimório vazio (drewFromEmpty index.html:10318); j: 21 de dano de comandante (index.html:12096-12099; engine.unit M5) · teste de conformidade em cr.conformidade (leva CR1a)",
-   "falta": "104.3d: não existem marcadores de veneno em jogador; 104.3e: não há efeito \"perde o jogo\"; 104.3f sem uso por isso. g, h, i, k fora.",
+   "evidencia": "a: concede a qualquer hora, inclusive no mulligan e com decisão pendente (index.html:12747, 12786-12787; sonda); b: vida <= 0; c: compra de grimório vazio (drewFromEmpty index.html:10318); j: 21 de dano de comandante (index.html:12096-12099; engine.unit M5) · teste de conformidade em cr.conformidade (leva CR1a) · M-253 (v96): 104.3d — dez venenos, perde (veneno.unit).",
+   "falta": "104.3e: não há efeito \"perde o jogo\"; 104.3f sem uso por isso. g, h, i, k fora.",
    "esforco": "M",
    "cartas": "veneno: comum (infect/toxic)",
    "testes": [
@@ -423,8 +423,8 @@
    "regra": "Numbers and Symbols",
    "titulo": "Símbolos de mana",
    "status": "parcial",
-   "evidencia": "parseCost (index.html:10007-10021) e payFrom (index.html:10348-10371): colorido só com a cor, genérico com qualquer, {C} só com incolor, híbrido, {2/W}, phyrexiano e híbrido phyrexiano; rules.unit 'M7 · custo: genérico, colorido, híbrido, phyrexiano e X', 'M7 · híbrido paga com qualquer das cores' · teste de conformidade em cr.conformidade (leva CR1a) · CR2c.4 (v87): ação cast com vida: n — n símbolos phyrexianos pagos com 2 de vida cada, o resto com mana da cor; 119.4 conferido (commander.regras \"CR2c.4 · Gitaxian Probe\")",
-   "falta": "107.4f: na conjuração o jogador escolhe (CR2c.4); em habilidade ativada o motor ainda decide (mana primeiro). 107.4e: {2/W} tenta primeiro as 2 genéricas. 107.4h: {S} vira genérico comum. A escolha de qual mana paga o genérico é automática.",
+   "evidencia": "parseCost (index.html:10007-10021) e payFrom (index.html:10348-10371): colorido só com a cor, genérico com qualquer, {C} só com incolor, híbrido, {2/W}, phyrexiano e híbrido phyrexiano; rules.unit 'M7 · custo: genérico, colorido, híbrido, phyrexiano e X', 'M7 · híbrido paga com qualquer das cores' · teste de conformidade em cr.conformidade (leva CR1a) · CR2c.4 (v87): ação cast com vida: n — n símbolos phyrexianos pagos com 2 de vida cada, o resto com mana da cor; 119.4 conferido (commander.regras \"CR2c.4 · Gitaxian Probe\") · M-255 (v96): 107.4f em habilidade ativada — quem ativa escolhe pagar o phyrexiano com mana ou 2 de vida (uma oferta por forma; Skrelv).",
+   "falta": "107.4e: {2/W} tenta primeiro as 2 genéricas. 107.4h: {S} vira genérico comum. A escolha de qual mana paga o genérico é automática.",
    "esforco": "M",
    "cartas": "phyrexiano: comum; neve: rara",
    "testes": [
@@ -1468,8 +1468,8 @@
    "regra": "Damage",
    "titulo": "Resultados do dano",
    "status": "parcial",
-   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2)",
-   "falta": "b/d infectar e definhar, g tóxico e os marcadores de veneno não existem (Phyresis e os Skrelv estão no acervo sem script); c: coberto na M-228 (dano de combate em planeswalker); h batalha.",
+   "evidencia": "a) jogador perde vida (index.html:10806, 11125); c) planeswalker perde lealdade por dano de efeito (index.html:11123; rules.unit \"S21 · … dano tira lealdade\"); e) dano marcado (index.html:10804, 11124); f) vínculo com a vida no combate e fora (index.html:10809, 11558; combat.audit K4) · M-228 (v95): cada atacante ataca o jogador ou um planeswalker dele (ação attack com alvos; o.atacandoPw); dano de combate sem bloqueio vai para o planeswalker e tira lealdade (criatura-planeswalker também marca dano); planeswalker que saiu não recebe nada; exigência \"ataca X se puder\" (Gideon +2) · M-253/M-254 (v96): 120.3b infectar em jogador vira veneno; 120.3d infectar em criatura vira −1/−1; 120.3g tóxico dá veneno (combat.audit K12c, veneno.unit).",
+   "falta": "d: definhar (wither) não existe; h: batalha. c: coberto na M-228 (dano de combate em planeswalker).",
    "esforco": "M",
    "depende": [
     "122.1f",
@@ -1638,8 +1638,8 @@
    "regra": "Counters",
    "titulo": "Marcadores e seus tipos",
    "status": "parcial",
-   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\")",
-   "falta": "a) -1/-1 é lido no cálculo mas nenhum efeito do motor completo o coloca; c) escudo, d) atordoamento, f) veneno (10 = derrota), g) defesa, h) finalidade, i) radiação, j) hone: todos ausentes. Marcadores em jogador não existem.",
+   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254).",
+   "falta": "c) escudo, d) atordoamento, g) defesa, h) finalidade, i) radiação, j) hone: ausentes. Marcadores em jogador além do veneno (energia, experiência) não existem.",
    "esforco": "G",
    "depende": [
     "614",
@@ -3855,7 +3855,7 @@
    "regra": "Declare Blockers Step",
    "titulo": "Declaração de bloqueadores",
    "status": "parcial",
-   "evidencia": "ação block (index.html:12345-12362) + canBlock (10760): bloqueador desvirado e do defensor, um atacante por bloqueador, voar/alcance, ameaça, proteção de cor, evasões de script, vários bloqueadores no mesmo atacante, atacante fica \"bloqueado\" (509.1h); sonda p5/t2.mjs C1, C6, C8; combat.audit K1, K8, K13, K14; protecao.regras",
+   "evidencia": "ação block (index.html:12345-12362) + canBlock (10760): bloqueador desvirado e do defensor, um atacante por bloqueador, voar/alcance, ameaça, proteção de cor, evasões de script, vários bloqueadores no mesmo atacante, atacante fica \"bloqueado\" (509.1h); sonda p5/t2.mjs C1, C6, C8; combat.audit K1, K8, K13, K14; protecao.regras · M-253/M-255 (v96): 509.1b — \"não pode bloquear\" em ficha (naoBloqueia; Phyrexian Mite) e \"não pode ser bloqueada por criaturas da cor\" até o fim do turno (tempNaoBloqueadaPor; Skrelv).",
    "falta": "509.1c: nenhuma exigência de bloqueio (\"bloqueia se puder\", isca/Lure) nem o cálculo de máximo. 509.1b: restrições genéricas \"não pode bloquear\" / \"não pode ser bloqueada\" / \"só por N ou mais\" além de ameaça e das duas evasões de script não existem como estrutura; evasões como intimidar, medo, sombra, travessia dependem de palavra-chave própria. 509.1d-f: custo para bloquear ausente. Bloquear mais de um atacante (\"pode bloquear uma criatura adicional\") ausente. 509.1i: ver 509.3.",
    "esforco": "M",
    "depende": [
@@ -4044,7 +4044,7 @@
    "regra": "Casting Spells",
    "titulo": "Passos para conjurar uma mágica",
    "status": "parcial",
-   "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h) · CR2c.3 (v86): o X escolhido entra na escolha de alvos — \"valor de mana X ou menos\" (targetMvMax {per:\"x\"}) na oferta, na conjuração e na resolução, e \"até X alvos\" (targetCount) com X instâncias opcionais; commander.regras \"CR2c.3 · Profane Command\"",
+   "evidencia": "HANDLERS.cast (index.html:12215-12321): modo, X, custo alternativo/adicional, alvos distintos, total = mana + imposto + X − afinidade/desconto (castExtra :10554), pagamento atômico, gatilhos de conjuração e prioridade de volta a quem conjurou; apply clona e RuleError desfaz tudo (:12810). Sondas sonda-6a-c.mjs: alvo ilegal recusado com estado idêntico; após conjurar pilha=1 e prioridade do conjurador. Testes: rules.unit \"M7 · conjurar toca terrenos sozinho\", \"S12 · modal\", \"S31 · mágica de dois alvos exige alvos diferentes\", \"S50 · custo X\", \"S53 · custo adicional com duas opções\", mana.unit (601.2g/h), pauper.regras:221 (601.2b/f/h) · CR2c.3 (v86): o X escolhido entra na escolha de alvos — \"valor de mana X ou menos\" (targetMvMax {per:\"x\"}) na oferta, na conjuração e na resolução, e \"até X alvos\" (targetCount) com X instâncias opcionais; commander.regras \"CR2c.3 · Profane Command\" · M-259/M-263 (v96): 601.2f — redução que depende do alvo (Killian; reducaoPorAlvo na oferta otimista e no pagamento com os alvos reais) e delve por quantidade com escolha das cartas.",
    "falta": "601.2b: sem buyback/splice (vários modos e reforço feitos na CR2c.1); híbrido decidido pelo motor; phyrexiano à escolha só na conjuração (CR2c.4) (payFrom :10348 tenta mana e só depois 2 de vida, sem perguntar e sem conferir vida). 601.2c: o mesmo alvo em instâncias diferentes só vale entre modos (CR2c.1); número variável de alvos como \"até N\"/\"até X\" (CR2c.3), com soma de valor de mana entre alvos (CR2c.5), sem \"qualquer número de alvos\"; não há gatilho de \"torna-se alvo\" (heroico). 601.2d: dividir dano/marcadores entre alvos não existe. 601.2f: nenhum efeito de outra permanente aumenta ou reduz custo (Thalia, familiares). 601.2g/h: a escolha de fontes só é do jogador se ele virar antes de conjurar; na conjuração o plano é automático (planTaps :10485). 601.2a: o custo é pago antes de a carta ir para a pilha (ordem invertida, sem efeito visível hoje).",
    "esforco": "G",
    "depende": [
@@ -4060,7 +4060,7 @@
    "regra": "Casting Spells",
    "titulo": "Quando se pode começar a conjurar",
    "status": "parcial",
-   "evidencia": "cast confere zona, dono, tempo de feitiço/flash e pilha vazia (index.html:12222, 12235); legalActions só oferece o permitido (:12955-12962); engine.unit \"M4 · feitiço só na sua principal; instantânea a qualquer momento com prioridade\"",
+   "evidencia": "cast confere zona, dono, tempo de feitiço/flash e pilha vazia (index.html:12222, 12235); legalActions só oferece o permitido (:12955-12962); engine.unit \"M4 · feitiço só na sua principal; instantânea a qualquer momento com prioridade\" · M-256 (v96): permissão de conjurar de outra zona (permiteConjurar; Lurrus: uma por turno, só no seu turno, objeto novo renova; lurrus.unit).",
    "falta": "Não existe efeito que proíba conjurar (\"não pode conjurar…\") nem \"como se tivesse flash\": 601.3a-d sem implementação; 601.3e (conjurar do topo do grimório por características alternativas) e 601.3f (do exílio virada para baixo) ausentes.",
    "esforco": "M",
    "depende": [
@@ -4365,8 +4365,8 @@
    "regra": "Mana Abilities",
    "titulo": "O que é habilidade de mana",
    "status": "parcial",
-   "evidencia": "Ativada cujos efeitos são todos add_mana e sem alvo resolve na hora (index.html:12397-12399); terrenos e \"produces\" entram por tap_mana (:12323); mana extra por evento vira produção somada (extraMana :10406-10412; bogles.regras \"R5 · Utopia Sprawl…\")",
-   "falta": "605.1a: não exclui habilidade de lealdade nem a que mexe no grimório; uma ativada que soma mana E faz outra coisa (ex.: mana + dano a você) passa pela pilha. 605.1b: gatilho de mana só existe na forma \"mana adicional ao virar o terreno encantado\".",
+   "evidencia": "Ativada cujos efeitos são todos add_mana e sem alvo resolve na hora (index.html:12397-12399); terrenos e \"produces\" entram por tap_mana (:12323); mana extra por evento vira produção somada (extraMana :10406-10412; bogles.regras \"R5 · Utopia Sprawl…\") · M-262 (v96): 605.1b — habilidade de mana disparada \"sempre que um jogador vira uma Ilha para mana\" (High Tide), somada na produção; maralta.narset.unit.",
+   "falta": "605.1a: não exclui habilidade de lealdade nem a que mexe no grimório; uma ativada que soma mana E faz outra coisa (ex.: mana + dano a você) passa pela pilha. 605.1b: só as duas formas (terreno encantado e High Tide).",
    "esforco": "P"
   },
   {
@@ -6000,13 +6000,17 @@
    "n": "701.47",
    "regra": "Keyword Actions",
    "titulo": "Amass",
-   "status": "ausente",
-   "falta": "não há criar a ficha de Exército 0/0 se faltar, escolher o Exército e pôr N marcadores somando o subtipo; Lazotep Plating está nas listas sem script",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "O Exército que já existe não ganha o subtipo do amass (701.47a, \"becomes a [subtipo] in addition\"); com mais de um Exército a escolha não é pedida.",
+   "esforco": "P",
    "depende": [
     "205.3"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "M-260 (v96): verbo amass: sem Exército, cria a ficha 0/0 preta Zombie Army e põe N marcadores +1/+1; com Exército, põe os marcadores nele. reforco.amass.unit (Lazotep Plating).",
+   "testes": [
+    "M-260 · Lazotep Plating: \"Amass Zombies 1\" (sem Exército, cria um Zombie Army 0/0 preto e põe o marcador) e \"You and permanents you control gain hexproof until end of turn\""
+   ]
   },
   {
    "n": "701.48",
@@ -6394,8 +6398,8 @@
    "regra": "Keyword Abilities",
    "titulo": "Hexproof",
    "status": "parcial",
-   "evidencia": "targetable (index.html:10915): permanente com hexproof não é alvo do oponente, mas é do dono; combat.audit K11; sonda sonda2-702a.mjs: Bolt de A mira o HEX1 próprio e não o do oponente",
-   "falta": "702.11c (jogador com resistência a magia) e 702.11d-g (\"hexproof from [qualidade]\", ex.: Skrelv, Defector Mite da lista de Commander, sem script) não existem",
+   "evidencia": "targetable (index.html:10915): permanente com hexproof não é alvo do oponente, mas é do dono; combat.audit K11; sonda sonda2-702a.mjs: Bolt de A mira o HEX1 próprio e não o do oponente · M-255/M-260 (v96): 702.11c jogador com resistência a magia até o fim do turno (resistencia_jogador; Lazotep Plating); \"hexproof from [cor]\" concedido (tempResguardoCor; Skrelv).",
+   "falta": "702.11d-g só \"hexproof from [cor]\"; outras qualidades (de monocolorida, de artefato…) não existem.",
    "esforco": "P",
    "cartas": "evergreen"
   },
@@ -6579,14 +6583,18 @@
    "n": "702.26",
    "regra": "Keyword Abilities",
    "titulo": "Phasing",
-   "status": "ausente",
-   "falta": "Nada sobre sair/entrar de fase: nem a palavra (702.26a), nem o estado \"phased out\" tratado como inexistente, nem anexos saindo junto (702.26b-p). March of Swirling Mist e Slip Out the Back (listas) dependem da ação \"phase out\"",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "A palavra-chave \"phasing\" (sair de fase sozinha no desvirar, 702.26a) e efeitos que fazem entrar em fase fora do desvirar não existem; March of Swirling Mist ainda sem script.",
+   "esforco": "P",
    "depende": [
     "502.1",
     "110.5 estado da permanente"
    ],
-   "cartas": "rara como palavra; \"phase out\" como efeito é comum em Commander"
+   "cartas": "rara como palavra; \"phase out\" como efeito é comum em Commander",
+   "evidencia": "M-261 (v96): verbo sai_de_fase; battlefield() e attachedTo ignoram o que está fora de fase (não é alvo, não sofre efeito, sai do combate); anexos saem junto; entra em fase no desvirar de quem a controla. fase.unit (Slip Out the Back).",
+   "testes": [
+    "M-261 · Slip Out the Back: a criatura recebe o marcador e sai de fase — não é alvo, não morre pelo efeito que vem depois, fica fora do combate, e volta no próximo desvirar de quem a controla"
+   ]
   },
   {
    "n": "702.27",
@@ -6962,15 +6970,17 @@
    "n": "702.56",
    "regra": "Keyword Abilities",
    "titulo": "Replicate",
-   "status": "ausente",
-   "falta": "Sem custo adicional pagável N vezes e sem o gatilho de conjuração que copia a mágica N vezes com novos alvos (702.56a-b). A cópia de tempestade existe (index.html:12292) e serve de base. Stream of Thought está na lista Commander sem o replicar (parcial declarado por outros motivos, 5495).",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "707.10",
     "601.2b",
     "601.2f"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "M-265 (v96): chave replicate no script; o custo é pago 0, 1, 2… vezes (oferta por quantidade, pelo caminho do multirreforço) e cada pagamento põe uma cópia na pilha por cima da original, com alvo próprio, existindo mesmo se a original for anulada; a mágica não fica \"kicked\". replicar.unit (Lose Focus, Stream of Thought).",
+   "testes": [
+    "M-265 · replicar: a mesa oferece pagar o custo de replicar 0, 1, 2… vezes (o que a mana pagar); cada pagamento é uma cópia com alvo próprio, antes da original"
+   ]
   },
   {
    "n": "702.57",
@@ -7096,15 +7106,16 @@
    "n": "702.66",
    "regra": "Keyword Abilities",
    "titulo": "Delve",
-   "status": "parcial",
-   "evidencia": "Treasure Cruise e Dig Through Time usam alt com exileGraveyard fixo (index.html:5236-5243, marcadas parcial); payAlt (10622) exila as cartas escolhidas por quem paga (pagamentosDe, 11926); rules.unit \"Cruise\" (1231) e pauper.regras (706).",
-   "falta": "É tudo ou nada: exila exatamente 7 (ou 6) ou paga o custo cheio. Falta exilar qualquer quantidade, uma por mana genérica do custo total, depois de reduções e junto de outros custos alternativos (702.66a-b). Não existe chave delve própria.",
-   "esforco": "M",
+   "status": "coberta",
+   "evidencia": "M-263 (v96): delve: true no script; a oferta traz uma forma de conjurar por quantidade (1 até o genérico), cada carta exilada paga {1}, e quem conjura escolhe quais logo depois de a mágica ir à pilha; Treasure Cruise e Dig Through Time. delve.confidant.unit.",
    "depende": [
     "601.2f",
     "601.2h"
    ],
-   "cartas": "comum (peças fortes em Pauper/Commander)"
+   "cartas": "comum (peças fortes em Pauper/Commander)",
+   "testes": [
+    "M-263 · Treasure Cruise: delve — cada carta exilada do cemitério paga {1}; quem conjura escolhe quantas e quais"
+   ]
   },
   {
    "n": "702.67",
@@ -7334,15 +7345,19 @@
    "n": "702.84",
    "regra": "Keyword Abilities",
    "titulo": "Unearth",
-   "status": "ausente",
-   "falta": "Sem a ativada do cemitério que devolve com ímpeto, exila no fim do turno e exila se fosse sair de campo (702.84a). (A carta chamada Unearth está coberta, mas não tem esta habilidade.)",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "614",
     "603.7",
     "602"
    ],
-   "cartas": "comum em poucas coleções"
+   "cartas": "comum em poucas coleções",
+   "evidencia": "M-257 (v96): chave unearth no script, ação unearth do cemitério no tempo de feitiço (vai à pilha), volta com ímpeto, exilada no início do próximo passo final, e \"se fosse sair do campo\" vai para o exílio (destinoSubstituido com o.desenterrada). desenterrar.unit (3 testes).",
+   "testes": [
+    "M-257 · desenterrar: do cemitério, no tempo de feitiço, pagando o custo; vai à pilha; volta ao campo com ímpeto",
+    "M-257 · desenterrar: exilada no início do próximo passo final; se fosse sair do campo antes (morrer, voltar à mão), vai para o exílio",
+    "M-257 · desenterrar: carta que sai do cemitério antes de a habilidade resolver não volta; a que volta ao campo de outro jeito não é exilada"
+   ]
   },
   {
    "n": "702.85",
@@ -7418,16 +7433,19 @@
    "n": "702.90",
    "regra": "Keyword Abilities",
    "titulo": "Infect",
-   "status": "ausente",
-   "falta": "Sem marcadores de veneno nem derrota com dez (704.5c); dano a jogador não vira veneno (702.90b) e dano a criatura não vira -1/-1 (702.90c), em qualquer zona da fonte (702.90d-f). Phyresis está na lista Commander; o ROADMAP conta \"veneno (3)\" como estrutura.",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "122.1f",
     "704.5c",
     "120.3",
     "702.80"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "evidencia": "M-254 (v96): infecta/marcaDanoEmCriatura/danoEmJogador — todo dano de fonte com infectar passa por elas (combate e efeito): na criatura vira marcadores −1/−1, no jogador vira veneno sem perda de vida; vínculo com a vida continua valendo. combat.audit K12c; infectar.unit (Phyresis).",
+   "testes": [
+    "K12c · infectar (702.90): na criatura, o dano vira marcadores −1/−1; no jogador, vira veneno, sem perder vida; com vínculo com a vida ainda ganha",
+    "M-254 · Phyresis: a criatura encantada tem infectar; o dano que ela causa vira −1/−1 numa criatura e veneno num jogador; sem a Aura, dano comum"
+   ]
   },
   {
    "n": "702.91",
@@ -8340,28 +8358,32 @@
    "n": "702.164",
    "regra": "Keyword Abilities",
    "titulo": "Toxic",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Não há marcadores de veneno no jogador (grep \"poison\" = 0): faltam veneno por dano de combate, soma do valor tóxico (164b) e a derrota com 10 venenos (704.5c).",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "122 marcadores em jogador",
     "704.5c veneno",
     "120.3 resultado do dano"
    ],
-   "cartas": "comum (Phyrexia: All Will Be One; arquétipo jogado no Pauper)"
+   "cartas": "comum (Phyrexia: All Will Be One; arquétipo jogado no Pauper)",
+   "evidencia": "M-253/M-255 (v96): toxicoDe soma o tóxico impresso (self.toxic) e o concedido até o fim do turno (tempToxico; verbo continuo com toxico); dano de combate a jogador dá N venenos além do dano (darVeneno); dano que não é de combate não. veneno.unit e skrelv.unit.",
+   "testes": [
+    "M-253 · tóxico: dano de combate a um jogador também dá N marcadores de veneno; dano que não é de combate não; com dez, o jogador perde"
+   ]
   },
   {
    "n": "702.165",
    "regra": "Keyword Abilities",
    "titulo": "Backup",
-   "status": "ausente",
-   "falta": "Sem implementação (grep sem ocorrência no motor nem nos scripts). Falta o gatilho de entrada com alvo que põe N marcadores e, sendo outra criatura, concede até o fim do turno as habilidades impressas abaixo (travadas ao empilhar, 165d).",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "613 camadas (conceder habilidade)",
     "603 gatilho com alvo"
    ],
-   "cartas": "uma coleção só (March of the Machine)"
+   "cartas": "uma coleção só (March of the Machine)",
+   "evidencia": "M-260 (v96): chave backup no script vira gatilho de entrada com alvo + verbo reforco: N marcadores +1/+1 na criatura alvo e, se for outra, as outras habilidades da carta até o fim do turno (tempHabilidades). reforco.amass.unit (Scorn-Blade Berserker).",
+   "testes": [
+    "M-260 · Scorn-Blade Berserker: reforço 1 — marcador na criatura alvo; se for outra, ela ganha \"{1}, sacrifique esta criatura: compre uma carta\" até o fim do turno"
+   ]
   },
   {
    "n": "702.166",
@@ -8821,8 +8843,8 @@
    "regra": "State-Based Actions",
    "titulo": "Lista das ações baseadas em estado",
    "status": "parcial",
-   "evidencia": "stateBased (12091-12136) + sondas p7b/sba-7b.mjs e sba2-7b.mjs: 5a vida ≤0 perde (e os dois a 0 = empate); 5b comprar de grimório vazio (drewFromEmpty 10318); 5d ficha fora do campo some (12104; rules.unit \"M12 · ficha que sai do campo deixa de existir\"); 5f resistência 0 morre mesmo indestrutível; 5g dano letal, indestrutível sobrevive; 5h toque mortífero (deathtouched 10804/12131); 5i lealdade 0; 5m aura cujo hospedeiro saiu vai ao cemitério; 5n equipamento solta quando o hospedeiro sai; engine.unit \"M5 · vida zero, grimório vazio e 21 de dano de comandante\" · CR2a (motor v75): 5j regra das lendas (lendasRepetidas → decisão pendente \"legend\", ação choose_legend; as outras vão para o cemitério sem destruir) e 5n Equipamento em não-criatura se solta; testes de conformidade em cr.conformidade",
-   "falta": "5c: não há marcador de veneno. 5n: fortificação não existe. 5g/h: sem regeneração. 5j: a escolha é pedida depois das outras ações da mesma checagem, não junto. Demais subitens (batalha, Saga, papel, masmorra completa) dependem de tipos que não existem.",
+   "evidencia": "stateBased (12091-12136) + sondas p7b/sba-7b.mjs e sba2-7b.mjs: 5a vida ≤0 perde (e os dois a 0 = empate); 5b comprar de grimório vazio (drewFromEmpty 10318); 5d ficha fora do campo some (12104; rules.unit \"M12 · ficha que sai do campo deixa de existir\"); 5f resistência 0 morre mesmo indestrutível; 5g dano letal, indestrutível sobrevive; 5h toque mortífero (deathtouched 10804/12131); 5i lealdade 0; 5m aura cujo hospedeiro saiu vai ao cemitério; 5n equipamento solta quando o hospedeiro sai; engine.unit \"M5 · vida zero, grimório vazio e 21 de dano de comandante\" · CR2a (motor v75): 5j regra das lendas (lendasRepetidas → decisão pendente \"legend\", ação choose_legend; as outras vão para o cemitério sem destruir) e 5n Equipamento em não-criatura se solta; testes de conformidade em cr.conformidade · M-253 (v96): 704.5c — dez ou mais marcadores de veneno, o jogador perde (lossReason veneno; veneno.unit).",
+   "falta": "5n: fortificação não existe. 5g/h: sem regeneração. 5j: a escolha é pedida depois das outras ações da mesma checagem, não junto. Demais subitens (batalha, Saga, papel, masmorra completa) dependem de tipos que não existem.",
    "esforco": "M",
    "depende": [
     "122",
