@@ -8898,16 +8898,18 @@ function transporteLocal({ storage, canal = null, nome = 'estante.online', agora
     (`GET/PUT/PATCH/POST/DELETE <caminho>.json`); `ouvir` abre um EventSource no caminho e mantém uma réplica local
     aplicando os eventos `put` e `patch` que o Firebase manda (o primeiro `put` traz o nó inteiro; ao reconectar,
     o Firebase manda tudo de novo). `fetch` e `EventSource` entram por injeção para os testes rodarem sem rede. */
-function transporteFirebase({ url, fetch: fetchFn = null, EventSource: ES = null, agora = () => Date.now() }) {
+function transporteFirebase({ url, fetch: fetchFn = null, EventSource: ES = null, agora = () => Date.now(), token = null }) {
   const base = String(url || '').replace(/\/+$/, '');
   const f = (...a) => (fetchFn || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null))(...a);
   const Fonte = ES || (typeof EventSource !== 'undefined' ? EventSource : null);
   const endereco = caminho => `${base}/${String(caminho).replace(/^\/+|\/+$/g, '')}.json`;
+  // A-262 · com conta, o pedido leva o token de quem entrou (`?auth=`): é o que as regras do banco conferem. Sem `token`, nada muda (a sala de hoje).
+  const comToken = async u => { let t = null; try { t = token ? await token() : null; } catch (e) { t = null; } return t ? `${u}?auth=${encodeURIComponent(t)}` : u; };
   let ligado = true; const aoLigar = new Set();
   const marca = sim => { if (ligado !== sim) { ligado = sim; for (const cb of aoLigar) cb(ligado); } };
   async function pede(metodo, caminho, corpo) {
     let r;
-    try { r = await f(endereco(caminho), { method: metodo, headers: corpo !== undefined ? { 'Content-Type': 'application/json' } : {}, body: corpo !== undefined ? JSON.stringify(corpo) : undefined }); }
+    try { r = await f(await comToken(endereco(caminho)), { method: metodo, headers: corpo !== undefined ? { 'Content-Type': 'application/json' } : {}, body: corpo !== undefined ? JSON.stringify(corpo) : undefined }); }
     catch (e) { marca(false); throw new Error('sem-rede'); }
     if (!r.ok) throw Object.assign(new Error('api'), { status: r.status });
     marca(true);
@@ -9426,6 +9428,144 @@ function descreveFiltroDeListas(f, { formatos = {} } = {}) {
 }
 
 return { FILTRO_LISTAS_VAZIO, ORDENS_DE_LISTA, POSSES_DE_LISTA, novoFiltroDeListas, filtrosDeListaAtivos, filtroDeListasVazio, filtraListas, descreveFiltroDeListas, FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, linkDoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+})();
+
+/* ==== src/data/remoto.js ==== */
+const __m40 = (function () {
+/* =====================================================================
+   Leva A-262 · T6b · O PERFIL E A FILA DE RELATOS NO FIREBASE (forma)
+   Só a forma dos dados e quem lê e escreve; quem PODE ler e escrever são as regras do banco (T6c, segurança).
+   Árvore, versão 1:
+     perfis/<uid>/doc     { kind: 'estante.perfil.remoto', version: 1, atualizadoEm, nome, pessoaEm, p: { <chave>: { v, t } } }
+     perfis/<uid>/avatar  { dado: 'data:image/…', em }        ← nó à parte: a foto pesa até ~400 KB e só é lida quando muda
+     relatos/fila/<uid>/<id>  { kind: 'estante.relato', version: 1, enviadoEm, dado }
+   · <chave> é a chave da preferência com ':' no lugar de '.' (o Firebase não aceita ponto em chave).
+   · `v` é o valor em TEXTO JSON e `t` o instante da escolha. Texto porque o banco apaga lista e objeto vazios e troca
+     lista por objeto: guardado como texto, o que volta é exatamente o que foi. Sem `v`, a escolha foi apagada.
+   · Cada preferência é um nó: subir uma escolha é um PATCH de um nó, e duas escolhas diferentes feitas em dois
+     aparelhos não se atropelam.
+   Tudo recebe o transporte por parâmetro (memória nos testes, Firebase por REST no aparelho) e funciona sem rede:
+   o aparelho continua sendo a fonte; isto é cópia e encontro entre aparelhos.
+   ===================================================================== */
+const { DOC_KIND, DOC_VERSION, DO_DOCUMENTO, limpaNome, avatarValido } = __m28;
+const REMOTO_KIND = 'estante.perfil.remoto', REMOTO_VERSION = 1, RELATO_KIND = 'estante.relato', RELATO_VERSION = 1;
+/** Tetos: o documento sem a foto fica pequeno (é lido a cada encontro); um valor sozinho e um relato também. */
+const VALOR_MAX = 64 * 1024, RELATO_MAX = 24 * 1024;
+const UID_OK = /^[A-Za-z0-9_-]{1,128}$/, ID_OK = /^[A-Za-z0-9_-]{1,64}$/;
+const codifica = k => String(k).replace(/\./g, ':'), decodifica = k => String(k).replace(/:/g, '.');
+function caminhos(uid) {
+  if (!UID_OK.test(String(uid || ''))) throw new Error('uid-invalido');
+  return { doc: `perfis/${uid}/doc`, avatar: `perfis/${uid}/avatar`, fila: `relatos/fila/${uid}` };
+}
+/** Documento do aparelho → nó `doc` do banco (sem a foto). Valor grande demais fica de fora e é devolvido em `fora`. */
+function paraRemoto(doc) {
+  if (!doc || doc.kind !== DOC_KIND || doc.version !== DOC_VERSION) throw new Error('formato-desconhecido');
+  const p = {}, fora = [];
+  for (const k of DO_DOCUMENTO) {
+    const t = Number(doc.carimbos && doc.carimbos[k]) || 0, tem = doc.preferencias && doc.preferencias[k] !== undefined && doc.preferencias[k] !== null;
+    if (!tem && !t) continue;
+    if (!tem) { p[codifica(k)] = { t }; continue; }
+    const v = JSON.stringify(doc.preferencias[k]);
+    if (v.length > VALOR_MAX) { fora.push(k); continue; }
+    p[codifica(k)] = { v, t };
+  }
+  const pessoa = doc.pessoa || {};
+  return { remoto: { kind: REMOTO_KIND, version: REMOTO_VERSION, atualizadoEm: Number(doc.atualizadoEm) || 0, nome: limpaNome(pessoa.nome), pessoaEm: Number(pessoa.atualizadoEm) || 0, p }, fora };
+}
+/** Nó `doc` do banco → documento do aparelho. O que veio de fora é dado: chave desconhecida, texto que não é JSON e
+    instante que não é número ficam de fora (em `ignoradas`). `avatar` é o nó da foto, quando foi lido; sem ele o
+    documento vem com `pessoa: null` e quem aplica não mexe em nome nem foto. */
+function doRemoto(remoto, avatar) {
+  if (!remoto) return null;
+  if (remoto.kind !== REMOTO_KIND) throw new Error('formato-desconhecido');
+  if (!(remoto.version >= 1) || remoto.version > REMOTO_VERSION) throw new Error('versao-desconhecida');
+  const preferencias = {}, carimbos = {}, ignoradas = [];
+  for (const [cod, no] of Object.entries(remoto.p && typeof remoto.p === 'object' ? remoto.p : {})) {
+    const k = decodifica(cod), t = no && Number(no.t);
+    if (!DO_DOCUMENTO.includes(k) || !no || typeof no !== 'object' || !Number.isFinite(t) || t < 0) { ignoradas.push(k); continue; }
+    if (no.v !== undefined && no.v !== null) {
+      if (typeof no.v !== 'string' || no.v.length > VALOR_MAX) { ignoradas.push(k); continue; }
+      let v; try { v = JSON.parse(no.v); } catch (e) { ignoradas.push(k); continue; }
+      if (v === null || v === undefined) { ignoradas.push(k); continue; }
+      preferencias[k] = v;
+    }
+    carimbos[k] = t;
+  }
+  const pessoaEm = Number(remoto.pessoaEm) || 0;
+  const pessoa = avatar === undefined ? null : { nome: limpaNome(remoto.nome), avatar: avatar && avatarValido(avatar.dado) ? avatar.dado : null, atualizadoEm: pessoaEm };
+  return { doc: { kind: DOC_KIND, version: DOC_VERSION, atualizadoEm: Number(remoto.atualizadoEm) || 0, pessoa, preferencias, carimbos }, pessoaEm, ignoradas };
+}
+/** O que o aparelho tem de mais novo que o banco: o PATCH (um nó por preferência) e se a pessoa (nome e foto) sobe. */
+function oQueSobe(local, remoto) {
+  const { remoto: meu, fora } = paraRemoto(local), la = (remoto && remoto.p) || {}, patch = {}, chaves = [];
+  for (const [cod, no] of Object.entries(meu.p)) if (no.t > (Number(la[cod] && la[cod].t) || 0)) { patch['p/' + cod] = no; chaves.push(decodifica(cod)); }
+  const pessoa = meu.pessoaEm > (Number(remoto && remoto.pessoaEm) || 0);
+  if (pessoa) { patch.nome = meu.nome; patch.pessoaEm = meu.pessoaEm; }
+  if (chaves.length || pessoa || !remoto) { patch.kind = REMOTO_KIND; patch.version = REMOTO_VERSION; patch.atualizadoEm = Math.max(meu.atualizadoEm, Number(remoto && remoto.atualizadoEm) || 0); }
+  return { patch, chaves, pessoa, fora, vazio: !chaves.length && !pessoa };
+}
+function createPerfilRemoto({ transporte, uid }) {
+  const c = caminhos(uid);
+  return {
+    caminhos: c,
+    /** Lê o documento do banco. A foto só é buscada quando a pessoa de lá é mais nova que `pessoaConhecidaEm`. */
+    async ler({ pessoaConhecidaEm = 0 } = {}) {
+      const remoto = await transporte.ler(c.doc);
+      if (!remoto) return { remoto: null, doc: null, ignoradas: [] };
+      const novaPessoa = (Number(remoto.pessoaEm) || 0) > pessoaConhecidaEm;
+      const r = doRemoto(remoto, novaPessoa ? ((await transporte.ler(c.avatar)) || null) : undefined);
+      return { remoto, doc: r.doc, ignoradas: r.ignoradas };
+    },
+    /** Sobe só o que o aparelho tem de mais novo, e lê de volta para conferir. */
+    async enviar(local, remoto = null) {
+      const s = oQueSobe(local, remoto);
+      if (s.vazio && remoto) return { enviadas: [], pessoa: false, fora: s.fora, conferido: true };
+      // a foto vai antes do documento: se a rede cair no meio, o documento ainda não aponta para uma foto que não chegou
+      if (s.pessoa) { const a = local.pessoa && avatarValido(local.pessoa.avatar) ? { dado: local.pessoa.avatar, em: Number(local.pessoa.atualizadoEm) || 0 } : null; await transporte.escrever(c.avatar, a); /* escrever `null` apaga o nó (vale no Firebase e nos transportes de teste) */ }
+      await transporte.atualizar(c.doc, s.patch);
+      const volta = await transporte.ler(c.doc); let conferido = !!volta && volta.kind === REMOTO_KIND;
+      for (const k of s.chaves) { const cod = codifica(k), foi = s.patch['p/' + cod], veio = volta && volta.p && volta.p[cod]; if (!veio || veio.t !== foi.t || (veio.v === undefined ? null : veio.v) !== (foi.v === undefined ? null : foi.v)) conferido = false; }
+      if (s.pessoa && (!volta || volta.pessoaEm !== s.patch.pessoaEm)) conferido = false;
+      return { enviadas: s.chaves, pessoa: s.pessoa, fora: s.fora, conferido };
+    },
+    /** O encontro inteiro: traz o que o banco tem de mais novo, depois leva o que o aparelho tem de mais novo.
+        `perfil` é o de `createPerfil` sobre o store vigiado. Sem rede, lança 'sem-rede' e nada muda no aparelho. */
+    async sincroniza(perfil) {
+      const antes = await perfil.get();
+      const lido = await this.ler({ pessoaConhecidaEm: antes.atualizadoEm || 0 });
+      const desceu = lido.doc ? await perfil.aplicaDocumento(lido.doc) : { aplicadas: [], mantidas: [], ignoradas: [], pessoa: false, conferido: true };
+      const subiu = await this.enviar(await perfil.documento(), lido.remoto);
+      return { desceu: desceu.aplicadas, pessoaDesceu: desceu.pessoa, subiu: subiu.enviadas, pessoaSubiu: subiu.pessoa, ignoradas: [...lido.ignoradas, ...desceu.ignoradas], fora: subiu.fora, conferido: desceu.conferido && subiu.conferido };
+    },
+    /** Apaga tudo o que é desta pessoa no banco (direito de apagar). */
+    async apagarTudo() { await transporte.escrever(c.doc, null); await transporte.escrever(c.avatar, null); return (await transporte.ler(c.doc)) === null && (await transporte.ler(c.avatar)) === null; }
+  };
+}
+/** Fila de relatos: o app põe o relato aqui e um fluxo do repositório cria o registro e tira da fila (T6e). O id é o do
+    próprio relato: mandar duas vezes escreve o mesmo nó, não cria dois. */
+function createFilaDeRelatos({ transporte, uid, agora = () => Date.now() }) {
+  const c = caminhos(uid);
+  return {
+    caminho: c.fila,
+    async enfileira(relato) {
+      if (!relato || !ID_OK.test(String(relato.id || ''))) throw new Error('relato-invalido');
+      const dado = JSON.stringify(relato);
+      if (dado.length > RELATO_MAX) throw new Error('relato-grande');
+      const no = { kind: RELATO_KIND, version: RELATO_VERSION, enviadoEm: new Date(agora()).toISOString(), dado };
+      await transporte.escrever(`${c.fila}/${relato.id}`, no);
+      const volta = await transporte.ler(`${c.fila}/${relato.id}`);
+      return { id: relato.id, enviadoEm: no.enviadoEm, conferido: !!volta && volta.dado === dado };
+    },
+    /** Ids que ainda estão na fila (o fluxo ainda não criou o registro). */
+    async pendentes() { const f = await transporte.ler(c.fila); return f && typeof f === 'object' ? Object.keys(f) : []; }
+  };
+}
+/** Lê um nó da fila como dado de fora: devolve o relato ou null. É o que o fluxo do repositório usa. */
+function relatoDaFila(no) {
+  if (!no || no.kind !== RELATO_KIND || no.version !== RELATO_VERSION || typeof no.dado !== 'string' || no.dado.length > RELATO_MAX) return null;
+  try { const r = JSON.parse(no.dado); return r && typeof r === 'object' && ID_OK.test(String(r.id || '')) ? r : null; } catch (e) { return null; }
+}
+return { caminhos, codifica, decodifica, paraRemoto, doRemoto, oQueSobe, createPerfilRemoto, createFilaDeRelatos, relatoDaFila, REMOTO_KIND, REMOTO_VERSION, RELATO_KIND, RELATO_VERSION, VALOR_MAX, RELATO_MAX };
 })();
 
 /* ==== src/data/etiquetas.js ==== */

@@ -498,6 +498,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-db ✅ | SEG1 HTML seguro nos avisos: Note trata texto como texto, marcação só por `seguro\`…\`` que escapa o interpolado; nome de carta de lista colada, lista do oponente, CSV e erros não viram HTML; contrato no portão (leva P-1) | SEG | 1 | — |
 | 16º-dc ✅ | T6a documento de perfil: registro de todas as chaves do armazenamento por classe, store vigiado que carimba cada preferência, documento `estante.perfil` v1 e backup com as oito preferências que ficavam de fora (leva A-261) | T | 1 | — |
 | 16º-dd 🟡 | T6 depois da decisão de 10/10/2026 (**Firebase**, por REST, sem SDK): T6b forma do perfil e da fila de relatos, T6c regras de acesso e entrada com Google, T6d sincronização, T6e relato sem sair do app (#13) | T | 4 a 5 | **projeto Firebase** criado pelo usuário (Realtime Database + Authentication com Google) para ligar no aparelho |
+| 16º-de ✅ | T6b forma do perfil e da fila de relatos no Firebase: um nó por preferência com valor em texto e instante, foto em nó à parte, fila por pessoa com o id do relato; encontro entre dois aparelhos provado com banco de memória e REST de mentira (leva A-262) | T | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -6972,6 +6973,44 @@ prontas.
   idempotente, com apagamento e recusa de formato; leitura de volta; ida e volta do backup com todas as preferências
   e o arquivo v3 antigo).
 - **Fora:** rede, conta, tela nova; conteúdo (listas, coleção, histórico) sincroniza por item, em história própria.
+
+**T6b · Forma do perfil e da fila de relatos no Firebase** ✅ (leva A-262, trilha `armazem`; nada ligado no app ainda)
+- **Valor:** o desenho de como o perfil e os relatos moram no banco fica pronto e provado antes de existir conta: dois
+  aparelhos terminam iguais, nada sobe à toa e o que volta é exatamente o que foi.
+- **Dado (árvore v1, `src/data/remoto.js`):**
+  - `perfis/<uid>/doc` `{ kind: 'estante.perfil.remoto', version: 1, atualizadoEm, nome, pessoaEm, p: { <chave>: { v, t } } }`
+    — `<chave>` com `:` no lugar de `.` (o banco não aceita ponto); `v` é o valor em **texto JSON** (o banco apaga
+    lista e objeto vazios e troca lista por objeto; como texto, volta igual) e `t` o instante da escolha; sem `v`, a
+    escolha foi apagada. Um nó por preferência: mudar uma escolha é um PATCH de um nó.
+  - `perfis/<uid>/avatar` `{ dado, em }` — nó à parte (até ~400 KB), lido só quando a pessoa de lá é mais nova.
+  - `relatos/fila/<uid>/<id do relato>` `{ kind: 'estante.relato', version: 1, enviadoEm, dado }` — `dado` é o relato
+    em texto JSON (até 24 KB); o id é o do relato, então mandar de novo não duplica.
+- **Leitura e escrita:** `createPerfilRemoto({ transporte, uid })` — `ler` (um GET; a foto só quando muda), `enviar` (só
+  o que o aparelho tem de mais novo, lido de volta: `conferido`), `sincroniza(perfil)` (desce, depois sobe) e
+  `apagarTudo`; `createFilaDeRelatos` — `enfileira` (lido de volta) e `pendentes`; `relatoDaFila` lê um nó como dado
+  (é o que o fluxo do repositório vai usar). O transporte entra por parâmetro: memória nos testes, Firebase por REST
+  no aparelho; `transporteFirebase` ganhou `token` opcional (`?auth=`, a forma que o REST do banco aceita para o token
+  de quem entrou).
+- **Conflito e limpeza:** por preferência vence o instante maior; empate fica com o aparelho; apagar é um instante sem
+  valor. A fila é esvaziada pelo fluxo que cria o registro (T6e). Valor acima de 64 KB não sobe e é devolvido em `fora`.
+- **Sem rede:** o encontro falha com `sem-rede` e o aparelho fica como estava; o app não depende dele para nada.
+- **Custo (medido em 10/10/2026):** documento típico sem foto < 16 KB (teste); um encontro sem novidade = 1 leitura e
+  0 escritas (teste). Tetos do plano gratuito (consulta de 10/10/2026 à página de limites do Realtime Database): 100
+  conexões simultâneas — o perfil usa REST sem ouvir, não segura conexão; chave até 768 bytes; texto até 10 MB.
+  Armazenamento e tráfego mensais do plano gratuito: a confirmar na T6c com a projeção da escala.
+- **Segurança (auditoria da leva):** aprovado para publicar — não abre caminho de rede em produção. O token não vai
+  para cache (sonda no `sw.js`); o que vem do banco é tratado como dado (chave desconhecida, texto que não é JSON,
+  instante estranho, endereço de fora como foto: ignorados). **A T6c precisa entregar:** regras versionadas no
+  repositório com teste (só o dono lê e escreve `perfis/<uid>` e escreve `relatos/fila/<uid>`; ninguém lê a fila pelo
+  app; forma e tamanho validados; todo o resto negado, inclusive `salas/` até ter regra própria); entrada com Google e
+  renovação do token só em memória; `uid` vindo do token, nunca digitado; a lista "o que sai do aparelho" com os dois
+  destinos novos; apagar a conta apagando o ramo. **Resíduo:** as regras não limitam ritmo — quem entrou pode encher a
+  própria fila (até 24 KB por relato); o fluxo da T6e limita por pessoa e por rodada.
+- **Testes:** U `remoto.unit` (9: caminhos e uid; ida e volta com valores difíceis; leitura hostil; teto e orçamento;
+  dois aparelhos convergindo, idempotente, com apagamento e foto; sem rede e banco que engole escrita; fila; REST com
+  token e sem; sonda do service worker).
+- **Fora:** regras e entrada (T6c); quando sincronizar e a tela (T6d); o fluxo que cria o registro e o botão Enviar
+  (T6e). O fluxo de eventos (`ouvir`) não leva token: o perfil não ouve, só lê.
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
