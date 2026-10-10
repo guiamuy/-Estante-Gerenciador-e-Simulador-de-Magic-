@@ -9741,3 +9741,27 @@ test('e2e · M-250 · Frantic Search: depois de comprar e descartar, a mesa pede
   e = await M.est(); assert.notEqual(e.pend, 'pick');
   assert.deepEqual(M.errors, []);
 });
+
+test('e2e · M-264 · Moonsnare Prototype: canalizar mirando uma permanente sua — a mesa pergunta ao dono "No topo" ou "No fundo"', { skip }, async t => {
+  const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-commander.json'), 'utf8')).cartas.filter(c => c.name === 'Moonsnare Prototype');
+  const M = await comLista125(t, '22 Island\n10 Moonsnare Prototype\n8 Faerie Seer', ['Island', 'Moonsnare Prototype', 'Faerie Seer'], '4', { extras });
+  const { page } = M; let e;
+  for (let i = 0; i < 20; i++) {
+    const il = await M.oid('Island'); if (il) await M.act({ t: 'play_land', p: 0, oid: il }); e = await M.est();
+    if (!e.campo.includes('Faerie Seer')) { const fs = await M.oid('Faerie Seer'); if (fs) { const c = await M.legal(`a.t==='cast' && a.oid==='${fs}'`); if (c.length) { await M.act(c[0]); e = await segueR6(M); } } }
+    e = await M.est(); if (e.campo.filter(n => n === 'Island').length >= 5 && e.campo.includes('Faerie Seer') && e.mao.includes('Moonsnare Prototype')) break; await M.proximo();
+  }
+  e = await M.est(); assert.ok(e.campo.filter(n => n === 'Island').length >= 5 && e.campo.includes('Faerie Seer') && e.mao.includes('Moonsnare Prototype'), 'mesa pronta: ' + JSON.stringify(e));
+  await M.proximo(); e = await M.est(); // terrenos desvirados no turno seguinte
+  const ms = await M.oid('Moonsnare Prototype'), seer = await M.oid('Faerie Seer', 'battlefield');
+  const todas = await M.legal(`a.oid==='${ms}'`);
+  const canal = todas.find(a => a.t === 'activate' && a.fromHand && (a.targets || []).some(x => x.oid === seer));
+  assert.ok(canal, 'canalizar mirando a Faerie Seer: ' + JSON.stringify(todas) + ' ' + JSON.stringify(e)); await M.act(canal);
+  e = await segueR6(M, x => x.pend === 'topo_fundo');
+  assert.equal(e.pend, 'topo_fundo');
+  assert.match(await M.decisao(), /Moonsnare Prototype: Faerie Seer volta para o seu grimório \| Você escolhe: no topo ou no fundo\./);
+  await auditaTela(page, 'topo ou fundo da Moonsnare');
+  await page.click('#tb-fundo'); await page.waitForTimeout(200);
+  e = await M.est(); assert.notEqual(e.pend, 'topo_fundo'); assert.ok(!e.campo.includes('Faerie Seer'), 'saiu do campo');
+  assert.deepEqual(M.errors, []);
+});

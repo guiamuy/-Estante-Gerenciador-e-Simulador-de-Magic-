@@ -5270,6 +5270,7 @@ const EFFECTS = {
   reforco: { fields: [], targets: ['first-target'] }, // M-260 · a segunda metade do reforço (702.165a)
   sai_de_fase: { fields: [], targets: ['creature', 'permanent', 'first-target'] }, // M-261 · 702.26 "phases out"
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
+  topo_ou_fundo_do_dono: { fields: [], targets: ['permanent'] }, // M-264 · "The owner of target nonland permanent puts it on their choice of the top or bottom of their library"
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
   amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
   resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
@@ -5355,7 +5356,7 @@ const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
+const CHOICE_EFFECTS = ['topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno' };
@@ -5960,7 +5961,8 @@ function effectErrors(effects, label, opcional) {
       if (!(Array.isArray(e.tipos) && e.tipos.length && e.tipos.every(x => TIPOS_DE_CARTA.includes(x)))) errs.push(`${L}: sacrificar precisa de "tipos" (tipos de carta)`);
       if (e.jogadores != null && e.target != null) errs.push(`${L}: sacrificar é de "jogadores" ou do jogador alvo, não dos dois`);
       if (e.jogadores != null && !JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
-      if (e.naoFicha && (e.jogadores || 'voce') === 'voce' && e.target == null) errs.push(`${L}: "naoFicha" só vale quando cada jogador ou o alvo escolhe`);
+      if (e.naoFicha && (e.jogadores || 'voce') === 'voce' && e.target == null && !e.alvosJogadores) errs.push(`${L}: "naoFicha" só vale quando cada jogador ou o alvo escolhe`);
+      if (e.alvosJogadores != null && (e.alvosJogadores !== 'anteriores' || e.jogadores != null || e.target != null)) errs.push(`${L}: "alvosJogadores" só vale como anteriores, sem jogadores nem alvo`); // M-264
     }
     if (e.do === 'mover') { // CR2-G R4a
       const ZM = ['battlefield', 'graveyard', 'exile', 'hand', 'library'], L = `${label} ${i + 1}`;
@@ -6626,6 +6628,16 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // M-263 · texto de 05/10/2026; segunda fonte de 10/10/2026
   { name: 'Dark Confidant', abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'revelar_topo_para_mao', perdeVidaPeloValor: true }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-264 · texto de 05/10/2026; segunda fonte de 10/10/2026
+  { name: 'Moonsnare Prototype', abilities: [
+    { kind: 'activated', cost: { tap: true, tapOther: { types: ['artifact', 'creature'] } }, effects: [{ do: 'add_mana', symbols: ['C'] }] }, // "{T}, Tap an untapped artifact or creature you control: Add {C}."
+    { kind: 'activated', cost: { mana: '{4}{U}', discardSelf: true, fromHand: true }, effects: [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] } }] }], // "Channel — {4}{U}, Discard this card: The owner of target nonland permanent puts it on their choice of the top or bottom of their library."
+    note: 'a mana sai pela habilidade (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Priest of Forgotten Gods', abilities: [{ kind: 'activated', cost: { tap: true, sacrificeOther: { types: ['creature'], amount: 2 } }, // "{T}, Sacrifice two other creatures:"
+    effects: [{ do: 'lose', amount: 2, target: 'player', upTo: true, targetCount: 2 }, { do: 'sacrificar', tipos: ['creature'], alvosJogadores: 'anteriores' }, // "Any number of target players each lose 2 life and sacrifice a creature of their choice."
+      { do: 'add_mana', symbols: ['B', 'B'] }, { do: 'draw', amount: 1 }] }], // "You add {B}{B} and draw a card."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
@@ -15406,6 +15418,12 @@ function criaturaEncantada(s, src) {
  * jogador / cada oponente": cada um escolhe na ordem ativo-não-ativo (o édito, s.edito) e as escolhidas saem juntas (603.10a);
  * o jogador alvo sem nada para sacrificar fica no registro. `naoFicha`: fichas não servem. */
 function sacrificarJogadores(s, src, spec, quem, events, note) {
+  if (spec.alvosJogadores === 'anteriores') { // M-264 · "any number of target players each … sacrifice": os jogadores que a habilidade mirou, em ordem APNAP
+    const alvos = [...new Set((src.targets || []).filter(t => t && t.player != null).map(t => t.player))], vez = s.turn.active;
+    const fila = [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)].filter(i => alvos.includes(i) && !s.players[i].lost && sacrificeOptions(s, i, spec.tipos).length);
+    if (!fila.length) { note({ amount: 0 }); return; }
+    s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name }; continuaEdito(s, events); return;
+  }
   const ctrl = src.controller, q = quem != null ? null : (spec.jogadores || 'voce');
   if (q === 'voce') {
     const cands = sacrificeOptions(s, ctrl, spec.tipos);
@@ -15864,6 +15882,11 @@ function applyEffect(s, src, eff, tgt, events) {
       events.push({ kind: 'effect', do: 'reveal', name: src.name, target: c.name });
       moveObject(s, topo, 'hand'); if (eff.perdeVidaPeloValor && vm) perdeVida(s, ctrl, vm);
       note({ target: c.name, amount: vm }); break;
+    }
+    case 'topo_ou_fundo_do_dono': { // M-264 · quem escolhe é o dono da permanente
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      s.pending = { kind: 'topo_fundo', p: obj.owner, oid: obj.oid, name: src.name, alvo: obj.name };
+      note({ target: obj.name, pending: true }); break;
     }
     case 'mare_alta': { s.mareAlta = (s.mareAlta || 0) + 1; note({ amount: s.mareAlta }); break; } // M-262 · "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}"
     case 'sai_de_fase': { // M-261 · sai de fase com o que está anexado (fase indireta); sai do combate; volta no desvirar de quem a controla
@@ -16810,7 +16833,7 @@ function pagamentosDe(s, p, cost, selfOid) {
     out = novo;
   };
   if (cost.crew != null) multiplica(formasDeTripular(s, p, cost.crew, selfOid), 'crew'); // CR2d.3
-  if (cost.sacrificeOther) multiplica(extraCostCandidates(s, p, cost.sacrificeOther, selfOid), 'sacrifice');
+  if (cost.sacrificeOther) multiplica((cost.sacrificeOther.amount || 1) > 1 ? combinacoes(extraCostCandidates(s, p, cost.sacrificeOther, selfOid), cost.sacrificeOther.amount) : extraCostCandidates(s, p, cost.sacrificeOther, selfOid), 'sacrifice'); // M-264 · "Sacrifice two other creatures"
   if (cost.tapOther) multiplica(combinacoes(extraCostCandidates(s, p, cost.tapOther, selfOid, true), cost.tapOther.amount || 1), 'tapOther');
   if (cost.discard) multiplica(combinacoes(s.zones[p].hand.filter(x => x !== selfOid), cost.discard).filter(l => descarteServe(s, cost, [].concat(l))), 'discard'); // CR2c.4 · Foil: só as combinações com Ilha
   if (cost.exileHandColor) multiplica(exilaveisDaMao(s, p, cost.exileHandColor, selfOid), 'exileHand');
@@ -16867,11 +16890,14 @@ function payExtraCosts(s, p, cost, pay, selfOid) {
     list.forEach(x => descartaCarta(s, x)); // Leva 105 · insanidade também no descarte como custo
   }
   if (cost.sacrificeOther) {
-    const oid = (pay && pay.sacrifice) || extraCostCandidates(s, p, cost.sacrificeOther, selfOid)[0];
-    if (!oid || !extraCostCandidates(s, p, cost.sacrificeOther, selfOid).includes(oid)) throw new RuleError('custo', 'sacrifique uma permanente que sirva de custo');
-    sacrifice(s, oid);
-    // CR2a.4 · a habilidade pode perguntar depois como era a permanente sacrificada (Ayli): guarda a foto, não o objeto (ficha some)
-    (s.sacrificadosNoCusto = s.sacrificadosNoCusto || []).push({ oid, ...((s.objects[oid] || {}).ultima || {}) });
+    const n = cost.sacrificeOther.amount || 1, cands = extraCostCandidates(s, p, cost.sacrificeOther, selfOid); // M-264 · N permanentes diferentes
+    const lista = [].concat((pay && pay.sacrifice) || cands.slice(0, n));
+    if (lista.length !== n || new Set(lista).size !== n || lista.some(x => !cands.includes(x))) throw new RuleError('custo', n > 1 ? `sacrifique ${n} permanentes que sirvam de custo` : 'sacrifique uma permanente que sirva de custo');
+    for (const oid of lista) {
+      sacrifice(s, oid);
+      // CR2a.4 · a habilidade pode perguntar depois como era a permanente sacrificada (Ayli): guarda a foto, não o objeto (ficha some)
+      (s.sacrificadosNoCusto = s.sacrificadosNoCusto || []).push({ oid, ...((s.objects[oid] || {}).ultima || {}) });
+    }
   }
   if (cost.exileFromGraveyard) {
     // S32 · exilar do próprio cemitério como custo; sem carta que sirva, a habilidade não acontece
@@ -16906,7 +16932,7 @@ const canPayExtra = (s, p, cost, selfOid) =>
   (!cost.exileFromGraveyard || s.zones[p].graveyard.some(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard))) &&
   (!cost.returnLand || !!defaultPayment(s, p, cost, selfOid).land) &&
   (!cost.discard || s.zones[p].hand.filter(x => x !== selfOid).length >= cost.discard) &&
-  (!cost.sacrificeOther || extraCostCandidates(s, p, cost.sacrificeOther, selfOid).length > 0) &&
+  (!cost.sacrificeOther || extraCostCandidates(s, p, cost.sacrificeOther, selfOid).length >= (cost.sacrificeOther.amount || 1)) &&
   (!cost.tapOther || extraCostCandidates(s, p, cost.tapOther, selfOid, true).length >= (cost.tapOther.amount || 1)) &&
   (!cost.removeCounters || ((((s.objects[selfOid] || {}).counters) || {})[cost.removeCounters.tipo] || 0) >= (cost.removeCounters.n || 1)); // M-249 · "Remove two oil counters from this artifact"
 
@@ -17426,7 +17452,7 @@ const HANDLERS = {
       if (!a.color) throw new RuleError('mana', 'escolha uma cor que um terreno de um oponente poderia produzir');
       if (!cores.includes(a.color)) throw new RuleError('mana', 'essa cor nenhum terreno dos oponentes poderia produzir');
     }
-    const ab = { ...base, effects: (base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: (e.identity || e.opponentLands) ? (a.color || null) : (a.color || 'C') } : e) };
+    const ab = { ...base, effects: expandeAlvos(s, o, base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: (e.identity || e.opponentLands) ? (a.color || null) : (a.color || 'C') } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
     const need = (ab.effects || []).filter(SC.isTargeted);
     const chosen = a.targets || [];
@@ -17575,6 +17601,13 @@ const HANDLERS = {
     if (!nome) throw new RuleError('escolha', 'masmorra inválida');
     s.pending = null;
     enterDungeon(s, a.p, nome, pk.source, ev);
+  },
+  topo_fundo(s, a, ev) { // M-264 · o dono põe a permanente no topo ou no fundo do grimório
+    if (!s.pending || s.pending.kind !== 'topo_fundo' || s.pending.p !== a.p) throw new RuleError('tempo', 'nada a pôr no grimório');
+    const pk = s.pending; s.pending = null;
+    const o = s.objects[pk.oid];
+    if (o && o.zone === 'battlefield') { moveObject(s, pk.oid, 'library', a.topo ? undefined : { top: false }); ev.push({ kind: 'effect', do: 'mover', name: pk.name, target: o.name, para: 'library', posicao: a.topo ? 'topo' : 'fundo' }); }
+    resumeEffects(s, ev);
   },
   choose_room(s, a, ev) { // S57 · escolhe para qual sala avançar
     if (!s.pending || s.pending.kind !== 'choose_room' || s.pending.p !== a.p) throw new RuleError('tempo', 'nenhuma sala a escolher');
@@ -17872,7 +17905,7 @@ function assisted(s) { if (s.mode !== 'assisted') throw new RuleError('modo', 'c
 function onField(s, oid) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') throw new RuleError('objeto', 'objeto fora do campo'); return o; }
 
 const MULLIGAN_ACTIONS = new Set(['mulligan', 'keep', 'concede']);
-const PENDING_ACTIONS = { commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], legend: ['choose_legend', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
+const PENDING_ACTIONS = { topo_fundo: ['topo_fundo', 'concede'], commander_zone: ['commander_zone', 'concede'], discard: ['discard', 'concede'], choose_type: ['choose_type', 'concede'], choose_pair: ['choose_pair', 'concede'], legend: ['choose_legend', 'concede'], unless: ['take_loss', 'pay_unless', 'tap_mana', 'concede'], free_cast: ['cast_free', 'decline_free', 'concede'], sacrifice: ['sacrifice', 'concede'], choose_mode: ['choose_mode', 'concede'], choose_dungeon: ['choose_dungeon', 'concede'], choose_room: ['choose_room', 'concede'], attackers: ['attack', 'concede'], blockers: ['block', 'concede'], triggers: ['order_trigger', 'concede'], choose_color: ['choose_color', 'concede'], pick: ['pick', 'pick_done', 'concede'], pick_target: ['pick_target', 'concede'], may_pay: ['pay', 'decline', 'tap_mana', 'concede'], madness: ['cast_madness', 'decline_madness', 'tap_mana', 'concede'] };
 
 function apply(state, action) {
   if (!action || !HANDLERS[action.t]) throw new RuleError('acao', 'ação desconhecida: ' + (action && action.t));
@@ -18002,6 +18035,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (k === 'sacrifice') (s.pending.options || []).forEach(oid => out.push({ t: 'sacrifice', p, oid }));
     // S57 · masmorra: escolher em qual entrar e para qual sala avançar
     if (k === 'choose_dungeon') (s.pending.options || []).forEach((name, index) => out.push({ t: 'choose_dungeon', p, index, label: (s.pending.labels || [])[index] || name }));
+    if (k === 'topo_fundo') { out.push({ t: 'topo_fundo', p, topo: true }); out.push({ t: 'topo_fundo', p, topo: false }); } // M-264
     if (k === 'choose_room') (s.pending.options || []).forEach((id, index) => out.push({ t: 'choose_room', p, index, label: (s.pending.labels || [])[index] || id }));
     if (k === 'pick') {
       const pk = s.pending;
@@ -18267,7 +18301,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   // S37 · habilidades ativadas a partir da mão (descartar esta carta: ...)
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid];
-    abilitiesOf(s, o).filter(x => x.kind === 'activated' && (x.cost || {}).fromHand).forEach((ab, index) => {
+    abilitiesOf(s, o).filter(x => x.kind === 'activated').forEach((ab, index) => { if (!(ab.cost || {}).fromHand) return; // M-264 · o índice é entre todas as ativadas (como no motor): a carta com mana e canalizar mirava a habilidade errada
       // Leva 136 · a habilidade da mão era oferecida sem conferir a mana (Mirrorshell Crab sem {U}): a mesa mostrava o botão e o motor recusava
       if (s.manaCheck && (ab.cost || {}).mana && !canPay(s, p, parseCost(ab.cost.mana))) return;
       const need = (ab.effects || []).filter(SC.isTargeted);
@@ -18292,6 +18326,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       const cost = ab.cost || {};
       // Leva 104 · uma ação por forma de pagar (qual criatura vira, qual permanente é sacrificada, qual terreno volta)
       const pays = pagamentosDe(s, p, cost, o.oid);
+      ab = { ...ab, effects: expandeAlvos(s, o, ab.effects || []) }; // M-264 · "any number of target players": uma instância por alvo possível
       // M-255 · 107.4f/601.2f · phyrexiano no custo da habilidade: uma oferta por quantidade de símbolos pagos com 2 de vida
       const vidas = (() => { const c = cost.mana ? parseCost(cost.mana) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
         const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(c, v))) ok.push(v); return ok; })();
@@ -20389,6 +20424,7 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
           : pd.kind === 'sacrifice' ? { t: 'sacrifice', p: pd.p, oid: (pd.options || [])[0] }
           : pd.kind === 'choose_dungeon' ? { t: 'choose_dungeon', p: pd.p, index: 0 }
           : pd.kind === 'choose_room' ? { t: 'choose_room', p: pd.p, index: 0 }
+          : pd.kind === 'topo_fundo' ? { t: 'topo_fundo', p: pd.p, topo: true } // M-264
           : pd.kind === 'madness' ? { t: 'decline_madness', p: pd.p }
           : pd.kind === 'pick_target' ? { t: 'pick_target', p: pd.p, index: 0 }
           : { t: 'concede', p: pd.p };
@@ -20950,6 +20986,7 @@ function descreveEfeito(e) {
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
     case 'revelar_topo_para_mao': return `revela a carta do topo e a põe na mão${e.perdeVidaPeloValor ? '; perde vida igual ao valor de mana dela' : ''}`; // M-263
+    case 'topo_ou_fundo_do_dono': return `o dono de ${alvo || 'uma permanente'} a põe no topo ou no fundo do grimório, à escolha dele`; // M-264
     case 'mare_alta': return 'até o fim do turno, cada Ilha virada para mana dá {U} a mais (para qualquer jogador)'; // M-262
     case 'sai_de_fase': return `${alvo || 'a permanente'} sai de fase (trata-se como se não existisse até o próximo desvirar de quem a controla)`; // M-261
     case 'reforco': return 'se for outra criatura, ela ganha as outras habilidades desta até o fim do turno'; // M-260
@@ -22774,6 +22811,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const PT = { artifact: 'artefato', creature: 'criatura', land: 'terreno', enchantment: 'encantamento' };
     const ts = ((spec && spec.types) || []).map(x => PT[x]).filter(Boolean);
     if (!ts.length) return 'sacrificar outra';
+    if ((spec.amount || 1) > 1) return `sacrificar ${spec.amount} outras: ${ts.join(' ou ')}`; // M-264
     return ts.length === 1 ? `sacrificar ${ts[0] === 'criatura' ? 'uma' : 'um'} ${ts[0]}` : `sacrificar ${ts.slice(0, -1).join(', ')} ou ${ts[ts.length - 1]}`;
   }
   /** R11.2 · o que gerar aquela cor custa além de virar: terreno de dor e Talismã ("1 de dano em você"), Spire of Industry ("paga 1 de vida"). */
@@ -23202,6 +23240,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Em qual masmorra se aventurar?', hint: 'Você entra na primeira sala dela.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>
           Button(rot, { variant: index ? undefined : 'primary', id: index ? undefined : 'tb-choose-dungeon', onClick: () => act({ t: 'choose_dungeon', p: v, index }) })) });
+    } else if (s.pending && s.pending.kind === 'topo_fundo' && s.pending.p === v) { // M-264
+      banner = PriorityBanner({ title: `${s.pending.name}: ${s.pending.alvo} volta para o seu grimório`, hint: 'Você escolhe: no topo ou no fundo.', tone: 'warning',
+        actions: [Button('No topo', { variant: 'primary', id: 'tb-topo', onClick: () => act({ t: 'topo_fundo', p: v, topo: true }) }), Button('No fundo', { id: 'tb-fundo', onClick: () => act({ t: 'topo_fundo', p: v, topo: false }) })] });
     } else if (s.pending && s.pending.kind === 'choose_room' && s.pending.p === v) {
       banner = PriorityBanner({ title: 'Para qual sala avançar?', hint: 'O efeito da sala vai para a pilha.', tone: 'warning',
         actions: (s.pending.labels || s.pending.options || []).slice(0, 4).map((rot, index) =>

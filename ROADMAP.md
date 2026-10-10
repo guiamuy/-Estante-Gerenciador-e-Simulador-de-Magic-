@@ -3238,6 +3238,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe: as duas cartas de delve eram parciais (lista com elas não jogava em modo completo).
 - **Próximo:** M-264 — Moonsnare Prototype (mana com custo de virar outra; canalizar com a escolha de topo ou fundo pelo dono) e Priest of Forgotten Gods.
 
+**M-264 · R11 · Edito para vários jogadores alvo, sacrifício de várias como custo e "topo ou fundo à escolha do dono"** ✅ (leva M-264, motor v96, sem mudança no que existe) — 2 testes de unidade e 1 headless.
+- **Regra:** custo "sacrifique N outras criaturas" (`sacrificeOther.amount`) passa a valer na oferta, na conferência e no pagamento (uma ação por combinação); o edito (`sacrificar`) aceita os jogadores alvo escolhidos na conjuração (`alvosJogadores: 'anteriores'`), em ordem APNAP, cada um escolhendo o que sacrifica; habilidades ativadas com vários alvos (`targetCount`) são expandidas na oferta e na ativação. Decisão nova `topo_fundo`: o **dono** da permanente escolhe "No topo" ou "No fundo" do grimório (botões na mesa, resposta do goldfish e do bot).
+- **Correção:** a oferta de habilidade ativada da mão (canalizar) usava o índice dentro da lista filtrada e podia mirar a habilidade errada; agora usa o índice entre todas as ativadas (teste novo falhava antes).
+- **Cartas cobertas (completas):** Priest of Forgotten Gods e Moonsnare Prototype (texto oficial em `.listas/oficiais-commander.json`, 05/10/2026; segunda fonte 10/10/2026).
+- **Simplificação declarada:** mesa de dois jogadores — "any number of target players" vai até os dois jogadores; a mana da Moonsnare (virar outro artefato ou criatura) não entra no pagamento automático, só por ativação manual.
+- **Medição:** Killian 95% → **96%** (completo 97 · parcial 4 · manual 0); Malcolm + Kediss 91% → **92%** (completo 92 · parcial 6 · manual 2).
+- **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes; a correção do índice só afeta habilidades da mão que não estavam na primeira posição, que nenhuma carta coberta tinha).
+- **Próximo:** M-265 — March of Swirling Mist (custo adicional variável) e Path of Ancestry.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
