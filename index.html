@@ -5472,7 +5472,7 @@ function substituicoesDoScript(sc) {
 /** CR2-G R3a · um efeito contínuo estático: `afetados` ('self', 'anexada' ou seletor de permanentes no campo, sem
  * palavra-chave no seletor — a camada 6 dependeria dela mesma), e ao menos uma mudança: poder, resistencia, palavras, ou
  * perPoder/perResistencia com uma contagem `per`. */
-const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna'];
+const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward']; // M-251 · "enquanto a encantada for …", resistência a magia com custo
 /** CR2-G R3c · "torna-se": camada 4 (tipos e subtipos, substituindo ou somando — `somaTipos`), 6 (perde todas as outras
  * habilidades; `palavras` aqui entram junto com a redefinição, com o mesmo carimbo) e 7b (P/T base). */
 const CHAVES_TORNA = ['tipos', 'subtipos', 'somaTipos', 'base', 'perdeHabilidades', 'palavras'];
@@ -5496,8 +5496,10 @@ function continuoErros(c, tag) {
   const errs = [];
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
-  if (a !== 'self' && a !== 'anexada') {
-    if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor`);
+  if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
+  if (c.ward != null && (typeof c.ward !== 'string' || !/^(\{[^}]+\})+$/.test(c.ward))) errs.push(`${tag}: "ward" precisa ser um custo de mana`);
+  if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
+    if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
     else {
       errs.push(...seletorErros(a, `${tag}: afetados`));
       for (const k of ['palavra', 'semPalavra', 'jogadores', 'habilidades', 'ref', 'ou']) if (a[k] != null) errs.push(`${tag}: afetados não aceita "${k}"`);
@@ -5821,6 +5823,11 @@ function validateScript(sc) {
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
     if (self.entersWithCounters != null && !Number.isInteger(self.entersWithCounters)) errs.push('marcadores de entrada precisam ser inteiros');
+  }
+  // M-251 · habilidade disparada concedida pela aura ou equipamento: quem controla a criatura é quem controla o gatilho
+  for (const [i, ab] of ((((sc && sc.grants) || {}).triggered) || []).entries()) {
+    if (!ab || !ab.when || !gatilhoDoEvento(ab.when)) errs.push(`bônus: gatilho concedido ${i + 1} desconhecido`);
+    errs.push(...effectErrors(ab.effects, `bônus: gatilho concedido ${i + 1}`));
   }
   // S39 · habilidades ativadas concedidas por aura ou por vínculo de alma
   for (const [origem, lista] of [['bônus', ((sc && sc.grants) || {}).activated], ['vínculo de alma', ((sc && sc.soulbond) || {}).activated]]) {
@@ -6491,6 +6498,18 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'depletion', n: 1 } }, semMarcadorSacrifica: 'depletion', effects: [{ do: 'add_mana', symbols: ['U', 'U'] }] }],
     note: 'a mana sai pela habilidade da terra (ative antes de conjurar); o pagamento automático ainda não usa habilidades de mana com custo além de {T}',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-251 · habilidade concedida pela Aura e efeito contínuo condicionado à encantada (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Combat Research', aura: { enchant: 'creature' },
+    grants: { triggered: [{ kind: 'triggered', when: 'combat-damage', effects: [{ do: 'draw', amount: 1 }] }] }, // "Enchanted creature has 'Whenever this creature deals combat damage to a player, draw a card.'"
+    continuo: [{ afetados: 'anexada', seAfetado: { lendaria: true }, poder: 1, resistencia: 1, ward: '{1}' }], // "As long as enchanted creature is legendary, it gets +1/+1 and has ward {1}."
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  { name: 'Rune of Mortality', aura: { enchant: 'permanent' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }], // "When this Aura enters, draw a card."
+    continuo: [{ afetados: 'anexada', seAfetado: { tipos: ['creature'] }, palavras: ['deathtouch'] }, // "As long as enchanted permanent is a creature, it has deathtouch."
+      { afetados: 'equipada-pela-anexada', palavras: ['deathtouch'] }], // "As long as enchanted permanent is an Equipment, it has 'Equipped creature has deathtouch.'"
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  { name: 'Rune of Sustenance', aura: { enchant: 'permanent' }, abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 1 }] }],
+    continuo: [{ afetados: 'anexada', seAfetado: { tipos: ['creature'] }, palavras: ['lifelink'] }, { afetados: 'equipada-pela-anexada', palavras: ['lifelink'] }],
+    example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -13364,7 +13383,13 @@ function continuosQueAfetam(s, o) {
     if (!s.facts[x.name]) continue;
     for (const e of continuosDaFonte(s, x)) {
       if (e.afetados === 'self') continue;
+      if (e.seAfetado && !selCasa(s, x.controller, o, e.seAfetado, x.oid, { mira: false, src: x })) continue; // M-251 · "as long as enchanted permanent is a creature / legendary"
       if (e.afetados === 'anexada') { if (x.attachedTo === o.oid) out.push({ ...e, fonte: x, ts: x.anexadaEm || 0 }); continue; }
+      if (e.afetados === 'equipada-pela-anexada') { // M-251 · Rune: "As long as enchanted permanent is an Equipment, it has 'Equipped creature has …'"
+        const eq = x.attachedTo && s.objects[x.attachedTo];
+        if (eq && eq.zone === 'battlefield' && eq.attachedTo === o.oid && /\bEquipment\b/.test(linhaDeTipo(s, eq))) out.push({ ...e, fonte: x, ts: x.anexadaEm || 0 });
+        continue;
+      }
       // seletor: só permanentes no campo; a fonte que perdeu as habilidades não concede (CR2d.1)
       if (o.zone !== 'battlefield' || semImpressas(s, x) || !selCasa(s, x.controller, o, e.afetados, x.oid, { mira: false, src: x })) continue;
       out.push({ ...e, fonte: x, ts: x.ts || 0 });
@@ -14490,7 +14515,8 @@ function evidenceCards(s, p, n) {
 /** S41 · vigilância: custo que o oponente paga para não ter a mágica ou habilidade anulada.
     Simplificação declarada: a cobrança acontece na conjuração/ativação, não como gatilho
     separado na pilha, então ninguém responde entre a vigilância e a mágica. */
-const wardOf = (s, o) => o && o.zone === 'battlefield' ? (((s.facts[o.name] || {}).script || {}).self || {}).ward : null;
+const wardOf = (s, o) => { if (!o || o.zone !== 'battlefield') return null; const proprio = (((s.facts[o.name] || {}).script || {}).self || {}).ward; if (proprio) return proprio;
+  const c = continuosQueAfetam(s, o).find(e => e.ward); return c ? c.ward : null; }; // M-251 · ward concedido (Combat Research)
 function chargeWard(s, p, stackOid, chosen) {
   // Leva 107 · cada permanente com proteção (ward) mirada cobra a sua: a primeira vira pendência, as outras esperam
   const cobrancas = [];
@@ -14541,6 +14567,7 @@ function grantedAbilities(s, o) {
   for (const aura of battlefield(s)) {
     if (aura.attachedTo !== o.oid) continue;
     for (const ab of ((s.facts[aura.name].script || {}).grants || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 });
+    for (const ab of ((s.facts[aura.name].script || {}).grants || {}).triggered || []) out.push({ ...ab, kind: 'triggered', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 }); // M-251 · "Enchanted creature has 'Whenever this creature …'" (613.1f)
   }
   const par = soulbondPartner(s, o);
   if (par) for (const dono of [o, par]) {
@@ -17780,7 +17807,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, effectAllowed, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, effectAllowed, abilitiesOf, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -20124,13 +20151,16 @@ function descreveDano(r) {
 function descreveContinuo(c) {
   const sinal = n => (n < 0 ? '' : '+') + n;
   const quem = c.afetados === 'self' ? 'esta permanente' : c.afetados === 'anexada' ? 'a permanente anexada'
+    : c.afetados === 'equipada-pela-anexada' ? 'a criatura equipada pelo Equipamento encantado' // M-251
     : descreveSeletor(c.afetados).replace(/^uma /, 'cada ').replace(/^outra /, 'cada outra ');
   const partes = [];
   if (c.poder || c.resistencia) partes.push(`recebe ${sinal(c.poder || 0)}/${sinal(c.resistencia || 0)}`);
   if (c.perPoder || c.perResistencia) partes.push(`recebe ${sinal(c.perPoder || 0)}/${sinal(c.perResistencia || 0)} para cada ${(c.per && c.per.subtype) || PER_PT[c.per] || c.per}`);
   if ((c.palavras || []).length) partes.push(`tem ${c.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
+  if (c.ward) partes.push(`tem proteção (ward) ${c.ward}`); // M-251
   if (c.torna) partes.unshift(descreveTorna(c.torna));
-  return `${quem} ${partes.join(' e ')}`;
+  const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
+  return `${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
 const duracaoPT = d => d && typeof d === 'object' ? 'enquanto você controlar esta permanente' : ({ 'seu-proximo-turno': 'até o seu próximo turno', 'fim-do-seu-proximo-turno': 'até o fim do seu próximo turno' }[d] || 'até o fim do turno');

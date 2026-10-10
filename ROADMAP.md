@@ -3118,6 +3118,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Correção no caminho (teste, com justificativa):** a matriz de equivalência da M-240 compara as entradas escritas pelos atalhos antigos com o caminho antigo; a Saprazzan Skerry é a primeira carta escrita direto no formato `entra` e não tem caminho antigo — a matriz passou a pegar só as cartas que chegam pelos atalhos. A Saprazzan é provada pelo teste de regra dela.
 - **Próximo:** M-251 — bônus condicional e habilidade concedida pela Aura (Rune of Mortality, Rune of Sustenance, Combat Research, Idolized).
 
+**M-251 · R11 · Habilidade concedida pela Aura e contínuo condicionado à encantada: Combat Research e as duas Runes** ✅ (leva M-251, motor v96, sem mudança no que existe) — 3 testes novos.
+- **Valor:** Aura que dá à criatura uma habilidade disparada ("Enchanted creature has 'Whenever this creature…'") passa a funcionar como regra: a habilidade é da criatura, e quem a controla é quem compra.
+- **Regra (613.1f, 702.21):** `grants.triggered` na Aura ou Equipamento (lido junto das habilidades da criatura, com o carimbo da anexação, então sobrevive a "perde as habilidades" anterior); efeito contínuo com `seAfetado` ("enquanto a encantada for criatura / lendária", conferido a cada leitura), com `ward: '{N}'` concedido (a proteção cobra de quem mira, como a impressa) e com `afetados: 'equipada-pela-anexada'` ("o Equipamento encantado tem 'a criatura equipada tem …'").
+- **Cartas cobertas (completas):** Combat Research (compra ao causar dano de combate a um jogador; lendária: +1/+1 e proteção {1}), Rune of Mortality e Rune of Sustenance (compra ao entrar; criatura encantada com toque mortífero / vínculo com a vida; Equipamento encantado passa a palavra à criatura equipada).
+- **Medição:** Killian 82% → **84%** (completo 85 · parcial 8 · manual 8); Malcolm + Kediss 83% → **84%**.
+- **Escala:** +1,0 KB gzip; a proteção concedida é procurada só quando algo mira a permanente.
+- **Golden:** idênticas, sem regravar. Versão não sobe (cartas que não tinham script).
+- **Próximo:** M-252 — Idolized ("ataca sozinha" + contagem de permanentes que não são terreno) e Shineshadow Snarl (pergunta de revelar ao entrar).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
