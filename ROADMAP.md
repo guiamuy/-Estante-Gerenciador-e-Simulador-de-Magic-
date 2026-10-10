@@ -3154,6 +3154,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe: nada que existia tinha infectar.
 - **Próximo:** M-255 — Skrelv, Defector Mite: mana phyrexiano no custo de habilidade, escolher uma cor na ativação, tóxico concedido até o fim do turno, resistência a magia de uma cor e "não pode ser bloqueada por criaturas da cor".
 
+**M-255 · R11 · Skrelv, Defector Mite** ✅ (leva M-255, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Regra:** phyrexiano no custo de habilidade com a escolha de quem ativa (107.4f, 601.2f: uma oferta por quantidade de símbolos pagos com 2 de vida — antes só a conjuração tinha); tóxico concedido até o fim do turno (`continuo` com `toxico`); "resistência a magia contra [cor]" (702.11d: só contra fontes da cor controladas por oponentes) e "não pode ser bloqueada por criaturas da cor neste turno", com a cor escolhida; os três acabam na limpeza e somem ao mudar de zona.
+- **Carta coberta (completa):** Skrelv, Defector Mite (tóxico 1, não bloqueia, e a habilidade inteira).
+- **Simplificação declarada (da classe, já existente):** a cor é escolhida ao ativar, como nas outras habilidades de cor escolhida do motor (Mother of Runes, Benevolent Bodyguard); a regra pede a escolha na resolução, depois das respostas.
+- **Medição:** Killian 88% → **89%** (completo 90 · parcial 7 · manual 4).
+- **Golden:** idênticas, sem regravar. Versão não sobe: nenhuma habilidade existente tinha phyrexiano.
+- **Próximo:** M-256 — Lurrus of the Dream-Den (conjurar do cemitério uma permanente de valor 2 ou menos por turno; Companheiro) e Priest of Fell Rites (desenterrar, 702.84).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

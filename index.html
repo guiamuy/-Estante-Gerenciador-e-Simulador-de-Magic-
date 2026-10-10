@@ -5172,6 +5172,9 @@ const EFFECTS = {
   // CR2-G R3b · efeito contínuo temporário: +N/+N e palavras-chave num efeito só, com duração (até o fim do turno, padrão;
   // até o seu próximo turno). `pump` e `keyword` viraram atalhos dele.
   continuo: { fields: [], targets: ['self-source', 'creature', 'creature-you-control', 'creature-opponent-controls', 'other-creature-you-control', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
+  // M-255 · "hexproof from that color" e "can't be blocked by creatures of that color this turn", com a cor escolhida na ativação
+  resistencia_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
+  imbloqueavel_cor: { fields: [], targets: ['creature', 'creature-you-control', 'other-creature-you-control', 'first-target'] },
   // S43 · proteção contra a cor da sua escolha, até o fim do turno
   protection: { fields: [], targets: ['creature-you-control', 'other-creature-you-control', 'creature-enchantment-you-control'] },
   // S20 · cemitério
@@ -5919,7 +5922,8 @@ function effectErrors(effects, label, opcional) {
       if (e.lembra && e.para !== 'exile') errs.push(`${L}: "lembra" só vale para o exílio`);
     }
     if (e.do === 'continuo') { // CR2-G R3b
-      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.toxico != null && !(Number.isInteger(e.toxico) && e.toxico > 0 && (e.ate == null || e.ate === 'fim-do-turno'))) errs.push(`${label} ${i + 1}: tóxico concedido é inteiro positivo e dura até o fim do turno`); // M-255
       if (e.torna != null) errs.push(...tornaErros(e.torna, `${label} ${i + 1}`)); // CR2-G R6 · "torna" aceita todas as durações
       for (const k of ['poder', 'resistencia']) if (e[k] != null) errs.push(...valueErrors(e[k], `${label} ${i + 1}: ${k}`));
       if (e.palavras != null && !(Array.isArray(e.palavras) && e.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "palavras"`);
@@ -6533,6 +6537,12 @@ const RAW_SCRIPTS = [
   // M-254 · "Enchant creature · Enchanted creature has infect." (texto de 05/10/2026; segunda fonte de 10/10/2026)
   { name: 'Phyresis', aura: { enchant: 'creature' }, grants: { keywords: ['infect'] },
     example: { action: 'aura', target: 'own-creature', expect: { attached: true } } },
+  // M-255 · texto de 05/10/2026 (custo {W} corrigido na M-245 com segunda fonte de 10/10/2026)
+  { name: 'Skrelv, Defector Mite', self: { toxic: 1, naoBloqueia: true }, // "Toxic 1" · "Skrelv can't block."
+    abilities: [{ kind: 'activated', cost: { mana: '{W/P}', tap: true }, // "{W/P}, {T}: Choose a color. Another target creature you control gains toxic 1 and hexproof from that color until end of turn. It can't be blocked by creatures of that color this turn."
+      effects: [{ do: 'continuo', target: 'other-creature-you-control', toxico: 1 }, { do: 'resistencia_cor', target: 'first-target' }, { do: 'imbloqueavel_cor', target: 'first-target' }] }],
+    note: 'a cor é escolhida ao ativar, como nas outras habilidades de cor escolhida do motor (Mother of Runes); a regra pede a escolha na resolução',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -13732,6 +13742,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
+  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; // M-255 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -13773,7 +13784,7 @@ function draw(s, p, n = 1) {
 /* ---------------- consultas ---------------- */
 const alive = s => s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
 /** M-253 · 702.164 · tóxico N (instâncias somam); some com as habilidades impressas e virada para baixo. */
-const toxicoDe = (s, o) => !o || o.faceDown || semImpressas(s, o) ? 0 : ((((s.facts[o.name] || {}).script || {}).self || {}).toxic || 0);
+const toxicoDe = (s, o) => !o ? 0 : (o.tempToxico || 0) + (o.faceDown || semImpressas(s, o) ? 0 : ((((s.facts[o.name] || {}).script || {}).self || {}).toxic || 0)); // M-255 · o concedido até o fim do turno soma
 /** M-253 · 122.1f · marcadores de veneno no jogador (o campo só existe depois do primeiro). */
 /** M-254 · 702.90b/c · dano numa criatura: de fonte com infectar vira marcadores −1/−1 (continua sendo dano). */
 const infecta = (s, src) => !!src && !!s.facts[src.name] && has(s, src, 'infect'); // fonte sem carta (efeito sintético) não infecta
@@ -14389,7 +14400,7 @@ function enterStep(s, step) {
 }
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; }
+  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -14450,6 +14461,7 @@ const naoBloqueia = (s, o) => !o.faceDown && !semImpressas(s, o) && !!((((s.fact
 /** Por que `blocker` não pode bloquear `attacker` (texto para a mesa), ou null quando pode. */
 function porQueNaoBloqueia(s, blocker, attacker) {
   const b = s.objects[blocker], a = s.objects[attacker];
+  if ((a.tempNaoBloqueadaPor || []).some(c => colorsOf(s, b).includes(c))) return 'não pode ser bloqueada por criaturas dessa cor neste turno'; // M-255
   if (has(s, a, 'flying') && !has(s, b, 'flying') && !has(s, b, 'reach')) return 'voar';
   const ev = evasionOf(s, a); // S11b · evasão estática
   if (ev === 'flying-only' && !has(s, b, 'flying')) return 'só criaturas com voar bloqueiam';
@@ -14640,6 +14652,7 @@ function targetable(s, p, o, src) {
   if (has(s, o, 'shroud')) return false;
   if (has(s, o, 'hexproof') && o.controller !== p) return false;
   if (src && protectedFrom(s, o, src)) return false; // S11b · proteção de cor
+  if (src && (o.tempResguardoCor || []).length && o.controller !== p && o.tempResguardoCor.some(c => colorsOf(s, src).includes(c))) return false; // M-255 · 702.11d "hexproof from [cor]"
   return true;
 }
 const isCreature = (s, o) => (o.faceDown || tiposDe(s, o).includes('creature')) && !o.bestowed; // CR2d.1 · camada 4
@@ -15088,7 +15101,8 @@ function applyEffect(s, src, eff, tgt, events) {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (!alvo || alvo.zone !== 'battlefield') break;
       const pw = eff.poder != null ? amountOf(s, src, eff.poder) : undefined, tg = eff.resistencia != null ? amountOf(s, src, eff.resistencia) : undefined;
-      aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
+      if (eff.toxico) alvo.tempToxico = (alvo.tempToxico || 0) + eff.toxico; // M-255 · "gains toxic 1 until end of turn"
+      if (pw != null || tg != null || (eff.palavras || []).length || eff.torna) aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
       note({ name: alvo.name, power: pw || 0, toughness: tg || 0, palavras: (eff.palavras || []).map(k => String(k).toLowerCase()), ate: eff.ate || 'fim-do-turno' });
       break;
     }
@@ -15460,6 +15474,13 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'no_prevention': s.noPrevention = true; note({}); break; // S31 · 615.7: prevenção não se aplica no turno
     case 'prevent_spell': { // S52 · a mágica alvo não causa dano neste turno; a vida vem do dano prevenido de fato
       if (obj) { obj.damagePrevented = true; obj.preventGainTo = ctrl; note({}); }
+      break;
+    }
+    case 'resistencia_cor': case 'imbloqueavel_cor': { // M-255 · com a cor escolhida ao ativar, até o fim do turno
+      const cor = src.chosenColor;
+      if (!obj || obj.zone !== 'battlefield' || !cor) { note({ failed: true }); break; }
+      const campo = eff.do === 'resistencia_cor' ? 'tempResguardoCor' : 'tempNaoBloqueadaPor';
+      obj[campo] = [...new Set([...(obj[campo] || []), cor])]; note({ target: obj.name, name: cor });
       break;
     }
     case 'protection': { // S43 · proteção contra a cor escolhida, até o fim do turno
@@ -16360,7 +16381,14 @@ function payAbilityCost(s, p, source, ab) {
     if (source.tapped) throw new RuleError('custo', 'a permanente já está virada');
     if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
   }
-  if (cost.mana && s.manaCheck) payCost(s, p, parseCost(cost.mana));
+  if (cost.mana && s.manaCheck) {
+    const c = parseCost(cost.mana);
+    if (ab.vida != null) { // M-255 · phyrexiano: quem ativa escolhe quantos símbolos paga com vida
+      if (!(Number.isInteger(ab.vida) && ab.vida >= 0 && ab.vida <= nPhyrexianos(c))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
+      if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano');
+      payCost(s, p, custoPhyrexiano(c, ab.vida)); perdeVida(s, p, 2 * ab.vida);
+    } else payCost(s, p, c);
+  }
   if (cost.life) { if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.life); }
   if (ab.oncePerTurn) {
     if (source.usedThisTurn) throw new RuleError('custo', 'esta habilidade só pode ser usada uma vez por turno');
@@ -16860,7 +16888,7 @@ const HANDLERS = {
     if (base.onlyIfGraveyardAtLeast != null && s.zones[a.p].graveyard.length < base.onlyIfGraveyardAtLeast) throw new RuleError('tempo', `só ativa com ${base.onlyIfGraveyardAtLeast} ou mais cartas no seu cemitério`);
     delete s.sacrificadosNoCusto;
     const bloqueavaAntes = o.blocking; // Q11 · o custo pode sacrificar a fonte (Tinder Wall): a habilidade nasce sabendo quem ela bloqueava
-    payAbilityCost(s, a.p, o, { ...ab, pay: a.pay });
+    payAbilityCost(s, a.p, o, { ...ab, pay: a.pay, ...(a.vida != null ? { vida: a.vida } : {}) });
     // S33/Leva 106 · adaptar usa a pilha (701.46a): os marcadores entram na resolução, se ela ainda não tiver nenhum
     // 605.1a · habilidade de mana não usa a pilha: resolve na hora
     if ((ab.effects || []).length && (ab.effects || []).every(e => e.do === 'add_mana') && !need.length) {
@@ -17681,6 +17709,9 @@ function legalActions(s, p, { adjudication = false } = {}) {
       const cost = ab.cost || {};
       // Leva 104 · uma ação por forma de pagar (qual criatura vira, qual permanente é sacrificada, qual terreno volta)
       const pays = pagamentosDe(s, p, cost, o.oid);
+      // M-255 · 107.4f/601.2f · phyrexiano no custo da habilidade: uma oferta por quantidade de símbolos pagos com 2 de vida
+      const vidas = (() => { const c = cost.mana ? parseCost(cost.mana) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
+        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(c, v))) ok.push(v); return ok; })();
       const need = (ab.effects || []).filter(SC.isTargeted);
       if (ab.adapt != null && !(ab.effects || []).length) { if (canPayAbility(s, p, o, ab)) out.push({ t: 'activate', p, oid: o.oid, index }); return; }
       if (!need.length) {
@@ -17697,8 +17728,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
         combos = eff.upTo ? addTarget(combos, opts).concat(combos) : addTarget(combos, opts);
       }
       // S43 · proteção pede a cor junto do alvo
-      const cores = (ab.effects || []).some(e => e.do === 'protection') ? ['W', 'U', 'B', 'R', 'G'] : [null];
-      combos.filter(targets => !violaPortaEstandarte(s, p, need, targets, o.oid)).forEach(targets => cores.forEach(color => pays.forEach(pay => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...comPagamento(pay) }))));
+      const cores = (ab.effects || []).some(e => e.do === 'protection' || e.do === 'resistencia_cor' || e.do === 'imbloqueavel_cor') ? ['W', 'U', 'B', 'R', 'G'] : [null]; // M-255
+      combos.filter(targets => !violaPortaEstandarte(s, p, need, targets, o.oid)).forEach(targets => cores.forEach(color => pays.forEach(pay => vidas.forEach(v => out.push({ t: 'activate', p, oid: o.oid, index, targets, ...(color ? { color } : {}), ...comPagamento(pay), ...(v != null ? { vida: v } : {}) })))));
     });
   }
   if (adjudication && s.mode === 'assisted') {
@@ -20299,6 +20330,7 @@ function descreveEfeito(e) {
       const partes = [];
       if (e.poder != null || e.resistencia != null) partes.push(`recebe ${sinal(e.poder || 0)}/${sinal(e.resistencia || 0)}`);
       if ((e.palavras || []).length) partes.push(`ganha ${e.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
+      if (e.toxico) partes.push(`ganha tóxico ${e.toxico}`); // M-255
       if (e.torna) partes.unshift(descreveTorna(e.torna)); // CR2-G R3c
       const quem = e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura';
       return `${quem} ${partes.join(' e ')} ${duracaoPT(e.ate)}`;
@@ -20330,6 +20362,8 @@ function descreveEfeito(e) {
     case 'look_top': return 'olha a carta do topo do grimório do jogador alvo';
     case 'look_hand': return 'olha a mão do jogador alvo';
     case 'protection': return `${alvo || 'a criatura'} ganha proteção contra uma cor`;
+    case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
+    case 'imbloqueavel_cor': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} por criaturas da cor escolhida neste turno`;
     case 'transform': return 'transforma';
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
     case 'exile_return_transformed': return 'é exilada e volta transformada, sob o controle do dono'; // CR2d.5
