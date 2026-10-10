@@ -5839,6 +5839,7 @@ function validateScript(sc) {
     if (self.ward != null && (typeof self.ward !== 'string' || !self.ward.trim())) errs.push('bônus próprio: vigilância precisa de um custo de mana');
     if (self.devoid != null && self.devoid !== true) errs.push('bônus próprio: devoid só vale como true');
     if (self.toxic != null && !(Number.isInteger(self.toxic) && self.toxic > 0)) errs.push('bônus próprio: tóxico precisa ser inteiro positivo'); // M-253
+    if (self.reduzSeMira != null && !(self.reduzSeMira && Number.isInteger(self.reduzSeMira.generic) && self.reduzSeMira.generic > 0 && JSON.stringify(self.reduzSeMira.tipos) === '["creature"]')) errs.push('bônus próprio: reduzSeMira pede tipos [creature] e generic inteiro'); // M-259
     if (self.naoBloqueia != null && self.naoBloqueia !== true) errs.push('bônus próprio: "não bloqueia" só vale como true');
     if (self.keywords != null && (!Array.isArray(self.keywords) || self.keywords.some(k => !KEYWORDS.includes(k)))) errs.push('bônus próprio: palavra-chave desconhecida');
     if (self.evasion && !EVASIONS.includes(self.evasion)) errs.push(`evasão "${self.evasion}" desconhecida`);
@@ -6566,6 +6567,10 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Legions to Ashes', effects: [{ do: 'exile', target: { de: 'opponent', semTipos: ['land'] } }, { do: 'exilar_fichas_mesmo_nome', target: 'first-target' }], // "Exile target nonland permanent an opponent controls and all tokens that player controls with the same name as that permanent."
     example: { target: 'enemy-creature', expect: { gone: true } } },
+  // M-259 · "Lifelink · Menace · Spells you cast that target a creature cost {2} less to cast." (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Killian, Ink Duelist', self: { reduzSeMira: { tipos: ['creature'], generic: 2 } },
+    note: 'a redução vale para o custo de mana, o lampejo do passado e o conceder; outros custos alternativos (fuga, disturb, presságio, custos alternativos de carta) ainda não a recebem — nenhum aparece nas listas atuais',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -14214,8 +14219,25 @@ function valoresDeX(s, qtdX, pagavel) {
   for (let x = 0; x <= LIMITE_X; x++) { if (!pagavel(x)) break; xs.push(x); }
   return xs;
 }
-const castExtra = (s, p, o, x = 0) => (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0)
-  - affinityDiscount(s, p, o); // S33 · afinidade reduz o custo genérico
+const castExtra = (s, p, o, x = 0, alvos) => { const base = (o.zone === 'command' ? commanderTax(s, p, o.oid) : 0) + x * (s.facts[o.name].cost.x || 0), af = affinityDiscount(s, p, o); // S33 · afinidade reduz o custo genérico
+  const teto = Math.max(0, (s.facts[o.name].cost.generic || 0) + base - af); return base - af - Math.min(teto, reducaoPorAlvo(s, p, o, alvos)); };
+/** M-259 · 601.2f · "Spells you cast that target a creature cost {2} less" (Killian): reduções de permanentes suas que dependem do alvo.
+ * `alvos`: os alvos escolhidos; 'otimista' na oferta (assume que a mágica mira uma criatura se puder mirar), corrigida depois pelos alvos reais. */
+function reducaoPorAlvo(s, p, o, alvos) {
+  if (alvos == null) return 0;
+  let n = 0;
+  for (const x of battlefield(s)) {
+    if (x.controller !== p || x.faceDown || semImpressas(s, x)) continue;
+    const r = (((s.facts[x.name] || {}).script || {}).self || {}).reduzSeMira; if (!r) continue;
+    const mira = alvos === 'otimista' ? !!(s.facts[o.name].script || {}).bestow || ((s.facts[o.name].script || {}).effects || []).concat(...(((s.facts[o.name].script || {}).modes || []).map(m => m.effects || []))).some(SC.isTargeted) || !!auraTarget(s.facts[o.name])
+      : [].concat(alvos || []).some(t => t && t.oid != null && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && isCreature(s, s.objects[t.oid]));
+    if (mira) n += r.generic || 0;
+  }
+  return n;
+}
+/** M-259 · a redução por alvo num custo qualquer (lampejo do passado, conceder): só o genérico. */
+const reducaoNoCusto = (s, p, o, alvos, custo) => Math.min(custo.generic || 0, reducaoPorAlvo(s, p, o, alvos));
+const temReducaoPorAlvo = (s, p) => battlefield(s).some(x => x.controller === p && !x.faceDown && (((s.facts[x.name] || {}).script || {}).self || {}).reduzSeMira);
 /** Quantas permanentes do tipo pedido você controla (limitado ao custo genérico). */
 function affinityDiscount(s, p, o) {
   const sc = s.facts[o.name].script || {};
@@ -16807,7 +16829,7 @@ const HANDLERS = {
     if (alt) payAlt(s, a.p, alt.cost, a.pay, a.oid);
     else if (a.flashback) {
       const fb = flashbackOf(s, o);
-      if (fb.mana && s.manaCheck && !a.free) payCost(s, a.p, parseCost(fb.mana));
+      if (fb.mana && s.manaCheck && !a.free) { const c = parseCost(fb.mana); payCost(s, a.p, c, -reducaoNoCusto(s, a.p, o, a.targets || [], c)); } // M-259
       payExtraCosts(s, a.p, fb, a.pay, a.oid);
     }
     else if (a.escape) { // S48 · fuga: paga o mana e exila as outras cartas do cemitério
@@ -16816,7 +16838,7 @@ const HANDLERS = {
     else if (a.disturb) { const db = disturbOf(s, { name: o.frontName || o.name }); // R9 · a carta já trocou de face: o custo está na frente
       if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((db || {}).mana || '{0}')); }
     else if (a.omen) { const om = omenOf(s, { name: o.frontName || o.name }); if (s.manaCheck && !a.free) payCost(s, a.p, parseCost((om || {}).mana || '{0}')); }
-    else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0)); }
+    else if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); if (s.manaCheck && !a.free) payCost(s, a.p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, a.p, o, a.targets || [], bc)); } // M-259
     else if (a.faceDown) { if (s.manaCheck && !a.free) payCost(s, a.p, parseCost('{3}')); } // S54 · virada para baixo custa {3}
     else if (a.plotted) { /* S53 · plot: o mana já foi pago quando a carta foi plotada */ }
     else if (s.manaCheck && !a.free) { if (f.semCusto) throw new RuleError('custo', 'esta carta não tem custo de mana: não pode ser conjurada assim');
@@ -16824,8 +16846,8 @@ const HANDLERS = {
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
-        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0)); perdeVida(s, a.p, 2 * a.vida);
-      } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0)); }
+        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0, a.targets || [])); perdeVida(s, a.p, 2 * a.vida);
+      } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0, a.targets || [])); } // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -17557,6 +17579,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   out.push({ t: 'pass', p });
   const canSorcery = canSorceryNow(s, p);
   const payable = (o, extra) => !s.manaCheck || canPay(s, p, s.facts[o.name].cost, extra);
+  const OTIMISTA = s.manaCheck && temReducaoPorAlvo(s, p) ? 'otimista' : undefined; // M-259 · só com redução por alvo no campo
   const castWith = (o, need, mode, xv) => {
     const base = mode != null ? { t: 'cast', p, oid: o.oid, mode } : { t: 'cast', p, oid: o.oid };
     if (!need.length) return [base];
@@ -17618,16 +17641,16 @@ function legalActions(s, p, { adjudication = false } = {}) {
   };
   // CR 702.33 · quantas vezes o reforço cabe na mana (multirreforço até 5)
   const reforcos = o => { const k = (s.facts[o.name].script || {}).kicker; if (!k) return [0]; const kc = parseCost(k.mana), out = [0];
-    for (let n = 1; n <= (k.multi ? 5 : 1); n++) { if (s.manaCheck && !canPay(s, p, somaCusto(s.facts[o.name].cost, kc, n), castExtra(s, p, o, 0))) break; out.push(n); } return out; };
+    for (let n = 1; n <= (k.multi ? 5 : 1); n++) { if (s.manaCheck && !canPay(s, p, somaCusto(s.facts[o.name].cost, kc, n), castExtra(s, p, o, 0, OTIMISTA))) break; out.push(n); } return out; };
   for (const oid of s.zones[p].hand) {
     const o = s.objects[oid], f = s.facts[o.name];
     if (f.types.includes('land')) { if (canSorcery && s.players[p].landsPlayed < 1) { out.push({ t: 'play_land', p, oid }); for (const r of revelaveisAoEntrar(s, p, o, true)) out.push({ t: 'play_land', p, oid, revela: r }); } }
-    else if ((canSorcery || !isSorcerySpeed(f)) && !(s.manaCheck && f.semCusto) && payable(o, castExtra(s, p, o, 0))) {
+    else if ((canSorcery || !isSorcerySpeed(f)) && !(s.manaCheck && f.semCusto) && payable(o, castExtra(s, p, o, 0, OTIMISTA))) {
       // S50/Leva 104 · custo com X: quem conjura escolhe X (601.2b), de 0 até o que dá para pagar
-      const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x)));
+      const xs = valoresDeX(s, (f.cost.x || 0), x => payable(o, castExtra(s, p, o, x, OTIMISTA)));
       // CR2c.4 · phyrexiano: uma forma de conjurar por quantidade de símbolos pagos com vida (só quando a mesa cobra mana)
       const vidas = (c, x) => { const custo = c.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), c.kick) : f.cost, k = nPhyrexianos(custo); if (!k || !s.manaCheck) return [null];
-        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(custo, v), castExtra(s, p, o, x || 0))) ok.push(v); return ok; };
+        const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && canPay(s, p, custoPhyrexiano(custo, v), castExtra(s, p, o, x || 0, OTIMISTA))) ok.push(v); return ok; };
       const empurra = c => xs.forEach(x => vidas(c, x).forEach(v => out.push({ ...c, ...(x != null ? { x } : {}), ...(v != null ? { vida: v } : {}) })));
       // CR2c.3 · quando o X decide alvo ("valor de mana X ou menos") ou quantos alvos ("até X"), os alvos são montados para cada X
       if (xNoAlvo(f.script)) reforcos(o).forEach(n => adicionais(o).forEach(v => xs.forEach(xv => casts(o, xv).forEach(x => out.push({ ...x, ...v, ...(n ? { kick: n } : {}), x: xv })))));
@@ -17749,7 +17772,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const o = s.objects[oid], f = s.facts[o.name];
     const fb = flashbackOf(s, o); if (!fb) continue;
     if (!(canSorcery || !isSorcerySpeed(f))) continue;
-    if (fb.mana && s.manaCheck && !canPay(s, p, parseCost(fb.mana))) continue;
+    if (fb.mana && s.manaCheck && !canPay(s, p, parseCost(fb.mana), -reducaoNoCusto(s, p, o, OTIMISTA, parseCost(fb.mana)))) continue; // M-259
     if (!canPayExtra(s, p, fb, oid)) continue;
     const add = (f.script && f.script.additional) || null;
     if (add && !canPayExtra(s, p, add, oid)) continue;
@@ -17784,7 +17807,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   }
   for (const oid of s.zones[p].command) {
     const o = s.objects[oid], f = s.facts[o.name];
-    if (o.commander && (canSorcery || !isSorcerySpeed(f)) && payable(o, castExtra(s, p, o, 0))) out.push(...casts(o));
+    if (o.commander && (canSorcery || !isSorcerySpeed(f)) && payable(o, castExtra(s, p, o, 0, OTIMISTA))) out.push(...casts(o));
   }
   if (canSorcery && !s.players[p].companionUsed)
     for (const oid of s.zones[p].companion) if (!s.manaCheck || canPay(s, p, { generic: COMPANION_COST, colored: {}, hybrid: [], x: 0 })) out.push({ t: 'companion', p, oid });
@@ -17850,6 +17873,15 @@ function legalActions(s, p, { adjudication = false } = {}) {
     s.players.forEach((pl, i) => { if (!pl.lost) out.push({ t: 'life', p, target: i, delta: -1 }); });
     out.push({ t: 'draw', p });
   }
+  // M-259 · com redução por alvo, a oferta foi otimista: cada conjuração pelo custo de mana é conferida com os alvos dela
+  if (OTIMISTA) return out.filter(a => {
+    if (a.t !== 'cast' || a.alt != null || a.escape || a.disturb || a.plotted || a.omen || a.faceDown || a.free) return true;
+    const o = s.objects[a.oid], f = s.facts[o.name];
+    if (a.flashback) { const fb = flashbackOf(s, o); if (!fb || !fb.mana) return true; const c = parseCost(fb.mana); return canPay(s, p, c, -reducaoNoCusto(s, p, o, a.targets || [], c)); }
+    if (a.bestow) { const bc = parseCost(bestowOf(s, o).mana); return canPay(s, p, bc, (a.x || 0) * (bc.x || 0) - reducaoNoCusto(s, p, o, a.targets || [], bc)); }
+    let custo = a.kick ? somaCusto(f.cost, parseCost(f.script.kicker.mana), a.kick) : f.cost; if (a.vida != null) custo = custoPhyrexiano(custo, a.vida);
+    return canPay(s, p, custo, castExtra(s, p, o, a.x || 0, a.targets || []));
+  });
   return out;
   })());
 }

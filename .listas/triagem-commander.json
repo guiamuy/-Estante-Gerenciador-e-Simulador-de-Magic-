@@ -1,5 +1,5 @@
 {
- "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde. R11.1 (05/10/2026): as cartas \"ok\" foram auditadas frase a frase; quatro saíram do balde A para ok, três terrenos saíram de ok para B (o texto de mana escondia uma frase) e a Curiosity foi para B. M-246 (10/10/2026): as nove cartas do balde A (com Swan Song, que era parcial) viraram ok. M-247 (10/10/2026): Speaker of the Heavens, Jirina e Knight of the White Orchid viraram ok. M-248 (10/10/2026): Chart a Course e Children of Korlis viraram ok. M-249 (10/10/2026): Norn's Wellspring e Cephalid Coliseum viraram ok. M-250 (10/10/2026): Frantic Search e Saprazzan Skerry viraram ok. M-251 (10/10/2026): Combat Research, Rune of Mortality e Rune of Sustenance viraram ok. M-252 (10/10/2026): Idolized e Shineshadow Snarl viraram ok. M-253 (10/10/2026): Skrelv's Hive virou ok. M-254 (10/10/2026): Phyresis virou ok. M-255 (10/10/2026): Skrelv, Defector Mite virou ok. M-256 (10/10/2026): Lurrus of the Dream-Den virou ok. M-257 (10/10/2026): Priest of Fell Rites virou ok. M-258 (10/10/2026): Malcolm e Legions to Ashes viraram ok.",
+ "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde. R11.1 (05/10/2026): as cartas \"ok\" foram auditadas frase a frase; quatro saíram do balde A para ok, três terrenos saíram de ok para B (o texto de mana escondia uma frase) e a Curiosity foi para B. M-246 (10/10/2026): as nove cartas do balde A (com Swan Song, que era parcial) viraram ok. M-247 (10/10/2026): Speaker of the Heavens, Jirina e Knight of the White Orchid viraram ok. M-248 (10/10/2026): Chart a Course e Children of Korlis viraram ok. M-249 (10/10/2026): Norn's Wellspring e Cephalid Coliseum viraram ok. M-250 (10/10/2026): Frantic Search e Saprazzan Skerry viraram ok. M-251 (10/10/2026): Combat Research, Rune of Mortality e Rune of Sustenance viraram ok. M-252 (10/10/2026): Idolized e Shineshadow Snarl viraram ok. M-253 (10/10/2026): Skrelv's Hive virou ok. M-254 (10/10/2026): Phyresis virou ok. M-255 (10/10/2026): Skrelv, Defector Mite virou ok. M-256 (10/10/2026): Lurrus of the Dream-Den virou ok. M-257 (10/10/2026): Priest of Fell Rites virou ok. M-258 (10/10/2026): Malcolm e Legions to Ashes viraram ok. M-259 (10/10/2026): Killian virou ok.",
  "cartas": [
   {
    "name": "Abrade",
@@ -568,12 +568,13 @@
   {
    "name": "Killian, Ink Duelist",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "B",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "reducao-por-alvo"
    ],
-   "obs": "é o comandante: prioridade"
+   "obs": "é o comandante: prioridade",
+   "nota": "M-259 (10/10/2026): redução de custo por alvo (parcial em custos alternativos, declarado)."
   },
   {
    "name": "Knight of the White Orchid",

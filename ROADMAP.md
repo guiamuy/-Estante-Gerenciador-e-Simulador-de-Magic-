@@ -3191,6 +3191,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes; `token` com número continua igual).
 - **Próximo:** M-259 — Killian, Ink Duelist ("mágicas que você conjura que miram uma criatura custam {2} a menos").
 
+**M-259 · R11 · Redução de custo que depende do alvo: Killian, Ink Duelist** ✅ (leva M-259, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Regra (601.2f):** `self.reduzSeMira: { tipos: ['creature'], generic: N }` numa permanente sua: a mágica que você conjura mirando uma criatura custa N genérico a menos (nunca o colorido). O custo é calculado com os alvos escolhidos — na oferta, a mesa é otimista só quando há essa redução no campo e depois confere cada conjuração com os alvos dela; no pagamento, vale o alvo da ação. Cobre o custo de mana, o lampejo do passado e o conceder (Aura que mira a criatura).
+- **Carta coberta (completa):** Killian, Ink Duelist (vínculo com a vida e ameaça vêm do texto).
+- **Limitação declarada:** outros custos alternativos (fuga, disturb, presságio, custos alternativos de carta) ainda não recebem a redução — nenhum aparece nas listas atuais; nas listas, só a Rite of Oblivion usa custo alternativo (lampejo), e ela recebe.
+- **Medição:** Killian 92% → **93%** (completo 94 · parcial 4 · manual 3).
+- **Golden:** idênticas, sem regravar. Versão não sobe: sem a redução no campo a oferta e o pagamento são os de antes.
+- **Escala:** com Killian no campo, a oferta confere o custo de cada conjuração com alvo (uma verificação de mana a mais por ação oferecida); sem ele, nada muda.
+- **Próximo:** M-260 — backup (702.165: Scorn-Blade Berserker) e Lazotep Plating (amass, resistência a magia do jogador).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
