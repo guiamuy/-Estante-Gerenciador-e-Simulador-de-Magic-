@@ -3184,6 +3184,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (a carta era parcial).
 - **Próximo:** M-258 — Malcolm, Keen-Eyed Navigator (gatilho de dano por subtipo: "uma ou mais Piratas suas causam dano aos oponentes") e Kediss já coberta; depois Killian, Ink Duelist (redução por alvo).
 
+**M-258 · R11 · Gatilho em lote de dano e fichas de mesmo nome: Malcolm e Legions to Ashes** ✅ (leva M-258, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Regra:** evento em lote `causam-dano` (603.2c: "whenever one or more … deal damage to your opponents" dispara uma vez por golpe simultâneo — o dano de combate é um lote; cada dano de efeito é outro), com o filtro de subtipo do gatilho e o valor = quantos jogadores levaram dano; quantidade de fichas por contagem (`token` com `amount: { per }`); verbo `exilar_fichas_mesmo_nome` (as fichas de quem controlava o alvo, pelo nome, pela última informação).
+- **Cartas cobertas (completas):** Malcolm, Keen-Eyed Navigator (um Tesouro por oponente com dano; dois Piratas no mesmo combate dão um gatilho só) e Legions to Ashes.
+- **Medição:** Killian 91% → **92%** (completo 93 · parcial 5 · manual 3); Malcolm + Kediss 84% → **85%**.
+- **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes; `token` com número continua igual).
+- **Próximo:** M-259 — Killian, Ink Duelist ("mágicas que você conjura que miram uma criatura custam {2} a menos").
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

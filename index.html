@@ -5240,6 +5240,7 @@ const EFFECTS = {
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
   desenterrar: { fields: [], targets: ['self'] }, // M-256 · resolução do desenterrar (702.84a)
+  exilar_fichas_mesmo_nome: { fields: [], targets: ['first-target'] }, // M-258 · "and all tokens that player controls with the same name as that permanent"
   reflexive: { fields: [], targets: ['self'] },
   // CR2b.5 · "…unless that player pays {N}": aquele jogador decide; se não pagar, os efeitos de dentro acontecem
   unless_pays: { fields: [], targets: ['that-player'] },
@@ -5548,6 +5549,8 @@ const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_en
  * causar dano (`a`: qualquer/jogador/oponente) e virar — com a Aura ou o Equipamento observando a permanente anexada. */
 const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica'];
 const EVENTOS_DE_JOGADOR = ['descarta', 'compra'];
+/** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
+const EVENTOS_DE_LOTE = ['causam-dano'];
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
 const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra'], bloqueia: ['self', 'outra'],
   'dano-combate': ['self', 'outra'], marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
@@ -5574,7 +5577,7 @@ const GATILHO_EVENTO = {
   'enchanted-tapped-or-damaged': { evento: ['vira', 'recebe-dano'], objeto: 'anexada' },
 };
 /** O descritor de um gatilho (nome antigo ou descritor escrito no script); null se o nome ainda não tem descritor. */
-const EVENTO_CONHECIDO = e => e === 'zona' || e === 'passo' || EVENTOS_DE_OBJETO.includes(e) || EVENTOS_DE_JOGADOR.includes(e);
+const EVENTO_CONHECIDO = e => e === 'zona' || e === 'passo' || EVENTOS_DE_OBJETO.includes(e) || EVENTOS_DE_JOGADOR.includes(e) || EVENTOS_DE_LOTE.includes(e);
 const gatilhoDoEvento = w => typeof w === 'string' ? (GATILHO_ZONA[w] || GATILHO_EVENTO[w] || null)
   : (w && typeof w === 'object' && (Array.isArray(w.evento) ? w.evento.length > 0 && w.evento.every(e => EVENTOS_DE_OBJETO.includes(e)) : EVENTO_CONHECIDO(w.evento)) ? w : null);
 /** CR2-G R2c · o descritor fala deste evento? (`evento` pode ser uma lista: "vira ou recebe dano") */
@@ -5582,7 +5585,7 @@ const falaDe = (d, evento) => !!d && (Array.isArray(d.evento) ? d.evento.include
 /** O descritor de zona de um gatilho; null se não for de zona. */
 const gatilhoDeZona = w => { const d = gatilhoDoEvento(w); return d && d.evento === 'zona' ? d : null; };
 const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'],
-  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
+  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'causam-dano': ['evento', 'a'], 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
 for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = CHAVES_DO_EVENTO[e] || ['evento', 'objeto', 'quem', 'donoVoce'];
 function gatilhoErros(w, tag) {
   if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
@@ -5595,6 +5598,7 @@ function gatilhoErros(w, tag) {
   if (!w || typeof w !== 'object' || !CHAVES_DO_EVENTO[w.evento]) return [`${tag}: gatilho desconhecido${w && w.evento ? ` (evento "${w.evento}")` : ''}`];
   const errs = [], lista = v => [].concat(v);
   for (const k of Object.keys(w)) if (!CHAVES_DO_EVENTO[w.evento].includes(k)) errs.push(`${tag}: chave "${k}" desconhecida no gatilho de ${w.evento}`);
+  if (EVENTOS_DE_LOTE.includes(w.evento)) { if (w.a != null && !['oponente', 'jogador'].includes(w.a)) errs.push(`${tag}: "a" precisa ser oponente ou jogador`); return errs; } // M-258
   if (EVENTOS_DE_JOGADOR.includes(w.evento)) { // de um jogador: `quem` é quem descarta/compra, relativo a você
     if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`);
     if (w.evento === 'compra' && !(Number.isInteger(w.n) && w.n >= 1)) errs.push(`${tag}: "n" (qual compra do turno) precisa ser inteiro a partir de 1`);
@@ -5624,6 +5628,7 @@ const PASSO_PT = { upkeep: ['manutenção', 'a'], draw: ['passo de compra', 'o']
 function descreveGatilho(w) {
   if (typeof w === 'string') return TRIGGER_PT[w] || w;
   const ev = gatilhoDoEvento(w); if (!ev) return 'gatilho';
+  if (ev.evento === 'causam-dano') return `quando uma ou mais criaturas suas causam dano a ${ev.a === 'jogador' ? 'um jogador' : 'seus oponentes'}`; // M-258
   if (ev.evento === 'passo') {
     const [nome, g] = PASSO_PT[ev.passo] || [ev.passo, 'o'], turno = ev.turno || 'seu';
     if (ev.passo === 'combat_begin' || ev.passo === 'combat_end') { // o combate é do turno, não do jogador
@@ -6555,6 +6560,12 @@ const RAW_SCRIPTS = [
   // (texto de 05/10/2026; segunda fonte de 10/10/2026). Companheiro: o motor já trata a zona de companheiro (Leva 61).
   { name: 'Lurrus of the Dream-Den', permiteConjurar: { de: 'graveyard', filtro: { permanente: true, mvMax: 2 }, porTurno: 1, noSeuTurno: true },
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-258 · texto de 05/10/2026; segunda fonte de 10/10/2026
+  { name: 'Malcolm, Keen-Eyed Navigator', abilities: [{ kind: 'triggered', when: { evento: 'causam-dano', a: 'oponente' }, filter: { subtype: 'Pirate' }, // "Whenever one or more Pirates you control deal damage to your opponents, you create a Treasure token for each opponent dealt damage."
+    effects: [{ do: 'token', amount: { per: 'trigger-value' }, token: TESOURO }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Legions to Ashes', effects: [{ do: 'exile', target: { de: 'opponent', semTipos: ['land'] } }, { do: 'exilar_fichas_mesmo_nome', target: 'first-target' }], // "Exile target nonland permanent an opponent controls and all tokens that player controls with the same name as that permanent."
+    example: { target: 'enemy-creature', expect: { gone: true } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -14550,6 +14561,7 @@ function dealCombatDamage(s) {
     }
     // simultâneo: aplica tudo depois de calcular
     if (s.fogged && !s.noPrevention) { s.combat.damageDone = true; return; } // S29 · Fog, salvo se a prevenção foi cancelada
+    const golpesEmJogador = []; // M-258 · o dano de combate é simultâneo: um lote só
     for (let [src, obj, player, amt, ehPw] of hits) {
       // CR2-G R5b · prevenção num caminho só (S30 cor; S11b prevenção e proteção, Leva 106: Flaring Pain vale para a proteção)
       amt = danoSubstituido(s, src, obj ? { obj } : { player }, amt, true); // CR2-G R5d · "causa N a mais / o dobro" vem antes da prevenção
@@ -14558,7 +14570,7 @@ function dealCombatDamage(s) {
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) marcaDanoEmCriatura(s, src, obj, amt); noteDamaged(s, obj);
       } else if (obj && amt > 0) { marcaDanoEmCriatura(s, src, obj, amt); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
-        danoEmJogador(s, src, player, amt);
+        danoEmJogador(s, src, player, amt); golpesEmJogador.push({ fonte: src, jogador: player });
         darVeneno(s, player, toxicoDe(s, src), null, src.name); // M-253 · 702.164c: dano de combate a jogador com tóxico dá veneno
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
@@ -14566,6 +14578,7 @@ function dealCombatDamage(s) {
       noteEnchantedDealt(s, src, amt, obj ? null : player); // S48 · Armadillo Cloak: a aura de quem causou o dano é avisada
       if (player != null && !obj) disparaEvento(s, 'dano-combate', [src]); // S18 · dano de combate ao jogador
     }
+    disparaLoteDeDano(s, golpesEmJogador); // M-258
     for (const [src] of hits) src.struck = true;
     stateBased(s, []);
   }
@@ -15301,7 +15314,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ amount: n, pending: true }); break;
     }
     case 'attach': attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break;
-    case 'token': for (let i = 0; i < eff.amount; i++) createToken(s, eff.token, playerOf(), events); break;
+    case 'token': { const n = amountOf(s, src, eff.amount); for (let i = 0; i < n; i++) createToken(s, eff.token, playerOf(), events); } break; // M-258 · quantidade também por contagem (um Tesouro por oponente)
     case 'to_hand': { // S44 · a própria carta pode voltar para a mão (Rancor)
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       // Leva 107 · Rancor: "return Rancor to its owner's hand" só se ele ainda estiver no cemitério (400.7)
@@ -15407,6 +15420,13 @@ function applyEffect(s, src, eff, tgt, events) {
       s.unlessChain = { rest: ordem, amount: amountOf(s, src, eff.amount), cost: eff.cost || {}, name: src.name };
       continueUnless(s, events);
       break;
+    }
+    case 'exilar_fichas_mesmo_nome': { // M-258 · Legions to Ashes: as fichas de quem controlava o alvo, com o nome dele (última informação)
+      if (!obj) { note({ failed: true }); break; }
+      const quem = (obj.ultima && obj.ultima.controller != null) ? obj.ultima.controller : obj.controller, nome = obj.name;
+      const fichas = battlefield(s).filter(o => o.token && o.controller === quem && o.name === nome && o.oid !== obj.oid);
+      for (const f of fichas) moveObject(s, f.oid, 'exile');
+      note({ amount: fichas.length, name: nome }); break;
     }
     case 'desenterrar': { // M-257 · volta ao campo com ímpeto; exilada no próximo passo final; se fosse sair do campo, exilada no lugar
       const carta = s.objects[src.ability ? src.source : src.oid];
@@ -15711,11 +15731,27 @@ function resumeEffects(s, events) {
 /** Leva 106 · a proteção previne dano (702.16e), e "Damage can't be prevented" (Flaring Pain) vale para ela também. */
 const protegeDoDano = (s, o, src) => !s.noPrevention && protectedFrom(s, o, src);
 /** Leva 106 · uma fonte causou dano fora do combate: vínculo com a vida (702.15b) e auras que observam o dano. */
+/** M-258 · gatilhos em lote de dano: `golpes` = [{ fonte, jogador }] causados ao mesmo tempo; cada permanente que observa dispara uma vez,
+ * com o valor = quantos jogadores diferentes levaram dano (Malcolm: um Tesouro por oponente). */
+function disparaLoteDeDano(s, golpes) {
+  if (!golpes.length) return;
+  for (const w of battlefield(s)) {
+    if (!s.facts[w.name]) continue;
+    for (const ab of abilitiesOf(s, w)) {
+      const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
+      if (!d || d.evento !== 'causam-dano') continue;
+      const casam = golpes.filter(g => g.fonte && g.fonte.controller === w.controller && (d.a === 'jogador' || g.jogador !== w.controller) && matchesTriggerFilter(s, g.fonte, ab.filter));
+      if (!casam.length || !triggerConditionMet(s, w, ab.condition)) continue;
+      s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, value: new Set(casam.map(g => g.jogador)).size, ...marcasDaHabilidade(ab) });
+    }
+  }
+}
 function causouDano(s, src, n, aJogador = null) {
   const fonte = src && src.ability ? s.objects[src.source] : src;
   if (!fonte || !(n > 0)) return;
   if (has(s, fonte, 'lifelink')) { const c = fonte.controller; s.players[c].life += n; s.players[c].lifeGained = (s.players[c].lifeGained || 0) + n; }
   if (fonte.zone === 'battlefield') noteEnchantedDealt(s, fonte, n, aJogador);
+  if (aJogador != null && fonte.zone === 'battlefield' && s.facts[fonte.name]) disparaLoteDeDano(s, [{ fonte, jogador: aJogador }]); // M-258 · dano de efeito: um golpe
 }
 function noteEnchantedDealtLegado(s, host, amount, aJogador = null) {
   if (!(amount > 0)) return;
@@ -20428,6 +20464,7 @@ function descreveEfeito(e) {
       return quem ? `${quem} sacrifica ${coisa}${ficha} à sua escolha` : `sacrifica ${coisa}`;
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
+    case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
     case 'desenterrar': return 'volta do cemitério para o campo com ímpeto; é exilada no início do próximo passo final ou se fosse sair do campo'; // M-257
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
     case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
