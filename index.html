@@ -1493,6 +1493,33 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .deck-sug[hidden] { display: none; }
 .deck-sug .ds-list__item { min-height: var(--tap-min); width: 100%; text-align: left; }
 .deck-slot[data-missing="true"] .ds-card img { opacity: .42; filter: grayscale(.85); }
+/* V3 · visões da lista: densa (uma linha por carta, estilo Moxfield) e pilhas por custo (a faixa do nome de cada carta à mostra) */
+.deck-denso { display: flex; flex-direction: column; overflow: hidden; }
+.deck-linha { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.deck-linha:last-child { border-bottom: none; }
+.deck-linha__abre { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: 2.5ch minmax(0, 1fr) auto auto auto; align-items: center; column-gap: var(--space-2);
+  min-height: var(--tap-min); padding: var(--space-1) var(--space-3); border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.deck-linha__abre:active { background: var(--bg-elev-2); }
+.deck-linha__abre:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.deck-linha__qtd { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1; color: var(--accent); text-align: right; }
+.deck-linha__nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-md); }
+.deck-linha__custo { white-space: nowrap; }
+.deck-linha .deck-linha__falta { position: static; transform: none; font-size: var(--text-xs); }
+.deck-linha__cov { display: inline-flex; color: var(--fg-subtle); }
+.deck-linha[data-missing="true"] .deck-linha__nome { color: var(--fg-muted); }
+.deck-linha__passo { display: flex; gap: var(--space-1); padding-right: var(--space-2); flex: none; }
+.deck-pilhas { --pilha-w: 104px; display: flex; gap: var(--space-3); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: var(--space-2); }
+.deck-pilha { flex: 0 0 var(--pilha-w); display: flex; flex-direction: column; gap: var(--space-2); scroll-snap-align: start; }
+.deck-pilha__cab { display: flex; align-items: center; gap: var(--space-1); min-height: 24px; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; }
+.deck-pilha__mv { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--bg-elev-3); color: var(--fg); font-weight: var(--weight-bold); }
+.deck-pilha__cartas { display: flex; flex-direction: column; }
+.deck-pilha__carta { position: relative; display: flex; flex-direction: column; justify-content: flex-start; flex: none; width: var(--pilha-w); aspect-ratio: 488 / 680; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); box-shadow: var(--shadow-1); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.deck-pilha__carta + .deck-pilha__carta { margin-top: calc(var(--pilha-w) * -1.3934 + var(--tap-min)); }
+.deck-pilha__carta:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 1; }
+.deck-pilha__img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.deck-pilha__carta[data-missing="true"] .deck-pilha__img { opacity: .42; filter: grayscale(.85); }
+.deck-pilha__semimagem { display: block; padding: var(--space-2) calc(var(--space-6) + var(--space-2)) var(--space-2) var(--space-2); font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg); text-align: left; }
+.deck-pilha__carta .deck-pilha__qtd { top: var(--space-1); left: auto; right: var(--space-1); }
 .deck-slot__qty, .deck-slot__flag {
   position: absolute; pointer-events: none; font-size: var(--text-xs); line-height: 1;
   padding: var(--space-1) var(--space-2); border-radius: var(--radius-full); font-weight: var(--weight-bold);
@@ -11592,6 +11619,9 @@ function PainelEstatisticas(e, { id = 'deck-stats', custo = null, aoCusto = () =
     cores ? Text('Em cada cor: a fatia dos símbolos de custo e a fatia das cartas que geram essa mana. Fatias parecidas, base equilibrada. As fontes são lidas do texto da carta.', { size: 'xs', tone: 'subtle' }) : null];
 }
 
+/** V3 · as visões da tela da lista: a galeria de sempre, a lista densa (estilo Moxfield) e as pilhas por custo. */
+const VISOES_DA_LISTA = [['galeria', 'Galeria', 'colecao'], ['densa', 'Densa', 'densa'], ['pilhas', 'Pilhas', 'pilhas']];
+const VISAO_DA_LISTA_KEY = 'lista.visao';
 function createDeckScreen({ decks, collection, cardRepo, images, share, files, store, etiquetas = null, names = null, scryfall = null }) {
   const id = q().get('id');
   const root = Stack(pad(), __m3.Carregando('Abrindo lista…', { tamanho: 'tela' }));
@@ -11601,6 +11631,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     etq: __m32.vazio(), // G2 · etiquetas desta lista
     ajustando: false, zonaNova: 'main', // L7 · edição rápida
     stats: false, statsCusto: null, // L8 · bloco de estatísticas (aberto?) e a coluna da curva tocada
+    visao: 'galeria', // V3 · Galeria, Densa ou Pilhas por custo (lembrada no aparelho)
     taxas: undefined }; // G3 · cotação do dólar (undefined = buscando, null = sem cotação)
 
   async function load() {
@@ -11610,6 +11641,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     if (store) store.set('ui.ultimaLista', { id, nome: state.deck.name, em: Date.now() }).catch(() => {}); // D3 · a tela inicial oferece "continuar" nesta lista
     state.owned = await collection.all();
     if (store) { try { state.stats = (await store.get('decks.estatisticas')) === true; } catch (e) { /* sem armazenamento: fechado */ } } // L8 · aberto ou fechado, lembrado no aparelho
+    if (store) { try { const v = await store.get(VISAO_DA_LISTA_KEY); if (VISOES_DA_LISTA.some(x => x[0] === v)) state.visao = v; } catch (e) { /* sem armazenamento: galeria */ } } // V3
     cardRepo.stats.degraded = false;
     const progress = h('span', { class: 'ds-carregando__texto' }, 'Buscando cartas…');
     mount(root, __m3.Carregando(progress, { tamanho: 'tela' })); // J4 · o progresso muda no lugar
@@ -11891,16 +11923,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       filtrando ? Text(`${recorte.total} carta(s) · ${recorte.copias} cópia(s)${recorte.semDados ? ` · ${recorte.semDados} sem dados` : ''} · ${FL.descreveFiltro(filtroAtual)}`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-count' } }) : null,
       filtrando ? Button('Limpar', { variant: 'ghost', icone: 'fechar', id: 'deck-filters-clear', onClick: () => { state.filtro = FL.novoFiltro(); state.texto = ''; paint(); } }) : null);
 
-    const groups = CATEGORIES.map(([key, label]) => {
-      const items = d.entries.filter(e => (!filtrando || passou.has(norm(e.name))) && categoryOf(e, entryCard(e)) === key)
-        .sort((a, b) => ((entryCard(a) || {}).cmc || 0) - ((entryCard(b) || {}).cmc || 0) || a.name.localeCompare(b.name));
-      if (!items.length) return null;
-      const n = items.reduce((s, e) => s + e.qty, 0);
-      // E50 P5 · a reserva fica visualmente separada do deck titular e diz que não entra na partida
-      return Stack({ class: 'deck-group' + (key === 'side' ? ' deck-group--reserva' : ''), dataset: { grupo: key } },
-        Row({ class: 'deck-group__head' }, Text(label, { size: 'lg', display: true, as: 'h2' }), Text(String(n), { size: 'sm', tone: 'muted' }),
-          key === 'side' ? Text('fora da partida · trocas entre jogos', { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs ds-text--subtle deck-group__nota' } }) : null),
-        h('div', { class: 'ds-cardgrid' }, ...items.map(e => {
+    // V3 · cada carta da lista: na galeria (a de sempre), numa linha densa ou numa pilha por custo
+    const slotDe = e => {
           const c = entryCard(e);
           const have = Math.min(e.qty, state.owned[norm(e.name)] || 0);
           const lacking = have < e.qty;
@@ -11924,7 +11948,67 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           if (state.marking) face.addEventListener('click', () => toggleOwned(e));
           else onTaps(face, { single: () => openEntry(e), double: () => { pulse(slot); toggleOwned(e, true); } });
           return slot;
-        })));
+    };
+    const temNaMao = e => Math.min(e.qty, state.owned[norm(e.name)] || 0);
+    const tocar = (alvo, e, onde) => { if (state.marking) alvo.addEventListener('click', () => toggleOwned(e)); else onTaps(alvo, { single: () => openEntry(e), double: () => { pulse(onde); toggleOwned(e, true); } }); };
+    const linhaDensa = e => {
+      const c = entryCard(e), have = temNaMao(e), lacking = have < e.qty, cov = coverage(c || { name: e.name }, undefined, e.name);
+      const custo = c && c.mana_cost ? String(c.mana_cost).split('//')[0].trim() : '';
+      const botao = h('button', { class: 'deck-linha__abre', type: 'button', 'aria-label': `${e.qty} ${e.name}${lacking ? `, falta ${e.qty - have}` : ''}. Abrir` },
+        h('span', { class: 'deck-linha__qtd' }, String(e.qty)),
+        h('span', { class: 'deck-linha__nome', lang: 'en' }, e.name),
+        custo ? h('span', { class: 'deck-linha__custo' }, ComSimbolos(custo)) : null,
+        lacking ? h('span', { class: 'deck-slot__flag deck-linha__falta' }, have ? `falta ${e.qty - have}` : 'falta') : null,
+        h('span', { class: 'deck-linha__cov', title: `Motor: ${COVERAGE_PT[cov.level]} — ${cov.reason}`, role: 'img', 'aria-label': `Motor: ${COVERAGE_PT[cov.level]}` }, Icone(COVERAGE_ICONE[cov.level], { tamanho: 14 })));
+      const linha = h('div', { class: 'deck-linha', dataset: { missing: String(lacking), name: e.name, zona: zonaDe(e), ...(e.print ? { impressao: e.print.id } : {}) } }, botao,
+        state.ajustando ? h('div', { class: 'deck-linha__passo' },
+          IconButton('menos', e.qty > 1 ? `Tirar uma ${e.name}` : `Tirar ${e.name} da lista`, { dataset: { passo: '-1' }, onClick: () => passo(e, -1) }),
+          IconButton('mais', `Mais uma ${e.name}`, { dataset: { passo: '1' }, disabled: zonaDe(e) === 'commander' || zonaDe(e) === 'companion', onClick: () => passo(e, 1) })) : null);
+      tocar(botao, e, linha);
+      return linha;
+    };
+    const cartaDaPilha = e => {
+      const c = entryCard(e), have = temNaMao(e), lacking = have < e.qty;
+      const src = img(cartaNaImpressao(c, e.print));
+      const b = h('button', { class: 'deck-pilha__carta', type: 'button', dataset: { name: e.name, zona: zonaDe(e), missing: String(lacking), sobrepoe: 'pilha', ...(e.print ? { impressao: e.print.id } : {}) }, 'aria-label': `${e.qty} ${e.name}${lacking ? `, falta ${e.qty - have}` : ''}. Abrir` },
+        // sem imagem (ou a imagem falhou): o nome no alto, onde a faixa da pilha fica à mostra
+        src ? h('img', { src, alt: '', loading: 'lazy', decoding: 'async', class: 'deck-pilha__img', onError: ev => { const el = ev.target; if (el.parentNode) el.replaceWith(h('span', { class: 'deck-pilha__semimagem', lang: 'en' }, e.name)); } }) : h('span', { class: 'deck-pilha__semimagem', lang: 'en' }, e.name),
+        e.qty > 1 ? h('span', { class: 'deck-slot__qty deck-pilha__qtd' }, '×' + e.qty) : null);
+      tocar(b, e, b);
+      return b;
+    };
+    /** V3 · Pilhas: colunas por valor de mana (terrenos à parte, 7 ou mais juntos), cada carta mostra a faixa do nome. */
+    const pilhasDe = items => {
+      const pilhas = new Map();
+      for (const e of items) { const c = entryCard(e) || {}; const terreno = categoryOf({ ...e, zone: 'main' }, c) === 'land';
+        const k = terreno ? 'terreno' : String(Math.min(7, Math.floor(c.cmc || 0))); if (!pilhas.has(k)) pilhas.set(k, []); pilhas.get(k).push(e); }
+      const ordem = ['terreno', '0', '1', '2', '3', '4', '5', '6', '7'].filter(k => pilhas.has(k));
+      return h('div', { class: 'deck-pilhas', role: 'list' }, ...ordem.map(k => { const l = pilhas.get(k), n = l.reduce((t, e) => t + e.qty, 0);
+        return h('div', { class: 'deck-pilha', role: 'listitem', dataset: { custo: k } },
+          h('div', { class: 'deck-pilha__cab' }, k === 'terreno' ? Icone('terreno', { tamanho: 16 }) : h('span', { class: 'deck-pilha__mv', 'aria-hidden': 'true' }, k === '7' ? '7+' : k),
+            h('span', { class: 'deck-pilha__rot' }, k === 'terreno' ? `Terrenos · ${n}` : `${n} ${n === 1 ? 'carta' : 'cartas'}`)),
+          h('div', { class: 'deck-pilha__cartas', 'aria-label': k === 'terreno' ? 'Terrenos' : `Valor de mana ${k === '7' ? '7 ou mais' : k}` }, ...l.map(cartaDaPilha))); }));
+    };
+    const vistaDoGrupo = items => state.visao === 'densa' ? h('div', { class: 'deck-denso ds-surface' }, ...items.map(linhaDensa))
+      : state.visao === 'pilhas' ? pilhasDe(items) : h('div', { class: 'ds-cardgrid' }, ...items.map(slotDe));
+    const trocaVisao = async v => { state.visao = v; paint(); if (store) store.set(VISAO_DA_LISTA_KEY, v).catch(() => {}); };
+    const seletorVisao = h('div', { class: 'ds-segmentado deck-visoes', role: 'group', 'aria-label': 'Visão da lista', id: 'deck-visoes' },
+      ...VISOES_DA_LISTA.map(([k, rotulo, icone]) => Chip(rotulo, { icone, id: 'deck-visao-' + k, pressed: state.visao === k, dataset: { visao: k }, onClick: () => trocaVisao(k) })));
+
+    // V3 · nas Pilhas o deck inteiro é uma fileira por custo (as categorias viram colunas de valor de mana); comandante,
+    // companheiro e reserva ficam em fileiras próprias
+    const ZONAS_DAS_PILHAS = [['commander', 'Comandante'], ['companion', 'Companheiro'], ['main', 'Deck'], ['side', 'Reserva']];
+    const grupoDe = e => state.visao === 'pilhas' ? zonaDe(e) : categoryOf(e, entryCard(e));
+    const groups = (state.visao === 'pilhas' ? ZONAS_DAS_PILHAS : CATEGORIES).map(([key, label]) => {
+      const items = d.entries.filter(e => (!filtrando || passou.has(norm(e.name))) && grupoDe(e) === key)
+        .sort((a, b) => ((entryCard(a) || {}).cmc || 0) - ((entryCard(b) || {}).cmc || 0) || a.name.localeCompare(b.name));
+      if (!items.length) return null;
+      const n = items.reduce((s, e) => s + e.qty, 0);
+      // E50 P5 · a reserva fica visualmente separada do deck titular e diz que não entra na partida
+      return Stack({ class: 'deck-group' + (key === 'side' ? ' deck-group--reserva' : ''), dataset: { grupo: key } },
+        Row({ class: 'deck-group__head' }, Text(label, { size: 'lg', display: true, as: 'h2' }), Text(String(n), { size: 'sm', tone: 'muted' }),
+          key === 'side' ? Text('fora da partida · trocas entre jogos', { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs ds-text--subtle deck-group__nota' } }) : null),
+        vistaDoGrupo(items));
     }).filter(Boolean);
 
     const markChip = Chip('Marcar as minhas', { id: 'deck-mark', icone: 'marcar', pressed: state.marking, onClick: () => { state.marking = !state.marking; if (state.marking) state.ajustando = false; paint(); } });
@@ -11997,6 +12081,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
         state.marking ? Text('Toque nas cartas para marcar ou desmarcar.', { size: 'sm', tone: 'muted' }) : state.ajustando ? null : Text('Um toque abre a carta. Dois toques marcam que você a tem.', { size: 'sm', tone: 'muted' })),
       state.ajustando ? blocoAjuste() : null,
       linhaFiltro,
+      seletorVisao,
       // J7 · botão de ação da lista: jogar com ela, editar, exportar. No modo Ajustar ele sai: o campo de adicionar é a ação
       state.ajustando ? null : __m3.BotaoDeAcao([
         { icone: 'jogar', rotulo: 'Jogar', id: 'deck-jogar', onClick: () => go('/mesa?lista=' + encodeURIComponent(d.id)) },

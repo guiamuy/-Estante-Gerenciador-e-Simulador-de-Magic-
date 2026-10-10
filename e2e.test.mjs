@@ -5211,7 +5211,7 @@ test('e2e · R5 · Bogles: dois Slippery Bogle dizem a força no alvo; cada Aura
   await fecha136(page);
   // a mesa: Aura colada em quem a carrega
   const ordem = await page.locator('.tb-side .tb-card').evaluateAll(cs => cs.map(c => ({ fala: c.getAttribute('aria-label'), anexo: c.dataset.anexo === 'true' })));
-  const iBogle = ordem.findIndex(c => /^Slippery Bogle, 3\/1, Com Rancor/.test(c.fala));
+  const iBogle = ordem.findIndex(c => /^Slippery Bogle, 3\/1(, base 1\/1)?, Com Rancor/.test(c.fala)); // T4 (G-237) · o nome falado diz a base quando o P/T mudou
   assert.ok(iBogle >= 0 && /^Rancor, Anexada a Slippery Bogle/.test(ordem[iBogle + 1].fala) && ordem[iBogle + 1].anexo, 'o Rancor vem logo depois do Bogle que o carrega: ' + ordem.map(c => c.fala).join(' | '));
   const iFloresta = ordem.findIndex(c => /^Forest, .*Com Utopia Sprawl/.test(c.fala));
   assert.ok(iFloresta >= 0 && /^Utopia Sprawl, Anexada a Forest/.test(ordem[iFloresta + 1].fala) && ordem[iFloresta + 1].anexo, 'a Utopia Sprawl vem logo depois da Floresta encantada');
@@ -8337,7 +8337,8 @@ test('e2e · J1 ficar onde está: tocar num chip, chave, aba, bloco ou seletor n
     assert.ok(r.medidos >= (minimo[rota] || 0), `${rota}: ${r.medidos} de ${r.total} controles medidos (mínimo ${minimo[rota] || 0})`);
   }
   // 2 · casos escolhidos na lista: somar cópia (L7), marcar que tenho, abrir estatísticas e tocar numa coluna da curva
-  await page.goto(base + daLonga); await page.waitForSelector('.deck-slot');
+  // V3 (G-239) · tocar em todos os seletores da Lista também troca a visão (e ela fica lembrada): volta à Galeria
+  await page.goto(base + daLonga); await page.waitForSelector('#deck-visoes'); await page.click('#deck-visao-galeria'); await page.waitForSelector('.deck-slot');
   await page.click('#deck-ajustar'); await page.waitForSelector('.deck-slot__passo');
   assert.ok(Math.abs(await tocaSemSalto(page, '.deck-slot[data-name="Duress"] [data-passo="1"]')) <= 2, 'somar uma cópia não move a tela');
   assert.ok(Math.abs(await tocaSemSalto(page, '.deck-slot[data-name="Duress"] [data-passo="-1"]')) <= 2, 'tirar uma cópia não move a tela');
@@ -8912,6 +8913,53 @@ test('e2e · J6 arte escolhida só do meu lado: contra o Shark, a minha Forest s
   const fontes = await page.evaluate(() => ({ eu: [...document.querySelectorAll('.tb-side--me .tb-card[aria-label^="Forest"] img')].map(i => i.dataset.fonte), bot: [...document.querySelectorAll('.tb-side:not(.tb-side--me) .tb-card[aria-label^="Forest"]')].map(c => (c.querySelector('img') || { dataset: {} }).dataset.fonte || 'texto') }));
   assert.ok(fontes.eu.length && fontes.eu.every(f => /front\/x\/forest-1\.png$/.test(f)), 'a minha Forest está na arte escolhida: ' + JSON.stringify(fontes));
   assert.ok(fontes.bot.length && fontes.bot.every(f => !/forest-1\.png/.test(f)), 'a Forest do bot fica na arte padrão da plataforma: ' + JSON.stringify(fontes));
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- V3 · visões da lista ---------------- */
+test('e2e · V3 visões da lista: Galeria (a de sempre), Densa (uma linha por carta com quantidade, nome, custo e o que falta) e Pilhas por custo (terrenos à parte, a faixa de cada carta à mostra); a escolha fica lembrada; abrir, marcar e ajustar funcionam nas três', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER + '\n\nSideboard\n2 Counterspell');
+  await page.waitForSelector('#deck-visoes');
+  const visoes = await page.$$eval('#deck-visoes .ds-chip', cs => cs.map(c => [c.dataset.visao, c.textContent.trim(), c.getAttribute('aria-pressed'), Math.round(c.getBoundingClientRect().height) >= 44, !!c.querySelector('svg')]));
+  assert.deepEqual(visoes, [['galeria', 'Galeria', 'true', true, true], ['densa', 'Densa', 'false', true, true], ['pilhas', 'Pilhas', 'false', true, true]]);
+  assert.ok(await page.locator('.deck-slot').count() >= 5, 'a galeria de sempre');
+  // Densa: uma linha por carta, 44 px, quantidade, nome em inglês e custo em símbolos
+  await page.click('#deck-visao-densa'); await page.waitForSelector('.deck-linha');
+  assert.equal(await page.locator('.deck-slot').count(), 0);
+  const linhas = await page.$$eval('.deck-linha', ls => ls.map(l => ({ nome: l.dataset.name, zona: l.dataset.zona, qtd: l.querySelector('.deck-linha__qtd').textContent, h: Math.round(l.getBoundingClientRect().height), lang: l.querySelector('.deck-linha__nome').lang, sim: l.querySelectorAll('.deck-linha__custo .ds-sym').length })));
+  assert.ok(linhas.every(l => l.h >= 44 && l.lang === 'en'), JSON.stringify(linhas));
+  assert.deepEqual(linhas.filter(l => l.nome === 'Counterspell').map(l => [l.zona, l.qtd]), [['main', '4'], ['side', '2']]); // (o custo em símbolos aparece quando a carta tem dados; o teste roda sem a Scryfall)
+  assert.match(await page.getAttribute('.deck-linha[data-name="Delver of Secrets"] .deck-linha__abre', 'aria-label'), /^4 Delver of Secrets(, falta 4)?\. Abrir$/);
+  await auditaTela(page, 'lista densa');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v3-densa.png' });
+  // tocar abre a carta
+  await page.click('.deck-linha[data-name="Preordain"] .deck-linha__abre'); await page.waitForSelector('#card-viewer'); await page.keyboard.press('Escape'); await page.waitForSelector('#card-viewer', { state: 'detached' });
+  // Ajustar: − e + em cada linha
+  await page.click('#deck-ajustar'); await page.waitForSelector('.deck-linha__passo');
+  await page.click('.deck-linha[data-name="Preordain"] [data-passo="1"]'); await page.waitForFunction(() => document.querySelector('.deck-linha[data-name="Preordain"] .deck-linha__qtd').textContent === '5');
+  await page.click('.deck-linha[data-name="Preordain"] [data-passo="-1"]'); await page.waitForFunction(() => document.querySelector('.deck-linha[data-name="Preordain"] .deck-linha__qtd').textContent === '4');
+  await page.click('#deck-ajustar');
+  // lembrada: recarregar volta na Densa
+  await page.reload(); await page.waitForSelector('.deck-linha'); assert.equal(await page.getAttribute('#deck-visao-densa', 'aria-pressed'), 'true');
+  // Pilhas: terrenos primeiro, depois por valor de mana; cada carta deixa 44 px à mostra; a página não rola de lado
+  await page.click('#deck-visao-pilhas'); await page.waitForSelector('.deck-pilha');
+  assert.deepEqual(await page.$$eval('.deck-group', gs => gs.map(g => g.dataset.grupo)), ['main', 'side'], 'nas Pilhas: uma fileira para o deck e outra para a reserva');
+  const pilhas = await page.$$eval('.deck-group[data-grupo="main"] .deck-pilha', ps => ps.map(p => ({ custo: p.dataset.custo, rot: p.querySelector('.deck-pilha__rot').textContent, cartas: [...p.querySelectorAll('.deck-pilha__carta')].map(c => c.dataset.name) })));
+  assert.ok(pilhas.length >= 1, JSON.stringify(pilhas));
+  const todas = pilhas.flatMap(p => p.cartas); assert.ok(['Island', 'Delver of Secrets', 'Preordain', 'Counterspell'].every(n => todas.includes(n)), JSON.stringify(pilhas));
+  const ordem = pilhas.map(p => p.custo); assert.deepEqual(ordem, [...ordem].sort((a, b) => (a === 'terreno' ? -1 : b === 'terreno' ? 1 : a - b)));
+  assert.equal(pilhas.find(p => p.cartas.includes('Island')).custo, 'terreno');
+  const passos = await page.$$eval('.deck-pilha__cartas', cs => cs.flatMap(c => { const t = [...c.querySelectorAll('.deck-pilha__carta')].map(x => x.getBoundingClientRect().top); return t.slice(1).map((y, i) => Math.round(y - t[i])); }));
+  assert.ok(passos.every(d => d >= 44), 'cada carta da pilha deixa 44 px para o toque: ' + passos);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'a página não rola de lado');
+  await page.click('.deck-pilha__carta[data-name="Counterspell"][data-zona="main"]'); await page.waitForSelector('#card-viewer'); await page.keyboard.press('Escape'); await page.waitForSelector('#card-viewer', { state: 'detached' });
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v3-pilhas.png' });
+  for (const v of ['densa', 'pilhas']) { await page.click('#deck-visao-' + v); await page.waitForSelector(v === 'densa' ? '.deck-linha' : '.deck-pilha');
+    for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `lista ${v} ${w} ${tema}`); } }
+    await page.setViewportSize({ width: 360, height: 780 }); }
+  await page.click('#deck-visao-galeria'); await page.waitForSelector('.deck-slot');
   assert.deepEqual(errors, []);
 });
 

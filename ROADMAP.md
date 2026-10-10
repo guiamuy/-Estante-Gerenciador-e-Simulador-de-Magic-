@@ -490,6 +490,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ct ✅ | T5 Listas prontas: respiro entre a última lista e Mostrar mais (leva G-234) | T | ½ | — |
 | 16º-cu | T6 perfil por pessoa e servidor: plano curto (perfis no aparelho) e médio prazo (conta e sincronização) | T | 1 de decisão + 3 a 5 | escolha do serviço (decisão do usuário) |
 | 16º-cv ✅ | V5 a impressão escolhida na lista (V1) vale na mesa, para quem jogou com a lista; o bot e o oponente online seguem na arte padrão (leva G-238) | V | 1 | — |
+| 16º-cw ✅ | V3 visões da lista: Galeria, Densa (estilo Moxfield) e Pilhas por custo, lembradas no aparelho (leva G-239) | V | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -4308,19 +4309,27 @@ sob demanda (S64). O que faltava: **garantia** (guardar sem pedir), **um lugar q
   impressão não a traz; sem internet, só aparece se o guardião já baixou a imagem (como na lista).
 - **Fora:** impressão no texto exportado e no valor da lista.
 
-**V3 · Modos da lista** ○
+**V3 · Modos da lista** ✅ (leva G-239, 09/10/2026)
 - **Valor:** galeria para ver, texto denso para editar.
-- **Aceite:** galeria (L3), lista densa estilo Moxfield e pilhas por custo; a preferência é lembrada.
-- **Testes:** I, V.
-- **Depende de:** L3.
-- **Fora:** —
+- **Entregue:** na tela da lista, abaixo do filtro, o seletor **Galeria · Densa · Pilhas** (ícone e uma palavra, 44 px):
+  - **Galeria:** a de sempre (as cartas em grade, por categoria);
+  - **Densa** (estilo Moxfield): uma linha de 44 px por carta, com a quantidade em latão, o nome em inglês, o custo em
+    símbolos, "falta" quando a coleção não cobre e o selo do motor; tocar abre a carta, dois toques marcam que você a
+    tem, **Ajustar** põe − e + na própria linha;
+  - **Pilhas por custo:** o deck vira uma fileira de colunas — **Terrenos** e depois valor de mana 0, 1, 2… **7+** —,
+    cada carta deixando à mostra a faixa de cima (44 px, o alvo de toque) e a última inteira; ×N na faixa; comandante,
+    companheiro e reserva em fileiras próprias; a fileira rola de lado dentro dela (a página não);
+  - a escolha fica **lembrada no aparelho** (`lista.visao`) e vale para todas as listas.
+- **Testes:** e2e "V3" (seletor, densa com 44 px e nome em inglês, abrir, Ajustar ±1, lembrada depois de recarregar,
+  pilhas com terrenos primeiro e custos em ordem, 44 px entre cartas, sem rolagem lateral da página, abrir na pilha,
+  `auditaTela` nas quatro medidas e nos dois temas).
+- **Fora:** arrastar cartas entre pilhas; pilhas por tipo ou por cor.
 
-**V4 · Zoom na mesa** ○
+**V4 · Zoom na mesa** ✅ (já coberto pela A15, leva 79; registrado em 09/10/2026)
 - **Valor:** ler a carta sem sair da partida.
 - **Aceite:** tocar e segurar amplia com o oracle; soltar fecha.
-- **Testes:** I.
-- **Depende de:** A1.
-- **Fora:** —
+- **Situação:** é a "carta grande" da A15 (segurar qualquer carta da mesa abre a carta com o texto, o estado e "Pode
+  agora:"; soltar fecha), que desde a G-237 também mostra a base e o que mudou (T4). Nada a fazer.
 
 ### L · Listas, continuação
 
@@ -6612,6 +6621,8 @@ prontas.
   `facts.kw` — a tela não calcula regra.
 - **Correção no caminho:** com P/T no canto, as pílulas da carta (marcadores, dano, as novas) dividiam a linha de baixo
   com ele e se cobriam; agora sobem acima do P/T.
+- **Expectativa mudada (R5, e2e):** o nome falado do Bogle com Rancor passou a dizer "3/1, base 1/1" (é a T4); o
+  teste aceita a base.
 - **Junto:** o e2e U2 caiu uma vez no portão da G-235 (o Jogar volta com mola e o teste esperava 200 ms fixos); agora
   espera a volta terminar.
 - **Testes:** U `table.unit` +2 (mais, menos, misto, sem mudança, virada para baixo, ganhas com nomes, Aura que torna
