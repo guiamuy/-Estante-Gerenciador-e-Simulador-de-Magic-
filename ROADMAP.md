@@ -3203,6 +3203,14 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Escala:** com Killian no campo, a oferta confere o custo de cada conjuração com alvo (uma verificação de mana a mais por ação oferecida); sem ele, nada muda.
 - **Próximo:** M-260 — backup (702.165: Scorn-Blade Berserker) e Lazotep Plating (amass, resistência a magia do jogador).
 
+**M-260 · R11 · Reforço, amass e resistência a magia do jogador: Scorn-Blade Berserker e Lazotep Plating** ✅ (leva M-260, motor v96, sem mudança no que existe) — 2 testes novos.
+- **Regra:** reforço N (702.165) como chave de script: ao entrar, N marcadores +1/+1 na criatura alvo e, se for outra, ela ganha as outras habilidades da carta até o fim do turno (habilidades ganhas até o fim do turno moram no objeto e somem na limpeza e ao mudar de zona); amass N (701.47: sem Exército, cria um Exército 0/0 preto do tipo; depois N marcadores num Exército seu); resistência a magia do jogador até o fim do turno (oponentes não miram você), e "suas permanentes ganham resistência a magia" pelo `keyword` com "cada".
+- **Cartas cobertas (completas):** Scorn-Blade Berserker e Lazotep Plating.
+- **Simplificação declarada:** Exército que já existe e não é do tipo pedido não ganha o subtipo (nas listas, o único Exército é o que a própria Lazotep cria).
+- **Medição:** Killian 93% → **94%** (completo 95 · parcial 4 · manual 2); Malcolm + Kediss 85% → **86%**.
+- **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
+- **Próximo:** M-261 — fase (702.26: March of Swirling Mist, Slip Out the Back).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

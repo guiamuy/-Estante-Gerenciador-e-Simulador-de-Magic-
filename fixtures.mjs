@@ -101,6 +101,7 @@ export const PERM_TYPES = { "Smuggler's Copter": 'Artifact — Vehicle', // CR2d
   'Skrelv, Defector Mite': 'Legendary Artifact Creature — Phyrexian Mite', // M-255
   'Lurrus of the Dream-Den': 'Legendary Creature — Cat Nightmare', // M-256
   'Malcolm, Keen-Eyed Navigator': 'Legendary Creature — Siren Pirate', // M-258
+  'Scorn-Blade Berserker': 'Creature — Human Berserker', // M-260
   'Izzet Signet': 'Artifact', 'Orzhov Signet': 'Artifact', 'Arcane Signet': 'Artifact', 'Talisman of Creativity': 'Artifact',
   'Talisman of Hierarchy': 'Artifact', 'Fellwar Stone': 'Artifact', 'Lotus Petal': 'Artifact', 'Chromatic Sphere': 'Artifact',
   'Chromatic Star': 'Artifact', 'Soul-Guide Lantern': 'Artifact', 'Nihil Spellbomb': 'Artifact', 'Lembas': 'Artifact',

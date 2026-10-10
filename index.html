@@ -5267,6 +5267,9 @@ const EFFECTS = {
   // CR2b.1 · 603.7: "…at the beginning of the next turn's upkeep" — a resolução só registra a promessa; os efeitos de dentro vão à pilha depois
   delayed: { fields: [], targets: ['self', 'target-controller'] },
   desenterrar: { fields: [], targets: ['self'] }, // M-256 · resolução do desenterrar (702.84a)
+  reforco: { fields: [], targets: ['first-target'] }, // M-260 · a segunda metade do reforço (702.165a)
+  amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
+  resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
   exilar_fichas_mesmo_nome: { fields: [], targets: ['first-target'] }, // M-258 · "and all tokens that player controls with the same name as that permanent"
   reflexive: { fields: [], targets: ['self'] },
   // CR2b.5 · "…unless that player pays {N}": aquele jogador decide; se não pagar, os efeitos de dentro acontecem
@@ -5819,6 +5822,7 @@ function validateScript(sc) {
   if (sc && sc.cycling && !sc.cycling.mana) errs.push('ciclar sem custo');
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
+  if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
   // S34 · tempestade, conceder e metamorfo
   if (sc && sc.storm != null && sc.storm !== true) errs.push('tempestade é uma marca, sem valor');
   if (sc && sc.changeling != null && sc.changeling !== true) errs.push('metamorfo é uma marca, sem valor');
@@ -6598,6 +6602,14 @@ const RAW_SCRIPTS = [
   { name: 'Killian, Ink Duelist', self: { reduzSeMira: { tipos: ['creature'], generic: 2 } },
     note: 'a redução vale para o custo de mana, o lampejo do passado e o conceder; outros custos alternativos (fuga, disturb, presságio, custos alternativos de carta) ainda não a recebem — nenhum aparece nas listas atuais',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-260 · texto de 05/10/2026; segunda fonte de 10/10/2026
+  { name: 'Scorn-Blade Berserker', backup: 1, // "Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that's another creature, it gains the following ability until end of turn.)"
+    abilities: [{ kind: 'activated', cost: { mana: '{1}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }], // "{1}, Sacrifice this creature: Draw a card."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Lazotep Plating', effects: [{ do: 'amass', amount: 1, subtipo: 'Zombie' }, // "Amass Zombies 1."
+      { do: 'resistencia_jogador' }, { do: 'keyword', keyword: 'hexproof', cada: { de: 'you' } }], // "You and permanents you control gain hexproof until end of turn."
+    note: 'Exército que já existe e não é Zumbi não ganha o subtipo (nas listas, o único Exército é o que a própria carta cria)',
+    example: { target: 'none', expect: { tokens: 1 } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -13688,6 +13700,7 @@ function createGame(setup) {
     if (sc.grants) f.script.grants = sc.grants;
     if (sc.permiteConjurar) f.script.permiteConjurar = sc.permiteConjurar; // M-256
     if (sc.unearth) f.script.unearth = sc.unearth; // M-257
+    if (sc.backup) f.script.backup = sc.backup; // M-260
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -13910,7 +13923,7 @@ function moveObject(s, oid, to, { top = true } = {}) {
     for (const k of MARCAS_DA_CONJURACAO) delete o[k];
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = o.owner;
-  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
+  delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (to === 'battlefield') o.ts = relogio(s); // CR2d.1 · 613.7d: carimbo de tempo de quem entra no campo
   o.sick = to === 'battlefield' && s.facts[o.name].types.includes('creature');
@@ -14591,7 +14604,8 @@ function enterStep(s, step) {
 }
 /** CR 514.2 · o dano marcado sai e os efeitos "até o fim do turno" e "neste turno" acabam, tudo ao mesmo tempo. */
 function fimDosEfeitosDoTurno(s) {
-  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
+  for (const pl of s.players) delete pl.tempHexproof; // M-260 · resistência a magia do jogador acaba na limpeza
+  for (const o of battlefield(s)) { delete o.pump; delete o.tempKeywords; delete o.tempTs; podaTemporarios(s, o, 'limpeza'); delete o.prevenirDano; delete o.regenerar; delete o.tempProtection; delete o.tempToxico; delete o.tempResguardoCor; delete o.tempNaoBloqueadaPor; delete o.tempHabilidades; delete o.usedThisTurn; o.damage = 0; delete o.deathtouched; } // M-255 · tóxico, resistência a magia de cor e "não bloqueada por cor" até o fim do turno
   delete s.fogged; delete s.preventedColors; delete s.noPrevention; delete s.prevencoes; // CR2-G R5b · escudos do verbo prevenir também acabam
   for (const o of Object.values(s.objects)) if (o.damagePrevented) { delete o.damagePrevented; delete o.preventGainTo; } // R9 · Hallow: a prevenção acaba com o turno
 }
@@ -14819,6 +14833,7 @@ function grantedAbilities(s, o) {
     for (const ab of ((s.facts[aura.name].script || {}).grants || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 });
     for (const ab of ((s.facts[aura.name].script || {}).grants || {}).triggered || []) out.push({ ...ab, kind: 'triggered', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 }); // M-251 · "Enchanted creature has 'Whenever this creature …'" (613.1f)
   }
+  for (const h of o.tempHabilidades || []) out.push({ ...h.ab, grantedBy: h.de, grantedTs: h.ts || 0 }); // M-260 · reforço: habilidades ganhas até o fim do turno
   const par = soulbondPartner(s, o);
   if (par) for (const dono of [o, par]) {
     for (const ab of ((s.facts[dono.name].script || {}).soulbond || {}).activated || []) out.push({ ...ab, kind: 'activated', grantedBy: dono.name });
@@ -14835,6 +14850,8 @@ const abilitiesOf = (s, o) => {
   if (sc.cumulativeUpkeep) list.push({ kind: 'triggered', when: 'upkeep', effects: [{ do: 'cumulative_upkeep', mana: sc.cumulativeUpkeep.mana }] });
   // S21 · cada habilidade de lealdade é uma ativada de tempo de feitiço, uma por turno
   for (const ab of sc.loyalty || []) list.push({ kind: 'activated', cost: {}, loyalty: ab.cost, label: ab.label, sorceryOnly: true, effects: ab.effects });
+  // M-260 · 702.165 · reforço N: ao entrar, N marcadores +1/+1 na criatura alvo; se for outra, ela ganha as outras habilidades até o fim do turno
+  if (sc.backup) list.unshift({ kind: 'triggered', when: 'etb', effects: [{ do: 'counters', amount: sc.backup, target: 'creature' }, { do: 'reforco', target: 'first-target' }] });
   // S11 · equipar é uma habilidade ativada com alvo, só no tempo de feitiço
   if (sc.equip) list.push({ kind: 'activated', cost: sc.equip.cost || {}, sorceryOnly: true, equip: true, effects: [{ do: 'attach', target: 'creature-you-control' }] });
   return list.concat(grantedAbilities(s, o));
@@ -14915,7 +14932,7 @@ function selecionar(s, p, sel, selfOid, opts = {}) {
   } else if (zona === 'stack') {
     for (const oid of s.stack) { const o = s.objects[oid]; if (oid === selfOid || (isAbility(o) && !sel.habilidades)) continue; if (isAbility(o) || selCasa(s, p, o, sel, selfOid, opts)) out.push({ oid }); }
   }
-  if (sel.jogadores) s.players.forEach((pl, i) => { if (!pl.lost && (sel.jogadores === 'any' || (sel.jogadores === 'opponent' ? i !== p : i === p))) out.push({ player: i }); });
+  if (sel.jogadores) s.players.forEach((pl, i) => { if (!pl.lost && !(mira && pl.tempHexproof && i !== p) && (sel.jogadores === 'any' || (sel.jogadores === 'opponent' ? i !== p : i === p))) out.push({ player: i }); }); // M-260 · jogador com resistência a magia
   return out;
 }
 /** Alvos legais: seletor escrito no script, ou nome antigo traduzido para seletor (ALVO_SELETOR); o que não tem
@@ -14930,7 +14947,7 @@ function legalTargetsLegado(s, p, kind, selfOid, color) {
   let out = [];
   const srcObj = selfOid ? s.objects[selfOid] : null;
   const perms = battlefield(s).filter(o => targetable(s, p, o, srcObj));
-  const players = s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
+  const players = s.players.map((pl, i) => pl.lost || (pl.tempHexproof && i !== p) ? -1 : i).filter(i => i >= 0); // M-260 · jogador com resistência a magia não é alvo de oponente
   if (['any', 'creature', 'planeswalker', 'permanent', 'artifact', 'enchantment', 'artifact-enchantment', 'artifact-creature'].includes(kind)) {
     for (const o of perms) {
       const f = { ...s.facts[o.name], types: tiposDe(s, o) }; // CR2d.1 · tipos de agora (camada 4)
@@ -15572,6 +15589,21 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'reforco': { // M-260 · se o alvo é outra criatura, ganha as habilidades da carta (menos o reforço) até o fim do turno
+      const fonte = s.objects[src.ability ? src.source : src.oid];
+      if (!obj || obj.zone !== 'battlefield' || !fonte || obj.oid === fonte.oid) { note({ failed: true }); break; }
+      const habs = ((s.facts[fonte.name].script || {}).abilities || []);
+      obj.tempHabilidades = [...(obj.tempHabilidades || []), ...habs.map(ab => ({ ab, de: fonte.name, ts: relogio(s) }))];
+      note({ target: obj.name, amount: habs.length }); break;
+    }
+    case 'amass': { // M-260 · 701.47a · sem Exército, cria um Exército 0/0 preto do tipo; depois N marcadores +1/+1 num Exército seu
+      const tipo = eff.subtipo || 'Zombie';
+      let army = battlefield(s).find(o => o.controller === ctrl && /\bArmy\b/.test(linhaDeTipo(s, o)));
+      if (!army) { createToken(s, { name: `${tipo} Army`, types: ['creature'], subtypes: [tipo, 'Army'], colors: ['B'], power: 0, toughness: 0 }, ctrl, events); army = battlefield(s).filter(o => o.controller === ctrl && /\bArmy\b/.test(linhaDeTipo(s, o))).pop(); }
+      const n = amountOf(s, src, eff.amount); if (army) addCounters(s, army, n);
+      note({ target: army ? army.name : '', amount: n }); break;
+    }
+    case 'resistencia_jogador': { s.players[ctrl].tempHexproof = true; note({ target: s.players[ctrl].name }); break; } // M-260
     case 'desenterrar': { // M-257 · volta ao campo com ímpeto; exilada no próximo passo final; se fosse sair do campo, exilada no lugar
       const carta = s.objects[src.ability ? src.source : src.oid];
       if (!carta || carta.zone !== 'graveyard') { note({ failed: true }); break; }
@@ -20619,6 +20651,9 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'reforco': return 'se for outra criatura, ela ganha as outras habilidades desta até o fim do turno'; // M-260
+    case 'amass': return `amassa ${n} (${e.subtipo || 'Zombie'}): sem Exército, cria um 0/0; põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} nele`;
+    case 'resistencia_jogador': return 'você ganha resistência a magia até o fim do turno';
     case 'desenterrar': return 'volta do cemitério para o campo com ímpeto; é exilada no início do próximo passo final ou se fosse sair do campo'; // M-257
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
     case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
