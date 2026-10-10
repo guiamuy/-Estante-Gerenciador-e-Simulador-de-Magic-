@@ -3228,6 +3228,15 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar. Versão não sobe (cartas sem script antes).
 - **Próximo:** M-263 — March of Swirling Mist (custo adicional variável com redução) e Moonsnare Prototype (canalizar; topo ou fundo à escolha do dono).
 
+**M-263 · R11 · Delve com escolha e Dark Confidant** ✅ (leva M-263, motor v96, sem mudança no que existe) — 3 testes novos.
+- **Regra (702.66):** `delve: true` no script: a mesa oferece conjurar exilando de 1 até o custo genérico em cartas do cemitério (cada uma paga {1}); a quantidade vem na ação e, logo depois de a mágica ir à pilha e antes de qualquer prioridade, quem conjura escolhe quais cartas exilar (a mesma escolha da "colher provas"). Substitui o atalho antigo que só oferecia "custo cheio ou delve máximo".
+- **Correção de carta:** Dig Through Time mandava as cinco não escolhidas para o cemitério; o texto oficial manda para o fundo do grimório (e as duas escolhidas são obrigatórias).
+- **Cartas cobertas (completas):** Treasure Cruise e Dig Through Time (eram parciais) e Dark Confidant (revela o topo, põe na mão e perde vida igual ao valor de mana).
+- **Simplificação declarada:** a ordem das cartas no fundo ("in any order") segue a ordem em que foram olhadas.
+- **Medição:** Killian 94% → **95%** (completo 96 · parcial 4 · manual 1); Malcolm + Kediss 89% → **91%** (completo 91 · parcial 6 · manual 3).
+- **Golden:** idênticas, sem regravar. Versão não sobe: as duas cartas de delve eram parciais (lista com elas não jogava em modo completo).
+- **Próximo:** M-264 — Moonsnare Prototype (mana com custo de virar outra; canalizar com a escolha de topo ou fundo pelo dono) e Priest of Forgotten Gods.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

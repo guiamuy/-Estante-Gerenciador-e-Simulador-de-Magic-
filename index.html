@@ -5270,6 +5270,7 @@ const EFFECTS = {
   reforco: { fields: [], targets: ['first-target'] }, // M-260 · a segunda metade do reforço (702.165a)
   sai_de_fase: { fields: [], targets: ['creature', 'permanent', 'first-target'] }, // M-261 · 702.26 "phases out"
   mare_alta: { fields: [], targets: ['self'] }, // M-262 · High Tide
+  revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
   amass: { fields: ['amount'], targets: ['self'] }, // M-260 · 701.47 amass
   resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
   exilar_fichas_mesmo_nome: { fields: [], targets: ['first-target'] }, // M-258 · "and all tokens that player controls with the same name as that permanent"
@@ -5825,6 +5826,7 @@ function validateScript(sc) {
   if (sc && sc.transmute && !sc.transmute.mana) errs.push('transmutar sem custo');
   if (sc && sc.unearth != null && !(sc.unearth && typeof sc.unearth.mana === 'string')) errs.push('desenterrar sem custo'); // M-257 · 702.84
   if (sc && sc.backup != null && !(Number.isInteger(sc.backup) && sc.backup > 0)) errs.push('reforço precisa de um número inteiro'); // M-260 · 702.165
+  if (sc && sc.delve != null && sc.delve !== true) errs.push('delve é uma marca, sem valor'); // M-263 · 702.66
   // S34 · tempestade, conceder e metamorfo
   if (sc && sc.storm != null && sc.storm !== true) errs.push('tempestade é uma marca, sem valor');
   if (sc && sc.changeling != null && sc.changeling !== true) errs.push('metamorfo é uma marca, sem valor');
@@ -6622,6 +6624,9 @@ const RAW_SCRIPTS = [
   { name: 'Narset, Parter of Veils', self: { oponentesCompramUma: true }, loyalty: [ // "Each opponent can't draw more than one card each turn."
     { cost: -2, label: '−2: Olha as quatro de cima; pode pegar uma que não seja criatura nem terreno', effects: [{ do: 'look', count: 4, amount: 1, revela: true, filter: { notTypes: ['creature', 'land'] }, to: 'hand', rest: 'library-bottom-random' }] }], // "−2: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-263 · texto de 05/10/2026; segunda fonte de 10/10/2026
+  { name: 'Dark Confidant', abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'revelar_topo_para_mao', perdeVidaPeloValor: true }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -6763,13 +6768,12 @@ const RAW_SCRIPTS = [
     { kind: 'triggered', when: 'dies', mayPay: { mana: '{B}' }, effects: [{ do: 'draw', amount: 1 }] }],
     example: { action: 'activate:0', target: 'opponent', expect: { graveyardEmpty: true } } },
   // S26 · delve, lampejo com custo de virar criaturas e as últimas cartas (Scryfall)
-  { name: 'Treasure Cruise', effects: [{ do: 'draw', amount: 3 }],
-    alt: [{ label: 'Delve: exilar 7 cartas do cemitério', cost: { mana: '{U}', exileGraveyard: 7 } }],
-    covers: 'partial', note: 'no delve real você exila quantas quiser; aqui o motor oferece o custo cheio ou o normal',
+  // M-263 · "Delve · Draw three cards." (texto de 05/10/2026; segunda fonte de 10/10/2026)
+  { name: 'Treasure Cruise', effects: [{ do: 'draw', amount: 3 }], delve: true,
     example: { target: 'none', expect: { handDelta: 3 } } },
-  { name: 'Dig Through Time', effects: [{ do: 'look', count: 7, amount: 2, to: 'hand', rest: 'graveyard' }],
-    alt: [{ label: 'Delve: exilar 6 cartas do cemitério', cost: { mana: '{1}{U}{U}', exileGraveyard: 6 } }],
-    covers: 'partial', note: 'no delve real você exila quantas quiser',
+  // M-263 · "Delve · Look at the top seven cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order."
+  // (o resto ia para o cemitério: corrigido para o fundo do grimório)
+  { name: 'Dig Through Time', effects: [{ do: 'look', count: 7, amount: 2, min: 2, to: 'hand', rest: 'library-bottom' }], delve: true,
     example: { target: 'none', expect: { picked: true } } },
   { name: 'Battle Screech', effects: [{ do: 'token', amount: 2, token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['W'], power: 1, toughness: 1, keywords: ['flying'] } }],
     flashback: { tapOther: { types: ['creature'], color: 'W', amount: 3 } },
@@ -13819,6 +13823,7 @@ function createGame(setup) {
     if (sc.permiteConjurar) f.script.permiteConjurar = sc.permiteConjurar; // M-256
     if (sc.unearth) f.script.unearth = sc.unearth; // M-257
     if (sc.backup) f.script.backup = sc.backup; // M-260
+    if (sc.delve) f.script.delve = true; // M-263
     if (sc.self) f.script.self = sc.self;
     // palavras-chave impressas na carta, declaradas no script: valem mesmo quando o dado da carta veio sem elas (sem rede)
     if (sc.self && sc.self.devoid) f.colors = []; // R7 · desprovido de cor (702.114): incolor mesmo com mana colorida no custo
@@ -15713,6 +15718,13 @@ function applyEffect(s, src, eff, tgt, events) {
       for (const f of fichas) moveObject(s, f.oid, 'exile');
       note({ amount: fichas.length, name: nome }); break;
     }
+    case 'revelar_topo_para_mao': { // M-263 · "reveal the top card of your library and put that card into your hand. You lose life equal to its mana value."
+      const topo = s.zones[ctrl].library[0]; if (!topo) { note({ failed: true }); break; }
+      const c = s.objects[topo], vm = (s.facts[c.name] || {}).cmc || 0;
+      events.push({ kind: 'effect', do: 'reveal', name: src.name, target: c.name });
+      moveObject(s, topo, 'hand'); if (eff.perdeVidaPeloValor && vm) perdeVida(s, ctrl, vm);
+      note({ target: c.name, amount: vm }); break;
+    }
     case 'mare_alta': { s.mareAlta = (s.mareAlta || 0) + 1; note({ amount: s.mareAlta }); break; } // M-262 · "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}"
     case 'sai_de_fase': { // M-261 · sai de fase com o que está anexado (fase indireta); sai do combate; volta no desvirar de quem a controla
       if (!obj || obj.zone !== 'battlefield' || obj.phasedOut) { note({ failed: true }); break; }
@@ -17110,6 +17122,9 @@ const HANDLERS = {
     need.forEach((eff, i) => { if (chosen[i] == null && eff.upTo) return; if (!targetStillLegal(s, a.p, eff.target, chosen[i], a.oid, eff.targetColor, eff, { controller: a.p, xPaid: a.x || 0 })) throw new RuleError('alvo', 'alvo ilegal'); }); // CR2c.3 · "valor de mana X ou menos" com o X desta conjuração
     if (violaPortaEstandarte(s, a.p, need, chosen, a.oid)) throw new RuleError('alvo', 'um dos alvos precisa ser um porta-estandarte');
     if (excedeSoma(s, need, chosen)) throw new RuleError('alvo', 'os alvos passam do valor de mana total permitido'); // CR2c.5
+    // M-263 · 702.66 delve: cada carta exilada do cemitério paga {1}; quantas vem na ação, quais o jogador escolhe logo depois
+    const delveN = a.delve || 0;
+    if (delveN && !(Number.isInteger(delveN) && delveN > 0 && (f.script || {}).delve && !a.alt && !a.flashback && delveN <= (f.cost.generic || 0) && s.zones[a.p].graveyard.filter(x => x !== a.oid).length >= delveN)) throw new RuleError('delve', 'delve: exile de 1 até o custo genérico, com cartas suficientes no cemitério');
     // S16 · custo alternativo, lampejo do passado ou o custo normal
     const alt = a.alt != null ? altCosts(s, o)[a.alt] : null;
     if (a.alt != null && !alt) throw new RuleError('custo', 'custo alternativo inexistente');
@@ -17134,8 +17149,8 @@ const HANDLERS = {
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
-        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0, a.targets || [])); perdeVida(s, a.p, 2 * a.vida);
-      } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0, a.targets || [])); } // M-259 · a redução por alvo usa os alvos escolhidos
+        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0, a.targets || []) - delveN); perdeVida(s, a.p, 2 * a.vida);
+      } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0, a.targets || []) - delveN); } // M-259 · a redução por alvo usa os alvos escolhidos
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
       if (!lo || !s.zones[a.p].hand.includes(l) || !(s.facts[lo.name].types || []).includes('land')) throw new RuleError('custo', 'descarte um terreno da mão para retraçar');
@@ -17193,6 +17208,8 @@ const HANDLERS = {
       startPick(s, { p: a.p, from: cemiterio, min: 1, max: cemiterio.length, needMv: n, to: 'exile', rest: 'stay',
         label: 'colher provas', source: o.name }, []);
     }
+    if (delveN) { const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid); // M-263 · as cartas do delve: quem conjura escolhe
+      startPick(s, { p: a.p, from: cemiterio, min: delveN, max: delveN, to: 'exile', rest: 'stay', label: 'delve', source: o.name }, []); }
     chargeWard(s, a.p, a.oid, chosen); // S41 · vigilância do alvo
     s.turn.passes = 0;
   },
@@ -17980,6 +17997,12 @@ function legalActions(s, p, { adjudication = false } = {}) {
   if (canSorcery) for (const oid of s.zones[p].graveyard) {
     const un = (s.facts[s.objects[oid].name].script || {}).unearth;
     if (un && (!s.manaCheck || canPay(s, p, parseCost(un.mana)))) out.push({ t: 'unearth', p, oid });
+  }
+  // M-263 · delve: uma oferta por quantidade de cartas exiladas (as cartas, quem conjura escolhe depois)
+  for (const oid of s.zones[p].hand) {
+    const o = s.objects[oid], f = s.facts[o.name]; if (!(f.script || {}).delve || !(canSorcery || !isSorcerySpeed(f))) continue;
+    const gy = s.zones[p].graveyard.length, teto = Math.min(gy, f.cost.generic || 0);
+    for (let k = 1; k <= teto; k++) if (!s.manaCheck || canPay(s, p, f.cost, castExtra(s, p, o, 0) - k)) casts(o).forEach(x => out.push({ ...x, delve: k }));
   }
   // S29 · transmutar, da mão, no tempo de feitiço
   if (canSorcery) for (const oid of s.zones[p].hand) {
@@ -19964,7 +19987,7 @@ function describe(before, a, events, after) {
       const alvo = (a.targets || []).map(x => x.player != null ? who(before, x.player) : nameOf(before, x.oid)).join(', ');
       // Leva 121 · carta conjurada virada para baixo não diz o nome (708.2: é informação oculta)
       if (a.faceDown) { L.push(`${P} conjurou uma criatura virada para baixo`); break; }
-      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.retrace ? ' (retraçar)' : a.permissao != null ? ` (do cemitério, por ${nameOf(before, a.permissao)})` : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
+      const extra = a.plotted ? ' (tramada, sem pagar)' : a.alt != null ? ' (custo alternativo)' : a.flashback ? ' (lampejo do passado)' : a.retrace ? ' (retraçar)' : a.permissao != null ? ` (do cemitério, por ${nameOf(before, a.permissao)})` : a.delve ? ` (delve ${a.delve})` : a.disturb ? ' (disturb)' : a.omen ? ' (presságio)' : a.bestow ? ' (conceder)' : '';
       const comX = a.x != null ? ` com X = ${a.x}` : ''; // Leva 104
       // Leva 110 · "alvo:" no lugar da seta, que não dizia nada para quem não conhece o app
       L.push(extra ? `${P} conjurou ${o.name}${extra}${comX}${alvo ? ` · alvo: ${alvo}` : ''}` : (o.zone === 'command' ? `${P} conjurou ${o.name} da zona de comando (imposto ${E.commanderTax(after, a.p, a.oid)})` : `${P} conjurou ${o.name}${comX}`) + (alvo ? ` · alvo: ${alvo}` : ''));
@@ -20786,6 +20809,7 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
+    case 'revelar_topo_para_mao': return `revela a carta do topo e a põe na mão${e.perdeVidaPeloValor ? '; perde vida igual ao valor de mana dela' : ''}`; // M-263
     case 'mare_alta': return 'até o fim do turno, cada Ilha virada para mana dá {U} a mais (para qualquer jogador)'; // M-262
     case 'sai_de_fase': return `${alvo || 'a permanente'} sai de fase (trata-se como se não existisse até o próximo desvirar de quem a controla)`; // M-261
     case 'reforco': return 'se for outra criatura, ela ganha as outras habilidades desta até o fim do turno'; // M-260
@@ -22663,7 +22687,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
-        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
+        : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
           // Leva 125 · lampejo e custo alternativo já dizem o que se paga: o custo impresso da carta não entra ("{2}{R} · {R}" confundia)
           + (a.kick ? (a.kick > 1 ? ` · reforço ×${a.kick}` : ' · com reforço') : '') // CR2c.1
           + (a.vida != null ? (a.vida ? ` · pagando ${2 * a.vida} de vida` : ' · pagando com mana') : '') // CR2c.4 · phyrexiano
@@ -23069,7 +23093,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     } else if (s.pending && s.pending.kind === 'pick' && s.pending.p === v) {
       const pk = s.pending;
       const done = pk.picked.length >= pk.min;
-      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
+      const LABEL = { 'colher provas': 'Colher provas: exile do cemitério', desvirar: 'Escolha o que desvirar', delve: 'Delve: escolha o que exilar do cemitério', 'descartar ou sacrificar': 'Descartar ou sacrificar um terreno?', 'escolher o descarte': 'Escolha o descarte do oponente', 'devolver para a mão': 'Escolha o que volta para a mão', 'scry': 'Vidência: escolha o que fica no topo', 'surveil': 'Vigiar: escolha o que fica no topo', 'vasculhar': 'Vasculhar o grimório', 'olhar o topo': 'Olhar o topo do grimório', 'devolver ao topo': 'Devolver ao topo' };
       const REST = { 'library-bottom': 'vai para o fundo', 'graveyard': 'vai para o cemitério', 'stay': 'fica onde está', 'library-top': 'fica no topo' };
       // Leva 125 · o título diz de qual carta é a escolha; a contagem só aparece quando se escolhe mais de uma
       const tituloPk = LABEL[pk.label] || 'Escolha cartas';
