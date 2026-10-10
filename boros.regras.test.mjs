@@ -2,7 +2,7 @@
 // (.listas/decks.json), o texto de .listas/oficiais.json (consultas de 30/09/2026) e o modo único.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { E, J, act, poe, jogo as jogoDaLista, legais, conjura, resolveUm, passaAte, temPalavra } from './listas.mjs';
+import { E, J, act, poe, jogo as jogoDaLista, legais, conjura, resolveUm, passaAte, temPalavra, CARDS } from './listas.mjs';
 const TERRENOS = ['Plains', 'Plains', 'Plains', 'Plains', 'Mountain', 'Mountain'];
 const jogo = (seed = 1, o = {}) => jogoDaLista({ lista: 'Pauper Boros Bully', oponente: 'Pauper Rakdos Madness', seed, terrenos: TERRENOS, terrenosDoOponente: ['Mountain', 'Mountain', 'Swamp', 'Swamp'], ...o });
 const zona = (s, oid) => s.objects[oid].zone;
@@ -182,4 +182,45 @@ test('v69 · gatilhos idênticos da mesma fonte não pedem ordem: a Lunarch Vete
   // gatilhos DIFERENTES continuam pedindo a ordem (Squadron Hawk entrando com a Veteran em campo)
   let t = jogo(21); let h; [t, h] = poe(t, 0, 'Squadron Hawk', 'hand'); [t] = poe(t, 0, 'Lunarch Veteran');
   t = resolveUm(conjura(t, 0, h)); assert.equal(t.pending && t.pending.kind, 'triggers');
+});
+
+// M-257 · relato #12 (10/10/2026): com os dados da Scryfall a Lunarch Veteran bloqueou a Harrier Strix (voar). A Scryfall
+// põe em `keywords` as palavras-chave de TODAS as faces de uma carta de duas faces (aqui "Flying" é da Luminous Phantom, a
+// face de trás); o motor lia essa soma como se fosse da frente. Texto oficial: Oracle do Forge (consulta de 10/10/2026),
+// "lunarch_veteran_luminous_phantom.txt" — frente sem voar; o Flying está só na face ALTERNATE. CR 712.8a: a face da frente
+// tem só as características dela; CR 702.9b/509.1b: sem voar nem alcance, não bloqueia criatura com voar.
+const COMO_A_SCRYFALL_MANDA = {
+  ...CARDS['Lunarch Veteran'], layout: 'transform', type_line: 'Creature — Human Cleric // Creature — Spirit Cleric', keywords: ['Flying', 'Disturb'],
+  oracle_text: 'Whenever another creature you control enters, you gain 1 life.\nDisturb {1}{W} (You may cast this card from your graveyard transformed for its disturb cost.)\n//\nFlying\nWhenever another creature you control leaves the battlefield, you gain 1 life.\nIf Luminous Phantom would be put into a graveyard from anywhere, exile it instead.',
+  faces: [{ name: 'Lunarch Veteran', mana_cost: '{W}', type_line: 'Creature — Human Cleric', oracle_text: 'Whenever another creature you control enters, you gain 1 life.\nDisturb {1}{W} (You may cast this card from your graveyard transformed for its disturb cost.)', power: '1', toughness: '1', colors: ['W'] },
+    { name: 'Luminous Phantom', mana_cost: '', type_line: 'Creature — Spirit Cleric', oracle_text: 'Flying\nWhenever another creature you control leaves the battlefield, you gain 1 life.\nIf Luminous Phantom would be put into a graveyard from anywhere, exile it instead.', power: '1', toughness: '1', colors: ['W'] }]
+};
+test('M-257 · relato #12: com os dados da Scryfall a Lunarch Veteran (frente) não tem voar e não bloqueia a Harrier Strix; a Luminous Phantom (perturbar) continua voando', () => {
+  const salvo = CARDS['Lunarch Veteran']; CARDS['Lunarch Veteran'] = COMO_A_SCRYFALL_MANDA;
+  try {
+    let s = jogoDaLista({ lista: 'Pauper Mono Blue Faeries', oponente: 'Pauper Boros Bully', seed: 3 });
+    let strix, vet; [s, strix] = poe(s, 0, 'Harrier Strix'); [s, vet] = poe(s, 1, 'Lunarch Veteran');
+    assert.ok(!E.hasKeyword(s, s.objects[vet], 'flying'), 'a frente não voa');
+    s = passaAte(s, x => x.pending && x.pending.kind === 'attackers'); s = act(s, { t: 'attack', p: 0, attackers: [strix] });
+    s = passaAte(s, x => x.pending && x.pending.kind === 'blockers');
+    assert.ok(s.pending && s.pending.kind === 'blockers', 'a Veteran desvirada ainda pode bloquear outra coisa: o passo de bloqueio abre');
+    assert.throws(() => E.apply(s, { t: 'block', p: 1, blocks: [[vet, strix]] }), /voar/);
+    // a face de trás pelo caminho que já existia: perturbar volta como Luminous Phantom, com voar
+    let t = jogo(4); let g; [t, g] = poe(t, 0, 'Lunarch Veteran', 'graveyard'); [t] = poe(t, 0, 'Plains'); [t] = poe(t, 0, 'Plains');
+    t = ate(act(t, acoes(t, g, x => !!x.disturb)[0]));
+    assert.equal(t.objects[g].name, 'Luminous Phantom'); assert.ok(E.hasKeyword(t, t.objects[g], 'flying'));
+  } finally { CARDS['Lunarch Veteran'] = salvo; }
+});
+test('M-257 · classe: carta de várias faces fica só com as palavras-chave da face da frente (transformar, dupla face modal, aventura, virar); carta de uma face e carta dividida ficam como vinham', () => {
+  const kw = c => E.cardFacts(c).kw;
+  const duas = (layout, frente, tras, keywords) => ({ name: 'X', layout, type_line: 'Creature — A // Creature — B', keywords, faces: [{ name: 'X', type_line: 'Creature — A', oracle_text: frente }, { name: 'Y', type_line: 'Creature — B', oracle_text: tras }] });
+  assert.deepEqual(kw(COMO_A_SCRYFALL_MANDA), ['disturb']);
+  assert.deepEqual(kw(duas('transform', 'At the beginning of your upkeep, look at the top card of your library.', 'Flying', ['Flying', 'Transform'])), [], 'Delver: voar é da Insectile Aberration');
+  assert.deepEqual(kw(duas('transform', 'Flying, vigilance\nWard {2}', 'Flying\nTrample', ['Flying', 'Vigilance', 'Ward', 'Trample'])), ['flying', 'vigilance', 'ward'], 'lista com vírgula e "Ward {2}" na frente; atropelar só atrás');
+  assert.deepEqual(kw(duas('modal_dfc', 'Lifelink (Damage dealt by this creature also causes you to gain that much life.)', 'As this land enters, you may pay 3 life.', ['Lifelink'])), ['lifelink'], 'texto de lembrete não atrapalha');
+  assert.deepEqual(kw(duas('adventure', 'Trample', 'Target creature gains flying until end of turn.', ['Trample'])), ['trample']);
+  assert.deepEqual(kw(duas('transform', 'Creatures you control with flying get +1/+1.', 'Flying', ['Flying'])), [], 'citar voar no texto não é ter voar');
+  assert.deepEqual(kw({ name: 'Z', type_line: 'Creature — Bird', keywords: ['Flying'], oracle_text: 'Flying' }), ['flying'], 'uma face: igual');
+  assert.deepEqual(kw({ name: 'F', layout: 'split', type_line: 'Instant // Instant', keywords: ['Flash'], faces: [{ name: 'F', oracle_text: 'Draw a card.' }, { name: 'G', oracle_text: 'Flash' }] }), ['flash'], 'dividida: as duas metades valem na mão');
+  assert.deepEqual(kw({ name: 'S', layout: 'transform', type_line: 'Creature — A // Creature — B', keywords: ['Scry'], faces: [{ name: 'S', oracle_text: 'When this creature enters, scry 2.' }, { name: 'T', oracle_text: '' }] }), ['scry'], 'ação de palavra-chave no meio da frase da frente fica');
 });

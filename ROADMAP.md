@@ -3169,6 +3169,13 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Medição:** Killian 89% → **90%** (completo 91 · parcial 6 · manual 4).
 - **Golden:** idênticas, sem regravar. Versão não sobe (carta sem script antes).
 - **Próximo:** M-257 — desenterrar (702.84): Priest of Fell Rites (habilidade ativada do cemitério, ímpeto, exílio no próximo passo final ou ao sair do campo).
+**M-257 · Relato #12 · palavras-chave só da face da frente** ✅ (leva M-257, 10/10/2026, motor **v97**, trilha `motor` conduzida pelo orquestrador na conversa `geral`) — 2 testes novos.
+- **Relato #12 (erro · impede o uso):** contra o Shark, a Lunarch Veteran bloqueou a Harrier Strix (voar) sem ter virado por perturbar.
+- **Causa (classe):** a Scryfall põe em `keywords` as palavras-chave de **todas** as faces de uma carta de várias faces; `cardFacts` lia essa soma como se fosse da frente (o Flying era da Luminous Phantom). Atinge toda carta de transformar, dupla face modal, aventura e virar cuja outra face tem palavra-chave (Delver of Secrets voaria antes de virar). Os testes não pegavam porque o arnês monta as palavras-chave pelo texto da frente.
+- **Regra:** CR 712.8a (a face da frente tem só as características dela); 509.1b/702.9 (sem voar nem alcance, não bloqueia quem voa). Texto oficial: Oracle do Forge, `lunarch_veteran_luminous_phantom.txt` (consulta de 10/10/2026): a frente não tem voar; o Flying fica só na face de trás.
+- **Correção:** `palavrasDaFrente` em `cardFacts`: em carta de várias faces ficam as palavras-chave que a face da frente tem como habilidade (início de linha ou lista com vírgula, sem lembrete; "Ward {2}" vale) e, para as que não são do motor (ações como "scry", mecânicas como "disturb"), as citadas no texto da frente. Carta dividida fica como vinha. A face de trás continua pelos fatos do `back`.
+- **Golden:** regravados **só pela versão** (com a correção e a v96 saem idênticos; logs iguais). Versão sobe porque uma partida antiga com os dados da Scryfall daria outro resultado; partida salva na v96 não abre na v97.
+- **Testes:** `boros.regras` +2 (o relato com a carta como a Scryfall manda: sem voar, bloqueio recusado com o motivo "voar", Luminous Phantom voando; a classe: transformar, dupla face modal com lembrete, aventura, "citar voar não é ter voar", uma face e dividida intactas, ação de palavra-chave no meio da frase).
 
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.

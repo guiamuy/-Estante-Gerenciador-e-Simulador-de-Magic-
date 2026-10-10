@@ -13168,7 +13168,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 96;
+const ENGINE_VERSION = 97;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -13277,10 +13277,24 @@ function protecaoImpressa(card) {
   }
   return [...new Set(out)];
 }
+/** M-257 · relato #12 · CR 712.8a: a Scryfall põe em `keywords` as palavras-chave de TODAS as faces (a Lunarch Veteran
+    vinha com o "Flying" da Luminous Phantom). Em carta de várias faces fica só o que a face da frente diz: as palavras-chave
+    do motor só contam como habilidade própria (início de linha ou lista com vírgula, sem lembrete), as outras (ações como
+    "scry", mecânicas como "disturb") pela palavra no texto da frente. Carta dividida fica como vinha (as metades valem
+    juntas fora da pilha); a face de trás tem os fatos próprios, pelo caminho do `back`. */
+function palavrasDaFrente(card, kw) {
+  const faces = card && card.faces;
+  if (!Array.isArray(faces) || faces.length < 2 || ['split', 'aftermath'].includes(card.layout)) return kw;
+  const linhas = String(faces[0].oracle_text || '').split('\n').map(l => l.replace(/\([^)]*\)/g, '').trim().toLowerCase()).filter(Boolean);
+  const esc = k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return kw.filter(k => SC.KEYWORDS.includes(k)
+    ? linhas.some(l => l.split(/[,;]\s*/).some(p => p === k || p.startsWith(k + ' ')))
+    : linhas.some(l => new RegExp(`\\b${esc(k)}\\b`).test(l)));
+}
 function cardFacts(card) {
   const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
   const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => tl.includes(t));
-  const kw = (card && card.keywords || []).map(k => String(k).toLowerCase());
+  const kw = palavrasDaFrente(card, (card && card.keywords || []).map(k => String(k).toLowerCase()));
   const num = v => (v == null || isNaN(parseInt(v, 10))) ? null : parseInt(v, 10);
   return {
     types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw,
