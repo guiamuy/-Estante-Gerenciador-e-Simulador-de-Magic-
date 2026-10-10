@@ -5316,7 +5316,7 @@ const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
-const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked'];
+const ONLY_IF = ['discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked'];
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free']; // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -5645,7 +5645,7 @@ function descreveGatilho(w) {
     e multiplica o bônus (Ancestral Mask, Ethereal Armor). */
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard']; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
-  'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn',
+  'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'x'];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
@@ -6465,6 +6465,9 @@ const RAW_SCRIPTS = [
   { name: 'Knight of the White Orchid', abilities: [{ kind: 'triggered', when: 'etb', condition: { opponentMoreLands: true }, optional: true, // "if an opponent controls more lands than you, you may…"
     effects: [{ do: 'search', amount: 1, filter: { subtypes: ['Plains'] }, to: 'battlefield' }] }], // "search your library for a Plains card, put it onto the battlefield, then shuffle"
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-248 · "Sacrifice this creature: You gain life equal to the life you've lost this turn." (05/10/2026; segunda fonte 10/10/2026)
+  { name: 'Children of Korlis', abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'gain', amount: { per: 'life-lost-this-turn' } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -6876,8 +6879,8 @@ const RAW_SCRIPTS = [
   { name: 'Frantic Search', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2 }],
     covers: 'partial', note: 'desvirar três terrenos ainda não entra',
     example: { target: 'none', expect: { handDelta: 2, discarded: 2 } } },
-  { name: 'Chart a Course', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 1 }],
-    covers: 'partial', note: 'na carta real, só descarta se você não atacou neste turno',
+  // M-248 · "Draw two cards. Then discard a card unless you attacked this turn." (oficiais-commander.json, 05/10/2026; segunda fonte 10/10/2026)
+  { name: 'Chart a Course', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 1, onlyIf: 'not-attacked' }],
     example: { target: 'none', expect: { handDelta: 2, discarded: 1 } } },
   { name: 'Abrade', modes: [
     { label: 'Causar 3 de dano a uma criatura', effects: [{ do: 'damage', amount: 3, target: 'creature' }] },
@@ -13080,7 +13083,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 95;
+const ENGINE_VERSION = 96;
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -13384,6 +13387,7 @@ function countFor(s, src, per) {
   if (per === 'elves-on-battlefield') return perms.filter(isElf).length;
   if (per === 'defenders-you-control') return perms.filter(o => o.controller === src.controller && has(s, o, 'defender')).length;
   if (per === 'life-gained-this-turn') return s.players[src.controller].lifeGained || 0;
+  if (per === 'life-lost-this-turn') return s.players[src.controller].lifeLost || 0; // M-248 · Children of Korlis
   // S46 · "para cada oponente que não puder descartar, compre uma carta"
   if (per === 'opponents-empty-hand') return s.players.filter((pl, i) => i !== src.controller && !pl.lost && !s.zones[i].hand.length).length;
   if (String(per).startsWith('devotion-')) { // S32 · devoção: símbolos daquela cor no custo das suas permanentes
@@ -13695,6 +13699,9 @@ function draw(s, p, n = 1) {
 
 /* ---------------- consultas ---------------- */
 const alive = s => s.players.map((pl, i) => pl.lost ? -1 : i).filter(i => i >= 0);
+/** M-248 · 119.3 / 119.4: perder vida (dano, perda ou pagamento) num lugar só, com o rastro "vida perdida neste turno"
+ * (Children of Korlis); o rastro mora no jogador só depois da primeira perda do turno e some no começo do turno seguinte. */
+function perdeVida(s, p, n) { s.players[p].life -= n; if (n > 0) s.players[p].lifeLost = (s.players[p].lifeLost || 0) + n; }
 function nextAlive(s, from) {
   const n = s.players.length;
   for (let k = 1; k <= n; k++) { const i = (from + k) % n; if (!s.players[i].lost) return i; }
@@ -14030,7 +14037,7 @@ function tapForMana(s, oid, option, mana) {
   o.tapped = true; opt.forEach(c => { s.players[o.controller].pool[c]++; });
   // R11.2 · "This land deals 1 damage to you" (terrenos de dor, Talismãs) e "Pay 1 life" (Spire of Industry) ao gerar cor
   const regra = (s.facts[o.name].script || {}).manaRule;
-  if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) s.players[o.controller].life -= (regra.damage || regra.life);
+  if (regra && (regra.damage || regra.life) && opt.some(c => regra.colors.includes(c))) perdeVida(s, o.controller, regra.damage || regra.life);
 }
 /** Paga o custo (tocando fontes se preciso) ou lança RuleError. */
 function payCost(s, p, cost, extra = 0) {
@@ -14038,7 +14045,7 @@ function payCost(s, p, cost, extra = 0) {
   if (!taps) throw new RuleError('mana', 'mana insuficiente');
   taps.forEach(([oid, k, mana]) => tapForMana(s, oid, k, mana));
   const r = payFrom(s.players[p].pool, cost, extra, 0) || payFrom(s.players[p].pool, cost, extra, s.players[p].life);
-  s.players[p].pool = r.pool; s.players[p].life -= r.life;
+  s.players[p].pool = r.pool; perdeVida(s, p, r.life);
 }
 const canPay = (s, p, cost, extra = 0) => !!planTaps(s, p, cost, extra);
 /** CR2c.4 · 107.4f/601.2f: quantos símbolos phyrexianos o custo tem; com `vida` = n, os n primeiros são pagos com 2 de vida
@@ -14153,7 +14160,7 @@ function payAlt(s, p, cost, pay, selfOid) {
   payExtraCosts(s, p, { sacrificeOther: cost.sacrificeOther, tapOther: cost.tapOther }, pay, selfOid); // o descarte já foi pago acima
   if (cost.life != null) {
     if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente');
-    s.players[p].life -= cost.life;
+    perdeVida(s, p, cost.life);
   }
   if (cost.discard) {
     const list = (pay && pay.discard) || defaultPayment(s, p, cost, selfOid).discard || [];
@@ -14298,7 +14305,7 @@ function fimDosEfeitosDoTurno(s) {
 }
 function finishCleanup(s) {
   fimDosEfeitosDoTurno(s);
-  s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; });
+  s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; delete pl.lifeLost; delete pl.atacouCom; }); // M-248 · rastros do turno
   s.spellsThisTurn = 0;
   for (const o of Object.values(s.objects)) if (o.zone === 'battlefield') { o.damage = 0; delete o.deathtouched; delete o.pump; } // efeitos até o fim do turno acabam
   s.pending = null;
@@ -14411,7 +14418,7 @@ function dealCombatDamage(s) {
         obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - amt); if (isCreature(s, obj)) obj.damage += amt; noteDamaged(s, obj);
       } else if (obj && amt > 0) { obj.damage += amt; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; }
       else {
-        s.players[player].life -= amt;
+        perdeVida(s, player, amt);
         if (src.commander) s.players[player].commanderDamage[src.oid] = (s.players[player].commanderDamage[src.oid] || 0) + amt;
       }
       if (has(s, src, 'lifelink')) { s.players[src.controller].life += amt; s.players[src.controller].lifeGained = (s.players[src.controller].lifeGained || 0) + amt; }
@@ -14796,6 +14803,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'discarded-nonland') return !!fonte && !!fonte.discardedNonland;
   if (eff.onlyIf === 'paid-additional') return !!fonte && !!fonte.paidAdditional; // S53 · "se você fizer"
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
+  if (eff.onlyIf === 'not-attacked') return !!fonte && !(s.players[fonte.controller] || {}).atacouCom; // M-248 · "unless you attacked this turn" (Chart a Course)
   return true;
 }
 function effectTargetName(s, t) { return t == null ? '' : t.oid != null ? ((s.objects[t.oid] || {}).name || '?') : s.players[t.player].name; }
@@ -14909,7 +14917,7 @@ function applyEffect(s, src, eff, tgt, events) {
         // Leva 105 · a prevenção (Prismatic Strands, Hallow) vale também para o dano a cada oponente
         if (eff.target === 'each-opponent') {
           const bloqueado = colorPrevented(s, src);
-          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { pl.life -= n; causouDano(s, src, n, i); } });
+          s.players.forEach((pl, i) => { if (i === ctrl || pl.lost) return; if (bloqueado) ganhaVida(n); else { perdeVida(s, i, n); causouDano(s, src, n, i); } });
           note({ amount: n, ...(bloqueado ? { prevented: true } : {}) }); break;
         }
         // CR2-G R5b · prevenção num caminho só; o que foi prevenido de fato pode virar vida (S52)
@@ -14920,7 +14928,7 @@ function applyEffect(s, src, eff, tgt, events) {
         n = resto;
         if (obj && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); causouDano(s, src, n); note({ amount: n }); break; }
         if (obj && n > 0) { obj.damage += n; noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj); if (has(s, src, 'deathtouch')) obj.deathtouched = true; } // CR 120.8: dano 0 não é dano
-        else s.players[playerOf()].life -= n;
+        else perdeVida(s, playerOf(), n);
         causouDano(s, src, n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
         note({ amount: n }); } break;
     case 'destroy': {
@@ -14962,8 +14970,8 @@ function applyEffect(s, src, eff, tgt, events) {
     case 'gain': { const n = amountOf(s, src, eff.amount); const who = playerOf(); s.players[who].life += n; s.players[who].lifeGained = (s.players[who].lifeGained || 0) + n; note({ amount: n }); } break;
     case 'lose':
       { const n = amountOf(s, src, eff.amount);
-        if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) pl.life -= n; }); note({ amount: n }); break; }
-        s.players[playerOf()].life -= n; note({ amount: n }); } break;
+        if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) perdeVida(s, i, n); }); note({ amount: n }); break; }
+        perdeVida(s, playerOf(), n); note({ amount: n }); } break;
     case 'counters': {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       if (alvo && alvo.zone === 'battlefield') { addCounters(s, alvo, eff.amount); note({ amount: eff.amount }); }
@@ -15655,7 +15663,7 @@ function canPayUnless(s, p, cost) {
   return false;
 }
 function takeUnlessLoss(s, p, ch, events) {
-  s.players[p].life -= ch.amount;
+  perdeVida(s, p, ch.amount);
   events.push({ kind: 'effect', do: 'lose', name: ch.name, target: s.players[p].name, amount: ch.amount });
 }
 /** S32 · sacrificar: vai para o cemitério e avisa quem observa sacrifícios. */
@@ -16239,7 +16247,7 @@ function payAbilityCost(s, p, source, ab) {
     if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
   }
   if (cost.mana && s.manaCheck) payCost(s, p, parseCost(cost.mana));
-  if (cost.life) { if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente'); s.players[p].life -= cost.life; }
+  if (cost.life) { if (s.players[p].life < cost.life) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.life); }
   if (ab.oncePerTurn) {
     if (source.usedThisTurn) throw new RuleError('custo', 'esta habilidade só pode ser usada uma vez por turno');
     source.usedThisTurn = true;
@@ -16581,7 +16589,7 @@ const HANDLERS = {
       if (a.vida != null) { // CR2c.4 · phyrexiano: quem conjura escolhe quantos símbolos paga com vida
         if (!(Number.isInteger(a.vida) && a.vida >= 0 && a.vida <= nPhyrexianos(custo))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
         if (s.players[a.p].life < 2 * a.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano'); // 119.4
-        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0)); s.players[a.p].life -= 2 * a.vida;
+        payCost(s, a.p, custoPhyrexiano(custo, a.vida), castExtra(s, a.p, o, a.x || 0)); perdeVida(s, a.p, 2 * a.vida);
       } else payCost(s, a.p, custo, castExtra(s, a.p, o, a.x || 0)); }
     if (a.retrace) { // M-222 · 702.81a: "discarding a land card in addition to paying its other costs"
       const l = a.pay && a.pay.retrace, lo = l && s.objects[l];
@@ -16669,6 +16677,7 @@ const HANDLERS = {
       else if (alvos[oid] !== ex) throw new RuleError('ataque', `${s.objects[oid].name} precisa atacar ${s.objects[ex].name}`); }
     for (const oid of list) { const o = s.objects[oid]; o.attacking = s.combat.defender; if (alvos[oid]) o.atacandoPw = alvos[oid]; else delete o.atacandoPw; if (!has(s, o, 'vigilance')) { if (!o.tapped) noteEnchantedEvent(s, o); o.tapped = true; } } // Leva 106 · atacar vira
     s.combat.attackers = list.slice();
+    if (list.length) s.players[a.p].atacouCom = (s.players[a.p].atacouCom || 0) + list.length; // M-248 · "se você atacou neste turno" (508.1; pôr no campo atacando não é atacar)
     disparaEvento(s, 'ataca', list.map(oid => s.objects[oid]));
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
   },
@@ -17136,7 +17145,7 @@ const HANDLERS = {
     assisted(s); holder(s, a.p);
     const pl = s.players[a.target]; if (!pl || !s.objects[a.source] || !s.objects[a.source].commander) throw new RuleError('comandante', 'origem precisa ser um comandante');
     pl.commanderDamage[a.source] = Math.max(0, (pl.commanderDamage[a.source] || 0) + (a.delta || 1));
-    pl.life -= (a.delta || 1);
+    perdeVida(s, a.p, a.delta || 1);
   },
   add_mana(s, a) {
     assisted(s); holder(s, a.p);
@@ -17728,7 +17737,7 @@ function invariants(s, expectedObjects) {
   return errs;
 }
 
-return { ENGINE_VERSION, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
+return { ENGINE_VERSION, effectAllowed, affinityDiscount, comboDe, planTaps, STEPS, STEP_PT, FORMAT_RULES, COLORS, COMPANION_COST, RuleError, cardFacts, parseCost, parseProduction, legalTargets, legalTargetsLegado, selecionar, moveObject, seriaDestruida, danoSubstituido, danoAposPrevencao, prevencaoLegado, destinoSubstituido, destinoLegado, entradaModificada, entradaLegado, applyEffect, aplicaPorJogador, sacrificioLegado, moverObjeto, moverLegado, mutacao, mutacaoLegado, hasLegado, bonusLegado, continuosQueAfetam, aplicaTemporario, statsLegado: (s, o) => ({ power: powerLegado(s, o), toughness: toughnessLegado(s, o) }), sombraDosGatilhos, gatilhosDeZona, gatilhosDeZonaLegado, gatilhosDoObjeto, gatilhosDoPasso, enterStep, disparaEvento, noteDiscard, noteEnchantedDealt, noteDamaged, noteEnchantedEvent, addCounters, sacrifice, draw, sweepTargets, sweepTargetsLegado, targetable,
   stats: (s, o) => ({ power: power(s, o), toughness: toughness(s, o) }), hasKeyword: has, bonus, isCreature, tiposDe, pwsAtacaveis, exigePw, productions, protections, prevented, canBlock,
   createGame, apply, legalActions, previewCombat, previewAttack, eligibleAttackers, mustAttack, eligibleBlockers, canBlock, canPay, commanderTax,
   createMatch, replay, hashState, randomPolicy, invariants };
@@ -20105,6 +20114,7 @@ const ALVO_PT = { 'each-opponent-creature': 'cada criatura dos oponentes', 'each
 const PALAVRA_PT = { indestructible: 'indestrutível', hexproof: 'resistência a magia', flying: 'voar', haste: 'ímpeto', trample: 'atropelar', lifelink: 'vínculo com a vida', deathtouch: 'toque mortífero', vigilance: 'vigilância', reach: 'alcance', menace: 'ameaçar', 'first strike': 'iniciativa', 'double strike': 'golpe duplo',
   fear: 'medo', intimidate: 'intimidar', shadow: 'sombra', skulk: 'esgueirar', islandwalk: 'travessia de ilha', swampwalk: 'travessia de pântano', forestwalk: 'travessia de floresta', mountainwalk: 'travessia de montanha', plainswalk: 'travessia de planície' };
 const qtd = v => (typeof v === 'number' ? v : (v && v.per) ? 'X' : 1);
+const IGUAL_A = { 'life-lost-this-turn': 'à vida que você perdeu neste turno', 'life-gained-this-turn': 'à vida que você ganhou neste turno' }; // M-248
 const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 /** Uma frase por efeito. O que o dicionário não conhece vira o nome do efeito, nunca some. */
 function descreveEfeito(e) {
@@ -20124,7 +20134,7 @@ function descreveEfeito(e) {
     case 'adapt': return `adapta ${e.amount}`;
     case 'return_chosen': return 'devolve uma permanente sua para a mão';
     case 'damage': return `causa ${n} de dano a ${alvo || 'um alvo'}`;
-    case 'gain': return `ganha ${n} de vida`;
+    case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
     case 'counter': return `anula ${alvo || 'uma mágica'}`;
     case 'destroy': return `destrói ${alvo || 'uma permanente'}`;
@@ -20231,7 +20241,7 @@ function descreveEfeito(e) {
   }
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
-const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno' };
+const CONDICAO_PT = { 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno' };
 const descreveEfeitos = effects => (effects || []).map(e => { const f = descreveEfeito(e); return f && e.onlyIf && CONDICAO_PT[e.onlyIf] ? `${f} (${CONDICAO_PT[e.onlyIf]})` : f; }).filter(Boolean).join('; ');
 /** E50 P6 · a linha do texto oficial (inglês) que corresponde a uma habilidade na pilha.
     Gatilho: linhas "When/Whenever/At"; ativada: linhas com custo antes de ":". Entre as do mesmo tipo,

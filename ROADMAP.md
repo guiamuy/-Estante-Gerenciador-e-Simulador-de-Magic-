@@ -3086,6 +3086,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Golden:** idênticas, sem regravar.
 - **Próximo:** M-248 — rastros do turno no estado ("atacou neste turno", "vida perdida neste turno"): Chart a Course, Windbrisk Heights (parte), Children of Korlis. Muda o estado: sobe a versão e regrava as partidas-referência, com a regra que mudou declarada.
 
+**M-248 · R11 · Rastros do turno: "vida perdida neste turno" e "atacou neste turno"** ✅ (leva M-248, **motor v96**) — 4 testes novos.
+- **Valor:** o motor passa a lembrar, no turno, quanta vida cada jogador perdeu e se atacou; Chart a Course e Children of Korlis jogam no automático, e a condição de ataque da Windbrisk Heights fica pronta para quando vier o hideaway.
+- **Regra (119.3, 119.4, 508.1):** toda perda de vida passa por um caminho só (`perdeVida`): dano de combate e de efeito a jogador, perda de vida, vida paga como custo (inclusive mana phyrexiano) e o ajuste manual da mesa assistida. Ganhar vida não desconta. "Atacou" conta só quem foi declarado atacante (pôr no campo atacando não é atacar). Os dois rastros moram no jogador só depois do primeiro evento do turno e somem no começo do turno seguinte.
+- **Cartas cobertas (completas):** Chart a Course ("Then discard a card unless you attacked this turn" — era parcial, descartava sempre) e Children of Korlis ("You gain life equal to the life you've lost this turn"). Condição de efeito nova `onlyIf: 'not-attacked'` e contagem `life-lost-this-turn`; a folha diz "ganha vida igual à vida que você perdeu neste turno".
+- **Prova:** invariante em partidas aleatórias com as sete listas Pauper (no turno, a vida perdida nunca diminui e sobe pelo menos o que a vida caiu em cada ação); Chart a Course na partida com e sem ataque.
+- **Golden:** regravadas **só pela versão e pelo rastro novo**: logs, status e turnos idênticos, conferidos um a um nas quatro partidas-referência (o hash muda porque o estado passou a guardar a vida perdida no turno). Partida salva na v95 não abre na v96.
+- **Medição:** Killian 80% → **81%**; Malcolm + Kediss 79% → **80%**.
+- **Correção da M-247 (registrada aqui):** a publicação da M-247 caiu no e2e da G-242 (trilha geral): o teste usava uma Angel 4/4 como ficha "só do catálogo", e a Angel do Speaker of the Heavens a tornou ficha do app. O teste passou a usar um Archon 4/4, com a mesma intenção e as mesmas contagens (commit com `Sobrescreve:`).
+- **Escala:** +2,8 KB gzip no acumulado das M-247/248; `perdeVida` é uma soma a mais por perda.
+- **Próximo:** M-249 — marcadores nomeados em permanente com custo de remover (Norn's Wellspring: óleo; Saprazzan Skerry: esgotamento).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
