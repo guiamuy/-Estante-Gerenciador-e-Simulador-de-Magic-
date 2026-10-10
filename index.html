@@ -5215,7 +5215,7 @@ const EFFECTS = {
   // CR2-G R4a · 701/400.7 · mover entre zonas num verbo só: para onde, de onde (se já saiu, nada acontece), posição no
   // grimório, virada e sob o controle de quem no campo, e "lembra" o exilado; exilar, devolver à mão, reanimar, embaralhar
   // no grimório e pôr no fundo viraram atalhos dele
-  mover: { fields: [], targets: ['self-source', 'creature', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact', 'artifact-creature', 'permanent-you-own',
+  mover: { fields: [], targets: ['self-source', 'creature', 'spell', 'spell-or-creature', 'permanent', 'permanent-you-control', 'land-you-control', 'artifact', 'artifact-creature', 'permanent-you-own',
     'creature-you-control', 'card-in-any-graveyard', 'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'creature-land-in-any-graveyard'] },
   sacrifice_it: { fields: [], targets: ['permanent'] },
   exile_self: { fields: [], targets: ['self'] },
@@ -5311,7 +5311,7 @@ DUNGEONS.push(
 const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
 const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'stay'];
-const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker'];
+const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
 const CHOICE_EFFECTS = ['discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
@@ -5327,7 +5327,7 @@ const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand',
    equivalência compara o caminho antigo com o novo em partidas aleatórias. Carta nova escreve o seletor direto:
    target: { tipos: ['creature'], de: 'opponent' }  ·  { zona: 'graveyard', de: 'you', tipos: ['creature'] }  ·  { jogadores: 'any' } */
 const SELETOR_ZONAS = ['battlefield', 'graveyard', 'stack', 'nenhuma'];
-const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'ou'];
+const SELETOR_CHAVES = ['zona', 'de', 'dono', 'tipos', 'semTipos', 'tiposImpressos', 'tiposDaCarta', 'subtipos', 'semSubtipos', 'palavra', 'semPalavra', 'mvMax', 'mvMin', 'outra', 'cor', 'semCor', 'permanente', 'jogadores', 'habilidades', 'ref', 'subtipoDaAura', 'lendaria', 'ou'];
 const ALVO_SELETOR = {
   any: { tipos: ['creature', 'planeswalker'], jogadores: 'any' },
   creature: { tipos: ['creature'] }, planeswalker: { tipos: ['planeswalker'] }, permanent: {},
@@ -5392,6 +5392,7 @@ function seletorErros(sel, label) {
   if (sel.ref != null && !['bloqueada-pela-fonte', 'encantada-pela-fonte'].includes(sel.ref)) errs.push(`${label}: referência "${sel.ref}" desconhecida`);
   for (const k of ['palavra', 'semPalavra']) if (sel[k] != null && !KEYWORDS.includes(sel[k])) errs.push(`${label}: palavra-chave "${sel[k]}" não é resolvida pelo motor`);
   for (const k of ['mvMax', 'mvMin']) if (sel[k] != null) errs.push(...valueErrors(sel[k], `${label}: ${k}`));
+  if (sel.lendaria != null && typeof sel.lendaria !== 'boolean') errs.push(`${label}: "lendaria" precisa ser verdadeiro ou falso`); // M-246 · supertipo lendário (205.4)
   return errs;
 }
 /** O seletor (já expandido dos atalhos) escolhe jogadores? E objetos? */
@@ -5669,7 +5670,9 @@ function validateScript(sc) {
   const errs = [];
   if (!sc || typeof sc.name !== 'string' || !sc.name.trim()) errs.push('script sem nome');
   const abilities = (sc && sc.abilities) || [];
-  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length))) return errs.concat('script sem efeitos');
+  if (!((sc && sc.effects || []).length) && !abilities.length && !(sc && (sc.aura || sc.equip || sc.self || sc.transmute || sc.staticRule || sc.cumulativeUpkeep || sc.affinity || sc.storm || sc.changeling || sc.bestow || sc.bargain || sc.soulbond || sc.evidence || sc.escape || sc.discount || sc.morph || sc.sneak || sc.entersTapped || sc.entersTappedUnless || sc.grantsAll || (sc.continuo || []).length || (sc.substitui || []).length || (sc.entra || []).length || sc.armaduraTotem || (sc.dano || []).length || (sc.produces || []).length || (sc.modes || []).length || (sc.loyalty || []).length || sc.semEfeito))) return errs.concat('script sem efeitos');
+  // M-246 · carta cujo texto não muda nada na mesa de dois jogadores ("each other opponent"): o motivo é obrigatório e exclui efeitos
+  if (sc && sc.semEfeito != null && (typeof sc.semEfeito !== 'string' || !sc.semEfeito.trim() || (sc.effects || []).length || abilities.length)) errs.push('"semEfeito" precisa do motivo e não convive com efeitos ou habilidades');
   // M9 · habilidades da permanente
   abilities.forEach((ab, i) => {
     const tag = `habilidade ${i + 1}`;
@@ -6421,6 +6424,35 @@ const RAW_SCRIPTS = [
   { name: 'Reweave', effects: [{ do: 'sacrifice_it', target: 'permanent' }, { do: 'reveal_until', target: 'first-target', match: 'shares-type', permanentOnly: true, rest: 'shuffle' }],
     covers: 'partial', note: 'falta o encaixar (Splice onto Arcane {2}{U}{U}, 702.47)',
     example: { target: 'enemy-creature', expect: { gone: true } } },
+  // M-246 · balde A do Commander: texto oficial em .listas/oficiais-commander.json (consulta de 05/10/2026; segunda fonte, Oracle do
+  // Forge, 10/10/2026). Cada frase escrita com o vocabulário da CR2-G (seletor, mover, por jogador); nada de memória.
+  { name: 'Bounty Agent', abilities: [{ kind: 'activated', cost: { tap: true, sacrifice: true }, // "{T}, Sacrifice this creature: Destroy target legendary permanent that's an artifact, creature, or enchantment."
+    effects: [{ do: 'destroy', target: { tipos: ['artifact', 'creature', 'enchantment'], lendaria: true } }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Elas il-Kor, Sadistic Pilgrim', abilities: [
+    { kind: 'triggered', when: 'other-etb', filter: { types: ['creature'] }, effects: [{ do: 'gain', amount: 1 }] }, // "Whenever another creature you control enters, you gain 1 life."
+    { kind: 'triggered', when: 'other-dies', filter: { types: ['creature'] }, effects: [{ do: 'lose', amount: 1, jogadores: 'cada-oponente' }] }], // "Whenever another creature you control dies, each opponent loses 1 life."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // "Whenever a commander you control deals combat damage to an opponent, it deals that much damage to each other opponent." Na mesa de
+  // dois jogadores não há outro oponente: o gatilho não muda nada e não é escrito. "Partner" é regra de montar o baralho (702.124).
+  { name: 'Kediss, Emberclaw Familiar', semEfeito: 'mesa de dois jogadores: sem "outro oponente", o gatilho não tem efeito (volta a importar com a mesa de três ou mais, CR6)',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Leonin Relic-Warder', abilities: [
+    { kind: 'triggered', when: 'etb', optional: true, effects: [{ do: 'mover', target: { tipos: ['artifact', 'enchantment'] }, para: 'exile', lembra: true }] }, // "you may exile target artifact or enchantment"
+    { kind: 'triggered', when: 'leaves-battlefield', effects: [{ do: 'return_held' }] }], // "return the exiled card to the battlefield under its owner's control"
+    note: 'se a Relic-Warder sair e voltar ao campo antes de o gatilho de entrada resolver, a nova guarda a carta (o motor não guarda a encarnação da fonte no gatilho; mesma lacuna da Journey to Nowhere)',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Open the Armory', effects: [{ do: 'search', amount: 1, filter: { subtypes: ['Aura', 'Equipment'] }, to: 'hand' }], // "Search your library for an Aura or Equipment card, reveal it, put it into your hand, then shuffle." (o registro mostra a carta escolhida)
+    example: { target: 'none', expect: { picked: true } } },
+  { name: 'Reprieve', effects: [{ do: 'mover', target: 'spell', para: 'hand' }, { do: 'draw', amount: 1 }], // "Return target spell to its owner's hand. Draw a card."
+    example: { target: 'enemy-spell', expect: { bounced: true } } },
+  { name: 'Rite of Oblivion', additional: { sacrificeOther: { types: ['artifact', 'creature', 'enchantment', 'planeswalker', 'battle'] } }, // "As an additional cost to cast this spell, sacrifice a nonland permanent."
+    effects: [{ do: 'exile', target: 'permanent', targetNotLand: true }], flashback: { mana: '{2}{W}{B}' }, // "Exile target nonland permanent." Flashback {2}{W}{B}
+    example: { target: 'enemy-creature', expect: { gone: true } } },
+  { name: 'You See a Guard Approach', modes: [
+    { label: 'Distrair o guarda: virar a criatura alvo', effects: [{ do: 'tap', target: 'creature' }] }, // "Distract the Guard — Tap target creature."
+    { label: 'Esconder: sua criatura alvo ganha resistência a magia até o fim do turno', effects: [{ do: 'keyword', keyword: 'hexproof', target: 'creature-you-control' }] }], // "Hide — Target creature you control gains hexproof until end of turn."
+    example: { action: 'mode:0', target: 'enemy-creature', expect: { tapped: true } } },
   { name: 'Lukka, Coppercoat Outcast', loyalty: [
     { cost: -2, label: '−2: Exila uma criatura sua e revela até uma criatura de valor maior', effects: [{ do: 'exile', target: 'creature-you-control' }, { do: 'reveal_until', target: 'first-target', who: 'self', match: 'creature-greater-mv', rest: 'bottom-random' }] }],
     covers: 'partial', note: 'faltam o +1 (exilar três e conjurar as criaturas do exílio enquanto controlar um Lukka) e o −7 (cada criatura sua causa dano igual ao poder a cada oponente)',
@@ -6875,8 +6907,9 @@ const RAW_SCRIPTS = [
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
   { name: 'Novice Inspector', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { tokens: 1 } } },
-  { name: 'Swan Song', effects: [{ do: 'counter', target: 'noncreature-spell' }, { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['U'], power: 2, toughness: 2, keywords: ['flying'] } }],
-    covers: 'partial', note: 'na carta real só anula encantamento, instantânea ou feitiço',
+  // M-246 · "Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying."
+  // (oficiais-commander.json, 05/10/2026; segunda fonte 10/10/2026): o alvo é o seletor da M-229, não mais "qualquer mágica que não seja de criatura"
+  { name: 'Swan Song', effects: [{ do: 'counter', target: { zona: 'stack', tipos: ['enchantment', 'instant', 'sorcery'] } }, { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['U'], power: 2, toughness: 2, keywords: ['flying'] } }],
     example: { target: 'enemy-instant', expect: { countered: true } } },
   // Leva 111 · texto conferido em 30/09/2026 (Oracle do Forge): "Exile target artifact or creature. Its controller creates a 4/4
   // blue and red Elemental creature token." A ficha antiga (Phyrexian Golem incolor) e o alvo só criatura eram palpite.
@@ -14457,6 +14490,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
     if (sel.mvMin != null && vm < amountOf(s, fonte, sel.mvMin)) return false;
   }
   if (sel.cor && !(f.colors || []).includes(sel.cor)) return false;
+  if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false; // M-246 · 205.4 · lendária (virada para baixo não tem supertipo)
   if (sel.semCor && (f.colors || []).includes(sel.semCor)) return false;
   if (sel.subtipoDaAura) { // Q11 · aura de subtipo ("Enchant Forest"): a fonte diz o subtipo e o terreno precisa tê-lo
     const sub = selfOid && s.objects[selfOid] && s.facts[s.objects[selfOid].name] ? auraSubtype(s.facts[s.objects[selfOid].name]) : null;
@@ -19919,7 +19953,7 @@ function descreveSeletor(sel) {
   const tipos = (sel.tipos || []).map(x => nomes[x] || x).join(' ou ');
   const jog = sel.jogadores ? (sel.jogadores === 'opponent' ? 'um oponente' : sel.jogadores === 'you' ? 'você' : 'um jogador') : '';
   if (zona === 'nenhuma') return jog || 'um jogador';
-  const coisa = zona === 'stack' ? `uma mágica${tipos ? ' de ' + tipos : ''}` : zona === 'graveyard' ? `uma carta${tipos ? ' de ' + tipos : ''}` : (sel.outra ? 'outra ' : 'uma ') + (tipos || 'permanente');
+  const coisa = (zona === 'stack' ? `uma mágica${tipos ? ' de ' + tipos : ''}` : zona === 'graveyard' ? `uma carta${tipos ? ' de ' + tipos : ''}` : (sel.outra ? 'outra ' : 'uma ') + (sel.lendaria && tipos ? 'permanente lendária que é ' + tipos : tipos || 'permanente')) + (sel.lendaria && (zona !== 'battlefield' || !tipos) ? ' lendária' : '');
   const sem = (sel.semTipos || []).length ? ` que não seja ${(sel.semTipos || []).map(x => nomes[x] || x).join(' nem ')}` : '';
   const dono = zona === 'graveyard' ? (sel.de === 'you' ? ' do seu cemitério' : sel.de === 'opponent' ? ' do cemitério de um oponente' : ' de um cemitério')
     : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';

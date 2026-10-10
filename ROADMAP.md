@@ -3065,6 +3065,17 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Fora:** a triagem de 05/10 (motor v70) não foi refeita aqui; cada leva de script reclassifica as cartas que tocar, com o vocabulário da v95 (seletor, mover, sacrificar, por jogador, substituição, contínuos, durações).
 - **Próximo:** M-246 — cartas do balde A (Bounty Agent, Elas il-Kor, Kediss, Leonin Relic-Warder, Open the Armory, Reprieve, Rite of Oblivion, Swan Song, You See a Guard Approach).
 
+**M-246 · R11 · Balde A do Commander: nove cartas pelo vocabulário da CR2-G** ✅ (leva M-246, motor v95, sem mudança de comportamento no que existe) — 9 testes de regra novos.
+- **Valor:** nove cartas de Commander passam a jogar no automático, escritas como dado com o seletor, o mover e o "por jogador" da CR2-G.
+- **Cartas cobertas (completas):** Bounty Agent, Elas il-Kor, Sadistic Pilgrim, Kediss, Emberclaw Familiar, Leonin Relic-Warder, Open the Armory, Reprieve, Rite of Oblivion, You See a Guard Approach e **Swan Song** (era parcial: mirava qualquer mágica que não fosse de criatura; agora só encantamento, instantânea ou feitiço). Texto de 05/10/2026 com segunda fonte de 10/10/2026.
+- **Vocabulário novo (pequeno):** o seletor ganhou `lendaria` (205.4; virada para baixo não é lendária); `mover` aceita mágica como alvo ("return target spell to its owner's hand"); os tipos de filtro incluem batalha ("nonland permanent"); `semEfeito: '<motivo>'` declara carta cujo texto não muda nada na mesa de dois jogadores.
+- **Simplificações declaradas:** Kediss — "each other opponent" não existe na mesa de dois; o gatilho não é escrito (volta com a CR6). Leonin Relic-Warder — se ela sair **e voltar** antes de o gatilho de entrada resolver, a nova guarda a carta (o gatilho não guarda a encarnação da fonte; mesma lacuna da Journey to Nowhere). A regra oficial de sair sem voltar (a carta fica exilada para sempre) está coberta e testada.
+- **Medição:** Killian 71% → **77%** (completo 78 · parcial 10 · manual 13); Malcolm + Kediss 76% → **79%** (completo 79 · parcial 12 · manual 9). Triagem: balde A zerado.
+- **Correção no caminho (teste):** o cenário S8 do Reality Scramble passou a falhar com o novo embaralhamento — a criatura revelada (Harrier Strix) pedia alvo para o próprio gatilho e o cenário passava a observar esse alvo. O cenário agora só observa alvo de gatilho da própria carta testada; e, em efeito de vários alvos, prefere a combinação que começa pelo alvo do cenário. Nenhuma asserção foi afrouxada.
+- **Escala:** +1,4 KB gzip; uma comparação a mais no seletor (O(1)).
+- **Golden:** idênticas, sem regravar.
+- **Próximo:** M-247 — primeiras primitivas do balde B pelo número de cartas que destravam (bônus condicional e habilidade concedida: Rune of Mortality, Rune of Sustenance, Combat Research; "ative somente se": Speaker of the Heavens, Cephalid Coliseum).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

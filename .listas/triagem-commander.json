@@ -1,5 +1,5 @@
 {
- "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde. R11.1 (05/10/2026): as cartas \"ok\" foram auditadas frase a frase; quatro saíram do balde A para ok, três terrenos saíram de ok para B (o texto de mana escondia uma frase) e a Curiosity foi para B.",
+ "sobre": "R10 · triagem das 164 cartas não básicas das duas listas Commander, feita em 05/10/2026 a partir do texto oficial (oficiais.json + oficiais-commander.json) e da cobertura do motor v70. balde: ok = script completo hoje (falta a auditoria frase a frase); A = cabe no vocabulário atual; B = pede primitiva nova (classe em `primitivas`); C = depende de estrutura que o motor não tem. Estimativa, não medição: a auditoria da R11 pode mover carta de balde. R11.1 (05/10/2026): as cartas \"ok\" foram auditadas frase a frase; quatro saíram do balde A para ok, três terrenos saíram de ok para B (o texto de mana escondia uma frase) e a Curiosity foi para B. M-246 (10/10/2026): as nove cartas do balde A (com Swan Song, que era parcial) viraram ok.",
  "cartas": [
   {
    "name": "Abrade",
@@ -141,12 +141,13 @@
   {
    "name": "Bounty Agent",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "filtro-de-alvo"
    ],
-   "obs": "alvo lendário (artefato, criatura ou encantamento)"
+   "obs": "alvo lendário (artefato, criatura ou encantamento)",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Brainstorm",
@@ -336,10 +337,11 @@
   {
    "name": "Elas il-Kor, Sadistic Pilgrim",
    "listas": "K",
-   "motor": "parcial",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [],
-   "obs": "other-etb e other-dies já existem"
+   "obs": "other-etb e other-dies já existem",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Everflowing Chalice",
@@ -542,10 +544,11 @@
   {
    "name": "Kediss, Emberclaw Familiar",
    "listas": "M",
-   "motor": "manual",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [],
-   "obs": "com dois jogadores 'cada outro oponente' é ninguém: declarar"
+   "obs": "com dois jogadores 'cada outro oponente' é ninguém: declarar",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Kher Keep",
@@ -612,10 +615,11 @@
   {
    "name": "Leonin Relic-Warder",
    "listas": "K",
-   "motor": "manual",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [],
-   "obs": "como Journey to Nowhere, com 'pode'"
+   "obs": "como Journey to Nowhere, com 'pode'",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Lose Focus",
@@ -773,12 +777,13 @@
   {
    "name": "Open the Armory",
    "listas": "K",
-   "motor": "manual",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "filtro-de-busca"
    ],
-   "obs": "Aura ou Equipamento"
+   "obs": "Aura ou Equipamento",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Opt",
@@ -892,12 +897,13 @@
   {
    "name": "Reprieve",
    "listas": "K",
-   "motor": "manual",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "filtro-de-alvo"
    ],
-   "obs": "devolver mágica à mão já existe (Unsubstantiate)"
+   "obs": "devolver mágica à mão já existe (Unsubstantiate)",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Reprobation",
@@ -927,12 +933,13 @@
   {
    "name": "Rite of Oblivion",
    "listas": "K",
-   "motor": "manual",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "filtro-de-custo"
    ],
-   "obs": "custo adicional: sacrificar permanente que não é terreno"
+   "obs": "custo adicional: sacrificar permanente que não é terreno",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Rune of Mortality",
@@ -1206,12 +1213,13 @@
   {
    "name": "Swan Song",
    "listas": "M",
-   "motor": "parcial",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [
     "filtro-de-alvo"
    ],
-   "obs": "ficha para o controlador da mágica"
+   "obs": "ficha para o controlador da mágica",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Tainted Field",
@@ -1336,10 +1344,11 @@
   {
    "name": "You See a Guard Approach",
    "listas": "M",
-   "motor": "manual",
-   "balde": "A",
+   "motor": "completo",
+   "balde": "ok",
    "primitivas": [],
-   "obs": "modal de escolher um"
+   "obs": "modal de escolher um",
+   "nota": "M-246 (10/10/2026): script completo com o vocabulário da CR2-G."
   },
   {
    "name": "Zulaport Cutthroat",

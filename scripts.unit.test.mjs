@@ -355,7 +355,9 @@ function runExample(sc) {
   // efeito com mais de um alvo: usa a combinação que a própria mesa oferece
   const precisa = [...(sc.effects || []), ...((sc.modes || [])[action.mode || 0] || {}).effects || []].filter(e => S.isTargeted(e)).length;
   if (precisa > 1 && !action.modes) {
-    const multi = E.legalActions(s, a).find(x => x.t === action.t && x.oid === oid && (x.mode || 0) === (action.mode || 0) && (x.targets || []).length === precisa);
+    // M-246 · de preferência a combinação que começa pelo alvo do cenário (a primeira oferecida pode depender da ordem dos objetos)
+    const ofertas = E.legalActions(s, a).filter(x => x.t === action.t && x.oid === oid && (x.mode || 0) === (action.mode || 0) && (x.targets || []).length === precisa);
+    const multi = ofertas.find(x => target && JSON.stringify(x.targets[0]) === JSON.stringify(target)) || ofertas[0];
     if (multi) action.targets = JSON.parse(JSON.stringify(multi.targets));
   }
   assert.ok(E.legalActions(s, a).some(x => x.t === action.t && (x.oid === oid || action.t === 'cast_madness') && !!x.disturb === !!action.disturb && !!x.omen === !!action.omen && !!x.bestow === !!action.bestow && (x.index || 0) === (action.index || 0) && (x.mode || 0) === (action.mode || 0)
@@ -378,7 +380,9 @@ function runExample(sc) {
       const iOponente = pd.options.findIndex(o => o && o.player === d);
       const index = iOponente >= 0 ? iOponente : 0;
       const opt = pd.options[index];
-      if (opt && opt.oid) watchOverride = opt.oid;
+      // M-246 · só o alvo do gatilho da própria carta muda o que o cenário observa: a criatura que o Reality Scramble revela e põe no
+      // campo (Harrier Strix, conforme o embaralhamento) pede alvo para o gatilho DELA, e o cenário passava a olhar esse alvo
+      if (opt && opt.oid && pd.name === sc.name) watchOverride = opt.oid;
       s = act(s, { t: 'pick_target', p: a, index }); continue;
     }
     // S47 · a decisão de pagar pode ser de qualquer um dos dois; o cenário recusa e segue
