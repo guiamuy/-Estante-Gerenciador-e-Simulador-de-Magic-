@@ -95,3 +95,19 @@ test('G-241 · listas do Magic Online no app: id `mtgo-…` vale, Vintage é for
   assert.deepEqual(Object.keys(K.FONTES_DO_CATALOGO), ['mtgjson', 'topdeck', 'mtgo']);
   assert.match(K.FONTES_DO_CATALOGO.mtgo.fim, /Fan Content Policy/); assert.equal(K.FONTES_DO_CATALOGO.topdeck.link[0], 'https://topdeck.gg');
 });
+
+test('G-242 · fichas do catálogo no app: só as bem formadas; guardadas por uma semana; sem rede, as guardadas marcadas; sem nada, erro; arquivo ausente', async () => {
+  const bruto = { versao: 1, fichas: [{ name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: 2, toughness: 2 }, { name: 'Treasure', types: ['artifact'], colors: [] },
+    { name: 'Torta', types: ['creature'], colors: ['W'], power: '1' }, { name: '', types: [], colors: [] }, { name: 'x'.repeat(81), types: [], colors: [] }, { name: 'Estranha', types: ['creature'], colors: ['Z', 'G'], power: '1000', toughness: '1' }] };
+  assert.deepEqual(J(K.fichasDoCatalogo(bruto)), [{ name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' }, { name: 'Treasure', types: ['artifact'], subtypes: [], colors: [] }]);
+  assert.deepEqual(J(K.fichasDoCatalogo({ versao: 2, fichas: bruto.fichas })), []);
+  let agora = 1000, falha = false, ausente = false; const pedidos = [];
+  const busca = async url => { pedidos.push(url.replace(K.BASE, '')); if (falha) throw new TypeError('Failed to fetch'); if (ausente) return { ok: false, status: 404 }; return { ok: true, status: 200, json: async () => bruto }; };
+  const store = P.memoryStore(), C = K.createCatalogo({ store, busca, agora: () => agora });
+  const r1 = await C.fichas(); assert.equal(r1.origem, 'rede'); assert.equal(r1.fichas.length, 2); assert.deepEqual(pedidos, ['fichas.json']);
+  agora += 6 * 86400e3; assert.equal((await C.fichas()).origem, 'guardado'); assert.equal(pedidos.length, 1, 'dentro da semana não busca');
+  agora += 2 * 86400e3; falha = true; const r3 = await C.fichas(); assert.equal(r3.velho, true); assert.equal(r3.fichas.length, 2);
+  const vazio = K.createCatalogo({ store: P.memoryStore(), busca, agora: () => agora });
+  await assert.rejects(vazio.fichas());
+  falha = false; ausente = true; assert.equal((await vazio.fichas()).ausente, true);
+});

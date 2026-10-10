@@ -8979,6 +8979,77 @@ test('e2e · V3 visões da lista: Galeria (a de sempre), Densa (uma linha por ca
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- G-242 · todas as fichas (relato #9) ---------------- */
+test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo num grupo próprio em lotes de 40, busca por nome, tipo e P/T, abrir uma do catálogo e escolher a arte (usada na mesa como as outras); erro com Repetir; sem internet, a lista guardada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  // o catálogo falso: 85 fichas, entre elas Zombie 2/2 e Treasure (que o app já conhece: não repete)
+  const fichas = [{ name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' }, { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [] },
+    { name: 'Angel', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: '4', toughness: '4' },
+    { name: 'Wurm <img src=x onerror="window.__sonda=1">', types: ['creature'], subtypes: ['Wurm'], colors: ['G'], power: '6', toughness: '6' }, // sonda: nome de terceiro é texto
+    ...Array.from({ length: 81 }, (_, i) => ({ name: 'Ficha ' + String(i + 1).padStart(2, '0'), types: ['creature'], subtypes: ['Beast'], colors: ['G'], power: '3', toughness: '3' }))];
+  let fora = false;
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); if (fora) return r.abort('failed');
+    return nome === 'fichas.json' ? r.fulfill({ json: { versao: 1, geradoEm: '2026-10-10T00:00:00.000Z', fonte: 'scryfall', total: fichas.length, fichas }, headers: { 'access-control-allow-origin': '*' } }) : r.fulfill({ status: 404, body: '' }); });
+  const buscas = [];
+  const zumbi = (id, set) => ({ object: 'card', id, name: 'Zombie', type_line: 'Token Creature — Zombie', layout: 'token', power: '2', toughness: '2', colors: ['B'], color_identity: ['B'], cmc: 0, keywords: [], set, set_name: 'Edição ' + set, collector_number: '1',
+    image_uris: Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`])) });
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || ''); buscas.push(q);
+    if (/^!"Zombie" t:token/.test(q)) return r.fulfill({ json: { object: 'list', has_more: false, data: [zumbi('zumbi-a', 'm21'), zumbi('zumbi-b', 'isd')] } });
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [] } }); });
+  // 1 · a lista do app aparece primeiro; o catálogo chega no lugar, em lotes de 40, com a contagem no grupo
+  await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-lista'); await page.waitForSelector('#fichas-catalogo[data-estado="ok"]');
+  const doApp = await page.locator('#fichas-lista .ficha-linha').count();
+  assert.ok(doApp >= 15, 'as do app: ' + doApp);
+  assert.equal(await page.textContent('#fichas-catalogo .ds-list__group'), 'Todas as fichas · 84', 'Treasure já é do app e não repete');
+  assert.equal(await page.locator('#fichas-catalogo .ficha-linha').count(), 40);
+  assert.equal(await page.locator('#fichas-catalogo .ficha-linha[data-ficha="ficha:treasure"]').count(), 0); assert.equal(await page.locator('#fichas-lista .ficha-linha[data-ficha="ficha:treasure"]').count(), 1);
+  assert.deepEqual(await page.$$eval('#fichas-catalogo .ficha-linha', ls => ls.slice(0, 2).map(l => l.dataset.ficha)), ['ficha:angel 4/4', 'ficha:ficha 01 3/3'], 'por nome');
+  // sonda de injeção: o nome vindo do catálogo (texto de terceiro) aparece como texto; nada executa
+  await page.fill('#fichas-busca', 'wurm'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 1);
+  assert.ok((await page.textContent('#fichas-catalogo .ficha-linha')).includes('Wurm <img src=x'), 'nome como texto'); assert.equal(await page.locator('#fichas-catalogo img[src="x"]').count(), 0); assert.equal(await page.evaluate(() => window.__sonda), undefined);
+  await page.fill('#fichas-busca', ''); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 40);
+  await auditaTela(page, 'fichas · catálogo');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g242-fichas.png' });
+  await page.click('#fichas-catalogo-mais'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 80);
+  await page.click('#fichas-catalogo-mais'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 84); assert.equal(await page.locator('#fichas-catalogo-mais').count(), 0);
+  // 2 · busca: nome, tipo e P/T, sobre os dois grupos, sem perder o foco
+  await page.fill('#fichas-busca', 'zomb'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 1);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'fichas-busca', 'digitar não perde o foco');
+  assert.equal(await page.textContent('#fichas-catalogo .ds-list__group'), 'Todas as fichas · 1'); assert.ok(await page.locator('#fichas-recorte-vazio').count() === 1, 'as do app não têm Zombie');
+  await page.fill('#fichas-busca', '4/4'); await page.waitForFunction(() => document.querySelector('#fichas-catalogo .ficha-linha') && document.querySelector('#fichas-catalogo .ficha-linha').dataset.ficha === 'ficha:angel 4/4');
+  await page.fill('#fichas-busca', 'clue'); await page.waitForFunction(() => document.querySelector('#fichas-catalogo-vazio'));
+  assert.equal(await page.locator('#fichas-lista .ficha-linha[data-ficha="ficha:clue"]').count(), 1);
+  await page.fill('#fichas-busca', ''); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 40);
+  // 3 · abrir uma ficha do catálogo: busca as artes como as outras ("!nome t:token pow tou c"), escolher fica guardado e vale na mesa
+  await page.fill('#fichas-busca', 'zombie'); await page.waitForFunction(() => document.querySelectorAll('#fichas-catalogo .ficha-linha').length === 1);
+  await page.click('#fichas-catalogo .ficha-linha[data-ficha="ficha:zombie 2/2"]'); await page.waitForSelector('#ficha-opcoes', { timeout: 15000 });
+  assert.ok(buscas.some(q => q === '!"Zombie" t:token pow=2 tou=2 c=b'), 'busca com força e cor: ' + JSON.stringify(buscas));
+  await page.waitForSelector('.ficha-opcao[data-opcao="zumbi-b"]'); await page.click('.ficha-opcao[data-opcao="zumbi-b"]');
+  await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="zumbi-b"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false'; }, null, { timeout: 12000 });
+  const kv = (op, k) => page.evaluate(([op, k]) => new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'), st = tx.objectStore('kv'); const q = op === 'get' ? st.get(k) : st.delete(k); q.onsuccess = () => res(q.result); q.onerror = rej; }; r.onerror = rej; }), [op, k]);
+  const esc = await kv('get', 'fichas.escolhas'); const escolha = esc && (esc.value || esc.v || esc)['ficha:zombie 2/2'];
+  assert.equal(escolha && escolha.id, 'zumbi-b', 'a escolha fica guardada na mesma chave das outras fichas (a mesa a usa): ' + JSON.stringify(esc).slice(0, 120));
+  // voltar pelo endereço: a ficha do catálogo abre direto
+  await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:zombie 2/2')); await page.waitForSelector('#ficha-opcoes', { timeout: 15000 });
+  assert.equal(await page.getAttribute('.ficha-opcao[data-opcao="zumbi-b"]', 'aria-pressed'), 'true');
+  // 4 · fonte fora do ar com internet: o grupo diz e oferece Repetir (o resto da tela segue); sem internet, a lista guardada
+  await kv('delete', 'catalogo.fichas'); fora = true;
+  await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-catalogo[data-estado="erro"]');
+  assert.match(await page.innerText('#fichas-catalogo'), /Não foi possível abrir o catálogo de fichas\./); await auditaTela(page, 'fichas · catálogo fora do ar');
+  fora = false; await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.click('#fichas-catalogo-de-novo'); await page.waitForSelector('#fichas-catalogo[data-estado="ok"]');
+  // sem internet (a página já está aberta; recarregar sem rede não é cenário do app instalado sem service worker no teste)
+  await page.evaluate(() => { location.hash = '#/perfil'; }); await page.waitForSelector('#perfil-fichas');
+  await page.context().setOffline(true); await page.evaluate(() => { location.hash = '#/perfil/fichas'; }); await page.waitForSelector('#fichas-catalogo[data-estado="ok"]');
+  assert.equal(await page.locator('#fichas-catalogo .ficha-linha').count(), 40, 'sem internet: a lista guardada'); assert.equal(await page.locator('#fichas-catalogo-velho').count(), 0, 'dentro do prazo não é velha');
+  await page.context().setOffline(false);
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `fichas catálogo ${w} ${tema}`); } }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- V5 · a impressão da lista vale na mesa ---------------- */
 test('e2e · V5 impressão da lista na mesa: a Forest escolhida na lista (V1) sai na mesa na impressão dela, acima da arte geral do Perfil; o Shark, com a mesma lista, joga com a arte padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);

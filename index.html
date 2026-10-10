@@ -1225,7 +1225,7 @@ html:has(#noticias) { overscroll-behavior-y: contain; }
 
 /* ---------------- barra de aplicação ---------------- */
 .ds-appbar {
-  position: sticky; top: 0; z-index: var(--z-sticky); padding-top: env(safe-area-inset-top, 0px);   /* leva 123 · recorte da câmera */
+  position: sticky; top: 0; z-index: calc(var(--z-sticky) + 1); padding-top: env(safe-area-inset-top, 0px);   /* leva 123 · recorte da câmera; G-242 · uma camada acima dos cabeçalhos grudados de grupo, que passam por baixo dela ao rolar */
   background: var(--scrim); backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border); box-shadow: var(--shadow-1);
 }
@@ -1352,6 +1352,7 @@ body {
 /* I4 · fichas: linha da lista (miniatura ou ícone, nome, cores, estado) e grade de artes */
 .perfil-atalho { text-align: left; color: var(--fg); font: inherit; }
 .ficha-linha { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: calc(var(--tap-min) + var(--space-3)); text-align: left; }
+.ficha-catalogo__aviso { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-2) var(--space-3); } /* G-242 */
 .ficha-linha__selo { flex: none; width: var(--tap-min); height: var(--tap-min); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--fg-muted); }
 .ficha-linha__img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
 .ficha-linha__texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -9458,11 +9459,20 @@ function descricaoDaFicha(t) {
 }
 /** Todas as fichas que o app sabe criar, em ordem de nome (e de força); `nomesDasListas` marca as que as listas do
     usuário criam, que vêm primeiro. Cada item: { chave, def, nome, pt, icone, cores, descricao, suaLista }. Puro. */
-function listaDeFichas(nomesDasListas = []) {
+function listaDeFichas(nomesDasListas = [], catalogo = []) {
   const minhas = new Set(__m23.fichasDasCartas(nomesDasListas).map(chaveDaFicha));
-  return __m23.fichasDasCartas(Object.keys(__m23.SCRIPTS)).map(def => ({ chave: chaveDaFicha(def), def, nome: def.name, pt: def.power != null ? `${def.power}/${def.toughness}` : '',
-    icone: iconeDaFicha(def), cores: coresDaFicha(def), descricao: descricaoDaFicha(def), suaLista: minhas.has(chaveDaFicha(def)) }))
-    .sort((a, b) => Number(b.suaLista) - Number(a.suaLista) || a.nome.localeCompare(b.nome) || a.pt.localeCompare(b.pt));
+  const item = (def, doCatalogo) => ({ chave: chaveDaFicha(def), def, nome: def.name, pt: def.power != null ? `${def.power}/${def.toughness}` : '',
+    icone: iconeDaFicha(def), cores: coresDaFicha(def), descricao: descricaoDaFicha(def), suaLista: minhas.has(chaveDaFicha(def)), catalogo: doCatalogo });
+  const doApp = __m23.fichasDasCartas(Object.keys(__m23.SCRIPTS)).map(def => item(def, false));
+  // G-242 · todas as fichas do jogo (catálogo da Scryfall): as que o app já conhece não entram de novo
+  const vistas = new Set(doApp.map(x => x.chave));
+  const doCatalogo = (catalogo || []).filter(def => def && def.name && !vistas.has(chaveDaFicha(def)) && (vistas.add(chaveDaFicha(def)), true)).map(def => item(def, true));
+  return [...doApp, ...doCatalogo].sort((a, b) => Number(b.suaLista) - Number(a.suaLista) || Number(a.catalogo) - Number(b.catalogo) || a.nome.localeCompare(b.nome) || a.pt.localeCompare(b.pt));
+}
+/** G-242 · o recorte da busca: nome, subtipo, tipo e P/T, sem acento. Puro. */
+function filtraFichas(lista, texto) {
+  const q = norm(texto); if (!q) return lista;
+  return lista.filter(it => norm([it.nome, it.pt, it.descricao, ...(it.def.subtypes || [])].join(' ')).includes(q));
 }
 /** A busca na Scryfall: nome exato, tipo ficha, força/resistência quando é criatura, cor quando pedida. */
 function consultaDaFicha(def, { comCor = true } = {}) {
@@ -9553,7 +9563,7 @@ function createFichas({ store, scryfall, images = null, temRede = temRedePadrao 
       return opcoesDeArte(cartas);
     } });
 }
-return { chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX, LOTE, proximoLote, criaGaleria, temRedePadrao };
+return { chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, filtraFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX, LOTE, proximoLote, criaGaleria, temRedePadrao };
 })();
 
 /* ==== src/data/terrenos.js ==== */
@@ -10512,6 +10522,14 @@ const { h, mount, Stack, Row, Text, Button, IconButton, Input, Empty, Note, Badg
 const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/catalogo/';
 const CHAVE_INDICE = 'catalogo.indice';
 const CHAVE_LISTA = id => 'catalogo.lista.' + id;
+const CHAVE_FICHAS = 'catalogo.fichas', PRAZO_FICHAS_MS = 7 * 86400e3; // G-242 · o catálogo de fichas é renovado por semana
+/** G-242 · as fichas do catálogo (fichas.json do ramo): só as bem formadas (nome, tipos, cores; P/T opcional). Puro. */
+function fichasDoCatalogo(dados) {
+  if (!dados || dados.versao !== 1 || !Array.isArray(dados.fichas)) return [];
+  return dados.fichas.filter(f => f && typeof f.name === 'string' && f.name.trim() && f.name.length <= 80 && Array.isArray(f.types) && Array.isArray(f.colors)
+    && (f.power == null) === (f.toughness == null) && (f.power == null || (String(f.power).length <= 3 && String(f.toughness).length <= 3)))
+    .map(f => ({ name: f.name.trim(), types: f.types.map(String), subtypes: Array.isArray(f.subtypes) ? f.subtypes.map(String) : [], colors: f.colors.filter(c => 'WUBRG'.includes(c)), ...(f.power != null ? { power: String(f.power), toughness: String(f.toughness) } : {}) }));
+}
 const PRAZO_MS = 12 * 3600 * 1000; // o coletor roda uma vez por semana: meio dia de cache basta
 const LOTE = 30; // lista grande desenhada em lotes
 // Z5 · os formatos de torneio (TopDeck.gg) entram ao lado dos produtos oficiais; "Desafio" são os decks de desafio da Wizards
@@ -10575,6 +10593,22 @@ function createCatalogo({ store, busca = typeof fetch !== 'undefined' ? fetch.bi
         return { dados: r.dados, em: novo.em, origem: 'rede' };
       } catch (e) {
         if (g && g.dados) return { dados: g.dados, em: g.em, origem: 'guardado', velho: true };
+        throw e;
+      }
+    },
+    /** G-242 · as fichas do catálogo: guardadas por uma semana; sem rede, as guardadas (marcadas `velho`); sem nada, o erro. */
+    async fichas({ forcar = false } = {}) {
+      const g = await le(CHAVE_FICHAS);
+      if (g && g.dados && !forcar && agora() - g.em < PRAZO_FICHAS_MS) return { fichas: fichasDoCatalogo(g.dados), em: g.em, origem: 'guardado' };
+      try {
+        const r = await json('fichas.json');
+        if (r.ausente) return g ? { fichas: fichasDoCatalogo(g.dados), em: g.em, origem: 'guardado', velho: true } : { fichas: [], ausente: true };
+        const fichas = fichasDoCatalogo(r.dados); if (!fichas.length) throw new Error('formato');
+        const novo = { em: agora(), dados: r.dados };
+        try { await store.set(CHAVE_FICHAS, novo); } catch (e) { /* sem disco: mostra assim mesmo */ }
+        return { fichas, em: novo.em, origem: 'rede' };
+      } catch (e) {
+        if (g && g.dados) return { fichas: fichasDoCatalogo(g.dados), em: g.em, origem: 'guardado', velho: true };
         throw e;
       }
     },
@@ -10812,7 +10846,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   return root;
 }
 
-return { deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+return { fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -11346,10 +11380,13 @@ function createPartidasScreen({ partidas }) {
 /** Fichas do seu jeito: a lista das fichas que as cartas criam e, em cada uma, as artes para escolher. */
 /* I4 + I6 · a mesma tela serve às fichas e aos terrenos: lista de itens (ícone, nome, cores) e, dentro de cada um, as artes
    em lotes de 6. `C` traz os textos, a rota e o prefixo dos ids; `itens()` devolve a lista. */
-function telaDeArtes({ galeria: fichas, itens, C }) {
+const LOTE_DE_ARTES = 40; // G-242 · o catálogo de fichas desenhado em lotes
+function telaDeArtes({ galeria: fichas, itens, C, catalogo = null }) {
   const F = __m34;
   const root = Stack(pad(), __m3.Carregando(C.abrindo, { tamanho: 'tela' }));
-  const st = { lista: [], estado: { escolhas: {}, opcoes: {} }, aberta: q().get('f') || '', buscando: false, erro: '', run: 0 };
+  // G-242 · `catalogo` (só nas fichas): busca todas as fichas do jogo; a lista do app aparece antes, o catálogo chega no lugar
+  const st = { lista: [], estado: { escolhas: {}, opcoes: {} }, aberta: q().get('f') || '', buscando: false, erro: '', run: 0,
+    texto: '', mostra: LOTE_DE_ARTES, cat: catalogo ? { estado: 'carregando', itens: [], velho: false } : null };
   const online = () => fichas.temRede();
   const simbolos = cores => h('span', { class: 'ficha-linha__cores' }, ...cores.map(c => Simbolo(c)));
   const miniatura = it => { const c = st.estado.escolhas[it.chave] || (st.estado.opcoes[it.chave] || [])[0];
@@ -11367,18 +11404,52 @@ function telaDeArtes({ galeria: fichas, itens, C }) {
       escolhida ? Badge([Icone('marcar', { tamanho: 14 })], { tone: 'positive' }) : null,
       Icone('seguir', { tamanho: 18, classe: 'ficha-linha__seta' }));
   }
+  /** G-242 · o catálogo de fichas chega depois da lista do app e entra no lugar (só o grupo "Todas as fichas" é redesenhado). */
+  async function carregaCatalogo() {
+    if (!catalogo || !st.cat) return;
+    st.cat.estado = 'carregando'; pintaCatalogo();
+    try {
+      const r = await catalogo.fichas();
+      st.cat = { estado: r.ausente ? 'ausente' : 'ok', itens: F.listaDeFichas([], r.fichas).filter(x => x.catalogo), velho: !!r.velho };
+    } catch (e) { st.cat = { estado: online() ? 'erro' : 'sem-rede', itens: [], velho: false }; }
+    // a ficha pedida no endereço é do catálogo: abre agora que ele chegou
+    if (st.aberta && !st.lista.some(x => x.chave === st.aberta) && st.cat.itens.some(x => x.chave === st.aberta)) return pinta();
+    pintaCatalogo();
+  }
+  function grupoDoCatalogo() {
+    if (!st.cat) return null;
+    const box = h('div', { class: 'ds-list', id: 'fichas-catalogo', dataset: { estado: st.cat.estado } });
+    const visiveis = F.filtraFichas(st.cat.itens, st.texto).filter(x => !st.lista.some(y => y.chave === x.chave));
+    const cab = h('div', { class: 'ds-list__group' }, st.cat.estado === 'ok' ? `Todas as fichas · ${visiveis.length}` : 'Todas as fichas');
+    if (st.cat.estado === 'carregando') mount(box, cab, __m3.Esqueleto({ linhas: 3, id: 'fichas-catalogo-abrindo', fala: 'Buscando todas as fichas…' }));
+    else if (st.cat.estado === 'sem-rede') mount(box, cab, AvisoRede('Sem internet: as outras fichas aparecem quando houver conexão.', { id: 'fichas-catalogo-sem-rede' }));
+    else if (st.cat.estado === 'erro') mount(box, cab, h('div', { class: 'ficha-catalogo__aviso' }, Text('Não foi possível abrir o catálogo de fichas.', { size: 'sm', tone: 'muted' }), Button('Repetir', { variant: 'ghost', icone: 'atualizar', id: 'fichas-catalogo-de-novo', onClick: carregaCatalogo })));
+    else if (st.cat.estado === 'ausente') mount(box, cab, Text('O catálogo de fichas ainda está sendo montado. Volte daqui a pouco.', { size: 'sm', tone: 'muted', attrs: { id: 'fichas-catalogo-ausente' } }));
+    else mount(box, cab, ...(visiveis.length ? visiveis.slice(0, st.mostra).map(linha) : [Text(st.texto ? `Nenhuma ficha com "${st.texto}".` : 'Nenhuma ficha além das do app.', { size: 'sm', tone: 'muted', attrs: { id: 'fichas-catalogo-vazio' } })]),
+      visiveis.length > st.mostra ? h('div', { class: 'cat-mais' }, Button(`Mostrar mais ${Math.min(LOTE_DE_ARTES, visiveis.length - st.mostra)}`, { icone: 'descer', id: 'fichas-catalogo-mais', onClick: () => { st.mostra += LOTE_DE_ARTES; pintaCatalogo(); } })) : null,
+      st.cat.velho ? Text('Sem internet: a lista guardada no aparelho.', { size: 'xs', tone: 'subtle', attrs: { id: 'fichas-catalogo-velho' } }) : null);
+    return box;
+  }
+  function pintaCatalogo() { const velho = root.querySelector('#fichas-catalogo'); if (velho) velho.replaceWith(grupoDoCatalogo()); else if (root.querySelector('#' + C.id + 's-lista')) root.appendChild(grupoDoCatalogo()); }
   function pintaLista() {
-    const minhas = st.lista.filter(x => x.suaLista), outras = st.lista.filter(x => !x.suaLista);
+    const recorte = catalogo ? F.filtraFichas(st.lista, st.texto) : st.lista;
+    const minhas = recorte.filter(x => x.suaLista), outras = recorte.filter(x => !x.suaLista);
     mount(root,
       Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: C.id + 's-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text(C.titulo, { size: '2xl', display: true, as: 'h1' })),
       // I6 · a regra fica dita mesmo com internet: buscar artes pede conexão; o que foi baixado fica no aparelho
       online() ? Text('Buscar artes novas pede internet. As que você baixar ficam no aparelho.', { size: 'sm', tone: 'muted', attrs: { id: C.id + 's-nota' } })
         : AvisoRede('Sem internet: dá para trocar entre as artes já baixadas. Para ver outras, conecte-se.', { id: C.id + 's-sem-rede' }),
+      // G-242 · busca por nome, tipo ou P/T, sobre as do app e as do catálogo
+      catalogo ? Input({ id: 'fichas-busca', placeholder: 'Nome, tipo ou P/T da ficha', value: st.texto, onInput: e => { st.texto = e.target.value; st.mostra = LOTE_DE_ARTES; pintaPreservandoFoco(); } }) : null,
       st.lista.length ? h('div', { class: 'ds-list', id: C.id + 's-lista' },
         ...(minhas.length ? [h('div', { class: 'ds-list__group' }, 'Nas suas listas'), ...minhas.map(linha)] : []),
-        ...(outras.length ? [h('div', { class: 'ds-list__group' }, minhas.length ? C.outras : C.titulo), ...outras.map(linha)] : []))
-        : Empty(C.vazio, null, { icone: C.icone, titulo: C.vazioTitulo }));
+        ...(outras.length ? [h('div', { class: 'ds-list__group' }, minhas.length ? C.outras : C.titulo), ...outras.map(linha)] : []),
+        ...(!recorte.length && st.texto ? [Text(`Nenhuma ficha do app com "${st.texto}".`, { size: 'sm', tone: 'muted', attrs: { id: C.id + 's-recorte-vazio' } })] : []))
+        : Empty(C.vazio, null, { icone: C.icone, titulo: C.vazioTitulo }),
+      grupoDoCatalogo());
   }
+  /** Redesenhar a cada letra perderia o foco do campo de busca: guarda e devolve. */
+  function pintaPreservandoFoco() { const ativo = document.activeElement, id = ativo && ativo.id, pos = ativo && ativo.selectionStart; pintaLista(); if (id) { const el = root.querySelector('#' + id); if (el) { el.focus({ preventScroll: true }); if (pos != null && el.setSelectionRange) el.setSelectionRange(pos, pos); } } }
   /* I7 · as artes ficam na tela como elementos vivos: escolher e pedir mais mexem só no que mudou (nada é desenhado nem
      baixado de novo). Cada arte mostra a própria espera até a imagem chegar: a pequena primeiro, a nítida em seguida.
      Um lote por vez: enquanto o lote busca ou as imagens dele chegam, "Mais artes" fica desligado. */
@@ -11488,7 +11559,7 @@ function telaDeArtes({ galeria: fichas, itens, C }) {
     marcaEscolha(it); atualizaMais(it);
   }
   function pinta() {
-    const it = st.aberta ? st.lista.find(x => x.chave === st.aberta) : null;
+    const it = st.aberta ? (st.lista.find(x => x.chave === st.aberta) || (st.cat && st.cat.itens.find(x => x.chave === st.aberta))) : null; // G-242 · a ficha aberta pode ser do catálogo
     if (!it) return pintaLista();
     pintaFicha(it);
     // primeira vez nesta ficha, com internet: busca as artes sozinho
@@ -11498,14 +11569,15 @@ function telaDeArtes({ galeria: fichas, itens, C }) {
     try { st.lista = await itens(); } catch (e) { st.lista = []; }
     try { st.estado = await fichas.estado(); } catch (e) { /* sem armazenamento: começa do padrão */ }
     pinta();
+    carregaCatalogo(); // G-242 · depois da lista do app, sem segurar a tela
   })();
   // a rede voltou ou caiu com a tela aberta: o aviso e a busca acompanham
   const aoMudarRede = () => { if (!root.isConnected) { removeEventListener('online', aoMudarRede); removeEventListener('offline', aoMudarRede); return; } if (st.lista.length) pinta(); };
   if (typeof addEventListener === 'function') { addEventListener('online', aoMudarRede); addEventListener('offline', aoMudarRede); }
   return root;
 }
-function createFichasScreen({ fichas, decks }) {
-  return telaDeArtes({ galeria: fichas, C: { id: 'ficha', rota: '/perfil/fichas', titulo: 'Fichas', outras: 'Outras fichas', icone: 'ficha', abrindo: 'Abrindo as fichas…', voltar: 'Voltar às fichas',
+function createFichasScreen({ fichas, decks, catalogo = null }) {
+  return telaDeArtes({ galeria: fichas, catalogo, C: { id: 'ficha', rota: '/perfil/fichas', titulo: 'Fichas', outras: 'Outras fichas', icone: 'ficha', abrindo: 'Abrindo as fichas…', voltar: 'Voltar às fichas',
       vazio: 'Nenhuma carta com ficha por enquanto.', vazioTitulo: 'Sem fichas', semRedeSemArtes: 'Sem internet: as artes desta ficha aparecem quando houver conexão.', semArte: 'A Scryfall não tem imagem desta ficha. A mesa usa a carta em texto.' },
     async itens() { let nomes = []; try { nomes = (await decks.list()).flatMap(d => d.entries.map(e => e.name)); } catch (e) { /* sem listas: todas juntas */ } return __m34.listaDeFichas(nomes); } });
 }
@@ -24989,7 +25061,7 @@ const ROUTES = [
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
-  { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks }) }, // I4
+  { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks, catalogo }) }, // I4 · G-242: todas as fichas do catálogo
   { path: '/perfil/terrenos', title: 'Terrenos', render: () => createTerrenosScreen({ terrenos, decks }) }, // I6
   { path: '/noticias', title: 'Notícias', render: () => renderHome({ ancora: true }) }, // N2 · T2: a Início, aberta nas notícias
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4

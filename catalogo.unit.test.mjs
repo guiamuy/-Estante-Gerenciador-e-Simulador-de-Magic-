@@ -55,14 +55,14 @@ test('Z1 · publica: baixa só o que falta, grava a lista e o índice, continua 
     const pedidos = [];
     const deckList = { data: [{ name: 'Novo', fileName: 'Novo_N1', type: 'Commander Deck', releaseDate: '2026-09-01' }, { name: 'Velho', fileName: 'Velho_V1', type: 'Theme Deck', releaseDate: '2001-01-01' }] };
     const busca = async url => { pedidos.push(url.replace(C.BASE, '')); const corpo = url.endsWith('DeckList.json') ? deckList : { data: { ...DECK.data, name: url.includes('Novo') ? 'Novo' : 'Velho', type: url.includes('Novo') ? 'Commander Deck' : 'Theme Deck' } }; return { ok: true, status: 200, json: async () => corpo }; };
-    const r1 = await C.publica(pasta, { busca, max: 1, pausa: 0, agora: Date.UTC(2026, 9, 9), mtgo: false }); // (o Magic Online tem teste próprio, G-241)
+    const r1 = await C.publica(pasta, { busca, max: 1, pausa: 0, agora: Date.UTC(2026, 9, 9), mtgo: false, fichas: false }); // (o Magic Online e as fichas têm teste próprio, G-241 e G-242)
     assert.equal(r1.gravou, true); assert.equal(r1.novas, 1); assert.equal(r1.indice.pendentes, 1);
     assert.deepEqual(pedidos, ['DeckList.json', 'decks/Novo_N1.json']);
     const lista = JSON.parse(await readFile(join(pasta, 'listas', 'mtgjson-novo-n1.json'), 'utf8')); assert.equal(lista.nome, 'Novo'); assert.ok(lista.entradas.length > 3);
-    const r2 = await C.publica(pasta, { busca, max: 5, pausa: 0, mtgo: false });
+    const r2 = await C.publica(pasta, { busca, max: 5, pausa: 0, mtgo: false, fichas: false });
     assert.equal(r2.novas, 1); assert.equal(r2.indice.total, 2); assert.equal(r2.indice.pendentes, 0);
     assert.deepEqual(pedidos.slice(2), ['DeckList.json', 'decks/Velho_V1.json'], 'o que já foi publicado não é baixado de novo');
-    const r3 = await C.publica(pasta, { busca, pausa: 0, mtgo: false });
+    const r3 = await C.publica(pasta, { busca, pausa: 0, mtgo: false, fichas: false });
     assert.equal(r3.gravou, false, 'sem lista nova, nada é regravado (sem commit à toa)');
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
@@ -101,7 +101,7 @@ test('Z5 · TopDeck.gg: texto e estrutura da lista (metadado não é carta), oit
     const { writeFile } = await import('node:fs/promises');
     await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([{ id: 'topdeck-velha-1', nome: 'Velha', formato: 'pauper', fonte: 'topdeck', data: '2026-01-01' }], { agora: Date.UTC(2026, 9, 1) })));
     const buscaTudo = async (url, op) => (url.includes('DeckList') ? { ok: true, status: 200, json: async () => ({ data: [] }) } : busca(url, op));
-    const p = await C.publica(pasta, { busca: buscaTudo, pausa: 0, agora: Date.UTC(2026, 9, 9), chaveTopdeck: 'chave-falsa', mtgo: false });
+    const p = await C.publica(pasta, { busca: buscaTudo, pausa: 0, agora: Date.UTC(2026, 9, 9), chaveTopdeck: 'chave-falsa', mtgo: false, fichas: false });
     assert.equal(p.gravou, true); assert.equal(p.novasTd, 7);
     assert.ok(!p.indice.listas.some(l => l.id === 'topdeck-velha-1'), 'a de janeiro saiu');
     assert.deepEqual(p.indice.fontes.map(f => f.id), ['mtgjson', 'topdeck']); assert.equal(p.indice.listas[0].jogador, 'Jogador 1');
@@ -179,7 +179,7 @@ test('G-241 · coleta e publicação do Magic Online: lê este mês e o anterior
     const { writeFile } = await import('node:fs/promises');
     await writeFile(join(pasta, 'indice.json'), JSON.stringify(C.montaIndice([{ id: 'mtgo-modern-league-2026-08-0111000-1', nome: 'Velha', formato: 'modern', fonte: 'mtgo', data: '2026-08-01' }], { agora: Date.UTC(2026, 9, 1) })));
     pedidos.length = 0;
-    const p = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9) });
+    const p = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9), fichas: false });
     assert.equal(p.gravou, true); assert.equal(p.novasMo, 11);
     assert.ok(!p.indice.listas.some(l => l.id.startsWith('mtgo-modern-league-2026-08')), 'a liga de agosto saiu (30 dias)');
     assert.deepEqual(p.indice.fontes.map(f => f.id), ['mtgjson', 'mtgo']);
@@ -188,8 +188,36 @@ test('G-241 · coleta e publicação do Magic Online: lê este mês e o anterior
     const coleta = JSON.parse(await readFile(join(pasta, 'coleta.json'), 'utf8')); assert.equal(coleta.mtgo.length, 6); assert.equal(coleta.topdeck, null);
     // segunda coleta: os eventos já publicados não são baixados de novo; sem novidade nada é regravado
     pedidos.length = 0;
-    const p2 = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9) });
+    const p2 = await C.publica(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 9), fichas: false });
     assert.equal(p2.novasMo, 0); assert.equal(p2.gravou, false);
     assert.ok(!pedidos.some(u => u.endsWith('0512855502') || u.endsWith('0511129')), 'páginas já colhidas não são pedidas: ' + pedidos.filter(u => u.includes('mtgo')).join());
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});
+
+/* ---------------- G-242 · catálogo de fichas (relato #9) ---------------- */
+test('G-242 · fichas pela Scryfall: só fichas, uma por nome e P/T, tipos e subtipos lidos da linha de tipo, duas faces fora; páginas seguidas; arquivo renovado só depois de 7 dias', async () => {
+  const c = (name, type_line, extra = {}) => ({ name, type_line, colors: [], ...extra });
+  assert.deepEqual(C.fichaDaCarta(c('Bird', 'Token Creature — Bird', { power: '1', toughness: '1', colors: ['U'] })), { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['U'], power: '1', toughness: '1' });
+  assert.deepEqual(C.fichaDaCarta(c('Treasure', 'Token Artifact — Treasure')), { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [] });
+  assert.equal(C.fichaDaCarta(c('Elspeth, Sun\'s Champion Emblem', 'Emblem — Elspeth')), null);
+  assert.equal(C.fichaDaCarta(c('Incubator // Phyrexian', 'Token Artifact // Token Artifact Creature — Phyrexian')), null, 'ficha de duas faces fica de fora');
+  const todas = C.fichasDasCartas([c('Soldier', 'Token Creature — Soldier', { power: '1', toughness: '1', colors: ['W'] }), c('Soldier', 'Token Creature — Soldier', { power: '1', toughness: '1', colors: ['R'] }), c('Soldier', 'Token Creature — Soldier', { power: '2', toughness: '2', colors: ['W'] }), c('Bird', 'Token Creature — Bird', { power: '1', toughness: '1', colors: ['U'] })]);
+  assert.deepEqual(todas.map(f => [f.name, f.power, f.colors.join('')]), [['Bird', '1', 'U'], ['Soldier', '1', 'W'], ['Soldier', '2', 'W']], 'a mesma chave (nome + P/T) vale uma vez');
+  const pedidos = [];
+  const busca = async url => { pedidos.push(url); const p2 = url.includes('page=2');
+    return { ok: true, status: 200, json: async () => ({ object: 'list', has_more: !p2, next_page: p2 ? null : 'https://api.scryfall.com/cards/search?q=t%3Atoken&page=2', data: p2 ? [c('Zombie', 'Token Creature — Zombie', { power: '2', toughness: '2', colors: ['B'] })] : [c('Bird', 'Token Creature — Bird', { power: '1', toughness: '1', colors: ['U'] })] }) }; };
+  const r = await C.coletaFichas({ busca, pausa: 0 });
+  assert.equal(r.paginas, 2); assert.deepEqual(r.fichas.map(f => f.name), ['Bird', 'Zombie']);
+  assert.ok(pedidos[0].includes('q=t%3Atoken+-t%3Aemblem') && pedidos[0].includes('include_extras=true') && pedidos[0].includes('unique=cards'));
+  const pasta = await mkdtemp(join(tmpdir(), 'catalogo-fi-'));
+  try {
+    const a = await C.publicaFichas(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 10) });
+    assert.deepEqual(a, { gravou: true, total: 2 });
+    const f = JSON.parse(await readFile(join(pasta, 'fichas.json'), 'utf8')); assert.equal(f.versao, 1); assert.equal(f.fonte, 'scryfall'); assert.equal(f.fichas[1].name, 'Zombie');
+    pedidos.length = 0;
+    assert.deepEqual(await C.publicaFichas(pasta, { busca, pausa: 0, agora: Date.UTC(2026, 9, 12) }), { gravou: false, total: 2 }); assert.equal(pedidos.length, 0, 'dentro da semana não busca');
+    const cai = async () => ({ ok: false, status: 503 });
+    assert.deepEqual(await C.publicaFichas(pasta, { busca: cai, pausa: 0, agora: Date.UTC(2026, 9, 20) }), { gravou: false, total: 2, falhas: 1 }, 'fonte fora do ar: fica o de antes');
+    assert.equal(JSON.parse(await readFile(join(pasta, 'fichas.json'), 'utf8')).fichas.length, 2);
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });

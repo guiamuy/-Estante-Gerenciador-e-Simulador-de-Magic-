@@ -326,6 +326,54 @@ async function dadosDaScryfall(listas, { busca, pausa, log }) {
   return dados;
 }
 
+/* ---------------- G-242 · catálogo de fichas (relato #9) ----------------
+   Todos os tipos de ficha publicados, pela Scryfall (`t:token`, uma por carta-oráculo), para Perfil › Fichas listar
+   qualquer ficha do jogo. O que fica no JSON é só o que a tela e a mesa precisam: nome, tipos, subtipos, P/T e cores
+   (a chave da ficha no app é nome + P/T; a primeira ocorrência de cada chave vale). Renovado uma vez por semana. */
+export const SCRYFALL_FICHAS = 'https://api.scryfall.com/cards/search?' + new URLSearchParams({ q: 't:token -t:emblem', unique: 'cards', include_extras: 'true', order: 'name' }).toString();
+export const DIAS_FICHAS = 7;
+const chaveDaFicha = t => `${String(t.name).toLowerCase()}${t.power != null ? ` ${t.power}/${t.toughness}` : ''}`;
+/** A ficha no formato do app (o mesmo dos scripts: name, types, subtypes, power, toughness, colors), ou null. */
+export function fichaDaCarta(c) {
+  if (!c || !c.name || typeof c.name !== 'string') return null;
+  const linha = String(c.type_line || (c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || '');
+  if (!/\bToken\b/i.test(linha) || c.name.includes(' // ')) return null; // ficha de duas faces fica de fora (a mesa não a vira)
+  const [tipos, sub] = linha.split(/\s[—-]\s/);
+  const types = tipos.split(/\s+/).map(t => t.toLowerCase()).filter(t => ['creature', 'artifact', 'enchantment', 'land', 'planeswalker', 'battle'].includes(t));
+  const out = { name: c.name.trim(), types, subtypes: sub ? sub.trim().split(/\s+/) : [], colors: [...'WUBRG'].filter(x => (c.colors || []).includes(x)) };
+  if (c.power != null && c.toughness != null) { out.power = String(c.power); out.toughness = String(c.toughness); }
+  return out;
+}
+/** Todas as fichas, uma por chave (nome + P/T), em ordem de nome e de força. Puro. */
+export function fichasDasCartas(cartas) {
+  const m = new Map();
+  for (const c of cartas || []) { const f = fichaDaCarta(c); if (f && !m.has(chaveDaFicha(f))) m.set(chaveDaFicha(f), f); }
+  return [...m.values()].sort((a, b) => a.name.localeCompare(b.name) || Number(a.power || 0) - Number(b.power || 0) || Number(a.toughness || 0) - Number(b.toughness || 0));
+}
+/** Busca na Scryfall, página a página (175 por vez), e devolve { fichas, paginas, falhas }. */
+export async function coletaFichas({ busca = globalThis.fetch, pausa = 150, log = () => {} } = {}) {
+  const cartas = []; let url = SCRYFALL_FICHAS, paginas = 0, falhas = 0;
+  while (url && paginas < 40) {
+    try {
+      const r = await baixa(url, { busca }); paginas++;
+      cartas.push(...((r && r.data) || [])); url = r && r.has_more && typeof r.next_page === 'string' && r.next_page.startsWith('https://api.scryfall.com/') ? r.next_page : null;
+    } catch (e) { falhas++; log(`✗ Scryfall fichas: ${e.message}`); break; }
+    if (pausa) await new Promise(r => setTimeout(r, pausa));
+  }
+  const fichas = fichasDasCartas(cartas);
+  log(`  Fichas: ${paginas} página(s), ${cartas.length} carta(s), ${fichas.length} tipo(s) de ficha`);
+  return { fichas, paginas, falhas };
+}
+/** Grava `fichas.json` quando não existe ou tem mais de DIAS_FICHAS; falha da fonte mantém o de antes. */
+export async function publicaFichas(pasta, { busca = globalThis.fetch, agora = Date.now(), pausa = 150, log = () => {} } = {}) {
+  const antes = await leJson(join(pasta, 'fichas.json'));
+  if (antes && Array.isArray(antes.fichas) && antes.fichas.length && Date.parse(antes.geradoEm || 0) > agora - DIAS_FICHAS * 86400e3) return { gravou: false, total: antes.fichas.length };
+  const r = await coletaFichas({ busca, pausa, log });
+  if (r.falhas || !r.fichas.length) return { gravou: false, total: antes && Array.isArray(antes.fichas) ? antes.fichas.length : 0, falhas: r.falhas || 1 };
+  await writeFile(join(pasta, 'fichas.json'), JSON.stringify({ versao: 1, geradoEm: new Date(agora).toISOString(), fonte: 'scryfall', total: r.fichas.length, fichas: r.fichas }) + '\n');
+  return { gravou: true, total: r.fichas.length };
+}
+
 async function leJson(caminho) { try { return JSON.parse(await readFile(caminho, 'utf8')); } catch (e) { return null; } }
 async function baixa(url, { busca, prazo = 30000 }) {
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), prazo);
@@ -336,7 +384,7 @@ async function baixa(url, { busca, prazo = 30000 }) {
   } finally { clearTimeout(t); }
 }
 /** Lê o que está publicado em `pasta`, baixa as listas novas e grava. Com `chaveTopdeck`, renova as de torneio. */
-export async function publica(pasta, { busca = globalThis.fetch, agora = Date.now(), max = MAX_POR_COLETA, pausa = 150, log = () => {}, chaveTopdeck = '', mtgo = true } = {}) {
+export async function publica(pasta, { busca = globalThis.fetch, agora = Date.now(), max = MAX_POR_COLETA, pausa = 150, log = () => {}, chaveTopdeck = '', mtgo = true, fichas = true } = {}) {
   await mkdir(join(pasta, 'listas'), { recursive: true });
   const antes = await leJson(join(pasta, 'indice.json'));
   const anteriores = antes && Array.isArray(antes.listas) ? antes.listas.slice() : [];
@@ -374,14 +422,17 @@ export async function publica(pasta, { busca = globalThis.fetch, agora = Date.no
     for (const l of r.listas) { await writeFile(join(pasta, 'listas', `${l.id}.json`), JSON.stringify(l) + '\n'); mo.push(resumoDaLista(l)); novasMo++; }
   }
   const mesmasMo = moAntes.length === mo.length && moAntes.every(l => mo.some(x => x.id === l.id));
+  // G-242 · as fichas: arquivo próprio no ramo, renovado por semana; não mexe no índice das listas
+  let fichasR = { gravou: false, total: 0 };
+  if (fichas) { try { fichasR = await publicaFichas(pasta, { busca, agora, pausa, log }); } catch (e) { falhas++; log(`✗ fichas: ${e.message}`); } }
   // com a chave, as listas de torneio foram regravadas (podem ter mudado por dentro): o índice é regravado também
   const mesmasTd = !chaveTopdeck && tdAntes.length === td.length && tdAntes.every(l => td.some(x => x.id === l.id));
   if (relatorio || relatorioMo) await writeFile(join(pasta, 'coleta.json'), JSON.stringify({ em: new Date(agora).toISOString(), topdeck: relatorio, mtgo: relatorioMo }, null, 1) + '\n');
-  if (!novas && mesmasTd && mesmasMo && antes && antes.pendentes === pendentes) return { gravou: false, novas, novasTd, novasMo, falhas, indice: antes };
+  if (!novas && mesmasTd && mesmasMo && antes && antes.pendentes === pendentes) return { gravou: fichasR.gravou, novas, novasTd, novasMo, fichas: fichasR, falhas, indice: antes };
   const indice = montaIndice([...resumos, ...td, ...mo], { agora, pendentes });
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice) + '\n');
 
-  return { gravou: true, novas, novasTd, novasMo, falhas, indice };
+  return { gravou: true, novas, novasTd, novasMo, fichas: fichasR, falhas, indice };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -392,6 +443,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const r = await publica(pasta, { log: m => console.log(m), chaveTopdeck });
   console.log(r.gravou ? `gravado: ${r.indice.total} lista(s) · ${r.novas} oficial(is) nova(s) · ${r.novasTd || 0} de torneio nova(s) · ${r.novasMo || 0} do Magic Online nova(s) · ${r.falhas} falha(s) · ${r.indice.pendentes} para a próxima coleta` : 'sem mudança: nada gravado');
   for (const f of r.indice.formatos || []) console.log(`  ${f.nome}: ${f.listas}`);
+  if (r.fichas) console.log(`  fichas: ${r.fichas.total} tipo(s)${r.fichas.gravou ? ' (renovadas)' : ''}`);
   // só acusa quando nada veio de nenhuma fonte (uma fonte de torneio fora do ar não derruba a coleta)
   if (r.falhas && !r.novas && !r.novasTd && !r.novasMo && !r.gravou) process.exit(1);
 }

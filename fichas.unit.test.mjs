@@ -103,3 +103,21 @@ test('I4 · serviço: buscar só com internet, guarda opções e imagens; escolh
   pedidos.length = 0; await fx.buscar({ name: 'Elf Warrior', types: ['creature'], colors: ['G'], power: 1, toughness: 1 });
   assert.deepEqual(J(pedidos), ['!"Elf Warrior" t:token pow=1 tou=1 c=g', '!"Elf Warrior" t:token pow=1 tou=1']);
 });
+
+/* ---------------- G-242 · todas as fichas (relato #9) ---------------- */
+test('G-242 · lista de fichas com o catálogo: as do app primeiro, as do catálogo depois sem repetir chave, marcadas; busca por nome, subtipo, tipo e P/T', () => {
+  const cat = [{ name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['W'], power: '1', toughness: '1' }, // já existe no app: não repete
+    { name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' }, { name: 'Gold', types: ['artifact'], subtypes: ['Gold'], colors: [] },
+    { name: 'Ângelo', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: '4', toughness: '4' }];
+  const l = FX.listaDeFichas(['Battle Screech'], cat);
+  assert.equal(l.filter(x => x.chave === 'ficha:bird 1/1').length, 1, 'a mesma ficha do app não entra duas vezes');
+  const doCat = l.filter(x => x.catalogo); assert.deepEqual(J(doCat.map(x => x.chave)), ['ficha:angelo 4/4', 'ficha:gold', 'ficha:zombie 2/2']);
+  assert.ok(l.findIndex(x => x.catalogo) > l.filter(x => !x.catalogo).length - 1, 'as do app vêm antes das do catálogo');
+  assert.equal(l[0].chave, 'ficha:bird 1/1', 'as das suas listas continuam primeiro');
+  assert.deepEqual(J([doCat[2].icone, doCat[2].cores, doCat[2].descricao, doCat[2].pt]), ['garras', ['B'], 'Criatura — Zombie · 2/2', '2/2']);
+  assert.deepEqual(J(FX.filtraFichas(doCat, 'zomb').map(x => x.nome)), ['Zombie']);
+  assert.deepEqual(J(FX.filtraFichas(doCat, 'angel').map(x => x.nome)), ['Ângelo'], 'subtipo e nome sem acento');
+  assert.deepEqual(J(FX.filtraFichas(doCat, 'artefato').map(x => x.nome)), ['Gold'], 'tipo em português');
+  assert.deepEqual(J(FX.filtraFichas(doCat, '4/4').map(x => x.nome)), ['Ângelo']);
+  assert.equal(FX.filtraFichas(doCat, '  ').length, 3);
+});

@@ -492,6 +492,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-cv ✅ | V5 a impressão escolhida na lista (V1) vale na mesa, para quem jogou com a lista; o bot e o oponente online seguem na arte padrão (leva G-238) | V | 1 | — |
 | 16º-cw ✅ | V3 visões da lista: Galeria, Densa (estilo Moxfield) e Pilhas por custo, lembradas no aparelho (leva G-239) | V | 1 | — |
 | 16º-cx ✅ | Z6 listas do Magic Online: ligas 5-0 e desafios de seis formatos no catálogo, todo dia; Vintage; crédito por fonte; TopDeck mais larga (leva G-241) | Z | 1 | — |
+| 16º-cy ✅ | I8 todas as fichas do jogo em Perfil › Fichas: catálogo semanal pela Scryfall (`fichas.json`), grupo próprio em lotes de 40, busca por nome, tipo e P/T, escolha de arte igual às do app (leva G-242) | I | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -5793,6 +5794,7 @@ mesmo padrão de design".
 | I3 | Tela Jogar sem texto solto | estados em ícone + palavra; explicação em dica do design system |
 | I4 | Fichas do seu jeito | Perfil › Fichas: escolher a arte de cada ficha, com internet, e guardar para jogar offline |
 | I5 | Histórico e estatísticas | partidas guardadas por conta e painel gráfico |
+| I8 | Todas as fichas do jogo | Perfil › Fichas lista todas as fichas do Magic (catálogo semanal), não só as que o motor cria |
 
 **I1 · Mesa legível, parte 2: bloqueios em pares, registro e resumo estruturados** ✅ (leva 183, 05/10/2026)
 - **Bloqueios declarados:** o balão deixou de ser uma frase corrida ("Sky Pike ← Wall Guard · …"). Agora é uma
@@ -5876,7 +5878,8 @@ mesmo padrão de design".
 - **Guardado:** `fichas.escolhas` (vai no backup v3) e `fichas.opcoes` (só no aparelho). O repositório de cartas
   consulta a escolha antes do próprio cache.
 - **Limites declarados:** (1) "todos os tipos de ficha" são os que o motor do app cria, não todas as fichas do Magic;
-  a lista cresce sozinha quando um script novo cria ficha; (2) partida já em andamento continua com a arte com que
+  a lista cresce sozinha quando um script novo cria ficha (**levantado na I8, leva G-242:** o grupo "Todas as fichas" traz o
+  catálogo inteiro); (2) partida já em andamento continua com a arte com que
   começou; (3) a escolha é por ficha (nome + força/resistência), não por lista; (4) as opções vêm da Scryfall em
   inglês e ficam limitadas a 36 artes por ficha.
 - **Modelo e serviço (`src/data/fichas.js`, `__m34`):** `listaDeFichas`, `chaveDaFicha`, `iconeDaFicha`,
@@ -5885,6 +5888,41 @@ mesmo padrão de design".
 - **Testes:** U `fichas.unit` ×3; e2e "I4" (entrada no Perfil, lista com ícone e cores, busca, mesma arte não
   repete, escolha guardada e usada na mesa, ficha sem arte, offline com e sem opções, padrão; `auditaTela` em 360 px
   claro e escuro).
+
+**I8 · Todas as fichas do jogo** ✅ (leva G-242, 10/10/2026 · registro #9)
+- **Pedido (relato #9, 09/10/2026, erro · alta):** "Todos os tipos de fichas existentes deveriam estar disponíveis para
+  configurar aqui na listagem… buscar todos os tipos de ficha… ou criar uma mecânica para carregar mais tipos." A tela
+  da I4 listava só as 15 fichas que o motor cria (limite 1 da I4, agora levantado).
+- **Fonte:** a Scryfall (`t:token -t:emblem`, `unique=cards`, uma por nome + força/resistência, duas faces fora) lida
+  pelo coletor do catálogo (`catalogo.mjs`, ramo `catalogo`) e gravada em **`fichas.json`** `{ versao: 1, geradoEm,
+  fonte: 'scryfall', total, fichas[] { name, types, subtypes, colors, power?, toughness? } }`, renovada quando passa
+  de **7 dias**; nenhuma chamada em massa à Scryfall sai do aparelho — ele lê um arquivo do ramo, uma vez por semana.
+- **Entregue (Perfil › Fichas):**
+  - grupo **"Todas as fichas · N"** depois de "Nas suas listas" e "Outras fichas": todas as fichas do jogo que o app
+    ainda não lista (a mesma chave nome + P/T nunca repete), desenhadas em **lotes de 40** com "Mostrar mais N";
+  - **busca** (`#fichas-busca`, por nome, tipo, subtipo e P/T) que recorta os três grupos juntos e preserva o foco;
+  - abrir uma ficha do catálogo funciona como as do app: artes pela Scryfall (`!"nome" t:token pow= tou= c=`),
+    escolha guardada em `fichas.escolhas` (vai no backup) e usada na mesa quando um script criar essa ficha; o
+    endereço `?f=` abre ficha do catálogo mesmo antes do catálogo chegar;
+  - **estados:** carregando (esqueleto, "Buscando todas as fichas…"), **sem internet** (aviso; se há cópia guardada,
+    ela aparece com a nota "Sem internet: a lista guardada no aparelho"), **erro** com Repetir, catálogo **ainda não
+    montado** (ramo sem `fichas.json`), recorte **vazio** ("Nenhuma ficha com …").
+- **Guardado:** `catalogo.fichas` `{ em, dados }` só no aparelho (derivado, reconstruível; fora do backup); prazo de 7
+  dias; cópia velha vale offline.
+- **Correção de rota:** uma tentativa de fazer o cabeçalho grudado dos grupos parar sob a barra do app
+  (`top: var(--barra-h)`) foi **revertida**: `.ds-list` tem `overflow: hidden`, então o cabeçalho usa a própria lista
+  como rolagem e um `top` > 0 só o desloca para dentro do grupo (medido: 59 px). Nada global muda nesta leva.
+- **Limites declarados:** (1) sem o fluxo ter rodado, o grupo diz que o catálogo está sendo montado; (2) a arte de uma
+  ficha do catálogo só aparece na mesa quando algum script a cria (a escolha fica guardada à espera); (3) fichas de
+  duas faces e emblemas ficam fora; (4) a busca é por texto simples, sem acento-insensível além do `norm` do app.
+- **Modelo (puro):** `catalogo.mjs` — `fichaDaCarta`, `fichasDasCartas`, `coletaFichas`, `publicaFichas`, `publica`
+  com `fichas` ligado por padrão; `__m39` — `fichasDoCatalogo`, `CHAVE_FICHAS`, `catalogo.fichas({ forcar })`;
+  `__m34` — `listaDeFichas(nomes, catalogo)`, `filtraFichas(lista, texto)`.
+- **Testes:** U `catalogo.unit` +1 (paginação da Scryfall, uma por chave, duas faces fora, `fichas.json` renovado só
+  após 7 dias, falha de página não derruba a coleta); U `fichas.unit` +1 (catálogo sem repetir as do app, ordem, filtro
+  por nome, tipo e P/T); U `catalogo.tela.unit` +1 (validação do `fichas.json`: forma, versão, lixo fora); e2e "G-242"
+  (85 fichas falsas, lotes 40/80/84, busca, abrir Zombie do catálogo e escolher a arte, escolha gravada lida do
+  IndexedDB, rota `?f=`, erro + Repetir, sem internet com a cópia guardada; `auditaTela`).
 
 **I5 · Histórico e estatísticas de partidas** ✅ (leva 188, 05/10/2026)
 - **Onde:** Perfil › **Partidas** (rota `/perfil/partidas`); o atalho no Perfil já diz "N · X% de vitória".
