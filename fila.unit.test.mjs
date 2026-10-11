@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EPOCA } from './agregacao.mjs';
-import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas } from './fila.mjs';
+import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos } from './fila.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const DEPOIS = Math.floor(EPOCA / 1000) + 3600;
@@ -291,4 +291,30 @@ test('Q17 · leva recusada, corrigida e publicada: o aviso recusada/<nome> some 
 test('Q17 · motivo da recusa por portão: lista sem repetição, um teste por linha; sem quedas informadas, aponta o log', () => {
   assert.equal(formatarQuedas('not ok 3 - e2e · H7 imagens;not ok 12 - e2e · I7 foco;not ok 1 - e2e · H7 imagens;'), 'Testes que caíram (2):\n- e2e · H7 imagens\n- e2e · I7 foco');
   assert.equal(formatarQuedas(''), ''); assert.equal(formatarQuedas(undefined), '');
+});
+
+test('Q17 · a fila limpa aviso velho: recusada/<nome> de leva que já está no main sai; aviso de leva ainda fora do main fica', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a'), b = m.clone('b');
+    const shaA = a.enfileira('P-6', 'Leva P-6 · o que sai do aparelho\n\nTrilha: protecao', () => a.escreve('dados.js', ['const destinos = app.oQueSaiDoAparelho(estado);']));
+    b.enfileira('G-9', 'Leva G-9 · tela\n\nTrilha: geral', () => b.escreve('tela.js', ['const tela = app.desenharTelaNova(estado);']));
+    const c = ci(m);
+    // dois avisos: o da P-6 (que depois publica por outro caminho, sem a fila apagar) e o da G-9 (que continua recusada)
+    c.git('push', '-q', 'origin', `${c.git('commit-tree', `${shaA}^{tree}`, '-p', shaA, '-m', 'RECUSADA pela fila · P-6')}:refs/heads/recusada/P-6`);
+    const um = montar({ cwd: c.dir, base: 'origin/main', ramos: ordemDaFila(ramosDaFila(c.dir), 'G-9') });
+    avancar({ cwd: c.dir, plano: um, portao: 'failure', motivo: 'not ok 1 - e2e · x' });
+    a.git('push', '-q', 'origin', `${shaA}:main`);            // a P-6 chega ao main (reenvio de clone que não apagou o aviso)
+    c.busca();
+    assert.ok(m.existe('refs/heads/recusada/P-6') && m.existe('refs/heads/recusada/G-9'));
+    assert.deepEqual(limparAvisos({ cwd: c.dir }), ['P-6']);
+    assert.equal(m.existe('refs/heads/recusada/P-6'), false); assert.equal(m.existe('refs/heads/recusada/G-9'), true, 'recusa pendente não é apagada');
+    assert.deepEqual(limparAvisos({ cwd: c.dir }), []);
+  } finally { m.fim(); }
+});
+
+test('Q17 · `publicar --esperar` só trata como recusa o aviso gravado por cima do commit enviado (aviso velho, que a conversa não consegue apagar, não conta)', () => {
+  const pub = readFileSync(join(RAIZ, 'publicar.mjs'), 'utf8');
+  assert.match(pub, /const enviado = git\('rev-parse', 'HEAD'\);/);
+  assert.match(pub, /refExiste\(`origin\/\$\{PREFIXO_RECUSADA\}\$\{nome\}`\) && git\('rev-parse', `origin\/\$\{PREFIXO_RECUSADA\}\$\{nome\}\^`\) === enviado/);
 });

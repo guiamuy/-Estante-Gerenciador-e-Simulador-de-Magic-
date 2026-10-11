@@ -171,6 +171,22 @@ export function apagarAviso({ cwd, remoto = 'origin', nome }) {
   return tenta(g, ['push', '--quiet', remoto, `:refs/heads/${PREFIXO_RECUSADA}${nome}`]) !== null;
 }
 
+/** Limpeza a cada rodada: aviso `recusada/<nome>` cujas levas já estão todas no main é velho (a leva foi corrigida e publicada) e sai.
+    As conversas de nuvem não conseguem apagar ramo no remoto; quem limpa é a fila. Devolve os nomes apagados. */
+export function limparAvisos({ cwd, remoto = 'origin', principal = 'main' }) {
+  const g = gitEm(cwd);
+  tenta(g, ['fetch', '--quiet', '--prune', '--depth=60', remoto, `+refs/heads/${PREFIXO_RECUSADA}*:refs/remotes/${remoto}/${PREFIXO_RECUSADA}*`]);
+  const ja = publicados(cwd, `${remoto}/${principal}`);
+  const apagados = [];
+  for (const r of ramosDaFila(cwd, { remoto, prefixo: PREFIXO_RECUSADA })) {
+    let levas = [];
+    try { levas = commitsDa(cwd, `${remoto}/${principal}..${r.sha}`).filter((c) => !/^RECUSADA pela fila/.test(c.assunto)); } catch (e) { continue; }
+    if (levas.some((c) => !ja.has(chave(c)))) continue;   // ainda há leva deste aviso fora do main: a recusa vale
+    if (apagarAviso({ cwd, remoto, nome: r.nome })) apagados.push(r.nome);
+  }
+  return apagados;
+}
+
 /** Apaga `fila/<nome>` só se o topo ainda é o que a fila processou (quem enviou mais commits no meio fica para a próxima rodada). */
 export function apagarDaFila({ cwd, remoto = 'origin', nome, sha }) {
   const ref = `refs/heads/${PREFIXO_FILA}${nome}`;
@@ -256,11 +272,13 @@ function principal(argv) {
   }
   if (comando === 'avanca') {
     const r = avancar({ cwd, plano, portao: opc('--portao'), motivo: process.env.FILA_MOTIVO || opc('--motivo') });
+    const velhos = tenta(gitEm(cwd), ['fetch', '--quiet', '--depth=200', 'origin', 'main']) === null ? [] : limparAvisos({ cwd });
     const nomes = plano.aceitos.map((a) => `\`${a.nome}\``).join(' + ');
     if (r.publicado) resumo(`### Fila · publicado ${r.publicado.slice(0, 7)} — ${nomes} com um portão`);
     else if (r.acao === 'isolar') resumo(`### Fila · portão vermelho com ${nomes}: nada publicado; a próxima rodada testa \`${r.isolar}\` sozinha`);
     else if (r.acao === 'recusar') resumo(`### Fila · \`${plano.aceitos[0].nome}\` recusada (portão vermelho sozinha); o main não mudou`);
     else if (r.porque) resumo(`### Fila · ${r.porque}`);
+    for (const n of velhos) resumo(`- · aviso velho apagado: \`${PREFIXO_RECUSADA}${n}\` (a leva já está no main)`);
     for (const n of r.recusadas) resumo(`- ✗ recusada: \`${n}\` → ramo \`${PREFIXO_RECUSADA}${n}\` com o motivo`);
     tenta(gitEm(cwd), ['fetch', '--quiet', '--prune', 'origin', `+refs/heads/${PREFIXO_FILA}*:refs/remotes/origin/${PREFIXO_FILA}*`]);
     const restam = ramosDaFila(cwd).length;

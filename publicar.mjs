@@ -158,6 +158,7 @@ async function enviarParaAFila() {
   passo(5, `enviar para ${PREFIXO_FILA}${nome}`);
   if (refExiste(`origin/${PREFIXO_RECUSADA}${nome}`)) roda('git', ['push', '--quiet', 'origin', `:refs/heads/${PREFIXO_RECUSADA}${nome}`]); // reenvio de leva recusada: o aviso antigo sai
   if (!roda('git', ['push', ...(trava ? [trava] : []), 'origin', `HEAD:refs/heads/${PREFIXO_FILA}${nome}`])) para(`Não consegui enviar para ${PREFIXO_FILA}${nome}.`);
+  const enviado = git('rev-parse', 'HEAD');
   console.log(`\n✓ Na fila: ${PREFIXO_FILA}${nome} (${meus.length} commit(s)). O fluxo "Fila de publicação" soma as levas da fila, roda um portão e avança o main.`);
   console.log('  Pode seguir trabalhando neste clone. Para saber onde está: npm run publicar -- --situacao');
   if (!esperar) return;
@@ -165,7 +166,9 @@ async function enviarParaAFila() {
   for (;;) {
     await new Promise((r) => setTimeout(r, 45000));
     if (!roda('git', ['fetch', '--quiet', 'origin', 'main']) || !buscarFila()) continue;
-    if (refExiste(`origin/${PREFIXO_RECUSADA}${nome}`)) { console.error(`\n✗ Recusada pela fila:\n${git('log', '-1', '--format=%b', `origin/${PREFIXO_RECUSADA}${nome}`)}`); process.exit(1); }
+    // a recusa é deste envio só se o aviso foi gravado por cima do commit enviado (aviso velho de um envio anterior não conta:
+    // as conversas de nuvem não conseguem apagá-lo, quem limpa é a fila)
+    if (refExiste(`origin/${PREFIXO_RECUSADA}${nome}`) && git('rev-parse', `origin/${PREFIXO_RECUSADA}${nome}^`) === enviado) { console.error(`\n✗ Recusada pela fila:\n${git('log', '-1', '--format=%b', `origin/${PREFIXO_RECUSADA}${nome}`)}`); process.exit(1); }
     if (!pendentes().length) {
       rebasear();
       console.log(`\n✓ Publicado pela fila: main em ${git('rev-parse', '--short', 'origin/main')} (${Math.round((Date.now() - inicio) / 60000)} min de espera). O clone foi alinhado ao main.`);
