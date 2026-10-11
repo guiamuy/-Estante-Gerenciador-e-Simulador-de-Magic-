@@ -3023,7 +3023,8 @@ const ICONES = {
 };
 function Icone(nome, { tamanho = 20, classe = '' } = {}) {
   const el = h('span', { class: ('ds-icon ' + classe).trim(), 'aria-hidden': 'true', dataset: { icone: nome } });
-  el.innerHTML = `<svg viewBox="0 0 24 24" width="${tamanho}" height="${tamanho}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false">${ICONES[nome] || ''}</svg>`;
+  const px = Math.round(Number(tamanho)) || 20; // P-5 · só número entra no desenho
+  el.innerHTML = `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false">${ICONES[nome] || ''}</svg>`;
   return el;
 }
 /** Botão só de ícone: o rótulo vira nome acessível e dica; `rotulo: true` mostra o texto ao lado. */
@@ -3150,8 +3151,12 @@ function metade(cod, lado) {
   return { cor: c, svg: `<g style="color:${TINTA[c]}" transform="translate(${d} ${d}) translate(12 12) scale(.56) translate(-12 -12)">${glifo}</g>` };
 }
 /** Um símbolo como elemento: círculo na cor de mana, glifo e o texto original escondido. */
+/** P-5 · os códigos que viram desenho; qualquer outro aparece como texto (o código entra no HTML do símbolo). */
+const SIMBOLO_SO = /^(?:[0-9]{1,2}|[WUBRGCXYZTQES]|[WUBRG2C]\/[WUBRGP])$/;
 function Simbolo(cod, { tamanho } = {}) {
   const c = String(cod).toUpperCase();
+  if (!SIMBOLO_SO.test(c)) return h('span', { class: 'ds-sym-texto' }, '{' + String(cod) + '}');
+  const px = Math.round(Number(tamanho)) || 0;
   let corpo, num = null, numCanto = false, tinta = 'c';
   if (c.includes('/')) {
     const [x, y] = c.split('/');
@@ -3167,7 +3172,7 @@ function Simbolo(cod, { tamanho } = {}) {
   }
   const classes = ['ds-sym', num ? 'ds-sym--num' : '', num && num.length > 1 ? 'ds-sym--num2' : '', numCanto ? 'ds-sym--canto' : '', `ds-sym--tinta-${tinta}`].filter(Boolean).join(' ');
   const el = h('span', { class: classes, role: 'img', 'aria-label': nomeDoSimbolo(c), title: nomeDoSimbolo(c), dataset: { sym: c, ...(num ? { num } : {}) } });
-  el.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"${tamanho ? ` width="${tamanho}" height="${tamanho}"` : ''}>${corpo}<circle cx="12" cy="12" r="11" class="ds-sym__aro"/></svg><span class="ds-sym__txt">{${c}}</span>`;
+  el.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"${px ? ` width="${px}" height="${px}"` : ''}>${corpo}<circle cx="12" cy="12" r="11" class="ds-sym__aro"/></svg><span class="ds-sym__txt">{${c}}</span>`;
   return el;
 }
 /** Texto com símbolos, como fragmento. */
@@ -3222,10 +3227,10 @@ const Empty = (message, action, { icone, titulo, hero, id } = {}) => h('div', { 
 const AvisoRede = (texto, { id } = {}) => h('div', { class: 'ds-aviso-rede', role: 'status', id: id || null }, Icone('semRede', { tamanho: 18 }), h('span', {}, texto));
 /** U4 · anel de progresso (0–100) com o número no centro. */
 function AnelProgresso(pct, { tamanho = 64, id, rotulo = 'guardado' } = {}) {
-  const r = 26, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, Math.round(pct || 0)));
-  const el = h('div', { class: 'ds-anel', id: id || null, role: 'img', 'aria-label': `${v}% ${rotulo}`, dataset: { pct: String(v), cheio: String(v >= 100) }, style: { '--anel': tamanho + 'px' } });
-  el.innerHTML = `<svg viewBox="0 0 64 64" width="${tamanho}" height="${tamanho}" aria-hidden="true"><circle cx="32" cy="32" r="${r}" class="ds-anel__trilha"/><circle cx="32" cy="32" r="${r}" class="ds-anel__barra" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - v / 100)).toFixed(2)}" transform="rotate(-90 32 32)"/></svg><span class="ds-anel__num">${v >= 100 ? '' : v + '%'}</span>`;
-  if (v >= 100) el.querySelector('.ds-anel__num').appendChild(Icone('marcar', { tamanho: Math.round(tamanho * .38) }));
+  const r = 26, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, Math.round(Number(pct) || 0))), px = Math.round(Number(tamanho)) || 64;
+  const el = h('div', { class: 'ds-anel', id: id || null, role: 'img', 'aria-label': `${v}% ${rotulo}`, dataset: { pct: String(v), cheio: String(v >= 100) }, style: { '--anel': px + 'px' } });
+  el.innerHTML = `<svg viewBox="0 0 64 64" width="${px}" height="${px}" aria-hidden="true"><circle cx="32" cy="32" r="${r}" class="ds-anel__trilha"/><circle cx="32" cy="32" r="${r}" class="ds-anel__barra" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - v / 100)).toFixed(2)}" transform="rotate(-90 32 32)"/></svg><span class="ds-anel__num">${v >= 100 ? '' : v + '%'}</span>`;
+  if (v >= 100) el.querySelector('.ds-anel__num').appendChild(Icone('marcar', { tamanho: Math.round(px * .38) }));
   return el;
 }
 /** leva 123 · o tom pode vir como texto ('warning') ou objeto ({ tone }); 'danger' é apelido de 'negative'. */
@@ -3338,7 +3343,8 @@ const BANDEIRAS = {
 };
 function Bandeira(pais, { tamanho = 14 } = {}) {
   const el = h('span', { class: 'ds-bandeira', 'aria-hidden': 'true', dataset: { bandeira: pais } });
-  el.innerHTML = `<svg viewBox="0 0 24 16" width="${Math.round(tamanho * 1.5)}" height="${tamanho}" focusable="false">${BANDEIRAS[pais] || ''}</svg>`;
+  const px = Math.round(Number(tamanho)) || 14; // P-5 · só número entra no desenho
+  el.innerHTML = `<svg viewBox="0 0 24 16" width="${Math.round(px * 1.5)}" height="${px}" focusable="false">${BANDEIRAS[pais] || ''}</svg>`;
   return el;
 }
 /** J4 · a espera de uma lista com a forma da lista: `linhas` linhas de selo + dois traços. */

@@ -508,6 +508,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dq ✅ | Fichas com 20 listas de Commander: as cartas guardadas lidas juntas (1,56 s → 0,49 s com o processador 4× mais lento); as cores da estante ganham junto (leva G-250) | I | ½ | — |
 | 16º-ds ✅ | SEG3 política de conteúdo (CSP) por meta: script e conexão só das origens que o app usa, leitor do scanner testado de verdade com ela ligada, contrato que barra origem nova fora da política (leva P-3) | SEG | 1 | — |
 | 16º-dt ✅ | H7c: segunda causa do instável H7 (o guardião offline guardando as listas ao começar a partida gastava a rede ruim simulada antes da mesa), provada e fechada no teste (leva G-252) | Q | ½ | — |
+| 16º-du ✅ | SEG4 todo ponto que vira HTML numa lista fechada com as interpolações permitidas; símbolo de mana com código estranho vira texto; tamanho só como número (leva P-5) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7469,6 +7470,26 @@ segredo do repositório. O `main` não recebe commit do coletor.
   site. A política não vale para o service worker (ele não carrega HTML de fora).
 - **Para as outras trilhas:** a entrada com Google e o Firebase da T6 (conversa armazem) já estão liberados; serviço novo
   entra na meta do `index.html` e o contrato confere.
+
+**SEG4 · Todo ponto que vira HTML numa lista fechada** ✅ (leva P-5, 11/10/2026)
+- **Ameaça:** depois da P-1 (avisos) sobravam os outros pontos que montam HTML — a chave `html:` de `h()` e sete
+  `.innerHTML =` (ícone, símbolo de mana, anel de progresso, bandeira, abertura, contorno do scanner, marca). Prova
+  controlada em 11/10/2026: o **símbolo de mana** punha o código recebido cru no HTML (`{<IMG SRC=X ONERROR=…>}` virava
+  imagem; maiúsculas não protegem, o HTML aceita igual) e o **tamanho** de ícone, símbolo, bandeira e anel entrava como
+  veio (`20" onload="…` virava atributo). Hoje os códigos vêm do texto de carta (já filtrados pela leitura de símbolos)
+  e das cores da carta, e os tamanhos vêm do código: falha latente, fechada antes de algum dado de fora chegar ali.
+- **Medida:** o símbolo só desenha os códigos do alfabeto de mana (números até dois dígitos, W U B R G C X Y Z T Q E S,
+  híbridos e phyrexianos); qualquer outro aparece como texto, como estava escrito. Tamanho vira número antes de entrar no
+  desenho (ícone, símbolo, bandeira, anel). Nada muda no visual.
+- **Guarda-corpo:** `seguranca.sumidouros.unit` — sonda com DOM mínimo (código estranho vira texto; os símbolos de
+  verdade continuam desenhados com o texto original escondido; tamanho que não é número não entra); **contrato** que
+  acha todo `html:` e `.innerHTML =` do `index.html` e confere contra uma **lista fechada** de 16 pontos, cada um com
+  exatamente as interpolações permitidas e o motivo — ponto novo ou interpolação nova cai no portão com a instrução de
+  seguir o dado até a origem; e os sumidouros que o app não usa (`insertAdjacentHTML`, `outerHTML`, `document.write`,
+  `DOMParser`, `createContextualFragment`, `srcdoc`) não podem aparecer. Falhava antes da correção (prova registrada).
+- **Resíduo declarado:** o contrato vê o `index.html`; o service worker não monta HTML. Atributo `style` e `href` montados
+  por `h()` não são HTML e ficam fora desta lista (o `h()` os põe por propriedade). `'unsafe-inline'` na política de
+  conteúdo continua (SEG3).
 
 ### P · Plataforma
 
