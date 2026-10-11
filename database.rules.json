@@ -84,6 +84,24 @@
         }
       }
     },
+    "bloqueios": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$alvo": {
+          ".validate": "$alvo.matches(/^[A-Za-z0-9_-]+$/) && $alvo.length <= 128 && $alvo !== $uid && newData.hasChildren(['nome', 'em'])",
+          "nome": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+          },
+          "em": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      }
+    },
     "salas": {
       "$codigo": {
         ".read": "auth != null && (!data.child('convidado/uid').exists() || data.child('anfitriao/uid').val() === auth.uid || data.child('convidado/uid').val() === auth.uid)",
@@ -109,7 +127,7 @@
           }
         },
         "convidado": {
-          ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000",
+          ".write": "auth != null && !data.exists() && root.child('salas/' + $codigo + '/criadaEm').val() > now - 21600000 && !root.child('bloqueios/' + root.child('salas/' + $codigo + '/anfitriao/uid').val() + '/' + auth.uid).exists() && !root.child('bloqueios/' + auth.uid + '/' + root.child('salas/' + $codigo + '/anfitriao/uid').val()).exists()",
           ".validate": "newData.hasChildren(['nome', 'deck', 'uid']) && newData.child('uid').val() === auth.uid"
         },
         "setup": {

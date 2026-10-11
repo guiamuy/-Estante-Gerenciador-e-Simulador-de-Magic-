@@ -51,3 +51,40 @@ test('P-14 · a lista vai no backup e fica fora do perfil sincronizado (as regra
   const cheia = O.bloqueiosDe(Array.from({ length: O.BLOQUEIOS_MAX }, (_, i) => ({ uid: 'x'.repeat(28) + i, nome: 'N'.repeat(60), em: 4e12 })));
   assert.ok(JSON.stringify(cheia).length < R.VALOR_MAX, JSON.stringify(cheia).length + ' < ' + R.VALOR_MAX);
 });
+
+// ---- P-15 · SEG8b · a lista também no banco: encontro deste aparelho com o banco ----
+test('P-15 · encontro: o que veio de outro aparelho entra, o desbloqueado lá sai, o novo daqui sobe, o desbloqueado aqui é apagado lá', () => {
+  const local = [
+    { uid: 'uVelho', nome: 'Velho', em: 1, nuvem: true },        // confirmado antes e sumido do banco → desbloqueado noutro aparelho
+    { uid: 'uNovo', nome: 'Novo', em: 3 },                       // nunca confirmado → sobe
+    { uid: 'uFora', nome: 'Fora', em: 2, nuvem: true, fora: true }, // desbloqueado aqui, ainda no banco → apaga lá
+    { uid: 'uAmbos', nome: 'Ambos', em: 4 }                      // aqui e lá → confirmado
+  ];
+  const remoto = { uFora: { nome: 'Fora', em: 2 }, uAmbos: { nome: 'Ambos', em: 4 }, uOutro: { nome: '<b>Outro</b>', em: 5 }, '../x': { nome: 'x', em: 0 } };
+  const r = O.encontraBloqueios(local, remoto);
+  assert.equal(js(r.lista.map(b => [b.uid, !!b.nuvem, !!b.fora])), js([['uFora', true, true], ['uNovo', false, false], ['uAmbos', true, false], ['uOutro', true, false]]));
+  assert.equal(js(r.sobe.map(b => b.uid)), js(['uNovo'])); assert.equal(js(r.apaga), js(['uFora']));
+  assert.equal(js(O.bloqueiosAtivos(r.lista).map(b => b.uid)), js(['uNovo', 'uAmbos', 'uOutro']), 'o desbloqueado não bloqueia nem aparece');
+  assert.ok(!O.estaBloqueado(r.lista, 'uFora') && O.estaBloqueado(r.lista, 'uOutro'));
+  assert.equal(O.encontraBloqueios([{ uid: 'a', nome: 'A', em: 1 }], null).sobe.length, 1, 'banco vazio: tudo daqui sobe');
+  // desbloquear: o que está no banco vira "fora" até o banco confirmar; o que nunca foi, sai na hora
+  const d = O.desbloquear([{ uid: 'n', nome: 'N', nuvem: true }, { uid: 'l', nome: 'L' }], 'n');
+  assert.equal(js(d.map(b => [b.uid, !!b.fora])), js([['n', true], ['l', false]]));
+  assert.equal(O.desbloquear(d, 'l').length, 1);
+});
+
+test('P-15 · espelho no banco: sobe o novo, apaga o desbloqueado, marca o confirmado; banco recusando deixa a lista daqui intacta', async () => {
+  const t = O.transporteMemoria();
+  const remoto = O.createBloqueiosRemoto({ transporte: t, uid: 'uEu' });
+  let l = O.bloquear([], { uid: 'uA', nome: 'Ana', em: 1 });
+  l = await remoto.encontrar(l);
+  assert.equal(js(await t.ler('bloqueios/uEu')), js({ uA: { nome: 'Ana', em: 1 } }));
+  assert.equal(l[0].nuvem, true);
+  l = await remoto.encontrar(O.desbloquear(l, 'uA'));
+  assert.equal(await t.ler('bloqueios/uEu'), null); assert.equal(l.length, 0, 'apagado lá, some daqui');
+  const recusa = { ler: async () => { throw Object.assign(new Error('api'), { status: 401 }); }, escrever: async () => { throw new Error('api'); } };
+  await assert.rejects(O.createBloqueiosRemoto({ transporte: recusa, uid: 'uEu' }).encontrar([{ uid: 'uB', nome: 'B' }]));
+  const meio = { ler: async () => null, escrever: async () => { throw new Error('api'); } };
+  const r = await O.createBloqueiosRemoto({ transporte: meio, uid: 'uEu' }).encontrar([{ uid: 'uB', nome: 'B' }]);
+  assert.equal(js(r), js([{ uid: 'uB', nome: 'B', em: 0 }]), 'escrita recusada: fica sem marca, sobe na próxima');
+});

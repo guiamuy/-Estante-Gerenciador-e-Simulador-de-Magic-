@@ -520,6 +520,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dy ✅ | SEG7 silenciar a conversa da partida online: sem selo, aviso nem mensagens do outro; Ouvir sem enxurrada (leva P-12) | SEG | 1 | — |
 | 16º-dz ✅ | SEG6b apagar também da nuvem: com a conta no ar, opção na confirmação que tira perfil e foto da conta da Estante antes de apagar o aparelho; se a nuvem não confirmar, nada é apagado (leva P-13) | SEG | 1 | — |
 | 16º-ea ✅ | SEG8 bloquear uma conta na partida online: na Conversa, Bloquear guarda a conta e silencia; quem você bloqueou não entra nas suas salas e você não entra nas dele; Perfil › Dados lista e desbloqueia; vale no aparelho e no backup (leva P-14) | SEG | 1 | — |
+| 16º-eb ✅ | SEG8b bloqueio no banco: `bloqueios/<conta>` só da dona; a regra da sala recusa o bloqueado nos dois sentidos; a lista vale nos aparelhos da conta e sai com "Apagar também da nuvem"; "O que sai do aparelho" passa a dizer o perfil sincronizado e a lista (leva P-15) | SEG | 1 | regras publicadas no console |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -8289,6 +8290,25 @@ segredo do repositório. O `main` não recebe commit do coletor.
   continua fora (não há quem receba). Próximo passo, uma leva: `online:bloqueios` na regra do banco + o dono publica as
   regras no console + a chave passa a preferência (sincroniza).
 - **Fora:** bloquear pelo nome (nome não é identidade); bloquear quem ainda não jogou com você.
+- **SEG8b · P-15 (11/10/2026), bloqueio no banco:** a lista ganha um lugar próprio no banco, `bloqueios/<conta>/<uid>`
+  (`{ nome ≤ 40, em }`), que só a própria conta lê e escreve — longe do perfil, então uma recusa nunca leva as outras
+  preferências junto (o motivo de a P-14 ter ficado no aparelho). A regra de `salas/<código>/convidado` passa a recusar a
+  entrada quando o anfitrião bloqueou o convidado **ou** o convidado bloqueou o anfitrião: o bloqueado não entra nem com um
+  app alterado. O app encontra a lista daqui com a do banco ao abrir o Perfil (depois de desenhar a tela, sem esperar a rede),
+  ao criar ou entrar numa sala (espera até 2 s; sem resposta, vale a daqui) e depois de bloquear ou desbloquear: o que veio de outro aparelho entra; o que estava
+  confirmado e sumiu do banco foi desbloqueado lá e sai; bloqueio novo sobe; desbloqueio daqui fica marcado até o banco
+  apagar (não volta pelo encontro). **Apagar também da nuvem** (P-13) leva a lista junto. **Correção de declaração:** a
+  tela "O que sai do aparelho" não dizia que o perfil (nome, foto, preferências) vai para a conta desde a A-263; agora a
+  entrada "Conta da Estante e partida online" diz isso e a lista de bloqueados, com quando e como tirar. Testes:
+  `regras.unit` +2 (só a dona lê e escreve, forma e tamanho, não se bloqueia a si; sala recusa o bloqueado nos dois
+  sentidos com `createSala` sem conferência local, como um app alterado, e aceita depois do desbloqueio — caíam sem a
+  regra) e +1 nome de ramo no primeiro nível; `seguranca.bloqueio.unit` +2 (encontro nos quatro casos; espelho que sobe,
+  apaga, marca e não perde nada quando o banco recusa); e2e "P-14" (o bloqueio aparece no banco; bloqueio de outro
+  aparelho aparece no Perfil; Desbloquear apaga do banco e a chave sai depois da confirmação) e "P-13" (a lista sai com a
+  nuvem). **Fora do repositório (dono):** colar o `database.rules.json` novo em Firebase › Realtime Database › Regras e
+  publicar; até lá o banco recusa `bloqueios/` e tudo funciona como na P-14 (lista no aparelho). **Resíduo:** o banco
+  não limita quantos bloqueios uma conta guarda (regra não conta filhos; o app corta em 200); quem bloqueou durante uma
+  partida em curso não expulsa o outro da sala já montada (sair é por Desistir).
 
 ### P · Plataforma
 

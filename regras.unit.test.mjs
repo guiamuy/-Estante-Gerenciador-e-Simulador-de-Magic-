@@ -125,7 +125,7 @@ const docLocal = (preferencias, { nome = 'Ana', avatar = null, em = 10 } = {}) =
 /* ---------- o arquivo ---------- */
 test('P-4 · regras: JSON válido, raiz fechada, só caminhos conhecidos no primeiro nível', () => {
   assert.equal(REGRAS['.read'], false); assert.equal(REGRAS['.write'], false);
-  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['perfis', 'relatos', 'salas']);
+  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['bloqueios', 'perfis', 'relatos', 'salas']);
 });
 
 test('P-4 · regras: expressões regulares só no subconjunto que o Firebase aceita (sem chaves, âncora só nas pontas)', () => {
@@ -282,6 +282,46 @@ test('P-4 · sala: sem conta não cria nem lê; código fora do formato, lista d
   await recusa(O.createSala({ transporte: transporte(b, ANA), agora }).enviarMensagem(codigo, { de: 0, texto: 'ainda aí?' }), 'escrever em sala vencida');
   await recusa(transporte(b, BETO).apagar(`salas/${codigo}`), 'apagar sala de outra pessoa');
   await O.createSala({ transporte: tA, agora }).apagar(codigo); // o dono apaga mesmo vencida: é o que limpa
+});
+
+/* ---------- P-15 · SEG8b · contas bloqueadas (código real: createBloqueiosRemoto e createSala) ---------- */
+test('P-15 · bloqueios: só a própria conta lê e escreve a lista; forma conferida no banco', async () => {
+  const b = bancoComRegras();
+  const daAna = O.createBloqueiosRemoto({ transporte: transporte(b, ANA), uid: ANA.uid });
+  const lista = await daAna.encontrar(O.bloquear([], { uid: BETO.uid, nome: 'Beto', em: 5 }));
+  assert.equal(lista[0].nuvem, true, 'o banco confirmou');
+  assert.equal(JSON.stringify(await daAna.ler()), JSON.stringify({ [BETO.uid]: { nome: 'Beto', em: 5 } }));
+  await recusa(transporte(b, BETO).ler(`bloqueios/${ANA.uid}`), 'o bloqueado lendo a lista de quem bloqueou');
+  await recusa(transporte(b, CAIO).escrever(`bloqueios/${ANA.uid}/${CAIO.uid}`, null), 'terceiro tirando da lista dos outros');
+  await recusa(transporte(b, null).ler(`bloqueios/${ANA.uid}`), 'sem conta');
+  const tA = transporte(b, ANA);
+  await recusa(tA.escrever(`bloqueios/${ANA.uid}/${ANA.uid}`, { nome: 'Eu', em: 1 }), 'bloquear a si mesma');
+  await recusa(tA.escrever(`bloqueios/${ANA.uid}/x.y`, { nome: 'X', em: 1 }), 'chave fora do formato');
+  await recusa(tA.escrever(`bloqueios/${ANA.uid}/${CAIO.uid}`, { nome: 'x'.repeat(41), em: 1 }), 'nome acima de 40');
+  await recusa(tA.escrever(`bloqueios/${ANA.uid}/${CAIO.uid}`, { nome: 'Caio', em: 1, extra: 1 }), 'campo a mais');
+  assert.equal(await daAna.apagarTudo(), true, 'a dona apaga a lista inteira');
+});
+
+test('P-15 · sala: o banco recusa a entrada do bloqueado nos dois sentidos, mesmo com um app que não confere a lista', async () => {
+  const agora = () => 1_000_000_000;
+  const b = bancoComRegras({ agora }); let sorteio = 0;
+  const deck = { nome: 'Teste', cartas: [{ nome: 'Forest', qtd: 40 }] };
+  const criaDaAna = async () => O.createSala({ transporte: transporte(b, ANA), agora, aleatorio: () => (sorteio++ % 32) / 32, quem: () => ANA.uid }).criar({ nome: 'Ana', deck, formato: 'pauper' });
+  // app alterado: createSala sem `bloqueado`, só as regras decidem
+  const entraComo = (quem, codigo) => O.createSala({ transporte: transporte(b, quem), agora, quem: () => quem.uid }).entrar(codigo, { nome: 'X', deck, formato: 'pauper' });
+  // 1 · Ana bloqueou Beto: Beto não entra na sala dela
+  await O.createBloqueiosRemoto({ transporte: transporte(b, ANA), uid: ANA.uid }).por(BETO.uid, { nome: 'Beto', em: 1 });
+  const c1 = await criaDaAna();
+  await recusa(entraComo(BETO, c1), 'bloqueado entrando na sala de quem bloqueou');
+  assert.equal(await entraComo(CAIO, c1), c1, 'quem não está na lista entra como sempre');
+  // 2 · Beto bloqueou Ana (e Ana não bloqueia ninguém): Beto também não entra na sala dela
+  await O.createBloqueiosRemoto({ transporte: transporte(b, ANA), uid: ANA.uid }).tirar(BETO.uid);
+  await O.createBloqueiosRemoto({ transporte: transporte(b, BETO), uid: BETO.uid }).por(ANA.uid, { nome: 'Ana', em: 2 });
+  const c2 = await criaDaAna();
+  await recusa(entraComo(BETO, c2), 'entrando na sala de quem você bloqueou');
+  // 3 · desbloqueado dos dois lados: entra
+  await O.createBloqueiosRemoto({ transporte: transporte(b, BETO), uid: BETO.uid }).tirar(ANA.uid);
+  assert.equal(await entraComo(BETO, c2), c2);
 });
 
 test('P-4 · o resto do banco é negado (ler a raiz, escrever fora dos três ramos)', async () => {

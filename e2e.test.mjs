@@ -5113,6 +5113,7 @@ test('e2e · P-13 Apagar também da nuvem: com a conta conectada a confirmação
   await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
   await page.click('#conta-entrar'); await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
   banco.perfis.uidE2E.avatar = { dado: 'data:image/png;base64,AAAA', em: 1 };
+  banco.bloqueios = { uidE2E: { uidX: { nome: 'X', em: 1 } } };                // P-15 · a lista de bloqueados também está na conta
   negar.sim = true;                                                     // daqui em diante o banco recusa escrita em perfis/
   // 1 · a opção aparece desligada; ligada com a nuvem recusando: nada é apagado
   await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-nuvem');
@@ -5123,6 +5124,7 @@ test('e2e · P-13 Apagar também da nuvem: com a conta conectada a confirmação
   await page.click('#apagar-confirmar'); await page.waitForSelector('#apagar-erro .ds-note');
   assert.match(await page.innerText('#apagar-erro'), /A nuvem não confirmou e nada foi apagado/);
   assert.ok(banco.perfis.uidE2E.doc, 'o perfil continua no banco');
+  assert.ok(banco.bloqueios.uidE2E.uidX, 'e a lista de bloqueados também');
   await page.keyboard.press('Escape');
   await page.goto(base + '#/listas'); await page.waitForSelector('.deck-item >> text=Fica até apagar');
   // 2 · a nuvem confirma: perfil e foto saem do banco, o aparelho volta limpo
@@ -5132,6 +5134,7 @@ test('e2e · P-13 Apagar também da nuvem: com a conta conectada a confirmação
   await Promise.all([page.waitForNavigation({ timeout: 15000 }), page.click('#apagar-confirmar')]);
   await page.waitForTimeout(1500);
   assert.equal(Object.keys(banco.perfis.uidE2E || {}).length, 0, 'perfil e foto fora do banco (nó vazio o Firebase poda sozinho): ' + JSON.stringify(banco.perfis));
+  assert.equal(Object.keys((banco.bloqueios || {}).uidE2E || {}).length, 0, 'P-15 · a lista de bloqueados saiu junto');
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
   assert.deepEqual(errors.filter(e => !/status of 500/.test(e)), [], 'só a recusa que o teste provocou');
 });
@@ -5189,6 +5192,9 @@ test('e2e · P-14 Bloquear uma conta: na Conversa da partida online, Bloquear gu
   await page.waitForTimeout(350); await auditaTela(page, 'confirmação de bloquear');
   await page.click('#tb-bloquear-confirmar'); await page.waitForFunction(() => !document.querySelector('#tb-bloquear-confirmar'));
   assert.equal(JSON.stringify((await guardado()).map(b => [b.uid, b.nome])), JSON.stringify([['uidBeto', 'Beto']]));
+  // P-15 · com a conta conectada, o bloqueio sobe para bloqueios/<conta> (as regras da sala o consultam)
+  for (let i = 0; i < 40 && !desce(['bloqueios', 'uidE2E', 'uidBeto']); i++) await page.waitForTimeout(100);
+  assert.equal(JSON.stringify(desce(['bloqueios', 'uidE2E', 'uidBeto'])?.nome), '"Beto"', 'o bloqueio está no banco: ' + JSON.stringify(banco.bloqueios));
   await page.click('#tb-chat'); await page.waitForSelector('#tb-chat-silenciar');
   assert.equal(await page.getAttribute('#tb-chat-silenciar', 'aria-pressed'), 'true', 'a conversa ficou em silêncio');
   assert.equal(await page.locator('#tb-chat-bloquear').count(), 0, 'já bloqueado: o botão sai');
@@ -5210,14 +5216,21 @@ test('e2e · P-14 Bloquear uma conta: na Conversa da partida online, Bloquear gu
   await page.waitForFunction(() => /Uma conta que você bloqueou tentou entrar/.test(document.body.innerText), null, { timeout: 10000 });
   assert.equal(desce(['salas', codigo, 'estado']), 'encerrada'); assert.equal(desce(['salas', codigo, 'fim', 'motivo']), 'bloqueio');
   assert.equal(desce(['salas', codigo, 'setup']) ?? null, null, 'a mesa não foi montada');
-  // 5 · Perfil › Dados lista Beto; Desbloquear devolve a conta e a seção some
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-bloqueios');
-  assert.match(await page.innerText('#perfil-bloqueios'), /Contas bloqueadas[\s\S]*Beto/);
+  // 5 · Perfil › Dados lista Beto e, P-15, o Caio bloqueado em outro aparelho da mesma conta; Desbloquear apaga do banco
+  poe(['bloqueios', 'uidE2E', 'uidCaio'], { nome: 'Caio', em: 1 });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-bloqueios .perfil-bloqueio >> nth=1');
+  assert.match(await page.innerText('#perfil-bloqueios'), /Contas bloqueadas[\s\S]*Caio[\s\S]*Beto/);
+  await page.click('#perfil-bloqueios [data-uid="uidCaio"] .ds-btn'); await page.waitForFunction(() => !document.querySelector('[data-uid="uidCaio"]'));
+  for (let i = 0; i < 40 && desce(['bloqueios', 'uidE2E', 'uidCaio']); i++) await page.waitForTimeout(100);
+  assert.equal(desce(['bloqueios', 'uidE2E', 'uidCaio']) ?? null, null, 'desbloquear apagou do banco');
   await page.locator('#perfil-bloqueios').scrollIntoViewIfNeeded();
   assert.ok((await page.locator('#perfil-bloqueios .ds-btn').boundingBox()).height >= 44);
   await auditaTela(page, 'perfil · contas bloqueadas');
   await page.click('#perfil-bloqueios .ds-btn'); await page.waitForFunction(() => !document.querySelector('#perfil-bloqueios'));
+  // P-15 · até o banco confirmar, o Beto fica guardado como "desbloqueado, apagar lá"; confirmado, a chave sai
+  for (let i = 0; i < 40 && (await guardado()) !== null; i++) await page.waitForTimeout(100);
   assert.equal(await guardado(), null, 'lista vazia sai do armazenamento');
+  assert.equal(Object.keys(desce(['bloqueios', 'uidE2E']) || {}).length, 0, 'e do banco (nó vazio o Firebase poda sozinho)');
   assert.deepEqual(errors, []);
 });
 
