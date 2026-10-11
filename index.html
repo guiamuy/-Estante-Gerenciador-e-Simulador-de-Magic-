@@ -2214,6 +2214,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 }
 .deck-slot[data-coverage="completo"] .deck-slot__cov { color: var(--positive); border-color: var(--positive); }
 .deck-slot[data-coverage="manual"] .deck-slot__cov { color: var(--warning); border-color: var(--warning); }
+.deck-slot[data-coverage="lida"] .deck-slot__cov { color: var(--accent); border-color: var(--accent); } /* LT8 · lida pelo motor, em revisão */
 /* ===================== U8 · disposições por aparelho =====================
    Medidas em CSS px conferidas em 30/09/2026 (yesviz.com): Galaxy S23/S24/S25 360×780 (DPR 3);
    Galaxy S25+ e S25 Ultra 412×891 (DPR 3,5); as capturas do aparelho do usuário (1080×2340) dão 360×780.
@@ -13253,8 +13254,9 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
       (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
           // U2 parte 3 · selos com ícone desenhado no lugar de ✓ ◐ ✎
-          Badge([Icone('marcar', { tamanho: 14 }), ` ${cv.completo}`], { tone: 'positive' }), cv.parcial ? Badge([Icone('meia', { tamanho: 14 }), ` ${cv.parcial}`]) : null, cv.manual ? Badge([Icone('editar', { tamanho: 14 }), ` ${cv.manual}`]) : null),
-        Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela está pronta para jogar.' : `Esta lista ainda não joga: o motor não resolve ${cv.parcial + cv.manual} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}`,
+          Badge([Icone('marcar', { tamanho: 14 }), ` ${cv.completo}`], { tone: 'positive' }), cv.parcial ? Badge([Icone('meia', { tamanho: 14 }), ` ${cv.parcial}`]) : null, cv.manual ? Badge([Icone('editar', { tamanho: 14 }), ` ${cv.manual}`]) : null,
+          cv.lida ? Badge([Icone('conferir', { tamanho: 14 }), ` ${cv.lida}`], { title: 'Lidas pelo motor, em revisão' }) : null), // LT8
+        Text(cv.pct === 100 ? 'O motor resolve todas as cartas desta lista: ela está pronta para jogar.' : `Esta lista ainda não joga: o motor não resolve ${cv.parcial + cv.manual + cv.lida} carta(s): ${cv.worst.slice(0, 4).join(', ')}${cv.worst.length > 4 ? '…' : ''}${cv.lida ? ` — ${cv.lida === 1 ? '1 delas foi lida pelo motor e aguarda revisão' : cv.lida + ' delas foram lidas pelo motor e aguardam revisão'}` : ''}`,
           { size: 'sm', tone: 'muted' }),
         cv.worst.length ? Button('Copiar sem script', { id: 'deck-copy-missing', icone: 'copiar', title: 'Copiar as cartas que o motor ainda não resolve', onClick: async e => {
           const txt = cv.worst.map(n => `1 ${n}`).join('\n');
@@ -23066,7 +23068,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       mount(covBox, Stack({ style: { gap: 'var(--space-2)' } },
         __m3.LinhaEstado([
           DEV || !bloqueio ? { id: 'mesa-motor', icone: cv.pct === 100 ? 'marcar' : 'meia', tom: cv.pct === 100 ? 'positive' : 'warning', rotulo: 'Motor', valor: `${cv.pct}%`,
-            detalhe: __m3.seguro`${cv.pct === 100 ? __m3.seguro`<b>Motor 100% completo.</b> O motor resolve sozinho todas as cartas desta lista.` : __m3.seguro`<b>Motor ${cv.pct}% completo.</b> ${cv.parcial + cv.manual} carta(s) sem regra completa: ${lista6(faltam)}.`} ${versao}` }
+            detalhe: __m3.seguro`${cv.pct === 100 ? __m3.seguro`<b>Motor 100% completo.</b> O motor resolve sozinho todas as cartas desta lista.` : __m3.seguro`<b>Motor ${cv.pct}% completo.</b> ${cv.parcial + cv.manual + cv.lida} carta(s) sem regra completa: ${lista6(faltam)}.${cv.lida ? ` ${cv.lida} lida(s) pelo motor aguardam revisão.` : ''}`} ${versao}` }
             : { id: 'mesa-motor', icone: 'alerta', tom: 'warning', rotulo: 'Motor', valor: `${cv.pct}%`, detalhe: __m3.seguro`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. ${versao}` },
           reserva ? { id: 'mesa-reserva', icone: 'reserva', rotulo: 'Reserva', valor: reserva, detalhe: __m3.seguro`<b>${reserva} carta(s) na reserva</b> ficam de fora da partida. Na melhor de 3, você troca entre as partidas.` } : null,
           prontaOffline ? { id: 'mesa-offline-ok', icone: 'marcar', tom: 'positive', rotulo: 'Offline', valor: 'Pronta', fala: 'pronta para jogar sem internet', detalhe: __m3.seguro`<b>Guardada no aparelho.</b> Esta lista joga sem internet.` }

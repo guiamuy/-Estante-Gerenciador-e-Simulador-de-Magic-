@@ -43,6 +43,7 @@ const DB = Object.fromEntries([
   { ...card('Mystery Ritual', 'Sorcery', ['U'], 2), oracle_text: 'Faz algo que o motor ainda não entende.' },
   { ...card('Prodigal Sorcerer', 'Creature — Human Wizard', ['U'], 3), mana_cost: '{2}{U}', power: '1', toughness: '1', oracle_text: '{T}: Prodigal Sorcerer deals 1 damage to any target.' },
   { ...card('Elvish Visionary', 'Creature — Elf Shaman', ['G'], 2), mana_cost: '{1}{G}', power: '1', toughness: '1', oracle_text: 'When Elvish Visionary enters, draw a card.' },
+  { ...card('Ember Sketch', 'Instant', ['R'], 1), mana_cost: '{R}', oracle_text: 'Ember Sketch deals 3 damage to any target.' }, // LT8 · sem script à mão: o leitor lê por inteiro → "lida, em revisão"
   // E50 P3 · carta que cria ficha, e a ficha como a Scryfall a guarda (tipo "Token", com imagem)
   { ...card('Thraben Inspector', 'Creature — Human Soldier', ['W'], 1), mana_cost: '{W}', power: '1', toughness: '2', oracle_text: 'When Thraben Inspector enters, investigate.' },
   // Leva 104 · textos oficiais conferidos em 30/09/2026 (Jaspera: playgroup.gg e EchoMTG; Hydra: Scryfall MH3 164)
@@ -10335,6 +10336,18 @@ test('e2e · M-285 · CR2g.2 · atacante bloqueado por dois: a mesa pergunta com
   const fim = await page.evaluate(({ b1, b2 }) => { const s = window.__estanteMesa.estado(); return { b1: s.objects[b1].zone, b2: s.objects[b2].zone, pend: s.pending && s.pending.kind }; }, ids);
   assert.equal(fim.b2, 'graveyard', 'o Masked Vandal morreu'); assert.equal(fim.b1, 'battlefield', 'a Valakut Invoker do goldfish ficou');
   assert.deepEqual(M.errors, []);
+});
+
+test('e2e · LT8 · carta lida pelo motor sem script à mão aparece como "em revisão" e a lista não joga', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Em revisão', '2 Lightning Bolt\n1 Ember Sketch\n1 Island', 'livre');
+  await page.waitForSelector('#deck-coverage');
+  const txt = await page.innerText('#deck-coverage');
+  assert.match(txt, /Motor: 75% completo/, 'a carta lida não conta como completa');
+  assert.match(txt, /1 delas foi lida pelo motor e aguarda revisão/);
+  assert.equal(await page.locator('.deck-slot[data-name="Ember Sketch"][data-coverage="lida"]').count(), 1);
+  assert.match(await page.locator('.deck-slot[data-name="Ember Sketch"] .deck-slot__cov').getAttribute('title'), /Lida · em revisão — lida pelo motor, em revisão/);
+  assert.deepEqual(errors, []);
 });
 
 /* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
