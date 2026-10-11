@@ -5360,6 +5360,7 @@ const EFFECTS = {
   /* ↓ K · efeitos da trilha keywords */
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   /* ↓ V · efeitos da trilha verbos */
+  investigate: { fields: [], targets: ['self'] }, // V-9 · 701.16 investigar: "Create a Clue token" (111.10f); `amount` opcional ("investigate twice", "investigate X times")
   // V-8 · 701.12 trocar. `trocar_com` anota o primeiro lado (permanente ou jogador alvo); `trocar` mira o segundo e faz a troca: `o`: 'controle' | 'vida' | 'vida-resistencia' | 'vida-poder'
   trocar_com: { fields: [], targets: ['creature', 'permanent', 'artifact', 'creature-you-control', 'player', 'opponent'] },
   trocar: { fields: [], targets: ['self', 'creature', 'permanent', 'artifact', 'creature-opponent-controls', 'creature-you-control', 'player', 'opponent'] },
@@ -6185,6 +6186,7 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { if (e.do === 'investigate' && e.amount != null) errs.push(...valueErrors(e.amount, `${label} ${i + 1} (investigate): amount`)); }); // V-9
   effects.forEach((e, i) => { // V-8 · 701.12
     if (e.do === 'trocar_com' && !effects.slice(i + 1).some(x => x.do === 'trocar')) errs.push(`${label} ${i + 1} (trocar_com): precisa ser seguido da troca (trocar)`);
     if (e.do !== 'trocar') return;
@@ -6261,6 +6263,9 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-9 · 701.16 investigar
+  { name: 'Deduce', effects: [{ do: 'draw', amount: 1 }, { do: 'investigate' }], // "Draw a card. Investigate."
+    example: { target: 'none', expect: { handDelta: 1, tokens: 1 } } },
   // V-8 · 701.12 trocar
   { name: 'Switcheroo', effects: [{ do: 'trocar_com', target: 'creature' }, { do: 'trocar', o: 'controle', target: 'creature' }], // "Exchange control of two target creatures."
     example: { target: 'own-creature', expect: { handDelta: 0 } } },
@@ -17608,6 +17613,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'investigate': applyEffect(s, src, { do: 'token', amount: eff.amount == null ? 1 : eff.amount, token: PISTA_V }, tgt, events); break; // V-9 · 701.16a: pelo mesmo caminho de criar ficha (substituições de 701.7 valem)
     case 'trocar_com': s.trocaV = { fonte: src.oid, ...(obj ? { oid: obj.oid, z: obj.zc || 0 } : { player: playerOf() }) }; break; // V-8 · anota o primeiro lado; `trocar` apaga
     case 'trocar': trocar(s, src, eff, tgt, events); break; // V-8 · 701.12
     case 'embaralha_esta': { // V-7 · a mágica sai da pilha para o grimório do dono, que é embaralhado; não vai para o cemitério
@@ -20350,6 +20356,8 @@ function ultimaPalavrasK(s, o) {
 }
 Object.assign(EXPORTS_K, { ultimaPalavrasK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/** V-9 · 111.10f: a ficha de Pista — "a colorless Clue artifact token with '{2}, Sacrifice this token: Draw a card.'" (a mesma definição dos scripts à mão). */
+const PISTA_V = { name: 'Clue', types: ['artifact'], subtypes: ['Clue'], colors: [], abilities: [{ kind: 'activated', cost: { mana: '{2}', sacrifice: true }, effects: [{ do: 'draw', amount: 1 }] }] };
 /* V-8 · 701.12 trocar. Ou a troca inteira acontece, ou nada acontece (a).
    Controle de duas permanentes (b): de controladores diferentes, cada um passa a controlar a do outro, ao mesmo tempo; do mesmo, nada.
    Totais de vida (c): cada jogador ganha ou perde o que falta para ficar com o total que o outro tinha; quem não pode ganhar vida não
@@ -23054,6 +23062,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   trocar: e => { const a = e.target && e.target !== 'self' ? (ALVO_PT[e.target] || descreveAlvo(e.target)) : null;
     return e.o === 'controle' ? `troca o controle dela com o de ${a || 'outra permanente'}` : e.o === 'vida' ? `troca os totais de vida com ${a || 'um jogador'}`
       : `troca o total de vida ${a && /jogador|oponente/.test(a) ? 'de ' + a : 'seu'} com ${e.o === 'vida-poder' ? 'o poder' : 'a resistência'} ${a && !/jogador|oponente/.test(a) ? 'de ' + a : 'desta criatura'}`; },
+  investigate: e => (e.amount == null || e.amount === 1 ? 'investiga (cria uma ficha de Pista: {2}, sacrificar: compre uma carta)' : `investiga ${qtd(e.amount)} vezes (uma ficha de Pista por vez)`), // V-9
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */

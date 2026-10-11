@@ -5909,8 +5909,12 @@
    "regra": "Keyword Actions",
    "titulo": "Investigate",
    "status": "coberta",
-   "evidencia": "feito como efeito token com a Pista ({2}, sacrificar: compre) — scripts de Thraben Inspector, Novice Inspector, Hard Evidence (index.html:5541-5545); boros.regras \"R6 · ... Thraben Inspector e Novice Inspector investigam\"; rules.unit \"M12 · ficha com habilidade: a pista compra ao ser sacrificada\". Não há efeito nomeado nem gatilho \"sempre que você investigar\"",
-   "cartas": "comum"
+   "evidencia": "V-9 · efeito nomeado `investigate` (com `amount` opcional), que cria a ficha de Pista de 111.10f pelo mesmo caminho de criar ficha (as substituições de 701.7 valem). Antes: feito como efeito token com a Pista ({2}, sacrificar: compre) — scripts de Thraben Inspector, Novice Inspector, Hard Evidence; boros.regras \"R6 · ... Thraben Inspector e Novice Inspector investigam\"; rules.unit \"M12 · ficha com habilidade: a pista compra ao ser sacrificada\". Falta só o gatilho \"sempre que você investigar\" (evento de jogador; nenhuma carta das listas usa). Carta: Deduce (.listas/oficiais-verbos.json)",
+   "cartas": "comum",
+   "testes": [
+    "CR 701.16 · investigar: cria uma ficha de Pista — artefato incolor do subtipo Clue com \"{2}, sacrifique esta ficha: compre uma carta\"",
+    "CR 701.16 · investigar mais de uma vez cria uma Pista por vez, e a Pista é a mesma das cartas que já investigavam (Thraben Inspector)"
+   ]
   },
   {
    "n": "701.17",
