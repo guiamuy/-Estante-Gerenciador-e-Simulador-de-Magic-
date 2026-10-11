@@ -3424,6 +3424,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (no mapa):** "não pode perder vida", "sua vida não pode mudar", proteção de jogador por qualidade, "não pode conjurar".
 - **Golden:** idênticas, sem regravar. Versão não sobe.
 
+**CR2f.1 · "Torna-se uma cópia de" (707.2–707.4) e Saheeli completa** ✅ (leva M-280, motor v98, sem mudança no que existe) — 2 testes de conformidade; 1 expectativa ajustada com justificativa.
+- **Regra:** as características impressas de um objeto moram nos fatos do nome dele; copiar é trocar o nome efetivo pelo do modelo (que, se já for cópia, tem o nome copiado: 707.3). O nome impresso fica guardado e volta quando a cópia acaba (duração com carimbo: até o fim do turno, sem prazo, enquanto controlar a fonte); marcadores e efeitos de outras camadas ficam no objeto; exceção de tipo ("além de artefato", 707.9b) com a mesma duração; fora do campo a carta é ela mesma (400.7), e os gatilhos de saída usam as habilidades da cópia.
+- **Uso:** `escolhe_copiadora` (o alvo que vira cópia) + `torna_copia` (o modelo), com `ate` e `somaTipos`.
+- **Cartas cobertas (completas):** Saheeli, Sublime Artificer (o −2; texto oficial em `.listas/oficiais-commander.json`, 05/10/2026). **Malcolm + Kediss chega a 100%: as duas listas de Commander jogam em modo completo.** A biblioteca não tem mais nenhum script parcial.
+- **Expectativa ajustada:** `scripts.unit` "S2 · script que cobre só parte…" procurava um parcial na biblioteca; sem nenhum, confere a mesma regra com um parcial sintético.
+- **Golden:** idênticas, sem regravar. Versão não sobe (a Saheeli era parcial).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

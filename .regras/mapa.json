@@ -9051,9 +9051,9 @@
    "regra": "Copying Objects",
    "titulo": "Valores copiáveis",
    "status": "parcial",
-   "evidencia": "só cópia de mágica por tempestade: o gatilho-cópia leva os efeitos do script (index.html:12292-12293) e escolhe alvo próprio (rules.unit/pauper.regras, Leva 106)",
-   "falta": "não existe conceito de valores copiáveis: nenhuma cópia de permanente, e a cópia de tempestade não leva modo, X pago nem custos adicionais da original (a fila guarda só `effects`).",
-   "esforco": "G",
+   "evidencia": "só cópia de mágica por tempestade: o gatilho-cópia leva os efeitos do script (index.html:12292-12293) e escolhe alvo próprio (rules.unit/pauper.regras, Leva 106) · CR2f.1/M-280 (v98): valores copiáveis = características impressas mais outras cópias (o nome copiado); marcadores e efeitos de outras camadas ficam no objeto.",
+   "falta": "Virada para baixo copiada, cópia de face de dupla face com a face de cima e de mágica com valores de conjuração ainda sem teste dedicado.",
+   "esforco": "M",
    "depende": [
     "613"
    ]
@@ -9062,24 +9062,28 @@
    "n": "707.3",
    "regra": "Copying Objects",
    "titulo": "Cópia de cópia usa os valores já copiados",
-   "status": "ausente",
-   "falta": "sem cópia de permanente.",
-   "esforco": "G",
+   "status": "coberta",
    "depende": [
     "707.2",
     "613"
+   ],
+   "evidencia": "CR2f.1/M-280 (v98): copiar uma cópia usa os valores já copiados (o modelo já tem o nome copiado).",
+   "testes": [
+    "CR 707.3 · cópia de cópia usa os valores copiados; saindo do campo, a carta é ela mesma (400.7)"
    ]
   },
   {
    "n": "707.4",
    "regra": "Copying Objects",
    "titulo": "Permanente passa a copiar outro objeto",
-   "status": "ausente",
-   "falta": "sem \"becomes a copy\"; Saheeli −2 está declarada parcial por isso (scripts.js, index.html:5349-5353).",
-   "esforco": "G",
+   "status": "coberta",
    "depende": [
     "707.2",
     "613"
+   ],
+   "evidencia": "CR2f.1/M-280 (v98): \"torna-se uma cópia de\" — o nome efetivo passa a ser o do modelo (as características impressas moram nos fatos do nome), o impresso fica guardado e volta quando a cópia acaba; duração com carimbo; exceção de tipo (707.9b) com a mesma duração; fora do campo a carta é ela mesma (400.7). copia.unit (Saheeli −2).",
+   "testes": [
+    "CR 707.4 · Saheeli −2: o Sol Ring vira cópia do Thraben Inspector até o fim do turno, além de artefato; na limpeza volta a ser Sol Ring"
    ]
   },
   {

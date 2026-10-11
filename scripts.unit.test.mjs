@@ -468,9 +468,11 @@ test('S8 · cada script da biblioteca passa no cenário que ele mesmo declara', 
 });
 
 test('S2 · script que cobre só parte da carta conta como parcial, e toda parcial diz o que falta', () => {
-  const partial = S.RAW_SCRIPTS.find(sc => sc.covers === 'partial');
+  // CR2f.1 · a biblioteca não tem mais script parcial (a Saheeli era o último): sem nenhum, o teste confere a regra com um parcial sintético
+  const daLista = S.RAW_SCRIPTS.find(sc => sc.covers === 'partial');
+  const partial = daLista || { name: 'Parcial de Teste', covers: 'partial', note: 'falta a segunda habilidade', effects: [{ do: 'draw', amount: 1 }] };
   assert.ok(partial && partial.note, 'scripts parciais precisam dizer o que falta');
-  const cov = S.coverage({ name: partial.name, type_line: 'Instant', oracle_text: 'x' });
+  const cov = daLista ? S.coverage({ name: partial.name, type_line: 'Instant', oracle_text: 'x' }) : S.coverage({ name: partial.name, type_line: 'Instant', oracle_text: 'x' }, { [partial.name]: partial });
   assert.equal(cov.level, 'parcial');
   // a nota é texto livre: o que o teste garante é que ela existe e chega na cobertura
   assert.ok(String(cov.reason || '').includes(partial.note), 'a cobertura mostra a nota da carta');
