@@ -5773,16 +5773,19 @@
    "n": "701.7",
    "regra": "Keyword Actions",
    "titulo": "Create",
-   "status": "parcial",
-   "evidencia": "createToken (index.html:11643) e efeito token (11329); rules.unit \"M12 · a mágica cria as fichas\", \"M12 · ficha que sai do campo deixa de existir\"",
-   "falta": "não há efeito de substituição sobre criação de ficha (dobradores, 701.7b); a ficha só nasce de definição fixa no script (sem ficha-cópia, sem quantidade variável: `amount` é lido cru, não passa por amountOf)",
+   "status": "coberta",
+   "evidencia": "createToken (index.html:11643) e efeito token (11329); rules.unit \"M12 · a mágica cria as fichas\", \"M12 · ficha que sai do campo deixa de existir\" · conferido na V-15: a quantidade passa por amountOf e pelos dobradores de ficha (fichasAoCriar, M-305, 614.16), a ficha entra pelo caminho comum de entrada (entradaModificada, 614.12: virada, com marcadores) e existe a ficha-cópia (`ficha_copia`, 707.8). A colisão de fichas diferentes com o mesmo nome é do item 111 (fatos por nome), não deste.",
    "esforco": "M",
    "depende": [
     "614",
     "707",
     "111"
    ],
-   "cartas": "evergreen"
+   "cartas": "evergreen",
+   "testes": [
+    "CR 614.16 · Parallel Lives dobra as fichas de quem a controla; duas quadruplicam; a do oponente não muda as suas",
+    "CR 614.16 · Anointed Procession e Doubling Season também dobram fichas (somadas: ×4)"
+   ]
   },
   {
    "n": "701.8",
@@ -5984,7 +5987,7 @@
    "titulo": "Scry",
    "status": "parcial",
    "evidencia": "case scry (index.html:11263-11268): escolhidas ficam no topo na ordem da escolha, resto no fundo; scry sem cartas não gera evento; rules.unit \"S14 · scry: o que você escolhe fica no topo, o resto vai para o fundo\"; sonda sonda-701.mjs (Preordain: só pick/pick_done)",
-   "falta": "o jogador não escolhe a ordem das cartas que vão para o fundo (701.22a: \"in any order\" — vão na ordem em que estavam); não há gatilho \"sempre que você usar vidência\" (701.22d); só o controlador usa vidência",
+   "falta": "o jogador não escolhe a ordem das cartas que vão para o fundo (701.22a: \"in any order\" — vão na ordem em que estavam); não há gatilho \"sempre que você usar vidência\" (701.22d); só o controlador usa vidência · V-15 (11/10/2026): a ordem do fundo foi escrita e desfeita — abre uma segunda decisão no meio de partidas já gravadas e derruba a partida-referência pauper-42; só entra com a subida de versão da trilha motor (função `ordemDoFundoV` chamada no fim de concluiPick; vale também para \"the rest on the bottom in any order\" de `look`). Patch no adendo do lote 3.",
    "esforco": "P",
    "cartas": "evergreen"
   },
@@ -6066,8 +6069,8 @@
    "n": "701.29",
    "regra": "Keyword Actions",
    "titulo": "Fateseal",
-   "status": "ausente",
-   "falta": "vidência só olha o grimório do próprio controlador; não há versão no grimório do oponente",
+   "status": "fora",
+   "falta": "Declarado pela trilha verbos em 11/10/2026: fora do alvo — vidência no grimório do oponente só existe em meia dúzia de cartas de Future Sight, nenhuma nas listas nem comum em Pauper ou Commander. Entra se uma lista pedir (tamanho P: a decisão de vidência com outro dono do grimório).",
    "esforco": "P",
    "depende": [
     "701.22"
@@ -6078,8 +6081,8 @@
    "n": "701.30",
    "regra": "Keyword Actions",
    "titulo": "Clash",
-   "status": "ausente",
-   "falta": "não há revelar o topo dos dois jogadores, comparar valor de mana e decidir topo/fundo",
+   "status": "fora",
+   "falta": "Declarado pela trilha verbos em 11/10/2026: fora do alvo — duelo (clash) é de uma coleção só (Lorwyn/Morningtide), sem carta nas listas. Pede revelar o topo dos dois jogadores, comparar valor de mana e cada um decidir topo ou fundo.",
    "esforco": "M",
    "depende": [
     "701.20"
@@ -6141,7 +6144,7 @@
    "regra": "Keyword Actions",
    "titulo": "Detain",
    "status": "ausente",
-   "falta": "há cant_attack até o seu próximo turno (index.html:11345), mas não \"não ataca, não bloqueia e não ativa habilidades\" junto",
+   "falta": "não há \"detida\" (não ataca, não bloqueia, habilidades ativadas não podem ser ativadas até o próximo turno de quem deteve). Avaliado na V-15: atacar e bloquear têm ponto único, mas \"não pode ativar\" hoje é conferido em sete lugares (ação de ativar, ofertas, lealdade, equipar, produção de mana e pagamento automático) — pede antes um portão único de ativação na trilha motor.",
    "esforco": "P",
    "cartas": "rara"
   },
@@ -6180,8 +6183,8 @@
    "n": "701.38",
    "regra": "Keyword Actions",
    "titulo": "Vote",
-   "status": "ausente",
-   "falta": "não há votação entre jogadores em ordem de turno",
+   "status": "fora",
+   "falta": "Declarado pela trilha verbos em 11/10/2026: fora do alvo — votar é mecânica de mesa com vários jogadores (Conspiracy, Commander); a mesa da Estante é de dois jogadores e mais de dois está no escopo negativo do produto.",
    "esforco": "M",
    "cartas": "rara (Conspiracy/Commander)"
   },
@@ -6203,7 +6206,7 @@
    "regra": "Keyword Actions",
    "titulo": "Manifest",
    "status": "ausente",
-   "falta": "face para baixo existe só para metamorfose conjurada (faceDown 2/2, index.html:10336-10341); não há pôr carta do grimório em campo virada para baixo nem virar para cima pagando o custo de mana (701.40b), nem o caso instantânea/feitiço (g)",
+   "falta": "face para baixo existe só para metamorfose conjurada (faceDown 2/2, index.html:10336-10341); não há pôr carta do grimório em campo virada para baixo nem virar para cima pagando o custo de mana (701.40b), nem o caso instantânea/feitiço (g) · Avaliado na V-15: o motor dá conta (pôr virada, marca de manifestada, virar para cima pelo custo de mana da carta de criatura reaproveitando a ação `unmorph`), mas o botão da mesa lê `f.script.morph.mana` e quebra em carta sem script — depende de uma linha em table.js (vedado à trilha; pedido à mesa).",
    "esforco": "M",
    "depende": [
     "708",
@@ -6229,8 +6232,8 @@
    "n": "701.42",
    "regra": "Keyword Actions",
    "titulo": "Meld",
-   "status": "ausente",
-   "falta": "não há pares de fusão nem permanente representada por duas cartas",
+   "status": "fora",
+   "falta": "Declarado pela trilha verbos em 11/10/2026: fora do alvo — fundir existe em poucos pares de cartas e pede uma permanente representada por duas cartas, estrutura que o motor não tem (tamanho G para um punhado de cartas).",
    "esforco": "G",
    "depende": [
     "712",
@@ -6243,7 +6246,7 @@
    "regra": "Keyword Actions",
    "titulo": "Exert",
    "status": "ausente",
-   "falta": "não há \"não desvira na sua próxima etapa de desvirar\" nem custo opcional ao atacar (701.43d)",
+   "falta": "não há \"exaurida\" (não desvira no seu próximo passo de desvirar), nem \"doesn't untap during its controller's next untap step\" em geral (o passo de desvirar desvira tudo). Avaliado na V-15: a forma comum (\"you may exert as it attacks\", 701.43d) é custo opcional do ataque — decisão nova na mesa (table.js, vedado à trilha) — e a outra é custo de habilidade (parte de custo nova em quatro pontos comuns do motor).",
    "esforco": "M",
    "depende": [
     "508.1g",
@@ -6470,7 +6473,7 @@
    "regra": "Keyword Actions",
    "titulo": "Forage",
    "status": "ausente",
-   "falta": "não há custo \"exile três cartas do cemitério ou sacrifique uma Comida\" (os dois pedaços existem separados nos custos)",
+   "falta": "não há custo \"exile três cartas do cemitério ou sacrifique uma Comida\". Avaliado na V-15: forragear é quase sempre custo, com escolha entre as duas formas e entre as cartas — pede parte de custo nova em pagamentosDe, canPayExtra, payExtraCosts e no validador (região da trilha motor).",
    "esforco": "P",
    "cartas": "uma coleção só"
   },

@@ -3810,6 +3810,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora, declarado:** "cada jogador compra e descarta ao acaso" (Burning Inquiry) pede `draw` para cada jogador, que não existe.
 - **Testes:** `verbos.acaso.unit` (5).
 
+**V-15 · CR3 · Mapa de 701: o que fica fora e o que cada verbo pendente exige** 🟡 (leva V-15, só `.regras/mapa.json` e esta história; nenhum código) — o mapa passa a dizer, verbo a verbo, por que a trilha não o fechou.
+- **Conferida e coberta:** 701.7 (criar ficha) — dobradores, entrada modificada, quantidade variável e ficha-cópia já existiam (M-258, M-305, CR2f.2); o mapa estava atrasado.
+- **Fora, com justificativa:** selar o destino 701.29, duelo 701.30, votar 701.38, fundir 701.42.
+- **Pendentes, com o que exigem (nenhum cabe nas âncoras da trilha):** deter 701.35 (portão único de "não pode ativar", hoje em sete lugares) · exaurir 701.43 (custo opcional do ataque = decisão nova na mesa; e "não desvira no próximo passo de desvirar" não existe no motor) · forragear 701.61 (parte de custo nova com escolha) · manifestar 701.40, encobrir 701.58 e manifestar pavor 701.62 (uma linha no botão "Virar para cima" da mesa) · resistir 701.63 (fichas diferentes com o mesmo nome colidem).
+- **Tentado e desfeito:** ordem das cartas que vão para o fundo na vidência e no "in any order" (701.22a) — abre decisão nova em partidas gravadas e derrubou a partida-referência `pauper-42`; fica para a subida de versão da trilha `motor`, com o patch no adendo do lote 3.
+- **Testes:** `regras.mapa.unit` (4).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.
