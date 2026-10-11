@@ -1,8 +1,11 @@
 # Portão de release. Falhou, não entrega: o GitHub marca o commit com ✗.
 name: Portão de release
 
+# Q15 · só o `main` dispara o portão em push. Ramo de serviço (fila, sonda, acumulado) não roda 22 min de portão;
+# quem quiser o portão num ramo abre pull request ou dispara à mão (workflow_dispatch).
 on:
   push:
+    branches: [main]
   pull_request:
   schedule:
     - cron: '0 6 * * *'   # fuzz pesado, todo dia às 3h de Brasília
@@ -14,6 +17,8 @@ permissions:
 
 jobs:
   gate:
+    # Q15 · a madrugada roda só o fuzz pesado (job abaixo); o portão é de push, pull request e disparo à mão
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 40   # Q14 · as fases rodam em sequência
     steps:
@@ -37,7 +42,7 @@ jobs:
           npm run -s test:rapido 2>&1 | tee portao.log
         env:
           CI: 'true'
-          FUZZ_GAMES: ${{ github.event_name == 'schedule' && '3000' || '250' }}
+          FUZZ_GAMES: '250'
       - name: Fase de tela · navegador, sozinha
         run: |
           set -o pipefail
@@ -60,3 +65,20 @@ jobs:
           path: portao.log
           if-no-files-found: ignore
           retention-days: 7
+
+  # Q15 · fuzz pesado da madrugada, sozinho. Dentro do portão ele levava a fase rápida a 33 min e o job era cancelado
+  # pelo tempo-limite no meio da fase de tela (10 e 11/10/2026): a madrugada terminava sem resultado nenhum.
+  fuzz:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4 (P-2 · fixada por SHA)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020   # v4 (P-2 · fixada por SHA)
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Fuzz pesado · 3000 partidas
+        run: npm run -s test:fuzz:full
+        env:
+          CI: 'true'

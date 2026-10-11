@@ -518,6 +518,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ap ✅ | Barra sem internet em tela estreita: chip só com ícone e tema fora da barra; e2e D8 audita com fonte larga (CI verde de novo) (leva 158) | D | 1 | — |
 | 16º-ao ✅ | D5 dados num lugar só: Perfil › Dados com backup, conta, base local de cartas e espaço; Listas sem backup; Cartas abre na busca (leva 150) | D | 1 | — |
 | 16º-v ✅ | Publicação aditiva entre trilhas: nenhuma conversa apaga a entrega de outra sem declarar (leva 124) | Q12 | 1 | — |
+| 16º-ia 🟡 | Q15 CI só onde precisa: portão em push só no `main`; fuzz pesado da madrugada em job próprio (leva I-279) | Q | ½ | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -2693,6 +2694,38 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Instável conhecido hoje:** `e2e · I7 toque sem realce…` (trilha geral) cai com o arquivo inteiro e passa sozinho — depois do toque no acento a tela é redesenhada e o Tab pode cair antes de o foco existir.
 - **Resolvido na leva G-245 (10/10/2026):** I7 (o Tab espera o acento aplicado e dois quadros), N2 (a posição do botão de idioma é medida depois de dois quadros, quando a âncora J1 já compensou — a tela nunca pulou: a compensação roda antes da pintura) e H7 (a falha simulada valia para quem pedisse primeiro, ver H7b). Os três passaram sob carga artificial nos dois núcleos. **Leva G-247:** os testes de desempenho B2 (avaliação do bot, trilha `bot`) e C12 (filtro de 5 000 cartas) mediam o relógio de parede e caíam quando o portão rodava arquivos em paralelo (215, 239 e 121 ms em 10/10/2026, com ~70 ms de processador no B2); passam a medir o **tempo de processador** do próprio teste, com os mesmos limites (200 e 100 ms). Prova: sob três processos ocupando a máquina, a versão antiga do B2 marcou 295 ms e caiu; a nova passou três vezes. Registro: na máquina livre o B2 mede 60–88 ms hoje (o comentário de origem fala em ~10 ms) — a avaliação ficou mais cara com o crescimento do motor; dívida da trilha `bot` se passar de 100 ms de processador.
 - **Fora:** fila de publicação entre trilhas (tentei uma trava em `refs/vez/*`; o proxy do ambiente recusa esse tipo de referência, e trava em ramo dispararia o CI); dividir a fase de tela em dois navegadores em paralelo; Pages só com portão verde (depende do dono, em Settings → Pages).
+
+#### Velocidade de publicação (trilha `infra`, pedido do dono em 10/10/2026; plano aprovado em 11/10/2026)
+
+Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora) num caminho que comporta 1,5 a 2 por hora — um portão local de 30 a 40 min por vez, sobre o `main` parado. Do commit ao `main`: mediana de 29 min no motor, 38 min na geral (pior caso 243 min). Cada leva roda o portão duas vezes (na conversa e no CI): cerca de 790 min de CI por dia. Detalhe em `claude/ROADMAP-infra-velocidade-de-publicacao.md` (Projeto).
+
+**Q15 · CI só onde precisa** 🟡 (leva I-279)
+- **Valor:** ramo de serviço (fila, sonda, acumulado) deixa de custar um portão de 22 min (três gastos no `z5-sonda` em 09/10); o fuzz pesado da madrugada volta a terminar (10 e 11/10 foi cancelado pelo tempo-limite: 33 min de fase rápida com 3000 partidas, e a fase de tela cortada aos 40).
+- **Aceite:** `gate.yml` roda em push só no `main`, em pull request e à mão; no agendamento roda só o job `fuzz` (3000 partidas, tempo-limite de 60 min, sem navegador); o portão de push usa sempre 250 partidas.
+- **Testes:** `portao.unit` Q15 (3): leitura de `on: push` sem filtro nas três formas do YAML; nenhum fluxo do repositório com push sem filtro; jobs `gate` e `fuzz` separados. As permissões dos fluxos seguem cobertas por `seguranca.actions.unit` (P-2).
+- **Depende de:** nada. **Fora:** portão em ramo por push (quem precisar abre pull request ou dispara à mão).
+
+**Q16 · Conferência de segundos antes do portão** ⬜
+- **Valor:** o que hoje cai no minuto 7 ou 25 do portão cai antes de ele começar. Em 10 e 11/10: duas `M-257`, `G-248`/`G-249` repetidas entre duas conversas da trilha geral, cinco colisões de id `16º-x`.
+- **Aceite:** depois do rebase e antes do portão, `npm run publicar` barra com a correção na mensagem: `Leva <P>-N` já publicada; id `16º-x` repetido na tabela de ordem; `ENGINE_VERSION` mudou na faixa e os goldens não; arquivo `.test.mjs` fora de commit; navegador do Playwright ausente (hoje os testes de tela caem um a um em 30 ms).
+- **Testes:** `agregacao.unit`, um caso por barreira. **Depende de:** nada. **Fora:** conflito de comportamento (é do portão).
+
+**Q17 · Fila de publicação com o portão no CI** ⬜ (aprovada pelo dono em 11/10/2026)
+- **Valor:** a conversa entrega a leva em cerca de 1 min e segue; um portão, no CI, cobre todas as levas que estiverem na fila.
+- **Como:** `npm run publicar` faz rebase, guarda e conferência e envia para `fila/<trilha>-<n>`. O fluxo `fila.yml`, um por vez, põe os ramos da fila em ordem sobre o `main`, roda a guarda e um portão inteiro sobre a soma, e avança o `main`. Conflito, guarda ou portão vermelho: o `main` não muda, o ramo fica marcado com o motivo e a conversa dona corrige; lote que cai é dividido para achar a leva culpada.
+- **Aceite:** nenhum commit chega ao `main` sem portão verde sobre o código somado; rodapés e numeração de origem preservados; duas levas na fila = um portão; ramo publicado é apagado; `npm run publicar -- --situacao` diz onde a leva está.
+- **Testes:** ordem da fila, divisão do lote e preservação de rodapé em `agregacao.unit`/`portao.unit`; ensaio com ramos de sonda antes de virar o padrão. **Depende de:** Q15. **Parecer:** segurança (o fluxo escreve no `main`), escala (minutos). **Fora:** resolver conflito dentro do CI.
+
+**Q18 · Vez de publicar por ramo** ⬜ (só se a Q17 não se sustentar no ensaio)
+- **Valor:** quem vai publicar espera a vez em vez de rodar um portão que será interrompido. Não aumenta a capacidade. **Depende de:** Q15.
+
+**Q19 · Fase de tela em processos paralelos** ⬜
+- **Valor:** portão mais curto para todos (fase de tela: 15 min no CI, 18 a 23 min nas conversas).
+- **Aceite:** `e2e.test.mjs` dividido por tela em arquivos com navegador próprio; `portao.mjs` usa um processo por núcleo na fase de tela; a contagem de testes é a mesma antes e depois; nenhuma queda nova em 5 portões seguidos.
+- **Testes:** `portao.unit`. **Depende de:** medir o tempo por teste. **Parecer:** escala. **Fora:** mudar asserção.
+
+**Q20 · Instáveis zerados** ⬜ (contínuo; cada um é leva da trilha dona)
+- **Aceite:** lista INSTÁVEIS vazia em 20 portões seguidos. **Conhecido hoje:** H7 (imagens da partida, trilha geral, em correção na G-252).
 
 **CR0 · Mapa regra × motor** ✅ (leva 194, motor v72 sem mudança) — 14 auditores independentes, um por trecho das regras, cada um obrigado a mostrar evidência vista e a escolher o nível mais baixo na dúvida.
 

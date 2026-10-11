@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, ARQUIVO_DE_TELA } from './portao.mjs';
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, ARQUIVO_DE_TELA } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -34,4 +34,34 @@ test('Q14 · `npm test`, o publicar e o CI passam todos pelo mesmo portão', () 
   const gate = readFileSync(join(RAIZ, '.github/workflows/gate.yml'), 'utf8');
   assert.match(gate, /npm run (-s )?test:rapido/); assert.match(gate, /npm run (-s )?test:e2e/);
   assert.match(readFileSync(join(RAIZ, 'publicar.mjs'), 'utf8'), /test:rapido/);
+});
+
+// Q15 · CI só onde precisa
+const FLUXOS = join(RAIZ, '.github/workflows');
+test('Q15 · push sem filtro de ramo é reconhecido nas três formas do YAML; com `branches:` não', () => {
+  assert.equal(pushSemFiltro('on:\n  push:\n  pull_request:\njobs:\n'), true);
+  assert.equal(pushSemFiltro('on: push\njobs:\n'), true);
+  assert.equal(pushSemFiltro('on: [push, pull_request]\njobs:\n'), true);
+  assert.equal(pushSemFiltro('on:\n  push:   # todo ramo\n    paths: [a]\n  schedule:\n    - cron: x\njobs:\n'), true);
+  assert.equal(pushSemFiltro('on:\n  push:\n    branches: [main]\n  pull_request:\njobs:\n'), false);
+  assert.equal(pushSemFiltro('on:\n  push:\n\n    branches:\n      - main\njobs:\n'), false);
+  assert.equal(pushSemFiltro('on:\n  schedule:\n    - cron: x\n  workflow_dispatch:\njobs:\n  a:\n    steps:\n      - run: git push origin x\n'), false);
+});
+
+test('Q15 · nenhum fluxo do repositório dispara em push de qualquer ramo (ramo de fila ou de sonda não roda portão)', () => {
+  const ruins = readdirSync(FLUXOS).filter((n) => /\.ya?ml$/.test(n)).filter((n) => pushSemFiltro(readFileSync(join(FLUXOS, n), 'utf8')));
+  assert.deepEqual(ruins, []);
+  assert.match(readFileSync(join(FLUXOS, 'gate.yml'), 'utf8'), /^  push:\n    branches: \[main\]$/m, 'o portão roda em push só no main');
+});
+
+test('Q15 · o fuzz pesado da madrugada roda num job só dele; o portão não roda no agendamento', () => {
+  const gate = readFileSync(join(FLUXOS, 'gate.yml'), 'utf8');
+  const [, portao, fuzz] = gate.match(/\n  gate:\n([\s\S]*?)\n  fuzz:\n([\s\S]*)$/) || [];
+  assert.ok(portao && fuzz, 'gate.yml tem os jobs gate e fuzz');
+  assert.match(portao, /if: github\.event_name != 'schedule'/); assert.doesNotMatch(portao, /3000/);
+  assert.match(fuzz, /if: github\.event_name == 'schedule'/); assert.match(fuzz, /npm run (-s )?test:fuzz:full/);
+  assert.doesNotMatch(fuzz, /test:e2e|test:rapido|playwright/, 'o job do fuzz não roda a fase de tela nem o resto do portão');
+  const limite = Number((fuzz.match(/timeout-minutes: (\d+)/) || [])[1]);
+  assert.ok(limite >= 45 && limite <= 90, `tempo-limite próprio do fuzz (${limite})`);
+  assert.match(JSON.parse(readFileSync(join(RAIZ, 'package.json'), 'utf8')).scripts['test:fuzz:full'], /FUZZ_GAMES=3000/);
 });

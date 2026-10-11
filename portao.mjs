@@ -38,6 +38,23 @@ export function falhasDoTap(tap) {
 /** Padrão que casa só com aquele nome de teste (para --test-name-pattern). */
 export const padraoExato = (nome) => '^' + nome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
 
+/** Q15 · um fluxo dispara em push de qualquer ramo? Lê o bloco `on:` do YAML: `push:` sem `branches:` logo abaixo é push sem filtro
+    (também nas formas `on: push` e `on: [push, …]`). Ramo de serviço não pode custar um portão de 22 minutos. */
+export function pushSemFiltro(yml) {
+  const linhas = String(yml).split('\n').map((l) => l.replace(/\s+#.*$/, '').replace(/\s+$/, ''));
+  const i = linhas.findIndex((l) => /^on:/.test(l));
+  if (i < 0) return false;
+  if (/^on:\s*\S/.test(linhas[i])) return /\bpush\b/.test(linhas[i]);
+  for (let j = i + 1; j < linhas.length && (!linhas[j] || /^\s/.test(linhas[j])); j++) {
+    if (!/^\s+push:/.test(linhas[j])) continue;
+    if (/^\s+push:\s*\S/.test(linhas[j])) return false;                 // push: { branches: [...] } numa linha só
+    const recuo = linhas[j].match(/^\s+/)[0].length;
+    for (let k = j + 1; k < linhas.length && (!linhas[k] || linhas[k].match(/^\s*/)[0].length > recuo); k++) if (/^\s+branches:/.test(linhas[k])) return false;
+    return true;
+  }
+  return false;
+}
+
 function roda(args, { eco = true } = {}) {
   return new Promise((resolve) => {
     const filho = spawn(process.execPath, args, { cwd: RAIZ, env: process.env, stdio: ['ignore', 'pipe', 'inherit'] });
