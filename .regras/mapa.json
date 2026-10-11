@@ -6207,14 +6207,22 @@
    "n": "701.40",
    "regra": "Keyword Actions",
    "titulo": "Manifest",
-   "status": "ausente",
-   "falta": "face para baixo existe só para metamorfose conjurada (faceDown 2/2, index.html:10336-10341); não há pôr carta do grimório em campo virada para baixo nem virar para cima pagando o custo de mana (701.40b), nem o caso instantânea/feitiço (g) · Avaliado na V-15: o motor dá conta (pôr virada, marca de manifestada, virar para cima pelo custo de mana da carta de criatura reaproveitando a ação `unmorph`), mas o botão da mesa lê `f.script.morph.mana` e quebra em carta sem script — depende de uma linha em table.js (vedado à trilha; pedido à mesa).",
-   "esforco": "M",
+   "status": "parcial",
+   "falta": "disfarce (d, 702.168) não existe; \"manifestar\" de outra zona que não o topo do grimório (cartas da mão, do cemitério, cartas escolhidas) não tem forma de script; efeito que viraria para cima uma instantânea manifestada (g) não existe porque nenhum efeito vira permanentes para cima; quatro leituras antigas do motor ainda perguntam \"é terreno?\" direto à carta, sem olhar se está virada para baixo (entra virada a menos que controle um subtipo, custos de devolver terreno, hospedeiro de Aura de terreno) — trilha motor; o Shark não vira a manifestada para cima",
+   "esforco": "P",
    "depende": [
     "708",
     "116.2b"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "V-17 · efeito `manifest` (manifestar, poeViradaParaBaixoV, ehManifestada, podeVirarManifestada e viraManifestadaV em core.js, abaixo da âncora ↓ V): a carta do topo entra já virada para baixo — criatura 2/2 sem nome, tipos, cor, palavras-chave, habilidades nem mana, e nada dela dispara ao entrar (a, 708.2, 708.3); com prioridade, quem controla vira para cima pagando o custo de mana da carta de criatura, como ação especial sem pilha (b; ação `unmorph` com `manifest`), e a carta com metamorfose continua podendo virar pelo custo de metamorfose (c); várias cartas, uma de cada vez (e); terreno, instantânea e feitiço não viram para cima (b, g); a marca leva a encarnação e some ao sair do campo. A mesa mostra o botão \"Virar para cima\" com o custo e põe a manifestada entre as criaturas (linhasDoCampo). Cartas: Soul Summons, Formless Nurturing; Sultai Emissary provada no teste (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.40 · manifestar (a): a carta do topo entra virada para baixo como criatura 2/2 sem nome, tipos, cor, palavras-chave nem habilidades — e nada dela dispara ao entrar",
+    "CR 701.40 · manifestar (a): terreno, instantânea e planeswalker manifestados são só criaturas 2/2 — o terreno não dá mana nem conta como terreno jogado",
+    "CR 701.40 · virar para cima (b): com prioridade, pagando o custo de mana da carta de criatura — ação especial, sem pilha; volta a ser ela mesma, sem enjoo novo nem gatilho de entrada",
+    "CR 701.40 · virar para cima (b, g): terreno e instantânea manifestados não viram para cima; marcadores e dano ficam na permanente que virou",
+    "CR 701.40 · manifestar (a, e): deixa de ser manifestada ao sair do campo (de volta, é a carta comum); várias cartas vão uma de cada vez; grimório vazio não manifesta nada"
+   ]
   },
   {
    "n": "701.41",

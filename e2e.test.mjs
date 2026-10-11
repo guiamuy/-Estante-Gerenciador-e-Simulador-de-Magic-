@@ -10491,6 +10491,34 @@ test('e2e · LT8 · carta lida pelo motor sem script à mão aparece como "em re
 
 /* ↓ K · testes de tela da trilha keywords (só test(nome, { skip }, fn) no nível do arquivo) */
 /* ↓ V · testes de tela da trilha verbos (só test(nome, { skip }, fn) no nível do arquivo) */
+test('e2e · V-17 · CR 701.40b · manifestada: a folha da carta virada para baixo oferece "Virar para cima" com o custo de mana da carta de criatura; terreno manifestado fica entre as criaturas e não vira', { skip }, async t => {
+  // A montagem é por dado (como no teste da Saga): um Kitchen Imp e um Pântano do grimório postos no campo virados para baixo, com a marca de
+  // manifestada. O que se testa aqui é a tela (o motor é provado em verbos.manifestar.unit). Kitchen Imp: {3}{B} (texto oficial em .listas/oficiais.json).
+  const M = await comLista125(t, '24 Swamp\n16 Kitchen Imp', ['Swamp', 'Kitchen Imp'], '4');
+  const { page } = M;
+  const [imp, pantano] = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0].library;
+    const tira = nome => { const i = z.findIndex(o => s.objects[o].name === nome); if (i < 0) throw new Error('sem ' + nome + ' no grimório'); return z.splice(i, 1)[0]; };
+    const poe = (oid, extra) => { const o = s.objects[oid]; o.zc = (o.zc || 0) + 1; Object.assign(o, { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {}, entrouNoTurno: s.turn.number, ...extra }); if (extra.faceDown) o.viradaV = { z: o.zc, modo: 'manifest' }; s.zones[0].battlefield.push(oid); return oid; };
+    for (let i = 0; i < 3; i++) poe(tira('Swamp'), {});
+    return [poe(tira('Kitchen Imp'), { faceDown: true }), poe(tira('Swamp'), { faceDown: true })]; });
+  const terra = await M.oid('Swamp'); assert.ok(terra, 'um Pântano na mão');
+  assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
+  assert.equal(await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count() >= 1, true);
+  const naoTerrenos = await page.evaluate(([a, b]) => [a, b].map(oid => !!document.querySelector(`.tb-side--me [data-zone="lands"] [data-oid="${oid}"]`)), [imp, pantano]);
+  assert.deepEqual(naoTerrenos, [false, false], 'nenhuma manifestada aparece na fileira dos terrenos');
+  const acoes = await M.legal("a.t === 'unmorph'");
+  assert.deepEqual(acoes.map(a => [a.oid, a.manifest]), [[imp, true]], 'só a carta de criatura vira para cima');
+  await page.locator(`.tb-side--me [data-oid="${imp}"]`).first().click(); await page.waitForSelector('.ds-dialog');
+  const botao = page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Virar para cima/ });
+  assert.equal(await botao.count(), 1); assert.match((await botao.innerText()).trim(), /^Virar para cima · \{3\}\{B\}$/);
+  const alto = await botao.evaluate(el => el.offsetHeight); assert.ok(alto >= 44, 'botão com 44 px de altura ou mais (offsetHeight: a folha ainda está abrindo): ' + alto);
+  await auditaTela(page, 'folha da carta manifestada');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/v17-manifestada.png' });
+  await botao.click(); await page.waitForTimeout(250);
+  const fim = await page.evaluate(([a, b]) => { const s = window.__estanteMesa.estado(); return { imp: !!s.objects[a].faceDown, pantano: !!s.objects[b].faceDown, pilha: s.stack.length, virados: s.zones[0].battlefield.filter(o => s.objects[o].tapped).length }; }, [imp, pantano]);
+  assert.deepEqual(fim, { imp: false, pantano: true, pilha: 0, virados: 4 }, 'virou para cima pagando {3}{B} com os quatro Pântanos, sem usar a pilha; o terreno manifestado continua virado para baixo');
+  assert.deepEqual(M.errors, []);
+});
 /* ↓ T · testes de tela da trilha tipos (só test(nome, { skip }, fn) no nível do arquivo) */
 test('e2e · T-1 · CR 714.3b · Saga com read ahead: a mesa pergunta em que capítulo começar, com um botão por capítulo, e só o capítulo escolhido acontece', { skip }, async t => {
   // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 11/10/2026). A única carta com read ahead da biblioteca (The Weatherseed

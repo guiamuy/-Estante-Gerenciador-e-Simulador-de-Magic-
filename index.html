@@ -5366,6 +5366,8 @@ const EFFECTS = {
   exaltado: { fields: ['criatura'], targets: [] }, // K-5 · exaltado (gerado pelo motor)
   cascata: { fields: ['mv'], targets: [] }, // K-7 · cascata (gerado pelo motor)
   /* ↓ V · efeitos da trilha verbos */
+  // V-17 · 701.40 manifestar: a carta do topo do seu grimório entra virada para baixo como criatura 2/2 (uma de cada vez; `amount` opcional, padrão 1; `marcadores`: "then put N +1/+1 counters on it")
+  manifest: { fields: [], targets: ['self'] },
   discard_random: { fields: ['amount'], targets: ['self', 'player', 'opponent'] }, // V-14 · 701.9b descartar ao acaso: as cartas saem pela semente do jogo, ninguém escolhe
   learn: { fields: [], targets: ['self'] }, // V-13 · 701.48 aprender: "You may discard a card. If you do, draw a card." (a Lição de fora do jogo não existe no app: parcial declarada)
   // V-12 · 701.60 suspeitar: a criatura fica suspeita (ameaçar e "não pode bloquear") até sair do campo ou até um efeito dizer que deixa de ser; `unsuspect` é o "is no longer suspected"
@@ -6200,6 +6202,12 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-17 · 701.40
+    if (e.do !== 'manifest') return;
+    if (e.amount != null) errs.push(...valueErrors(e.amount, `${label} ${i + 1} (manifest): amount`));
+    if (typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (manifest): amount precisa ser inteiro positivo`);
+    if (e.marcadores != null && !(Number.isInteger(e.marcadores) && e.marcadores > 0)) errs.push(`${label} ${i + 1} (manifest): marcadores precisa ser inteiro positivo`);
+  });
   effects.forEach((e, i) => { // V-16 · auditoria do lote 3
     if (e.do === 'discard_random' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (discard_random): amount precisa ser inteiro positivo`);
   });
@@ -6288,6 +6296,11 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-17 · 701.40 manifestar
+  { name: 'Soul Summons', effects: [{ do: 'manifest' }], // "Manifest the top card of your library."
+    example: { target: 'none', expect: { handDelta: 0 } } },
+  { name: 'Formless Nurturing', effects: [{ do: 'manifest', marcadores: 1 }], // "Manifest the top card of your library, then put a +1/+1 counter on it."
+    example: { target: 'none', expect: { handDelta: 0 } } },
   // V-14 · 701.9b descartar ao acaso
   { name: 'Goblin Lore', effects: [{ do: 'draw', amount: 4 }, { do: 'discard_random', amount: 3 }], // "Draw four cards, then discard three cards at random."
     example: { target: 'none', expect: { handDelta: 1 } } },
@@ -15771,6 +15784,7 @@ function coresPermitidas(s, p, eff) {
   return null;
 }
 function productions(s, o, visto) {
+  if (o.faceDown) return []; // V-17 · 708.2: virada para baixo não tem habilidade de mana (terreno manifestado não dá mana) · Toca ponto comum: productions (uma linha)
   const mu = mutacao(s, o), perde = !!(mu && mu.perde); // CR2d.1 · perdeu as habilidades: inclusive as de mana
   const spec = perde ? [] : ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
@@ -17716,6 +17730,7 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'manifest': manifestar(s, src, eff, events); break; // V-17 · 701.40
     case 'discard_random': descartaAoAcaso(s, src, eff, tgt, events); break; // V-14 · 701.9b
     case 'learn': aprender(s, src, events); break; // V-13 · 701.48
     case 'learn_sim': s.aprendeV = true; break; // V-16 · o "sim" do aprender (efeito interno, sem script)
@@ -19482,6 +19497,7 @@ const HANDLERS = {
   /* nota: afterMadness devolve a pendência que a insanidade interrompeu */
   /** S29 · transmutar: descarta a carta e busca outra de mesmo valor de mana. */
   unmorph(s, a) { // S54 · vira a carta para cima pagando o custo de metamorfose
+    if (a.manifest) return viraManifestadaV(s, a); // V-17 · 701.40b · Toca ponto comum: HANDLERS.unmorph (uma linha)
     holder(s, a.p);
     const o = onField(s, a.oid);
     if (o.controller !== a.p || !o.faceDown) throw new RuleError('metamorfose', 'esta permanente não está virada para baixo');
@@ -20209,6 +20225,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
   });
   /* ↓ K · ofertas de legalActions da trilha keywords (out.push) */
   /* ↓ V · ofertas de legalActions da trilha verbos (out.push) */
+  if (!s.pending) for (const o of battlefield(s)) if (o.controller === p && podeVirarManifestada(s, o) && (!s.manaCheck || canPay(s, p, s.facts[o.name].cost))) out.push({ t: 'unmorph', p, oid: o.oid, manifest: true }); // V-17 · 701.40b
   /* ↓ T · ofertas de legalActions da trilha tipos (out.push) */
   tripularOfertas(s, p, out); // T-3 · CR 702.122a · "qualquer número de outras criaturas": além dos grupos mínimos, a escolha de quem tripula (função abaixo da âncora T das exportações)
   return out;
@@ -20556,6 +20573,47 @@ function cascataAoFundoK(s, p, oids) {
 }
 Object.assign(EXPORTS_K, { valorDaMagicaK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-17 · 701.40 manifestar. A carta entra no campo virada para baixo: criatura 2/2 sem texto, nome, subtipos nem custo de mana (a);
+   é permanente manifestada enquanto ficar virada para baixo. Com prioridade, quem a controla pode virá-la para cima pagando o custo de
+   mana da carta, se for carta de criatura com custo de mana — ação especial, sem pilha (b); carta com metamorfose também pode virar
+   pelo custo de metamorfose (c: a oferta comum de `unmorph` continua valendo). Várias cartas são manifestadas uma de cada vez (e).
+   Instantânea, feitiço e toda carta que não é de criatura ficam viradas para baixo (g, b). A carta precisa estar virada ANTES de
+   entrar (708.3: nada dela dispara ao entrar): ela passa pela pilha só para levar a marca, como a mágica conjurada virada. */
+const ehManifestada = (s, o) => !!o && !!o.faceDown && o.zone === 'battlefield' && !!o.viradaV && o.viradaV.z === (o.zc || 0);
+function poeViradaParaBaixoV(s, oid, p, modo) {
+  const o = s.objects[oid]; if (!o || !s.facts[o.name]) return null;
+  moveObject(s, oid, 'stack'); o.faceDown = true; moveObject(s, oid, 'battlefield', { controller: p });
+  if (o.zone !== 'battlefield') return null; // 701.40f: algo a impediu de entrar
+  o.faceDown = true; o.sick = true; o.controller = p; delete o.counters.loyalty; // é criatura 2/2 e nada mais: sem lealdade nem escolha de cor da face de cima
+  if (s.queuedChoices) { s.queuedChoices = s.queuedChoices.filter(c => c.oid !== oid); if (!s.queuedChoices.length) delete s.queuedChoices; }
+  o.viradaV = { z: o.zc || 0, modo };
+  return o;
+}
+function manifestar(s, src, eff, events) {
+  const p = src.controller, n = eff.amount == null ? 1 : amountOf(s, src, eff.amount); let feitas = 0;
+  for (let i = 0; i < n; i++) { // (e) uma de cada vez
+    const topo = s.zones[p].library[0]; if (!topo) break;
+    const o = poeViradaParaBaixoV(s, topo, p, 'manifest'); if (!o) continue;
+    feitas++; if (eff.marcadores) { const k = addCounters(s, o, eff.marcadores); if (k > 0) events.push({ kind: 'effect', do: 'counters', name: src.name, target: 'a carta manifestada', amount: k }); }
+  }
+  events.push({ kind: 'effect', do: 'manifest', name: src.name, target: s.players[p].name, amount: feitas });
+}
+/** 701.40b · dá para virar esta manifestada para cima pelo custo de mana? (carta de criatura com custo de mana) */
+function podeVirarManifestada(s, o) {
+  if (!ehManifestada(s, o)) return false;
+  const f = s.facts[o.name]; return (f.types || []).includes('creature') && !!f.cost && !f.semCusto;
+}
+/** 701.40b · ação especial: paga o custo de mana da carta e vira para cima (chamada só por HANDLERS.unmorph quando a ação traz `manifest`). */
+function viraManifestadaV(s, a) {
+  holder(s, a.p); noPending(s);
+  const o = onField(s, a.oid);
+  if (o.controller !== a.p || !ehManifestada(s, o)) throw new RuleError('manifestar', 'esta permanente não é uma manifestada sua');
+  if (!podeVirarManifestada(s, o)) throw new RuleError('manifestar', 'só carta de criatura com custo de mana vira para cima assim');
+  if (s.manaCheck) payCost(s, a.p, s.facts[o.name].cost);
+  delete o.faceDown; delete o.viradaV; o.ts = relogio(s); // 613.7f: virada para cima recebe carimbo novo
+  s.turn.passes = 0;
+}
+Object.assign(EXPORTS_V, { ehManifestada, manifestar, podeVirarManifestada, viraManifestadaV, poeViradaParaBaixoV });
 /* V-14 · 701.9b descartar ao acaso: as cartas são escolhidas pela semente do jogo (nenhum jogador escolhe, nem o motor "pelo jogador");
    com menos cartas na mão do que o pedido, vão todas. É descarte de verdade: insanidade e gatilhos de descarte valem (caminho comum
    descartaCarta). O registro diz quais saíram (descarte é para zona pública, 701.9a). */
@@ -23392,7 +23450,7 @@ function agrupaLeque(s, oids, { separa } = {}) {
     controla. Puro. Antes as permanentes vinham na ordem de chegada: com dois Slippery Bogle e cinco Auras não dava para ver
     qual Aura estava em qual. */
 function linhasDoCampo(s, ids) {
-  const terreno = oid => ((s.facts[s.objects[oid].name] || {}).types || []).includes('land');
+  const terreno = oid => !s.objects[oid].faceDown && ((s.facts[s.objects[oid].name] || {}).types || []).includes('land'); // V-17 · 708.2: terreno virado para baixo é criatura 2/2 (e a fileira não pode revelar o que ele é) · Toca ponto comum: linhasDoCampo
   const dono = oid => { const h = s.objects[oid].attachedTo; return h && ids.includes(h) ? h : null; };
   const livres = ids.filter(o => !dono(o));
   const comAnexos = lista => lista.flatMap(h => [h, ...ids.filter(o => dono(o) === h)]);
@@ -23500,6 +23558,7 @@ Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
 const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
+  manifest: e => `manifesta ${e.amount == null || e.amount === 1 ? 'a carta do topo' : 'as ' + qtd(e.amount) + ' cartas do topo'} do seu grimório (entra virada para baixo como criatura 2/2)${e.marcadores ? ` e põe ${e.marcadores === 1 ? '1 marcador' : e.marcadores + ' marcadores'} +1/+1 nela` : ''}`, // V-17
   discard_random: e => `${e.target === 'player' ? 'o jogador alvo descarta' : e.target === 'opponent' ? 'o oponente alvo descarta' : 'descarta'} ${qtd(e.amount) === 1 ? '1 carta' : qtd(e.amount) + ' cartas'} ao acaso`, // V-14
   learn: () => 'aprende (você pode descartar uma carta; se descartar, compra uma)', // V-13
   learn_sim: () => 'descarta uma carta e compra uma', // V-16
@@ -25549,7 +25608,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       a.t === 'play_land' ? (a.revela != null ? doBtn(`Jogar desvirada, revelando ${s.objects[a.revela].name}`, a, { variant: 'primary' }) : doBtn('Jogar terreno', a, { variant: 'primary' })) // M-252 · Snarl
         // Leva 121 · ações que o motor oferecia e a folha não desenhava: tramar (plot), conjurar a tramada, metamorfose
         : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
-        : a.t === 'unmorph' ? doBtn(`Virar para cima · ${(f.script.morph || {}).mana || ''}`, a, { variant: 'primary' })
+        : a.t === 'unmorph' ? doBtn(`Virar para cima · ${a.manifest ? costLabel(f.cost) || '{0}' : ((f.script || {}).morph || {}).mana || ''}`, a, { variant: 'primary' }) // V-17 · manifestada vira pelo custo de mana da carta (toque autorizado pelo dono em 11/10/2026)
         : a.t === 'cast' && a.faceDown ? doBtn('Conjurar virada para baixo · {3}', a)
         : a.t === 'cast' && a.plotted ? doBtn('Conjurar sem pagar' + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : ''), a, { variant: 'primary' })
         : a.t === 'cast' ? doBtn(((a.alt != null && f.script && f.script.alt && f.script.alt[a.alt]) ? ((f.script.alt[a.alt].cost || {}).mana ? `Custo alternativo · ${f.script.alt[a.alt].label}` : `Conjurar sem pagar mana · ${f.script.alt[a.alt].label}`) : a.flashback ? `Lampejo do passado · ${custoDoLampejo(f.script.flashback)}` : a.retrace ? 'Retraçar · descartando um terreno' : Array.isArray(a.modes) ? a.modes.map(m => (f.script.modes[m] || {}).label || 'modo').join(' + ') : (f.script && f.script.modes && f.script.modes[a.mode || 0]) ? f.script.modes[a.mode || 0].label : a.permissao != null ? `Conjurar do cemitério (${(s.objects[a.permissao] || {}).name || 'permissão'})` : a.delve ? `Conjurar com delve (exila ${a.delve} do cemitério)` : a.exilaMao ? `Conjurar exilando ${a.exilaMao} ${a.exilaMao > 1 ? 'cartas' : 'carta'} da mão` : (o.zone === 'command' ? `Conjurar da zona de comando (imposto ${E.commanderTax(s, v, oid)})` : a.evidence ? `Conjurar com provas ${(f.script || {}).evidence || ''}`.trim() : 'Conjurar')) + ((a.targets || []).length ? ` → ${a.targets.map(x => targetName(s, x)).join(' + ')}` : '')
