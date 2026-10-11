@@ -6078,13 +6078,18 @@
    "n": "701.34",
    "regra": "Keyword Actions",
    "titulo": "Proliferate",
-   "status": "ausente",
-   "falta": "marcadores no motor são só p1p1, m1m1 e loyalty por objeto; não há escolher permanentes/jogadores com marcador e dar mais um de cada tipo, nem marcadores em jogador (veneno)",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "122"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "evidencia": "V-2 · efeito `proliferate` (proliferar e PASSOS_V em core.js, abaixo da âncora ↓ V): quem controla escolhe qualquer número (inclusive nenhum) de permanentes com marcador, suas ou dos outros (decisão pick), e de jogadores com marcador de veneno (uma pergunta por jogador); depois cada escolhido recebe mais um marcador de cada tipo que já tem, todos juntos — +1/+1 pelo caminho que dispara gatilho, −1/−1, lealdade, marcadores nomeados e de palavra-chave, veneno (o décimo encerra a partida). 701.34b (Gigante de Duas Cabeças) fora: mesa de dois jogadores. Marcador em jogador neste motor é só veneno (122.1). Cartas: Steady Progress, Fuel for the Cause (.listas/oficiais-verbos.json)",
+   "testes": [
+    "CR 701.34 · proliferar: quem controla escolhe qualquer número de permanentes com marcador (suas e dos outros), e cada escolhida recebe mais um de cada tipo que já tem",
+    "CR 701.34 · proliferar: escolher nenhuma é permitido, e escolher só algumas deixa as outras como estavam",
+    "CR 701.34 · proliferar: jogador com marcador de veneno também pode ser escolhido, um por um, e os marcadores vêm todos juntos no fim",
+    "CR 701.34 · proliferar numa habilidade (não só em mágica): a escolha abre, e o que vem depois na habilidade espera"
+   ]
   },
   {
    "n": "701.35",
