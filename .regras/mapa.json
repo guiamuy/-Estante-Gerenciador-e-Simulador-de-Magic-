@@ -4899,12 +4899,17 @@
    "n": "613.9",
    "regra": "Interaction of Continuous Effects",
    "titulo": "Um efeito sobrepõe o outro",
-   "status": "ausente",
-   "falta": "has() (:10065) é um OU puro: não existe \"perde voar\", então o efeito mais novo nunca vence. O segundo exemplo (encantada é branca + brancas recebem +1/+1) pede mudança de cor e bônus de grupo, que não existem.",
-   "esforco": "G",
+   "status": "parcial",
+   "falta": "Marcadores de palavra-chave não têm carimbo próprio (contam como antigos); \"perde todas as habilidades\" segue pelo torna/perdeHabilidades; a segunda parte do exemplo (cor que muda quem é afetado) depende da 613.8.",
+   "esforco": "M",
    "depende": [
     "613.1",
     "613.7"
+   ],
+   "evidencia": "CR2d.7/M-276 (v98): \"perde [palavra-chave]\" com carimbo (contínuo temporário e estático, chave perde): o mais novo vence — tira a impressa, o marcador e o concedido antes; o concedido depois fica (hasComPerda).",
+   "testes": [
+    "CR 613.9 · \"perde voar até o fim do turno\": tira a palavra impressa; na limpeza ela volta",
+    "CR 613.7 · ordem por carimbo: ganhou voar, perdeu voar (não voa), ganhou de novo (voa); outras palavras não mudam"
    ]
   },
   {

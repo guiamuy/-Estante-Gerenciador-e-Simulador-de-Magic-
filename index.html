@@ -5542,7 +5542,7 @@ function substituicoesDoScript(sc) {
 /** CR2-G R3a · um efeito contínuo estático: `afetados` ('self', 'anexada' ou seletor de permanentes no campo, sem
  * palavra-chave no seletor — a camada 6 dependeria dela mesma), e ao menos uma mudança: poder, resistencia, palavras, ou
  * perPoder/perResistencia com uma contagem `per`. */
-const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward', 'se']; // M-251 · "enquanto a encantada for …", resistência a magia com custo
+const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward', 'se', 'perde']; // CR2d.7 · perde: palavras-chave perdidas (camada 6) // M-251 · "enquanto a encantada for …", resistência a magia com custo
 /** CR2-G R3c · "torna-se": camada 4 (tipos e subtipos, substituindo ou somando — `somaTipos`), 6 (perde todas as outras
  * habilidades; `palavras` aqui entram junto com a redefinição, com o mesmo carimbo) e 7b (P/T base). */
 const CHAVES_TORNA = ['tipos', 'subtipos', 'somaTipos', 'base', 'perdeHabilidades', 'palavras'];
@@ -5581,7 +5581,8 @@ function continuoErros(c, tag) {
   if (c.palavras != null && !(Array.isArray(c.palavras) && c.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "palavras"`);
   if ((c.perPoder != null || c.perResistencia != null) && !(PER_COUNTS.includes(c.per) || (c.per && typeof c.per === 'object' && typeof c.per.subtype === 'string'))) errs.push(`${tag}: contagem "${c.per}" desconhecida`);
   if (c.torna != null) { errs.push(...tornaErros(c.torna, tag)); if (c.afetados !== 'anexada') errs.push(`${tag}: "torna" estático só vale para a permanente anexada (o resto precisa da dependência 613.8)`); }
-  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna) errs.push(`${tag}: não muda nada`);
+  if (c.perde != null && !(Array.isArray(c.perde) && c.perde.length && c.perde.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "perde"`); // CR2d.7
+  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna && !(c.perde || []).length) errs.push(`${tag}: não muda nada`);
   return errs;
 }
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
@@ -6012,7 +6013,8 @@ function effectErrors(effects, label, opcional) {
       if (e.lembra && e.para !== 'exile') errs.push(`${L}: "lembra" só vale para o exílio`);
     }
     if (e.do === 'continuo') { // CR2-G R3b
-      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico && !(e.perde || []).length) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.perde != null && !(Array.isArray(e.perde) && e.perde.length && e.perde.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "perde"`); // CR2d.7
       if (e.toxico != null && !(Number.isInteger(e.toxico) && e.toxico > 0 && (e.ate == null || e.ate === 'fim-do-turno'))) errs.push(`${label} ${i + 1}: tóxico concedido é inteiro positivo e dura até o fim do turno`); // M-255
       if (e.torna != null) errs.push(...tornaErros(e.torna, `${label} ${i + 1}`)); // CR2-G R6 · "torna" aceita todas as durações
       for (const k of ['poder', 'resistencia']) if (e[k] != null) errs.push(...valueErrors(e[k], `${label} ${i + 1}: ${k}`));
@@ -13877,13 +13879,32 @@ const isSorcerySpeed = f => !f.types.includes('instant') && !f.flash;
 /** S11 · palavras-chave próprias mais as concedidas. CR2-G R3a: o que vem de efeito contínuo estático (Aura, Equipamento,
  * "suas criaturas têm", `continuo`) passa pelo caminho único `continuosQueAfetam`; o resto (impressas, mutação, até o fim
  * do turno, marcadores, até o seu próximo turno) fica como estava. */
+/** CR2d.7 · existe algum contínuo estático com "perde"? (os scripts são fixos: conta-se uma vez; sem nenhum, has() segue o caminho rápido) */
+let PERDE_ESTATICO = null;
+const perdeEstatico = () => (PERDE_ESTATICO ??= Object.values(SC.SCRIPTS || {}).some(sc => (sc.continuo || []).some(c => (c.perde || []).length)));
 function has(s, o, k) {
+  if (o && ((o.temporarios || []).some(t => t.perde) || perdeEstatico())) return hasComPerda(s, o, k);
   const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1, vale = ts => corte < 0 || (ts || 0) > corte; // CR2d.1 · 613.7: concedida antes da Aura que tira tudo some
   if (m && m.keywords.includes(k)) return true;
   if (!(o && o.faceDown) && corte < 0 && s.facts[o.name].kw.includes(k)) return true;
   if (corte < 0 && SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) return true; // CR2c.5 · 122.1b (sem carimbo: a Aura que tira tudo também os anula)
   // CR2-G R3a/R3b · concedidas por efeito contínuo, estático ou temporário (S59 · até o seu próximo turno), com o corte por carimbo
   return continuosQueAfetam(s, o).some(e => e.palavras && vale(e.ts) && e.palavras.includes(k));
+}
+/** CR2d.7 · 613.9 · camada 6 com "perde": o efeito mais novo vence. "Perde voar" tira o que veio antes (a impressa, o marcador, a mutação
+ * e o concedido mais antigo) e perde para o que veio depois. Os marcadores de palavra-chave não têm carimbo próprio aqui: contam como antigos. */
+function hasComPerda(s, o, k) {
+  const m = mutacao(s, o), corte = m && m.perde ? m.corte : -1, vale = ts => corte < 0 || (ts || 0) > corte;
+  const efs = continuosQueAfetam(s, o);
+  let perdeEm = -1; for (const e of efs) if (e.perde && vale(e.ts) && e.perde.includes(k)) perdeEm = Math.max(perdeEm, e.ts || 0);
+  if (perdeEm < 0) {
+    if (m && m.keywords.includes(k)) return true;
+    if (!(o && o.faceDown) && corte < 0 && s.facts[o.name].kw.includes(k)) return true;
+    if (corte < 0 && SC.KEYWORD_COUNTERS.includes(k) && ((o.counters || {})[k] || 0) > 0) return true;
+    return efs.some(e => e.palavras && vale(e.ts) && e.palavras.includes(k));
+  }
+  if (m && redefinicoesDe(s, o).some(r => (r.ts || 0) > perdeEm && (r.b.keywords || []).map(x => String(x).toLowerCase()).includes(k))) return true;
+  return efs.some(e => e.palavras && vale(e.ts) && (e.ts || 0) > perdeEm && e.palavras.includes(k));
 }
 /** CR2-G R3a · o caminho antigo de has (só para o teste de equivalência). */
 function hasLegado(s, o, k) {
@@ -14420,7 +14441,7 @@ const faceDown = o => !!(o && o.faceDown);
 /** CR2-G R3b · grava um efeito contínuo temporário no objeto. A guarda continua nos campos de sempre (o bot, a tela e as
  * partidas salvas os leem): até o fim do turno → pump e tempKeywords (com carimbo); até o seu próximo turno → pumpNext e
  * keywordsNext, marcados com quem fez (`by`), que acabam quando o turno dele começa. */
-function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira }, by, fonte) {
+function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira, perde }, by, fonte) {
   const proximo = ate === 'seu-proximo-turno';
   // CR2-G R6 · 611.2 · duração nova (até o fim do seu próximo turno; enquanto você controlar a fonte): marca de quando, de quem
   // e de qual fonte (encarnação), para a poda e a leitura
@@ -14428,6 +14449,7 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
   // CR2-G R3c · "torna-se …": redefinição com carimbo próprio (613.7), apagada na limpeza (ou quando a duração acabar); vem antes
   // das palavras-chave ganhas no mesmo efeito, que assim sobrevivem ao "perde as outras habilidades"
   if (vira) { o.vira = [...(o.vira || []), { ...vira, ts: relogio(s), ...(marca || {}) }]; o.mutavel = true; }
+  if ((perde || []).length) o.temporarios = [...(o.temporarios || []), { perde: perde.map(k => String(k).toLowerCase()), ts: relogio(s), ...(marca || {}) }]; // CR2d.7 · "perde voar" com carimbo; sem marca = até o fim do turno (sai na limpeza)
   if (ate !== 'fim-do-turno' && ate !== 'seu-proximo-turno') { // durações novas: lista própria, lida pelo caminho dos contínuos
     if (poder != null || resistencia != null || (palavras || []).length)
       o.temporarios = [...(o.temporarios || []), { ...(poder != null ? { poder } : {}), ...(resistencia != null ? { resistencia } : {}), ...((palavras || []).length ? { palavras: palavras.map(k => String(k).toLowerCase()) } : {}), ts: relogio(s), ...marca }];
@@ -14495,7 +14517,7 @@ function vigente(s, t) {
 }
 function temporariosDe(o, s) {
   const out = [];
-  for (const t of o.temporarios || []) if (!s || vigente(s, t)) out.push({ afetados: 'self', temporario: t.ate, poder: t.poder || 0, resistencia: t.resistencia || 0, ...(t.palavras ? { palavras: t.palavras } : {}), ts: t.ts || 0 }); // CR2-G R6
+  for (const t of o.temporarios || []) if (!s || vigente(s, t)) out.push({ afetados: 'self', temporario: t.ate, poder: t.poder || 0, resistencia: t.resistencia || 0, ...(t.palavras ? { palavras: t.palavras } : {}), ...(t.perde ? { perde: t.perde } : {}), ts: t.ts || 0 }); // CR2-G R6 · CR2d.7
   if (o.pump) out.push({ afetados: 'self', temporario: 'fim-do-turno', poder: o.pump.p || 0, resistencia: o.pump.t || 0, ts: 0 });
   if (o.pumpNext) out.push({ afetados: 'self', temporario: 'seu-proximo-turno', poder: o.pumpNext.p || 0, resistencia: o.pumpNext.t || 0, ts: 0 });
   const tts = o.tempTs || [];
@@ -15810,7 +15832,7 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!alvo || alvo.zone !== 'battlefield') break;
       const pw = eff.poder != null ? amountOf(s, src, eff.poder) : undefined, tg = eff.resistencia != null ? amountOf(s, src, eff.resistencia) : undefined;
       if (eff.toxico) alvo.tempToxico = (alvo.tempToxico || 0) + eff.toxico; // M-255 · "gains toxic 1 until end of turn"
-      if (pw != null || tg != null || (eff.palavras || []).length || eff.torna) aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
+      if (pw != null || tg != null || (eff.palavras || []).length || eff.torna || (eff.perde || []).length) aplicaTemporario(s, alvo, { poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}), ...((eff.perde || []).length ? { perde: eff.perde } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
       note({ name: alvo.name, power: pw || 0, toughness: tg || 0, palavras: (eff.palavras || []).map(k => String(k).toLowerCase()), ate: eff.ate || 'fim-do-turno' });
       break;
     }
@@ -21207,6 +21229,7 @@ function descreveContinuo(c) {
   if (c.perPoder || c.perResistencia) partes.push(`recebe ${sinal(c.perPoder || 0)}/${sinal(c.perResistencia || 0)} para cada ${(c.per && c.per.subtype) || PER_PT[c.per] || c.per}`);
   if ((c.palavras || []).length) partes.push(`tem ${c.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
   if (c.ward) partes.push(`tem proteção (ward) ${c.ward}`); // M-251
+  if ((c.perde || []).length) partes.push(`perde ${c.perde.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`); // CR2d.7
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
   const seJogo = c.se ? `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, ` : ''; // M-253 · Corrompido
@@ -21295,6 +21318,7 @@ function descreveEfeito(e) {
       if (e.poder != null || e.resistencia != null) partes.push(`recebe ${sinal(e.poder || 0)}/${sinal(e.resistencia || 0)}`);
       if ((e.palavras || []).length) partes.push(`ganha ${e.palavras.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`);
       if (e.toxico) partes.push(`ganha tóxico ${e.toxico}`); // M-255
+      if ((e.perde || []).length) partes.push(`perde ${e.perde.map(k => PALAVRA_PT[String(k).toLowerCase()] || k).join(' e ')}`); // CR2d.7
       if (e.torna) partes.unshift(descreveTorna(e.torna)); // CR2-G R3c
       const quem = e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura';
       return `${quem} ${partes.join(' e ')} ${duracaoPT(e.ate)}`;

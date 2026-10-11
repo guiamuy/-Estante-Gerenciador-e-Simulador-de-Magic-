@@ -3340,6 +3340,11 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Fora (no mapa):** Aura estática "você controla a criatura encantada" (efeito de habilidade estática na camada 2) e troca de controle entre dois objetos.
 - **Golden:** idênticas, sem regravar. Versão não sobe (o −6 do Sorin dá o mesmo resultado; só o estado guarda a origem do controle).
 
+**CR2d.7 · Camada 6: "perde [palavra-chave]" e o efeito mais novo vencendo** ✅ (leva M-276, motor v98, sem mudança no que existe) — 2 testes de conformidade.
+- **Regra (613.9, 613.7):** chave `perde: [palavras]` no contínuo temporário (`do: 'continuo'`) e no estático (`continuo: [...]`). "Perde voar" tira a palavra impressa, o marcador e o que foi concedido antes dele; o que for concedido depois fica. Com nenhum "perde" em jogo, a leitura de palavras-chave segue exatamente o caminho de antes (custo zero).
+- **Simplificação declarada:** marcadores de palavra-chave não têm carimbo próprio e contam como antigos.
+- **Golden:** idênticas, sem regravar. Versão não sobe.
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
