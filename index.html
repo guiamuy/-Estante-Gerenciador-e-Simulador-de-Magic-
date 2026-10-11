@@ -1296,6 +1296,14 @@ body {
 .deck-cores__valor { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
 .deck-cores__valor b { color: var(--fg); font-weight: var(--weight-medium); }
 /* I5 · partidas: ladrilhos, medidor de resultados, barras de um tom, colunas por semana e a lista do histórico */
+/* P-6 · SEG5 · O que sai do aparelho (Perfil › Dados) */
+.saida-lista { display: grid; gap: var(--space-3); }
+.saida-item__cabeca { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.saida-item__selo { display: inline-flex; flex: none; color: var(--accent); }
+.saida-item__nome { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--text-md); line-height: var(--lh-md); font-weight: 600; color: var(--fg); }
+.saida-linha { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); }
+.saida-linha b { font-weight: 600; }
+.saida-item__origens { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); overflow-wrap: anywhere; }
 .pt-ladrilhos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .pt-ladrilho { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-3) var(--space-2); border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); min-width: 0; }
 .pt-ladrilho__valor { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); color: var(--fg); font-variant-numeric: tabular-nums; text-align: center; }
@@ -10703,6 +10711,75 @@ function createGuardadasScreen({ noticias, share = null }) {
 return { TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
+/* ==== src/app/saida.js ==== */
+const __m41 = (function () {
+/* =====================================================================
+   P-6 · SEG5 · O QUE SAI DO APARELHO (Perfil › Dados)
+   Cada serviço com que o app conversa: o que vai, quando, e como evitar. É a mesma lista que a política de conteúdo
+   (meta Content-Security-Policy no <head>) libera: o contrato `seguranca.saida.unit` confere as duas — serviço novo
+   entra aqui E na política, na mesma leva. Texto fixo do código; a tela é estática e funciona sem internet.
+   ===================================================================== */
+const { h, Stack, Row, Surface, Text, Badge, Icone, IconButton } = __m3;
+const go = to => { location.hash = '#' + to; };
+/** `liga`: diz se o serviço está em uso neste app (configuração vazia = desligado). */
+const DESTINOS = [
+  { id: 'scryfall', nome: 'Scryfall', icone: 'baralho', origens: ['https://api.scryfall.com', 'https://cards.scryfall.io'],
+    vai: 'Os nomes das cartas que o app precisa conhecer e os pedidos das imagens delas. Nada seu além disso.',
+    quando: 'Ao abrir listas, buscar cartas e jogar com cartas que ainda não estão guardadas.',
+    evitar: 'Carta guardada não volta à Scryfall. Sem internet, o app usa só o que já guardou.' },
+  { id: 'github', nome: 'GitHub (arquivos do app)', icone: 'jornal', origens: ['https://raw.githubusercontent.com'],
+    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas e a situação dos seus relatos.',
+    quando: 'Ao abrir Início, Catálogo, Fichas e Relatos com internet.',
+    evitar: 'Sem internet, ficam as últimas versões guardadas.' },
+  { id: 'cambio', nome: 'Cotação do dólar', icone: 'globo', origens: ['https://economia.awesomeapi.com.br', 'https://api.frankfurter.dev', 'https://open.er-api.com'],
+    vai: 'Só o pedido da cotação do dia (uma das três fontes, se a anterior não responder).',
+    quando: 'Quando o app mostra preço de carta em real.',
+    evitar: 'Sem internet, os preços ficam em dólar ou na última cotação guardada.' },
+  { id: 'leitor', nome: 'Leitor do scanner', icone: 'scanner', origens: ['https://cdn.jsdelivr.net', 'https://tessdata.projectnaptha.com'],
+    vai: 'Só o download do leitor de texto. As imagens da câmera não saem do aparelho: a leitura é feita aqui.',
+    quando: 'Na primeira vez que o scanner é aberto; depois ele fica guardado.',
+    evitar: 'Não abrir o scanner, ou abrir com o leitor já guardado.' },
+  { id: 'google', nome: 'Conta Google', icone: 'pessoa', liga: 'google',
+    origens: ['https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com', 'https://*.googleusercontent.com'],
+    vai: 'Só se você entrar: o backup vai para uma pasta do app no seu Drive, que só o app enxerga, e o app lê seu nome, e-mail e foto.',
+    quando: 'Ao entrar, enviar ou baixar o backup.',
+    evitar: 'Não entrar, ou tocar em Sair na conta.' },
+  { id: 'firebase', nome: 'Partida online', icone: 'pessoas', liga: 'firebase',
+    origens: ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.firebasedatabase.app'],
+    vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa.',
+    quando: 'Só enquanto você cria ou entra numa sala online.',
+    evitar: 'Jogar contra o bot ou a dois no mesmo aparelho: nada sai.' }
+];
+/** Endereços que o app só abre numa aba quando você toca: nada vai além do endereço. */
+const LINKS = [
+  { id: 'relatos', nome: 'Relatos no GitHub', icone: 'relato', origens: ['https://github.com'],
+    vai: 'Ao tocar em Enviar: o texto do relato, a tela, a versão do app e o tamanho da tela abrem numa página do GitHub; nada é publicado sem você confirmar lá.' },
+  { id: 'sites', nome: 'Sites das cartas e das listas', icone: 'externo', origens: ['https://scryfall.com', 'https://topdeck.gg', 'https://www.mtgo.com', 'https://guiamuy.github.io'],
+    vai: 'Ao tocar em um link: o site abre noutra aba.' }
+];
+const ORIGENS = [...DESTINOS, ...LINKS].flatMap(d => d.origens);
+
+function createSaidaScreen({ config = {} } = {}) {
+  const ligado = d => !d.liga || !!config[d.liga];
+  const linha = (rotulo, texto) => h('p', { class: 'saida-linha' }, h('b', {}, rotulo + ' '), texto);
+  const cartao = (d, link) => Surface({ class: 'ds-surface--pad saida-item', id: 'saida-' + d.id, dataset: { destino: d.id, estado: link ? 'link' : (ligado(d) ? 'ligado' : 'desligado') } }, Stack({ style: { gap: 'var(--space-2)' } },
+    h('div', { class: 'saida-item__cabeca' }, h('span', { class: 'saida-item__selo' }, Icone(d.icone, { tamanho: 20 })),
+      h('h2', { class: 'saida-item__nome' }, d.nome),
+      link ? null : Badge(ligado(d) ? 'Em uso' : 'Desligado', { tone: ligado(d) ? 'accent' : undefined })),
+    linha('Vai:', d.vai),
+    d.quando ? linha('Quando:', d.quando) : null,
+    d.evitar ? linha('Para evitar:', d.evitar) : null,
+    h('p', { class: 'saida-item__origens', lang: 'en' }, [...new Set(d.origens.map(o => o.replace(/^(https|wss):\/\//, '')))].join(' · '))));
+  return Stack({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
+    Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'saida-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('O que sai do aparelho', { size: '2xl', display: true, as: 'h1' })),
+    Text('Suas listas, coleção, perfil e partidas ficam neste aparelho. Estes são os únicos serviços com que o app conversa, o que vai para cada um, quando, e como evitar.', { size: 'sm', tone: 'muted' }),
+    h('div', { class: 'saida-lista', id: 'saida-destinos' }, ...DESTINOS.map(d => cartao(d, false))),
+    Text('Links que o app só abre', { size: 'lg', display: true, as: 'h2' }),
+    h('div', { class: 'saida-lista', id: 'saida-links' }, ...LINKS.map(d => cartao(d, true))));
+}
+return { DESTINOS, LINKS, ORIGENS, createSaidaScreen };
+})();
+
 /* ==== src/app/relatos.js ==== */
 const __m38 = (function () {
 /* =====================================================================
@@ -11959,6 +12036,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       secaoConta(),
       dados && dados.baseLocal ? dados.baseLocal() : null,
       secaoEspaco(),
+      // P-6 · SEG5 · o que sai do aparelho (depois dos quatro blocos de Dados, D5): cada serviço, o que vai, quando e como evitar
+      h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-saida', onClick: () => go('/perfil/saida') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('proteger', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'O que sai do aparelho'),
+        h('span', { class: 'ds-expansivel__resumo' }, 'Serviços, o que vai e quando'), Icone('seguir', { tamanho: 20 })),
       // D4b · a apresentação de primeira abertura pode ser revista daqui
       apresentacao ? Row({ style: { justifyContent: 'center' } }, Button('Rever apresentação', { variant: 'ghost', icone: 'seguir', id: 'perfil-apresentacao', onClick: apresentacao })) : null);
   }
@@ -26427,6 +26508,7 @@ const ROUTES = [
   { path: '/noticias', title: 'Notícias', render: () => renderHome({ ancora: true }) }, // N2 · T2: a Início, aberta nas notícias
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
+  { path: '/perfil/saida', title: 'O que sai do aparelho', render: () => __m41.createSaidaScreen({ config: { google: !!((typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID), firebase: !!((typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL) } }) }, // P-6 · SEG5
   { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files,
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },

@@ -510,6 +510,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-dt ✅ | H7c: segunda causa do instável H7 (o guardião offline guardando as listas ao começar a partida gastava a rede ruim simulada antes da mesa), provada e fechada no teste (leva G-252) | Q | ½ | — |
 | 16º-du ✅ | SEG4 todo ponto que vira HTML numa lista fechada com as interpolações permitidas; símbolo de mana com código estranho vira texto; tamanho só como número (leva P-5) | SEG | 1 | — |
 | 16º-p4 ✅ | T6c-1 regras do banco no repositório (`database.rules.json`) com teste: perfil e fila só do dono, sala só com conta e só acrescentando, resto negado; código real do app roda sob as regras (leva P-4) | T | 1 | colar as regras no console (dono) |
+| 16º-dv ✅ | SEG5 "O que sai do aparelho" em Perfil › Dados: seis serviços com o que vai, quando e como evitar, conta e online com selo de uso; contrato une a tela e a política de conteúdo (leva P-6) | SEG | 1 | — |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
 | 16º-ai ✅ | D6 mesa de relance: campo vazio não ocupa linha, zeros apagados, Terrenos/Permanentes só quando há; 98 px ganhos no início (leva 152) | D | 1 | capturas do aparelho |
 | 16º-aj ✅ | D8 avisos no lugar: linha de estado com folha na lista (−109 px sem rede), ✓ no botão por 1,2 s antes do aviso, barra não vaza com o chip Sem rede (leva 153) | D | 1 | scanner fica com a X16 |
@@ -7558,6 +7559,25 @@ segredo do repositório. O `main` não recebe commit do coletor.
 - **Resíduo declarado:** o contrato vê o `index.html`; o service worker não monta HTML. Atributo `style` e `href` montados
   por `h()` não são HTML e ficam fora desta lista (o `h()` os põe por propriedade). `'unsafe-inline'` na política de
   conteúdo continua (SEG3).
+
+**SEG5 · O que sai do aparelho** ✅ (leva P-6, 11/10/2026)
+- **Valor:** a pessoa vê, num lugar só, com que serviços o app conversa, o que vai para cada um, quando, e como evitar.
+- **Entregue:** Perfil › Dados ganha o atalho **"O que sai do aparelho"** (`#/perfil/saida`): seis serviços — Scryfall,
+  GitHub (arquivos do app), cotação do dólar, leitor do scanner, conta Google, partida online — cada um com "Vai",
+  "Quando", "Para evitar", os endereços e um selo **Em uso** / **Desligado** (conta e online seguem a configuração: hoje,
+  sem Client ID e sem banco, os dois aparecem desligados); e os **links que o app só abre** (relatos no GitHub; sites das
+  cartas e das listas). A tela é texto fixo do código, funciona sem internet e não tem estado de carregar nem de erro.
+- **Uma fonte só:** a lista mora em `src/app/saida.js` (`__m41`). `seguranca.saida.unit` confere que **todo serviço que a
+  política de conteúdo libera** (script, conexão, quadro, estilo) está na tela e que a tela não lista serviço que a
+  política barra; o `seguranca.csp.unit` passa a ler os links desta mesma lista. Serviço novo de qualquer trilha cai no
+  portão até entrar na política **e** na tela, na mesma leva (regra da skill de segurança).
+- **Testes:** U `seguranca.saida.unit` (3; prova: tirar uma das APIs de câmbio da tela derruba o contrato); e2e "P-6"
+  (abre pelo Perfil, seis serviços e dois links na ordem, conta e online desligados e o resto em uso, "Vai/Quando/Para
+  evitar", `auditaTela` nas quatro medidas e nos dois temas, Voltar, e com Client ID a conta aparece em uso).
+- **Fora:** desligar cada serviço por chave na própria tela (hoje a tela diz como evitar); "apagar tudo" (história à
+  parte); o que o Firebase guarda quando a T6 ligar o perfil sincronizado entra nesta lista na leva que ligar.
+- **Divergência do plano:** P-6 (lista) e G-253 (tela) saíram numa leva só — mesmo assunto, e cada publicação custa hoje
+  40 a 80 min de portão; G-253 fica sem uso.
 
 ### P · Plataforma
 

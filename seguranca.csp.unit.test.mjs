@@ -10,7 +10,9 @@ const SW = readFileSync(new URL('./sw.js', import.meta.url), 'utf8');
 const meta = FONTE.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/);
 const politica = () => Object.fromEntries(meta[1].split(';').map(s => s.trim()).filter(Boolean).map(s => { const [k, ...v] = s.split(/\s+/); return [k, v]; }));
 /** Endereços que o app só abre numa aba (window.open, href), sem buscar nada: não passam pela política. */
-const LINKS = new Set(['https://github.com', 'https://guiamuy.github.io', 'https://topdeck.gg', 'https://www.mtgo.com', 'https://scryfall.com']);
+// P-6 · a lista dos links é a mesma que a tela "O que sai do aparelho" mostra (uma fonte só)
+import { loadModules } from './_load.mjs';
+const LINKS = new Set(loadModules().saida.LINKS.flatMap(l => l.origens));
 const casa = (origem, fonte) => fonte === origem || (fonte.includes('*.') && origem.startsWith(fonte.split('*.')[0]) && origem.endsWith('.' + fonte.split('*.')[1]));
 
 test('P-3 · a política está no <head>, antes de qualquer script, e fecha o que o app não usa', () => {
@@ -34,7 +36,7 @@ test('P-3 · toda origem de rede citada no app ou no service worker está na pol
   const permitidas = [...p['connect-src'], ...p['script-src'], ...p['frame-src'], ...p['style-src']];
   const citadas = new Set([...(FONTE.replace(meta[0], '') + '\n' + SW).matchAll(/\b(?:https|wss):\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+/gi)].map(m => m[0].toLowerCase()));
   const faltam = [...citadas].filter(o => !LINKS.has(o) && !permitidas.some(f => casa(o, f)));
-  assert.deepEqual(faltam, [], 'origem nova: acrescente na meta Content-Security-Policy do index.html (connect-src para fetch, script-src para script) ou em LINKS se o app só abre o endereço');
+  assert.deepEqual(faltam, [], 'origem nova: acrescente na meta Content-Security-Policy do index.html (connect-src para fetch, script-src para script) ou em LINKS de src/app/saida.js (__m41) se o app só abre o endereço');
 });
 
 test('P-3 · o que os serviços combinados precisam já está liberado: Scryfall, ramos de dados, câmbio, OCR, Google e Firebase', () => {

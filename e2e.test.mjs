@@ -3983,6 +3983,31 @@ test('e2e · P-3 política de conteúdo: o leitor do scanner de verdade (Tessera
   assert.deepEqual(errors.filter(e => !/exemplo\.invalid/.test(e)), []);
 });
 
+test('e2e · P-6 O que sai do aparelho: do Perfil (Dados) abre a lista dos serviços com o que vai, quando e como evitar; conta e online dizem se estão em uso; sem sobreposição nas quatro medidas e dois temas; volta ao Perfil', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-saida');
+  await page.click('#perfil-saida'); await page.waitForSelector('#saida-destinos');
+  assert.equal(await page.locator('h1').innerText(), 'O que sai do aparelho');
+  assert.deepEqual(await page.$$eval('#saida-destinos .saida-item', es => es.map(e => e.dataset.destino)), ['scryfall', 'github', 'cambio', 'leitor', 'google', 'firebase']);
+  assert.deepEqual(await page.$$eval('#saida-links .saida-item', es => es.map(e => e.dataset.destino)), ['relatos', 'sites']);
+  // sem Client ID e sem banco (o publicado hoje): conta e online desligados, o resto em uso
+  assert.equal(await page.getAttribute('#saida-google', 'data-estado'), 'desligado');
+  assert.equal(await page.getAttribute('#saida-firebase', 'data-estado'), 'desligado');
+  assert.equal(await page.getAttribute('#saida-scryfall', 'data-estado'), 'ligado');
+  assert.match(await page.innerText('#saida-leitor'), /imagens da câmera não saem do aparelho/);
+  assert.match(await page.innerText('#saida-scryfall'), /Vai:[\s\S]*Quando:[\s\S]*Para evitar:/);
+  assert.equal((await page.innerText('#saida-firebase .saida-item__origens')).split(' · ').filter(x => x === '*.firebaseio.com').length, 1, 'endereço repetido (https e wss) aparece uma vez');
+  await emTodasAsMedidas(page, 'o que sai do aparelho');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/p6-saida.png', fullPage: true });
+  await page.click('#saida-voltar'); await page.waitForSelector('#perfil-saida');
+  // com Client ID: a conta aparece em uso
+  await page.addInitScript(() => { window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; });
+  await page.goto(base + '#/perfil/saida'); await page.reload(); await page.waitForSelector('#saida-google');
+  assert.equal(await page.getAttribute('#saida-google', 'data-estado'), 'ligado');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · leva 113 modo único: lista 100% joga no motor completo; lista com carta sem regra não joga e a tela diz qual; cores só do deck principal', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell\n\nSideboard\n4 Lightning Bolt', 'livre');
