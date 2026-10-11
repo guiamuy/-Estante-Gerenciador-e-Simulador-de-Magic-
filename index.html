@@ -5321,7 +5321,9 @@ const EFFECTS = {
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
   ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
   efeito_jogador: { fields: [], targets: ['self'] },
-  turno_extra: { fields: [], targets: ['self', 'player'] }, // CR2g.2 · 500.7: "(target player) takes an extra turn after this one"
+  turno_extra: { fields: [], targets: ['self', 'player'] },
+  combate_extra: { fields: [], targets: ['self'] }, // CR2g.4 · 500.8: "after this main phase, there is an additional combat phase followed by an additional main phase"
+  desvira_atacantes: { fields: [], targets: ['self'] }, // CR2g.4 · "untap all creatures that attacked this turn"  // CR2g.2 · 500.7: "(target player) takes an extra turn after this one"
   escolhe_copiadora: { fields: [], targets: ['artifact', 'creature', 'permanent'] },
   ficha_copia: { fields: ['amount'], targets: ['creature', 'artifact', 'permanent', 'creature-you-control'] }, // CR2f.2 · 707.8: "create a token that's a copy of target …" // CR2f.1 · o primeiro alvo de "alvo A torna-se uma cópia de outro alvo B"
   torna_copia: { fields: [], targets: ['artifact', 'creature', 'permanent'] }, // CR2f.1 · o modelo; quem copia é o alvo do escolhe_copiadora // CR2d.10 · 613.10/613.11: "you can't gain life this turn", "you may play an additional land this turn" // M-272 · "gain control of target creature" (sem prazo)
@@ -5524,7 +5526,7 @@ const TARGETED = new Set(['any', 'creature', 'planeswalker', 'player', 'opponent
   'card-in-your-graveyard', 'creature-in-your-graveyard', 'permanent-in-your-graveyard', 'card-in-any-graveyard', 'creature-land-in-any-graveyard', 'creature-opponent-controls', 'permanent-opponent-controls', 'artifact-enchantment-opponent-controls', 'enchanted-creature', 'creature-blocked-by-source', 'permanent-you-own', 'creature-card-in-graveyard']); // CR2d.4 · Animate Dead // Q11 · M-222 · "target permanent you own"
 /** S8 · cenários: o que o teste automático monta e o que espera. */
 const EXAMPLE_TARGETS = ['opponent', 'self-player', 'enemy-creature', 'own-creature', 'own-land', 'own-forest', 'own-graveyard-creature', 'enemy-spell', 'enemy-instant', 'enemy-permanent', 'enemy-enchantment', 'none'];
-const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'targetExiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies', 'extraTurn'];
+const EXAMPLE_CHECKS = ['opponentLife', 'selfLife', 'gone', 'bounced', 'countered', 'tapped', 'pump', 'handDelta', 'damaged', 'graveyardEmpty', 'stats', 'keyword', 'attached', 'mana', 'protected', 'prevented', 'tokens', 'discarded', 'picked', 'libraryTop', 'milled', 'exiled', 'targetExiled', 'attacked', 'returned', 'reanimated', 'poolAdded', 'loyalty', 'tappedOnEntry', 'transformed', 'fogged', 'untapped', 'selfUntapped', 'selfStats', 'preventedColor', 'noPrevention', 'counters', 'returnedToPlay', 'copies', 'extraTurn', 'extraCombat'];
 /** cast: conjura a mágica · activate:N: ativa a N-ésima habilidade · etb: põe a permanente no campo */
 const EXAMPLE_ACTIONS = ['cast', 'activate:0', 'activate:1', 'etb', 'aura', 'equip', 'mode:0', 'mode:1', 'mode:2', 'mode:3', 'alt:0', 'flashback', 'ninjutsu', 'madness', 'loyalty:0', 'loyalty:1', 'cycling', 'disturb', 'omen', 'transmute', 'bestow'];
 
@@ -6238,6 +6240,8 @@ const RAW_SCRIPTS = [
   // CR2g.2 · 500.7 · turnos extras (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
   { name: 'Time Warp', effects: [{ do: 'turno_extra', target: 'player' }], example: { target: 'self-player', expect: { extraTurn: 1 } } },
   { name: 'Temporal Manipulation', effects: [{ do: 'turno_extra' }], example: { target: 'none', expect: { extraTurn: 1 } } },
+  // CR2g.4 · 500.8 · combate adicional (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
+  { name: 'Relentless Assault', effects: [{ do: 'desvira_atacantes' }, { do: 'combate_extra' }], example: { target: 'none', expect: { extraCombat: 1 } } },
   // CR2e.2 · 614.16 · substituição de fichas e marcadores (texto oficial em .listas/oficiais-motor.json, mtg.wtf, 2026-10-11)
   { name: 'Doubling Season', self: { multiplica: [{ evento: 'fichas', modo: 'dobro' }, { evento: 'marcadores', modo: 'dobro', em: 'permanent' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Parallel Lives', self: { multiplica: [{ evento: 'fichas', modo: 'dobro' }] }, example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -14344,7 +14348,9 @@ const __m42 = (function () {
     [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
     [/^shuffle(?: your library)?$/i, () => []],
     [/^target player takes an extra turn after this one$/i, () => [{ do: 'turno_extra', target: 'player' }]], // CR2g.2 · 500.7
-    [/^take an extra turn after this one$/i, () => [{ do: 'turno_extra' }]], // LT5 · o "then shuffle" da busca: o motor embaralha ao fim dela
+    [/^take an extra turn after this one$/i, () => [{ do: 'turno_extra' }]],
+    [/^untap all creatures that attacked this turn$/i, () => [{ do: 'desvira_atacantes' }]], // CR2g.4
+    [/^after this main phase, there is an additional combat phase followed by an additional main phase$/i, () => [{ do: 'combate_extra' }]], // LT5 · o "then shuffle" da busca: o motor embaralha ao fim dela
     [new RegExp(`^create ${N} (\\d+/\\d+) ((?:white|blue|black|red|green|colorless)(?: and (?:white|blue|black|red|green))?) ${TIPO_CRIATURA} creature tokens?(?: with ([a-z ,]+))?$`), m => ficha(m[1], m[2], m[3], m[4], m[5])]
   ];
   /** Linha de palavra-chave com custo, no topo do script ("Flashback {2}{R}" → flashback: { mana }). Só as que o motor executa assim. */
@@ -14523,7 +14529,7 @@ const __m16 = (function () {
    mesmas ações produz sempre o mesmo jogo. O estado é JSON puro.
    ===================================================================== */
 const SC = __m23;
-const ENGINE_VERSION = 109; // CR2a.10 · 514.3a: ação de estado ou gatilho causados pelo fim dos efeitos do turno dão prioridade na limpeza
+const ENGINE_VERSION = 110; // CR2g.4 · combate e principal adicionais (500.8); o estado passa a guardar as criaturas que atacaram no turno ("untap all creatures that attacked this turn")
 /** A mesa oferece no máximo este número de alvos por efeito, para a lista não explodir. */
 const TARGET_LIMIT = 10;
 // Leva 110 · o limite existe contra a explosão de combinações de vários alvos. Com um alvo só não corta
@@ -16038,6 +16044,7 @@ function finishCleanup(s) {
   // recebem prioridade e depois vem outra limpeza (advanceStep). Antes o turno passava com o gatilho ainda por pôr na pilha.
   { const ev = []; stateBased(s, ev); if (ev.length || (s.queued || []).length || s.pending) { s.turn.passes = 0; s.turn.priority = s.turn.active; return; } }
   s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; delete pl.lifeLost; delete pl.atacouCom; }); // M-248 · rastros do turno
+  delete s.atacaramNoTurno; delete s.combatesExtras; delete s.retornoFase; // CR2g.4
   s.spellsThisTurn = 0;
   s.pending = null;
   s.turn.firstTurn = false;
@@ -16070,6 +16077,10 @@ function advanceStep(s) {
   if (s.turn.step === 'combat_end') saiDoCombate(s); // CR2g.1 · 511.3
   // CR2g.3 · 510.4: todos passaram depois do dano de iniciativa (com os gatilhos dele resolvidos): vem o segundo passo de dano
   if (s.turn.step === 'combat_damage' && faltaSegundoDano(s)) { emptyPools(s); s.turn.passes = 0; s.turn.priority = s.turn.active; dealCombatDamage(s); return; }
+  if (s.turn.step === 'main1' || s.turn.step === 'main2') { // CR2g.4 · 500.8: combate e principal adicionais logo depois desta fase principal
+    if (s.combatesExtras > 0) { s.combatesExtras--; if (!s.combatesExtras) delete s.combatesExtras; if (s.retornoFase == null) s.retornoFase = STEPS[STEPS.indexOf(s.turn.step) + 1]; return enterStep(s, 'combat_begin'); }
+    if (s.retornoFase != null) { const r = s.retornoFase; delete s.retornoFase; return enterStep(s, r); } // saindo da principal adicional: o que viria depois da principal original
+  }
   let i = STEPS.indexOf(s.turn.step) + 1;
   // 508.8: sem atacantes declarados, bloqueio e dano não acontecem
   if (STEPS[i] === 'combat_blockers' && !(s.combat && s.combat.attackers.length)) i = STEPS.indexOf('combat_end');
@@ -17095,6 +17106,11 @@ function applyEffect(s, src, eff, tgt, events) {
       if (!quem || !obj || quem.oid === obj.oid || !aplicaCopia(s, quem, obj, eff.ate || 'sempre', eff.somaTipos ? { somaTipos: eff.somaTipos } : null)) { note({ failed: true }); break; }
       note({ name: quem.nomeImpresso || quem.name, target: obj.name }); break;
     }
+    case 'combate_extra': { // CR2g.4 · 500.8: só resolvendo numa fase principal (ruling); as fases são do jogador ativo
+      if (s.turn.step !== 'main1' && s.turn.step !== 'main2') { note({ failed: true }); break; }
+      s.combatesExtras = (s.combatesExtras || 0) + 1; note({}); break;
+    }
+    case 'desvira_atacantes': { let n = 0; for (const a of s.atacaramNoTurno || []) { const o = s.objects[a.oid]; if (o && o.zone === 'battlefield' && (o.zc || 0) === a.z && o.tapped) { o.tapped = false; n++; } } note({ amount: n }); break; } // CR2g.4 · o mesmo objeto (400.7)
     case 'turno_extra': { const quem = playerOf(); (s.turnosExtras = s.turnosExtras || []).push(quem); note({}); break; } // CR2g.2 · 500.7: o turno extra criado por último é jogado primeiro
     case 'efeito_jogador': { // CR2d.10 · efeito contínuo de resolução sobre jogadores, com duração
       const e = {}; for (const k of REGRAS_JOGADOR) if (eff[k] != null) e[k] = eff[k];
@@ -18822,6 +18838,7 @@ const HANDLERS = {
       else if (alvos[oid] !== ex) throw new RuleError('ataque', `${s.objects[oid].name} precisa atacar ${s.objects[ex].name}`); }
     for (const oid of list) { const o = s.objects[oid]; o.attacking = s.combat.defender; if (alvos[oid]) o.atacandoPw = alvos[oid]; else delete o.atacandoPw; if (!has(s, o, 'vigilance')) { if (!o.tapped) noteEnchantedEvent(s, o); o.tapped = true; } } // Leva 106 · atacar vira
     s.combat.attackers = list.slice();
+    for (const oid of list) (s.atacaramNoTurno = s.atacaramNoTurno || []).push({ oid, z: s.objects[oid].zc || 0 }); // CR2g.4 · "creatures that attacked this turn"
     if (list.length) s.players[a.p].atacouCom = (s.players[a.p].atacouCom || 0) + list.length; // M-248 · "se você atacou neste turno" (508.1; pôr no campo atacando não é atacar)
     disparaEvento(s, 'ataca', list.map(oid => s.objects[oid]));
     s.pending = null; s.turn.priority = s.turn.active; s.turn.passes = 0;
@@ -21770,6 +21787,8 @@ function effectLine(ev) {
     case 'damage': return ev.failed ? `${ev.name} não causou dano: alvo ilegal` : `${ev.name} causou ${n} de dano a ${t}`;
     case 'reveal': return `${ev.name} revelou: ${t}`; // Leva 108
     case 'turno_extra': return `${t} vai jogar um turno extra depois deste (${ev.name})`; // CR2g.2
+    case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
+    case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
     case 'exile_return_transformed': return ev.failed ? `${ev.name}: não estava mais no campo` : `${ev.name} foi exilado e voltou transformado`; // CR2d.5
     case 'must_attack_source': return `${t} vai ter de atacar ${ev.name} no próximo turno de quem a controla`; // M-228
@@ -22683,6 +22702,8 @@ function descreveEfeito(e) {
     case 'escolhe_copiadora': return `escolhe ${alvo || 'uma permanente'} para virar cópia`; // CR2f.1
     case 'torna_copia': return `ela vira uma cópia de ${alvo || 'outra permanente'}${(e.somaTipos || []).length ? ', além de ' + e.somaTipos.map(x => TIPO_PT[x] || x).join(' e ') : ''}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // CR2f.1
     case 'turno_extra': return alvo ? `${alvo} joga um turno extra depois deste` : 'você joga um turno extra depois deste'; // CR2g.2
+    case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
+    case 'desvira_atacantes': return 'desvira as criaturas que atacaram neste turno';
     case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); return `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // CR2d.10
     case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // M-272 · CR2d.6
     case 'copiar_esta': return `${e.seConjuradaDe === 'graveyard' ? 'se foi conjurada de um cemitério, ' : ''}pode copiar esta mágica (a cópia escolhe um alvo novo)`; // M-271

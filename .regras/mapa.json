@@ -3549,13 +3549,19 @@
    "n": "500.8",
    "regra": "General",
    "titulo": "Fases extras (combate/principal adicional)",
-   "status": "ausente",
-   "falta": "advanceStep anda fixo por STEPS (10736-10741); não há como inserir fase de combate ou principal adicional (Relentless Assault, Aggravated Assault, Moraug).",
+   "status": "parcial",
+   "falta": "fase principal adicional sem combate, combate adicional 'após este combate' (Combat Celebrant, Moraug), fases extras de outro jogador",
    "esforco": "M",
    "depende": [
     "505.1a"
    ],
-   "cartas": "comum no Commander"
+   "cartas": "comum no Commander",
+   "evidencia": "M-307 (CR2g.4): verbo combate_extra — depois desta fase principal, combate adicional e principal adicional (pós-combate), só resolvendo numa principal (ruling); várias se enfileiram; depois volta o que viria após a principal original; desvira_atacantes lembra as criaturas que atacaram no turno (mesmo objeto)",
+   "testes": [
+    "CR 500.8 · na segunda fase principal: desvira quem atacou, e vem combate adicional + principal adicional; a Ursa ataca duas vezes",
+    "CR 500.8 · na primeira fase principal: combate adicional + principal adicional vêm antes do combate normal",
+    "CR 500.8 · ruling: fora da fase principal (com lampejo), não cria fases"
+   ]
   },
   {
    "n": "500.9",

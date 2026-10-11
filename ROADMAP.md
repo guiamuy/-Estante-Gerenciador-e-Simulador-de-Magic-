@@ -3648,6 +3648,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Teste:** `turnos.extras.unit` (3 testes, falham no v109). Mapa: 500.7 coberta.
 - **Fora:** fases e passos extras (500.8–500.10) e pular (500.11) — próximas levas da CR2g.
 
+**M-307 · CR2g.4 · Combate e fase principal adicionais (500.8) · motor v110** ✅ (leva M-307) — Relentless Assault joga no modo completo.
+- **Valor:** "After this main phase, there is an additional combat phase followed by an additional main phase" funciona: conjurada na segunda principal, vem outro combate e outra principal antes do passo final; conjurada na primeira, o combate e a principal adicionais vêm antes do combate normal; fora de uma fase principal (com lampejo), não cria fases (ruling); "Untap all creatures that attacked this turn" desvira só quem atacou neste turno (o mesmo objeto). Gatilhos de ataque disparam em cada combate.
+- **Motor v110:** o estado passa a guardar as criaturas que atacaram no turno (`atacaramNoTurno`), o que muda o hash. **Goldens regravados só pela versão e por esse rastro:** ações, registro, situação e turno idênticos nas quatro partidas-referência, conferidos campo a campo; só o hash final mudou. Partida salva na v109 não abre na v110.
+- **Script:** `{ do: 'combate_extra' }`, `{ do: 'desvira_atacantes' }`; cenário S8 `extraCombat`. Leitor lê as duas frases. Texto oficial em `.listas/oficiais-motor.json` (mtg.wtf, 11/10/2026).
+- **Fora (mapa 500.8 parcial):** principal adicional sem combate, combate adicional "depois deste combate" (Combat Celebrant, Moraug), fases extras dadas a outro jogador.
+- **Teste:** `combate.extra.unit` (3 testes, falham no v109).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

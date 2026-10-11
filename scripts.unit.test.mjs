@@ -457,6 +457,7 @@ function runExample(sc) {
     if (check === 'selfUntapped') assert.equal(s.objects[oid].tapped, !value, msg);
     if (check === 'fogged') assert.equal(!!s.fogged, value, msg);
     if (check === 'extraTurn') assert.equal((s.turnosExtras || []).length, value, msg); // CR2g.2
+    if (check === 'extraCombat') assert.equal(s.combatesExtras || 0, value, msg); // CR2g.4
     if (check === 'preventedColor') assert.equal((s.preventedColors || []).length > 0, value, msg);
     if (check === 'counters') assert.equal((s.objects[oid].counters || {}).p1p1, value, msg);
     if (check === 'transformed') assert.equal(s.objects[oid].name !== sc.name, value, msg);
