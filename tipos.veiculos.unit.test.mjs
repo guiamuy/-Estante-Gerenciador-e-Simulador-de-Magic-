@@ -266,13 +266,11 @@ test('CR 702.122a · "crews Vehicles as though its power were 2 greater" (Hotsho
   assert.ok(ehCriatura(esvazia(tripula(s, v, [hot])), v));
 });
 
-test('CR 702.122a · "Each creature you control crews Vehicles as though its power were 2 greater": vale para as suas e não para as do oponente; poder negativo conta como 0', () => {
+test('CR 702.122a · "Each creature you control crews Vehicles as though its power were 2 greater": vale para as suas e não para as do oponente', () => {
   let s, v, cap, f, deB; [s, v, cap, f] = campo(mesa(['Carro', 'Capitã', 'Filhote']), 0, 'Carro', 'Capitã', 'Filhote');
   [s, deB] = campo(s, 1, 'Filhote');
   eq([cap, f, deB].map(x => E.forcaDeTripular(s, s.objects[x])), [2, 3, 1], 'as de A ganham 2; a de B não');
   eq(grupos(s, v), [f], 'o Filhote 1/1 tripula o Carro sozinho');
-  const t = J(s); t.objects[f].counters.m1m1 = 4; // poder −3: como se fosse −1 → conta 0
-  assert.equal(E.forcaDeTripular(t, t.objects[f]), 0);
 });
 
 /* ---------------- S8 · cartas exemplo ---------------- */
@@ -352,4 +350,90 @@ test('CR 702.122a · mesa: botão "Escolher quem tripula" na folha do Veículo, 
   assert.match(src, /pd\.kind === 'tripular' \? E\.tripulacaoPadrao\(s\)/, 'o goldfish tem resposta para a decisão (senão concederia a partida)');
   assert.match(src, /s\.pending\.kind === 'tripular' && s\.pending\.p === v/, 'a mesa tem o aviso da decisão');
   assert.match(src, /id: 'tb-tripular'/);
+});
+
+/* ---------------- T-4 · correções da auditoria independente (120 sondas e fuzz de 400 partidas; cada divergência nasceu aqui como teste que falhava) ---------------- */
+Object.assign(SCRIPTS, {
+  'Encolhe': { name: 'Encolhe', effects: [{ do: 'pump', power: -4, toughness: 0, target: 'creature' }], ...EX },
+  'Carro Seis': { name: 'Carro Seis', abilities: [tripular(6)], ...EX },
+  // a forma canônica: o efeito `tripulada` sozinho é "este Veículo vira criatura artefato até o fim do turno" e avisa quem observa
+  'Carro Canônico': { name: 'Carro Canônico', abilities: [{ kind: 'triggered', when: 'becomes-crewed', effects: ganha(1) }, { kind: 'activated', label: 'Tripular 1', cost: { crew: 1 }, effects: [{ do: 'tripulada' }] }], ...EX },
+  'Trambolho': { name: 'Trambolho', abilities: [{ kind: 'triggered', when: 'becomes-crewed', effects: ganha(100) }, { kind: 'activated', label: 'Tripular 1', cost: { crew: 1 }, effects: [{ do: 'tripulada' }] }], ...EX },
+});
+carta('Encolhe', 'Instant'); carta('Tres', 'Creature — Beast', { power: '3', toughness: '3' });
+carta('Carro Seis', 'Artifact — Vehicle', { power: '6', toughness: '6' });
+carta('Carro Canônico', 'Artifact — Vehicle', { power: '2', toughness: '5' });
+carta('Trambolho', 'Artifact', { power: '4', toughness: '4' }); // artefato que NÃO é Veículo, com uma habilidade de tripular
+
+test('CR 107.1b · 702.122a · poder negativo entra negativo na soma (D1): Tres (3) e um Urso com −4/−0 somam 1 e não pagam Tripular 3; "como se o poder fosse 2 maior" sobre poder −6 conta −4', () => {
+  let s, v, tres, urso, hot, x; [s, v, tres, urso, hot] = campo(mesa(['Carro', 'Tres', 'Urso', 'Hotshot Mechanic', 'Encolhe']), 0, 'Carro', 'Tres', 'Urso', 'Hotshot Mechanic');
+  [s, x] = conjura(s, 0, 'Encolhe', alvo(urso)); s = esvazia(s);
+  eq(pt(s, urso), [-2, 2]); assert.equal(E.forcaDeTripular(s, s.objects[urso]), -2, 'o Urso conta −2');
+  assert.throws(() => tripula(s, v, [tres, urso]), /poder total 3 ou mais/, '3 + (−2) = 1: não paga');
+  assert.ok(grupos(s, v).every(g => !g.split('+').includes(urso)), 'nenhum grupo mínimo com o Urso: ' + grupos(s, v));
+  // na escolha livre a soma mostrada desce, e "pronto" some
+  let t = act(act(act(s, { t: 'tripular', p: 0, oid: v, index: 0 }), { t: 'tripulante', p: 0, oid: tres }), { t: 'tripulante', p: 0, oid: urso });
+  assert.equal(E.tripulacaoPendente(t).soma, 1); assert.ok(!legais(t, 0).some(a => a.t === 'tripular_pronto'));
+  t = act(t, { t: 'tripulante', p: 0, oid: hot }); // +4: soma 5
+  assert.equal(E.tripulacaoPendente(t).soma, 5); assert.ok(legais(t, 0).some(a => a.t === 'tripular_pronto'));
+  [s, x] = conjura(s, 0, 'Encolhe', alvo(hot)); s = esvazia(s); [s, x] = conjura(s, 0, 'Encolhe', alvo(hot)); s = esvazia(s);
+  eq(pt(s, hot), [-6, 1]); assert.equal(E.forcaDeTripular(s, s.objects[hot]), -4);
+});
+
+test('CR 702.122a · "qualquer número": grupo que precisa de mais de cinco criaturas é oferecido (D2) — seis 1/1 pagam Tripular 6; com sete, a escolha livre também aparece; criaturas de poder 0 não travam a busca', () => {
+  let s, v, f = []; [s, v, ...f] = campo(mesa(['Carro Seis', 'Filhote', 'Muro']), 0, 'Carro Seis', 'Filhote', 'Filhote', 'Filhote', 'Filhote', 'Filhote', 'Filhote');
+  eq(grupos(s, v), [f.slice().sort().join('+')], 'o grupo das seis é oferecido');
+  assert.equal(legais(s, 0, a => a.t === 'tripular').length, 0, 'sem criatura sobrando: sem escolha livre');
+  assert.ok(virada(tripula(s, v, f), f[5]));
+  let extra; [s, extra] = campo(s, 0, 'Filhote');
+  assert.equal(grupos(s, v).length, 7, 'sete criaturas: sete grupos mínimos de seis');
+  assert.equal(legais(s, 0, a => a.t === 'tripular').length, 1, 'e a escolha livre (virar as sete)');
+  let m = []; [s, ...m] = campo(s, 0, ...Array(8).fill('Muro'));
+  const t0 = Date.now(), g = grupos(s, v);
+  assert.equal(g.length, 7); assert.ok(g.every(x => !m.some(y => x.split('+').includes(y))), 'os Muros 0/4 não entram em grupo mínimo');
+  assert.ok(Date.now() - t0 < 1500, 'a busca não explode com 15 candidatas: ' + (Date.now() - t0) + ' ms');
+});
+
+test('CR 400.7 · 702.122a/e · a habilidade de tripular do objeto que saiu do campo não transforma nem "tripula" o objeto novo (D3 na forma canônica, D4)', () => {
+  let s, v, u, x; [s, v, u] = campo(mesa(['Carro Canônico', 'Urso', 'Sopro']), 0, 'Carro Canônico', 'Urso');
+  // sem sair do campo: a forma canônica transforma (P/T impresso) e dispara "fica tripulado"
+  let ok = esvazia(tripula(s, v, [u]));
+  assert.ok(ehCriatura(ok, v)); eq(pt(ok, v), [2, 5]); assert.equal(vida(ok), 1);
+  // com a habilidade na pilha, o Veículo volta à mão e entra de novo (objeto novo)
+  s = tripula(s, v, [u]);
+  [s, x] = conjura(s, 0, 'Sopro', alvo(v)); s = resolveUm(s);
+  s = J(s); s.zones[0].hand.splice(s.zones[0].hand.indexOf(v), 1); s.zones[0].battlefield.push(v); Object.assign(s.objects[v], { zone: 'battlefield', zc: (s.objects[v].zc || 0) + 1 });
+  s = esvazia(s);
+  assert.equal(ehCriatura(s, v), false, 'o Veículo novo não vira criatura'); assert.equal(vida(s), 0, 'nem fica tripulado');
+  eq(E.tripulantesDe(s, s.objects[v]), []);
+});
+
+test('CR 702.122b–d · só Veículo é tripulado (D5): a habilidade de tripular de um artefato que não é Veículo não dispara "crews a Vehicle", não registra tripulantes, e "não pode tripular Veículos" não impede de pagar', () => {
+  let s, tr, pil, pro; [s, tr, pil, pro] = campo(mesa(['Trambolho', 'Piloto', 'Proibido']), 0, 'Trambolho', 'Piloto', 'Proibido');
+  assert.doesNotMatch(E.linhaDeTipo(s, s.objects[tr]), /Vehicle/);
+  let t = tripula(s, tr, [pil]);
+  eq(pilha(t), ['Trambolho'], 'o gatilho do Piloto ("crews a Vehicle") não dispara');
+  eq(E.tripulantesDe(t, t.objects[tr]), []);
+  assert.ok(E.candidatosATripular(s, 0, tr).includes(pro), '"não pode tripular Veículos" fala de Veículos (702.122d)');
+  assert.ok(virada(tripula(s, tr, [pro]), pro));
+  t = esvazia(t); assert.ok(ehCriatura(t, tr), 'a habilidade em si funciona: vira criatura artefato');
+  assert.equal(vida(t), 0, '"becomes crewed" é de Veículo (702.122e): o artefato comum não fica tripulado');
+});
+
+test('CR 702.122a · decisão de quem tripula: escolhida que deixa de ser candidata sai da conta (a soma e o "pronto" olham só quem ainda pode tripular)', () => {
+  let s, v, u1, u2, f; [s, v, u1, u2, f] = campo(mesa(['Carro', 'Urso', 'Filhote']), 0, 'Carro', 'Urso', 'Urso', 'Filhote');
+  s = act(act(act(s, { t: 'tripular', p: 0, oid: v, index: 0 }), { t: 'tripulante', p: 0, oid: u1 }), { t: 'tripulante', p: 0, oid: u2 });
+  assert.ok(legais(s, 0).some(a => a.t === 'tripular_pronto'));
+  const t = J(s); t.objects[u2].tapped = true; // por dado: nenhuma ação do motor faz isso com a decisão aberta
+  assert.equal(E.tripulacaoPendente(t).soma, 2); assert.ok(!legais(t, 0).some(a => a.t === 'tripular_pronto'), 'sem a soma, sem "pronto"');
+  const r = act(act(t, { t: 'tripulante', p: 0, oid: f }), { t: 'tripular_pronto', p: 0 });
+  assert.ok(virada(r, u1) && virada(r, f)); eq(E.tripulantesDe(r, r.objects[v]).sort(), [u1, f].sort());
+});
+
+test('CR 702.122 · forma canônica e validador: `tripulada` sozinho é a habilidade de tripular inteira; Mobilizer Mech usa a forma canônica', () => {
+  const v = sc => S.validateScript({ name: 'X', ...sc, ...EX }).join(' | ');
+  assert.equal(v(SCRIPTS['Carro Canônico']), '');
+  const mech = S.SCRIPTS['Mobilizer Mech'].abilities.find(ab => ab.kind === 'activated');
+  eq(mech.effects, [{ do: 'tripulada' }]);
+  assert.match(T.descreveEfeitos([{ do: 'tripulada' }]), /vira criatura artefato até o fim do turno/);
 });

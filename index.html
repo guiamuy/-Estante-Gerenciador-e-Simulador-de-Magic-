@@ -5395,7 +5395,7 @@ const EFFECTS = {
   lutador: { fields: [], targets: ['creature', 'creature-you-control'] },
   fight: { fields: [], targets: ['creature', 'creature-opponent-controls', 'creature-you-control'] }, // quem: 'self-source' (a permanente fonte luta) | 'primeiro-alvo' (luta a criatura anotada pelo `lutador` anterior)
   /* ↓ T · efeitos da trilha tipos */
-  tripulada: { fields: [], targets: ['self'] }, // T-3 · CR 702.122e · último efeito da habilidade de tripular de um Veículo com "Whenever ~ becomes crewed": avisa que a habilidade de tripular resolveu
+  tripulada: { fields: [], targets: ['self'] }, // T-3/T-4 · CR 702.122a/e · o efeito da habilidade de tripular: "esta permanente vira criatura artefato até o fim do turno" (só o mesmo objeto, 400.7) e, sendo Veículo, "fica tripulado"; depois de um `animate` (forma antiga) só avisa
 };
 /** S57 · masmorras: o caminho, as salas e o que cada sala faz.
     Texto das salas conferido em 26/09/2026 (mtg.wtf, lista de cartas de masmorra).
@@ -6367,11 +6367,11 @@ const RAW_SCRIPTS = [
     example: { target: 'own-creature', expect: { pump: [1, 2] } } },
   /* ↓ T · scripts de carta da trilha tipos (texto oficial em .listas/oficiais-tipos.json) */
   // T-3 · CR 702.122 · tripular (Oracle do Forge, clone de 11/10/2026). O Veículo escreve a habilidade de tripular como ativada de custo
-  // { crew: N }; com "becomes crewed", o último efeito dela é `tripulada`. "Crews a Vehicle" é o gatilho `crews` da criatura, e
+  // { crew: N } e efeito `tripulada` (forma canônica, T-4: vira criatura artefato até o fim do turno e avisa "becomes crewed"). "Crews a Vehicle" é o gatilho `crews` da criatura, e
   // "that Vehicle" é o alvo `remembered`. Voar, iniciativa e ímpeto vêm do texto da carta. Cenário S8 de verdade em tipos.veiculos.unit.
   { name: 'Mobilizer Mech', abilities: [
     { kind: 'triggered', when: 'becomes-crewed', effects: [{ do: 'continuo', target: { tipos: ['artifact'], subtipos: ['Vehicle'], de: 'you', outra: true }, upTo: true, torna: { tipos: ['artifact', 'creature'], somaTipos: true } }] },
-    { kind: 'activated', label: 'Tripular 3', cost: { crew: 3 }, effects: [{ do: 'animate', target: 'self-source', becomes: { types: ['artifact', 'creature'], addTypes: true } }, { do: 'tripulada' }] }],
+    { kind: 'activated', label: 'Tripular 3', cost: { crew: 3 }, effects: [{ do: 'tripulada' }] }], // T-4 · forma canônica: `tripulada` é a habilidade de tripular inteira
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Gearshift Ace', abilities: [{ kind: 'triggered', when: 'crews', effects: [{ do: 'keyword', keyword: 'first strike', target: 'remembered' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Speedway Fanatic', abilities: [{ kind: 'triggered', when: 'crews', effects: [{ do: 'keyword', keyword: 'haste', target: 'remembered' }] }], example: { action: 'etb', target: 'none', expect: { attached: false } } },
@@ -19705,12 +19705,14 @@ const HANDLERS = {
   tripulante(s, a) {
     const pd = s.pending;
     if (!pd || pd.kind !== 'tripular' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum Veículo esperando a tripulação');
+    pd.escolhidas = escolhidasQueValem(s, pd);
     if (pd.escolhidas.includes(a.oid) || !candidatosATripular(s, a.p, pd.oid).includes(a.oid)) throw new RuleError('custo', 'essa criatura não pode tripular agora');
     pd.escolhidas.push(a.oid);
   },
   tripular_pronto(s, a, ev) {
     const pd = s.pending;
     if (!pd || pd.kind !== 'tripular' || pd.p !== a.p) throw new RuleError('tempo', 'nenhum Veículo esperando a tripulação');
+    pd.escolhidas = escolhidasQueValem(s, pd);
     if (forcaDoGrupo(s, pd.escolhidas) < pd.n) throw new RuleError('custo', `vire criaturas suas com poder total ${pd.n} ou mais`);
     s.pending = null;
     HANDLERS.activate(s, { t: 'activate', p: a.p, oid: pd.oid, index: pd.index, pay: { crew: pd.escolhidas.slice() } }, ev);
@@ -21175,26 +21177,30 @@ PENDING_ACTIONS.saga_capitulo = ['saga_capitulo', 'concede'];
 const selfT = (s, o) => (o && !o.faceDown && s.facts[o.name] && !semImpressas(s, o) ? ((scriptOf(s, o) || {}).self || {}) : {});
 /** 702.122d · a criatura não pode tripular: dito por ela mesma ou por quem está anexado a ela. */
 const naoTripula = (s, o) => !!selfT(s, o).naoTripula || attachedTo(s, o).some(x => !!selfT(s, x).anexadaNaoTripula);
-/** Com quanto a criatura conta para a soma de "poder total N ou mais". */
+/** Com quanto a criatura conta para a soma de "poder total N ou mais" (pode ser negativo). */
 function forcaDeTripular(s, o) {
   const eu = selfT(s, o), base = eu.tripulaPela === 'resistencia' ? toughness(s, o) : power(s, o);
   let mais = eu.tripulaMais || 0;
   for (const x of battlefield(s)) if (x.controller === o.controller) mais += selfT(s, x).suasTripulamMais || 0;
-  return Math.max(0, base + mais);
+  return base + mais; // T-4 · 107.1b: poder negativo entra negativo na soma ("if a calculation or comparison needs to use a negative value, it does so")
 }
 const forcaDoGrupo = (s, lista) => lista.reduce((n, x) => n + forcaDeTripular(s, s.objects[x]), 0);
 /** 702.122a · quem pode ser virada para tripular o Veículo `selfOid`: outra criatura desvirada de `p` (enjoo não impede: o custo
  * não é o {T} dela), que possa tripular (702.122d). Um Veículo que já é criatura pode tripular outro. */
-const candidatosATripular = (s, p, selfOid) => battlefield(s).filter(o => o.controller === p && o.oid !== selfOid && !o.tapped && isCreature(s, o) && !naoTripula(s, o)).map(o => o.oid);
+const ehVeiculo = (s, o) => !!o && o.zone === 'battlefield' && /\bVehicle\b/.test(linhaDeTipo(s, o)); // T-4 · 702.122b–e falam de Veículo: habilidade de tripular em permanente de outro tipo paga o custo e mais nada
+const candidatosATripular = (s, p, selfOid) => { const v = ehVeiculo(s, s.objects[selfOid]); return battlefield(s).filter(o => o.controller === p && o.oid !== selfOid && !o.tapped && isCreature(s, o) && !(v && naoTripula(s, o))).map(o => o.oid); };
 /** Os grupos mínimos (nenhum tripulante sobrando), na mesma ordem de antes: é o que `activate` oferece direto. */
 function formasDeTripularT(s, p, n, selfOid) {
-  const cands = candidatosATripular(s, p, selfOid).map(oid => ({ oid, f: forcaDeTripular(s, s.objects[oid]) })).sort((a, b) => b.f - a.f || (a.oid < b.oid ? -1 : 1));
+  // T-4 · sem teto de tamanho (o de cinco deixava "Tripular 6" com seis 1/1 sem ação). Só quem soma (força > 0) entra em grupo mínimo; em
+  // ordem decrescente todo grupo que chega a N é mínimo, e o ramo que não alcança N com o que resta é cortado: a busca não explode.
+  const cands = candidatosATripular(s, p, selfOid).map(oid => ({ oid, f: forcaDeTripular(s, s.objects[oid]) })).filter(x => x.f > 0).sort((a, b) => b.f - a.f || (a.oid < b.oid ? -1 : 1));
+  const resto = []; for (let i = cands.length - 1, acc = 0; i >= 0; i--) resto[i] = (acc += cands[i].f);
   const out = [];
   (function busca(i, escolhidos, soma) {
     if (out.length >= LIMITE_PAGAMENTOS) return;
-    if (soma >= n && escolhidos.length) { if (escolhidos.every(x => soma - x.f < n)) out.push(escolhidos.map(x => x.oid)); return; }
+    if (soma >= n && escolhidos.length) { out.push(escolhidos.map(x => x.oid)); return; }
     if (n <= 0 && !escolhidos.length) { out.push([]); return; }
-    for (let j = i; j < cands.length && escolhidos.length < 5; j++) busca(j + 1, escolhidos.concat([cands[j]]), soma + cands[j].f);
+    for (let j = i; j < cands.length && soma + resto[j] >= n; j++) busca(j + 1, escolhidos.concat([cands[j]]), soma + cands[j].f);
   })(0, [], 0);
   return out;
 }
@@ -21209,22 +21215,27 @@ function pagaTripulacaoT(s, p, cost, pay, selfOid) {
   const v = s.objects[selfOid];
   if (v) {
     v.crewedBy = lista.slice(); // CR2d.3 · o grupo da última ativação (campo de antes)
-    v.tripulantes = { turno: s.turn.number, z: v.zc || 0, oids: [...new Set(tripulantesDe(s, v).concat(lista))] };
-    // 702.122e · o grupo desta ativação viaja com a habilidade que vai à pilha em seguida (makeAbility dá a ela o próximo número)
+    // 702.122e / 400.7 · o grupo e a encarnação da permanente nesta ativação viajam com a habilidade que vai à pilha em seguida (makeAbility dá a ela o próximo número)
     const vivos = {}; for (const k of Object.keys(s.tripulou || {})) if (s.stack.includes(k)) vivos[k] = s.tripulou[k];
-    vivos['ab' + s.nextAbility] = lista.slice(); s.tripulou = vivos;
+    vivos['ab' + s.nextAbility] = { oids: lista.slice(), z: v.zc || 0 }; s.tripulou = vivos;
+  }
+  if (v && ehVeiculo(s, v)) { // T-4 · 702.122b–c: só Veículo é "tripulado"
+    v.tripulantes = { turno: s.turn.number, z: v.zc || 0, oids: [...new Set(tripulantesDe(s, v).concat(lista))] };
     for (const x of lista) { const de = s.queued.length; gatilhosDaPermanente(s, 'tripula', s.objects[x], ['self'], {}, () => true, false);
       for (let i = de; i < s.queued.length; i++) s.queued[i].lembrada = { oid: v.oid, z: v.zc || 0 }; } // "that Vehicle"
   }
   const { crew, ...resto } = cost; return resto;
 }
-/** 702.122e · a habilidade de tripular resolveu: se o Veículo ainda é o mesmo no campo, "fica tripulado". */
+/** 702.122a/e · a habilidade de tripular resolveu. `tripulada` é a habilidade inteira na forma canônica (T-4): "esta permanente vira
+ * criatura artefato até o fim do turno" e, se é Veículo, "fica tripulado". Vale só para o MESMO objeto que foi tripulado (400.7): se
+ * ele saiu do campo — ainda que tenha voltado —, nada acontece. Na forma antiga (`animate` antes de `tripulada`) a transformação é
+ * do `animate`. */
 function tripulada(s, src, events) {
-  const v = src.ability ? s.objects[src.source] : src, grupo = (s.tripulou || {})[src.oid] || [];
+  const v = src.ability ? s.objects[src.source] : src, reg = (s.tripulou || {})[src.oid], grupo = (reg && reg.oids) || [];
   if (s.tripulou) { delete s.tripulou[src.oid]; if (!Object.keys(s.tripulou).length) delete s.tripulou; }
-  if (!v || v.zone !== 'battlefield') return;
-  events.push({ kind: 'effect', do: 'tripulada', name: v.name, target: v.name, amount: grupo.length });
-  gatilhosDaPermanente(s, 'tripulada', v, ['self'], { value: grupo.length }, () => true, false);
+  if (!v || v.zone !== 'battlefield' || (reg && reg.z !== (v.zc || 0))) return;
+  if (!(src.effects || []).some(e => e && e.do === 'animate')) { aplicaTemporario(s, v, { vira: { types: ['artifact', 'creature'], addTypes: true } }, src.controller); events.push({ kind: 'effect', do: 'animate', name: v.name, target: v.name }); }
+  if (ehVeiculo(s, v)) gatilhosDaPermanente(s, 'tripulada', v, ['self'], { value: grupo.length }, () => true, false);
 }
 /** A escolha de quem tripula só existe para a habilidade cujo custo é só tripular e que não mira (a "Crew N" impressa). */
 const soTripular = ab => !!ab && ab.kind === 'activated' && !!ab.cost && Number.isInteger(ab.cost.crew) && Object.keys(ab.cost).every(k => k === 'crew') && !(ab.effects || []).some(SC.isTargeted);
@@ -21241,19 +21252,22 @@ function tripularOfertas(s, p, out) {
     if (candidatosATripular(s, p, a.oid).length > menor) out.push({ t: 'tripular', p, oid: a.oid, index: a.index || 0 });
   }
 }
+/** T-4 · das escolhidas na decisão, as que ainda podem tripular (a que deixou de ser candidata sai da conta). */
+const escolhidasQueValem = (s, pd) => { const c = candidatosATripular(s, pd.p, pd.oid); return pd.escolhidas.filter(x => c.includes(x)); };
 /** As ações da decisão pendente `tripular`: "pronto" primeiro, quando a soma já chega; depois cada criatura que ainda pode entrar. */
 function tripularPendentes(s, p, out) {
   const pd = s.pending; if (!pd || pd.kind !== 'tripular' || pd.p !== p) return;
-  if (forcaDoGrupo(s, pd.escolhidas) >= pd.n) out.push({ t: 'tripular_pronto', p });
-  for (const oid of candidatosATripular(s, p, pd.oid)) if (!pd.escolhidas.includes(oid)) out.push({ t: 'tripulante', p, oid });
+  const valem = escolhidasQueValem(s, pd);
+  if (forcaDoGrupo(s, valem) >= pd.n) out.push({ t: 'tripular_pronto', p });
+  for (const oid of candidatosATripular(s, p, pd.oid)) if (!valem.includes(oid)) out.push({ t: 'tripulante', p, oid });
 }
 PENDING_ACTIONS.tripular = ['tripulante', 'tripular_pronto', 'concede'];
 /** Para a mesa: o resumo da decisão pendente (nome, soma, quem falta) e a resposta de quem joga sem humano (goldfish). */
 function tripulacaoPendente(s) {
   const pd = s.pending; if (!pd || pd.kind !== 'tripular') return null;
-  const soma = forcaDoGrupo(s, pd.escolhidas);
-  return { nome: pd.name, n: pd.n, soma, pronto: soma >= pd.n, escolhidas: pd.escolhidas.map(x => s.objects[x].name),
-    candidatos: candidatosATripular(s, pd.p, pd.oid).filter(x => !pd.escolhidas.includes(x)).map(oid => ({ oid, nome: s.objects[oid].name, forca: forcaDeTripular(s, s.objects[oid]) })) };
+  const valem = escolhidasQueValem(s, pd), soma = forcaDoGrupo(s, valem);
+  return { nome: pd.name, n: pd.n, soma, pronto: soma >= pd.n, escolhidas: valem.map(x => s.objects[x].name),
+    candidatos: candidatosATripular(s, pd.p, pd.oid).filter(x => !valem.includes(x)).map(oid => ({ oid, nome: s.objects[oid].name, forca: forcaDeTripular(s, s.objects[oid]) })) };
 }
 const tripulacaoPadrao = s => { const out = []; tripularPendentes(s, s.pending.p, out); return out[0] || { t: 'concede', p: s.pending.p }; };
 /** Para a folha da carta na mesa: as ações da trilha tipos que não são `activate`, com o rótulo do botão. */
@@ -23708,7 +23722,7 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */
-const EFEITO_PT_T = { tripulada: () => 'fica tripulado' }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
+const EFEITO_PT_T = { tripulada: () => 'vira criatura artefato até o fim do turno' }; // T-3 · CR 702.122e · frases dos efeitos da trilha tipos na pilha explicada
 function descreveEfeito(e) {
   if (!e || !e.do) return '';
   if (EFEITO_PT_V[e.do]) return EFEITO_PT_V[e.do](e); // V-1 · Toca ponto comum: descreveEfeito (frases da trilha verbos)
