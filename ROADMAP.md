@@ -3731,6 +3731,15 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `verbos.monstruosidade.unit` (4), cenário S8 das duas cartas.
 - **Fora:** "~ is monstrous" como condição de outras habilidades ("as long as ~ is monstrous…") — a consulta existe (`ehMonstruosa`), falta a condição no vocabulário de estáticas (trilha `motor`).
 
+**V-7 · CR3 · Dobrar (701.10) e triplicar (701.11)** 🟡 (leva V-7, motor v109 sem subir: só acrescenta ações; partidas-referência idênticas) — as duas passam de ausentes a cobertas.
+- **Valor:** "Double the power of target creature until end of turn", "Double target player's life total", "double the number of +1/+1 counters" passam a existir como uma palavra só do vocabulário.
+- **Regra inteira:** poder e resistência são efeito contínuo que **soma** (+X medido ao resolver; o que vier depois entra por cima), com valor negativo pela mesma conta; vida: ganha ou perde a diferença; marcadores: tantos quantos já tem do tipo (permanente, e veneno em jogador); mana: a mesma quantidade da cor. Triplicar: duas vezes o valor. Dano dobrado (701.10g) já era efeito de substituição do motor (`dano: [{ multiplica: 2 }]`).
+- **Vocabulário:** efeito `dobrar` (`o`: poder · resistencia · poder-resistencia · vida · marcadores + `tipo` · mana + `cor`; `vezes`: 2 ou 3; `ate` para poder e resistência) e `embaralha_esta` ("Shuffle ~ into its owner's library": a própria mágica vai da pilha ao grimório embaralhado, sem passar pelo cemitério).
+- **Cartas (texto oficial em `.listas/oficiais-verbos.json`, Oracle do Forge e mtggoldfish, 11/10/2026):** Unleash Fury (na biblioteca). Beacon of Immortality tem o texto guardado e o script provado no teste, mas **fica fora da biblioteca**: o cenário S8 exige que toda mágica termine no cemitério, salvo `exile_self`, e a linha é da trilha `motor` (pedido: aceitar `embaralha_esta`).
+- **Mesa:** nenhuma decisão nova.
+- **Testes:** `verbos.dobrar.unit` (6), cenário S8 de Unleash Fury.
+- **Fora:** carta de exemplo para triplicar (a regra é provada direto no efeito).
+
 **CR4 · Habilidades de palavra-chave (702)** ○ — 150 ausentes e 21 parciais, em ondas pela frequência em cartas anotada no mapa: (1) fechar as evergreen e as parciais; (2) "muito comum" (proeza, tripular, reforço, convocar, cascata, evocar, persistir, imortal, fração de segundo, infectar e tóxico…); (3) "comum"; (4) "rara" e "uma coleção só". 50 a 65 levas.
 
 **CR4 · andamento (trilha `keywords`, levas `K-N`)** ▶ — ordem de 11/10/2026: primeiro as palavras-chave do acervo que o medidor do leitor (LT6) acusa fora do vocabulário, depois a onda 1 (proeza, convocar, cascata, evocar, persistir, imortal, exaltado, explorar, arremeter, improvisar, recomeçar, pós-vida, evoluir), a onda 2 (completar as parciais), a 3 (raras, da mais citada à menos) e a 4 (o resto de 702, com o que fica fora declarado no mapa). Auditoria independente por subagente ao fim de cada onda. Palavra-chave com parâmetro ("Ward {3}", "Kicker {B}", "Crew 1") também depende de o leitor ler a forma: isso é da trilha `motor` (leitor), avisada a cada leva.

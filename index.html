@@ -5359,6 +5359,9 @@ const EFFECTS = {
   /* ↓ K · efeitos da trilha keywords */
   salvaguarda: { fields: [], targets: [] }, // K-2 · 702.21a · gerado pelo motor quando uma permanente com salvaguarda vira alvo (não vai em script)
   /* ↓ V · efeitos da trilha verbos */
+  embaralha_esta: { fields: [], targets: ['self'] }, // V-7 · "Shuffle ~ into its owner's library": a própria mágica, ao terminar de resolver (701.24)
+  // V-7 · 701.10 dobrar e 701.11 triplicar. `o`: 'poder' | 'resistencia' | 'poder-resistencia' (efeito contínuo, `ate`) | 'vida' | 'marcadores' (`tipo`) | 'mana' (`cor`); `vezes`: 2 ou 3
+  dobrar: { fields: [], targets: ['self', 'self-source', 'first-target', 'creature', 'creature-you-control', 'permanent', 'player', 'opponent', 'each-own-creature', 'each-creature'] },
   monstrosity: { fields: ['amount'], targets: ['self'] }, // V-6 · 701.37 monstruosidade N: se a permanente fonte não é monstruosa, N marcadores +1/+1 e ela fica monstruosa
   populate: { fields: [], targets: ['self'] }, // V-4 · 701.36 povoar: cria uma ficha que é cópia de uma ficha de criatura sua, à sua escolha
   bolster: { fields: ['amount'], targets: ['self'] }, // V-3 · 701.39 fortalecer N: marcadores na sua criatura de menor resistência (empate: você escolhe)
@@ -6172,6 +6175,19 @@ function effectErrors(effects, label, opcional) {
   });
   /* ↓ K · validação da trilha keywords */
   /* ↓ V · validação da trilha verbos */
+  effects.forEach((e, i) => { // V-7 · 701.10/701.11
+    if (e.do !== 'dobrar') return;
+    const tag = `${label} ${i + 1} (dobrar)`, pt = ['poder', 'resistencia', 'poder-resistencia'].includes(e.o);
+    if (!pt && !['vida', 'marcadores', 'mana'].includes(e.o)) errs.push(`${tag}: "o" precisa ser poder, resistencia, poder-resistencia, vida, marcadores ou mana`);
+    if (e.vezes != null && ![2, 3].includes(e.vezes)) errs.push(`${tag}: "vezes" precisa ser 2 ou 3`);
+    if (e.ate != null && !(pt && duracaoValida(e.ate))) errs.push(`${tag}: duração só vale para poder e resistência, e precisa ser conhecida`);
+    if (e.o === 'marcadores' && (typeof e.tipo !== 'string' || !e.tipo)) errs.push(`${tag}: marcadores precisa do tipo (p1p1, m1m1, loyalty, …)`);
+    if (e.o === 'marcadores' && ['self', 'player', 'opponent'].includes(e.target || 'self') && e.tipo !== 'poison') errs.push(`${tag}: marcador de jogador é só veneno (poison)`);
+    if (e.o === 'mana' && !'WUBRGC'.includes(e.cor || '?')) errs.push(`${tag}: mana precisa da cor (WUBRGC)`);
+    const t = e.target || 'self', jog = ['self', 'player', 'opponent'].includes(t);
+    if ((e.o === 'vida' || e.o === 'mana') && !jog) errs.push(`${tag}: ${e.o} é de jogador`);
+    if (pt && jog) errs.push(`${tag}: poder e resistência são de criatura`);
+  });
   effects.forEach((e, i) => { // V-4 · 701.36: povoar pode abrir escolha; o que vem depois não pode ter alvo próprio
     if (e.do === 'populate' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (populate): efeito com alvo depois de uma escolha`);
   });
@@ -6226,6 +6242,9 @@ const isTargeted = e => TARGETED.has(e.target) || (!!e.target && typeof e.target
 const RAW_SCRIPTS = [
   /* ↓ K · scripts de carta da trilha keywords (texto oficial em .listas/oficiais-keywords.json) */
   /* ↓ V · scripts de carta da trilha verbos (texto oficial em .listas/oficiais-verbos.json) */
+  // V-7 · 701.10 dobrar
+  { name: 'Unleash Fury', effects: [{ do: 'dobrar', o: 'poder', target: 'creature' }], // "Double the power of target creature until end of turn."
+    example: { target: 'own-creature', expect: { stats: [4, 2] } } },
   // V-6 · 701.37 monstruosidade
   { name: 'Nessian Asp', abilities: [{ kind: 'activated', cost: { mana: '{6}{G}' }, effects: [{ do: 'monstrosity', amount: 4 }] }], // "{6}{G}: Monstrosity 4."
     example: { action: 'activate:0', target: 'none', expect: { counters: 4 } } },
@@ -17476,6 +17495,11 @@ function applyEffect(s, src, eff, tgt, events) {
       note({ pending: true }); break;
     }
     /* ↓ V · casos de applyEffect da trilha verbos */
+    case 'embaralha_esta': { // V-7 · a mágica sai da pilha para o grimório do dono, que é embaralhado; não vai para o cemitério
+      if (!src.ability && s.objects[src.oid] && s.objects[src.oid].zone === 'stack') { const dono = s.objects[src.oid].owner; moveObject(s, src.oid, 'library'); shuffle(s, s.zones[dono].library); note({ target: src.name }); }
+      break;
+    }
+    case 'dobrar': dobrar(s, src, eff, tgt, events); break; // V-7 · 701.10, 701.11
     case 'monstrosity': monstruosidade(s, src, eff, events); break; // V-6 · 701.37
     case 'populate': povoar(s, src, events); break; // V-4 · 701.36
     case 'bolster': fortalecer(s, src, eff, events); break; // V-3 · 701.39
@@ -20185,6 +20209,34 @@ function habilidadesDePalavraK(s, o) {
 }
 Object.assign(EXPORTS_K, { instanciasK, habilidadesDePalavraK });
 /* ↓ V · exportações de core.js da trilha verbos */
+/* V-7 · 701.10 dobrar e 701.11 triplicar.
+   Poder e resistência (a–c): efeito contínuo que soma (não fixa valor): a criatura recebe +X/+0, X = o poder dela ao resolver (dobrar)
+   ou duas vezes ele (triplicar); com valor negativo recebe −X, pela mesma conta. Dura até o fim do turno, ou `ate`.
+   Vida (d): ganha ou perde o que falta para o total ficar o dobro. Marcadores (e): recebe tantos quantos já tem daquele tipo.
+   Mana (f): a reserva ganha a mesma quantidade daquela cor. Dano (g) é efeito de substituição: `dano: [{ multiplica: 2 }]` (CR2e). */
+function dobrar(s, src, eff, tgt, events) {
+  const ctrl = src.controller, k = (eff.vezes || 2) - 1, nota = x => events.push({ kind: 'effect', do: 'dobrar', name: src.name, ...x });
+  const deJogador = ['self', 'player', 'opponent'].includes(eff.target || 'self');
+  if (eff.o === 'vida' || eff.o === 'mana' || (eff.o === 'marcadores' && deJogador)) {
+    const p = tgt && tgt.player != null ? tgt.player : ctrl, pl = s.players[p]; if (!pl || pl.lost) return nota({ failed: true });
+    if (eff.o === 'marcadores') { const n = eff.tipo === 'poison' ? (pl.poison || 0) * k : 0; if (n > 0) darVeneno(s, p, n, events, src.name); return nota({ target: pl.name, amount: n, o: 'marcadores' }); } // 701.10e · marcador de jogador neste motor é veneno
+    if (eff.o === 'mana') { const n = (pl.pool[eff.cor] || 0) * k; pl.pool[eff.cor] = (pl.pool[eff.cor] || 0) + n; return nota({ target: pl.name, amount: n, o: 'mana' }); }
+    const n = pl.life * k; if (n > 0) ganhaVidaJogador(s, p, n); else if (n < 0) perdeVida(s, p, -n);
+    return nota({ target: pl.name, amount: n, o: 'vida' });
+  }
+  const o = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : tgt && tgt.oid != null ? s.objects[tgt.oid] : null;
+  if (!o || o.zone !== 'battlefield') return nota({ failed: true });
+  if (eff.o === 'marcadores') {
+    const n = (o.counters[eff.tipo] || 0) * k;
+    if (n > 0) { if (eff.tipo === 'p1p1') addCounters(s, o, n); else o.counters[eff.tipo] += n; events.push({ kind: 'effect', do: 'counters', name: o.name, target: o.name, amount: n, ...(eff.tipo === 'p1p1' ? {} : { tipo: eff.tipo }) }); }
+    return nota({ target: o.name, amount: n, o: 'marcadores' });
+  }
+  if (!isCreature(s, o)) return nota({ failed: true });
+  const dp = eff.o !== 'resistencia' ? power(s, o) * k : 0, dt = eff.o !== 'poder' ? toughness(s, o) * k : 0;
+  aplicaTemporario(s, o, { ...(eff.o !== 'resistencia' ? { poder: dp } : {}), ...(eff.o !== 'poder' ? { resistencia: dt } : {}), ate: eff.ate || 'fim-do-turno' }, ctrl);
+  nota({ target: o.name, amount: dp, toughness: dt, o: eff.o });
+}
+Object.assign(EXPORTS_V, { dobrar });
 /* V-6 · 701.37 monstruosidade N: "If this permanent isn't monstrous, put N +1/+1 counters on it and it becomes monstrous" (a). Monstruosa é
    uma marca da permanente, não habilidade nem valor copiável; dura até ela sair do campo (b) — a marca leva a encarnação do objeto e
    deixa de valer sozinha quando ele muda de zona (400.7). O N fica guardado e vai como valor do gatilho "quando fica monstruosa" (c). */
@@ -22715,6 +22767,7 @@ const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`);
 Object.assign(PALAVRA_PT, { changeling: 'metamorfo', devoid: 'desprovido' }); // K-1
 Object.assign(PALAVRA_PT, { prowess: 'proeza' }); // K-3
 /* ↓ V · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha verbos */
+const MARCADOR_PT_V = { p1p1: '+1/+1', m1m1: '−1/−1', loyalty: 'de lealdade', poison: 'de veneno' }; // V-7
 const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas por descreveEfeito)
   lutador: e => `escolhe ${ALVO_PT[e.target] || descreveAlvo(e.target)} para lutar`,
   proliferate: () => 'prolifera (escolhe permanentes e jogadores com marcador; cada um recebe mais um de cada tipo que já tem)', // V-2
@@ -22722,6 +22775,10 @@ const EFEITO_PT_V = { // V-1 · frases dos efeitos da trilha verbos (consultadas
   bolster: e => `fortalece ${qtd(e.amount)} (põe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 na sua criatura de menor resistência)`, // V-3
   populate: () => 'povoa (cria uma ficha que é cópia de uma ficha de criatura sua)', // V-4
   monstrosity: e => `monstruosidade ${qtd(e.amount)}: se ainda não é monstruosa, recebe ${qtd(e.amount) === 1 ? '1 marcador' : qtd(e.amount) + ' marcadores'} +1/+1 e fica monstruosa`, // V-6
+  dobrar: e => { const v = e.vezes === 3 ? 'triplica' : 'dobra', de = e.target && e.target !== 'self' ? ` de ${ALVO_PT[e.target] || descreveAlvo(e.target)}` : ''; // V-7
+    const oq = { poder: 'o poder', resistencia: 'a resistência', 'poder-resistencia': 'o poder e a resistência', vida: 'o total de vida', marcadores: `os marcadores ${MARCADOR_PT_V[e.tipo] || e.tipo}`, mana: `a mana ${e.cor} da reserva` }[e.o] || e.o;
+    return `${v} ${oq}${de}${['poder', 'resistencia', 'poder-resistencia'].includes(e.o) ? (e.ate && e.ate !== 'fim-do-turno' ? '' : ' até o fim do turno') : ''}`; },
+  embaralha_esta: () => 'embaralha esta mágica no grimório do dono', // V-7
   fight: e => `${e.quem === 'self-source' ? 'esta criatura luta' : 'ela luta'} com ${ALVO_PT[e.target] || descreveAlvo(e.target)} (cada uma causa dano igual ao próprio poder à outra)`,
 };
 /* ↓ T · textos de tela (PALAVRA_PT / EFEITO_PT) da trilha tipos */

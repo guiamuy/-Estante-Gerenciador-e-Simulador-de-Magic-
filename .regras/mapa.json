@@ -5807,27 +5807,34 @@
    "n": "701.10",
    "regra": "Keyword Actions",
    "titulo": "Double",
-   "status": "ausente",
-   "falta": "nenhum efeito dobra poder/resistência (701.10a-c), total de vida (d), marcadores (e), mana na reserva (f) ou dano (g); só existe multiplicador fixo em `amount.times`",
-   "esforco": "M",
+   "status": "coberta",
    "depende": [
     "613.4c",
     "614"
    ],
-   "cartas": "comum"
+   "cartas": "comum",
+   "evidencia": "V-7 · efeito `dobrar` (core.js, abaixo da âncora ↓ V): poder e/ou resistência como efeito contínuo que soma +X/+Y medido ao resolver, sem fixar valor (a, b), com valor negativo pela mesma conta (c); total de vida — ganha ou perde o que falta para o dobro (d); marcadores de um tipo numa permanente, e veneno num jogador — recebe tantos quantos já tem (e); mana de uma cor na reserva (f). Dano dobrado é efeito de substituição e já existia: `dano: [{ multiplica: 2 }]` (danoSubstituido; dano.equivalencia.unit \"M-243 · R5d\", substituicao.unit \"CR 614.1 · dano a cada oponente\") (g). Cartas: Unleash Fury (biblioteca) e Beacon of Immortality (texto em .listas/oficiais-verbos.json; script provado no teste, fora da biblioteca)",
+   "testes": [
+    "CR 701.10 · dobrar o poder (b): a criatura recebe +X/+0, X = o poder dela ao resolver, até o fim do turno; não fixa o valor (a) — o que vier depois soma por cima",
+    "CR 701.10 · dobrar poder e resistência (b) e valor negativo (c): a conta é a mesma — poder −2 dobrado vira −4",
+    "CR 701.10 · dobrar o total de vida (d): o jogador ganha (ou perde) o que falta para ficar com o dobro — Beacon of Immortality, que depois é embaralhada no grimório",
+    "CR 701.10 · dobrar marcadores (e) e mana (f): recebe tantos quantos já tem daquele tipo; sem nenhum, nada"
+   ]
   },
   {
    "n": "701.11",
    "regra": "Keyword Actions",
    "titulo": "Triple",
-   "status": "ausente",
-   "falta": "nenhum efeito triplica poder/resistência",
-   "esforco": "P",
+   "status": "coberta",
    "depende": [
     "701.10",
     "613.4c"
    ],
-   "cartas": "rara"
+   "cartas": "rara",
+   "evidencia": "V-7 · `dobrar` com `vezes: 3`: a criatura recebe +X/+Y com X e Y iguais a duas vezes o poder e a resistência ao resolver (a, b); valor negativo pela mesma conta (c)",
+   "testes": [
+    "CR 701.11 · triplicar poder e resistência: +X/+Y com X e Y iguais a duas vezes os valores de agora"
+   ]
   },
   {
    "n": "701.12",
